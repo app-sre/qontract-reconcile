@@ -10,7 +10,7 @@ from sretoolbox.utils import retry
 from sretoolbox.utils import threaded
 
 from reconcile import queries
-from reconcile.utils.oc import FieldIsImmutableError, OCClient
+from reconcile.utils.oc import FieldIsImmutableError, OCClient, OCLogMsg
 from reconcile.utils.oc import MayNotChangeOnceSetError
 from reconcile.utils.oc import PrimaryClusterIPCanNotBeUnsetError
 from reconcile.utils.oc import InvalidValueApplyError
@@ -96,11 +96,12 @@ def init_specs_to_fetch(
 
             cluster = namespace_info["cluster"]["name"]
             privileged = namespace_info.get("clusterAdmin", False) is True
-            oc = oc_map.get(cluster, privileged)
-            if not oc:
-                if oc.log_level >= logging.ERROR:
+            try:
+                oc = oc_map.get_cluster(cluster, privileged)
+            except OCLogMsg as ex:
+                if ex.log_level >= logging.ERROR:
                     ri.register_error()
-                logging.log(level=oc.log_level, msg=oc.message)
+                logging.log(level=ex.log_level, msg=ex.message)
                 continue
 
             namespace = namespace_info["name"]
@@ -182,11 +183,12 @@ def init_specs_to_fetch(
         namespace = "cluster"
         for cluster_info in clusters:
             cluster = cluster_info["name"]
-            oc = oc_map.get(cluster)
-            if not oc:
-                if oc.log_level >= logging.ERROR:
+            try:
+                oc = oc_map.get_cluster(cluster)
+            except OCLogMsg as ex:
+                if ex.log_level >= logging.ERROR:
                     ri.register_error()
-                logging.log(level=oc.log_level, msg=oc.message)
+                logging.log(level=ex.log_level, msg=ex.message)
                 continue
 
             # we currently only use override_managed_types,
@@ -320,9 +322,10 @@ def apply(
 ) -> None:
     logging.info(["apply", cluster, namespace, resource_type, resource.name])
 
-    oc = oc_map.get(cluster, privileged)
-    if not oc:
-        logging.log(level=oc.log_level, msg=oc.message)
+    try:
+        oc = oc_map.get_cluster(cluster, privileged)
+    except OCLogMsg as ex:
+        logging.log(level=ex.log_level, msg=ex.message)
         return None
     if not dry_run:
         annotated = resource.annotate()
@@ -431,12 +434,13 @@ def delete(
         logging.error("'delete' action is disabled due to previous errors.")
         return
 
-    oc = oc_map.get(cluster, privileged)
-    if not oc:
-        logging.log(level=oc.log_level, msg=oc.message)
+    try:
+        oc = oc_map.get_cluster(cluster, privileged)
+        if not dry_run:
+            oc.delete(namespace, resource_type, name)
+    except OCLogMsg as ex:
+        logging.log(level=ex.log_level, msg=ex.message)
         return None
-    if not dry_run:
-        oc.delete(namespace, resource_type, name)
 
 
 def check_unused_resource_types(ri):

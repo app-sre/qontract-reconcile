@@ -1405,6 +1405,13 @@ class OC_Map:
             OCLogMsg(log_level=logging.DEBUG, message=f"[{cluster}] cluster skipped"),
         )
 
+    def get_cluster(self, cluster: str, privileged: bool = False) -> OCClient:
+        result = self.get(cluster, privileged)
+        if isinstance(result, OCLogMsg):
+            raise result
+        else:
+            return result
+
     def clusters(
         self, include_errors: bool = False, privileged: bool = False
     ) -> List[str]:
@@ -1428,12 +1435,13 @@ class OC_Map:
                 oc.cleanup()
 
 
-class OCLogMsg:
+class OCLogMsg(Exception):
     """
     Track log messages associated with initializing OC clients in OC_Map.
     """
 
     def __init__(self, log_level, message):
+        super().__init__()
         self.log_level = log_level
         self.message = message
 
