@@ -38,8 +38,6 @@ integrations:
     limits:
       memory: 150Mi
       cpu: 200m
-  logs:
-    slack: true
 - name: github
   resources:
     requests:
