@@ -144,15 +144,6 @@ integrations:
       memory: 200Mi
       cpu: 200m
   state: true
-- name: unleash-watcher
-  resources:
-    requests:
-      memory: 80Mi
-      cpu: 100m
-    limits:
-      memory: 200Mi
-      cpu: 200m
-  state: true
 - name: aws-support-cases-sos
   resources:
     requests:
