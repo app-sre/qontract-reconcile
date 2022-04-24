@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import logging
 import itertools
 
@@ -38,7 +38,7 @@ class ValidationErrorJobFailed(Exception):
 @dataclass
 class BaseStateSpec:
 
-    oc: OCClient
+    oc: OCClient = field(compare=False)
     cluster: str
     namespace: str
 

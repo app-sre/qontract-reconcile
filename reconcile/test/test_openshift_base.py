@@ -1,5 +1,5 @@
 import logging
-from typing import Any, List, cast
+from typing import Any, cast
 import pytest
 
 import reconcile.openshift_base as sut
@@ -64,15 +64,6 @@ def test_no_cluster_or_namespace(
         )
 
 
-def assert_specs_match(
-    result: List[sut.StateSpec], expected: List[sut.StateSpec]
-) -> None:
-    """Assert that two list of StateSpec are equal. Needed since StateSpec
-    doesn't implement __eq__ and it's not worth to add for we will convert
-    it to a dataclass when we move to Python 3.9"""
-    assert [r.__dict__ for r in result] == [e.__dict__ for e in expected]
-
-
 def test_namespaces_managed(
     resource_inventory: resource.ResourceInventory,
     namespaces: list[dict[str, Any]],
@@ -101,7 +92,7 @@ def test_namespaces_managed(
         oc_map,
         namespaces=namespaces,
     )
-    assert_specs_match(rs, expected)
+    assert rs == expected
 
 
 def test_namespaces_managed_with_overrides(
@@ -135,7 +126,7 @@ def test_namespaces_managed_with_overrides(
         namespaces=namespaces,
     )
 
-    assert_specs_match(rs, expected)
+    assert rs == expected
 
 
 def test_namespaces_no_managedresourcenames(
@@ -167,7 +158,7 @@ def test_namespaces_no_managedresourcenames(
         oc_map,
         namespaces=namespaces,
     )
-    assert_specs_match(rs, expected)
+    assert rs == expected
 
 
 def test_namespaces_no_managedresourcetypes(
@@ -257,7 +248,7 @@ def test_namespaces_override_managed_type(
         namespaces=namespaces,
         override_managed_types=["LimitRanges"],
     )
-    assert_specs_match(rs, expected)
+    assert rs == expected
 
     registrations = list(resource_inventory)
     # make sure only the override_managed_type LimitRange is present
