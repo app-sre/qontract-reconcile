@@ -90,4 +90,6 @@ class TerraformResourceUniqueKey:
         )
 
 
-TerraformResourceSpecDict = Mapping[TerraformResourceUniqueKey, TerraformResourceSpec]
+TerraformResourceSpecInventory = Mapping[
+    TerraformResourceUniqueKey, TerraformResourceSpec
+]
