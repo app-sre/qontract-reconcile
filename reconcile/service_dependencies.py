@@ -20,11 +20,6 @@ APPS_QUERY = """
         name
       }
     }
-    saasFiles {
-      instance {
-        name
-      }
-    }
     quayRepos {
       org {
         name
@@ -71,12 +66,6 @@ def get_desired_dependency_names(app, dependency_map):
     jenkins_configs = app.get("jenkinsConfigs")
     if jenkins_configs:
         instances = {jc["instance"]["name"] for jc in jenkins_configs}
-        for instance in instances:
-            required_dep_names.update(get_dependency_names(dependency_map, instance))
-
-    saas_files = app.get("saasFiles")
-    if saas_files:
-        instances = {sf["instance"]["name"] for sf in saas_files}
         for instance in instances:
             required_dep_names.update(get_dependency_names(dependency_map, instance))
 
