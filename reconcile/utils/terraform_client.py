@@ -10,14 +10,12 @@ from dataclasses import dataclass
 from typing import Iterable, Mapping, Any
 
 from python_terraform import Terraform, IsFlagged, TerraformCommandError
-from ruamel import yaml
 from sretoolbox.utils import retry
 from sretoolbox.utils import threaded
 from reconcile.utils.terraform_resource_spec import TerraformResourceSpec, TerraformResourceSpecDict
 
 import reconcile.utils.lean_terraform_client as lean_tf
 
-from reconcile.utils import gql
 from reconcile.utils.aws_api import AWSApi
 
 ALLOWED_TF_SHOW_FORMAT_VERSION = "0.1"
@@ -350,39 +348,12 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
 
         for spec in resource_specs:
             tf_resource = spec.resource
-            # First, we have to find the terraform resources
-            # that have a replica_source defined in app-interface
             replica_src = tf_resource.get('replica_source')
-
-            if replica_src is None:
-                # When replica_source is not there, we look for
-                # replicate_source_db in the defaults
-                replica_src_db = None
-                defaults_reference = tf_resource.get('defaults')
-                if defaults_reference is not None:
-                    defaults_resource = gql.get_resource(
-                        defaults_reference
-                    )
-                    defaults = yaml.safe_load(defaults_resource['content'])
-                    replica_src_db = defaults.get('replicate_source_db')
-
-                # Also, we look for replicate_source_db in the overrides
-                overrides = tf_resource.get('overrides') or "{}"
-                replica_src = json.loads(overrides).get(
-                    'replicate_source_db', replica_src_db
-                )
-
-            if replica_src is None:
-                # No replica source information anywhere
-                continue
-
-            # The replica source name, as found in the
-            # self.format_output()
-            replica_source_name = f'{replica_src}-{tf_resource.get("provider")}'
-
-            # Creating a dict that is convenient to use inside the
-            # loop processing the formatted_output
-            replicas_info[spec.account][spec.output_prefix] = replica_source_name
+            if replica_src:
+                replica_source_name = f'{replica_src}-{tf_resource.get("provider")}'
+                # Creating a dict that is convenient to use inside the
+                # loop processing the formatted_output
+                replicas_info[spec.account][spec.output_prefix] = replica_source_name
 
         return replicas_info
 
