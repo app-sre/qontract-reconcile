@@ -1,6 +1,6 @@
 import reconcile.terraform_resources as integ
 from reconcile.utils.terraform_resource_spec import (
-    TerraformResourceIdentifier as TRI,
+    TerraformResourceUniqueKey,
     TerraformResourceSpec,
 )
 
@@ -144,7 +144,9 @@ def test_resource_specs_without_account_filter():
     }
     namespaces = [ns1]
     resources = integ.init_tf_resource_specs(namespaces, None)
-    assert resources == {TRI.from_dict(ra): TerraformResourceSpec(ra, ns1)}
+    assert resources == {
+        TerraformResourceUniqueKey.from_dict(ra): TerraformResourceSpec(ra, ns1)
+    }
 
 
 def test_resource_specs_with_account_filter():
@@ -162,4 +164,6 @@ def test_resource_specs_with_account_filter():
     }
     namespaces = [ns1]
     resources = integ.init_tf_resource_specs(namespaces, "a")
-    assert resources == {TRI.from_dict(ra): TerraformResourceSpec(ra, ns1)}
+    assert resources == {
+        TerraformResourceUniqueKey.from_dict(ra): TerraformResourceSpec(ra, ns1)
+    }

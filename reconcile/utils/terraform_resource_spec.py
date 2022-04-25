@@ -50,8 +50,8 @@ class TerraformResourceSpec:
     def get_secret_field(self, field: str) -> Optional[str]:
         return self.secret.get(field)
 
-    def id_object(self) -> "TerraformResourceIdentifier":
-        return TerraformResourceIdentifier.from_dict(self.resource)
+    def id_object(self) -> "TerraformResourceUniqueKey":
+        return TerraformResourceUniqueKey.from_dict(self.resource)
 
     def build_oc_secret(
         self, integration: str, integration_version: str
@@ -71,7 +71,7 @@ class TerraformResourceSpec:
 
 
 @dataclass(frozen=True)
-class TerraformResourceIdentifier:
+class TerraformResourceUniqueKey:
 
     identifier: str
     provider: str
@@ -82,8 +82,8 @@ class TerraformResourceIdentifier:
         return f"{self.identifier}-{self.provider}"
 
     @staticmethod
-    def from_dict(data: Mapping[str, Any]) -> "TerraformResourceIdentifier":
-        return TerraformResourceIdentifier(**data)
+    def from_dict(data: Mapping[str, Any]) -> "TerraformResourceUniqueKey":
+        return TerraformResourceUniqueKey(**data)
 
 
-TerraformResourceSpecDict = Mapping[TerraformResourceIdentifier, TerraformResourceSpec]
+TerraformResourceSpecDict = Mapping[TerraformResourceUniqueKey, TerraformResourceSpec]

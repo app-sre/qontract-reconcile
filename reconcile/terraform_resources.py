@@ -13,7 +13,7 @@ import reconcile.openshift_base as ob
 from reconcile import queries
 from reconcile.utils.terraform_resource_spec import (
     TerraformResourceSpecDict,
-    TerraformResourceIdentifier,
+    TerraformResourceUniqueKey,
     TerraformResourceSpec,
 )
 from reconcile.utils import gql
@@ -524,14 +524,14 @@ def filter_tf_namespaces(
 def init_tf_resource_specs(
     namespaces: Iterable[Mapping[str, Any]], account_name: Optional[str]
 ) -> TerraformResourceSpecDict:
-    resource_specs: dict[TerraformResourceIdentifier, TerraformResourceSpec] = {}
+    resource_specs: dict[TerraformResourceUniqueKey, TerraformResourceSpec] = {}
     for namespace_info in namespaces:
         if not namespace_info.get("managedTerraformResources"):
             continue
         tf_resources = namespace_info.get("terraformResources") or []
         for resource in tf_resources:
             if account_name is None or resource["account"] == account_name:
-                identifier = TerraformResourceIdentifier.from_dict(resource)
+                identifier = TerraformResourceUniqueKey.from_dict(resource)
                 resource_specs[identifier] = TerraformResourceSpec(
                     resource=resource,
                     namespace=namespace_info,

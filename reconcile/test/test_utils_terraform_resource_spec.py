@@ -1,13 +1,15 @@
 from pydantic import ValidationError
 import pytest
 from reconcile.utils.terraform_resource_spec import (
-    TerraformResourceIdentifier as TRI,
+    TerraformResourceUniqueKey,
     TerraformResourceSpec,
 )
 
 
 def test_identifier_creation_from_dict():
-    id = TRI.from_dict({"identifier": "i", "provider": "p", "account": "a"})
+    id = TerraformResourceUniqueKey.from_dict(
+        {"identifier": "i", "provider": "p", "account": "a"}
+    )
     assert id.identifier == "i"
     assert id.provider == "p"
     assert id.account == "a"
@@ -15,17 +17,23 @@ def test_identifier_creation_from_dict():
 
 def test_identifier_missing():
     with pytest.raises(ValidationError):
-        TRI.from_dict({"identifier": None, "provider": "p", "account": "a"})
+        TerraformResourceUniqueKey.from_dict(
+            {"identifier": None, "provider": "p", "account": "a"}
+        )
 
 
 def test_identifier_account_missing():
     with pytest.raises(ValidationError):
-        TRI.from_dict({"identifier": "i", "account": None, "provider": "p"})
+        TerraformResourceUniqueKey.from_dict(
+            {"identifier": "i", "account": None, "provider": "p"}
+        )
 
 
 def test_identifier_provider_missing():
     with pytest.raises(ValidationError):
-        TRI.from_dict({"identifier": "i", "account": "a", "provider": None})
+        TerraformResourceUniqueKey.from_dict(
+            {"identifier": "i", "account": "a", "provider": None}
+        )
 
 
 def test_spec_output_prefix():

@@ -5,7 +5,7 @@ from pytest_mock import MockerFixture  # type: ignore
 
 from reconcile.utils.terraform_resource_spec import (
     TerraformResourceSpec,
-    TerraformResourceIdentifier as TRI,
+    TerraformResourceUniqueKey,
 )
 import reconcile.utils.terraform_client as tfclient
 from reconcile.utils.aws_api import AWSApi
@@ -234,7 +234,7 @@ def test_populate_terraform_output_secret():
     }
 
     tfclient.TerraformClient._populate_terraform_output_secrets(
-        {TRI.from_dict(s.resource): s for s in resource_specs},
+        {TerraformResourceUniqueKey.from_dict(s.resource): s for s in resource_specs},
         existing_secrets,
         integration_prefix,
         {},
