@@ -20,6 +20,8 @@ def test_identifier_missing():
         TerraformResourceUniqueKey.from_dict(
             {"identifier": None, "provider": "p", "account": "a"}
         )
+    with pytest.raises(KeyError):
+        TerraformResourceUniqueKey.from_dict({"provider": "p", "account": "a"})
 
 
 def test_identifier_account_missing():
@@ -27,6 +29,8 @@ def test_identifier_account_missing():
         TerraformResourceUniqueKey.from_dict(
             {"identifier": "i", "account": None, "provider": "p"}
         )
+    with pytest.raises(KeyError):
+        TerraformResourceUniqueKey.from_dict({"identifier": "i", "provider": "p"})
 
 
 def test_identifier_provider_missing():
@@ -34,6 +38,8 @@ def test_identifier_provider_missing():
         TerraformResourceUniqueKey.from_dict(
             {"identifier": "i", "account": "a", "provider": None}
         )
+    with pytest.raises(KeyError):
+        TerraformResourceUniqueKey.from_dict({"identifier": "i", "account": "a"})
 
 
 def test_spec_output_prefix():

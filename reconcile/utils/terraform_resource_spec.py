@@ -83,7 +83,11 @@ class TerraformResourceUniqueKey:
 
     @staticmethod
     def from_dict(data: Mapping[str, Any]) -> "TerraformResourceUniqueKey":
-        return TerraformResourceUniqueKey(**data)
+        return TerraformResourceUniqueKey(
+            identifier=data["identifier"],
+            provider=data["provider"],
+            account=data["account"],
+        )
 
 
 TerraformResourceSpecDict = Mapping[TerraformResourceUniqueKey, TerraformResourceSpec]
