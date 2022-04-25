@@ -1017,12 +1017,20 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         else:
             az = values.get('availability_zone', None)
         provider = ''
+        region = values.pop('region', None)
         if self._multiregion_account(account):
             # To get the provider we should use, we get the region
             # and use that as an alias in the provider definition
             if az:
                 provider = 'aws.' + self._region_from_availability_zone(az)
                 values['provider'] = provider
+            if region:
+                provider_region = f'aws.{region}'
+                if not provider:
+                    provider = provider_region
+                    values['provider'] = provider
+                elif provider != provider_region:
+                    raise ValueError('region does not match availability zone')
 
         # 'deps' should contain a list of terraform resource names
         # (not full objects) that must be created

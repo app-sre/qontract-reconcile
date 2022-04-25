@@ -29,6 +29,7 @@ TF_RESOURCE = """
 provider
 ... on NamespaceTerraformResourceRDS_v1 {
   account
+  region
   identifier
   defaults
   availability_zone
