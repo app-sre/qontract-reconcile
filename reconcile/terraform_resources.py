@@ -554,11 +554,16 @@ def write_outputs_to_vault(vault_path: str, resource_specs: TerraformResourceSpe
     integration_name = QONTRACT_INTEGRATION.replace('_', '-')
     vault_client = cast(_VaultClient, VaultClient())
     for spec in resource_specs.values():
-        secret_path = f"{vault_path}/{integration_name}/{spec.cluster_name}/{spec.namespace_name}/{spec.output_resource_name}"
-        # vault only stores strings as values - by converting to str upfront, we can compare current to desired
-        stringified_secret = {k: str(v) for k, v in spec.secret.items()}
-        desired_secret = {'path': secret_path, 'data': stringified_secret}
-        vault_client.write(desired_secret, decode_base64=False)
+      # a secret can be empty if the terraform-integration is not enabled on the cluster
+      # the resource is defined on - lets skip vault writes for those right now and
+      # give this more thought - e.g. not processing such specs at all when the integration
+      # is disabled
+      if spec.secret:
+          secret_path = f"{vault_path}/{integration_name}/{spec.cluster_name}/{spec.namespace_name}/{spec.output_resource_name}"
+          # vault only stores strings as values - by converting to str upfront, we can compare current to desired
+          stringified_secret = {k: str(v) for k, v in spec.secret.items()}
+          desired_secret = {'path': secret_path, 'data': stringified_secret}
+          vault_client.write(desired_secret, decode_base64=False)
 
 
 def populate_desired_state(ri: ResourceInventory, resource_specs: TerraformResourceSpecInventory) -> None:
