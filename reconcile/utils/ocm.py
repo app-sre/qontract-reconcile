@@ -1,7 +1,7 @@
 import functools
 import logging
 import re
-from typing import Any, Optional, Mapping, Union
+from typing import Any, Optional, Union
 
 import reconcile.utils.aws_helper as awsh
 import requests
