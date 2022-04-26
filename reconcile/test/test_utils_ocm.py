@@ -8,6 +8,7 @@ def ocm(mocker):
     mocker.patch("reconcile.utils.ocm.OCM._init_request_headers")
     mocker.patch("reconcile.utils.ocm.OCM._init_clusters")
     mocker.patch("reconcile.utils.ocm.OCM._init_blocked_versions")
+    mocker.patch("reconcile.utils.ocm.OCM._init_version_gates")
     return OCM("name", "url", "tid", "turl", "ot")
 
 
@@ -47,3 +48,13 @@ def clusters_by_readiness():
 def test__ready_for_app_interface(clusters_by_readiness, ocm):
     for cluster, readiness in clusters_by_readiness:
         assert ocm._ready_for_app_interface(cluster) == readiness
+
+
+def test_get_version_gate(ocm):
+    ocm.version_gates = [
+        {"version_raw_id_prefix": "4.9"},
+        {"version_raw_id_prefix": "4.9"},
+        {"version_raw_id_prefix": "4.10"},
+    ]
+    gates = ocm.get_version_gates("4.9")
+    assert len(gates) == 2

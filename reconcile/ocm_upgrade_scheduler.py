@@ -3,7 +3,7 @@ import logging
 import copy
 
 from datetime import datetime
-from typing import Mapping, Optional
+from typing import Mapping, Optional, Union
 from dateutil import parser
 from croniter import croniter
 
@@ -172,12 +172,69 @@ def version_conditions_met(version, history, ocm_name, workloads, upgrade_condit
     return conditions_met
 
 
-def upgradeable_version(policy: Mapping, history: Mapping, ocm: OCM) -> Optional[str]:
+def gates_to_agree(version_prefix: str, cluster: str, ocm: OCM) -> list[str]:
+    """Check via OCM if a version is agreed
+
+    Args:
+        version_prefix (string): major.minor version prefix
+        cluster (string)
+        ocm (OCM): used to fetch infos from OCM
+
+    Returns:
+        bool: true on missing agreement
+    """
+
+    need_agreement = []
+    gate_ids = [gate["id"] for gate in ocm.get_version_gates(version_prefix)]
+    agreements = [agreement["version_gate"]["id"]
+                  for agreement in ocm.get_version_agreement(cluster)]
+
+    for gate in gate_ids:
+        if gate not in agreements:
+            need_agreement.append(gate)
+
+    return need_agreement
+
+
+def gate_agreeable(version_agreements: Optional[list[str]], version_prefix: str) -> bool:
+    """Check, that a gate is configured to be agreed by this integration
+
+    Args:
+        version_agreements (list): strings representing agreeable version, * allows all
+        version_prefix (string): major.minor version prefix
+
+    Returns:
+        bool: True if conditions met
+    """
+    if version_agreements is None:
+        return False
+
+    for version in version_agreements:
+        if version == version_prefix:
+            return True
+        if version == "*":
+            return True
+
+    return False
+
+
+def get_version_prefix(version: str) -> str:
+    semver = parse_semver(version)
+    return f"{semver.major}.{semver.minor}"
+
+
+def upgradeable_version(policy: Mapping, history: Mapping, ocm: OCM) -> Optional[tuple[str, bool]]:
     """Get the highest next version we can upgrade to, fulfilling all conditions"""
     upgrades = ocm.get_available_upgrades(policy["current_version"], policy["channel"])
     for version in reversed(sort_versions(upgrades)):
+        version_prefix = get_version_prefix(version)
+        version_gates = ocm.get_version_gates(version_prefix)
+        needs_agreement = len(version_gates) > 0
         if ocm.version_blocked(version):
             continue
+        if needs_agreement:
+            if not gate_agreeable(policy.get("versionGateAgreements"), version_prefix):
+                continue
         if version_conditions_met(
             version,
             history,
@@ -185,7 +242,7 @@ def upgradeable_version(policy: Mapping, history: Mapping, ocm: OCM) -> Optional
             policy["workloads"],
             policy["conditions"],
         ):
-            return version
+            return version, needs_agreement
     return None
 
 
@@ -264,7 +321,7 @@ def calculate_diff(current_state, desired_state, ocm_map, version_history):
             continue
 
         # choose version that meets the conditions and add it to the diffs
-        version = upgradeable_version(d, version_history, ocm)
+        version, needs_agreement = upgradeable_version(d, version_history, ocm)
         if version:
             item = {
                 "action": "create",
@@ -272,6 +329,7 @@ def calculate_diff(current_state, desired_state, ocm_map, version_history):
                 "version": version,
                 "schedule_type": "manual",
                 "next_run": next_schedule.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "gates_to_agree": gates_to_agree(get_version_prefix(version), cluster, ocm)
             }
             for mutex in cluster_mutexes(d):
                 locked[mutex] = cluster
@@ -292,10 +350,16 @@ def act(dry_run, diffs, ocm_map):
     for diff in diffs:
         action = diff.pop("action")
         cluster = diff.pop("cluster")
+        gates_to_agree = diff.pop("gates_to_agreee")
         ocm = ocm_map.get(cluster)
         if action == "create":
             logging.info([action, cluster, diff["version"], diff["next_run"]])
             if not dry_run:
+                if len(gates_to_agree) > 0:
+                    agreement = ocm.create_version_agreement(gates_to_agree)
+                    if agreement.get("version_gate") is None:
+                        # What should happen, error message?
+                        continue
                 ocm.create_upgrade_policy(cluster, diff)
         elif action == "delete":
             logging.info([action, cluster, diff["version"]])
@@ -303,7 +367,7 @@ def act(dry_run, diffs, ocm_map):
                 ocm.delete_upgrade_policy(cluster, diff)
 
 
-def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
+def run(dry_run):
     clusters = queries.get_clusters()
     settings = queries.get_app_interface_settings()
 
@@ -313,7 +377,8 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
         sys.exit(0)
     
     ocm_map = OCMMap(
-        clusters=clusters, integration=QONTRACT_INTEGRATION, settings=settings
+        clusters=clusters, integration=QONTRACT_INTEGRATION, settings=settings,
+        init_version_gates=True
     )
     current_state = fetch_current_state(clusters, ocm_map)
     desired_state = fetch_desired_state(clusters)
