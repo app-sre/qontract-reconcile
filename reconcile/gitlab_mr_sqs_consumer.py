@@ -5,6 +5,7 @@ SQS Consumer to create Gitlab merge requests.
 import json
 import logging
 import sys
+from typing import Any
 
 from reconcile import queries
 
@@ -23,7 +24,7 @@ def run(dry_run, gitlab_project_id):
     sqs_cli = SQSGateway(accounts, settings=settings)
 
     instance = queries.get_gitlab_instance()
-    saas_files = queries.get_saas_files_minimal(v1=True, v2=True)
+    saas_files: list[dict[str, Any]] = queries.get_saas_files_minimal()
     gitlab_cli = GitLabApi(
         instance, project_id=gitlab_project_id, settings=settings, saas_files=saas_files
     )
