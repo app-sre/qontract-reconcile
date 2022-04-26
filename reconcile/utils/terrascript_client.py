@@ -4227,11 +4227,14 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             self._get_asg_image_id(image, account, region)
         if not image_id:
             if self._use_previous_image_id(image):
-                image_id = existing_secrets[account][output_prefix]['image_id']
-                commit_sha = existing_secrets[account][output_prefix]['commit_sha']
+                new_commit_sha = commit_sha
+                existing_ami = existing_secrets[account][output_prefix]
+                image_id = existing_ami['image_id']
+                commit_sha = existing_ami['commit_sha']
                 logging.warning(
-                    f"[{account}] ami {image_id} not yet available. "
-                    f"using ami for previous commit {commit_sha}."
+                    f"[{account}] ami for commit {new_commit_sha}"
+                    f"not yet available. using ami {image_id}"
+                    f"for previous commit {commit_sha}."
                 )
             else:
                 raise ValueError(f"could not find ami for commit {commit_sha} "
