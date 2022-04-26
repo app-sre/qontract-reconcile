@@ -855,7 +855,7 @@ class OCM:  # pylint: disable=too-many-public-methods
 
     def get_version_agreement(
         self, cluster: str
-    ) -> list[Mapping[str, Union[str, bool]]]:
+    ) -> list[Mapping[str, Union[dict, str, bool]]]:
         cluster_id = self.cluster_ids.get(cluster)
         if not cluster_id:
             return []
