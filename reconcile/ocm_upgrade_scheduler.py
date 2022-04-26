@@ -227,18 +227,15 @@ def get_version_prefix(version: str) -> str:
     return f"{semver.major}.{semver.minor}"
 
 
-def upgradeable_version(
-    policy: Mapping, history: Mapping, ocm: OCM
-) -> Optional[tuple[str, bool]]:
+def upgradeable_version(policy: Mapping, history: Mapping, ocm: OCM) -> Optional[str]:
     """Get the highest next version we can upgrade to, fulfilling all conditions"""
     upgrades = ocm.get_available_upgrades(policy["current_version"], policy["channel"])
     for version in reversed(sort_versions(upgrades)):
         version_prefix = get_version_prefix(version)
         version_gates = ocm.get_version_gates(version_prefix)
-        needs_agreement = len(version_gates) > 0
         if ocm.version_blocked(version):
             continue
-        if needs_agreement:
+        if len(version_gates) > 0:
             if not gate_agreeable(policy.get("versionGateAgreements"), version_prefix):
                 continue
         if version_conditions_met(
@@ -248,7 +245,7 @@ def upgradeable_version(
             policy["workloads"],
             policy["conditions"],
         ):
-            return version, needs_agreement
+            return version
     return None
 
 
@@ -327,7 +324,7 @@ def calculate_diff(current_state, desired_state, ocm_map, version_history):
             continue
 
         # choose version that meets the conditions and add it to the diffs
-        version, needs_agreement = upgradeable_version(d, version_history, ocm)
+        version = upgradeable_version(d, version_history, ocm)
         if version:
             item = {
                 "action": "create",

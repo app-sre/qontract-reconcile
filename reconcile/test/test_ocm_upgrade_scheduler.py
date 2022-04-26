@@ -240,26 +240,27 @@ class TestUpgradeableVersion:
             },
         }
 
-    def test_upgradeable_version_blocked(self, upgrade_policy, ocm):
+    @staticmethod
+    def test_upgradeable_version_blocked(upgrade_policy, ocm):
         ocm.version_blocked.return_value = True
         x = ous.upgradeable_version(upgrade_policy, {}, ocm)
         assert x is None
 
-    def test_upgradeable_version_no_gate(self, upgrade_policy, ocm):
+    @staticmethod
+    def test_upgradeable_version_no_gate(upgrade_policy, ocm):
         x = ous.upgradeable_version(upgrade_policy, {}, ocm)
-        assert x[0] == "4.4.1"
-        assert not x[1]
+        assert x == "4.4.1"
 
-    def test_upgradeable_version_no_agreement(self, upgrade_policy, ocm_gated):
+    @staticmethod
+    def test_upgradeable_version_no_agreement(upgrade_policy, ocm_gated):
         x = ous.upgradeable_version(upgrade_policy, {}, ocm_gated)
-        assert x[0] == "4.3.6"
-        assert not x[1]
+        assert x == "4.3.6"
 
-    def test_upgradeable_version_requires_agreement(self, upgrade_policy, ocm_gated):
+    @staticmethod
+    def test_upgradeable_version_requires_agreement(upgrade_policy, ocm_gated):
         upgrade_policy["versionGateAgreements"] = ["4.4"]
         x = ous.upgradeable_version(upgrade_policy, {}, ocm_gated)
-        assert x[0] == "4.4.1"
-        assert x[1]
+        assert x == "4.4.1"
 
 
 class TestVersionGateAgreement:
@@ -273,7 +274,8 @@ class TestVersionGateAgreement:
         ocm.get_version_agreement.return_value = [{"version_gate": {"id": 2}}]
         return map.get("foo")
 
-    def test_gate_agreeable(self):
+    @staticmethod
+    def test_gate_agreeable():
         assert ous.gate_agreeable(["4.9"], version_prefix="4.9")
         assert ous.gate_agreeable(["*"], version_prefix="4.9")
         assert ous.gate_agreeable(["1", "4.9"], version_prefix="4.9")
@@ -281,12 +283,14 @@ class TestVersionGateAgreement:
         assert not ous.gate_agreeable(None, version_prefix="4.9")
         assert not ous.gate_agreeable([], version_prefix="4.9")
 
-    def test_gates_to_agree_basic(self, ocm):
+    @staticmethod
+    def test_gates_to_agree_basic(ocm):
         gta = ous.gates_to_agree("4.9", "foo", ocm)
         assert len(gta) == 1
         assert gta[0] == 1
 
-    def test_gates_to_agree_empty(self, ocm):
+    @staticmethod
+    def test_gates_to_agree_empty(ocm):
         ocm.get_version_agreement.return_value.append({"version_gate": {"id": 1}})
         gta = ous.gates_to_agree("4.9", "foo", ocm)
         assert len(gta) == 0
