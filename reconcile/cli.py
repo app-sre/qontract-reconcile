@@ -1519,10 +1519,8 @@ def ocm_machine_pools(ctx, thread_pool_size):
     run_integration(reconcile.ocm_machine_pools, ctx.obj, thread_pool_size)
 
 
-@integration.command(
-    short_help="Manage Upgrade Policy schedules in OCM."
-)
-@environ(['APP_INTERFACE_STATE_BUCKET', 'APP_INTERFACE_STATE_BUCKET_ACCOUNT'])
+@integration.command(short_help="Manage Upgrade Policy schedules in OCM.")
+@environ(["APP_INTERFACE_STATE_BUCKET", "APP_INTERFACE_STATE_BUCKET_ACCOUNT"])
 @click.pass_context
 def ocm_upgrade_scheduler(ctx):
     run_integration(reconcile.ocm_upgrade_scheduler, ctx.obj)

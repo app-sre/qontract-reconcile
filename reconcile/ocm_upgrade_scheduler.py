@@ -186,8 +186,10 @@ def gates_to_agree(version_prefix: str, cluster: str, ocm: OCM) -> list[str]:
 
     need_agreement = []
     gate_ids = [gate["id"] for gate in ocm.get_version_gates(version_prefix)]
-    agreements = [agreement["version_gate"]["id"]
-                  for agreement in ocm.get_version_agreement(cluster)]
+    agreements = [
+        agreement["version_gate"]["id"]
+        for agreement in ocm.get_version_agreement(cluster)
+    ]
 
     for gate in gate_ids:
         if gate not in agreements:
@@ -196,7 +198,9 @@ def gates_to_agree(version_prefix: str, cluster: str, ocm: OCM) -> list[str]:
     return need_agreement
 
 
-def gate_agreeable(version_agreements: Optional[list[str]], version_prefix: str) -> bool:
+def gate_agreeable(
+    version_agreements: Optional[list[str]], version_prefix: str
+) -> bool:
     """Check, that a gate is configured to be agreed by this integration
 
     Args:
@@ -223,7 +227,9 @@ def get_version_prefix(version: str) -> str:
     return f"{semver.major}.{semver.minor}"
 
 
-def upgradeable_version(policy: Mapping, history: Mapping, ocm: OCM) -> Optional[tuple[str, bool]]:
+def upgradeable_version(
+    policy: Mapping, history: Mapping, ocm: OCM
+) -> Optional[tuple[str, bool]]:
     """Get the highest next version we can upgrade to, fulfilling all conditions"""
     upgrades = ocm.get_available_upgrades(policy["current_version"], policy["channel"])
     for version in reversed(sort_versions(upgrades)):
@@ -329,7 +335,9 @@ def calculate_diff(current_state, desired_state, ocm_map, version_history):
                 "version": version,
                 "schedule_type": "manual",
                 "next_run": next_schedule.strftime("%Y-%m-%dT%H:%M:%SZ"),
-                "gates_to_agree": gates_to_agree(get_version_prefix(version), cluster, ocm)
+                "gates_to_agree": gates_to_agree(
+                    get_version_prefix(version), cluster, ocm
+                ),
             }
             for mutex in cluster_mutexes(d):
                 locked[mutex] = cluster
@@ -375,10 +383,12 @@ def run(dry_run):
     if not clusters:
         logging.debug("No upgradePolicy definitions found in app-interface")
         sys.exit(0)
-    
+
     ocm_map = OCMMap(
-        clusters=clusters, integration=QONTRACT_INTEGRATION, settings=settings,
-        init_version_gates=True
+        clusters=clusters,
+        integration=QONTRACT_INTEGRATION,
+        settings=settings,
+        init_version_gates=True,
     )
     current_state = fetch_current_state(clusters, ocm_map)
     desired_state = fetch_desired_state(clusters)

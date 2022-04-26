@@ -842,7 +842,9 @@ class OCM:  # pylint: disable=too-many-public-methods
                 return addon
         return None
 
-    def get_version_gates(self, version_prefix: str) -> list[Mapping[str, Union[str, bool]]]:
+    def get_version_gates(
+        self, version_prefix: str
+    ) -> list[Mapping[str, Union[str, bool]]]:
         if not self.init_version_gates:
             self._init_version_gates()
         return_gates = []
@@ -851,14 +853,18 @@ class OCM:  # pylint: disable=too-many-public-methods
                 return_gates.append(gate)
         return return_gates
 
-    def get_version_agreement(self, cluster: str) -> list[Mapping[str, Union[str, bool]]]:
+    def get_version_agreement(
+        self, cluster: str
+    ) -> list[Mapping[str, Union[str, bool]]]:
         cluster_id = self.cluster_ids.get(cluster)
         if not cluster_id:
             return []
         api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/gate_agreements"
         return self._get_json(api).get("items")
 
-    def create_version_agreement(self, gate_id: str, cluster: str) -> list[Mapping[str, Union[str, bool]]]:
+    def create_version_agreement(
+        self, gate_id: str, cluster: str
+    ) -> list[Mapping[str, Union[str, bool]]]:
         cluster_id = self.cluster_ids.get(cluster)
         if not cluster_id:
             return []
@@ -1003,18 +1009,27 @@ class OCMMap:  # pylint: disable=too-many-public-methods
             raise KeyError("expected only one of clusters or namespaces.")
         elif clusters:
             for cluster_info in clusters:
-                self.init_ocm_client(cluster_info, init_provision_shards,
-                                     init_addons, init_version_gates=init_version_gates)
+                self.init_ocm_client(
+                    cluster_info,
+                    init_provision_shards,
+                    init_addons,
+                    init_version_gates=init_version_gates,
+                )
         elif namespaces:
             for namespace_info in namespaces:
                 cluster_info = namespace_info["cluster"]
-                self.init_ocm_client(cluster_info, init_provision_shards,
-                                     init_addons, init_version_gates=init_version_gates)
+                self.init_ocm_client(
+                    cluster_info,
+                    init_provision_shards,
+                    init_addons,
+                    init_version_gates=init_version_gates,
+                )
         else:
             raise KeyError("expected one of clusters or namespaces.")
 
-    def init_ocm_client(self, cluster_info, init_provision_shards, init_addons,
-                        init_version_gates):
+    def init_ocm_client(
+        self, cluster_info, init_provision_shards, init_addons, init_version_gates
+    ):
         """
         Initiate OCM client.
         Gets the OCM information and initiates an OCM client.

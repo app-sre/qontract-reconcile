@@ -210,7 +210,6 @@ class TestUpgradeLock:
 
 
 class TestUpgradeableVersion:
-
     @staticmethod
     @pytest.fixture
     @patch("reconcile.ocm_upgrade_scheduler.OCMMap", autospec=True)
@@ -224,7 +223,9 @@ class TestUpgradeableVersion:
     @staticmethod
     @pytest.fixture
     def ocm_gated(ocm):
-        ocm.get_version_gates.side_effect = lambda v: [{"id": 1, "version_raw_prefix": 4.4}] if v == "4.4" else []
+        ocm.get_version_gates.side_effect = (
+            lambda v: [{"id": 1, "version_raw_prefix": 4.4}] if v == "4.4" else []
+        )
         return ocm
 
     @staticmethod
@@ -262,7 +263,6 @@ class TestUpgradeableVersion:
 
 
 class TestVersionGateAgreement:
-
     @staticmethod
     @pytest.fixture
     @patch("reconcile.ocm_upgrade_scheduler.OCMMap", autospec=True)
