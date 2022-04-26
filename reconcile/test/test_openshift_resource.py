@@ -4,6 +4,7 @@ from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.openshift_resource import (
     OpenshiftResource as OR,
     ConstructResourceError,
+    build_secret,
 )
 
 
@@ -180,3 +181,28 @@ def test_managed_cluster_label_ignore():
     c_r = OR(current, TEST_INT, TEST_INT_VER)
     assert d_r == c_r
     assert d_r.sha256sum() == c_r.sha256sum()
+
+
+def test_build_secret():
+    value = "value"
+    encoded_value = "dmFsdWU="
+    res = build_secret(
+        name="name",
+        integration=TEST_INT,
+        integration_version=TEST_INT_VER,
+        unencoded_data={
+            "field": value,
+            "empty": "",
+        },
+    )
+
+    # test metadata
+    assert res.kind == "Secret"
+    assert res.name == "name"
+    assert res.integration == TEST_INT
+    assert res.integration_version == TEST_INT_VER
+
+    # assert data section
+    assert len(res.body["data"]) == 2
+    assert res.body["data"]["field"] == encoded_value
+    assert not res.body["data"]["empty"]

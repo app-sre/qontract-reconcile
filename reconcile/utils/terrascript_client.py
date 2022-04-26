@@ -901,7 +901,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
     def populate_resources(self, namespaces: Iterable[Mapping[str, Any]],
                            existing_secrets: Mapping[str, Any],
-                           account_name: str,
+                           account_name: Optional[str],
                            ocm_map: Optional[OCMMap] = None) -> None:
         """
         Populates the terraform configuration from the definitions in app-interface
@@ -918,7 +918,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                                            ocm_map=ocm_map)
 
     def init_populate_specs(self, namespaces: Iterable[Mapping[str, Any]],
-                            account_name: str) -> None:
+                            account_name: Optional[str]) -> None:
         self.account_resources: dict[str, list[dict[str, Any]]] = {}
         for namespace_info in namespaces:
             # Skip if namespace has no terraformResources
