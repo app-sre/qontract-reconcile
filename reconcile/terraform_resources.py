@@ -558,7 +558,7 @@ def write_outputs_to_vault(vault_path: str, resource_specs: TerraformResourceSpe
         # vault only stores strings as values - by converting to str upfront, we can compare current to desired
         stringified_secret = {k: str(v) for k, v in spec.secret.items()}
         desired_secret = {'path': secret_path, 'data': stringified_secret}
-        vault_client.write(desired_secret)
+        vault_client.write(desired_secret, decode_base64=False)
 
 
 def populate_desired_state(ri: ResourceInventory, resource_specs: TerraformResourceSpecInventory) -> None:
