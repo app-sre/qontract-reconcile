@@ -842,9 +842,7 @@ class OCM:  # pylint: disable=too-many-public-methods
                 return addon
         return None
 
-    def get_version_gates(
-        self, version_prefix: str
-    ) -> list[Mapping[str, Union[str, bool]]]:
+    def get_version_gates(self, version_prefix: str) -> list[dict[str, Any]]:
         if not self.init_version_gates:
             self._init_version_gates()
         return_gates = []
@@ -853,9 +851,7 @@ class OCM:  # pylint: disable=too-many-public-methods
                 return_gates.append(gate)
         return return_gates
 
-    def get_version_agreement(
-        self, cluster: str
-    ) -> list[Mapping[str, Union[dict, str, bool]]]:
+    def get_version_agreement(self, cluster: str) -> list[dict[str, Any]]:
         cluster_id = self.cluster_ids.get(cluster)
         if not cluster_id:
             return []
@@ -864,7 +860,7 @@ class OCM:  # pylint: disable=too-many-public-methods
 
     def create_version_agreement(
         self, gate_id: str, cluster: str
-    ) -> list[Mapping[str, Union[str, bool]]]:
+    ) -> list[dict[str, Union[str, bool]]]:
         cluster_id = self.cluster_ids.get(cluster)
         if not cluster_id:
             return []

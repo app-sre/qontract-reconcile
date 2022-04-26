@@ -1,3 +1,4 @@
+from typing import Any
 from unittest import TestCase
 from unittest.mock import patch, Mock
 from croniter import croniter
@@ -230,7 +231,7 @@ class TestUpgradeableVersion:
 
     @staticmethod
     @pytest.fixture
-    def upgrade_policy() -> dict[str, any]:
+    def upgrade_policy() -> dict[str, Any]:
         return {
             "current_version": "4.3.5",
             "channel": "stable",
