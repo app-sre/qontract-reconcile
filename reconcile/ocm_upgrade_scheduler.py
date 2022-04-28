@@ -183,19 +183,16 @@ def gates_to_agree(version_prefix: str, cluster: str, ocm: OCM) -> list[str]:
     Returns:
         bool: true on missing agreement
     """
-
-    need_agreement = []
-    gate_ids = [gate["id"] for gate in ocm.get_version_gates(version_prefix)]
-    agreements = [
+    agreements = {
         agreement["version_gate"]["id"]
         for agreement in ocm.get_version_agreement(cluster)
+    }
+
+    return [
+        gate["id"]
+        for gate in ocm.get_version_gates(version_prefix)
+        if gate["id"] not in agreements
     ]
-
-    for gate in gate_ids:
-        if gate not in agreements:
-            need_agreement.append(gate)
-
-    return need_agreement
 
 
 def get_version_prefix(version: str) -> str:
