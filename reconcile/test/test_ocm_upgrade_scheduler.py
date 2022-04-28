@@ -373,3 +373,60 @@ class TestDesiredState(TestCase):
         ]
         state = ous.fetch_desired_state(clusters)
         self.assertEqual(state, expected)
+
+
+class TestAct:
+    @staticmethod
+    @pytest.fixture
+    def ocm_map(mocker):
+        mock_ocm_map = mocker.patch(
+            "reconcile.ocm_upgrade_scheduler.OCMMap", autospec=True
+        )
+        map = mock_ocm_map.return_value
+        ocm = map.get.return_value
+        map.instances.return_value = {"testing": ocm}.keys()
+        ocm.get_available_upgrades.return_value = ["4.9.5", "4.10.1"]
+        ocm.version_blocked.return_value = False
+        return map
+
+    @staticmethod
+    @pytest.fixture
+    def diff_gated_version():
+        return [
+            {
+                "action": "create",
+                "cluster": "test1",
+                "version": "1.2.3",
+                "schedule_type": "manual",
+                "next_run": datetime.now(),
+                "gates_to_agree": ["uuid-1"],
+            }
+        ]
+
+    @staticmethod
+    @pytest.fixture
+    def diff_with_delete(diff_gated_version):
+        diff_gated_version.append(
+            {
+                "action": "delete",
+                "cluster": "test2",
+                "version": "1.2.3",
+            }
+        )
+        return diff_gated_version
+
+    @staticmethod
+    def test_act_gated_version(ocm_map, diff_gated_version):
+        ous.act(False, diff_gated_version, ocm_map)
+        ocm_map.get("test1").create_version_agreement.assert_called_once_with("uuid-1")
+        ocm_map.get("test1").create_upgrade_policy.assert_called_once_with(
+            "test1", diff_gated_version[0]
+        )
+
+    @staticmethod
+    def test_act_with_delete(ocm_map, diff_with_delete):
+        ous.act(False, diff_with_delete, ocm_map)
+        ocm_map.get("test1").create_upgrade_policy.assert_called_once_with(
+            "test1", diff_with_delete[1]
+        )
+        ocm_map.get("test2").delete_upgrade_policy("test2", diff_with_delete[0])

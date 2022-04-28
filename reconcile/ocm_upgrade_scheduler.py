@@ -355,16 +355,17 @@ def act(dry_run, diffs, ocm_map):
     for diff in diffs:
         action = diff.pop("action")
         cluster = diff.pop("cluster")
-        gates_to_agree = diff.pop("gates_to_agreee")
         ocm = ocm_map.get(cluster)
         if action == "create":
+            gates_to_agree = diff.pop("gates_to_agree")
             logging.info([action, cluster, diff["version"], diff["next_run"]])
             if not dry_run:
                 if len(gates_to_agree) > 0:
-                    agreement = ocm.create_version_agreement(gates_to_agree)
-                    if agreement.get("version_gate") is None:
-                        # What should happen, error message?
-                        continue
+                    for gate in gates_to_agree:
+                        agreement = ocm.create_version_agreement(gate)
+                        if agreement.get("version_gate") is None:
+                            # What should happen, error message?
+                            continue
                 ocm.create_upgrade_policy(cluster, diff)
         elif action == "delete":
             logging.info([action, cluster, diff["version"]])
