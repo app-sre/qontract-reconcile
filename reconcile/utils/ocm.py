@@ -845,11 +845,11 @@ class OCM:  # pylint: disable=too-many-public-methods
     def get_version_gates(self, version_prefix: str) -> list[dict[str, Any]]:
         if not self.init_version_gates:
             self._init_version_gates()
-        return_gates = []
-        for gate in self.version_gates:
-            if gate["version_raw_id_prefix"] == version_prefix:
-                return_gates.append(gate)
-        return return_gates
+        return [
+            g
+            for g in self.version_gates
+            if g["version_raw_id_prefix"] == version_prefix
+        ]
 
     def get_version_agreement(self, cluster: str) -> list[dict[str, Any]]:
         cluster_id = self.cluster_ids.get(cluster)
