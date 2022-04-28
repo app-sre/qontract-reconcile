@@ -198,30 +198,6 @@ def gates_to_agree(version_prefix: str, cluster: str, ocm: OCM) -> list[str]:
     return need_agreement
 
 
-def gate_agreeable(
-    version_agreements: Optional[list[str]], version_prefix: str
-) -> bool:
-    """Check, that a gate is configured to be agreed by this integration
-
-    Args:
-        version_agreements (list): strings representing agreeable version, * allows all
-        version_prefix (string): major.minor version prefix
-
-    Returns:
-        bool: True if conditions met
-    """
-    if version_agreements is None:
-        return False
-
-    for version in version_agreements:
-        if version == version_prefix:
-            return True
-        if version == "*":
-            return True
-
-    return False
-
-
 def get_version_prefix(version: str) -> str:
     semver = parse_semver(version)
     return f"{semver.major}.{semver.minor}"
@@ -231,13 +207,8 @@ def upgradeable_version(policy: Mapping, history: Mapping, ocm: OCM) -> Optional
     """Get the highest next version we can upgrade to, fulfilling all conditions"""
     upgrades = ocm.get_available_upgrades(policy["current_version"], policy["channel"])
     for version in reversed(sort_versions(upgrades)):
-        version_prefix = get_version_prefix(version)
-        version_gates = ocm.get_version_gates(version_prefix)
         if ocm.version_blocked(version):
             continue
-        if len(version_gates) > 0:
-            if not gate_agreeable(policy.get("versionGateAgreements"), version_prefix):
-                continue
         if version_conditions_met(
             version,
             history,

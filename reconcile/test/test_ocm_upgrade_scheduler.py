@@ -253,13 +253,7 @@ class TestUpgradeableVersion:
         assert x == "4.4.1"
 
     @staticmethod
-    def test_upgradeable_version_no_agreement(upgrade_policy, ocm_gated):
-        x = ous.upgradeable_version(upgrade_policy, {}, ocm_gated)
-        assert x == "4.3.6"
-
-    @staticmethod
     def test_upgradeable_version_requires_agreement(upgrade_policy, ocm_gated):
-        upgrade_policy["versionGateAgreements"] = ["4.4"]
         x = ous.upgradeable_version(upgrade_policy, {}, ocm_gated)
         assert x == "4.4.1"
 
@@ -274,15 +268,6 @@ class TestVersionGateAgreement:
         ocm.get_version_gates.return_value = [{"id": 1}]
         ocm.get_version_agreement.return_value = [{"version_gate": {"id": 2}}]
         return map.get("foo")
-
-    @staticmethod
-    def test_gate_agreeable():
-        assert ous.gate_agreeable(["4.9"], version_prefix="4.9")
-        assert ous.gate_agreeable(["*"], version_prefix="4.9")
-        assert ous.gate_agreeable(["1", "4.9"], version_prefix="4.9")
-        assert not ous.gate_agreeable(["1", "4"], version_prefix="4.9")
-        assert not ous.gate_agreeable(None, version_prefix="4.9")
-        assert not ous.gate_agreeable([], version_prefix="4.9")
 
     @staticmethod
     def test_gates_to_agree_basic(ocm):
