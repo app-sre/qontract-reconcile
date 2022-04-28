@@ -58,7 +58,7 @@ class OCM:  # pylint: disable=too-many-public-methods
         offline_token,
         init_provision_shards=False,
         init_addons=False,
-        init_version_gates=True,
+        init_version_gates=False,
         blocked_versions=None,
     ):
         """Initiates access token and gets clusters information."""
