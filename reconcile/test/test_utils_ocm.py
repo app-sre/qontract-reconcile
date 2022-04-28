@@ -58,3 +58,5 @@ def test_get_version_gate(ocm):
     ]
     gates = ocm.get_version_gates("4.9")
     assert len(gates) == 2
+    assert gates[0] == gates[1] == {"version_raw_id_prefix": "4.9"}
+    assert len(ocm.get_version_gates("4.8")) == 0
