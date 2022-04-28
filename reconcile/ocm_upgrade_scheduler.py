@@ -344,7 +344,7 @@ def act(dry_run, diffs, ocm_map):
                 ocm.delete_upgrade_policy(cluster, diff)
 
 
-def run(dry_run):
+def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
     clusters = queries.get_clusters()
     settings = queries.get_app_interface_settings()
 
