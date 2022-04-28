@@ -16,7 +16,12 @@ setup(
     url='https://github.com/app-sre/qontract-reconcile',
 
     packages=find_packages(exclude=('tests',)),
-    package_data={'reconcile': ['templates/*.j2']},
+    package_data={
+        'reconcile': ['templates/*.j2'],
+
+        # Include schema queries and json for debugging purposes
+        'schema': ['*.gql', '*.json'],
+    },
 
     install_requires=[
         "sretoolbox~=1.2",
@@ -59,6 +64,7 @@ setup(
         "transity-statuspageio>=0.0.3,<0.1",
         "pydantic~=1.9.0",
         "MarkupSafe==2.1.1",
+        "sgqlc~=16.0",
         # this is really needed only in lint and type validations.
         # Is there any better place to put this in?
         "packaging~=21.3",

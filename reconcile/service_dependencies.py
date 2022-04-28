@@ -3,6 +3,7 @@ import logging
 
 from reconcile.utils import gql
 from reconcile import queries
+from reconcile.utils.typed_gql_queries import query_saas_files
 
 
 APPS_QUERY = """
@@ -63,6 +64,10 @@ def get_desired_dependency_names(app, dependency_map):
         if github_urls:
             required_dep_names.update(get_dependency_names(dependency_map, "github"))
 
+    for saas_file in query_saas_files():
+        # Do stuff on types :)
+        print(f"{saas_file.name} {saas_file.pipelines_provider.name}")
+
     jenkins_configs = app.get("jenkinsConfigs")
     if jenkins_configs:
         instances = {jc["instance"]["name"] for jc in jenkins_configs}
@@ -89,6 +94,7 @@ def get_desired_dependency_names(app, dependency_map):
 def run(dry_run):
     settings = queries.get_app_interface_settings()
     dependency_map = settings.get("dependencies")
+
     if not dependency_map:
         sys.exit()
 
