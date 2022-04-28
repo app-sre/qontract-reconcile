@@ -61,3 +61,4 @@ desired:
     authorized-users.yaml: |-
       user1
       user2
+    expiration: 'OVERRIDE_ME'

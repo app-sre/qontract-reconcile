@@ -90,6 +90,7 @@ class TestGabiAuthorizedUser(TestCase):
         get_settings,
     ):
         expirationDate = date.today()
+        apply["desired"]["data"]["expiration"] = str(expirationDate)
         get_gabi_instances.return_value = mock_get_gabi_instances(expirationDate)
         mock_request.side_effect = apply_request
         gabi_u.run(dry_run=False)
@@ -132,7 +133,7 @@ class TestGabiAuthorizedUser(TestCase):
         get_settings,
     ):
         # pylint: disable=no-self-use
-        expirationDate = date.today() - timedelta(days=1)
+        expirationDate = "2000-01-01"
         get_gabi_instances.return_value = mock_get_gabi_instances(expirationDate)
         mock_request.side_effect = delete_request
         gabi_u.run(dry_run=False)

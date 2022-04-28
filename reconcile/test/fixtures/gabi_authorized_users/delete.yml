@@ -21,6 +21,7 @@ server:
         authorized-users.yaml: |-
           user1
           user2
+        expiration: '2000-01-01'
   apis:
     kind: APIGroupList
     groups:
@@ -49,3 +50,4 @@ desired:
       qontract.recycle: 'true'
   data:
     authorized-users.yaml: ''
+    expiration: '2000-01-01'

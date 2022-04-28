@@ -16,12 +16,17 @@ QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 EXPIRATION_MAX = 90
 
 
-def construct_gabi_oc_resource(name: str, users: Iterable[str]) -> OpenshiftResource:
+def construct_gabi_oc_resource(
+    name: str, users: Iterable[str], exp_date: date
+) -> OpenshiftResource:
     body = {
         "apiVersion": "v1",
         "kind": "ConfigMap",
         "metadata": {"name": name, "annotations": {"qontract.recycle": "true"}},
-        "data": {"authorized-users.yaml": "\n".join(users)},
+        "data": {
+            "authorized-users.yaml": "\n".join(users),
+            "expiration": str(exp_date),
+        },
     }
     return OpenshiftResource(
         body, QONTRACT_INTEGRATION, QONTRACT_INTEGRATION_VERSION, error_details=name
@@ -41,7 +46,7 @@ def fetch_desired_state(
                 f'The maximum expiration date of {g["name"]} '
                 f"shall not exceed {EXPIRATION_MAX} days form today"
             )
-        resource = construct_gabi_oc_resource(g["name"], users)
+        resource = construct_gabi_oc_resource(g["name"], users, exp_date)
         for i in g["instances"]:
             namespace = i["namespace"]
             account = i["account"]
