@@ -832,6 +832,8 @@ class OCM:  # pylint: disable=too-many-public-methods
 
     def _init_version_gates(self):
         """Returns a list of version gates"""
+        if self.version_gates:
+            return
         api = f"{CS_API_BASE}/v1/version_gates"
         self.version_gates = self._get_json(api).get("items")
 
