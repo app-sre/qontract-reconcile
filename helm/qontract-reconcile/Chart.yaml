@@ -2,6 +2,6 @@ apiVersion: v2
 name: qontract-reconcile
 version: 0.1.0
 appVersion: 0.1.0
-description: A qontract-reconcile Helm chart for OpenShift (used to generate OpenShift template)
+description: A qontrac-reconcile Helm chart for OpenShift (used to generate OpenShift template)
 icon: https://avatars3.githubusercontent.com/u/43133889
 type: application
