@@ -390,9 +390,7 @@ def clusters_network(ctx, name):
     print_output(ctx.obj["options"], clusters, columns)
 
 
-@get.command()
-@click.pass_context
-def ocm_aws_infrastructure_access_switch_role_links(ctx):
+def ocm_aws_infrastructure_access_switch_role_links_data() -> list[dict]:
     settings = queries.get_app_interface_settings()
     clusters = queries.get_clusters()
     clusters = [c for c in clusters if c.get("ocm") is not None]
@@ -412,8 +410,34 @@ def ocm_aws_infrastructure_access_switch_role_links(ctx):
             }
             results.append(item)
 
+    return results
+
+
+@get.command()
+@click.pass_context
+def ocm_aws_infrastructure_access_switch_role_links_flat(ctx):
+    results = ocm_aws_infrastructure_access_switch_role_links_data()
     columns = ["cluster", "user_arn", "access_level", "switch_role_link"]
     print_output(ctx.obj["options"], results, columns)
+
+
+@get.command()
+@click.pass_context
+def ocm_aws_infrastructure_access_switch_role_links(ctx):
+    if ctx.obj["options"]["output"] != "md":
+        raise Exception(f"Unupported output: {ctx.obj['options']['output']}")
+    results = ocm_aws_infrastructure_access_switch_role_links_data()
+    by_user = {}
+    for r in results:
+        user = r["user_arn"].split("/")[1]
+        by_user.setdefault(user, []).append(r)
+    columns = ["cluster", "user_arn", "access_level", "switch_role_link"]
+    for user in sorted(by_user.keys()):
+        print(f"- [{user}](#{user})")
+    for user in sorted(by_user.keys()):
+        print("")
+        print(f"# {user}")
+        print_output(ctx.obj["options"], by_user[user], columns)
 
 
 @get.command()
