@@ -844,13 +844,16 @@ class OCM:  # pylint: disable=too-many-public-methods
                 return addon
         return None
 
-    def get_version_gates(self, version_prefix: str) -> list[dict[str, Any]]:
+    def get_version_gates(
+        self, version_prefix: str, sts_only: bool = False
+    ) -> list[dict[str, Any]]:
         if not self.init_version_gates:
             self._init_version_gates()
         return [
             g
             for g in self.version_gates
             if g["version_raw_id_prefix"] == version_prefix
+            and g["sts_only"] == sts_only
         ]
 
     def get_version_agreement(self, cluster: str) -> list[dict[str, Any]]:

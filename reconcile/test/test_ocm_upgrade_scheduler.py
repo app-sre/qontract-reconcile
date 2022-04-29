@@ -403,7 +403,9 @@ class TestAct:
     @staticmethod
     def test_act_gated_version(ocm_map, diff_gated_version):
         ous.act(False, diff_gated_version, ocm_map)
-        ocm_map.get("test1").create_version_agreement.assert_called_once_with("uuid-1")
+        ocm_map.get("test1").create_version_agreement.assert_called_once_with(
+            "uuid-1", "test1"
+        )
         ocm_map.get("test1").create_upgrade_policy.assert_called_once_with(
             "test1", diff_gated_version[0]
         )

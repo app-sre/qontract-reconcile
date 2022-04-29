@@ -52,11 +52,12 @@ def test__ready_for_app_interface(clusters_by_readiness, ocm):
 
 def test_get_version_gate(ocm):
     ocm.version_gates = [
-        {"version_raw_id_prefix": "4.9"},
-        {"version_raw_id_prefix": "4.9"},
-        {"version_raw_id_prefix": "4.10"},
+        {"version_raw_id_prefix": "4.9", "sts_only": True},
+        {"version_raw_id_prefix": "4.9", "sts_only": False},
+        {"version_raw_id_prefix": "4.10", "sts_only": False},
     ]
     gates = ocm.get_version_gates("4.9")
-    assert len(gates) == 2
-    assert gates[0] == gates[1] == {"version_raw_id_prefix": "4.9"}
+    assert gates == [{"version_raw_id_prefix": "4.9", "sts_only": False}]
+    gates = ocm.get_version_gates("4.9", sts_only=True)
+    assert gates == [{"version_raw_id_prefix": "4.9", "sts_only": True}]
     assert len(ocm.get_version_gates("4.8")) == 0

@@ -329,6 +329,14 @@ def act(dry_run, diffs, ocm_map):
             logging.info([action, cluster, diff["version"], diff["next_run"]])
             if not dry_run:
                 for gate in gates_to_agree:
+                    logging.info(
+                        [
+                            action,
+                            cluster,
+                            diff["version"],
+                            f"Creating version agreement for gate {gate}",
+                        ]
+                    )
                     agreement = ocm.create_version_agreement(gate, cluster)
                     if agreement.get("version_gate") is None:
                         logging.error(
