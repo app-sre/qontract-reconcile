@@ -38,12 +38,9 @@ class ValidationErrorJobFailed(Exception):
 @dataclass
 class BaseStateSpec:
 
-    oc: OCClient = field(compare=False)
+    oc: OCClient = field(compare=False, repr=False)
     cluster: str
     namespace: str
-
-    def __str__(self) -> str:
-        return f"cluster: {self.cluster}, namespace: {self.namespace}"
 
 
 @dataclass
@@ -52,21 +49,13 @@ class CurrentStateSpec(BaseStateSpec):
     kind: str
     resource_names: Optional[Iterable[str]]
 
-    def __str__(self) -> str:
-        return (
-            f"current spec - {super().__str__()}, resource_names: {self.resource_names}"
-        )
-
 
 @dataclass
 class DesiredStateSpec(BaseStateSpec):
 
     resource: Mapping[str, Any]
-    parent: Mapping[Any, Any]
+    parent: Mapping[Any, Any] = field(repr=False)
     privileged: bool = False
-
-    def __str__(self) -> str:
-        return f"desired spec - {super().__str__()}, privileged: {self.privileged}"
 
 
 StateSpec = Union[CurrentStateSpec, DesiredStateSpec]
