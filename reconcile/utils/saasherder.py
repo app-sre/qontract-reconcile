@@ -25,7 +25,7 @@ from reconcile.utils.oc import OC, StatusCodeError
 from reconcile.utils.openshift_resource import (
     OpenshiftResource as OR,
     ResourceInventory,
-    full_qualified_kind,
+    fully_qualified_kind,
     ResourceKeyExistsError,
 )
 from reconcile.utils.secret_reader import SecretReader
@@ -1059,7 +1059,7 @@ class SaasHerder:
         for r in resources:
             if isinstance(r, dict) and "kind" in r and "apiVersion" in r:
                 kind = cast(str, r.get("kind"))
-                kind_and_group = full_qualified_kind(
+                kind_and_group = fully_qualified_kind(
                     kind, cast(str, r.get("apiVersion"))
                 )
                 if (

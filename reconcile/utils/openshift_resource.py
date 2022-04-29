@@ -180,7 +180,7 @@ class OpenshiftResource:
 
     @property
     def kind_and_group(self):
-        return full_qualified_kind(self.kind, self.body["apiVersion"])
+        return fully_qualified_kind(self.kind, self.body["apiVersion"])
 
     @property
     def caller(self):
@@ -502,7 +502,7 @@ class OpenshiftResource:
         return m.hexdigest()
 
 
-def full_qualified_kind(kind: str, api_version: str) -> str:
+def fully_qualified_kind(kind: str, api_version: str) -> str:
     if "/" in api_version:
         group = api_version.split("/")[0]
         return f"{kind}.{group}"
@@ -533,7 +533,7 @@ class ResourceInventory:
         namespace: str,
         resource: OpenshiftResource,
         privileged: bool = False,
-    ):
+    ) -> None:
         if resource.kind_and_group in self._clusters[cluster][namespace]:
             kind = resource.kind_and_group
         else:
