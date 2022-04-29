@@ -415,7 +415,7 @@ def ocm_aws_infrastructure_access_switch_role_links_data() -> list[dict]:
 
 @get.command()
 @click.pass_context
-def ocm_aws_infrastructure_access_switch_role_links(ctx):
+def ocm_aws_infrastructure_access_switch_role_links_flat(ctx):
     results = ocm_aws_infrastructure_access_switch_role_links_data()
     columns = ["cluster", "user_arn", "access_level", "switch_role_link"]
     print_output(ctx.obj["options"], results, columns)
@@ -423,7 +423,7 @@ def ocm_aws_infrastructure_access_switch_role_links(ctx):
 
 @get.command()
 @click.pass_context
-def ocm_aws_infrastructure_access_switch_role_links_by_user(ctx):
+def ocm_aws_infrastructure_access_switch_role_links(ctx):
     if ctx.obj["options"]["output"] != "md":
         raise Exception(f"Unupported output: {ctx.obj['options']['output']}")
     results = ocm_aws_infrastructure_access_switch_role_links_data()
