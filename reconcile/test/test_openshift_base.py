@@ -1,6 +1,7 @@
 import logging
 from typing import Any, cast
 import pytest
+import yaml
 
 import reconcile.openshift_base as sut
 import reconcile.utils.openshift_resource as resource
@@ -64,12 +65,28 @@ def test_no_cluster_or_namespace(
         )
 
 
-def test_namespaces_managed(
+def test_namespaces_managed_types(
     resource_inventory: resource.ResourceInventory,
-    namespaces: list[dict[str, Any]],
     oc_map: oc.OC_Map,
     oc_cs1: oc.OCClient,
 ) -> None:
+    namespace = yaml.safe_load(
+        """
+        name: ns1
+        cluster:
+          name: cs1
+        managedResourceTypes:
+        - Template
+        managedResourceNames:
+        - resource: Template
+          resourceNames:
+          - tp1
+          - tp2
+        openshiftResources:
+        - provider: resource
+          path: /some/path.yml
+        """
+    )
     expected: list[sut.StateSpec] = [
         sut.CurrentStateSpec(
             oc=oc_cs1,
@@ -83,33 +100,49 @@ def test_namespaces_managed(
             cluster="cs1",
             namespace="ns1",
             resource={"provider": "resource", "path": "/some/path.yml"},
-            parent=namespaces[0],
+            parent=namespace,
         ),
     ]
 
     rs = sut.init_specs_to_fetch(
         resource_inventory,
         oc_map,
-        namespaces=namespaces,
+        namespaces=[namespace],
     )
     assert rs == expected
 
 
-def test_namespaces_managed_with_overrides(
+def test_namespaces_managed_types_with_resoruce_type_overrides(
     resource_inventory: resource.ResourceInventory,
-    namespaces: list[dict[str, Any]],
     oc_map: oc.OC_Map,
     oc_cs1: oc.OCClient,
 ) -> None:
-    namespaces[0]["managedResourceTypeOverrides"] = [
-        {"resource": "Template", "override": "something.template"}
-    ]
+    namespace = yaml.safe_load(
+        """
+        name: ns1
+        cluster:
+          name: cs1
+        managedResourceTypes:
+        - Template
+        managedResourceNames:
+        - resource: Template
+          resourceNames:
+          - tp1
+          - tp2
+        managedResourceTypeOverrides:
+        - resource: Template
+          "override": "something.something.Template"
+        openshiftResources:
+        - provider: resource
+          path: /some/path.yml
+        """
+    )
     expected: list[sut.StateSpec] = [
         sut.CurrentStateSpec(
             oc=oc_cs1,
             cluster="cs1",
             namespace="ns1",
-            kind="something.template",
+            kind="something.something.Template",
             resource_names=["tp1", "tp2"],
         ),
         sut.DesiredStateSpec(
@@ -117,26 +150,35 @@ def test_namespaces_managed_with_overrides(
             cluster="cs1",
             namespace="ns1",
             resource={"provider": "resource", "path": "/some/path.yml"},
-            parent=namespaces[0],
+            parent=namespace,
         ),
     ]
     rs = sut.init_specs_to_fetch(
         resource_inventory,
         oc_map,
-        namespaces=namespaces,
+        namespaces=[namespace],
     )
 
     assert rs == expected
 
 
-def test_namespaces_no_managedresourcenames(
+def test_namespaces_managed_types_no_managed_resource_names(
     resource_inventory: resource.ResourceInventory,
-    namespaces: list[dict[str, Any]],
     oc_map: oc.OC_Map,
     oc_cs1: oc.OCClient,
 ) -> None:
-    namespaces[0]["managedResourceNames"] = None
-    namespaces[0]["managedResourceTypeOverrides"] = None
+    namespace = yaml.safe_load(
+        """
+        name: ns1
+        cluster:
+          name: cs1
+        managedResourceTypes:
+        - Template
+        openshiftResources:
+        - provider: resource
+          path: /some/path.yml
+        """
+    )
     expected: list[sut.StateSpec] = [
         sut.CurrentStateSpec(
             oc=oc_cs1,
@@ -150,81 +192,126 @@ def test_namespaces_no_managedresourcenames(
             cluster="cs1",
             namespace="ns1",
             resource={"provider": "resource", "path": "/some/path.yml"},
-            parent=namespaces[0],
+            parent=namespace,
         ),
     ]
     rs = sut.init_specs_to_fetch(
         resource_inventory,
         oc_map,
-        namespaces=namespaces,
+        namespaces=[namespace],
     )
     assert rs == expected
 
 
-def test_namespaces_no_managedresourcetypes(
+def test_namespaces_no_managed_resource_types(
     resource_inventory: resource.ResourceInventory,
     namespaces: list[dict[str, Any]],
     oc_map: oc.OC_Map,
 ) -> None:
-    namespaces[0]["managedResourceTypes"] = None
+    namespace = yaml.safe_load(
+        """
+        name: ns1
+        cluster:
+          name: cs1
+        openshiftResources:
+        - provider: resource
+          path: /some/path.yml
+        """
+    )
     rs = sut.init_specs_to_fetch(
         resource_inventory,
         oc_map,
-        namespaces=namespaces,
+        namespaces=[namespace],
     )
 
     assert not rs
 
 
-def test_namespaces_extra_managed_resource_name(
+def test_namespaces_resources_names_for_unmanaged_type(
     resource_inventory: resource.ResourceInventory,
-    namespaces: list[dict[str, Any]],
     oc_map: oc.OC_Map,
 ) -> None:
-    namespaces[0]["managedResourceNames"].append(
-        {
-            "resource": "Secret",
-            "resourceNames": ["s1", "s2"],
-        },
+    namespace = yaml.safe_load(
+        """
+        name: ns1
+        cluster:
+          name: cs1
+        managedResourceTypes:
+        - Template
+        managedResourceNames:
+        - resource: Template
+          resourceNames:
+          - tp1
+          - tp2
+        - resource: Secret
+          resourceNames:
+          - s1
+          - s2
+        openshiftResources:
+        - provider: resource
+          path: /some/path.yml
+        """
     )
 
     with pytest.raises(KeyError):
         sut.init_specs_to_fetch(
             resource_inventory,
             oc_map,
-            namespaces=namespaces,
+            namespaces=[namespace],
         )
 
 
-def test_namespaces_extra_override(
+def test_namespaces_type_override_for_unmanaged_type(
     resource_inventory: resource.ResourceInventory,
-    namespaces: list[dict[str, Any]],
     oc_map: oc.OC_Map,
 ) -> None:
-    namespaces[0]["managedResourceTypeOverrides"] = [
-        {
-            "resource": "Project",
-            "override": "something.project",
-        }
-    ]
-
+    namespace = yaml.safe_load(
+        """
+        name: ns1
+        cluster:
+          name: cs1
+        managedResourceTypes:
+        - Template
+        managedResourceTypeOverrides:
+        - resource: UnmanagedType
+          override: unmanagedapi.UnmanagedType
+        openshiftResources:
+        - provider: resource
+          path: /some/path.yml
+        """
+    )
     with pytest.raises(KeyError):
-        sut.init_specs_to_fetch(resource_inventory, oc_map, namespaces=namespaces)
+        sut.init_specs_to_fetch(resource_inventory, oc_map, namespaces=[namespace])
 
 
 def test_namespaces_override_managed_type(
     resource_inventory: resource.ResourceInventory,
-    namespaces: list[dict[str, Any]],
     oc_map: oc.OC_Map,
     oc_cs1: oc.OCClient,
 ) -> None:
-    namespaces[0]["managedResourceTypeOverrides"] = [
-        {
-            "resource": "Project",
-            "override": "wonderful.project",
-        }
-    ]
-
+    """
+    test that the override_managed_types parameter for init_specs_to_fetch takes
+    precedence over what might be defined on the namespace. this is relevant for
+    integrations that specifically handle only a subset of types e.g. terraform-resources
+    only managing Secrets
+    """
+    namespace = yaml.safe_load(
+        """
+        name: ns1
+        cluster:
+          name: cs1
+        managedResourceTypes:
+        - Template
+        managedResourceNames:
+        - resource: Template
+          resourceNames:
+          - tp1
+          - tp2
+        openshiftResources:
+        - provider: resource
+          path: /some/path.yml
+        """
+    )
     expected: list[sut.StateSpec] = [
         sut.CurrentStateSpec(
             oc=oc_cs1,
@@ -238,14 +325,14 @@ def test_namespaces_override_managed_type(
             cluster="cs1",
             namespace="ns1",
             resource={"provider": "resource", "path": "/some/path.yml"},
-            parent=namespaces[0],
+            parent=namespace,
         ),
     ]
 
     rs = sut.init_specs_to_fetch(
         resource_inventory,
         oc_map=oc_map,
-        namespaces=namespaces,
+        namespaces=[namespace],
         override_managed_types=["LimitRanges"],
     )
     assert rs == expected
@@ -254,8 +341,157 @@ def test_namespaces_override_managed_type(
     # make sure only the override_managed_type LimitRange is present
     # and not the Template from the namespace
     assert len(registrations) == 1
-    cluster, namespace, kind, _ = registrations[0]
-    assert (cluster, namespace, kind) == ("cs1", "ns1", "LimitRanges")
+    cluster, ns, kind, _ = registrations[0]
+    assert (cluster, ns, kind) == ("cs1", "ns1", "LimitRanges")
+
+
+def test_namespaces_managed_fully_qualified_types(
+    resource_inventory: resource.ResourceInventory,
+    oc_map: oc.OC_Map,
+    oc_cs1: oc.OCClient,
+) -> None:
+    namespace = yaml.safe_load(
+        """
+        name: ns1
+        cluster:
+          name: cs1
+        managedResourceTypes:
+        - fullyqualified.Kind
+        openshiftResources:
+        - provider: resource
+          path: /some/path.yml
+        """
+    )
+    expected: list[sut.StateSpec] = [
+        sut.CurrentStateSpec(
+            oc=oc_cs1,
+            cluster="cs1",
+            namespace="ns1",
+            kind="fullyqualified.Kind",
+            resource_names=None,
+        ),
+        sut.DesiredStateSpec(
+            oc=oc_cs1,
+            cluster="cs1",
+            namespace="ns1",
+            resource={"provider": "resource", "path": "/some/path.yml"},
+            parent=namespace,
+        ),
+    ]
+
+    rs = sut.init_specs_to_fetch(
+        resource_inventory,
+        oc_map,
+        namespaces=[namespace],
+    )
+    assert rs == expected
+
+
+def test_namespaces_managed_fully_qualified_types_with_resource_names(
+    resource_inventory: resource.ResourceInventory,
+    oc_map: oc.OC_Map,
+    oc_cs1: oc.OCClient,
+) -> None:
+    namespace = yaml.safe_load(
+        """
+        name: ns1
+        cluster:
+          name: cs1
+        managedResourceTypes:
+        - fullyqualified.Kind
+        managedResourceNames:
+        - resource: fullyqualified.Kind
+          resourceNames:
+          - n1
+          - n2
+        openshiftResources:
+        - provider: resource
+          path: /some/path.yml
+        """
+    )
+    expected: list[sut.StateSpec] = [
+        sut.CurrentStateSpec(
+            oc=oc_cs1,
+            cluster="cs1",
+            namespace="ns1",
+            kind="fullyqualified.Kind",
+            resource_names=["n1", "n2"],
+        ),
+        sut.DesiredStateSpec(
+            oc=oc_cs1,
+            cluster="cs1",
+            namespace="ns1",
+            resource={"provider": "resource", "path": "/some/path.yml"},
+            parent=namespace,
+        ),
+    ]
+
+    rs = sut.init_specs_to_fetch(
+        resource_inventory,
+        oc_map,
+        namespaces=[namespace],
+    )
+    assert rs == expected
+
+
+def test_namespaces_managed_mixed_qualified_types_with_resource_names(
+    resource_inventory: resource.ResourceInventory,
+    oc_map: oc.OC_Map,
+    oc_cs1: oc.OCClient,
+) -> None:
+    namespace = yaml.safe_load(
+        """
+        name: ns1
+        cluster:
+          name: cs1
+        managedResourceTypes:
+        - fullyqualified.Kind
+        - Kind
+        managedResourceNames:
+        - resource: fullyqualified.Kind
+          resourceNames:
+          - fname
+        - resource: Kind
+          resourceNames:
+          - name
+        openshiftResources:
+        - provider: resource
+          path: /some/path.yml
+        """
+    )
+    expected: list[sut.StateSpec] = [
+        sut.CurrentStateSpec(
+            oc=oc_cs1,
+            cluster="cs1",
+            namespace="ns1",
+            kind="fullyqualified.Kind",
+            resource_names=["fname"],
+        ),
+        sut.CurrentStateSpec(
+            oc=oc_cs1,
+            cluster="cs1",
+            namespace="ns1",
+            kind="Kind",
+            resource_names=["name"],
+        ),
+        sut.DesiredStateSpec(
+            oc=oc_cs1,
+            cluster="cs1",
+            namespace="ns1",
+            resource={"provider": "resource", "path": "/some/path.yml"},
+            parent=namespace,
+        ),
+    ]
+
+    rs = sut.init_specs_to_fetch(
+        resource_inventory,
+        oc_map,
+        namespaces=[namespace],
+    )
+
+    assert len(expected) == len(rs)
+    for e in expected:
+        assert e in rs
 
 
 def test_determine_user_key_for_access_github_org():
