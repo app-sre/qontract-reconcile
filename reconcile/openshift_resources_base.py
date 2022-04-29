@@ -578,7 +578,7 @@ def fetch_current_state(
 ):
     global _log_lock
 
-    msg = "Fetching {}s from {}/{}".format(kind, cluster, namespace)
+    msg = f"Fetching {kind} from {cluster}/{namespace}"
     _log_lock.acquire()  # pylint: disable=consider-using-with
     logging.debug(msg)
     _log_lock.release()
