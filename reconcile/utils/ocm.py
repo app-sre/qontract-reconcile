@@ -858,7 +858,10 @@ class OCM:  # pylint: disable=too-many-public-methods
         if not cluster_id:
             return []
         api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/gate_agreements"
-        return self._get_json(api).get("items")
+        agreements = self._get_json(api).get("items")
+        if agreements:
+            return agreements
+        return []
 
     def create_version_agreement(
         self, gate_id: str, cluster: str

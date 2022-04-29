@@ -329,7 +329,7 @@ def act(dry_run, diffs, ocm_map):
             logging.info([action, cluster, diff["version"], diff["next_run"]])
             if not dry_run:
                 for gate in gates_to_agree:
-                    agreement = ocm.create_version_agreement(gate)
+                    agreement = ocm.create_version_agreement(gate, cluster)
                     if agreement.get("version_gate") is None:
                         logging.error(
                             f"Unexpected response while creating version "
