@@ -42,7 +42,7 @@ def url_makes_sense(url: str) -> bool:
     if not url:
         return False
     try:
-        rs = requests.get(url)
+        rs = requests.get(url, verify=False)
     except requests.exceptions.ConnectionError:
         return False
     # Codes above NOT_FOUND mean the URL to the document doesn't
