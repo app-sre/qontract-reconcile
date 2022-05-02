@@ -119,8 +119,6 @@ objects:
             value: ${DRY_RUN}
           - name: INTEGRATION_NAME
             value: slack-usergroups
-          - name: INTEGRATION_EXTRA_ARGS
-            value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -5955,8 +5953,6 @@ objects:
             value: ${DRY_RUN}
           - name: INTEGRATION_NAME
             value: gitlab-projects
-          - name: INTEGRATION_EXTRA_ARGS
-            value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -6152,8 +6148,6 @@ objects:
             value: ${DRY_RUN}
           - name: INTEGRATION_NAME
             value: gitlab-members
-          - name: INTEGRATION_EXTRA_ARGS
-            value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -6349,8 +6343,6 @@ objects:
             value: ${DRY_RUN}
           - name: INTEGRATION_NAME
             value: gitlab-permissions
-          - name: INTEGRATION_EXTRA_ARGS
-            value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -6528,8 +6520,6 @@ objects:
             value: ${DRY_RUN}
           - name: INTEGRATION_NAME
             value: gitlab-owners
-          - name: INTEGRATION_EXTRA_ARGS
-            value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -6895,8 +6885,6 @@ objects:
             value: ${DRY_RUN}
           - name: INTEGRATION_NAME
             value: jenkins-job-builder
-          - name: INTEGRATION_EXTRA_ARGS
-            value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -7110,8 +7098,6 @@ objects:
             value: ${DRY_RUN}
           - name: INTEGRATION_NAME
             value: jenkins-job-cleaner
-          - name: INTEGRATION_EXTRA_ARGS
-            value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -7309,8 +7295,6 @@ objects:
             value: ${DRY_RUN}
           - name: INTEGRATION_NAME
             value: jenkins-roles
-          - name: INTEGRATION_EXTRA_ARGS
-            value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -7515,8 +7499,6 @@ objects:
             value: ${DRY_RUN}
           - name: INTEGRATION_NAME
             value: jenkins-webhooks
-          - name: INTEGRATION_EXTRA_ARGS
-            value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -7714,8 +7696,6 @@ objects:
             value: ${DRY_RUN}
           - name: INTEGRATION_NAME
             value: jenkins-webhooks-cleaner
-          - name: INTEGRATION_EXTRA_ARGS
-            value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -8084,8 +8064,6 @@ objects:
             value: ${DRY_RUN}
           - name: INTEGRATION_NAME
             value: status-page-components
-          - name: INTEGRATION_EXTRA_ARGS
-            value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -8200,8 +8178,6 @@ objects:
                 value: ${DRY_RUN}
               - name: INTEGRATION_NAME
                 value: jenkins-job-builds-cleaner
-              - name: INTEGRATION_EXTRA_ARGS
-                value: ""
               - name: GITHUB_API
                 valueFrom:
                   configMapKeyRef:
@@ -8374,8 +8350,6 @@ objects:
                 value: ${DRY_RUN}
               - name: INTEGRATION_NAME
                 value: dashdotdb-cso
-              - name: INTEGRATION_EXTRA_ARGS
-                value: ""
               - name: GITHUB_API
                 valueFrom:
                   configMapKeyRef:
@@ -8437,8 +8411,6 @@ objects:
                 value: ${DRY_RUN}
               - name: INTEGRATION_NAME
                 value: dashdotdb-dvo
-              - name: INTEGRATION_EXTRA_ARGS
-                value: ""
               - name: GITHUB_API
                 valueFrom:
                   configMapKeyRef:
@@ -8500,8 +8472,6 @@ objects:
                 value: ${DRY_RUN}
               - name: INTEGRATION_NAME
                 value: dashdotdb-slo
-              - name: INTEGRATION_EXTRA_ARGS
-                value: ""
               - name: GITHUB_API
                 valueFrom:
                   configMapKeyRef:
@@ -8901,7 +8871,7 @@ parameters:
 - name: LOG_SLOW_OC_RECONCILE
   value: "false"
 - name: USE_NATIVE_CLIENT
-  value: ""
+  value: "true"
 - name: INTERNAL_CERTIFICATES_IMAGE
   value: quay.io/app-sre/internal-redhat-ca
 - name: INTERNAL_CERTIFICATES_IMAGE_TAG
