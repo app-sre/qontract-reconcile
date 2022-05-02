@@ -930,11 +930,35 @@ class OCM:  # pylint: disable=too-many-public-methods
             except re.error:
                 raise TypeError(f"blocked version is not a valid regex expression: {b}")
 
-    @retry(max_attempts=10)
-    def _get_json(self, api):
-        r = requests.get(f"{self.url}{api}", headers=self.headers)
+    def _do_get_request(self, api: str, params: dict[str, str]):
+        r = requests.get(f"{self.url}{api}", headers=self.headers, params=params)
         r.raise_for_status()
         return r.json()
+
+    def _get_json(self, api):
+        def response_is_list(rs: dict[str, Any]) -> bool:
+            return rs["kind"].endswith("List")
+
+        responses = []
+        params = {"size": 100}
+        while True:
+            rs = self._do_get_request(api, params=params)
+            responses.append(rs)
+            if response_is_list(rs) and rs["size"] == params["size"]:
+                params["page"] = rs["page"] + 1
+            else:
+                break
+
+        if response_is_list(responses[0]):
+            items = []
+            for resp in responses:
+                items.extend(resp["items"])
+            return {
+                "kind": responses[0]["kind"],
+                "items": items,
+                "total": len(items),
+            }
+        return responses[0]
 
     def _post(self, api, data=None, params=None):
         r = requests.post(
