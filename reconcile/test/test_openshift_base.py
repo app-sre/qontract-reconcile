@@ -7,8 +7,23 @@ import reconcile.openshift_base as sut
 import reconcile.utils.openshift_resource as resource
 from reconcile.test.fixtures import Fixtures
 from reconcile.utils import oc
+from reconcile.utils.semver_helper import make_semver
 
 fxt = Fixtures("namespaces")
+
+
+TEST_INT = "test_openshift_resources"
+TEST_INT_VER = make_semver(1, 9, 2)
+
+
+def build_resource(kind: str, api_version: str, name: str) -> dict[str, Any]:
+    return {
+        "kind": kind,
+        "apiVersion": api_version,
+        "metadata": {
+            "name": name,
+        },
+    }
 
 
 @pytest.fixture
@@ -22,7 +37,7 @@ def namespaces() -> list[dict[str, Any]]:
 
 
 @pytest.fixture
-def oc_cs1() -> oc.OCClient:
+def oc_cs1() -> oc.OCNative:
     return cast(oc.OCNative, oc.OC(cluster_name="cs1", server="", token="", local=True))
 
 
@@ -42,6 +57,11 @@ def oc_map(mocker, oc_cs1: oc.OCNative) -> oc.OC_Map:
     oc_map.get.mock_add_spec(oc.OC_Map.get)
     oc_map.get.side_effect = get_cluster
     return oc_map
+
+
+#
+# init_specs_to_fetch tests
+#
 
 
 def test_only_cluster_or_namespace(
@@ -68,7 +88,7 @@ def test_no_cluster_or_namespace(
 def test_namespaces_managed_types(
     resource_inventory: resource.ResourceInventory,
     oc_map: oc.OC_Map,
-    oc_cs1: oc.OCClient,
+    oc_cs1: oc.OCNative,
 ) -> None:
     namespace = yaml.safe_load(
         """
@@ -115,7 +135,7 @@ def test_namespaces_managed_types(
 def test_namespaces_managed_types_with_resoruce_type_overrides(
     resource_inventory: resource.ResourceInventory,
     oc_map: oc.OC_Map,
-    oc_cs1: oc.OCClient,
+    oc_cs1: oc.OCNative,
 ) -> None:
     namespace = yaml.safe_load(
         """
@@ -131,7 +151,7 @@ def test_namespaces_managed_types_with_resoruce_type_overrides(
           - tp2
         managedResourceTypeOverrides:
         - resource: Template
-          "override": "something.something.Template"
+          "override": "Template.something.something"
         openshiftResources:
         - provider: resource
           path: /some/path.yml
@@ -142,7 +162,7 @@ def test_namespaces_managed_types_with_resoruce_type_overrides(
             oc=oc_cs1,
             cluster="cs1",
             namespace="ns1",
-            kind="something.something.Template",
+            kind="Template.something.something",
             resource_names=["tp1", "tp2"],
         ),
         sut.DesiredStateSpec(
@@ -165,7 +185,7 @@ def test_namespaces_managed_types_with_resoruce_type_overrides(
 def test_namespaces_managed_types_no_managed_resource_names(
     resource_inventory: resource.ResourceInventory,
     oc_map: oc.OC_Map,
-    oc_cs1: oc.OCClient,
+    oc_cs1: oc.OCNative,
 ) -> None:
     namespace = yaml.safe_load(
         """
@@ -205,7 +225,6 @@ def test_namespaces_managed_types_no_managed_resource_names(
 
 def test_namespaces_no_managed_resource_types(
     resource_inventory: resource.ResourceInventory,
-    namespaces: list[dict[str, Any]],
     oc_map: oc.OC_Map,
 ) -> None:
     namespace = yaml.safe_load(
@@ -274,7 +293,7 @@ def test_namespaces_type_override_for_unmanaged_type(
         - Template
         managedResourceTypeOverrides:
         - resource: UnmanagedType
-          override: unmanagedapi.UnmanagedType
+          override: UnmanagedType.unmanagedapi
         openshiftResources:
         - provider: resource
           path: /some/path.yml
@@ -287,7 +306,7 @@ def test_namespaces_type_override_for_unmanaged_type(
 def test_namespaces_override_managed_type(
     resource_inventory: resource.ResourceInventory,
     oc_map: oc.OC_Map,
-    oc_cs1: oc.OCClient,
+    oc_cs1: oc.OCNative,
 ) -> None:
     """
     test that the override_managed_types parameter for init_specs_to_fetch takes
@@ -348,7 +367,7 @@ def test_namespaces_override_managed_type(
 def test_namespaces_managed_fully_qualified_types(
     resource_inventory: resource.ResourceInventory,
     oc_map: oc.OC_Map,
-    oc_cs1: oc.OCClient,
+    oc_cs1: oc.OCNative,
 ) -> None:
     namespace = yaml.safe_load(
         """
@@ -356,7 +375,7 @@ def test_namespaces_managed_fully_qualified_types(
         cluster:
           name: cs1
         managedResourceTypes:
-        - fullyqualified.Kind
+        - Kind.fully.qualified
         openshiftResources:
         - provider: resource
           path: /some/path.yml
@@ -367,7 +386,7 @@ def test_namespaces_managed_fully_qualified_types(
             oc=oc_cs1,
             cluster="cs1",
             namespace="ns1",
-            kind="fullyqualified.Kind",
+            kind="Kind.fully.qualified",
             resource_names=None,
         ),
         sut.DesiredStateSpec(
@@ -390,7 +409,7 @@ def test_namespaces_managed_fully_qualified_types(
 def test_namespaces_managed_fully_qualified_types_with_resource_names(
     resource_inventory: resource.ResourceInventory,
     oc_map: oc.OC_Map,
-    oc_cs1: oc.OCClient,
+    oc_cs1: oc.OCNative,
 ) -> None:
     namespace = yaml.safe_load(
         """
@@ -398,9 +417,9 @@ def test_namespaces_managed_fully_qualified_types_with_resource_names(
         cluster:
           name: cs1
         managedResourceTypes:
-        - fullyqualified.Kind
+        - Kind.fully.qualified
         managedResourceNames:
-        - resource: fullyqualified.Kind
+        - resource: Kind.fully.qualified
           resourceNames:
           - n1
           - n2
@@ -414,7 +433,7 @@ def test_namespaces_managed_fully_qualified_types_with_resource_names(
             oc=oc_cs1,
             cluster="cs1",
             namespace="ns1",
-            kind="fullyqualified.Kind",
+            kind="Kind.fully.qualified",
             resource_names=["n1", "n2"],
         ),
         sut.DesiredStateSpec(
@@ -437,7 +456,7 @@ def test_namespaces_managed_fully_qualified_types_with_resource_names(
 def test_namespaces_managed_mixed_qualified_types_with_resource_names(
     resource_inventory: resource.ResourceInventory,
     oc_map: oc.OC_Map,
-    oc_cs1: oc.OCClient,
+    oc_cs1: oc.OCNative,
 ) -> None:
     namespace = yaml.safe_load(
         """
@@ -445,10 +464,10 @@ def test_namespaces_managed_mixed_qualified_types_with_resource_names(
         cluster:
           name: cs1
         managedResourceTypes:
-        - fullyqualified.Kind
+        - Kind.fully.qualified
         - Kind
         managedResourceNames:
-        - resource: fullyqualified.Kind
+        - resource: Kind.fully.qualified
           resourceNames:
           - fname
         - resource: Kind
@@ -464,7 +483,7 @@ def test_namespaces_managed_mixed_qualified_types_with_resource_names(
             oc=oc_cs1,
             cluster="cs1",
             namespace="ns1",
-            kind="fullyqualified.Kind",
+            kind="Kind.fully.qualified",
             resource_names=["fname"],
         ),
         sut.CurrentStateSpec(
@@ -492,6 +511,93 @@ def test_namespaces_managed_mixed_qualified_types_with_resource_names(
     assert len(expected) == len(rs)
     for e in expected:
         assert e in rs
+
+
+#
+# populate state tests
+#
+
+
+def test_populate_current_state(
+    resource_inventory: resource.ResourceInventory, oc_cs1: oc.OCNative
+):
+    """
+    test that populate_current_state properly populates the resource inventory
+    """
+    # prepare client and resource inventory
+    oc_cs1.init_api_resources = True
+    oc_cs1.api_kind_version = {"Kind": ["fully.qualified/v1", "another.group/v1"]}
+    oc_cs1.get_items = lambda kind, **kwargs: [
+        build_resource("Kind", "fully.qualified/v1", "name")
+    ]
+    resource_inventory.initialize_resource_type("cs1", "ns1", "Kind.fully.qualified")
+
+    # process
+    spec = sut.CurrentStateSpec(
+        oc=oc_cs1,
+        cluster="cs1",
+        namespace="ns1",
+        kind="Kind.fully.qualified",
+        resource_names=["name"],
+    )
+    sut.populate_current_state(spec, resource_inventory, TEST_INT, TEST_INT_VER)
+
+    # verify
+    cluster, namespace, kind, data = next(iter(resource_inventory))
+    assert (cluster, namespace, kind) == ("cs1", "ns1", "Kind.fully.qualified")
+    assert data["current"]["name"] == resource.OpenshiftResource(
+        build_resource("Kind", "fully.qualified/v1", "name"), TEST_INT, TEST_INT_VER
+    )
+
+
+def test_populate_current_state_unknown_kind(
+    resource_inventory: resource.ResourceInventory, oc_cs1: oc.OCNative, mocker
+):
+    """
+    test that a missing kind in the cluster is catched early on
+    """
+    oc_cs1.init_api_resources = True
+    oc_cs1.api_kind_version = {"Kind": ["some.other.group/v1"]}
+    get_item_mock = mocker.patch.object(oc.OCNative, "get_items", auto_spec=True)
+
+    spec = sut.CurrentStateSpec(
+        oc=oc_cs1,
+        cluster="cs1",
+        namespace="ns1",
+        kind="Kind.fully.qualified",
+        resource_names=["name"],
+    )
+    sut.populate_current_state(spec, resource_inventory, TEST_INT, TEST_INT_VER)
+
+    assert len(list(iter(resource_inventory))) == 0
+    get_item_mock.assert_not_called()
+
+
+def test_populate_current_state_resource_name_filtering(
+    resource_inventory: resource.ResourceInventory, oc_cs1: oc.OCNative, mocker
+):
+    """
+    test if the resource names are passed properly to the oc client when fetching items
+    """
+    get_item_mock = mocker.patch.object(oc.OCNative, "get_items", auto_spec=True)
+
+    spec = sut.CurrentStateSpec(
+        oc=oc_cs1,
+        cluster="cs1",
+        namespace="ns1",
+        kind="Kind.fully.qualified",
+        resource_names=["name1", "name2"],
+    )
+    sut.populate_current_state(spec, resource_inventory, TEST_INT, TEST_INT_VER)
+
+    get_item_mock.assert_called_with(
+        "Kind.fully.qualified", namespace="ns1", resource_names=["name1", "name2"]
+    )
+
+
+#
+# determine_user_key_for_access tests
+#
 
 
 def test_determine_user_key_for_access_github_org():
