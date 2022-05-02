@@ -240,6 +240,7 @@ def cluster_upgrade_policies(
 ):
     md_output = ctx.obj["options"]["output"] == "md"
     clusters = queries.get_clusters()
+    settings = queries.get_app_interface_settings()
     clusters = [c for c in clusters if c.get("upgradePolicy") is not None]
     if cluster:
         clusters = [c for c in clusters if cluster == c["name"]]
@@ -247,7 +248,12 @@ def cluster_upgrade_policies(
         clusters = [
             c for c in clusters if workload in c["upgradePolicy"].get("workloads", [])
         ]
-    ocm_map, current_state = ous.fetch_current_state(clusters)
+    ocm_map = OCMMap(
+        clusters=clusters,
+        settings=settings,
+        init_version_gates=True,
+    )
+    current_state = ous.fetch_current_state(clusters, ocm_map)
     desired_state = ous.fetch_desired_state(clusters)
 
     history = ous.get_version_history(
