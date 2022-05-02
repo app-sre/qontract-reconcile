@@ -119,8 +119,6 @@ objects:
             value: ${DRY_RUN}
           - name: INTEGRATION_NAME
             value: aws-iam-keys
-          - name: INTEGRATION_EXTRA_ARGS
-            value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -316,8 +314,6 @@ objects:
             value: ${DRY_RUN}
           - name: INTEGRATION_NAME
             value: aws-iam-password-reset
-          - name: INTEGRATION_EXTRA_ARGS
-            value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -520,8 +516,6 @@ objects:
             value: ${DRY_RUN}
           - name: INTEGRATION_NAME
             value: aws-ami-share
-          - name: INTEGRATION_EXTRA_ARGS
-            value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -699,8 +693,6 @@ objects:
             value: ${DRY_RUN}
           - name: INTEGRATION_NAME
             value: dyn-traffic-director
-          - name: INTEGRATION_EXTRA_ARGS
-            value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -896,8 +888,6 @@ objects:
             value: ${DRY_RUN}
           - name: INTEGRATION_NAME
             value: github
-          - name: INTEGRATION_EXTRA_ARGS
-            value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -1093,8 +1083,6 @@ objects:
             value: ${DRY_RUN}
           - name: INTEGRATION_NAME
             value: github-owners
-          - name: INTEGRATION_EXTRA_ARGS
-            value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -1290,8 +1278,6 @@ objects:
             value: ${DRY_RUN}
           - name: INTEGRATION_NAME
             value: github-repo-invites
-          - name: INTEGRATION_EXTRA_ARGS
-            value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -1487,8 +1473,6 @@ objects:
             value: ${DRY_RUN}
           - name: INTEGRATION_NAME
             value: quay-membership
-          - name: INTEGRATION_EXTRA_ARGS
-            value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -1666,8 +1650,6 @@ objects:
             value: ${DRY_RUN}
           - name: INTEGRATION_NAME
             value: quay-mirror
-          - name: INTEGRATION_EXTRA_ARGS
-            value: ""
           - name: SLEEP_DURATION_SECS
             value: ${QUAY_MIRROR_SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -1845,8 +1827,6 @@ objects:
             value: ${DRY_RUN}
           - name: INTEGRATION_NAME
             value: quay-mirror-org
-          - name: INTEGRATION_EXTRA_ARGS
-            value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -2024,8 +2004,6 @@ objects:
             value: ${DRY_RUN}
           - name: INTEGRATION_NAME
             value: gcr-mirror
-          - name: INTEGRATION_EXTRA_ARGS
-            value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -2203,8 +2181,6 @@ objects:
             value: ${DRY_RUN}
           - name: INTEGRATION_NAME
             value: ecr-mirror
-          - name: INTEGRATION_EXTRA_ARGS
-            value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -2400,8 +2376,6 @@ objects:
             value: ${DRY_RUN}
           - name: INTEGRATION_NAME
             value: quay-repos
-          - name: INTEGRATION_EXTRA_ARGS
-            value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -2597,8 +2571,6 @@ objects:
             value: ${DRY_RUN}
           - name: INTEGRATION_NAME
             value: quay-permissions
-          - name: INTEGRATION_EXTRA_ARGS
-            value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -2776,8 +2748,6 @@ objects:
             value: ${DRY_RUN}
           - name: INTEGRATION_NAME
             value: jira-watcher
-          - name: INTEGRATION_EXTRA_ARGS
-            value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -2962,8 +2932,6 @@ objects:
             value: ${DRY_RUN}
           - name: INTEGRATION_NAME
             value: aws-support-cases-sos
-          - name: INTEGRATION_EXTRA_ARGS
-            value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -18300,8 +18268,6 @@ objects:
             value: ${DRY_RUN}
           - name: INTEGRATION_NAME
             value: terraform-aws-route53
-          - name: INTEGRATION_EXTRA_ARGS
-            value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -23619,8 +23585,6 @@ objects:
             value: ${DRY_RUN}
           - name: INTEGRATION_NAME
             value: terraform-vpc-peerings
-          - name: INTEGRATION_EXTRA_ARGS
-            value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -23816,8 +23780,6 @@ objects:
             value: ${DRY_RUN}
           - name: INTEGRATION_NAME
             value: terraform-tgw-attachments
-          - name: INTEGRATION_EXTRA_ARGS
-            value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -24013,8 +23975,6 @@ objects:
             value: ${DRY_RUN}
           - name: INTEGRATION_NAME
             value: ocm-addons
-          - name: INTEGRATION_EXTRA_ARGS
-            value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -24210,8 +24170,6 @@ objects:
             value: ${DRY_RUN}
           - name: INTEGRATION_NAME
             value: ocm-groups
-          - name: INTEGRATION_EXTRA_ARGS
-            value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -24407,8 +24365,6 @@ objects:
             value: ${DRY_RUN}
           - name: INTEGRATION_NAME
             value: ocm-clusters
-          - name: INTEGRATION_EXTRA_ARGS
-            value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -24609,8 +24565,6 @@ objects:
             value: ${DRY_RUN}
           - name: INTEGRATION_NAME
             value: ocm-aws-infrastructure-access
-          - name: INTEGRATION_EXTRA_ARGS
-            value: ""
           - name: SLEEP_DURATION_SECS
             value: ${OCM_AWS_INFRASTRUCTURE_ACCESS_SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -25003,8 +24957,6 @@ objects:
             value: ${DRY_RUN}
           - name: INTEGRATION_NAME
             value: ocm-machine-pools
-          - name: INTEGRATION_EXTRA_ARGS
-            value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -25200,8 +25152,6 @@ objects:
             value: ${DRY_RUN}
           - name: INTEGRATION_NAME
             value: ocm-upgrade-scheduler
-          - name: INTEGRATION_EXTRA_ARGS
-            value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -25404,8 +25354,6 @@ objects:
             value: ${DRY_RUN}
           - name: INTEGRATION_NAME
             value: ocm-external-configuration-labels
-          - name: INTEGRATION_EXTRA_ARGS
-            value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -25601,8 +25549,6 @@ objects:
             value: ${DRY_RUN}
           - name: INTEGRATION_NAME
             value: ocm-additional-routers
-          - name: INTEGRATION_EXTRA_ARGS
-            value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -25995,8 +25941,6 @@ objects:
             value: ${DRY_RUN}
           - name: INTEGRATION_NAME
             value: email-sender
-          - name: INTEGRATION_EXTRA_ARGS
-            value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -26199,8 +26143,6 @@ objects:
             value: ${DRY_RUN}
           - name: INTEGRATION_NAME
             value: requests-sender
-          - name: INTEGRATION_EXTRA_ARGS
-            value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -26385,8 +26327,6 @@ objects:
             value: ${DRY_RUN}
           - name: INTEGRATION_NAME
             value: sentry-config
-          - name: INTEGRATION_EXTRA_ARGS
-            value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -26564,8 +26504,6 @@ objects:
             value: ${DRY_RUN}
           - name: INTEGRATION_NAME
             value: sentry-helper
-          - name: INTEGRATION_EXTRA_ARGS
-            value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -26972,8 +26910,6 @@ objects:
             value: ${DRY_RUN}
           - name: INTEGRATION_NAME
             value: slack-cluster-usergroups
-          - name: INTEGRATION_EXTRA_ARGS
-            value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -27151,8 +27087,6 @@ objects:
             value: ${DRY_RUN}
           - name: INTEGRATION_NAME
             value: ocp-release-mirror
-          - name: INTEGRATION_EXTRA_ARGS
-            value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -27348,8 +27282,6 @@ objects:
             value: ${DRY_RUN}
           - name: INTEGRATION_NAME
             value: sendgrid-teammates
-          - name: INTEGRATION_EXTRA_ARGS
-            value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -28070,8 +28002,6 @@ objects:
                 value: ${DRY_RUN}
               - name: INTEGRATION_NAME
                 value: aws-garbage-collector
-              - name: INTEGRATION_EXTRA_ARGS
-                value: ""
               - name: GITHUB_API
                 valueFrom:
                   configMapKeyRef:
@@ -28227,7 +28157,7 @@ parameters:
 - name: LOG_SLOW_OC_RECONCILE
   value: "false"
 - name: USE_NATIVE_CLIENT
-  value: ""
+  value: "true"
 - name: INTERNAL_CERTIFICATES_IMAGE
   value: quay.io/app-sre/internal-redhat-ca
 - name: INTERNAL_CERTIFICATES_IMAGE_TAG
