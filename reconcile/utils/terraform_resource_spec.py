@@ -64,8 +64,7 @@ class OutputFormat:
         if self.provider == "generic-secret":
             return GenericSecretOutputFormatConfig(data=self.data)
         else:
-            # default to generic-secret as provider for backwards compatibility
-            return GenericSecretOutputFormatConfig()
+            raise ValueError(f"unknown output format provider {self.provider}")
 
     def render(self, vars: Mapping[str, str]) -> dict[str, str]:
         return self._formatter().render(vars)

@@ -118,6 +118,11 @@ def spec() -> TerraformResourceSpec:
 #
 
 
+def test_terraform_output_with_when_no_secret(spec: TerraformResourceSpec):
+    output_secret = spec.build_oc_secret("int", "1.0")
+    assert output_secret.body["data"] == {}
+
+
 def test_terraform_generic_secret_output_format(
     spec: TerraformResourceSpec, resource_secret: dict[str, Any]
 ):
@@ -165,6 +170,19 @@ def test_terraform_no_output_format_provider(
     assert len(output_secret.body["data"]) == len(resource_secret)
     for k, v in resource_secret.items():
         assert output_secret.body["data"][k] == base64_encode_secret_field_value(v)
+
+
+def test_terraform_unknown_output_format_provider(spec: TerraformResourceSpec):
+    """
+    this test expects the secret generation to fail when an unknown provider is
+    given. while the schema usually protects against such cases, additional protection
+    in code is a good thing.
+    """
+    spec.resource["output_format"] = {  # type: ignore[index]
+        "provider": "unknown-provider"
+    }
+    with pytest.raises(ValueError):
+        spec.build_oc_secret("int", "1.0")
 
 
 def test_terraform_generic_secret_output_format_not_a_dict(
