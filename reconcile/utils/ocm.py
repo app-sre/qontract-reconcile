@@ -930,6 +930,7 @@ class OCM:  # pylint: disable=too-many-public-methods
             except re.error:
                 raise TypeError(f"blocked version is not a valid regex expression: {b}")
 
+    @retry(max_attempts=10)
     def _do_get_request(self, api: str, params: dict[str, str]):
         r = requests.get(f"{self.url}{api}", headers=self.headers, params=params)
         r.raise_for_status()
