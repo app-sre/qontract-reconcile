@@ -65,3 +65,15 @@ def test_get_account_found():
 def test_get_account_not_found():
     with pytest.raises(awsh.AccountNotFoundError):
         awsh.get_account([], "a")
+
+
+@pytest.mark.parametrize(
+    "az,region",
+    [
+        ("us-east-1c", "us-east-1"),
+        ("eu-central-1a", "eu-central-1"),
+        ("us-west-2b", "us-west-2"),
+    ],
+)
+def test_get_region_from_availability_zone(az, region):
+    assert awsh.get_region_from_availability_zone(az) == region

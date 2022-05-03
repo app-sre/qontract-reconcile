@@ -12,6 +12,8 @@ from typing import Iterable, Mapping, Any
 from python_terraform import Terraform, IsFlagged, TerraformCommandError
 from sretoolbox.utils import retry
 from sretoolbox.utils import threaded
+
+from reconcile.utils.aws_helper import get_region_from_availability_zone
 from reconcile.utils.terraform_resource_spec import TerraformResourceSpec, TerraformResourceSpecInventory
 
 import reconcile.utils.lean_terraform_client as lean_tf
@@ -519,8 +521,9 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         ]
         if len(changed_terraform_args) == 1 \
                 and 'engine_version' in changed_terraform_args:
+            region_name = get_region_from_availability_zone(before['availability_zone'])
             response = \
-                self._aws_api.describe_rds_db_instance(account_name, resource_name)
+                self._aws_api.describe_rds_db_instance(account_name, resource_name, region_name=region_name)
             pending_modified_values = response['DBInstances'][0][
                 'PendingModifiedValues']
             if 'EngineVersion' in pending_modified_values and \
