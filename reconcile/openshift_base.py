@@ -1,7 +1,8 @@
+from dataclasses import dataclass, field
 import logging
 import itertools
 
-from typing import Optional, Iterable, Mapping
+from typing import Any, Optional, Iterable, Mapping, Union
 
 import yaml
 
@@ -9,7 +10,7 @@ from sretoolbox.utils import retry
 from sretoolbox.utils import threaded
 
 from reconcile import queries
-from reconcile.utils.oc import FieldIsImmutableError
+from reconcile.utils.oc import FieldIsImmutableError, OCClient, OCLogMsg
 from reconcile.utils.oc import MayNotChangeOnceSetError
 from reconcile.utils.oc import PrimaryClusterIPCanNotBeUnsetError
 from reconcile.utils.oc import InvalidValueApplyError
@@ -34,28 +35,30 @@ class ValidationErrorJobFailed(Exception):
     pass
 
 
-class StateSpec:
-    def __init__(
-        self,
-        type,
-        oc,
-        cluster,
-        namespace,
-        resource,
-        parent=None,
-        resource_type_override=None,
-        resource_names=None,
-        privileged=False,
-    ):
-        self.type = type
-        self.oc = oc
-        self.cluster = cluster
-        self.namespace = namespace
-        self.resource = resource
-        self.parent = parent
-        self.resource_type_override = resource_type_override
-        self.resource_names = resource_names
-        self.privileged = privileged
+@dataclass
+class BaseStateSpec:
+
+    oc: OCClient = field(compare=False, repr=False)
+    cluster: str
+    namespace: str
+
+
+@dataclass
+class CurrentStateSpec(BaseStateSpec):
+
+    kind: str
+    resource_names: Optional[Iterable[str]]
+
+
+@dataclass
+class DesiredStateSpec(BaseStateSpec):
+
+    resource: Mapping[str, Any]
+    parent: Mapping[Any, Any] = field(repr=False)
+    privileged: bool = False
+
+
+StateSpec = Union[CurrentStateSpec, DesiredStateSpec]
 
 
 def init_specs_to_fetch(
@@ -66,7 +69,7 @@ def init_specs_to_fetch(
     override_managed_types: Optional[Iterable[str]] = None,
     managed_types_key: str = "managedResourceTypes",
 ) -> list[StateSpec]:
-    state_specs = []
+    state_specs: list[StateSpec] = []
 
     if clusters and namespaces:
         raise KeyError("expected only one of clusters or namespaces.")
@@ -82,11 +85,12 @@ def init_specs_to_fetch(
 
             cluster = namespace_info["cluster"]["name"]
             privileged = namespace_info.get("clusterAdmin", False) is True
-            oc = oc_map.get(cluster, privileged)
-            if not oc:
-                if oc.log_level >= logging.ERROR:
+            try:
+                oc = oc_map.get_cluster(cluster, privileged)
+            except OCLogMsg as ex:
+                if ex.log_level >= logging.ERROR:
                     ri.register_error()
-                logging.log(level=oc.log_level, msg=oc.message)
+                logging.log(level=ex.log_level, msg=ex.message)
                 continue
 
             namespace = namespace_info["name"]
@@ -96,9 +100,7 @@ def init_specs_to_fetch(
                 namespace_info.get("managedResourceTypeOverrides") or []
             )
 
-            # Initialize current state specs
-            for resource_type in managed_types:
-                ri.initialize_resource_type(cluster, namespace, resource_type)
+            # Prepare resource names
             resource_names = {}
             resource_type_overrides = {}
             for mrn in managed_resource_names:
@@ -118,6 +120,7 @@ def init_specs_to_fetch(
                         f"{cluster}/{namespace} (valid kinds: {managed_types})"
                     )
 
+            # Prepare type overrides
             for o in managed_resource_type_overrides:
                 # Current implementation guarantees only one
                 # override of each managed type
@@ -135,94 +138,109 @@ def init_specs_to_fetch(
                         f"{cluster}/{namespace} (valid kinds: {managed_types})"
                     )
 
-            for kind, names in resource_names.items():
-                c_spec = StateSpec(
-                    "current",
-                    oc,
-                    cluster,
-                    namespace,
-                    kind,
-                    resource_type_override=resource_type_overrides.get(kind),
-                    resource_names=names,
+            # Initialized current state specs
+            for kind in managed_types:
+                managed_names = resource_names.get(kind)
+                kind_to_use = resource_type_overrides.get(kind, kind)
+                ri.initialize_resource_type(cluster, namespace, kind_to_use)
+                state_specs.append(
+                    CurrentStateSpec(
+                        oc=oc,
+                        cluster=cluster,
+                        namespace=namespace,
+                        kind=kind_to_use,
+                        resource_names=managed_names,
+                    )
                 )
-                state_specs.append(c_spec)
-                managed_types.remove(kind)
-
-            # Produce "empty" StateSpec's for any resource type that
-            # doesn't have an explicit managedResourceName listed in
-            # the namespace
-            state_specs.extend(
-                StateSpec(
-                    "current",
-                    oc,
-                    cluster,
-                    namespace,
-                    t,
-                    resource_type_override=resource_type_overrides.get(t),
-                    resource_names=None,
-                )
-                for t in managed_types
-            )
 
             # Initialize desired state specs
             openshift_resources = namespace_info.get("openshiftResources")
             for openshift_resource in openshift_resources or []:
-                d_spec = StateSpec(
-                    "desired",
-                    oc,
-                    cluster,
-                    namespace,
-                    openshift_resource,
-                    namespace_info,
-                    privileged=privileged,
+                state_specs.append(
+                    DesiredStateSpec(
+                        oc=oc,
+                        cluster=cluster,
+                        namespace=namespace,
+                        resource=openshift_resource,
+                        parent=namespace_info,
+                        privileged=privileged,
+                    )
                 )
-                state_specs.append(d_spec)
+
     elif clusters:
         # set namespace to something indicative
         namespace = "cluster"
         for cluster_info in clusters:
             cluster = cluster_info["name"]
-            oc = oc_map.get(cluster)
-            if not oc:
-                if oc.log_level >= logging.ERROR:
+            try:
+                oc = oc_map.get_cluster(cluster)
+            except OCLogMsg as ex:
+                if ex.log_level >= logging.ERROR:
                     ri.register_error()
-                logging.log(level=oc.log_level, msg=oc.message)
+                logging.log(level=ex.log_level, msg=ex.message)
                 continue
 
             # we currently only use override_managed_types,
             # and not allow a `managedResourcesTypes` field in a cluster file
-            for resource_type in override_managed_types or []:
-                ri.initialize_resource_type(cluster, namespace, resource_type)
+            for kind in override_managed_types or []:
+                ri.initialize_resource_type(cluster, namespace, kind)
+
                 # Initialize current state specs
-                c_spec = StateSpec("current", oc, cluster, namespace, resource_type)
-                state_specs.append(c_spec)
+                state_specs.append(
+                    CurrentStateSpec(
+                        oc=oc,
+                        cluster=cluster,
+                        namespace=namespace,
+                        kind=kind,
+                        resource_names=[],
+                    )
+                )
                 # Initialize desired state specs
-                d_spec = StateSpec("desired", oc, cluster, namespace, resource_type)
-                state_specs.append(d_spec)
+                # it seems this StateSpec has no effect and can be disabled. the only code path
+                # leading to this place is from openshift_clusterrolebindings > ob.fetch_current_state >
+                # init_specs_to_fetch. ob_fetch_current_state then uses the specs return from here
+                # to populate the current state in an ResourceInventory (populate_current), which does not
+                # differentiate between StateSpecs of type current and desired and just populates the
+                # ResourceInventory spec with it. that is also the reason that it is not a problem that
+                # the resource field in the desired StateSpec can be a resource_type instead of being
+                # a resource dict like usual.
+                #
+                # running the openshift-clusterrolebinding integration showed a clean log after disabling
+                # this line, which indicates no change in behaviour. even a dry-run mode with some deleted
+                # roles showed expected behaviour.
+                #
+                # following this reasoning - i'm going to disable this line for now and will remove it
+                # before merging this PR if i get no objection.
+                #
+                # d_spec = StateSpec("desired", oc, cluster, namespace, resource_type)
+
     else:
         raise KeyError("expected one of clusters or namespaces.")
 
     return state_specs
 
 
-def populate_current_state(spec, ri, integration, integration_version):
-    oc = spec.oc
-    if oc is None:
-        return
-    api_resources = oc.api_resources
-    if api_resources and spec.resource not in api_resources:
-        msg = f"[{spec.cluster}] cluster has no API resource {spec.resource}."
+def populate_current_state(
+    spec: CurrentStateSpec,
+    ri: ResourceInventory,
+    integration: str,
+    integration_version: str,
+):
+    # if spec.oc is None: - oc can't be none because init_namespace_specs_to_fetch does not create specs if oc is none
+    #    return
+    if spec.oc.init_api_resources and not spec.oc.is_kind_supported(spec.kind):
+        msg = f"[{spec.cluster}] cluster has no API resource {spec.kind}."
         logging.warning(msg)
         return
     try:
-        for item in oc.get_items(
-            spec.resource, namespace=spec.namespace, resource_names=spec.resource_names
+        for item in spec.oc.get_items(
+            spec.kind, namespace=spec.namespace, resource_names=spec.resource_names
         ):
             openshift_resource = OR(item, integration, integration_version)
             ri.add_current(
                 spec.cluster,
                 spec.namespace,
-                spec.resource,
+                spec.kind,
                 openshift_resource.name,
                 openshift_resource,
             )
@@ -293,9 +311,10 @@ def apply(
 ) -> None:
     logging.info(["apply", cluster, namespace, resource_type, resource.name])
 
-    oc = oc_map.get(cluster, privileged)
-    if not oc:
-        logging.log(level=oc.log_level, msg=oc.message)
+    try:
+        oc = oc_map.get_cluster(cluster, privileged)
+    except OCLogMsg as ex:
+        logging.log(level=ex.log_level, msg=ex.message)
         return None
     if not dry_run:
         annotated = resource.annotate()
@@ -404,12 +423,13 @@ def delete(
         logging.error("'delete' action is disabled due to previous errors.")
         return
 
-    oc = oc_map.get(cluster, privileged)
-    if not oc:
-        logging.log(level=oc.log_level, msg=oc.message)
+    try:
+        oc = oc_map.get_cluster(cluster, privileged)
+        if not dry_run:
+            oc.delete(namespace, resource_type, name)
+    except OCLogMsg as ex:
+        logging.log(level=ex.log_level, msg=ex.message)
         return None
-    if not dry_run:
-        oc.delete(namespace, resource_type, name)
 
 
 def check_unused_resource_types(ri):
