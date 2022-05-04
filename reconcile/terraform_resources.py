@@ -100,6 +100,13 @@ provider
     assume_role
   }
 }
+... on NamespaceTerraformResourceSecretsManagerServiceAccount_v1 {
+  account
+  identifier
+  secrets_prefix
+  output_resource_name
+  annotations
+}
 ... on NamespaceTerraformResourceRole_v1 {
   account
   identifier
