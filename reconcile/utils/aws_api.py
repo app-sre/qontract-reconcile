@@ -1407,7 +1407,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         optional_kwargs = {}
 
         if region_name:
-            optional_kwargs.update({"region_name": region_name})
+            optional_kwargs["region_name"] = region_name
 
         rds = self._account_rds_client(account_name, **optional_kwargs)
         return rds.describe_db_instances(DBInstanceIdentifier=db_instance_name)

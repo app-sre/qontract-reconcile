@@ -523,7 +523,8 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
                 and 'engine_version' in changed_terraform_args:
             region_name = get_region_from_availability_zone(before['availability_zone'])
             response = \
-                self._aws_api.describe_rds_db_instance(account_name, resource_name, region_name=region_name)
+                self._aws_api.describe_rds_db_instance(account_name, resource_name,
+                                                       region_name=region_name)
             pending_modified_values = response['DBInstances'][0][
                 'PendingModifiedValues']
             if 'EngineVersion' in pending_modified_values and \
