@@ -1392,13 +1392,22 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         return images[0]["ImageId"]
 
     def describe_rds_db_instance(
-        self, account_name: str, db_instance_name: str
+        self,
+        account_name: str,
+        db_instance_name: str,
+        region_name: Optional[str] = None,
     ) -> DBInstanceMessageTypeDef:
         """
         Describe a single RDS instance.
         :param account_name: the name of the account in app-interface
         :param db_instance_name: the name of the database (ex. some-database-stage)
+        :param region_name: AWS region name for the resource, otherwise fallback to default
         :return: https://docs.aws.amazon.com/AmazonRDS/latest/APIReference/API_DescribeDBInstances.html#API_DescribeDBInstances_ResponseElements
         """
-        rds = self._account_rds_client(account_name)
+        optional_kwargs = {}
+
+        if region_name:
+            optional_kwargs["region_name"] = region_name
+
+        rds = self._account_rds_client(account_name, **optional_kwargs)
         return rds.describe_db_instances(DBInstanceIdentifier=db_instance_name)
