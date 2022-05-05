@@ -3054,8 +3054,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         values['user'] = identifier
         values['name'] = identifier
         values['policy'] = json.dumps(policy, sort_keys=True)
-        if dep_tf_resource:
-            values['depends_on'] = self.get_dependencies([user_tf_resource])
+        values['depends_on'] = self.get_dependencies([user_tf_resource])
         tf_resource = aws_iam_user_policy(identifier, **values)
         tf_resources.append(tf_resource)
 
