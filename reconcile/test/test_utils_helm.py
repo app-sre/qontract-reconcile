@@ -91,3 +91,10 @@ def test_template_logs_slack(values):
     template = helm.template(values)
     expected = yaml.safe_load(fxt.get("logs_slack.yml"))
     assert template == expected
+
+
+def test_template_shards(values):
+    values["integrations"][0]["shards"] = 2
+    template = helm.template(values)
+    expected = yaml.safe_load(fxt.get("shards.yml"))
+    assert template == expected
