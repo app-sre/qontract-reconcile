@@ -100,7 +100,6 @@ class OpenshiftResource:
                             v["value"] = ""
                     if not self.obj_intersect_equal(obj1_v, obj2_v):
                         return False
-                    pass
                 elif obj1_k == "cpu":
                     equal = self.cpu_equal(obj1_v, obj2_v)
                     if not equal:
