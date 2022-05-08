@@ -33,3 +33,10 @@ def test_template_basic(values):
     template = helm.template(values)
     expected = yaml.safe_load(fxt.get("basic.yml"))
     assert template == expected
+
+
+def test_template_cache(values):
+    values["integrations"][0]["cache"] = True
+    template = helm.template(values)
+    expected = yaml.safe_load(fxt.get("cache.yml"))
+    assert template == expected
