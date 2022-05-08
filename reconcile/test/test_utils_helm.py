@@ -156,15 +156,22 @@ def test_template_cron(values_cron):
     assert template == expected
 
 
-def test_template_cron(values_cron):
+def test_template_cron_dashdotdb(values_cron):
     values_cron["cronjobs"][0]["dashdotdb"] = True
     template = helm.template(values_cron)
     expected = yaml.safe_load(fxt.get("dashdotdb.yml"))
     assert template == expected
 
 
-def test_template_cron(values_cron):
+def test_template_cron_concurrency_policy(values_cron):
     values_cron["cronjobs"][0]["concurrencyPolicy"] = "Forbid"
     template = helm.template(values_cron)
     expected = yaml.safe_load(fxt.get("concurrency_policy.yml"))
+    assert template == expected
+
+
+def test_template_cron_restart_policy(values_cron):
+    values_cron["cronjobs"][0]["restartPolicy"] = "Always"
+    template = helm.template(values_cron)
+    expected = yaml.safe_load(fxt.get("restart_policy.yml"))
     assert template == expected
