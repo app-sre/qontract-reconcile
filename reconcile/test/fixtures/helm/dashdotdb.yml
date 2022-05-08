@@ -1,0 +1,145 @@
+---
+# Source: qontract-reconcile/templates/template.yaml
+apiVersion: v1
+kind: Template
+metadata:
+  name: qontract-reconcile
+objects:
+- apiVersion: batch/v1beta1
+  kind: CronJob
+  metadata:
+    labels:
+      app: qontract-reconcile-integ
+    name: qontract-reconcile-integ
+  spec:
+    schedule: "* * * * *"
+    concurrencyPolicy: Allow
+    successfulJobHistoryLimit: 3
+    failedJobHistoryLimit: 1
+    jobTemplate:
+      spec:
+        template:
+          spec:
+            serviceAccountName: qontract-reconcile
+            containers:
+            - name: int
+              image: ${IMAGE}:${IMAGE_TAG}
+              env:
+              - name: RUN_ONCE
+                value: 'true'
+              - name: DRY_RUN
+                value: ${DRY_RUN}
+              - name: INTEGRATION_NAME
+                value: integ
+              - name: GITHUB_API
+                valueFrom:
+                  configMapKeyRef:
+                    name: app-interface
+                    key: GITHUB_API
+              - name: UNLEASH_API_URL
+                valueFrom:
+                  secretKeyRef:
+                    name: unleash
+                    key: API_URL
+              - name: UNLEASH_CLIENT_ACCESS_TOKEN
+                valueFrom:
+                  secretKeyRef:
+                    name: unleash
+                    key: CLIENT_ACCESS_TOKEN
+              - name: DASHDOTDB_SECRET
+                valueFrom:
+                  secretKeyRef:
+                    name: dashdotdb
+                    key: AUTH_VAULT_PATH
+              volumeMounts:
+              - name: qontract-reconcile-toml
+                mountPath: /config
+              resources:
+                limits:
+                  cpu: ${INTEG_CPU_LIMIT}
+                  memory: ${INTEG_MEMORY_LIMIT}
+                requests:
+                  cpu: ${INTEG_CPU_REQUEST}
+                  memory: ${INTEG_MEMORY_REQUEST}
+            restartPolicy: OnFailure
+            volumes:
+            - name: qontract-reconcile-toml
+              secret:
+                secretName: qontract-reconcile-toml
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: qontract-reconcile
+    labels:
+      app: qontract-reconcile
+  spec:
+    ports:
+      - protocol: TCP
+        port: 80
+        targetPort: 9090
+        name: http
+    selector:
+      component: qontract-reconcile
+parameters:
+- name: IMAGE
+  value: quay.io/app-sre/qontract-reconcile
+- name: IMAGE_TAG
+  value: latest
+- name: BUSYBOX_IMAGE
+  value: quay.io/app-sre/ubi8-ubi-minimal
+- name: BUSYBOX_IMAGE_TAG
+  value: latest
+- name: BUSYBOX_IMAGE_PULL_POLICY
+  value: Always
+- name: FLUENTD_IMAGE
+  value: quay.io/app-sre/fluentd
+- name: FLUENTD_IMAGE_TAG
+  value: latest
+- name: FLUENTD_IMAGE_PULL_POLICY
+  value: Always
+- name: DRY_RUN
+  value: --dry-run
+- name: SLEEP_DURATION_SECS
+  value: "300"
+- name: APP_INTERFACE_SQS_SECRET_NAME
+  value: app-interface-sqs
+- name: APP_INTERFACE_STATE_BUCKET_ACCOUNT
+  value: app-sre
+- name: APP_INTERFACE_PROJECT_ID
+  value: "0"
+- name: USER_ID
+  value: dummy
+- name: LOG_FILE
+  value: "/fluentd/log/integration.log"
+- name: SLACK_CHANNEL
+  value: "sd-app-sre-reconcile-stage"
+- name: SLACK_CHANNEL_TRIGGER
+  value: "sd-app-sre-triggers-stage"
+- name: SLACK_ICON_EMOJI
+  value: ":bust_in_silhouette:"
+- name: GITHUB_API
+  value: 'http://github-mirror.github-mirror-stage.svc.cluster.local'
+- name: CLOUDWATCH_SECRET
+  value: app-interface-cloudwatch
+- name: SENTRY_DSN
+  value: ""
+- name: SLOW_OC_RECONCILE_THRESHOLD
+  value: "600"
+- name: LOG_SLOW_OC_RECONCILE
+  value: "false"
+- name: USE_NATIVE_CLIENT
+  value: ""
+- name: INTERNAL_CERTIFICATES_IMAGE
+  value: quay.io/app-sre/internal-redhat-ca
+- name: INTERNAL_CERTIFICATES_IMAGE_TAG
+  value: latest
+- name: INTERNAL_CERTIFICATES_IMAGE_PULL_POLICY
+  value: Always
+- name: INTEG_CPU_LIMIT
+  value: 678
+- name: INTEG_MEMORY_LIMIT
+  value: 90Mi
+- name: INTEG_CPU_REQUEST
+  value: 123
+- name: INTEG_MEMORY_REQUEST
+  value: 45Mi
