@@ -161,3 +161,10 @@ def test_template_cron(values_cron):
     template = helm.template(values_cron)
     expected = yaml.safe_load(fxt.get("dashdotdb.yml"))
     assert template == expected
+
+
+def test_template_cron(values_cron):
+    values_cron["cronjobs"][0]["concurrencyPolicy"] = "Forbid"
+    template = helm.template(values_cron)
+    expected = yaml.safe_load(fxt.get("concurrency_policy.yml"))
+    assert template == expected
