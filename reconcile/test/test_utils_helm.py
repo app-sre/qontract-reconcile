@@ -119,3 +119,10 @@ def test_template_storage(values):
     template = helm.template(values)
     expected = yaml.safe_load(fxt.get("storage.yml"))
     assert template == expected
+
+
+def test_template_trigger(values):
+    values["integrations"][0]["trigger"] = True
+    template = helm.template(values)
+    expected = yaml.safe_load(fxt.get("trigger.yml"))
+    assert template == expected
