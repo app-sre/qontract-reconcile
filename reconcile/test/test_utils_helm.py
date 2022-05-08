@@ -175,3 +175,10 @@ def test_template_cron_restart_policy(values_cron):
     template = helm.template(values_cron)
     expected = yaml.safe_load(fxt.get("restart_policy.yml"))
     assert template == expected
+
+
+def test_template_cron_success_history(values_cron):
+    values_cron["cronjobs"][0]["successfulJobHistoryLimit"] = 42
+    template = helm.template(values_cron)
+    expected = yaml.safe_load(fxt.get("success_history.yml"))
+    assert template == expected
