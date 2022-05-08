@@ -108,7 +108,7 @@ VARIABLE_KEYS = ['region', 'availability_zone', 'parameter_group', 'name',
                  'output_resource_db_name', 'reset_password', 'ca_cert',
                  'sqs_identifier', 's3_events', 'bucket_policy',
                  'event_notifications', 'storage_class', 'kms_encryption',
-                 'variables', 'policies', 'user_policy',
+                 'variables', 'policies', 'user_policy', 'secrets_prefix',
                  'es_identifier', 'filter_pattern',
                  'specs', 'secret', 'public', 'domain',
                  'aws_infrastructure_access', 'cloudinit_configs', 'image',
@@ -901,7 +901,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
     def populate_resources(self, namespaces: Iterable[Mapping[str, Any]],
                            existing_secrets: Mapping[str, Any],
-                           account_name: str,
+                           account_name: Optional[str],
                            ocm_map: Optional[OCMMap] = None) -> None:
         """
         Populates the terraform configuration from the definitions in app-interface
@@ -918,7 +918,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                                            ocm_map=ocm_map)
 
     def init_populate_specs(self, namespaces: Iterable[Mapping[str, Any]],
-                            account_name: str) -> None:
+                            account_name: Optional[str]) -> None:
         self.account_resources: dict[str, list[dict[str, Any]]] = {}
         for namespace_info in namespaces:
             # Skip if namespace has no terraformResources
@@ -953,6 +953,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             self.populate_tf_resource_service_account(resource,
                                                       namespace_info,
                                                       ocm_map=ocm_map)
+        elif provider == 'secrets-manager-service-account':
+            self.populate_tf_resource_secrets_manager_sa(resource,
+                                                         namespace_info)
         elif provider == 'aws-iam-role':
             self.populate_tf_resource_role(resource, namespace_info)
         elif provider == 'sqs':
@@ -1017,11 +1020,20 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         else:
             az = values.get('availability_zone', None)
         provider = ''
-        if az is not None and self._multiregion_account(account):
+        region = values.pop('region', None)
+        if self._multiregion_account(account):
             # To get the provider we should use, we get the region
             # and use that as an alias in the provider definition
-            provider = 'aws.' + self._region_from_availability_zone(az)
-            values['provider'] = provider
+            if az:
+                provider = 'aws.' + self._region_from_availability_zone(az)
+                values['provider'] = provider
+            if region:
+                provider_region = f'aws.{region}'
+                if not provider:
+                    provider = provider_region
+                    values['provider'] = provider
+                elif provider != provider_region:
+                    raise ValueError('region does not match availability zone')
 
         # 'deps' should contain a list of terraform resource names
         # (not full objects) that must be created
@@ -1908,6 +1920,53 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     f'[{account}/{identifier}] '
                     'expected one of ocm_map or assume_role'
                 )
+
+        self.add_resources(account, tf_resources)
+
+    def populate_tf_resource_secrets_manager_sa(self, resource,
+                                                namespace_info):
+        account, identifier, common_values, output_prefix, \
+            output_resource_name, annotations = \
+            self.init_values(resource, namespace_info)
+
+        tf_resources = []
+        self.init_common_outputs(tf_resources, namespace_info, output_prefix,
+                                 output_resource_name, annotations)
+
+        secrets_prefix = common_values['secrets_prefix']
+        policy = {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Action": [
+                        "secretsmanager:ListSecrets"
+                    ],
+                    "Resource": "*"
+                },
+                {
+                    "Effect": "Allow",
+                    "Action": "secretsmanager:*",
+                    "Resource": [
+                        f"arn:aws:secretsmanager:*:*:secret:{secrets_prefix}/*"
+                    ]
+                }
+            ]
+        }
+
+        tf_resources.extend(
+            self.get_tf_iam_service_user(
+                [],
+                identifier,
+                policy,
+                common_values['tags'],
+                output_prefix
+            )
+        )
+
+        output_name_0_13 = output_prefix + '__secrets_prefix'
+        output_value = secrets_prefix
+        tf_resources.append(Output(output_name_0_13, value=output_value))
 
         self.add_resources(account, tf_resources)
 
@@ -2980,7 +3039,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         values = {}
         values['name'] = identifier
         values['tags'] = tags
-        values['depends_on'] = self.get_dependencies([dep_tf_resource])
+        if dep_tf_resource:
+            values['depends_on'] = self.get_dependencies([dep_tf_resource])
         user_tf_resource = aws_iam_user(identifier, **values)
         tf_resources.append(user_tf_resource)
 
@@ -4218,11 +4278,14 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             self._get_asg_image_id(image, account, region)
         if not image_id:
             if self._use_previous_image_id(image):
-                image_id = existing_secrets[account][output_prefix]['image_id']
-                commit_sha = existing_secrets[account][output_prefix]['commit_sha']
+                new_commit_sha = commit_sha
+                existing_ami = existing_secrets[account][output_prefix]
+                image_id = existing_ami['image_id']
+                commit_sha = existing_ami['commit_sha']
                 logging.warning(
-                    f"[{account}] ami {image_id} not yet available. "
-                    f"using ami for previous commit {commit_sha}."
+                    f"[{account}] ami for commit {new_commit_sha}"
+                    f"not yet available. using ami {image_id}"
+                    f"for previous commit {commit_sha}."
                 )
             else:
                 raise ValueError(f"could not find ami for commit {commit_sha} "

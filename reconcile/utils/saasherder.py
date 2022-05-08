@@ -7,7 +7,7 @@ import itertools
 import hashlib
 import re
 from collections import ChainMap
-from typing import Iterable, Mapping, Any, MutableMapping, Tuple
+from typing import Iterable, Mapping, Any, MutableMapping, Tuple, cast
 
 from contextlib import suppress
 import yaml
@@ -25,6 +25,7 @@ from reconcile.utils.oc import OC, StatusCodeError
 from reconcile.utils.openshift_resource import (
     OpenshiftResource as OR,
     ResourceInventory,
+    fully_qualified_kind,
     ResourceKeyExistsError,
 )
 from reconcile.utils.secret_reader import SecretReader
@@ -35,7 +36,6 @@ TARGET_CONFIG_HASH = "target_config_hash"
 
 
 class Providers:
-    JENKINS = "jenkins"
     TEKTON = "tekton"
 
 
@@ -1057,9 +1057,15 @@ class SaasHerder:
         # filter resources
         rs = []
         for r in resources:
-            if isinstance(r, dict):
-                kind = r.get("kind")
-                if kind in managed_resource_types:
+            if isinstance(r, dict) and "kind" in r and "apiVersion" in r:
+                kind = cast(str, r.get("kind"))
+                kind_and_group = fully_qualified_kind(
+                    kind, cast(str, r.get("apiVersion"))
+                )
+                if (
+                    kind in managed_resource_types
+                    or kind_and_group in managed_resource_types
+                ):
                     rs.append(r)
                 else:
                     logging.info(
@@ -1091,11 +1097,9 @@ class SaasHerder:
                 error_details=html_url,
             )
             try:
-                ri.add_desired(
+                ri.add_desired_resource(
                     cluster,
                     namespace,
-                    resource_kind,
-                    resource_name,
                     oc_resource,
                     privileged=spec["privileged"],
                 )
@@ -1450,27 +1454,8 @@ class SaasHerder:
         return configs
 
     @staticmethod
-    def _get_pipelines_provider(saas_file):
-        """Returns the Pipelines Provider for a SaaS file.
-
-        Args:
-            saas_file (dict): SaaS file GQL query result with apiVersion key
-
-        Returns:
-            dict: Pipelines Provider details
-        """
-        saas_file_api_version = saas_file["apiVersion"]
-        if saas_file_api_version == "v1":
-            # wrapping the instance in a pipelines provider structure
-            # for backwards compatibility
-            pipelines_provider = {
-                "provider": Providers.JENKINS,
-                "instance": saas_file["instance"],
-            }
-        if saas_file_api_version == "v2":
-            pipelines_provider = saas_file["pipelinesProvider"]
-
-        return pipelines_provider
+    def _get_pipelines_provider(saas_file: Mapping[str, Any]) -> str:
+        return saas_file["pipelinesProvider"]
 
     @staticmethod
     def sanitize_namespace(namespace):

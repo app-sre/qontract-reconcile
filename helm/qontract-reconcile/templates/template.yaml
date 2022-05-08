@@ -166,8 +166,10 @@ objects:
             value: ${DRY_RUN}
           - name: INTEGRATION_NAME
             value: {{ $integration.name }}
+          {{- with $integration.extraArgs }}
           - name: INTEGRATION_EXTRA_ARGS
             value: "{{ $integration.extraArgs }}"
+          {{- end }}
           - name: SLEEP_DURATION_SECS
             {{- if $integration.sleepDurationSecs }}
             value: {{ "${" }}{{ $integration.name | upper | replace "-" "_" }}_SLEEP_DURATION_SECS{{ "}" }}
@@ -348,8 +350,10 @@ objects:
               {{- end }}
               - name: INTEGRATION_NAME
                 value: {{ $integration.name }}
+              {{- with $integration.extraArgs }}
               - name: INTEGRATION_EXTRA_ARGS
                 value: "{{ $integration.extraArgs }}"
+              {{- end }}
               - name: GITHUB_API
                 valueFrom:
                   configMapKeyRef:

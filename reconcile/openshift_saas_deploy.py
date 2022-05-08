@@ -75,8 +75,8 @@ def run(
     gitlab_project_id=None,
     defer=None,
 ):
-    all_saas_files = queries.get_saas_files(v1=True, v2=True)
-    saas_files = queries.get_saas_files(saas_file_name, env_name, v1=True, v2=True)
+    all_saas_files = queries.get_saas_files()
+    saas_files = queries.get_saas_files(saas_file_name, env_name)
     app_interface_settings = queries.get_app_interface_settings()
     if not saas_files:
         logging.error("no saas files found")
@@ -97,33 +97,30 @@ def run(
                 QONTRACT_INTEGRATION,
                 init_usergroups=False,
             )
-            # support built-in start and end slack notifications
-            # only in v2 saas files
-            if saas_file["apiVersion"] == "v2":
-                ri = ResourceInventory()
-                console_url = compose_console_url(saas_file, saas_file_name, env_name)
-                # deployment result notification
-                defer(
-                    lambda: slack_notify(
-                        saas_file_name,
-                        env_name,
-                        slack,
-                        ri,
-                        console_url,
-                        in_progress=False,
-                    )
+            ri = ResourceInventory()
+            console_url = compose_console_url(saas_file, saas_file_name, env_name)
+            # deployment result notification
+            defer(
+                lambda: slack_notify(
+                    saas_file_name,
+                    env_name,
+                    slack,
+                    ri,
+                    console_url,
+                    in_progress=False,
                 )
-                # deployment start notification
-                slack_notifications = slack_info.get("notifications")
-                if slack_notifications and slack_notifications.get("start"):
-                    slack_notify(
-                        saas_file_name,
-                        env_name,
-                        slack,
-                        ri,
-                        console_url,
-                        in_progress=True,
-                    )
+            )
+            # deployment start notification
+            slack_notifications = slack_info.get("notifications")
+            if slack_notifications and slack_notifications.get("start"):
+                slack_notify(
+                    saas_file_name,
+                    env_name,
+                    slack,
+                    ri,
+                    console_url,
+                    in_progress=True,
+                )
         else:
             slack = None
 

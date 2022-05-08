@@ -55,3 +55,7 @@ def get_account(accounts: Iterable[Account], account_name: str) -> Account:
             return a
 
     raise AccountNotFoundError(account_name)
+
+
+def get_region_from_availability_zone(availability_zone: str) -> str:
+    return availability_zone[:-1]

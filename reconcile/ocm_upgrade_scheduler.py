@@ -17,12 +17,7 @@ from reconcile.utils.semver_helper import parse_semver, sort_versions
 QONTRACT_INTEGRATION = "ocm-upgrade-scheduler"
 
 
-def fetch_current_state(clusters):
-    settings = queries.get_app_interface_settings()
-    ocm_map = OCMMap(
-        clusters=clusters, integration=QONTRACT_INTEGRATION, settings=settings
-    )
-
+def fetch_current_state(clusters, ocm_map):
     current_state = []
     for cluster in clusters:
         cluster_name = cluster["name"]
@@ -32,7 +27,7 @@ def fetch_current_state(clusters):
             upgrade_policy["cluster"] = cluster_name
             current_state.append(upgrade_policy)
 
-    return ocm_map, current_state
+    return current_state
 
 
 def fetch_desired_state(clusters):
@@ -177,6 +172,34 @@ def version_conditions_met(version, history, ocm_name, workloads, upgrade_condit
     return conditions_met
 
 
+def gates_to_agree(version_prefix: str, cluster: str, ocm: OCM) -> list[str]:
+    """Check via OCM if a version is agreed
+
+    Args:
+        version_prefix (string): major.minor version prefix
+        cluster (string)
+        ocm (OCM): used to fetch infos from OCM
+
+    Returns:
+        bool: true on missing agreement
+    """
+    agreements = {
+        agreement["version_gate"]["id"]
+        for agreement in ocm.get_version_agreement(cluster)
+    }
+
+    return [
+        gate["id"]
+        for gate in ocm.get_version_gates(version_prefix)
+        if gate["id"] not in agreements
+    ]
+
+
+def get_version_prefix(version: str) -> str:
+    semver = parse_semver(version)
+    return f"{semver.major}.{semver.minor}"
+
+
 def upgradeable_version(policy: Mapping, history: Mapping, ocm: OCM) -> Optional[str]:
     """Get the highest next version we can upgrade to, fulfilling all conditions"""
     upgrades = ocm.get_available_upgrades(policy["current_version"], policy["channel"])
@@ -277,6 +300,9 @@ def calculate_diff(current_state, desired_state, ocm_map, version_history):
                 "version": version,
                 "schedule_type": "manual",
                 "next_run": next_schedule.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "gates_to_agree": gates_to_agree(
+                    get_version_prefix(version), cluster, ocm
+                ),
             }
             for mutex in cluster_mutexes(d):
                 locked[mutex] = cluster
@@ -299,8 +325,24 @@ def act(dry_run, diffs, ocm_map):
         cluster = diff.pop("cluster")
         ocm = ocm_map.get(cluster)
         if action == "create":
+            gates_to_agree = diff.pop("gates_to_agree")
             logging.info([action, cluster, diff["version"], diff["next_run"]])
             if not dry_run:
+                for gate in gates_to_agree:
+                    logging.info(
+                        [
+                            action,
+                            cluster,
+                            diff["version"],
+                            f"Creating version agreement for gate {gate}",
+                        ]
+                    )
+                    agreement = ocm.create_version_agreement(gate, cluster)
+                    if agreement.get("version_gate") is None:
+                        logging.error(
+                            f"Unexpected response while creating version "
+                            f"agreement with id {gate} for cluster {cluster}"
+                        )
                 ocm.create_upgrade_policy(cluster, diff)
         elif action == "delete":
             logging.info([action, cluster, diff["version"]])
@@ -310,12 +352,20 @@ def act(dry_run, diffs, ocm_map):
 
 def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
     clusters = queries.get_clusters()
+    settings = queries.get_app_interface_settings()
+
     clusters = [c for c in clusters if c.get("upgradePolicy") is not None]
     if not clusters:
         logging.debug("No upgradePolicy definitions found in app-interface")
         sys.exit(0)
 
-    ocm_map, current_state = fetch_current_state(clusters)
+    ocm_map = OCMMap(
+        clusters=clusters,
+        integration=QONTRACT_INTEGRATION,
+        settings=settings,
+        init_version_gates=True,
+    )
+    current_state = fetch_current_state(clusters, ocm_map)
     desired_state = fetch_desired_state(clusters)
     version_history = get_version_history(dry_run, desired_state, ocm_map)
     diffs = calculate_diff(current_state, desired_state, ocm_map, version_history)

@@ -1,3 +1,4 @@
+from typing import Any
 from reconcile import queries
 
 from reconcile.utils.sqs_gateway import SQSGateway
@@ -30,7 +31,7 @@ def init(gitlab_project_id=None, sqs_or_gitlab=None):
 
         instance = queries.get_gitlab_instance()
         settings = queries.get_app_interface_settings()
-        saas_files = queries.get_saas_files_minimal(v1=True, v2=True)
+        saas_files: list[dict[str, Any]] = queries.get_saas_files_minimal()
 
         return GitLabApi(
             instance,

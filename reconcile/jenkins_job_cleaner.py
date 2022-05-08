@@ -19,7 +19,7 @@ def get_managed_job_names(job_names, managed_projects):
 
 
 def get_desired_job_names(instance_name):
-    jjb, _ = init_jjb()
+    jjb = init_jjb()
     desired_jobs = jjb.get_all_jobs(instance_name=instance_name, include_test=True)[
         instance_name
     ]

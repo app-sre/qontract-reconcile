@@ -8,6 +8,7 @@ from github import Github
 from reconcile.github_repo_invites import run as get_invitations
 from reconcile.jenkins_job_builder import init_jjb
 from reconcile.github_org import get_default_config
+from reconcile.utils.jjb_client import JJB
 from reconcile.utils.semver_helper import make_semver
 
 
@@ -30,7 +31,7 @@ def init_github():
 
 
 def run(dry_run, instance_name):
-    jjb, _ = init_jjb()
+    jjb: JJB = init_jjb()
     pr_check_jobs = get_jobs(jjb, instance_name)
     if not pr_check_jobs:
         logging.error(f"no jobs found for instance {instance_name}")

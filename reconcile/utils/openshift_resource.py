@@ -4,7 +4,7 @@ import datetime
 import hashlib
 import json
 import re
-from typing import Union
+from typing import Mapping, Optional, Union
 
 from threading import Lock
 
@@ -177,6 +177,10 @@ class OpenshiftResource:
     @property
     def kind(self):
         return self.body["kind"]
+
+    @property
+    def kind_and_group(self):
+        return fully_qualified_kind(self.kind, self.body["apiVersion"])
 
     @property
     def caller(self):
@@ -498,6 +502,14 @@ class OpenshiftResource:
         return m.hexdigest()
 
 
+def fully_qualified_kind(kind: str, api_version: str) -> str:
+    if "/" in api_version:
+        group = api_version.split("/")[0]
+        return f"{kind}.{group}"
+    else:
+        return kind
+
+
 class ResourceInventory:
     def __init__(self):
         self._clusters = {}
@@ -510,6 +522,29 @@ class ResourceInventory:
         self._clusters[cluster].setdefault(namespace, {})
         self._clusters[cluster][namespace].setdefault(
             resource_type, {"current": {}, "desired": {}, "use_admin_token": {}}
+        )
+
+    def is_cluster_present(self, cluster: str) -> bool:
+        return cluster in self._clusters
+
+    def add_desired_resource(
+        self,
+        cluster: str,
+        namespace: str,
+        resource: OpenshiftResource,
+        privileged: bool = False,
+    ) -> None:
+        if resource.kind_and_group in self._clusters[cluster][namespace]:
+            kind = resource.kind_and_group
+        else:
+            kind = resource.kind
+        self.add_desired(
+            cluster=cluster,
+            namespace=namespace,
+            resource_type=kind,
+            name=resource.name,
+            value=resource,
+            privileged=privileged,
         )
 
     def add_desired(
@@ -551,3 +586,41 @@ class ResourceInventory:
         if cluster is not None:
             return self._error_registered_clusters.get(cluster, False)
         return self._error_registered
+
+
+def build_secret(
+    name: str,
+    integration: str,
+    integration_version: str,
+    unencoded_data: Mapping[str, str],
+    error_details: str = "",
+    caller_name: Optional[str] = None,
+    annotations: Optional[Mapping[str, str]] = None,
+) -> OpenshiftResource:
+
+    encoded_data = {
+        k: base64_encode_secret_field_value(v) for k, v in unencoded_data.items()
+    }
+
+    body = {
+        "apiVersion": "v1",
+        "kind": "Secret",
+        "type": "Opaque",
+        "metadata": {"name": name, "annotations": annotations or {}},
+        "data": encoded_data,
+    }
+
+    return OpenshiftResource(
+        body,
+        integration,
+        integration_version,
+        error_details=error_details,
+        caller_name=caller_name,
+    )
+
+
+def base64_encode_secret_field_value(value: str) -> Optional[str]:
+    if value == "":
+        return None
+    else:
+        return base64.b64encode(str(value).encode()).decode("utf-8")

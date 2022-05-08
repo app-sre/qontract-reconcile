@@ -25,9 +25,7 @@ DEFAULT_CHECKPOINT_LABELS = ("sre-checkpoint",)
 EMAIL_ADDRESS_REGEXP = re.compile(r"^\w+[-\w\.]*@(?:\w[-\w]*\w\.)+\w+")
 MAX_EMAIL_ADDRESS_LENGTH = 320  # Per RFC3696
 
-MISSING_DATA_TEMPLATE = (
-    PROJ_ROOT / "templates" / "jira-checkpoint-missinginfo.j2"
-)
+MISSING_DATA_TEMPLATE = PROJ_ROOT / "templates" / "jira-checkpoint-missinginfo.j2"
 
 
 @lru_cache
@@ -44,7 +42,7 @@ def url_makes_sense(url: str) -> bool:
     if not url:
         return False
     try:
-        rs = requests.get(url)
+        rs = requests.get(url, verify=False)
     except requests.exceptions.ConnectionError:
         return False
     # Codes above NOT_FOUND mean the URL to the document doesn't
@@ -100,9 +98,7 @@ def file_ticket(
 
     i = jira.create_issue(
         summary,
-        render_template(
-            MISSING_DATA_TEMPLATE, app_name, app_path, field, bad_value
-        ),
+        render_template(MISSING_DATA_TEMPLATE, app_name, app_path, field, bad_value),
         labels=labels,
         links=(parent,),
     )
@@ -159,9 +155,7 @@ def report_invalid_metadata(
         try:
             if not validator(value):
                 i = do_cut(field=field, bad_value=str(value))
-                logging.error(
-                    f"Reporting bad field {field} with value {value}: {i}"
-                )
+                logging.error(f"Reporting bad field {field} with value {value}: {i}")
         except Exception as e:
             i = do_cut(field=field, bad_value=str(value))
             logging.error(f"Problems with {field} for {app['name']}: {e}")

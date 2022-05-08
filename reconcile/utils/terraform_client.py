@@ -1,4 +1,3 @@
-import base64
 import logging
 import json
 import os
@@ -11,15 +10,15 @@ from dataclasses import dataclass
 from typing import Iterable, Mapping, Any
 
 from python_terraform import Terraform, IsFlagged, TerraformCommandError
-from ruamel import yaml
 from sretoolbox.utils import retry
 from sretoolbox.utils import threaded
 
+from reconcile.utils.aws_helper import get_region_from_availability_zone
+from reconcile.utils.terraform_resource_spec import TerraformResourceSpec, TerraformResourceSpecInventory
+
 import reconcile.utils.lean_terraform_client as lean_tf
 
-from reconcile.utils import gql
 from reconcile.utils.aws_api import AWSApi
-from reconcile.utils.openshift_resource import OpenshiftResource as OR
 
 ALLOWED_TF_SHOW_FORMAT_VERSION = "0.1"
 DATE_FORMAT = '%Y-%m-%d'
@@ -331,7 +330,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         error = self.check_output(name, 'apply', return_code, stdout, stderr)
         return error
 
-    def get_terraform_output_secrets(self):
+    def get_terraform_output_secrets(self) -> dict[str, dict[str, dict[str, str]]]:
         data = {}
         for account, output in self.outputs.items():
             data[account] = \
@@ -339,112 +338,24 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
 
         return data
 
-    def populate_desired_state(self, ri, oc_map, tf_namespaces, account_name):
-        self.init_outputs()  # get updated output
-
-        # Dealing with credentials for RDS replicas
-        replicas_info = self.get_replicas_info(namespaces=tf_namespaces)
-
-        for account, output in self.outputs.items():
-            if account_name and account != account_name:
-                continue
-
-            formatted_output = self.format_output(
-                output, self.OUTPUT_TYPE_SECRETS)
-
-            for name, data in formatted_output.items():
-                # Grabbing the username/password from the
-                # replica_source and using them in the
-                # replica. This is needed because we can't
-                # set username/password for a replica in
-                # terraform.
-                if account in replicas_info:
-                    if name in replicas_info[account]:
-                        replica_src_name = replicas_info[account][name]
-                        data['db.user'] = \
-                            formatted_output[replica_src_name]['db.user']
-                        data['db.password'] = \
-                            formatted_output[replica_src_name]['db.password']
-
-                cluster = data['{}_cluster'.format(self.integration_prefix)]
-                if not oc_map.get(cluster):
-                    continue
-                namespace = \
-                    data['{}_namespace'.format(self.integration_prefix)]
-                resource = data['{}_resource'.format(self.integration_prefix)]
-                output_resource_name = data['{}_output_resource_name'.format(
-                    self.integration_prefix)]
-                annotations = data.get('{}_annotations'.format(
-                    self.integration_prefix))
-
-                oc_resource = \
-                    self.construct_oc_resource(output_resource_name, data,
-                                               account, annotations)
-                ri.add_desired(
-                    cluster,
-                    namespace,
-                    resource,
-                    output_resource_name,
-                    oc_resource
-                )
-
     @staticmethod
-    def get_replicas_info(namespaces):
-        replicas_info = defaultdict(dict)
+    def get_replicas_info(resource_specs: Iterable[TerraformResourceSpec]) -> dict[str, dict[str, str]]:
+        """
+        finds the source resources of RDS replicas
 
-        for tf_namespace in namespaces:
-            tf_resources = tf_namespace.get('terraformResources')
-            if tf_resources is None:
-                continue
+        the key of the returned dict is the identifier of the replica
+        and the value is the resource of the replicas master db
+        """
+        replicas_info: dict[str, dict[str, str]] = defaultdict(dict)
 
-            for tf_resource in tf_namespace['terraformResources']:
-                # First, we have to find the terraform resources
-                # that have a replica_source defined in app-interface
-                replica_src = tf_resource.get('replica_source')
-
-                if replica_src is None:
-                    # When replica_source is not there, we look for
-                    # replicate_source_db in the defaults
-                    replica_src_db = None
-                    defaults_ref = tf_resource.get('defaults')
-                    if defaults_ref is not None:
-                        defaults_res = gql.get_resource(
-                            defaults_ref
-                        )
-                        defaults = yaml.safe_load(defaults_res['content'])
-                        replica_src_db = defaults.get('replicate_source_db')
-
-                    # Also, we look for replicate_source_db in the overrides
-                    override_replica_src_db = None
-                    overrides = tf_resource.get('overrides')
-                    if overrides is not None:
-                        override_replica_src_db = json.loads(overrides).get(
-                            'replicate_source_db'
-                        )
-                    if override_replica_src_db is not None:
-                        replica_src_db = override_replica_src_db
-
-                    # Getting whatever we probed here
-                    replica_src = replica_src_db
-
-                if replica_src is None:
-                    # No replica source information anywhere
-                    continue
-
-                # The replica name, as found in the
-                # self.format_output()
-                replica_name = (f'{tf_resource.get("identifier")}-'
-                                f'{tf_resource.get("provider")}')
-
-                # The replica source name, as found in the
-                # self.format_output()
-                replica_source_name = (f'{replica_src}-'
-                                       f'{tf_resource.get("provider")}')
-
+        for spec in resource_specs:
+            tf_resource = spec.resource
+            replica_src = tf_resource.get('replica_source')
+            if replica_src:
+                replica_source_name = f'{replica_src}-{tf_resource.get("provider")}'
                 # Creating a dict that is convenient to use inside the
                 # loop processing the formatted_output
-                tf_account = tf_resource.get('account')
-                replicas_info[tf_account][replica_name] = replica_source_name
+                replicas_info[spec.account][spec.output_prefix] = replica_source_name
 
         return replicas_info
 
@@ -511,38 +422,57 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
             return data[list(data.keys())[0]]
         return data
 
-    def construct_oc_resource(self, name, data, account, annotations):
-        body = {
-            "apiVersion": "v1",
-            "kind": "Secret",
-            "type": "Opaque",
-            "metadata": {
-                "name": name,
-                "annotations": {
-                    "qontract.recycle": "true"
-                }
-            },
-            "data": {}
-        }
+    def populate_terraform_output_secrets(self, resource_specs: TerraformResourceSpecInventory,
+                                          init_rds_replica_source: bool = False) -> None:
+        """
+        find the terraform output data for each resource spec and populate its `secret` field.
+        if the `init_rds_replica_source` a replica RDS gets its DB user and password fields
+        populated by looking at the replica source DB.
+        """
+        self.init_outputs()  # get updated output
+        terraform_output_secrets = self.get_terraform_output_secrets()
+        if init_rds_replica_source:
+            replicas_info = self.get_replicas_info(resource_specs.values())
+        else:
+            replicas_info = {}
 
-        if annotations:
-            anno_dict = json.loads(base64.b64decode(annotations))
-            body["metadata"]["annotations"].update(anno_dict)
+        self._populate_terraform_output_secrets(
+            resource_specs, terraform_output_secrets, self.integration_prefix, replicas_info
+        )
 
-        for k, v in data.items():
-            if self.integration_prefix in k:
+    @staticmethod
+    def _populate_terraform_output_secrets(resource_specs: TerraformResourceSpecInventory,
+                                           terraform_output_secrets: Mapping[str, Mapping[str, Mapping[str, str]]],
+                                           integration_prefix: str,
+                                           replica_sources: Mapping[str, Mapping[str, str]]) -> None:
+        for spec in resource_specs.values():
+            secret = terraform_output_secrets.get(spec.account, {}).get(spec.output_prefix, None)
+            if not secret:
                 continue
-            if v == "":
-                v = None
-            else:
-                # convert to str to maintain compatability
-                # as ports are now ints and not strs
-                v = base64.b64encode(str(v).encode()).decode('utf-8')
-            body['data'][k] = v
+            secret_copy = dict(secret)
 
-        return OR(body, self.integration, self.integration_version,
-                  error_details=name,
-                  caller_name=account)
+            # find out about replica source
+            replica_source = replica_sources.get(spec.account, {}).get(spec.output_prefix)
+            if replica_source:
+                # Grabbing the username/password from the
+                # replica_source and using them in the
+                # replica. This is needed because we can't
+                # set username/password for a replica in
+                # terraform.
+                replica_source_secret = terraform_output_secrets.get(spec.account, {}).get(replica_source)
+                if replica_source_secret:
+                    replica_src_user = replica_source_secret.get("db.user")
+                    replica_src_password = replica_source_secret.get("db.password")
+                    if replica_src_user and replica_src_password:
+                        secret_copy["db.user"] = replica_src_user
+                        secret_copy["db.password"] = replica_src_password
+
+            # clean metadata
+            for key in secret.keys():
+                if integration_prefix in key:
+                    secret_copy.pop(key)
+
+            spec.secret = secret_copy
 
     def check_output(self, name, cmd, return_code, stdout, stderr):
         error_occured = False
@@ -591,8 +521,10 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         ]
         if len(changed_terraform_args) == 1 \
                 and 'engine_version' in changed_terraform_args:
+            region_name = get_region_from_availability_zone(before['availability_zone'])
             response = \
-                self._aws_api.describe_rds_db_instance(account_name, resource_name)
+                self._aws_api.describe_rds_db_instance(account_name, resource_name,
+                                                       region_name=region_name)
             pending_modified_values = response['DBInstances'][0][
                 'PendingModifiedValues']
             if 'EngineVersion' in pending_modified_values and \

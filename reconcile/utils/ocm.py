@@ -1,7 +1,7 @@
 import functools
 import logging
 import re
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 import reconcile.utils.aws_helper as awsh
 import requests
@@ -45,6 +45,7 @@ class OCM:  # pylint: disable=too-many-public-methods
     :type offline_token: string
     :type init_provision_shards: bool
     :type init_addons: bool
+    :type init_version_gates: bool
     :type blocked_version: list
     """
 
@@ -57,6 +58,7 @@ class OCM:  # pylint: disable=too-many-public-methods
         offline_token,
         init_provision_shards=False,
         init_addons=False,
+        init_version_gates=False,
         blocked_versions=None,
     ):
         """Initiates access token and gets clusters information."""
@@ -71,6 +73,11 @@ class OCM:  # pylint: disable=too-many-public-methods
         if init_addons:
             self._init_addons()
         self._init_blocked_versions(blocked_versions)
+
+        self.init_version_gates = init_version_gates
+        self.version_gates = []
+        if init_version_gates:
+            self._init_version_gates()
 
         # Setup caches on the instance itself to avoid leak
         # https://stackoverflow.com/questions/33672412/python-functools-lru-cache-with-class-methods-release-object
@@ -823,12 +830,50 @@ class OCM:  # pylint: disable=too-many-public-methods
         api = f"{CS_API_BASE}/v1/addons"
         self.addons = self._get_json(api).get("items")
 
+    def _init_version_gates(self):
+        """Returns a list of version gates"""
+        if self.version_gates:
+            return
+        api = f"{CS_API_BASE}/v1/version_gates"
+        self.version_gates = self._get_json(api).get("items")
+
     def get_addon(self, id):
         for addon in self.addons:
             addon_id = addon["id"]
             if id == addon_id:
                 return addon
         return None
+
+    def get_version_gates(
+        self, version_prefix: str, sts_only: bool = False
+    ) -> list[dict[str, Any]]:
+        if not self.init_version_gates:
+            self._init_version_gates()
+        return [
+            g
+            for g in self.version_gates
+            if g["version_raw_id_prefix"] == version_prefix
+            and g["sts_only"] == sts_only
+        ]
+
+    def get_version_agreement(self, cluster: str) -> list[dict[str, Any]]:
+        cluster_id = self.cluster_ids.get(cluster)
+        if not cluster_id:
+            return []
+        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/gate_agreements"
+        agreements = self._get_json(api).get("items")
+        if agreements:
+            return agreements
+        return []
+
+    def create_version_agreement(
+        self, gate_id: str, cluster: str
+    ) -> list[dict[str, Union[str, bool]]]:
+        cluster_id = self.cluster_ids.get(cluster)
+        if not cluster_id:
+            return []
+        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/gate_agreements"
+        return self._post(api, {"version_gate": {"id": gate_id}})
 
     def get_cluster_addons(self, cluster):
         """Returns a list of Addons installed on a cluster
@@ -945,6 +990,7 @@ class OCMMap:  # pylint: disable=too-many-public-methods
     :type settings: dict
     :type init_provision_shards: bool
     :type init_addons: bool
+    :type init_version_gates bool
     """
 
     def __init__(
@@ -955,6 +1001,7 @@ class OCMMap:  # pylint: disable=too-many-public-methods
         settings=None,
         init_provision_shards=False,
         init_addons=False,
+        init_version_gates=False,
     ):
         """Initiates OCM instances for each OCM referenced in a cluster."""
         self.clusters_map = {}
@@ -966,15 +1013,27 @@ class OCMMap:  # pylint: disable=too-many-public-methods
             raise KeyError("expected only one of clusters or namespaces.")
         elif clusters:
             for cluster_info in clusters:
-                self.init_ocm_client(cluster_info, init_provision_shards, init_addons)
+                self.init_ocm_client(
+                    cluster_info,
+                    init_provision_shards,
+                    init_addons,
+                    init_version_gates=init_version_gates,
+                )
         elif namespaces:
             for namespace_info in namespaces:
                 cluster_info = namespace_info["cluster"]
-                self.init_ocm_client(cluster_info, init_provision_shards, init_addons)
+                self.init_ocm_client(
+                    cluster_info,
+                    init_provision_shards,
+                    init_addons,
+                    init_version_gates=init_version_gates,
+                )
         else:
             raise KeyError("expected one of clusters or namespaces.")
 
-    def init_ocm_client(self, cluster_info, init_provision_shards, init_addons):
+    def init_ocm_client(
+        self, cluster_info, init_provision_shards, init_addons, init_version_gates
+    ):
         """
         Initiate OCM client.
         Gets the OCM information and initiates an OCM client.
@@ -1016,6 +1075,7 @@ class OCMMap:  # pylint: disable=too-many-public-methods
                 init_provision_shards=init_provision_shards,
                 init_addons=init_addons,
                 blocked_versions=ocm_info.get("blockedVersions"),
+                init_version_gates=init_version_gates,
             )
 
     def instances(self):

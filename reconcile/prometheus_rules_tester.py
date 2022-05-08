@@ -10,6 +10,7 @@ from sretoolbox.utils import threaded
 from reconcile import queries
 from reconcile.utils import gql
 from reconcile.utils import promtool
+import reconcile.openshift_base as ob
 import reconcile.openshift_resources_base as orb
 
 from reconcile.utils.semver_helper import make_semver
@@ -77,6 +78,7 @@ def get_prometheus_rules(cluster_name):
         ):
             continue
 
+        ob.aggregate_shared_resources(n, "openshiftResources")
         openshift_resources = n.get("openshiftResources")
         if not openshift_resources:
             logging.warning(
