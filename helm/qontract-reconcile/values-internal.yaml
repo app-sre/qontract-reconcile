@@ -426,8 +426,8 @@ cronjobs:
     limits:
       memory: 600Mi
       cpu: 200m
-  # once a day
-  cron: '0 2 * * *'
+  # once an hour
+  cron: '0 * * * *'
   dashdotdb: true
 - name: dashdotdb-slo
   concurrencyPolicy: Replace
