@@ -54,3 +54,10 @@ def test_template_disable_unleash(values):
     template = helm.template(values)
     expected = yaml.safe_load(fxt.get("disable_unleash.yml"))
     assert template == expected
+
+
+def test_template_extra_args(values):
+    values["integrations"][0]["extraArgs"] = "--test-extra-args"
+    template = helm.template(values)
+    expected = yaml.safe_load(fxt.get("extra_args.yml"))
+    assert template == expected
