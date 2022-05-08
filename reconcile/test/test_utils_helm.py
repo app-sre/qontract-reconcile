@@ -105,3 +105,10 @@ def test_template_sleep_duration(values):
     template = helm.template(values)
     expected = yaml.safe_load(fxt.get("sleep_duration.yml"))
     assert template == expected
+
+
+def test_template_state(values):
+    values["integrations"][0]["state"] = True
+    template = helm.template(values)
+    expected = yaml.safe_load(fxt.get("state.yml"))
+    assert template == expected
