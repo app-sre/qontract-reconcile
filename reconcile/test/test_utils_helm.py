@@ -98,3 +98,10 @@ def test_template_shards(values):
     template = helm.template(values)
     expected = yaml.safe_load(fxt.get("shards.yml"))
     assert template == expected
+
+
+def test_template_sleep_duration(values):
+    values["integrations"][0]["sleepDurationSecs"] = 29
+    template = helm.template(values)
+    expected = yaml.safe_load(fxt.get("sleep_duration.yml"))
+    assert template == expected
