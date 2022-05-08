@@ -61,3 +61,19 @@ def test_template_extra_args(values):
     template = helm.template(values)
     expected = yaml.safe_load(fxt.get("extra_args.yml"))
     assert template == expected
+
+
+def test_template_extra_env(values):
+    values["integrations"][0]["extraEnv"] = [
+        {
+            "secretName": "secret",
+            "secretKey": "key",
+        },
+        {
+            "name": "name",
+            "value": "value",
+        },
+    ]
+    template = helm.template(values)
+    expected = yaml.safe_load(fxt.get("extra_env.yml"))
+    assert template == expected
