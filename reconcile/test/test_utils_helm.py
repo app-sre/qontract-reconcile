@@ -112,3 +112,10 @@ def test_template_state(values):
     template = helm.template(values)
     expected = yaml.safe_load(fxt.get("state.yml"))
     assert template == expected
+
+
+def test_template_storage(values):
+    values["integrations"][0]["storage"] = "13Mi"
+    template = helm.template(values)
+    expected = yaml.safe_load(fxt.get("storage.yml"))
+    assert template == expected
