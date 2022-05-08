@@ -77,3 +77,10 @@ def test_template_extra_env(values):
     template = helm.template(values)
     expected = yaml.safe_load(fxt.get("extra_env.yml"))
     assert template == expected
+
+
+def test_template_internal_certificates(values):
+    values["integrations"][0]["internalCertificates"] = True
+    template = helm.template(values)
+    expected = yaml.safe_load(fxt.get("internal_certificates.yml"))
+    assert template == expected
