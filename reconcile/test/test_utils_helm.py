@@ -126,3 +126,31 @@ def test_template_trigger(values):
     template = helm.template(values)
     expected = yaml.safe_load(fxt.get("trigger.yml"))
     assert template == expected
+
+
+@pytest.fixture
+def values_cron():
+    return {
+        "cronjobs": [
+            {
+                "name": "integ",
+                "resources": {
+                    "requests": {
+                        "cpu": "123",
+                        "memory": "45Mi",
+                    },
+                    "limits": {
+                        "cpu": "678",
+                        "memory": "90Mi",
+                    },
+                },
+                "cron": "* * * * *"
+            }
+        ]
+    }
+
+
+def test_template_cron(values_cron):
+    template = helm.template(values_cron)
+    expected = yaml.safe_load(fxt.get("cron.yml"))
+    assert template == expected
