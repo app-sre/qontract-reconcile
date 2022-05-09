@@ -1,7 +1,10 @@
 from typing import Any
 from pydantic import ValidationError
 import pytest
-from reconcile.utils.openshift_resource import base64_encode_secret_field_value
+from reconcile.utils.openshift_resource import (
+    SECRET_MAX_KEY_LENGTH,
+    base64_encode_secret_field_value,
+)
 from reconcile.utils.terraform_resource_spec import (
     TerraformResourceUniqueKey,
     TerraformResourceSpec,
@@ -242,7 +245,7 @@ def test_terraform_generic_secret_output_key_too_long(
     """
     tests for too long secret keys (max length in kubernetes is 253 characters )
     """
-    long_key = "a" * 254
+    long_key = "a" * (SECRET_MAX_KEY_LENGTH + 1)
     spec.resource["output_format"] = {  # type: ignore[index]
         "provider": "generic-secret",
         "data": f"{ long_key }: value",

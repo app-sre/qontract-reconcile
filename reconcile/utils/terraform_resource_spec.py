@@ -5,7 +5,11 @@ import json
 from typing import Any, Mapping, Optional, cast
 
 import yaml
-from reconcile.utils.openshift_resource import OpenshiftResource, build_secret
+from reconcile.utils.openshift_resource import (
+    OpenshiftResource,
+    build_secret,
+    SECRET_MAX_KEY_LENGTH,
+)
 from reconcile import openshift_resources_base
 
 
@@ -14,19 +18,19 @@ class OutputFormatProcessor:
     def render(self, vars: Mapping[str, str]) -> dict[str, str]:
         return {}
 
-    @staticmethod
-    def validate_k8s_secret_key(key: Any) -> None:
+    def validate_k8s_secret_key(self, key: Any) -> None:  # pylint: disable=R0201
         if isinstance(key, str):
-            if len(key) > 253:
-                raise ValueError(f"secret key {key} is longer than 253 chars")
+            if len(key) > SECRET_MAX_KEY_LENGTH:
+                raise ValueError(
+                    f"secret key {key} is longer than {SECRET_MAX_KEY_LENGTH} chars"
+                )
         else:
             raise ValueError(f"secret key '{key}' is not a string")
 
-    @staticmethod
-    def validate_k8s_secret_data(data: Any) -> None:
+    def validate_k8s_secret_data(self, data: Any) -> None:
         if isinstance(data, dict):
             for k, v in data.items():
-                OutputFormatProcessor.validate_k8s_secret_key(k)
+                self.validate_k8s_secret_key(k)
                 if not isinstance(v, str):
                     raise ValueError(
                         f"dictionary value '{v}' under '{k}' is not a string"
@@ -48,7 +52,7 @@ class GenericSecretOutputFormatConfig(OutputFormatProcessor):
                 self.data, dict(vars)
             )
             parsed_data = yaml.safe_load(rendered_data)
-            OutputFormatProcessor.validate_k8s_secret_data(parsed_data)
+            self.validate_k8s_secret_data(parsed_data)
             return cast(dict[str, str], parsed_data)
         else:
             return dict(vars)
@@ -60,6 +64,7 @@ class OutputFormat:
     provider: str
     data: Optional[str] = None
 
+    @property
     def _formatter(self) -> OutputFormatProcessor:
         if self.provider == "generic-secret":
             return GenericSecretOutputFormatConfig(data=self.data)
@@ -67,7 +72,7 @@ class OutputFormat:
             raise ValueError(f"unknown output format provider {self.provider}")
 
     def render(self, vars: Mapping[str, str]) -> dict[str, str]:
-        return self._formatter().render(vars)
+        return self._formatter.render(vars)
 
 
 @dataclass
@@ -136,9 +141,7 @@ class TerraformResourceSpec:
 
     def _output_format(self) -> OutputFormat:
         if self.resource.get("output_format") is not None:
-            return OutputFormat(
-                **cast(dict[str, Any], self.resource.get("output_format"))
-            )
+            return OutputFormat(**cast(dict[str, Any], self.resource["output_format"]))
         else:
             return OutputFormat(provider="generic-secret")
 
