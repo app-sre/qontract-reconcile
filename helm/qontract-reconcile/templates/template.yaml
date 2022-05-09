@@ -454,7 +454,11 @@ parameters:
   value: latest
 - name: FLUENTD_IMAGE_PULL_POLICY
   value: Always
+- name: ENVIRONMENT_NAME
+  value: app-interface
 - name: DRY_RUN
+  value: --dry-run
+- name: MANAGER_DRY_RUN
   value: --dry-run
 - name: SLEEP_DURATION_SECS
   value: "300"
