@@ -163,7 +163,11 @@ objects:
           - name: SHARD_ID
             value: "{{ $shard_id }}"
           - name: DRY_RUN
+            {{- if eq $integration.name "integrations-manager" }}
+            value: ${MANAGER_DRY_RUN}
+            {{- else }}
             value: ${DRY_RUN}
+            {{- end }}
           - name: INTEGRATION_NAME
             value: {{ $integration.name }}
           {{- with $integration.extraArgs }}

@@ -135,6 +135,13 @@ def test_template_exclude_service(values):
     assert template == expected
 
 
+def test_template_integrations_manager(values):
+    values["integrations"][0]["name"] = "integrations-manager"
+    template = helm.template(values)
+    expected = yaml.safe_load(fxt.get("integrations_manager.yml"))
+    assert template == expected
+
+
 @pytest.fixture
 def values_cron():
     return {
