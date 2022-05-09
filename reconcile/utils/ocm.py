@@ -68,7 +68,7 @@ class OCM:  # pylint: disable=too-many-public-methods
         self.access_token_client_id = access_token_client_id
         self.access_token_url = access_token_url
         self.offline_token = offline_token
-        self.session = requests.Session()
+        self._session = requests.Session()
         self._init_access_token()
         self._init_request_headers()
         self._init_clusters(init_provision_shards=init_provision_shards)
@@ -96,14 +96,14 @@ class OCM:  # pylint: disable=too-many-public-methods
             "client_id": self.access_token_client_id,
             "refresh_token": self.offline_token,
         }
-        r = self.session.post(
+        r = self._session.post(
             self.access_token_url, data=data, timeout=REQUEST_TIMEOUT_SEC
         )
         r.raise_for_status()
         self.access_token = r.json().get("access_token")
 
     def _init_request_headers(self):
-        self.session.headers.update(
+        self._session.headers.update(
             {
                 "Authorization": f"Bearer {self.access_token}",
                 "accept": "application/json",
@@ -937,8 +937,8 @@ class OCM:  # pylint: disable=too-many-public-methods
                 raise TypeError(f"blocked version is not a valid regex expression: {b}")
 
     @retry(max_attempts=10)
-    def _do_get_request(self, api: str, params: Mapping[str, str]) -> Mapping[str, Any]:
-        r = self.session.get(
+    def _do_get_request(self, api: str, params: Mapping[str, str]) -> dict[str, Any]:
+        r = self._session.get(
             f"{self.url}{api}",
             params=params,
             timeout=REQUEST_TIMEOUT_SEC,
@@ -950,7 +950,7 @@ class OCM:  # pylint: disable=too-many-public-methods
     def _response_is_list(rs: Mapping[str, Any]) -> bool:
         return rs["kind"].endswith("List")
 
-    def _get_json(self, api: str) -> Mapping[str, Any]:
+    def _get_json(self, api: str) -> dict[str, Any]:
         responses = []
         params = {"size": 100}
         while True:
@@ -973,7 +973,7 @@ class OCM:  # pylint: disable=too-many-public-methods
         return responses[0]
 
     def _post(self, api, data=None, params=None):
-        r = self.session.post(
+        r = self._session.post(
             f"{self.url}{api}", json=data, params=params, timeout=REQUEST_TIMEOUT_SEC
         )
         try:
@@ -986,7 +986,7 @@ class OCM:  # pylint: disable=too-many-public-methods
         return r.json()
 
     def _patch(self, api, data, params=None):
-        r = self.session.patch(
+        r = self._session.patch(
             f"{self.url}{api}", json=data, params=params, timeout=REQUEST_TIMEOUT_SEC
         )
         try:
@@ -996,7 +996,7 @@ class OCM:  # pylint: disable=too-many-public-methods
             raise e
 
     def _delete(self, api):
-        r = self.session.delete(f"{self.url}{api}", timeout=REQUEST_TIMEOUT_SEC)
+        r = self._session.delete(f"{self.url}{api}", timeout=REQUEST_TIMEOUT_SEC)
         r.raise_for_status()
 
 
