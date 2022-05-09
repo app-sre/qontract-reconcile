@@ -94,6 +94,12 @@ class OpenshiftResource:
                     ]
                     if diff or not self.obj_intersect_equal(obj1_v, obj2_v):
                         return False
+                elif obj1_k == "env":
+                    for v in obj2_v:
+                        if "name" in v and len(v) == 1:
+                            v["value"] = ""
+                    if not self.obj_intersect_equal(obj1_v, obj2_v):
+                        return False
                 elif obj1_k == "cpu":
                     equal = self.cpu_equal(obj1_v, obj2_v)
                     if not equal:
