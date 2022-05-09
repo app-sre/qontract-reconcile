@@ -142,6 +142,13 @@ def test_template_integrations_manager(values):
     assert template == expected
 
 
+def test_template_environment_aware(values):
+    values["integrations"][0]["environmentAware"] = True
+    template = helm.template(values)
+    expected = yaml.safe_load(fxt.get("environment_aware.yml"))
+    assert template == expected
+
+
 @pytest.fixture
 def values_cron():
     return {
