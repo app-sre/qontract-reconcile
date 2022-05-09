@@ -144,7 +144,7 @@ def values_cron():
                         "memory": "90Mi",
                     },
                 },
-                "cron": "* * * * *"
+                "cron": "* * * * *",
             }
         ]
     }
