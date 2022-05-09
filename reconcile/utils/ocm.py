@@ -936,21 +936,22 @@ class OCM:  # pylint: disable=too-many-public-methods
         r.raise_for_status()
         return r.json()
 
-    def _get_json(self, api):
-        def response_is_list(rs: dict[str, Any]) -> bool:
-            return rs["kind"].endswith("List")
+    @staticmethod
+    def _response_is_list(rs: dict[str, Any]) -> bool:
+        return rs["kind"].endswith("List")
 
+    def _get_json(self, api):
         responses = []
         params = {"size": 100}
         while True:
             rs = self._do_get_request(api, params=params)
             responses.append(rs)
-            if response_is_list(rs) and rs["size"] == params["size"]:
+            if self._response_is_list(rs) and rs["size"] == params["size"]:
                 params["page"] = rs["page"] + 1
             else:
                 break
 
-        if response_is_list(responses[0]):
+        if self._response_is_list(responses[0]):
             items = []
             for resp in responses:
                 items.extend(resp["items"])
