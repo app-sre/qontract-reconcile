@@ -68,7 +68,6 @@ def test_get_version_gate(ocm):
 
 
 def test__get_json_pagination(ocm):
-    ocm.headers = {}
     ocm.url = "http://ocm.test"
     call_cnt = 0
 
@@ -104,7 +103,6 @@ def test__get_json_pagination(ocm):
 
 
 def test__get_json_empty_list(ocm: OCM):
-    ocm.headers = {}
     ocm.url = "http://ocm.test"
     httpretty.enable()
     httpretty.register_uri(
@@ -120,8 +118,6 @@ def test__get_json_empty_list(ocm: OCM):
 
 
 def test__get_json(ocm):
-    ocm.headers = {}
-    ocm.headers = {}
     ocm.url = "http://ocm.test"
 
     httpretty.enable()
