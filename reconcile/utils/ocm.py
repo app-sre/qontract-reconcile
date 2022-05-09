@@ -964,12 +964,16 @@ class OCM:  # pylint: disable=too-many-public-methods
         if self._response_is_list(responses[0]):
             items = []
             for resp in responses:
-                items.extend(resp["items"])
-            return {
+                items_to_add = resp.get("items")
+                if items_to_add:
+                    items.extend(items_to_add)
+            ret_items = {
                 "kind": responses[0]["kind"],
-                "items": items,
                 "total": len(items),
             }
+            if len(items) > 0:
+                ret_items["items"] = items
+            return ret_items
         return responses[0]
 
     def _post(self, api, data=None, params=None):

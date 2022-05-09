@@ -103,6 +103,22 @@ def test__get_json_pagination(ocm):
     assert call_cnt == 4
 
 
+def test__get_json_empty_list(ocm: OCM):
+    ocm.headers = {}
+    ocm.url = "http://ocm.test"
+    httpretty.enable()
+    httpretty.register_uri(
+        httpretty.GET,
+        "http://ocm.test/api",
+        body=json.dumps({"kind": "TestList", "page": 1, "size": 0, "total": 0}),
+    )
+
+    resp = ocm._get_json("/api")
+    httpretty.disable()
+    assert "items" not in resp
+    assert resp["total"] == 0
+
+
 def test__get_json(ocm):
     ocm.headers = {}
     ocm.headers = {}
