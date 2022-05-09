@@ -19,6 +19,7 @@ https://github.com/helm/helm/releases
 
 | Parameter                   | Description                                                              | Default                            |
 |-----------------------------|--------------------------------------------------------------------------|------------------------------------|
+| excludeService              | Exclude the Service resource from templating                             | false                              |
 | integrations                | List of integration specs to run                                         | `[]`                               |
 | cronjobs                    | List of integration specs to run with schedule                           | `[]`                               |
 

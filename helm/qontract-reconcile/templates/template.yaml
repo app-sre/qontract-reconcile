@@ -423,6 +423,7 @@ objects:
               secret:
                 secretName: qontract-reconcile-toml
 {{- end }}
+{{- if not .Values.excludeService }}
 - apiVersion: v1
   kind: Service
   metadata:
@@ -437,6 +438,7 @@ objects:
         name: http
     selector:
       component: qontract-reconcile
+{{- end }}
 parameters:
 - name: IMAGE
   value: quay.io/app-sre/qontract-reconcile

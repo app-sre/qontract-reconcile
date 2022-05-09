@@ -128,6 +128,13 @@ def test_template_trigger(values):
     assert template == expected
 
 
+def test_template_exclude_service(values):
+    values["excludeService"] = True
+    template = helm.template(values)
+    expected = yaml.safe_load(fxt.get("exclude_service.yml"))
+    assert template == expected
+
+
 @pytest.fixture
 def values_cron():
     return {
