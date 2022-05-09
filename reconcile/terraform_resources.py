@@ -32,6 +32,12 @@ from reconcile.utils.vault import _VaultClient, VaultClient
 
 
 TF_RESOURCE = """
+output_format {
+  provider
+  ... on NamespaceTerraformResourceGenericSecretOutputFormat_v1 {
+    data
+  }
+}
 provider
 ... on NamespaceTerraformResourceRDS_v1 {
   account

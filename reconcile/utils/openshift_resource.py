@@ -11,6 +11,9 @@ from threading import Lock
 import semver
 
 
+SECRET_MAX_KEY_LENGTH = 253
+
+
 class ResourceKeyExistsError(Exception):
     pass
 
