@@ -25,6 +25,7 @@ CLUSTER_ADDON_DESIRED_KEYS = {"id", "parameters"}
 
 DISABLE_UWM_ATTR = "disable_user_workload_monitoring"
 BYTES_IN_GIGABYTE = 1024**3
+REQUEST_TIMEOUT_SEC = 60
 
 
 class OCM:  # pylint: disable=too-many-public-methods
@@ -67,6 +68,7 @@ class OCM:  # pylint: disable=too-many-public-methods
         self.access_token_client_id = access_token_client_id
         self.access_token_url = access_token_url
         self.offline_token = offline_token
+        self.session = requests.Session()
         self._init_access_token()
         self._init_request_headers()
         self._init_clusters(init_provision_shards=init_provision_shards)
@@ -94,15 +96,19 @@ class OCM:  # pylint: disable=too-many-public-methods
             "client_id": self.access_token_client_id,
             "refresh_token": self.offline_token,
         }
-        r = requests.post(self.access_token_url, data=data)
+        r = self.session.post(
+            self.access_token_url, data=data, timeout=REQUEST_TIMEOUT_SEC
+        )
         r.raise_for_status()
         self.access_token = r.json().get("access_token")
 
     def _init_request_headers(self):
-        self.headers = {
-            "Authorization": f"Bearer {self.access_token}",
-            "accept": "application/json",
-        }
+        self.session.headers.update(
+            {
+                "Authorization": f"Bearer {self.access_token}",
+                "accept": "application/json",
+            }
+        )
 
     @staticmethod
     def _ready_for_app_interface(cluster: dict[str, Any]) -> bool:
@@ -932,7 +938,11 @@ class OCM:  # pylint: disable=too-many-public-methods
 
     @retry(max_attempts=10)
     def _do_get_request(self, api: str, params: dict[str, str]):
-        r = requests.get(f"{self.url}{api}", headers=self.headers, params=params)
+        r = self.session.get(
+            f"{self.url}{api}",
+            params=params,
+            timeout=REQUEST_TIMEOUT_SEC,
+        )
         r.raise_for_status()
         return r.json()
 
@@ -963,8 +973,8 @@ class OCM:  # pylint: disable=too-many-public-methods
         return responses[0]
 
     def _post(self, api, data=None, params=None):
-        r = requests.post(
-            f"{self.url}{api}", headers=self.headers, json=data, params=params
+        r = self.session.post(
+            f"{self.url}{api}", json=data, params=params, timeout=REQUEST_TIMEOUT_SEC
         )
         try:
             r.raise_for_status()
@@ -976,11 +986,8 @@ class OCM:  # pylint: disable=too-many-public-methods
         return r.json()
 
     def _patch(self, api, data, params=None):
-        r = requests.patch(
-            f"{self.url}{api}",
-            headers=self.headers,
-            json=data,
-            params=params,
+        r = self.session.patch(
+            f"{self.url}{api}", json=data, params=params, timeout=REQUEST_TIMEOUT_SEC
         )
         try:
             r.raise_for_status()
@@ -989,7 +996,7 @@ class OCM:  # pylint: disable=too-many-public-methods
             raise e
 
     def _delete(self, api):
-        r = requests.delete(f"{self.url}{api}", headers=self.headers)
+        r = self.session.delete(f"{self.url}{api}", timeout=REQUEST_TIMEOUT_SEC)
         r.raise_for_status()
 
 
