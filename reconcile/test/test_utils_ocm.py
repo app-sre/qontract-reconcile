@@ -1,8 +1,4 @@
-import json
 import pytest
-import httpretty
-from httpretty.core import HTTPrettyRequest
-
 from reconcile.utils.ocm import OCM
 
 
@@ -65,54 +61,3 @@ def test_get_version_gate(ocm):
     gates = ocm.get_version_gates("4.9", sts_only=True)
     assert gates == [{"version_raw_id_prefix": "4.9", "sts_only": True}]
     assert len(ocm.get_version_gates("4.8")) == 0
-
-
-def test__get_json_pagination(ocm):
-    ocm.headers = {}
-    ocm.url = "http://ocm.test"
-    call_cnt = 0
-
-    def paginated_response(request: HTTPrettyRequest, url, response_headers):
-        nonlocal call_cnt
-        call_cnt = call_cnt + 1
-        # Return four pages, last one only partially filled
-        if "page" not in request.querystring:
-            p = 1
-        else:
-            p = int(request.querystring["page"][0])
-        if p <= 3:
-            items = [{"id": x} for x in range(0, 100)]
-        elif p > 4:
-            items = []
-        else:
-            items = [{"id": x} for x in range(0, 11)]
-        body = {"kind": "TestList", "page": p, "items": items, "size": len(items)}
-
-        return [200, response_headers, json.dumps(body)]
-
-    httpretty.enable()
-    httpretty.register_uri(
-        httpretty.GET, "http://ocm.test/api", body=paginated_response
-    )
-
-    resp = ocm._get_json("/api")
-
-    httpretty.disable()
-
-    assert len(resp["items"]) == 311
-    assert call_cnt == 4
-
-
-def test__get_json(ocm):
-    ocm.headers = {}
-    ocm.headers = {}
-    ocm.url = "http://ocm.test"
-
-    httpretty.enable()
-    httpretty.register_uri(
-        httpretty.GET, "http://ocm.test/api", body=json.dumps({"kind": "test", "id": 1})
-    )
-    x = ocm._get_json("/api")
-    httpretty.disable()
-
-    assert x["id"] == 1
