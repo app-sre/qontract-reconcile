@@ -1,7 +1,7 @@
 import functools
 import logging
 import re
-from typing import Any, Optional, Union
+from typing import Any, Optional, Union, Mapping
 
 import reconcile.utils.aws_helper as awsh
 import requests
@@ -937,7 +937,7 @@ class OCM:  # pylint: disable=too-many-public-methods
                 raise TypeError(f"blocked version is not a valid regex expression: {b}")
 
     @retry(max_attempts=10)
-    def _do_get_request(self, api: str, params: dict[str, str]):
+    def _do_get_request(self, api: str, params: Mapping[str, str]) -> Mapping[str, Any]:
         r = self.session.get(
             f"{self.url}{api}",
             params=params,
@@ -947,10 +947,10 @@ class OCM:  # pylint: disable=too-many-public-methods
         return r.json()
 
     @staticmethod
-    def _response_is_list(rs: dict[str, Any]) -> bool:
+    def _response_is_list(rs: Mapping[str, Any]) -> bool:
         return rs["kind"].endswith("List")
 
-    def _get_json(self, api):
+    def _get_json(self, api: str) -> Mapping[str, Any]:
         responses = []
         params = {"size": 100}
         while True:
