@@ -9,19 +9,19 @@ objects:
   kind: Deployment
   metadata:
     labels:
-      app: qontract-reconcile-integ
+      app: qontract-reconcile-integrations-manager
     annotations:
       ignore-check.kube-linter.io/minimum-three-replicas : "qontract-reconcile integrations are sharded and not replicated"
-    name: qontract-reconcile-integ
+    name: qontract-reconcile-integrations-manager
   spec:
     replicas: 1
     selector:
       matchLabels:
-        app: qontract-reconcile-integ
+        app: qontract-reconcile-integrations-manager
     template:
       metadata:
         labels:
-          app: qontract-reconcile-integ
+          app: qontract-reconcile-integrations-manager
           component: qontract-reconcile
       spec:
         serviceAccountName: qontract-reconcile
@@ -37,6 +37,15 @@ objects:
               memory: 20Mi
               cpu: 25m
           env:
+          - name: SLACK_WEBHOOK_URL
+            valueFrom:
+              secretKeyRef:
+                key: slack.webhook_url
+                name: app-interface
+          - name: SLACK_CHANNEL
+            value: ${SLACK_CHANNEL}
+          - name: SLACK_ICON_EMOJI
+            value: ${SLACK_ICON_EMOJI}
           - name: LOG_GROUP_NAME
             valueFrom:
               secretKeyRef:
@@ -76,9 +85,18 @@ objects:
             <match integration>
               @type copy
               <store>
+                @type slack
+                webhook_url ${SLACK_WEBHOOK_URL}
+                channel ${SLACK_CHANNEL}
+                icon_emoji ${SLACK_ICON_EMOJI}
+                username sd-app-sre-bot
+                flush_interval 10s
+                message "\`\`\`[integrations-manager] %s\`\`\`"
+              </store>
+              <store>
                 @type cloudwatch_logs
                 log_group_name ${LOG_GROUP_NAME}
-                log_stream_name integ
+                log_stream_name integrations-manager
                 auto_create_stream true
               </store>
             </match>
@@ -98,11 +116,9 @@ objects:
           - name: SHARD_ID
             value: "0"
           - name: DRY_RUN
-            value: ${DRY_RUN}
+            value: ${MANAGER_DRY_RUN}
           - name: INTEGRATION_NAME
-            value: integ
-          - name: INTEGRATION_EXTRA_ARGS
-            value: "--test-extra-args"
+            value: integrations-manager
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -133,13 +149,39 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           - name: USE_NATIVE_CLIENT
             value: "${USE_NATIVE_CLIENT}"
+          - name: ENVIRONMENT_NAME
+            value: "${ENVIRONMENT_NAME}"
+          - name: IMAGE
+            value: "${IMAGE}"
+          - name: IMAGE_TAG
+            value: "${IMAGE_TAG}"
+          - name: BUSYBOX_IMAGE
+            value: "${BUSYBOX_IMAGE}"
+          - name: BUSYBOX_IMAGE_TAG
+            value: "${BUSYBOX_IMAGE_TAG}"
+          - name: BUSYBOX_IMAGE_PULL_POLICY
+            value: "${BUSYBOX_IMAGE_PULL_POLICY}"
+          - name: FLUENTD_IMAGE
+            value: "${FLUENTD_IMAGE}"
+          - name: FLUENTD_IMAGE_TAG
+            value: "${FLUENTD_IMAGE_TAG}"
+          - name: FLUENTD_IMAGE_PULL_POLICY
+            value: "${FLUENTD_IMAGE_PULL_POLICY}"
+          - name: CLOUDWATCH_SECRET
+            value: "${CLOUDWATCH_SECRET}"
+          - name: INTERNAL_CERTIFICATES_IMAGE
+            value: "${INTERNAL_CERTIFICATES_IMAGE}"
+          - name: INTERNAL_CERTIFICATES_IMAGE_TAG
+            value: "${INTERNAL_CERTIFICATES_IMAGE_TAG}"
+          - name: INTERNAL_CERTIFICATES_IMAGE_PULL_POLICY
+            value: "${INTERNAL_CERTIFICATES_IMAGE_PULL_POLICY}"
           resources:
             limits:
-              cpu: ${INTEG_CPU_LIMIT}
-              memory: ${INTEG_MEMORY_LIMIT}
+              cpu: ${INTEGRATIONS_MANAGER_CPU_LIMIT}
+              memory: ${INTEGRATIONS_MANAGER_MEMORY_LIMIT}
             requests:
-              cpu: ${INTEG_CPU_REQUEST}
-              memory: ${INTEG_MEMORY_REQUEST}
+              cpu: ${INTEGRATIONS_MANAGER_CPU_REQUEST}
+              memory: ${INTEGRATIONS_MANAGER_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -184,20 +226,6 @@ objects:
           emptyDir: {}
         - name: fluentd-config
           emptyDir: {}
-- apiVersion: v1
-  kind: Service
-  metadata:
-    name: qontract-reconcile
-    labels:
-      app: qontract-reconcile
-  spec:
-    ports:
-      - protocol: TCP
-        port: 80
-        targetPort: 9090
-        name: http
-    selector:
-      component: qontract-reconcile
 parameters:
 - name: IMAGE
   value: quay.io/app-sre/qontract-reconcile
@@ -257,11 +285,11 @@ parameters:
   value: latest
 - name: INTERNAL_CERTIFICATES_IMAGE_PULL_POLICY
   value: Always
-- name: INTEG_CPU_LIMIT
-  value: 678
-- name: INTEG_MEMORY_LIMIT
-  value: 90Mi
-- name: INTEG_CPU_REQUEST
-  value: 123
-- name: INTEG_MEMORY_REQUEST
-  value: 45Mi
+- name: INTEGRATIONS_MANAGER_CPU_LIMIT
+  value: 400m
+- name: INTEGRATIONS_MANAGER_MEMORY_LIMIT
+  value: 600Mi
+- name: INTEGRATIONS_MANAGER_CPU_REQUEST
+  value: 200m
+- name: INTEGRATIONS_MANAGER_MEMORY_REQUEST
+  value: 300Mi

@@ -101,8 +101,6 @@ objects:
             value: ${DRY_RUN}
           - name: INTEGRATION_NAME
             value: integ
-          - name: INTEGRATION_EXTRA_ARGS
-            value: "--test-extra-args"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -184,20 +182,6 @@ objects:
           emptyDir: {}
         - name: fluentd-config
           emptyDir: {}
-- apiVersion: v1
-  kind: Service
-  metadata:
-    name: qontract-reconcile
-    labels:
-      app: qontract-reconcile
-  spec:
-    ports:
-      - protocol: TCP
-        port: 80
-        targetPort: 9090
-        name: http
-    selector:
-      component: qontract-reconcile
 parameters:
 - name: IMAGE
   value: quay.io/app-sre/qontract-reconcile

@@ -101,8 +101,6 @@ objects:
             value: ${DRY_RUN}
           - name: INTEGRATION_NAME
             value: integ
-          - name: INTEGRATION_EXTRA_ARGS
-            value: "--test-extra-args"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -133,6 +131,32 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           - name: USE_NATIVE_CLIENT
             value: "${USE_NATIVE_CLIENT}"
+          - name: ENVIRONMENT_NAME
+            value: "${ENVIRONMENT_NAME}"
+          - name: IMAGE
+            value: "${IMAGE}"
+          - name: IMAGE_TAG
+            value: "${IMAGE_TAG}"
+          - name: BUSYBOX_IMAGE
+            value: "${BUSYBOX_IMAGE}"
+          - name: BUSYBOX_IMAGE_TAG
+            value: "${BUSYBOX_IMAGE_TAG}"
+          - name: BUSYBOX_IMAGE_PULL_POLICY
+            value: "${BUSYBOX_IMAGE_PULL_POLICY}"
+          - name: FLUENTD_IMAGE
+            value: "${FLUENTD_IMAGE}"
+          - name: FLUENTD_IMAGE_TAG
+            value: "${FLUENTD_IMAGE_TAG}"
+          - name: FLUENTD_IMAGE_PULL_POLICY
+            value: "${FLUENTD_IMAGE_PULL_POLICY}"
+          - name: CLOUDWATCH_SECRET
+            value: "${CLOUDWATCH_SECRET}"
+          - name: INTERNAL_CERTIFICATES_IMAGE
+            value: "${INTERNAL_CERTIFICATES_IMAGE}"
+          - name: INTERNAL_CERTIFICATES_IMAGE_TAG
+            value: "${INTERNAL_CERTIFICATES_IMAGE_TAG}"
+          - name: INTERNAL_CERTIFICATES_IMAGE_PULL_POLICY
+            value: "${INTERNAL_CERTIFICATES_IMAGE_PULL_POLICY}"
           resources:
             limits:
               cpu: ${INTEG_CPU_LIMIT}
