@@ -8,6 +8,8 @@ from reconcile.utils.external_resources import (
     managed_external_resources,
 )
 
+from reconcile.typed_queries import query_saas_files
+
 
 APPS_QUERY = """
 {
@@ -70,6 +72,10 @@ def get_desired_dependency_names(app, dependency_map):
         github_urls = [cc for cc in code_components if "github.com" in cc["url"]]
         if github_urls:
             required_dep_names.update(get_dependency_names(dependency_map, "github"))
+
+    for saas_file in query_saas_files():
+        # Do stuff on types :)
+        print(f"{saas_file.name} {saas_file.pipelines_provider.name}")
 
     jenkins_configs = app.get("jenkinsConfigs")
     if jenkins_configs:
