@@ -1,5 +1,5 @@
 import os
-from typing import Any, List, Mapping
+from typing import Any, Dict, List, Mapping
 import pytest
 
 import reconcile.integrations_manager as intop
@@ -7,8 +7,7 @@ import reconcile.integrations_manager as intop
 
 def test_construct_values_file_empty():
     integrations_specs: List[Mapping[str, Any]] = []
-    expected = {
-        "excludeService": True,
+    expected: Dict[str, List] = {
         "integrations": [],
         "cronjobs": [],
     }
@@ -27,7 +26,6 @@ def test_construct_values_file():
         },
     ]
     expected = {
-        "excludeService": True,
         "integrations": [
             {"name": "integ1"},
         ],

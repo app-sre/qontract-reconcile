@@ -1,3 +1,4 @@
+excludeService: true
 integrations:
 - name: integrations-manager
   resources:

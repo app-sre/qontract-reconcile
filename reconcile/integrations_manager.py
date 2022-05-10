@@ -23,7 +23,6 @@ def construct_values_file(
     integration_specs: List[Mapping[str, Any]]
 ) -> Mapping[str, Any]:
     values: Dict[str, Any] = {
-        "excludeService": True,
         "integrations": [],
         "cronjobs": [],
     }
