@@ -123,7 +123,7 @@ def run(
         thread_pool_size=thread_pool_size,
         integration=QONTRACT_INTEGRATION,
         integration_version=QONTRACT_INTEGRATION_VERSION,
-        override_managed_types=["Deployment", "StatefulSet", "CronJob"],
+        override_managed_types=["Deployment", "StatefulSet", "CronJob", "Service"],
         internal=internal,
         use_jump_host=use_jump_host,
     )
