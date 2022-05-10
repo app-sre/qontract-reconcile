@@ -1,6 +1,7 @@
 import os
 import sys
 import json
+import logging
 
 from typing import Any, Dict, List, Mapping
 
@@ -113,6 +114,10 @@ def run(
     namespaces = collect_namespaces(
         queries.get_integrations(managed=True), environment_name
     )
+    if not namespaces:
+        logging.debug("Nothing to do, exiting.")
+        sys.exit(ExitCodes.SUCCESS)
+
     ri, oc_map = ob.fetch_current_state(
         namespaces=namespaces,
         thread_pool_size=thread_pool_size,
