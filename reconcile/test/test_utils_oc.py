@@ -1,3 +1,4 @@
+import logging
 import os
 from unittest import TestCase
 from unittest.mock import patch
@@ -602,3 +603,19 @@ def test_configmap_used_in_pod_true(oc, pod):
 def test_configmap_used_in_pod_false(oc, pod):
     result = oc.configmap_used_in_pod("configmap9999", pod)
     assert result is False
+
+
+def test_oc_map_exception_on_missing_cluster():
+    cluster = {
+        "name": "test-1",
+        "serverUrl": "",
+        "automationToken": {"path": "some-path", "field": "some-field"},
+    }
+    oc_map = OC_Map(clusters=[cluster])
+
+    assert isinstance(oc_map.get(cluster["name"]), OCLogMsg)
+    with pytest.raises(OCLogMsg) as ctx:
+        oc_map.get_cluster(cluster["name"])
+
+    assert ctx.value.message == "[test-1] has no serverUrl"
+    assert ctx.value.log_level == logging.ERROR

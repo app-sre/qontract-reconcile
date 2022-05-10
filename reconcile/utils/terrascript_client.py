@@ -108,7 +108,7 @@ VARIABLE_KEYS = ['region', 'availability_zone', 'parameter_group', 'name',
                  'output_resource_db_name', 'reset_password', 'ca_cert',
                  'sqs_identifier', 's3_events', 'bucket_policy',
                  'event_notifications', 'storage_class', 'kms_encryption',
-                 'variables', 'policies', 'user_policy',
+                 'variables', 'policies', 'user_policy', 'secrets_prefix',
                  'es_identifier', 'filter_pattern',
                  'specs', 'secret', 'public', 'domain',
                  'aws_infrastructure_access', 'cloudinit_configs', 'image',
@@ -953,6 +953,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             self.populate_tf_resource_service_account(resource,
                                                       namespace_info,
                                                       ocm_map=ocm_map)
+        elif provider == 'secrets-manager-service-account':
+            self.populate_tf_resource_secrets_manager_sa(resource,
+                                                         namespace_info)
         elif provider == 'aws-iam-role':
             self.populate_tf_resource_role(resource, namespace_info)
         elif provider == 'sqs':
@@ -1917,6 +1920,53 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     f'[{account}/{identifier}] '
                     'expected one of ocm_map or assume_role'
                 )
+
+        self.add_resources(account, tf_resources)
+
+    def populate_tf_resource_secrets_manager_sa(self, resource,
+                                                namespace_info):
+        account, identifier, common_values, output_prefix, \
+            output_resource_name, annotations = \
+            self.init_values(resource, namespace_info)
+
+        tf_resources = []
+        self.init_common_outputs(tf_resources, namespace_info, output_prefix,
+                                 output_resource_name, annotations)
+
+        secrets_prefix = common_values['secrets_prefix']
+        policy = {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Action": [
+                        "secretsmanager:ListSecrets"
+                    ],
+                    "Resource": "*"
+                },
+                {
+                    "Effect": "Allow",
+                    "Action": "secretsmanager:*",
+                    "Resource": [
+                        f"arn:aws:secretsmanager:*:*:secret:{secrets_prefix}/*"
+                    ]
+                }
+            ]
+        }
+
+        tf_resources.extend(
+            self.get_tf_iam_service_user(
+                [],
+                identifier,
+                policy,
+                common_values['tags'],
+                output_prefix
+            )
+        )
+
+        output_name_0_13 = output_prefix + '__secrets_prefix'
+        output_value = secrets_prefix
+        tf_resources.append(Output(output_name_0_13, value=output_value))
 
         self.add_resources(account, tf_resources)
 
@@ -2989,7 +3039,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         values = {}
         values['name'] = identifier
         values['tags'] = tags
-        values['depends_on'] = self.get_dependencies([dep_tf_resource])
+        if dep_tf_resource:
+            values['depends_on'] = self.get_dependencies([dep_tf_resource])
         user_tf_resource = aws_iam_user(identifier, **values)
         tf_resources.append(user_tf_resource)
 

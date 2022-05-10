@@ -11,6 +11,9 @@ from threading import Lock
 import semver
 
 
+SECRET_MAX_KEY_LENGTH = 253
+
+
 class ResourceKeyExistsError(Exception):
     pass
 
@@ -93,6 +96,12 @@ class OpenshiftResource:
                         if k not in obj1_v and k not in IGNORABLE_DATA_FIELDS
                     ]
                     if diff or not self.obj_intersect_equal(obj1_v, obj2_v):
+                        return False
+                elif obj1_k == "env":
+                    for v in obj2_v:
+                        if "name" in v and len(v) == 1:
+                            v["value"] = ""
+                    if not self.obj_intersect_equal(obj1_v, obj2_v):
                         return False
                 elif obj1_k == "cpu":
                     equal = self.cpu_equal(obj1_v, obj2_v)
@@ -177,6 +186,10 @@ class OpenshiftResource:
     @property
     def kind(self):
         return self.body["kind"]
+
+    @property
+    def kind_and_group(self):
+        return fully_qualified_kind(self.kind, self.body["apiVersion"])
 
     @property
     def caller(self):
@@ -498,6 +511,14 @@ class OpenshiftResource:
         return m.hexdigest()
 
 
+def fully_qualified_kind(kind: str, api_version: str) -> str:
+    if "/" in api_version:
+        group = api_version.split("/")[0]
+        return f"{kind}.{group}"
+    else:
+        return kind
+
+
 class ResourceInventory:
     def __init__(self):
         self._clusters = {}
@@ -514,6 +535,26 @@ class ResourceInventory:
 
     def is_cluster_present(self, cluster: str) -> bool:
         return cluster in self._clusters
+
+    def add_desired_resource(
+        self,
+        cluster: str,
+        namespace: str,
+        resource: OpenshiftResource,
+        privileged: bool = False,
+    ) -> None:
+        if resource.kind_and_group in self._clusters[cluster][namespace]:
+            kind = resource.kind_and_group
+        else:
+            kind = resource.kind
+        self.add_desired(
+            cluster=cluster,
+            namespace=namespace,
+            resource_type=kind,
+            name=resource.name,
+            value=resource,
+            privileged=privileged,
+        )
 
     def add_desired(
         self, cluster, namespace, resource_type, name, value, privileged=False

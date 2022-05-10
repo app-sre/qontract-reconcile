@@ -62,6 +62,8 @@ setup(
         # this is really needed only in lint and type validations.
         # Is there any better place to put this in?
         "packaging~=21.3",
+        # Needed to fix issues with router's certificates
+        "cryptography==36.0.2",
     ],
 
     test_suite="tests",

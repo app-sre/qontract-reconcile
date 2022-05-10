@@ -32,6 +32,12 @@ from reconcile.utils.vault import _VaultClient, VaultClient
 
 
 TF_RESOURCE = """
+output_format {
+  provider
+  ... on NamespaceTerraformResourceGenericSecretOutputFormat_v1 {
+    data
+  }
+}
 provider
 ... on NamespaceTerraformResourceRDS_v1 {
   account
@@ -99,6 +105,13 @@ provider
     access_level
     assume_role
   }
+}
+... on NamespaceTerraformResourceSecretsManagerServiceAccount_v1 {
+  account
+  identifier
+  secrets_prefix
+  output_resource_name
+  annotations
 }
 ... on NamespaceTerraformResourceRole_v1 {
   account
@@ -366,16 +379,15 @@ QONTRACT_INTEGRATION_VERSION = make_semver(0, 5, 2)
 QONTRACT_TF_PREFIX = 'qrtf'
 
 
-def populate_oc_resources(spec, ri, account_name):
+def populate_oc_resources(spec: ob.CurrentStateSpec, ri: ResourceInventory, account_name: Optional[str]):
     if spec.oc is None:
         return
-
     logging.debug("[populate_oc_resources] cluster: " + spec.cluster
                   + " namespace: " + spec.namespace
-                  + " resource: " + spec.resource)
+                  + " resource: " + spec.kind)
 
     try:
-        for item in spec.oc.get_items(spec.resource,
+        for item in spec.oc.get_items(spec.kind,
                                       namespace=spec.namespace):
             openshift_resource = OR(item,
                                     QONTRACT_INTEGRATION,
@@ -388,7 +400,7 @@ def populate_oc_resources(spec, ri, account_name):
             ri.add_current(
                 spec.cluster,
                 spec.namespace,
-                spec.resource,
+                spec.kind,
                 openshift_resource.name,
                 openshift_resource
             )
@@ -398,7 +410,7 @@ def populate_oc_resources(spec, ri, account_name):
         msg += 'namespace: {},'
         msg += 'resource: {},'
         msg += 'exception: {}'
-        msg = msg.format(spec.cluster, spec.namespace, spec.resource, str(e))
+        msg = msg.format(spec.cluster, spec.namespace, spec.kind, str(e))
         logging.error(msg)
 
 
@@ -419,8 +431,12 @@ def fetch_current_state(dry_run, namespaces, thread_pool_size,
             namespaces=namespaces,
             override_managed_types=['Secret']
         )
-    threaded.run(populate_oc_resources, state_specs, thread_pool_size, ri=ri,
-                 account_name=account_name)
+    current_state_specs: list[ob.CurrentStateSpec] = [s for s in state_specs if isinstance(s, ob.CurrentStateSpec)]
+    threaded.run(
+        populate_oc_resources, current_state_specs,
+        thread_pool_size, ri=ri,
+        account_name=account_name
+    )
 
     return ri, oc_map
 

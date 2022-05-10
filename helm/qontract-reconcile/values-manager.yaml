@@ -1,0 +1,13 @@
+excludeService: true
+integrations:
+- name: integrations-manager
+  resources:
+    requests:
+      memory: 300Mi
+      cpu: 200m
+    limits:
+      memory: 600Mi
+      cpu: 400m
+  environmentAware: true
+  logs:
+    slack: true

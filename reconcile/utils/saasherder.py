@@ -7,7 +7,7 @@ import itertools
 import hashlib
 import re
 from collections import ChainMap
-from typing import Iterable, Mapping, Any, MutableMapping, Tuple
+from typing import Iterable, Mapping, Any, MutableMapping, Tuple, cast
 
 from contextlib import suppress
 import yaml
@@ -25,6 +25,7 @@ from reconcile.utils.oc import OC, StatusCodeError
 from reconcile.utils.openshift_resource import (
     OpenshiftResource as OR,
     ResourceInventory,
+    fully_qualified_kind,
     ResourceKeyExistsError,
 )
 from reconcile.utils.secret_reader import SecretReader
@@ -499,34 +500,16 @@ class SaasHerder:
 
     @staticmethod
     def _get_file_contents_github(repo, path, commit_sha):
-        try:
-            f = repo.get_contents(path, commit_sha)
+        f = repo.get_contents(path, commit_sha)
+        if f.size < 1024**2:  # 1 MB
             return f.decoded_content
-        except GithubException as e:
-            # slightly copied with love from
-            # https://github.com/PyGithub/PyGithub/issues/661
-            errors = e.data.get("errors", [])
-            # example errors dict that we are looking for
-            # {
-            #    'message': '<text>',
-            #    'errors': [{
-            #                  'resource': 'Blob',
-            #                  'field': 'data',
-            #                  'code': 'too_large'
-            #               }],
-            #    'documentation_url': '<url>'
-            # }
-            for error in errors:
-                if error["code"] == "too_large":
-                    # get large files
-                    tree = repo.get_git_tree(commit_sha, recursive="/" in path).tree
-                    for x in tree:
-                        if x.path != path.lstrip("/"):
-                            continue
-                        blob = repo.get_git_blob(x.sha)
-                        return base64.b64decode(blob.content).decode("utf8")
-
-            raise e
+        else:
+            tree = repo.get_git_tree(commit_sha, recursive="/" in path).tree
+            for x in tree:
+                if x.path != path.lstrip("/"):
+                    continue
+                blob = repo.get_git_blob(x.sha)
+                return base64.b64decode(blob.content).decode("utf8")
 
     @retry()
     def _get_file_contents(self, options):
@@ -1056,9 +1039,15 @@ class SaasHerder:
         # filter resources
         rs = []
         for r in resources:
-            if isinstance(r, dict):
-                kind = r.get("kind")
-                if kind in managed_resource_types:
+            if isinstance(r, dict) and "kind" in r and "apiVersion" in r:
+                kind = cast(str, r.get("kind"))
+                kind_and_group = fully_qualified_kind(
+                    kind, cast(str, r.get("apiVersion"))
+                )
+                if (
+                    kind in managed_resource_types
+                    or kind_and_group in managed_resource_types
+                ):
                     rs.append(r)
                 else:
                     logging.info(
@@ -1090,11 +1079,9 @@ class SaasHerder:
                 error_details=html_url,
             )
             try:
-                ri.add_desired(
+                ri.add_desired_resource(
                     cluster,
                     namespace,
-                    resource_kind,
-                    resource_name,
                     oc_resource,
                     privileged=spec["privileged"],
                 )

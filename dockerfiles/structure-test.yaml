@@ -33,6 +33,14 @@ fileExistenceTests:
   gid: 0
   isExecutableBy: other
 
+- name: Helm
+  path: /usr/local/bin/helm
+  shouldExist: true
+  permissions: -rwxr-xr-x
+  uid: 0
+  gid: 0
+  isExecutableBy: other
+
 - name: Amtool
   path: /usr/local/bin/amtool
   shouldExist: true

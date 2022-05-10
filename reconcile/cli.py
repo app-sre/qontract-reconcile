@@ -114,6 +114,7 @@ import reconcile.gabi_authorized_users
 import reconcile.status_page_components
 import reconcile.blackbox_exporter_endpoint_monitoring
 import reconcile.signalfx_endpoint_monitoring
+import reconcile.integrations_manager
 
 from reconcile.status import ExitCodes
 from reconcile.status import RunningState
@@ -364,6 +365,16 @@ def cluster_name(function):
 def namespace_name(function):
     function = click.option(
         "--namespace-name", help="namespace name to act on.", default=None
+    )(function)
+
+    return function
+
+
+def environment_name(function):
+    function = click.option(
+        "--environment-name",
+        help="environment name to act on.",
+        default=os.environ.get("ENVIRONMENT_NAME"),
     )(function)
 
     return function
@@ -1521,10 +1532,9 @@ def ocm_machine_pools(ctx, thread_pool_size):
 
 @integration.command(short_help="Manage Upgrade Policy schedules in OCM.")
 @environ(["APP_INTERFACE_STATE_BUCKET", "APP_INTERFACE_STATE_BUCKET_ACCOUNT"])
-@threaded()
 @click.pass_context
-def ocm_upgrade_scheduler(ctx, thread_pool_size):
-    run_integration(reconcile.ocm_upgrade_scheduler, ctx.obj, thread_pool_size)
+def ocm_upgrade_scheduler(ctx):
+    run_integration(reconcile.ocm_upgrade_scheduler, ctx.obj)
 
 
 @integration.command(short_help="Manages cluster Addons in OCM.")
@@ -1820,6 +1830,27 @@ def signalfx_prometheus_endpoint_monitoring(
     run_integration(
         reconcile.signalfx_endpoint_monitoring,
         ctx.obj,
+        thread_pool_size,
+        internal,
+        use_jump_host,
+    )
+
+
+@integration.command(short_help="Manages Qontract Reconcile integrations.")
+@environment_name
+@threaded()
+@binary(["oc", "ssh", "helm"])
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
+@internal()
+@use_jump_host()
+@click.pass_context
+def integrations_manager(
+    ctx, environment_name, thread_pool_size, internal, use_jump_host
+):
+    run_integration(
+        reconcile.integrations_manager,
+        ctx.obj,
+        environment_name,
         thread_pool_size,
         internal,
         use_jump_host,

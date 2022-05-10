@@ -1,0 +1,267 @@
+---
+# Source: qontract-reconcile/templates/template.yaml
+apiVersion: v1
+kind: Template
+metadata:
+  name: qontract-reconcile
+objects:
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    labels:
+      app: qontract-reconcile-integ
+    annotations:
+      ignore-check.kube-linter.io/minimum-three-replicas : "qontract-reconcile integrations are sharded and not replicated"
+    name: qontract-reconcile-integ
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        app: qontract-reconcile-integ
+    template:
+      metadata:
+        labels:
+          app: qontract-reconcile-integ
+          component: qontract-reconcile
+      spec:
+        serviceAccountName: qontract-reconcile
+        initContainers:
+        - name: config
+          image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
+          imagePullPolicy: ${BUSYBOX_IMAGE_PULL_POLICY}
+          resources:
+            requests:
+              memory: 10Mi
+              cpu: 15m
+            limits:
+              memory: 20Mi
+              cpu: 25m
+          env:
+          - name: LOG_GROUP_NAME
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: log_group_name
+          command: ["/bin/sh", "-c"]
+          args:
+          - |
+            # generate fluent.conf
+            cat > /fluentd/etc/fluent.conf <<EOF
+            <source>
+              @type tail
+              path /fluentd/log/integration.log
+              pos_file /fluentd/log/integration.log.pos
+              tag integration
+              <parse>
+                @type none
+              </parse>
+            </source>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /using gql endpoint/
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
+              </exclude>
+            </filter>
+
+            <match integration>
+              @type copy
+              <store>
+                @type cloudwatch_logs
+                log_group_name ${LOG_GROUP_NAME}
+                log_stream_name integ
+                auto_create_stream true
+              </store>
+            </match>
+            EOF
+          volumeMounts:
+          - name: fluentd-config
+            mountPath: /fluentd/etc/
+        containers:
+        - name: int
+          image: ${IMAGE}:${IMAGE_TAG}
+          ports:
+            - name: http
+              containerPort: 9090
+          env:
+          - name: SHARDS
+            value: "1"
+          - name: SHARD_ID
+            value: "0"
+          - name: DRY_RUN
+            value: ${DRY_RUN}
+          - name: INTEGRATION_NAME
+            value: integ
+          - name: INTEGRATION_EXTRA_ARGS
+            value: "--test-extra-args"
+          - name: SLEEP_DURATION_SECS
+            value: ${SLEEP_DURATION_SECS}
+          - name: GITHUB_API
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
+          - name: LOG_FILE
+            value: "${LOG_FILE}"
+          - name: UNLEASH_API_URL
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: API_URL
+          - name: UNLEASH_CLIENT_ACCESS_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
+          - name: USE_NATIVE_CLIENT
+            value: "${USE_NATIVE_CLIENT}"
+          resources:
+            limits:
+              cpu: ${INTEG_CPU_LIMIT}
+              memory: ${INTEG_MEMORY_LIMIT}
+            requests:
+              cpu: ${INTEG_CPU_REQUEST}
+              memory: ${INTEG_MEMORY_REQUEST}
+          volumeMounts:
+          - name: qontract-reconcile-toml
+            mountPath: /config
+          - name: logs
+            mountPath: /fluentd/log/
+        - name: fluentd
+          image: ${FLUENTD_IMAGE}:${FLUENTD_IMAGE_TAG}
+          imagePullPolicy: ${FLUENTD_IMAGE_PULL_POLICY}
+          env:
+          - name: AWS_REGION
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_region
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_access_key_id
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_secret_access_key
+          resources:
+            requests:
+              memory: 30Mi
+              cpu: 15m
+            limits:
+              memory: 120Mi
+              cpu: 25m
+          volumeMounts:
+          - name: logs
+            mountPath: /fluentd/log/
+          - name: fluentd-config
+            mountPath: /fluentd/etc/
+        volumes:
+        - name: qontract-reconcile-toml
+          secret:
+            secretName: qontract-reconcile-toml
+        - name: logs
+          emptyDir: {}
+        - name: fluentd-config
+          emptyDir: {}
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: qontract-reconcile
+    labels:
+      app: qontract-reconcile
+  spec:
+    ports:
+      - protocol: TCP
+        port: 80
+        targetPort: 9090
+        name: http
+    selector:
+      component: qontract-reconcile
+parameters:
+- name: IMAGE
+  value: quay.io/app-sre/qontract-reconcile
+- name: IMAGE_TAG
+  value: latest
+- name: BUSYBOX_IMAGE
+  value: quay.io/app-sre/ubi8-ubi-minimal
+- name: BUSYBOX_IMAGE_TAG
+  value: latest
+- name: BUSYBOX_IMAGE_PULL_POLICY
+  value: Always
+- name: FLUENTD_IMAGE
+  value: quay.io/app-sre/fluentd
+- name: FLUENTD_IMAGE_TAG
+  value: latest
+- name: FLUENTD_IMAGE_PULL_POLICY
+  value: Always
+- name: ENVIRONMENT_NAME
+  value: app-interface
+- name: DRY_RUN
+  value: --dry-run
+- name: MANAGER_DRY_RUN
+  value: --dry-run
+- name: SLEEP_DURATION_SECS
+  value: "300"
+- name: APP_INTERFACE_SQS_SECRET_NAME
+  value: app-interface-sqs
+- name: APP_INTERFACE_STATE_BUCKET_ACCOUNT
+  value: app-sre
+- name: APP_INTERFACE_PROJECT_ID
+  value: "0"
+- name: USER_ID
+  value: dummy
+- name: LOG_FILE
+  value: "/fluentd/log/integration.log"
+- name: SLACK_CHANNEL
+  value: "sd-app-sre-reconcile-stage"
+- name: SLACK_CHANNEL_TRIGGER
+  value: "sd-app-sre-triggers-stage"
+- name: SLACK_ICON_EMOJI
+  value: ":bust_in_silhouette:"
+- name: GITHUB_API
+  value: 'http://github-mirror.github-mirror-stage.svc.cluster.local'
+- name: CLOUDWATCH_SECRET
+  value: app-interface-cloudwatch
+- name: SENTRY_DSN
+  value: ""
+- name: SLOW_OC_RECONCILE_THRESHOLD
+  value: "600"
+- name: LOG_SLOW_OC_RECONCILE
+  value: "false"
+- name: USE_NATIVE_CLIENT
+  value: ""
+- name: INTERNAL_CERTIFICATES_IMAGE
+  value: quay.io/app-sre/internal-redhat-ca
+- name: INTERNAL_CERTIFICATES_IMAGE_TAG
+  value: latest
+- name: INTERNAL_CERTIFICATES_IMAGE_PULL_POLICY
+  value: Always
+- name: INTEG_CPU_LIMIT
+  value: 678
+- name: INTEG_MEMORY_LIMIT
+  value: 90Mi
+- name: INTEG_CPU_REQUEST
+  value: 123
+- name: INTEG_MEMORY_REQUEST
+  value: 45Mi
