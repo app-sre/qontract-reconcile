@@ -462,17 +462,6 @@ integrations:
   extraArgs: --vault-throughput-path app-sre/integrations-throughput
   logs:
     slack: true
-- name: email-sender
-  resources:
-    requests:
-      memory: 100Mi
-      cpu: 25m
-    limits:
-      memory: 200Mi
-      cpu: 50m
-  logs:
-    slack: true
-  state: true
 - name: requests-sender
   resources:
     requests:
