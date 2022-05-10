@@ -971,7 +971,7 @@ class OCM:  # pylint: disable=too-many-public-methods
                 "kind": responses[0]["kind"],
                 "total": len(items),
             }
-            if len(items) > 0:
+            if items:
                 ret_items["items"] = items
             return ret_items
         return responses[0]
