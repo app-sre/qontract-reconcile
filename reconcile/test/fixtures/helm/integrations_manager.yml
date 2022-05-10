@@ -98,6 +98,8 @@ objects:
           - name: SHARD_ID
             value: "0"
           - name: DRY_RUN
+            value: ${DRY_RUN}
+          - name: MANAGER_DRY_RUN
             value: ${MANAGER_DRY_RUN}
           - name: INTEGRATION_NAME
             value: integrations-manager
