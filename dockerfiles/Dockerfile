@@ -1,4 +1,4 @@
-FROM quay.io/app-sre/qontract-reconcile-builder:0.3.0 as build-image
+FROM quay.io/app-sre/qontract-reconcile-builder:0.3.1 as build-image
 
 WORKDIR /work
 
@@ -15,7 +15,7 @@ RUN python3 -m pip install --no-cache-dir --upgrade pip setuptools wheel && \
     python3 -m pip wheel . --wheel-dir /work/wheels
 
 
-FROM quay.io/app-sre/qontract-reconcile-base:0.8.0 as dev-image
+FROM quay.io/app-sre/qontract-reconcile-base:0.8.1 as dev-image
 
 ARG CONTAINER_UID=1000
 RUN useradd --uid ${CONTAINER_UID} reconcile
@@ -44,7 +44,7 @@ VOLUME ["/work"]
 CMD [ "/work/dev/run.sh" ]
 
 
-FROM quay.io/app-sre/qontract-reconcile-base:0.8.0 as prod-image
+FROM quay.io/app-sre/qontract-reconcile-base:0.8.1 as prod-image
 
 # Cache mount. We don't need te wheel files in the final image.
 # This COPY will create a layer with all the wheel files to install the app.
