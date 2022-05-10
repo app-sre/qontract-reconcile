@@ -2,7 +2,7 @@ schemaVersion: 2.0.0
 
 fileExistenceTests:
 - name: run-integration.py
-  path: /run-integration.py
+  path: /reconcile/run-integration.py
   shouldExist: true
   permissions: -rwxr-xr-x
   uid: 0
@@ -27,6 +27,14 @@ fileExistenceTests:
 
 - name: Terraform
   path: /usr/local/bin/terraform
+  shouldExist: true
+  permissions: -rwxr-xr-x
+  uid: 0
+  gid: 0
+  isExecutableBy: other
+
+- name: Helm
+  path: /usr/local/bin/helm
   shouldExist: true
   permissions: -rwxr-xr-x
   uid: 0
