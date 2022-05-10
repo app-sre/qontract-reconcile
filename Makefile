@@ -77,6 +77,9 @@ clean:
 	@find . -name "__pycache__" -type d -print0 | xargs -0 rm -rf
 	@find . -name "*.pyc" -delete
 
+generate-queries:
+	. ./venv/bin/activate && python3 code_gen/code_gen.py
+
 dev-venv: clean ## Create a local venv for your IDE and remote debugging
 	python3.9 -m venv venv
 	. ./venv/bin/activate && pip install --upgrade pip
