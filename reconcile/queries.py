@@ -185,6 +185,20 @@ INTEGRATIONS_QUERY = """
         }
       }
       spec {
+        cache
+        command
+        disableUnleash
+        extraArgs
+        extraEnv {
+          secretName
+          secretKey
+          name
+          value
+        }
+        internalCertificates
+        logs {
+          slack
+        }
         resources {
           requests {
             cpu
@@ -195,10 +209,17 @@ INTEGRATIONS_QUERY = """
             memory
           }
         }
-        logs {
-          slack
-        }
         shards
+        sleepDurationSecs
+        state
+        storage
+        trigger
+        cron
+        dashdotdb
+        concurrencyPolicy
+        restartPolicy
+        successfulJobHistoryLimit
+        failedJobHistoryLimit
       }
     }
   }
