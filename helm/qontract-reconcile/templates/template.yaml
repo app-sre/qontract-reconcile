@@ -362,7 +362,7 @@ objects:
     schedule: "{{ $integration.cron }}"
     concurrencyPolicy: {{ $integration.concurrencyPolicy | default "Allow" }}
     successfulJobHistoryLimit: {{ $integration.successfulJobHistoryLimit | default "3" }}
-    failedJobHistoryLimit: {{ $integration.failedJobHistoryLimit | default "1" }}
+    failedJobHistoryLimit: {{ if not (kindIs "invalid" $integration.failedJobHistoryLimit) }}{{ $integration.failedJobHistoryLimit }}{{ else }}{{ 1 }}{{ end }}
     jobTemplate:
       spec:
         template:
