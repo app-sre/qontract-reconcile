@@ -3456,6 +3456,180 @@ objects:
             - name: qontract-reconcile-toml
               secret:
                 secretName: qontract-reconcile-toml
+- apiVersion: batch/v1
+  kind: CronJob
+  metadata:
+    labels:
+      app: qontract-reconcile-openshift-saas-deploy-trigger-configs
+    name: qontract-reconcile-openshift-saas-deploy-trigger-configs
+  spec:
+    schedule: ""
+    concurrencyPolicy: Allow
+    successfulJobsHistoryLimit: 3
+    failedJobsHistoryLimit: 1
+    jobTemplate:
+      spec:
+        template:
+          spec:
+            serviceAccountName: qontract-reconcile
+            containers:
+            - name: int
+              image: ${IMAGE}:${IMAGE_TAG}
+              env:
+              - name: RUN_ONCE
+                value: 'true'
+              - name: DRY_RUN
+                value: ${DRY_RUN}
+              - name: INTEGRATION_NAME
+                value: openshift-saas-deploy-trigger-configs
+              - name: INTEGRATION_EXTRA_ARGS
+                value: "--no-use-jump-host"
+              - name: GITHUB_API
+                valueFrom:
+                  configMapKeyRef:
+                    name: app-interface
+                    key: GITHUB_API
+              - name: UNLEASH_API_URL
+                valueFrom:
+                  secretKeyRef:
+                    name: unleash
+                    key: API_URL
+              - name: UNLEASH_CLIENT_ACCESS_TOKEN
+                valueFrom:
+                  secretKeyRef:
+                    name: unleash
+                    key: CLIENT_ACCESS_TOKEN
+              volumeMounts:
+              - name: qontract-reconcile-toml
+                mountPath: /config
+              resources:
+                limits:
+                  cpu: ${OPENSHIFT_SAAS_DEPLOY_TRIGGER_CONFIGS_CPU_LIMIT}
+                  memory: ${OPENSHIFT_SAAS_DEPLOY_TRIGGER_CONFIGS_MEMORY_LIMIT}
+                requests:
+                  cpu: ${OPENSHIFT_SAAS_DEPLOY_TRIGGER_CONFIGS_CPU_REQUEST}
+                  memory: ${OPENSHIFT_SAAS_DEPLOY_TRIGGER_CONFIGS_MEMORY_REQUEST}
+            restartPolicy: OnFailure
+            volumes:
+            - name: qontract-reconcile-toml
+              secret:
+                secretName: qontract-reconcile-toml
+- apiVersion: batch/v1
+  kind: CronJob
+  metadata:
+    labels:
+      app: qontract-reconcile-openshift-saas-deploy-trigger-moving-commits
+    name: qontract-reconcile-openshift-saas-deploy-trigger-moving-commits
+  spec:
+    schedule: ""
+    concurrencyPolicy: Allow
+    successfulJobsHistoryLimit: 3
+    failedJobsHistoryLimit: 1
+    jobTemplate:
+      spec:
+        template:
+          spec:
+            serviceAccountName: qontract-reconcile
+            containers:
+            - name: int
+              image: ${IMAGE}:${IMAGE_TAG}
+              env:
+              - name: RUN_ONCE
+                value: 'true'
+              - name: DRY_RUN
+                value: ${DRY_RUN}
+              - name: INTEGRATION_NAME
+                value: openshift-saas-deploy-trigger-moving-commits
+              - name: INTEGRATION_EXTRA_ARGS
+                value: "--no-use-jump-host"
+              - name: GITHUB_API
+                valueFrom:
+                  configMapKeyRef:
+                    name: app-interface
+                    key: GITHUB_API
+              - name: UNLEASH_API_URL
+                valueFrom:
+                  secretKeyRef:
+                    name: unleash
+                    key: API_URL
+              - name: UNLEASH_CLIENT_ACCESS_TOKEN
+                valueFrom:
+                  secretKeyRef:
+                    name: unleash
+                    key: CLIENT_ACCESS_TOKEN
+              volumeMounts:
+              - name: qontract-reconcile-toml
+                mountPath: /config
+              resources:
+                limits:
+                  cpu: ${OPENSHIFT_SAAS_DEPLOY_TRIGGER_MOVING_COMMITS_CPU_LIMIT}
+                  memory: ${OPENSHIFT_SAAS_DEPLOY_TRIGGER_MOVING_COMMITS_MEMORY_LIMIT}
+                requests:
+                  cpu: ${OPENSHIFT_SAAS_DEPLOY_TRIGGER_MOVING_COMMITS_CPU_REQUEST}
+                  memory: ${OPENSHIFT_SAAS_DEPLOY_TRIGGER_MOVING_COMMITS_MEMORY_REQUEST}
+            restartPolicy: OnFailure
+            volumes:
+            - name: qontract-reconcile-toml
+              secret:
+                secretName: qontract-reconcile-toml
+- apiVersion: batch/v1
+  kind: CronJob
+  metadata:
+    labels:
+      app: qontract-reconcile-openshift-saas-deploy-trigger-upstream-jobs
+    name: qontract-reconcile-openshift-saas-deploy-trigger-upstream-jobs
+  spec:
+    schedule: ""
+    concurrencyPolicy: Allow
+    successfulJobsHistoryLimit: 3
+    failedJobsHistoryLimit: 1
+    jobTemplate:
+      spec:
+        template:
+          spec:
+            serviceAccountName: qontract-reconcile
+            containers:
+            - name: int
+              image: ${IMAGE}:${IMAGE_TAG}
+              env:
+              - name: RUN_ONCE
+                value: 'true'
+              - name: DRY_RUN
+                value: ${DRY_RUN}
+              - name: INTEGRATION_NAME
+                value: openshift-saas-deploy-trigger-upstream-jobs
+              - name: INTEGRATION_EXTRA_ARGS
+                value: "--no-use-jump-host"
+              - name: GITHUB_API
+                valueFrom:
+                  configMapKeyRef:
+                    name: app-interface
+                    key: GITHUB_API
+              - name: UNLEASH_API_URL
+                valueFrom:
+                  secretKeyRef:
+                    name: unleash
+                    key: API_URL
+              - name: UNLEASH_CLIENT_ACCESS_TOKEN
+                valueFrom:
+                  secretKeyRef:
+                    name: unleash
+                    key: CLIENT_ACCESS_TOKEN
+              volumeMounts:
+              - name: qontract-reconcile-toml
+                mountPath: /config
+              resources:
+                limits:
+                  cpu: ${OPENSHIFT_SAAS_DEPLOY_TRIGGER_UPSTREAM_JOBS_CPU_LIMIT}
+                  memory: ${OPENSHIFT_SAAS_DEPLOY_TRIGGER_UPSTREAM_JOBS_MEMORY_LIMIT}
+                requests:
+                  cpu: ${OPENSHIFT_SAAS_DEPLOY_TRIGGER_UPSTREAM_JOBS_CPU_REQUEST}
+                  memory: ${OPENSHIFT_SAAS_DEPLOY_TRIGGER_UPSTREAM_JOBS_MEMORY_REQUEST}
+            restartPolicy: OnFailure
+            volumes:
+            - name: qontract-reconcile-toml
+              secret:
+                secretName: qontract-reconcile-toml
 - apiVersion: v1
   kind: Service
   metadata:
@@ -3683,3 +3857,27 @@ parameters:
   value: 200m
 - name: RESOURCE_SCRAPER_MEMORY_REQUEST
   value: 200Mi
+- name: OPENSHIFT_SAAS_DEPLOY_TRIGGER_CONFIGS_CPU_LIMIT
+  value: 600m
+- name: OPENSHIFT_SAAS_DEPLOY_TRIGGER_CONFIGS_MEMORY_LIMIT
+  value: 1200Mi
+- name: OPENSHIFT_SAAS_DEPLOY_TRIGGER_CONFIGS_CPU_REQUEST
+  value: 400m
+- name: OPENSHIFT_SAAS_DEPLOY_TRIGGER_CONFIGS_MEMORY_REQUEST
+  value: 1000Mi
+- name: OPENSHIFT_SAAS_DEPLOY_TRIGGER_MOVING_COMMITS_CPU_LIMIT
+  value: 600m
+- name: OPENSHIFT_SAAS_DEPLOY_TRIGGER_MOVING_COMMITS_MEMORY_LIMIT
+  value: 1000Mi
+- name: OPENSHIFT_SAAS_DEPLOY_TRIGGER_MOVING_COMMITS_CPU_REQUEST
+  value: 400m
+- name: OPENSHIFT_SAAS_DEPLOY_TRIGGER_MOVING_COMMITS_MEMORY_REQUEST
+  value: 800Mi
+- name: OPENSHIFT_SAAS_DEPLOY_TRIGGER_UPSTREAM_JOBS_CPU_LIMIT
+  value: 600m
+- name: OPENSHIFT_SAAS_DEPLOY_TRIGGER_UPSTREAM_JOBS_MEMORY_LIMIT
+  value: 1000Mi
+- name: OPENSHIFT_SAAS_DEPLOY_TRIGGER_UPSTREAM_JOBS_CPU_REQUEST
+  value: 400m
+- name: OPENSHIFT_SAAS_DEPLOY_TRIGGER_UPSTREAM_JOBS_MEMORY_REQUEST
+  value: 800Mi
