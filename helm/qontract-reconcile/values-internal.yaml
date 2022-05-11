@@ -306,17 +306,6 @@ integrations:
       cpu: 200m
   state: true
   cache: true
-- name: jenkins-job-cleaner
-  resources:
-    requests:
-      memory: 200Mi
-      cpu: 100m
-    limits:
-      memory: 400Mi
-      cpu: 200m
-  logs:
-    slack: true
-  cache: true
 - name: jenkins-roles
   resources:
     requests:
