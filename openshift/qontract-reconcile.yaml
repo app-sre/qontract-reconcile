@@ -26354,8 +26354,8 @@ objects:
   spec:
     schedule: "0 */2 * * *"
     concurrencyPolicy: Allow
-    successfulJobHistoryLimit: 3
-    failedJobHistoryLimit: 1
+    successfulJobsHistoryLimit: 3
+    failedJobsHistoryLimit: 1
     jobTemplate:
       spec:
         template:
@@ -26412,8 +26412,8 @@ objects:
   spec:
     schedule: "0 0 1 * *"
     concurrencyPolicy: Allow
-    successfulJobHistoryLimit: 3
-    failedJobHistoryLimit: 1
+    successfulJobsHistoryLimit: 3
+    failedJobsHistoryLimit: 1
     jobTemplate:
       spec:
         template:

@@ -7758,8 +7758,8 @@ objects:
   spec:
     schedule: "0 * * * *"
     concurrencyPolicy: Forbid
-    successfulJobHistoryLimit: 3
-    failedJobHistoryLimit: 1
+    successfulJobsHistoryLimit: 3
+    failedJobsHistoryLimit: 1
     jobTemplate:
       spec:
         template:
@@ -7814,8 +7814,8 @@ objects:
   spec:
     schedule: "0 * * * *"
     concurrencyPolicy: Allow
-    successfulJobHistoryLimit: 3
-    failedJobHistoryLimit: 1
+    successfulJobsHistoryLimit: 3
+    failedJobsHistoryLimit: 1
     jobTemplate:
       spec:
         template:
@@ -7872,8 +7872,8 @@ objects:
   spec:
     schedule: "0 */6 * * *"
     concurrencyPolicy: Replace
-    successfulJobHistoryLimit: 3
-    failedJobHistoryLimit: 1
+    successfulJobsHistoryLimit: 3
+    failedJobsHistoryLimit: 1
     jobTemplate:
       spec:
         template:
@@ -7933,8 +7933,8 @@ objects:
   spec:
     schedule: "0 * * * *"
     concurrencyPolicy: Replace
-    successfulJobHistoryLimit: 12
-    failedJobHistoryLimit: 12
+    successfulJobsHistoryLimit: 12
+    failedJobsHistoryLimit: 12
     jobTemplate:
       spec:
         template:
@@ -7994,8 +7994,8 @@ objects:
   spec:
     schedule: "0 5 * * *"
     concurrencyPolicy: Replace
-    successfulJobHistoryLimit: 3
-    failedJobHistoryLimit: 1
+    successfulJobsHistoryLimit: 3
+    failedJobsHistoryLimit: 1
     jobTemplate:
       spec:
         template:
@@ -8055,8 +8055,8 @@ objects:
   spec:
     schedule: "0 1 1 * *"
     concurrencyPolicy: Replace
-    successfulJobHistoryLimit: 3
-    failedJobHistoryLimit: 1
+    successfulJobsHistoryLimit: 3
+    failedJobsHistoryLimit: 1
     jobTemplate:
       spec:
         template:
@@ -8117,8 +8117,8 @@ objects:
   spec:
     schedule: "0 8,20 * * *"
     concurrencyPolicy: Replace
-    successfulJobHistoryLimit: 3
-    failedJobHistoryLimit: 1
+    successfulJobsHistoryLimit: 3
+    failedJobsHistoryLimit: 1
     jobTemplate:
       spec:
         template:
@@ -8177,8 +8177,8 @@ objects:
   spec:
     schedule: "0 8,20 * * *"
     concurrencyPolicy: Replace
-    successfulJobHistoryLimit: 3
-    failedJobHistoryLimit: 1
+    successfulJobsHistoryLimit: 3
+    failedJobsHistoryLimit: 1
     jobTemplate:
       spec:
         template:
@@ -8237,8 +8237,8 @@ objects:
   spec:
     schedule: "0 8,20 * * *"
     concurrencyPolicy: Replace
-    successfulJobHistoryLimit: 3
-    failedJobHistoryLimit: 1
+    successfulJobsHistoryLimit: 3
+    failedJobsHistoryLimit: 1
     jobTemplate:
       spec:
         template:
@@ -8297,8 +8297,8 @@ objects:
   spec:
     schedule: "0 8,20 * * *"
     concurrencyPolicy: Replace
-    successfulJobHistoryLimit: 3
-    failedJobHistoryLimit: 1
+    successfulJobsHistoryLimit: 3
+    failedJobsHistoryLimit: 1
     jobTemplate:
       spec:
         template:
