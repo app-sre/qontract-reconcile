@@ -161,20 +161,6 @@ integrations:
   extraArgs: --external --no-use-jump-host
   logs:
     slack: true
-- name: openshift-groups
-  resources:
-    requests:
-      # Known peaks are at 600Mi
-      memory: 600Mi
-      cpu: 200m
-    limits:
-      # Limits 30% above requests
-      memory: 780Mi
-      cpu: 300m
-  extraArgs: --external --no-use-jump-host
-  logs:
-    slack: true
-  shards: 5
 - name: openshift-namespace-labels
   resources:
     requests:
