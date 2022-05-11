@@ -79,12 +79,13 @@ def test__get_json_pagination(ocm):
             p = 1
         else:
             p = int(request.querystring["page"][0])
+
         if p <= 3:
             items = [{"id": x} for x in range(0, 100)]
-        elif p > 4:
-            items = []
-        else:
+        elif p == 4:
             items = [{"id": x} for x in range(0, 11)]
+        else:
+            items = []
         body = {"kind": "TestList", "page": p, "items": items, "size": len(items)}
 
         return [200, response_headers, json.dumps(body)]
@@ -98,7 +99,11 @@ def test__get_json_pagination(ocm):
 
     httpretty.disable()
 
+    assert "kind" in resp
+    assert "total" in resp
+    assert "items" in resp
     assert len(resp["items"]) == 311
+    assert len(resp["items"]) == resp["total"]
     assert call_cnt == 4
 
 
