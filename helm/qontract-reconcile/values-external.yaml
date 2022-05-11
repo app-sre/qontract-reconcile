@@ -1,3 +1,5 @@
+excludeService: true
+
 integrations:
 - name: aws-iam-keys
   resources:
@@ -133,15 +135,6 @@ integrations:
       cpu: 200m
   logs:
     slack: true
-- name: jira-watcher
-  resources:
-    requests:
-      memory: 80Mi
-      cpu: 100m
-    limits:
-      memory: 200Mi
-      cpu: 200m
-  state: true
 - name: aws-support-cases-sos
   resources:
     requests:
@@ -462,17 +455,6 @@ integrations:
   extraArgs: --vault-throughput-path app-sre/integrations-throughput
   logs:
     slack: true
-- name: requests-sender
-  resources:
-    requests:
-      memory: 100Mi
-      cpu: 25m
-    limits:
-      memory: 200Mi
-      cpu: 50m
-  logs:
-    slack: true
-  state: true
 - name: sentry-config
   resources:
     requests:
@@ -571,17 +553,6 @@ cronjobs:
   # once every 2 hours
   cron: '0 */2 * * *'
   extraArgs: --vault-output-path app-sre/integrations-output
-- name: aws-garbage-collector
-  failedJobHistoryLimit: "0"
-  resources:
-    requests:
-        memory: 200Mi
-        cpu: 25m
-    limits:
-      memory: 400Mi
-      cpu: 50m
-  # once a week
-  cron: '0 0 * * 0'
 - name: github-users
   resources:
     requests:
