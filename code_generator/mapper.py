@@ -29,7 +29,7 @@ def class_to_python(name: str) -> str:
 
 def field_to_python(name: str) -> str:
     parts = re.split("(?=[A-Z])", name)
-    for i in range(len(parts)):
-        parts[i] = parts[i].lower()
+    for i, el in enumerate(parts):
+        parts[i] = el.lower()
 
     return _keyword_sanitizer("_".join(parts))

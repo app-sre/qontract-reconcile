@@ -1,7 +1,11 @@
+# type: ignore
+# pylint: skip-file
 """
 Taken and modified from:
 
 https://github.com/graphql-python/gql-next/blob/master/gql/query_parser.py
+
+TODO: currently quick and dirty. Still has redundant parts and data structures.
 """
 from __future__ import annotations
 from typing import Any, List, Mapping, Union, cast
@@ -28,7 +32,7 @@ from graphql import (
     is_enum_type,
 )
 
-import mapper
+import code_generator.mapper as mapper
 
 
 @dataclass
@@ -286,8 +290,8 @@ class QueryParser:
         document_ast = parse(query)
         operation = get_operation_ast(document_ast)
 
-        # if not operation.name:
-        #     raise AnonymousQueryError()
+        if not operation.name:
+            raise AnonymousQueryError()
 
         if should_validate:
             errors = validate(self.schema, document_ast)

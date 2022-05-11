@@ -78,7 +78,7 @@ clean:
 	@find . -name "*.pyc" -delete
 
 generate-queries:
-	. ./venv/bin/activate && python3 code_gen/code_gen.py
+	. ./venv/bin/activate && query-generator
 
 dev-venv: clean ## Create a local venv for your IDE and remote debugging
 	python3.9 -m venv venv

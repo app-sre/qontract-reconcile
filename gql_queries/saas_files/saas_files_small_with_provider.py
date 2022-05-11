@@ -1,3 +1,7 @@
+"""
+THIS IS AN AUTO-GENERATED FILE. DO NOT MODIFY MANUALLY!
+"""
+
 from typing import Any
 
 from pydantic import BaseModel, Field
