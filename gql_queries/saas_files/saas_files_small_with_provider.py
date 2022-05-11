@@ -2,7 +2,7 @@
 THIS IS AN AUTO-GENERATED FILE. DO NOT MODIFY MANUALLY!
 """
 
-from typing import Any, Optional
+from typing import Any, Optional  # noqa: F401 # pylint: disable=W0611
 
 from pydantic import BaseModel, Field, Json  # noqa: F401  # pylint: disable=W0611
 

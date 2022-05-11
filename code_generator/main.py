@@ -64,7 +64,9 @@ def process_query(query_parser: QueryParser, query: str, out_file: str):
     query_root = query_parser.parse(query=query)
     query_data = query_root.objects[0].children[0]
     lines.append(f"{HEADER}\n")
-    lines.append("from typing import Any, Optional\n")
+    lines.append(
+        "from typing import Any, Optional  # noqa: F401 # pylint: disable=W0611\n"
+    )
     lines.append("\n")
     lines.append(
         "from pydantic import BaseModel, Field, Json  # noqa: F401  # pylint: disable=W0611\n"

@@ -1,6 +1,3 @@
-########################################
-# Very basic and dirty PoC for querying code-generated types
-########################################
 from gql_queries.saas_files import saas_files_small_with_provider
 from gql_queries.saas_files import saas_files_full
 from reconcile.utils import gql
