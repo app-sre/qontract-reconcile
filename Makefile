@@ -90,4 +90,4 @@ print-files-modified-in-last-30-days:
 	@git log --since '$(shell date --date='-30 day' +"%m/%d/%y")' --until '$(shell date +"%m/%d/%y")' --oneline --name-only --pretty=format: | sort | uniq | grep -E '.py$$'
 
 format:
-	@. ./venv/bin/activate && black reconcile/ tools/ e2e_tests/
+	@. ./venv/bin/activate && black reconcile/ tools/ e2e_tests/ code_generator/

@@ -1,0 +1,22 @@
+query SaasFilesV2Full {
+  apps_v1 {
+    saasFilesV2 {
+      labels
+      secretParameters {
+        name
+        secret {
+          path
+          format
+        }
+      }
+      name
+      pipelinesProvider {
+        name
+      }
+      slack {
+        channel
+        username
+      }
+    }
+  }
+}

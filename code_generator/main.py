@@ -24,7 +24,6 @@ def find_query_files() -> list[str]:
     for root, _, files in os.walk("gql_queries"):
         for name in files:
             if name.endswith(".gql"):
-                print(f"{os.path.join(root, name)}")
                 result.append(os.path.join(root, name))
     return result
 
@@ -43,16 +42,21 @@ def post_order_traverse(node: ParsedObject, lines: list[str]):
 
     for field in node.fields:
         typ = field.unwrapped_type
-        if is_primitive(typ):
+        if is_primitive(typ) or not field.child:
             continue
 
         lines.append("\n")
         lines.append("\n")
         lines.append(f"class {typ}(BaseModel):\n")
         for subfield in field.child.fields:
-            lines.append(
-                f'{SPACES}{subfield.py_name}: {subfield.type} = Field(..., alias="{subfield.gql_name}")\n'
-            )
+            if subfield.nullable:
+                lines.append(
+                    f'{SPACES}{subfield.py_name}: Optional[{subfield.type}] = Field(..., alias="{subfield.gql_name}")\n'
+                )
+            else:
+                lines.append(
+                    f'{SPACES}{subfield.py_name}: {subfield.type} = Field(..., alias="{subfield.gql_name}")\n'
+                )
 
 
 def process_query(query_parser: QueryParser, query: str, out_file: str):
@@ -60,9 +64,11 @@ def process_query(query_parser: QueryParser, query: str, out_file: str):
     query_root = query_parser.parse(query=query)
     query_data = query_root.objects[0].children[0]
     lines.append(f"{HEADER}\n")
-    lines.append("from typing import Any\n")
+    lines.append("from typing import Any, Optional\n")
     lines.append("\n")
-    lines.append("from pydantic import BaseModel, Field\n")
+    lines.append(
+        "from pydantic import BaseModel, Field, Json  # noqa: F401  # pylint: disable=W0611\n"
+    )
 
     post_order_traverse(node=query_data, lines=lines)
 

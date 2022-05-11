@@ -2,9 +2,9 @@
 THIS IS AN AUTO-GENERATED FILE. DO NOT MODIFY MANUALLY!
 """
 
-from typing import Any
+from typing import Any, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, Json  # noqa: F401  # pylint: disable=W0611
 
 
 class PipelinesProviderV1(BaseModel):
@@ -17,7 +17,7 @@ class SaasFileV2(BaseModel):
 
 
 class AppV1(BaseModel):
-    saas_files_v2: list[SaasFileV2] = Field(..., alias="saasFilesV2")
+    saas_files_v2: Optional[list[SaasFileV2]] = Field(..., alias="saasFilesV2")
 
 
 def data_to_obj(data: dict[Any, Any]) -> list[AppV1]:

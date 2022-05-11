@@ -15,7 +15,7 @@ def primitive_to_python(name: str) -> str:
         "Float": "float",
         "Boolean": "bool",
         "DateTime": "DateTime",
-        "JSON": "dict[str, str]",
+        "JSON": "Json",
     }
     return mapping.get(name, name)
 

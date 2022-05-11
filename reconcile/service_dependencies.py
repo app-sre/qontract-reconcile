@@ -8,7 +8,7 @@ from reconcile.utils.external_resources import (
     managed_external_resources,
 )
 
-from reconcile.typed_queries import query_saas_files
+from reconcile.typed_queries import query_saas_files_full
 
 
 APPS_QUERY = """
@@ -73,7 +73,7 @@ def get_desired_dependency_names(app, dependency_map):
         if github_urls:
             required_dep_names.update(get_dependency_names(dependency_map, "github"))
 
-    for saas_file in query_saas_files():
+    for saas_file in query_saas_files_full():
         # Do stuff on types :)
         print(f"{saas_file.name} {saas_file.pipelines_provider.name}")
 
