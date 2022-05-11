@@ -226,3 +226,45 @@ cronjobs:
   cron: '0 0 * * *'
   extraArgs: --namespace-name openshift-sre-token-scraper --resource-kind Secret --vault-output-path osd-fedramp/integrations-output
   disableUnleash: true
+- name: openshift-saas-deploy-trigger-configs
+  resources:
+    requests:
+      memory: 1000Mi
+      cpu: 400m
+    limits:
+      memory: 1200Mi
+      cpu: 600m
+  extraArgs: --no-use-jump-host
+  logs:
+    slack: false
+  state: true
+  shards: 3
+  trigger: true
+- name: openshift-saas-deploy-trigger-moving-commits
+  resources:
+    requests:
+      memory: 800Mi
+      cpu: 400m
+    limits:
+      memory: 1000Mi
+      cpu: 600m
+  extraArgs: --no-use-jump-host
+  logs:
+    slack: false
+  state: true
+  shards: 5
+  trigger: true
+- name: openshift-saas-deploy-trigger-upstream-jobs
+  resources:
+    requests:
+      memory: 800Mi
+      cpu: 400m
+    limits:
+      memory: 1000Mi
+      cpu: 600m
+  extraArgs: --no-use-jump-host
+  logs:
+    slack: false
+  state: true
+  shards: 3
+  trigger: true
