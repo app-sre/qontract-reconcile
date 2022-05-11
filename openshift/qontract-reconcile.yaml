@@ -26345,7 +26345,7 @@ objects:
           emptyDir: {}
         - name: fluentd-config
           emptyDir: {}
-- apiVersion: batch/v1beta1
+- apiVersion: batch/v1
   kind: CronJob
   metadata:
     labels:
@@ -26354,8 +26354,8 @@ objects:
   spec:
     schedule: "0 */2 * * *"
     concurrencyPolicy: Allow
-    successfulJobHistoryLimit: 3
-    failedJobHistoryLimit: 1
+    successfulJobsHistoryLimit: 3
+    failedJobsHistoryLimit: 1
     jobTemplate:
       spec:
         template:
@@ -26403,7 +26403,7 @@ objects:
             - name: qontract-reconcile-toml
               secret:
                 secretName: qontract-reconcile-toml
-- apiVersion: batch/v1beta1
+- apiVersion: batch/v1
   kind: CronJob
   metadata:
     labels:
@@ -26412,8 +26412,8 @@ objects:
   spec:
     schedule: "0 0 1 * *"
     concurrencyPolicy: Allow
-    successfulJobHistoryLimit: 3
-    failedJobHistoryLimit: 1
+    successfulJobsHistoryLimit: 3
+    failedJobsHistoryLimit: 1
     jobTemplate:
       spec:
         template:

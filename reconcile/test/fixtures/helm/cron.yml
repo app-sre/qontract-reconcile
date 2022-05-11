@@ -5,7 +5,7 @@ kind: Template
 metadata:
   name: qontract-reconcile
 objects:
-- apiVersion: batch/v1beta1
+- apiVersion: batch/v1
   kind: CronJob
   metadata:
     labels:
@@ -14,8 +14,8 @@ objects:
   spec:
     schedule: "* * * * *"
     concurrencyPolicy: Allow
-    successfulJobHistoryLimit: 3
-    failedJobHistoryLimit: 1
+    successfulJobsHistoryLimit: 3
+    failedJobsHistoryLimit: 1
     jobTemplate:
       spec:
         template:

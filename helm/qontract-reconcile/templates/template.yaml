@@ -342,7 +342,7 @@ objects:
 {{- end }}
 {{- end }}
 {{- range $i, $integration := .Values.cronjobs }}
-- apiVersion: batch/v1beta1
+- apiVersion: batch/v1
   kind: CronJob
   metadata:
     labels:
@@ -361,8 +361,8 @@ objects:
   spec:
     schedule: "{{ $integration.cron }}"
     concurrencyPolicy: {{ $integration.concurrencyPolicy | default "Allow" }}
-    successfulJobHistoryLimit: {{ $integration.successfulJobHistoryLimit | default "3" }}
-    failedJobHistoryLimit: {{ if not (kindIs "invalid" $integration.failedJobHistoryLimit) }}{{ $integration.failedJobHistoryLimit }}{{ else }}{{ 1 }}{{ end }}
+    successfulJobsHistoryLimit: {{ if not (kindIs "invalid" $integration.successfulJobHistoryLimit) }}{{ $integration.successfulJobHistoryLimit }}{{ else }}{{ 3 }}{{ end }}
+    failedJobsHistoryLimit: {{ if not (kindIs "invalid" $integration.failedJobHistoryLimit) }}{{ $integration.failedJobHistoryLimit }}{{ else }}{{ 1 }}{{ end }}
     jobTemplate:
       spec:
         template:
