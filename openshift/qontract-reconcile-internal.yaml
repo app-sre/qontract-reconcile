@@ -8212,64 +8212,6 @@ objects:
   kind: CronJob
   metadata:
     labels:
-      app: qontract-reconcile-cluster-deployment-mapper
-    name: qontract-reconcile-cluster-deployment-mapper
-  spec:
-    schedule: "0 0 * * *"
-    concurrencyPolicy: Allow
-    successfulJobHistoryLimit: 3
-    failedJobHistoryLimit: 1
-    jobTemplate:
-      spec:
-        template:
-          spec:
-            serviceAccountName: qontract-reconcile
-            containers:
-            - name: int
-              image: ${IMAGE}:${IMAGE_TAG}
-              env:
-              - name: RUN_ONCE
-                value: 'true'
-              - name: DRY_RUN
-                value: ${DRY_RUN}
-              - name: INTEGRATION_NAME
-                value: cluster-deployment-mapper
-              - name: INTEGRATION_EXTRA_ARGS
-                value: "--vault-output-path app-sre/integrations-output"
-              - name: GITHUB_API
-                valueFrom:
-                  configMapKeyRef:
-                    name: app-interface
-                    key: GITHUB_API
-              - name: UNLEASH_API_URL
-                valueFrom:
-                  secretKeyRef:
-                    name: unleash
-                    key: API_URL
-              - name: UNLEASH_CLIENT_ACCESS_TOKEN
-                valueFrom:
-                  secretKeyRef:
-                    name: unleash
-                    key: CLIENT_ACCESS_TOKEN
-              volumeMounts:
-              - name: qontract-reconcile-toml
-                mountPath: /config
-              resources:
-                limits:
-                  cpu: ${CLUSTER_DEPLOYMENT_MAPPER_CPU_LIMIT}
-                  memory: ${CLUSTER_DEPLOYMENT_MAPPER_MEMORY_LIMIT}
-                requests:
-                  cpu: ${CLUSTER_DEPLOYMENT_MAPPER_CPU_REQUEST}
-                  memory: ${CLUSTER_DEPLOYMENT_MAPPER_MEMORY_REQUEST}
-            restartPolicy: OnFailure
-            volumes:
-            - name: qontract-reconcile-toml
-              secret:
-                secretName: qontract-reconcile-toml
-- apiVersion: batch/v1beta1
-  kind: CronJob
-  metadata:
-    labels:
       app: qontract-reconcile-ldap-users
     name: qontract-reconcile-ldap-users
   spec:
@@ -9156,14 +9098,6 @@ parameters:
   value: 100m
 - name: JENKINS_JOB_BUILDS_CLEANER_MEMORY_REQUEST
   value: 100Mi
-- name: CLUSTER_DEPLOYMENT_MAPPER_CPU_LIMIT
-  value: 300m
-- name: CLUSTER_DEPLOYMENT_MAPPER_MEMORY_LIMIT
-  value: 400Mi
-- name: CLUSTER_DEPLOYMENT_MAPPER_CPU_REQUEST
-  value: 200m
-- name: CLUSTER_DEPLOYMENT_MAPPER_MEMORY_REQUEST
-  value: 200Mi
 - name: LDAP_USERS_CPU_LIMIT
   value: 200m
 - name: LDAP_USERS_MEMORY_LIMIT

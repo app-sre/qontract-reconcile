@@ -380,17 +380,6 @@ cronjobs:
       cpu: 200m
   # once a hour
   cron: '0 * * * *'
-- name: cluster-deployment-mapper
-  resources:
-    requests:
-      memory: 200Mi
-      cpu: 200m
-    limits:
-      memory: 400Mi
-      cpu: 300m
-  # once a day at midnight
-  cron: '0 0 * * *'
-  extraArgs: --vault-output-path app-sre/integrations-output
 - name: ldap-users
   resources:
     requests:
