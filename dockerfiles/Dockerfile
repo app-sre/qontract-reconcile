@@ -7,7 +7,6 @@ COPY e2e_tests e2e_tests
 COPY reconcile reconcile
 COPY release release
 COPY tools tools
-COPY gql_queries gql_queries
 COPY code_generator code_generator
 COPY setup.py .
 COPY GIT_VERSION .

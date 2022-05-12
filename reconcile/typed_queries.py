@@ -1,10 +1,10 @@
-from gql_queries.saas_files import saas_files_small_with_provider
-from gql_queries.saas_files import saas_files_full
+from reconcile.gql_queries.saas_files import saas_files_small_with_provider
+from reconcile.gql_queries.saas_files import saas_files_full
 from reconcile.utils import gql
 
 
 def get_query(query_name: str) -> str:
-    with open(f"gql_queries/{query_name}") as f:
+    with open(f"reconcile/gql_queries/{query_name}") as f:
         return f.read()
 
 

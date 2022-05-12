@@ -21,7 +21,7 @@ def query_schema() -> dict:
 
 def find_query_files() -> list[str]:
     result: list[str] = []
-    for root, _, files in os.walk("gql_queries"):
+    for root, _, files in os.walk("reconcile/gql_queries"):
         for name in files:
             if name.endswith(".gql"):
                 result.append(os.path.join(root, name))

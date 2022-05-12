@@ -7,5 +7,6 @@ extend-exclude = '''
     reconcile/terraform_resources.py
     | reconcile/utils/terraform_client.py
     | reconcile/utils/terrascript_aws_client.py
+    | reconcile/gql_queries/.*
 )$
 '''
