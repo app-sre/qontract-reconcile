@@ -13,7 +13,7 @@ import click
 from reconcile.status import ExitCodes
 from reconcile.cli import LOG_FMT, LOG_DATEFMT
 from reconcile.utils.metrics import (
-  run_time, run_status, extra_labels, execution_counter
+  run_time, run_status, execution_counter
 )
 
 
@@ -150,13 +150,11 @@ def main():
             integration=INTEGRATION_NAME,
             shards=SHARDS,
             shard_id=SHARD_ID,
-            **extra_labels
         ).inc()
         try:
             with command.make_context(info_name=COMMAND_NAME, args=args) \
               as ctx:
                 ctx.ensure_object(dict)
-                ctx.obj['extra_labels'] = extra_labels
                 command.invoke(ctx)
                 return_code = 0
         # This is for when the integration explicitly
@@ -173,11 +171,9 @@ def main():
         time_spent = time.monotonic() - start_time
 
         run_time.labels(integration=INTEGRATION_NAME,
-                        shards=SHARDS, shard_id=SHARD_ID,
-                        **extra_labels).set(time_spent)
+                        shards=SHARDS, shard_id=SHARD_ID).set(time_spent)
         run_status.labels(integration=INTEGRATION_NAME,
-                          shards=SHARDS, shard_id=SHARD_ID,
-                          **extra_labels).set(return_code)
+                          shards=SHARDS, shard_id=SHARD_ID).set(return_code)
 
         if RUN_ONCE:
             sys.exit(return_code)

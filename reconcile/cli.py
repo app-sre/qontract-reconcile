@@ -1329,7 +1329,6 @@ def terraform_resources(
         light,
         vault_output_path,
         account_name=account_name,
-        extra_labels=ctx.obj.get("extra_labels", {}),
     )
 
 
@@ -1374,7 +1373,6 @@ def terraform_resources_wrapper(
         use_jump_host,
         light,
         vault_output_path,
-        extra_labels=ctx.obj.get("extra_labels", {}),
     )
 
 

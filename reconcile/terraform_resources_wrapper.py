@@ -40,7 +40,6 @@ def tfr_run_wrapper(
     use_jump_host,
     light,
     vault_output_path,
-    extra_labels,
 ):
     exit_code = 0
     try:
@@ -55,7 +54,6 @@ def tfr_run_wrapper(
             light=light,
             vault_output_path=vault_output_path,
             account_name=account_name,
-            extra_labels=extra_labels,
         )
     except SystemExit as e:
         exit_code = e.code
@@ -72,7 +70,6 @@ def run(
     use_jump_host=True,
     light=False,
     vault_output_path="",
-    extra_labels=None,
 ):
     account_names = [
         name
@@ -97,7 +94,6 @@ def run(
         use_jump_host=use_jump_host,
         light=light,
         vault_output_path=vault_output_path,
-        extra_labels=extra_labels,
     )
 
     if any(exit_codes):

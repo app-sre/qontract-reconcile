@@ -3,7 +3,7 @@ import shutil
 import sys
 
 from textwrap import indent
-from typing import Any, Iterable, MutableMapping, Optional, Mapping, Tuple, cast
+from typing import Any, Iterable, Optional, Mapping, Tuple, cast
 
 from sretoolbox.utils import threaded
 
@@ -461,7 +461,6 @@ def setup(
     internal: str,
     use_jump_host: bool,
     account_name: Optional[str],
-    extra_labels: MutableMapping[str, str],
 ) -> Tuple[
     ResourceInventory,
     OC_Map,
@@ -475,7 +474,6 @@ def setup(
                     if n['name'] == account_name]
         if not accounts:
             raise ValueError(f"aws account {account_name} is not found")
-        extra_labels['shard_key'] = account_name
     settings = queries.get_app_interface_settings()
 
     # build a resource inventory for all the kube secrets managed by the
@@ -610,7 +608,6 @@ def run(
     light=False,
     vault_output_path="",
     account_name=None,
-    extra_labels=None,
     defer=None,
 ):
 
@@ -621,7 +618,6 @@ def run(
         internal,
         use_jump_host,
         account_name,
-        extra_labels,
     )
 
     if not dry_run:
