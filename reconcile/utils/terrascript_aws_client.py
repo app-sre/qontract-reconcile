@@ -77,6 +77,16 @@ from terrascript.resource import (
     aws_iam_instance_profile,
     aws_launch_template,
     aws_autoscaling_group,
+    aws_cognito_user_pool,
+    aws_cognito_user_pool_client,
+    aws_cognito_user_pool_domain,
+    aws_api_gateway_rest_api,
+    aws_api_gateway_resource,
+    aws_api_gateway_method,
+    aws_api_gateway_authorizer,
+    aws_api_gateway_deployment,
+    aws_api_gateway_stage,
+    aws_api_gateway_integration,
     random_id,
 )
 # temporary to create aws_ecrpublic_repository
@@ -1004,6 +1014,10 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                                           existing_secrets)
         elif provider == 'route53-zone':
             self.populate_tf_resource_route53_zone(resource, namespace_info)
+        elif provider == 'cognito':
+            self.populate_tf_resource_cognito(resource, namespace_info)
+        elif provider == 'api-gateway':
+            self.populate_tf_resource_api_gateway(resource, namespace_info)
         else:
             raise UnknownProviderError(provider)
 
@@ -4509,4 +4523,191 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             )
         )
 
+        self.add_resources(account, tf_resources)
+
+    def populate_tf_resource_cognito(self, resource, namespace_info):
+        account, identifier, common_values, output_prefix, \
+            output_resource_name, annotations = \
+            self.init_values(resource, namespace_info)
+        tf_resources = []
+        self.init_common_outputs(tf_resources, namespace_info, output_prefix,
+                                output_resource_name, annotations)
+
+        # FIXME
+        # These should be sourced from ai provider values
+        sms_role_ext_id = "foobar"
+        organization_name = "rosa-fedramp"
+        cognito_user_pool_domain = "cognito.fedramp.devshift.net"
+
+        sms_role_policy = {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Action": [
+                        "sts:AssumeRole",
+                    ],
+                    "Principal": {
+                        "Service": "cognito-idp.amazonaws.com",
+                    },
+                    "Condition": {
+                        "StringEquals": {
+                            "sts:ExternalId": sms_role_ext_id
+                        }
+                    }
+                },
+                {
+                    "Effect": "Allow",
+                    "Action": [
+                        "sns:Publish",
+                    ],
+                    "Resource": "*",
+                }
+            ]
+        }
+
+        sms_iam_role_resource = aws_iam_role(
+            "sms_role",
+            name=f'{organization_name}-SMS',
+            description="role for applicant cognito, send sms",
+            assume_role_policy=sms_role_policy,
+            force_detach_policies=False,
+            max_session_duration=3600,
+            path="/service-role/",
+        )
+        tf_resources.append(sms_iam_role_resource)
+
+        # https://registry.terraform.io/providers/hashicorp/aws/3.60.0/docs/resources/cognito_identity_provider
+
+        # What is the difference between values and self.get_values?
+        # How do they relate to default files vs supplied parameters?
+        # I'm trying to use RDS as an example and I am getting confused with application of pg_values (parameter group)
+
+        pool_args = values.get("user_pool_properties", None)
+        pool_client_args = values.get("user_pool_client_properties", None)
+        
+        if pool_args and pool_client_args:
+            cognito_user_pool_resource = aws_cognito_user_pool(
+                "pool",
+                name=f'{organization_name}-pool',
+                **pool_args
+            )
+
+            tf_resources.append(cognito_user_pool_resource)
+            # How does terraform DAG work in terrascript?
+            #
+            # For instance, I need to reference the ID of the user pool defined above in the user_pool_domain resource
+            # below. Does terrascript automatically respect the terraform DAG and supply this value
+            # only after the resource is created?
+            # This question is probably related to an application of resource dependencies I see in prior population
+            # functions in this file.
+            # I plan to dive into terrascript documentation to figure this out, just wanted to add the question
+            # here in case someone feels like chiming in on it.
+            cognito_user_pool_domain_resource = aws_cognito_user_pool_domain(
+            "userpool_domain",
+                domain=cognito_user_pool_domain,
+                user_pool_id=cognito_user_pool_resource.id
+            )
+            tf_resources.append(cognito_user_pool_domain_resource)
+
+            cognito_user_pool_client = aws_cognito_user_pool_client(
+                "userpool_client",
+                user_pool_id=cognito_user_pool_resource.id,
+                **pool_client_args
+            )
+            tf_resources.append(cognito_user_pool_client)
+        self.add_resources(account, tf_resources)
+    
+    def populate_tf_resource_api_gateway(self, resource, namespace_info):
+        account, identifier, common_values, output_prefix, \
+            output_resource_name, annotations = \
+            self.init_values(resource, namespace_info)
+        tf_resources = []
+        self.init_common_outputs(tf_resources, namespace_info, output_prefix,
+                                output_resource_name, annotations)
+        
+        # FIXME
+        # These should be sourced from ai provider values
+        organization_name = "rosa-fedramp"
+        cognito_user_pool_arn = "foobar"
+
+        rest_api_args = values.get("rest_api_properties", None)
+        gateway_args = values.get("gateway_resource_properties", None)
+        gateway_method_args = values.get("gateway_method_properties", None)
+        gateway_authorizer_args = values.get("gateway_authorizer_properties", None)
+        integration_args = values.get("integration_properties", None)
+
+        if rest_api_args and gateway_args and gateway_method_args and gateway_authorizer_args and integration_args:
+            api_gateway_rest_api_resource = aws_api_gateway_rest_api(
+                "gw_api",
+                **rest_api_args
+            )
+            tf_resources.append(api_gateway_rest_api_resource)
+
+            api_gateway_resource = aws_api_gateway_resource(
+                "gw_resource",
+                parent_id=api_gateway_rest_api_resource.root_resource_id,
+                rest_api_id=api_gateway_rest_api_resource.id,
+                **gateway_args
+            )
+            tf_resources.append(api_gateway_resource)
+
+            # Here, I have to figure out how to source a value from another terraform run.
+            # provider_arns   = [aws_cognito_user_pool.pool.arn]
+            # This is created in the cognito step, and has to be connected somehow.
+            # I am unsure if terrascript application of DAG will solve this problem for me.
+
+            api_gateway_authorizer_resource = aws_api_gateway_authorizer(
+                "gw_authorizer",
+                name=f'{organization_name}-authorizer',
+                rest_api_id=api_gateway_rest_api_resource.id,
+                provider_arns=[cognito_user_pool_arn], #FIXME
+                **gateway_authorizer_args
+            )
+            tf_resources.append(api_gateway_authorizer_resource)
+
+            api_gateway_method_resource = aws_api_gateway_method(
+                "gw_method_any",
+                rest_api_id=api_gateway_rest_api_resource.id,
+                resource_id=api_gateway_resource.id,
+                authorizer_id=api_gateway_authorizer_resource.id,
+                **gateway_method_args
+            )
+            tf_resources.append(api_gateway_method_resource)
+
+            # as defined in terraform, triggers block looks like this:
+            # triggers = {
+            #     redeployment = sha1(jsonencode([
+            #         aws_api_gateway_resource.gw_resource.id,
+            #         aws_api_gateway_method.gw_method_any.id,
+            #         aws_api_gateway_integration.gw_integration.id,
+            #     ]))
+            # }
+            # This is taking advantage of HCL functions, as well as pulling in multiple
+            # id references.
+
+            api_gateway_deployment_resource = aws_api_gateway_deployment(
+                "gw_deployment",
+                rest_api_id=api_gateway_rest_api_resource.id,
+                triggers={}, #FIXME
+                lifecycle={"create_before_destroy":True}
+            )
+            tf_resources.append(api_gateway_deployment_resource)
+
+            api_gateway_stage_resource = aws_api_gateway_stage(
+                "gw_stage",
+                deployment_id=api_gateway_deployment_resource.id,
+                rest_api_id=api_gateway_rest_api_resource.id,
+                stage_name="stage"
+            )
+            tf_resources.append(api_gateway_stage_resource)
+
+            api_gateway_integration_resource = aws_api_gateway_integration(
+                "gw_integration",
+                rest_api_id=api_gateway_rest_api_resource.id,
+                resource_id=api_gateway_resource.id,
+                http_method=aws_api_gateway_method_resource.http_method,
+                **integration_args
+            )
+            tf_resources.append(api_gateway_integration_resource)
         self.add_resources(account, tf_resources)
