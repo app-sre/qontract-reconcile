@@ -1,5 +1,5 @@
 import os
-from typing import Any, Dict, List, Mapping
+from typing import Any, Dict, List, Mapping, Tuple
 import pytest
 
 import reconcile.integrations_manager as intop
@@ -50,7 +50,7 @@ def test_collect_parameters():
     environment = {
         "parameters": '{"env_param": "test"}',
     }
-    parameters = intop.collect_parameters(template, environment, ())
+    parameters = intop.collect_parameters(template, environment, None)
     expected = {
         "env_param": "test",
         "tplt_param": "override",
@@ -70,7 +70,7 @@ def test_collect_parameters_env_stronger():
     environment = {
         "parameters": '{"env_param": "override"}',
     }
-    parameters = intop.collect_parameters(template, environment, ())
+    parameters = intop.collect_parameters(template, environment, None)
     expected = {
         "env_param": "override",
     }
@@ -90,7 +90,7 @@ def test_collect_parameters_os_env_strongest():
     environment = {
         "parameters": '{"env_param": "override"}',
     }
-    parameters = intop.collect_parameters(template, environment, ())
+    parameters = intop.collect_parameters(template, environment, None)
     expected = {
         "env_param": "strongest",
     }

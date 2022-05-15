@@ -4,7 +4,7 @@ import json
 import logging
 
 from github import Github
-from typing import Any, Dict, List, Mapping, Tuple
+from typing import Any, Dict, List, Mapping, Optional, Tuple
 
 import reconcile.openshift_base as ob
 
@@ -46,7 +46,7 @@ def get_image_tag_from_ref(ref: str) -> str:
 def collect_parameters(
     template: Mapping[str, Any],
     environment: Mapping[str, Any],
-    image_tag_from_ref: Tuple[str],
+    image_tag_from_ref: Optional[Tuple[str]],
 ) -> Mapping[str, Any]:
     parameters: Dict[str, Any] = {}
     environment_parameters = environment.get("parameters")
@@ -60,10 +60,11 @@ def collect_parameters(
             if p["name"] in os.environ
         }
         parameters.update(tp_env_vars)
-    for itr in image_tag_from_ref:
-        e, r = itr.split("=")
-        if environment["name"] == e:
-            parameters["IMAGE_TAG"] = get_image_tag_from_ref(r)
+    if image_tag_from_ref:
+        for itr in image_tag_from_ref:
+            e, r = itr.split("=")
+            if environment["name"] == e:
+                parameters["IMAGE_TAG"] = get_image_tag_from_ref(r)
 
     return parameters
 
@@ -71,7 +72,7 @@ def collect_parameters(
 def construct_oc_resources(
     namespace_info: Mapping[str, Any],
     oc: OCDeprecated,
-    image_tag_from_ref: Tuple[str],
+    image_tag_from_ref: Optional[Tuple[str]],
 ) -> List[OpenshiftResource]:
     template = helm.template(construct_values_file(namespace_info["integration_specs"]))
     parameters = collect_parameters(
@@ -93,7 +94,7 @@ def fetch_desired_state(
     namespaces: List[Mapping[str, Any]],
     ri: ResourceInventory,
     oc_map: OC_Map,
-    image_tag_from_ref: Tuple[str],
+    image_tag_from_ref: Optional[Tuple[str]],
 ):
     for namespace_info in namespaces:
         namespace = namespace_info["name"]
