@@ -1843,9 +1843,20 @@ def signalfx_prometheus_endpoint_monitoring(
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
 @internal()
 @use_jump_host()
+@click.option(
+    "--image-tag-from-ref",
+    "-r",
+    help="git ref to use as IMAGE_TAG for given environment. example: '--image-tag-from-ref app-interface-dev=master'.",
+    multiple=True,
+)
 @click.pass_context
 def integrations_manager(
-    ctx, environment_name, thread_pool_size, internal, use_jump_host
+    ctx,
+    environment_name,
+    thread_pool_size,
+    internal,
+    use_jump_host,
+    image_tag_from_ref,
 ):
     run_integration(
         reconcile.integrations_manager,
@@ -1854,4 +1865,5 @@ def integrations_manager(
         thread_pool_size,
         internal,
         use_jump_host,
+        image_tag_from_ref,
     )

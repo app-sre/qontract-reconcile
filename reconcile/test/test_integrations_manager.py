@@ -50,7 +50,7 @@ def test_collect_parameters():
     environment = {
         "parameters": '{"env_param": "test"}',
     }
-    parameters = intop.collect_parameters(template, environment)
+    parameters = intop.collect_parameters(template, environment, ())
     expected = {
         "env_param": "test",
         "tplt_param": "override",
@@ -70,7 +70,7 @@ def test_collect_parameters_env_stronger():
     environment = {
         "parameters": '{"env_param": "override"}',
     }
-    parameters = intop.collect_parameters(template, environment)
+    parameters = intop.collect_parameters(template, environment, ())
     expected = {
         "env_param": "override",
     }
@@ -90,9 +90,34 @@ def test_collect_parameters_os_env_strongest():
     environment = {
         "parameters": '{"env_param": "override"}',
     }
-    parameters = intop.collect_parameters(template, environment)
+    parameters = intop.collect_parameters(template, environment, ())
     expected = {
         "env_param": "strongest",
+    }
+    assert parameters == expected
+
+
+def test_collect_parameters_image_tag_from_ref(mocker):
+    template = {
+        "parameters": [
+            {
+                "name": "IMAGE_TAG",
+                "value": "dummy",
+            }
+        ]
+    }
+    os.environ["IMAGE_TAG"] = "override"
+    environment = {
+        "name": "env",
+        "parameters": '{"IMAGE_TAG": "default"}',
+    }
+    image_tag_from_ref = ("env=f44e417",)
+    mocker.patch(
+        "reconcile.integrations_manager.get_image_tag_from_ref", return_value="f44e417"
+    )
+    parameters = intop.collect_parameters(template, environment, image_tag_from_ref)
+    expected = {
+        "IMAGE_TAG": "f44e417",
     }
     assert parameters == expected
 
