@@ -4,6 +4,8 @@ import os
 import sys
 import re
 
+from typing import Dict, Optional
+
 import click
 import sentry_sdk
 
@@ -1836,6 +1838,21 @@ def signalfx_prometheus_endpoint_monitoring(
     )
 
 
+def parse_image_tag_from_ref(ctx, param, value) -> Optional[Dict[str, str]]:
+    if value:
+        result = {}
+        for v in value:
+            if v.count("=") != 1 or v.startswith("=") or v.endswith("="):
+                logging.error(
+                    f'image-tag-from-ref "{v}" should be of the form "<env_name>=<ref>"'
+                )
+                sys.exit(ExitCodes.ERROR)
+            k, v = v.split("=")
+            result[k] = v
+        return result
+    return None
+
+
 @integration.command(short_help="Manages Qontract Reconcile integrations.")
 @environment_name
 @threaded()
@@ -1843,9 +1860,21 @@ def signalfx_prometheus_endpoint_monitoring(
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
 @internal()
 @use_jump_host()
+@click.option(
+    "--image-tag-from-ref",
+    "-r",
+    help="git ref to use as IMAGE_TAG for given environment. example: '--image-tag-from-ref app-interface-dev=master'.",
+    multiple=True,
+    callback=parse_image_tag_from_ref,
+)
 @click.pass_context
 def integrations_manager(
-    ctx, environment_name, thread_pool_size, internal, use_jump_host
+    ctx,
+    environment_name,
+    thread_pool_size,
+    internal,
+    use_jump_host,
+    image_tag_from_ref,
 ):
     run_integration(
         reconcile.integrations_manager,
@@ -1854,4 +1883,5 @@ def integrations_manager(
         thread_pool_size,
         internal,
         use_jump_host,
+        image_tag_from_ref,
     )

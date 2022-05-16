@@ -3,7 +3,8 @@ import sys
 import json
 import logging
 
-from typing import Any, Dict, List, Mapping
+from github import Github
+from typing import Any, Dict, List, Mapping, Optional
 
 import reconcile.openshift_base as ob
 
@@ -12,6 +13,7 @@ from reconcile import queries
 from reconcile.status import ExitCodes
 from reconcile.utils.oc import OCDeprecated, OC_Map
 from reconcile.utils.semver_helper import make_semver
+from reconcile.github_org import GH_BASE_URL, get_default_config
 from reconcile.utils.openshift_resource import OpenshiftResource, ResourceInventory
 from reconcile.utils.defer import defer
 
@@ -33,8 +35,18 @@ def construct_values_file(
     return values
 
 
+def get_image_tag_from_ref(ref: str) -> str:
+    settings = queries.get_app_interface_settings()
+    gh_token = get_default_config()["token"]
+    github = Github(gh_token, base_url=GH_BASE_URL)
+    commit_sha = github.get_repo("app-sre/qontract-reconcile").get_commit(sha=ref).sha
+    return commit_sha[: settings["hashLength"]]
+
+
 def collect_parameters(
-    template: Mapping[str, Any], environment: Mapping[str, Any]
+    template: Mapping[str, Any],
+    environment: Mapping[str, Any],
+    image_tag_from_ref: Optional[Mapping[str, str]],
 ) -> Mapping[str, Any]:
     parameters: Dict[str, Any] = {}
     environment_parameters = environment.get("parameters")
@@ -48,15 +60,23 @@ def collect_parameters(
             if p["name"] in os.environ
         }
         parameters.update(tp_env_vars)
+    if image_tag_from_ref:
+        for e, r in image_tag_from_ref.items():
+            if environment["name"] == e:
+                parameters["IMAGE_TAG"] = get_image_tag_from_ref(r)
 
     return parameters
 
 
 def construct_oc_resources(
-    namespace_info: Mapping[str, Any], oc: OCDeprecated
+    namespace_info: Mapping[str, Any],
+    oc: OCDeprecated,
+    image_tag_from_ref: Optional[Mapping[str, str]],
 ) -> List[OpenshiftResource]:
     template = helm.template(construct_values_file(namespace_info["integration_specs"]))
-    parameters = collect_parameters(template, namespace_info["environment"])
+    parameters = collect_parameters(
+        template, namespace_info["environment"], image_tag_from_ref
+    )
     resources = oc.process(template, parameters)
     return [
         OpenshiftResource(
@@ -70,7 +90,10 @@ def construct_oc_resources(
 
 
 def fetch_desired_state(
-    namespaces: List[Mapping[str, Any]], ri: ResourceInventory, oc_map: OC_Map
+    namespaces: List[Mapping[str, Any]],
+    ri: ResourceInventory,
+    oc_map: OC_Map,
+    image_tag_from_ref: Optional[Mapping[str, str]],
 ):
     for namespace_info in namespaces:
         namespace = namespace_info["name"]
@@ -78,7 +101,7 @@ def fetch_desired_state(
         oc = oc_map.get(cluster)
         if not oc:
             continue
-        oc_resources = construct_oc_resources(namespace_info, oc)
+        oc_resources = construct_oc_resources(namespace_info, oc, image_tag_from_ref)
         for r in oc_resources:
             ri.add_desired(cluster, namespace, r.kind, r.name, r)
 
@@ -109,6 +132,7 @@ def run(
     thread_pool_size=10,
     internal=None,
     use_jump_host=True,
+    image_tag_from_ref=None,
     defer=None,
 ):
     namespaces = collect_namespaces(
@@ -128,7 +152,7 @@ def run(
         use_jump_host=use_jump_host,
     )
     defer(oc_map.cleanup)
-    fetch_desired_state(namespaces, ri, oc_map)
+    fetch_desired_state(namespaces, ri, oc_map, image_tag_from_ref)
     ob.realize_data(dry_run, oc_map, ri, thread_pool_size)
 
     if ri.has_error_registered():
