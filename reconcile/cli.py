@@ -4,6 +4,8 @@ import os
 import sys
 import re
 
+from typing import Dict, Optional
+
 import click
 import sentry_sdk
 

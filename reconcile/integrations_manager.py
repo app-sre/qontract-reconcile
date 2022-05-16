@@ -4,7 +4,7 @@ import json
 import logging
 
 from github import Github
-from typing import Any, Dict, List, Mapping, Optional, Tuple
+from typing import Any, Dict, List, Mapping, Optional
 
 import reconcile.openshift_base as ob
 
