@@ -19,6 +19,7 @@ https://github.com/helm/helm/releases
 
 | Parameter                   | Description                                                              | Default                            |
 |-----------------------------|--------------------------------------------------------------------------|------------------------------------|
+| excludeService              | Exclude the Service resource from templating                             | false                              |
 | integrations                | List of integration specs to run                                         | `[]`                               |
 | cronjobs                    | List of integration specs to run with schedule                           | `[]`                               |
 
@@ -29,6 +30,7 @@ https://github.com/helm/helm/releases
 | cache                       | integration requires cache                                               | false                              |
 | command                     | command to run                                                           | qontract-reconcile                 |
 | disableUnleash              | disable integration interaction with unleash instance                    | false                              |
+| environmentAware            | integration requires environment awareness (env vars and env name)       | false                              |
 | extraArgs                   | additional arguments to pass to integration                              | []                                 |
 | extraEnv                    | additional environment variables to set for the integration              | []                                 |
 | internalCertificates        | integration requires internal certificates to execute                    | false                              |

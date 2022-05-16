@@ -9,19 +9,19 @@ objects:
   kind: Deployment
   metadata:
     labels:
-      app: qontract-reconcile-integ
+      app: qontract-reconcile-integrations-manager
     annotations:
       ignore-check.kube-linter.io/minimum-three-replicas : "qontract-reconcile integrations are sharded and not replicated"
-    name: qontract-reconcile-integ
+    name: qontract-reconcile-integrations-manager
   spec:
     replicas: 1
     selector:
       matchLabels:
-        app: qontract-reconcile-integ
+        app: qontract-reconcile-integrations-manager
     template:
       metadata:
         labels:
-          app: qontract-reconcile-integ
+          app: qontract-reconcile-integrations-manager
           component: qontract-reconcile
       spec:
         serviceAccountName: qontract-reconcile
@@ -78,7 +78,7 @@ objects:
               <store>
                 @type cloudwatch_logs
                 log_group_name ${LOG_GROUP_NAME}
-                log_stream_name integ
+                log_stream_name integrations-manager
                 auto_create_stream true
               </store>
             </match>
@@ -99,10 +99,10 @@ objects:
             value: "0"
           - name: DRY_RUN
             value: ${DRY_RUN}
+          - name: MANAGER_DRY_RUN
+            value: ${MANAGER_DRY_RUN}
           - name: INTEGRATION_NAME
-            value: integ
-          - name: INTEGRATION_EXTRA_ARGS
-            value: "--test-extra-args"
+            value: integrations-manager
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -135,11 +135,11 @@ objects:
             value: "${USE_NATIVE_CLIENT}"
           resources:
             limits:
-              cpu: ${INTEG_CPU_LIMIT}
-              memory: ${INTEG_MEMORY_LIMIT}
+              cpu: ${INTEGRATIONS_MANAGER_CPU_LIMIT}
+              memory: ${INTEGRATIONS_MANAGER_MEMORY_LIMIT}
             requests:
-              cpu: ${INTEG_CPU_REQUEST}
-              memory: ${INTEG_MEMORY_REQUEST}
+              cpu: ${INTEGRATIONS_MANAGER_CPU_REQUEST}
+              memory: ${INTEGRATIONS_MANAGER_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -257,11 +257,11 @@ parameters:
   value: latest
 - name: INTERNAL_CERTIFICATES_IMAGE_PULL_POLICY
   value: Always
-- name: INTEG_CPU_LIMIT
+- name: INTEGRATIONS_MANAGER_CPU_LIMIT
   value: 678
-- name: INTEG_MEMORY_LIMIT
+- name: INTEGRATIONS_MANAGER_MEMORY_LIMIT
   value: 90Mi
-- name: INTEG_CPU_REQUEST
+- name: INTEGRATIONS_MANAGER_CPU_REQUEST
   value: 123
-- name: INTEG_MEMORY_REQUEST
+- name: INTEGRATIONS_MANAGER_MEMORY_REQUEST
   value: 45Mi

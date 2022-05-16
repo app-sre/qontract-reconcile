@@ -5,7 +5,7 @@ kind: Template
 metadata:
   name: qontract-reconcile
 objects:
-- apiVersion: batch/v1beta1
+- apiVersion: batch/v1
   kind: CronJob
   metadata:
     labels:
@@ -14,8 +14,8 @@ objects:
   spec:
     schedule: "* * * * *"
     concurrencyPolicy: Allow
-    successfulJobHistoryLimit: 42
-    failedJobHistoryLimit: 1
+    successfulJobsHistoryLimit: 42
+    failedJobsHistoryLimit: 1
     jobTemplate:
       spec:
         template:
@@ -92,7 +92,11 @@ parameters:
   value: latest
 - name: FLUENTD_IMAGE_PULL_POLICY
   value: Always
+- name: ENVIRONMENT_NAME
+  value: app-interface
 - name: DRY_RUN
+  value: --dry-run
+- name: MANAGER_DRY_RUN
   value: --dry-run
 - name: SLEEP_DURATION_SECS
   value: "300"

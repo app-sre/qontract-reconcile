@@ -4287,8 +4287,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 image_id = existing_ami['image_id']
                 commit_sha = existing_ami['commit_sha']
                 logging.warning(
-                    f"[{account}] ami for commit {new_commit_sha}"
-                    f"not yet available. using ami {image_id}"
+                    f"[{account}] ami for commit {new_commit_sha} "
+                    f"not yet available. using ami {image_id} "
                     f"for previous commit {commit_sha}."
                 )
             else:
