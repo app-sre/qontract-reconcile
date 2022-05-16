@@ -1538,6 +1538,12 @@ APP_INTERFACE_SQL_QUERIES_QUERY = """
           overrides
         }
       }
+      app {
+        name
+      }
+      environment {
+        name
+      }
       cluster
       {
         name
