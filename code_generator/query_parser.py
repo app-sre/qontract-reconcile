@@ -1,272 +1,290 @@
 # type: ignore
 # pylint: skip-file
-"""
-Taken and modified from:
-
-https://github.com/graphql-python/gql-next/blob/master/gql/query_parser.py
-
-TODO: currently quick and dirty. Still has redundant parts and data structures.
-"""
 from __future__ import annotations
-from typing import Any, List, Mapping, Union, cast
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from typing import Optional
 
 from graphql import (
-    GraphQLInterfaceType,
-    GraphQLObjectType,
+    FieldNode,
+    GraphQLList,
+    GraphQLNonNull,
+    GraphQLOutputType,
+    GraphQLScalarType,
     GraphQLSchema,
-    validate,
-    parse,
-    get_operation_ast,
-    visit,
+    InlineFragmentNode,
+    OperationDefinitionNode,
     Visitor,
     TypeInfo,
     TypeInfoVisitor,
-    GraphQLNonNull,
-    is_scalar_type,
-    GraphQLList,
-    OperationDefinitionNode,
-    NonNullTypeNode,
-    TypeNode,
-    GraphQLEnumType,
-    is_enum_type,
+    visit,
+    parse,
+    get_operation_ast,
+    validate,
 )
 
-import code_generator.mapper as mapper
+from code_generator.mapper import (
+    graphql_primitive_to_python,
+    graphql_field_name_to_python,
+)
+
+
+INDENT = "    "
 
 
 @dataclass
-class ParsedField:
-    py_name: str
-    type: str
-    unwrapped_type: str
-    nullable: bool
-    gql_name: str
-    child: ParsedObject = None
-    is_list: bool = False
-    default_value: Any = None
+class ParsedNode:
+    parent: Optional[ParsedNode]
+    fields: list[ParsedNode]
+    parsed_type: ParsedFieldType
+
+    def class_code_string(self) -> str:
+        return ""
 
 
 @dataclass
-class ParsedObject:
-    name: str
-    py_name: str
-    fields: List[ParsedField] = field(default_factory=list)
-    parents: List[str] = field(default_factory=list)
-    children: List[ParsedObject] = field(default_factory=list)
+class ParsedInlineFragmentNode(ParsedNode):
+    def class_code_string(self) -> str:
+        if self.parsed_type.is_primitive:
+            return ""
+
+        lines = ["\n\n"]
+        lines.append(f"class {self.parsed_type.unwrapped_python_type}(BaseModel):")
+        for parent_field in self.parent.fields:
+            if isinstance(parent_field, ParsedClassNode):
+                lines.append(
+                    f'{INDENT}{parent_field.py_key}: {parent_field.field_type()} = Field(..., alias="{parent_field.gql_key}")'
+                )
+        for field in self.fields:
+            if isinstance(field, ParsedClassNode):
+                lines.append(
+                    f'{INDENT}{field.py_key}: {field.field_type()} = Field(..., alias="{field.gql_key}")'
+                )
+
+        # https://pydantic-docs.helpmanual.io/usage/model_config/#smart-union
+        # https://stackoverflow.com/a/69705356/4478420
+        lines.append("")
+        lines.append(f"{INDENT}class Config:")
+        lines.append(f"{INDENT}{INDENT}smart_union = True")
+        lines.append(f"{INDENT}{INDENT}extra = 'forbid'")
+
+        return "\n".join(lines)
 
 
 @dataclass
-class ParsedEnum:
-    name: str
-    values: Mapping[str, Any]
+class ParsedClassNode(ParsedNode):
+    gql_key: str
+    py_key: str
+
+    def class_code_string(self) -> str:
+        if self.parsed_type.is_primitive:
+            return ""
+
+        lines = ["\n\n"]
+        lines.append(f"class {self.parsed_type.unwrapped_python_type}(BaseModel):")
+        for field in self.fields:
+            if isinstance(field, ParsedClassNode):
+                lines.append(
+                    f'{INDENT}{field.py_key}: {field.field_type()} = Field(..., alias="{field.gql_key}")'
+                )
+
+        # https://pydantic-docs.helpmanual.io/usage/model_config/#smart-union
+        # https://stackoverflow.com/a/69705356/4478420
+        lines.append("")
+        lines.append(f"{INDENT}class Config:")
+        lines.append(f"{INDENT}{INDENT}smart_union = True")
+        lines.append(f"{INDENT}{INDENT}extra = 'forbid'")
+
+        return "\n".join(lines)
+
+    def field_type(self) -> str:
+        unions: list[str] = []
+        # TODO: sorting does not need to happen on each call
+        self.fields.sort(key=self._type_significance, reverse=True)
+        for field in self.fields:
+            if isinstance(field, ParsedInlineFragmentNode):
+                unions.append(field.parsed_type.unwrapped_python_type)
+        if len(unions) > 0:
+            unions.append(self.parsed_type.unwrapped_python_type)
+            return self.parsed_type.wrapped_python_type.replace(
+                self.parsed_type.unwrapped_python_type, f"Union[{', '.join(unions)}]"
+            )
+        return self.parsed_type.wrapped_python_type
+
+    def _type_significance(self, node: ParsedInlineFragmentNode) -> int:
+        """
+        Pydantic does best-effort matching on Unions.
+        Declare most significant type first.
+        This, smart_union and disallowing extra fields gives high confidence in matching.
+
+        https://pydantic-docs.helpmanual.io/usage/types/#unions
+        """
+        return len(node.fields)
 
 
 @dataclass
-class ParsedVariableDefinition:
-    name: str
-    type: str
-    nullable: bool
-    default_value: Any = None
+class ParsedOperationNode(ParsedNode):
+    def class_code_string(self) -> str:
+        lines = ["\n\n"]
+        lines.append(f"class {self.parsed_type.unwrapped_python_type}Query(BaseModel):")
+        for field in self.fields:
+            if isinstance(field, ParsedClassNode):
+                lines.append(
+                    f'{INDENT}{field.py_key}: {field.field_type()} = Field(..., alias="{field.gql_key}")'
+                )
+
+        # https://pydantic-docs.helpmanual.io/usage/model_config/#smart-union
+        # https://stackoverflow.com/a/69705356/4478420
+        lines.append("")
+        lines.append(f"{INDENT}class Config:")
+        lines.append(f"{INDENT}{INDENT}smart_union = True")
+        lines.append(f"{INDENT}{INDENT}extra = 'forbid'")
+
+        return "\n".join(lines)
 
 
 @dataclass
-class ParsedOperation:
-    name: str
-    type: str
-    variables: List[ParsedVariableDefinition] = field(default_factory=list)
-    children: List[ParsedObject] = field(default_factory=list)
-
-
-NodeT = Union[ParsedOperation, ParsedObject]
-
-
-@dataclass
-class ParsedQuery:
-    query: str
-    objects: List[NodeT] = field(default_factory=list)
-    enums: List[ParsedEnum] = field(default_factory=list)
+class ParsedFieldType:
+    unwrapped_python_type: str
+    wrapped_python_type: str
+    is_primitive: bool
 
 
 class FieldToTypeMatcherVisitor(Visitor):
     def __init__(self, schema: GraphQLSchema, type_info: TypeInfo, query: str):
+        # These are required for GQL Visitor to do its magic
         Visitor.__init__(self)
         self.schema = schema
         self.type_info = type_info
         self.query = query
-        self.parsed = ParsedQuery(query=self.query)
-        self.dfs_path: List[ParsedObject] = []
 
-    def push(self, obj: NodeT):
-        self.dfs_path.append(obj)
-
-    def pull(self) -> NodeT:
-        return self.dfs_path.pop()
-
-    @property
-    def current(self) -> ParsedObject:
-        return self.dfs_path[-1]
-
-    # Document
-    def enter_operation_definition(self, node: OperationDefinitionNode, *_args):
-        name, operation = node.name, node.operation
-
-        variables = []
-        for var in node.variable_definitions:
-            ptype, nullable, _ = self.__variable_type_to_python(var.type)
-            variables.append(
-                ParsedVariableDefinition(
-                    name=var.variable.name.value,
-                    type=ptype,
-                    nullable=nullable,
-                    default_value=var.default_value.value
-                    if var.default_value
-                    else None,
-                )
-            )
-
-        parsed_op = ParsedOperation(
-            name=name.value,
-            type=str(operation.value),
-            variables=variables,
-            children=[
-                ParsedObject(name=f"{name.value}Data", py_name=f"{name.value}Data")
-            ],
+        # These are our custom fields
+        self.parsed = ParsedNode(
+            parent=None,
+            fields=[],
+            parsed_type=ParsedFieldType(
+                unwrapped_python_type="",
+                wrapped_python_type="",
+                is_primitive=False,
+            ),
         )
+        self.parent = self.parsed
+        self.deduplication_cache: set[str] = set()
 
-        self.parsed.objects.append(parsed_op)  # pylint:disable=no-member
-        self.push(parsed_op)
-        self.push(parsed_op.children[0])  # pylint:disable=unsubscriptable-object
+    # GQL mandatory functions
+    def enter(self, node, *_):
+        pass
 
-        return node
+    def leave(self, node, *_):
+        pass
 
-    # def enter_selection_set(self, node, *_):
-    #     return node
-
-    def leave_selection_set(self, node, *_):
-        self.pull()
-        return node
-
-    # Fragments
-
-    def enter_fragment_definition(self, node, *_):
-        # Same as operation definition
-        obj = ParsedObject(
-            name=node.name.value,
-            py_name=mapper.class_to_python(node.name.value),
-        )
-        self.parsed.objects.append(obj)  # pylint:disable=no-member
-        self.push(obj)
-        return node
-
-    def enter_fragment_spread(self, node, *_):
-        self.current.parents.append(node.name.value)
-        return node
-
-    # def enter_inline_fragment(self, node, *_):
-    #     return node
-    #
-    # def leave_inline_fragment(self, node, *_):
-    #     return node
-
-    # Field
-
-    def enter_field(self, node, *_):
-        name = node.alias.value if node.alias else node.name.value
+    def enter_inline_fragment(self, node: InlineFragmentNode, *_):
         graphql_type = self.type_info.get_type()
-        python_type, nullable, underlying_graphql_type = self.__scalar_type_to_python(
-            graphql_type
+        field_type = self._parse_type(graphql_type=graphql_type)
+        current = ParsedInlineFragmentNode(
+            fields=[],
+            parent=self.parent,
+            parsed_type=field_type,
         )
-        is_list = python_type.startswith("list[")
-        unwrapped_type = python_type.removeprefix("list[").removesuffix("]")
+        self.parent.fields.append(current)
+        self.parent = current
 
-        parsed_field = ParsedField(
-            py_name=mapper.field_to_python(name),
-            gql_name=name,
-            is_list=is_list,
-            type=python_type,
-            unwrapped_type=unwrapped_type,
-            nullable=nullable,
+    def leave_inline_fragment(self, node: InlineFragmentNode, *_):
+        self.parent = self.parent.parent if self.parent else self.parent
+
+    def enter_operation_definition(self, node: OperationDefinitionNode, *_):
+        current = ParsedOperationNode(
+            parent=self.parent,
+            fields=[],
+            parsed_type=ParsedFieldType(
+                unwrapped_python_type=node.name.value,
+                wrapped_python_type=f"Optional[list[{node.name.value}]]",
+                is_primitive=False,
+            ),
+        )
+        self.parent.fields.append(current)
+        self.parent = current
+
+    def leave_operation_definition(self, node: OperationDefinitionNode, *_):
+        self.parent = self.parent.parent if self.parent else self.parent
+
+    def enter_field(self, node: FieldNode, *_):
+        graphql_type: GraphQLOutputType = self.type_info.get_type()
+        field_type = self._parse_type(graphql_type=graphql_type)
+        py_key = graphql_field_name_to_python(node.name.value)
+        gql_key = node.alias.value if node.alias else node.name.value
+        current = ParsedClassNode(
+            fields=[],
+            parent=self.parent,
+            parsed_type=field_type,
+            py_key=py_key,
+            gql_key=gql_key,
         )
 
-        self.current.fields.append(parsed_field)  # TODO: nullables should go to the end
+        self.parent.fields.append(current)
+        self.parent = current
 
-        if not is_scalar_type(underlying_graphql_type):
-            if is_enum_type(underlying_graphql_type):
-                enum_type = cast(
-                    GraphQLEnumType, self.schema.type_map[underlying_graphql_type.name]
-                )
-                name = enum_type.name
-                if not any(
-                    e.name == name for e in self.parsed.enums
-                ):  # pylint:disable=not-an-iterable
-                    parsed_enum = ParsedEnum(
-                        name=enum_type.name,
-                        values={
-                            name: value.value or name
-                            for name, value in enum_type.values.items()
-                        },
-                    )
-                    self.parsed.enums.append(parsed_enum)  # pylint:disable=no-member
-            else:
-                obj = ParsedObject(
-                    name=str(underlying_graphql_type),
-                    py_name=mapper.class_to_python(str(underlying_graphql_type)),
-                )
-                parsed_field.child = obj
+    def leave_field(self, node: FieldNode, *_):
+        self.parent = self.parent.parent if self.parent else self.parent
 
-                self.current.children.append(obj)
-                self.push(obj)
+    # Custom Functions
+    def _parse_type(self, graphql_type: GraphQLOutputType) -> ParsedFieldType:
+        is_optional = True
+        if isinstance(graphql_type, GraphQLNonNull):
+            is_optional = False
+            graphql_type = graphql_type.of_type
 
-        return node
+        is_list = False
+        if isinstance(graphql_type, GraphQLList):
+            is_list = True
+            graphql_type = graphql_type.of_type
 
-    @staticmethod
-    def __scalar_type_to_python(scalar):
-        nullable = True
-        if isinstance(scalar, GraphQLNonNull):
-            nullable = False
-            scalar = scalar.of_type
+        needs_further_unwrapping = isinstance(
+            graphql_type, GraphQLNonNull
+        ) or isinstance(graphql_type, GraphQLList)
+        parsed_of_type = None
+        if needs_further_unwrapping:
+            parsed_of_type = self._parse_type(graphql_type=graphql_type)
 
-        mapping = {
-            "ID": "str",
-            "String": "str",
-            "Int": "int",
-            "Float": "float",
-            "Boolean": "bool",
-            "DateTime": "DateTime",
-        }
+        unwrapped_type = (
+            self._to_python_type(graphql_type)
+            if not parsed_of_type
+            else parsed_of_type.unwrapped_python_type
+        )
+        wrapped_type = (
+            unwrapped_type if not parsed_of_type else parsed_of_type.wrapped_python_type
+        )
+        is_primitive = (
+            isinstance(graphql_type, GraphQLScalarType)
+            if not parsed_of_type
+            else parsed_of_type.is_primitive
+        )
 
-        if isinstance(scalar, GraphQLList):
-            scalar = scalar.of_type
-            if isinstance(scalar, GraphQLNonNull):
-                scalar = scalar.of_type
-                nullable = False
+        if is_optional and is_list:
+            wrapped_type = f"Optional[list[{wrapped_type}]]"
+        elif is_optional:
+            wrapped_type = f"Optional[{wrapped_type}]"
+        elif is_list:
+            wrapped_type = f"list[{wrapped_type}]"
 
-            name = mapper.primitive_to_python(str(scalar))
-            if isinstance(scalar, GraphQLObjectType) or isinstance(
-                scalar, GraphQLInterfaceType
-            ):
-                name = mapper.class_to_python(str(scalar))
+        return ParsedFieldType(
+            unwrapped_python_type=unwrapped_type,
+            wrapped_python_type=wrapped_type,
+            is_primitive=is_primitive,
+        )
 
-            mapping = f"list[{name}]"
-        elif isinstance(scalar, GraphQLObjectType) or isinstance(
-            scalar, GraphQLInterfaceType
-        ):
-            mapping = mapper.class_to_python(str(scalar))
+    def _to_python_type(self, graphql_type: GraphQLOutputType) -> str:
+        if isinstance(graphql_type, GraphQLScalarType):
+            return graphql_primitive_to_python(graphql_type=graphql_type)
         else:
-            mapping = mapper.primitive_to_python(str(scalar))
+            cur = self.parent.parent
+            class_name = str(graphql_type).replace("_", "")
+            class_name = f"{class_name[:-2]}V{class_name[-1]}"
+            while cur and cur.parent and class_name in self.deduplication_cache:
+                class_name = f"{cur.parsed_type.unwrapped_python_type}_{class_name}"
+                cur = cur.parent
 
-        return mapping, nullable, scalar
-
-    @staticmethod
-    def __variable_type_to_python(var_type: TypeNode):
-        nullable = True
-        if isinstance(var_type, NonNullTypeNode):
-            nullable = False
-            var_type = var_type.type
-
-        mapping = mapper.primitive_to_python(var_type.name.value)
-        return mapping, nullable, var_type
+            self.deduplication_cache.add(class_name)
+            return class_name
 
 
 class AnonymousQueryError(Exception):
@@ -284,9 +302,8 @@ class InvalidQueryError(Exception):
 class QueryParser:
     def __init__(self, schema: GraphQLSchema):
         self.schema = schema
-        self.__jinja2_env = None
 
-    def parse(self, query: str, should_validate: bool = True) -> ParsedQuery:
+    def parse(self, query: str, should_validate: bool = True) -> ParsedNode:
         document_ast = parse(query)
         operation = get_operation_ast(document_ast)
 
@@ -301,5 +318,4 @@ class QueryParser:
         type_info = TypeInfo(self.schema)
         visitor = FieldToTypeMatcherVisitor(self.schema, type_info, query)
         visit(document_ast, TypeInfoVisitor(type_info, visitor))
-        result = visitor.parsed
-        return result
+        return visitor.parsed

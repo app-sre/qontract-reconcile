@@ -3,11 +3,10 @@ import requests
 
 from graphql import build_client_schema, get_introspection_query
 
-from code_generator.query_parser import ParsedObject, QueryParser  # type: ignore
+from code_generator.query_parser import ParsedNode, QueryParser  # type: ignore
 
 
 HEADER = '"""\nTHIS IS AN AUTO-GENERATED FILE. DO NOT MODIFY MANUALLY!\n"""\n'
-SPACES = "    "
 
 
 def query_schema() -> dict:
@@ -28,78 +27,35 @@ def find_query_files() -> list[str]:
     return result
 
 
-def is_primitive(name: str) -> bool:
-    return name in ("int", "str", "bool", "float", "DateTime")
-
-
-def post_order_traverse(node: ParsedObject, lines: list[str]):
+def post_order(node: ParsedNode) -> str:
     """
     Pydantic doesnt play well with from __future__ import annotations
     --> order of class declaration is important --> post-order
     """
-    for child in node.children:
-        post_order_traverse(node=child, lines=lines)
-
-    for field in node.fields:
-        typ = field.unwrapped_type
-        if is_primitive(typ) or not field.child:
-            continue
-
-        lines.append("\n")
-        lines.append("\n")
-        lines.append(f"class {typ}(BaseModel):\n")
-        for subfield in field.child.fields:
-            if subfield.nullable:
-                lines.append(
-                    f'{SPACES}{subfield.py_name}: Optional[{subfield.type}] = Field(..., alias="{subfield.gql_name}")\n'
-                )
-            else:
-                lines.append(
-                    f'{SPACES}{subfield.py_name}: {subfield.type} = Field(..., alias="{subfield.gql_name}")\n'
-                )
-
-
-def process_query(query_parser: QueryParser, query: str, out_file: str):
-    lines: list[str] = []
-    query_root = query_parser.parse(query=query)
-    query_data = query_root.objects[0].children[0]
-    lines.append(f"{HEADER}\n")
-    lines.append(
-        "from typing import Any, Optional  # noqa: F401 # pylint: disable=W0611\n"
-    )
-    lines.append("\n")
-    lines.append(
-        "from pydantic import BaseModel, Field, Json  # noqa: F401  # pylint: disable=W0611\n"
-    )
-
-    post_order_traverse(node=query_data, lines=lines)
-
-    lines.append("\n")
-    lines.append("\n")
-    lines.append(
-        f"def data_to_obj(data: dict[Any, Any]) -> {query_data.fields[0].type}:\n"
-    )
-    if query_data.fields[0].is_list:
-        lines.append(
-            f'{SPACES}return [{query_data.fields[0].unwrapped_type}(**el) for el in data["{query_data.fields[0].gql_name}"]]\n'
-        )
-    else:
-        lines.append(
-            f'{SPACES}return {query_data.fields[0].unwrapped_type}(**data["{query_data.fields[0].gql_name}"])\n'
-        )
-    with open(out_file, "w") as f:
-        f.writelines(lines)
+    result = ""
+    for child in node.fields:
+        result = f"{result}{post_order(child)}"
+    return f"{result}{node.class_code_string()}"
 
 
 def main():
     schema_raw = query_schema()
     schema = build_client_schema(schema_raw)  # type: ignore
-    query_parser = QueryParser(schema)
-
+    query_parser = QueryParser(schema=schema)
     for file in find_query_files():
         with open(file, "r") as f:
-            process_query(
-                query_parser=query_parser,
-                query=f.read(),
-                out_file=f"{file[:-3]}py",
-            )
+            result = query_parser.parse(f.read())
+            code = post_order(result)
+            with open(f"{file[:-3]}py", "w") as out_file:
+                out_file.write(HEADER)
+                out_file.write(
+                    "from typing import Optional, Union  # noqa: F401 # pylint: disable=W0611\n\n"
+                )
+                out_file.write(
+                    "from pydantic import BaseModel, Field, Json  # noqa: F401  # pylint: disable=W0611"
+                )
+                out_file.write(code)
+                out_file.write("\n")
+
+
+main()

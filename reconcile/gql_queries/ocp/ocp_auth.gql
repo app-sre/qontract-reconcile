@@ -1,0 +1,87 @@
+query OCPAuthFull {
+  ocp_release_mirror: ocp_release_mirror_v1 {
+    hiveCluster {
+      name
+      serverUrl
+      insecureSkipTLSVerify
+      jumpHost {
+        hostname
+        knownHosts
+        user
+        port
+        identity {
+          path
+          field
+          version
+          format
+        }
+      }
+      managedGroups
+      ocm {
+        name
+        url
+        accessTokenClientId
+        accessTokenUrl
+        offlineToken {
+          path
+          field
+          format
+          version
+        }
+      }
+      automationToken {
+        path
+        field
+        version
+        format
+      }
+      internal
+      disable {
+        integrations
+      }
+      auth {
+        service
+        ... on ClusterAuthGithubOrg_v1 {
+          org
+        }
+        ... on ClusterAuthGithubOrgTeam_v1 {
+          org
+          team
+        }
+      }
+    }
+    ecrResourcesNamespace {
+      name
+      managedTerraformResources
+      terraformResources {
+        provider
+        ... on NamespaceTerraformResourceECR_v1 {
+          account
+          region
+          identifier
+          output_resource_name
+        }
+      }
+      cluster {
+        name
+        serverUrl
+        automationToken {
+          path
+          field
+          version
+          format
+        }
+        internal
+      }
+    }
+    quayTargetOrgs {
+      name
+      instance {
+        name
+      }
+    }
+    ocpReleaseEcrIdentifier
+    ocpArtDevEcrIdentifier
+    mirrorChannels
+  }
+}

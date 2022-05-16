@@ -1,4 +1,4 @@
-query ListSaasFilesV2 {
+query ListSaasFilesV2Small {
   apps_v1 {
     saasFilesV2 {
       name

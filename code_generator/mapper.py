@@ -1,13 +1,15 @@
 import re
 
+from graphql import GraphQLOutputType
+
 
 def _keyword_sanitizer(s: str) -> str:
     if s in ("global", "from", "type", "id", "to", "format"):
-        return f"_{s}"
+        return f"f_{s}"
     return s
 
 
-def primitive_to_python(name: str) -> str:
+def graphql_primitive_to_python(graphql_type: GraphQLOutputType) -> str:
     mapping = {
         "ID": "str",
         "String": "str",
@@ -17,17 +19,10 @@ def primitive_to_python(name: str) -> str:
         "DateTime": "DateTime",
         "JSON": "Json",
     }
-    return mapping.get(name, name)
+    return mapping.get(str(graphql_type), str(graphql_type))
 
 
-def class_to_python(name: str) -> str:
-    if name[-1] == "1":
-        return name.replace("_v1", "V1")
-    else:
-        return name.replace("_v2", "V2")
-
-
-def field_to_python(name: str) -> str:
+def graphql_field_name_to_python(name: str) -> str:
     parts = re.split("(?=[A-Z])", name)
     for i, el in enumerate(parts):
         parts[i] = el.lower()
