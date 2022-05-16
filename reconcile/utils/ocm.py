@@ -1,7 +1,7 @@
 import functools
 import logging
 import re
-from typing import Any, Optional, Union, Mapping
+from typing import Any, Optional, Union
 
 import reconcile.utils.aws_helper as awsh
 import requests
@@ -25,7 +25,6 @@ CLUSTER_ADDON_DESIRED_KEYS = {"id", "parameters"}
 
 DISABLE_UWM_ATTR = "disable_user_workload_monitoring"
 BYTES_IN_GIGABYTE = 1024**3
-REQUEST_TIMEOUT_SEC = 60
 
 
 class OCM:  # pylint: disable=too-many-public-methods
@@ -68,7 +67,6 @@ class OCM:  # pylint: disable=too-many-public-methods
         self.access_token_client_id = access_token_client_id
         self.access_token_url = access_token_url
         self.offline_token = offline_token
-        self._session = requests.Session()
         self._init_access_token()
         self._init_request_headers()
         self._init_clusters(init_provision_shards=init_provision_shards)
@@ -96,19 +94,15 @@ class OCM:  # pylint: disable=too-many-public-methods
             "client_id": self.access_token_client_id,
             "refresh_token": self.offline_token,
         }
-        r = self._session.post(
-            self.access_token_url, data=data, timeout=REQUEST_TIMEOUT_SEC
-        )
+        r = requests.post(self.access_token_url, data=data)
         r.raise_for_status()
         self.access_token = r.json().get("access_token")
 
     def _init_request_headers(self):
-        self._session.headers.update(
-            {
-                "Authorization": f"Bearer {self.access_token}",
-                "accept": "application/json",
-            }
-        )
+        self.headers = {
+            "Authorization": f"Bearer {self.access_token}",
+            "accept": "application/json",
+        }
 
     @staticmethod
     def _ready_for_app_interface(cluster: dict[str, Any]) -> bool:
@@ -938,48 +932,14 @@ class OCM:  # pylint: disable=too-many-public-methods
                 raise TypeError(f"blocked version is not a valid regex expression: {b}")
 
     @retry(max_attempts=10)
-    def _do_get_request(self, api: str, params: Mapping[str, str]) -> dict[str, Any]:
-        r = self._session.get(
-            f"{self.url}{api}",
-            params=params,
-            timeout=REQUEST_TIMEOUT_SEC,
-        )
+    def _get_json(self, api):
+        r = requests.get(f"{self.url}{api}", headers=self.headers)
         r.raise_for_status()
         return r.json()
 
-    @staticmethod
-    def _response_is_list(rs: Mapping[str, Any]) -> bool:
-        return rs["kind"].endswith("List")
-
-    def _get_json(self, api: str) -> dict[str, Any]:
-        responses = []
-        params = {"size": 100}
-        while True:
-            rs = self._do_get_request(api, params=params)
-            responses.append(rs)
-            if self._response_is_list(rs) and rs["size"] == params["size"]:
-                params["page"] = rs["page"] + 1
-            else:
-                break
-
-        if self._response_is_list(responses[0]):
-            items = []
-            for resp in responses:
-                items_to_add = resp.get("items")
-                if items_to_add:
-                    items.extend(items_to_add)
-            ret_items = {
-                "kind": responses[0]["kind"],
-                "total": len(items),
-            }
-            if items:
-                ret_items["items"] = items
-            return ret_items
-        return responses[0]
-
     def _post(self, api, data=None, params=None):
-        r = self._session.post(
-            f"{self.url}{api}", json=data, params=params, timeout=REQUEST_TIMEOUT_SEC
+        r = requests.post(
+            f"{self.url}{api}", headers=self.headers, json=data, params=params
         )
         try:
             r.raise_for_status()
@@ -991,8 +951,11 @@ class OCM:  # pylint: disable=too-many-public-methods
         return r.json()
 
     def _patch(self, api, data, params=None):
-        r = self._session.patch(
-            f"{self.url}{api}", json=data, params=params, timeout=REQUEST_TIMEOUT_SEC
+        r = requests.patch(
+            f"{self.url}{api}",
+            headers=self.headers,
+            json=data,
+            params=params,
         )
         try:
             r.raise_for_status()
@@ -1001,7 +964,7 @@ class OCM:  # pylint: disable=too-many-public-methods
             raise e
 
     def _delete(self, api):
-        r = self._session.delete(f"{self.url}{api}", timeout=REQUEST_TIMEOUT_SEC)
+        r = requests.delete(f"{self.url}{api}", headers=self.headers)
         r.raise_for_status()
 
 
