@@ -133,7 +133,8 @@ class OCM:  # pylint: disable=too-many-public-methods
                 "provider": cluster["cloud_provider"]["id"],
                 "region": cluster["region"]["id"],
                 "channel": cluster["version"]["channel_group"],
-                "version": cluster["openshift_version"],
+                # cluster["openshift_version"] gets updated before all nodes are upgraded
+                "version": cluster["version"]["raw_id"],
                 "multi_az": cluster["multi_az"],
                 "instance_type": cluster["nodes"]["compute_machine_type"]["id"],
                 "storage": cluster["storage_quota"]["value"] // BYTES_IN_GIGABYTE,
