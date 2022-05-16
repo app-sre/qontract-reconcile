@@ -46,7 +46,7 @@ def get_image_tag_from_ref(ref: str) -> str:
 def collect_parameters(
     template: Mapping[str, Any],
     environment: Mapping[str, Any],
-    image_tag_from_ref: Optional[Tuple[str]],
+    image_tag_from_ref: Optional[Mapping[str, str]],
 ) -> Mapping[str, Any]:
     parameters: Dict[str, Any] = {}
     environment_parameters = environment.get("parameters")
@@ -61,8 +61,7 @@ def collect_parameters(
         }
         parameters.update(tp_env_vars)
     if image_tag_from_ref:
-        for itr in image_tag_from_ref:
-            e, r = itr.split("=")
+        for e, r in image_tag_from_ref.items():
             if environment["name"] == e:
                 parameters["IMAGE_TAG"] = get_image_tag_from_ref(r)
 
@@ -72,7 +71,7 @@ def collect_parameters(
 def construct_oc_resources(
     namespace_info: Mapping[str, Any],
     oc: OCDeprecated,
-    image_tag_from_ref: Optional[Tuple[str]],
+    image_tag_from_ref: Optional[Mapping[str, str]],
 ) -> List[OpenshiftResource]:
     template = helm.template(construct_values_file(namespace_info["integration_specs"]))
     parameters = collect_parameters(
@@ -94,7 +93,7 @@ def fetch_desired_state(
     namespaces: List[Mapping[str, Any]],
     ri: ResourceInventory,
     oc_map: OC_Map,
-    image_tag_from_ref: Optional[Tuple[str]],
+    image_tag_from_ref: Optional[Mapping[str, str]],
 ):
     for namespace_info in namespaces:
         namespace = namespace_info["name"]

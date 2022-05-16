@@ -1836,14 +1836,18 @@ def signalfx_prometheus_endpoint_monitoring(
     )
 
 
-def validate_image_tag_from_ref(ctx, param, value):
+def parse_image_tag_from_ref(ctx, param, value) -> Optional[Dict[str, str]]:
     if value:
+        result = {}
         for v in value:
             if v.count("=") != 1 or v.find("=") == 0:
                 raise ValueError(
                     'image-tag-from-ref should be of the form "<env_name>=<ref>"'
                 )
-        return value
+            k, v = v.split("=")
+            result[k] = v
+        return result
+    return None
 
 
 @integration.command(short_help="Manages Qontract Reconcile integrations.")
@@ -1858,7 +1862,7 @@ def validate_image_tag_from_ref(ctx, param, value):
     "-r",
     help="git ref to use as IMAGE_TAG for given environment. example: '--image-tag-from-ref app-interface-dev=master'.",
     multiple=True,
-    callback=validate_image_tag_from_ref,
+    callback=parse_image_tag_from_ref,
 )
 @click.pass_context
 def integrations_manager(

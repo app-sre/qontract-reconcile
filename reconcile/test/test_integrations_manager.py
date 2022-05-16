@@ -111,7 +111,7 @@ def test_collect_parameters_image_tag_from_ref(mocker):
         "name": "env",
         "parameters": '{"IMAGE_TAG": "default"}',
     }
-    image_tag_from_ref = ("env=f44e417",)
+    image_tag_from_ref = {"env": "f44e417"}
     mocker.patch(
         "reconcile.integrations_manager.get_image_tag_from_ref", return_value="f44e417"
     )
