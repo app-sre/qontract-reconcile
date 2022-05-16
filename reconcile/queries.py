@@ -148,9 +148,91 @@ def get_credentials_requests():
     return gqlapi.query(CREDENTIALS_REQUESTS_QUERY)["credentials_requests"]
 
 
-def get_integrations():
+INTEGRATIONS_QUERY = """
+{
+  integrations: integrations_v1 {
+    name
+    managed {
+      namespace {
+        path
+        name
+        environment {
+          name
+          parameters
+        }
+        cluster {
+          name
+          serverUrl
+          insecureSkipTLSVerify
+          jumpHost {
+            hostname
+            knownHosts
+            user
+            port
+            identity {
+              path
+              field
+              version
+              format
+            }
+          }
+          automationToken {
+            path
+            field
+            version
+            format
+          }
+        }
+      }
+      spec {
+        cache
+        command
+        disableUnleash
+        extraArgs
+        extraEnv {
+          secretName
+          secretKey
+          name
+          value
+        }
+        internalCertificates
+        logs {
+          slack
+        }
+        resources {
+          requests {
+            cpu
+            memory
+          }
+          limits {
+            cpu
+            memory
+          }
+        }
+        shards
+        sleepDurationSecs
+        state
+        storage
+        trigger
+        cron
+        dashdotdb
+        concurrencyPolicy
+        restartPolicy
+        successfulJobHistoryLimit
+        failedJobHistoryLimit
+      }
+    }
+  }
+}
+"""
+
+
+def get_integrations(managed=False):
     gqlapi = gql.get_api()
-    return gqlapi.query(gql.INTEGRATIONS_QUERY)["integrations"]
+    if managed:
+        return gqlapi.query(INTEGRATIONS_QUERY)["integrations"]
+    else:
+        return gqlapi.query(gql.INTEGRATIONS_QUERY)["integrations"]
 
 
 JENKINS_INSTANCES_QUERY = """

@@ -1,3 +1,5 @@
+excludeService: true
+
 integrations:
 - name: slack-usergroups
   resources:
@@ -56,19 +58,6 @@ integrations:
       cpu: 500m
   extraArgs: --no-use-jump-host
   state: true
-- name: openshift-groups
-  resources:
-    requests:
-      # Known peaks are at 600Mi
-      memory: 600Mi
-      cpu: 200m
-    limits:
-      # Limits 30% above requests
-      memory: 780Mi
-      cpu: 300m
-  extraArgs: --internal --no-use-jump-host
-  logs:
-    slack: true
 - name: openshift-namespace-labels
   resources:
     requests:
@@ -304,17 +293,6 @@ integrations:
       cpu: 200m
   state: true
   cache: true
-- name: jenkins-job-cleaner
-  resources:
-    requests:
-      memory: 200Mi
-      cpu: 100m
-    limits:
-      memory: 400Mi
-      cpu: 200m
-  logs:
-    slack: true
-  cache: true
 - name: jenkins-roles
   resources:
     requests:
@@ -380,17 +358,6 @@ cronjobs:
       cpu: 200m
   # once a hour
   cron: '0 * * * *'
-- name: cluster-deployment-mapper
-  resources:
-    requests:
-      memory: 200Mi
-      cpu: 200m
-    limits:
-      memory: 400Mi
-      cpu: 300m
-  # once a day at midnight
-  cron: '0 0 * * *'
-  extraArgs: --vault-output-path app-sre/integrations-output
 - name: ldap-users
   resources:
     requests:

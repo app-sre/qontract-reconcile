@@ -11,6 +11,9 @@ from threading import Lock
 import semver
 
 
+SECRET_MAX_KEY_LENGTH = 253
+
+
 class ResourceKeyExistsError(Exception):
     pass
 
@@ -93,6 +96,12 @@ class OpenshiftResource:
                         if k not in obj1_v and k not in IGNORABLE_DATA_FIELDS
                     ]
                     if diff or not self.obj_intersect_equal(obj1_v, obj2_v):
+                        return False
+                elif obj1_k == "env":
+                    for v in obj2_v:
+                        if "name" in v and len(v) == 1:
+                            v["value"] = ""
+                    if not self.obj_intersect_equal(obj1_v, obj2_v):
                         return False
                 elif obj1_k == "cpu":
                     equal = self.cpu_equal(obj1_v, obj2_v)

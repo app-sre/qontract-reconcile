@@ -3197,7 +3197,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
     def init_common_outputs(self, tf_resources, namespace_info,
                             output_prefix, output_resource_name, annotations):
         output_format_0_13 = '{}__{}_{}'
-        cluster, namespace = self.unpack_namespace_info(namespace_info)
+        cluster, namespace, _, _ = self.unpack_namespace_info(namespace_info)
         # cluster
         output_name_0_13 = output_format_0_13.format(
             output_prefix, self.integration_prefix, 'cluster')
@@ -3250,18 +3250,22 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         return values
 
     def get_resource_tags(self, namespace_info):
-        cluster, namespace = self.unpack_namespace_info(namespace_info)
+        cluster, namespace, environment, app = self.unpack_namespace_info(namespace_info)
         return {
             'managed_by_integration': self.integration,
             'cluster': cluster,
-            'namespace': namespace
+            'namespace': namespace,
+            'environment': environment,
+            'app': app,
         }
 
     @staticmethod
     def unpack_namespace_info(namespace_info):
         cluster = namespace_info['cluster']['name']
         namespace = namespace_info['name']
-        return cluster, namespace
+        environment = namespace_info['environment']['name']
+        app = namespace_info['app']['name']
+        return cluster, namespace, environment, app
 
     @staticmethod
     def get_dependencies(tf_resources: Iterable[Resource]
@@ -4283,8 +4287,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 image_id = existing_ami['image_id']
                 commit_sha = existing_ami['commit_sha']
                 logging.warning(
-                    f"[{account}] ami for commit {new_commit_sha}"
-                    f"not yet available. using ami {image_id}"
+                    f"[{account}] ami for commit {new_commit_sha} "
+                    f"not yet available. using ami {image_id} "
                     f"for previous commit {commit_sha}."
                 )
             else:

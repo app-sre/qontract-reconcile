@@ -500,34 +500,16 @@ class SaasHerder:
 
     @staticmethod
     def _get_file_contents_github(repo, path, commit_sha):
-        try:
-            f = repo.get_contents(path, commit_sha)
+        f = repo.get_contents(path, commit_sha)
+        if f.size < 1024**2:  # 1 MB
             return f.decoded_content
-        except GithubException as e:
-            # slightly copied with love from
-            # https://github.com/PyGithub/PyGithub/issues/661
-            errors = e.data.get("errors", [])
-            # example errors dict that we are looking for
-            # {
-            #    'message': '<text>',
-            #    'errors': [{
-            #                  'resource': 'Blob',
-            #                  'field': 'data',
-            #                  'code': 'too_large'
-            #               }],
-            #    'documentation_url': '<url>'
-            # }
-            for error in errors:
-                if error["code"] == "too_large":
-                    # get large files
-                    tree = repo.get_git_tree(commit_sha, recursive="/" in path).tree
-                    for x in tree:
-                        if x.path != path.lstrip("/"):
-                            continue
-                        blob = repo.get_git_blob(x.sha)
-                        return base64.b64decode(blob.content).decode("utf8")
-
-            raise e
+        else:
+            tree = repo.get_git_tree(commit_sha, recursive="/" in path).tree
+            for x in tree:
+                if x.path != path.lstrip("/"):
+                    continue
+                blob = repo.get_git_blob(x.sha)
+                return base64.b64decode(blob.content).decode("utf8")
 
     @retry()
     def _get_file_contents(self, options):
