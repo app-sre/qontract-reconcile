@@ -956,8 +956,11 @@ class OCM:  # pylint: disable=too-many-public-methods
         while True:
             rs = self._do_get_request(api, params=params)
             responses.append(rs)
-            if self._response_is_list(rs) and rs["size"] == params["size"]:
-                params["page"] = rs["page"] + 1
+            if (
+                self._response_is_list(rs)
+                and rs.get("size", len(rs.get("items", []))) == params["size"]
+            ):
+                params["page"] = rs.get("page", 1) + 1
             else:
                 break
 

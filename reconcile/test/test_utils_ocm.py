@@ -122,6 +122,20 @@ def test__get_json_empty_list(ocm: OCM):
     assert resp["total"] == 0
 
 
+def test__get_json_simple_list(ocm: OCM):
+    ocm.url = "http://ocm.test"
+    httpretty.enable()
+    httpretty.register_uri(
+        httpretty.GET,
+        "http://ocm.test/api",
+        body=json.dumps({"kind": "TestList", "items": {"foo": "bar"}}),
+    )
+
+    resp = ocm._get_json("/api")
+    httpretty.disable()
+    assert "items" in resp
+
+
 def test__get_json(ocm):
     ocm.url = "http://ocm.test"
 
