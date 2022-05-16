@@ -21,6 +21,8 @@ def roles() -> list[dict[str, Any]]:
 def test_get_roles(roles: list[dict[str, Any]]):
     r = get_roles(roles, "barfoo")
     assert r and r["org_username"] == "barfoo"
+    r = get_roles(roles, "foo")
+    assert not r
 
 
 def test_account_in_roles(roles: list[dict[str, Any]]):
