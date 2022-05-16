@@ -1839,7 +1839,7 @@ def signalfx_prometheus_endpoint_monitoring(
 def validate_image_tag_from_ref(ctx, param, value):
     if value:
         for v in value:
-            if v.count("=") != 1:
+            if v.count("=") != 1 or v.find("=") == 0:
                 raise ValueError(
                     'image-tag-from-ref should be of the form "<env_name>=<ref>"'
                 )
