@@ -1,5 +1,5 @@
 import os
-from typing import Any, Dict, List, Mapping, Tuple
+from typing import Any, Dict, List, Mapping
 import pytest
 
 import reconcile.integrations_manager as intop
