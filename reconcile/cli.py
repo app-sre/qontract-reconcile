@@ -1840,10 +1840,11 @@ def parse_image_tag_from_ref(ctx, param, value) -> Optional[Dict[str, str]]:
     if value:
         result = {}
         for v in value:
-            if v.count("=") != 1 or v.find("=") == 0:
-                raise ValueError(
-                    'image-tag-from-ref should be of the form "<env_name>=<ref>"'
+            if v.count("=") != 1 or v.startswith("=") or v.endswith("="):
+                logging.error(
+                    f'image-tag-from-ref "{v}" should be of the form "<env_name>=<ref>"'
                 )
+                sys.exit(ExitCodes.ERROR)
             k, v = v.split("=")
             result[k] = v
         return result
