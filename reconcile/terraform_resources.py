@@ -340,6 +340,12 @@ TF_NAMESPACES_QUERY = """
     terraformResources {
       %s
     }
+    environment {
+      name
+    }
+    app {
+      name
+    }
     cluster {
       name
       serverUrl
