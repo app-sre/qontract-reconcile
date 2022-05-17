@@ -3408,7 +3408,7 @@ objects:
           emptyDir: {}
         - name: fluentd-config
           emptyDir: {}
-- apiVersion: batch/v1beta1
+- apiVersion: batch/v1
   kind: CronJob
   metadata:
     labels:
@@ -3417,8 +3417,8 @@ objects:
   spec:
     schedule: "0 0 * * *"
     concurrencyPolicy: Allow
-    successfulJobHistoryLimit: 3
-    failedJobHistoryLimit: 1
+    successfulJobsHistoryLimit: 3
+    failedJobsHistoryLimit: 1
     jobTemplate:
       spec:
         template:

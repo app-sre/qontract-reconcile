@@ -24,7 +24,11 @@ INTEGRATION_NAME = os.environ['INTEGRATION_NAME']
 COMMAND_NAME = os.environ.get('COMMAND_NAME', 'qontract-reconcile')
 
 RUN_ONCE = os.environ.get('RUN_ONCE')
-DRY_RUN = os.environ.get('DRY_RUN')
+DRY_RUN = (
+    os.environ.get("MANAGER_DRY_RUN")
+    if INTEGRATION_NAME == "integrations-manager"
+    else os.environ.get("DRY_RUN")
+)
 INTEGRATION_EXTRA_ARGS = os.environ.get('INTEGRATION_EXTRA_ARGS')
 CONFIG = os.environ.get('CONFIG', '/config/config.toml')
 
