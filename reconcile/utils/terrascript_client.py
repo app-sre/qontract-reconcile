@@ -4351,6 +4351,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             "name": identifier,
             "max_size": common_values.get('max_size'),
             "min_size": common_values.get('min_size'),
+            "vpc_zone_identifier": common_values.get('vpc_zone_identifier'),
             "capacity_rebalance": common_values.get('capacity_rebalance'),
             "mixed_instances_policy": {
                 "instances_distribution": common_values.get(
@@ -4370,12 +4371,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     common_values.get('instance_refresh_preferences')
             }
         }
-        vpc_zone_identifier = common_values.get('vpc_zone_identifier')
-        if vpc_zone_identifier:
-            asg_value['vpc_zone_identifier'] = vpc_zone_identifier
-        else:
-            asg_value['availability_zones'] = common_values.get('availability_zones')
-
         instance_types = common_values.get('instance_types')
         if instance_types:
             override = [{"instance_type": i} for i in instance_types]
