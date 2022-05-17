@@ -3,6 +3,7 @@ import logging
 from datetime import datetime
 from urllib.parse import urlparse
 from sretoolbox.utils import retry
+from github.GithubException import UnknownObjectException
 
 from reconcile.slack_base import slackapi_from_permissions
 from reconcile.utils.github_api import GithubApi
@@ -167,7 +168,12 @@ def get_slack_usernames_from_owners(owners_from_repo, users, usergroup):
 
         repo_owners = RepoOwners(git_cli=repo_cli, ref=ref)
 
-        owners = repo_owners.get_root_owners()
+        try:
+            owners = repo_owners.get_root_owners()
+        except UnknownObjectException:
+            logging.error(f"ref {ref} not found for repo {url}")
+            raise
+
         all_owners = owners["approvers"] + owners["reviewers"]
 
         if not all_owners:
