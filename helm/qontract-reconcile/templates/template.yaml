@@ -164,6 +164,10 @@ objects:
             value: "{{ $shard_id }}"
           - name: DRY_RUN
             value: ${DRY_RUN}
+          {{- if eq $integration.name "integrations-manager" }}
+          - name: MANAGER_DRY_RUN
+            value: ${MANAGER_DRY_RUN}
+          {{- end }}
           - name: INTEGRATION_NAME
             value: {{ $integration.name }}
           {{- with $integration.extraArgs }}
@@ -215,6 +219,34 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           - name: USE_NATIVE_CLIENT
             value: "${USE_NATIVE_CLIENT}"
+          {{- if $integration.environmentAware }}
+          - name: ENVIRONMENT_NAME
+            value: "${ENVIRONMENT_NAME}"
+          - name: IMAGE
+            value: "${IMAGE}"
+          - name: IMAGE_TAG
+            value: "${IMAGE_TAG}"
+          - name: BUSYBOX_IMAGE
+            value: "${BUSYBOX_IMAGE}"
+          - name: BUSYBOX_IMAGE_TAG
+            value: "${BUSYBOX_IMAGE_TAG}"
+          - name: BUSYBOX_IMAGE_PULL_POLICY
+            value: "${BUSYBOX_IMAGE_PULL_POLICY}"
+          - name: FLUENTD_IMAGE
+            value: "${FLUENTD_IMAGE}"
+          - name: FLUENTD_IMAGE_TAG
+            value: "${FLUENTD_IMAGE_TAG}"
+          - name: FLUENTD_IMAGE_PULL_POLICY
+            value: "${FLUENTD_IMAGE_PULL_POLICY}"
+          - name: CLOUDWATCH_SECRET
+            value: "${CLOUDWATCH_SECRET}"
+          - name: INTERNAL_CERTIFICATES_IMAGE
+            value: "${INTERNAL_CERTIFICATES_IMAGE}"
+          - name: INTERNAL_CERTIFICATES_IMAGE_TAG
+            value: "${INTERNAL_CERTIFICATES_IMAGE_TAG}"
+          - name: INTERNAL_CERTIFICATES_IMAGE_PULL_POLICY
+            value: "${INTERNAL_CERTIFICATES_IMAGE_PULL_POLICY}"
+          {{- end }}
           {{- with $integration.extraEnv }}
           {{- range $i, $env := . }}
           {{- if $env.secretKey }}
@@ -310,7 +342,7 @@ objects:
 {{- end }}
 {{- end }}
 {{- range $i, $integration := .Values.cronjobs }}
-- apiVersion: batch/v1beta1
+- apiVersion: batch/v1
   kind: CronJob
   metadata:
     labels:
@@ -329,8 +361,8 @@ objects:
   spec:
     schedule: "{{ $integration.cron }}"
     concurrencyPolicy: {{ $integration.concurrencyPolicy | default "Allow" }}
-    successfulJobHistoryLimit: {{ $integration.successfulJobHistoryLimit | default "3" }}
-    failedJobHistoryLimit: {{ $integration.failedJobHistoryLimit | default "1" }}
+    successfulJobsHistoryLimit: {{ if not (kindIs "invalid" $integration.successfulJobHistoryLimit) }}{{ $integration.successfulJobHistoryLimit }}{{ else }}{{ 3 }}{{ end }}
+    failedJobsHistoryLimit: {{ if not (kindIs "invalid" $integration.failedJobHistoryLimit) }}{{ $integration.failedJobHistoryLimit }}{{ else }}{{ 1 }}{{ end }}
     jobTemplate:
       spec:
         template:
@@ -423,6 +455,7 @@ objects:
               secret:
                 secretName: qontract-reconcile-toml
 {{- end }}
+{{- if not .Values.excludeService }}
 - apiVersion: v1
   kind: Service
   metadata:
@@ -437,6 +470,7 @@ objects:
         name: http
     selector:
       component: qontract-reconcile
+{{- end }}
 parameters:
 - name: IMAGE
   value: quay.io/app-sre/qontract-reconcile
@@ -454,7 +488,11 @@ parameters:
   value: latest
 - name: FLUENTD_IMAGE_PULL_POLICY
   value: Always
+- name: ENVIRONMENT_NAME
+  value: app-interface
 - name: DRY_RUN
+  value: --dry-run
+- name: MANAGER_DRY_RUN
   value: --dry-run
 - name: SLEEP_DURATION_SECS
   value: "300"

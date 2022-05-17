@@ -4,6 +4,8 @@ import os
 import sys
 import re
 
+from typing import Dict, Optional
+
 import click
 import sentry_sdk
 
@@ -114,6 +116,7 @@ import reconcile.gabi_authorized_users
 import reconcile.status_page_components
 import reconcile.blackbox_exporter_endpoint_monitoring
 import reconcile.signalfx_endpoint_monitoring
+import reconcile.integrations_manager
 
 from reconcile.status import ExitCodes
 from reconcile.status import RunningState
@@ -364,6 +367,16 @@ def cluster_name(function):
 def namespace_name(function):
     function = click.option(
         "--namespace-name", help="namespace name to act on.", default=None
+    )(function)
+
+    return function
+
+
+def environment_name(function):
+    function = click.option(
+        "--environment-name",
+        help="environment name to act on.",
+        default=os.environ.get("ENVIRONMENT_NAME"),
     )(function)
 
     return function
@@ -1822,4 +1835,53 @@ def signalfx_prometheus_endpoint_monitoring(
         thread_pool_size,
         internal,
         use_jump_host,
+    )
+
+
+def parse_image_tag_from_ref(ctx, param, value) -> Optional[Dict[str, str]]:
+    if value:
+        result = {}
+        for v in value:
+            if v.count("=") != 1 or v.startswith("=") or v.endswith("="):
+                logging.error(
+                    f'image-tag-from-ref "{v}" should be of the form "<env_name>=<ref>"'
+                )
+                sys.exit(ExitCodes.ERROR)
+            k, v = v.split("=")
+            result[k] = v
+        return result
+    return None
+
+
+@integration.command(short_help="Manages Qontract Reconcile integrations.")
+@environment_name
+@threaded()
+@binary(["oc", "ssh", "helm"])
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
+@internal()
+@use_jump_host()
+@click.option(
+    "--image-tag-from-ref",
+    "-r",
+    help="git ref to use as IMAGE_TAG for given environment. example: '--image-tag-from-ref app-interface-dev=master'.",
+    multiple=True,
+    callback=parse_image_tag_from_ref,
+)
+@click.pass_context
+def integrations_manager(
+    ctx,
+    environment_name,
+    thread_pool_size,
+    internal,
+    use_jump_host,
+    image_tag_from_ref,
+):
+    run_integration(
+        reconcile.integrations_manager,
+        ctx.obj,
+        environment_name,
+        thread_pool_size,
+        internal,
+        use_jump_host,
+        image_tag_from_ref,
     )

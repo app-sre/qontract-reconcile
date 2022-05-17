@@ -1,7 +1,8 @@
-FROM quay.io/app-sre/qontract-reconcile-builder:0.2.0 as build-image
+FROM quay.io/app-sre/qontract-reconcile-builder:0.3.1 as build-image
 
 WORKDIR /work
 
+COPY helm helm
 COPY e2e_tests e2e_tests
 COPY reconcile reconcile
 COPY release release
@@ -14,7 +15,7 @@ RUN python3 -m pip install --no-cache-dir --upgrade pip setuptools wheel && \
     python3 -m pip wheel . --wheel-dir /work/wheels
 
 
-FROM quay.io/app-sre/qontract-reconcile-base:0.7.2 as dev-image
+FROM quay.io/app-sre/qontract-reconcile-base:0.8.1 as dev-image
 
 ARG CONTAINER_UID=1000
 RUN useradd --uid ${CONTAINER_UID} reconcile
@@ -43,7 +44,7 @@ VOLUME ["/work"]
 CMD [ "/work/dev/run.sh" ]
 
 
-FROM quay.io/app-sre/qontract-reconcile-base:0.7.2 as prod-image
+FROM quay.io/app-sre/qontract-reconcile-base:0.8.1 as prod-image
 
 # Cache mount. We don't need te wheel files in the final image.
 # This COPY will create a layer with all the wheel files to install the app.
@@ -56,6 +57,7 @@ COPY --from=build-image /work/ /tmp/work/
 RUN microdnf upgrade -y && \
     python3 -m pip install --no-cache-dir --upgrade pip setuptools wheel && \
     python3 -m pip install --no-cache-dir --no-index --find-links=/tmp/work/wheels qontract-reconcile && \
+    mkdir /helm && cp -r /tmp/work/helm/* /helm && \
     cp /tmp/work/run-integration.py /run-integration.py
 
 CMD [ "/run-integration.py" ]
