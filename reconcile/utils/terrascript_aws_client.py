@@ -4529,15 +4529,13 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         account, identifier, common_values, output_prefix, \
             output_resource_name, annotations = \
             self.init_values(resource, namespace_info)
+        
         tf_resources = []
+        
         self.init_common_outputs(tf_resources, namespace_info, output_prefix,
                                 output_resource_name, annotations)
-
-        # FIXME
-        # These should be sourced from ai provider values
-        sms_role_ext_id = "foobar"
-        organization_name = "rosa-fedramp"
-        cognito_user_pool_domain = "cognito.fedramp.devshift.net"
+        
+        organization_name = self.get_values("identifier")
 
         sms_role_policy = {
             "Version": "2012-10-17",
@@ -4552,7 +4550,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     },
                     "Condition": {
                         "StringEquals": {
-                            "sts:ExternalId": sms_role_ext_id
+                            "sts:ExternalId": self.get_values("sms_role_ext_id")
                         }
                     }
                 },
@@ -4579,41 +4577,30 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         # https://registry.terraform.io/providers/hashicorp/aws/3.60.0/docs/resources/cognito_identity_provider
 
-        # What is the difference between values and self.get_values?
-        # How do they relate to default files vs supplied parameters?
-        # I'm trying to use RDS as an example and I am getting confused with application of pg_values (parameter group)
-
-        pool_args = values.get("user_pool_properties", None)
-        pool_client_args = values.get("user_pool_client_properties", None)
+        pool_args = common_values.get("user_pool_properties", None)
+        pool_client_args = common_values.get("user_pool_client_properties", None)
         
         if pool_args and pool_client_args:
+            pool_args_values = self.get_values('pool_args')
             cognito_user_pool_resource = aws_cognito_user_pool(
                 "pool",
                 name=f'{organization_name}-pool',
-                **pool_args
+                **pool_args_values
             )
-
             tf_resources.append(cognito_user_pool_resource)
-            # How does terraform DAG work in terrascript?
-            #
-            # For instance, I need to reference the ID of the user pool defined above in the user_pool_domain resource
-            # below. Does terrascript automatically respect the terraform DAG and supply this value
-            # only after the resource is created?
-            # This question is probably related to an application of resource dependencies I see in prior population
-            # functions in this file.
-            # I plan to dive into terrascript documentation to figure this out, just wanted to add the question
-            # here in case someone feels like chiming in on it.
+
             cognito_user_pool_domain_resource = aws_cognito_user_pool_domain(
-            "userpool_domain",
-                domain=cognito_user_pool_domain,
+                "userpool_domain",
+                domain=self.get_values("domain"),
                 user_pool_id=cognito_user_pool_resource.id
             )
             tf_resources.append(cognito_user_pool_domain_resource)
 
+            pool_client_args_values = self.get_values("user_pool_client_properties")
             cognito_user_pool_client = aws_cognito_user_pool_client(
                 "userpool_client",
                 user_pool_id=cognito_user_pool_resource.id,
-                **pool_client_args
+                **pool_client_args_values
             )
             tf_resources.append(cognito_user_pool_client)
         self.add_resources(account, tf_resources)
@@ -4638,6 +4625,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         integration_args = values.get("integration_properties", None)
 
         if rest_api_args and gateway_args and gateway_method_args and gateway_authorizer_args and integration_args:
+            rest_api_args_values = self.get
+
             api_gateway_rest_api_resource = aws_api_gateway_rest_api(
                 "gw_api",
                 **rest_api_args
