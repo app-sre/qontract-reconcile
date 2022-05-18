@@ -197,17 +197,14 @@ def get_resource(path: str) -> dict[str, Any]:
 class PersistentRequestsHTTPTransport(RequestsHTTPTransport):
     def connect(self):
         if self.session is None:
-            # Creating a session that can later be re-use to configure custom mechanisms
+            # Copied over from RequestsHTTPTransport
             self.session = requests.Session()
-
-            # If we specified some retries, we provide a predefined retry-logic
             if self.retries > 0:
                 adapter = HTTPAdapter(
                     max_retries=Retry(
                         total=self.retries,
                         backoff_factor=0.1,
                         status_forcelist=[500, 502, 503, 504],
-                        allowed_methods=None,
                     )
                 )
             for prefix in "http://", "https://":

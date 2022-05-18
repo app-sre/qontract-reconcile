@@ -51,7 +51,7 @@ def test_invalid_owners_remain_invalid(valid_owner, invalid_owner):
 
 def test_url_makes_sense_ok(mocker):
     """Good URLs are accepted."""
-    get = mocker.patch.object(requests, "get", autospec=True)
+    get = mocker.patch.object(requests.Session, "get", autospec=True)
     r = requests.Response()
     r.status_code = HTTPStatus.OK
     get.return_value = r
