@@ -6,6 +6,7 @@ https://gitlab.cee.redhat.com/app-sre/contract/-/blob/master/content/process/sre
 """
 import logging
 import re
+import threading
 from functools import partial, lru_cache
 from http import HTTPStatus
 from pathlib import Path
@@ -27,6 +28,15 @@ MAX_EMAIL_ADDRESS_LENGTH = 320  # Per RFC3696
 
 MISSING_DATA_TEMPLATE = PROJ_ROOT / "templates" / "jira-checkpoint-missinginfo.j2"
 
+local_session = threading.local()
+
+
+def get_local_session() -> requests.Session:
+    s = getattr(local_session, "session", None)
+    if not s:
+        local_session.session = requests.session()
+    return local_session.session
+
 
 @lru_cache
 def url_makes_sense(url: str) -> bool:
@@ -42,7 +52,7 @@ def url_makes_sense(url: str) -> bool:
     if not url:
         return False
     try:
-        rs = requests.get(url, verify=False)
+        rs = get_local_session().get(url, verify=False, timeout=5)
     except requests.exceptions.ConnectionError:
         return False
     # Codes above NOT_FOUND mean the URL to the document doesn't

@@ -1,10 +1,12 @@
 import logging
 import textwrap
+import threading
 from typing import Set, Any, Optional
 
 from urllib.parse import urlparse
 
 import requests
+from requests.adapters import HTTPAdapter, Retry
 
 from sretoolbox.utils import retry
 
@@ -19,6 +21,7 @@ from gql.transport.exceptions import TransportQueryError
 from gql.transport.requests import log as requests_logger
 
 _gqlapi = None
+_local_client = None
 
 INTEGRATIONS_QUERY = """
 {
@@ -115,13 +118,6 @@ class GqlApi:
     def query(
         self, query: str, variables=None, skip_validation=False
     ) -> Optional[dict[str, Any]]:
-
-        # Here we are recreating client on purpose as some integrations such as `openshift-resource` require multiple
-        # queries in separate threads. With RequestsHTTPTransport that is currently not possible as it expects
-        # session to be reused and thus throws `Transport is already connected` error.
-        # Adding a synchronization mechanism would lead to increase wait time given some of our integrations are not
-        # sharded and thread pool capacity is also large for those.
-        # Hence, we are recreating client for every query.
         client = _init_gql_client(self.url, self.token)
         try:
             result = client.execute(
@@ -198,13 +194,47 @@ def get_resource(path: str) -> dict[str, Any]:
     return get_api().get_resource(path)
 
 
+class PersistentRequestsHTTPTransport(RequestsHTTPTransport):
+    def connect(self):
+        if self.session is None:
+            # Creating a session that can later be re-use to configure custom mechanisms
+            self.session = requests.Session()
+
+            # If we specified some retries, we provide a predefined retry-logic
+            if self.retries > 0:
+                adapter = HTTPAdapter(
+                    max_retries=Retry(
+                        total=self.retries,
+                        backoff_factor=0.1,
+                        status_forcelist=[500, 502, 503, 504],
+                        allowed_methods=None,
+                    )
+                )
+            for prefix in "http://", "https://":
+                self.session.mount(prefix, adapter)
+
+    def close(self) -> None:
+        pass
+
+
 def _init_gql_client(url: str, token: Optional[str]) -> Client:
+    global _local_client
+    if not _local_client:
+        _local_client = threading.local()
+
     req_headers = None
     if token:
         # The token stored in vault is already in the format 'Basic ...'
         req_headers = {"Authorization": token}
-    # Here we are explicitly using sync strategy
-    return Client(transport=RequestsHTTPTransport(url, headers=req_headers, timeout=30))
+    client = getattr(_local_client, "client", None)
+    if not client:
+        # Here we are explicitly using sync strategy
+        _local_client.client = Client(
+            transport=PersistentRequestsHTTPTransport(
+                url, headers=req_headers, timeout=5, retries=3
+            )
+        )
+    return _local_client.client
 
 
 @retry(exceptions=requests.exceptions.HTTPError, max_attempts=5)
