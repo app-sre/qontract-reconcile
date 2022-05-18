@@ -87,6 +87,7 @@ from terrascript.resource import (
     aws_api_gateway_deployment,
     aws_api_gateway_stage,
     aws_api_gateway_integration,
+    aws_api_gateway_vpc_link,
     random_id,
 )
 # temporary to create aws_ecrpublic_repository
@@ -4609,61 +4610,65 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         account, identifier, common_values, output_prefix, \
             output_resource_name, annotations = \
             self.init_values(resource, namespace_info)
+        
         tf_resources = []
+
         self.init_common_outputs(tf_resources, namespace_info, output_prefix,
                                 output_resource_name, annotations)
         
+        organization_name = self.get_values("identifier")
+        
         # FIXME
-        # These should be sourced from ai provider values
-        organization_name = "rosa-fedramp"
+        # I need to find an example of this pattern. Creating a dependent resource in an outside
+        # provider and referencing it here
         cognito_user_pool_arn = "foobar"
 
         rest_api_args = values.get("rest_api_properties", None)
         gateway_args = values.get("gateway_resource_properties", None)
-        gateway_method_args = values.get("gateway_method_properties", None)
         gateway_authorizer_args = values.get("gateway_authorizer_properties", None)
+        gateway_method_args = values.get("gateway_method_properties", None)
         integration_args = values.get("integration_properties", None)
 
-        if rest_api_args and gateway_args and gateway_method_args and gateway_authorizer_args and integration_args:
-            rest_api_args_values = self.get
+        if rest_api_args and gateway_args and gateway_method_args and \
+            gateway_authorizer_args and integration_args:
 
+            rest_api_args_values = self.get_values("rest_api_properties")
             api_gateway_rest_api_resource = aws_api_gateway_rest_api(
                 "gw_api",
-                **rest_api_args
+                **rest_api_args_values
             )
             tf_resources.append(api_gateway_rest_api_resource)
 
+            gateway_args_values = self.get_values("gateway_resource_properties")
             api_gateway_resource = aws_api_gateway_resource(
                 "gw_resource",
                 parent_id=api_gateway_rest_api_resource.root_resource_id,
                 rest_api_id=api_gateway_rest_api_resource.id,
-                **gateway_args
+                **gateway_args_values
             )
             tf_resources.append(api_gateway_resource)
 
-            # Here, I have to figure out how to source a value from another terraform run.
-            # provider_arns   = [aws_cognito_user_pool.pool.arn]
-            # This is created in the cognito step, and has to be connected somehow.
-            # I am unsure if terrascript application of DAG will solve this problem for me.
-
+            gateway_authorizer_args_values = self.get_values("gateway_authorizer_properties")
             api_gateway_authorizer_resource = aws_api_gateway_authorizer(
                 "gw_authorizer",
                 name=f'{organization_name}-authorizer',
                 rest_api_id=api_gateway_rest_api_resource.id,
                 provider_arns=[cognito_user_pool_arn], #FIXME
-                **gateway_authorizer_args
+                **gateway_authorizer_args_values
             )
             tf_resources.append(api_gateway_authorizer_resource)
 
+            gateway_method_args_values = self.get_values("gateway_method_args")
             api_gateway_method_resource = aws_api_gateway_method(
                 "gw_method_any",
                 rest_api_id=api_gateway_rest_api_resource.id,
                 resource_id=api_gateway_resource.id,
                 authorizer_id=api_gateway_authorizer_resource.id,
-                **gateway_method_args
+                **gateway_method_args_values
             )
             tf_resources.append(api_gateway_method_resource)
-
+            
+            # FIXME: need a solution to this HCL -> terrascript adaptation
             # as defined in terraform, triggers block looks like this:
             # triggers = {
             #     redeployment = sha1(jsonencode([
@@ -4683,6 +4688,26 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             )
             tf_resources.append(api_gateway_deployment_resource)
 
+            # Adding load balancer + api_gateway_vpc_link resources as requested in this MR review comment
+            # https://gitlab.cee.redhat.com/service/app-interface/-/merge_requests/38690#note_4123860
+
+            api_gateway_lb_resource = aws_lb(
+                "lb",
+                name=f'{organization_name}-lb',
+                internal=True,
+                load_balancer_type="network",
+                subnet=self.get_values("lb_subnet_id")
+            )
+            tf_resources.append(api_gateway_lb_resource)
+
+            api_gateway_vpc_link_resource = aws_api_gateway_vpc_link(
+                "vpc_link",
+                target_arns=[api_gateway_lb_resource.arn]
+            )
+            tf_resources.append(api_gateway_vpc_link_resource)
+
+            # No new resources added below this line, just code updates around values.
+
             api_gateway_stage_resource = aws_api_gateway_stage(
                 "gw_stage",
                 deployment_id=api_gateway_deployment_resource.id,
@@ -4691,12 +4716,17 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             )
             tf_resources.append(api_gateway_stage_resource)
 
+            # hardcoding VPC_LINK re: 
+            # https://gitlab.cee.redhat.com/service/app-interface/-/merge_requests/38690#note_4123843
+            integration_args_values = self.get_values("integration_properties")
             api_gateway_integration_resource = aws_api_gateway_integration(
                 "gw_integration",
                 rest_api_id=api_gateway_rest_api_resource.id,
                 resource_id=api_gateway_resource.id,
                 http_method=aws_api_gateway_method_resource.http_method,
-                **integration_args
+                connection_type="VPC_LINK", # updated by request in MR review comment above
+                connection_id=api_gateway_vpc_link_resource.id, # updated by request in MR review comment above
+                **integration_args_values
             )
             tf_resources.append(api_gateway_integration_resource)
         self.add_resources(account, tf_resources)
