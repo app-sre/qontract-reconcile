@@ -4536,8 +4536,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         self.init_common_outputs(tf_resources, namespace_info, output_prefix,
                                  output_resource_name, annotations)
 
-        organization_name = self.get_values("identifier")
-
         sms_role_policy = {
             "Version": "2012-10-17",
             "Statement": [
@@ -4567,7 +4565,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         sms_iam_role_resource = aws_iam_role(
             "sms_role",
-            name=f'{organization_name}-SMS',
+            name=f'{identifier}-SMS',
             description="role for applicant cognito, send sms",
             assume_role_policy=sms_role_policy,
             force_detach_policies=False,
@@ -4585,7 +4583,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             pool_args_values = self.get_values('pool_args')
             cognito_user_pool_resource = aws_cognito_user_pool(
                 "pool",
-                name=f'{organization_name}-pool',
+                name=f'{identifier}-pool',
                 **pool_args_values
             )
             tf_resources.append(cognito_user_pool_resource)
@@ -4615,8 +4613,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         self.init_common_outputs(tf_resources, namespace_info, output_prefix,
                                  output_resource_name, annotations)
-
-        organization_name = self.get_values("identifier")
 
         # FIXME
         # I need to find an example of this pattern. Creating a dependent resource in an outside
@@ -4651,7 +4647,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             gateway_authorizer_args_values = self.get_values("gateway_authorizer_properties")
             api_gateway_authorizer_resource = aws_api_gateway_authorizer(
                 "gw_authorizer",
-                name=f'{organization_name}-authorizer',
+                name=f'{identifier}-authorizer',
                 rest_api_id=api_gateway_rest_api_resource.id,
                 provider_arns=[cognito_user_pool_arn],  # FIXME
                 **gateway_authorizer_args_values
