@@ -4723,7 +4723,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 "gw_integration",
                 rest_api_id=api_gateway_rest_api_resource.id,
                 resource_id=api_gateway_resource.id,
-                http_method=aws_api_gateway_method_resource.http_method,
+                http_method=api_gateway_method_resource.http_method,
                 connection_type="VPC_LINK", # updated by request in MR review comment above
                 connection_id=api_gateway_vpc_link_resource.id, # updated by request in MR review comment above
                 **integration_args_values
