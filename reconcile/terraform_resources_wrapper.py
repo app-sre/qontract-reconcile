@@ -43,8 +43,6 @@ def tfr_run_wrapper(
     extra_labels,
 ):
     exit_code = 0
-    tfr.QONTRACT_INTEGRATION = QONTRACT_INTEGRATION
-    tfr.QONTRACT_INTEGRATION_VERSION = QONTRACT_INTEGRATION_VERSION
     try:
         tfr.run(
             dry_run=dry_run,
