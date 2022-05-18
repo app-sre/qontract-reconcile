@@ -4530,12 +4530,12 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         account, identifier, common_values, output_prefix, \
             output_resource_name, annotations = \
             self.init_values(resource, namespace_info)
-        
+
         tf_resources = []
-        
+
         self.init_common_outputs(tf_resources, namespace_info, output_prefix,
-                                output_resource_name, annotations)
-        
+                                 output_resource_name, annotations)
+
         organization_name = self.get_values("identifier")
 
         sms_role_policy = {
@@ -4580,7 +4580,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         pool_args = common_values.get("user_pool_properties", None)
         pool_client_args = common_values.get("user_pool_client_properties", None)
-        
+
         if pool_args and pool_client_args:
             pool_args_values = self.get_values('pool_args')
             cognito_user_pool_resource = aws_cognito_user_pool(
@@ -4605,32 +4605,32 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             )
             tf_resources.append(cognito_user_pool_client)
         self.add_resources(account, tf_resources)
-    
+
     def populate_tf_resource_api_gateway(self, resource, namespace_info):
         account, identifier, common_values, output_prefix, \
             output_resource_name, annotations = \
             self.init_values(resource, namespace_info)
-        
+
         tf_resources = []
 
         self.init_common_outputs(tf_resources, namespace_info, output_prefix,
-                                output_resource_name, annotations)
-        
+                                 output_resource_name, annotations)
+
         organization_name = self.get_values("identifier")
-        
+
         # FIXME
         # I need to find an example of this pattern. Creating a dependent resource in an outside
         # provider and referencing it here
         cognito_user_pool_arn = "foobar"
 
-        rest_api_args = values.get("rest_api_properties", None)
-        gateway_args = values.get("gateway_resource_properties", None)
-        gateway_authorizer_args = values.get("gateway_authorizer_properties", None)
-        gateway_method_args = values.get("gateway_method_properties", None)
-        integration_args = values.get("integration_properties", None)
+        rest_api_args = common_values.get("rest_api_properties", None)
+        gateway_args = common_values.get("gateway_resource_properties", None)
+        gateway_authorizer_args = common_values.get("gateway_authorizer_properties", None)
+        gateway_method_args = common_values.get("gateway_method_properties", None)
+        integration_args = common_values.get("integration_properties", None)
 
         if rest_api_args and gateway_args and gateway_method_args and \
-            gateway_authorizer_args and integration_args:
+           gateway_authorizer_args and integration_args:
 
             rest_api_args_values = self.get_values("rest_api_properties")
             api_gateway_rest_api_resource = aws_api_gateway_rest_api(
@@ -4653,7 +4653,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 "gw_authorizer",
                 name=f'{organization_name}-authorizer',
                 rest_api_id=api_gateway_rest_api_resource.id,
-                provider_arns=[cognito_user_pool_arn], #FIXME
+                provider_arns=[cognito_user_pool_arn],  # FIXME
                 **gateway_authorizer_args_values
             )
             tf_resources.append(api_gateway_authorizer_resource)
@@ -4667,7 +4667,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 **gateway_method_args_values
             )
             tf_resources.append(api_gateway_method_resource)
-            
+
             # FIXME: need a solution to this HCL -> terrascript adaptation
             # as defined in terraform, triggers block looks like this:
             # triggers = {
@@ -4683,8 +4683,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             api_gateway_deployment_resource = aws_api_gateway_deployment(
                 "gw_deployment",
                 rest_api_id=api_gateway_rest_api_resource.id,
-                triggers={}, #FIXME
-                lifecycle={"create_before_destroy":True}
+                triggers={},  # FIXME
+                lifecycle={"create_before_destroy": True}
             )
             tf_resources.append(api_gateway_deployment_resource)
 
@@ -4716,7 +4716,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             )
             tf_resources.append(api_gateway_stage_resource)
 
-            # hardcoding VPC_LINK re: 
+            # hardcoding VPC_LINK re:
             # https://gitlab.cee.redhat.com/service/app-interface/-/merge_requests/38690#note_4123843
             integration_args_values = self.get_values("integration_properties")
             api_gateway_integration_resource = aws_api_gateway_integration(
@@ -4724,8 +4724,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 rest_api_id=api_gateway_rest_api_resource.id,
                 resource_id=api_gateway_resource.id,
                 http_method=api_gateway_method_resource.http_method,
-                connection_type="VPC_LINK", # updated by request in MR review comment above
-                connection_id=api_gateway_vpc_link_resource.id, # updated by request in MR review comment above
+                connection_type="VPC_LINK",  # updated by request in MR review comment above
+                connection_id=api_gateway_vpc_link_resource.id,  # updated by request in MR review comment above
                 **integration_args_values
             )
             tf_resources.append(api_gateway_integration_resource)
