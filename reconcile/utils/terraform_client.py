@@ -517,7 +517,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         before = resource_change['before']
         after = resource_change['after']
         changed_terraform_args = [
-            key for key, value in before.items() if value != after[key]
+            key for key, value in before.items() if value != after.get(key)
         ]
         if len(changed_terraform_args) == 1 \
                 and 'engine_version' in changed_terraform_args:
