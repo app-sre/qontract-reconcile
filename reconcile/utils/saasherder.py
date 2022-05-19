@@ -20,6 +20,7 @@ from sretoolbox.utils import retry
 from sretoolbox.utils import threaded
 
 from reconcile.github_org import get_default_config
+from reconcile.status import RunningState
 from reconcile.utils.mr.auto_promoter import AutoPromoter
 from reconcile.utils.oc import OC, StatusCodeError
 from reconcile.utils.openshift_resource import (
@@ -1383,6 +1384,7 @@ class SaasHerder:
                 "cluster_name": cluster_name,
                 "namespace_name": namespace_name,
                 "target_config": desired_target_config,
+                "reason": f"app-interface:{RunningState().commit}",
             }
             trigger_specs.append(job_spec)
         return trigger_specs
