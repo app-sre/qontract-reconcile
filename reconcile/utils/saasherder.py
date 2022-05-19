@@ -1188,6 +1188,7 @@ class SaasHerder:
                         "namespace_name": namespace_name,
                         "ref": ref,
                         "commit_sha": desired_commit_sha,
+                        "reason": f"{url}/commit/{desired_commit_sha}",
                     }
                     trigger_specs.append(job_spec)
                 except (GithubException, GitlabError):
