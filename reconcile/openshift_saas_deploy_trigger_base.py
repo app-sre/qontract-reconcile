@@ -336,6 +336,7 @@ def _construct_tekton_trigger_resource(
                 {"name": "env_name", "value": env_name},
                 {"name": "tkn_cluster_console_url", "value": tkn_cluster_console_url},
                 {"name": "tkn_namespace_name", "value": tkn_namespace_name},
+                {"name": "trigger_integration", "value": integration},
             ],
         },
     }
