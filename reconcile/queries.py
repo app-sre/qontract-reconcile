@@ -1804,6 +1804,7 @@ SAAS_FILES_QUERY_V2 = """
         upstream {
           instance {
             name
+            serverUrl
           }
           name
         }

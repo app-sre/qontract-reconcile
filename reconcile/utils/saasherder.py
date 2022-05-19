@@ -1310,6 +1310,7 @@ class SaasHerder:
                         "instance_name": instance_name,
                         "job_name": job_name,
                         "last_build_result": last_build_result,
+                        "reason": f"{upstream['instance']['serverUrl']}/job/{job_name}/{last_build_result_number}",
                     }
                     trigger_specs.append(job_spec)
 
