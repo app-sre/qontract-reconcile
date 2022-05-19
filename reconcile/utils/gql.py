@@ -6,7 +6,6 @@ from typing import Set, Any, Optional
 from urllib.parse import urlparse
 
 import requests
-from requests.adapters import HTTPAdapter, Retry
 
 from sretoolbox.utils import retry
 
@@ -199,16 +198,8 @@ class PersistentRequestsHTTPTransport(RequestsHTTPTransport):
         if self.session is None:
             # Copied over from RequestsHTTPTransport
             self.session = requests.Session()
-            if self.retries > 0:
-                adapter = HTTPAdapter(
-                    max_retries=Retry(
-                        total=self.retries,
-                        backoff_factor=0.1,
-                        status_forcelist=[500, 502, 503, 504],
-                    )
-                )
-            for prefix in "http://", "https://":
-                self.session.mount(prefix, adapter)
+            # we did not implement this in our copy!
+            assert self.retries == 0
 
     def close(self) -> None:
         pass
@@ -217,6 +208,7 @@ class PersistentRequestsHTTPTransport(RequestsHTTPTransport):
 def _init_gql_client(url: str, token: Optional[str]) -> Client:
     global _local_client
     if not _local_client:
+        # Requests.Session is not threadsafe, hence create one session per thread
         _local_client = threading.local()
 
     req_headers = None
@@ -228,7 +220,9 @@ def _init_gql_client(url: str, token: Optional[str]) -> Client:
         # Here we are explicitly using sync strategy
         _local_client.client = Client(
             transport=PersistentRequestsHTTPTransport(
-                url, headers=req_headers, timeout=5, retries=3
+                url,
+                headers=req_headers,
+                timeout=30,
             )
         )
     return _local_client.client
