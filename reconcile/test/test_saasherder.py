@@ -339,6 +339,7 @@ class TestGetMovingCommitsDiffSaasFile(TestCase):
                 "pipelines_provider": "apipelineprovider",
                 "namespace_name": "ns",
                 "rt_name": "rt",
+                "reason": "http://github.com/user/repo/commit/abcd4242",
             },
             {
                 "saas_file_name": self.saas_files[0]["name"],
@@ -350,6 +351,7 @@ class TestGetMovingCommitsDiffSaasFile(TestCase):
                 "pipelines_provider": "apipelineprovider",
                 "namespace_name": "ns",
                 "rt_name": "rt",
+                "reason": "http://github.com/user/repo/commit/4242efg",
             },
         ]
 
