@@ -263,13 +263,15 @@ def cluster_upgrade_policies(
     results = []
     upgrades_cache = {}
 
-    def soaking_str(soaking, ongoing_upgrade, upgradeable_version):
+    def soaking_str(soaking, upgrade_policy, upgradeable_version):
+        upgrade_version = upgrade_policy.get("version")
+        upgrade_next_run = upgrade_policy.get("next_run")
         sorted_soaking = sorted(soaking.items(), key=lambda x: parse_semver(x[0]))
         if md_output:
             for i, data in enumerate(sorted_soaking):
                 v, s = data
-                if v == ongoing_upgrade:
-                    sorted_soaking[i] = (v, f"{s} :dizzy:")
+                if v == upgrade_version:
+                    sorted_soaking[i] = (v, f'{s} [:dizzy:](a "{upgrade_next_run}")')
                 elif v == upgradeable_version:
                     sorted_soaking[i] = (v, f"{s} :tada:")
         return ", ".join([f"{v} ({s})" for v, s in sorted_soaking])
@@ -299,9 +301,9 @@ def cluster_upgrade_policies(
             upgrades_cache[(version, channel)] = upgrades
 
         current = [c for c in current_state if c["cluster"] == cluster_name]
-        ongoing_upgrade = None
+        upgrade_policy = {}
         if current and current[0]["schedule_type"] == "manual":
-            ongoing_upgrade = current[0]["version"]
+            upgrade_policy = current[0]
 
         upgradeable_version = ous.upgradeable_version(c, history, ocm)
 
@@ -318,7 +320,7 @@ def cluster_upgrade_policies(
                     {
                         "workload": w,
                         "soaking_upgrades": soaking_str(
-                            soaking, ongoing_upgrade, upgradeable_version
+                            soaking, upgrade_policy, upgradeable_version
                         ),
                     }
                 )
@@ -336,7 +338,7 @@ def cluster_upgrade_policies(
                 {
                     "workload": w,
                     "soaking_upgrades": soaking_str(
-                        soaking, ongoing_upgrade, upgradeable_version
+                        soaking, upgrade_policy, upgradeable_version
                     ),
                 }
             )
