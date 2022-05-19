@@ -184,6 +184,7 @@ def trigger(
     # TODO: Convert these into a dataclass.
     saas_file_name = spec["saas_file_name"]
     provider_name = spec["pipelines_provider"]["provider"]
+    reason = spec["reason"]
 
     error = False
     if provider_name == Providers.TEKTON:
@@ -196,6 +197,7 @@ def trigger(
             trigger_type,
             integration,
             integration_version,
+            reason,
         )
     else:
         error = True
@@ -213,6 +215,7 @@ def _trigger_tekton(
     trigger_type,
     integration,
     integration_version,
+    reason,
 ):
     # TODO: Convert these into a dataclass.
     saas_file_name = spec["saas_file_name"]
@@ -259,6 +262,7 @@ def _trigger_tekton(
         tkn_namespace_name,
         integration,
         integration_version,
+        reason,
     )
 
     error = False
@@ -302,6 +306,7 @@ def _construct_tekton_trigger_resource(
     tkn_namespace_name,
     integration,
     integration_version,
+    reason,
 ):
     """Construct a resource (PipelineRun) to trigger a deployment via Tekton.
 
@@ -313,6 +318,7 @@ def _construct_tekton_trigger_resource(
         tkn_namespace_name (string): namespace where the pipeline runs
         integration (string): Name of calling integration
         integration_version (string): Version of calling integration
+        reason (string): The reason this trigger was created
 
     Returns:
         OpenshiftResource: OpenShift resource to be applied
@@ -337,6 +343,7 @@ def _construct_tekton_trigger_resource(
                 {"name": "tkn_cluster_console_url", "value": tkn_cluster_console_url},
                 {"name": "tkn_namespace_name", "value": tkn_namespace_name},
                 {"name": "trigger_integration", "value": integration},
+                {"name": "trigger_reason", "value": reason},
             ],
         },
     }
