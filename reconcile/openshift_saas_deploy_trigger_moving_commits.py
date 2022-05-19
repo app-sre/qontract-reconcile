@@ -11,7 +11,13 @@ QONTRACT_INTEGRATION = "openshift-saas-deploy-trigger-moving-commits"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 2, 0)
 
 
-def run(dry_run, thread_pool_size=10, internal=None, use_jump_host=True):
+def run(
+    dry_run,
+    thread_pool_size=10,
+    internal=None,
+    use_jump_host=True,
+    include_trigger_trace=False,
+):
     error = osdt_base.run(
         dry_run=dry_run,
         trigger_type=TriggerTypes.MOVING_COMMITS,
@@ -20,6 +26,7 @@ def run(dry_run, thread_pool_size=10, internal=None, use_jump_host=True):
         thread_pool_size=thread_pool_size,
         internal=internal,
         use_jump_host=use_jump_host,
+        include_trigger_trace=include_trigger_trace,
     )
 
     if error:

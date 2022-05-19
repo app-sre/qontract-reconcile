@@ -32,6 +32,7 @@ def run(
     thread_pool_size,
     internal,
     use_jump_host,
+    include_trigger_trace,
     defer=None,
 ):
     """Run trigger integration
@@ -45,6 +46,7 @@ def run(
         thread_pool_size (int): Thread pool size to use
         internal (bool): Should run for internal/extrenal/all clusters
         use_jump_host (bool): Should use jump host to reach clusters
+        include_trigger_trace (bool): Should include traces of the triggering integration and reason
 
     Returns:
         bool: True if there was an error, False otherwise
@@ -78,6 +80,7 @@ def run(
         trigger_type=trigger_type,
         integration=integration,
         integration_version=integration_version,
+        include_trigger_trace=include_trigger_trace,
     )
     errors.append(diff_err)
 
@@ -161,6 +164,7 @@ def trigger(
     trigger_type,
     integration,
     integration_version,
+    include_trigger_trace,
 ):
     """Trigger a deployment according to the specified pipelines provider
 
@@ -176,6 +180,7 @@ def trigger(
         trigger_type (string): Indicates which method to call to update state
         integration (string): Name of calling integration
         integration_version (string): Version of calling integration
+        include_trigger_trace (bool): Should include traces of the triggering integration and reason
 
     Returns:
         bool: True if there was an error, False otherwise
@@ -197,6 +202,7 @@ def trigger(
             trigger_type,
             integration,
             integration_version,
+            include_trigger_trace,
             reason,
         )
     else:
@@ -215,6 +221,7 @@ def _trigger_tekton(
     trigger_type,
     integration,
     integration_version,
+    include_trigger_trace,
     reason,
 ):
     # TODO: Convert these into a dataclass.
@@ -262,6 +269,7 @@ def _trigger_tekton(
         tkn_namespace_name,
         integration,
         integration_version,
+        include_trigger_trace,
         reason,
     )
 
@@ -306,6 +314,7 @@ def _construct_tekton_trigger_resource(
     tkn_namespace_name,
     integration,
     integration_version,
+    include_trigger_trace,
     reason,
 ):
     """Construct a resource (PipelineRun) to trigger a deployment via Tekton.
@@ -319,6 +328,7 @@ def _construct_tekton_trigger_resource(
         integration (string): Name of calling integration
         integration_version (string): Version of calling integration
         reason (string): The reason this trigger was created
+        include_trigger_trace (bool): Should include traces of the triggering integration and reason
 
     Returns:
         OpenshiftResource: OpenShift resource to be applied
@@ -331,20 +341,26 @@ def _construct_tekton_trigger_resource(
     # max name length can be 63. leaving 12 for the timestamp - 51
     name = f"{long_name[:UNIQUE_SAAS_FILE_ENV_COMBO_LEN]}-{ts}"
 
+    parameters = [
+        {"name": "saas_file_name", "value": saas_file_name},
+        {"name": "env_name", "value": env_name},
+        {"name": "tkn_cluster_console_url", "value": tkn_cluster_console_url},
+        {"name": "tkn_namespace_name", "value": tkn_namespace_name},
+    ]
+    if include_trigger_trace:
+        parameters.extend(
+            [
+                {"name": "trigger_integration", "value": integration},
+                {"name": "trigger_reason", "value": reason},
+            ]
+        )
     body = {
         "apiVersion": "tekton.dev/v1beta1",
         "kind": "PipelineRun",
         "metadata": {"name": name},
         "spec": {
             "pipelineRef": {"name": tkn_pipeline_name},
-            "params": [
-                {"name": "saas_file_name", "value": saas_file_name},
-                {"name": "env_name", "value": env_name},
-                {"name": "tkn_cluster_console_url", "value": tkn_cluster_console_url},
-                {"name": "tkn_namespace_name", "value": tkn_namespace_name},
-                {"name": "trigger_integration", "value": integration},
-                {"name": "trigger_reason", "value": reason},
-            ],
+            "params": parameters,
         },
     }
     return OR(body, integration, integration_version, error_details=name), long_name

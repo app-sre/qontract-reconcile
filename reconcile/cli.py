@@ -455,6 +455,17 @@ def enable_rebase(**kwargs):
     return f
 
 
+def include_trigger_trace(function):
+    help_msg = "If `true`, include traces of the triggering integration and reason."
+
+    function = click.option(
+        "--include-trigger-trace/--no-include-trigger-trace",
+        default=False,
+        help=help_msg,
+    )(function)
+    return function
+
+
 def run_integration(func_container, ctx, *args, **kwargs):
     try:
         int_name = func_container.QONTRACT_INTEGRATION.replace("_", "-")
@@ -958,9 +969,10 @@ def saas_file_validator(ctx):
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
 @internal()
 @use_jump_host()
+@include_trigger_trace
 @click.pass_context
 def openshift_saas_deploy_trigger_moving_commits(
-    ctx, thread_pool_size, internal, use_jump_host
+    ctx, thread_pool_size, internal, use_jump_host, include_trigger_trace
 ):
     run_integration(
         reconcile.openshift_saas_deploy_trigger_moving_commits,
@@ -968,6 +980,7 @@ def openshift_saas_deploy_trigger_moving_commits(
         thread_pool_size,
         internal,
         use_jump_host,
+        include_trigger_trace,
     )
 
 
@@ -978,9 +991,10 @@ def openshift_saas_deploy_trigger_moving_commits(
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
 @internal()
 @use_jump_host()
+@include_trigger_trace
 @click.pass_context
 def openshift_saas_deploy_trigger_upstream_jobs(
-    ctx, thread_pool_size, internal, use_jump_host
+    ctx, thread_pool_size, internal, use_jump_host, include_trigger_trace
 ):
     run_integration(
         reconcile.openshift_saas_deploy_trigger_upstream_jobs,
@@ -988,6 +1002,7 @@ def openshift_saas_deploy_trigger_upstream_jobs(
         thread_pool_size,
         internal,
         use_jump_host,
+        include_trigger_trace,
     )
 
 
@@ -998,9 +1013,10 @@ def openshift_saas_deploy_trigger_upstream_jobs(
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
 @internal()
 @use_jump_host()
+@include_trigger_trace
 @click.pass_context
 def openshift_saas_deploy_trigger_configs(
-    ctx, thread_pool_size, internal, use_jump_host
+    ctx, thread_pool_size, internal, use_jump_host, include_trigger_trace
 ):
     run_integration(
         reconcile.openshift_saas_deploy_trigger_configs,
@@ -1008,6 +1024,7 @@ def openshift_saas_deploy_trigger_configs(
         thread_pool_size,
         internal,
         use_jump_host,
+        include_trigger_trace,
     )
 
 
