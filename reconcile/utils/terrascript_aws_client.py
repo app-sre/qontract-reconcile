@@ -132,6 +132,10 @@ class aws_ecrpublic_repository(Resource):
     pass
 
 
+class aws_s3_bucket_acl(Resource):
+    pass
+
+
 # temporary until we upgrade to a terrascript release
 # that supports this provider
 # https://github.com/mjuenema/python-terrascript/pull/166
@@ -2390,6 +2394,71 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                                cf_oai_tf_resource.iam_arn + "}"
                     },
                     "Action": "s3:GetObject",
+                    "Resource":
+                        [f"arn:aws:s3:::{identifier}/{enable_dir}/*"
+                         for enable_dir
+                         in common_values.get('get_object_enable_dirs', [])]
+                }
+            ]
+        }
+        values['policy'] = json.dumps(policy, sort_keys=True)
+        values['depends_on'] = self.get_dependencies([bucket_tf_resource])
+        region = common_values.get('region') or \
+            self.default_regions.get(account)
+        if self._multiregion_account(account):
+            values['provider'] = 'aws.' + region
+        bucket_policy_tf_resource = aws_s3_bucket_policy(identifier, **values)
+        tf_resources.append(bucket_policy_tf_resource)
+
+        # aws_s3_bucket_acl
+        values = {}
+        values['name'] = identifier
+        values['tags'] = common_values['tags']
+
+        aws_s3_bucket_acl_resource = aws_s3_bucket_acl(identifier, **values)
+        tf_resources.append(aws_s3_bucket_acl_resource)
+
+        access_control_policy = {
+            'grant': {
+                'grantee': {
+                    'id': '${' + aws_s3_bucket_acl_resource.id + '}',
+                    'type': '${' + aws_s3_bucket_acl_resource.type + '}'
+                },
+                'permission': 'READ'
+            }
+        }
+        grant = {
+            'grantee': '${' + aws_s3_bucket_acl_resource.grantee + '}',
+            'permission': '${' + aws_s3_bucket_acl_resource.permission + '}'
+        }
+        owner = {
+            'id': '${' + aws_s3_bucket_acl_resource.id + '}'
+        }
+
+        values['access_control_policy'] = access_control_policy
+        values['grant'] = grant
+        values['owner'] = owner
+
+        aws_s3_bucket_acl_resource = aws_s3_bucket_acl(identifier, **values)
+        tf_resources.append(aws_s3_bucket_acl_resource)
+
+        output_name_0_13 = output_prefix + '__acl'
+        output_value = '${' + aws_s3_bucket_acl.acl + '}'
+        tf_resources.append(Output(output_name_0_13, value=output_value))
+
+        # bucket policy for standard logging to cloudfront
+        values = {}
+        values['bucket'] = identifier
+        policy = {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Sid": "Grant access to CloudFront Origin Identity",
+                    "Effect": "Allow",
+                    "Principal": {
+                        "CanonicalUser": "${" + aws_s3_bucket_acl.acl + "}"
+                    },
+                    "Action": "s3:*",
                     "Resource":
                         [f"arn:aws:s3:::{identifier}/{enable_dir}/*"
                          for enable_dir
