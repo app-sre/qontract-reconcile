@@ -1,0 +1,43 @@
+---
+$schema: /openshift/cluster-1.yml
+labels:
+  service: ocm-quay
+name: an-osd-test-cluster
+description: A test cluster
+consoleUrl: "https://console-url"
+kibanaUrl: ""
+prometheusUrl: ""
+alertmanagerUrl: ""
+serverUrl: "https://api-url"
+elbFQDN: "elb.apps.an-osd-test-cluster.k3s7.p1.openshiftapps.com"
+ocm:
+  name: non-existent-ocm
+  url: non-existent-ocm-url
+  accessTokenClientId: cloud-services
+  offlineToken:
+    path: "offline-token-secret-path"
+    field: "offline-token"
+spec:
+  product: osd
+  id: "osd-cluster-id"
+  external_id: "external-id"
+  provider: aws
+  region: us-east-1
+  channel: candidate
+  version: 4.10.16
+  initial_version: 4.8.10
+  multi_az: true
+  instance_type: m5.2xlarge
+  storage: 4100
+  load_balancers: 4
+  private: false
+  provision_shard_id: provision_shard_id
+  autoscale:
+    min_replicas: 21
+    max_replicas: 30
+  disable_user_workload_monitoring: true
+network:
+  vpc: 10.112.0.0/16
+  service: 10.120.0.0/16
+  pod: 10.128.0.0/14
+internal: false

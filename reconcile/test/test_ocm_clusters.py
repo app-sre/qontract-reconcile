@@ -1,305 +1,398 @@
-import sys
+import pytest
 
-from copy import deepcopy
-from testslide import TestCase, StrictMock, mock_callable
-
+from reconcile.ocm.types import (
+    OCMClusterNetwork,
+    OCMSpec,
+    OSDClusterSpec,
+    ROSAClusterSpec,
+)
+from unittest.mock import patch
+from reconcile.utils.ocm import OCMMap, OCM
+from reconcile import mr_client_gateway
+from reconcile.utils.mr.clusters_updates import CreateClustersUpdates
 from reconcile import queries
-
-import reconcile.utils.ocm as ocmmod
 import reconcile.ocm_clusters as occ
-from reconcile.utils.mr import clusters_updates
+import reconcile.utils.ocm as ocmmod
+
 
 from .fixtures import Fixtures
+
 
 fxt = Fixtures("clusters")
 
 
-class TestFetchDesiredState(TestCase):
-    def setUp(self):
-        self.clusters = [fxt.get_anymarkup("cluster1.yml")]
+@pytest.fixture
+def ocm_osd_cluster_raw_spec():
+    return fxt.get_anymarkup("osd_spec.json")
 
-        self.maxDiff = None
 
-    def test_all_fine(self):
-        rs = occ.fetch_desired_state(self.clusters)
+@pytest.fixture
+def ocm_osd_cluster_ai_spec():
+    return fxt.get_anymarkup("osd_spec_ai.yml")
 
-        self.assertEqual(
-            rs,
-            {
-                "cluster1": {
-                    "spec": self.clusters[0]["spec"],
-                    "network": self.clusters[0]["network"],
-                    "consoleUrl": "",
-                    "serverUrl": "",
-                    "elbFQDN": "",
-                }
+
+@pytest.fixture
+def ocm_rosa_cluster_raw_spec():
+    return fxt.get_anymarkup("rosa_spec.json")
+
+
+@pytest.fixture
+def ocm_osd_cluster_spec():
+    n = OCMClusterNetwork(
+        type="OpenShiftSDN",
+        vpc="10.112.0.0/16",
+        service="10.120.0.0/16",
+        pod="10.128.0.0/14",
+    )
+    spec = OSDClusterSpec(
+        product="osd",
+        autoscale=None,
+        channel="stable",
+        disable_user_workload_monitoring=True,
+        external_id="the-cluster-external_id",
+        id="the-cluster-id",
+        instance_type="m5.xlarge",
+        multi_az=False,
+        nodes=5,
+        private=False,
+        provision_shard_id="the-cluster-provision_shard_id",
+        region="us-east-1",
+        version="4.10.0",
+        load_balancers=5,
+        storage=1100,
+        provider="aws",
+    )
+    obj = OCMSpec(
+        spec=spec,
+        network=n,
+        domain="devshift.net",
+        server_url="the-cluster-server_url",
+        console_url="the-cluster-console_url",
+    )
+    yield obj
+
+
+@pytest.fixture
+def osd_cluster_fxt():
+    return {
+        "spec": {
+            "product": "osd",
+            "storage": 1100,
+            "load_balancers": 5,
+            "id": "the-cluster-id",
+            "external_id": "the-cluster-external_id",
+            "provider": "aws",
+            "region": "us-east-1",
+            "channel": "stable",
+            "version": "4.10.0",
+            "initial_version": "4.9.0-candidate",
+            "multi_az": False,
+            "nodes": 5,
+            "instance_type": "m5.xlarge",
+            "private": False,
+            "provision_shard_id": "the-cluster-provision_shard_id",
+            "disable_user_workload_monitoring": True,
+        },
+        "network": {
+            "type": None,
+            "vpc": "10.112.0.0/16",
+            "service": "10.120.0.0/16",
+            "pod": "10.128.0.0/14",
+        },
+        "ocm": {
+            "name": "non-existent-ocm",
+            "url": "https://api.non-existent-ocm.com",
+            "accessTokenClientId": "cloud-services",
+            "accessTokenUrl": "https://sso.blah.com/token",
+            "offlineToken": {
+                "path": "a-secret-path",
+                "field": "offline_token",
+                "format": None,
+                "version": None,
             },
-        )
+            "blockedVersions": ["^.*-fc\\..*$"],
+        },
+        "consoleUrl": "the-cluster-console_url",
+        "serverUrl": "the-cluster-server_url",
+        "elbFQDN": "the-cluster-elbFQDN",
+        "path": "the-cluster-path",
+        "name": "cluster1",
+        "id": "anid",
+        "managed": True,
+        "state": "ready",
+    }
 
 
-class TestGetClusterUpdateSpec(TestCase):
-    def setUp(self):
-        self.clusters = [fxt.get_anymarkup("cluster1.yml")]
-
-    def test_no_changes(self):
-        self.assertEqual(
-            occ.get_cluster_update_spec("cluster1", self.clusters[0], self.clusters[0]),
-            ({}, False),
-        )
-
-    def test_valid_change(self):
-        desired = deepcopy(self.clusters[0])
-        desired["spec"]["instance_type"] = "m42.superlarge"
-        self.assertEqual(
-            occ.get_cluster_update_spec(
-                "cluster1",
-                self.clusters[0],
-                desired,
-            ),
-            ({"instance_type": "m42.superlarge"}, False),
-        )
-
-    def test_changed_network_banned(self):
-        desired = deepcopy(self.clusters[0])
-        self.clusters[0]["network"]["vpc"] = "10.0.0.0/8"
-        self.assertEqual(
-            occ.get_cluster_update_spec("cluster1", self.clusters[0], desired),
-            ({}, True),
-        )
-
-    def test_changed_spec_bad(self):
-        desired = deepcopy(self.clusters[0])
-        desired["spec"]["multi_az"] = not desired["spec"]["multi_az"]
-        self.assertTrue(
-            occ.get_cluster_update_spec("cluster1", self.clusters[0], desired)[1],
-        )
-
-    def test_changed_disable_uwm(self):
-        desired = deepcopy(self.clusters[0])
-
-        desired["spec"][ocmmod.DISABLE_UWM_ATTR] = True
-        self.assertEqual(
-            occ.get_cluster_update_spec("cluster1", self.clusters[0], desired),
-            ({ocmmod.DISABLE_UWM_ATTR: True}, False),
-        )
-
-    def test_non_set_disable_uwm(self):
-        desired = deepcopy(self.clusters[0])
-        self.clusters[0]["spec"][ocmmod.DISABLE_UWM_ATTR] = True
-        self.assertEqual(
-            occ.get_cluster_update_spec("cluster1", self.clusters[0], desired),
-            ({}, False),
-        )
+@pytest.fixture
+def queries_mock(osd_cluster_fxt):
+    with patch.object(queries, "get_app_interface_settings", autospec=True) as s:
+        with patch.object(queries, "get_clusters", autospec=True) as gc:
+            s.return_value = {}
+            gc.return_value = [osd_cluster_fxt]
+            yield s, gc
 
 
-class TestRun(TestCase):
-    def setUp(self):
-        super().setUp()
-        self.clusters = [fxt.get_anymarkup("cluster1.yml")]
-        self.clusters[0]["ocm"]["name"] = "ocm-nonexisting"
-        self.clusters[0]["path"] = "/openshift/mycluster/cluster.yml"
-        self.mock_callable(
-            queries, "get_app_interface_settings"
-        ).for_call().to_return_value({}).and_assert_called_once()
-        self.get_clusters = (
-            self.mock_callable(queries, "get_clusters")
-            .for_call()
-            .to_return_value(self.clusters)
-            .and_assert_called_once()
-        )
-        self.ocmmap = StrictMock(ocmmod.OCMMap)
-        self.ocm = StrictMock(ocmmod.OCM)
-        self.mock_constructor(ocmmod, "OCMMap").to_return_value(self.ocmmap)
-        self.mock_callable(self.ocmmap, "get").for_call("cluster1").to_return_value(
-            self.ocm
-        )
-        self.update_cluster = self.mock_callable(
-            self.ocm, "update_cluster"
-        ).to_return_value(None)
-        self.mock_callable(sys, "exit").to_raise(ValueError)
-        self.addCleanup(mock_callable.unpatch_all_callable_mocks)
+@pytest.fixture
+def ocmmap_mock(ocm_osd_cluster_spec, ocm_mock):
+    with patch.object(OCMMap, "get", autospec=True) as get:
+        with patch.object(OCMMap, "init_ocm_client", autospec=True):
+            with patch.object(OCMMap, "cluster_specs", autospec=True) as cs:
+                get.return_value = ocm_mock
+                cs.return_value = ({"cluster1": ocm_osd_cluster_spec}, {})
+                yield get, cs
 
-    def test_no_op_dry_run(self):
-        self.clusters[0]["spec"]["id"] = "aclusterid"
-        self.clusters[0]["spec"]["id"] = "anid"
-        self.clusters[0]["spec"]["external_id"] = "anotherid"
-        current = {
-            "cluster1": {
-                "spec": self.clusters[0]["spec"],
-                "network": self.clusters[0]["network"],
-                "consoleUrl": "aconsoleurl",
-                "serverUrl": "aserverurl",
-                "elbFQDN": "anelbfqdn",
-            }
-        }
-        desired = deepcopy(current)
-        current["cluster1"]["spec"].pop("initial_version")
-        self.mock_callable(occ, "fetch_desired_state").to_return_value(
-            desired
-        ).and_assert_called_once()
-        self.mock_callable(self.ocmmap, "cluster_specs").for_call().to_return_value(
-            (current, {})
-        ).and_assert_called_once()
-        self.mock_callable(occ, "get_cluster_update_spec").to_return_value(
-            ({}, False)
-        ).and_assert_called_once()
-        with self.assertRaises(ValueError) as e:
-            occ.run(True)
-            self.assertEqual(e.args, (0,))
 
-    def test_no_op(self):
-        self.clusters[0]["spec"]["id"] = "anid"
-        self.clusters[0]["spec"]["external_id"] = "anotherid"
-        current = {
-            "cluster1": {
-                "spec": self.clusters[0]["spec"],
-                "network": self.clusters[0]["network"],
-                "consoleUrl": "aconsoleurl",
-                "serverUrl": "aserverurl",
-                "elbFQDN": "anelbfqdn",
-                "prometheusUrl": "aprometheusurl",
-                "alertmanagerUrl": "analertmanagerurl",
-            }
-        }
-        desired = deepcopy(current)
-        current["cluster1"]["spec"].pop("initial_version")
+@pytest.fixture
+def ocm_secrets_reader():
+    with patch("reconcile.utils.ocm.SecretReader", autospec=True) as sr:
+        yield sr
 
-        self.mock_callable(occ, "fetch_desired_state").to_return_value(
-            desired
-        ).and_assert_called_once()
-        self.mock_callable(occ.mr_client_gateway, "init").for_call(
-            gitlab_project_id=None
-        ).to_return_value("not a value").and_assert_called_once()
-        self.mock_callable(self.ocmmap, "cluster_specs").for_call().to_return_value(
-            (current, {})
-        ).and_assert_called_once()
-        self.mock_callable(occ, "get_cluster_update_spec").to_return_value(
-            ({}, False)
-        ).and_assert_called_once()
-        with self.assertRaises(ValueError) as e:
-            occ.run(False)
-            self.assertEqual(e.args, (0,))
 
-    def test_changed_id(self):
-        current = {
-            "cluster1": {
-                "spec": self.clusters[0]["spec"],
-                "network": self.clusters[0]["network"],
-                "consoleUrl": "aconsoleurl",
-                "serverUrl": "aserverurl",
-                "elbFQDN": "anelbfqdn",
-                "prometheusUrl": "aprometheusurl",
-                "alertmanagerUrl": "analertmanagerurl",
-            }
-        }
-        desired = deepcopy(current)
-        self.clusters[0]["spec"]["id"] = "anid"
-        self.clusters[0]["spec"]["external_id"] = "anotherid"
-        self.mock_callable(occ, "fetch_desired_state").to_return_value(
-            desired
-        ).and_assert_called_once()
-        self.mock_callable(occ.mr_client_gateway, "init").for_call(
-            gitlab_project_id=None
-        ).to_return_value("not a value").and_assert_called_once()
-        self.mock_callable(self.ocmmap, "cluster_specs").for_call().to_return_value(
-            (current, {})
-        ).and_assert_called_once()
-        self.mock_callable(occ, "get_cluster_update_spec").to_return_value(
-            ({"id": "anid"}, False)
-        ).and_assert_called_once()
-        create_clusters_updates = StrictMock(clusters_updates.CreateClustersUpdates)
-        self.mock_constructor(
-            clusters_updates, "CreateClustersUpdates"
-        ).to_return_value(create_clusters_updates)
-        self.mock_callable(create_clusters_updates, "submit").for_call(
-            cli="not a value"
-        ).to_return_value(None).and_assert_called_once()
-        with self.assertRaises(ValueError) as e:
-            occ.run(False)
-            self.assertEqual(e.args, (0,))
+@pytest.fixture
+def ocm_mock(ocm_secrets_reader):
+    with patch.object(OCM, "_post", autospec=True) as _post:
+        with patch.object(OCM, "_patch", autospec=True) as _patch:
+            with patch.object(OCM, "_init_access_token", autospec=True):
+                with patch.object(OCM, "get_provision_shard", autospec=True) as gps:
+                    gps.return_value = {"id": "provision_shard_id"}
+                    yield _post, _patch
 
-    def test_changed_disable_uwm(self):
-        current = {
-            "cluster1": {
-                "spec": self.clusters[0]["spec"],
-                "network": self.clusters[0]["network"],
-                "consoleUrl": "aconsoleurl",
-                "serverUrl": "aserverurl",
-                "elbFQDN": "anelbfqdn",
-                "prometheusUrl": "aprometheusurl",
-                "alertmanagerUrl": "analertmanagerurl",
-            }
-        }
-        self.clusters[0]["spec"]["id"] = "id"
-        self.clusters[0]["spec"]["external_id"] = "ext_id"
 
-        desired = deepcopy(current)
-        desired["cluster1"]["spec"][ocmmod.DISABLE_UWM_ATTR] = True
+@pytest.fixture
+def cluster_updates_mr_mock():
+    with patch.object(mr_client_gateway, "init", autospec=True):
+        with patch.object(CreateClustersUpdates, "__new__", autospec=True) as ccu:
+            yield ccu
 
-        self.mock_callable(occ, "fetch_desired_state").to_return_value(
-            desired
-        ).and_assert_called_once()
 
-        self.mock_callable(occ.mr_client_gateway, "init").for_call(
-            gitlab_project_id=None
-        ).to_return_value("not a value").and_assert_called_once()
+OCM_PRODUCTS = ["osd_mock", "rosa_mock"]
 
-        self.mock_callable(self.ocmmap, "cluster_specs").for_call().to_return_value(
-            (current, {})
-        ).and_assert_called_once()
 
-        create_clusters_updates = StrictMock(clusters_updates.CreateClustersUpdates)
-        self.mock_constructor(
-            clusters_updates, "CreateClustersUpdates"
-        ).to_return_value(create_clusters_updates)
+def test_get_ocm_cluster_update_spec_no_changes(
+    ocm_mock, ocm_osd_cluster_spec: OCMSpec
+):
+    current_spec = ocm_osd_cluster_spec
+    desired_spec = ocm_osd_cluster_spec
+    upd, err = occ.get_cluster_ocm_update_spec(
+        ocm_mock, "cluster1", current_spec, desired_spec
+    )
+    assert (upd, err) == ({}, False)
 
-        self.mock_callable(create_clusters_updates, "submit").for_call(
-            cli="not a value"
-        ).to_return_value(None).and_assert_not_called()
 
-        with self.assertRaises(ValueError) as e:
-            occ.run(False)
-            self.assertEqual(e.args, (0,))
+def test_get_ocm_cluster_update_spec_network_banned(
+    ocm_mock, ocm_osd_cluster_spec: OCMSpec
+):
+    current_spec = ocm_osd_cluster_spec
+    desired_spec = current_spec.copy(deep=True)
+    desired_spec.network.vpc = "0.0.0.0/0"
+    upd, err = occ.get_cluster_ocm_update_spec(
+        ocm_mock, "cluster1", current_spec, desired_spec
+    )
+    assert (upd, err) == ({}, True)
 
-    def test_non_set_disable_uwm(self):
-        current = {
-            "cluster1": {
-                "spec": self.clusters[0]["spec"],
-                "network": self.clusters[0]["network"],
-                "consoleUrl": "aconsoleurl",
-                "serverUrl": "aserverurl",
-                "elbFQDN": "anelbfqdn",
-                "prometheusUrl": "aprometheusurl",
-                "alertmanagerUrl": "analertmanagerurl",
-            }
-        }
-        self.clusters[0]["spec"]["id"] = "id"
-        self.clusters[0]["spec"]["external_id"] = "ext_id"
 
-        desired = deepcopy(current)
-        self.clusters[0]["spec"][ocmmod.DISABLE_UWM_ATTR] = True
+def test_get_ocm_cluster_update_spec_allowed_change(
+    ocm_mock, ocm_osd_cluster_spec: OCMSpec
+):
+    current_spec = ocm_osd_cluster_spec
+    desired_spec = current_spec.copy(deep=True)
+    desired_spec.spec.storage = 2000
+    upd, err = occ.get_cluster_ocm_update_spec(
+        ocm_mock, "cluster1", current_spec, desired_spec
+    )
+    assert (upd, err) == ({ocmmod.SPEC_ATTR_STORAGE: 2000}, False)
 
-        self.mock_callable(occ, "fetch_desired_state").to_return_value(
-            desired
-        ).and_assert_called_once()
 
-        self.mock_callable(occ.mr_client_gateway, "init").for_call(
-            gitlab_project_id=None
-        ).to_return_value("not a value").and_assert_called_once()
+def test_get_ocm_cluster_update_spec_not_allowed_change(
+    ocm_mock, ocm_osd_cluster_spec: OCMSpec
+):
+    current_spec = ocm_osd_cluster_spec
+    desired_spec = current_spec.copy(deep=True)
+    desired_spec.spec.multi_az = not desired_spec.spec.multi_az
+    upd, err = occ.get_cluster_ocm_update_spec(
+        ocm_mock, "cluster1", current_spec, desired_spec
+    )
+    assert (upd, err) == (
+        {ocmmod.SPEC_ATTR_MULTI_AZ: desired_spec.spec.multi_az},
+        True,
+    )
 
-        self.mock_callable(self.ocmmap, "cluster_specs").for_call().to_return_value(
-            (current, {})
-        ).and_assert_called_once()
 
-        create_clusters_updates = StrictMock(clusters_updates.CreateClustersUpdates)
-        self.mock_constructor(
-            clusters_updates, "CreateClustersUpdates"
-        ).to_return_value(create_clusters_updates)
+def test_get_ocm_cluster_update_spec_disable_uwm(
+    ocm_mock, ocm_osd_cluster_spec: OCMSpec
+):
+    current_spec = ocm_osd_cluster_spec
+    desired_spec = current_spec.copy(deep=True)
+    desired_spec.spec.disable_user_workload_monitoring = (
+        not desired_spec.spec.disable_user_workload_monitoring
+    )
+    upd, err = occ.get_cluster_ocm_update_spec(
+        ocm_mock, "cluster1", current_spec, desired_spec
+    )
+    assert (upd, err) == (
+        {
+            ocmmod.SPEC_ATTR_DISABLE_UWM: desired_spec.spec.disable_user_workload_monitoring
+        },
+        False,
+    )
 
-        self.mock_callable(create_clusters_updates, "submit").for_call(
-            cli="not a value"
-        ).to_return_value(None).and_assert_called_once()
 
-        with self.assertRaises(ValueError) as e:
-            occ.run(False)
-            self.assertEqual(e.args, (0,))
+def test_noop_dry_run(queries_mock, ocmmap_mock, ocm_mock, cluster_updates_mr_mock):
+    with pytest.raises(SystemExit):
+        occ.run(False)
+    # If get has not been called means no action has been performed
+    _post, _patch = ocm_mock
+    assert _post.call_count == 0
+    assert _patch.call_count == 0
+    assert cluster_updates_mr_mock.call_count == 0
+
+
+@patch.object(OCM, "_get_json", autospec=True)
+def test_changed_id(
+    json,
+    queries_mock,
+    ocm_mock,
+    ocm_osd_cluster_raw_spec,
+    ocm_osd_cluster_ai_spec,
+    cluster_updates_mr_mock,
+):
+
+    # App Interface attributes are only considered if are null or blank
+    # Won't be better to update them if have changed?
+    ocm_osd_cluster_ai_spec["spec"]["id"] = ""
+    queries_mock[1].return_value = [ocm_osd_cluster_ai_spec]
+    json.return_value = {"items": [ocm_osd_cluster_raw_spec]}
+
+    with pytest.raises(SystemExit):
+        occ.run(dry_run=False)
+    _post, _patch = ocm_mock
+    assert _post.call_count == 0
+    assert _patch.call_count == 0
+    assert cluster_updates_mr_mock.call_count == 1
+
+
+@patch.object(OCM, "_get_json", autospec=True)
+def test_ocm_osd_create_cluster(
+    json,
+    queries_mock,
+    ocm_mock,
+    cluster_updates_mr_mock,
+    ocm_osd_cluster_raw_spec,
+    ocm_osd_cluster_ai_spec,
+):
+    ocm_osd_cluster_ai_spec["name"] = "a-new-cluster"
+    json.return_value = {"items": [ocm_osd_cluster_raw_spec]}
+    queries_mock[1].return_value = [ocm_osd_cluster_ai_spec]
+    with pytest.raises(SystemExit):
+        occ.run(dry_run=False)
+    _post, _patch = ocm_mock
+    assert _post.call_count == 1
+    assert _patch.call_count == 0
+    assert cluster_updates_mr_mock.call_count == 0
+
+
+@patch.object(OCM, "_get_json", autospec=True)
+def test_ocm_osd_update_cluster(
+    json,
+    queries_mock,
+    ocm_mock,
+    cluster_updates_mr_mock,
+    ocm_osd_cluster_raw_spec,
+    ocm_osd_cluster_ai_spec,
+):
+    ocm_osd_cluster_ai_spec["spec"]["storage"] = 40000
+    json.return_value = {"items": [ocm_osd_cluster_raw_spec]}
+    queries_mock[1].return_value = [ocm_osd_cluster_ai_spec]
+    with pytest.raises(SystemExit):
+        occ.run(dry_run=False)
+    _post, _patch = ocm_mock
+    assert _post.call_count == 0
+    assert _patch.call_count == 1
+    assert cluster_updates_mr_mock.call_count == 0
+
+
+@patch.object(OCM, "_get_json", autospec=True)
+def test_ocm_returns_a_rosa_cluster(
+    json,
+    queries_mock,
+    ocm_mock,
+    cluster_updates_mr_mock,
+    ocm_osd_cluster_raw_spec,
+    ocm_rosa_cluster_raw_spec,
+    ocm_osd_cluster_ai_spec,
+):
+    json.return_value = {"items": [ocm_osd_cluster_raw_spec, ocm_rosa_cluster_raw_spec]}
+    queries_mock[1].return_value = [ocm_osd_cluster_ai_spec]
+    with pytest.raises(SystemExit):
+        occ.run(dry_run=False)
+    _post, _patch = ocm_mock
+    assert _post.call_count == 0
+    assert _patch.call_count == 0
+    assert cluster_updates_mr_mock.call_count == 0
+
+
+@patch.object(OCM, "_get_json", autospec=True)
+def test_ocm_create_rosa_cluster_should_not_post_anything(
+    json,
+    queries_mock,
+    ocm_mock,
+    cluster_updates_mr_mock,
+    ocm_osd_cluster_ai_spec,
+):
+    ocm_osd_cluster_ai_spec["spec"]["product"] = "rosa"
+    json.return_value = {"items": []}
+    queries_mock[1].return_value = [ocm_osd_cluster_ai_spec]
+    with pytest.raises(SystemExit):
+        occ.run(dry_run=False)
+    _post, _patch = ocm_mock
+    assert _post.call_count == 0
+    assert _patch.call_count == 0
+    assert cluster_updates_mr_mock.call_count == 0
+
+
+@patch.object(OCM, "_get_json", autospec=True)
+def test_changed_ocm_spec_disable_uwm(
+    json,
+    queries_mock,
+    ocm_mock,
+    ocm_osd_cluster_raw_spec,
+    ocm_osd_cluster_ai_spec,
+    cluster_updates_mr_mock,
+):
+    ocm_osd_cluster_ai_spec["spec"][
+        "disable_user_workload_monitoring"
+    ] = not ocm_osd_cluster_ai_spec["spec"]["disable_user_workload_monitoring"]
+
+    json.return_value = {"items": [ocm_osd_cluster_raw_spec]}
+    queries_mock[1].return_value = [ocm_osd_cluster_ai_spec]
+
+    with pytest.raises(SystemExit):
+        occ.run(dry_run=False)
+
+    _post, _patch = ocm_mock
+    assert _patch.call_count == 1
+    assert _post.call_count == 0
+    assert cluster_updates_mr_mock.call_count == 0
+
+
+@patch.object(OCM, "_get_json", autospec=True)
+def test_missing_ocm_spec_disable_uwm(
+    json,
+    queries_mock,
+    ocm_mock,
+    ocm_osd_cluster_raw_spec,
+    ocm_osd_cluster_ai_spec,
+    cluster_updates_mr_mock,
+):
+    ocm_osd_cluster_ai_spec["spec"]["disable_user_workload_monitoring"] = None
+
+    json.return_value = {"items": [ocm_osd_cluster_raw_spec]}
+    queries_mock[1].return_value = [ocm_osd_cluster_ai_spec]
+
+    with pytest.raises(SystemExit):
+        occ.run(dry_run=False)
+    _post, _patch = ocm_mock
+
+    assert _patch.call_count == 1
+    assert _post.call_count == 0
+    assert cluster_updates_mr_mock.call_count == 1

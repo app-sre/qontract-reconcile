@@ -1,12 +1,22 @@
+from __future__ import annotations
 import functools
 import logging
 import re
-from typing import Any, Optional, Union, Mapping
+from typing import Any, Optional, Tuple, Union, Mapping
+
 
 import reconcile.utils.aws_helper as awsh
 import requests
 from reconcile.utils.secret_reader import SecretReader
 from sretoolbox.utils import retry
+
+from reconcile.ocm.types import (
+    OCMSpec,
+    OSDClusterSpec,
+    OCMClusterAutoscale,
+    OCMClusterNetwork,
+    ROSAClusterSpec,
+)
 
 STATUS_READY = "ready"
 STATUS_FAILED = "failed"
@@ -26,6 +36,414 @@ CLUSTER_ADDON_DESIRED_KEYS = {"id", "parameters"}
 DISABLE_UWM_ATTR = "disable_user_workload_monitoring"
 BYTES_IN_GIGABYTE = 1024**3
 REQUEST_TIMEOUT_SEC = 60
+
+
+SPEC_ATTR_DISABLE_UWM = "disable_user_workload_monitoring"
+SPEC_ATTR_AUTOSCALE = "autoscale"
+SPEC_ATTR_INSTANCE_TYPE = "instance_type"
+SPEC_ATTR_PRIVATE = "private"
+SPEC_ATTR_CHANNEL = "channel"
+SPEC_ATTR_NODES = "nodes"
+SPEC_ATTR_LOAD_BALANCERS = "load_balancers"
+SPEC_ATTR_STORAGE = "storage"
+SPEC_ATTR_ID = "id"
+SPEC_ATTR_EXTERNAL_ID = "external_id"
+SPEC_ATTR_PROVISION_SHARD_ID = "provision_shard_id"
+SPEC_ATTR_VERSION = "version"
+SPEC_ATTR_INITIAL_VERSION = "initial_version"
+SPEC_ATTR_MULTI_AZ = "multi_az"
+
+SPEC_ATTR_CONSOLE_URL = "consoleUrl"
+SPEC_ATTR_SERVER_URL = "serverUrl"
+SPEC_ATTR_ELBFQDN = "elbFQDN"
+SPEC_ATTR_PATH = "path"
+
+OCM_PRODUCT_OSD = "osd"
+OCM_PRODCUT_ROSA = "rosa"
+
+
+SUPPORTED_OCM_PRODUCTS = [OCM_PRODUCT_OSD, OCM_PRODCUT_ROSA]
+
+
+class OCMProduct:
+
+    ALLOWED_SPEC_UPDATE_FIELDS: set[str]
+    EXCLUDED_SPEC_FIELDS: set[str]
+
+    @staticmethod
+    def create_cluster(ocm: OCM, name: str, cluster: OCMSpec, dry_run: bool):
+        pass
+
+    @staticmethod
+    def update_cluster(ocm: OCM, cluster_name: str, update_spec: dict[str, Any]):
+        pass
+
+    @staticmethod
+    def get_ocm_spec(
+        ocm: OCM, cluster: Mapping[str, Any], init_provision_shards: bool
+    ) -> OCMSpec:
+        pass
+
+
+class OCMProductOsd(OCMProduct):
+    ALLOWED_SPEC_UPDATE_FIELDS = {
+        SPEC_ATTR_INSTANCE_TYPE,
+        SPEC_ATTR_STORAGE,
+        SPEC_ATTR_LOAD_BALANCERS,
+        SPEC_ATTR_PRIVATE,
+        SPEC_ATTR_CHANNEL,
+        SPEC_ATTR_AUTOSCALE,
+        SPEC_ATTR_NODES,
+        SPEC_ATTR_DISABLE_UWM,
+    }
+
+    EXCLUDED_SPEC_FIELDS = {
+        SPEC_ATTR_ID,
+        SPEC_ATTR_EXTERNAL_ID,
+        SPEC_ATTR_PROVISION_SHARD_ID,
+        SPEC_ATTR_VERSION,
+        SPEC_ATTR_INITIAL_VERSION,
+    }
+
+    @staticmethod
+    def create_cluster(ocm: OCM, name: str, cluster: OCMSpec, dry_run: bool):
+        ocm_spec = OCMProductOsd._get_create_cluster_spec(name, cluster)
+        api = f"{CS_API_BASE}/v1/clusters"
+        params = {}
+        if dry_run:
+            params["dryRun"] = "true"
+
+        ocm._post(api, ocm_spec, params)
+
+    @staticmethod
+    def update_cluster(ocm: OCM, cluster_name: str, update_spec: dict[str, Any]):
+        ocm_spec = OCMProductOsd._get_update_cluster_spec(update_spec)
+        cluster_id = ocm.cluster_ids.get(cluster_name)
+        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}"
+        params: dict[str, Any] = {}
+        ocm._patch(api, ocm_spec, params)
+
+    @staticmethod
+    def get_ocm_spec(
+        ocm: OCM, cluster: Mapping[str, Any], init_provision_shards: bool
+    ) -> OCMSpec:
+        if init_provision_shards:
+            provision_shard_id = ocm.get_provision_shard(cluster["id"])["id"]
+        else:
+            provision_shard_id = None
+
+        autoscale = cluster["nodes"].get("autoscale_compute")
+        autoscale_spec = (
+            OCMClusterAutoscale(
+                max_replicas=autoscale.get("max_replicas"),
+                min_replicas=autoscale.get("min_replicas"),
+            )
+            if autoscale
+            else None
+        )
+
+        spec = OSDClusterSpec(
+            product=cluster["product"]["id"],
+            id=cluster["id"],
+            external_id=cluster["external_id"],
+            provider=cluster["cloud_provider"]["id"],
+            region=cluster["region"]["id"],
+            channel=cluster["version"]["channel_group"],
+            version=cluster["openshift_version"],
+            multi_az=cluster["multi_az"],
+            instance_type=cluster["nodes"]["compute_machine_type"]["id"],
+            storage=cluster["storage_quota"]["value"] // BYTES_IN_GIGABYTE,
+            load_balancers=cluster["load_balancer_quota"],
+            private=cluster["api"]["listening"] == "internal",
+            disable_user_workload_monitoring=cluster[
+                "disable_user_workload_monitoring"
+            ],
+            provision_shard_id=provision_shard_id,
+            nodes=cluster["nodes"].get("compute"),
+            autoscale=autoscale_spec,
+        )
+
+        network = OCMClusterNetwork(
+            type=cluster["network"].get("type") or "OpenShiftSDN",
+            vpc=cluster["network"]["machine_cidr"],
+            service=cluster["network"]["service_cidr"],
+            pod=cluster["network"]["pod_cidr"],
+        )
+
+        ocm_spec = OCMSpec(
+            console_url=cluster["console"]["url"],
+            server_url=cluster["api"]["url"],
+            domain=cluster["dns"]["base_domain"],
+            spec=spec,
+            network=network,
+        )
+
+        return ocm_spec
+
+    @staticmethod
+    def _get_create_cluster_spec(cluster_name: str, cluster: OCMSpec) -> dict[str, Any]:
+        """
+        Returns the OCM Spec to request a cluster creation
+
+        Parameters:
+            name (str): The cluster name
+            cluster (OCMSpec): Spec of the Cluster
+        """
+
+        ocm_spec = {
+            "name": cluster_name,
+            "cloud_provider": {"id": cluster.spec.provider},
+            "region": {"id": cluster.spec.region},
+            "version": {
+                "id": f"openshift-v{cluster.spec.initial_version}",
+                "channel_group": cluster.spec.channel,
+            },
+            "multi_az": cluster.spec.multi_az,
+            "nodes": {"compute_machine_type": {"id": cluster.spec.instance_type}},
+            "storage_quota": {"value": float(cluster.spec.storage * BYTES_IN_GIGABYTE)},
+            "load_balancer_quota": cluster.spec.load_balancers,
+            "network": {
+                "type": cluster.network.type or "OpenShiftSDN",
+                "machine_cidr": cluster.network.vpc,
+                "service_cidr": cluster.network.service,
+                "pod_cidr": cluster.network.pod,
+            },
+            "api": {"listening": "internal" if cluster.spec.private else "external"},
+            "disable_user_workload_monitoring": cluster.spec.disable_user_workload_monitoring
+            or True,
+        }
+
+        provision_shard_id = cluster.spec.provision_shard_id
+        if provision_shard_id:
+            ocm_spec.setdefault("properties", {})
+            ocm_spec["properties"]["provision_shard_id"] = provision_shard_id
+
+        autoscale = cluster.spec.autoscale
+        if autoscale is not None:
+            ocm_spec["nodes"]["autoscale_compute"] = autoscale.dict()
+        else:
+            ocm_spec["nodes"]["compute"] = cluster.spec.nodes
+        return ocm_spec
+
+    @staticmethod
+    def _get_update_cluster_spec(update_spec: Mapping[str, Any]) -> dict[str, Any]:
+        """
+        Returns the OCM to update a cluster
+
+         :param name: name of the cluster
+         :param cluster_spec: a dictionary representing cluster updates
+         :param dry_run: do not execute for real
+
+         :type name: string
+         :type cluster: dict
+         :type dry_run: bool
+        """
+        ocm_spec: dict[str, Any] = {}
+
+        instance_type = update_spec.get("instance_type")
+        if instance_type is not None:
+            ocm_spec["nodes"] = {"compute_machine_type": {"id": instance_type}}
+
+        storage = update_spec.get("storage")
+        if storage is not None:
+            ocm_spec["storage_quota"] = {"value": float(storage * 1073741824)}  # 1024^3
+
+        load_balancers = update_spec.get("load_balancers")
+        if load_balancers is not None:
+            ocm_spec["load_balancer_quota"] = load_balancers
+
+        private = update_spec.get("private")
+        if private is not None:
+            ocm_spec["api"] = {"listening": "internal" if private else "external"}
+
+        channel = update_spec.get("channel")
+        if channel is not None:
+            ocm_spec["version"] = {"channel_group": channel}
+
+        autoscale = update_spec.get("autoscale")
+        if autoscale is not None:
+            ocm_spec["nodes"] = {"autoscale_compute": autoscale}
+
+        nodes = update_spec.get("nodes")
+        if nodes:
+            ocm_spec["nodes"] = {"compute": update_spec["nodes"]}
+
+        disable_uwm = update_spec.get("disable_user_workload_monitoring")
+        if disable_uwm is not None:
+            ocm_spec["disable_user_workload_monitoring"] = disable_uwm
+
+        return ocm_spec
+
+
+class OCMProductRosa(OCMProduct):
+    ALLOWED_SPEC_UPDATE_FIELDS = {
+        SPEC_ATTR_INSTANCE_TYPE,
+        SPEC_ATTR_CHANNEL,
+        SPEC_ATTR_AUTOSCALE,
+        SPEC_ATTR_NODES,
+        SPEC_ATTR_DISABLE_UWM,
+    }
+
+    EXCLUDED_SPEC_FIELDS = {
+        SPEC_ATTR_ID,
+        SPEC_ATTR_EXTERNAL_ID,
+        SPEC_ATTR_PROVISION_SHARD_ID,
+        SPEC_ATTR_VERSION,
+        SPEC_ATTR_INITIAL_VERSION,
+    }
+
+    @staticmethod
+    def create_cluster(ocm: OCM, name: str, cluster: OCMSpec, dry_run: bool):
+        raise NotImplementedError("create_cluster not implemeneted for ROSA")
+
+    @staticmethod
+    def update_cluster(ocm: OCM, cluster_name: str, update_spec: dict[str, Any]):
+        raise NotImplementedError("update_cluster not implemeneted for ROSA")
+
+    @staticmethod
+    def get_ocm_spec(
+        ocm: OCM, cluster: Mapping[str, Any], init_provision_shards: bool
+    ) -> OCMSpec:
+        if init_provision_shards:
+            provision_shard_id = ocm.get_provision_shard(cluster["id"])["id"]
+        else:
+            provision_shard_id = None
+
+        autoscale = cluster["nodes"].get("autoscale_compute")
+        autoscale_spec = (
+            OCMClusterAutoscale(
+                max_replicas=autoscale.get("max_replicas"),
+                min_replicas=autoscale.get("min_replicas"),
+            )
+            if autoscale
+            else None
+        )
+
+        spec = ROSAClusterSpec(
+            product=cluster["product"]["id"],
+            id=cluster["id"],
+            external_id=cluster["external_id"],
+            provider=cluster["cloud_provider"]["id"],
+            region=cluster["region"]["id"],
+            channel=cluster["version"]["channel_group"],
+            version=cluster["openshift_version"],
+            multi_az=cluster["multi_az"],
+            instance_type=cluster["nodes"]["compute_machine_type"]["id"],
+            private=cluster["api"]["listening"] == "internal",
+            disable_user_workload_monitoring=cluster[
+                "disable_user_workload_monitoring"
+            ],
+            provision_shard_id=provision_shard_id,
+            nodes=cluster["nodes"].get("compute"),
+            autoscale=autoscale_spec,
+        )
+
+        network = OCMClusterNetwork(
+            type=cluster["network"].get("type") or "OpenShiftSDN",
+            vpc=cluster["network"]["machine_cidr"],
+            service=cluster["network"]["service_cidr"],
+            pod=cluster["network"]["pod_cidr"],
+        )
+
+        ocm_spec = OCMSpec(
+            console_url=cluster["console"]["url"],
+            server_url=cluster["api"]["url"],
+            domain=cluster["dns"]["base_domain"],
+            spec=spec,
+            network=network,
+        )
+
+        return ocm_spec
+
+    @staticmethod
+    def _get_create_cluster_spec(cluster_name: str, cluster: OCMSpec) -> dict[str, Any]:
+        """
+        Returns the OCM Spec to request a cluster creation
+
+        Parameters:
+            name (str): The cluster name
+            cluster (OCMSpec): Spec of the Cluster
+        """
+
+        ocm_spec = {
+            "name": cluster_name,
+            "cloud_provider": {"id": cluster.spec.provider},
+            "region": {"id": cluster.spec.region},
+            "version": {
+                "id": f"openshift-v{cluster.spec.initial_version}",
+                "channel_group": cluster.spec.channel,
+            },
+            "multi_az": cluster.spec.multi_az,
+            "nodes": {"compute_machine_type": {"id": cluster.spec.instance_type}},
+            "network": {
+                "type": cluster.network.type or "OpenShiftSDN",
+                "machine_cidr": cluster.network.vpc,
+                "service_cidr": cluster.network.service,
+                "pod_cidr": cluster.network.pod,
+            },
+            "api": {"listening": "internal" if cluster.spec.private else "external"},
+            "disable_user_workload_monitoring": cluster.spec.disable_user_workload_monitoring
+            or True,
+        }
+
+        provision_shard_id = cluster.spec.provision_shard_id
+        if provision_shard_id:
+            ocm_spec.setdefault("properties", {})
+            ocm_spec["properties"]["provision_shard_id"] = provision_shard_id
+
+        autoscale = cluster.spec.autoscale
+        if autoscale is not None:
+            ocm_spec["nodes"]["autoscale_compute"] = autoscale.dict()
+        else:
+            ocm_spec["nodes"]["compute"] = cluster.spec.nodes
+        return ocm_spec
+
+    @staticmethod
+    def _get_update_cluster_spec(update_spec: Mapping[str, Any]) -> dict[str, Any]:
+        """
+        Returns the OCM to update a cluster
+
+         :param name: name of the cluster
+         :param cluster_spec: a dictionary representing cluster updates
+         :param dry_run: do not execute for real
+
+         :type name: string
+         :type cluster: dict
+         :type dry_run: bool
+        """
+        ocm_spec: dict[str, Any] = {}
+
+        instance_type = update_spec.get("instance_type")
+        if instance_type is not None:
+            ocm_spec["nodes"] = {"compute_machine_type": {"id": instance_type}}
+
+        private = update_spec.get("private")
+        if private is not None:
+            ocm_spec["api"] = {"listening": "internal" if private else "external"}
+
+        channel = update_spec.get("channel")
+        if channel is not None:
+            ocm_spec["version"] = {"channel_group": channel}
+
+        autoscale = update_spec.get("autoscale")
+        if autoscale is not None:
+            ocm_spec["nodes"] = {"autoscale_compute": autoscale}
+
+        nodes = update_spec.get("nodes")
+        if nodes:
+            ocm_spec["nodes"] = {"compute": update_spec["nodes"]}
+
+        disable_uwm = update_spec.get("disable_user_workload_monitoring")
+        if disable_uwm is not None:
+            ocm_spec["disable_user_workload_monitoring"] = disable_uwm
+
+        return ocm_spec
+
+
+OCM_PRODUCTS_IMPL = {
+    OCM_PRODUCT_OSD: OCMProductOsd,
+    OCM_PRODCUT_ROSA: OCMProductRosa,
+}
 
 
 class OCM:  # pylint: disable=too-many-public-methods
@@ -65,6 +483,7 @@ class OCM:  # pylint: disable=too-many-public-methods
         """Initiates access token and gets clusters information."""
         self.name = name
         self.url = url
+        self.access_token = ""
         self.access_token_client_id = access_token_client_id
         self.access_token_url = access_token_url
         self.offline_token = offline_token
@@ -72,8 +491,10 @@ class OCM:  # pylint: disable=too-many-public-methods
         self._init_access_token()
         self._init_request_headers()
         self._init_clusters(init_provision_shards=init_provision_shards)
+
         if init_addons:
             self._init_addons()
+
         self._init_blocked_versions(blocked_versions)
 
         self.init_version_gates = init_version_gates
@@ -115,171 +536,55 @@ class OCM:  # pylint: disable=too-many-public-methods
         return (
             cluster["managed"]
             and cluster["state"] == STATUS_READY
-            and "storage_quota" in cluster
+            and cluster["product"]["id"] in SUPPORTED_OCM_PRODUCTS
         )
 
     def _init_clusters(self, init_provision_shards):
         api = f"{CS_API_BASE}/v1/clusters"
         clusters = self._get_json(api)["items"]
         self.cluster_ids = {c["name"]: c["id"] for c in clusters}
-        self.clusters = {
-            c["name"]: self._get_cluster_ocm_spec(c, init_provision_shards)
-            for c in clusters
-            if self._ready_for_app_interface(c)
-        }
-        self.not_ready_clusters = [
-            c["name"] for c in clusters if c["managed"] and c["state"] != STATUS_READY
-        ]
 
-    def _get_cluster_ocm_spec(self, cluster, init_provision_shards):
-        ocm_spec = {
-            "spec": {
-                "id": cluster["id"],
-                "external_id": cluster["external_id"],
-                "provider": cluster["cloud_provider"]["id"],
-                "region": cluster["region"]["id"],
-                "channel": cluster["version"]["channel_group"],
-                # cluster["openshift_version"] gets updated before all nodes are upgraded
-                "version": cluster["version"]["raw_id"],
-                "multi_az": cluster["multi_az"],
-                "instance_type": cluster["nodes"]["compute_machine_type"]["id"],
-                "storage": cluster["storage_quota"]["value"] // BYTES_IN_GIGABYTE,
-                "load_balancers": cluster["load_balancer_quota"],
-                "private": cluster["api"]["listening"] == "internal",
-                "provision_shard_id": self.get_provision_shard(cluster["id"])["id"]
-                if init_provision_shards
-                else None,
-                DISABLE_UWM_ATTR: cluster[DISABLE_UWM_ATTR],
-            },
-            "network": {
-                "type": cluster["network"].get("type") or "OpenShiftSDN",
-                "vpc": cluster["network"]["machine_cidr"],
-                "service": cluster["network"]["service_cidr"],
-                "pod": cluster["network"]["pod_cidr"],
-            },
-            "server_url": cluster["api"]["url"],
-            "console_url": cluster["console"]["url"],
-            "domain": cluster["dns"]["base_domain"],
-        }
-        cluster_nodes = cluster["nodes"]
-        nodes_count = cluster_nodes.get("compute")
-        if nodes_count:
-            ocm_spec["spec"]["nodes"] = nodes_count
-        else:
-            autoscale = cluster_nodes.get("autoscale_compute")
-            if autoscale:
-                ocm_spec["spec"]["autoscale"] = self._get_autoscale(cluster)
-        return ocm_spec
+        self.clusters: dict[str, OCMSpec] = {}
+        # self.clusters_ocm_impl: dict[str, Type[OCMProduct]] = {}
+        self.not_ready_clusters: set[str] = {}
 
-    def create_cluster(self, name, cluster, dry_run):
-        """
-        Creates a cluster.
+        for c in clusters:
+            cluster_name = c["name"]
+            if not self._ready_for_app_interface(c):
+                self.not_ready_clusters = cluster_name
 
-        :param name: name of the cluster
-        :param cluster: a dictionary representing a cluster desired state
-        :param dry_run: do not execute for real
+            ocm_spec = self._get_cluster_ocm_spec(c, init_provision_shards)
 
-        :type name: string
-        :type cluster: dict
-        :type dry_run: bool
-        """
-        api = f"{CS_API_BASE}/v1/clusters"
-        cluster_spec = cluster["spec"]
-        cluster_network = cluster["network"]
-        ocm_spec = {
-            "name": name,
-            "cloud_provider": {"id": cluster_spec["provider"]},
-            "region": {"id": cluster_spec["region"]},
-            "version": {
-                "id": "openshift-v" + cluster_spec["initial_version"],
-                "channel_group": cluster_spec["channel"],
-            },
-            "multi_az": cluster_spec["multi_az"],
-            "nodes": {"compute_machine_type": {"id": cluster_spec["instance_type"]}},
-            "storage_quota": {
-                "value": float(cluster_spec["storage"] * BYTES_IN_GIGABYTE)
-            },
-            "load_balancer_quota": cluster_spec["load_balancers"],
-            "network": {
-                "type": cluster_network.get("type") or "OpenShiftSDN",
-                "machine_cidr": cluster_network["vpc"],
-                "service_cidr": cluster_network["service"],
-                "pod_cidr": cluster_network["pod"],
-            },
-            "api": {"listening": "internal" if cluster_spec["private"] else "external"},
-            DISABLE_UWM_ATTR: cluster_spec.get(DISABLE_UWM_ATTR) or True,
-        }
+            self.clusters[cluster_name] = ocm_spec
 
-        provision_shard_id = cluster_spec.get("provision_shard_id")
-        if provision_shard_id:
-            ocm_spec.setdefault("properties", {})
-            ocm_spec["properties"]["provision_shard_id"] = provision_shard_id
+    def _get_cluster_ocm_spec(
+        self, cluster: Mapping[str, Any], init_provision_shards: bool
+    ) -> OCMSpec:
 
-        autoscale = cluster_spec.get("autoscale")
-        if autoscale is not None:
-            ocm_spec["nodes"]["autoscale_compute"] = autoscale
-        else:
-            ocm_spec["nodes"]["compute"] = cluster_spec["nodes"]
+        product = cluster["product"]["id"]
+        # impl = self.get_product_impl(product)
+        impl = OCM_PRODUCTS_IMPL[product]
+        spec = impl.get_ocm_spec(self, cluster, init_provision_shards)
+        return spec
 
-        params = {}
-        if dry_run:
-            params["dryRun"] = "true"
+    def create_cluster(self, name: str, cluster: OCMSpec, dry_run: bool):
+        impl = OCM_PRODUCTS_IMPL[cluster.spec.product]
+        try:
+            impl.create_cluster(self, name, cluster, dry_run)
+        except NotImplementedError as nie:
+            logging.error(nie)
+            return
 
-        self._post(api, ocm_spec, params)
-
-    def update_cluster(self, name, cluster_spec, dry_run):
-        """
-        Updates a cluster.
-
-        :param name: name of the cluster
-        :param cluster_spec: a dictionary representing cluster updates
-        :param dry_run: do not execute for real
-
-        :type name: string
-        :type cluster: dict
-        :type dry_run: bool
-        """
-        cluster_id = self.cluster_ids.get(name)
-        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}"
-        ocm_spec = {}
-
-        instance_type = cluster_spec.get("instance_type")
-        if instance_type is not None:
-            ocm_spec["nodes"] = {"compute_machine_type": {"id": instance_type}}
-
-        storage = cluster_spec.get("storage")
-        if storage is not None:
-            ocm_spec["storage_quota"] = {"value": float(storage * 1073741824)}  # 1024^3
-
-        load_balancers = cluster_spec.get("load_balancers")
-        if load_balancers is not None:
-            ocm_spec["load_balancer_quota"] = load_balancers
-
-        private = cluster_spec.get("private")
-        if private is not None:
-            ocm_spec["api"] = {"listening": "internal" if private else "external"}
-
-        channel = cluster_spec.get("channel")
-        if channel is not None:
-            ocm_spec["version"] = {"channel_group": channel}
-
-        autoscale = cluster_spec.get("autoscale")
-        if autoscale is not None:
-            ocm_spec["nodes"] = {"autoscale_compute": autoscale}
-
-        nodes = cluster_spec.get("nodes")
-        if nodes:
-            ocm_spec["nodes"] = {"compute": cluster_spec["nodes"]}
-
-        disable_uwm = cluster_spec.get(DISABLE_UWM_ATTR)
-        if disable_uwm is not None:
-            ocm_spec[DISABLE_UWM_ATTR] = disable_uwm
-
-        params = {}
-        if dry_run:
-            params["dryRun"] = "true"
-
-        self._patch(api, ocm_spec, params)
+    def update_cluster(
+        self, cluster_name: str, update_spec: dict[str, Any], dry_run=False
+    ):
+        cluster = self.clusters[cluster_name]
+        impl = OCM_PRODUCTS_IMPL[cluster.spec.product]
+        try:
+            impl.update_cluster(self, cluster_name, update_spec)
+        except NotImplementedError as nie:
+            logging.error(nie)
+            return
 
     def get_group_if_exists(self, cluster, group_id):
         """Returns a list of users in a group in a cluster.
@@ -1119,7 +1424,7 @@ class OCMMap:  # pylint: disable=too-many-public-methods
                 init_version_gates=init_version_gates,
             )
 
-    def instances(self):
+    def instances(self) -> list[str]:
         """Get list of OCM instance names initiated in the OCM map."""
         return self.ocm_map.keys()
 
@@ -1140,7 +1445,7 @@ class OCMMap:  # pylint: disable=too-many-public-methods
 
         return False
 
-    def get(self, cluster):
+    def get(self, cluster) -> OCM:
         """
         Gets an OCM instance by cluster.
 
@@ -1151,11 +1456,11 @@ class OCMMap:  # pylint: disable=too-many-public-methods
         ocm = self.clusters_map[cluster]
         return self.ocm_map.get(ocm, None)
 
-    def clusters(self):
+    def clusters(self) -> list[str]:
         """Get list of cluster names initiated in the OCM map."""
         return [k for k, v in self.clusters_map.items() if v]
 
-    def cluster_specs(self):
+    def cluster_specs(self) -> Tuple[dict[str, OCMSpec], list]:
         """Get dictionary of cluster names and specs in the OCM map."""
         cluster_specs = {}
         for v in self.ocm_map.values():
