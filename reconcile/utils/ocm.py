@@ -10,13 +10,14 @@ import requests
 from reconcile.utils.secret_reader import SecretReader
 from sretoolbox.utils import retry
 
-from reconcile.ocm.types import (  # type: ignore
+from reconcile.ocm.types import (
     OCMSpec,
     OSDClusterSpec,
     OCMClusterAutoscale,
     OCMClusterNetwork,
     ROSAClusterSpec,
 )
+import typing
 
 STATUS_READY = "ready"
 STATUS_FAILED = "failed"
@@ -177,9 +178,11 @@ class OCMProductOsd(OCMProduct):
 
         return ocm_spec
 
+    @typing.no_type_check
     @staticmethod
     def _get_create_cluster_spec(cluster_name: str, cluster: OCMSpec) -> dict[str, Any]:
         """
+
         Returns the OCM Spec to request a cluster creation
 
         Parameters:
@@ -187,7 +190,7 @@ class OCMProductOsd(OCMProduct):
             cluster (OCMSpec): Spec of the Cluster
         """
 
-        ocm_spec = {
+        ocm_spec: dict[str, Any] = {
             "name": cluster_name,
             "cloud_provider": {"id": cluster.spec.provider},
             "region": {"id": cluster.spec.region},
@@ -362,7 +365,7 @@ class OCMProductRosa(OCMProduct):
             cluster (OCMSpec): Spec of the Cluster
         """
 
-        ocm_spec = {
+        ocm_spec: dict[str, Any] = {
             "name": cluster_name,
             "cloud_provider": {"id": cluster.spec.provider},
             "region": {"id": cluster.spec.region},

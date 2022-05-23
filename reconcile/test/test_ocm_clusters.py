@@ -1,6 +1,6 @@
 import pytest
 
-from reconcile.ocm.types import (  # type: ignore
+from reconcile.ocm.types import (
     OCMClusterNetwork,
     OCMSpec,
     OSDClusterSpec,
@@ -12,7 +12,7 @@ from reconcile.utils.mr.clusters_updates import CreateClustersUpdates
 from reconcile import queries
 import reconcile.ocm_clusters as occ
 import reconcile.utils.ocm as ocmmod
-
+import typing
 
 from .fixtures import Fixtures
 
@@ -190,6 +190,7 @@ def test_get_ocm_cluster_update_spec_network_banned(
     assert (upd, err) == ({}, True)
 
 
+@typing.no_type_check
 def test_get_ocm_cluster_update_spec_allowed_change(
     ocm_mock, ocm_osd_cluster_spec: OCMSpec
 ):

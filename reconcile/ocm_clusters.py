@@ -11,7 +11,7 @@ import reconcile.utils.mr.clusters_updates as cu
 
 import reconcile.utils.ocm as ocmmod
 
-from reconcile.ocm.types import OCMSpec  # type: ignore
+from reconcile.ocm.types import OCMSpec
 
 QONTRACT_INTEGRATION = "ocm-clusters"
 
