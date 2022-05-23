@@ -41,11 +41,35 @@ def test_get_cluster_aws_account_id_ok(mocker, ocm):
 @pytest.fixture
 def clusters_by_readiness():
     return [
-        ({"managed": False, "state": "ready", "storage_quota": 42}, False),
-        ({"managed": True, "state": "ready", "storage_quota": 42}, True),
-        ({"managed": True, "state": "not ready", "storage_quota": 42}, False),
+        (
+            {
+                "product": {"id": "osd"},
+                "managed": False,
+                "state": "ready",
+                "storage_quota": 42,
+            },
+            False,
+        ),
+        (
+            {
+                "product": {"id": "osd"},
+                "managed": True,
+                "state": "ready",
+                "storage_quota": 42,
+            },
+            True,
+        ),
+        (
+            {
+                "product": "osd",
+                "managed": True,
+                "state": "not ready",
+                "storage_quota": 42,
+            },
+            False,
+        ),
         # ROSA-like cluster
-        ({"managed": True, "state": "ready"}, False),
+        ({"product": {"id": "rosa"}, "managed": True, "state": "ready"}, True),
     ]
 
 
