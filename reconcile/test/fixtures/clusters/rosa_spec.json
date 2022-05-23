@@ -1,0 +1,207 @@
+{
+  "kind": "Cluster",
+  "id": "rosa-cluster-id",
+  "href": "/api/clusters_mgmt/v1/clusters/rosa-cluster-id",
+  "name": "tst-jpr-rosa",
+  "external_id": "53c15df9-92e3-4ed6-9945-b37025d0b63d",
+  "infra_id": "tst-jpr-rosa-hzwts",
+  "display_name": "tst-jpr-rosa",
+  "creation_timestamp": "2022-04-01T09:46:33.71918Z",
+  "activity_timestamp": "2022-04-01T11:00:49Z",
+  "cloud_provider": {
+    "kind": "CloudProviderLink",
+    "id": "aws",
+    "href": "/api/clusters_mgmt/v1/cloud_providers/aws"
+  },
+  "openshift_version": "4.10.5",
+  "subscription": {
+    "kind": "SubscriptionLink",
+    "id": "subscription_id",
+    "href": "/api/accounts_mgmt/v1/subscriptions/subscription_id"
+  },
+  "region": {
+    "kind": "CloudRegionLink",
+    "id": "us-east-1",
+    "href": "/api/clusters_mgmt/v1/cloud_providers/aws/regions/us-east-1"
+  },
+  "console": {
+    "url": "https://console-url"
+  },
+  "api": {
+    "url": "https://api-url",
+    "listening": "external"
+  },
+  "nodes": {
+    "master": 3,
+    "infra": 2,
+    "compute": 2,
+    "availability_zones": [
+      "us-east-1a"
+    ],
+    "compute_machine_type": {
+      "kind": "MachineTypeLink",
+      "id": "m5.xlarge",
+      "href": "/api/clusters_mgmt/v1/machine_types/m5.xlarge"
+    },
+    "infra_machine_type": {
+      "kind": "MachineTypeLink",
+      "id": "r5.xlarge",
+      "href": "/api/clusters_mgmt/v1/machine_types/r5.xlarge"
+    }
+  },
+  "state": "ready",
+  "flavour": {
+    "kind": "FlavourLink",
+    "id": "osd-4",
+    "href": "/api/clusters_mgmt/v1/flavours/osd-4"
+  },
+  "groups": {
+    "kind": "GroupListLink",
+    "href": "/api/clusters_mgmt/v1/clusters/rosa-cluster-id/groups"
+  },
+  "properties": {
+    "rosa_cli_version": "1.1.11",
+    "rosa_creator_arn": "arn:aws:iam::249118421612:user/terraform"
+  },
+  "aws": {
+    "private_link": false,
+    "sts": {
+      "enabled": true,
+      "role_arn": "arn:aws:iam::249118421612:role/ManagedOpenShift-Installer-Role",
+      "support_role_arn": "arn:aws:iam::249118421612:role/ManagedOpenShift-Support-Role",
+      "oidc_endpoint_url": "https://rh-oidc.s3.us-east-1.amazonaws.com/rosa-cluster-id",
+      "operator_iam_roles": [
+        {
+          "id": "",
+          "name": "cloud-credentials",
+          "namespace": "openshift-cloud-network-config-controller",
+          "role_arn": "arn:aws:iam::249118421612:role/tst-jpr-rosa-t6b2-openshift-cloud-network-config-controller-clou",
+          "service_account": ""
+        },
+        {
+          "id": "",
+          "name": "aws-cloud-credentials",
+          "namespace": "openshift-machine-api",
+          "role_arn": "arn:aws:iam::249118421612:role/tst-jpr-rosa-t6b2-openshift-machine-api-aws-cloud-credentials",
+          "service_account": ""
+        },
+        {
+          "id": "",
+          "name": "cloud-credential-operator-iam-ro-creds",
+          "namespace": "openshift-cloud-credential-operator",
+          "role_arn": "arn:aws:iam::249118421612:role/tst-jpr-rosa-t6b2-openshift-cloud-credential-operator-cloud-cred",
+          "service_account": ""
+        },
+        {
+          "id": "",
+          "name": "installer-cloud-credentials",
+          "namespace": "openshift-image-registry",
+          "role_arn": "arn:aws:iam::249118421612:role/tst-jpr-rosa-t6b2-openshift-image-registry-installer-cloud-crede",
+          "service_account": ""
+        },
+        {
+          "id": "",
+          "name": "cloud-credentials",
+          "namespace": "openshift-ingress-operator",
+          "role_arn": "arn:aws:iam::249118421612:role/tst-jpr-rosa-t6b2-openshift-ingress-operator-cloud-credentials",
+          "service_account": ""
+        },
+        {
+          "id": "",
+          "name": "ebs-cloud-credentials",
+          "namespace": "openshift-cluster-csi-drivers",
+          "role_arn": "arn:aws:iam::249118421612:role/tst-jpr-rosa-t6b2-openshift-cluster-csi-drivers-ebs-cloud-creden",
+          "service_account": ""
+        }
+      ],
+      "instance_iam_roles": {
+        "master_role_arn": "arn:aws:iam::249118421612:role/ManagedOpenShift-ControlPlane-Role",
+        "worker_role_arn": "arn:aws:iam::249118421612:role/ManagedOpenShift-Worker-Role"
+      }
+    },
+    "tags": {
+      "red-hat-clustertype": "rosa",
+      "red-hat-managed": "true"
+    }
+  },
+  "dns": {
+    "base_domain": "wrr0.p1.openshiftapps.com"
+  },
+  "network": {
+    "type": "OpenShiftSDN",
+    "machine_cidr": "10.0.0.0/16",
+    "service_cidr": "172.30.0.0/16",
+    "pod_cidr": "10.128.0.0/14",
+    "host_prefix": 23
+  },
+  "external_configuration": {
+    "kind": "ExternalConfiguration",
+    "href": "/api/clusters_mgmt/v1/clusters/rosa-cluster-id/external_configuration",
+    "syncsets": {
+      "kind": "SyncsetListLink",
+      "href": "/api/clusters_mgmt/v1/clusters/rosa-cluster-id/external_configuration/syncsets"
+    },
+    "labels": {
+      "kind": "LabelListLink",
+      "href": "/api/clusters_mgmt/v1/clusters/rosa-cluster-id/external_configuration/labels"
+    }
+  },
+  "multi_az": false,
+  "managed": true,
+  "ccs": {
+    "enabled": true,
+    "disable_scp_checks": false
+  },
+  "version": {
+    "kind": "Version",
+    "id": "openshift-v4.10.5",
+    "href": "/api/clusters_mgmt/v1/versions/openshift-v4.10.5",
+    "raw_id": "4.10.5",
+    "channel_group": "stable",
+    "end_of_life_timestamp": "2022-12-10T00:00:00Z"
+  },
+  "identity_providers": {
+    "kind": "IdentityProviderListLink",
+    "href": "/api/clusters_mgmt/v1/clusters/rosa-cluster-id/identity_providers"
+  },
+  "aws_infrastructure_access_role_grants": {
+    "kind": "AWSInfrastructureAccessRoleGrantLink",
+    "href": "/api/clusters_mgmt/v1/clusters/rosa-cluster-id/aws_infrastructure_access_role_grants"
+  },
+  "addons": {
+    "kind": "AddOnInstallationListLink",
+    "href": "/api/clusters_mgmt/v1/clusters/rosa-cluster-id/addons"
+  },
+  "ingresses": {
+    "kind": "IngressListLink",
+    "href": "/api/clusters_mgmt/v1/clusters/rosa-cluster-id/ingresses",
+    "id": "rosa-cluster-id"
+  },
+  "machine_pools": {
+    "kind": "MachinePoolListLink",
+    "href": "/api/clusters_mgmt/v1/clusters/rosa-cluster-id/machine_pools"
+  },
+  "product": {
+    "kind": "ProductLink",
+    "id": "rosa",
+    "href": "/api/clusters_mgmt/v1/products/rosa"
+  },
+  "status": {
+    "state": "ready",
+    "dns_ready": true,
+    "oidc_ready": true,
+    "provision_error_message": "",
+    "provision_error_code": "",
+    "configuration_mode": "full"
+  },
+  "node_drain_grace_period": {
+    "value": 60,
+    "unit": "minutes"
+  },
+  "etcd_encryption": false,
+  "billing_model": "standard",
+  "disable_user_workload_monitoring": false,
+  "managed_service": {
+    "enabled": false
+  }
+}
