@@ -2446,30 +2446,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         output_value = '${' + aws_s3_bucket_acl.acl + '}'
         tf_resources.append(Output(output_name_0_13, value=output_value))
 
-        # bucket policy for standard logging to cloudfront
-        values = {}
-        values['bucket'] = identifier
-        policy = {
-            "Version": "2012-10-17",
-            "Statement": [
-                {
-                    "Sid": "Grant access to CloudFront Origin Identity",
-                    "Effect": "Allow",
-                    "Principal": {
-                        "CanonicalUser": "${" + aws_s3_bucket_acl.acl + "}"
-                    },
-                    "Action": "s3:*",
-                    "Resource":
-                        [f"arn:aws:s3:::{identifier}/{enable_dir}/*"
-                         for enable_dir
-                         in common_values.get('get_object_enable_dirs', [])]
-                }
-            ]
-        }
-        values['policy'] = json.dumps(policy, sort_keys=True)
-        values['depends_on'] = self.get_dependencies([bucket_tf_resource])
-        region = common_values.get('region') or \
-            self.default_regions.get(account)
         if self._multiregion_account(account):
             values['provider'] = 'aws.' + region
         bucket_policy_tf_resource = aws_s3_bucket_policy(identifier, **values)
