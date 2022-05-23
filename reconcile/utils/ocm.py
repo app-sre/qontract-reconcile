@@ -62,9 +62,6 @@ OCM_PRODUCT_OSD = "osd"
 OCM_PRODCUT_ROSA = "rosa"
 
 
-SUPPORTED_OCM_PRODUCTS = [OCM_PRODUCT_OSD, OCM_PRODCUT_ROSA]
-
-
 class OCMProduct:
 
     ALLOWED_SPEC_UPDATE_FIELDS: set[str]
@@ -536,7 +533,7 @@ class OCM:  # pylint: disable=too-many-public-methods
         return (
             cluster["managed"]
             and cluster["state"] == STATUS_READY
-            and cluster["product"]["id"] in SUPPORTED_OCM_PRODUCTS
+            and cluster["product"]["id"] in OCM_PRODUCTS_IMPL
         )
 
     def _init_clusters(self, init_provision_shards):
