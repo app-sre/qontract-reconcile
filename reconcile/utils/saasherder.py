@@ -1386,7 +1386,7 @@ class SaasHerder:
                 "cluster_name": cluster_name,
                 "namespace_name": namespace_name,
                 "target_config": desired_target_config,
-                "reason": f"app-interface:{RunningState().commit}",
+                "reason": f"{self.settings['instanceUrl']}/commit/{RunningState().commit}",
             }
             trigger_specs.append(job_spec)
         return trigger_specs

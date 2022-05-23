@@ -15,6 +15,7 @@ from reconcile.utils import gql
 APP_INTERFACE_SETTINGS_QUERY = """
 {
   settings: app_interface_settings_v1 {
+    instanceUrl
     vault
     kubeBinary
     mergeRequestGateway
