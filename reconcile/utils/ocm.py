@@ -10,7 +10,7 @@ import requests
 from reconcile.utils.secret_reader import SecretReader
 from sretoolbox.utils import retry
 
-from reconcile.ocm.types import (
+from reconcile.ocm.types import (  # type: ignore
     OCMSpec,
     OSDClusterSpec,
     OCMClusterAutoscale,

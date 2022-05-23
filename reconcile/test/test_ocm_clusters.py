@@ -1,6 +1,6 @@
 import pytest
 
-from reconcile.ocm.types import (
+from reconcile.ocm.types import (  # type: ignore
     OCMClusterNetwork,
     OCMSpec,
     OSDClusterSpec,
