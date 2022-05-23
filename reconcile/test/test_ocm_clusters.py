@@ -160,7 +160,7 @@ def ocm_mock(ocm_secrets_reader):
 @pytest.fixture
 def cluster_updates_mr_mock():
     with patch.object(mr_client_gateway, "init", autospec=True):
-        with patch.object(CreateClustersUpdates, "__new__", autospec=True) as ccu:
+        with patch.object(CreateClustersUpdates, "submit", autospec=True) as ccu:
             yield ccu
 
 
