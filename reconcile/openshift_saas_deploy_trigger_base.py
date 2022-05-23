@@ -57,6 +57,7 @@ def run(
         use_jump_host=use_jump_host,
         integration=integration,
         integration_version=integration_version,
+        include_trigger_trace=include_trigger_trace,
     )
     if error:
         return error
@@ -80,14 +81,20 @@ def run(
         trigger_type=trigger_type,
         integration=integration,
         integration_version=integration_version,
-        include_trigger_trace=include_trigger_trace,
     )
     errors.append(diff_err)
 
     return any(errors)
 
 
-def setup(thread_pool_size, internal, use_jump_host, integration, integration_version):
+def setup(
+    thread_pool_size,
+    internal,
+    use_jump_host,
+    integration,
+    integration_version,
+    include_trigger_trace,
+):
     """Setup required resources for triggering integrations
 
     Args:
@@ -96,6 +103,7 @@ def setup(thread_pool_size, internal, use_jump_host, integration, integration_ve
         use_jump_host (bool): Should use jump host to reach clusters
         integration (string): Name of calling integration
         integration_version (string): Version of calling integration
+        include_trigger_trace (bool): Should include traces of the triggering integration and reason
 
     Returns:
         saasherder (SaasHerder): a SaasHerder instance
@@ -148,6 +156,7 @@ def setup(thread_pool_size, internal, use_jump_host, integration, integration_ve
         settings=settings,
         jenkins_map=jenkins_map,
         accounts=accounts,
+        include_trigger_trace=include_trigger_trace,
     )
 
     return saasherder, jenkins_map, oc_map, settings, False
@@ -164,7 +173,6 @@ def trigger(
     trigger_type,
     integration,
     integration_version,
-    include_trigger_trace,
 ):
     """Trigger a deployment according to the specified pipelines provider
 
@@ -180,7 +188,6 @@ def trigger(
         trigger_type (string): Indicates which method to call to update state
         integration (string): Name of calling integration
         integration_version (string): Version of calling integration
-        include_trigger_trace (bool): Should include traces of the triggering integration and reason
 
     Returns:
         bool: True if there was an error, False otherwise
@@ -202,7 +209,6 @@ def trigger(
             trigger_type,
             integration,
             integration_version,
-            include_trigger_trace,
             reason,
         )
     else:
@@ -221,7 +227,6 @@ def _trigger_tekton(
     trigger_type,
     integration,
     integration_version,
-    include_trigger_trace,
     reason,
 ):
     # TODO: Convert these into a dataclass.
@@ -269,7 +274,7 @@ def _trigger_tekton(
         tkn_namespace_name,
         integration,
         integration_version,
-        include_trigger_trace,
+        saasherder.include_trigger_trace,
         reason,
     )
 

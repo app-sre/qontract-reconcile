@@ -75,6 +75,7 @@ class SaasHerder:
         jenkins_map=None,
         accounts=None,
         validate=False,
+        include_trigger_trace=False,
     ):
         self.saas_files = saas_files
         self.repo_urls = self._collect_repo_urls()
@@ -90,6 +91,7 @@ class SaasHerder:
         self.secret_reader = SecretReader(settings=settings)
         self.namespaces = self._collect_namespaces()
         self.jenkins_map = jenkins_map
+        self.include_trigger_trace = include_trigger_trace
         # each namespace is in fact a target,
         # so we can use it to calculate.
         divisor = len(self.namespaces) or 1
