@@ -4,7 +4,6 @@ from reconcile.ocm.types import (
     OCMClusterNetwork,
     OCMSpec,
     OSDClusterSpec,
-    ROSAClusterSpec,
 )
 from unittest.mock import patch
 from reconcile.utils.ocm import OCMMap, OCM
