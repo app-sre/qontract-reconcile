@@ -139,6 +139,8 @@ Additional tools that use the libraries created by the reconciliations are also 
   quay-mirror-org                 Mirrors entire Quay orgs.
   quay-permissions                Manage permissions for Quay Repositories.
   quay-repos                      Creates and Manages Quay Repos.
+  query-validator                 Validate queries to maintain consumer schema
+                                  compatibility.
   requests-sender                 Send emails to users based on requests
                                   submitted to app-interface.
   saas-file-owners                Manages labels on merge requests based on
