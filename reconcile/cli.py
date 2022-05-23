@@ -105,6 +105,7 @@ import reconcile.kafka_clusters
 import reconcile.terraform_aws_route53
 import reconcile.prometheus_rules_tester
 import reconcile.template_tester
+import reconcile.query_validator
 import reconcile.dashdotdb_dvo
 import reconcile.sendgrid_teammates
 import reconcile.osd_mirrors_data_updater
@@ -1738,6 +1739,14 @@ def prometheus_rules_tester(ctx, thread_pool_size, cluster_name):
 @click.pass_context
 def template_tester(ctx):
     run_integration(reconcile.template_tester, ctx.obj)
+
+
+@integration.command(
+    short_help="Validate queries to maintain consumer schema compatibility."
+)
+@click.pass_context
+def query_validator(ctx):
+    run_integration(reconcile.query_validator, ctx.obj)
 
 
 @integration.command(short_help="Manages SendGrid teammates for a given account.")
