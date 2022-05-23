@@ -555,6 +555,11 @@ CLUSTERS_QUERY = """
     }
     %s
     spec {
+      product
+      ... on ClusterSpecOSD_v1 {
+        storage
+        load_balancers
+      }
       id
       external_id
       provider
@@ -565,8 +570,6 @@ CLUSTERS_QUERY = """
       multi_az
       nodes
       instance_type
-      storage
-      load_balancers
       private
       provision_shard_id
       autoscale {
