@@ -1191,8 +1191,9 @@ class SaasHerder:
                         "namespace_name": namespace_name,
                         "ref": ref,
                         "commit_sha": desired_commit_sha,
-                        "reason": f"{url}/commit/{desired_commit_sha}",
                     }
+                    if self.include_trigger_trace:
+                        job_spec["reason"] = f"{url}/commit/{desired_commit_sha}"
                     trigger_specs.append(job_spec)
                 except (GithubException, GitlabError):
                     logging.exception(
@@ -1313,8 +1314,9 @@ class SaasHerder:
                         "instance_name": instance_name,
                         "job_name": job_name,
                         "last_build_result": last_build_result,
-                        "reason": f"{upstream['instance']['serverUrl']}/job/{job_name}/{last_build_result_number}",
                     }
+                    if self.include_trigger_trace:
+                        job_spec["reason"] = f"{upstream['instance']['serverUrl']}/job/{job_name}/{last_build_result_number}"
                     trigger_specs.append(job_spec)
 
         return trigger_specs
@@ -1386,8 +1388,9 @@ class SaasHerder:
                 "cluster_name": cluster_name,
                 "namespace_name": namespace_name,
                 "target_config": desired_target_config,
-                "reason": f"{self.settings['instanceUrl']}/commit/{RunningState().commit}",
             }
+            if self.include_trigger_trace:
+                job_spec["reason"] = f"{self.settings['instanceUrl']}/commit/{RunningState().commit}"
             trigger_specs.append(job_spec)
         return trigger_specs
 

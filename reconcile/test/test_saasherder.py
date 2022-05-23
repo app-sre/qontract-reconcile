@@ -339,6 +339,51 @@ class TestGetMovingCommitsDiffSaasFile(TestCase):
                 "pipelines_provider": "apipelineprovider",
                 "namespace_name": "ns",
                 "rt_name": "rt",
+            },
+            {
+                "saas_file_name": self.saas_files[0]["name"],
+                "env_name": "env2",
+                "timeout": None,
+                "ref": "secondary",
+                "commit_sha": "4242efg",
+                "cluster_name": "cluster2",
+                "pipelines_provider": "apipelineprovider",
+                "namespace_name": "ns",
+                "rt_name": "rt",
+            },
+        ]
+
+        self.assertEqual(
+            saasherder.get_moving_commits_diff_saas_file(self.saas_files[0], True),
+            expected,
+        )
+
+    def test_get_moving_commits_diff_saas_file_all_fine_include_trigger_trace(self):
+        saasherder = SaasHerder(
+            self.saas_files,
+            thread_pool_size=1,
+            gitlab=None,
+            integration="",
+            integration_version="",
+            settings={},
+            validate=False,
+            include_trigger_trace=True,
+        )
+        saasherder.state = MagicMock()
+        saasherder.state.get.return_value = "asha"
+        self.get_commit_sha.side_effect = ("abcd4242", "4242efg")
+        self.get_pipelines_provider.return_value = "apipelineprovider"
+        expected = [
+            {
+                "saas_file_name": self.saas_files[0]["name"],
+                "env_name": "env1",
+                "timeout": None,
+                "ref": "main",
+                "commit_sha": "abcd4242",
+                "cluster_name": "cluster1",
+                "pipelines_provider": "apipelineprovider",
+                "namespace_name": "ns",
+                "rt_name": "rt",
                 "reason": "http://github.com/user/repo/commit/abcd4242",
             },
             {
