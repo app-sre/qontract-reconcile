@@ -4576,8 +4576,15 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         pool_args = common_values.get("user_pool_properties", None)
         pool_client_args = common_values.get("user_pool_client_properties", None)
+        rest_api_args = common_values.get("rest_api_properties", None)
+        gateway_args = common_values.get("gateway_resource_properties", None)
+        gateway_authorizer_args = common_values.get("gateway_authorizer_properties", None)
+        gateway_method_args = common_values.get("gateway_method_properties", None)
+        integration_args = common_values.get("integration_properties", None)
 
-        if pool_args and pool_client_args:
+        if pool_args and pool_client_args and rest_api_args and gateway_args and \
+           gateway_method_args and gateway_authorizer_args and integration_args:
+
             pool_args_values = self.get_values('pool_args')
             cognito_user_pool_resource = aws_cognito_user_pool(
                 "pool",
@@ -4600,31 +4607,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 **pool_client_args_values
             )
             tf_resources.append(cognito_user_pool_client)
-        self.add_resources(account, tf_resources)
-
-    def populate_tf_resource_api_gateway(self, resource, namespace_info):
-        account, identifier, common_values, output_prefix, \
-            output_resource_name, annotations = \
-            self.init_values(resource, namespace_info)
-
-        tf_resources = []
-
-        self.init_common_outputs(tf_resources, namespace_info, output_prefix,
-                                 output_resource_name, annotations)
-
-        # FIXME
-        # I need to find an example of this pattern. Creating a dependent resource in an outside
-        # provider and referencing it here
-        cognito_user_pool_arn = "foobar"
-
-        rest_api_args = common_values.get("rest_api_properties", None)
-        gateway_args = common_values.get("gateway_resource_properties", None)
-        gateway_authorizer_args = common_values.get("gateway_authorizer_properties", None)
-        gateway_method_args = common_values.get("gateway_method_properties", None)
-        integration_args = common_values.get("integration_properties", None)
-
-        if rest_api_args and gateway_args and gateway_method_args and \
-           gateway_authorizer_args and integration_args:
 
             rest_api_args_values = self.get_values("rest_api_properties")
             api_gateway_rest_api_resource = aws_api_gateway_rest_api(
@@ -4647,7 +4629,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 "gw_authorizer",
                 name=f'{identifier}-authorizer',
                 rest_api_id=api_gateway_rest_api_resource.id,
-                provider_arns=[cognito_user_pool_arn],  # FIXME
+                provider_arns=[cognito_user_pool_resource.arn],
                 **gateway_authorizer_args_values
             )
             tf_resources.append(api_gateway_authorizer_resource)
@@ -4700,8 +4682,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             )
             tf_resources.append(api_gateway_vpc_link_resource)
 
-            # No new resources added below this line, just code updates around values.
-
             api_gateway_stage_resource = aws_api_gateway_stage(
                 "gw_stage",
                 deployment_id=api_gateway_deployment_resource.id,
@@ -4710,7 +4690,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             )
             tf_resources.append(api_gateway_stage_resource)
 
-            # hardcoding VPC_LINK re:
             # https://gitlab.cee.redhat.com/service/app-interface/-/merge_requests/38690#note_4123843
             integration_args_values = self.get_values("integration_properties")
             api_gateway_integration_resource = aws_api_gateway_integration(
@@ -4723,4 +4702,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 **integration_args_values
             )
             tf_resources.append(api_gateway_integration_resource)
+
+
         self.add_resources(account, tf_resources)
