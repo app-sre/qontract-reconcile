@@ -193,6 +193,11 @@ class OCProcessReconcileTimeDecoratorMsg:
         self.is_log_slow_oc_reconcile = is_log_slow_oc_reconcile
 
 
+def oc_process(template, parameters=None):
+    oc = OCNative(server=None, local=True, cluster_name="cluster", token=None)
+    return oc.process(template, parameters)
+
+
 class OCDeprecated:  # pylint: disable=too-many-public-methods
     def __init__(
         self,

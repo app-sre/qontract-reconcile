@@ -211,6 +211,7 @@ INTEGRATIONS_QUERY = """
           }
         }
         shards
+        shardingStrategy
         sleepDurationSecs
         state
         storage
