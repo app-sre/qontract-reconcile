@@ -2410,47 +2410,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         bucket_policy_tf_resource = aws_s3_bucket_policy(identifier, **values)
         tf_resources.append(bucket_policy_tf_resource)
 
-        # aws_s3_bucket_acl
-        values = {}
-        values['name'] = identifier
-        values['tags'] = common_values['tags']
-
-        aws_s3_bucket_acl_resource = aws_s3_bucket_acl(identifier, **values)
-        tf_resources.append(aws_s3_bucket_acl_resource)
-
-        access_control_policy = {
-            'grant': {
-                'grantee': {
-                    'id': '${' + aws_s3_bucket_acl_resource.id + '}',
-                    'type': '${' + aws_s3_bucket_acl_resource.type + '}'
-                },
-                'permission': 'READ'
-            }
-        }
-        grant = {
-            'grantee': '${' + aws_s3_bucket_acl_resource.grantee + '}',
-            'permission': '${' + aws_s3_bucket_acl_resource.permission + '}'
-        }
-        owner = {
-            'id': '${' + aws_s3_bucket_acl_resource.id + '}'
-        }
-
-        values['access_control_policy'] = access_control_policy
-        values['grant'] = grant
-        values['owner'] = owner
-
-        aws_s3_bucket_acl_resource = aws_s3_bucket_acl(identifier, **values)
-        tf_resources.append(aws_s3_bucket_acl_resource)
-
-        output_name_0_13 = output_prefix + '__acl'
-        output_value = '${' + aws_s3_bucket_acl.acl + '}'
-        tf_resources.append(Output(output_name_0_13, value=output_value))
-
-        if self._multiregion_account(account):
-            values['provider'] = 'aws.' + region
-        bucket_policy_tf_resource = aws_s3_bucket_policy(identifier, **values)
-        tf_resources.append(bucket_policy_tf_resource)
-
         # cloud front distribution
         values = common_values.get('distribution_config', {})
         values['tags'] = common_values['tags']
@@ -2495,6 +2454,48 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         output_value = 'origin-access-identity/cloudfront/' + \
             '${' + cf_oai_tf_resource.id + '}'
         tf_resources.append(Output(output_name_0_13, value=output_value))
+
+        # aws_s3_bucket_acl
+        if cf_distribution_tf_resource.logging_config:
+            values = {}
+            values['name'] = identifier
+            values['tags'] = common_values['tags']
+
+            aws_s3_bucket_acl_resource = aws_s3_bucket_acl(identifier, **values)
+            tf_resources.append(aws_s3_bucket_acl_resource)
+
+            access_control_policy = {
+                'grant': {
+                    'grantee': {
+                        'id': '${' + aws_s3_bucket_acl_resource.id + '}',
+                        'type': '${' + aws_s3_bucket_acl_resource.type + '}'
+                    },
+                    'permission': 'READ'
+                }
+            }
+            grant = {
+                'grantee': '${' + aws_s3_bucket_acl_resource.grantee + '}',
+                'permission': '${' + aws_s3_bucket_acl_resource.permission + '}'
+            }
+            owner = {
+                'id': '${' + aws_s3_bucket_acl_resource.id + '}'
+            }
+
+            values['access_control_policy'] = access_control_policy
+            values['grant'] = grant
+            values['owner'] = owner
+
+            aws_s3_bucket_acl_resource = aws_s3_bucket_acl(identifier, **values)
+            tf_resources.append(aws_s3_bucket_acl_resource)
+
+            output_name_0_13 = output_prefix + '__acl'
+            output_value = '${' + aws_s3_bucket_acl.acl + '}'
+            tf_resources.append(Output(output_name_0_13, value=output_value))
+
+            if self._multiregion_account(account):
+                values['provider'] = 'aws.' + region
+            bucket_policy_tf_resource = aws_s3_bucket_policy(identifier, **values)
+            tf_resources.append(bucket_policy_tf_resource)
 
         self.add_resources(account, tf_resources)
 
