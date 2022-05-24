@@ -88,6 +88,8 @@ from terrascript.resource import (
     aws_api_gateway_stage,
     aws_api_gateway_integration,
     aws_api_gateway_vpc_link,
+    aws_wafv2_web_acl,
+    aws_wafv2_web_acl_association,
     random_id,
 )
 # temporary to create aws_ecrpublic_repository
@@ -4581,9 +4583,11 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         gateway_authorizer_args = common_values.get("gateway_authorizer_properties", None)
         gateway_method_args = common_values.get("gateway_method_properties", None)
         integration_args = common_values.get("integration_properties", None)
+        waf_acl_args = common_values.get("waf_acl_properties", None)
 
         if pool_args and pool_client_args and rest_api_args and gateway_args and \
-           gateway_method_args and gateway_authorizer_args and integration_args:
+           gateway_method_args and gateway_authorizer_args and integration_args and \
+           waf_acl_args:
 
             pool_args_values = self.get_values('pool_args')
             cognito_user_pool_resource = aws_cognito_user_pool(
@@ -4703,5 +4707,19 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             )
             tf_resources.append(api_gateway_integration_resource)
 
+            waf_acl_args_values = self.get_values("waf_acl_properties")
+            waf_acl_resource = aws_wafv2_web_acl(
+                "api_waf",
+                name=f'{organization_name}-waf',
+                **waf_acl_args_values
+            )
+            tf_resources.append(waf_acl_resource)
+
+            waf_acl_association_resource = aws_wafv2_web_acl_association(
+                "api_waf_association",
+                resource_arn=api_gateway_stage_resource.arn,
+                web_acl_arn=waf_acl_resource.arn
+            )
+            tf_resources.append(waf_acl_association_resource)
 
         self.add_resources(account, tf_resources)
