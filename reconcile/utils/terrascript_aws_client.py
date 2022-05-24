@@ -1015,10 +1015,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                                           existing_secrets)
         elif provider == 'route53-zone':
             self.populate_tf_resource_route53_zone(resource, namespace_info)
-        elif provider == 'cognito':
-            self.populate_tf_resource_cognito(resource, namespace_info)
-        elif provider == 'api-gateway':
-            self.populate_tf_resource_api_gateway(resource, namespace_info)
+        elif provider == 'rosa-authentication':
+            self.populate_tf_resource_rosa_authentication(resource, namespace_info)
         else:
             raise UnknownProviderError(provider)
 
@@ -4526,7 +4524,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         self.add_resources(account, tf_resources)
 
-    def populate_tf_resource_cognito(self, resource, namespace_info):
+    def populate_tf_resource_rosa_authentication(self, resource, namespace_info):
         account, identifier, common_values, output_prefix, \
             output_resource_name, annotations = \
             self.init_values(resource, namespace_info)
