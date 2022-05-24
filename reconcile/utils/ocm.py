@@ -545,7 +545,6 @@ class OCM:  # pylint: disable=too-many-public-methods
         self.cluster_ids = {c["name"]: c["id"] for c in clusters}
 
         self.clusters: dict[str, OCMSpec] = {}
-        # self.clusters_ocm_impl: dict[str, Type[OCMProduct]] = {}
         self.not_ready_clusters: set[str] = {}
 
         for c in clusters:
@@ -562,7 +561,6 @@ class OCM:  # pylint: disable=too-many-public-methods
     ) -> OCMSpec:
 
         product = cluster["product"]["id"]
-        # impl = self.get_product_impl(product)
         impl = OCM_PRODUCTS_IMPL[product]
         spec = impl.get_ocm_spec(self, cluster, init_provision_shards)
         return spec
