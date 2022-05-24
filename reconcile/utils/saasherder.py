@@ -1316,7 +1316,9 @@ class SaasHerder:
                         "last_build_result": last_build_result,
                     }
                     if self.include_trigger_trace:
-                        job_spec["reason"] = f"{upstream['instance']['serverUrl']}/job/{job_name}/{last_build_result_number}"
+                        job_spec[
+                            "reason"
+                        ] = f"{upstream['instance']['serverUrl']}/job/{job_name}/{last_build_result_number}"
                     trigger_specs.append(job_spec)
 
         return trigger_specs
@@ -1390,7 +1392,9 @@ class SaasHerder:
                 "target_config": desired_target_config,
             }
             if self.include_trigger_trace:
-                job_spec["reason"] = f"{self.settings['instanceUrl']}/commit/{RunningState().commit}"
+                job_spec[
+                    "reason"
+                ] = f"{self.settings['instanceUrl']}/commit/{RunningState().commit}"
             trigger_specs.append(job_spec)
         return trigger_specs
 
