@@ -20,6 +20,7 @@ from sretoolbox.utils import retry
 from sretoolbox.utils import threaded
 
 from reconcile.github_org import get_default_config
+from reconcile.status import RunningState
 from reconcile.utils.mr.auto_promoter import AutoPromoter
 from reconcile.utils.oc import OC, StatusCodeError
 from reconcile.utils.openshift_resource import (
@@ -74,6 +75,7 @@ class SaasHerder:
         jenkins_map=None,
         accounts=None,
         validate=False,
+        include_trigger_trace=False,
     ):
         self.saas_files = saas_files
         self.repo_urls = self._collect_repo_urls()
@@ -89,6 +91,7 @@ class SaasHerder:
         self.secret_reader = SecretReader(settings=settings)
         self.namespaces = self._collect_namespaces()
         self.jenkins_map = jenkins_map
+        self.include_trigger_trace = include_trigger_trace
         # each namespace is in fact a target,
         # so we can use it to calculate.
         divisor = len(self.namespaces) or 1
@@ -1189,6 +1192,8 @@ class SaasHerder:
                         "ref": ref,
                         "commit_sha": desired_commit_sha,
                     }
+                    if self.include_trigger_trace:
+                        job_spec["reason"] = f"{url}/commit/{desired_commit_sha}"
                     trigger_specs.append(job_spec)
                 except (GithubException, GitlabError):
                     logging.exception(
@@ -1310,6 +1315,10 @@ class SaasHerder:
                         "job_name": job_name,
                         "last_build_result": last_build_result,
                     }
+                    if self.include_trigger_trace:
+                        job_spec[
+                            "reason"
+                        ] = f"{upstream['instance']['serverUrl']}/job/{job_name}/{last_build_result_number}"
                     trigger_specs.append(job_spec)
 
         return trigger_specs
@@ -1382,6 +1391,10 @@ class SaasHerder:
                 "namespace_name": namespace_name,
                 "target_config": desired_target_config,
             }
+            if self.include_trigger_trace:
+                job_spec[
+                    "reason"
+                ] = f"{self.settings['repoUrl']}/commit/{RunningState().commit}"
             trigger_specs.append(job_spec)
         return trigger_specs
 
