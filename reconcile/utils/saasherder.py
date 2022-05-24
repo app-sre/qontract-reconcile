@@ -1394,7 +1394,7 @@ class SaasHerder:
             if self.include_trigger_trace:
                 job_spec[
                     "reason"
-                ] = f"{self.settings['instanceUrl']}/commit/{RunningState().commit}"
+                ] = f"{self.settings['repoUrl']}/commit/{RunningState().commit}"
             trigger_specs.append(job_spec)
         return trigger_specs
 
