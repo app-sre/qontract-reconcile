@@ -62,7 +62,7 @@ class OpenshiftResource:
     def __eq__(self, other):
         return self.obj_intersect_equal(self.body, other.body)
 
-    def obj_intersect_equal(self, obj1, obj2):
+    def obj_intersect_equal(self, obj1, obj2, depth=0):
         # obj1 == d_item
         # obj2 == c_item
         if obj1.__class__ != obj2.__class__:
@@ -78,6 +78,8 @@ class OpenshiftResource:
                     pass
                 elif self.ignorable_key_value_pair(obj1_k, obj1_v):
                     pass
+                elif depth == 0 and obj1_k == "status":
+                    pass
                 elif obj1_k == "labels":
                     diff = [
                         k
@@ -87,7 +89,7 @@ class OpenshiftResource:
                             self.kind, k
                         )
                     ]
-                    if diff or not self.obj_intersect_equal(obj1_v, obj2_v):
+                    if diff or not self.obj_intersect_equal(obj1_v, obj2_v, depth + 1):
                         return False
                 elif obj1_k in ["data", "matchLabels"]:
                     diff = [
@@ -95,13 +97,13 @@ class OpenshiftResource:
                         for k in obj2_v
                         if k not in obj1_v and k not in IGNORABLE_DATA_FIELDS
                     ]
-                    if diff or not self.obj_intersect_equal(obj1_v, obj2_v):
+                    if diff or not self.obj_intersect_equal(obj1_v, obj2_v, depth + 1):
                         return False
                 elif obj1_k == "env":
                     for v in obj2_v:
                         if "name" in v and len(v) == 1:
                             v["value"] = ""
-                    if not self.obj_intersect_equal(obj1_v, obj2_v):
+                    if not self.obj_intersect_equal(obj1_v, obj2_v, depth + 1):
                         return False
                 elif obj1_k == "cpu":
                     equal = self.cpu_equal(obj1_v, obj2_v)
@@ -114,16 +116,16 @@ class OpenshiftResource:
                 elif obj1_k == "imagePullSecrets":
                     # remove default pull secrets added by k8s
                     obj2_v_clean = [s for s in obj2_v if "-dockercfg-" not in s["name"]]
-                    if not self.obj_intersect_equal(obj1_v, obj2_v_clean):
+                    if not self.obj_intersect_equal(obj1_v, obj2_v_clean, depth + 1):
                         return False
-                elif not self.obj_intersect_equal(obj1_v, obj2_v):
+                elif not self.obj_intersect_equal(obj1_v, obj2_v, depth + 1):
                     return False
 
         elif isinstance(obj1, list):
             if len(obj1) != len(obj2):
                 return False
             for index, item in enumerate(obj1):
-                if not self.obj_intersect_equal(item, obj2[index]):
+                if not self.obj_intersect_equal(item, obj2[index], depth + 1):
                     return False
 
         elif obj1 != obj2:
@@ -140,7 +142,6 @@ class OpenshiftResource:
             "generation",
             "selfLink",
             "uid",
-            "status",
             "fieldRef",
         ]
         if val in ignorable_fields:
