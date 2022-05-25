@@ -4,6 +4,7 @@ import pytest
 
 import reconcile.integrations_manager as intop
 from reconcile.utils.openshift_resource import ResourceInventory
+from reconcile.utils.runtime.meta import IntegrationMeta
 
 
 def test_construct_values_file_empty():
@@ -287,7 +288,14 @@ def shard_manager() -> intop.IntegrationShardManager:
             {"name": "acc-2", "disable": {"integrations": None}},
             {"name": "acc-3", "disable": {"integrations": []}},
             {"name": "acc-4", "disable": {"integrations": ["integ1"]}},
-        ]
+        ],
+        integration_runtime_meta={
+            "integ1": IntegrationMeta(
+                name="integ1", short_help="", args=["--arg", "--account-name"]
+            ),
+            "integ2": IntegrationMeta(name="integ2", short_help="", args=["--arg"]),
+            "integ3": IntegrationMeta(name="integ3", short_help="", args=[]),
+        },
     )
 
 
@@ -306,6 +314,15 @@ def test_shard_manager_aws_account_filtering_disabled(
     assert ["acc-1", "acc-2", "acc-3"] == [
         a["name"] for a in shard_manager._aws_accounts_for_integration("integ1")
     ]
+
+
+def test_shard_manager_supported_args(
+    shard_manager: intop.IntegrationShardManager,
+):
+    assert shard_manager._integration_supports_arg("integ1", "--account-name")
+    assert not shard_manager._integration_supports_arg(
+        "integ1", "--something-unsupported"
+    )
 
 
 @pytest.fixture

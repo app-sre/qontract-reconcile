@@ -13,6 +13,7 @@ from reconcile.utils import helm
 from reconcile import queries
 from reconcile.status import ExitCodes
 from reconcile.utils.oc import oc_process
+from reconcile.utils.runtime.meta import IntegrationMeta
 from reconcile.utils.semver_helper import make_semver
 from reconcile.github_org import GH_BASE_URL, get_default_config
 from reconcile.utils.openshift_resource import OpenshiftResource, ResourceInventory
@@ -27,6 +28,7 @@ QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 class IntegrationShardManager:
 
     aws_accounts: list[dict[str, Any]]
+    integration_runtime_meta: dict[str, IntegrationMeta]
 
     def build_integration_shards(
         self, integration: str, spec: Mapping[str, Any]
@@ -34,20 +36,27 @@ class IntegrationShardManager:
         extra_args = spec["extraArgs"] or ""
         sharding_strategy = spec.get("shardingStrategy") or "static"
         if sharding_strategy == "per-aws-account":
-            filtered_accounts = self._aws_accounts_for_integration(integration)
-            return [
-                {
-                    "shard_id": shard_id,
-                    "shards": len(filtered_accounts),
-                    "shard_name_suffix": f"-{account['name']}"
-                    if len(filtered_accounts) > 1
-                    else "",
-                    "extra_args": " ".join(
-                        a for a in [extra_args, "--account-name", account["name"]] if a
-                    ),
-                }
-                for shard_id, account in enumerate(filtered_accounts)
-            ]
+            if self._integration_supports_arg(integration, "--account-name"):
+                filtered_accounts = self._aws_accounts_for_integration(integration)
+                return [
+                    {
+                        "shard_id": shard_id,
+                        "shards": len(filtered_accounts),
+                        "shard_name_suffix": f"-{account['name']}"
+                        if len(filtered_accounts) > 1
+                        else "",
+                        "extra_args": " ".join(
+                            a
+                            for a in [extra_args, "--account-name", account["name"]]
+                            if a
+                        ),
+                    }
+                    for shard_id, account in enumerate(filtered_accounts)
+                ]
+            else:
+                raise ValueError(
+                    f"integration {integration} does not support arg --account-name required by the per-aws-account sharding strategy"
+                )
         elif sharding_strategy == "static":
             shards = spec.get("shards") or 1
             return [
@@ -70,6 +79,9 @@ class IntegrationShardManager:
             or "integrations" not in a["disable"]
             or integration not in (a["disable"]["integrations"] or [])
         ]
+
+    def _integration_supports_arg(self, integration, arg):
+        return arg in self.integration_runtime_meta[integration].args
 
 
 def construct_values_file(
@@ -185,6 +197,7 @@ def collect_namespaces(
 def run(
     dry_run,
     environment_name,
+    integration_runtime_meta: dict[str, IntegrationMeta],
     thread_pool_size=10,
     internal=None,
     use_jump_host=True,
@@ -208,7 +221,10 @@ def run(
         use_jump_host=use_jump_host,
     )
     defer(oc_map.cleanup)
-    shard_manager = IntegrationShardManager(aws_accounts=queries.get_aws_accounts())
+    shard_manager = IntegrationShardManager(
+        aws_accounts=queries.get_aws_accounts(),
+        integration_runtime_meta=integration_runtime_meta,
+    )
     initialize_shard_specs(namespaces, shard_manager)
     fetch_desired_state(namespaces, ri, image_tag_from_ref)
     ob.realize_data(dry_run, oc_map, ri, thread_pool_size)
