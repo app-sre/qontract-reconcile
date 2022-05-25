@@ -78,6 +78,8 @@ class OpenshiftResource:
                     pass
                 elif self.ignorable_key_value_pair(obj1_k, obj1_v):
                     pass
+                elif depth == 0 and obj1_k == "status":
+                    pass
                 elif obj1_k == "labels":
                     diff = [
                         k
@@ -140,7 +142,6 @@ class OpenshiftResource:
             "generation",
             "selfLink",
             "uid",
-            "status",
             "fieldRef",
         ]
         if val in ignorable_fields:
