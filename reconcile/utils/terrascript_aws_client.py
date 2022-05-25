@@ -4552,8 +4552,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                             "sts:ExternalId": self.get_values("sms_role_ext_id")
                         }
                     }
-                },
-                {
+                }, # FIXME: this combined policy may not work on applicaiton. as written,
+                {  # it is an inline policy
                     "Effect": "Allow",
                     "Action": [
                         "sns:Publish",
@@ -4573,6 +4573,35 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             path="/service-role/",
         )
         tf_resources.append(sms_iam_role_resource)
+
+        lambda_role_policy = {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Action": "sts:AssumeRole",
+                    "Principal": {
+                        "Service": "lambda.amazonaws.com",
+                    },
+                },
+            ],
+        }
+
+        managed_policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+
+        if region == "us-gov-west-1" or region == "us-gov-east-1":
+            managed_policy_arn = "arn:aws-us-gov:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+
+        lambda_iam_role_resource = aws_iam_role(
+            "lambda_role",
+            name=f'{identifier}-cognito-lambda-role',
+            assume_role_policy=lambda_role_policy,
+            managed_policy_arns=[managed_policy_arn]
+            force_detach_policies=False,
+            max_session_duration=3600,
+            path="/service-role/",
+        )
+        tf_resources.append(lambda_iam_role_resource)
 
         # https://registry.terraform.io/providers/hashicorp/aws/3.60.0/docs/resources/cognito_identity_provider
 
@@ -4673,7 +4702,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
             api_gateway_lb_resource = aws_lb(
                 "lb",
-                name=f'{organization_name}-lb',
+                name=f'{identifier}-lb',
                 internal=True,
                 load_balancer_type="network",
                 subnet=self.get_values("lb_subnet_id")
@@ -4710,7 +4739,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             waf_acl_args_values = self.get_values("waf_acl_properties")
             waf_acl_resource = aws_wafv2_web_acl(
                 "api_waf",
-                name=f'{organization_name}-waf',
+                name=f'{identifier}-waf',
                 **waf_acl_args_values
             )
             tf_resources.append(waf_acl_resource)
