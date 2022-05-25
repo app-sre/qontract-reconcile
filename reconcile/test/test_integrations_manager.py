@@ -464,6 +464,21 @@ def test_initialize_shard_specs_extra_arg_agregation(
     )
 
 
+def test_initialize_shard_specs_unsupported_strategy(
+    collected_namespaces_env_test1: list[dict[str, Any]],
+    shard_manager: intop.IntegrationShardManager,
+):
+    """
+    this test shows how an unsupported sharding strategy fails the integration
+    """
+    collected_namespaces_env_test1[0]["integration_specs"][0][
+        "shardingStrategy"
+    ] = "based-on-moon-cycles"
+    with pytest.raises(ValueError) as e:
+        intop.initialize_shard_specs(collected_namespaces_env_test1, shard_manager)
+    assert e.value.args[0] == "unsupported sharding strategy 'based-on-moon-cycles'"
+
+
 def test_fetch_desired_state(
     collected_namespaces_env_test1: list[dict[str, Any]],
     shard_manager: intop.IntegrationShardManager,

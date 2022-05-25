@@ -69,7 +69,7 @@ class IntegrationShardManager:
                 for s in range(0, shards)
             ]
         else:
-            raise ValueError(f"unsupported sharding strategy {sharding_strategy}")
+            raise ValueError(f"unsupported sharding strategy '{sharding_strategy}'")
 
     def _aws_accounts_for_integration(self, integration: str) -> list[dict[str, Any]]:
         return [
