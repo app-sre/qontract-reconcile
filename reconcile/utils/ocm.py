@@ -545,16 +545,15 @@ class OCM:  # pylint: disable=too-many-public-methods
         self.cluster_ids = {c["name"]: c["id"] for c in clusters}
 
         self.clusters: dict[str, OCMSpec] = {}
-        self.not_ready_clusters: set[str] = {}
+        self.not_ready_clusters: set[str] = set()
 
         for c in clusters:
             cluster_name = c["name"]
-            if not self._ready_for_app_interface(c):
-                self.not_ready_clusters = cluster_name
-
-            ocm_spec = self._get_cluster_ocm_spec(c, init_provision_shards)
-
-            self.clusters[cluster_name] = ocm_spec
+            if self._ready_for_app_interface(c):
+                ocm_spec = self._get_cluster_ocm_spec(c, init_provision_shards)
+                self.clusters[cluster_name] = ocm_spec
+            else:
+                self.not_ready_clusters.add(cluster_name)
 
     def _get_cluster_ocm_spec(
         self, cluster: Mapping[str, Any], init_provision_shards: bool
