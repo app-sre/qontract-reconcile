@@ -133,6 +133,8 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           - name: USE_NATIVE_CLIENT
             value: "${USE_NATIVE_CLIENT}"
+          - name: APP_INTERFACE_STATE_BUCKET_ACCOUNT
+            value: "${APP_INTERFACE_STATE_BUCKET_ACCOUNT}"
           resources:
             limits:
               cpu: ${INTEGRATIONS_MANAGER_CPU_LIMIT}
