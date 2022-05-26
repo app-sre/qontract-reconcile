@@ -17,6 +17,10 @@ from reconcile.utils.semver_helper import make_semver
 from reconcile.status import ExitCodes
 from reconcile.utils.structs import CommandExecutionResult
 
+# This comes from prometheus-operator. It is the largest configmap that they will
+# create. It is also the largest PrometheusRule yaml file they will process to add it
+# to the configmap.
+MAX_CONFIGMAP_SIZE = 0.5 * 1024 * 1024
 
 QONTRACT_INTEGRATION = "prometheus_rules_tester"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
@@ -66,8 +70,8 @@ def get_prometheus_rules(cluster_name):
         rules[r["path"]] = {}
 
     for n in gqlapi.query(orb.NAMESPACES_QUERY)["namespaces"]:
-        cluster = n["name"]
-        namespace = n["cluster"]["name"]
+        namespace = n["name"]
+        cluster = n["cluster"]["name"]
 
         if cluster_name and cluster != cluster_name:
             continue
@@ -101,7 +105,12 @@ def get_prometheus_rules(cluster_name):
             if cluster not in rules[path]:
                 rules[path][cluster] = {}
 
-            rules[path][cluster][namespace] = {"spec": openshift_resource.body["spec"]}
+            rule = openshift_resource.body
+            rule_length = len(yaml.dump(rule))  # Same as prometheus-operator does it.
+            rules[path][cluster][namespace] = {
+                "spec": rule["spec"],
+                "length": rule_length,
+            }
 
             # we keep variables to use them in the rule tests
             variables = json.loads(r.get("variables") or "{}")
@@ -155,10 +164,23 @@ def check_valid_services(rule):
     return CommandExecutionResult(True, "")
 
 
+# We return here a CommandExecutionResult as it is what check_rule function has to
+# add to the "check_result" field.
+def check_rule_length(rule_length: int) -> CommandExecutionResult:
+    if rule_length > MAX_CONFIGMAP_SIZE:
+        return CommandExecutionResult(
+            False, f"Rules spec is larger than {MAX_CONFIGMAP_SIZE} bytes."
+        )
+    return CommandExecutionResult(True, "")
+
+
 def check_rule(rule):
     promtool_check_result = promtool.check_rule(yaml_spec=rule["spec"])
     valid_services_result = check_valid_services(rule)
-    rule["check_result"] = promtool_check_result and valid_services_result
+    rule_length_result = check_rule_length(rule["length"])
+    rule["check_result"] = (
+        promtool_check_result and valid_services_result and rule_length_result
+    )
     return rule
 
 
@@ -175,6 +197,7 @@ def check_prometheus_rules(rules, thread_pool_size):
                         "cluster": cluster,
                         "namespace": namespace,
                         "spec": rule_data["spec"],
+                        "length": rule_data["length"],
                     }
                 )
 
