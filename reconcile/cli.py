@@ -918,19 +918,27 @@ def openshift_resources(
 @gitlab_project_id
 @threaded(default=20)
 @throughput
+@use_jump_host()
 @binary(["oc", "ssh"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
 @click.option("--saas-file-name", default=None, help="saas-file to act on.")
 @click.option("--env-name", default=None, help="environment to deploy to.")
 @click.pass_context
 def openshift_saas_deploy(
-    ctx, thread_pool_size, io_dir, saas_file_name, env_name, gitlab_project_id
+    ctx,
+    thread_pool_size,
+    io_dir,
+    use_jump_host,
+    saas_file_name,
+    env_name,
+    gitlab_project_id,
 ):
     run_integration(
         reconcile.openshift_saas_deploy,
         ctx.obj,
         thread_pool_size,
         io_dir,
+        use_jump_host,
         saas_file_name,
         env_name,
         gitlab_project_id,
@@ -945,13 +953,17 @@ def openshift_saas_deploy(
 @binary(["oc", "ssh"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
 @throughput
+@use_jump_host()
 @click.pass_context
-def openshift_saas_deploy_wrapper(ctx, thread_pool_size, io_dir, gitlab_project_id):
+def openshift_saas_deploy_wrapper(
+    ctx, thread_pool_size, io_dir, use_jump_host, gitlab_project_id
+):
     run_integration(
         reconcile.openshift_saas_deploy_wrapper,
         ctx.obj,
         thread_pool_size,
         io_dir,
+        use_jump_host,
         gitlab_project_id,
     )
 

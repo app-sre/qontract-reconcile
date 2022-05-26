@@ -70,6 +70,7 @@ def run(
     dry_run,
     thread_pool_size=10,
     io_dir="throughput/",
+    use_jump_host=True,
     saas_file_name=None,
     env_name=None,
     gitlab_project_id=None,
@@ -162,6 +163,7 @@ def run(
         integration_version=QONTRACT_INTEGRATION_VERSION,
         init_api_resources=True,
         cluster_admin=saasherder.cluster_admin,
+        use_jump_host=use_jump_host,
     )
     defer(oc_map.cleanup)
     saasherder.populate_desired_state(ri)

@@ -13,7 +13,9 @@ QONTRACT_INTEGRATION = "openshift-saas-deploy-wrapper"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 
-def osd_run_wrapper(diff, dry_run, available_thread_pool_size, gitlab_project_id):
+def osd_run_wrapper(
+    diff, dry_run, available_thread_pool_size, use_jump_host, gitlab_project_id
+):
     saas_file_name = diff["saas_file_name"]
     env_name = diff["environment"]
     exit_code = 0
@@ -21,6 +23,7 @@ def osd_run_wrapper(diff, dry_run, available_thread_pool_size, gitlab_project_id
         osd.run(
             dry_run=dry_run,
             thread_pool_size=available_thread_pool_size,
+            use_jump_host=use_jump_host,
             saas_file_name=saas_file_name,
             env_name=env_name,
             gitlab_project_id=gitlab_project_id,
@@ -30,7 +33,13 @@ def osd_run_wrapper(diff, dry_run, available_thread_pool_size, gitlab_project_id
     return exit_code
 
 
-def run(dry_run, thread_pool_size=10, io_dir="throughput/", gitlab_project_id=None):
+def run(
+    dry_run,
+    thread_pool_size=10,
+    io_dir="throughput/",
+    use_jump_host=True,
+    gitlab_project_id=None,
+):
     saas_file_owners_diffs = read_saas_file_owners_diffs(io_dir)
     if len(saas_file_owners_diffs) == 0:
         return
@@ -45,6 +54,7 @@ def run(dry_run, thread_pool_size=10, io_dir="throughput/", gitlab_project_id=No
         thread_pool_size,
         dry_run=dry_run,
         available_thread_pool_size=available_thread_pool_size,
+        use_jump_host=use_jump_host,
         gitlab_project_id=gitlab_project_id,
     )
 
