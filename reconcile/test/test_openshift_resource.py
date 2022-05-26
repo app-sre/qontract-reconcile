@@ -33,6 +33,69 @@ def build_resource(kind: str, api_version: str, name: str):
 #
 
 
+def test_obj_intersect_equal_status_depth_0_current():
+    desired = {
+        "kind": "kind",
+        "metadata": {
+            "name": "name",
+        },
+    }
+    current = {
+        "kind": "kind",
+        "metadata": {
+            "name": "name",
+        },
+        "status": "status",
+    }
+    d_item = OR(desired, TEST_INT, TEST_INT_VER)
+    c_item = OR(current, TEST_INT, TEST_INT_VER)
+
+    assert d_item == c_item
+
+
+def test_obj_intersect_equal_status_depth_0_desired():
+    desired = {
+        "kind": "kind",
+        "metadata": {
+            "name": "name",
+        },
+        "status": "nonsense",
+    }
+    current = {
+        "kind": "kind",
+        "metadata": {
+            "name": "name",
+        },
+        "status": "status",
+    }
+    d_item = OR(desired, TEST_INT, TEST_INT_VER)
+    c_item = OR(current, TEST_INT, TEST_INT_VER)
+
+    assert d_item == c_item
+
+
+def test_obj_intersect_equal_status_depth_not_0():
+    desired = {
+        "kind": "kind",
+        "metadata": {
+            "name": "name",
+        },
+        "spec": {
+            "status": "status",
+        },
+    }
+    current = {
+        "kind": "kind",
+        "metadata": {
+            "name": "name",
+        },
+    }
+    d_item = OR(desired, TEST_INT, TEST_INT_VER)
+    c_item = OR(current, TEST_INT, TEST_INT_VER)
+
+    assert d_item != c_item
+
+
 def test_verify_valid_k8s_object():
     resource = fxt.get_anymarkup("valid_resource.yml")
     openshift_resource = OR(resource, TEST_INT, TEST_INT_VER)
