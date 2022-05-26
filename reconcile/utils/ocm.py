@@ -73,7 +73,7 @@ class OCMProduct:
         pass
 
     @staticmethod
-    def update_cluster(ocm: OCM, cluster_name: str, update_spec: dict[str, Any]):
+    def update_cluster(ocm: OCM, cluster_name: str, update_spec: Mapping[str, Any]):
         pass
 
     @staticmethod
@@ -114,7 +114,7 @@ class OCMProductOsd(OCMProduct):
         ocm._post(api, ocm_spec, params)
 
     @staticmethod
-    def update_cluster(ocm: OCM, cluster_name: str, update_spec: dict[str, Any]):
+    def update_cluster(ocm: OCM, cluster_name: str, update_spec: Mapping[str, Any]):
         ocm_spec = OCMProductOsd._get_update_cluster_spec(update_spec)
         cluster_id = ocm.cluster_ids.get(cluster_name)
         api = f"{CS_API_BASE}/v1/clusters/{cluster_id}"
@@ -297,7 +297,7 @@ class OCMProductRosa(OCMProduct):
         raise NotImplementedError("create_cluster not implemeneted for ROSA")
 
     @staticmethod
-    def update_cluster(ocm: OCM, cluster_name: str, update_spec: dict[str, Any]):
+    def update_cluster(ocm: OCM, cluster_name: str, update_spec: Mapping[str, Any]):
         raise NotImplementedError("update_cluster not implemeneted for ROSA")
 
     @staticmethod
