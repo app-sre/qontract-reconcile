@@ -4648,17 +4648,36 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         tf_resources.append(lambda_iam_role_resource)
 
         # Setup + manage Lambda resources
-        release_url = common_values.get('release_url', ROSA_AUTHENTICATOR_RELEASE)
-        zip_file = self.get_rosa_authenticator_zip(release_url)
+
+        # Start with the pre-signup function
+        release_url = common_values.get('release_url', ROSA_AUTHENTICATOR_PRE_SIGNUP_RELEASE)
+        zip_file = self.get_rosa_authenticator_zip(release_url, 'pre-signup')
 
         cognito_pre_signup_lambda_resource = aws_lambda_function(
             "cognito_pre_signup",
             runtime="nodejs14.x",
             role=lambda_iam_role_resource.arn,
             handler="index.handler",
-            source_code
+            filename=zip_file,
+            source_code_hash='${filebase64sha256("' + zip_file + '")}',
+            tracing_config={'mode':'PassThrough'}
         )
+        tf_resources.append(cognito_pre_signup_lambda_resource)
 
+        # Now pre-token lambda
+        release_url = common_values.get('release_url', ROSA_AUTHENTICATOR_PRE_TOKEN_RELEASE)
+        zip_file = self.get_rosa_authenticator_zip(release_url, 'pre-token')
+
+        cognito_pre_token_lambda_resource = aws_lambda_function(
+            "cognito_pre_token",
+            runtime="nodejs14.x",
+            role=lambda_iam_role_resource.arn,
+            handler="index.handler",
+            filename=zip_file,
+            source_code_hash='${filebase64sha256("' + zip_file + '")}',
+            tracing_config={'mode':'PassThrough'}
+        )
+        tf_resources.append(cognito_pre_signup_lambda_resource)
 
         # Check for required defaults file values
         pool_args = common_values.get("user_pool_properties", None)
@@ -4682,6 +4701,25 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 **pool_args_values
             )
             tf_resources.append(cognito_user_pool_resource)
+
+            # Finish up lambda
+            cognito_pre_signup_lambda_permission_resource = aws_lambda_permission(
+                "cognito_pre_signup_permission",
+                action="lambda:InvokeFunction",
+                function_name=cognito_pre_signup_lambda_resource.function_name,
+                source_arn=cognito_user_pool_resource.arn,
+                principal="cognito-idp.amazonaws.com"
+            )
+            tf_resources.append(cognito_pre_signup_lambda_permission_resource)
+
+            cognito_pre_token_lambda_permission_resource = aws_lambda_permission(
+                "cognito_pre_token_permission",
+                action="lambda:InvokeFunction",
+                function_name=cognito_pre_token_lambda_resource.function_name,
+                source_arn=cognito_user_pool_resource.arn,
+                principal="cognito-idp.amazonaws.com"
+            )
+            tf_resources.append(cognito_pre_token_lambda_permission_resource)
 
             cognito_user_pool_domain_resource = aws_cognito_user_pool_domain(
                 "userpool_domain",
