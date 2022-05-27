@@ -4683,14 +4683,13 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         pool_args = common_values.get("user_pool_properties", None)
         pool_client_args = common_values.get("user_pool_client_properties", None)
         rest_api_args = common_values.get("rest_api_properties", None)
-        gateway_args = common_values.get("gateway_resource_properties", None)
         gateway_authorizer_args = common_values.get("gateway_authorizer_properties", None)
         gateway_method_args = common_values.get("gateway_method_properties", None)
         integration_args = common_values.get("integration_properties", None)
         waf_acl_args = common_values.get("waf_acl_properties", None)
 
         # Build the rest of the TF infrastructure
-        if pool_args and pool_client_args and rest_api_args and gateway_args and \
+        if pool_args and pool_client_args and rest_api_args and \
            gateway_method_args and gateway_authorizer_args and integration_args and \
            waf_acl_args:
 
@@ -4741,7 +4740,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 **pool_client_args_values
             )
             tf_resources.append(cognito_user_pool_client)
+            # User pool complete
 
+            # API Gateway + associated resources
             rest_api_args_values = self.get_values("rest_api_properties")
             api_gateway_rest_api_resource = aws_api_gateway_rest_api(
                 "gw_api",
@@ -4749,14 +4750,21 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             )
             tf_resources.append(api_gateway_rest_api_resource)
 
-            gateway_args_values = self.get_values("gateway_resource_properties")
-            api_gateway_resource = aws_api_gateway_resource(
-                "gw_resource",
+            api_gateway_proxy_resource = aws_api_gateway_resource(
+                "gw_resource_proxy",
                 parent_id=api_gateway_rest_api_resource.root_resource_id,
                 rest_api_id=api_gateway_rest_api_resource.id,
-                **gateway_args_values
+                path_part="{proxy+}"
             )
-            tf_resources.append(api_gateway_resource)
+            tf_resources.append(api_gateway_proxy_resource)
+
+            api_gateway_token_resource = aws_api_gateway_resource(
+                "gw_resource_token",
+                parent_id=api_gateway_rest_api_resource.root_resource_id,
+                rest_api_id=api_gateway_rest_api_resource.id,
+                path_part="token"
+            )
+            tf_resources.append(api_gateway_token_resource)
 
             gateway_authorizer_args_values = self.get_values("gateway_authorizer_properties")
             api_gateway_authorizer_resource = aws_api_gateway_authorizer(
@@ -4798,8 +4806,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             )
             tf_resources.append(api_gateway_deployment_resource)
 
-            # Adding load balancer + api_gateway_vpc_link resources as requested in this MR review comment
-            # https://gitlab.cee.redhat.com/service/app-interface/-/merge_requests/38690#note_4123860
 
             api_gateway_lb_resource = aws_lb(
                 "lb",
@@ -4812,6 +4818,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
             api_gateway_vpc_link_resource = aws_api_gateway_vpc_link(
                 "vpc_link",
+                name=f'{identifier}-vpc-link',
                 target_arns=[api_gateway_lb_resource.arn]
             )
             tf_resources.append(api_gateway_vpc_link_resource)
