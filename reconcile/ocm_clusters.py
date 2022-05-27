@@ -293,16 +293,35 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
                 logging.debug(
                     f"current_spec: {current_spec}, desired_spec: {desired_spec}"
                 )
-                ocm = ocm_map.get(cluster_name)
                 if not dry_run:
-                    ocm.update_cluster(cluster_name, update_spec, dry_run)
+                    ocm = ocm_map.get(cluster_name)
+                    try:
+                        ocm.update_cluster(cluster_name, update_spec, dry_run)
+                    except NotImplementedError:
+                        logging.error(
+                            f"[{cluster_name}] Update clusters is currently not "
+                            "implemented for [{desired_spec.spec.product}] product. "
+                            "Updates to the cluster spec are not supported."
+                        )
+                        # Not marking error as a changer made in ocm could trigger
+                        # this.
+                        # error = True
         else:
             # create cluster
             if cluster_name in pending_state:
                 continue
             logging.info(["create_cluster", cluster_name])
             ocm = ocm_map.get(cluster_name)
-            ocm.create_cluster(cluster_name, desired_spec, dry_run)
+            try:
+                ocm.create_cluster(cluster_name, desired_spec, dry_run)
+            except NotImplementedError:
+                logging.error(
+                    f"[{cluster_name}] Create clusters is not currently implemented "
+                    "for [{desired_spec.spec.product}] product type. Make sure the "
+                    "cluster exists and it is returned by the OCM api before adding "
+                    "its manifest to app-interface"
+                )
+                error = True
 
     _app_interface_updates_mr(clusters_updates, gitlab_project_id, dry_run)
     sys.exit(int(error))

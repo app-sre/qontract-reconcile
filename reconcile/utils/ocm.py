@@ -566,22 +566,14 @@ class OCM:  # pylint: disable=too-many-public-methods
 
     def create_cluster(self, name: str, cluster: OCMSpec, dry_run: bool):
         impl = OCM_PRODUCTS_IMPL[cluster.spec.product]
-        try:
-            impl.create_cluster(self, name, cluster, dry_run)
-        except NotImplementedError as nie:
-            logging.error(nie)
-            return
+        impl.create_cluster(self, name, cluster, dry_run)
 
     def update_cluster(
         self, cluster_name: str, update_spec: dict[str, Any], dry_run=False
     ):
         cluster = self.clusters[cluster_name]
         impl = OCM_PRODUCTS_IMPL[cluster.spec.product]
-        try:
-            impl.update_cluster(self, cluster_name, update_spec)
-        except NotImplementedError as nie:
-            logging.error(nie)
-            return
+        impl.update_cluster(self, cluster_name, update_spec)
 
     def get_group_if_exists(self, cluster, group_id):
         """Returns a list of users in a group in a cluster.
