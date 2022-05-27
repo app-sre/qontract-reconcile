@@ -316,7 +316,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     if not self.rosa_authenticator_pre_signup_zip:
                         self.token = get_default_config()['token']
                         self.rosa_authenticator_pre_signup_zip = \
-                            self.download_rosa_authenticator_zip(ROSA_AUTHENTICATOR_RELEASE, target)
+                            self.download_rosa_authenticator_zip(ROSA_AUTHENTICATOR_PRE_SIGNUP_RELEASE, target)
         elif target == 'pre-token':
             if not self.rosa_authenticator_pre_token_zip:
                 with self.rosa_authenticator_pre_token_zip_lock:
@@ -324,7 +324,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     if not self.rosa_authenticator_pre_token_zip:
                         self.token = get_default_config()['token']
                         self.rosa_authenticator_pre_token_zip = \
-                            self.download_rosa_authenticator_zip(ROSA_AUTHENTICATOR_RELEASE, target)
+                            self.download_rosa_authenticator_zip(ROSA_AUTHENTICATOR_PRE_TOKEN_RELEASE, target)
         if release_url == ROSA_AUTHENTICATOR_PRE_SIGNUP_RELEASE:
             return self.rosa_authenticator_pre_signup_zip
         elif release_url == ROSA_AUTHENTICATOR_PRE_TOKEN_RELEASE:
