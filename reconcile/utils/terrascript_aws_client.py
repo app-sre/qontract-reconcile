@@ -4884,6 +4884,16 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             )
             tf_resources.append(api_gateway_integration_token_resource)
 
+            api_gateway_integration_response_resource = aws_api_gateway_integration_response_resource(
+                "gw_integration_response_token",
+                rest_api_id=api_gateway_rest_api_resource.id,
+                resource_id=api_gateway_resource.id,
+                http_method=api_gateway_method_resource.http_method,
+                status_code=api_gateway_method_token_get_response_resource.status_code,
+                depends_on=[api_gateway_integration_token_resource]
+            )
+            tf_resources.append(api_gateway_integration_response_resource)
+
             waf_acl_args_values = self.get_values("waf_acl_properties")
             waf_acl_resource = aws_wafv2_web_acl(
                 "api_waf",
