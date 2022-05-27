@@ -117,7 +117,8 @@ import reconcile.utils.aws_helper as awsh
 
 GH_BASE_URL = os.environ.get('GITHUB_API', 'https://api.github.com')
 LOGTOES_RELEASE = 'repos/app-sre/logs-to-elasticsearch-lambda/releases/latest'
-ROSA_AUTHENTICATOR_RELEASE = 'repos/service/rosa-authenticator-lambda/releases/latest'
+ROSA_AUTHENTICATOR_PRE_SIGNUP_RELEASE = 'repos/service/rosa-authenticator-lambda-pre-signup/releases/latest'
+ROSA_AUTHENTICATOR_PRE_TOKEN_RELEASE = 'repos/service/rosa-authenticator-lambda-pre-token/releases/latest'
 VARIABLE_KEYS = ['region', 'availability_zone', 'parameter_group', 'name',
                  'enhanced_monitoring', 'replica_source',
                  'output_resource_db_name', 'reset_password', 'ca_cert',
@@ -273,11 +274,12 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                            for a in filtered_accounts}
         self.logtoes_zip = ''
         self.logtoes_zip_lock = Lock()
+        self.rosa_authenticator_pre_signup_zip = ''
+        self.rosa_authenticator_pre_signup_zip_lock = Lock()
+        self.rosa_authenticator_pre_token_zip = ''
+        self.rosa_authenticator_pre_token_zip_lock = Lock()
         self.github: Optional[Github] = None
         self.github_lock = Lock()
-
-        self.rosa_authenticator_zip = ''
-        self.rosa_authenticator_zip_lock = Lock()
 
     def get_logtoes_zip(self, release_url):
         if not self.logtoes_zip:
@@ -306,26 +308,37 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             open(zip_file, 'wb').write(r.content)
         return zip_file
 
-    def get_rosa_authenticator_zip(self, release_url):
-        if not self.rosa_authenticator_zip:
-            with self.rosa_authenticator_zip_lock:
-                # this may have already happened, so we check again
-                if not self.rosa_authenticator_zip:
-                    self.token = get_default_config()['token']
-                    self.rosa_authenticator_zip = \
-                        self.download_rosa_authenticator_zip(ROSA_AUTHENTICATOR_RELEASE)
-        if release_url == ROSA_AUTHENTICATOR_RELEASE:
-            return self.rosa_authenticator_zip
+    def get_rosa_authenticator_zip(self, release_url, target):
+        if target == 'pre-signup':
+            if not self.rosa_authenticator_pre_signup_zip:
+                with self.rosa_authenticator_pre_signup_zip_lock:
+                    # this may have already happened, so we check again
+                    if not self.rosa_authenticator_pre_signup_zip:
+                        self.token = get_default_config()['token']
+                        self.rosa_authenticator_pre_signup_zip = \
+                            self.download_rosa_authenticator_zip(ROSA_AUTHENTICATOR_RELEASE, target)
+        elif target == 'pre-token':
+            if not self.rosa_authenticator_pre_token_zip:
+                with self.rosa_authenticator_pre_token_zip_lock:
+                    # this may have already happened, so we check again
+                    if not self.rosa_authenticator_pre_token_zip:
+                        self.token = get_default_config()['token']
+                        self.rosa_authenticator_pre_token_zip = \
+                            self.download_rosa_authenticator_zip(ROSA_AUTHENTICATOR_RELEASE, target)
+        if release_url == ROSA_AUTHENTICATOR_PRE_SIGNUP_RELEASE:
+            return self.rosa_authenticator_pre_signup_zip
+        elif release_url == ROSA_AUTHENTICATOR_PRE_TOKEN_RELEASE:
+            return self.rosa_authenticator_pre_token_zip
         else:
-            return self.download_rosa_authenticator_zip(release_url)
+            return self.download_rosa_authenticator_zip(release_url, target)
 
-    def download_rosa_authenticator_zip(self, release_url):
+    def download_rosa_authenticator_zip(self, release_url, target):
         headers = {'Authorization': 'token ' + self.token}
         r = requests.get(GH_BASE_URL + '/' + release_url, headers=headers)
         r.raise_for_status()
         data = r.json()
         zip_url = data['assets'][0]['browser_download_url']
-        zip_file = '/tmp/RosaAuthenticatorLambda-' + data['tag_name'] + '.zip'
+        zip_file = '/tmp/RosaAuthenticatorLambda-' + target + '-' + data['tag_name'] + '.zip'
         if not os.path.exists(zip_file):
             r = requests.get(zip_url)
             r.raise_for_status()
@@ -4567,6 +4580,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         self.init_common_outputs(tf_resources, namespace_info, output_prefix,
                                  output_resource_name, annotations)
 
+        # Manage IAM Resources
         sms_role_policy = {
             "Version": "2012-10-17",
             "Statement": [
@@ -4633,8 +4647,20 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         )
         tf_resources.append(lambda_iam_role_resource)
 
-        # https://registry.terraform.io/providers/hashicorp/aws/3.60.0/docs/resources/cognito_identity_provider
+        # Setup + manage Lambda resources
+        release_url = common_values.get('release_url', ROSA_AUTHENTICATOR_RELEASE)
+        zip_file = self.get_rosa_authenticator_zip(release_url)
 
+        cognito_pre_signup_lambda_resource = aws_lambda_function(
+            "cognito_pre_signup",
+            runtime="nodejs14.x",
+            role=lambda_iam_role_resource.arn,
+            handler="index.handler",
+            source_code
+        )
+
+
+        # Check for required defaults file values
         pool_args = common_values.get("user_pool_properties", None)
         pool_client_args = common_values.get("user_pool_client_properties", None)
         rest_api_args = common_values.get("rest_api_properties", None)
@@ -4644,6 +4670,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         integration_args = common_values.get("integration_properties", None)
         waf_acl_args = common_values.get("waf_acl_properties", None)
 
+        # Build the rest of the TF infrastructure
         if pool_args and pool_client_args and rest_api_args and gateway_args and \
            gateway_method_args and gateway_authorizer_args and integration_args and \
            waf_acl_args:
