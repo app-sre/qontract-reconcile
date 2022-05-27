@@ -117,6 +117,7 @@ import reconcile.utils.aws_helper as awsh
 
 GH_BASE_URL = os.environ.get('GITHUB_API', 'https://api.github.com')
 LOGTOES_RELEASE = 'repos/app-sre/logs-to-elasticsearch-lambda/releases/latest'
+ROSA_AUTHENTICATOR_RELEASE = 'repos/service/rosa-authenticator-lambda/releases/latest'
 VARIABLE_KEYS = ['region', 'availability_zone', 'parameter_group', 'name',
                  'enhanced_monitoring', 'replica_source',
                  'output_resource_db_name', 'reset_password', 'ca_cert',
@@ -275,6 +276,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         self.github: Optional[Github] = None
         self.github_lock = Lock()
 
+        self.rosa_authenticator_zip = ''
+        self.rosa_authenticator_zip_lock = Lock()
+
     def get_logtoes_zip(self, release_url):
         if not self.logtoes_zip:
             with self.logtoes_zip_lock:
@@ -295,6 +299,33 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         data = r.json()
         zip_url = data['assets'][0]['browser_download_url']
         zip_file = '/tmp/LogsToElasticsearch-' + data['tag_name'] + '.zip'
+        if not os.path.exists(zip_file):
+            r = requests.get(zip_url)
+            r.raise_for_status()
+            # pylint: disable=consider-using-with
+            open(zip_file, 'wb').write(r.content)
+        return zip_file
+
+    def get_rosa_authenticator_zip(self, release_url):
+        if not self.rosa_authenticator_zip:
+            with self.rosa_authenticator_zip_lock:
+                # this may have already happened, so we check again
+                if not self.rosa_authenticator_zip:
+                    self.token = get_default_config()['token']
+                    self.rosa_authenticator_zip = \
+                        self.download_rosa_authenticator_zip(ROSA_AUTHENTICATOR_RELEASE)
+        if release_url == ROSA_AUTHENTICATOR_RELEASE:
+            return self.rosa_authenticator_zip
+        else:
+            return self.download_rosa_authenticator_zip(release_url)
+
+    def download_rosa_authenticator_zip(self, release_url):
+        headers = {'Authorization': 'token ' + self.token}
+        r = requests.get(GH_BASE_URL + '/' + release_url, headers=headers)
+        r.raise_for_status()
+        data = r.json()
+        zip_url = data['assets'][0]['browser_download_url']
+        zip_file = '/tmp/RosaAuthenticatorLambda-' + data['tag_name'] + '.zip'
         if not os.path.exists(zip_file):
             r = requests.get(zip_url)
             r.raise_for_status()
@@ -4552,7 +4583,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                             "sts:ExternalId": self.get_values("sms_role_ext_id")
                         }
                     }
-                }, # FIXME: this combined policy may not work on applicaiton. as written,
+                }, # FIXME: this combined policy may not work on application. as written,
                 {  # it is an inline policy
                     "Effect": "Allow",
                     "Action": [
@@ -4566,7 +4597,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         sms_iam_role_resource = aws_iam_role(
             "sms_role",
             name=f'{identifier}-SMS',
-            description="role for applicant cognito, send sms",
             assume_role_policy=sms_role_policy,
             force_detach_policies=False,
             max_session_duration=3600,
@@ -4596,7 +4626,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             "lambda_role",
             name=f'{identifier}-cognito-lambda-role',
             assume_role_policy=lambda_role_policy,
-            managed_policy_arns=[managed_policy_arn]
+            managed_policy_arns=[managed_policy_arn],
             force_detach_policies=False,
             max_session_duration=3600,
             path="/service-role/",
