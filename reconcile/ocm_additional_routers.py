@@ -5,9 +5,11 @@ import json
 from reconcile import queries
 
 from reconcile.status import ExitCodes
-from reconcile.utils.ocm import OCMMap
+from reconcile.utils.ocm import OCM_PRODUCT_OSD, OCMMap
 
 QONTRACT_INTEGRATION = "ocm-additional-routers"
+
+SUPPORTED_OCM_PRODUCTS = [OCM_PRODUCT_OSD]
 
 
 def fetch_current_state(clusters):
@@ -84,7 +86,12 @@ def act(dry_run, diffs, ocm_map):
 
 def run(dry_run):
     clusters = queries.get_clusters()
-    clusters = [c for c in clusters if c.get("additionalRouters") is not None]
+    clusters = [
+        c
+        for c in clusters
+        if c.get("additionalRouters") is not None
+        and c["spec"]["product"] in SUPPORTED_OCM_PRODUCTS
+    ]
     if not clusters:
         logging.debug("No additionalRouters definitions found in app-interface")
         sys.exit(ExitCodes.SUCCESS)
