@@ -89,6 +89,7 @@ from terrascript.resource import (
     aws_api_gateway_integration,
     aws_api_gateway_vpc_link,
     aws_api_gateway_method_response,
+    aws_api_gateway_integration_response,
     aws_wafv2_web_acl,
     aws_wafv2_web_acl_association,
     random_id,
@@ -1062,8 +1063,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                                           existing_secrets)
         elif provider == 'route53-zone':
             self.populate_tf_resource_route53_zone(resource, namespace_info)
-        elif provider == 'rosa-authentication':
-            self.populate_tf_resource_rosa_authentication(resource, namespace_info)
+        elif provider == 'rosa-authenticator':
+            self.populate_tf_resource_rosa_authenticator(resource, namespace_info)
         else:
             raise UnknownProviderError(provider)
 
@@ -4571,7 +4572,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         self.add_resources(account, tf_resources)
 
-    def populate_tf_resource_rosa_authentication(self, resource, namespace_info):
+    def populate_tf_resource_rosa_authenticator(self, resource, namespace_info):
         account, identifier, common_values, output_prefix, \
             output_resource_name, annotations = \
             self.init_values(resource, namespace_info)
@@ -4689,13 +4690,14 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         gateway_method_token_get_args = common_values.get("gateway_method_token_get_properties", None)
         gateway_method_token_get_response_args = common_values.get(
             "gateway_method_token_get_response_properties", None)
-        integration_args = common_values.get("integration_properties", None)
+        integration_proxy_args = common_values.get("integration_proxy_properties", None)
+        integration_token_args = common_values.get("integration_token_properties", None)
         waf_acl_args = common_values.get("waf_acl_properties", None)
 
         # Build the rest of the TF infrastructure
         if pool_args and pool_client_args and rest_api_args and gateway_method_any_args and \
            gateway_method_token_get_args and gateway_method_token_get_response_args and \
-           gateway_authorizer_args and integration_args and \
+           gateway_authorizer_args and integration_proxy_args and integration_token_args and \
            waf_acl_args:
 
             # Spin up the user pool
@@ -4802,16 +4804,14 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
             gateway_method_token_get_response_args_values = self.get_values(
                 "gateway_method_token_get_response_args")
-            api_gateway_method_response_resource = aws_api_gateway_method_response(
+            api_gateway_method_token_get_response_resource = aws_api_gateway_method_response(
                 "gw_method_token_get_response",
                 http_method=api_gateway_method_token_get_resource.http_method,
                 resource_id=api_gateway_token_resource.id,
                 rest_api_id=api_gateway_rest_api_resource.id,
                 **gateway_method_token_get_response_args_values
             )
-            tf_resources.append(api_gateway_method_response_resource)
-
-
+            tf_resources.append(api_gateway_method_token_get_response_resource)
 
             # FIXME: need a solution to this HCL -> terrascript adaptation
             # as defined in terraform, triggers block looks like this:
@@ -4858,17 +4858,31 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             )
             tf_resources.append(api_gateway_stage_resource)
 
-            integration_args_values = self.get_values("integration_properties")
-            api_gateway_integration_resource = aws_api_gateway_integration(
-                "gw_integration",
+            # FIXME: review
+            integration_proxy_args_values = self.get_values("integration_proxy_properties")
+            api_gateway_integration_proxy_resource = aws_api_gateway_integration(
+                "gw_integration_proxy",
                 rest_api_id=api_gateway_rest_api_resource.id,
                 resource_id=api_gateway_resource.id,
                 http_method=api_gateway_method_resource.http_method,
                 connection_type="VPC_LINK",
                 connection_id=api_gateway_vpc_link_resource.id,
-                **integration_args_values
+                **integration_proxy_args_values
             )
-            tf_resources.append(api_gateway_integration_resource)
+            tf_resources.append(api_gateway_integration_proxy_resource)
+
+            # FIXME: review
+            integration_token_args_values = self.get_values("integration_token_properties")
+            api_gateway_integration_token_resource = aws_api_gateway_integration(
+                "gw_integration_token",
+                rest_api_id=api_gateway_rest_api_resource.id,
+                resource_id=api_gateway_resource.id,
+                http_method=api_gateway_method_resource.http_method,
+                connection_type="VPC_LINK",
+                connection_id=api_gateway_vpc_link_resource.id,
+                **integration_token_args_values
+            )
+            tf_resources.append(api_gateway_integration_token_resource)
 
             waf_acl_args_values = self.get_values("waf_acl_properties")
             waf_acl_resource = aws_wafv2_web_acl(
