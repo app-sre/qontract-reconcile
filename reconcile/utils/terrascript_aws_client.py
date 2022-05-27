@@ -88,6 +88,7 @@ from terrascript.resource import (
     aws_api_gateway_stage,
     aws_api_gateway_integration,
     aws_api_gateway_vpc_link,
+    aws_api_gateway_method_response,
     aws_wafv2_web_acl,
     aws_wafv2_web_acl_association,
     random_id,
@@ -4684,13 +4685,17 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         pool_client_args = common_values.get("user_pool_client_properties", None)
         rest_api_args = common_values.get("rest_api_properties", None)
         gateway_authorizer_args = common_values.get("gateway_authorizer_properties", None)
-        gateway_method_args = common_values.get("gateway_method_properties", None)
+        gateway_method_any_args = common_values.get("gateway_method_any_properties", None)
+        gateway_method_token_get_args = common_values.get("gateway_method_token_get_properties", None)
+        gateway_method_token_get_response_args = common_values.get(
+            "gateway_method_token_get_response_properties", None)
         integration_args = common_values.get("integration_properties", None)
         waf_acl_args = common_values.get("waf_acl_properties", None)
 
         # Build the rest of the TF infrastructure
-        if pool_args and pool_client_args and rest_api_args and \
-           gateway_method_args and gateway_authorizer_args and integration_args and \
+        if pool_args and pool_client_args and rest_api_args and gateway_method_any_args and \
+           gateway_method_token_get_args and gateway_method_token_get_response_args and \
+           gateway_authorizer_args and integration_args and \
            waf_acl_args:
 
             # Spin up the user pool
@@ -4776,15 +4781,37 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             )
             tf_resources.append(api_gateway_authorizer_resource)
 
-            gateway_method_args_values = self.get_values("gateway_method_args")
-            api_gateway_method_resource = aws_api_gateway_method(
+            gateway_method_any_args_values = self.get_values("gateway_method_any_args")
+            api_gateway_method_any_resource = aws_api_gateway_method(
                 "gw_method_any",
                 rest_api_id=api_gateway_rest_api_resource.id,
                 resource_id=api_gateway_resource.id,
                 authorizer_id=api_gateway_authorizer_resource.id,
-                **gateway_method_args_values
+                **gateway_method_any_args_values
             )
-            tf_resources.append(api_gateway_method_resource)
+            tf_resources.append(api_gateway_method_any_resource)
+
+            gateway_method_token_get_args_values = self.get_values("gateway_method_token_get_args")
+            api_gateway_method_token_get_resource = aws_api_gateway_method(
+                "gw_method_token_get",
+                rest_api_id=api_gateway_rest_api_resource.id,
+                resource_id=api_gateway_resource.id,
+                **gateway_method_token_get_args_values
+            )
+            tf_resources.append(api_gateway_method_token_get_resource)
+
+            gateway_method_token_get_response_args_values = self.get_values(
+                "gateway_method_token_get_response_args")
+            api_gateway_method_response_resource = aws_api_gateway_method_response(
+                "gw_method_token_get_response",
+                http_method=api_gateway_method_token_get_resource.http_method,
+                resource_id=api_gateway_token_resource.id,
+                rest_api_id=api_gateway_rest_api_resource.id,
+                **gateway_method_token_get_response_args_values
+            )
+            tf_resources.append(api_gateway_method_response_resource)
+
+
 
             # FIXME: need a solution to this HCL -> terrascript adaptation
             # as defined in terraform, triggers block looks like this:
@@ -4831,15 +4858,14 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             )
             tf_resources.append(api_gateway_stage_resource)
 
-            # https://gitlab.cee.redhat.com/service/app-interface/-/merge_requests/38690#note_4123843
             integration_args_values = self.get_values("integration_properties")
             api_gateway_integration_resource = aws_api_gateway_integration(
                 "gw_integration",
                 rest_api_id=api_gateway_rest_api_resource.id,
                 resource_id=api_gateway_resource.id,
                 http_method=api_gateway_method_resource.http_method,
-                connection_type="VPC_LINK",  # updated by request in MR review comment above
-                connection_id=api_gateway_vpc_link_resource.id,  # updated by request in MR review comment above
+                connection_type="VPC_LINK",
+                connection_id=api_gateway_vpc_link_resource.id,
                 **integration_args_values
             )
             tf_resources.append(api_gateway_integration_resource)
