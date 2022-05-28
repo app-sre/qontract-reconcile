@@ -4813,27 +4813,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             )
             tf_resources.append(api_gateway_method_token_get_response_resource)
 
-            # FIXME: need a solution to this HCL -> terrascript adaptation
-            # as defined in terraform, triggers block looks like this:
-            # triggers = {
-            #     redeployment = sha1(jsonencode([
-            #         aws_api_gateway_resource.gw_resource.id,
-            #         aws_api_gateway_method.gw_method_any.id,
-            #         aws_api_gateway_integration.gw_integration.id,
-            #     ]))
-            # }
-            # This is taking advantage of HCL functions, as well as pulling in multiple
-            # id references.
-
-            api_gateway_deployment_resource = aws_api_gateway_deployment(
-                "gw_deployment",
-                rest_api_id=api_gateway_rest_api_resource.id,
-                triggers={},  # FIXME
-                lifecycle={"create_before_destroy": True}
-            )
-            tf_resources.append(api_gateway_deployment_resource)
-
-
             api_gateway_lb_resource = aws_lb(
                 "lb",
                 name=f'{identifier}-lb',
@@ -4893,6 +4872,22 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 depends_on=[api_gateway_integration_token_resource]
             )
             tf_resources.append(api_gateway_integration_response_resource)
+
+            api_gateway_deployment_resource = aws_api_gateway_deployment(
+                "gw_deployment",
+                rest_api_id=api_gateway_rest_api_resource.id,
+                triggers={
+                    "redeployment": '${sha1(jsonencode([' + \
+                                       api_gateway_proxy_resource.id + ',' +
+                                       api_gateway_token_resource.id + ',' +
+                                       api_gateway_method_any_resource.id + ',' +
+                                       api_gateway_method_token_get_resource.id + ',' +
+                                       api_gateway_integration_proxy_resource.id + ',' +
+                                       api_gateway_integration_token_resource.id +')}'
+                },
+                lifecycle={"create_before_destroy": True}
+            )
+            tf_resources.append(api_gateway_deployment_resource)
 
             waf_acl_args_values = self.get_values("waf_acl_properties")
             waf_acl_resource = aws_wafv2_web_acl(
