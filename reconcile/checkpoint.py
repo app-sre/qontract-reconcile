@@ -18,6 +18,7 @@ from jira import Issue
 
 from reconcile.utils.constants import PROJ_ROOT
 from reconcile.utils.jira_client import JiraClient
+from reconcile.utils.requests import global_session_cache
 
 DEFAULT_CHECKPOINT_LABELS = ("sre-checkpoint",)
 
@@ -34,7 +35,9 @@ local_session = threading.local()
 def get_local_session() -> requests.Session:
     s = getattr(local_session, "session", None)
     if not s:
-        local_session.session = requests.session()
+        s = requests.Session()
+        local_session.session = s
+        global_session_cache.add_session(s)
     return local_session.session
 
 

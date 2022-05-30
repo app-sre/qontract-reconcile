@@ -125,6 +125,7 @@ from reconcile.utils.gql import GqlApiErrorForbiddenSchema, GqlApiIntegrationNot
 from reconcile.utils.aggregated_list import RunnerException
 from reconcile.utils.binary import binary, binary_version
 from reconcile.utils.environ import environ
+from reconcile.utils.requests import global_session_cache
 from reconcile.utils.unleash import get_feature_toggle_state
 from reconcile.utils.exceptions import PrintToFileInGitRepositoryError
 from reconcile.utils.git import is_file_in_git_repo
@@ -529,6 +530,20 @@ def integration(
     ctx.obj["gql_sha_url"] = gql_sha_url
     ctx.obj["gql_url_print"] = gql_url_print
     ctx.obj["dump_schemas_file"] = dump_schemas_file
+
+
+@integration.result_callback()
+def exit_integration(
+    ctx,
+    configfile,
+    dry_run,
+    validate_schemas,
+    dump_schemas_file,
+    log_level,
+    gql_sha_url,
+    gql_url_print,
+):
+    global_session_cache.close_all()
 
 
 @integration.command(short_help="Manage AWS Route53 resources using Terraform.")

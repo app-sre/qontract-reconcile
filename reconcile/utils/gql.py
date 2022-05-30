@@ -19,8 +19,12 @@ from gql.transport.requests import RequestsHTTPTransport
 from gql.transport.exceptions import TransportQueryError
 from gql.transport.requests import log as requests_logger
 
+from reconcile.utils.requests import global_session_cache
+
 _gqlapi = None
-_local_client = None
+"""Using a thread local variable. This data structure ensures, data is not shared
+ between caches. With the code below this creates one client instance per thread."""
+_local_client = threading.local()
 
 INTEGRATIONS_QUERY = """
 {
@@ -198,33 +202,30 @@ class PersistentRequestsHTTPTransport(RequestsHTTPTransport):
         if self.session is None:
             # Copied over from RequestsHTTPTransport
             self.session = requests.Session()
+            global_session_cache.add_session(self.session)
             # we did not implement this in our copy!
             assert self.retries == 0
 
     def close(self) -> None:
+        # Just pass, since we do not want the session to be disconnected.
+        # This allows us to benefit from TCP keep-alive and reduces SSL
+        # Handshake round trips
         pass
 
 
 def _init_gql_client(url: str, token: Optional[str]) -> Client:
     global _local_client
-    if not _local_client:
-        # Requests.Session is not threadsafe, hence create one session per thread
-        _local_client = threading.local()
-
     req_headers = None
     if token:
         # The token stored in vault is already in the format 'Basic ...'
         req_headers = {"Authorization": token}
     client = getattr(_local_client, "client", None)
     if not client:
-        # Here we are explicitly using sync strategy
-        _local_client.client = Client(
-            transport=PersistentRequestsHTTPTransport(
-                url,
-                headers=req_headers,
-                timeout=30,
-            )
+        transport = PersistentRequestsHTTPTransport(
+            url, headers=req_headers, timeout=30, verify=False
         )
+        # Here we are explicitly using sync strategy
+        _local_client.client = Client(transport=transport)
     return _local_client.client
 
 
@@ -232,7 +233,7 @@ def _init_gql_client(url: str, token: Optional[str]) -> Client:
 def get_sha(server, token=None):
     sha_endpoint = server._replace(path="/sha256")
     headers = {"Authorization": token} if token else None
-    response = requests.get(sha_endpoint.geturl(), headers=headers)
+    response = requests.get(sha_endpoint.geturl(), headers=headers, verify=False)
     response.raise_for_status()
     sha = response.content.decode("utf-8")
     return sha
@@ -242,7 +243,9 @@ def get_sha(server, token=None):
 def get_git_commit_info(sha, server, token=None):
     git_commit_info_endpoint = server._replace(path=f"/git-commit-info/{sha}")
     headers = {"Authorization": token} if token else None
-    response = requests.get(git_commit_info_endpoint.geturl(), headers=headers)
+    response = requests.get(
+        git_commit_info_endpoint.geturl(), headers=headers, verify=False
+    )
     response.raise_for_status()
     git_commit_info = response.json()
     return git_commit_info

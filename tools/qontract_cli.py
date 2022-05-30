@@ -21,6 +21,7 @@ from reconcile.jenkins_job_builder import init_jjb
 from reconcile.utils.jjb_client import JJB
 from reconcile.utils.oc import OC_Map
 from reconcile.utils.ocm import OCMMap
+from reconcile.utils.requests import global_session_cache
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.semver_helper import parse_semver
 from reconcile.utils.state import State
@@ -63,6 +64,11 @@ def root(ctx, configfile):
     ctx.ensure_object(dict)
     config.init_from_toml(configfile)
     gql.init_from_config()
+
+
+@root.result_callback()
+def exit_cli(ctx, confifile):
+    global_session_cache.close_all()
 
 
 @root.group()
