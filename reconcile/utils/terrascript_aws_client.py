@@ -4663,7 +4663,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             handler="index.handler",
             filename=zip_file,
             source_code_hash='${filebase64sha256("' + zip_file + '")}',
-            tracing_config={'mode':'PassThrough'}
+            tracing_config={'mode': 'PassThrough'}
         )
         tf_resources.append(cognito_pre_signup_lambda_resource)
 
@@ -4678,7 +4678,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             handler="index.handler",
             filename=zip_file,
             source_code_hash='${filebase64sha256("' + zip_file + '")}',
-            tracing_config={'mode':'PassThrough'}
+            tracing_config={'mode': 'PassThrough'}
         )
         tf_resources.append(cognito_pre_signup_lambda_resource)
 
