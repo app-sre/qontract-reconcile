@@ -281,14 +281,31 @@ def test_collect_namespaces_all_environments(
 
 
 @pytest.fixture
-def shard_manager() -> intop.IntegrationShardManager:
+def aws_accounts() -> list[dict[str, Any]]:
+    return [
+        {"name": "acc-1", "disable": None},
+        {"name": "acc-2", "disable": {"integrations": None}},
+        {"name": "acc-3", "disable": {"integrations": []}},
+        {"name": "acc-4", "disable": {"integrations": ["integ1"]}},
+    ]
+
+
+@pytest.fixture
+def aws_account_sharding_strategy(
+    aws_accounts: list[dict[str, Any]]
+) -> intop.AWSAccountShardManager:
+    return intop.AWSAccountShardManager(aws_accounts)
+
+
+@pytest.fixture
+def shard_manager(
+    aws_account_sharding_strategy: intop.AWSAccountShardManager,
+) -> intop.IntegrationShardManager:
     return intop.IntegrationShardManager(
-        aws_accounts=[
-            {"name": "acc-1", "disable": None},
-            {"name": "acc-2", "disable": {"integrations": None}},
-            {"name": "acc-3", "disable": {"integrations": []}},
-            {"name": "acc-4", "disable": {"integrations": ["integ1"]}},
-        ],
+        strategies={
+            "static": intop.StaticShardingStrategy(),
+            "per-aws-account": aws_account_sharding_strategy,
+        },
         integration_runtime_meta={
             "integ1": IntegrationMeta(
                 name="integ1", short_help="", args=["--arg", "--account-name"]
@@ -300,29 +317,23 @@ def shard_manager() -> intop.IntegrationShardManager:
 
 
 def test_shard_manager_aws_account_filtering(
-    shard_manager: intop.IntegrationShardManager,
+    aws_account_sharding_strategy: intop.AWSAccountShardManager,
 ):
     assert ["acc-1", "acc-2", "acc-3", "acc-4"] == [
         a["name"]
-        for a in shard_manager._aws_accounts_for_integration("another-integration")
+        for a in aws_account_sharding_strategy._aws_accounts_for_integration(
+            "another-integration"
+        )
     ]
 
 
 def test_shard_manager_aws_account_filtering_disabled(
-    shard_manager: intop.IntegrationShardManager,
+    aws_account_sharding_strategy: intop.AWSAccountShardManager,
 ):
     assert ["acc-1", "acc-2", "acc-3"] == [
-        a["name"] for a in shard_manager._aws_accounts_for_integration("integ1")
+        a["name"]
+        for a in aws_account_sharding_strategy._aws_accounts_for_integration("integ1")
     ]
-
-
-def test_shard_manager_supported_args(
-    shard_manager: intop.IntegrationShardManager,
-):
-    assert shard_manager._integration_supports_arg("integ1", "--account-name")
-    assert not shard_manager._integration_supports_arg(
-        "integ1", "--something-unsupported"
-    )
 
 
 @pytest.fixture
@@ -388,7 +399,7 @@ def test_initialize_shard_specs_two_shards_explicit(
     )
 
 
-def test_initialize_shard_specs_aws_account_shards_implicit(
+def test_initialize_shard_specs_aws_account_shards(
     collected_namespaces_env_test1: list[dict[str, Any]],
     shard_manager: intop.IntegrationShardManager,
 ):

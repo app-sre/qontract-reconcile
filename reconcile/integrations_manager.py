@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from abc import abstractmethod
 import os
 import sys
 import json
@@ -24,52 +24,84 @@ QONTRACT_INTEGRATION = "integrations-manager"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 
-@dataclass
-class IntegrationShardManager:
+class ShardingStrategy:
+    @abstractmethod
+    def build_integration_shards(
+        self, integration_meta: IntegrationMeta, spec: Mapping[str, Any]
+    ) -> list[dict[str, Any]]:
+        pass
 
-    aws_accounts: list[dict[str, Any]]
-    integration_runtime_meta: dict[str, IntegrationMeta]
+
+class IntegrationShardManager:
+    def __init__(
+        self,
+        strategies: dict[str, ShardingStrategy],
+        integration_runtime_meta: dict[str, IntegrationMeta],
+    ):
+        self.integration_runtime_meta = integration_runtime_meta
+        self.strategies = strategies
 
     def build_integration_shards(
         self, integration: str, spec: Mapping[str, Any]
     ) -> list[dict[str, Any]]:
-        extra_args = spec["extraArgs"] or ""
         sharding_strategy = spec.get("shardingStrategy") or "static"
-        if sharding_strategy == "per-aws-account":
-            if self._integration_supports_arg(integration, "--account-name"):
-                filtered_accounts = self._aws_accounts_for_integration(integration)
-                return [
-                    {
-                        "shard_id": shard_id,
-                        "shards": len(filtered_accounts),
-                        "shard_name_suffix": f"-{account['name']}"
-                        if len(filtered_accounts) > 1
-                        else "",
-                        "extra_args": " ".join(
-                            a
-                            for a in [extra_args, "--account-name", account["name"]]
-                            if a
-                        ),
-                    }
-                    for shard_id, account in enumerate(filtered_accounts)
-                ]
-            else:
-                raise ValueError(
-                    f"integration {integration} does not support arg --account-name required by the per-aws-account sharding strategy"
-                )
-        elif sharding_strategy == "static":
-            shards = spec.get("shards") or 1
-            return [
-                {
-                    "shard_id": s,
-                    "shards": shards,
-                    "shard_name_suffix": f"-{s}" if shards > 1 else "",
-                    "extra_args": extra_args,
-                }
-                for s in range(0, shards)
-            ]
+        if sharding_strategy in self.strategies:
+            shards = self.strategies[sharding_strategy].build_integration_shards(
+                self.integration_runtime_meta[integration], spec
+            )
+
+            # add the extra args of the integrations pr check spec to each shard
+            extra_args = spec["extraArgs"]
+            if extra_args:
+                for s in shards:
+                    s["extra_args"] = f"{extra_args} {s['extra_args']}".strip()
+            return shards
         else:
             raise ValueError(f"unsupported sharding strategy '{sharding_strategy}'")
+
+
+class StaticShardingStrategy(ShardingStrategy):
+    def build_integration_shards(
+        self, _: IntegrationMeta, spec: Mapping[str, Any]
+    ) -> list[dict[str, Any]]:
+        shards = spec.get("shards") or 1
+        return [
+            {
+                "shard_id": s,
+                "shards": shards,
+                "shard_name_suffix": f"-{s}" if shards > 1 else "",
+                "extra_args": "",
+            }
+            for s in range(0, shards)
+        ]
+
+
+class AWSAccountShardManager(ShardingStrategy):
+    def __init__(self, aws_accounts: list[dict[str, Any]]):
+        self.aws_accounts = aws_accounts
+
+    def build_integration_shards(
+        self, integration_meta: IntegrationMeta, _: Mapping[str, Any]
+    ) -> list[dict[str, Any]]:
+        if "--account-name" in integration_meta.args:
+            filtered_accounts = self._aws_accounts_for_integration(
+                integration_meta.name
+            )
+            return [
+                {
+                    "shard_id": shard_id,
+                    "shards": len(filtered_accounts),
+                    "shard_name_suffix": f"-{account['name']}"
+                    if len(filtered_accounts) > 1
+                    else "",
+                    "extra_args": f"--account-name {account['name']}",
+                }
+                for shard_id, account in enumerate(filtered_accounts)
+            ]
+        else:
+            raise ValueError(
+                f"integration {integration_meta.name} does not support arg --account-name required by the per-aws-account sharding strategy"
+            )
 
     def _aws_accounts_for_integration(self, integration: str) -> list[dict[str, Any]]:
         return [
@@ -79,9 +111,6 @@ class IntegrationShardManager:
             or "integrations" not in a["disable"]
             or integration not in (a["disable"]["integrations"] or [])
         ]
-
-    def _integration_supports_arg(self, integration, arg):
-        return arg in self.integration_runtime_meta[integration].args
 
 
 def construct_values_file(
@@ -222,7 +251,10 @@ def run(
     )
     defer(oc_map.cleanup)
     shard_manager = IntegrationShardManager(
-        aws_accounts=queries.get_aws_accounts(),
+        strategies={
+            "static": StaticShardingStrategy(),
+            "per-aws-account": AWSAccountShardManager(queries.get_aws_accounts()),
+        },
         integration_runtime_meta=integration_runtime_meta,
     )
     initialize_shard_specs(namespaces, shard_manager)
