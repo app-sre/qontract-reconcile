@@ -660,10 +660,13 @@ def cluster_openshift_resources(ctx):
         cluster_name = ns_info["cluster"]["name"]
         item = {"name": cluster_name, "total": 0}
         item = results.setdefault(cluster_name, item)
+        total = {"name": "total", "total": 0}
+        total = results.setdefault("total", total)
         ob.aggregate_shared_resources(ns_info, "openshiftResources")
         openshift_resources = ns_info.get("openshiftResources") or []
         for r in openshift_resources:
             add_resource(item, r, columns)
+            add_resource(total, r, columns)
 
     # TODO(mafriedm): fix this
     # do not sort
@@ -684,7 +687,10 @@ def aws_terraform_resources(ctx):
             account = r["account"]
             item = {"name": account, "total": 0}
             item = results.setdefault(account, item)
+            total = {"name": "total", "total": 0}
+            total = results.setdefault("total", total)
             add_resource(item, r, columns)
+            add_resource(total, r, columns)
 
     # TODO(mafriedm): fix this
     # do not sort
