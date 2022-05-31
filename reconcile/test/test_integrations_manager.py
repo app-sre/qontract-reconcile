@@ -352,7 +352,7 @@ def test_initialize_shard_specs_two_shards(
     shard_manager: intop.IntegrationShardManager,
 ):
     """
-    this test shows how the implicit static sharding strategy creates two shards
+    this test shows how the default static sharding strategy creates two shards
     """
     collected_namespaces_env_test1[0]["integration_specs"][0]["shards"] = 2
     intop.initialize_shard_specs(collected_namespaces_env_test1, shard_manager)
