@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, Extra
 from typing import Optional, Union
 
 
@@ -32,12 +32,12 @@ class OCMClusterSpec(BaseModel):
     version: str
 
 
-class OSDClusterSpec(OCMClusterSpec):
+class OSDClusterSpec(OCMClusterSpec, extra=Extra.forbid):
     load_balancers: int
     storage: int
 
 
-class ROSAClusterSpec(OCMClusterSpec):
+class ROSAClusterSpec(OCMClusterSpec, extra=Extra.forbid):
     pass
 
 
@@ -52,4 +52,3 @@ class OCMSpec(BaseModel):
 
     class Config:
         smart_union = True
-        allow_population_by_field_name = True

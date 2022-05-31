@@ -1,12 +1,14 @@
+from pydantic import ValidationError
 import pytest
 
 from reconcile.ocm.types import (
     OCMClusterNetwork,
     OCMSpec,
     OSDClusterSpec,
+    ROSAClusterSpec,
 )
 from unittest.mock import patch
-from reconcile.utils.ocm import OCMMap, OCM
+from reconcile.utils.ocm import SPEC_ATTR_CONSOLE_URL, SPEC_ATTR_SERVER_URL, OCMMap, OCM
 from reconcile import mr_client_gateway
 from reconcile.utils.mr.clusters_updates import CreateClustersUpdates
 from reconcile import queries
@@ -123,6 +125,55 @@ def osd_cluster_fxt():
 
 
 @pytest.fixture
+def rosa_cluster_fxt():
+    return {
+        "spec": {
+            "product": "rosa",
+            "id": "the-cluster-id",
+            "external_id": "the-cluster-external_id",
+            "provider": "aws",
+            "region": "us-east-1",
+            "channel": "stable",
+            "version": "4.10.0",
+            "initial_version": "4.9.0-candidate",
+            "multi_az": False,
+            "nodes": 5,
+            "instance_type": "m5.xlarge",
+            "private": False,
+            "provision_shard_id": "the-cluster-provision_shard_id",
+            "disable_user_workload_monitoring": True,
+        },
+        "network": {
+            "type": None,
+            "vpc": "10.112.0.0/16",
+            "service": "10.120.0.0/16",
+            "pod": "10.128.0.0/14",
+        },
+        "ocm": {
+            "name": "non-existent-ocm",
+            "url": "https://api.non-existent-ocm.com",
+            "accessTokenClientId": "cloud-services",
+            "accessTokenUrl": "https://sso.blah.com/token",
+            "offlineToken": {
+                "path": "a-secret-path",
+                "field": "offline_token",
+                "format": None,
+                "version": None,
+            },
+            "blockedVersions": ["^.*-fc\\..*$"],
+        },
+        "consoleUrl": "the-cluster-console_url",
+        "serverUrl": "the-cluster-server_url",
+        "elbFQDN": "the-cluster-elbFQDN",
+        "path": "the-cluster-path",
+        "name": "cluster1",
+        "id": "anid",
+        "managed": True,
+        "state": "ready",
+    }
+
+
+@pytest.fixture
 def queries_mock(osd_cluster_fxt):
     with patch.object(queries, "get_app_interface_settings", autospec=True) as s:
         with patch.object(queries, "get_clusters", autospec=True) as gc:
@@ -164,7 +215,22 @@ def cluster_updates_mr_mock():
             yield ccu
 
 
-OCM_PRODUCTS = ["osd_mock", "rosa_mock"]
+def test_ocm_spec_population_rosa(rosa_cluster_fxt):
+    n = OCMSpec(**rosa_cluster_fxt)
+    assert isinstance(n.spec, ROSAClusterSpec)
+
+
+def test_ocm_spec_population_osd(osd_cluster_fxt):
+    n = OCMSpec(**osd_cluster_fxt)
+    assert isinstance(n.spec, OSDClusterSpec)
+    assert n.server_url == osd_cluster_fxt[SPEC_ATTR_SERVER_URL]
+    assert n.console_url == osd_cluster_fxt[SPEC_ATTR_CONSOLE_URL]
+
+
+def test_ocm_spec_population_osd_with_extra(osd_cluster_fxt):
+    osd_cluster_fxt["spec"]["extra_attribute"] = True
+    with pytest.raises(ValidationError):
+        n = OCMSpec(**osd_cluster_fxt)
 
 
 def test_get_ocm_cluster_update_spec_no_changes(
