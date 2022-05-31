@@ -5,7 +5,9 @@ from typing import Dict, Iterable, List, Mapping, Union
 
 import click
 import reconcile.ocm_upgrade_scheduler as ous
+import reconcile.openshift_base as ob
 import reconcile.openshift_resources_base as orb
+import reconcile.terraform_resources as tfr
 import reconcile.terraform_users as tfu
 import reconcile.terraform_vpc_peerings as tfvpc
 import requests
@@ -636,6 +638,58 @@ def namespaces(ctx, name):
     # do not sort
     ctx.obj["options"]["sort"] = False
     print_output(ctx.obj["options"], namespaces, columns)
+
+
+def add_resource(item, resource, columns):
+    provider = resource["provider"]
+    if provider not in columns:
+        columns.append(provider)
+    item.setdefault(provider, 0)
+    item[provider] += 1
+    item["total"] += 1
+
+
+@get.command
+@click.pass_context
+def cluster_openshift_resources(ctx):
+    gqlapi = gql.get_api()
+    namespaces = gqlapi.query(orb.NAMESPACES_QUERY)["namespaces"]
+    columns = ["name", "total"]
+    results = {}
+    for ns_info in namespaces:
+        cluster_name = ns_info["cluster"]["name"]
+        item = {"name": cluster_name, "total": 0}
+        item = results.setdefault(cluster_name, item)
+        ob.aggregate_shared_resources(ns_info, "openshiftResources")
+        openshift_resources = ns_info.get("openshiftResources") or []
+        for r in openshift_resources:
+            add_resource(item, r, columns)
+
+    # TODO(mafriedm): fix this
+    # do not sort
+    ctx.obj["options"]["sort"] = False
+    print_output(ctx.obj["options"], results.values(), columns)
+
+
+@get.command
+@click.pass_context
+def aws_terraform_resources(ctx):
+    gqlapi = gql.get_api()
+    namespaces = gqlapi.query(tfr.TF_NAMESPACES_QUERY)["namespaces"]
+    columns = ["name", "total"]
+    results = {}
+    for ns_info in namespaces:
+        terraform_resources = ns_info.get("terraformResources") or []
+        for r in terraform_resources:
+            account = r["account"]
+            item = {"name": account, "total": 0}
+            item = results.setdefault(account, item)
+            add_resource(item, r, columns)
+
+    # TODO(mafriedm): fix this
+    # do not sort
+    ctx.obj["options"]["sort"] = False
+    print_output(ctx.obj["options"], results.values(), columns)
 
 
 @get.command()
