@@ -4830,14 +4830,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             )
             tf_resources.append(api_gateway_vpc_link_resource)
 
-            api_gateway_stage_resource = aws_api_gateway_stage(  # MOVE
-                "gw_stage",
-                deployment_id=api_gateway_deployment_resource.id,
-                rest_api_id=api_gateway_rest_api_resource.id,
-                stage_name="stage"
-            )
-            tf_resources.append(api_gateway_stage_resource)
-
             # FIXME: review
             integration_proxy_args_values = self.get_values("integration_proxy_properties")
             api_gateway_integration_proxy_resource = aws_api_gateway_integration(
@@ -4889,6 +4881,14 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 lifecycle={"create_before_destroy": True}
             )
             tf_resources.append(api_gateway_deployment_resource)
+
+            api_gateway_stage_resource = aws_api_gateway_stage(
+                "gw_stage",
+                deployment_id=api_gateway_deployment_resource.id,
+                rest_api_id=api_gateway_rest_api_resource.id,
+                stage_name="stage"
+            )
+            tf_resources.append(api_gateway_stage_resource)
 
             waf_acl_args_values = self.get_values("waf_acl_properties")
             waf_acl_resource = aws_wafv2_web_acl(
