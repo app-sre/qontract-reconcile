@@ -1937,12 +1937,3 @@ def get_integration_cli_meta() -> dict[str, IntegrationMeta]:
             short_help=integration_cmd.short_help,  # type: ignore
         )
     return integration_meta
-
-
-if __name__ == "__main__":
-    integrations = get_integration_cli_meta()
-    json.dump(
-        {i: m.to_dict() for i, m in integrations.items()},
-        sys.stdout,
-        indent=4,
-    )
