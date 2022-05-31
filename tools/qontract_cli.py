@@ -5,6 +5,7 @@ from typing import Dict, Iterable, List, Mapping, Union
 
 import click
 import reconcile.ocm_upgrade_scheduler as ous
+import reconcile.openshift_base as ob
 import reconcile.openshift_resources_base as orb
 import reconcile.terraform_users as tfu
 import reconcile.terraform_vpc_peerings as tfvpc
@@ -636,6 +637,32 @@ def namespaces(ctx, name):
     # do not sort
     ctx.obj["options"]["sort"] = False
     print_output(ctx.obj["options"], namespaces, columns)
+
+
+@get.command
+@click.pass_context
+def cluster_openshift_resources(ctx):
+    gqlapi = gql.get_api()
+    namespaces = gqlapi.query(orb.NAMESPACES_QUERY)["namespaces"]
+    counters = ["resource", "resource-template", "route", "vault-secret", "total"]
+    columns = ["name"] + counters
+    results = {}
+    for ns_info in namespaces:
+        cluster_name = ns_info["cluster"]["name"]
+        item = {"name": cluster_name}
+        for c in counters:
+            item.setdefault(c, 0)
+        item = results.setdefault(cluster_name, item)
+        ob.aggregate_shared_resources(ns_info, "openshiftResources")
+        openshift_resources = ns_info.get("openshiftResources") or []
+        for r in openshift_resources:
+            item[r["provider"]] += 1
+            item["total"] += 1
+
+    # TODO(mafriedm): fix this
+    # do not sort
+    ctx.obj["options"]["sort"] = False
+    print_output(ctx.obj["options"], results.values(), columns)
 
 
 @get.command()
