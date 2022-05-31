@@ -1,4 +1,5 @@
 from abc import abstractmethod
+from dataclasses import dataclass
 import os
 import sys
 import json
@@ -32,14 +33,11 @@ class ShardingStrategy:
         pass
 
 
+@dataclass
 class IntegrationShardManager:
-    def __init__(
-        self,
-        strategies: dict[str, ShardingStrategy],
-        integration_runtime_meta: dict[str, IntegrationMeta],
-    ):
-        self.integration_runtime_meta = integration_runtime_meta
-        self.strategies = strategies
+
+    strategies: dict[str, ShardingStrategy]
+    integration_runtime_meta: dict[str, IntegrationMeta]
 
     def build_integration_shards(
         self, integration: str, spec: Mapping[str, Any]
