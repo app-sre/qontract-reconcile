@@ -4634,7 +4634,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         }
 
         managed_policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
-
+        region = common_values.get('region') or \
+            self.default_regions.get(account)
         if region == "us-gov-west-1" or region == "us-gov-east-1":
             managed_policy_arn = "arn:aws-us-gov:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 
