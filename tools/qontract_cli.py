@@ -640,6 +640,15 @@ def namespaces(ctx, name):
     print_output(ctx.obj["options"], namespaces, columns)
 
 
+def add_resource(item, resource, columns):
+    provider = resource["provider"]
+    if provider not in columns:
+        columns.append(provider)
+    item.setdefault(provider, 0)
+    item[provider] += 1
+    item["total"] += 1
+
+
 @get.command
 @click.pass_context
 def cluster_openshift_resources(ctx):
@@ -654,12 +663,7 @@ def cluster_openshift_resources(ctx):
         ob.aggregate_shared_resources(ns_info, "openshiftResources")
         openshift_resources = ns_info.get("openshiftResources") or []
         for r in openshift_resources:
-            provider = r["provider"]
-            if provider not in columns:
-                columns.append(provider)
-            item.setdefault(provider, 0)
-            item[provider] += 1
-            item["total"] += 1
+            add_resource(item, r, columns)
 
     # TODO(mafriedm): fix this
     # do not sort
@@ -680,12 +684,7 @@ def aws_terraform_resources(ctx):
             account = r["account"]
             item = {"name": account, "total": 0}
             item = results.setdefault(account, item)
-            provider = r["provider"]
-            if provider not in columns:
-                columns.append(provider)
-            item.setdefault(provider, 0)
-            item[provider] += 1
-            item["total"] += 1
+            add_resource(item, r, columns)
 
     # TODO(mafriedm): fix this
     # do not sort
