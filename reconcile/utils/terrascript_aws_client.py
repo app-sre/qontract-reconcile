@@ -4884,7 +4884,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                         api_gateway_method_any_resource.id + ',' +
                         api_gateway_method_token_get_resource.id + ',' +
                         api_gateway_integration_proxy_resource.id + ',' +
-                        api_gateway_integration_token_resource.id +')}'
+                        api_gateway_integration_token_resource.id + ')}'
                 },
                 lifecycle={"create_before_destroy": True}
             )
