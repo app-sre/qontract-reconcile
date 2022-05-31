@@ -4636,7 +4636,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         managed_policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
         region = common_values.get('region') or \
             self.default_regions.get(account)
-        if region == "us-gov-west-1" or region == "us-gov-east-1":
+        if region in ("us-gov-west-1", "us-gov-east-1"):
             managed_policy_arn = "arn:aws-us-gov:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 
         lambda_iam_role_resource = aws_iam_role(
@@ -4695,12 +4695,15 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         integration_token_args = common_values.get("integration_token_properties", None)
         waf_acl_args = common_values.get("waf_acl_properties", None)
 
-        # Build the rest of the TF infrastructure
-        if pool_args and pool_client_args and rest_api_args and gateway_method_any_args and \
-           gateway_method_token_get_args and gateway_method_token_get_response_args and \
-           gateway_authorizer_args and integration_proxy_args and integration_token_args and \
-           waf_acl_args:
+        args_presence_one = pool_args and pool_client_args and \
+            rest_api_args and gateway_method_any_args
+        args_presence_two = gateway_method_token_get_args and gateway_method_token_get_response_args
+        args_presence_three = gateway_authorizer_args and integration_proxy_args and \
+            integration_token_args
+        args_presence_four = waf_acl_args
 
+        # Build the rest of the TF infrastructure
+        if args_presence_one and args_presence_two and args_presence_three and args_presence_four:
             # Spin up the user pool
             pool_args_values = self.get_values('pool_args')
             cognito_user_pool_resource = aws_cognito_user_pool(
@@ -4871,12 +4874,12 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 rest_api_id=api_gateway_rest_api_resource.id,
                 triggers={
                     "redeployment": '${sha1(jsonencode([' +
-                                      api_gateway_proxy_resource.id + ',' +
-                                      api_gateway_token_resource.id + ',' +
-                                      api_gateway_method_any_resource.id + ',' +
-                                      api_gateway_method_token_get_resource.id + ',' +
-                                      api_gateway_integration_proxy_resource.id + ',' +
-                                      api_gateway_integration_token_resource.id + ')}'
+                                    api_gateway_proxy_resource.id + ',' +
+                                    api_gateway_token_resource.id + ',' +
+                                    api_gateway_method_any_resource.id + ',' +
+                                    api_gateway_method_token_get_resource.id + ',' +
+                                    api_gateway_integration_proxy_resource.id + ',' +
+                                    api_gateway_integration_token_resource.id + ')}'
                 },
                 lifecycle={"create_before_destroy": True}
             )
