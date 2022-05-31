@@ -14,7 +14,7 @@ from reconcile.utils.defer import defer
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.saasherder import Providers
-from reconcile.utils.sharding import is_in_shard_round_robin
+from reconcile.utils.sharding import is_in_shard
 
 LOG = logging.getLogger(__name__)
 QONTRACT_INTEGRATION = "openshift-tekton-resources"
@@ -76,9 +76,7 @@ def fetch_saas_files(saas_file_name: Optional[str]) -> list[dict[str, Any]]:
 
         return [saas_file] if saas_file else []
 
-    return [
-        s for i, s in enumerate(saas_files) if is_in_shard_round_robin(s["name"], i)
-    ]
+    return [s for s in saas_files if is_in_shard(s["name"])]
 
 
 def fetch_tkn_providers(saas_file_name: Optional[str]) -> dict[str, Any]:
