@@ -644,19 +644,20 @@ def namespaces(ctx, name):
 def cluster_openshift_resources(ctx):
     gqlapi = gql.get_api()
     namespaces = gqlapi.query(orb.NAMESPACES_QUERY)["namespaces"]
-    counters = ["resource", "resource-template", "route", "vault-secret", "total"]
-    columns = ["name"] + counters
+    columns = ["name", "total"]
     results = {}
     for ns_info in namespaces:
         cluster_name = ns_info["cluster"]["name"]
-        item = {"name": cluster_name}
-        for c in counters:
-            item.setdefault(c, 0)
+        item = {"name": cluster_name, "total": 0}
         item = results.setdefault(cluster_name, item)
         ob.aggregate_shared_resources(ns_info, "openshiftResources")
         openshift_resources = ns_info.get("openshiftResources") or []
         for r in openshift_resources:
-            item[r["provider"]] += 1
+            provider = r["provider"]
+            if provider not in columns:
+                columns.append(provider)
+            item.setdefault(provider, 0)
+            item[provider] += 1
             item["total"] += 1
 
     # TODO(mafriedm): fix this
