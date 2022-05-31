@@ -4599,8 +4599,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                             "sts:ExternalId": self.get_values("sms_role_ext_id")
                         }
                     }
-                }, # FIXME: this combined policy may not work on application. as written,
-                {  # it is an inline policy
+                },  # FIXME: this combined policy may not work on application. as written,
+                {   # it is an inline policy
                     "Effect": "Allow",
                     "Action": [
                         "sns:Publish",
