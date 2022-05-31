@@ -4788,7 +4788,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             api_gateway_method_any_resource = aws_api_gateway_method(
                 "gw_method_any",
                 rest_api_id=api_gateway_rest_api_resource.id,
-                resource_id=api_gateway_resource.id,
+                resource_id=api_gateway_proxy_resource.id,
                 authorizer_id=api_gateway_authorizer_resource.id,
                 **gateway_method_any_args_values
             )
@@ -4798,7 +4798,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             api_gateway_method_token_get_resource = aws_api_gateway_method(
                 "gw_method_token_get",
                 rest_api_id=api_gateway_rest_api_resource.id,
-                resource_id=api_gateway_resource.id,
+                resource_id=api_gateway_token_resource.id,
                 **gateway_method_token_get_args_values
             )
             tf_resources.append(api_gateway_method_token_get_resource)
@@ -4830,7 +4830,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             )
             tf_resources.append(api_gateway_vpc_link_resource)
 
-            api_gateway_stage_resource = aws_api_gateway_stage(
+            api_gateway_stage_resource = aws_api_gateway_stage(  # MOVE
                 "gw_stage",
                 deployment_id=api_gateway_deployment_resource.id,
                 rest_api_id=api_gateway_rest_api_resource.id,
@@ -4843,8 +4843,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             api_gateway_integration_proxy_resource = aws_api_gateway_integration(
                 "gw_integration_proxy",
                 rest_api_id=api_gateway_rest_api_resource.id,
-                resource_id=api_gateway_resource.id,
-                http_method=api_gateway_method_resource.http_method,
+                resource_id=api_gateway_proxy_resource.id,
+                http_method=api_gateway_method_any_resource.http_method,
                 connection_type="VPC_LINK",
                 connection_id=api_gateway_vpc_link_resource.id,
                 **integration_proxy_args_values
@@ -4856,18 +4856,18 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             api_gateway_integration_token_resource = aws_api_gateway_integration(
                 "gw_integration_token",
                 rest_api_id=api_gateway_rest_api_resource.id,
-                resource_id=api_gateway_resource.id,
-                http_method=api_gateway_method_resource.http_method,
+                resource_id=api_gateway_token_resource.id,
+                http_method=api_gateway_method_token_get_resource.http_method,
                 connection_type="VPC_LINK",
                 connection_id=api_gateway_vpc_link_resource.id,
                 **integration_token_args_values
             )
             tf_resources.append(api_gateway_integration_token_resource)
 
-            api_gateway_integration_response_resource = aws_api_gateway_integration_response_resource(
+            api_gateway_integration_response_resource = aws_api_gateway_integration_response(
                 "gw_integration_response_token",
                 rest_api_id=api_gateway_rest_api_resource.id,
-                resource_id=api_gateway_resource.id,
+                resource_id=api_gateway_token_resource.id,
                 http_method=api_gateway_method_resource.http_method,
                 status_code=api_gateway_method_token_get_response_resource.status_code,
                 depends_on=[api_gateway_integration_token_resource]
@@ -4878,13 +4878,13 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 "gw_deployment",
                 rest_api_id=api_gateway_rest_api_resource.id,
                 triggers={
-                    "redeployment": '${sha1(jsonencode([' + \
-                                       api_gateway_proxy_resource.id + ',' +
-                                       api_gateway_token_resource.id + ',' +
-                                       api_gateway_method_any_resource.id + ',' +
-                                       api_gateway_method_token_get_resource.id + ',' +
-                                       api_gateway_integration_proxy_resource.id + ',' +
-                                       api_gateway_integration_token_resource.id +')}'
+                    "redeployment": '${sha1(jsonencode([' +
+                        api_gateway_proxy_resource.id + ',' +
+                        api_gateway_token_resource.id + ',' +
+                        api_gateway_method_any_resource.id + ',' +
+                        api_gateway_method_token_get_resource.id + ',' +
+                        api_gateway_integration_proxy_resource.id + ',' +
+                        api_gateway_integration_token_resource.id +')}'
                 },
                 lifecycle={"create_before_destroy": True}
             )
