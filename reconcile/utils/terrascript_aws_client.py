@@ -4860,7 +4860,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 "gw_integration_response_token",
                 rest_api_id=api_gateway_rest_api_resource.id,
                 resource_id=api_gateway_token_resource.id,
-                http_method=api_gateway_method_resource.http_method,
+                http_method=api_gateway_token_resource.http_method,
                 status_code=api_gateway_method_token_get_response_resource.status_code,
                 depends_on=[api_gateway_integration_token_resource]
             )
@@ -4871,12 +4871,12 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 rest_api_id=api_gateway_rest_api_resource.id,
                 triggers={
                     "redeployment": '${sha1(jsonencode([' +
-                        api_gateway_proxy_resource.id + ',' +
-                        api_gateway_token_resource.id + ',' +
-                        api_gateway_method_any_resource.id + ',' +
-                        api_gateway_method_token_get_resource.id + ',' +
-                        api_gateway_integration_proxy_resource.id + ',' +
-                        api_gateway_integration_token_resource.id + ')}'
+                                      api_gateway_proxy_resource.id + ',' +
+                                      api_gateway_token_resource.id + ',' +
+                                      api_gateway_method_any_resource.id + ',' +
+                                      api_gateway_method_token_get_resource.id + ',' +
+                                      api_gateway_integration_proxy_resource.id + ',' +
+                                      api_gateway_integration_token_resource.id + ')}'
                 },
                 lifecycle={"create_before_destroy": True}
             )
