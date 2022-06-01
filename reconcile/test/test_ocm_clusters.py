@@ -230,7 +230,7 @@ def test_ocm_spec_population_osd(osd_cluster_fxt):
 def test_ocm_spec_population_osd_with_extra(osd_cluster_fxt):
     osd_cluster_fxt["spec"]["extra_attribute"] = True
     with pytest.raises(ValidationError):
-        n = OCMSpec(**osd_cluster_fxt)
+        OCMSpec(**osd_cluster_fxt)
 
 
 def test_get_ocm_cluster_update_spec_no_changes(
