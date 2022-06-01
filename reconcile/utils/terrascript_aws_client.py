@@ -923,14 +923,14 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         for namespace_info in namespaces:
             tf_resources = namespace_info.get('terraformResources') or []
             for resource in tf_resources:
-                populate_spec = {'resource': resource,
-                                 'namespace_info': namespace_info}
                 account = resource['account']
                 # Skip if account_name is specified
                 if account_name and account != account_name:
                     continue
                 if account not in self.account_resources:
                     self.account_resources[account] = []
+                populate_spec = {'resource': resource,
+                                 'namespace_info': namespace_info}
                 self.account_resources[account].append(populate_spec)
 
     def populate_tf_resources(self, populate_spec, existing_secrets,
