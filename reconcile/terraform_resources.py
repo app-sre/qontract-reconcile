@@ -543,19 +543,18 @@ def filter_tf_namespaces(
 ) -> list[Mapping[str, Any]]:
     tf_namespaces = []
     for namespace_info in namespaces:
-        if not namespace_info.get('managedTerraformResources'):
-            continue
-        if account_name is None:
-            tf_namespaces.append(namespace_info)
-            continue
-        tf_resources = namespace_info.get('terraformResources')
-        if not tf_resources:
-            tf_namespaces.append(namespace_info)
-            continue
-        for resource in tf_resources:
-            if resource['account'] == account_name:
+        if namespace_info.get('managedTerraformResources'):
+            if account_name is None:
                 tf_namespaces.append(namespace_info)
-                break
+                continue
+            tf_resources = namespace_info.get('terraformResources')
+            if not tf_resources:
+                tf_namespaces.append(namespace_info)
+                continue
+            for resource in tf_resources:
+                if resource['account'] == account_name:
+                    tf_namespaces.append(namespace_info)
+                    break
     return tf_namespaces
 
 
