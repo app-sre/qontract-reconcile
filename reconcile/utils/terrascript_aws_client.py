@@ -2456,7 +2456,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         tf_resources.append(Output(output_name_0_13, value=output_value))
 
         # aws_s3_bucket_acl
-        if cf_distribution_tf_resource.logging_config:
+        values = common_values.get('distribution_config', {})
+        if 'logging_config' in values.keys():
             values = {}
             values['name'] = identifier
             values['tags'] = common_values['tags']
