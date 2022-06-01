@@ -341,6 +341,18 @@ TF_NAMESPACES_QUERY = """
     terraformResources {
       %s
     }
+    managedExternalResources
+    externalResources {
+      provider
+      provisioner {
+        name
+      }
+      ... on NamespaceTerraformProviderResourceAWS_v1 {
+        resources {
+          %s
+        }
+      }
+    }
     environment {
       name
     }
@@ -380,7 +392,8 @@ TF_NAMESPACES_QUERY = """
   }
 }
 """ % (
-    indent(Template(TF_RESOURCE_AWS).render(account=True), 6*' ')
+    indent(Template(TF_RESOURCE_AWS).render(account=True), 6*' '),
+    indent(Template(TF_RESOURCE_AWS).render(account=False), 6*' '),
 )
 
 QONTRACT_INTEGRATION = 'terraform_resources'
