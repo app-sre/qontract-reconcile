@@ -1,4 +1,4 @@
-import reconcile.utils.terrascript_client as tsclient
+import reconcile.utils.terrascript_aws_client as tsclient
 
 
 def test_sanitize_resource_with_dots():
@@ -56,7 +56,7 @@ def test_use_previous_image_id_no_upstream():
 def test_use_previous_image_id_false(mocker):
     result = False
     mocker.patch(
-        "reconcile.utils.terrascript_client.TerrascriptClient.init_jenkins",
+        "reconcile.utils.terrascript_aws_client.TerrascriptClient.init_jenkins",
         return_value=MockJenkinsApi(result),
     )
     ts = tsclient.TerrascriptClient("", "", 1, [])
@@ -67,7 +67,7 @@ def test_use_previous_image_id_false(mocker):
 def test_use_previous_image_id_true(mocker):
     result = True
     mocker.patch(
-        "reconcile.utils.terrascript_client.TerrascriptClient.init_jenkins",
+        "reconcile.utils.terrascript_aws_client.TerrascriptClient.init_jenkins",
         return_value=MockJenkinsApi(result),
     )
     ts = tsclient.TerrascriptClient("", "", 1, [])

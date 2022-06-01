@@ -25,7 +25,7 @@ from reconcile.utils.oc import OC_Map
 from reconcile.utils.ocm import OCMMap
 from reconcile.utils.oc import StatusCodeError
 from reconcile.utils.openshift_resource import ResourceInventory
-from reconcile.utils.terrascript_client import TerrascriptClient as Terrascript
+from reconcile.utils.terrascript_aws_client import TerrascriptClient as Terrascript
 from reconcile.utils.terraform_client import TerraformClient as Terraform
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.vault import _VaultClient, VaultClient
