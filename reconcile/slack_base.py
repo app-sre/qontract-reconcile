@@ -6,9 +6,11 @@ from reconcile.utils.slack_api import SlackApi, SlackApiConfig
 
 
 def slackapi_from_queries(
-    integration_name: str, init_usergroups: Optional[bool] = True
+    integration_name: str, init_usergroups: Optional[bool] = True, settings=None
 ) -> SlackApi:
-    app_interface_settings = queries.get_app_interface_settings()
+    app_interface_settings = settings
+    if not app_interface_settings:
+        app_interface_settings = queries.get_app_interface_settings()
     slack_workspace = {"workspace": queries.get_slack_workspace()}
     return slackapi_from_slack_workspace(
         slack_workspace, app_interface_settings, integration_name, init_usergroups

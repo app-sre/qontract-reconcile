@@ -8,6 +8,8 @@ from reconcile import queries
 import reconcile.utils.ocm as ocmmod
 import reconcile.ocm_clusters as occ
 from reconcile.utils.mr import clusters_updates
+import reconcile.utils.state as statemod
+import reconcile.utils.slack_api as slackapimod
 
 from .fixtures import Fixtures
 
@@ -116,6 +118,11 @@ class TestRun(TestCase):
         self.update_cluster = self.mock_callable(
             self.ocm, "update_cluster"
         ).to_return_value(None)
+        self.state = StrictMock(statemod.State)
+        self.mock_constructor(statemod, "State").to_return_value(self.state)
+        self.mock_callable(self.state, "exists").to_return_value(False)
+        self.slackapi = StrictMock(slackapimod.SlackApi)
+        self.mock_callable(occ, "slackapi_from_queries").to_return_value(self.slackapi)
         self.mock_callable(sys, "exit").to_raise(ValueError)
         self.addCleanup(mock_callable.unpatch_all_callable_mocks)
 
@@ -140,6 +147,9 @@ class TestRun(TestCase):
         self.mock_callable(self.ocmmap, "cluster_specs").for_call().to_return_value(
             (current, {})
         ).and_assert_called_once()
+        self.mock_callable(
+            queries, "get_state_aws_accounts"
+        ).for_call().to_return_value([]).and_assert_not_called()
         self.mock_callable(occ, "get_cluster_update_spec").to_return_value(
             ({}, False)
         ).and_assert_called_once()
@@ -173,6 +183,9 @@ class TestRun(TestCase):
         self.mock_callable(self.ocmmap, "cluster_specs").for_call().to_return_value(
             (current, {})
         ).and_assert_called_once()
+        self.mock_callable(
+            queries, "get_state_aws_accounts"
+        ).for_call().to_return_value([]).and_assert_called_once()
         self.mock_callable(occ, "get_cluster_update_spec").to_return_value(
             ({}, False)
         ).and_assert_called_once()
@@ -204,6 +217,9 @@ class TestRun(TestCase):
         self.mock_callable(self.ocmmap, "cluster_specs").for_call().to_return_value(
             (current, {})
         ).and_assert_called_once()
+        self.mock_callable(
+            queries, "get_state_aws_accounts"
+        ).for_call().to_return_value([]).and_assert_called_once()
         self.mock_callable(occ, "get_cluster_update_spec").to_return_value(
             ({"id": "anid"}, False)
         ).and_assert_called_once()
@@ -248,6 +264,10 @@ class TestRun(TestCase):
             (current, {})
         ).and_assert_called_once()
 
+        self.mock_callable(
+            queries, "get_state_aws_accounts"
+        ).for_call().to_return_value([]).and_assert_called_once()
+
         create_clusters_updates = StrictMock(clusters_updates.CreateClustersUpdates)
         self.mock_constructor(
             clusters_updates, "CreateClustersUpdates"
@@ -290,6 +310,10 @@ class TestRun(TestCase):
         self.mock_callable(self.ocmmap, "cluster_specs").for_call().to_return_value(
             (current, {})
         ).and_assert_called_once()
+
+        self.mock_callable(
+            queries, "get_state_aws_accounts"
+        ).for_call().to_return_value([]).and_assert_called_once()
 
         create_clusters_updates = StrictMock(clusters_updates.CreateClustersUpdates)
         self.mock_constructor(

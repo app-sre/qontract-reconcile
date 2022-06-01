@@ -5,9 +5,12 @@ import semver
 from reconcile import queries
 
 from reconcile import mr_client_gateway
+from reconcile.slack_base import slackapi_from_queries
 import reconcile.utils.mr.clusters_updates as cu
 
 import reconcile.utils.ocm as ocmmod
+import reconcile.utils.slack_api as slackapimod
+import reconcile.utils.state as statemod
 
 QONTRACT_INTEGRATION = "ocm-clusters"
 
@@ -73,6 +76,23 @@ def get_cluster_update_spec(cluster_name, current_spec, desired_spec):
     return updated, error
 
 
+def slack_upgrade_done(
+    cluster: str, version: str, slack: slackapimod.SlackApi, state: statemod.State
+):
+    state_key = f"slack-{cluster}-version"
+    state_value = version
+    if state.exists(state_key) and state_value == state.get(state_key):
+        # message already sent
+        return
+    usergroup = f"{cluster}-cluster"
+    usergroup_id = slack.get_usergroup_id(usergroup)
+    slack.chat_post_message(
+        f"<!subteam^{usergroup_id}>: "
+        + f"cluster `{cluster}` is now running version `{version}`"
+    )
+    state.add(state_key, state_value, force=True)
+
+
 def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
     settings = queries.get_app_interface_settings()
     clusters = queries.get_clusters()
@@ -86,8 +106,15 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
     current_state, pending_state = ocm_map.cluster_specs()
     desired_state = fetch_desired_state(clusters)
 
+    state: statemod.State = None
+    slack: slackapimod.SlackApi = None
     if not dry_run:
         mr_cli = mr_client_gateway.init(gitlab_project_id=gitlab_project_id)
+        accounts = queries.get_state_aws_accounts()
+        state = statemod.State(
+            integration=QONTRACT_INTEGRATION, accounts=accounts, settings=settings
+        )
+        slack = slackapi_from_queries(QONTRACT_INTEGRATION, settings=settings)
 
     error = False
     clusters_updates = {}
@@ -215,6 +242,9 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
 
     create_update_mr = False
     for cluster_name, cluster_updates in clusters_updates.items():
+        if not dry_run and "version" in cluster_updates["spec"]:
+            version = cluster_updates["spec"]["version"]
+            slack_upgrade_done(cluster_name, version, slack, state)
         for k, v in cluster_updates["spec"].items():
             logging.info(
                 f"[{cluster_name}] desired key in spec "
