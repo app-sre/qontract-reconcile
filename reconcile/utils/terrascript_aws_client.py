@@ -921,10 +921,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                             account_name: Optional[str]) -> None:
         self.account_resources: dict[str, list[dict[str, Any]]] = {}
         for namespace_info in namespaces:
-            # Skip if namespace has no terraformResources
-            tf_resources = namespace_info.get('terraformResources')
-            if not tf_resources:
-                continue
+            tf_resources = namespace_info.get('terraformResources') or []
             for resource in tf_resources:
                 populate_spec = {'resource': resource,
                                  'namespace_info': namespace_info}
