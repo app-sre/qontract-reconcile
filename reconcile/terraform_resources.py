@@ -31,7 +31,7 @@ from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.vault import _VaultClient, VaultClient
 
 
-TF_RESOURCE = """
+TF_RESOURCE_AWS = """
 output_format {
   provider
   ... on NamespaceTerraformResourceGenericSecretOutputFormat_v1 {
@@ -378,7 +378,7 @@ TF_NAMESPACES_QUERY = """
     }
   }
 }
-""" % (indent(TF_RESOURCE, 6*' '))
+""" % (indent(TF_RESOURCE_AWS, 6*' '))
 
 QONTRACT_INTEGRATION = 'terraform_resources'
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 5, 2)
