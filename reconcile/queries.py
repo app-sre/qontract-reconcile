@@ -451,6 +451,11 @@ def get_queue_aws_accounts():
     return get_aws_accounts(uid=uid)
 
 
+def get_terraform_provisioners():
+    aws_accounts = get_aws_accounts()
+    return aws_accounts
+
+
 AWS_INFRA_MANAGEMENT_ACCOUNT = """
 awsInfrastructureManagementAccounts {
   account {

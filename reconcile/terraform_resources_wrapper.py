@@ -16,7 +16,7 @@ QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 
 def get_accounts_names():
-    accounts = queries.get_aws_accounts()
+    accounts = queries.get_terraform_provisioners()
     settings = queries.get_app_interface_settings()
     # using Terrascript to filter out disabled accounts
     ts = Terrascript(

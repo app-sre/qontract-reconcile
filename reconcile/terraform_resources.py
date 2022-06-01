@@ -491,7 +491,7 @@ def setup(
     TerraformResourceSpecInventory,
 ]:
     gqlapi = gql.get_api()
-    accounts = queries.get_aws_accounts()
+    accounts = queries.get_terraform_provisioners()
     if account_name:
         accounts = [n for n in accounts
                     if n['name'] == account_name]
