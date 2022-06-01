@@ -17,7 +17,7 @@ from reconcile.utils.openshift_resource import OpenshiftResource
 from reconcile.utils.smtp_client import SmtpClient
 from reconcile.utils.state import State
 from reconcile.status import ExitCodes
-from reconcile.utils.terrascript_client import TerrascriptClient as Terrascript
+from reconcile.utils.terrascript_aws_client import TerrascriptClient as Terrascript
 
 
 QONTRACT_INTEGRATION = "sql-query"

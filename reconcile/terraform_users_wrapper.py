@@ -9,7 +9,7 @@ import reconcile.terraform_users as tfu
 from reconcile import queries
 from reconcile.utils.sharding import is_in_shard_round_robin
 from reconcile.utils.semver_helper import make_semver
-from reconcile.utils.terrascript_client import TerrascriptClient as Terrascript
+from reconcile.utils.terrascript_aws_client import TerrascriptClient as Terrascript
 from reconcile.status import ExitCodes
 
 QONTRACT_INTEGRATION = "terraform-users-wrapper"
