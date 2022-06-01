@@ -108,7 +108,6 @@ import reconcile.template_tester
 import reconcile.query_validator
 import reconcile.dashdotdb_dvo
 import reconcile.sendgrid_teammates
-import reconcile.osd_mirrors_data_updater
 import reconcile.dashdotdb_slo
 import reconcile.jenkins_job_builds_cleaner
 import reconcile.cluster_deployment_mapper
@@ -1702,15 +1701,6 @@ def dashdotdb_slo(ctx, thread_pool_size):
 @click.pass_context
 def ocp_release_mirror(ctx):
     run_integration(reconcile.ocp_release_mirror, ctx.obj)
-
-
-@integration.command(
-    short_help="Collects OSD mirror information and " "updates app-interface via MR."
-)
-@gitlab_project_id
-@click.pass_context
-def osd_mirrors_data_updater(ctx, gitlab_project_id):
-    run_integration(reconcile.osd_mirrors_data_updater, ctx.obj, gitlab_project_id)
 
 
 @integration.command(short_help="Mirrors external images into AWS ECR.")

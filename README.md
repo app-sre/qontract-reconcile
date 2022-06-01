@@ -131,8 +131,6 @@ Additional tools that use the libraries created by the reconciliations are also 
                                   notifications.
   openshift-users                 Deletion of users from OpenShift clusters.
   openshift-vault-secrets         Manages OpenShift Secrets from Vault.
-  osd-mirrors-data-updater        Collects OSD mirror information and updates
-                                  app-interface via MR.
   prometheus-rules-tester         Tests prometheus rules using promtool.
   quay-membership                 Configures the teams and members in Quay.
   quay-mirror                     Mirrors external images into Quay.
