@@ -4,6 +4,7 @@ import sys
 
 from textwrap import indent
 from typing import Any, Iterable, MutableMapping, Optional, Mapping, Tuple, cast
+from jinja2 import Template
 
 from sretoolbox.utils import threaded
 
@@ -40,7 +41,7 @@ output_format {
 }
 provider
 ... on NamespaceTerraformResourceRDS_v1 {
-  account
+  {% if account %}account{% endif %}
   region
   identifier
   defaults
@@ -61,7 +62,7 @@ provider
   annotations
 }
 ... on NamespaceTerraformResourceS3_v1 {
-  account
+  {% if account %}account{% endif %}
   region
   identifier
   defaults
@@ -81,7 +82,7 @@ provider
   annotations
 }
 ... on NamespaceTerraformResourceElastiCache_v1 {
-  account
+  {% if account %}account{% endif %}
   identifier
   defaults
   parameter_group
@@ -91,7 +92,7 @@ provider
   annotations
 }
 ... on NamespaceTerraformResourceServiceAccount_v1 {
-  account
+  {% if account %}account{% endif %}
   identifier
   variables
   policies
@@ -107,14 +108,14 @@ provider
   }
 }
 ... on NamespaceTerraformResourceSecretsManagerServiceAccount_v1 {
-  account
+  {% if account %}account{% endif %}
   identifier
   secrets_prefix
   output_resource_name
   annotations
 }
 ... on NamespaceTerraformResourceRole_v1 {
-  account
+  {% if account %}account{% endif %}
   identifier
   assume_role {
     AWS
@@ -126,7 +127,7 @@ provider
   annotations
 }
 ... on NamespaceTerraformResourceSQS_v1 {
-  account
+  {% if account %}account{% endif %}
   region
   identifier
   output_resource_name
@@ -140,7 +141,7 @@ provider
   }
 }
 ... on NamespaceTerraformResourceDynamoDB_v1 {
-  account
+  {% if account %}account{% endif %}
   region
   identifier
   output_resource_name
@@ -154,7 +155,7 @@ provider
   }
 }
 ... on NamespaceTerraformResourceECR_v1 {
-  account
+  {% if account %}account{% endif %}
   identifier
   region
   output_resource_name
@@ -162,7 +163,7 @@ provider
   annotations
 }
 ... on NamespaceTerraformResourceS3CloudFront_v1 {
-  account
+  {% if account %}account{% endif %}
   region
   identifier
   defaults
@@ -171,7 +172,7 @@ provider
   annotations
 }
 ... on NamespaceTerraformResourceS3SQS_v1 {
-  account
+  {% if account %}account{% endif %}
   region
   identifier
   defaults
@@ -181,7 +182,7 @@ provider
   annotations
 }
 ... on NamespaceTerraformResourceCloudWatch_v1 {
-  account
+  {% if account %}account{% endif %}
   region
   identifier
   defaults
@@ -191,7 +192,7 @@ provider
   annotations
 }
 ... on NamespaceTerraformResourceKMS_v1 {
-  account
+  {% if account %}account{% endif %}
   region
   identifier
   defaults
@@ -200,7 +201,7 @@ provider
   annotations
 }
 ... on NamespaceTerraformResourceElasticSearch_v1 {
-  account
+  {% if account %}account{% endif %}
   region
   identifier
   defaults
@@ -209,7 +210,7 @@ provider
   publish_log_types
 }
 ... on NamespaceTerraformResourceACM_v1 {
-  account
+  {% if account %}account{% endif %}
   region
   identifier
   secret {
@@ -226,7 +227,7 @@ provider
   annotations
 }
 ... on NamespaceTerraformResourceKinesis_v1 {
-  account
+  {% if account %}account{% endif %}
   region
   identifier
   defaults
@@ -234,7 +235,7 @@ provider
   annotations
 }
 ... on NamespaceTerraformResourceS3CloudFrontPublicKey_v1 {
-  account
+  {% if account %}account{% endif %}
   region
   identifier
   secret {
@@ -247,7 +248,7 @@ provider
   annotations
 }
 ... on NamespaceTerraformResourceALB_v1 {
-  account
+  {% if account %}account{% endif %}
   region
   identifier
   vpc {
@@ -279,7 +280,7 @@ provider
   annotations
 }
 ... on NamespaceTerraformResourceSecretsManager_v1 {
-  account
+  {% if account %}account{% endif %}
   region
   identifier
   secret {
@@ -292,7 +293,7 @@ provider
   annotations
 }
 ... on NamespaceTerraformResourceASG_v1 {
-  account
+  {% if account %}account{% endif %}
   region
   identifier
   defaults
@@ -322,7 +323,7 @@ provider
   annotations
 }
 ... on NamespaceTerraformResourceRoute53Zone_v1 {
-  account
+  {% if account %}account{% endif %}
   region
   identifier
   name
@@ -378,7 +379,9 @@ TF_NAMESPACES_QUERY = """
     }
   }
 }
-""" % (indent(TF_RESOURCE_AWS, 6*' '))
+""" % (
+    indent(Template(TF_RESOURCE_AWS).render(account=True), 6*' ')
+)
 
 QONTRACT_INTEGRATION = 'terraform_resources'
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 5, 2)
