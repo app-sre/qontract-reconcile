@@ -555,6 +555,20 @@ def filter_tf_namespaces(
                 if resource['account'] == account_name:
                     tf_namespaces.append(namespace_info)
                     break
+
+        if namespace_info.get('managedExternalResources'):
+            if account_name is None:
+                tf_namespaces.append(namespace_info)
+                continue
+            external_resources = namespace_info.get('externalResources')
+            if not external_resources:
+                tf_namespaces.append(namespace_info)
+                continue
+            for resource in external_resources:
+                if resource['provisioner']['name'] == account_name:
+                    tf_namespaces.append(namespace_info)
+                    break
+
     return tf_namespaces
 
 
