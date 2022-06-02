@@ -1,4 +1,4 @@
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 import os
 import sys
@@ -25,7 +25,7 @@ QONTRACT_INTEGRATION = "integrations-manager"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 
-class ShardingStrategy:
+class ShardingStrategy(ABC):
     @abstractmethod
     def build_integration_shards(
         self, integration_meta: IntegrationMeta, spec: Mapping[str, Any]
