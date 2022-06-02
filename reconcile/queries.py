@@ -929,6 +929,42 @@ NAMESPACES_QUERY = """
         }
       }
     }
+    managedExternalResources
+    externalResources {
+      provider
+      provisioner {
+        name
+      }
+      ... on NamespaceTerraformProviderResourceAWS_v1 {
+        resources {
+          provider
+          ... on NamespaceTerraformResourceRDS_v1
+          {
+            identifier
+            output_resource_name
+            defaults
+            replica_source
+          }
+          ... on NamespaceTerraformResourceECR_v1
+          {
+            region
+            identifier
+            output_resource_name
+            mirror {
+              url
+              pullCredentials {
+                path
+                field
+                version
+                format
+              }
+              tags
+              tagsExclude
+            }
+          }
+        }
+      }
+    }
     cluster {
       name
       serverUrl
