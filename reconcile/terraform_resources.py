@@ -7,6 +7,7 @@ from typing import Any, Iterable, MutableMapping, Optional, Mapping, Tuple, cast
 from jinja2 import Template
 
 from sretoolbox.utils import threaded
+from reconcile.utils.external_resources import get_external_resources, managed_external_resources
 
 
 import reconcile.openshift_base as ob
@@ -543,31 +544,22 @@ def filter_tf_namespaces(
 ) -> list[Mapping[str, Any]]:
     tf_namespaces = []
     for namespace_info in namespaces:
-        if namespace_info.get('managedTerraformResources'):
-            if account_name is None:
-                tf_namespaces.append(namespace_info)
-                continue
-            tf_resources = namespace_info.get('terraformResources')
-            if not tf_resources:
-                tf_namespaces.append(namespace_info)
-                continue
-            for resource in tf_resources:
-                if resource['account'] == account_name:
-                    tf_namespaces.append(namespace_info)
-                    break
+        if not managed_external_resources(namespace_info):
+            continue
 
-        if namespace_info.get('managedExternalResources'):
-            if account_name is None:
+        if not account_name:
+            tf_namespaces.append(namespace_info)
+            continue
+
+        resources = get_external_resources(namespace_info)
+        if not resources:
+            tf_namespaces.append(namespace_info)
+            continue
+
+        for r in resources:
+            if r["account"] == account_name:
                 tf_namespaces.append(namespace_info)
-                continue
-            external_resources = namespace_info.get('externalResources')
-            if not external_resources:
-                tf_namespaces.append(namespace_info)
-                continue
-            for resource in external_resources:
-                if resource['provisioner']['name'] == account_name:
-                    tf_namespaces.append(namespace_info)
-                    break
+                break
 
     return tf_namespaces
 
@@ -577,9 +569,9 @@ def init_tf_resource_specs(
 ) -> TerraformResourceSpecInventory:
     resource_specs: dict[TerraformResourceUniqueKey, TerraformResourceSpec] = {}
     for namespace_info in namespaces:
-        if not namespace_info.get("managedTerraformResources"):
+        if not managed_external_resources(namespace_info):
             continue
-        tf_resources = namespace_info.get("terraformResources") or []
+        tf_resources = get_external_resources(namespace_info)
         for resource in tf_resources:
             if account_name is None or resource["account"] == account_name:
                 identifier = TerraformResourceUniqueKey.from_dict(resource)

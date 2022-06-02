@@ -10,6 +10,7 @@ from ruamel import yaml
 from reconcile import openshift_base
 from reconcile import openshift_resources_base as orb
 from reconcile import queries
+from reconcile.utils.external_resources import get_external_resources
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.oc import OC_Map
 from reconcile.utils.oc import StatusCodeError
@@ -112,14 +113,14 @@ data:
 
 def get_tf_resource_info(terrascript: Terrascript, namespace, identifier):
     """
-    Extracting the terraformResources information from the namespace
+    Extracting the external resources information from the namespace
     for a given identifier
 
     :param namespace: the namespace dictionary
     :param identifier: the identifier we are looking for
     :return: the terraform resource information dictionary
     """
-    tf_resources = namespace["terraformResources"]
+    tf_resources = get_external_resources(namespace)
     for tf_resource in tf_resources:
         if "identifier" not in tf_resource:
             continue
@@ -221,7 +222,7 @@ def collect_queries(query_name=None, settings=None):
                 logging.error(["user %s does not have a public gpg key"], user_name)
                 sys.exit(ExitCodes.ERROR)
 
-        # Extracting the terraformResources information from the namespace
+        # Extracting the external resources information from the namespace
         # fo the given identifier
         tf_resource_info = get_tf_resource_info(terrascript, namespace, identifier)
         if tf_resource_info is None:

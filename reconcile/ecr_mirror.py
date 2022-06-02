@@ -7,6 +7,10 @@ from sretoolbox.container.skopeo import SkopeoCmdError
 from sretoolbox.utils import threaded
 
 from reconcile import queries
+from reconcile.utils.external_resources import (
+    get_external_resources,
+    managed_external_resources,
+)
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.secret_reader import SecretReader
 
@@ -123,10 +127,10 @@ def run(dry_run, thread_pool_size=10):
     tfrs_to_mirror = []
     for namespace in namespaces:
 
-        if namespace["terraformResources"] is None:
+        if not managed_external_resources(namespace):
             continue
 
-        for tfr in namespace["terraformResources"]:
+        for tfr in get_external_resources(namespace):
             if tfr["provider"] != "ecr":
                 continue
 

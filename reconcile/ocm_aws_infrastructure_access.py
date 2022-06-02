@@ -1,4 +1,5 @@
 import logging
+from reconcile.utils.external_resources import PROVIDER_AWS, get_external_resources
 
 from reconcile.utils import gql
 from reconcile import queries
@@ -85,16 +86,16 @@ def fetch_desired_state():
                 }
                 desired_state.append(item)
 
-    # get desired state defined in terraformResources
+    # get desired state defined in external resources
     # section for aws-iam-service-account resources
     # of namespace files
     aws_accounts = queries.get_aws_accounts()
     gqlapi = gql.get_api()
     namespaces = gqlapi.query(TF_NAMESPACES_QUERY)["namespaces"]
     for namespace_info in namespaces:
-        terraform_resources = namespace_info.get("terraformResources") or None
-        if terraform_resources is None:
-            continue
+        terraform_resources = get_external_resources(
+            namespace_info, provision_provider=PROVIDER_AWS
+        )
         for tf_resource in terraform_resources:
             provider = tf_resource["provider"]
             if provider != "aws-iam-service-account":
