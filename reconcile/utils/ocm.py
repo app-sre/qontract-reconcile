@@ -1,4 +1,5 @@
 from __future__ import annotations
+from abc import abstractmethod
 import functools
 import logging
 import re
@@ -69,14 +70,17 @@ class OCMProduct:
     EXCLUDED_SPEC_FIELDS: set[str]
 
     @staticmethod
+    @abstractmethod
     def create_cluster(ocm: OCM, name: str, cluster: OCMSpec, dry_run: bool):
         pass
 
     @staticmethod
+    @abstractmethod
     def update_cluster(ocm: OCM, cluster_name: str, update_spec: Mapping[str, Any]):
         pass
 
     @staticmethod
+    @abstractmethod
     def get_ocm_spec(
         ocm: OCM, cluster: Mapping[str, Any], init_provision_shards: bool
     ) -> OCMSpec:
