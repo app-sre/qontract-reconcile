@@ -1540,6 +1540,25 @@ APP_INTERFACE_SQL_QUERIES_QUERY = """
           overrides
         }
       }
+      managedExternalResources
+      externalResources {
+        provider
+        provisioner {
+          name
+        }
+        ... on NamespaceTerraformProviderResourceAWS_v1 {
+          resources {
+            provider
+            ... on NamespaceTerraformResourceRDS_v1
+            {
+              identifier
+              output_resource_name
+              defaults
+              overrides
+            }
+          }
+        }
+      }
       app {
         name
       }
