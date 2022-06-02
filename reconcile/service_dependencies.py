@@ -4,7 +4,6 @@ import logging
 from reconcile.utils import gql
 from reconcile import queries
 from reconcile.utils.external_resources import (
-    get_external_resources,
     get_provision_providers,
     managed_external_resources,
 )
