@@ -2,6 +2,7 @@ import logging
 import sys
 from datetime import datetime, date
 from typing import Iterable, Mapping, Optional
+from reconcile.utils.external_resources import get_external_resources
 from reconcile.status import ExitCodes
 
 from reconcile.utils.aggregated_list import RunnerException
@@ -46,7 +47,7 @@ def fetch_desired_state(
             namespace = i["namespace"]
             account = i["account"]
             identifier = i["identifier"]
-            tf_resources = namespace["terraformResources"]
+            tf_resources = get_external_resources(namespace)
             found = False
             for t in tf_resources:
                 if t["provider"] != "rds":

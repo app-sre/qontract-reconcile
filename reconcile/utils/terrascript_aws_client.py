@@ -85,6 +85,7 @@ from sretoolbox.utils import threaded
 
 from reconcile.utils import gql
 from reconcile.utils.aws_api import AWSApi
+from reconcile.utils.external_resources import PROVIDER_AWS, get_external_resources
 from reconcile.utils.jenkins_api import JenkinsApi
 from reconcile.utils.ocm import OCMMap
 from reconcile.utils.secret_reader import SecretReader
@@ -921,7 +922,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                             account_name: Optional[str]) -> None:
         self.account_resources: dict[str, list[dict[str, Any]]] = {}
         for namespace_info in namespaces:
-            tf_resources = namespace_info.get('terraformResources') or []
+            tf_resources = get_external_resources(namespace_info, provision_provider=PROVIDER_AWS)
             for resource in tf_resources:
                 account = resource['account']
                 # Skip if account_name is specified
@@ -929,35 +930,14 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     continue
                 if account not in self.account_resources:
                     self.account_resources[account] = []
-                # terraformResources is aws specific
-                provision_provider = 'aws'
                 populate_spec = {'resource': resource,
-                                 'provision_provider': provision_provider,
+                                 'provision_provider': PROVIDER_AWS,
                                  'namespace_info': namespace_info}
                 self.account_resources[account].append(populate_spec)
 
-            external_resources = namespace_info.get('externalResources') or []
-            for resource in external_resources:
-                provision_provider = resource['provider']
-                # Skip if provision provider is not aws
-                if provision_provider != 'aws':
-                    continue
-                account = resource['provisioner']['name']
-                # Skip if account_name is specified
-                if account_name and account != account_name:
-                    continue
-                if account not in self.account_resources:
-                    self.account_resources[account] = []
-                for resource in resource['resources']:
-                    resource['account'] = account
-                    populate_spec = {'resource': resource,
-                                     'provision_provider': provision_provider,
-                                     'namespace_info': namespace_info}
-                    self.account_resources[account].append(populate_spec)
-
     def populate_tf_resources(self, populate_spec, existing_secrets,
                               ocm_map=None):
-        if populate_spec['provision_provider'] != 'aws':
+        if populate_spec['provision_provider'] != PROVIDER_AWS:
             return
         resource = populate_spec['resource']
         namespace_info = populate_spec['namespace_info']

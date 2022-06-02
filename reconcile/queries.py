@@ -899,6 +899,7 @@ NAMESPACES_QUERY = """
         email
       }
     }
+    managedTerraformResources
     terraformResources
       {
         provider

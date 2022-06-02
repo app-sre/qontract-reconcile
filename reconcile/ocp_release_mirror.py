@@ -6,6 +6,7 @@ from urllib.parse import urlparse
 from collections import namedtuple
 
 from sretoolbox.container import Image
+from reconcile.utils.external_resources import get_external_resources
 
 from reconcile.utils.oc import OC
 from reconcile.utils.oc import OC_Map
@@ -303,7 +304,7 @@ class OcpReleaseMirror:
 
     @staticmethod
     def _get_tf_resource_info(namespace, identifier):
-        tf_resources = namespace["terraformResources"]
+        tf_resources = get_external_resources(namespace)
         for tf_resource in tf_resources:
             if "identifier" not in tf_resource:
                 continue

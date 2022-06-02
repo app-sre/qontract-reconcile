@@ -17,6 +17,11 @@ from reconcile.checkpoint import report_invalid_metadata
 from reconcile.cli import config_file
 from reconcile.slack_base import slackapi_from_queries
 from reconcile.utils import config, dnsutils, gql
+from reconcile.utils.external_resources import (
+    PROVIDER_AWS,
+    get_external_resources,
+    managed_external_resources,
+)
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.environ import environ
 from reconcile.jenkins_job_builder import init_jjb
@@ -682,7 +687,9 @@ def aws_terraform_resources(ctx):
     columns = ["name", "total"]
     results = {}
     for ns_info in namespaces:
-        terraform_resources = ns_info.get("terraformResources") or []
+        terraform_resources = (
+            get_external_resources(ns_info, provision_provider=PROVIDER_AWS) or []
+        )
         for r in terraform_resources:
             account = r["account"]
             item = {"name": account, "total": 0}
@@ -961,10 +968,10 @@ def service_owners_for_rds_instance(ctx, aws_account, identifier):
     namespaces = queries.get_namespaces()
     service_owners = []
     for namespace_info in namespaces:
-        if namespace_info.get("terraformResources") is None:
+        if not managed_external_resources(namespace_info):
             continue
 
-        for tf in namespace_info.get("terraformResources"):
+        for tf in get_external_resources(namespace_info):
             if (
                 tf["provider"] == "rds"
                 and tf["account"] == aws_account
