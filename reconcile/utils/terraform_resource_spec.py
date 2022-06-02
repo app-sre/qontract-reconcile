@@ -18,7 +18,7 @@ class OutputFormatProcessor:
     def render(self, vars: Mapping[str, str]) -> dict[str, str]:
         return {}
 
-    def validate_k8s_secret_key(self, key: Any) -> None:  # pylint: disable=R0201
+    def validate_k8s_secret_key(self, key: Any) -> None:
         if isinstance(key, str):
             if len(key) > SECRET_MAX_KEY_LENGTH:
                 raise ValueError(
