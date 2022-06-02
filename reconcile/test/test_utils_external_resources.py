@@ -103,6 +103,34 @@ def test_get_external_resources_filter_other(namespace_info, expected_other):
     assert results == expected_other
 
 
+def test_get_provision_providers_terraform_resources(namespace_info):
+    namespace_info["managedExternalResources"] = False
+    namespace_info["externalResources"] = None
+    results = uer.get_provision_providers(namespace_info)
+    assert results == {uer.PROVIDER_AWS}
+
+
+def test_get_provision_providers_external_resources(namespace_info):
+    namespace_info["managedTerraformResources"] = False
+    namespace_info["terraformResources"] = None
+    results = uer.get_provision_providers(namespace_info)
+    assert results == {uer.PROVIDER_AWS, "other"}
+
+
+def test_get_provision_providers_both(namespace_info):
+    results = uer.get_provision_providers(namespace_info)
+    assert results == {uer.PROVIDER_AWS, "other"}
+
+
+def test_get_provision_providers_none():
+    namespace_info = {
+        "managedTerraformResources": False,
+        "managedExternalResources": None,
+    }
+    results = uer.get_provision_providers(namespace_info)
+    assert not results
+
+
 def test_managed_external_resources_terraform_resources():
     namespace_info = {
         "managedTerraformResources": True,
