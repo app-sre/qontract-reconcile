@@ -88,7 +88,6 @@ class TestGetOwnedPods(TestCase):
 @patch.dict(os.environ, {"USE_NATIVE_CLIENT": "False"}, clear=True)
 class TestValidatePodReady(TestCase):
     @patch.object(OCDeprecated, "get")
-    # pylint: disable=no-self-use
     def test_validate_pod_ready_all_good(self, oc_get):
         oc_get.return_value = {
             "status": {
