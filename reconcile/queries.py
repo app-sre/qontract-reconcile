@@ -891,6 +891,11 @@ NAMESPACES_QUERY = """
     name
     delete
     labels
+    environment 
+    {
+      name
+      labels
+    }
     managedRoles
     app {
       name

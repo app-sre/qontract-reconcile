@@ -976,6 +976,35 @@ def service_owners_for_rds_instance(ctx, aws_account, identifier):
     columns = ["name", "email"]
     print_output(ctx.obj["options"], service_owners, columns)
 
+@get.command()
+@click.argument("aws_account")
+@click.argument("is_production", default=False)
+@click.pass_context
+def rds_for_aws_account(ctx, aws_account, is_production=False):
+    namespaces = queries.get_namespaces()
+    rds_instances = []
+    for namespace_info in namespaces:
+        if namespace_info.get("terraformResources") is None:
+            continue
+
+        for tf in namespace_info.get("terraformResources"):
+            temp = namespace_info["environment"]["labels"].split('type')[1]
+            environment = ''.join(ch for ch in temp if ch.isalnum())
+            if (
+                tf["provider"] == "rds"
+                and tf["account"] == aws_account
+            ):
+                if not is_production:
+                    if "prod" not in environment:
+                        rds_instances.append({"identifier":tf["identifier"]})
+                else:
+                    if "prod" in environment:
+                        rds_instances.append({"identifier":tf["identifier"]})
+                break
+
+    columns = ["identifier"]
+    print_output(ctx.obj["options"], rds_instances, columns)
+
 
 @get.command()
 @click.pass_context
