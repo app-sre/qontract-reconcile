@@ -263,12 +263,7 @@ def get_apps_data(date, month_delta=1, thread_pool_size=10):
                     saas_file_name, job["env"], settings
                 )
                 job["saas_file_name"] = saas_file_name
-                job["instance"] = saas_file["instance"]["name"]
                 saas_deploy_jobs.append(job)
-                if job["instance"] not in jobs_to_get:
-                    jobs_to_get[job["instance"]] = [job]
-                else:
-                    jobs_to_get[job["instance"]].append(job)
 
     job_history = get_build_history_pool(
         jenkins_map, jobs_to_get, timestamp_limit, thread_pool_size
@@ -325,9 +320,9 @@ def get_apps_data(date, month_delta=1, thread_pool_size=10):
 
                     # Post-deploy job must depend on a openshift-saas-deploy
                     # job
-                    if target["upstream"] is None:
+                    if target["upstream"] is None or target["upstream"]["name"] is None:
                         continue
-                    if target["upstream"].startswith("openshift-saas-deploy-"):
+                    if target["upstream"]["name"].startswith("openshift-saas-deploy-"):
                         post_deploy_jobs[cluster][namespace] = True
 
         app["post_deploy_jobs"] = post_deploy_jobs
@@ -591,3 +586,7 @@ def main(
         )
         result = mr.submit(cli=mr_cli)
         logging.info(["created_mr", result.web_url])
+
+
+if __name__ == "__main__":
+    main()  # pylint: disable=no-value-for-parameter
