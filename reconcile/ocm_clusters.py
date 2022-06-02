@@ -20,11 +20,8 @@ def fetch_desired_state(clusters: Iterable[Mapping[str, Any]]) -> dict[str, OCMS
     """Builds a dictionary with all clusters retrieved from app-interface. Cluster specs
     are based on OCMSpec implementations depending the ocm product
 
-    Parameters:
-        clusters (list): list of clusters retrieved from app-interface
-
-    Returns:
-        dict: Collection with all cluster specs with the defined OCM model
+    :param clusters: list of clusters retrieved from app-interface
+    :return: Collection with all cluster specs with the defined OCM model
     """
     desired_state = {}
     for c in clusters:
@@ -42,19 +39,13 @@ def _cluster_version_needs_update(
 ) -> bool:
     """Compares version strings (semver) to determine if a current manifest is required.
 
-    Parameters:
-        cluster (str): cluster name
-        current_version(str): current version string (semver)
-        desired_version(str): desired verseion string (semver)
-
-    Returns:
-        bool: True if current version is grater than desired_version
-
-    Raises:
-        ClusterVersionError: if current_version < desired_version. It means the version
-            has been updated in the app-interface manifest before the cluster update.
-            Cluster updates are managed by the ocm-upgrade-scheduler integration.
-
+    :param cluster: cluster name
+    :param current_version: current version string (semver)
+    :param desired_version: desired version string (semver)
+    :raises ClusterVersionError: if current_version < desired_version. It means the
+            version has been updated in the app-interface manifest before the cluster
+            update. Cluster updates are managed by the ocm-upgrade-scheduler integration.
+    :return: True if current version is greater than desired_version
     """
 
     desired_version = parse_semver(desired_version)
@@ -86,15 +77,10 @@ def get_app_interface_spec_updates(
 ) -> Tuple[dict[str, Any], bool]:
     """Get required changes to apply to app-interface clusters manifest
 
-    Parameters:
-        cluster (str): cluster name
-        current_spec (OCMSpec): Cluster spec retreived from OCM api
-        desired_spec (OCMSpec): Cluster spec retreived from App-Interface
-
-    Returns:
-        updates (dict): Required updates to do in app-interface manifest
-        err(bool): If there are errors with the specs (version related)
-
+    :param cluster: cluster name
+    :param current_spec: Cluster spec retreived from OCM api
+    :param desired_spec: Cluster spec retreived from App-Interface
+    :return: Required updates to do in app-interface manifest and a bool to notify errors
     """
 
     error = False
@@ -153,15 +139,11 @@ def get_cluster_ocm_update_spec(
 ) -> Tuple[dict[str, Any], bool]:
     """Get cluster updates to request to OCM api
 
-    Parameters:
-        ocm (OCM): ocm implementation for an ocm product (osd, rosa)
-        cluster (str): cluster name
-        current_spec (OCMSpec): Cluster spec retreived from OCM api
-        desired_spec (OCMSpec): Cluster spec retreived from App-Interface
-
-    Returns:
-        updates (dict): Updates to request to OCM api
-        error (bool): If errors detected due to spec not allowed updates.
+    :param ocm: ocm implementation for an ocm product (osd, rosa)
+    :param cluster: cluster name
+    :param current_spec: Cluster spec retreived from OCM api
+    :param desired_spec: luster spec retreived from App-Interface
+    :return: a tuple with the updates to request to OCM and a bool to notify errors
     """
 
     impl = ocmmod.OCM_PRODUCTS_IMPL[current_spec.spec.product]
@@ -215,10 +197,9 @@ def _app_interface_updates_mr(
 ):
     """Creates an MR to app-interface with the necessary cluster manifest updates
 
-    Parameters:
-        clusters_updates (Mapping): Updates to perform. Format required by the MR utils code
-        gitlab_project_id (str): Gitlab project where to raise the MR
-        dry_run (bool): dry_run
+    :param clusters_updates: Updates to perform. Format required by the MR utils code
+    :param gitlab_project_id: Gitlab project where to raise the MR
+    :param dry_run: dry_run
     """
     create_update_mr = False
     for cluster_name, cluster_updates in clusters_updates.items():
@@ -253,7 +234,7 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
         init_provision_shards=True,
     )
 
-    # current_state = ocm_state
+    # current_state is the state got from the ocm api
     current_state, pending_state = ocm_map.cluster_specs()
     desired_state = fetch_desired_state(clusters)
 
@@ -263,7 +244,7 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
     for cluster_name, desired_spec in desired_state.items():
         current_spec = current_state.get(cluster_name)
         if current_spec:
-            # APP-Interface manifests updates.
+            # App-Interface manifests updates.
             # OCM populated attributes that are not set in app-interface.
             # These updates are performed with a single MR out of this main loop
             clusters_updates[cluster_name], err = get_app_interface_spec_updates(
@@ -273,7 +254,7 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
                 error = True
 
             # OCM API Updates
-            # Changes made to pp-interface manifests that need to be requested
+            # Changes made to app-interface manifests that need to be requested
             # to the OCM Api
             ocm = ocm_map.get(cluster_name)
             update_spec, err = get_cluster_ocm_update_spec(
