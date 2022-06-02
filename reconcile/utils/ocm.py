@@ -185,15 +185,6 @@ class OCMProductOsd(OCMProduct):
     @typing.no_type_check
     @staticmethod
     def _get_create_cluster_spec(cluster_name: str, cluster: OCMSpec) -> dict[str, Any]:
-        """
-
-        Returns the OCM Spec to request a cluster creation
-
-        Parameters:
-            name (str): The cluster name
-            cluster (OCMSpec): Spec of the Cluster
-        """
-
         ocm_spec: dict[str, Any] = {
             "name": cluster_name,
             "cloud_provider": {"id": cluster.spec.provider},
@@ -231,17 +222,6 @@ class OCMProductOsd(OCMProduct):
 
     @staticmethod
     def _get_update_cluster_spec(update_spec: Mapping[str, Any]) -> dict[str, Any]:
-        """
-        Returns the OCM to update a cluster
-
-         :param name: name of the cluster
-         :param cluster_spec: a dictionary representing cluster updates
-         :param dry_run: do not execute for real
-
-         :type name: string
-         :type cluster: dict
-         :type dry_run: bool
-        """
         ocm_spec: dict[str, Any] = {}
 
         instance_type = update_spec.get("instance_type")
@@ -361,14 +341,6 @@ class OCMProductRosa(OCMProduct):
 
     @staticmethod
     def _get_create_cluster_spec(cluster_name: str, cluster: OCMSpec) -> dict[str, Any]:
-        """
-        Returns the OCM Spec to request a cluster creation
-
-        Parameters:
-            name (str): The cluster name
-            cluster (OCMSpec): Spec of the Cluster
-        """
-
         ocm_spec: dict[str, Any] = {
             "name": cluster_name,
             "cloud_provider": {"id": cluster.spec.provider},
@@ -404,17 +376,6 @@ class OCMProductRosa(OCMProduct):
 
     @staticmethod
     def _get_update_cluster_spec(update_spec: Mapping[str, Any]) -> dict[str, Any]:
-        """
-        Returns the OCM to update a cluster
-
-         :param name: name of the cluster
-         :param cluster_spec: a dictionary representing cluster updates
-         :param dry_run: do not execute for real
-
-         :type name: string
-         :type cluster: dict
-         :type dry_run: bool
-        """
         ocm_spec: dict[str, Any] = {}
 
         instance_type = update_spec.get("instance_type")
