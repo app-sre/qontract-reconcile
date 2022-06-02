@@ -7,7 +7,7 @@ PROVIDER_AWS = "aws"
 def get_external_resources(
     namespace_info: Mapping[str, Any], provision_provider: Optional[str] = None
 ) -> List[Dict[str, Any]]:
-    resources = []
+    resources: List[Dict[str, Any]] = []
     if not managed_external_resources(namespace_info):
         return resources
 
