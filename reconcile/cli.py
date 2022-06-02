@@ -1928,6 +1928,13 @@ def integrations_manager(
 
 
 def get_integration_cli_meta() -> dict[str, IntegrationMeta]:
+    """
+    returns all integrations known to cli.py via click introspection
+
+    todo(geoberle, janboll) - this needs rework in the long run, especially since go-integrations
+    are becoming relevant and this kind of meta programming just solves the python part, and even
+    the python part is not solved in a robust enough way
+    """
     integration_meta = {}
     for integration_name in integration.list_commands(None):  # type: ignore
         integration_cmd = integration.get_command(None, integration_name)  # type: ignore
