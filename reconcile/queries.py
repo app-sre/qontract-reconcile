@@ -2524,6 +2524,19 @@ GABI_INSTANCES_QUERY = """
             identifier
           }
         }
+        managedExternalResources
+        externalResources {
+          provider
+          provisioner {
+            name
+          }
+          ... on NamespaceTerraformProviderResourceAWS_v1 {
+            resources {
+              provider
+              identifier
+            }
+          }
+        }
         cluster {
           name
           serverUrl
