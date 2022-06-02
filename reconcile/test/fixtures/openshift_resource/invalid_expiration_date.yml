@@ -9,6 +9,7 @@ gql_response:
       identifier: expirationCheck-db
       namespace:
         name: expirationCheck-db
+        managedTerraformResources: True
         terraformResources:
           - provider: rds
             account: app-sre

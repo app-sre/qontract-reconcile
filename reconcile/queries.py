@@ -2176,6 +2176,7 @@ DNS_ZONES_QUERY = """
       }
       _target_namespace_zone {
         namespace {
+          managedTerraformResources
           terraformResources {
             provider
             ... on NamespaceTerraformResourceRoute53Zone_v1 {
