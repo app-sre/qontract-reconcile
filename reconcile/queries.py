@@ -900,36 +900,35 @@ NAMESPACES_QUERY = """
       }
     }
     managedTerraformResources
-    terraformResources
+    terraformResources {
+      provider
+      ... on NamespaceTerraformResourceRDS_v1
       {
-        provider
-        ... on NamespaceTerraformResourceRDS_v1
-        {
-          account
-          identifier
-          output_resource_name
-          defaults
-          replica_source
-        }
-        ... on NamespaceTerraformResourceECR_v1
-        {
-          account
-          region
-          identifier
-          output_resource_name
-          mirror {
-            url
-            pullCredentials {
-              path
-              field
-              version
-              format
-            }
-            tags
-            tagsExclude
+        account
+        identifier
+        output_resource_name
+        defaults
+        replica_source
+      }
+      ... on NamespaceTerraformResourceECR_v1
+      {
+        account
+        region
+        identifier
+        output_resource_name
+        mirror {
+          url
+          pullCredentials {
+            path
+            field
+            version
+            format
           }
+          tags
+          tagsExclude
         }
       }
+    }
     cluster {
       name
       serverUrl
