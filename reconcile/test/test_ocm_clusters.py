@@ -250,10 +250,10 @@ def test_get_ocm_cluster_update_spec_network_banned(
     current_spec = ocm_osd_cluster_spec
     desired_spec = current_spec.copy(deep=True)
     desired_spec.network.vpc = "0.0.0.0/0"
-    upd, err = occ.get_cluster_ocm_update_spec(
+    _, err = occ.get_cluster_ocm_update_spec(
         ocm_mock, "cluster1", current_spec, desired_spec
     )
-    assert (upd, err) == ({}, True)
+    assert err is True
 
 
 @typing.no_type_check

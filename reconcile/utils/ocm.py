@@ -55,6 +55,8 @@ SPEC_ATTR_VERSION = "version"
 SPEC_ATTR_INITIAL_VERSION = "initial_version"
 SPEC_ATTR_MULTI_AZ = "multi_az"
 
+SPEC_ATTR_NETWORK = "network"
+
 SPEC_ATTR_CONSOLE_URL = "consoleUrl"
 SPEC_ATTR_SERVER_URL = "serverUrl"
 SPEC_ATTR_ELBFQDN = "elbFQDN"

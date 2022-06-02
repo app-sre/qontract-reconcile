@@ -173,20 +173,22 @@ def get_cluster_ocm_update_spec(
     if not desired_spec.network.type:
         desired_spec.network.type = "OpenShiftSDN"
 
-    if current_spec.network != desired_spec.network:
-        error = True
-        logging.error(f"[{cluster}] invalid update: network")
+    cspec = current_spec.spec.dict()
+    cspec[ocmmod.SPEC_ATTR_NETWORK] = current_spec.network.dict()
+
+    dspec = desired_spec.spec.dict()
+    dspec[ocmmod.SPEC_ATTR_NETWORK] = desired_spec.network.dict()
 
     # Convert ocm specs to dicts, removing null values and excluded attributes
     current_ocm_spec = {
         k: v
-        for k, v in current_spec.spec.dict().items()
+        for k, v in cspec.items()
         if v is not None and k not in impl.EXCLUDED_SPEC_FIELDS
     }
 
     desired_ocm_spec = {
         k: v
-        for k, v in desired_spec.spec.dict().items()
+        for k, v in dspec.items()
         if v is not None and k not in impl.EXCLUDED_SPEC_FIELDS
     }
 
@@ -197,9 +199,7 @@ def get_cluster_ocm_update_spec(
 
     # Removed attributes in app-interface
     deleted_attrs = {
-        k: v
-        for k, v in current_ocm_spec.items()
-        if k not in desired_ocm_spec and v is not None
+        k: v for k, v in current_ocm_spec.items() if k not in desired_ocm_spec
     }
 
     diffs = deleted_attrs
