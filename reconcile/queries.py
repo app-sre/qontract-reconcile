@@ -2185,6 +2185,22 @@ DNS_ZONES_QUERY = """
               name
             }
           }
+          managedExternalResources
+          externalResources {
+            provider
+            provisioner {
+              name
+            }
+            ... on NamespaceTerraformProviderResourceAWS_v1 {
+              resources {
+                provider
+                ... on NamespaceTerraformResourceRoute53Zone_v1 {
+                  region
+                  name
+                }
+              }
+            }
+          }
         }
         name
       }
