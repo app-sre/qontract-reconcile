@@ -21,7 +21,7 @@ def query_saas_files_small() -> list[saas_files_small_with_provider.SaasFileV2]:
     all_saas_files: list[saas_files_small_with_provider.SaasFileV2] = []
     for app in apps:
         saas_files_v2: list[saas_files_small_with_provider.SaasFileV2] = (
-            app.saas_files_v2 or []
+            app.saas_files or []
         )
         for app_saas_file in saas_files_v2:
             all_saas_files.append(app_saas_file)
