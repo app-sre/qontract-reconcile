@@ -3,7 +3,7 @@ THIS IS AN AUTO-GENERATED FILE. DO NOT MODIFY MANUALLY!
 """
 from typing import Optional, Union  # noqa: F401 # pylint: disable=W0611
 
-from pydantic import BaseModel, Field, Json  # noqa: F401  # pylint: disable=W0611
+from pydantic import BaseModel, Extra, Field, Json  # noqa: F401  # pylint: disable=W0611
 
 
 class PipelinesProviderV1(BaseModel):
@@ -11,7 +11,7 @@ class PipelinesProviderV1(BaseModel):
 
     class Config:
         smart_union = True
-        extra = 'forbid'
+        extra = Extra.forbid
 
 
 class SaasFileV2(BaseModel):
@@ -20,15 +20,15 @@ class SaasFileV2(BaseModel):
 
     class Config:
         smart_union = True
-        extra = 'forbid'
+        extra = Extra.forbid
 
 
 class AppV1(BaseModel):
-    saas_files_v2: Optional[list[SaasFileV2]] = Field(..., alias="saasFilesV2")
+    saas_files: Optional[list[SaasFileV2]] = Field(..., alias="saasFiles")
 
     class Config:
         smart_union = True
-        extra = 'forbid'
+        extra = Extra.forbid
 
 
 class ListSaasFilesV2SmallQuery(BaseModel):
@@ -36,4 +36,4 @@ class ListSaasFilesV2SmallQuery(BaseModel):
 
     class Config:
         smart_union = True
-        extra = 'forbid'
+        extra = Extra.forbid

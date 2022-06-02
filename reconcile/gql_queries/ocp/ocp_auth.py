@@ -3,7 +3,7 @@ THIS IS AN AUTO-GENERATED FILE. DO NOT MODIFY MANUALLY!
 """
 from typing import Optional, Union  # noqa: F401 # pylint: disable=W0611
 
-from pydantic import BaseModel, Field, Json  # noqa: F401  # pylint: disable=W0611
+from pydantic import BaseModel, Extra, Field, Json  # noqa: F401  # pylint: disable=W0611
 
 
 class VaultSecretV1(BaseModel):
@@ -14,7 +14,7 @@ class VaultSecretV1(BaseModel):
 
     class Config:
         smart_union = True
-        extra = 'forbid'
+        extra = Extra.forbid
 
 
 class ClusterJumpHostV1(BaseModel):
@@ -26,7 +26,7 @@ class ClusterJumpHostV1(BaseModel):
 
     class Config:
         smart_union = True
-        extra = 'forbid'
+        extra = Extra.forbid
 
 
 class ClusterV1_VaultSecretV1(BaseModel):
@@ -37,7 +37,7 @@ class ClusterV1_VaultSecretV1(BaseModel):
 
     class Config:
         smart_union = True
-        extra = 'forbid'
+        extra = Extra.forbid
 
 
 class OpenShiftClusterManagerV1(BaseModel):
@@ -49,7 +49,7 @@ class OpenShiftClusterManagerV1(BaseModel):
 
     class Config:
         smart_union = True
-        extra = 'forbid'
+        extra = Extra.forbid
 
 
 class OcpReleaseMirrorV1_VaultSecretV1(BaseModel):
@@ -60,7 +60,7 @@ class OcpReleaseMirrorV1_VaultSecretV1(BaseModel):
 
     class Config:
         smart_union = True
-        extra = 'forbid'
+        extra = Extra.forbid
 
 
 class DisableClusterAutomationsV1(BaseModel):
@@ -68,26 +68,7 @@ class DisableClusterAutomationsV1(BaseModel):
 
     class Config:
         smart_union = True
-        extra = 'forbid'
-
-
-class ClusterAuthGithubOrgV1(BaseModel):
-    service: str = Field(..., alias="service")
-    org: str = Field(..., alias="org")
-
-    class Config:
-        smart_union = True
-        extra = 'forbid'
-
-
-class ClusterAuthGithubOrgTeamV1(BaseModel):
-    service: str = Field(..., alias="service")
-    org: str = Field(..., alias="org")
-    team: str = Field(..., alias="team")
-
-    class Config:
-        smart_union = True
-        extra = 'forbid'
+        extra = Extra.forbid
 
 
 class ClusterAuthV1(BaseModel):
@@ -95,7 +76,24 @@ class ClusterAuthV1(BaseModel):
 
     class Config:
         smart_union = True
-        extra = 'forbid'
+        extra = Extra.forbid
+
+
+class ClusterAuthGithubOrgV1(ClusterAuthV1):
+    org: str = Field(..., alias="org")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
+class ClusterAuthGithubOrgTeamV1(ClusterAuthV1):
+    org: str = Field(..., alias="org")
+    team: str = Field(..., alias="team")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
 
 
 class ClusterV1(BaseModel):
@@ -112,11 +110,18 @@ class ClusterV1(BaseModel):
 
     class Config:
         smart_union = True
-        extra = 'forbid'
+        extra = Extra.forbid
 
 
-class NamespaceTerraformResourceECRV1(BaseModel):
+class NamespaceTerraformResourceAWSV1(BaseModel):
     provider: str = Field(..., alias="provider")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
+class NamespaceTerraformResourceECRV1(NamespaceTerraformResourceAWSV1):
     account: str = Field(..., alias="account")
     region: Optional[str] = Field(..., alias="region")
     identifier: str = Field(..., alias="identifier")
@@ -124,15 +129,7 @@ class NamespaceTerraformResourceECRV1(BaseModel):
 
     class Config:
         smart_union = True
-        extra = 'forbid'
-
-
-class NamespaceTerraformResourceV1(BaseModel):
-    provider: str = Field(..., alias="provider")
-
-    class Config:
-        smart_union = True
-        extra = 'forbid'
+        extra = Extra.forbid
 
 
 class NamespaceV1_VaultSecretV1(BaseModel):
@@ -143,7 +140,7 @@ class NamespaceV1_VaultSecretV1(BaseModel):
 
     class Config:
         smart_union = True
-        extra = 'forbid'
+        extra = Extra.forbid
 
 
 class OcpReleaseMirrorV1_ClusterV1(BaseModel):
@@ -154,18 +151,18 @@ class OcpReleaseMirrorV1_ClusterV1(BaseModel):
 
     class Config:
         smart_union = True
-        extra = 'forbid'
+        extra = Extra.forbid
 
 
 class NamespaceV1(BaseModel):
     name: str = Field(..., alias="name")
     managed_terraform_resources: Optional[bool] = Field(..., alias="managedTerraformResources")
-    terraform_resources: Optional[list[Union[NamespaceTerraformResourceECRV1, NamespaceTerraformResourceV1]]] = Field(..., alias="terraformResources")
+    terraform_resources: Optional[list[Union[NamespaceTerraformResourceECRV1, NamespaceTerraformResourceAWSV1]]] = Field(..., alias="terraformResources")
     cluster: OcpReleaseMirrorV1_ClusterV1 = Field(..., alias="cluster")
 
     class Config:
         smart_union = True
-        extra = 'forbid'
+        extra = Extra.forbid
 
 
 class QuayInstanceV1(BaseModel):
@@ -173,7 +170,7 @@ class QuayInstanceV1(BaseModel):
 
     class Config:
         smart_union = True
-        extra = 'forbid'
+        extra = Extra.forbid
 
 
 class QuayOrgV1(BaseModel):
@@ -182,7 +179,7 @@ class QuayOrgV1(BaseModel):
 
     class Config:
         smart_union = True
-        extra = 'forbid'
+        extra = Extra.forbid
 
 
 class OcpReleaseMirrorV1(BaseModel):
@@ -195,7 +192,7 @@ class OcpReleaseMirrorV1(BaseModel):
 
     class Config:
         smart_union = True
-        extra = 'forbid'
+        extra = Extra.forbid
 
 
 class OCPAuthFullQuery(BaseModel):
@@ -203,4 +200,4 @@ class OCPAuthFullQuery(BaseModel):
 
     class Config:
         smart_union = True
-        extra = 'forbid'
+        extra = Extra.forbid

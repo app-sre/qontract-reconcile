@@ -3,7 +3,7 @@ import requests
 
 from graphql import build_client_schema, get_introspection_query
 
-from code_generator.query_parser import ParsedNode, QueryParser  # type: ignore
+from code_generator.query_parser import ParsedNode, ParsedInlineFragmentNode, QueryParser  # type: ignore
 
 
 HEADER = '"""\nTHIS IS AN AUTO-GENERATED FILE. DO NOT MODIFY MANUALLY!\n"""\n'
@@ -27,15 +27,24 @@ def find_query_files() -> list[str]:
     return result
 
 
-def post_order(node: ParsedNode) -> str:
+def traverse(node: ParsedNode) -> str:
     """
     Pydantic doesnt play well with from __future__ import annotations
-    --> order of class declaration is important --> post-order
+    --> order of class declaration is important:
+    - post-order for non-inline fragment nodes, i.e., non-interface nodes
+    - pre-order for nodes that implement an interface
     """
     result = ""
     for child in node.fields:
-        result = f"{result}{post_order(child)}"
-    return f"{result}{node.class_code_string()}"
+        if not isinstance(child, ParsedInlineFragmentNode):
+            result = f"{result}{traverse(child)}"
+
+    result = f"{result}{node.class_code_string()}"
+
+    for child in node.fields:
+        if isinstance(child, ParsedInlineFragmentNode):
+            result = f"{result}{traverse(child)}"
+    return result
 
 
 def main():
@@ -45,14 +54,14 @@ def main():
     for file in find_query_files():
         with open(file, "r") as f:
             result = query_parser.parse(f.read())
-            code = post_order(result)
+            code = traverse(result)
             with open(f"{file[:-3]}py", "w") as out_file:
                 out_file.write(HEADER)
                 out_file.write(
                     "from typing import Optional, Union  # noqa: F401 # pylint: disable=W0611\n\n"
                 )
                 out_file.write(
-                    "from pydantic import BaseModel, Field, Json  # noqa: F401  # pylint: disable=W0611"
+                    "from pydantic import BaseModel, Extra, Field, Json  # noqa: F401  # pylint: disable=W0611"
                 )
                 out_file.write(code)
                 out_file.write("\n")

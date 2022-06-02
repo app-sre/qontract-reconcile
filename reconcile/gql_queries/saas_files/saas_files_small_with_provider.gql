@@ -1,6 +1,6 @@
 query ListSaasFilesV2Small {
   apps_v1 {
-    saasFilesV2 {
+    saasFiles {
       name
       pipelinesProvider {
         name

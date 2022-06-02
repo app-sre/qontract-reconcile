@@ -48,12 +48,9 @@ class ParsedInlineFragmentNode(ParsedNode):
             return ""
 
         lines = ["\n\n"]
-        lines.append(f"class {self.parsed_type.unwrapped_python_type}(BaseModel):")
-        for parent_field in self.parent.fields:
-            if isinstance(parent_field, ParsedClassNode):
-                lines.append(
-                    f'{INDENT}{parent_field.py_key}: {parent_field.field_type()} = Field(..., alias="{parent_field.gql_key}")'
-                )
+        lines.append(
+            f"class {self.parsed_type.unwrapped_python_type}({self.parent.parsed_type.unwrapped_python_type}):"
+        )
         for field in self.fields:
             if isinstance(field, ParsedClassNode):
                 lines.append(
@@ -65,7 +62,7 @@ class ParsedInlineFragmentNode(ParsedNode):
         lines.append("")
         lines.append(f"{INDENT}class Config:")
         lines.append(f"{INDENT}{INDENT}smart_union = True")
-        lines.append(f"{INDENT}{INDENT}extra = 'forbid'")
+        lines.append(f"{INDENT}{INDENT}extra = Extra.forbid")
 
         return "\n".join(lines)
 
@@ -92,7 +89,7 @@ class ParsedClassNode(ParsedNode):
         lines.append("")
         lines.append(f"{INDENT}class Config:")
         lines.append(f"{INDENT}{INDENT}smart_union = True")
-        lines.append(f"{INDENT}{INDENT}extra = 'forbid'")
+        lines.append(f"{INDENT}{INDENT}extra = Extra.forbid")
 
         return "\n".join(lines)
 
@@ -137,7 +134,7 @@ class ParsedOperationNode(ParsedNode):
         lines.append("")
         lines.append(f"{INDENT}class Config:")
         lines.append(f"{INDENT}{INDENT}smart_union = True")
-        lines.append(f"{INDENT}{INDENT}extra = 'forbid'")
+        lines.append(f"{INDENT}{INDENT}extra = Extra.forbid")
 
         return "\n".join(lines)
 

@@ -1,6 +1,6 @@
 query SaasFilesV2Full {
   apps_v1 {
-    saasFilesV2 {
+    saasFiles {
       labels
       secretParameters {
         name
