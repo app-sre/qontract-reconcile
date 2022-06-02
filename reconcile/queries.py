@@ -2379,6 +2379,24 @@ OCP_RELEASE_ECR_MIRROR_QUERY = """
           output_resource_name
         }
       }
+      managedExternalResources
+      externalResources {
+        provider
+        provisioner {
+          name
+        }
+        ... on NamespaceTerraformProviderResourceAWS_v1 {
+          resources {
+            provider
+            ... on NamespaceTerraformResourceECR_v1
+            {
+              region
+              identifier
+              output_resource_name
+            }
+          }
+        }
+      }
       cluster
       {
         name
