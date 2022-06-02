@@ -16,7 +16,6 @@ def fetch_current_state():
     current_failed = []
     current_deleting = []
     settings = queries.get_app_interface_settings()
-    # clusters = [c for c in queries.get_clusters() if c.get("ocm") is not None]
     # Temporary solution to exclude Non-OSD clusters. This will be improved
     # in the milestone 2 of the ROSA support initiative.
     clusters = [
@@ -54,7 +53,6 @@ def fetch_desired_state():
     # get desired state defined in awsInfrastructureAccess
     # or awsInfrastructureManagementAccounts
     # sections of cluster files
-    # clusters = queries.get_clusters()
     clusters = [
         c
         for c in queries.get_clusters()
