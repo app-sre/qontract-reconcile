@@ -5,6 +5,7 @@ from reconcile.utils import gql
 from reconcile import queries
 from reconcile.utils.external_resources import (
     get_external_resources,
+    get_provision_providers,
     managed_external_resources,
 )
 
@@ -86,10 +87,8 @@ def get_desired_dependency_names(app, dependency_map):
         required_dep_names.update(get_dependency_names(dependency_map, "openshift"))
         er_namespaces = [n for n in namespaces if managed_external_resources(n)]
         for ern in er_namespaces:
-            for er in get_external_resources(ern):
-                required_dep_names.update(
-                    get_dependency_names(dependency_map, er["provider"])
-                )
+            for p in get_provision_providers(ern):
+                required_dep_names.update(get_dependency_names(dependency_map, p))
         kafka_namespaces = [n for n in namespaces if n.get("kafkaCluster")]
         if kafka_namespaces:
             required_dep_names.update(get_dependency_names(dependency_map, "kafka"))
