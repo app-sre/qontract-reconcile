@@ -15,9 +15,6 @@ from reconcile.ocm.types import OCMSpec
 
 QONTRACT_INTEGRATION = "ocm-clusters"
 
-OCM_GENERATED_FIELDS = ["network", "consoleUrl", "serverUrl", "elbFQDN"]
-MANAGED_FIELDS = ["spec"] + OCM_GENERATED_FIELDS
-
 
 def fetch_desired_state(clusters: Iterable[Mapping[str, Any]]) -> dict[str, OCMSpec]:
     """Builds a dictionary with all clusters retrieved from app-interface. Cluster specs
