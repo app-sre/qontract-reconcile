@@ -1,4 +1,4 @@
-FROM quay.io/app-sre/qontract-reconcile-builder:0.3.1 as build-image
+FROM quay.io/app-sre/qontract-reconcile-builder:0.3.2 as build-image
 
 WORKDIR /work
 
