@@ -278,11 +278,14 @@ def run(dry_run: bool, gitlab_project_id=None, thread_pool_size=10):
                     except NotImplementedError:
                         logging.error(
                             f"[{cluster_name}] Update clusters is currently not "
-                            "implemented for [{desired_spec.spec.product}] product. "
-                            "Updates to the cluster spec are not supported."
+                            f"implemented for [{desired_spec.spec.product}] product. "
+                            "Fix the app-interface manifest with the required changes. "
+                            f" {update_spec}"
                         )
-                        # Not marking error as a changer made in ocm could trigger
-                        # this.
+                        # Not marking error because in cases where specific product
+                        # updates are not yet supported, changes made directly in OCM
+                        # and not added to app-interface would trigger this exception
+                        # and break this integration
                         # error = True
         else:
             # create cluster
