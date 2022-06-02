@@ -56,17 +56,17 @@ def _cluster_version_needs_update(
         # submit MR to update cluster version
         logging.info(
             f"[{cluster}] desired version {desired_version} is different from "
-            + f"current version {current_version}. Version will be updated "
-            + "in app-interface"
+            f"current version {current_version}. Version will be updated "
+            "in app-interface"
         )
         return True
 
     elif current_version < desired_version:
         raise ClusterVersionError(
-            f"""[{cluster}] desired version [{desired_version}] is greater than
-            current version [{current_version}]. Please correct version to be
-            {current_version}, as this field is only meant for tracking purposes.
-            Cluster upgrades are managed by ocm-upgrade-scheduler."""
+            f"[{cluster}] desired version [{desired_version}] is greater than "
+            f"current version [{current_version}]. Please correct version to be "
+            f"{current_version}, as this field is only meant for tracking purposes. "
+            "Cluster upgrades are managed by ocm-upgrade-scheduler."
         )
     # Versions are equal
     return False
@@ -298,7 +298,7 @@ def run(dry_run: bool, gitlab_project_id=None, thread_pool_size=10):
             except NotImplementedError:
                 logging.error(
                     f"[{cluster_name}] Create clusters is not currently implemented "
-                    "for [{desired_spec.spec.product}] product type. Make sure the "
+                    f"for [{desired_spec.spec.product}] product type. Make sure the "
                     "cluster exists and it is returned by the OCM api before adding "
                     "its manifest to app-interface"
                 )
