@@ -31,13 +31,16 @@ class OCMClusterSpec(BaseModel):
     initial_version: Optional[str]
     version: str
 
+    class Config:
+        extra = Extra.forbid
 
-class OSDClusterSpec(OCMClusterSpec, extra=Extra.forbid):
+
+class OSDClusterSpec(OCMClusterSpec):
     load_balancers: int
     storage: int
 
 
-class ROSAClusterSpec(OCMClusterSpec, extra=Extra.forbid):
+class ROSAClusterSpec(OCMClusterSpec):
     pass
 
 
