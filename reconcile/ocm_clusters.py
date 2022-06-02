@@ -223,7 +223,7 @@ def _app_interface_updates_mr(
         mr.submit(cli=mr_cli)
 
 
-def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
+def run(dry_run: bool, gitlab_project_id=None, thread_pool_size=10):
     settings = queries.get_app_interface_settings()
     clusters = queries.get_clusters()
     clusters = [c for c in clusters if c.get("ocm") is not None]
