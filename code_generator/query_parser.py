@@ -273,7 +273,7 @@ class FieldToTypeMatcherVisitor(Visitor):
         if isinstance(graphql_type, GraphQLScalarType):
             return graphql_primitive_to_python(graphql_type=graphql_type)
         else:
-            cur = self.parent.parent
+            cur = self.parent
             class_name = str(graphql_type).replace("_", "")
             class_name = f"{class_name[:-2]}V{class_name[-1]}"
             while cur and cur.parent and class_name in self.deduplication_cache:

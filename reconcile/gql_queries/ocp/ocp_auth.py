@@ -29,7 +29,7 @@ class ClusterJumpHostV1(BaseModel):
         extra = Extra.forbid
 
 
-class ClusterV1_VaultSecretV1(BaseModel):
+class OpenShiftClusterManagerV1_VaultSecretV1(BaseModel):
     path: str = Field(..., alias="path")
     field: str = Field(..., alias="field")
     f_format: Optional[str] = Field(..., alias="format")
@@ -45,14 +45,14 @@ class OpenShiftClusterManagerV1(BaseModel):
     url: str = Field(..., alias="url")
     access_token_client_id: str = Field(..., alias="accessTokenClientId")
     access_token_url: str = Field(..., alias="accessTokenUrl")
-    offline_token: Optional[ClusterV1_VaultSecretV1] = Field(..., alias="offlineToken")
+    offline_token: Optional[OpenShiftClusterManagerV1_VaultSecretV1] = Field(..., alias="offlineToken")
 
     class Config:
         smart_union = True
         extra = Extra.forbid
 
 
-class OcpReleaseMirrorV1_VaultSecretV1(BaseModel):
+class ClusterV1_VaultSecretV1(BaseModel):
     path: str = Field(..., alias="path")
     field: str = Field(..., alias="field")
     version: Optional[int] = Field(..., alias="version")
@@ -103,7 +103,7 @@ class ClusterV1(BaseModel):
     jump_host: Optional[ClusterJumpHostV1] = Field(..., alias="jumpHost")
     managed_groups: Optional[list[str]] = Field(..., alias="managedGroups")
     ocm: Optional[OpenShiftClusterManagerV1] = Field(..., alias="ocm")
-    automation_token: Optional[OcpReleaseMirrorV1_VaultSecretV1] = Field(..., alias="automationToken")
+    automation_token: Optional[ClusterV1_VaultSecretV1] = Field(..., alias="automationToken")
     internal: Optional[bool] = Field(..., alias="internal")
     disable: Optional[DisableClusterAutomationsV1] = Field(..., alias="disable")
     auth: Optional[Union[ClusterAuthGithubOrgTeamV1, ClusterAuthGithubOrgV1, ClusterAuthV1]] = Field(..., alias="auth")
@@ -132,7 +132,7 @@ class NamespaceTerraformResourceECRV1(NamespaceTerraformResourceAWSV1):
         extra = Extra.forbid
 
 
-class NamespaceV1_VaultSecretV1(BaseModel):
+class NamespaceV1_ClusterV1_VaultSecretV1(BaseModel):
     path: str = Field(..., alias="path")
     field: str = Field(..., alias="field")
     version: Optional[int] = Field(..., alias="version")
@@ -143,10 +143,10 @@ class NamespaceV1_VaultSecretV1(BaseModel):
         extra = Extra.forbid
 
 
-class OcpReleaseMirrorV1_ClusterV1(BaseModel):
+class NamespaceV1_ClusterV1(BaseModel):
     name: str = Field(..., alias="name")
     server_url: str = Field(..., alias="serverUrl")
-    automation_token: Optional[NamespaceV1_VaultSecretV1] = Field(..., alias="automationToken")
+    automation_token: Optional[NamespaceV1_ClusterV1_VaultSecretV1] = Field(..., alias="automationToken")
     internal: Optional[bool] = Field(..., alias="internal")
 
     class Config:
@@ -158,7 +158,7 @@ class NamespaceV1(BaseModel):
     name: str = Field(..., alias="name")
     managed_terraform_resources: Optional[bool] = Field(..., alias="managedTerraformResources")
     terraform_resources: Optional[list[Union[NamespaceTerraformResourceECRV1, NamespaceTerraformResourceAWSV1]]] = Field(..., alias="terraformResources")
-    cluster: OcpReleaseMirrorV1_ClusterV1 = Field(..., alias="cluster")
+    cluster: NamespaceV1_ClusterV1 = Field(..., alias="cluster")
 
     class Config:
         smart_union = True
