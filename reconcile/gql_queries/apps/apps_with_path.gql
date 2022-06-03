@@ -1,0 +1,34 @@
+query AppsWithPath($path: String) {
+  apps: apps_v1 (path: $path) {
+    labels
+    name
+    description
+    sopsUrl
+    grafanaUrls {
+      url
+    }
+    architectureDocument
+    serviceOwners {
+      name
+      email
+    }
+    escalationPolicy {
+      description
+      channels {
+        jiraBoard {
+          name
+          server {
+            serverUrl
+            token {
+              path
+              field
+            }
+          }
+        }
+        slackUserGroup {
+          name
+        }
+      }
+    }
+  }
+}

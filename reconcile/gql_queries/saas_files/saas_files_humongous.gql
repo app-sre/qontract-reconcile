@@ -1,0 +1,233 @@
+query SaasFilesV2XXL {
+  saas_files: saas_files_v2 {
+    path
+    name
+    app {
+      name
+    }
+    pipelinesProvider {
+      name
+      provider
+      ...on PipelinesProviderTekton_v1 {
+        namespace {
+          name
+          cluster {
+            name
+            consoleUrl
+            serverUrl
+            insecureSkipTLSVerify
+            jumpHost {
+              hostname
+              knownHosts
+              user
+              port
+              identity {
+                path
+                field
+                version
+                format
+              }
+            }
+            automationToken {
+              path
+              field
+              version
+              format
+            }
+            internal
+            disable {
+              integrations
+            }
+          }
+        }
+        defaults {
+          pipelineTemplates {
+            openshiftSaasDeploy {
+              name
+            }
+          }
+        }
+        pipelineTemplates {
+          openshiftSaasDeploy {
+            name
+          }
+        }
+      }
+    }
+    deployResources {
+      requests {
+        cpu
+        memory
+      }
+      limits {
+        cpu
+        memory
+      }
+    }
+    slack {
+      output
+      workspace {
+        name
+        integrations {
+          name
+          token {
+            path
+            field
+            version
+            format
+          }
+          channel
+          icon_emoji
+          username
+        }
+      }
+      channel
+      notifications {
+        start
+      }
+    }
+    managedResourceTypes
+    takeover
+    compare
+    publishJobLogs
+    clusterAdmin
+    imagePatterns
+    use_channel_in_image_tag
+    authentication {
+      code {
+        path
+        field
+        version
+        format
+      }
+      image {
+        path
+        field
+        version
+        format
+      }
+    }
+    parameters
+    secretParameters {
+      name
+      secret {
+        path
+        field
+        version
+        format
+      }
+    }
+    resourceTemplates {
+      name
+      url
+      path
+      provider
+      hash_length
+      parameters
+      secretParameters {
+        name
+        secret {
+          path
+          field
+          version
+          format
+        }
+      }
+      targets {
+        namespace {
+          name
+          environment {
+            name
+            parameters
+            secretParameters {
+              name
+              secret {
+                path
+                field
+                version
+                format
+              }
+            }
+          }
+          app {
+            name
+          }
+          cluster {
+            name
+            serverUrl
+            insecureSkipTLSVerify
+            jumpHost {
+                hostname
+                knownHosts
+                user
+                port
+                identity {
+                  path
+                  field
+                  version
+                  format
+                }
+            }
+            automationToken {
+              path
+              field
+              version
+              format
+            }
+            clusterAdminAutomationToken {
+              path
+              field
+              version
+              format
+            }
+            internal
+            disable {
+              integrations
+            }
+          }
+        }
+        ref
+        promotion {
+          auto
+          publish
+          subscribe
+          promotion_data {
+            channel
+            data {
+              type
+              ... on ParentSaasPromotion_v1 {
+                parent_saas
+                target_config_hash
+              }
+            }
+          }
+        }
+        parameters
+        secretParameters {
+          name
+          secret {
+            path
+            field
+            version
+            format
+          }
+        }
+        upstream {
+          instance {
+            name
+            serverUrl
+          }
+          name
+        }
+        disable
+        delete
+      }
+    }
+    roles {
+      users {
+        org_username
+        tag_on_merge_requests
+      }
+    }
+  }
+}
