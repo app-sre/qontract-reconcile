@@ -452,13 +452,13 @@ AWS_ACCOUNTS_QUERY = """
     {% endif %}
     {% if terraform_state %}
     terraform_state {
-        provider
-        bucket
-        region
-        integrations {
-            key
-            integration
-        }
+      provider
+      bucket
+      region
+      integrations {
+          key
+          integration
+      }
     }
     {% endif %}
   }
