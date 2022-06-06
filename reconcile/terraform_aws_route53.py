@@ -5,13 +5,14 @@ from typing import Iterable, Mapping
 
 
 from reconcile import queries
+from reconcile.utils.external_resources import PROVIDER_AWS, get_external_resources
 
 from reconcile.status import ExitCodes
 from reconcile.utils import dnsutils
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.defer import defer
-from reconcile.utils.terrascript_client import TerrascriptClient as Terrascript
+from reconcile.utils.terrascript_aws_client import TerrascriptClient as Terrascript
 from reconcile.utils.terraform_client import TerraformClient as Terraform
 
 
@@ -123,7 +124,9 @@ def build_desired_state(
             # Process '_target_namespace_zone'
             target_namespace_zone = record.pop("_target_namespace_zone", None)
             if target_namespace_zone:
-                tf_resources = target_namespace_zone["namespace"]["terraformResources"]
+                tf_resources = get_external_resources(
+                    target_namespace_zone["namespace"], provision_provider=PROVIDER_AWS
+                )
                 tf_zone_name = target_namespace_zone["name"]
                 tf_zone_resources = [
                     tfr

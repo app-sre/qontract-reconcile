@@ -8,6 +8,7 @@ gql_response:
       identifier: gabi-db
       namespace:
         name: gabi-db
+        managedTerraformResources: True
         terraformResources:
           - provider: rds
             account: app-sre

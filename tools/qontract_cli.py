@@ -5,7 +5,9 @@ from typing import Dict, Iterable, List, Mapping, Union
 
 import click
 import reconcile.ocm_upgrade_scheduler as ous
+import reconcile.openshift_base as ob
 import reconcile.openshift_resources_base as orb
+import reconcile.terraform_resources as tfr
 import reconcile.terraform_users as tfu
 import reconcile.terraform_vpc_peerings as tfvpc
 import requests
@@ -15,6 +17,11 @@ from reconcile.checkpoint import report_invalid_metadata
 from reconcile.cli import config_file
 from reconcile.slack_base import slackapi_from_queries
 from reconcile.utils import config, dnsutils, gql
+from reconcile.utils.external_resources import (
+    PROVIDER_AWS,
+    get_external_resources,
+    managed_external_resources,
+)
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.environ import environ
 from reconcile.jenkins_job_builder import init_jjb
@@ -638,6 +645,66 @@ def namespaces(ctx, name):
     print_output(ctx.obj["options"], namespaces, columns)
 
 
+def add_resource(item, resource, columns):
+    provider = resource["provider"]
+    if provider not in columns:
+        columns.append(provider)
+    item.setdefault(provider, 0)
+    item[provider] += 1
+    item["total"] += 1
+
+
+@get.command
+@click.pass_context
+def cluster_openshift_resources(ctx):
+    gqlapi = gql.get_api()
+    namespaces = gqlapi.query(orb.NAMESPACES_QUERY)["namespaces"]
+    columns = ["name", "total"]
+    results = {}
+    for ns_info in namespaces:
+        cluster_name = ns_info["cluster"]["name"]
+        item = {"name": cluster_name, "total": 0}
+        item = results.setdefault(cluster_name, item)
+        total = {"name": "total", "total": 0}
+        total = results.setdefault("total", total)
+        ob.aggregate_shared_resources(ns_info, "openshiftResources")
+        openshift_resources = ns_info.get("openshiftResources") or []
+        for r in openshift_resources:
+            add_resource(item, r, columns)
+            add_resource(total, r, columns)
+
+    # TODO(mafriedm): fix this
+    # do not sort
+    ctx.obj["options"]["sort"] = False
+    print_output(ctx.obj["options"], results.values(), columns)
+
+
+@get.command
+@click.pass_context
+def aws_terraform_resources(ctx):
+    gqlapi = gql.get_api()
+    namespaces = gqlapi.query(tfr.TF_NAMESPACES_QUERY)["namespaces"]
+    columns = ["name", "total"]
+    results = {}
+    for ns_info in namespaces:
+        terraform_resources = (
+            get_external_resources(ns_info, provision_provider=PROVIDER_AWS) or []
+        )
+        for r in terraform_resources:
+            account = r["account"]
+            item = {"name": account, "total": 0}
+            item = results.setdefault(account, item)
+            total = {"name": "total", "total": 0}
+            total = results.setdefault("total", total)
+            add_resource(item, r, columns)
+            add_resource(total, r, columns)
+
+    # TODO(mafriedm): fix this
+    # do not sort
+    ctx.obj["options"]["sort"] = False
+    print_output(ctx.obj["options"], results.values(), columns)
+
+
 @get.command()
 @click.pass_context
 def products(ctx):
@@ -901,10 +968,10 @@ def service_owners_for_rds_instance(ctx, aws_account, identifier):
     namespaces = queries.get_namespaces()
     service_owners = []
     for namespace_info in namespaces:
-        if namespace_info.get("terraformResources") is None:
+        if not managed_external_resources(namespace_info):
             continue
 
-        for tf in namespace_info.get("terraformResources"):
+        for tf in get_external_resources(namespace_info):
             if (
                 tf["provider"] == "rds"
                 and tf["account"] == aws_account

@@ -3,6 +3,10 @@ import logging
 
 from reconcile.utils import gql
 from reconcile import queries
+from reconcile.utils.external_resources import (
+    get_provision_providers,
+    managed_external_resources,
+)
 
 
 APPS_QUERY = """
@@ -30,6 +34,10 @@ APPS_QUERY = """
     }
     namespaces {
       managedTerraformResources
+      managedExternalResources
+      externalResources {
+        provider
+      }
       kafkaCluster {
         name
       }
@@ -76,9 +84,10 @@ def get_desired_dependency_names(app, dependency_map):
     namespaces = app.get("namespaces")
     if namespaces:
         required_dep_names.update(get_dependency_names(dependency_map, "openshift"))
-        tf_namespaces = [n for n in namespaces if n.get("managedTerraformResources")]
-        if tf_namespaces:
-            required_dep_names.update(get_dependency_names(dependency_map, "aws"))
+        er_namespaces = [n for n in namespaces if managed_external_resources(n)]
+        for ern in er_namespaces:
+            for p in get_provision_providers(ern):
+                required_dep_names.update(get_dependency_names(dependency_map, p))
         kafka_namespaces = [n for n in namespaces if n.get("kafkaCluster")]
         if kafka_namespaces:
             required_dep_names.update(get_dependency_names(dependency_map, "kafka"))

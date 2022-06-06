@@ -17,7 +17,6 @@ class TestProcess(TestCase):
         self.raw_clusters = fxt.get("cluster1.yml")
 
     def test_no_changes(self, cancel):
-        # pylint: disable=no-self-use
         cli = MagicMock()
         c = sut.CreateClustersUpdates({})
         c.branch = "abranch"

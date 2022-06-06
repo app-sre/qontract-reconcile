@@ -1653,7 +1653,7 @@ def gitlab_owners(ctx, thread_pool_size):
 @integration.command(short_help="Ensures that forks of App Interface are compliant.")
 @click.argument("gitlab-project-id")
 @click.argument("gitlab-merge-request-id")
-@click.argument("gitlab-maintainers-group")
+@click.argument("gitlab-maintainers-group", required=False)
 @click.pass_context
 def gitlab_fork_compliance(
     ctx, gitlab_project_id, gitlab_merge_request_id, gitlab_maintainers_group

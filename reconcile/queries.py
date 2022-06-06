@@ -899,36 +899,72 @@ NAMESPACES_QUERY = """
         email
       }
     }
-    terraformResources
+    managedTerraformResources
+    terraformResources {
+      provider
+      ... on NamespaceTerraformResourceRDS_v1
       {
-        provider
-        ... on NamespaceTerraformResourceRDS_v1
-        {
-          account
-          identifier
-          output_resource_name
-          defaults
-          replica_source
+        account
+        identifier
+        output_resource_name
+        defaults
+        replica_source
+      }
+      ... on NamespaceTerraformResourceECR_v1
+      {
+        account
+        region
+        identifier
+        output_resource_name
+        mirror {
+          url
+          pullCredentials {
+            path
+            field
+            version
+            format
+          }
+          tags
+          tagsExclude
         }
-        ... on NamespaceTerraformResourceECR_v1
-        {
-          account
-          region
-          identifier
-          output_resource_name
-          mirror {
-            url
-            pullCredentials {
-              path
-              field
-              version
-              format
+      }
+    }
+    managedExternalResources
+    externalResources {
+      provider
+      provisioner {
+        name
+      }
+      ... on NamespaceTerraformProviderResourceAWS_v1 {
+        resources {
+          provider
+          ... on NamespaceTerraformResourceRDS_v1
+          {
+            identifier
+            output_resource_name
+            defaults
+            replica_source
+          }
+          ... on NamespaceTerraformResourceECR_v1
+          {
+            region
+            identifier
+            output_resource_name
+            mirror {
+              url
+              pullCredentials {
+                path
+                field
+                version
+                format
+              }
+              tags
+              tagsExclude
             }
-            tags
-            tagsExclude
           }
         }
       }
+    }
     cluster {
       name
       serverUrl
@@ -1537,6 +1573,25 @@ APP_INTERFACE_SQL_QUERIES_QUERY = """
           output_resource_name
           defaults
           overrides
+        }
+      }
+      managedExternalResources
+      externalResources {
+        provider
+        provisioner {
+          name
+        }
+        ... on NamespaceTerraformProviderResourceAWS_v1 {
+          resources {
+            provider
+            ... on NamespaceTerraformResourceRDS_v1
+            {
+              identifier
+              output_resource_name
+              defaults
+              overrides
+            }
+          }
         }
       }
       app {
@@ -2175,12 +2230,29 @@ DNS_ZONES_QUERY = """
       }
       _target_namespace_zone {
         namespace {
+          managedTerraformResources
           terraformResources {
             provider
             ... on NamespaceTerraformResourceRoute53Zone_v1 {
               account
               region
               name
+            }
+          }
+          managedExternalResources
+          externalResources {
+            provider
+            provisioner {
+              name
+            }
+            ... on NamespaceTerraformProviderResourceAWS_v1 {
+              resources {
+                provider
+                ... on NamespaceTerraformResourceRoute53Zone_v1 {
+                  region
+                  name
+                }
+              }
             }
           }
         }
@@ -2305,6 +2377,24 @@ OCP_RELEASE_ECR_MIRROR_QUERY = """
           region
           identifier
           output_resource_name
+        }
+      }
+      managedExternalResources
+      externalResources {
+        provider
+        provisioner {
+          name
+        }
+        ... on NamespaceTerraformProviderResourceAWS_v1 {
+          resources {
+            provider
+            ... on NamespaceTerraformResourceECR_v1
+            {
+              region
+              identifier
+              output_resource_name
+            }
+          }
         }
       }
       cluster
@@ -2504,6 +2594,19 @@ GABI_INSTANCES_QUERY = """
           {
             account
             identifier
+          }
+        }
+        managedExternalResources
+        externalResources {
+          provider
+          provisioner {
+            name
+          }
+          ... on NamespaceTerraformProviderResourceAWS_v1 {
+            resources {
+              provider
+              identifier
+            }
           }
         }
         cluster {

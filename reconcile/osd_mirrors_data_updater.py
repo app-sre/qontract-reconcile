@@ -1,6 +1,11 @@
 import logging
 
 from reconcile import mr_client_gateway
+from reconcile.utils.external_resources import (
+    PROVIDER_AWS,
+    get_external_resources,
+    managed_external_resources,
+)
 from reconcile.utils.mr import CSInstallConfig
 
 from reconcile import queries
@@ -16,7 +21,7 @@ def get_ecr_tf_resource_info(namespace, identifier):
     Takes a namespace from app-interface and searches
     a given ECR by its identifier.
     """
-    tf_resources = namespace["terraformResources"]
+    tf_resources = get_external_resources(namespace)
     for tf_resource in tf_resources:
         if "identifier" not in tf_resource:
             continue
@@ -65,10 +70,10 @@ def run(dry_run, gitlab_project_id=None):
         if namespace["name"] != "osd-operators-ecr-mirrors":
             continue
 
-        if namespace["terraformResources"] is None:
+        if not managed_external_resources(namespace):
             continue
 
-        for tfr in namespace["terraformResources"]:
+        for tfr in get_external_resources(namespace, provision_provider=PROVIDER_AWS):
             if tfr["provider"] != "ecr":
                 continue
             if tfr["mirror"] is None:

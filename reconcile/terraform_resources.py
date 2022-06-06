@@ -4,8 +4,10 @@ import sys
 
 from textwrap import indent
 from typing import Any, Iterable, MutableMapping, Optional, Mapping, Tuple, cast
+from jinja2 import Template
 
 from sretoolbox.utils import threaded
+from reconcile.utils.external_resources import get_external_resources, managed_external_resources
 
 
 import reconcile.openshift_base as ob
@@ -25,13 +27,13 @@ from reconcile.utils.oc import OC_Map
 from reconcile.utils.ocm import OCMMap
 from reconcile.utils.oc import StatusCodeError
 from reconcile.utils.openshift_resource import ResourceInventory
-from reconcile.utils.terrascript_client import TerrascriptClient as Terrascript
+from reconcile.utils.terrascript_aws_client import TerrascriptClient as Terrascript
 from reconcile.utils.terraform_client import TerraformClient as Terraform
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.vault import _VaultClient, VaultClient
 
 
-TF_RESOURCE = """
+TF_RESOURCE_AWS = """
 output_format {
   provider
   ... on NamespaceTerraformResourceGenericSecretOutputFormat_v1 {
@@ -40,7 +42,7 @@ output_format {
 }
 provider
 ... on NamespaceTerraformResourceRDS_v1 {
-  account
+  {% if account %}account{% endif %}
   region
   identifier
   defaults
@@ -61,7 +63,7 @@ provider
   annotations
 }
 ... on NamespaceTerraformResourceS3_v1 {
-  account
+  {% if account %}account{% endif %}
   region
   identifier
   defaults
@@ -81,7 +83,7 @@ provider
   annotations
 }
 ... on NamespaceTerraformResourceElastiCache_v1 {
-  account
+  {% if account %}account{% endif %}
   identifier
   defaults
   parameter_group
@@ -91,7 +93,7 @@ provider
   annotations
 }
 ... on NamespaceTerraformResourceServiceAccount_v1 {
-  account
+  {% if account %}account{% endif %}
   identifier
   variables
   policies
@@ -107,14 +109,14 @@ provider
   }
 }
 ... on NamespaceTerraformResourceSecretsManagerServiceAccount_v1 {
-  account
+  {% if account %}account{% endif %}
   identifier
   secrets_prefix
   output_resource_name
   annotations
 }
 ... on NamespaceTerraformResourceRole_v1 {
-  account
+  {% if account %}account{% endif %}
   identifier
   assume_role {
     AWS
@@ -126,7 +128,7 @@ provider
   annotations
 }
 ... on NamespaceTerraformResourceSQS_v1 {
-  account
+  {% if account %}account{% endif %}
   region
   identifier
   output_resource_name
@@ -140,7 +142,7 @@ provider
   }
 }
 ... on NamespaceTerraformResourceDynamoDB_v1 {
-  account
+  {% if account %}account{% endif %}
   region
   identifier
   output_resource_name
@@ -154,7 +156,7 @@ provider
   }
 }
 ... on NamespaceTerraformResourceECR_v1 {
-  account
+  {% if account %}account{% endif %}
   identifier
   region
   output_resource_name
@@ -162,7 +164,7 @@ provider
   annotations
 }
 ... on NamespaceTerraformResourceS3CloudFront_v1 {
-  account
+  {% if account %}account{% endif %}
   region
   identifier
   defaults
@@ -171,7 +173,7 @@ provider
   annotations
 }
 ... on NamespaceTerraformResourceS3SQS_v1 {
-  account
+  {% if account %}account{% endif %}
   region
   identifier
   defaults
@@ -181,7 +183,7 @@ provider
   annotations
 }
 ... on NamespaceTerraformResourceCloudWatch_v1 {
-  account
+  {% if account %}account{% endif %}
   region
   identifier
   defaults
@@ -191,7 +193,7 @@ provider
   annotations
 }
 ... on NamespaceTerraformResourceKMS_v1 {
-  account
+  {% if account %}account{% endif %}
   region
   identifier
   defaults
@@ -200,7 +202,7 @@ provider
   annotations
 }
 ... on NamespaceTerraformResourceElasticSearch_v1 {
-  account
+  {% if account %}account{% endif %}
   region
   identifier
   defaults
@@ -209,7 +211,7 @@ provider
   publish_log_types
 }
 ... on NamespaceTerraformResourceACM_v1 {
-  account
+  {% if account %}account{% endif %}
   region
   identifier
   secret {
@@ -226,7 +228,7 @@ provider
   annotations
 }
 ... on NamespaceTerraformResourceKinesis_v1 {
-  account
+  {% if account %}account{% endif %}
   region
   identifier
   defaults
@@ -234,7 +236,7 @@ provider
   annotations
 }
 ... on NamespaceTerraformResourceS3CloudFrontPublicKey_v1 {
-  account
+  {% if account %}account{% endif %}
   region
   identifier
   secret {
@@ -247,7 +249,7 @@ provider
   annotations
 }
 ... on NamespaceTerraformResourceALB_v1 {
-  account
+  {% if account %}account{% endif %}
   region
   identifier
   vpc {
@@ -279,7 +281,7 @@ provider
   annotations
 }
 ... on NamespaceTerraformResourceSecretsManager_v1 {
-  account
+  {% if account %}account{% endif %}
   region
   identifier
   secret {
@@ -292,7 +294,7 @@ provider
   annotations
 }
 ... on NamespaceTerraformResourceASG_v1 {
-  account
+  {% if account %}account{% endif %}
   region
   identifier
   defaults
@@ -322,7 +324,7 @@ provider
   annotations
 }
 ... on NamespaceTerraformResourceRoute53Zone_v1 {
-  account
+  {% if account %}account{% endif %}
   region
   identifier
   name
@@ -339,6 +341,18 @@ TF_NAMESPACES_QUERY = """
     managedTerraformResources
     terraformResources {
       %s
+    }
+    managedExternalResources
+    externalResources {
+      provider
+      provisioner {
+        name
+      }
+      ... on NamespaceTerraformProviderResourceAWS_v1 {
+        resources {
+          %s
+        }
+      }
     }
     environment {
       name
@@ -378,7 +392,10 @@ TF_NAMESPACES_QUERY = """
     }
   }
 }
-""" % (indent(TF_RESOURCE, 6*' '))
+""" % (
+    indent(Template(TF_RESOURCE_AWS).render(account=True), 6*' '),
+    indent(Template(TF_RESOURCE_AWS).render(account=False), 6*' '),
+)
 
 QONTRACT_INTEGRATION = 'terraform_resources'
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 5, 2)
@@ -527,19 +544,23 @@ def filter_tf_namespaces(
 ) -> list[Mapping[str, Any]]:
     tf_namespaces = []
     for namespace_info in namespaces:
-        if not namespace_info.get('managedTerraformResources'):
+        if not managed_external_resources(namespace_info):
             continue
-        if account_name is None:
+
+        if not account_name:
             tf_namespaces.append(namespace_info)
             continue
-        tf_resources = namespace_info.get('terraformResources')
-        if not tf_resources:
+
+        resources = get_external_resources(namespace_info)
+        if not resources:
             tf_namespaces.append(namespace_info)
             continue
-        for resource in tf_resources:
-            if resource['account'] == account_name:
+
+        for r in resources:
+            if r["account"] == account_name:
                 tf_namespaces.append(namespace_info)
                 break
+
     return tf_namespaces
 
 
@@ -548,9 +569,9 @@ def init_tf_resource_specs(
 ) -> TerraformResourceSpecInventory:
     resource_specs: dict[TerraformResourceUniqueKey, TerraformResourceSpec] = {}
     for namespace_info in namespaces:
-        if not namespace_info.get("managedTerraformResources"):
+        if not managed_external_resources(namespace_info):
             continue
-        tf_resources = namespace_info.get("terraformResources") or []
+        tf_resources = get_external_resources(namespace_info)
         for resource in tf_resources:
             if account_name is None or resource["account"] == account_name:
                 identifier = TerraformResourceUniqueKey.from_dict(resource)
@@ -666,9 +687,10 @@ def run(
     actions = ob.realize_data(dry_run, oc_map, ri, thread_pool_size,
                               caller=account_name)
 
-    disable_keys(dry_run, thread_pool_size,
-                 disable_service_account_keys=True,
-                 account_name=account_name)
+    if not light and tf.should_apply:
+        disable_keys(dry_run, thread_pool_size,
+                     disable_service_account_keys=True,
+                     account_name=account_name)
 
     if actions and vault_output_path:
         write_outputs_to_vault(vault_output_path, resource_specs)

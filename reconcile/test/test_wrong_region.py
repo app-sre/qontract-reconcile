@@ -1,7 +1,7 @@
 import pytest
 
 from reconcile.utils.aws_api import AWSApi
-from reconcile.utils.terrascript_client import TerrascriptClient
+from reconcile.utils.terrascript_aws_client import TerrascriptClient
 
 
 @pytest.fixture
@@ -53,7 +53,7 @@ def aws_api(accounts, secret, mocker):
 @pytest.fixture
 def terrascript(accounts, secret, mocker):
     mock_secret_reader = mocker.patch(
-        "reconcile.utils.terrascript_client.SecretReader", autospec=True
+        "reconcile.utils.terrascript_aws_client.SecretReader", autospec=True
     )
     mock_secret_reader.return_value.read_all.return_value = secret
     return TerrascriptClient("", "", 1, accounts)
