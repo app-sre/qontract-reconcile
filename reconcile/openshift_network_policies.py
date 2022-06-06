@@ -61,7 +61,17 @@ def construct_oc_resource(name, source_ns):
         "metadata": {"name": name},
         "spec": {
             "ingress": [
-                {"from": [{"namespaceSelector": {"matchLabels": {"kubernetes.io/metadata.name": source_ns}}}]}
+                {
+                    "from": [
+                        {
+                            "namespaceSelector": {
+                                "matchLabels": {
+                                    "kubernetes.io/metadata.name": source_ns
+                                }
+                            }
+                        }
+                    ]
+                }
             ],
             "podSelector": {},
             "policyTypes": ["Ingress"],
