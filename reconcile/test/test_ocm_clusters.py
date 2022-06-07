@@ -215,6 +215,12 @@ def cluster_updates_mr_mock():
             yield ccu
 
 
+@pytest.fixture
+def get_json_mock():
+    with patch.object(OCM, "_get_json", autospec=True) as get_json:
+        yield get_json
+
+
 def test_ocm_spec_population_rosa(rosa_cluster_fxt):
     n = OCMSpec(**rosa_cluster_fxt)
     assert isinstance(n.spec, ROSAClusterSpec)
@@ -313,21 +319,19 @@ def test_noop_dry_run(queries_mock, ocmmap_mock, ocm_mock, cluster_updates_mr_mo
     assert cluster_updates_mr_mock.call_count == 0
 
 
-@patch.object(OCM, "_get_json", autospec=True)
 def test_changed_id(
-    json,
+    get_json_mock,
     queries_mock,
     ocm_mock,
     ocm_osd_cluster_raw_spec,
     ocm_osd_cluster_ai_spec,
     cluster_updates_mr_mock,
 ):
-
     # App Interface attributes are only considered if are null or blank
     # Won't be better to update them if have changed?
     ocm_osd_cluster_ai_spec["spec"]["id"] = ""
     queries_mock[1].return_value = [ocm_osd_cluster_ai_spec]
-    json.return_value = {"items": [ocm_osd_cluster_raw_spec]}
+    get_json_mock.return_value = {"items": [ocm_osd_cluster_raw_spec]}
 
     with pytest.raises(SystemExit):
         occ.run(dry_run=False)
@@ -337,9 +341,8 @@ def test_changed_id(
     assert cluster_updates_mr_mock.call_count == 1
 
 
-@patch.object(OCM, "_get_json", autospec=True)
 def test_ocm_osd_create_cluster(
-    json,
+    get_json_mock,
     queries_mock,
     ocm_mock,
     cluster_updates_mr_mock,
@@ -347,7 +350,7 @@ def test_ocm_osd_create_cluster(
     ocm_osd_cluster_ai_spec,
 ):
     ocm_osd_cluster_ai_spec["name"] = "a-new-cluster"
-    json.return_value = {"items": [ocm_osd_cluster_raw_spec]}
+    get_json_mock.return_value = {"items": [ocm_osd_cluster_raw_spec]}
     queries_mock[1].return_value = [ocm_osd_cluster_ai_spec]
     with pytest.raises(SystemExit):
         occ.run(dry_run=False)
@@ -357,9 +360,8 @@ def test_ocm_osd_create_cluster(
     assert cluster_updates_mr_mock.call_count == 0
 
 
-@patch.object(OCM, "_get_json", autospec=True)
 def test_ocm_osd_update_cluster(
-    json,
+    get_json_mock,
     queries_mock,
     ocm_mock,
     cluster_updates_mr_mock,
@@ -367,7 +369,7 @@ def test_ocm_osd_update_cluster(
     ocm_osd_cluster_ai_spec,
 ):
     ocm_osd_cluster_ai_spec["spec"]["storage"] = 40000
-    json.return_value = {"items": [ocm_osd_cluster_raw_spec]}
+    get_json_mock.return_value = {"items": [ocm_osd_cluster_raw_spec]}
     queries_mock[1].return_value = [ocm_osd_cluster_ai_spec]
     with pytest.raises(SystemExit):
         occ.run(dry_run=False)
@@ -377,9 +379,8 @@ def test_ocm_osd_update_cluster(
     assert cluster_updates_mr_mock.call_count == 0
 
 
-@patch.object(OCM, "_get_json", autospec=True)
 def test_ocm_returns_a_rosa_cluster(
-    json,
+    get_json_mock,
     queries_mock,
     ocm_mock,
     cluster_updates_mr_mock,
@@ -387,7 +388,9 @@ def test_ocm_returns_a_rosa_cluster(
     ocm_rosa_cluster_raw_spec,
     ocm_osd_cluster_ai_spec,
 ):
-    json.return_value = {"items": [ocm_osd_cluster_raw_spec, ocm_rosa_cluster_raw_spec]}
+    get_json_mock.return_value = {
+        "items": [ocm_osd_cluster_raw_spec, ocm_rosa_cluster_raw_spec]
+    }
     queries_mock[1].return_value = [ocm_osd_cluster_ai_spec]
     with pytest.raises(SystemExit):
         occ.run(dry_run=False)
@@ -397,16 +400,15 @@ def test_ocm_returns_a_rosa_cluster(
     assert cluster_updates_mr_mock.call_count == 0
 
 
-@patch.object(OCM, "_get_json", autospec=True)
 def test_ocm_create_rosa_cluster_should_not_post_anything(
-    json,
+    get_json_mock,
     queries_mock,
     ocm_mock,
     cluster_updates_mr_mock,
     ocm_osd_cluster_ai_spec,
 ):
+    get_json_mock.return_value = {"items": []}
     ocm_osd_cluster_ai_spec["spec"]["product"] = "rosa"
-    json.return_value = {"items": []}
     queries_mock[1].return_value = [ocm_osd_cluster_ai_spec]
     with pytest.raises(SystemExit):
         occ.run(dry_run=False)
@@ -416,20 +418,20 @@ def test_ocm_create_rosa_cluster_should_not_post_anything(
     assert cluster_updates_mr_mock.call_count == 0
 
 
-@patch.object(OCM, "_get_json", autospec=True)
 def test_changed_ocm_spec_disable_uwm(
-    json,
+    get_json_mock,
     queries_mock,
     ocm_mock,
     ocm_osd_cluster_raw_spec,
     ocm_osd_cluster_ai_spec,
     cluster_updates_mr_mock,
 ):
+
     ocm_osd_cluster_ai_spec["spec"][
         "disable_user_workload_monitoring"
     ] = not ocm_osd_cluster_ai_spec["spec"]["disable_user_workload_monitoring"]
 
-    json.return_value = {"items": [ocm_osd_cluster_raw_spec]}
+    get_json_mock.return_value = {"items": [ocm_osd_cluster_raw_spec]}
     queries_mock[1].return_value = [ocm_osd_cluster_ai_spec]
 
     with pytest.raises(SystemExit):
@@ -441,9 +443,8 @@ def test_changed_ocm_spec_disable_uwm(
     assert cluster_updates_mr_mock.call_count == 0
 
 
-@patch.object(OCM, "_get_json", autospec=True)
 def test_missing_ocm_spec_disable_uwm(
-    json,
+    get_json_mock,
     queries_mock,
     ocm_mock,
     ocm_osd_cluster_raw_spec,
@@ -452,7 +453,7 @@ def test_missing_ocm_spec_disable_uwm(
 ):
     ocm_osd_cluster_ai_spec["spec"]["disable_user_workload_monitoring"] = None
 
-    json.return_value = {"items": [ocm_osd_cluster_raw_spec]}
+    get_json_mock.return_value = {"items": [ocm_osd_cluster_raw_spec]}
     queries_mock[1].return_value = [ocm_osd_cluster_ai_spec]
 
     with pytest.raises(SystemExit):
