@@ -208,9 +208,9 @@ class OCMProductOsd(OCMProduct):
         }
 
         # Workaround to enable type checks.
-        # cluster.spec is Union of pydantic models Union[OSDClusterSpec, RosaClusterSpec].
+        # cluster.spec is a Union of pydantic models Union[OSDClusterSpec, RosaClusterSpec].
         # In this case, cluster.spec will always be an OSDClusterSpec because the type
-        # assignment is  by pydantic, however, mypy complains if OSD attributes are set
+        # assignment is managed by pydantic, however, mypy complains if OSD attributes are set
         # outside the isinstance check because it checks all the types set in the Union.
         if isinstance(cluster.spec, OSDClusterSpec):
             ocm_spec["storage_quota"] = {
