@@ -181,8 +181,7 @@ def get_cluster_ocm_update_spec(
         k: v for k, v in current_ocm_spec.items() if k not in desired_ocm_spec
     }
 
-    diffs = deleted_attrs
-    diffs.update(updated_attrs)
+    diffs = deleted_attrs | updated_attrs
 
     not_allowed_updates = set(diffs) - impl.ALLOWED_SPEC_UPDATE_FIELDS
     if not_allowed_updates:
