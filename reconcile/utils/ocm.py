@@ -18,7 +18,7 @@ from reconcile.ocm.types import (
     OCMClusterNetwork,
     ROSAClusterSpec,
 )
-import typing
+
 
 STATUS_READY = "ready"
 STATUS_FAILED = "failed"
@@ -184,7 +184,6 @@ class OCMProductOsd(OCMProduct):
 
         return ocm_spec
 
-    @typing.no_type_check
     @staticmethod
     def _get_create_cluster_spec(cluster_name: str, cluster: OCMSpec) -> dict[str, Any]:
         ocm_spec: dict[str, Any] = {
@@ -197,8 +196,6 @@ class OCMProductOsd(OCMProduct):
             },
             "multi_az": cluster.spec.multi_az,
             "nodes": {"compute_machine_type": {"id": cluster.spec.instance_type}},
-            "storage_quota": {"value": float(cluster.spec.storage * BYTES_IN_GIGABYTE)},
-            "load_balancer_quota": cluster.spec.load_balancers,
             "network": {
                 "type": cluster.network.type or "OpenShiftSDN",
                 "machine_cidr": cluster.network.vpc,
@@ -209,6 +206,17 @@ class OCMProductOsd(OCMProduct):
             "disable_user_workload_monitoring": cluster.spec.disable_user_workload_monitoring
             or True,
         }
+
+        # Workaround to enable type checks.
+        # cluster.spec is Union of pydantic models Union[OSDClusterSpec, RosaClusterSpec].
+        # In this case, cluster.spec will always be an OSDClusterSpec because the type
+        # assignment is  by pydantic, however, mypy complains if OSD attributes are set
+        # outside the isinstance check because it checks all the types set in the Union.
+        if isinstance(cluster.spec, OSDClusterSpec):
+            ocm_spec["storage_quota"] = (
+                {"value": float(cluster.spec.storage * BYTES_IN_GIGABYTE)},
+            )
+            ocm_spec["load_balancer_quota"] = cluster.spec.load_balancers
 
         provision_shard_id = cluster.spec.provision_shard_id
         if provision_shard_id:
@@ -536,7 +544,7 @@ class OCM:  # pylint: disable=too-many-public-methods
         impl.create_cluster(self, name, cluster, dry_run)
 
     def update_cluster(
-        self, cluster_name: str, update_spec: dict[str, Any], dry_run=False
+        self, cluster_name: str, update_spec: Mapping[str, Any], dry_run=False
     ):
         cluster = self.clusters[cluster_name]
         impl = OCM_PRODUCTS_IMPL[cluster.spec.product]
