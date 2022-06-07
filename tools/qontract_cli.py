@@ -475,6 +475,8 @@ def clusters_egress_ips(ctx):
         account = tfvpc._build_infrastructure_assume_role(
             management_account, cluster, ocm_map.get(cluster_name)
         )
+        if not account:
+            continue
         account["resourcesDefaultRegion"] = management_account["resourcesDefaultRegion"]
         aws_api = AWSApi(1, [account], settings=settings)
         egress_ips = aws_api.get_cluster_nat_gateways_egress_ips(account)
