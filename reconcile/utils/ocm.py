@@ -213,9 +213,9 @@ class OCMProductOsd(OCMProduct):
         # assignment is  by pydantic, however, mypy complains if OSD attributes are set
         # outside the isinstance check because it checks all the types set in the Union.
         if isinstance(cluster.spec, OSDClusterSpec):
-            ocm_spec["storage_quota"] = (
-                {"value": float(cluster.spec.storage * BYTES_IN_GIGABYTE)},
-            )
+            ocm_spec["storage_quota"] = {
+                "value": float(cluster.spec.storage * BYTES_IN_GIGABYTE),
+            }
             ocm_spec["load_balancer_quota"] = cluster.spec.load_balancers
 
         provision_shard_id = cluster.spec.provision_shard_id
