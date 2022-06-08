@@ -127,7 +127,7 @@ def get_app_interface_spec_updates(
         ] = f"elb.apps.{cluster}.{current_spec.domain}"
 
     updates: dict[str, Any] = {}
-    updates[ocmmod.SPEC_ATTR_PATH] = desired_spec.path
+    updates[ocmmod.SPEC_ATTR_PATH] = "data" + str(desired_spec.path)
     updates["root"] = root_updates
     updates["spec"] = ocm_spec_updates
 
