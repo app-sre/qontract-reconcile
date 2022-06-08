@@ -126,6 +126,7 @@ from reconcile.utils.gql import GqlApiErrorForbiddenSchema, GqlApiIntegrationNot
 from reconcile.utils.aggregated_list import RunnerException
 from reconcile.utils.binary import binary, binary_version
 from reconcile.utils.environ import environ
+from reconcile.utils.runtime.meta import IntegrationMeta
 from reconcile.utils.unleash import get_feature_toggle_state
 from reconcile.utils.exceptions import PrintToFileInGitRepositoryError
 from reconcile.utils.git import is_file_in_git_repo
@@ -1918,8 +1919,28 @@ def integrations_manager(
         reconcile.integrations_manager,
         ctx.obj,
         environment_name,
+        get_integration_cli_meta(),
         thread_pool_size,
         internal,
         use_jump_host,
         image_tag_from_ref,
     )
+
+
+def get_integration_cli_meta() -> dict[str, IntegrationMeta]:
+    """
+    returns all integrations known to cli.py via click introspection
+
+    todo(geoberle, janboll) - this needs rework in the long run, especially since go-integrations
+    are becoming relevant and this kind of meta programming just solves the python part, and even
+    the python part is not solved in a robust enough way
+    """
+    integration_meta = {}
+    for integration_name in integration.list_commands(None):  # type: ignore
+        integration_cmd = integration.get_command(None, integration_name)  # type: ignore
+        integration_meta[integration_name] = IntegrationMeta(
+            name=integration_name,
+            args=[p.opts[0] for p in integration_cmd.params if p.opts and len(p.opts) > 0],  # type: ignore
+            short_help=integration_cmd.short_help,  # type: ignore
+        )
+    return integration_meta

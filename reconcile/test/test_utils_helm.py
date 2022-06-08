@@ -24,6 +24,13 @@ def values():
                         "memory": "90Mi",
                     },
                 },
+                "shard_specs": [
+                    {
+                        "shard_id": 0,
+                        "shards": 1,
+                        "shard_name_suffix": "",
+                    }
+                ],
             }
         ]
     }
@@ -57,7 +64,7 @@ def test_template_disable_unleash(values):
 
 
 def test_template_extra_args(values):
-    values["integrations"][0]["extraArgs"] = "--test-extra-args"
+    values["integrations"][0]["shard_specs"][0]["extra_args"] = "--test-extra-args"
     template = helm.template(values)
     expected = yaml.safe_load(fxt.get("extra_args.yml"))
     assert template == expected
@@ -94,9 +101,40 @@ def test_template_logs_slack(values):
 
 
 def test_template_shards(values):
-    values["integrations"][0]["shards"] = 2
+    values["integrations"][0]["shard_specs"] = [
+        {
+            "shard_id": 0,
+            "shards": 2,
+            "shard_name_suffix": "-0",
+        },
+        {
+            "shard_id": 1,
+            "shards": 2,
+            "shard_name_suffix": "-1",
+        },
+    ]
     template = helm.template(values)
     expected = yaml.safe_load(fxt.get("shards.yml"))
+    assert template == expected
+
+
+def test_template_aws_account_shards(values):
+    values["integrations"][0]["shard_specs"] = [
+        {
+            "shard_id": 0,
+            "shards": 2,
+            "shard_name_suffix": "-acc-1",
+            "extra_args": "--account-name acc-1",
+        },
+        {
+            "shard_id": 1,
+            "shards": 2,
+            "shard_name_suffix": "-acc-2",
+            "extra_args": "--account-name acc-2",
+        },
+    ]
+    template = helm.template(values)
+    expected = yaml.safe_load(fxt.get("aws_account_shards.yml"))
     assert template == expected
 
 

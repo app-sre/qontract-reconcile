@@ -11,3 +11,6 @@ integrations:
   environmentAware: true
   logs:
     slack: true
+  shard_specs:
+  - shard_id: 0
+    shards: 1

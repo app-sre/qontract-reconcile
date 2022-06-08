@@ -6,8 +6,7 @@ metadata:
 objects:
 {{- range $i, $integration := .Values.integrations }}
 {{- $logs := $integration.logs | default dict -}}
-{{- $shards := int $integration.shards | default 1 }}
-{{- range $shard_id := until $shards }}
+{{- range $shard := $integration.shard_specs }}
 - apiVersion: apps/v1
   {{- if $integration.cache }}
   kind: StatefulSet
@@ -19,11 +18,7 @@ objects:
       app: qontract-reconcile-{{ $integration.name }}
     annotations:
       ignore-check.kube-linter.io/minimum-three-replicas : "qontract-reconcile integrations are sharded and not replicated"
-    {{- if gt $shards 1 }}
-    name: qontract-reconcile-{{ $integration.name }}-{{ $shard_id }}
-    {{- else }}
-    name: qontract-reconcile-{{ $integration.name }}
-    {{- end }}
+    name: qontract-reconcile-{{ $integration.name }}{{ $shard.shard_name_suffix }}
   spec:
     {{- if $integration.cache }}
     volumeClaimTemplates:
@@ -159,9 +154,9 @@ objects:
               containerPort: 9090
           env:
           - name: SHARDS
-            value: "{{ $shards }}"
+            value: "{{ $shard.shards }}"
           - name: SHARD_ID
-            value: "{{ $shard_id }}"
+            value: "{{ $shard.shard_id }}"
           - name: DRY_RUN
             value: ${DRY_RUN}
           {{- if eq $integration.name "integrations-manager" }}
@@ -170,9 +165,9 @@ objects:
           {{- end }}
           - name: INTEGRATION_NAME
             value: {{ $integration.name }}
-          {{- with $integration.extraArgs }}
+          {{- with $shard.extra_args }}
           - name: INTEGRATION_EXTRA_ARGS
-            value: "{{ $integration.extraArgs }}"
+            value: "{{ $shard.extra_args }}"
           {{- end }}
           - name: SLEEP_DURATION_SECS
             {{- if $integration.sleepDurationSecs }}
