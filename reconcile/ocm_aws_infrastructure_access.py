@@ -4,10 +4,11 @@ from reconcile.utils.external_resources import PROVIDER_AWS, get_external_resour
 from reconcile.utils import gql
 from reconcile import queries
 
-from reconcile.utils.ocm import STATUS_DELETING, STATUS_FAILED, OCMMap
+from reconcile.utils.ocm import OCM_PRODUCT_OSD, STATUS_DELETING, STATUS_FAILED, OCMMap
 from reconcile.terraform_resources import TF_NAMESPACES_QUERY
 
 QONTRACT_INTEGRATION = "ocm-aws-infrastructure-access"
+SUPPORTED_OCM_PRODUCTS = [OCM_PRODUCT_OSD]
 
 
 def fetch_current_state():
@@ -15,7 +16,13 @@ def fetch_current_state():
     current_failed = []
     current_deleting = []
     settings = queries.get_app_interface_settings()
-    clusters = [c for c in queries.get_clusters() if c.get("ocm") is not None]
+    # Temporary solution to exclude Non-OSD clusters. This will be improved
+    # in the milestone 2 of the ROSA support initiative.
+    clusters = [
+        c
+        for c in queries.get_clusters()
+        if c.get("ocm") is not None and c["spec"]["product"] in SUPPORTED_OCM_PRODUCTS
+    ]
     ocm_map = OCMMap(
         clusters=clusters, integration=QONTRACT_INTEGRATION, settings=settings
     )
@@ -46,7 +53,11 @@ def fetch_desired_state():
     # get desired state defined in awsInfrastructureAccess
     # or awsInfrastructureManagementAccounts
     # sections of cluster files
-    clusters = queries.get_clusters()
+    clusters = [
+        c
+        for c in queries.get_clusters()
+        if c.get("ocm") is not None and c["spec"]["product"] in SUPPORTED_OCM_PRODUCTS
+    ]
     for cluster_info in clusters:
         cluster = cluster_info["name"]
         aws_infra_access_items = cluster_info.get("awsInfrastructureAccess") or []

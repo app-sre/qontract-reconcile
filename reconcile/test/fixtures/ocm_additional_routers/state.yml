@@ -1,15 +1,23 @@
 gql_response:
   - name: cluster1
+    spec:
+      product: osd
     additionalRouters:
     - private: True
   - name: cluster2
+    spec:
+      product: osd
     additionalRouters:
     - private: False
   - name: cluster3
+    spec:
+      product: osd
     additionalRouters:
     - private: False
       route_selectors: "{\"key\":\"value\"}"
   - name: cluster4
+    spec:
+      product: osd
     additionalRouters: []
 
 desired_state:
