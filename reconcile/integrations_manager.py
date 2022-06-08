@@ -44,8 +44,16 @@ class IntegrationShardManager:
     ) -> list[dict[str, Any]]:
         sharding_strategy = spec.get("shardingStrategy") or "static"
         if sharding_strategy in self.strategies:
+            integration_meta = self.integration_runtime_meta.get(integration)
+            if not integration_meta:
+                # workaround until we can get metadata for non cli.py based integrations
+                integration_meta = IntegrationMeta(
+                    name=integration,
+                    args=[],
+                    short_help=None
+                )
             shards = self.strategies[sharding_strategy].build_integration_shards(
-                self.integration_runtime_meta[integration], spec
+                integration_meta, spec
             )
 
             # add the extra args of the integrations pr check spec to each shard
