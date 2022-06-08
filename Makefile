@@ -80,6 +80,9 @@ clean:
 generate-queries:
 	. ./venv/bin/activate && query-generator
 
+get-introspection:
+	. ./venv/bin/activate && python3 code_generator/introspection.py
+
 dev-venv: clean ## Create a local venv for your IDE and remote debugging
 	python3.9 -m venv venv
 	. ./venv/bin/activate && pip install --upgrade pip

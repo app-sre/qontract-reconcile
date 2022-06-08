@@ -1,7 +1,8 @@
+import json
 import os
-import requests
 
-from graphql import build_client_schema, get_introspection_query
+from graphql import build_client_schema
+from code_generator.introspection import INTROSPECTION_JSON_FILE
 
 from code_generator.query_parser import ParsedNode, ParsedInlineFragmentNode, QueryParser  # type: ignore
 
@@ -9,13 +10,9 @@ from code_generator.query_parser import ParsedNode, ParsedInlineFragmentNode, Qu
 HEADER = '"""\nTHIS IS AN AUTO-GENERATED FILE. DO NOT MODIFY MANUALLY!\n"""\n'
 
 
-def query_schema() -> dict:
-    gql_url = "http://localhost:4000/graphql"
-    query = get_introspection_query()
-    request = requests.post(gql_url, json={"query": query})
-    if request.status_code == 200:
-        return request.json()["data"]
-    raise Exception(f"Could not query {gql_url}")
+def get_schema() -> dict:
+    with open(INTROSPECTION_JSON_FILE) as f:
+        return json.loads(f.read())["data"]
 
 
 def find_query_files() -> list[str]:
@@ -48,7 +45,7 @@ def traverse(node: ParsedNode) -> str:
 
 
 def main():
-    schema_raw = query_schema()
+    schema_raw = get_schema()
     schema = build_client_schema(schema_raw)  # type: ignore
     query_parser = QueryParser(schema=schema)
     for file in find_query_files():
@@ -57,6 +54,7 @@ def main():
             code = traverse(result)
             with open(f"{file[:-3]}py", "w") as out_file:
                 out_file.write(HEADER)
+                # TODO: import DateTime
                 out_file.write(
                     "from typing import Optional, Union  # noqa: F401 # pylint: disable=W0611\n\n"
                 )
