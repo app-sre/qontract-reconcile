@@ -48,9 +48,7 @@ class IntegrationShardManager:
             if not integration_meta:
                 # workaround until we can get metadata for non cli.py based integrations
                 integration_meta = IntegrationMeta(
-                    name=integration,
-                    args=[],
-                    short_help=None
+                    name=integration, args=[], short_help=None
                 )
             shards = self.strategies[sharding_strategy].build_integration_shards(
                 integration_meta, spec
