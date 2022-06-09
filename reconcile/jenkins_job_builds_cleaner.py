@@ -83,7 +83,7 @@ def run(dry_run):
             )
 
         token = instance["token"]
-        instance_name = instance.get("name")
+        instance_name = instance["name"]
         jenkins = JenkinsApi(token, ssl_verify=False, settings=settings)
         all_job_names = jenkins.get_job_names()
 
