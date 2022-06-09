@@ -83,11 +83,12 @@ def run(dry_run):
             )
 
         token = instance["token"]
+        instance_name = instance["name"]
         jenkins = JenkinsApi(token, ssl_verify=False, settings=settings)
         all_job_names = jenkins.get_job_names()
 
         builds_todel = find_builds(jenkins, all_job_names, cleanup_rules)
 
-        logging.info(f"{len(builds_todel)} builds will be deleted")
+        logging.info(f"{instance_name}: {len(builds_todel)} builds will be deleted")
         delete_builds(jenkins, builds_todel, dry_run)
-        logging.info("deletion completed")
+        logging.info(f"{instance_name}: deletion completed")
