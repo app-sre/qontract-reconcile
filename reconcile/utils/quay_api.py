@@ -8,12 +8,15 @@ class QuayTeamNotFoundException(Exception):
 class QuayApi:
     LIMIT_FOLLOWS = 15
 
-    def __init__(self, token, organization, base_url="quay.io"):
+    def __init__(self, token, organization, base_url="quay.io", timeout=60):
         self.token = token
         self.organization = organization
         self.auth_header = {"Authorization": "Bearer %s" % (token,)}
         self.team_members = {}
         self.api_url = f"https://{base_url}/api/v1"
+
+        self._timeout = timeout
+        """Timeout to use for HTTP calls to Quay (seconds)."""
 
     def list_team_members(self, team, **kwargs):
         """
@@ -31,7 +34,7 @@ class QuayApi:
             self.api_url, self.organization, team
         )
 
-        r = requests.get(url, headers=self.auth_header)
+        r = requests.get(url, headers=self.auth_header, timeout=self._timeout)
         if r.status_code == 404:
             raise QuayTeamNotFoundException(
                 f"team {team} is not found in "
@@ -55,7 +58,7 @@ class QuayApi:
 
     def user_exists(self, user):
         url = "{}/users/{}".format(self.api_url, user)
-        r = requests.get(url, headers=self.auth_header)
+        r = requests.get(url, headers=self.auth_header, timeout=self._timeout)
         if not r.ok:
             return False
         return True
@@ -69,7 +72,7 @@ class QuayApi:
             self.api_url, self.organization, team, user
         )
 
-        r = requests.delete(url_team, headers=self.auth_header)
+        r = requests.delete(url_team, headers=self.auth_header, timeout=self._timeout)
         if not r.ok:
             message = r.json().get("message", "")
 
@@ -82,7 +85,7 @@ class QuayApi:
             self.api_url, self.organization, user
         )
 
-        r = requests.delete(url_org, headers=self.auth_header)
+        r = requests.delete(url_org, headers=self.auth_header, timeout=self._timeout)
         r.raise_for_status()
 
         return True
@@ -98,7 +101,7 @@ class QuayApi:
         url = "{}/organization/{}/team/{}/members/{}".format(
             self.api_url, self.organization, team, user
         )
-        r = requests.put(url, headers=self.auth_header)
+        r = requests.put(url, headers=self.auth_header, timeout=self._timeout)
         r.raise_for_status()
         return True
 
@@ -121,7 +124,9 @@ class QuayApi:
         if description:
             payload.update({"description": description})
 
-        r = requests.put(url, headers=self.auth_header, json=payload)
+        r = requests.put(
+            url, headers=self.auth_header, json=payload, timeout=self._timeout
+        )
         r.raise_for_status()
 
     def list_images(self, images=None, page=None, count=0):
@@ -143,7 +148,9 @@ class QuayApi:
             params["next_page"] = page
 
         # perform request
-        r = requests.get(url, params=params, headers=self.auth_header)
+        r = requests.get(
+            url, params=params, headers=self.auth_header, timeout=self._timeout
+        )
         r.raise_for_status()
 
         # read body
@@ -181,14 +188,16 @@ class QuayApi:
         }
 
         # perform request
-        r = requests.post(url, json=params, headers=self.auth_header)
+        r = requests.post(
+            url, json=params, headers=self.auth_header, timeout=self._timeout
+        )
         r.raise_for_status()
 
     def repo_delete(self, repo_name):
         url = "{}/repository/{}/{}".format(self.api_url, self.organization, repo_name)
 
         # perform request
-        r = requests.delete(url, headers=self.auth_header)
+        r = requests.delete(url, headers=self.auth_header, timeout=self._timeout)
         r.raise_for_status()
 
     def repo_update_description(self, repo_name, description):
@@ -197,7 +206,9 @@ class QuayApi:
         params = {"description": description}
 
         # perform request
-        r = requests.put(url, json=params, headers=self.auth_header)
+        r = requests.put(
+            url, json=params, headers=self.auth_header, timeout=self._timeout
+        )
         r.raise_for_status()
 
     def repo_make_public(self, repo_name):
@@ -214,7 +225,9 @@ class QuayApi:
         params = {"visibility": visibility}
 
         # perform request
-        r = requests.post(url, json=params, headers=self.auth_header)
+        r = requests.post(
+            url, json=params, headers=self.auth_header, timeout=self._timeout
+        )
         r.raise_for_status()
 
     def get_repo_team_permissions(self, repo_name, team):
@@ -222,7 +235,7 @@ class QuayApi:
             f"{self.api_url}/repository/{self.organization}/"
             + f"{repo_name}/permissions/team/{team}"
         )
-        r = requests.get(url, headers=self.auth_header)
+        r = requests.get(url, headers=self.auth_header, timeout=self._timeout)
         if not r.ok:
             message = r.json().get("message")
             expected_message = "Team does not have permission for repo."
@@ -239,5 +252,7 @@ class QuayApi:
             + f"{repo_name}/permissions/team/{team}"
         )
         body = {"role": role}
-        r = requests.put(url, json=body, headers=self.auth_header)
+        r = requests.put(
+            url, json=body, headers=self.auth_header, timeout=self._timeout
+        )
         r.raise_for_status()
