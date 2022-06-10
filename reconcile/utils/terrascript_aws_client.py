@@ -4640,10 +4640,11 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         # pre-signup lambda
         release_url = common_values.get('release_url', ROSA_AUTHENTICATOR_PRE_SIGNUP_RELEASE)
-        zip_file = self.get_rosa_authenticator_zip(release_url, 'pre-signup')
+        zip_file = self.get_rosa_authenticator_zip(release_url)
 
         cognito_pre_signup_lambda_resource = aws_lambda_function(
             "cognito_pre_signup",
+            function_name=f'ocm-{identifier}-cognito-pre-signup',
             runtime="nodejs14.x",
             role=lambda_iam_role_resource.arn,
             handler="index.handler",
@@ -4679,10 +4680,13 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             pool_args_values = self.get_values('pool_args')
             cognito_user_pool_resource = aws_cognito_user_pool(
                 "pool",
-                name=f'{identifier}-pool',
+                name=f'ocm-{identifier}-pool',
                 lambda_config={
-                    "pre_sign_up": cognito_pre_signup_lambda_resource.arn,
-                    "pre_token_generation": cognito_pre_token_lambda_resource.arn,
+                    "pre_sign_up": cognito_pre_signup_lambda_resource.arn
+                },
+                sms_configuration={
+                    "external_id": self.get_values("sms_role_ext_id"),
+                    "sns_caller_arn": lambda_iam_role_resource.arn,
                 },
                 **pool_args_values
             )
@@ -4697,15 +4701,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 principal="cognito-idp.amazonaws.com"
             )
             tf_resources.append(cognito_pre_signup_lambda_permission_resource)
-
-            cognito_pre_token_lambda_permission_resource = aws_lambda_permission(
-                "cognito_pre_token_permission",
-                action="lambda:InvokeFunction",
-                function_name=cognito_pre_token_lambda_resource.function_name,
-                source_arn=cognito_user_pool_resource.arn,
-                principal="cognito-idp.amazonaws.com"
-            )
-            tf_resources.append(cognito_pre_token_lambda_permission_resource)
 
             # Continue with pool resources
             cognito_user_pool_domain_resource = aws_cognito_user_pool_domain(
