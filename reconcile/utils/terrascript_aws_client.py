@@ -4715,7 +4715,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             )
             tf_resources.append(cognito_user_pool_domain_resource)
 
-            ## POOL GATEWAY RESOURCE SERVER
+            # POOL GATEWAY RESOURCE SERVER
             cognito_resource_server_gateway_resource = aws_cognito_resource_server(
                 "userpool_gateway_resource_server",
                 user_pool_id=cognito_user_pool_resource.id,
@@ -4754,6 +4754,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             pool_client_service_account_common_args_values = self.get_values(
                 "pool_client_service_account_common_properties"
             )
+            # AMS
             ams_service_account_pool_client_resource = aws_cognito_user_pool_client(
                 "ocm_ams_service_account",
                 name=f'ocm-{identifier}-ams-service-account',
@@ -4763,7 +4764,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 **pool_client_service_account_common_args_values
             )
             tf_resources.append(ams_service_account_pool_client_resource)
-
+            
+            # CS
             cs_service_account_pool_client_resource = aws_cognito_user_pool_client(
                 "ocm_cs_service_account",
                 name=f'ocm-{identifier}-cs-service-account',
@@ -4774,7 +4776,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             )
             tf_resources.append(cs_service_account_pool_client_resource)
 
-
+            # OSL
             osl_service_account_pool_client_resource = aws_cognito_user_pool_client(
                 "ocm_osl_service_account",
                 name=f'ocm-{identifier}-osl-service-account',
@@ -4784,7 +4786,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 **pool_client_service_account_common_args_values
             )
             tf_resources.append(osl_service_account_pool_client_resource)
-            # User pool complete
+            # USER POOL COMPLETE
 
             # API GATEWAY
             rest_api_args_values = self.get_values("rest_api_properties")
@@ -4795,6 +4797,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             )
             tf_resources.append(api_gateway_rest_api_resource)
 
+            # PROXY
             api_gateway_proxy_resource = aws_api_gateway_resource(
                 "gw_resource_proxy",
                 parent_id=api_gateway_rest_api_resource.root_resource_id,
@@ -4803,6 +4806,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             )
             tf_resources.append(api_gateway_proxy_resource)
 
+            # TOKEN
             api_gateway_token_resource = aws_api_gateway_resource(
                 "gw_resource_token",
                 parent_id=api_gateway_rest_api_resource.root_resource_id,
@@ -4811,6 +4815,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             )
             tf_resources.append(api_gateway_token_resource)
 
+            # AUTH
             api_gateway_auth_resource = aws_api_gateway_resource(
                 "gw_resource_token",
                 parent_id=api_gateway_rest_api_resource.root_resource_id,
@@ -4819,16 +4824,19 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             )
             tf_resources.append(api_gateway_auth_resource)
 
+            # AUTHORIZER
             gateway_authorizer_args_values = self.get_values("gateway_authorizer_properties")
             api_gateway_authorizer_resource = aws_api_gateway_authorizer(
                 "gw_authorizer",
-                name=f'{identifier}-authorizer',
+                name=f'ocm-{identifier}-authorizer',
                 rest_api_id=api_gateway_rest_api_resource.id,
                 provider_arns=[cognito_user_pool_resource.arn],
                 **gateway_authorizer_args_values
             )
             tf_resources.append(api_gateway_authorizer_resource)
 
+            # RESUME HERE
+            # ANY METHOD
             gateway_method_any_args_values = self.get_values("gateway_method_any_args")
             api_gateway_method_any_resource = aws_api_gateway_method(
                 "gw_method_any",
@@ -4839,6 +4847,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             )
             tf_resources.append(api_gateway_method_any_resource)
 
+            # GET TOKEN METHOD
             gateway_method_token_get_args_values = self.get_values("gateway_method_token_get_args")
             api_gateway_method_token_get_resource = aws_api_gateway_method(
                 "gw_method_token_get",
@@ -4848,6 +4857,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             )
             tf_resources.append(api_gateway_method_token_get_resource)
 
+            # GET TOKEN RESPONSE
             gateway_method_token_get_response_args_values = self.get_values(
                 "gateway_method_token_get_response_args")
             api_gateway_method_token_get_response_resource = aws_api_gateway_method_response(
