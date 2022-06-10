@@ -4659,6 +4659,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         pool_args = common_values.get("user_pool_properties", None)
         pool_client_args = common_values.get("user_pool_client_properties", None)
         cognito_resource_server_args = common_values.get("cognito_resource_server_properties", None)
+        pool_client_service_account_common_args = common_values.get(
+            "pool_client_service_account_common_properties", None
+        )
         rest_api_args = common_values.get("rest_api_properties", None)
         gateway_authorizer_args = common_values.get("gateway_authorizer_properties", None)
         gateway_method_any_args = common_values.get("gateway_method_any_properties", None)
@@ -4670,7 +4673,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         waf_acl_args = common_values.get("waf_acl_properties", None)
 
         args_presence_one = pool_args and pool_client_args and cognito_resource_server_args and \
-            rest_api_args and gateway_method_any_args
+            rest_api_args and gateway_method_any_args and pool_client_service_account_common_args
         args_presence_two = gateway_method_token_get_args and gateway_method_token_get_response_args
         args_presence_three = gateway_authorizer_args and integration_proxy_args and \
             integration_token_args
@@ -4727,11 +4730,46 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 "userpool_client",
                 name=f'ocm-{identifier}-pool-client',
                 user_pool_id=cognito_user_pool_resource.id,
-                callback_urls=[f'{self.get_values("bucket_domain")}/token.html',
-                depends_on=[
+                callback_urls=[f'{self.get_values("bucket_domain")}/token.html'],
+                depends_on=[cognito_resource_server_resource],
                 **pool_client_args_values
             )
             tf_resources.append(cognito_user_pool_client)
+
+            # SERVICE ACCOUNT CLIENTS
+            pool_client_service_account_common_args_values = self.get_values(
+                "pool_client_service_account_common_properties"
+            )
+            ams_service_account_pool_client_resource = aws_cognito_user_pool_client(
+                "ocm_ams_service_account",
+                name=f'ocm-{identifier}-ams-service-account',
+                user_pool_id=cognito_user_pool_resource.id,
+                allowed_oauth_scopes=["ocm/AccountManagement"],
+                depends_on=[cognito_resource_server_resource],
+                **pool_client_service_account_common_args_values
+            )
+            tf_resources.append(ams_service_account_pool_client_resource)
+
+            cs_service_account_pool_client_resource = aws_cognito_user_pool_client(
+                "ocm_cs_service_account",
+                name=f'ocm-{identifier}-cs-service-account',
+                user_pool_id=cognito_user_pool_resource.id,
+                allowed_oauth_scopes=["ocm/ClusterService"],
+                depends_on=[cognito_resource_server_resource],
+                **pool_client_service_account_common_args_values
+            )
+            tf_resources.append(cs_service_account_pool_client_resource)
+
+
+            osl_service_account_pool_client_resource = aws_cognito_user_pool_client(
+                "ocm_osl_service_account",
+                name=f'ocm-{identifier}-osl-service-account',
+                user_pool_id=cognito_user_pool_resource.id,
+                allowed_oauth_scopes=["ocm/ServiceLogService"],
+                depends_on=[cognito_resource_server_resource],
+                **pool_client_service_account_common_args_values
+            )
+            tf_resources.append(osl_service_account_pool_client_resource)
             # User pool complete
 
             # API Gateway + associated resources
