@@ -4715,12 +4715,17 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             )
             tf_resources.append(cognito_user_pool_domain_resource)
 
-            # POOL RESOURCE SERVER
-            cognito_resource_server_args_values = self.get_values('cognito_resource_server_args')
-            cognito_resource_server_resource = aws_cognito_resource_server(
-                "userpool_service_resource_server",
+            ## POOL GATEWAY RESOURCE SERVER
+            cognito_resource_server_gateway_resource = aws_cognito_resource_server(
+                "userpool_gateway_resource_server",
                 user_pool_id=cognito_user_pool_resource.id,
-                **cognito_resource_server_args_values
+                name="API Gateway",
+                identifier="gateway",
+                scope={
+                    "scope_name": "AccessToken",
+                    "scope_description": "Scope used to support Access Token " + 
+                                         "authorization in API Gateway",
+                }
             )
             tf_resources.append(cognito_resource_server_resource)
 
@@ -4735,6 +4740,15 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 **pool_client_args_values
             )
             tf_resources.append(cognito_user_pool_client)
+
+            # POOL RESOURCE SERVER
+            cognito_resource_server_args_values = self.get_values('cognito_resource_server_args')
+            cognito_resource_server_resource = aws_cognito_resource_server(
+                "userpool_service_resource_server",
+                user_pool_id=cognito_user_pool_resource.id,
+                **cognito_resource_server_args_values
+            )
+            tf_resources.append(cognito_resource_server_resource)
 
             # SERVICE ACCOUNT CLIENTS
             pool_client_service_account_common_args_values = self.get_values(
