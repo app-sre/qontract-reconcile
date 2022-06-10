@@ -4786,10 +4786,11 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             tf_resources.append(osl_service_account_pool_client_resource)
             # User pool complete
 
-            # API Gateway + associated resources
+            # API GATEWAY
             rest_api_args_values = self.get_values("rest_api_properties")
             api_gateway_rest_api_resource = aws_api_gateway_rest_api(
                 "gw_api",
+                name=f'ocm-{identifier}-rest-api',
                 **rest_api_args_values
             )
             tf_resources.append(api_gateway_rest_api_resource)
@@ -4809,6 +4810,14 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 path_part="token"
             )
             tf_resources.append(api_gateway_token_resource)
+
+            api_gateway_auth_resource = aws_api_gateway_resource(
+                "gw_resource_token",
+                parent_id=api_gateway_rest_api_resource.root_resource_id,
+                rest_api_id=api_gateway_rest_api_resource.id,
+                path_part="auth"
+            )
+            tf_resources.append(api_gateway_auth_resource)
 
             gateway_authorizer_args_values = self.get_values("gateway_authorizer_properties")
             api_gateway_authorizer_resource = aws_api_gateway_authorizer(
