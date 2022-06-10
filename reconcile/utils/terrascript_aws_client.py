@@ -4705,7 +4705,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             # Continue with pool resources
             cognito_user_pool_domain_resource = aws_cognito_user_pool_domain(
                 "userpool_domain",
-                domain=self.get_values("domain"),
+                domain=f'ocm-{identifier}-domain',
                 user_pool_id=cognito_user_pool_resource.id
             )
             tf_resources.append(cognito_user_pool_domain_resource)
@@ -4713,7 +4713,10 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             pool_client_args_values = self.get_values("user_pool_client_properties")
             cognito_user_pool_client = aws_cognito_user_pool_client(
                 "userpool_client",
+                name=f'ocm-{identifier}-pool-client',
                 user_pool_id=cognito_user_pool_resource.id,
+                callback_urls=[f'{self.get_values("bucket_domain")}/token.html',
+                depends_on=[
                 **pool_client_args_values
             )
             tf_resources.append(cognito_user_pool_client)
