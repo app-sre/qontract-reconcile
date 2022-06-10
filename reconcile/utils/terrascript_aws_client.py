@@ -80,6 +80,7 @@ from terrascript.resource import (
     aws_cognito_user_pool,
     aws_cognito_user_pool_client,
     aws_cognito_user_pool_domain,
+    aws_cognito_resource_server,
     aws_api_gateway_rest_api,
     aws_api_gateway_resource,
     aws_api_gateway_method,
@@ -4657,6 +4658,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         # Check for required defaults file values
         pool_args = common_values.get("user_pool_properties", None)
         pool_client_args = common_values.get("user_pool_client_properties", None)
+        cognito_resource_server_args = common_values.get("cognito_resource_server_properties", None)
         rest_api_args = common_values.get("rest_api_properties", None)
         gateway_authorizer_args = common_values.get("gateway_authorizer_properties", None)
         gateway_method_any_args = common_values.get("gateway_method_any_properties", None)
@@ -4667,7 +4669,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         integration_token_args = common_values.get("integration_token_properties", None)
         waf_acl_args = common_values.get("waf_acl_properties", None)
 
-        args_presence_one = pool_args and pool_client_args and \
+        args_presence_one = pool_args and pool_client_args and cognito_resource_server_args and \
             rest_api_args and gateway_method_any_args
         args_presence_two = gateway_method_token_get_args and gateway_method_token_get_response_args
         args_presence_three = gateway_authorizer_args and integration_proxy_args and \
@@ -4676,7 +4678,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         # Build the rest of the TF infrastructure
         if args_presence_one and args_presence_two and args_presence_three and args_presence_four:
-            # Spin up the user pool
+            # USER POOL
             pool_args_values = self.get_values('pool_args')
             cognito_user_pool_resource = aws_cognito_user_pool(
                 "pool",
@@ -4692,7 +4694,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             )
             tf_resources.append(cognito_user_pool_resource)
 
-            # Finish up lambda
+            # Finish up lambda - pre signup
             cognito_pre_signup_lambda_permission_resource = aws_lambda_permission(
                 "cognito_pre_signup_permission",
                 action="lambda:InvokeFunction",
@@ -4702,7 +4704,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             )
             tf_resources.append(cognito_pre_signup_lambda_permission_resource)
 
-            # Continue with pool resources
+            # POOL DOMAIN
             cognito_user_pool_domain_resource = aws_cognito_user_pool_domain(
                 "userpool_domain",
                 domain=f'ocm-{identifier}-domain',
@@ -4710,6 +4712,16 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             )
             tf_resources.append(cognito_user_pool_domain_resource)
 
+            # POOL RESOURCE SERVER
+            cognito_resource_server_args_values = self.get_values('cognito_resource_server_args')
+            cognito_resource_server_resource = aws_cognito_resource_server(
+                "userpool_service_resource_server",
+                user_pool_id=cognito_user_pool_resource.id,
+                **cognito_resource_server_args_values
+            )
+            tf_resources.append(cognito_resource_server_resource)
+
+            # POOL CLIENT
             pool_client_args_values = self.get_values("user_pool_client_properties")
             cognito_user_pool_client = aws_cognito_user_pool_client(
                 "userpool_client",
