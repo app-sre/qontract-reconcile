@@ -26,8 +26,8 @@ def values():
                 },
                 "shard_specs": [
                     {
-                        "shard_id": 0,
-                        "shards": 1,
+                        "shard_id": "0",
+                        "shards": "1",
                         "shard_name_suffix": "",
                     }
                 ],
@@ -103,13 +103,13 @@ def test_template_logs_slack(values):
 def test_template_shards(values):
     values["integrations"][0]["shard_specs"] = [
         {
-            "shard_id": 0,
-            "shards": 2,
+            "shard_id": "0",
+            "shards": "2",
             "shard_name_suffix": "-0",
         },
         {
-            "shard_id": 1,
-            "shards": 2,
+            "shard_id": "1",
+            "shards": "2",
             "shard_name_suffix": "-1",
         },
     ]
@@ -121,14 +121,14 @@ def test_template_shards(values):
 def test_template_aws_account_shards(values):
     values["integrations"][0]["shard_specs"] = [
         {
-            "shard_id": 0,
-            "shards": 2,
+            "shard_id": "0",
+            "shards": "2",
             "shard_name_suffix": "-acc-1",
             "extra_args": "--account-name acc-1",
         },
         {
-            "shard_id": 1,
-            "shards": 2,
+            "shard_id": "1",
+            "shards": "2",
             "shard_name_suffix": "-acc-2",
             "extra_args": "--account-name acc-2",
         },

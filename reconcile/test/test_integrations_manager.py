@@ -351,7 +351,7 @@ def test_initialize_shard_specs_no_shards(
     this test shows how exactly one shard is created when no sharding has been configured
     """
     intop.initialize_shard_specs(collected_namespaces_env_test1, shard_manager)
-    expected = [{"shard_id": 0, "shards": 1, "shard_name_suffix": "", "extra_args": ""}]
+    expected = [{"shard_id": "0", "shards": "1", "shard_name_suffix": "", "extra_args": ""}]
     assert (
         expected
         == collected_namespaces_env_test1[0]["integration_specs"][0]["shard_specs"]
@@ -368,8 +368,8 @@ def test_initialize_shard_specs_two_shards(
     collected_namespaces_env_test1[0]["integration_specs"][0]["shards"] = 2
     intop.initialize_shard_specs(collected_namespaces_env_test1, shard_manager)
     expected = [
-        {"shard_id": 0, "shards": 2, "shard_name_suffix": "-0", "extra_args": ""},
-        {"shard_id": 1, "shards": 2, "shard_name_suffix": "-1", "extra_args": ""},
+        {"shard_id": "0", "shards": "2", "shard_name_suffix": "-0", "extra_args": ""},
+        {"shard_id": "1", "shards": "2", "shard_name_suffix": "-1", "extra_args": ""},
     ]
     assert (
         expected
@@ -390,8 +390,8 @@ def test_initialize_shard_specs_two_shards_explicit(
     collected_namespaces_env_test1[0]["integration_specs"][0]["shards"] = 2
     intop.initialize_shard_specs(collected_namespaces_env_test1, shard_manager)
     expected = [
-        {"shard_id": 0, "shards": 2, "shard_name_suffix": "-0", "extra_args": ""},
-        {"shard_id": 1, "shards": 2, "shard_name_suffix": "-1", "extra_args": ""},
+        {"shard_id": "0", "shards": "2", "shard_name_suffix": "-0", "extra_args": ""},
+        {"shard_id": "1", "shards": "2", "shard_name_suffix": "-1", "extra_args": ""},
     ]
     assert (
         expected
@@ -413,21 +413,18 @@ def test_initialize_shard_specs_aws_account_shards(
     intop.initialize_shard_specs(collected_namespaces_env_test1, shard_manager)
     expected = [
         {
-            "shard_id": 0,
-            "shards": 3,
             "shard_name_suffix": "-acc-1",
+            "shard_key": "acc-1",
             "extra_args": "--account-name acc-1",
         },
         {
-            "shard_id": 1,
-            "shards": 3,
             "shard_name_suffix": "-acc-2",
+            "shard_key": "acc-2",
             "extra_args": "--account-name acc-2",
         },
         {
-            "shard_id": 2,
-            "shards": 3,
             "shard_name_suffix": "-acc-3",
+            "shard_key": "acc-3",
             "extra_args": "--account-name acc-3",
         },
     ]
@@ -451,21 +448,18 @@ def test_initialize_shard_specs_extra_arg_agregation(
     intop.initialize_shard_specs(collected_namespaces_env_test1, shard_manager)
     expected = [
         {
-            "shard_id": 0,
-            "shards": 3,
             "shard_name_suffix": "-acc-1",
+            "shard_key": "acc-1",
             "extra_args": "--arg --account-name acc-1",
         },
         {
-            "shard_id": 1,
-            "shards": 3,
             "shard_name_suffix": "-acc-2",
+            "shard_key": "acc-2",
             "extra_args": "--arg --account-name acc-2",
         },
         {
-            "shard_id": 2,
-            "shards": 3,
             "shard_name_suffix": "-acc-3",
+            "shard_key": "acc-3",
             "extra_args": "--arg --account-name acc-3",
         },
     ]

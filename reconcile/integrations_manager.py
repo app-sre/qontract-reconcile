@@ -71,8 +71,8 @@ class StaticShardingStrategy(ShardingStrategy):
         shards = spec.get("shards") or 1
         return [
             {
-                "shard_id": s,
-                "shards": shards,
+                "shard_id": str(s),
+                "shards": str(shards),
                 "shard_name_suffix": f"-{s}" if shards > 1 else "",
                 "extra_args": "",
             }
@@ -93,14 +93,13 @@ class AWSAccountShardManager(ShardingStrategy):
             )
             return [
                 {
-                    "shard_id": shard_id,
-                    "shards": len(filtered_accounts),
+                    "shard_key": account["name"],
                     "shard_name_suffix": f"-{account['name']}"
                     if len(filtered_accounts) > 1
                     else "",
                     "extra_args": f"--account-name {account['name']}",
                 }
-                for shard_id, account in enumerate(filtered_accounts)
+                for account in filtered_accounts
             ]
         else:
             raise ValueError(
