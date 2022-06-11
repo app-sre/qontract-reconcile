@@ -351,7 +351,9 @@ def test_initialize_shard_specs_no_shards(
     this test shows how exactly one shard is created when no sharding has been configured
     """
     intop.initialize_shard_specs(collected_namespaces_env_test1, shard_manager)
-    expected = [{"shard_id": "0", "shards": "1", "shard_name_suffix": "", "extra_args": ""}]
+    expected = [
+        {"shard_id": "0", "shards": "1", "shard_name_suffix": "", "extra_args": ""}
+    ]
     assert (
         expected
         == collected_namespaces_env_test1[0]["integration_specs"][0]["shard_specs"]
