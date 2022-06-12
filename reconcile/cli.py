@@ -1419,9 +1419,16 @@ def terraform_resources_wrapper(
 @binary_version("terraform", ["version"], TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
 @enable_deletion(default=True)
 @send_mails(default=True)
+@account_name
 @click.pass_context
 def terraform_users(
-    ctx, print_to_file, enable_deletion, io_dir, thread_pool_size, send_mails
+    ctx,
+    print_to_file,
+    enable_deletion,
+    io_dir,
+    thread_pool_size,
+    send_mails,
+    account_name,
 ):
     if print_to_file and is_file_in_git_repo(print_to_file):
         raise PrintToFileInGitRepositoryError(print_to_file)
@@ -1433,6 +1440,7 @@ def terraform_users(
         io_dir,
         thread_pool_size,
         send_mails,
+        account_name=account_name,
     )
 
 
