@@ -102,7 +102,7 @@ commandTests:
 
   - name: amtool
     command: amtool
-    expectedError: ['View and modify the current Alertmanager state']
+    expectedOutput: ['View and modify the current Alertmanager state']
 
   - name: skopeo
     command: skopeo
