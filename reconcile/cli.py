@@ -49,9 +49,7 @@ import reconcile.quay_repos
 import reconcile.quay_permissions
 import reconcile.ldap_users
 import reconcile.terraform_resources
-import reconcile.terraform_resources_wrapper
 import reconcile.terraform_users
-import reconcile.terraform_users_wrapper
 import reconcile.terraform_vpc_peerings
 import reconcile.terraform_tgw_attachments
 import reconcile.github_repo_invites
@@ -1366,51 +1364,6 @@ def terraform_resources(
     )
 
 
-@integration.command(short_help="A wrapper around terraform-resources.")
-@print_to_file
-@throughput
-@vault_output_path
-@threaded(default=20)
-@binary(["terraform", "oc", "git"])
-@binary_version("terraform", ["version"], TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
-@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
-@internal()
-@use_jump_host()
-@enable_deletion(default=False)
-@click.option(
-    "--light/--full",
-    default=False,
-    help="run without executing terraform plan and apply.",
-)
-@click.pass_context
-def terraform_resources_wrapper(
-    ctx,
-    print_to_file,
-    enable_deletion,
-    io_dir,
-    thread_pool_size,
-    internal,
-    use_jump_host,
-    light,
-    vault_output_path,
-):
-    if print_to_file and is_file_in_git_repo(print_to_file):
-        raise PrintToFileInGitRepositoryError(print_to_file)
-    run_integration(
-        reconcile.terraform_resources_wrapper,
-        ctx.obj,
-        print_to_file,
-        enable_deletion,
-        io_dir,
-        thread_pool_size,
-        internal,
-        use_jump_host,
-        light,
-        vault_output_path,
-        extra_labels=ctx.obj.get("extra_labels", {}),
-    )
-
-
 @integration.command(short_help="Manage AWS users using Terraform.")
 @print_to_file
 @throughput
@@ -1441,34 +1394,6 @@ def terraform_users(
         thread_pool_size,
         send_mails,
         account_name=account_name,
-    )
-
-
-@integration.command(
-    short_help="Manage VPC peerings between OSD clusters "
-    "and AWS accounts or other OSD clusters."
-)
-@print_to_file
-@throughput
-@threaded(default=20)
-@binary(["terraform", "gpg", "git"])
-@binary_version("terraform", ["version"], TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
-@enable_deletion(default=True)
-@send_mails(default=True)
-@click.pass_context
-def terraform_users_wrapper(
-    ctx, print_to_file, enable_deletion, io_dir, thread_pool_size, send_mails
-):
-    if print_to_file and is_file_in_git_repo(print_to_file):
-        raise PrintToFileInGitRepositoryError(print_to_file)
-    run_integration(
-        reconcile.terraform_users_wrapper,
-        ctx.obj,
-        print_to_file,
-        enable_deletion,
-        io_dir,
-        thread_pool_size,
-        send_mails,
     )
 
 
