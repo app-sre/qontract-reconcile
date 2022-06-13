@@ -1,4 +1,4 @@
-FROM quay.io/app-sre/qontract-reconcile-builder:0.3.1
+FROM quay.io/app-sre/qontract-reconcile-builder:0.3.3
 
 ENV TOX_PARALLEL_NO_SPINNER=1
 
