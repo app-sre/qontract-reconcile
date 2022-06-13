@@ -168,7 +168,6 @@ Additional tools that use the libraries created by the reconciliations are also 
   terraform-aws-route53           Manage AWS Route53 resources using
                                   Terraform.
   terraform-resources             Manage AWS Resources using Terraform.
-  terraform-resources-wrapper     A wrapper around terraform-resources.
   terraform-tgw-attachments       Manages Transit Gateway attachments.
   terraform-users                 Manage AWS users using Terraform.
   terraform-vpc-peerings          Manage VPC peerings between OSD clusters and
