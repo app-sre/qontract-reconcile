@@ -2463,12 +2463,10 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             values['name'] = identifier
             values['tags'] = common_values['tags']
 
-            aws_s3_bucket_acl_resource = aws_s3_bucket_acl(identifier, **values)
-            tf_resources.append(aws_s3_bucket_acl_resource)
             access_control_list = {
                     'grant': {
                         'grantee': {
-                            'id': '${' + aws_s3_bucket_acl_resource.id + '}',
+                            'id': '${' + data.aws_canonical_user_id.id + '}',
                             'type': 'CanonicalUser',
                         },
                         'permission': 'FULL_CONTROL',
@@ -2481,7 +2479,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 #         'permission': 'FULL_CONTROL',
                 # },
                 'owner': {
-                    'id': '${' + aws_s3_bucket_acl_resource.id + '}',
+                    'id': '${' + data.aws_canonical_user_id.id + '}',
                 }
             }
 
