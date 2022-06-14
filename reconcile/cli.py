@@ -1360,7 +1360,6 @@ def terraform_resources(
         light,
         vault_output_path,
         account_name=account_name,
-        extra_labels=ctx.obj.get("extra_labels", {}),
     )
 
 

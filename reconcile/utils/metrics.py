@@ -1,25 +1,22 @@
 from prometheus_client import Gauge, Counter, Histogram
 
 
-extra_labels = {"shard_key": None}
-label_keys = list(extra_labels.keys())
-
 run_time = Gauge(
     name="qontract_reconcile_last_run_seconds",
     documentation="Last run duration in seconds",
-    labelnames=["integration", "shards", "shard_id"] + label_keys,
+    labelnames=["integration", "shards", "shard_id"],
 )
 
 run_status = Gauge(
     name="qontract_reconcile_last_run_status",
     documentation="Last run status",
-    labelnames=["integration", "shards", "shard_id"] + label_keys,
+    labelnames=["integration", "shards", "shard_id"],
 )
 
 execution_counter = Counter(
     name="qontract_reconcile_execution_counter",
     documentation="Counts started integration executions",
-    labelnames=["integration", "shards", "shard_id"] + label_keys,
+    labelnames=["integration", "shards", "shard_id"],
 )
 
 reconcile_time = Histogram(

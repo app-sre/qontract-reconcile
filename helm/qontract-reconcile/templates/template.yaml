@@ -153,10 +153,16 @@ objects:
             - name: http
               containerPort: 9090
           env:
+          {{- if $shard.shard_id }}
           - name: SHARDS
             value: "{{ $shard.shards }}"
           - name: SHARD_ID
             value: "{{ $shard.shard_id }}"
+          {{- end }}
+          {{- if $shard.shard_key }}
+          - name: SHARD_KEY
+            value: "{{ $shard.shard_key }}"
+          {{- end }}
           - name: DRY_RUN
             value: ${DRY_RUN}
           {{- if eq $integration.name "integrations-manager" }}

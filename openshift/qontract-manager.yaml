@@ -111,10 +111,6 @@ objects:
             - name: http
               containerPort: 9090
           env:
-          - name: SHARDS
-            value: "1"
-          - name: SHARD_ID
-            value: "0"
           - name: DRY_RUN
             value: ${DRY_RUN}
           - name: MANAGER_DRY_RUN

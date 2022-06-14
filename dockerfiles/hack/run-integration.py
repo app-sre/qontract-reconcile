@@ -13,12 +13,13 @@ import click
 from reconcile.status import ExitCodes
 from reconcile.cli import LOG_FMT, LOG_DATEFMT
 from reconcile.utils.metrics import (
-  run_time, run_status, extra_labels, execution_counter
+  run_time, run_status, execution_counter
 )
 
 
 SHARDS = int(os.environ.get('SHARDS', 1))
 SHARD_ID = int(os.environ.get('SHARD_ID', 0))
+SHARD_ID_LABEL = os.environ.get('SHARD_KEY', f"{SHARD_ID}-{SHARDS}")
 
 INTEGRATION_NAME = os.environ['INTEGRATION_NAME']
 COMMAND_NAME = os.environ.get('COMMAND_NAME', 'qontract-reconcile')
@@ -149,14 +150,12 @@ def main():
         execution_counter.labels(
             integration=INTEGRATION_NAME,
             shards=SHARDS,
-            shard_id=SHARD_ID,
-            **extra_labels
+            shard_id=SHARD_ID_LABEL
         ).inc()
         try:
             with command.make_context(info_name=COMMAND_NAME, args=args) \
               as ctx:
                 ctx.ensure_object(dict)
-                ctx.obj['extra_labels'] = extra_labels
                 command.invoke(ctx)
                 return_code = 0
         # This is for when the integration explicitly
@@ -173,11 +172,9 @@ def main():
         time_spent = time.monotonic() - start_time
 
         run_time.labels(integration=INTEGRATION_NAME,
-                        shards=SHARDS, shard_id=SHARD_ID,
-                        **extra_labels).set(time_spent)
+                        shards=SHARDS, shard_id=SHARD_ID_LABEL).set(time_spent)
         run_status.labels(integration=INTEGRATION_NAME,
-                          shards=SHARDS, shard_id=SHARD_ID,
-                          **extra_labels).set(return_code)
+                          shards=SHARDS, shard_id=SHARD_ID_LABEL).set(return_code)
 
         if RUN_ONCE:
             sys.exit(return_code)
