@@ -403,8 +403,6 @@ def fetch_provider_vault_secret(
     }
     if labels:
         body["metadata"]["labels"] = labels
-    if raw_data.items():
-        body["data"] = {}
 
     # populate data
     for k, v in raw_data.items():
@@ -415,7 +413,7 @@ def fetch_provider_vault_secret(
             v = v.replace("\n", "")
         elif v is not None:
             v = base64.b64encode(v.encode()).decode("utf-8")
-        body["data"][k] = v
+        body.setdefault("data", {})[k] = v
 
     try:
         return OR(body, integration, integration_version, error_details=path)
