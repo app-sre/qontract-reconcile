@@ -10,6 +10,8 @@ import string
 import tempfile
 import imghdr
 
+from reconcile import queries
+
 from threading import Lock
 
 from typing import (
