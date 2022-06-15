@@ -1395,7 +1395,12 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         versioning = common_values.get('versioning') or True
         values['versioning'] = {"enabled": versioning}
         values['tags'] = common_values['tags']
-        values['acl'] = common_values.get('acl') or 'private'
+        if "acl" in common_values:
+            values['acl'] = common_values['acl']
+        else:
+            # ACL grants will be set out of this resource.
+            # the following `ignore_change` allows to avoid conflicts
+            values.setdefault("lifecycle", {}).setdefault("ignore_changes", []).append("grant")
         server_side_encryption_configuration = \
             common_values.get('server_side_encryption_configuration')
         if server_side_encryption_configuration:
