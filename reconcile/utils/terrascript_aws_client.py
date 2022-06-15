@@ -925,6 +925,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
     def init_populate_specs(self, namespaces: Iterable[Mapping[str, Any]],
                             account_name: Optional[str]) -> None:
         self.account_resources: dict[str, list[dict[str, Any]]] = {}
+
+        self.add_resource(account_name, data.aws_canonical_user_id("current"))
+
         for namespace_info in namespaces:
             tf_resources = get_external_resources(namespace_info, provision_provider=PROVIDER_AWS)
             for resource in tf_resources:
@@ -2460,36 +2463,37 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         if 'logging_config' in values.keys():
             logging_config_bucket = values['logging_config']
             values = {}
-            values['name'] = identifier
             values['tags'] = common_values['tags']
 
             access_control_list = {
-                'grant': {
-                    'grantee': {
-                        'id': '${' + data.aws_canonical_user_id.id + '}',
-                        'type': 'CanonicalUser',
-                    },
-                    'permission': 'FULL_CONTROL',
-                },
                 'owner': {
-                    'id': '${' + data.aws_canonical_user_id.id + '}',
-                }
+                    'id': '${data.aws_canonical_user_id.current.id}',
+                },
+                'grant': [
+                    {
+                        'grantee': {
+                            'id': '${data.aws_canonical_user_id.current.id}',
+                            'type': 'CanonicalUser',
+                        },
+                        'permission': 'FULL_CONTROL',
+                    },
+                    {
+                        'grantee': {
+                            # well known id for cloudfront logs delivery:
+                            # https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/AccessLogs.html#AccessLogsBucketAndFileOwnership
+                            'id': 'c4c1ede66af53448b93c283ce9448c4ba468c9432aa01d700d3878632f77d2d0',
+                            'type': 'CanonicalUser',
+                        },
+                        'permission': 'FULL_CONTROL',
+                    },
+                ],
             }
 
-            values['bucket'] = logging_config_bucket.get('bucket')
             values['access_control_list'] = access_control_list
+            values['bucket'] = logging_config_bucket.get('bucket').split(".")[0]
 
             aws_s3_bucket_acl_resource = aws_s3_bucket_acl(identifier, **values)
             tf_resources.append(aws_s3_bucket_acl_resource)
-
-            output_name_0_13 = output_prefix + '__acl'
-            output_value = '${' + aws_s3_bucket_acl_resource.acl + '}'
-            tf_resources.append(Output(output_name_0_13, value=output_value))
-
-            if self._multiregion_account(account):
-                values['provider'] = 'aws.' + region
-            bucket_policy_tf_resource = aws_s3_bucket_policy(identifier, **values)
-            tf_resources.append(bucket_policy_tf_resource)
 
         self.add_resources(account, tf_resources)
 
