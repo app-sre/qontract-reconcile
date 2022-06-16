@@ -3,6 +3,7 @@ import sys
 import time
 
 from textwrap import indent
+from graphql import is_composite_type
 
 import jinja2
 from ruamel import yaml
@@ -463,12 +464,15 @@ def run(dry_run, enable_deletion=False):
         try:
             query_state = state[query_name]
             is_cronjob = query.get("schedule")
-            if query_state != "DONE" and not is_cronjob:
+            if (query_state != "DONE" and not is_cronjob) or (
+                is_cronjob and query["delete"]
+            ):
                 remove_candidates.append(
                     {
                         "name": query_name,
                         "timestamp": query_state,
                         "output": query["output"],
+                        "cronjob": is_cronjob,
                     }
                 )
             continue
@@ -529,7 +533,7 @@ def run(dry_run, enable_deletion=False):
             state[query_name] = time.time()
 
     for candidate in remove_candidates:
-        if time.time() < candidate["timestamp"] + JOB_TTL:
+        if not query["cronjob"] and time.time() < candidate["timestamp"] + JOB_TTL:
             continue
 
         try:
@@ -552,6 +556,8 @@ def run(dry_run, enable_deletion=False):
         resource_types = ["Job", "Secret"]
         if candidate["output"] == "encrypted":
             resource_types.append("ConfigMap")
+        if candidate["cronjob"]:
+            resource_types.append("CronJob")
         for resource_type in resource_types:
             openshift_delete(dry_run, oc_map, query, resource_type, enable_deletion)
 
