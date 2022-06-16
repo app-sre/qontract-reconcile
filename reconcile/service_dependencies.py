@@ -33,7 +33,6 @@ APPS_QUERY = """
       }
     }
     namespaces {
-      managedTerraformResources
       managedExternalResources
       externalResources {
         provider

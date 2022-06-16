@@ -338,10 +338,6 @@ TF_NAMESPACES_QUERY = """
 {
   namespaces: namespaces_v1 {
     name
-    managedTerraformResources
-    terraformResources {
-      %s
-    }
     managedExternalResources
     externalResources {
       provider
@@ -393,7 +389,6 @@ TF_NAMESPACES_QUERY = """
   }
 }
 """ % (
-    indent(Template(TF_RESOURCE_AWS).render(account=True), 6*' '),
     indent(Template(TF_RESOURCE_AWS).render(account=False), 6*' '),
 )
 

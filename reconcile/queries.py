@@ -903,36 +903,6 @@ NAMESPACES_QUERY = """
         email
       }
     }
-    managedTerraformResources
-    terraformResources {
-      provider
-      ... on NamespaceTerraformResourceRDS_v1
-      {
-        account
-        identifier
-        output_resource_name
-        defaults
-        replica_source
-      }
-      ... on NamespaceTerraformResourceECR_v1
-      {
-        account
-        region
-        identifier
-        output_resource_name
-        mirror {
-          url
-          pullCredentials {
-            path
-            field
-            version
-            format
-          }
-          tags
-          tagsExclude
-        }
-      }
-    }
     managedExternalResources
     externalResources {
       provider
@@ -1566,19 +1536,6 @@ APP_INTERFACE_SQL_QUERIES_QUERY = """
     namespace
     {
       name
-      managedTerraformResources
-      terraformResources
-      {
-        provider
-        ... on NamespaceTerraformResourceRDS_v1
-        {
-          account
-          identifier
-          output_resource_name
-          defaults
-          overrides
-        }
-      }
       managedExternalResources
       externalResources {
         provider
@@ -2234,15 +2191,6 @@ DNS_ZONES_QUERY = """
       }
       _target_namespace_zone {
         namespace {
-          managedTerraformResources
-          terraformResources {
-            provider
-            ... on NamespaceTerraformResourceRoute53Zone_v1 {
-              account
-              region
-              name
-            }
-          }
           managedExternalResources
           externalResources {
             provider
@@ -2371,18 +2319,6 @@ OCP_RELEASE_ECR_MIRROR_QUERY = """
     }
     ecrResourcesNamespace {
       name
-      managedTerraformResources
-      terraformResources
-      {
-        provider
-        ... on NamespaceTerraformResourceECR_v1
-        {
-          account
-          region
-          identifier
-          output_resource_name
-        }
-      }
       managedExternalResources
       externalResources {
         provider
@@ -2590,16 +2526,6 @@ GABI_INSTANCES_QUERY = """
       identifier
       namespace{
         name
-        managedTerraformResources
-        terraformResources
-        {
-          provider
-          ... on NamespaceTerraformResourceRDS_v1
-          {
-            account
-            identifier
-          }
-        }
         managedExternalResources
         externalResources {
           provider
