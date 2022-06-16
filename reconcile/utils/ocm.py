@@ -320,8 +320,7 @@ class OCMProductRosa(OCMProduct):
             provider=cluster["cloud_provider"]["id"],
             region=cluster["region"]["id"],
             channel=cluster["version"]["channel_group"],
-            # should this be version=cluster["version"]["raw_id"] as for OSD ?
-            version=cluster["openshift_version"],
+            version=cluster["version"]["raw_id"],
             multi_az=cluster["multi_az"],
             instance_type=cluster["nodes"]["compute_machine_type"]["id"],
             private=cluster["api"]["listening"] == "internal",
