@@ -2468,9 +2468,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         if 'logging_config' in values.keys():
             logging_config_bucket = values['logging_config']
             values = {}
-            values['tags'] = common_values['tags']
-
-            access_control_list = {
+            access_control_policy = {
                 'owner': {
                     'id': '${data.aws_canonical_user_id.current.id}',
                 },
@@ -2493,8 +2491,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     },
                 ],
             }
-
-            values['access_control_list'] = access_control_list
+            values['access_control_policy'] = access_control_policy
             values['bucket'] = logging_config_bucket.get('bucket').split(".")[0]
 
             aws_s3_bucket_acl_resource = aws_s3_bucket_acl(identifier, **values)
