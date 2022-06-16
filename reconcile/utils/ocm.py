@@ -153,7 +153,7 @@ class OCMProductOsd(OCMProduct):
             provider=cluster["cloud_provider"]["id"],
             region=cluster["region"]["id"],
             channel=cluster["version"]["channel_group"],
-            version=cluster["openshift_version"],
+            version=cluster["version"]["raw_id"],
             multi_az=cluster["multi_az"],
             instance_type=cluster["nodes"]["compute_machine_type"]["id"],
             storage=cluster["storage_quota"]["value"] // BYTES_IN_GIGABYTE,
@@ -320,6 +320,7 @@ class OCMProductRosa(OCMProduct):
             provider=cluster["cloud_provider"]["id"],
             region=cluster["region"]["id"],
             channel=cluster["version"]["channel_group"],
+            # should this be version=cluster["version"]["raw_id"] as for OSD ?
             version=cluster["openshift_version"],
             multi_az=cluster["multi_az"],
             instance_type=cluster["nodes"]["compute_machine_type"]["id"],
