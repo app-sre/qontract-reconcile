@@ -80,7 +80,7 @@ from terrascript.resource import (
     random_id,
 )
 # temporary to create aws_ecrpublic_repository
-from terrascript import Resource
+from terrascript import Resource, Data
 from sretoolbox.utils import threaded
 
 from reconcile.utils import gql
@@ -129,6 +129,14 @@ def safe_resource_id(s):
 
 
 class aws_ecrpublic_repository(Resource):
+    pass
+
+
+class aws_s3_bucket_acl(Resource):
+    pass
+
+
+class aws_cloudfront_log_delivery_canonical_user_id(Data):
     pass
 
 
@@ -239,6 +247,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         self.locks: dict[str, Lock] = locks
         """AWS account name to Lock mapping."""
+
+        for name in self.tss:
+            self.add_resource(name, data.aws_canonical_user_id("current"))
 
         self.accounts = {a['name']: a for a in filtered_accounts}
         self.uids = {a['name']: a['uid'] for a in filtered_accounts}
@@ -921,6 +932,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
     def init_populate_specs(self, namespaces: Iterable[Mapping[str, Any]],
                             account_name: Optional[str]) -> None:
         self.account_resources: dict[str, list[dict[str, Any]]] = {}
+
         for namespace_info in namespaces:
             tf_resources = get_external_resources(namespace_info, provision_provider=PROVIDER_AWS)
             for resource in tf_resources:
@@ -1388,7 +1400,12 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         versioning = common_values.get('versioning') or True
         values['versioning'] = {"enabled": versioning}
         values['tags'] = common_values['tags']
-        values['acl'] = common_values.get('acl') or 'private'
+        if "acl" in common_values:
+            values['acl'] = common_values['acl']
+        else:
+            # ACL grants will be set out of this resource.
+            # the following `ignore_change` allows to avoid conflicts
+            values.setdefault("lifecycle", {}).setdefault("ignore_changes", []).append("grant")
         server_side_encryption_configuration = \
             common_values.get('server_side_encryption_configuration')
         if server_side_encryption_configuration:
@@ -2450,6 +2467,43 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         output_value = 'origin-access-identity/cloudfront/' + \
             '${' + cf_oai_tf_resource.id + '}'
         tf_resources.append(Output(output_name_0_13, value=output_value))
+
+        # aws_s3_bucket_acl
+        values = common_values.get('distribution_config', {})
+        if 'logging_config' in values.keys():
+            # we could set this at a global level with a standard name like "cloudfront"
+            # but we need all aws accounts upgraded to aws provider >3.60 first
+            tf_resources.append(aws_cloudfront_log_delivery_canonical_user_id(identifier))
+
+            logging_config_bucket = values['logging_config']
+            values = {}
+            access_control_policy = {
+                'owner': {
+                    'id': '${data.aws_canonical_user_id.current.id}',
+                },
+                'grant': [
+                    {
+                        'grantee': {
+                            'id': '${data.aws_canonical_user_id.current.id}',
+                            'type': 'CanonicalUser',
+                        },
+                        'permission': 'FULL_CONTROL',
+                    },
+                    {
+                        'grantee': {
+                            # https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/AccessLogs.html#AccessLogsBucketAndFileOwnership
+                            'id': f'${{data.aws_cloudfront_log_delivery_canonical_user_id.{identifier}.id}}',
+                            'type': 'CanonicalUser',
+                        },
+                        'permission': 'FULL_CONTROL',
+                    },
+                ],
+            }
+            values['access_control_policy'] = access_control_policy
+            values['bucket'] = logging_config_bucket.get('bucket').split(".")[0]
+
+            aws_s3_bucket_acl_resource = aws_s3_bucket_acl(identifier, **values)
+            tf_resources.append(aws_s3_bucket_acl_resource)
 
         self.add_resources(account, tf_resources)
 
