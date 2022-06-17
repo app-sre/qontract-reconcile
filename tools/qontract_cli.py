@@ -1213,10 +1213,11 @@ def template(ctx, cluster, namespace, kind, name):
         print(f"{cluster}/{namespace} error")
         sys.exit(1)
 
+    settings = queries.get_app_interface_settings()
     [namespace_info] = namespace_info
     openshift_resources = namespace_info.get("openshiftResources")
     for r in openshift_resources:
-        openshift_resource = orb.fetch_openshift_resource(r, namespace_info)
+        openshift_resource = orb.fetch_openshift_resource(r, namespace_info, settings)
         if openshift_resource.kind.lower() != kind.lower():
             continue
         if openshift_resource.name != name:
