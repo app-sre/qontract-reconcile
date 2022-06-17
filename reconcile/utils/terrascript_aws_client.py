@@ -80,7 +80,7 @@ from terrascript.resource import (
     random_id,
 )
 # temporary to create aws_ecrpublic_repository
-from terrascript import Resource
+from terrascript import Resource, Data
 from sretoolbox.utils import threaded
 
 from reconcile.utils import gql
@@ -133,6 +133,10 @@ class aws_ecrpublic_repository(Resource):
 
 
 class aws_s3_bucket_acl(Resource):
+    pass
+
+
+class aws_cloudfront_log_delivery_canonical_user_id(Data):
     pass
 
 
@@ -2467,6 +2471,10 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         # aws_s3_bucket_acl
         values = common_values.get('distribution_config', {})
         if 'logging_config' in values.keys():
+            # we could set this at a global level with a standard name like "cloudfront"
+            # but we need all aws accounts upgraded to aws provider >3.60 first
+            tf_resources.append(aws_cloudfront_log_delivery_canonical_user_id(identifier))
+
             logging_config_bucket = values['logging_config']
             values = {}
             access_control_policy = {
@@ -2483,9 +2491,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     },
                     {
                         'grantee': {
-                            # well known id for cloudfront logs delivery:
                             # https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/AccessLogs.html#AccessLogsBucketAndFileOwnership
-                            'id': 'c4c1ede66af53448b93c283ce9448c4ba468c9432aa01d700d3878632f77d2d0',
+                            'id': f'${{data.aws_cloudfront_log_delivery_canonical_user_id.{identifier}.id}}',
                             'type': 'CanonicalUser',
                         },
                         'permission': 'FULL_CONTROL',
