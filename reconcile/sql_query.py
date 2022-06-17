@@ -461,18 +461,19 @@ def run(dry_run, enable_deletion=False):
         # - State is a timestamp: executed and up for removal
         #   after the JOB_TTL
         # - State is 'DONE': executed and removed.
+        # - State is not 'DONE' but 'delete:true' and is a cronjob: up for removal
         try:
             query_state = state[query_name]
             is_cronjob = query.get("schedule")
             if (query_state != "DONE" and not is_cronjob) or (
-                is_cronjob and query["delete"]
+                query_state != "DONE" and is_cronjob and query["delete"]
             ):
                 remove_candidates.append(
                     {
                         "name": query_name,
                         "timestamp": query_state,
                         "output": query["output"],
-                        "cronjob": is_cronjob,
+                        "is_cronjob": is_cronjob,
                     }
                 )
             continue
@@ -553,11 +554,13 @@ def run(dry_run, enable_deletion=False):
             internal=None,
         )
 
-        resource_types = ["Job", "Secret"]
+        if candidate["is_cronjob"]:
+            resource_types = ["CronJob", "Secret"]
+        else:
+            resource_types = ["Job", "Secret"]
         if candidate["output"] == "encrypted":
             resource_types.append("ConfigMap")
-        if candidate["cronjob"]:
-            resource_types.append("CronJob")
+
         for resource_type in resource_types:
             openshift_delete(dry_run, oc_map, query, resource_type, enable_deletion)
 
