@@ -8,10 +8,13 @@ gql_response:
       identifier: gabi-db
       namespace:
         name: gabi-db
-        managedTerraformResources: True
-        terraformResources:
+        managedExternalResources: True
+        externalResources:
+        - provider: aws
+          provisioner:
+            name: app-sre
+          resources:
           - provider: rds
-            account: app-sre
             identifier: gabi-db
         cluster:
           name: server

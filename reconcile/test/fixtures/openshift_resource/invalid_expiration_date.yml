@@ -9,10 +9,13 @@ gql_response:
       identifier: expirationCheck-db
       namespace:
         name: expirationCheck-db
-        managedTerraformResources: True
-        terraformResources:
+        managedExternalResources: True
+        externalResources:
+        - provider: aws
+          provisioner:
+            name: app-sre
+          resources:
           - provider: rds
-            account: app-sre
             identifier: expirationCheck-db
         cluster:
           name: server
