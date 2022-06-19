@@ -6,13 +6,13 @@ from reconcile.utils.openshift_resource import (
     base64_encode_secret_field_value,
 )
 from reconcile.utils.terraform_resource_spec import (
-    TerraformResourceUniqueKey,
+    ExternalResourceUniqueKey,
     ExternalResourceSpec,
 )
 
 
 def test_identifier_creation_from_dict():
-    id = TerraformResourceUniqueKey.from_dict(
+    id = ExternalResourceUniqueKey.from_dict(
         {"identifier": "i", "provider": "p", "account": "a"}
     )
     assert id.identifier == "i"
@@ -22,29 +22,29 @@ def test_identifier_creation_from_dict():
 
 def test_identifier_missing():
     with pytest.raises(ValidationError):
-        TerraformResourceUniqueKey.from_dict(
+        ExternalResourceUniqueKey.from_dict(
             {"identifier": None, "provider": "p", "account": "a"}
         )
     with pytest.raises(KeyError):
-        TerraformResourceUniqueKey.from_dict({"provider": "p", "account": "a"})
+        ExternalResourceUniqueKey.from_dict({"provider": "p", "account": "a"})
 
 
 def test_identifier_account_missing():
     with pytest.raises(ValidationError):
-        TerraformResourceUniqueKey.from_dict(
+        ExternalResourceUniqueKey.from_dict(
             {"identifier": "i", "account": None, "provider": "p"}
         )
     with pytest.raises(KeyError):
-        TerraformResourceUniqueKey.from_dict({"identifier": "i", "provider": "p"})
+        ExternalResourceUniqueKey.from_dict({"identifier": "i", "provider": "p"})
 
 
 def test_identifier_provider_missing():
     with pytest.raises(ValidationError):
-        TerraformResourceUniqueKey.from_dict(
+        ExternalResourceUniqueKey.from_dict(
             {"identifier": "i", "account": "a", "provider": None}
         )
     with pytest.raises(KeyError):
-        TerraformResourceUniqueKey.from_dict({"identifier": "i", "account": "a"})
+        ExternalResourceUniqueKey.from_dict({"identifier": "i", "account": "a"})
 
 
 def test_spec_output_prefix():

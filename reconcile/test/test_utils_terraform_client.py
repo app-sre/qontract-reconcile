@@ -4,7 +4,7 @@ import pytest
 
 from reconcile.utils.terraform_resource_spec import (
     ExternalResourceSpec,
-    TerraformResourceUniqueKey,
+    ExternalResourceUniqueKey,
 )
 import reconcile.utils.terraform_client as tfclient
 from reconcile.utils.aws_api import AWSApi
@@ -150,7 +150,7 @@ def test_populate_terraform_output_secret():
     }
 
     tfclient.TerraformClient._populate_terraform_output_secrets(
-        {TerraformResourceUniqueKey.from_dict(s.resource): s for s in resource_specs},
+        {ExternalResourceUniqueKey.from_dict(s.resource): s for s in resource_specs},
         existing_secrets,
         integration_prefix,
         {},

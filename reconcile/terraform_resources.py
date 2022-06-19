@@ -14,7 +14,7 @@ import reconcile.openshift_base as ob
 from reconcile import queries
 from reconcile.utils.terraform_resource_spec import (
     TerraformResourceSpecInventory,
-    TerraformResourceUniqueKey,
+    ExternalResourceUniqueKey,
     ExternalResourceSpec,
 )
 from reconcile.utils import gql
@@ -538,14 +538,14 @@ def filter_tf_namespaces(
 def init_tf_resource_specs(
     namespaces: Iterable[Mapping[str, Any]], account_name: Optional[str]
 ) -> TerraformResourceSpecInventory:
-    resource_specs: dict[TerraformResourceUniqueKey, ExternalResourceSpec] = {}
+    resource_specs: dict[ExternalResourceUniqueKey, ExternalResourceSpec] = {}
     for namespace_info in namespaces:
         if not managed_external_resources(namespace_info):
             continue
         tf_resources = get_external_resources(namespace_info)
         for resource in tf_resources:
             if account_name is None or resource["account"] == account_name:
-                identifier = TerraformResourceUniqueKey.from_dict(resource)
+                identifier = ExternalResourceUniqueKey.from_dict(resource)
                 resource_specs[identifier] = ExternalResourceSpec(
                     resource=resource,
                     namespace=namespace_info,

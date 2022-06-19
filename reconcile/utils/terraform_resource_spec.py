@@ -120,8 +120,8 @@ class ExternalResourceSpec:
     def get_secret_field(self, field: str) -> Optional[str]:
         return self.secret.get(field)
 
-    def id_object(self) -> "TerraformResourceUniqueKey":
-        return TerraformResourceUniqueKey.from_dict(self.resource)
+    def id_object(self) -> "ExternalResourceUniqueKey":
+        return ExternalResourceUniqueKey.from_dict(self.resource)
 
     def build_oc_secret(
         self, integration: str, integration_version: str
@@ -147,7 +147,7 @@ class ExternalResourceSpec:
 
 
 @dataclass(frozen=True)
-class TerraformResourceUniqueKey:
+class ExternalResourceUniqueKey:
 
     identifier: str
     provider: str
@@ -158,8 +158,8 @@ class TerraformResourceUniqueKey:
         return f"{self.identifier}-{self.provider}"
 
     @staticmethod
-    def from_dict(data: Mapping[str, Any]) -> "TerraformResourceUniqueKey":
-        return TerraformResourceUniqueKey(
+    def from_dict(data: Mapping[str, Any]) -> "ExternalResourceUniqueKey":
+        return ExternalResourceUniqueKey(
             identifier=data["identifier"],
             provider=data["provider"],
             account=data["account"],
@@ -167,5 +167,5 @@ class TerraformResourceUniqueKey:
 
 
 TerraformResourceSpecInventory = Mapping[
-    TerraformResourceUniqueKey, ExternalResourceSpec
+    ExternalResourceUniqueKey, ExternalResourceSpec
 ]
