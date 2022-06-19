@@ -3,7 +3,7 @@ from unittest.mock import create_autospec
 import pytest
 
 from reconcile.utils.terraform_resource_spec import (
-    TerraformResourceSpec,
+    ExternalResourceSpec,
     TerraformResourceUniqueKey,
 )
 import reconcile.utils.terraform_client as tfclient
@@ -64,7 +64,7 @@ def test_expiration_value_error(aws_api):
 
 def test_get_replicas_info_via_replica_source():
     resource_specs = [
-        TerraformResourceSpec(
+        ExternalResourceSpec(
             resource={
                 "account": "acc",
                 "identifier": "replica-id",
@@ -85,7 +85,7 @@ def test_build_oc_secret():
     integration_version = "v1"
     account = "account"
 
-    spec = TerraformResourceSpec(
+    spec = ExternalResourceSpec(
         resource={
             "account": account,
             "identifier": "replica-id",
@@ -131,7 +131,7 @@ def test_populate_terraform_output_secret():
     integration_prefix = "integ_pfx"
     account = "account"
     resource_specs = [
-        TerraformResourceSpec(
+        ExternalResourceSpec(
             resource={
                 "account": account,
                 "identifier": "id",
@@ -164,7 +164,7 @@ def test_populate_terraform_output_secret():
 def test_populate_terraform_output_secret_with_replica_credentials():
     integration_prefix = "integ_pfx"
     account = "account"
-    replica = TerraformResourceSpec(
+    replica = ExternalResourceSpec(
         resource={
             "account": account,
             "identifier": "replica-db",
@@ -172,7 +172,7 @@ def test_populate_terraform_output_secret_with_replica_credentials():
         },
         namespace={},
     )
-    replica_source = TerraformResourceSpec(
+    replica_source = ExternalResourceSpec(
         resource={
             "account": account,
             "identifier": "main-db",

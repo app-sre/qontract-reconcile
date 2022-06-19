@@ -7,7 +7,7 @@ from reconcile.utils.openshift_resource import (
 )
 from reconcile.utils.terraform_resource_spec import (
     TerraformResourceUniqueKey,
-    TerraformResourceSpec,
+    ExternalResourceSpec,
 )
 
 
@@ -48,21 +48,21 @@ def test_identifier_provider_missing():
 
 
 def test_spec_output_prefix():
-    s = TerraformResourceSpec(
+    s = ExternalResourceSpec(
         resource={"identifier": "i", "provider": "p", "account": "a"}, namespace={}
     )
     assert s.output_prefix == "i-p"
 
 
 def test_spec_implicit_output_resource_name():
-    s = TerraformResourceSpec(
+    s = ExternalResourceSpec(
         resource={"identifier": "i", "provider": "p", "account": "a"}, namespace={}
     )
     assert s.output_resource_name == "i-p"
 
 
 def test_spec_explicit_output_resource_name():
-    s = TerraformResourceSpec(
+    s = ExternalResourceSpec(
         resource={
             "identifier": "i",
             "provider": "p",
@@ -75,7 +75,7 @@ def test_spec_explicit_output_resource_name():
 
 
 def test_spec_annotation_parsing():
-    s = TerraformResourceSpec(
+    s = ExternalResourceSpec(
         resource={
             "identifier": "i",
             "provider": "p",
@@ -88,7 +88,7 @@ def test_spec_annotation_parsing():
 
 
 def test_spec_annotation_parsing_none_present():
-    s = TerraformResourceSpec(
+    s = ExternalResourceSpec(
         resource={
             "identifier": "i",
             "provider": "p",
@@ -105,8 +105,8 @@ def resource_secret() -> dict[str, Any]:
 
 
 @pytest.fixture
-def spec() -> TerraformResourceSpec:
-    return TerraformResourceSpec(
+def spec() -> ExternalResourceSpec:
+    return ExternalResourceSpec(
         resource={
             "identifier": "i",
             "provider": "p",
@@ -121,13 +121,13 @@ def spec() -> TerraformResourceSpec:
 #
 
 
-def test_terraform_output_with_when_no_secret(spec: TerraformResourceSpec):
+def test_terraform_output_with_when_no_secret(spec: ExternalResourceSpec):
     output_secret = spec.build_oc_secret("int", "1.0")
     assert output_secret.body["data"] == {}
 
 
 def test_terraform_generic_secret_output_format(
-    spec: TerraformResourceSpec, resource_secret: dict[str, Any]
+    spec: ExternalResourceSpec, resource_secret: dict[str, Any]
 ):
     spec.resource["output_format"] = {  # type: ignore[index]
         "provider": "generic-secret",
@@ -144,7 +144,7 @@ def test_terraform_generic_secret_output_format(
 
 
 def test_terraform_generic_secret_output_format_no_data(
-    spec: TerraformResourceSpec, resource_secret: dict[str, Any]
+    spec: ExternalResourceSpec, resource_secret: dict[str, Any]
 ):
     """
     this test shows backwards compatibility with the simple dict output when
@@ -162,7 +162,7 @@ def test_terraform_generic_secret_output_format_no_data(
 
 
 def test_terraform_no_output_format_provider(
-    spec: TerraformResourceSpec, resource_secret: dict[str, Any]
+    spec: ExternalResourceSpec, resource_secret: dict[str, Any]
 ):
     """
     this test shows full backwards compatibility when no provider has been specified
@@ -175,7 +175,7 @@ def test_terraform_no_output_format_provider(
         assert output_secret.body["data"][k] == base64_encode_secret_field_value(v)
 
 
-def test_terraform_unknown_output_format_provider(spec: TerraformResourceSpec):
+def test_terraform_unknown_output_format_provider(spec: ExternalResourceSpec):
     """
     this test expects the secret generation to fail when an unknown provider is
     given. while the schema usually protects against such cases, additional protection
@@ -189,7 +189,7 @@ def test_terraform_unknown_output_format_provider(spec: TerraformResourceSpec):
 
 
 def test_terraform_generic_secret_output_format_not_a_dict(
-    spec: TerraformResourceSpec, resource_secret: dict[str, Any]
+    spec: ExternalResourceSpec, resource_secret: dict[str, Any]
 ):
     """
     this test shows how a data template for a generic-secret provider must result
@@ -206,7 +206,7 @@ def test_terraform_generic_secret_output_format_not_a_dict(
 
 
 def test_terraform_generic_secret_output_format_not_str_keys(
-    spec: TerraformResourceSpec, resource_secret: dict[str, Any]
+    spec: ExternalResourceSpec, resource_secret: dict[str, Any]
 ):
     """
     this test shows how a data template for a generic-secret provider must produce
@@ -223,7 +223,7 @@ def test_terraform_generic_secret_output_format_not_str_keys(
 
 
 def test_terraform_generic_secret_output_format_not_str_val(
-    spec: TerraformResourceSpec, resource_secret: dict[str, Any]
+    spec: ExternalResourceSpec, resource_secret: dict[str, Any]
 ):
     """
     this test shows how a data template for a generic-secret provider must produce
@@ -240,7 +240,7 @@ def test_terraform_generic_secret_output_format_not_str_val(
 
 
 def test_terraform_generic_secret_output_key_too_long(
-    spec: TerraformResourceSpec, resource_secret: dict[str, Any]
+    spec: ExternalResourceSpec, resource_secret: dict[str, Any]
 ):
     """
     tests for too long secret keys (max length in kubernetes is 253 characters )

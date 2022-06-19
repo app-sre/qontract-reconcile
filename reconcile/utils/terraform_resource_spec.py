@@ -76,7 +76,7 @@ class OutputFormat:
 
 
 @dataclass
-class TerraformResourceSpec:
+class ExternalResourceSpec:
 
     resource: Mapping[str, Any]
     namespace: Mapping[str, Any]
@@ -167,5 +167,5 @@ class TerraformResourceUniqueKey:
 
 
 TerraformResourceSpecInventory = Mapping[
-    TerraformResourceUniqueKey, TerraformResourceSpec
+    TerraformResourceUniqueKey, ExternalResourceSpec
 ]
