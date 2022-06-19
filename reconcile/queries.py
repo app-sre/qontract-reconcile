@@ -2221,7 +2221,7 @@ def get_dns_zones(account_name=None):
     gqlapi = gql.get_api()
     zones = gqlapi.query(DNS_ZONES_QUERY)["zones"]
     if account_name:
-      zones = [z for z in zones if z["account"]["name"] == account_name]
+        zones = [z for z in zones if z["account"]["name"] == account_name]
 
     return gqlapi.query(DNS_ZONES_QUERY)["zones"]
 
