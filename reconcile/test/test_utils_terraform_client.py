@@ -2,7 +2,7 @@ import base64
 from unittest.mock import create_autospec
 import pytest
 
-from reconcile.utils.terraform_resource_spec import (
+from reconcile.utils.external_resource_spec import (
     ExternalResourceSpec,
     ExternalResourceUniqueKey,
 )

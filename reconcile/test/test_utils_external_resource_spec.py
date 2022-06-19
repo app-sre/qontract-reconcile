@@ -5,7 +5,7 @@ from reconcile.utils.openshift_resource import (
     SECRET_MAX_KEY_LENGTH,
     base64_encode_secret_field_value,
 )
-from reconcile.utils.terraform_resource_spec import (
+from reconcile.utils.external_resource_spec import (
     ExternalResourceUniqueKey,
     ExternalResourceSpec,
 )

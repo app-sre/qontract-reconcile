@@ -1,5 +1,5 @@
 import reconcile.terraform_resources as integ
-from reconcile.utils.terraform_resource_spec import (
+from reconcile.utils.external_resource_spec import (
     ExternalResourceUniqueKey,
     ExternalResourceSpec,
 )

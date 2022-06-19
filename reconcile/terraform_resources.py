@@ -12,7 +12,7 @@ from reconcile.utils.external_resources import get_external_resources, managed_e
 import reconcile.openshift_base as ob
 
 from reconcile import queries
-from reconcile.utils.terraform_resource_spec import (
+from reconcile.utils.external_resource_spec import (
     ExternalResourceSpecInventory,
     ExternalResourceUniqueKey,
     ExternalResourceSpec,
