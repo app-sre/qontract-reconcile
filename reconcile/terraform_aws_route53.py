@@ -193,9 +193,7 @@ def run(
     defer=None,
 ):
     settings = queries.get_app_interface_settings()
-    zones = queries.get_dns_zones()
-    if account_name:
-        zones = [z for z in zones if z["account"]["name"] == account_name]
+    zones = queries.get_dns_zones(account_name=account_name)
 
     all_accounts = queries.get_aws_accounts(name=account_name)
     participating_account_names = [z["account"]["name"] for z in zones]
