@@ -166,6 +166,4 @@ class ExternalResourceUniqueKey:
         )
 
 
-TerraformResourceSpecInventory = Mapping[
-    ExternalResourceUniqueKey, ExternalResourceSpec
-]
+ExternalResourceSpecInventory = Mapping[ExternalResourceUniqueKey, ExternalResourceSpec]

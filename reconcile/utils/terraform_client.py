@@ -14,7 +14,7 @@ from sretoolbox.utils import retry
 from sretoolbox.utils import threaded
 
 from reconcile.utils.aws_helper import get_region_from_availability_zone
-from reconcile.utils.terraform_resource_spec import ExternalResourceSpec, TerraformResourceSpecInventory
+from reconcile.utils.terraform_resource_spec import ExternalResourceSpec, ExternalResourceSpecInventory
 
 import reconcile.utils.lean_terraform_client as lean_tf
 
@@ -422,7 +422,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
             return data[list(data.keys())[0]]
         return data
 
-    def populate_terraform_output_secrets(self, resource_specs: TerraformResourceSpecInventory,
+    def populate_terraform_output_secrets(self, resource_specs: ExternalResourceSpecInventory,
                                           init_rds_replica_source: bool = False) -> None:
         """
         find the terraform output data for each resource spec and populate its `secret` field.
@@ -441,7 +441,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         )
 
     @staticmethod
-    def _populate_terraform_output_secrets(resource_specs: TerraformResourceSpecInventory,
+    def _populate_terraform_output_secrets(resource_specs: ExternalResourceSpecInventory,
                                            terraform_output_secrets: Mapping[str, Mapping[str, Mapping[str, str]]],
                                            integration_prefix: str,
                                            replica_sources: Mapping[str, Mapping[str, str]]) -> None:

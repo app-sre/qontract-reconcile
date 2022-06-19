@@ -13,7 +13,7 @@ import reconcile.openshift_base as ob
 
 from reconcile import queries
 from reconcile.utils.terraform_resource_spec import (
-    TerraformResourceSpecInventory,
+    ExternalResourceSpecInventory,
     ExternalResourceUniqueKey,
     ExternalResourceSpec,
 )
@@ -461,7 +461,7 @@ def setup(
     ResourceInventory,
     OC_Map,
     Terraform,
-    TerraformResourceSpecInventory,
+    ExternalResourceSpecInventory,
 ]:
     gqlapi = gql.get_api()
     accounts = queries.get_aws_accounts()
@@ -537,7 +537,7 @@ def filter_tf_namespaces(
 
 def init_tf_resource_specs(
     namespaces: Iterable[Mapping[str, Any]], account_name: Optional[str]
-) -> TerraformResourceSpecInventory:
+) -> ExternalResourceSpecInventory:
     resource_specs: dict[ExternalResourceUniqueKey, ExternalResourceSpec] = {}
     for namespace_info in namespaces:
         if not managed_external_resources(namespace_info):
@@ -564,7 +564,7 @@ def cleanup_and_exit(tf=None, status=False, working_dirs=None):
     sys.exit(status)
 
 
-def write_outputs_to_vault(vault_path: str, resource_specs: TerraformResourceSpecInventory) -> None:
+def write_outputs_to_vault(vault_path: str, resource_specs: ExternalResourceSpecInventory) -> None:
     integration_name = QONTRACT_INTEGRATION.replace('_', '-')
     vault_client = cast(_VaultClient, VaultClient())
     for spec in resource_specs.values():
@@ -580,7 +580,7 @@ def write_outputs_to_vault(vault_path: str, resource_specs: TerraformResourceSpe
             vault_client.write(desired_secret, decode_base64=False)
 
 
-def populate_desired_state(ri: ResourceInventory, resource_specs: TerraformResourceSpecInventory) -> None:
+def populate_desired_state(ri: ResourceInventory, resource_specs: ExternalResourceSpecInventory) -> None:
     for spec in resource_specs.values():
         if ri.is_cluster_present(spec.cluster_name):
             oc_resource = spec.build_oc_secret(
