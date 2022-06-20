@@ -2223,7 +2223,7 @@ def get_dns_zones(account_name=None):
     if account_name:
         zones = [z for z in zones if z["account"]["name"] == account_name]
 
-    return gqlapi.query(DNS_ZONES_QUERY)["zones"]
+    return zones
 
 
 SLACK_WORKSPACES_QUERY = """
