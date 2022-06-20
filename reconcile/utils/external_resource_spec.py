@@ -127,7 +127,7 @@ class ExternalResourceSpec:
         return self.secret.get(field)
 
     def id_object(self) -> "ExternalResourceUniqueKey":
-        return ExternalResourceUniqueKey.from_dict(self.resource)
+        return ExternalResourceUniqueKey.from_spec(self)
 
     def build_oc_secret(
         self, integration: str, integration_version: str
@@ -173,6 +173,16 @@ class ExternalResourceUniqueKey:
             identifier=data["identifier"],
             provider=data["provider"],
             account=data["account"],
+        )
+
+    @staticmethod
+    def from_spec(spec: ExternalResourceSpec) -> "ExternalResourceUniqueKey":
+        return ExternalResourceUniqueKey(
+            provision_provider=spec.provision_provider,
+            provisioner_name=spec.provisioner_name,
+            identifier=spec.identifier,
+            provider=spec.provider,
+            account=spec.provisioner_name,
         )
 
 
