@@ -6,7 +6,7 @@ from textwrap import indent
 from typing import Any, Iterable, Optional, Mapping, Tuple, cast
 
 from sretoolbox.utils import threaded
-from reconcile.utils.external_resources import get_external_resources, managed_external_resources
+from reconcile.utils.external_resources import get_external_resource_specs, get_external_resources, managed_external_resources
 
 
 import reconcile.openshift_base as ob
@@ -542,15 +542,9 @@ def init_tf_resource_specs(
     for namespace_info in namespaces:
         if not managed_external_resources(namespace_info):
             continue
-        tf_resources = get_external_resources(namespace_info)
-        for resource in tf_resources:
-            if account_name is None or resource["account"] == account_name:
-                spec = ExternalResourceSpec(
-                    provision_provider=resource["provision_provider"],
-                    provisioner=resource["provisioner"],
-                    resource=resource,
-                    namespace=namespace_info,
-                )
+        tf_specs = get_external_resource_specs(namespace_info)
+        for spec in tf_specs:
+            if account_name is None or spec.account == account_name:
                 resource_specs[spec.id_object] = spec
     return resource_specs
 

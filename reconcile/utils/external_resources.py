@@ -1,7 +1,26 @@
 from typing import Mapping, List, Dict, Any, Optional, Set
 
+from reconcile.utils.external_resource_spec import ExternalResourceSpec
+
 
 PROVIDER_AWS = "aws"
+
+
+def get_external_resource_specs(
+    namespace_info: Mapping[str, Any], provision_provider: Optional[str] = None
+) -> List[ExternalResourceSpec]:
+    specs: List[ExternalResourceSpec] = []
+    resources = get_external_resources(namespace_info, provision_provider)
+    for resource in resources:
+        spec = ExternalResourceSpec(
+            provision_provider=resource["provision_provider"],
+            provisioner=resource["provisioner"],
+            resource=resource,
+            namespace=namespace_info,
+        )
+        specs.append(spec)
+
+    return specs
 
 
 def get_external_resources(
