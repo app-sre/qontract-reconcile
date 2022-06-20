@@ -11,11 +11,6 @@ def get_external_resources(
     if not managed_external_resources(namespace_info):
         return resources
 
-    terraform_resources = namespace_info.get("terraformResources") or []
-    for r in terraform_resources:
-        r["provision_provider"] = PROVIDER_AWS
-        resources.append(r)
-
     external_resources = namespace_info.get("externalResources") or []
     for e in external_resources:
         provisioner_name = e["provisioner"]["name"]
@@ -37,10 +32,6 @@ def get_provision_providers(namespace_info: Mapping[str, Any]) -> Set[str]:
     if not managed_external_resources(namespace_info):
         return providers
 
-    terraform_resources = namespace_info.get("terraformResources")
-    if terraform_resources:
-        providers.add(PROVIDER_AWS)
-
     external_resources = namespace_info.get("externalResources") or []
     for e in external_resources:
         providers.add(e["provider"])
@@ -49,8 +40,6 @@ def get_provision_providers(namespace_info: Mapping[str, Any]) -> Set[str]:
 
 
 def managed_external_resources(namespace_info: Mapping[str, Any]) -> bool:
-    if namespace_info.get("managedTerraformResources"):
-        return True
     if namespace_info.get("managedExternalResources"):
         return True
 
