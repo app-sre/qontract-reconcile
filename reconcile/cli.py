@@ -548,14 +548,18 @@ def integration(
 @binary(["terraform", "git"])
 @binary_version("terraform", ["version"], TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
 @enable_deletion(default=True)
+@account_name
 @click.pass_context
-def terraform_aws_route53(ctx, print_to_file, enable_deletion, thread_pool_size):
+def terraform_aws_route53(
+    ctx, print_to_file, enable_deletion, thread_pool_size, account_name
+):
     run_integration(
         reconcile.terraform_aws_route53,
         ctx.obj,
         print_to_file,
         enable_deletion,
         thread_pool_size,
+        account_name,
     )
 
 
