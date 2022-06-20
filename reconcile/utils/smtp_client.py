@@ -25,7 +25,7 @@ class SmtpClient:
     @property
     def client(self):
         if self._client is None:
-            self._client = smtplib.SMTP(host=self.host, port=self.port)
+            self._client = smtplib.SMTP(host=self.host, port=self.port, timeout=30)
             self._client.send
             self._client.starttls()
             self._client.login(self.user, self.passwd)
@@ -34,7 +34,7 @@ class SmtpClient:
     @property
     def server(self):
         if self._server is None:
-            self._server = imaplib.IMAP4_SSL(host=self.host)
+            self._server = imaplib.IMAP4_SSL(host=self.host, timeout=30)
             self._server.login(self.user, self.passwd)
         return self._server
 
