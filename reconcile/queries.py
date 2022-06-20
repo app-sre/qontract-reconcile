@@ -2216,9 +2216,13 @@ DNS_ZONES_QUERY = """
 """
 
 
-def get_dns_zones():
+def get_dns_zones(account_name=None):
     """Returnes all AWS Route53 DNS Zones."""
     gqlapi = gql.get_api()
+    zones = gqlapi.query(DNS_ZONES_QUERY)["zones"]
+    if account_name:
+        zones = [z for z in zones if z["account"]["name"] == account_name]
+
     return gqlapi.query(DNS_ZONES_QUERY)["zones"]
 
 
