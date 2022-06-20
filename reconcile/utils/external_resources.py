@@ -16,6 +16,7 @@ def get_external_resources(
         provisioner = e["provisioner"]
         for r in e["resources"]:
             r["provision_provider"] = e["provider"]
+            r["provisioner"] = provisioner
             r["account"] = provisioner["name"]
             resources.append(r)
 

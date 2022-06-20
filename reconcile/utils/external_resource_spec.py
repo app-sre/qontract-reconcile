@@ -78,6 +78,8 @@ class OutputFormat:
 @dataclass
 class ExternalResourceSpec:
 
+    provision_provider: str
+    provisioner: Mapping[str, Any]
     resource: Mapping[str, Any]
     namespace: Mapping[str, Any]
     secret: Mapping[str, str] = field(init=False, default_factory=lambda: {})
@@ -92,7 +94,11 @@ class ExternalResourceSpec:
 
     @property
     def account(self):
-        return self.resource.get("account")
+        return self.provisioner["name"]
+
+    @property
+    def provisioner_name(self):
+        return self.provisioner["name"]
 
     @property
     def namespace_name(self) -> str:
@@ -149,6 +155,8 @@ class ExternalResourceSpec:
 @dataclass(frozen=True)
 class ExternalResourceUniqueKey:
 
+    provision_provider: str
+    provisioner_name: str
     identifier: str
     provider: str
     account: str
@@ -160,6 +168,8 @@ class ExternalResourceUniqueKey:
     @staticmethod
     def from_dict(data: Mapping[str, Any]) -> "ExternalResourceUniqueKey":
         return ExternalResourceUniqueKey(
+            provision_provider=data["provision_provider"],
+            provisioner_name=data["provisioner"]["name"],
             identifier=data["identifier"],
             provider=data["provider"],
             account=data["account"],
