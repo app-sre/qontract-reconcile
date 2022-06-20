@@ -545,13 +545,14 @@ def init_tf_resource_specs(
         tf_resources = get_external_resources(namespace_info)
         for resource in tf_resources:
             if account_name is None or resource["account"] == account_name:
-                identifier = ExternalResourceUniqueKey.from_dict(resource)
-                resource_specs[identifier] = ExternalResourceSpec(
+                spec = ExternalResourceSpec(
                     provision_provider=resource["provision_provider"],
                     provisioner=resource["provisioner"],
                     resource=resource,
                     namespace=namespace_info,
                 )
+                identifier = ExternalResourceUniqueKey.from_dict(resource)
+                resource_specs[identifier] = spec
     return resource_specs
 
 
