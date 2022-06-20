@@ -13,10 +13,10 @@ def get_external_resources(
 
     external_resources = namespace_info.get("externalResources") or []
     for e in external_resources:
-        provisioner_name = e["provisioner"]["name"]
+        provisioner = e["provisioner"]
         for r in e["resources"]:
             r["provision_provider"] = e["provider"]
-            r["account"] = provisioner_name
+            r["account"] = provisioner["name"]
             resources.append(r)
 
     if provision_provider:
