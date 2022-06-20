@@ -551,8 +551,7 @@ def init_tf_resource_specs(
                     resource=resource,
                     namespace=namespace_info,
                 )
-                identifier = ExternalResourceUniqueKey.from_spec(spec)
-                resource_specs[identifier] = spec
+                resource_specs[spec.id_object] = spec
     return resource_specs
 
 
