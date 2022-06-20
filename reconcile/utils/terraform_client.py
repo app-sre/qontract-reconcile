@@ -355,7 +355,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
                 replica_source_name = f'{replica_src}-{tf_resource.get("provider")}'
                 # Creating a dict that is convenient to use inside the
                 # loop processing the formatted_output
-                replicas_info[spec.account][spec.output_prefix] = replica_source_name
+                replicas_info[spec.provisioner_name][spec.output_prefix] = replica_source_name
 
         return replicas_info
 
@@ -446,20 +446,20 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
                                            integration_prefix: str,
                                            replica_sources: Mapping[str, Mapping[str, str]]) -> None:
         for spec in resource_specs.values():
-            secret = terraform_output_secrets.get(spec.account, {}).get(spec.output_prefix, None)
+            secret = terraform_output_secrets.get(spec.provisioner_name, {}).get(spec.output_prefix, None)
             if not secret:
                 continue
             secret_copy = dict(secret)
 
             # find out about replica source
-            replica_source = replica_sources.get(spec.account, {}).get(spec.output_prefix)
+            replica_source = replica_sources.get(spec.provisioner_name, {}).get(spec.output_prefix)
             if replica_source:
                 # Grabbing the username/password from the
                 # replica_source and using them in the
                 # replica. This is needed because we can't
                 # set username/password for a replica in
                 # terraform.
-                replica_source_secret = terraform_output_secrets.get(spec.account, {}).get(replica_source)
+                replica_source_secret = terraform_output_secrets.get(spec.provisioner_name, {}).get(replica_source)
                 if replica_source_secret:
                     replica_src_user = replica_source_secret.get("db.user")
                     replica_src_password = replica_source_secret.get("db.password")

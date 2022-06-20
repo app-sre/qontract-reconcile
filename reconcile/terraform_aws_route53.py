@@ -131,7 +131,8 @@ def build_desired_state(
                 tf_zone_resources = [
                     spec.resource
                     for spec in specs
-                    if spec.provider == "route53-zone" and spec.resource.get("name") == tf_zone_name
+                    if spec.provider == "route53-zone"
+                    and spec.resource.get("name") == tf_zone_name
                 ]
                 if not tf_zone_resources:
                     logging.error(

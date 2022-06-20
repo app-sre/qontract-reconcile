@@ -93,10 +93,6 @@ class ExternalResourceSpec:
         return self.resource.get("identifier")
 
     @property
-    def account(self):
-        return self.provisioner["name"]
-
-    @property
     def provisioner_name(self):
         return self.provisioner["name"]
 
@@ -172,7 +168,6 @@ class ExternalResourceUniqueKey:
             provisioner_name=data["provisioner"]["name"],
             identifier=data["identifier"],
             provider=data["provider"],
-            account=data["account"],
         )
 
     @staticmethod
@@ -182,7 +177,6 @@ class ExternalResourceUniqueKey:
             provisioner_name=spec.provisioner_name,
             identifier=spec.identifier,
             provider=spec.provider,
-            account=spec.provisioner_name,
         )
 
 

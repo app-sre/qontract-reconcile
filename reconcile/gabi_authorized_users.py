@@ -52,7 +52,7 @@ def fetch_desired_state(
             for spec in specs:
                 if spec.provider != "rds":
                     continue
-                if (spec.account, spec.identifier) == (account, identifier):
+                if (spec.provisioner_name, spec.identifier) == (account, identifier):
                     found = True
                     break
             if not found:

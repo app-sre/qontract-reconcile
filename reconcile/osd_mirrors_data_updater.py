@@ -70,7 +70,9 @@ def run(dry_run, gitlab_project_id=None):
         if not managed_external_resources(namespace):
             continue
 
-        for spec in get_external_resource_specs(namespace, provision_provider=PROVIDER_AWS):
+        for spec in get_external_resource_specs(
+            namespace, provision_provider=PROVIDER_AWS
+        ):
             if spec.provider != "ecr":
                 continue
             if spec.resource.get("mirror") is None:

@@ -313,7 +313,7 @@ class OcpReleaseMirror:
                 continue
 
             return {
-                "account": spec.account,
+                "account": spec.provisioner_name,
                 "region": spec.resource.get("region"),
             }
 

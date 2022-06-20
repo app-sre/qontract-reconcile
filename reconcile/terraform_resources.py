@@ -528,7 +528,7 @@ def filter_tf_namespaces(
             continue
 
         for spec in specs:
-            if spec.account == account_name:
+            if spec.provisioner_name == account_name:
                 tf_namespaces.append(namespace_info)
                 break
 
@@ -544,7 +544,7 @@ def init_tf_resource_specs(
             continue
         tf_specs = get_external_resource_specs(namespace_info)
         for spec in tf_specs:
-            if account_name is None or spec.account == account_name:
+            if account_name is None or spec.provisioner_name == account_name:
                 resource_specs[spec.id_object] = spec
     return resource_specs
 

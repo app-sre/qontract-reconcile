@@ -116,7 +116,7 @@ def fetch_desired_state():
             if aws_infrastructure_access is None:
                 continue
             aws_account_uid = [
-                a["uid"] for a in aws_accounts if a["name"] == spec.account
+                a["uid"] for a in aws_accounts if a["name"] == spec.provisioner_name
             ][0]
             cluster = aws_infrastructure_access["cluster"]["name"]
             access_level = aws_infrastructure_access["access_level"]

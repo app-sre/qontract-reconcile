@@ -936,7 +936,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         for namespace_info in namespaces:
             specs = get_external_resource_specs(namespace_info, provision_provider=PROVIDER_AWS)
             for spec in specs:
-                account = spec.account
+                account = spec.provisioner_name
                 # Skip if account_name is specified
                 if account_name and account != account_name:
                     continue

@@ -693,7 +693,7 @@ def aws_terraform_resources(ctx):
             get_external_resource_specs(ns_info, provision_provider=PROVIDER_AWS) or []
         )
         for spec in specs:
-            account = spec.account
+            account = spec.provisioner_name
             item = {"name": account, "total": 0}
             item = results.setdefault(account, item)
             total = {"name": "total", "total": 0}
@@ -976,7 +976,7 @@ def service_owners_for_rds_instance(ctx, aws_account, identifier):
         for spec in get_external_resource_specs(namespace_info):
             if (
                 spec.provider == "rds"
-                and spec.account == aws_account
+                and spec.provisioner_name == aws_account
                 and spec.identifier == identifier
             ):
                 service_owners = namespace_info["app"]["serviceOwners"]
