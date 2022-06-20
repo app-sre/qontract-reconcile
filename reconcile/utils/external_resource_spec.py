@@ -136,7 +136,7 @@ class ExternalResourceSpec:
             integration=integration,
             integration_version=integration_version,
             error_details=self.output_resource_name,
-            caller_name=self.account,
+            caller_name=self.provisioner_name,
             annotations=annotations,
             unencoded_data=self._output_format().render(self.secret),
         )
@@ -155,7 +155,6 @@ class ExternalResourceUniqueKey:
     provisioner_name: str
     identifier: str
     provider: str
-    account: str
 
     @property
     def output_prefix(self) -> str:
