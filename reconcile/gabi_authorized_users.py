@@ -2,7 +2,7 @@ import logging
 import sys
 from datetime import datetime, date
 from typing import Iterable, Mapping, Optional
-from reconcile.utils.external_resources import get_external_resources
+from reconcile.utils.external_resources import get_external_resource_specs
 from reconcile.status import ExitCodes
 
 from reconcile.utils.aggregated_list import RunnerException
@@ -47,12 +47,12 @@ def fetch_desired_state(
             namespace = i["namespace"]
             account = i["account"]
             identifier = i["identifier"]
-            tf_resources = get_external_resources(namespace)
+            specs = get_external_resource_specs(namespace)
             found = False
-            for t in tf_resources:
-                if t["provider"] != "rds":
+            for spec in specs:
+                if spec.provider != "rds":
                     continue
-                if (t["account"], t["identifier"]) == (account, identifier):
+                if (spec.account, spec.identifier) == (account, identifier):
                     found = True
                     break
             if not found:

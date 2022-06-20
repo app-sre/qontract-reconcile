@@ -85,7 +85,7 @@ from sretoolbox.utils import threaded
 
 from reconcile.utils import gql
 from reconcile.utils.aws_api import AWSApi
-from reconcile.utils.external_resources import PROVIDER_AWS, get_external_resources
+from reconcile.utils.external_resources import PROVIDER_AWS, get_external_resource_specs
 from reconcile.utils.jenkins_api import JenkinsApi
 from reconcile.utils.ocm import OCMMap
 from reconcile.utils.secret_reader import SecretReader
@@ -934,15 +934,15 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         self.account_resources: dict[str, list[dict[str, Any]]] = {}
 
         for namespace_info in namespaces:
-            tf_resources = get_external_resources(namespace_info, provision_provider=PROVIDER_AWS)
-            for resource in tf_resources:
-                account = resource['account']
+            specs = get_external_resource_specs(namespace_info, provision_provider=PROVIDER_AWS)
+            for spec in specs:
+                account = spec.account
                 # Skip if account_name is specified
                 if account_name and account != account_name:
                     continue
                 if account not in self.account_resources:
                     self.account_resources[account] = []
-                populate_spec = {'resource': resource,
+                populate_spec = {'resource': spec.resource,
                                  'provision_provider': PROVIDER_AWS,
                                  'namespace_info': namespace_info}
                 self.account_resources[account].append(populate_spec)

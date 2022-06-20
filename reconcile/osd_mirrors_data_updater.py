@@ -3,7 +3,7 @@ import logging
 from reconcile import mr_client_gateway
 from reconcile.utils.external_resources import (
     PROVIDER_AWS,
-    get_external_resources,
+    get_external_resource_specs,
     managed_external_resources,
 )
 from reconcile.utils.mr import CSInstallConfig
@@ -21,18 +21,15 @@ def get_ecr_tf_resource_info(namespace, identifier):
     Takes a namespace from app-interface and searches
     a given ECR by its identifier.
     """
-    tf_resources = get_external_resources(namespace)
-    for tf_resource in tf_resources:
-        if "identifier" not in tf_resource:
+    specs = get_external_resource_specs(namespace)
+    for spec in specs:
+        if specs.identifier != identifier:
             continue
 
-        if tf_resource["identifier"] != identifier:
+        if spec.provider != "ecr":
             continue
 
-        if tf_resource["provider"] != "ecr":
-            continue
-
-        return tf_resource
+        return spec.resource
 
 
 def get_aws_account_info(account):
@@ -73,13 +70,13 @@ def run(dry_run, gitlab_project_id=None):
         if not managed_external_resources(namespace):
             continue
 
-        for tfr in get_external_resources(namespace, provision_provider=PROVIDER_AWS):
-            if tfr["provider"] != "ecr":
+        for spec in get_external_resource_specs(namespace, provision_provider=PROVIDER_AWS):
+            if spec.provider != "ecr":
                 continue
-            if tfr["mirror"] is None:
+            if spec.resource.get("mirror") is None:
                 continue
 
-            osd_mirrors.append(tfr)
+            osd_mirrors.append(spec.resource)
 
     # Now the tricky part. The "OCP Release ECR Mirror" is a stand-alone
     # object in app-interface. We have to process it so we get the

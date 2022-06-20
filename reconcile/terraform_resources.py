@@ -6,7 +6,7 @@ from textwrap import indent
 from typing import Any, Iterable, Optional, Mapping, Tuple, cast
 
 from sretoolbox.utils import threaded
-from reconcile.utils.external_resources import get_external_resource_specs, get_external_resources, managed_external_resources
+from reconcile.utils.external_resources import get_external_resource_specs, managed_external_resources
 
 
 import reconcile.openshift_base as ob
@@ -522,13 +522,13 @@ def filter_tf_namespaces(
             tf_namespaces.append(namespace_info)
             continue
 
-        resources = get_external_resources(namespace_info)
-        if not resources:
+        specs = get_external_resource_specs(namespace_info)
+        if not specs:
             tf_namespaces.append(namespace_info)
             continue
 
-        for r in resources:
-            if r["account"] == account_name:
+        for spec in specs:
+            if spec.account == account_name:
                 tf_namespaces.append(namespace_info)
                 break
 

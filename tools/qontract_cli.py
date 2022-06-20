@@ -19,7 +19,7 @@ from reconcile.slack_base import slackapi_from_queries
 from reconcile.utils import config, dnsutils, gql
 from reconcile.utils.external_resources import (
     PROVIDER_AWS,
-    get_external_resources,
+    get_external_resource_specs,
     managed_external_resources,
 )
 from reconcile.utils.aws_api import AWSApi
@@ -689,17 +689,17 @@ def aws_terraform_resources(ctx):
     columns = ["name", "total"]
     results = {}
     for ns_info in namespaces:
-        terraform_resources = (
-            get_external_resources(ns_info, provision_provider=PROVIDER_AWS) or []
+        specs = (
+            get_external_resource_specs(ns_info, provision_provider=PROVIDER_AWS) or []
         )
-        for r in terraform_resources:
-            account = r["account"]
+        for spec in specs:
+            account = spec.account
             item = {"name": account, "total": 0}
             item = results.setdefault(account, item)
             total = {"name": "total", "total": 0}
             total = results.setdefault("total", total)
-            add_resource(item, r, columns)
-            add_resource(total, r, columns)
+            add_resource(item, spec.resource, columns)
+            add_resource(total, spec.resource, columns)
 
     # TODO(mafriedm): fix this
     # do not sort
@@ -973,11 +973,11 @@ def service_owners_for_rds_instance(ctx, aws_account, identifier):
         if not managed_external_resources(namespace_info):
             continue
 
-        for tf in get_external_resources(namespace_info):
+        for spec in get_external_resource_specs(namespace_info):
             if (
-                tf["provider"] == "rds"
-                and tf["account"] == aws_account
-                and tf["identifier"] == identifier
+                spec.provider == "rds"
+                and spec.account == aws_account
+                and spec.identifier == identifier
             ):
                 service_owners = namespace_info["app"]["serviceOwners"]
                 break

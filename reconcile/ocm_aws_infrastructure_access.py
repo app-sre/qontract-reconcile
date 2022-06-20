@@ -1,5 +1,5 @@
 import logging
-from reconcile.utils.external_resources import PROVIDER_AWS, get_external_resources
+from reconcile.utils.external_resources import PROVIDER_AWS, get_external_resource_specs
 
 from reconcile.utils import gql
 from reconcile import queries
@@ -104,27 +104,25 @@ def fetch_desired_state():
     gqlapi = gql.get_api()
     namespaces = gqlapi.query(TF_NAMESPACES_QUERY)["namespaces"]
     for namespace_info in namespaces:
-        terraform_resources = get_external_resources(
+        specs = get_external_resource_specs(
             namespace_info, provision_provider=PROVIDER_AWS
         )
-        for tf_resource in terraform_resources:
-            provider = tf_resource["provider"]
-            if provider != "aws-iam-service-account":
+        for spec in specs:
+            if spec.provider != "aws-iam-service-account":
                 continue
             aws_infrastructure_access = (
-                tf_resource.get("aws_infrastructure_access") or None
+                spec.resource.get("aws_infrastructure_access") or None
             )
             if aws_infrastructure_access is None:
                 continue
             aws_account_uid = [
-                a["uid"] for a in aws_accounts if a["name"] == tf_resource["account"]
+                a["uid"] for a in aws_accounts if a["name"] == spec.account
             ][0]
-            user = tf_resource["identifier"]
             cluster = aws_infrastructure_access["cluster"]["name"]
             access_level = aws_infrastructure_access["access_level"]
             item = {
                 "cluster": cluster,
-                "user_arn": f"arn:aws:iam::{aws_account_uid}:user/{user}",
+                "user_arn": f"arn:aws:iam::{aws_account_uid}:user/{spec.identifier}",
                 "access_level": access_level,
             }
             desired_state.append(item)

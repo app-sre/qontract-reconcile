@@ -8,7 +8,7 @@ from sretoolbox.utils import threaded
 
 from reconcile import queries
 from reconcile.utils.external_resources import (
-    get_external_resources,
+    get_external_resource_specs,
     managed_external_resources,
 )
 from reconcile.utils.aws_api import AWSApi
@@ -130,14 +130,14 @@ def run(dry_run, thread_pool_size=10):
         if not managed_external_resources(namespace):
             continue
 
-        for tfr in get_external_resources(namespace):
-            if tfr["provider"] != "ecr":
+        for spec in get_external_resource_specs(namespace):
+            if spec.provider != "ecr":
                 continue
 
-            if tfr["mirror"] is None:
+            if spec.resource.get("mirror") is None:
                 continue
 
-            tfrs_to_mirror.append(tfr)
+            tfrs_to_mirror.append(spec.resource)
 
     work_list = threaded.run(
         EcrMirror, tfrs_to_mirror, thread_pool_size=thread_pool_size, dry_run=dry_run

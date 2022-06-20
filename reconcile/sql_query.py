@@ -10,7 +10,7 @@ from ruamel import yaml
 from reconcile import openshift_base
 from reconcile import openshift_resources_base as orb
 from reconcile import queries
-from reconcile.utils.external_resources import get_external_resources
+from reconcile.utils.external_resources import get_external_resource_specs
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.oc import OC_Map
 from reconcile.utils.oc import StatusCodeError
@@ -120,19 +120,16 @@ def get_tf_resource_info(terrascript: Terrascript, namespace, identifier):
     :param identifier: the identifier we are looking for
     :return: the terraform resource information dictionary
     """
-    tf_resources = get_external_resources(namespace)
-    for tf_resource in tf_resources:
-        if "identifier" not in tf_resource:
+    specs = get_external_resource_specs(namespace)
+    for spec in specs:
+        if spec.identifier != identifier:
             continue
 
-        if tf_resource["identifier"] != identifier:
-            continue
-
-        if tf_resource["provider"] != "rds":
+        if spec.provider != "rds":
             continue
 
         _, _, values, _, output_resource_name, _ = terrascript.init_values(
-            tf_resource, namespace
+            spec.resource, namespace
         )
 
         return {
