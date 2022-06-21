@@ -1178,6 +1178,13 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                         replica_az)
                 else:
                     replica_region = self.default_regions.get(account)
+
+                # setting account for backwards compatibility. any deeper
+                # change will require a refactor of this module, which will
+                # likely include passing source_info to the init_values method
+                # instead of resource and namespace_info
+                source_info.resource["account"] = source_info.provisioner_name
+
                 _, _, source_values, _, _, _ = self.init_values(
                     source_info.resource, source_info.namespace)
                 if replica_region == region:
