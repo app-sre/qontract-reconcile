@@ -942,18 +942,15 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     continue
                 if account not in self.account_resources:
                     self.account_resources[account] = []
-                populate_spec = {'resource': spec.resource,
-                                 'provision_provider': PROVIDER_AWS,
-                                 'namespace_info': namespace_info}
-                self.account_resources[account].append(populate_spec)
+                self.account_resources[account].append(spec)
 
     def populate_tf_resources(self, populate_spec, existing_secrets,
                               ocm_map=None):
-        if populate_spec['provision_provider'] != PROVIDER_AWS:
+        if populate_spec.provision_provider != PROVIDER_AWS:
             return
-        resource = populate_spec['resource']
-        namespace_info = populate_spec['namespace_info']
-        provider = resource['provider']
+        resource = populate_spec.resource
+        namespace_info = populate_spec.namespace
+        provider = populate_spec.provider
         if provider == 'rds':
             self.populate_tf_resource_rds(resource, namespace_info,
                                           existing_secrets)
