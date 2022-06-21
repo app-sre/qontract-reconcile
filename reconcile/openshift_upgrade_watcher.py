@@ -24,13 +24,14 @@ def cluster_slack_handle(cluster: str, slack: Optional[SlackApi]):
     return f"<!subteam^{usergroup_id}>"
 
 
-def slack_notify(
+def handle_slack_notification(
     msg: str,
     slack: Optional[SlackApi],
     state: State,
     state_key: str,
     state_value: Optional[str],
 ):
+    """Check notification status, notify if needed and update the notification status"""
     if state.exists(state_key) and state.get(state_key) == state_value:
         # already notified for this state key & value
         return
@@ -75,7 +76,7 @@ def notify_upgrades_start(
                 + f"cluster `{cluster}` is currently "
                 + f"being upgraded to version `{version}`"
             )
-            slack_notify(msg, slack, state, state_key, None)
+            handle_slack_notification(msg, slack, state, state_key, None)
 
 
 def notify_upgrades_done(
@@ -90,7 +91,7 @@ def notify_upgrades_done(
             f"{cluster_slack_handle(cluster, slack)}: "
             + f"cluster `{cluster}` is now running version `{version}`"
         )
-        slack_notify(msg, slack, state, state_key, version)
+        handle_slack_notification(msg, slack, state, state_key, version)
 
 
 @defer
