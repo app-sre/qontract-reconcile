@@ -1,11 +1,14 @@
 import logging
 
 from datetime import datetime
+from typing import Optional
 
 from reconcile import queries
 
 from reconcile.slack_base import slackapi_from_queries
 from reconcile.utils.oc import OC_Map
+import reconcile.utils.ocm as ocmmod
+from reconcile.utils.slack_api import SlackApi
 from reconcile.utils.state import State
 from reconcile.utils.defer import defer
 
@@ -13,27 +16,36 @@ from reconcile.utils.defer import defer
 QONTRACT_INTEGRATION = "openshift-upgrade-watcher"
 
 
-@defer
-def run(dry_run, thread_pool_size=10, internal=None, use_jump_host=True, defer=None):
-    settings = queries.get_app_interface_settings()
-    accounts = queries.get_state_aws_accounts()
-    clusters = [c for c in queries.get_clusters(minimal=True) if c.get("ocm")]
-    oc_map = OC_Map(
-        clusters=clusters,
-        integration=QONTRACT_INTEGRATION,
-        settings=settings,
-        internal=internal,
-        use_jump_host=use_jump_host,
-        thread_pool_size=thread_pool_size,
-    )
-    defer(oc_map.cleanup)
-    state = State(
-        integration=QONTRACT_INTEGRATION, accounts=accounts, settings=settings
-    )
+def cluster_slack_handle(cluster: str, slack: Optional[SlackApi]):
+    usergroup = f"{cluster}-cluster"
+    usergroup_id = f"@{usergroup}"
+    if slack:
+        usergroup_id = slack.get_usergroup_id(usergroup)
+    return f"<!subteam^{usergroup_id}>"
 
-    if not dry_run:
-        slack = slackapi_from_queries(QONTRACT_INTEGRATION)
 
+def slack_notify(
+    msg: str,
+    slack: Optional[SlackApi],
+    state: State,
+    state_key: str,
+    state_value: Optional[str],
+):
+    if state.exists(state_key) and state.get(state_key) == state_value:
+        # already notified for this state key & value
+        return
+    logging.info(["openshift-upgrade-watcher", msg])
+    if not slack:
+        return
+    slack.chat_post_message(msg)
+    state.add(state_key, state_value, force=True)
+
+
+def notify_upgrades_start(
+    oc_map: OC_Map,
+    state: State,
+    slack: Optional[SlackApi],
+):
     now = datetime.utcnow()
     for cluster in oc_map.clusters(include_errors=True):
         oc = oc_map.get(cluster)
@@ -58,16 +70,58 @@ def run(dry_run, thread_pool_size=10, internal=None, use_jump_host=True, defer=N
         # if this is the first iteration in which 'now' had passed
         # the upgrade at date time, we send a notification
         if upgrade_at_obj < now:
-            if state.exists(state_key):
-                # already notified
-                continue
-            logging.info(["cluster_upgrade", cluster])
-            if not dry_run:
-                state.add(state_key)
-                usergroup = f"{cluster}-cluster"
-                usergroup_id = slack.get_usergroup_id(usergroup)
-                slack.chat_post_message(
-                    f"Heads up <!subteam^{usergroup_id}>! "
-                    + f"cluster `{cluster}` is currently "
-                    + f"being upgraded to version `{version}`"
-                )
+            msg = (
+                f"Heads up {cluster_slack_handle(cluster, slack)}! "
+                + f"cluster `{cluster}` is currently "
+                + f"being upgraded to version `{version}`"
+            )
+            slack_notify(msg, slack, state, state_key, None)
+
+
+def notify_upgrades_done(
+    ocm_map: ocmmod.OCMMap, state: State, slack: Optional[SlackApi]
+):
+    ocm_clusters, _ = ocm_map.cluster_specs()
+
+    for cluster, cluster_spec in ocm_clusters.items():
+        version = cluster_spec.spec.version
+        state_key = f"{cluster}-{version}"
+        msg = (
+            f"{cluster_slack_handle(cluster, slack)}: "
+            + f"cluster `{cluster}` is now running version `{version}`"
+        )
+        slack_notify(msg, slack, state, state_key, version)
+
+
+@defer
+def run(dry_run, thread_pool_size=10, internal=None, use_jump_host=True, defer=None):
+    settings = queries.get_app_interface_settings()
+    accounts = queries.get_state_aws_accounts()
+    state = State(
+        integration=QONTRACT_INTEGRATION, accounts=accounts, settings=settings
+    )
+
+    clusters = [c for c in queries.get_clusters() if c.get("ocm")]
+
+    slack: Optional[SlackApi] = None
+    if not dry_run:
+        slack = slackapi_from_queries(QONTRACT_INTEGRATION)
+
+    oc_map = OC_Map(
+        clusters=clusters,
+        integration=QONTRACT_INTEGRATION,
+        settings=settings,
+        internal=internal,
+        use_jump_host=use_jump_host,
+        thread_pool_size=thread_pool_size,
+    )
+    defer(oc_map.cleanup)
+    notify_upgrades_start(oc_map, state, slack)
+
+    ocm_map = ocmmod.OCMMap(
+        clusters=clusters,
+        integration=QONTRACT_INTEGRATION,
+        settings=settings,
+        init_provision_shards=False,
+    )
+    notify_upgrades_done(ocm_map, state, slack)
