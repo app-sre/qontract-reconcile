@@ -199,7 +199,7 @@ def test_terraform_output_with_when_no_secret(spec: ExternalResourceSpec):
 def test_terraform_generic_secret_output_format(
     spec: ExternalResourceSpec, resource_secret: dict[str, Any]
 ):
-    spec.resource["output_format"] = {  # type: ignore[index]
+    spec.resource["output_format"] = {
         "provider": "generic-secret",
         "data": """
             motd: The {{ mood }} Yakk {{ yakk_name }} is {{ visual_characteristics }}.
@@ -220,7 +220,7 @@ def test_terraform_generic_secret_output_format_no_data(
     this test shows backwards compatibility with the simple dict output when
     no data is given but the provider is specified
     """
-    spec.resource["output_format"] = {  # type: ignore[index]
+    spec.resource["output_format"] = {
         "provider": "generic-secret",
     }
     spec.secret = resource_secret
@@ -251,7 +251,7 @@ def test_terraform_unknown_output_format_provider(spec: ExternalResourceSpec):
     given. while the schema usually protects against such cases, additional protection
     in code is a good thing.
     """
-    spec.resource["output_format"] = {  # type: ignore[index]
+    spec.resource["output_format"] = {
         "provider": "unknown-provider"
     }
     with pytest.raises(ValueError):
@@ -265,7 +265,7 @@ def test_terraform_generic_secret_output_format_not_a_dict(
     this test shows how a data template for a generic-secret provider must result
     in a valid dict and fails otherwise
     """
-    spec.resource["output_format"] = {  # type: ignore[index]
+    spec.resource["output_format"] = {
         "provider": "generic-secret",
         "data": "not_a_dict",
     }
@@ -282,7 +282,7 @@ def test_terraform_generic_secret_output_format_not_str_keys(
     this test shows how a data template for a generic-secret provider must produce
     string keys
     """
-    spec.resource["output_format"] = {  # type: ignore[index]
+    spec.resource["output_format"] = {
         "provider": "generic-secret",
         "data": "1: value",
     }
@@ -299,7 +299,7 @@ def test_terraform_generic_secret_output_format_not_str_val(
     this test shows how a data template for a generic-secret provider must produce
     string values
     """
-    spec.resource["output_format"] = {  # type: ignore[index]
+    spec.resource["output_format"] = {
         "provider": "generic-secret",
         "data": "key: 1",
     }
@@ -316,7 +316,7 @@ def test_terraform_generic_secret_output_key_too_long(
     tests for too long secret keys (max length in kubernetes is 253 characters )
     """
     long_key = "a" * (SECRET_MAX_KEY_LENGTH + 1)
-    spec.resource["output_format"] = {  # type: ignore[index]
+    spec.resource["output_format"] = {
         "provider": "generic-secret",
         "data": f"{ long_key }: value",
     }

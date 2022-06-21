@@ -2,7 +2,7 @@ from abc import abstractmethod
 from dataclasses import field
 from pydantic.dataclasses import dataclass
 import json
-from typing import Any, Mapping, Optional, cast
+from typing import Any, Mapping, MutableMapping, Optional, cast
 
 import yaml
 from reconcile.utils.openshift_resource import (
@@ -80,7 +80,7 @@ class ExternalResourceSpec:
 
     provision_provider: str
     provisioner: Mapping[str, Any]
-    resource: Mapping[str, Any]
+    resource: MutableMapping[str, Any]
     namespace: Mapping[str, Any]
     secret: Mapping[str, str] = field(init=False, default_factory=lambda: {})
 
