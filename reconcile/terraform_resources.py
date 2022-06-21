@@ -545,7 +545,7 @@ def init_tf_resource_specs(
         tf_specs = get_external_resource_specs(namespace_info)
         for spec in tf_specs:
             if account_name is None or spec.provisioner_name == account_name:
-                resource_specs[spec.id_object] = spec
+                resource_specs[spec.id_object()] = spec
     return resource_specs
 
 
