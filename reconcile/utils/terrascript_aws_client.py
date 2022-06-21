@@ -1171,15 +1171,15 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             if source_info:
                 values['backup_retention_period'] = 0
                 deps.append("aws_db_instance." +
-                            source_info['resource']['identifier'])
-                replica_az = source_info.get('availability_zone', None)
+                            source_info.identifier)
+                replica_az = source_info.resource.get('availability_zone', None)
                 if replica_az and len(replica_az) > 1:
                     replica_region = self._region_from_availability_zone(
                         replica_az)
                 else:
                     replica_region = self.default_regions.get(account)
                 _, _, source_values, _, _, _ = self.init_values(
-                    source_info['resource'], source_info['namespace_info'])
+                    source_info.resource, source_info.namespace)
                 if replica_region == region:
                     # replica is in the same region as source
                     values['replicate_source_db'] = replica_source
@@ -1256,7 +1256,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 kms_key = self._find_resource(account, kms_key_id, 'kms')
                 if kms_key:
                     kms_res = "aws_kms_key." + \
-                        kms_key['resource']['identifier']
+                        kms_key.identifier
                     values['kms_key_id'] = "${" + kms_res + ".arn}"
                     deps.append(kms_res)
                 else:
@@ -1344,14 +1344,13 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                        account: str,
                        source: str,
                        provider: str
-                       ) -> Optional[Dict[str, Dict[str, Optional[str]]]]:
+                       ) -> Optional[Mapping[str, Any]]:
         if account not in self.account_resources:
             return None
 
-        for res in self.account_resources[account]:
-            r = res['resource']
-            if r['identifier'] == source and r['provider'] == provider:
-                return res
+        for spec in self.account_resources[account]:
+            if spec.identifier == source and spec.provider == provider:
+                return spec.resource
         return None
 
     @staticmethod
@@ -2105,7 +2104,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                             account, kms_master_key_id, 'kms')
                         if kms_key:
                             kms_res = "aws_kms_key." + \
-                                kms_key['resource']['identifier']
+                                kms_key.identifier
                             values['kms_master_key_id'] = \
                                 "${" + kms_res + ".arn}"
                             values['depends_on'] = [kms_res]
@@ -3367,10 +3366,10 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         an account-wide resource policy.
         """
         log_group_infos = []
-        for resources in self.account_resources.values():
-            for i in resources:
-                res = i['resource']
-                ns = i['namespace_info']
+        for specs in self.account_resources.values():
+            for spec in specs:
+                res = spec.resource
+                ns = spec.namespace
                 if res.get('provider') != 'elasticsearch':
                     continue
                 # res.get('', []) won't work, as publish_log_types is
