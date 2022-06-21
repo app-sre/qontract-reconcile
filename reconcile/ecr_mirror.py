@@ -137,6 +137,12 @@ def run(dry_run, thread_pool_size=10):
             if spec.resource.get("mirror") is None:
                 continue
 
+            # setting account for backwards compatibility. any deeper
+            # change will require a refactor of this module, which will
+            # likely include passing source_info to the init_values method
+            # instead of resource and namespace_info
+            spec.resource["account"] = spec.provisioner_name
+
             tfrs_to_mirror.append(spec.resource)
 
     work_list = threaded.run(
