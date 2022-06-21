@@ -1,4 +1,5 @@
 import pytest
+from reconcile.utils.external_resource_spec import ExternalResourceSpec
 
 import reconcile.utils.external_resources as uer
 
@@ -46,46 +47,53 @@ def namespace_info():
 
 
 @pytest.fixture
-def expected():
+def expected(namespace_info):
     return [
-        {
-            "provision_provider": uer.PROVIDER_AWS,
-            "provider": "rds",
-            "provisioner": {"name": "acc1"},
-        },
-        {
-            "provision_provider": uer.PROVIDER_AWS,
-            "provider": "rds",
-            "provisioner": {"name": "acc2"},
-        },
+        ExternalResourceSpec(
+            provision_provider=uer.PROVIDER_AWS,
+            resource={"provider": "rds"},
+            provisioner={"name": "acc1"},
+            namespace=namespace_info,
+        ),
+        ExternalResourceSpec(
+            provision_provider=uer.PROVIDER_AWS,
+            resource={"provider": "rds"},
+            provisioner={"name": "acc2"},
+            namespace=namespace_info,
+        ),
     ]
 
 
-def test_get_external_resources(namespace_info, expected):
-    results = uer.get_external_resources(
+def test_get_external_resource_specs(namespace_info, expected):
+    results = uer.get_external_resource_specs(
         namespace_info, provision_provider=uer.PROVIDER_AWS
     )
     assert results == expected
 
 
 @pytest.fixture
-def expected_other():
+def expected_other(namespace_info):
     return [
-        {
-            "provision_provider": "other",
-            "provider": "other",
-            "provisioner": {"name": "acc3"},
-        },
+        ExternalResourceSpec(
+            provision_provider="other",
+            resource={"provider": "other"},
+            provisioner={"name": "acc3"},
+            namespace=namespace_info,
+        ),
     ]
 
 
-def test_get_external_resources_no_filter(namespace_info, expected, expected_other):
-    results = uer.get_external_resources(namespace_info)
+def test_get_external_resource_specs_no_filter(
+    namespace_info, expected, expected_other
+):
+    results = uer.get_external_resource_specs(namespace_info)
     assert results == expected + expected_other
 
 
-def test_get_external_resources_filter_other(namespace_info, expected_other):
-    results = uer.get_external_resources(namespace_info, provision_provider="other")
+def test_get_external_resource_specs_filter_other(namespace_info, expected_other):
+    results = uer.get_external_resource_specs(
+        namespace_info, provision_provider="other"
+    )
     assert results == expected_other
 
 

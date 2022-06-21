@@ -10,40 +10,24 @@ def get_external_resource_specs(
     namespace_info: Mapping[str, Any], provision_provider: Optional[str] = None
 ) -> List[ExternalResourceSpec]:
     specs: List[ExternalResourceSpec] = []
-    resources = get_external_resources(namespace_info, provision_provider)
-    for resource in resources:
-        spec = ExternalResourceSpec(
-            provision_provider=resource["provision_provider"],
-            provisioner=resource["provisioner"],
-            resource=resource,
-            namespace=namespace_info,
-        )
-        specs.append(spec)
-
-    return specs
-
-
-def get_external_resources(
-    namespace_info: Mapping[str, Any], provision_provider: Optional[str] = None
-) -> List[Dict[str, Any]]:
-    resources: List[Dict[str, Any]] = []
     if not managed_external_resources(namespace_info):
-        return resources
+        return specs
 
     external_resources = namespace_info.get("externalResources") or []
     for e in external_resources:
-        provisioner = e["provisioner"]
         for r in e["resources"]:
-            r["provision_provider"] = e["provider"]
-            r["provisioner"] = provisioner
-            resources.append(r)
+            spec = ExternalResourceSpec(
+                provision_provider=e["provider"],
+                provisioner=e["provisioner"],
+                resource=r,
+                namespace=namespace_info,
+            )
+            specs.append(spec)
 
     if provision_provider:
-        resources = [
-            r for r in resources if r["provision_provider"] == provision_provider
-        ]
+        specs = [s for s in specs if s.provision_provider == provision_provider]
 
-    return resources
+    return specs
 
 
 def get_provision_providers(namespace_info: Mapping[str, Any]) -> Set[str]:
