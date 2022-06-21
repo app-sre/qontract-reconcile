@@ -251,9 +251,7 @@ def test_terraform_unknown_output_format_provider(spec: ExternalResourceSpec):
     given. while the schema usually protects against such cases, additional protection
     in code is a good thing.
     """
-    spec.resource["output_format"] = {
-        "provider": "unknown-provider"
-    }
+    spec.resource["output_format"] = {"provider": "unknown-provider"}
     with pytest.raises(ValueError):
         spec.build_oc_secret("int", "1.0")
 
