@@ -51,12 +51,12 @@ def expected():
         {
             "provision_provider": uer.PROVIDER_AWS,
             "provider": "rds",
-            "account": "acc1",
+            "provisioner": {"name": "acc1"},
         },
         {
             "provision_provider": uer.PROVIDER_AWS,
             "provider": "rds",
-            "account": "acc2",
+            "provisioner": {"name": "acc2"},
         },
     ]
 
@@ -74,7 +74,7 @@ def expected_other():
         {
             "provision_provider": "other",
             "provider": "other",
-            "account": "acc3",
+            "provisioner": {"name": "acc3"},
         },
     ]
 

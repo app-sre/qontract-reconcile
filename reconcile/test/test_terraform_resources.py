@@ -151,20 +151,19 @@ def test_resource_specs_without_account_filter():
     if no account filter is given, all resources of namespaces with
     enabled tf resource management are expected to be returned
     """
+    p = "aws"
+    pa = {"name": "a"}
     ra = {"identifier": "a", "provider": "p"}
     ns1 = {
         "name": "ns1",
         "managedExternalResources": True,
-        "externalResources": [
-            {"provider": "aws", "provisioner": {"name": "a"}, "resources": [ra]}
-        ],
+        "externalResources": [{"provider": p, "provisioner": pa, "resources": [ra]}],
         "cluster": {"name": "c"},
     }
     namespaces = [ns1]
     resources = integ.init_tf_resource_specs(namespaces, None)
-    assert resources == {
-        ExternalResourceUniqueKey.from_dict(ra): ExternalResourceSpec(ra, ns1)
-    }
+    spec = ExternalResourceSpec(p, pa, ra, ns1)
+    assert resources == {ExternalResourceUniqueKey.from_spec(spec): spec}
 
 
 def test_resource_specs_with_account_filter():
@@ -172,19 +171,22 @@ def test_resource_specs_with_account_filter():
     if an account filter is given only the resources defined for
     that account are expected
     """
+    p = "aws"
+    pa = {"name": "a"}
     ra = {"identifier": "a", "provider": "p"}
+    pb = {"name": "b"}
     rb = {"identifier": "b", "provider": "p"}
     ns1 = {
         "name": "ns1",
         "managedExternalResources": True,
         "externalResources": [
-            {"provider": "aws", "provisioner": {"name": "a"}, "resources": [ra]},
-            {"provider": "aws", "provisioner": {"name": "b"}, "resources": [rb]},
+            {"provider": p, "provisioner": pa, "resources": [ra]},
+            {"provider": p, "provisioner": pb, "resources": [rb]},
         ],
         "cluster": {"name": "c"},
     }
     namespaces = [ns1]
     resources = integ.init_tf_resource_specs(namespaces, "a")
-    assert resources == {
-        ExternalResourceUniqueKey.from_dict(ra): ExternalResourceSpec(ra, ns1)
-    }
+
+    spec = ExternalResourceSpec(p, pa, ra, ns1)
+    assert resources == {ExternalResourceUniqueKey.from_spec(spec): spec}
