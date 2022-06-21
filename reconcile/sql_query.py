@@ -122,6 +122,9 @@ def get_tf_resource_info(terrascript: Terrascript, namespace, identifier):
     """
     specs = get_external_resource_specs(namespace)
     for spec in specs:
+        if spec.provider != "rds":
+            continue
+
         if spec.identifier != identifier:
             continue
 

@@ -306,10 +306,10 @@ class OcpReleaseMirror:
     def _get_tf_resource_info(namespace, identifier):
         specs = get_external_resource_specs(namespace)
         for spec in specs:
-            if spec.identifier != identifier:
+            if spec.provider != "ecr":
                 continue
 
-            if spec.provider != "ecr":
+            if spec.identifier != identifier:
                 continue
 
             return {
