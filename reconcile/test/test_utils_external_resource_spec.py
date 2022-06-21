@@ -13,17 +13,27 @@ from reconcile.utils.external_resource_spec import (
 
 def test_identifier_creation_from_dict():
     id = ExternalResourceUniqueKey.from_dict(
-        {"identifier": "i", "provider": "p", "account": "a"}
+        {
+            "provision_provider": "p",
+            "provisioner": {"name": "a"},
+            "identifier": "i",
+            "provider": "p",
+        }
     )
     assert id.identifier == "i"
     assert id.provider == "p"
-    assert id.account == "a"
+    assert id.provisioner_name == "a"
 
 
 def test_identifier_missing():
     with pytest.raises(ValidationError):
         ExternalResourceUniqueKey.from_dict(
-            {"identifier": None, "provider": "p", "account": "a"}
+            {
+                "provision_provider": "p",
+                "provisioner": {"name": "a"},
+                "identifier": None,
+                "provider": "p",
+            }
         )
     with pytest.raises(KeyError):
         ExternalResourceUniqueKey.from_dict({"provider": "p", "account": "a"})
@@ -32,7 +42,12 @@ def test_identifier_missing():
 def test_identifier_account_missing():
     with pytest.raises(ValidationError):
         ExternalResourceUniqueKey.from_dict(
-            {"identifier": "i", "account": None, "provider": "p"}
+            {
+                "provision_provider": "p",
+                "provisioner": {"name": None},
+                "identifier": "i",
+                "provider": "p",
+            }
         )
     with pytest.raises(KeyError):
         ExternalResourceUniqueKey.from_dict({"identifier": "i", "provider": "p"})
@@ -41,7 +56,12 @@ def test_identifier_account_missing():
 def test_identifier_provider_missing():
     with pytest.raises(ValidationError):
         ExternalResourceUniqueKey.from_dict(
-            {"identifier": "i", "account": "a", "provider": None}
+            {
+                "provision_provider": "p",
+                "provisioner": {"name": "a"},
+                "identifier": "i",
+                "provider": None,
+            }
         )
     with pytest.raises(KeyError):
         ExternalResourceUniqueKey.from_dict({"identifier": "i", "account": "a"})
@@ -49,24 +69,31 @@ def test_identifier_provider_missing():
 
 def test_spec_output_prefix():
     s = ExternalResourceSpec(
-        resource={"identifier": "i", "provider": "p", "account": "a"}, namespace={}
+        provision_provider="aws",
+        provisioner={"name": "a"},
+        resource={"identifier": "i", "provider": "p"},
+        namespace={},
     )
     assert s.output_prefix == "i-p"
 
 
 def test_spec_implicit_output_resource_name():
     s = ExternalResourceSpec(
-        resource={"identifier": "i", "provider": "p", "account": "a"}, namespace={}
+        provision_provider="aws",
+        provisioner={"name": "a"},
+        resource={"identifier": "i", "provider": "p"},
+        namespace={},
     )
     assert s.output_resource_name == "i-p"
 
 
 def test_spec_explicit_output_resource_name():
     s = ExternalResourceSpec(
+        provision_provider="aws",
+        provisioner={"name": "a"},
         resource={
             "identifier": "i",
             "provider": "p",
-            "account": "a",
             "output_resource_name": "explicit",
         },
         namespace={},
@@ -76,10 +103,11 @@ def test_spec_explicit_output_resource_name():
 
 def test_spec_annotation_parsing():
     s = ExternalResourceSpec(
+        provision_provider="aws",
+        provisioner={"name": "a"},
         resource={
             "identifier": "i",
             "provider": "p",
-            "account": "a",
             "annotations": '{"key": "value"}',
         },
         namespace={},
@@ -89,10 +117,11 @@ def test_spec_annotation_parsing():
 
 def test_spec_annotation_parsing_none_present():
     s = ExternalResourceSpec(
+        provision_provider="aws",
+        provisioner={"name": "a"},
         resource={
             "identifier": "i",
             "provider": "p",
-            "account": "a",
         },
         namespace={},
     )
@@ -107,10 +136,11 @@ def resource_secret() -> dict[str, Any]:
 @pytest.fixture
 def spec() -> ExternalResourceSpec:
     return ExternalResourceSpec(
+        provision_provider="aws",
+        provisioner={"name": "a"},
         resource={
             "identifier": "i",
             "provider": "p",
-            "account": "a",
         },
         namespace={},
     )
