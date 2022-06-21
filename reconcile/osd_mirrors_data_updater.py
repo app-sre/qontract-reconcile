@@ -23,7 +23,7 @@ def get_ecr_tf_resource_info(namespace, identifier):
     """
     specs = get_external_resource_specs(namespace)
     for spec in specs:
-        if specs.identifier != identifier:
+        if spec.identifier != identifier:
             continue
 
         if spec.provider != "ecr":

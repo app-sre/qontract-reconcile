@@ -85,6 +85,7 @@ from sretoolbox.utils import threaded
 
 from reconcile.utils import gql
 from reconcile.utils.aws_api import AWSApi
+from reconcile.utils.external_resource_spec import ExternalResourceSpec
 from reconcile.utils.external_resources import PROVIDER_AWS, get_external_resource_specs
 from reconcile.utils.jenkins_api import JenkinsApi
 from reconcile.utils.ocm import OCMMap
@@ -931,7 +932,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
     def init_populate_specs(self, namespaces: Iterable[Mapping[str, Any]],
                             account_name: Optional[str]) -> None:
-        self.account_resources: dict[str, list[dict[str, Any]]] = {}
+        self.account_resources: dict[str, list[ExternalResourceSpec]] = {}
 
         for namespace_info in namespaces:
             specs = get_external_resource_specs(namespace_info, provision_provider=PROVIDER_AWS)
