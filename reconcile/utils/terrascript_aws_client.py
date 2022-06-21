@@ -949,6 +949,11 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         if populate_spec.provision_provider != PROVIDER_AWS:
             return
         resource = populate_spec.resource
+        # setting account for backwards compatibility. any deeper
+        # change will require a refactor of this module, which will
+        # likely include passing populate_spec to the different population
+        # methods instead of resource, namespace_info, existing_secrets.
+        resource["account"] = populate_spec.provisioner_name
         namespace_info = populate_spec.namespace
         provider = populate_spec.provider
         if provider == 'rds':
