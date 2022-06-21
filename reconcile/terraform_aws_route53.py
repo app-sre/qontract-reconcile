@@ -129,7 +129,8 @@ def build_desired_state(
                 )
                 tf_zone_name = target_namespace_zone["name"]
                 tf_zone_specs = [
-                    spec for spec in specs
+                    spec
+                    for spec in specs
                     if spec.provider == "route53-zone"
                     and spec.resource.get("name") == tf_zone_name
                 ]
