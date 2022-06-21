@@ -11,14 +11,17 @@ from reconcile.utils.external_resource_spec import (
 )
 
 
-def test_identifier_creation_from_dict():
-    id = ExternalResourceUniqueKey.from_dict(
-        {
-            "provision_provider": "p",
-            "provisioner": {"name": "a"},
-            "identifier": "i",
-            "provider": "p",
-        }
+def test_identifier_creation_from_spec():
+    id = ExternalResourceUniqueKey.from_spec(
+        ExternalResourceSpec(
+            provision_provider="p",
+            provisioner={"name": "a"},
+            resource={
+                "identifier": "i",
+                "provider": "p",
+            },
+            namespace={},
+        )
     )
     assert id.identifier == "i"
     assert id.provider == "p"
@@ -27,44 +30,81 @@ def test_identifier_creation_from_dict():
 
 def test_identifier_missing():
     with pytest.raises(ValidationError):
-        ExternalResourceUniqueKey.from_dict(
-            {
-                "provision_provider": "p",
-                "provisioner": {"name": "a"},
-                "identifier": None,
-                "provider": "p",
-            }
+        ExternalResourceUniqueKey.from_spec(
+            ExternalResourceSpec(
+                provision_provider="p",
+                provisioner={"name": "a"},
+                resource={
+                    "identifier": None,
+                    "provider": "p",
+                },
+                namespace={},
+            )
         )
     with pytest.raises(KeyError):
-        ExternalResourceUniqueKey.from_dict({"provider": "p", "account": "a"})
+        ExternalResourceUniqueKey.from_spec(
+            ExternalResourceSpec(
+                provision_provider="p",
+                provisioner={"name": "a"},
+                resource={
+                    "provider": "p",
+                },
+                namespace={},
+            )
+        )
 
 
 def test_identifier_account_missing():
     with pytest.raises(ValidationError):
-        ExternalResourceUniqueKey.from_dict(
-            {
-                "provision_provider": "p",
-                "provisioner": {"name": None},
-                "identifier": "i",
-                "provider": "p",
-            }
+        ExternalResourceUniqueKey.from_spec(
+            ExternalResourceSpec(
+                provision_provider="p",
+                provisioner={"name": None},
+                resource={
+                    "identifier": "i",
+                    "provider": "p",
+                },
+                namespace={},
+            )
         )
     with pytest.raises(KeyError):
-        ExternalResourceUniqueKey.from_dict({"identifier": "i", "provider": "p"})
+        ExternalResourceUniqueKey.from_spec(
+            ExternalResourceSpec(
+                provision_provider="p",
+                provisioner={},
+                resource={
+                    "identifier": "i",
+                    "provider": "p",
+                },
+                namespace={},
+            )
+        )
 
 
 def test_identifier_provider_missing():
     with pytest.raises(ValidationError):
-        ExternalResourceUniqueKey.from_dict(
-            {
-                "provision_provider": "p",
-                "provisioner": {"name": "a"},
-                "identifier": "i",
-                "provider": None,
-            }
+        ExternalResourceUniqueKey.from_spec(
+            ExternalResourceSpec(
+                provision_provider="p",
+                provisioner={"name": "a"},
+                resource={
+                    "identifier": "i",
+                    "provider": None,
+                },
+                namespace={},
+            )
         )
     with pytest.raises(KeyError):
-        ExternalResourceUniqueKey.from_dict({"identifier": "i", "account": "a"})
+        ExternalResourceUniqueKey.from_spec(
+            ExternalResourceSpec(
+                provision_provider="p",
+                provisioner={"name": "a"},
+                resource={
+                    "identifier": "i",
+                },
+                namespace={},
+            )
+        )
 
 
 def test_spec_output_prefix():

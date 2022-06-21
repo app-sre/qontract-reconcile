@@ -86,11 +86,11 @@ class ExternalResourceSpec:
 
     @property
     def provider(self):
-        return self.resource.get("provider")
+        return self.resource["provider"]
 
     @property
     def identifier(self):
-        return self.resource.get("identifier")
+        return self.resource["identifier"]
 
     @property
     def provisioner_name(self):
@@ -159,15 +159,6 @@ class ExternalResourceUniqueKey:
     @property
     def output_prefix(self) -> str:
         return f"{self.identifier}-{self.provider}"
-
-    @staticmethod
-    def from_dict(data: Mapping[str, Any]) -> "ExternalResourceUniqueKey":
-        return ExternalResourceUniqueKey(
-            provision_provider=data["provision_provider"],
-            provisioner_name=data["provisioner"]["name"],
-            identifier=data["identifier"],
-            provider=data["provider"],
-        )
 
     @staticmethod
     def from_spec(spec: ExternalResourceSpec) -> "ExternalResourceUniqueKey":
