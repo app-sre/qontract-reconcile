@@ -1169,7 +1169,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 raise ValueError(
                     "only one of replicate_source_db or replica_source " +
                     "can be defined")
-            source_info = self._find_resource(account, replica_source, 'rds')
+            source_info = self._find_resource_spec(account, replica_source, 'rds')
             if source_info:
                 values['backup_retention_period'] = 0
                 deps.append("aws_db_instance." +
@@ -1262,7 +1262,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             if kms_key_id.startswith("arn:"):
                 values['kms_key_id'] = kms_key_id
             else:
-                kms_key = self._find_resource(account, kms_key_id, 'kms')
+                kms_key = self._find_resource_spec(account, kms_key_id, 'kms')
                 if kms_key:
                     kms_res = "aws_kms_key." + \
                         kms_key.identifier
@@ -1349,17 +1349,17 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         return False
 
-    def _find_resource(self,
-                       account: str,
-                       source: str,
-                       provider: str
-                       ) -> Optional[Mapping[str, Any]]:
+    def _find_resource_spec(self,
+                            account: str,
+                            source: str,
+                            provider: str
+                            ) -> Optional[ExternalResourceSpec]:
         if account not in self.account_resources:
             return None
 
         for spec in self.account_resources[account]:
             if spec.identifier == source and spec.provider == provider:
-                return spec.resource
+                return spec
         return None
 
     @staticmethod
@@ -2109,7 +2109,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     if kms_master_key_id.startswith("arn:"):
                         values['kms_master_key_id'] = kms_master_key_id
                     else:
-                        kms_key = self._find_resource(
+                        kms_key = self._find_resource_spec(
                             account, kms_master_key_id, 'kms')
                         if kms_key:
                             kms_res = "aws_kms_key." + \
