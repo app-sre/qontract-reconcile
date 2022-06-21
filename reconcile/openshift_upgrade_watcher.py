@@ -7,7 +7,6 @@ from reconcile import queries
 
 from reconcile.slack_base import slackapi_from_queries
 from reconcile.utils.oc import OC_Map
-import reconcile.utils.ocm as ocmmod
 from reconcile.utils.slack_api import SlackApi
 from reconcile.utils.state import State
 from reconcile.utils.defer import defer
@@ -79,17 +78,14 @@ def notify_upgrades_start(
             handle_slack_notification(msg, slack, state, state_key, None)
 
 
-def notify_upgrades_done(
-    ocm_map: ocmmod.OCMMap, state: State, slack: Optional[SlackApi]
-):
-    ocm_clusters, _ = ocm_map.cluster_specs()
-
-    for cluster, cluster_spec in ocm_clusters.items():
-        version = cluster_spec.spec.version
-        state_key = f"{cluster}-{version}"
+def notify_upgrades_done(clusters: list[dict], state: State, slack: Optional[SlackApi]):
+    for cluster in clusters:
+        cluster_name = cluster["name"]
+        version = cluster["spec"]["version"]
+        state_key = f"{cluster_name}-{version}"
         msg = (
-            f"{cluster_slack_handle(cluster, slack)}: "
-            + f"cluster `{cluster}` is now running version `{version}`"
+            f"{cluster_slack_handle(cluster_name, slack)}: "
+            + f"cluster `{cluster_name}` is now running version `{version}`"
         )
         handle_slack_notification(msg, slack, state, state_key, version)
 
@@ -119,10 +115,4 @@ def run(dry_run, thread_pool_size=10, internal=None, use_jump_host=True, defer=N
     defer(oc_map.cleanup)
     notify_upgrades_start(oc_map, state, slack)
 
-    ocm_map = ocmmod.OCMMap(
-        clusters=clusters,
-        integration=QONTRACT_INTEGRATION,
-        settings=settings,
-        init_provision_shards=False,
-    )
-    notify_upgrades_done(ocm_map, state, slack)
+    notify_upgrades_done(clusters, state, slack)
