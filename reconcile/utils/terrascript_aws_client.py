@@ -925,14 +925,14 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         :param ocm_map:
         """
         self.init_populate_specs(namespaces, account_name)
-        for specs in self.account_resources.values():
+        for specs in self.account_resource_specs.values():
             for spec in specs:
                 self.populate_tf_resources(spec, existing_secrets,
                                            ocm_map=ocm_map)
 
     def init_populate_specs(self, namespaces: Iterable[Mapping[str, Any]],
                             account_name: Optional[str]) -> None:
-        self.account_resources: dict[str, list[ExternalResourceSpec]] = {}
+        self.account_resource_specs: dict[str, list[ExternalResourceSpec]] = {}
 
         for namespace_info in namespaces:
             specs = get_external_resource_specs(namespace_info, provision_provider=PROVIDER_AWS)
@@ -941,9 +941,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 # Skip if account_name is specified
                 if account_name and account != account_name:
                     continue
-                if account not in self.account_resources:
-                    self.account_resources[account] = []
-                self.account_resources[account].append(spec)
+                if account not in self.account_resource_specs:
+                    self.account_resource_specs[account] = []
+                self.account_resource_specs[account].append(spec)
 
     def populate_tf_resources(self, populate_spec, existing_secrets,
                               ocm_map=None):
@@ -1354,10 +1354,10 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                             source: str,
                             provider: str
                             ) -> Optional[ExternalResourceSpec]:
-        if account not in self.account_resources:
+        if account not in self.account_resource_specs:
             return None
 
-        for spec in self.account_resources[account]:
+        for spec in self.account_resource_specs[account]:
             if spec.identifier == source and spec.provider == provider:
                 return spec
         return None
@@ -3375,7 +3375,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         an account-wide resource policy.
         """
         log_group_infos = []
-        for specs in self.account_resources.values():
+        for specs in self.account_resource_specs.values():
             for spec in specs:
                 res = spec.resource
                 ns = spec.namespace
