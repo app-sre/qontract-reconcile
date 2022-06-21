@@ -1,4 +1,4 @@
-from typing import Mapping, List, Dict, Any, Optional, Set
+from typing import Mapping, List, Any, Optional, Set
 
 from reconcile.utils.external_resource_spec import ExternalResourceSpec
 
