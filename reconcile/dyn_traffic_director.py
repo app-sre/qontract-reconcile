@@ -11,7 +11,7 @@ from reconcile.utils.secret_reader import SecretReader
 # when importing from dyn.tm
 import collections.abc
 
-collections.Iterable = collections.abc.Iterable
+collections.Iterable = collections.abc.Iterable  # type: ignore[attr-defined]
 
 # Dirty hack to silence annoying SyntaxWarnings present as of dyn==1.8.1
 # which will pollute our CLI output
