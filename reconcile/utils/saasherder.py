@@ -18,6 +18,12 @@ from requests import exceptions as rqexc
 from sretoolbox.container import Image
 from sretoolbox.utils import retry
 from sretoolbox.utils import threaded
+from reconcile.certmanager.certmanager import (
+    CERT_MANAGER_CERTIFICATE_CRD,
+    CERT_UTILS_SECRET_SYNC_ANNOTATION,
+    build_certificate_from_route,
+    route_needs_certificate,
+)
 
 from reconcile.github_org import get_default_config
 from reconcile.status import RunningState
@@ -444,6 +450,10 @@ class SaasHerder:
         namespaces = []
         for saas_file in self.saas_files:
             managed_resource_types = saas_file["managedResourceTypes"]
+
+            if "Route" in managed_resource_types:
+                managed_resource_types.append(CERT_MANAGER_CERTIFICATE_CRD)
+
             resource_templates = saas_file["resourceTemplates"]
             for rt in resource_templates:
                 targets = rt["targets"]
@@ -602,6 +612,17 @@ class SaasHerder:
     def _additional_resource_process(resources, html_url):
         for resource in resources:
             # add a definition annotation to each PrometheusRule rule
+            if resource["kind"] == "Route":
+                if route_needs_certificate(resource):
+                    # Create the Certificate resource
+                    cert = build_certificate_from_route(resource)
+                    # Annotation the Route with the cert-utils annotation
+                    annotations = resource["metadata"]["annotations"]
+                    annotations[CERT_UTILS_SECRET_SYNC_ANNOTATION] = cert["spec"][
+                        "secretName"
+                    ]
+                    # Append the certificate to the resources
+                    resources.append(cert)
             if resource["kind"] == "PrometheusRule":
                 try:
                     groups = resource["spec"]["groups"]

@@ -37,6 +37,12 @@ from reconcile.utils.openshift_resource import (
 from reconcile.utils.vault import SecretVersionNotFound, SecretVersionIsNone
 from reconcile.utils.vault import VaultClient
 from reconcile.github_users import init_github
+from reconcile.certmanager.certmanager import (
+    CERT_MANAGER_CERTIFICATE_CRD,
+    build_certificate_from_route,
+    route_needs_certificate,
+    CERT_UTILS_SECRET_SYNC_ANNOTATION,
+)
 
 
 """
@@ -596,6 +602,48 @@ def fetch_current_state(
         )
 
 
+def _post_process_route(
+    oc: OCClient,
+    namespace: str,
+    resource: Mapping[str, Any],
+    route: OR,
+) -> list[OR]:
+
+    if not route_needs_certificate(route.body):
+        return []
+
+    # Build the Certificate Object
+    cert_spec = build_certificate_from_route(route.body)
+
+    # Annotate Route with cert-utils annotation
+    annotations = route.body["metadata"]["annotations"]
+    annotations[CERT_UTILS_SECRET_SYNC_ANNOTATION] = cert_spec["spec"]["secretName"]
+
+    certificate = OR(cert_spec, QONTRACT_INTEGRATION, QONTRACT_INTEGRATION_VERSION)
+    return [certificate]
+
+
+POST_PROCESS_RESOURCES = {"Route": _post_process_route}
+
+
+def _post_process_resources(
+    oc: OCClient,
+    namespace: str,
+    resource: Mapping[str, Any],
+    openshift_resource: OR,
+) -> list[OR]:
+
+    kind = openshift_resource.body["kind"]
+    additional_resources = []
+    try:
+        func = POST_PROCESS_RESOURCES[kind]
+        additional_resources = func(oc, namespace, resource, openshift_resource)
+    except KeyError as ke:
+        logging.info(f"KeyError: {ke}")
+
+    return additional_resources + [openshift_resource]
+
+
 def fetch_desired_state(
     oc: OCClient,
     ri: ResourceInventory,
@@ -622,14 +670,22 @@ def fetch_desired_state(
         _log_lock.release()
         return
 
+    # _post_process_resources
+    # Some resources might need existent data in the cluster to populate all its fields.
+    # Additionally, post-process might generate additional resources
+    openshift_resources = _post_process_resources(
+        oc, namespace, resource, openshift_resource
+    )
+
     # add to inventory
     try:
-        ri.add_desired_resource(
-            cluster,
-            namespace,
-            openshift_resource,
-            privileged,
-        )
+        for r in openshift_resources:
+            ri.add_desired_resource(
+                cluster,
+                namespace,
+                r,
+                privileged,
+            )
     except KeyError:
         # This is failing because in the managed_type loop (where the
         # `initialize_resource_type` method was called), this specific
@@ -739,7 +795,7 @@ def canonicalize_namespaces(
             if providers[0] == "vault-secret":
                 override = ["Secret"]
             elif providers[0] == "route":
-                override = ["Route"]
+                override = ["Route", CERT_MANAGER_CERTIFICATE_CRD]
             namespace_info["openshiftResources"] = ors
             canonicalized_namespaces.append(namespace_info)
     logging.debug(f"Overriding {override}")
