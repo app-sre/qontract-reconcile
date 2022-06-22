@@ -9,7 +9,6 @@ import json
 import re
 
 from os import path
-from contextlib import contextmanager
 from subprocess import PIPE, STDOUT, CalledProcessError
 
 import filecmp
@@ -23,6 +22,7 @@ from sretoolbox.utils import retry
 
 from reconcile.utils import gql
 from reconcile.utils import throughput
+from reconcile.utils.helpers import toggle_logger
 
 
 from reconcile.utils.secret_reader import SecretReader
@@ -258,7 +258,7 @@ class JJB:  # pylint: disable=too-many-public-methods
 
     def execute(self, args):
         jjb = self.get_jjb(args)
-        with self.toggle_logger():
+        with toggle_logger():
             jjb.execute()
 
     def modify_logger(self):
@@ -266,15 +266,6 @@ class JJB:  # pylint: disable=too-many-public-methods
         formatter = logging.Formatter("%(levelname)s: %(message)s")
         logger = logging.getLogger()
         logger.handlers[0].setFormatter(formatter)
-        self.default_logging = logger.level
-
-    @contextmanager
-    def toggle_logger(self):
-        logger = logging.getLogger()
-        try:
-            yield logger.setLevel(logging.ERROR)
-        finally:
-            logger.setLevel(self.default_logging)
 
     def cleanup(self):
         for wd in self.working_dirs.values():

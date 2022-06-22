@@ -4,6 +4,7 @@ import warnings
 
 from reconcile import queries
 from reconcile.utils.config import ConfigNotFound, get_config
+from reconcile.utils.helpers import toggle_logger
 from reconcile.utils.secret_reader import SecretReader
 
 # Dirty hack to silence annoying SyntaxWarnings present as of dyn==1.8.1
@@ -502,7 +503,11 @@ def run(dry_run: bool, enable_deletion: bool):
         raise ConfigNotFound("Dyn config missing from config file")
 
     creds = secret_reader.read_all({"path": creds_path})
-    dyn_session.DynectSession(creds["customer"], creds["dyn_id"], creds["password"])
+    # avoid logging these info messages
+    # INFO Establishing SSL connection to api.dynect.net:443
+    # INFO DynectSession Authentication Successful
+    with toggle_logger():
+        dyn_session.DynectSession(creds["customer"], creds["dyn_id"], creds["password"])
 
     desired = fetch_desired_state()
     current = fetch_current_state()
