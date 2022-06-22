@@ -2,7 +2,7 @@ from abc import abstractmethod
 from dataclasses import field
 from pydantic.dataclasses import dataclass
 import json
-from typing import Any, Mapping, Optional, cast
+from typing import Any, Mapping, MutableMapping, Optional, cast
 
 import yaml
 from reconcile.utils.openshift_resource import (
@@ -76,23 +76,25 @@ class OutputFormat:
 
 
 @dataclass
-class TerraformResourceSpec:
+class ExternalResourceSpec:
 
-    resource: Mapping[str, Any]
+    provision_provider: str
+    provisioner: Mapping[str, Any]
+    resource: MutableMapping[str, Any]
     namespace: Mapping[str, Any]
     secret: Mapping[str, str] = field(init=False, default_factory=lambda: {})
 
     @property
     def provider(self):
-        return self.resource.get("provider")
+        return self.resource["provider"]
 
     @property
     def identifier(self):
-        return self.resource.get("identifier")
+        return self.resource["identifier"]
 
     @property
-    def account(self):
-        return self.resource.get("account")
+    def provisioner_name(self):
+        return self.provisioner["name"]
 
     @property
     def namespace_name(self) -> str:
@@ -120,8 +122,8 @@ class TerraformResourceSpec:
     def get_secret_field(self, field: str) -> Optional[str]:
         return self.secret.get(field)
 
-    def id_object(self) -> "TerraformResourceUniqueKey":
-        return TerraformResourceUniqueKey.from_dict(self.resource)
+    def id_object(self) -> "ExternalResourceUniqueKey":
+        return ExternalResourceUniqueKey.from_spec(self)
 
     def build_oc_secret(
         self, integration: str, integration_version: str
@@ -134,7 +136,7 @@ class TerraformResourceSpec:
             integration=integration,
             integration_version=integration_version,
             error_details=self.output_resource_name,
-            caller_name=self.account,
+            caller_name=self.provisioner_name,
             annotations=annotations,
             unencoded_data=self._output_format().render(self.secret),
         )
@@ -147,25 +149,25 @@ class TerraformResourceSpec:
 
 
 @dataclass(frozen=True)
-class TerraformResourceUniqueKey:
+class ExternalResourceUniqueKey:
 
+    provision_provider: str
+    provisioner_name: str
     identifier: str
     provider: str
-    account: str
 
     @property
     def output_prefix(self) -> str:
         return f"{self.identifier}-{self.provider}"
 
     @staticmethod
-    def from_dict(data: Mapping[str, Any]) -> "TerraformResourceUniqueKey":
-        return TerraformResourceUniqueKey(
-            identifier=data["identifier"],
-            provider=data["provider"],
-            account=data["account"],
+    def from_spec(spec: ExternalResourceSpec) -> "ExternalResourceUniqueKey":
+        return ExternalResourceUniqueKey(
+            provision_provider=spec.provision_provider,
+            provisioner_name=spec.provisioner_name,
+            identifier=spec.identifier,
+            provider=spec.provider,
         )
 
 
-TerraformResourceSpecInventory = Mapping[
-    TerraformResourceUniqueKey, TerraformResourceSpec
-]
+ExternalResourceSpecInventory = Mapping[ExternalResourceUniqueKey, ExternalResourceSpec]

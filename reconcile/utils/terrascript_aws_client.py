@@ -85,7 +85,8 @@ from sretoolbox.utils import threaded
 
 from reconcile.utils import gql
 from reconcile.utils.aws_api import AWSApi
-from reconcile.utils.external_resources import PROVIDER_AWS, get_external_resources
+from reconcile.utils.external_resource_spec import ExternalResourceSpec, ExternalResourceSpecInventory
+from reconcile.utils.external_resources import PROVIDER_AWS, get_external_resource_specs
 from reconcile.utils.jenkins_api import JenkinsApi
 from reconcile.utils.ocm import OCMMap
 from reconcile.utils.secret_reader import SecretReader
@@ -924,36 +925,39 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         :param ocm_map:
         """
         self.init_populate_specs(namespaces, account_name)
-        for specs in self.account_resources.values():
+        for specs in self.account_resource_specs.values():
             for spec in specs:
                 self.populate_tf_resources(spec, existing_secrets,
                                            ocm_map=ocm_map)
 
     def init_populate_specs(self, namespaces: Iterable[Mapping[str, Any]],
                             account_name: Optional[str]) -> None:
-        self.account_resources: dict[str, list[dict[str, Any]]] = {}
+        self.account_resource_specs: dict[str, list[ExternalResourceSpec]] = {}
+        self.resource_spec_inventory: ExternalResourceSpecInventory = {}
 
         for namespace_info in namespaces:
-            tf_resources = get_external_resources(namespace_info, provision_provider=PROVIDER_AWS)
-            for resource in tf_resources:
-                account = resource['account']
-                # Skip if account_name is specified
-                if account_name and account != account_name:
+            specs = get_external_resource_specs(namespace_info, provision_provider=PROVIDER_AWS)
+            for spec in specs:
+                if account_name and spec.provisioner_name != account_name:
                     continue
-                if account not in self.account_resources:
-                    self.account_resources[account] = []
-                populate_spec = {'resource': resource,
-                                 'provision_provider': PROVIDER_AWS,
-                                 'namespace_info': namespace_info}
-                self.account_resources[account].append(populate_spec)
+                self.account_resource_specs.setdefault(spec.provisioner_name, []).append(spec)
+                self.resource_spec_inventory[spec.id_object()] = spec
 
     def populate_tf_resources(self, populate_spec, existing_secrets,
                               ocm_map=None):
-        if populate_spec['provision_provider'] != PROVIDER_AWS:
-            return
-        resource = populate_spec['resource']
-        namespace_info = populate_spec['namespace_info']
-        provider = resource['provider']
+        if populate_spec.provision_provider != PROVIDER_AWS:
+            raise UnknownProviderError(populate_spec.provision_provider)
+
+        resource = populate_spec.resource
+        namespace_info = populate_spec.namespace
+        provider = populate_spec.provider
+
+        # setting account for backwards compatibility. any deeper
+        # change will require a refactor of this module, which will
+        # likely include passing populate_spec to the different population
+        # methods instead of resource, namespace_info, existing_secrets.
+        resource["account"] = populate_spec.provisioner_name
+
         if provider == 'rds':
             self.populate_tf_resource_rds(resource, namespace_info,
                                           existing_secrets)
@@ -1164,19 +1168,26 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 raise ValueError(
                     "only one of replicate_source_db or replica_source " +
                     "can be defined")
-            source_info = self._find_resource(account, replica_source, 'rds')
+            source_info = self._find_resource_spec(account, replica_source, 'rds')
             if source_info:
                 values['backup_retention_period'] = 0
                 deps.append("aws_db_instance." +
-                            source_info['resource']['identifier'])
-                replica_az = source_info.get('availability_zone', None)
+                            source_info.identifier)
+                replica_az = source_info.resource.get('availability_zone', None)
                 if replica_az and len(replica_az) > 1:
                     replica_region = self._region_from_availability_zone(
                         replica_az)
                 else:
                     replica_region = self.default_regions.get(account)
+
+                # setting account for backwards compatibility. any deeper
+                # change will require a refactor of this module, which will
+                # likely include passing source_info to the init_values method
+                # instead of resource and namespace_info
+                source_info.resource["account"] = source_info.provisioner_name
+
                 _, _, source_values, _, _, _ = self.init_values(
-                    source_info['resource'], source_info['namespace_info'])
+                    source_info.resource, source_info.namespace)
                 if replica_region == region:
                     # replica is in the same region as source
                     values['replicate_source_db'] = replica_source
@@ -1250,10 +1261,10 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             if kms_key_id.startswith("arn:"):
                 values['kms_key_id'] = kms_key_id
             else:
-                kms_key = self._find_resource(account, kms_key_id, 'kms')
+                kms_key = self._find_resource_spec(account, kms_key_id, 'kms')
                 if kms_key:
                     kms_res = "aws_kms_key." + \
-                        kms_key['resource']['identifier']
+                        kms_key.identifier
                     values['kms_key_id'] = "${" + kms_res + ".arn}"
                     deps.append(kms_res)
                 else:
@@ -1337,18 +1348,17 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         return False
 
-    def _find_resource(self,
-                       account: str,
-                       source: str,
-                       provider: str
-                       ) -> Optional[Dict[str, Dict[str, Optional[str]]]]:
-        if account not in self.account_resources:
+    def _find_resource_spec(self,
+                            account: str,
+                            source: str,
+                            provider: str
+                            ) -> Optional[ExternalResourceSpec]:
+        if account not in self.account_resource_specs:
             return None
 
-        for res in self.account_resources[account]:
-            r = res['resource']
-            if r['identifier'] == source and r['provider'] == provider:
-                return res
+        for spec in self.account_resource_specs[account]:
+            if spec.identifier == source and spec.provider == provider:
+                return spec
         return None
 
     @staticmethod
@@ -2098,11 +2108,11 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     if kms_master_key_id.startswith("arn:"):
                         values['kms_master_key_id'] = kms_master_key_id
                     else:
-                        kms_key = self._find_resource(
+                        kms_key = self._find_resource_spec(
                             account, kms_master_key_id, 'kms')
                         if kms_key:
                             kms_res = "aws_kms_key." + \
-                                kms_key['resource']['identifier']
+                                kms_key.identifier
                             values['kms_master_key_id'] = \
                                 "${" + kms_res + ".arn}"
                             values['depends_on'] = [kms_res]
@@ -3364,10 +3374,10 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         an account-wide resource policy.
         """
         log_group_infos = []
-        for resources in self.account_resources.values():
-            for i in resources:
-                res = i['resource']
-                ns = i['namespace_info']
+        for specs in self.account_resource_specs.values():
+            for spec in specs:
+                res = spec.resource
+                ns = spec.namespace
                 if res.get('provider') != 'elasticsearch':
                     continue
                 # res.get('', []) won't work, as publish_log_types is

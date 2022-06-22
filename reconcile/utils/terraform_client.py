@@ -14,7 +14,7 @@ from sretoolbox.utils import retry
 from sretoolbox.utils import threaded
 
 from reconcile.utils.aws_helper import get_region_from_availability_zone
-from reconcile.utils.terraform_resource_spec import TerraformResourceSpec, TerraformResourceSpecInventory
+from reconcile.utils.external_resource_spec import ExternalResourceSpec, ExternalResourceSpecInventory
 
 import reconcile.utils.lean_terraform_client as lean_tf
 
@@ -339,7 +339,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         return data
 
     @staticmethod
-    def get_replicas_info(resource_specs: Iterable[TerraformResourceSpec]) -> dict[str, dict[str, str]]:
+    def get_replicas_info(resource_specs: Iterable[ExternalResourceSpec]) -> dict[str, dict[str, str]]:
         """
         finds the source resources of RDS replicas
 
@@ -355,7 +355,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
                 replica_source_name = f'{replica_src}-{tf_resource.get("provider")}'
                 # Creating a dict that is convenient to use inside the
                 # loop processing the formatted_output
-                replicas_info[spec.account][spec.output_prefix] = replica_source_name
+                replicas_info[spec.provisioner_name][spec.output_prefix] = replica_source_name
 
         return replicas_info
 
@@ -422,7 +422,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
             return data[list(data.keys())[0]]
         return data
 
-    def populate_terraform_output_secrets(self, resource_specs: TerraformResourceSpecInventory,
+    def populate_terraform_output_secrets(self, resource_specs: ExternalResourceSpecInventory,
                                           init_rds_replica_source: bool = False) -> None:
         """
         find the terraform output data for each resource spec and populate its `secret` field.
@@ -441,25 +441,25 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         )
 
     @staticmethod
-    def _populate_terraform_output_secrets(resource_specs: TerraformResourceSpecInventory,
+    def _populate_terraform_output_secrets(resource_specs: ExternalResourceSpecInventory,
                                            terraform_output_secrets: Mapping[str, Mapping[str, Mapping[str, str]]],
                                            integration_prefix: str,
                                            replica_sources: Mapping[str, Mapping[str, str]]) -> None:
         for spec in resource_specs.values():
-            secret = terraform_output_secrets.get(spec.account, {}).get(spec.output_prefix, None)
+            secret = terraform_output_secrets.get(spec.provisioner_name, {}).get(spec.output_prefix, None)
             if not secret:
                 continue
             secret_copy = dict(secret)
 
             # find out about replica source
-            replica_source = replica_sources.get(spec.account, {}).get(spec.output_prefix)
+            replica_source = replica_sources.get(spec.provisioner_name, {}).get(spec.output_prefix)
             if replica_source:
                 # Grabbing the username/password from the
                 # replica_source and using them in the
                 # replica. This is needed because we can't
                 # set username/password for a replica in
                 # terraform.
-                replica_source_secret = terraform_output_secrets.get(spec.account, {}).get(replica_source)
+                replica_source_secret = terraform_output_secrets.get(spec.provisioner_name, {}).get(replica_source)
                 if replica_source_secret:
                     replica_src_user = replica_source_secret.get("db.user")
                     replica_src_password = replica_source_secret.get("db.password")

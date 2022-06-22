@@ -2,9 +2,9 @@ import base64
 from unittest.mock import create_autospec
 import pytest
 
-from reconcile.utils.terraform_resource_spec import (
-    TerraformResourceSpec,
-    TerraformResourceUniqueKey,
+from reconcile.utils.external_resource_spec import (
+    ExternalResourceSpec,
+    ExternalResourceUniqueKey,
 )
 import reconcile.utils.terraform_client as tfclient
 from reconcile.utils.aws_api import AWSApi
@@ -64,9 +64,10 @@ def test_expiration_value_error(aws_api):
 
 def test_get_replicas_info_via_replica_source():
     resource_specs = [
-        TerraformResourceSpec(
+        ExternalResourceSpec(
+            provision_provider="aws",
+            provisioner={"name": "acc"},
             resource={
-                "account": "acc",
                 "identifier": "replica-id",
                 "provider": "rds",
                 "defaults": "defaults-ref",
@@ -85,9 +86,10 @@ def test_build_oc_secret():
     integration_version = "v1"
     account = "account"
 
-    spec = TerraformResourceSpec(
+    spec = ExternalResourceSpec(
+        provision_provider="aws",
+        provisioner={"name": account},
         resource={
-            "account": account,
             "identifier": "replica-id",
             "provider": "rds",
             "output_resource_name": "name",
@@ -131,9 +133,10 @@ def test_populate_terraform_output_secret():
     integration_prefix = "integ_pfx"
     account = "account"
     resource_specs = [
-        TerraformResourceSpec(
+        ExternalResourceSpec(
+            provision_provider="aws",
+            provisioner={"name": account},
             resource={
-                "account": account,
                 "identifier": "id",
                 "provider": "provider",
             },
@@ -150,7 +153,7 @@ def test_populate_terraform_output_secret():
     }
 
     tfclient.TerraformClient._populate_terraform_output_secrets(
-        {TerraformResourceUniqueKey.from_dict(s.resource): s for s in resource_specs},
+        {ExternalResourceUniqueKey.from_spec(s): s for s in resource_specs},
         existing_secrets,
         integration_prefix,
         {},
@@ -164,17 +167,19 @@ def test_populate_terraform_output_secret():
 def test_populate_terraform_output_secret_with_replica_credentials():
     integration_prefix = "integ_pfx"
     account = "account"
-    replica = TerraformResourceSpec(
+    replica = ExternalResourceSpec(
+        provision_provider="aws",
+        provisioner={"name": account},
         resource={
-            "account": account,
             "identifier": "replica-db",
             "provider": "rds",
         },
         namespace={},
     )
-    replica_source = TerraformResourceSpec(
+    replica_source = ExternalResourceSpec(
+        provision_provider="aws",
+        provisioner={"name": account},
         resource={
-            "account": account,
             "identifier": "main-db",
             "provider": "rds",
         },
