@@ -128,15 +128,7 @@ def get_tf_resource_info(terrascript: Terrascript, namespace, identifier):
         if spec.identifier != identifier:
             continue
 
-        # setting account for backwards compatibility. any deeper
-        # change will require a refactor of this module, which will
-        # likely include passing spec to the init_values method
-        # instead of resource and namespace_info
-        spec.resource["account"] = spec.provisioner_name
-
-        _, _, values, _, output_resource_name, _ = terrascript.init_values(
-            spec.resource, namespace
-        )
+        _, _, values, _, output_resource_name, _ = terrascript.init_values(spec)
 
         return {
             "cluster": namespace["cluster"]["name"],

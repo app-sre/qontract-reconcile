@@ -7,6 +7,7 @@ from sretoolbox.container.skopeo import SkopeoCmdError
 from sretoolbox.utils import threaded
 
 from reconcile import queries
+from reconcile.utils.external_resource_spec import ExternalResourceSpec
 from reconcile.utils.external_resources import (
     get_external_resource_specs,
     managed_external_resources,
@@ -20,7 +21,7 @@ LOG = logging.getLogger(__name__)
 
 
 class EcrMirror:
-    def __init__(self, instance, dry_run):
+    def __init__(self, instance: ExternalResourceSpec, dry_run: bool):
         self.dry_run = dry_run
         self.instance = instance
         self.settings = queries.get_app_interface_settings()
@@ -28,9 +29,9 @@ class EcrMirror:
         self.skopeo_cli = Skopeo(dry_run)
         self.error = False
 
-        identifier = instance["identifier"]
-        account = instance["account"]
-        region = instance.get("region")
+        identifier = instance.identifier
+        account = instance.provisioner_name
+        region = instance.resource.get("region")
 
         self.aws_cli = AWSApi(
             thread_pool_size=1,
@@ -58,7 +59,7 @@ class EcrMirror:
         self.image_username = None
         self.image_password = None
         self.image_auth = None
-        pull_secret = self.instance["mirror"]["pullCredentials"]
+        pull_secret = self.instance.resource["mirror"]["pullCredentials"]
         if pull_secret is not None:
             raw_data = self.secret_reader.read_all(pull_secret)
             self.image_username = raw_data["user"]
@@ -74,7 +75,7 @@ class EcrMirror:
         )
 
         image = Image(
-            self.instance["mirror"]["url"],
+            self.instance.resource["mirror"]["url"],
             username=self.image_username,
             password=self.image_password,
         )
@@ -137,13 +138,7 @@ def run(dry_run, thread_pool_size=10):
             if spec.resource.get("mirror") is None:
                 continue
 
-            # setting account for backwards compatibility. any deeper
-            # change will require a refactor of this module, which will
-            # likely include passing source_info to the init_values method
-            # instead of resource and namespace_info
-            spec.resource["account"] = spec.provisioner_name
-
-            tfrs_to_mirror.append(spec.resource)
+            tfrs_to_mirror.append(spec)
 
     work_list = threaded.run(
         EcrMirror, tfrs_to_mirror, thread_pool_size=thread_pool_size, dry_run=dry_run
