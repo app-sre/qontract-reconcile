@@ -479,9 +479,6 @@ def setup(
     ri, oc_map = fetch_current_state(dry_run, tf_namespaces, thread_pool_size,
                                      internal, use_jump_host, account_name)
 
-    # build the resource specs
-    resource_specs = init_tf_resource_specs(tf_namespaces, account_name)
-
     # initialize terrascript (scripting engine to generate terraform manifests)
     ts, working_dirs = init_working_dirs(accounts, thread_pool_size, settings=settings)
 
@@ -507,7 +504,7 @@ def setup(
                           ocm_map=ocm_map)
     ts.dump(print_to_file, existing_dirs=working_dirs)
 
-    return ri, oc_map, tf, resource_specs
+    return ri, oc_map, tf, ts.resource_spec_inventory
 
 
 def filter_tf_namespaces(
@@ -533,20 +530,6 @@ def filter_tf_namespaces(
                 break
 
     return tf_namespaces
-
-
-def init_tf_resource_specs(
-    namespaces: Iterable[Mapping[str, Any]], account_name: Optional[str]
-) -> ExternalResourceSpecInventory:
-    resource_specs: dict[ExternalResourceUniqueKey, ExternalResourceSpec] = {}
-    for namespace_info in namespaces:
-        if not managed_external_resources(namespace_info):
-            continue
-        tf_specs = get_external_resource_specs(namespace_info)
-        for spec in tf_specs:
-            if account_name is None or spec.provisioner_name == account_name:
-                resource_specs[spec.id_object()] = spec
-    return resource_specs
 
 
 def cleanup_and_exit(tf=None, status=False, working_dirs=None):

@@ -1,8 +1,4 @@
 import reconcile.terraform_resources as integ
-from reconcile.utils.external_resource_spec import (
-    ExternalResourceUniqueKey,
-    ExternalResourceSpec,
-)
 
 
 def test_filter_namespaces_no_managed_tf_resources():
@@ -125,68 +121,3 @@ def test_filter_tf_namespaces_no_tf_resources_with_account_filter():
     namespaces = [ns1, ns2]
     filtered = integ.filter_tf_namespaces(namespaces, "b")
     assert filtered == [ns1]
-
-
-def test_tf_disabled_namespace_with_resources():
-    """
-    even if a namespace has tf resources, they are not considered when the
-    namespace is not enabled for tf resource management
-    """
-    ra = {"identifier": "a", "provider": "p"}
-    ns1 = {
-        "name": "ns1",
-        "managedExternalResources": False,
-        "externalResources": [
-            {"provider": "aws", "provisioner": {"name": "a"}, "resources": [ra]}
-        ],
-        "cluster": {"name": "c"},
-    }
-    namespaces = [ns1]
-    resources = integ.init_tf_resource_specs(namespaces, None)
-    assert not resources
-
-
-def test_resource_specs_without_account_filter():
-    """
-    if no account filter is given, all resources of namespaces with
-    enabled tf resource management are expected to be returned
-    """
-    p = "aws"
-    pa = {"name": "a"}
-    ra = {"identifier": "a", "provider": "p"}
-    ns1 = {
-        "name": "ns1",
-        "managedExternalResources": True,
-        "externalResources": [{"provider": p, "provisioner": pa, "resources": [ra]}],
-        "cluster": {"name": "c"},
-    }
-    namespaces = [ns1]
-    resources = integ.init_tf_resource_specs(namespaces, None)
-    spec = ExternalResourceSpec(p, pa, ra, ns1)
-    assert resources == {ExternalResourceUniqueKey.from_spec(spec): spec}
-
-
-def test_resource_specs_with_account_filter():
-    """
-    if an account filter is given only the resources defined for
-    that account are expected
-    """
-    p = "aws"
-    pa = {"name": "a"}
-    ra = {"identifier": "a", "provider": "p"}
-    pb = {"name": "b"}
-    rb = {"identifier": "b", "provider": "p"}
-    ns1 = {
-        "name": "ns1",
-        "managedExternalResources": True,
-        "externalResources": [
-            {"provider": p, "provisioner": pa, "resources": [ra]},
-            {"provider": p, "provisioner": pb, "resources": [rb]},
-        ],
-        "cluster": {"name": "c"},
-    }
-    namespaces = [ns1]
-    resources = integ.init_tf_resource_specs(namespaces, "a")
-
-    spec = ExternalResourceSpec(p, pa, ra, ns1)
-    assert resources == {ExternalResourceUniqueKey.from_spec(spec): spec}
