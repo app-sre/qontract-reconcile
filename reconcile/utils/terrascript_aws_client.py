@@ -3374,7 +3374,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         an account-wide resource policy.
         """
         log_group_infos = []
-        for account, specs in self.account_resource_specs.items():
+        for specs in self.account_resource_specs.values():
             for spec in specs:
                 res = spec.resource
                 ns = spec.namespace
@@ -3385,6 +3385,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 log_types = res['publish_log_types'] or []
                 for log_type in log_types:
                     region = ns['cluster']['spec']['region']
+                    account = res['provisioner_name']
                     account_id = self.accounts[account]['uid']
                     lg_identifier = \
                         TerrascriptClient.elasticsearch_log_group_identifier(
