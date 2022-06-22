@@ -3376,6 +3376,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         log_group_infos = []
         for specs in self.account_resource_specs.values():
             for spec in specs:
+                account = spec.provisioner_name
                 res = spec.resource
                 ns = spec.namespace
                 if res.get('provider') != 'elasticsearch':
@@ -3385,7 +3386,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 log_types = res['publish_log_types'] or []
                 for log_type in log_types:
                     region = ns['cluster']['spec']['region']
-                    account = res['account']
                     account_id = self.accounts[account]['uid']
                     lg_identifier = \
                         TerrascriptClient.elasticsearch_log_group_identifier(
