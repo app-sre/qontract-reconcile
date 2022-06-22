@@ -12,11 +12,7 @@ from reconcile.utils.external_resources import get_external_resource_specs, mana
 import reconcile.openshift_base as ob
 
 from reconcile import queries
-from reconcile.utils.external_resource_spec import (
-    ExternalResourceSpecInventory,
-    ExternalResourceUniqueKey,
-    ExternalResourceSpec,
-)
+from reconcile.utils.external_resource_spec import ExternalResourceSpecInventory
 from reconcile.utils import gql
 from reconcile.aws_iam_keys import run as disable_keys
 from reconcile.utils.aws_api import AWSApi
