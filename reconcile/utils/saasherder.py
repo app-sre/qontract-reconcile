@@ -514,7 +514,7 @@ class SaasHerder:
                 blob = repo.get_git_blob(x.sha)
                 return base64.b64decode(blob.content).decode("utf8")
 
-    @retry()
+    @retry(max_attempts=20)
     def _get_file_contents(self, options):
         url = options["url"]
         path = options["path"]
