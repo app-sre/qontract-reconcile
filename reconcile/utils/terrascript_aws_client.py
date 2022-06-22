@@ -85,7 +85,7 @@ from sretoolbox.utils import threaded
 
 from reconcile.utils import gql
 from reconcile.utils.aws_api import AWSApi
-from reconcile.utils.external_resource_spec import ExternalResourceSpec
+from reconcile.utils.external_resource_spec import ExternalResourceSpec, ExternalResourceSpecInventory
 from reconcile.utils.external_resources import PROVIDER_AWS, get_external_resource_specs
 from reconcile.utils.jenkins_api import JenkinsApi
 from reconcile.utils.ocm import OCMMap
@@ -933,22 +933,21 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
     def init_populate_specs(self, namespaces: Iterable[Mapping[str, Any]],
                             account_name: Optional[str]) -> None:
         self.account_resource_specs: dict[str, list[ExternalResourceSpec]] = {}
+        self.resource_spec_inventory: ExternalResourceSpecInventory = {}
 
         for namespace_info in namespaces:
             specs = get_external_resource_specs(namespace_info, provision_provider=PROVIDER_AWS)
             for spec in specs:
-                account = spec.provisioner_name
-                # Skip if account_name is specified
-                if account_name and account != account_name:
+                if account_name and spec.provisioner_name != account_name:
                     continue
-                if account not in self.account_resource_specs:
-                    self.account_resource_specs[account] = []
-                self.account_resource_specs[account].append(spec)
+                self.account_resource_specs.setdefault(spec.provisioner_name, []).append(spec)
+                self.resource_spec_inventory[spec.id_object()] = spec
 
     def populate_tf_resources(self, populate_spec, existing_secrets,
                               ocm_map=None):
         if populate_spec.provision_provider != PROVIDER_AWS:
-            return
+            raise UnknownProviderError(populate_spec.provision_provider)
+
         resource = populate_spec.resource
         namespace_info = populate_spec.namespace
         provider = populate_spec.provider
