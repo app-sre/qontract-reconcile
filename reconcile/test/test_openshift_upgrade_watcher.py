@@ -96,43 +96,39 @@ def test_new_upgrade_already_notified(mocker, state, slack, oc_map, upgrade_conf
 
 
 @pytest.fixture
-def ocm_cluster(mocker):
-    o = mocker.patch("reconcile.ocm.types.OCMSpec", autospec=True)
-    c = mocker.patch("reconcile.ocm.types.OCMClusterSpec", autospec=True)
-    o.spec = c
-    o.spec.version = upgrade_version
-    return o
+def clusters():
+    return [
+        {
+            "name": cluster_name,
+            "spec": {
+                "version": upgrade_version,
+            },
+        }
+    ]
 
 
-@pytest.fixture
-def ocm_map(mocker, ocm_cluster):
-    map = mocker.patch("reconcile.utils.ocm.OCMMap", autospec=True).return_value
-    map.cluster_specs.return_value = ({cluster_name: ocm_cluster}, [])
-    return map
-
-
-def test_new_version_no_op(mocker, state, slack, ocm_map):
+def test_new_version_no_op(mocker, state, slack, clusters):
     """We already notified for this cluster & version"""
     state.exists.return_value = True
     state.get.return_value = upgrade_version  # same version, already notified
-    ouw.notify_upgrades_done(ocm_map, state=state, slack=slack)
+    ouw.notify_upgrades_done(clusters, state=state, slack=slack)
     assert slack.chat_post_message.call_count == 0
     assert state.add.call_count == 0
 
 
-def test_new_version_no_state(mocker, state, slack, ocm_map):
+def test_new_version_no_state(mocker, state, slack, clusters):
     """We never notified for this cluster"""
     state.exists.return_value = False  # never notified for this cluster
     state.get.return_value = None
-    ouw.notify_upgrades_done(ocm_map, state=state, slack=slack)
+    ouw.notify_upgrades_done(clusters, state=state, slack=slack)
     assert slack.chat_post_message.call_count == 1
     assert state.add.call_count == 1
 
 
-def test_new_version_notify(mocker, state, slack, ocm_map):
+def test_new_version_notify(mocker, state, slack, clusters):
     """We already notified for this cluster, but on an old version"""
     state.exists.return_value = True
     state.get.return_value = old_version  # different version
-    ouw.notify_upgrades_done(ocm_map, state=state, slack=slack)
+    ouw.notify_upgrades_done(clusters, state=state, slack=slack)
     assert slack.chat_post_message.call_count == 1
     assert state.add.call_count == 1
