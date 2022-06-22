@@ -6,7 +6,7 @@ from urllib.parse import urlparse
 from collections import namedtuple
 
 from sretoolbox.container import Image
-from reconcile.utils.external_resources import get_external_resources
+from reconcile.utils.external_resources import get_external_resource_specs
 
 from reconcile.utils.oc import OC
 from reconcile.utils.oc import OC_Map
@@ -304,20 +304,17 @@ class OcpReleaseMirror:
 
     @staticmethod
     def _get_tf_resource_info(namespace, identifier):
-        tf_resources = get_external_resources(namespace)
-        for tf_resource in tf_resources:
-            if "identifier" not in tf_resource:
+        specs = get_external_resource_specs(namespace)
+        for spec in specs:
+            if spec.provider != "ecr":
                 continue
 
-            if tf_resource["identifier"] != identifier:
-                continue
-
-            if tf_resource["provider"] != "ecr":
+            if spec.identifier != identifier:
                 continue
 
             return {
-                "account": tf_resource["account"],
-                "region": tf_resource.get("region"),
+                "account": spec.provisioner_name,
+                "region": spec.resource.get("region"),
             }
 
     def _get_image_uri(self, account, repository):

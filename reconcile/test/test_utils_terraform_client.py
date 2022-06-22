@@ -65,8 +65,9 @@ def test_expiration_value_error(aws_api):
 def test_get_replicas_info_via_replica_source():
     resource_specs = [
         ExternalResourceSpec(
+            provision_provider="aws",
+            provisioner={"name": "acc"},
             resource={
-                "account": "acc",
                 "identifier": "replica-id",
                 "provider": "rds",
                 "defaults": "defaults-ref",
@@ -86,8 +87,9 @@ def test_build_oc_secret():
     account = "account"
 
     spec = ExternalResourceSpec(
+        provision_provider="aws",
+        provisioner={"name": account},
         resource={
-            "account": account,
             "identifier": "replica-id",
             "provider": "rds",
             "output_resource_name": "name",
@@ -132,8 +134,9 @@ def test_populate_terraform_output_secret():
     account = "account"
     resource_specs = [
         ExternalResourceSpec(
+            provision_provider="aws",
+            provisioner={"name": account},
             resource={
-                "account": account,
                 "identifier": "id",
                 "provider": "provider",
             },
@@ -150,7 +153,7 @@ def test_populate_terraform_output_secret():
     }
 
     tfclient.TerraformClient._populate_terraform_output_secrets(
-        {ExternalResourceUniqueKey.from_dict(s.resource): s for s in resource_specs},
+        {ExternalResourceUniqueKey.from_spec(s): s for s in resource_specs},
         existing_secrets,
         integration_prefix,
         {},
@@ -165,16 +168,18 @@ def test_populate_terraform_output_secret_with_replica_credentials():
     integration_prefix = "integ_pfx"
     account = "account"
     replica = ExternalResourceSpec(
+        provision_provider="aws",
+        provisioner={"name": account},
         resource={
-            "account": account,
             "identifier": "replica-db",
             "provider": "rds",
         },
         namespace={},
     )
     replica_source = ExternalResourceSpec(
+        provision_provider="aws",
+        provisioner={"name": account},
         resource={
-            "account": account,
             "identifier": "main-db",
             "provider": "rds",
         },

@@ -5,7 +5,7 @@ from typing import Iterable, Mapping
 
 
 from reconcile import queries
-from reconcile.utils.external_resources import PROVIDER_AWS, get_external_resources
+from reconcile.utils.external_resources import PROVIDER_AWS, get_external_resource_specs
 
 from reconcile.status import ExitCodes
 from reconcile.utils import dnsutils
@@ -124,30 +124,31 @@ def build_desired_state(
             # Process '_target_namespace_zone'
             target_namespace_zone = record.pop("_target_namespace_zone", None)
             if target_namespace_zone:
-                tf_resources = get_external_resources(
+                specs = get_external_resource_specs(
                     target_namespace_zone["namespace"], provision_provider=PROVIDER_AWS
                 )
                 tf_zone_name = target_namespace_zone["name"]
-                tf_zone_resources = [
-                    tfr
-                    for tfr in tf_resources
-                    if tfr["provider"] == "route53-zone" and tfr["name"] == tf_zone_name
+                tf_zone_specs = [
+                    spec
+                    for spec in specs
+                    if spec.provider == "route53-zone"
+                    and spec.resource.get("name") == tf_zone_name
                 ]
-                if not tf_zone_resources:
+                if not tf_zone_specs:
                     logging.error(
                         f"{zone_name}: field `_target_namespace_zone` found "
                         f"for record {record_name}, but target zone not found: "
                         f"{tf_zone_name}"
                     )
                     sys.exit(ExitCodes.ERROR)
-                tf_zone_resource = tf_zone_resources[0]
-                tf_zone_account_name = tf_zone_resource["account"]
+                tf_zone_spec = tf_zone_specs[0]
+                tf_zone_account_name = tf_zone_spec.provisioner_name
                 zone_account = [
                     a for a in all_accounts if a["name"] == tf_zone_account_name
                 ][0]
                 awsapi = AWSApi(1, [zone_account], settings=settings, init_users=False)
                 tf_zone_region = (
-                    tf_zone_resource.get("region")
+                    tf_zone_spec.resource.get("region")
                     or zone_account["resourcesDefaultRegion"]
                 )
                 tf_zone_ns_records = awsapi.get_route53_zone_ns_records(
