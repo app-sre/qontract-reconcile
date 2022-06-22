@@ -1,5 +1,4 @@
 import os
-import logging
 import tempfile
 import shutil
 import threading
@@ -8,6 +7,7 @@ from UnleashClient import UnleashClient
 from UnleashClient import strategies
 
 from reconcile.utils.defer import defer
+from reconcile.utils.helpers import toggle_logger
 
 log_lock = threading.Lock()
 
@@ -29,9 +29,33 @@ def get_feature_toggle_state(integration_name, defer=None):
 
     # hide INFO logging from UnleashClient
     with log_lock:
-        logger = logging.getLogger()
-        default_logging = logger.level
-        logger.setLevel(logging.ERROR)
+        with toggle_logger():
+            # create Unleash client
+            headers = {"Authorization": f"Bearer {client_access_token}"}
+            client = UnleashClient(
+                url=api_url,
+                app_name="qontract-reconcile",
+                custom_headers=headers,
+                cache_directory=cache_dir,
+            )
+            client.initialize_client()
+
+            # get feature toggle state
+            state = client.is_enabled(
+                integration_name, fallback_function=get_feature_toggle_default
+            )
+            client.destroy()
+
+        return state
+
+
+@defer
+def get_feature_toggles(api_url, client_access_token, defer=None):
+    # hide INFO logging from UnleashClient
+    with toggle_logger():
+        # create temporary cache dir
+        cache_dir = tempfile.mkdtemp()
+        defer(lambda: shutil.rmtree(cache_dir))
 
         # create Unleash client
         headers = {"Authorization": f"Bearer {client_access_token}"}
@@ -42,38 +66,7 @@ def get_feature_toggle_state(integration_name, defer=None):
             cache_directory=cache_dir,
         )
         client.initialize_client()
-
-        # get feature toggle state
-        state = client.is_enabled(
-            integration_name, fallback_function=get_feature_toggle_default
-        )
-        client.destroy()
-        logger.setLevel(default_logging)
-        return state
-
-
-@defer
-def get_feature_toggles(api_url, client_access_token, defer=None):
-    # hide INFO logging from UnleashClient
-    logger = logging.getLogger()
-    default_logging = logger.level
-    logger.setLevel(logging.ERROR)
-    defer(lambda: logger.setLevel(default_logging))
-
-    # create temporary cache dir
-    cache_dir = tempfile.mkdtemp()
-    defer(lambda: shutil.rmtree(cache_dir))
-
-    # create Unleash client
-    headers = {"Authorization": f"Bearer {client_access_token}"}
-    client = UnleashClient(
-        url=api_url,
-        app_name="qontract-reconcile",
-        custom_headers=headers,
-        cache_directory=cache_dir,
-    )
-    client.initialize_client()
-    defer(client.destroy)
+        defer(client.destroy)
 
     return {
         k: "enabled" if v.enabled else "disabled" for k, v in client.features.items()
@@ -91,25 +84,23 @@ def get_unleash_strategies(api_url, token, strategy_names, defer=None):
 
     # hide INFO logging from UnleashClient
     with log_lock:
-        logger = logging.getLogger()
-        default_logging = logger.level
-        logger.setLevel(logging.ERROR)
+        with toggle_logger():
+            # create Unleash client
+            headers = {"Authorization": f"Bearer {token}"}
+            client = UnleashClient(
+                url=api_url,
+                app_name="qontract-reconcile",
+                custom_headers=headers,
+                cache_directory=cache_dir,
+                custom_strategies=unleash_strategies,
+            )
+            client.initialize_client()
 
-        # create Unleash client
-        headers = {"Authorization": f"Bearer {token}"}
-        client = UnleashClient(
-            url=api_url,
-            app_name="qontract-reconcile",
-            custom_headers=headers,
-            cache_directory=cache_dir,
-            custom_strategies=unleash_strategies,
-        )
-        client.initialize_client()
+            strats = {
+                name: toggle.strategies for name, toggle in client.features.items()
+            }
+            client.destroy()
 
-        strats = {name: toggle.strategies for name, toggle in client.features.items()}
-        client.destroy()
-
-        logger.setLevel(default_logging)
         return strats
 
 

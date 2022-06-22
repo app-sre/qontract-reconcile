@@ -2,13 +2,13 @@ import tempfile
 import shutil
 import os
 import threading
-import logging
 import random
 from typing import Dict, List
 
 from sshtunnel import SSHTunnelForwarder
 
 from reconcile.utils import gql
+from reconcile.utils.helpers import toggle_logger
 from reconcile.utils.secret_reader import SecretReader
 
 from reconcile.utils.exceptions import FetchResourceError
@@ -115,20 +115,16 @@ class JumpHostSSH(JumpHostBase):
         with JumpHostSSH.tunnel_lock:
             if self.local_port not in JumpHostSSH.bastion_tunnel:
                 # Hide connect messages from sshtunnel
-                logger = logging.getLogger()
-                default_log_level = logger.level
-                logger.setLevel(logging.ERROR)
-
-                tunnel = SSHTunnelForwarder(
-                    ssh_address_or_host=self.hostname,
-                    ssh_port=self.port,
-                    ssh_username=self.user,
-                    ssh_pkey=self.identity_file,
-                    remote_bind_address=(self.hostname, self.remote_port),
-                    local_bind_address=("localhost", self.local_port),
-                )
-                tunnel.start()
-                logger.setLevel(default_log_level)
+                with toggle_logger():
+                    tunnel = SSHTunnelForwarder(
+                        ssh_address_or_host=self.hostname,
+                        ssh_port=self.port,
+                        ssh_username=self.user,
+                        ssh_pkey=self.identity_file,
+                        remote_bind_address=(self.hostname, self.remote_port),
+                        local_bind_address=("localhost", self.local_port),
+                    )
+                    tunnel.start()
                 JumpHostSSH.bastion_tunnel[self.local_port] = tunnel
 
     def cleanup(self):
