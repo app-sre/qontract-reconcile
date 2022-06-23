@@ -496,8 +496,8 @@ def setup(
                          settings=settings)
     else:
         ocm_map = None
-    ts.populate_resources(tf_namespaces, existing_secrets, account_name,
-                          ocm_map=ocm_map)
+    ts.init_populate_specs(tf_namespaces, account_name)
+    ts.populate_resources(existing_secrets, ocm_map=ocm_map)
     ts.dump(print_to_file, existing_dirs=working_dirs)
 
     return ri, oc_map, tf, ts.resource_spec_inventory

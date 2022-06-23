@@ -177,7 +177,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
     Usage example (mostly to demonstrate API):
 
     ts = TerrascriptClient("terraform_resources", "qrtf", 20, accounts, settings)
-    ts.populate_resources(tf_namespaces, existing_secrets, account_name, ocm_map=ocm_map)
+    ts.init_populate_specs(tf_namespaces, account_name)
+    ts.populate_resources(existing_secrets, ocm_map=ocm_map)
     ts.dump(print_to_file, existing_dirs=working_dirs)
 
     More information on Terrascript: https://python-terrascript.readthedocs.io/en/develop/
@@ -912,19 +913,14 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         return results
 
-    def populate_resources(self, namespaces: Iterable[Mapping[str, Any]],
+    def populate_resources(self,
                            existing_secrets: Mapping[str, Any],
-                           account_name: Optional[str],
                            ocm_map: Optional[OCMMap] = None) -> None:
         """
-        Populates the terraform configuration from the definitions in app-interface
-        (schemas/openshift/terraform-resource-1.yml).
-        :param namespaces: schemas/openshift/namespace-1.yml object
+        Populates the terraform configuration from resource specs.
         :param existing_secrets:
-        :param account_name: AWS account name
         :param ocm_map:
         """
-        self.init_populate_specs(namespaces, account_name)
         for specs in self.account_resource_specs.values():
             for spec in specs:
                 self.populate_tf_resources(spec, existing_secrets,
@@ -932,6 +928,12 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
     def init_populate_specs(self, namespaces: Iterable[Mapping[str, Any]],
                             account_name: Optional[str]) -> None:
+        """
+        Initiates resource specs from the definitions in app-interface
+        (schemas/openshift/terraform-resource-1.yml).
+        :param namespaces: schemas/openshift/namespace-1.yml object
+        :param account_name: AWS account name
+        """
         self.account_resource_specs: dict[str, list[ExternalResourceSpec]] = {}
         self.resource_spec_inventory: ExternalResourceSpecInventory = {}
 
