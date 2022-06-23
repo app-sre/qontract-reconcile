@@ -1046,10 +1046,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         output_prefix = spec.output_prefix
 
         tf_resources = []
-        self.init_common_outputs(
-            tf_resources,
-            spec,
-        )
+        self.init_common_outputs(tf_resources, spec)
 
         # we want to allow an empty name, so we
         # only validate names which are not empty
@@ -1392,10 +1389,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         output_prefix = spec.output_prefix
 
         tf_resources = []
-        self.init_common_outputs(
-            tf_resources,
-            spec,
-        )
+        self.init_common_outputs(tf_resources, spec)
 
         # s3 bucket
         # Terraform resource reference:
@@ -1756,10 +1750,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         values.pop("identifier", None)
 
         tf_resources = []
-        self.init_common_outputs(
-            tf_resources,
-            spec,
-        )
+        self.init_common_outputs(tf_resources, spec)
 
         default_region = self.default_regions.get(account)
         desired_region = values.pop("region", default_region)
@@ -1842,10 +1833,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         output_prefix = spec.output_prefix
 
         tf_resources = []
-        self.init_common_outputs(
-            tf_resources,
-            spec,
-        )
+        self.init_common_outputs(tf_resources, spec)
 
         # iam user for bucket
         values = {}
@@ -1936,10 +1924,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         output_prefix = spec.output_prefix
 
         tf_resources = []
-        self.init_common_outputs(
-            tf_resources,
-            spec,
-        )
+        self.init_common_outputs(tf_resources, spec)
 
         secrets_prefix = common_values["secrets_prefix"]
         policy = {
@@ -1979,10 +1964,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         output_prefix = spec.output_prefix
 
         tf_resources = []
-        self.init_common_outputs(
-            tf_resources,
-            spec,
-        )
+        self.init_common_outputs(tf_resources, spec)
 
         assume_role = common_values["assume_role"]
         assume_role = {k: v for k, v in assume_role.items() if v is not None}
@@ -2030,10 +2012,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         uid = self.uids.get(account)
 
         tf_resources = []
-        self.init_common_outputs(
-            tf_resources,
-            spec,
-        )
+        self.init_common_outputs(tf_resources, spec)
         region = common_values.get("region") or self.default_regions.get(account)
         specs = common_values.get("specs")
         all_queues_per_spec = []
@@ -2176,10 +2155,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         uid = self.uids.get(account)
 
         tf_resources = []
-        self.init_common_outputs(
-            tf_resources,
-            spec,
-        )
+        self.init_common_outputs(tf_resources, spec)
         region = common_values.get("region") or self.default_regions.get(account)
         specs = common_values.get("specs")
         all_tables = []
@@ -2260,10 +2236,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         output_prefix = spec.output_prefix
 
         tf_resources = []
-        self.init_common_outputs(
-            tf_resources,
-            spec,
-        )
+        self.init_common_outputs(tf_resources, spec)
 
         # ecr repository
         # Terraform resource reference:
@@ -2691,10 +2664,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         output_prefix = spec.output_prefix
 
         tf_resources = []
-        self.init_common_outputs(
-            tf_resources,
-            spec,
-        )
+        self.init_common_outputs(tf_resources, spec)
 
         # ecr repository
         # Terraform resource reference:
@@ -2908,10 +2878,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         output_prefix = spec.output_prefix
 
         tf_resources = []
-        self.init_common_outputs(
-            tf_resources,
-            spec,
-        )
+        self.init_common_outputs(tf_resources, spec)
         values.pop("identifier", None)
 
         # kms customer master key
@@ -2955,10 +2922,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         output_prefix = spec.output_prefix
 
         tf_resources = []
-        self.init_common_outputs(
-            tf_resources,
-            spec,
-        )
+        self.init_common_outputs(tf_resources, spec)
 
         # pop identifier since we use values and not common_values
         values.pop("identifier", None)
@@ -3446,11 +3410,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         output_prefix = spec.output_prefix
 
         tf_resources = []
-
-        self.init_common_outputs(
-            tf_resources,
-            spec,
-        )
+        self.init_common_outputs(tf_resources, spec)
 
         if not self.is_elasticsearch_domain_name_valid(values["identifier"]):
             raise ElasticSearchResourceNameInvalidError(
@@ -3679,10 +3639,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         output_prefix = spec.output_prefix
 
         tf_resources = []
-        self.init_common_outputs(
-            tf_resources,
-            spec,
-        )
+        self.init_common_outputs(tf_resources, spec)
 
         values = {}
         secret = common_values.get("secret", None)
@@ -3766,10 +3723,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         output_prefix = spec.output_prefix
 
         tf_resources = []
-        self.init_common_outputs(
-            tf_resources,
-            spec,
-        )
+        self.init_common_outputs(tf_resources, spec)
 
         values = {"name": identifier, "comment": "managed by app-interface"}
         secret = common_values.get("secret", None)
@@ -3841,10 +3795,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         output_prefix = spec.output_prefix
         tf_resources = []
         namespace_info = spec.namespace
-        self.init_common_outputs(
-            tf_resources,
-            spec,
-        )
+        self.init_common_outputs(tf_resources, spec)
 
         default_region = self.default_regions.get(account)
         cluster_region = namespace_info["cluster"]["spec"]["region"]
@@ -4126,10 +4077,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         output_prefix = spec.output_prefix
 
         tf_resources = []
-        self.init_common_outputs(
-            tf_resources,
-            spec,
-        )
+        self.init_common_outputs(tf_resources, spec)
 
         values = {"name": identifier}
 
@@ -4221,10 +4169,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         output_prefix = spec.output_prefix
 
         tf_resources: List[Any] = []
-        self.init_common_outputs(
-            tf_resources,
-            spec,
-        )
+        self.init_common_outputs(tf_resources, spec)
 
         tags = common_values["tags"]
         tags["Name"] = identifier
@@ -4333,7 +4278,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         instance_types = common_values.get("instance_types")
         if instance_types:
             override = [{"instance_type": i} for i in instance_types]
-            asg_value["mixed_instances_policy"]["launch_template"]["override"] = override
+            asg_value["mixed_instances_policy"]["launch_template"][
+                "override"
+            ] = override
         asg_value["tags"] = [
             {"key": k, "value": v, "propagate_at_launch": True} for k, v in tags.items()
         ]
@@ -4359,10 +4306,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         common_values = self.init_values(spec)
         output_prefix = spec.output_prefix
         tf_resources = []
-        self.init_common_outputs(
-            tf_resources,
-            spec,
-        )
+        self.init_common_outputs(tf_resources, spec)
 
         # https://www.terraform.io/docs/providers/aws/r/route53_zone.html
         values = {
