@@ -3224,7 +3224,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         self.aggregate_values(values)
         self.override_values(values, overrides)
         values["identifier"] = spec.identifier
-        values["tags"] = self.get_resource_tags(spec.namespace)
+        values["tags"] = spec.tags(self.integration)
 
         for key in VARIABLE_KEYS:
             val = resource.get(key, None)
@@ -3322,26 +3322,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             e_msg = "Could not parse data. Skipping resource: {}"
             raise FetchResourceError(e_msg.format(path))
         return values
-
-    def get_resource_tags(self, namespace_info):
-        cluster, namespace, environment, app = self.unpack_namespace_info(
-            namespace_info
-        )
-        return {
-            "managed_by_integration": self.integration,
-            "cluster": cluster,
-            "namespace": namespace,
-            "environment": environment,
-            "app": app,
-        }
-
-    @staticmethod
-    def unpack_namespace_info(namespace_info):
-        cluster = namespace_info["cluster"]["name"]
-        namespace = namespace_info["name"]
-        environment = namespace_info["environment"]["name"]
-        app = namespace_info["app"]["name"]
-        return cluster, namespace, environment, app
 
     @staticmethod
     def get_dependencies(tf_resources: Iterable[Resource]) -> List[str]:
