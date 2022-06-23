@@ -988,54 +988,54 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 ).append(spec)
                 self.resource_spec_inventory[spec.id_object()] = spec
 
-    def populate_tf_resources(self, populate_spec, ocm_map=None):
-        if populate_spec.provision_provider != PROVIDER_AWS:
-            raise UnknownProviderError(populate_spec.provision_provider)
+    def populate_tf_resources(self, spec, ocm_map=None):
+        if spec.provision_provider != PROVIDER_AWS:
+            raise UnknownProviderError(spec.provision_provider)
 
-        provider = populate_spec.provider
+        provider = spec.provider
 
         if provider == "rds":
-            self.populate_tf_resource_rds(populate_spec)
+            self.populate_tf_resource_rds(spec)
         elif provider == "s3":
-            self.populate_tf_resource_s3(populate_spec)
+            self.populate_tf_resource_s3(spec)
         elif provider == "elasticache":
-            self.populate_tf_resource_elasticache(populate_spec)
+            self.populate_tf_resource_elasticache(spec)
         elif provider == "aws-iam-service-account":
-            self.populate_tf_resource_service_account(populate_spec, ocm_map=ocm_map)
+            self.populate_tf_resource_service_account(spec, ocm_map=ocm_map)
         elif provider == "secrets-manager-service-account":
-            self.populate_tf_resource_secrets_manager_sa(populate_spec)
+            self.populate_tf_resource_secrets_manager_sa(spec)
         elif provider == "aws-iam-role":
-            self.populate_tf_resource_role(populate_spec)
+            self.populate_tf_resource_role(spec)
         elif provider == "sqs":
-            self.populate_tf_resource_sqs(populate_spec)
+            self.populate_tf_resource_sqs(spec)
         elif provider == "dynamodb":
-            self.populate_tf_resource_dynamodb(populate_spec)
+            self.populate_tf_resource_dynamodb(spec)
         elif provider == "ecr":
-            self.populate_tf_resource_ecr(populate_spec)
+            self.populate_tf_resource_ecr(spec)
         elif provider == "s3-cloudfront":
-            self.populate_tf_resource_s3_cloudfront(populate_spec)
+            self.populate_tf_resource_s3_cloudfront(spec)
         elif provider == "s3-sqs":
-            self.populate_tf_resource_s3_sqs(populate_spec)
+            self.populate_tf_resource_s3_sqs(spec)
         elif provider == "cloudwatch":
-            self.populate_tf_resource_cloudwatch(populate_spec)
+            self.populate_tf_resource_cloudwatch(spec)
         elif provider == "kms":
-            self.populate_tf_resource_kms(populate_spec)
+            self.populate_tf_resource_kms(spec)
         elif provider == "elasticsearch":
-            self.populate_tf_resource_elasticsearch(populate_spec)
+            self.populate_tf_resource_elasticsearch(spec)
         elif provider == "acm":
-            self.populate_tf_resource_acm(populate_spec)
+            self.populate_tf_resource_acm(spec)
         elif provider == "kinesis":
-            self.populate_tf_resource_kinesis(populate_spec)
+            self.populate_tf_resource_kinesis(spec)
         elif provider == "s3-cloudfront-public-key":
-            self.populate_tf_resource_s3_cloudfront_public_key(populate_spec)
+            self.populate_tf_resource_s3_cloudfront_public_key(spec)
         elif provider == "alb":
-            self.populate_tf_resource_alb(populate_spec, ocm_map=ocm_map)
+            self.populate_tf_resource_alb(spec, ocm_map=ocm_map)
         elif provider == "secrets-manager":
-            self.populate_tf_resource_secrets_manager(populate_spec)
+            self.populate_tf_resource_secrets_manager(spec)
         elif provider == "asg":
-            self.populate_tf_resource_asg(populate_spec)
+            self.populate_tf_resource_asg(spec)
         elif provider == "route53-zone":
-            self.populate_tf_resource_route53_zone(populate_spec)
+            self.populate_tf_resource_route53_zone(spec)
         else:
             raise UnknownProviderError(provider)
 
