@@ -3246,18 +3246,12 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
     def init_values(
         self,
-        spec,
+        spec: ExternalResourceSpec,
     ) -> tuple[str, str, dict, str, str, dict]:
         """
         Initialize the values of the terraform resource and merge the defaults and
         overrides.
-
-        :param resource: schemas/openshift/terraform-resource-1.yml object
-        :param namespace_info: schemas/openshift/namespace-1.yml object
         """
-        account = spec.provisioner_name
-        provider = spec.provider
-        identifier = spec.identifier
         resource = spec.resource
         defaults_path = resource.get("defaults", None)
         overrides = resource.get("overrides", None)
@@ -3265,7 +3259,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         values = self.get_values(defaults_path) if defaults_path else {}
         self.aggregate_values(values)
         self.override_values(values, overrides)
-        values["identifier"] = identifier
+        values["identifier"] = spec.identifier
         values["tags"] = self.get_resource_tags(spec.namespace)
 
         for key in VARIABLE_KEYS:
@@ -3275,20 +3269,13 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             if val is not None:
                 values[key] = val
 
-        output_prefix = "{}-{}".format(identifier, provider)
-        output_resource_name = resource["output_resource_name"]
-        if output_resource_name is None:
-            output_resource_name = output_prefix
-
-        annotations = json.loads(resource.get("annotations") or "{}")
-
         return (
-            account,
-            identifier,
+            spec.provisioner_name,
+            spec.identifier,
             values,
-            output_prefix,
-            output_resource_name,
-            annotations,
+            spec.output_prefix,
+            spec.output_resource_name,
+            spec.annotations(),
         )
 
     @staticmethod
@@ -3366,7 +3353,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         return raw_values
 
     @staticmethod
-    def get_values(path):
+    def get_values(path: str) -> dict:
         raw_values = TerrascriptClient.get_raw_values(path)
         try:
             values = anymarkup.parse(raw_values["content"], force_types=None)
