@@ -1045,8 +1045,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             identifier,
             values,
             output_prefix,
-            output_resource_name,
-            annotations,
         ) = self.init_values(spec)
 
         tf_resources = []
@@ -1201,7 +1199,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 else:
                     replica_region = self.default_regions.get(account)
 
-                _, _, source_values, _, _, _ = self.init_values(source_info)
+                _, _, source_values, _ = self.init_values(source_info)
                 if replica_region == region:
                     # replica is in the same region as source
                     values["replicate_source_db"] = replica_source
@@ -1395,8 +1393,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             identifier,
             common_values,
             output_prefix,
-            output_resource_name,
-            annotations,
         ) = self.init_values(spec)
 
         tf_resources = []
@@ -1761,8 +1757,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             identifier,
             values,
             output_prefix,
-            output_resource_name,
-            annotations,
         ) = self.init_values(spec)
         values.setdefault("replication_group_id", values["identifier"])
         values.pop("identifier", None)
@@ -1853,8 +1847,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             identifier,
             common_values,
             output_prefix,
-            output_resource_name,
-            annotations,
         ) = self.init_values(spec)
 
         tf_resources = []
@@ -1951,8 +1943,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             identifier,
             common_values,
             output_prefix,
-            output_resource_name,
-            annotations,
         ) = self.init_values(spec)
 
         tf_resources = []
@@ -1998,8 +1988,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             identifier,
             common_values,
             output_prefix,
-            output_resource_name,
-            annotations,
         ) = self.init_values(spec)
 
         tf_resources = []
@@ -2052,8 +2040,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             identifier,
             common_values,
             output_prefix,
-            output_resource_name,
-            annotations,
         ) = self.init_values(spec)
         uid = self.uids.get(account)
 
@@ -2202,8 +2188,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             identifier,
             common_values,
             output_prefix,
-            output_resource_name,
-            annotations,
         ) = self.init_values(spec)
         uid = self.uids.get(account)
 
@@ -2291,8 +2275,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             identifier,
             common_values,
             output_prefix,
-            output_resource_name,
-            annotations,
         ) = self.init_values(spec)
 
         tf_resources = []
@@ -2394,14 +2376,11 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         self.add_resources(account, tf_resources)
 
     def populate_tf_resource_s3_cloudfront(self, spec):
-        # pylint: disable=unused-variable
         (
             account,
             identifier,
             common_values,
             output_prefix,
-            output_resource_name,
-            annotations,
         ) = self.init_values(spec)
 
         bucket_tf_resource = self.populate_tf_resource_s3(spec)
@@ -2524,14 +2503,11 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         self.add_resources(account, tf_resources)
 
     def populate_tf_resource_s3_sqs(self, spec):
-        # pylint: disable=unused-variable
         (
             account,
             identifier,
             common_values,
             output_prefix,
-            output_resource_name,
-            annotations,
         ) = self.init_values(spec)
         uid = self.uids.get(account)
 
@@ -2736,8 +2712,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             identifier,
             common_values,
             output_prefix,
-            output_resource_name,
-            annotations,
         ) = self.init_values(spec)
 
         tf_resources = []
@@ -2957,8 +2931,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             identifier,
             values,
             output_prefix,
-            output_resource_name,
-            annotations,
         ) = self.init_values(spec)
 
         tf_resources = []
@@ -3008,8 +2980,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             identifier,
             values,
             output_prefix,
-            output_resource_name,
-            annotations,
         ) = self.init_values(spec)
 
         tf_resources = []
@@ -3211,7 +3181,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
     def init_values(
         self,
         spec: ExternalResourceSpec,
-    ) -> tuple[str, str, dict, str, str, dict]:
+    ) -> tuple[str, str, dict, str]:
         """
         Initialize the values of the terraform resource and merge the defaults and
         overrides.
@@ -3238,8 +3208,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             spec.identifier,
             values,
             spec.output_prefix,
-            spec.output_resource_name,
-            spec.annotations(),
         )
 
     @staticmethod
@@ -3514,8 +3482,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             identifier,
             values,
             output_prefix,
-            output_resource_name,
-            annotations,
         ) = self.init_values(spec)
 
         tf_resources = []
@@ -3751,8 +3717,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             identifier,
             common_values,
             output_prefix,
-            output_resource_name,
-            annotations,
         ) = self.init_values(spec)
 
         tf_resources = []
@@ -3842,8 +3806,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             identifier,
             common_values,
             output_prefix,
-            output_resource_name,
-            annotations,
         ) = self.init_values(spec)
 
         tf_resources = []
@@ -3921,8 +3883,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             identifier,
             common_values,
             output_prefix,
-            output_resource_name,
-            annotations,
         ) = self.init_values(spec)
         tf_resources = []
         namespace_info = spec.namespace
@@ -4210,8 +4170,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             identifier,
             common_values,
             output_prefix,
-            output_resource_name,
-            annotations,
         ) = self.init_values(spec)
 
         tf_resources = []
@@ -4309,8 +4267,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             identifier,
             common_values,
             output_prefix,
-            output_resource_name,
-            annotations,
         ) = self.init_values(spec)
 
         tf_resources: List[Any] = []
@@ -4452,8 +4408,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             identifier,
             common_values,
             output_prefix,
-            output_resource_name,
-            annotations,
         ) = self.init_values(spec)
         tf_resources = []
         self.init_common_outputs(
