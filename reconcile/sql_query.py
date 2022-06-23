@@ -264,6 +264,11 @@ def collect_queries(query_name=None, settings=None):
         if schedule:
             item["schedule"] = schedule
 
+        # Logic to allow users to delete cronjobs
+        delete = sql_query.get("delete")
+        if delete:
+            item["delete"] = delete
+
         queries_list.append(item)
 
     return queries_list
@@ -534,7 +539,7 @@ def run(dry_run, enable_deletion=False):
             state[query_name] = time.time()
 
     for candidate in remove_candidates:
-        if not query["cronjob"] and time.time() < candidate["timestamp"] + JOB_TTL:
+        if not candidate["is_cronjob"] and time.time() < candidate["timestamp"] + JOB_TTL:
             continue
 
         try:

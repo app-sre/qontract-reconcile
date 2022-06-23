@@ -1590,6 +1590,7 @@ APP_INTERFACE_SQL_QUERIES_QUERY = """
     }
     output
     schedule
+    delete
     query
     queries
   }
