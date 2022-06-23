@@ -4517,9 +4517,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         instance_types = common_values.get("instance_types")
         if instance_types:
             override = [{"instance_type": i} for i in instance_types]
-            (
-                asg_value["mixed_instances_policy"]["launch_template"]["override"]
-            ) = override  # type: ignore[assignment,index]
+            asg_value["mixed_instances_policy"]["launch_template"]["override"] = override  # type: ignore[assignment,index]
         asg_value["tags"] = [
             {"key": k, "value": v, "propagate_at_launch": True} for k, v in tags.items()
         ]
