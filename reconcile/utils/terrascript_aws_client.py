@@ -333,7 +333,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             access_key_backend_value = config["aws_access_key_id"]
             secret_key_backend_value = config["aws_secret_access_key"]
             bucket_backend_value = ""
-            key_backend_value = "",
+            key_backend_value = ""
             region_backend_value = ""
 
             for filtered_account in filtered_accounts:
@@ -341,18 +341,18 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     terraform_state = filtered_account.get("terraformState")
                     if not terraform_state:
                         bucket_backend_value = config["bucket"]
-                        key_backend_value = config['{}_key'.format(integration)],
-                        region_backend_value = config['region']
+                        key_backend_value = config["{}_key".format(integration)]
+                        region_backend_value = config["region"]
                     else:
-                        tf_state_integration = terraform_state['integrations']
+                        tf_state_integration = terraform_state["integrations"]
                         for key in tf_state_integration:
                             key_value = key.get("key")
-                            transformed_key = str(key_value).replace("-","_")
+                            transformed_key = str(key_value).replace("-", "_")
                             logging.debug("This is the transformed key value:")
                             logging.debug(transformed_key)
                             if transformed_key == self.integration:
                                 bucket_backend_value = filtered_account.get("bucket")
-                                key_backend_value = str(key_value),
+                                key_backend_value = str(key_value)
                                 region_backend_value = filtered_account.get("region")
 
             b = Backend(
