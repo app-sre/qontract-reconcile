@@ -128,11 +128,11 @@ def get_tf_resource_info(terrascript: Terrascript, namespace, identifier):
         if spec.identifier != identifier:
             continue
 
-        _, _, values, _, output_resource_name, _ = terrascript.init_values(spec)
+        values = terrascript.init_values(spec)
 
         return {
-            "cluster": namespace["cluster"]["name"],
-            "output_resource_name": output_resource_name,
+            "cluster": spec.cluster_name,
+            "output_resource_name": spec.output_resource_name,
             "engine": values.get("engine", "postgres"),
             "engine_version": values.get("engine_version", "latest"),
         }
