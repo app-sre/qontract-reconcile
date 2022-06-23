@@ -3414,16 +3414,15 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         This helps to fail early before 'terraform apply' will complain.
         """
-        has_lower_case = False
-        has_upper_case = False
-        has_special_char = False
-        has_number = False
         longer_than_eight_chars = len(password) >= 8
 
+        password_set = set(password)
+        has_lower_case = any(password_set.intersection(set(string.ascii_lowercase)))
+        has_upper_case = any(password_set.intersection(set(string.ascii_uppercase)))
+        has_number = any(password_set.intersection(set(string.digits)))
+        has_special_char = False
+
         for c in password:
-            has_lower_case |= c in string.ascii_lowercase
-            has_upper_case |= c in string.ascii_uppercase
-            has_number |= c in string.digits
             has_special_char |= not str.isalnum(c)
 
         if not (
@@ -3440,8 +3439,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
     def _build_es_advanced_security_options(
         self, auth_options: Mapping[str, Any]
-    ) -> Mapping[str, Any]:
-        advanced_security_options = {
+    ) -> dict[str, Any]:
+        advanced_security_options: dict[str, Any] = {
             "enabled": True,
         }
 
@@ -3453,7 +3452,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 "master_user_arn": admin_user_arn,
             }
         else:
-            admin_user_secret = auth_options.get("admin_user_credentials")
+            admin_user_secret = auth_options["admin_user_credentials"]
             secret_data = self.secret_reader.read_all(admin_user_secret)
 
             required_keys = {"master_user_name", "master_user_password"}
@@ -3642,6 +3641,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             es_values["provider"] = "aws." + region
 
         auth_options = values.get("auth", {})
+        # TODO: @fishi0x01 make mandatory after migration APPSRE-3409
         if auth_options:
             es_values[
                 "advanced_security_options"
