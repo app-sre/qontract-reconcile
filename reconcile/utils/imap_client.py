@@ -10,10 +10,13 @@ class ImapClient:
         self.user: str = imap_config["username"]
         self.password: str = imap_config["password"]
         self.port: int = int(imap_config["port"])
+        self.timeout: int = settings["imap"]["timeout"]
         self._server = None
 
     def __enter__(self):
-        self._server = imaplib.IMAP4_SSL(host=self.host, port=self.port)
+        self._server = imaplib.IMAP4_SSL(
+            host=self.host, port=self.port, timeout=self.timeout
+        )
         self._server.login(self.user, self.password)
         return self
 

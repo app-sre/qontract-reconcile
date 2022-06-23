@@ -12,18 +12,21 @@ from reconcile.utils.secret_reader import SecretReader
 class SmtpClient:
     def __init__(self, settings):
         smtp_config = self.get_smtp_config(settings)
-        self.host = smtp_config["server"]
-        self.port = str(smtp_config["port"])
-        self.user = smtp_config["username"]
-        self.passwd = smtp_config["password"]
-        self.mail_address = settings["smtp"]["mailAddress"]
+        self.host: str = smtp_config["server"]
+        self.port: str = str(smtp_config["port"])
+        self.user: str = smtp_config["username"]
+        self.passwd: str = smtp_config["password"]
+        self.mail_address: str = settings["smtp"]["mailAddress"]
+        self.timeout: int = settings["smtp"]["timeout"]
 
         self._client = None
 
     @property
     def client(self):
         if self._client is None:
-            self._client = smtplib.SMTP(host=self.host, port=self.port, timeout=30)
+            self._client = smtplib.SMTP(
+                host=self.host, port=self.port, timeout=self.timeout
+            )
             self._client.send
             self._client.starttls()
             self._client.login(self.user, self.passwd)
