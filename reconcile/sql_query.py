@@ -3,7 +3,6 @@ import sys
 import time
 
 from textwrap import indent
-from graphql import is_composite_type
 
 import jinja2
 from ruamel import yaml
