@@ -3266,8 +3266,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
     def init_common_outputs(
         self,
-        tf_resources,
-        spec,
+        tf_resources: List[Resource],
+        spec: ExternalResourceSpec,
     ):
         output_format_0_13 = "{}__{}_{}"
         # cluster
