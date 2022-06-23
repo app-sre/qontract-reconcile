@@ -30,6 +30,14 @@ APP_INTERFACE_SETTINGS_QUERY = """
         format
       }
     }
+    imap {
+      credentials {
+        path
+        field
+        version
+        format
+      }
+    }
     githubRepoInvites {
       credentials {
         path

@@ -1,10 +1,9 @@
-import imaplib
 import smtplib
-
+from email.header import Header
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from email.header import Header
 from email.utils import formataddr
+
 from sretoolbox.utils import retry
 
 from reconcile.utils.secret_reader import SecretReader
@@ -20,7 +19,6 @@ class SmtpClient:
         self.mail_address = settings["smtp"]["mailAddress"]
 
         self._client = None
-        self._server = None
 
     @property
     def client(self):
@@ -30,13 +28,6 @@ class SmtpClient:
             self._client.starttls()
             self._client.login(self.user, self.passwd)
         return self._client
-
-    @property
-    def server(self):
-        if self._server is None:
-            self._server = imaplib.IMAP4_SSL(host=self.host, timeout=30)
-            self._server.login(self.user, self.passwd)
-        return self._server
 
     @staticmethod
     def get_smtp_config(settings):
@@ -52,17 +43,6 @@ class SmtpClient:
                 f"Missing expected SMTP config " f"key in vault secret: {e}"
             )
         return config
-
-    def get_mails(self, folder="INBOX", criteria="ALL"):
-        self.server.select(f'"{folder}"')
-        _, data = self.server.uid("search", None, criteria)
-        uids = list(data[0].split())
-        results = []
-        for uid in uids:
-            _, data = self.server.uid("fetch", uid, "(RFC822)")
-            msg = data[0][1].decode("utf-8")
-            results.append({"uid": uid, "msg": msg})
-        return results
 
     def send_mails(self, mails):
         for name, subject, body in mails:
