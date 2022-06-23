@@ -988,7 +988,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 ).append(spec)
                 self.resource_spec_inventory[spec.id_object()] = spec
 
-    def populate_tf_resources(self, spec, ocm_map=None):
+    def populate_tf_resources(
+        self, spec: ExternalResourceSpec, ocm_map: Optional[OCMMap] = None
+    ):
         if spec.provision_provider != PROVIDER_AWS:
             raise UnknownProviderError(spec.provision_provider)
 
