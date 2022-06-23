@@ -46,11 +46,23 @@ class TerraformConfigProvider:
     def init_spec_inventory(
         self, namespaces: Iterable[Mapping[str, Any]], provisioner_name: Optional[str]
     ) -> None:
-        self.ts.init_populate_specs(namespaces, provisioner_name)
+        """
+        Initiates resource specs from the definitions in app-interface
+        (schemas/openshift/external-resource-1.yml).
+        :param namespaces: schemas/openshift/namespace-1.yml object
+        :param account_name: AWS account name
+        """
 
-    @property
-    def resource_spec_inventory(self):
-        return self.ts.resource_spec_inventory
+        self.resource_spec_inventory: ExternalResourceSpecInventory = {}
+
+        for namespace_info in namespaces:
+            specs = get_external_resource_specs(namespace_info)
+            for spec in specs:
+                if provisioner_name and spec.provisioner_name != provisioner_name:
+                    continue
+                self.resource_spec_inventory[spec.id_object()] = spec
+
+        self.ts.init_populate_specs(namespaces, provisioner_name)
 
     def populate_resources(self, ocm_map: Optional[OCMMap] = None) -> None:
         self.ts.populate_resources(ocm_map=ocm_map)
