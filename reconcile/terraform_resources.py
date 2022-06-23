@@ -6,7 +6,10 @@ from textwrap import indent
 from typing import Any, Iterable, Optional, Mapping, Tuple, cast
 
 from sretoolbox.utils import threaded
-from reconcile.utils.external_resources import get_external_resource_specs, managed_external_resources
+from reconcile.utils.external_resources import (
+    get_external_resource_specs,
+    managed_external_resources,
+)
 
 
 import reconcile.openshift_base as ob
@@ -363,27 +366,33 @@ TF_NAMESPACES_QUERY = """
   }
 }
 """ % (
-    indent(TF_RESOURCE_AWS, 6*' '),
+    indent(TF_RESOURCE_AWS, 6 * " "),
 )
 
-QONTRACT_INTEGRATION = 'terraform_resources'
+QONTRACT_INTEGRATION = "terraform_resources"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 5, 2)
-QONTRACT_TF_PREFIX = 'qrtf'
+QONTRACT_TF_PREFIX = "qrtf"
 
 
-def populate_oc_resources(spec: ob.CurrentStateSpec, ri: ResourceInventory, account_name: Optional[str]):
+def populate_oc_resources(
+    spec: ob.CurrentStateSpec, ri: ResourceInventory, account_name: Optional[str]
+):
     if spec.oc is None:
         return
-    logging.debug("[populate_oc_resources] cluster: " + spec.cluster
-                  + " namespace: " + spec.namespace
-                  + " resource: " + spec.kind)
+    logging.debug(
+        "[populate_oc_resources] cluster: "
+        + spec.cluster
+        + " namespace: "
+        + spec.namespace
+        + " resource: "
+        + spec.kind
+    )
 
     try:
-        for item in spec.oc.get_items(spec.kind,
-                                      namespace=spec.namespace):
-            openshift_resource = OR(item,
-                                    QONTRACT_INTEGRATION,
-                                    QONTRACT_INTEGRATION_VERSION)
+        for item in spec.oc.get_items(spec.kind, namespace=spec.namespace):
+            openshift_resource = OR(
+                item, QONTRACT_INTEGRATION, QONTRACT_INTEGRATION_VERSION
+            )
             if account_name:
                 caller = openshift_resource.caller
                 if caller and caller != account_name:
@@ -394,54 +403,62 @@ def populate_oc_resources(spec: ob.CurrentStateSpec, ri: ResourceInventory, acco
                 spec.namespace,
                 spec.kind,
                 openshift_resource.name,
-                openshift_resource
+                openshift_resource,
             )
     except StatusCodeError as e:
         ri.register_error(cluster=spec.cluster)
-        msg = 'cluster: {},'
-        msg += 'namespace: {},'
-        msg += 'resource: {},'
-        msg += 'exception: {}'
+        msg = "cluster: {},"
+        msg += "namespace: {},"
+        msg += "resource: {},"
+        msg += "exception: {}"
         msg = msg.format(spec.cluster, spec.namespace, spec.kind, str(e))
         logging.error(msg)
 
 
-def fetch_current_state(dry_run, namespaces, thread_pool_size,
-                        internal, use_jump_host, account_name):
+def fetch_current_state(
+    dry_run, namespaces, thread_pool_size, internal, use_jump_host, account_name
+):
     ri = ResourceInventory()
     if dry_run:
         return ri, None
     settings = queries.get_app_interface_settings()
-    oc_map = OC_Map(namespaces=namespaces, integration=QONTRACT_INTEGRATION,
-                    settings=settings, internal=internal,
-                    use_jump_host=use_jump_host,
-                    thread_pool_size=thread_pool_size)
-    state_specs = \
-        ob.init_specs_to_fetch(
-            ri,
-            oc_map,
-            namespaces=namespaces,
-            override_managed_types=['Secret']
-        )
-    current_state_specs: list[ob.CurrentStateSpec] = [s for s in state_specs if isinstance(s, ob.CurrentStateSpec)]
+    oc_map = OC_Map(
+        namespaces=namespaces,
+        integration=QONTRACT_INTEGRATION,
+        settings=settings,
+        internal=internal,
+        use_jump_host=use_jump_host,
+        thread_pool_size=thread_pool_size,
+    )
+    state_specs = ob.init_specs_to_fetch(
+        ri, oc_map, namespaces=namespaces, override_managed_types=["Secret"]
+    )
+    current_state_specs: list[ob.CurrentStateSpec] = [
+        s for s in state_specs if isinstance(s, ob.CurrentStateSpec)
+    ]
     threaded.run(
-        populate_oc_resources, current_state_specs,
-        thread_pool_size, ri=ri,
-        account_name=account_name
+        populate_oc_resources,
+        current_state_specs,
+        thread_pool_size,
+        ri=ri,
+        account_name=account_name,
     )
 
     return ri, oc_map
 
 
-def init_working_dirs(accounts: list[dict[str, Any]],
-                      thread_pool_size: int,
-                      settings: Optional[Mapping[str, Any]] = None
-                      ) -> tuple[Terrascript, dict[str, str]]:
-    ts = Terrascript(QONTRACT_INTEGRATION,
-                     QONTRACT_TF_PREFIX,
-                     thread_pool_size,
-                     accounts,
-                     settings=settings)
+def init_working_dirs(
+    accounts: list[dict[str, Any]],
+    thread_pool_size: int,
+    settings: Optional[Mapping[str, Any]] = None,
+) -> tuple[Terrascript, dict[str, str]]:
+    ts = Terrascript(
+        QONTRACT_INTEGRATION,
+        QONTRACT_TF_PREFIX,
+        thread_pool_size,
+        accounts,
+        settings=settings,
+    )
     working_dirs = ts.dump()
     return ts, working_dirs
 
@@ -453,27 +470,22 @@ def setup(
     internal: str,
     use_jump_host: bool,
     account_name: Optional[str],
-) -> Tuple[
-    ResourceInventory,
-    OC_Map,
-    Terraform,
-    ExternalResourceSpecInventory,
-]:
+) -> Tuple[ResourceInventory, OC_Map, Terraform, ExternalResourceSpecInventory]:
     gqlapi = gql.get_api()
     accounts = queries.get_aws_accounts()
     if account_name:
-        accounts = [n for n in accounts
-                    if n['name'] == account_name]
+        accounts = [n for n in accounts if n["name"] == account_name]
         if not accounts:
             raise ValueError(f"aws account {account_name} is not found")
     settings = queries.get_app_interface_settings()
 
     # build a resource inventory for all the kube secrets managed by the
     # app-interface managed terraform resources
-    namespaces = gqlapi.query(TF_NAMESPACES_QUERY)['namespaces']
+    namespaces = gqlapi.query(TF_NAMESPACES_QUERY)["namespaces"]
     tf_namespaces = filter_tf_namespaces(namespaces, account_name)
-    ri, oc_map = fetch_current_state(dry_run, tf_namespaces, thread_pool_size,
-                                     internal, use_jump_host, account_name)
+    ri, oc_map = fetch_current_state(
+        dry_run, tf_namespaces, thread_pool_size, internal, use_jump_host, account_name
+    )
 
     # initialize terrascript (scripting engine to generate terraform manifests)
     ts, working_dirs = init_working_dirs(accounts, thread_pool_size, settings=settings)
@@ -481,24 +493,25 @@ def setup(
     # initialize terraform client
     # it is used to plan and apply according to the output of terrascript
     aws_api = AWSApi(1, accounts, settings=settings, init_users=False)
-    tf = Terraform(QONTRACT_INTEGRATION,
-                   QONTRACT_INTEGRATION_VERSION,
-                   QONTRACT_TF_PREFIX,
-                   accounts,
-                   working_dirs,
-                   thread_pool_size,
-                   aws_api)
-    clusters = [c for c in queries.get_clusters()
-                if c.get('ocm') is not None]
+    tf = Terraform(
+        QONTRACT_INTEGRATION,
+        QONTRACT_INTEGRATION_VERSION,
+        QONTRACT_TF_PREFIX,
+        accounts,
+        working_dirs,
+        thread_pool_size,
+        aws_api,
+    )
+    clusters = [c for c in queries.get_clusters() if c.get("ocm") is not None]
     if clusters:
-        ocm_map = OCMMap(clusters=clusters, integration=QONTRACT_INTEGRATION,
-                         settings=settings)
+        ocm_map = OCMMap(
+            clusters=clusters, integration=QONTRACT_INTEGRATION, settings=settings
+        )
     else:
         ocm_map = None
     ts.init_populate_specs(tf_namespaces, account_name)
     tf.populate_terraform_output_secrets(
-        resource_specs=ts.resource_spec_inventory,
-        init_rds_replica_source=True
+        resource_specs=ts.resource_spec_inventory, init_rds_replica_source=True
     )
     ts.populate_resources(ocm_map=ocm_map)
     ts.dump(print_to_file, existing_dirs=working_dirs)
@@ -542,8 +555,10 @@ def cleanup_and_exit(tf=None, status=False, working_dirs=None):
     sys.exit(status)
 
 
-def write_outputs_to_vault(vault_path: str, resource_specs: ExternalResourceSpecInventory) -> None:
-    integration_name = QONTRACT_INTEGRATION.replace('_', '-')
+def write_outputs_to_vault(
+    vault_path: str, resource_specs: ExternalResourceSpecInventory
+) -> None:
+    integration_name = QONTRACT_INTEGRATION.replace("_", "-")
     vault_client = cast(_VaultClient, VaultClient())
     for spec in resource_specs.values():
         # a secret can be empty if the terraform-integration is not enabled on the cluster
@@ -554,23 +569,24 @@ def write_outputs_to_vault(vault_path: str, resource_specs: ExternalResourceSpec
             secret_path = f"{vault_path}/{integration_name}/{spec.cluster_name}/{spec.namespace_name}/{spec.output_resource_name}"
             # vault only stores strings as values - by converting to str upfront, we can compare current to desired
             stringified_secret = {k: str(v) for k, v in spec.secret.items()}
-            desired_secret = {'path': secret_path, 'data': stringified_secret}
+            desired_secret = {"path": secret_path, "data": stringified_secret}
             vault_client.write(desired_secret, decode_base64=False)
 
 
-def populate_desired_state(ri: ResourceInventory, resource_specs: ExternalResourceSpecInventory) -> None:
+def populate_desired_state(
+    ri: ResourceInventory, resource_specs: ExternalResourceSpecInventory
+) -> None:
     for spec in resource_specs.values():
         if ri.is_cluster_present(spec.cluster_name):
             oc_resource = spec.build_oc_secret(
-                QONTRACT_INTEGRATION,
-                QONTRACT_INTEGRATION_VERSION
+                QONTRACT_INTEGRATION, QONTRACT_INTEGRATION_VERSION
             )
             ri.add_desired(
                 cluster=spec.cluster_name,
                 namespace=spec.namespace_name,
                 resource_type=oc_resource.kind,
                 name=spec.output_resource_name,
-                value=oc_resource
+                value=oc_resource,
             )
 
 
@@ -625,19 +641,22 @@ def run(
 
     # refresh output data after terraform apply
     tf.populate_terraform_output_secrets(
-        resource_specs=resource_specs,
-        init_rds_replica_source=True
+        resource_specs=resource_specs, init_rds_replica_source=True
     )
     # populate the resource inventory with latest output data
     populate_desired_state(ri, resource_specs)
 
-    actions = ob.realize_data(dry_run, oc_map, ri, thread_pool_size,
-                              caller=account_name)
+    actions = ob.realize_data(
+        dry_run, oc_map, ri, thread_pool_size, caller=account_name
+    )
 
     if not light and tf.should_apply:
-        disable_keys(dry_run, thread_pool_size,
-                     disable_service_account_keys=True,
-                     account_name=account_name)
+        disable_keys(
+            dry_run,
+            thread_pool_size,
+            disable_service_account_keys=True,
+            account_name=account_name,
+        )
 
     if actions and vault_output_path:
         write_outputs_to_vault(vault_output_path, resource_specs)
