@@ -2,10 +2,3 @@
 line-length = 88
 target-version = ['py39']
 include = '^.*\.py$'
-force-exclude = '''
-^/(
-    reconcile/terraform_resources.py
-    | reconcile/utils/terraform_client.py
-    | reconcile/utils/terrascript_aws_client.py
-)$
-'''
