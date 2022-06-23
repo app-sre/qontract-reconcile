@@ -337,47 +337,24 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             region_backend_value = ""
 
             for filtered_account in filtered_accounts:
-                logging.debug("This is the filtered account")
-                logging.debug(filtered_account)
                 if filtered_account.get("name") == name:
-                    logging.debug("Account name matches!")
                     terraform_state = filtered_account.get("terraformState")
                     if not terraform_state:
-                        logging.debug("There is no terraform state")
                         bucket_backend_value = config["bucket"]
-                        logging.debug("bucket value")
-                        logging.debug(bucket_backend_value)
                         key_backend_value = config["{}_key".format(integration)]
-                        logging.debug("key value")
-                        logging.debug(key_backend_value)
                         region_backend_value = config["region"]
-                        logging.debug("region value")
-                        logging.debug(region_backend_value)
                     else:
-                        logging.debug("There is a terraform state")
                         tf_state_integration = terraform_state["integrations"]
                         for key in tf_state_integration:
                             key_value = key.get("key")
-                            logging.debug("This is the key value")
-                            logging.debug(key_value)
                             integration_value = key.get("integration")
                             transformed_integration = str(integration_value).replace(
                                 "-", "_"
                             )
-                            # logging.debug("This is the transformed key value:")
-                            # logging.debug(transformed_key)
-                            logging.debug("This is the integration value")
-                            logging.debug(self.integration)
                             if transformed_integration == self.integration:
                                 bucket_backend_value = terraform_state.get("bucket")
-                                logging.debug("bucket value")
-                                logging.debug(bucket_backend_value)
                                 key_backend_value = str(key_value)
-                                logging.debug("key value")
-                                logging.debug(key_backend_value)
                                 region_backend_value = terraform_state.get("region")
-                                logging.debug("region value")
-                                logging.debug(region_backend_value)
                             else:
                                 continue
 
