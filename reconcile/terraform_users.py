@@ -128,7 +128,6 @@ def run(
     dry_run: bool,
     print_to_file: Optional[str] = None,
     enable_deletion: bool = False,
-    io_dir: str = "throughput/",
     thread_pool_size: int = 10,
     send_mails: bool = True,
     account_name: Optional[str] = None,
@@ -163,7 +162,6 @@ def run(
     disabled_deletions_detected, err = tf.plan(enable_deletion)
     if err:
         cleanup_and_exit(tf, err)
-    tf.dump_deleted_users(io_dir)
     if disabled_deletions_detected:
         cleanup_and_exit(tf, disabled_deletions_detected)
 
