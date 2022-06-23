@@ -116,6 +116,7 @@ from reconcile.utils.external_resource_spec import (
 from reconcile.utils.external_resources import PROVIDER_AWS, get_external_resource_specs
 from reconcile.utils.jenkins_api import JenkinsApi
 from reconcile.utils.ocm import OCMMap
+from reconcile.utils.password_validator import PasswordPolicy, PasswordValidator
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.git import is_file_in_git_repo
 from reconcile.github_org import get_default_config
@@ -220,10 +221,6 @@ class ElasticSearchLogGroupInfo:
     account_id: str
     region: str
     log_group_identifier: str
-
-
-class PasswordValidationError(Exception):
-    pass
 
 
 class TerrascriptClient:  # pylint: disable=too-many-public-methods
@@ -3407,36 +3404,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         return tf_resources, publishing_options
 
-    def _validate_es_admin_password(self, password: str):
-        """
-        AWS requires the admin user password must be at least 8 chars long, contain at least one
-        uppercase letter, one lowercase letter, one number, and one special character.
-
-        This helps to fail early before 'terraform apply' will complain.
-        """
-        longer_than_eight_chars = len(password) >= 8
-
-        password_set = set(password)
-        has_lower_case = any(password_set.intersection(set(string.ascii_lowercase)))
-        has_upper_case = any(password_set.intersection(set(string.ascii_uppercase)))
-        has_number = any(password_set.intersection(set(string.digits)))
-        has_special_char = False
-
-        for c in password:
-            has_special_char |= not str.isalnum(c)
-
-        if not (
-            has_lower_case
-            and has_upper_case
-            and has_special_char
-            and has_number
-            and longer_than_eight_chars
-        ):
-            raise PasswordValidationError(
-                f"ES Admin password does not match policy: {longer_than_eight_chars=} "
-                f"{has_lower_case=} {has_upper_case=} {has_special_char=} {has_number=}"
-            )
-
     def _build_es_advanced_security_options(
         self, auth_options: Mapping[str, Any]
     ) -> dict[str, Any]:
@@ -3462,7 +3429,22 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     f"exactly contain these keys: {', '.join(required_keys)}"
                 )
 
-            self._validate_es_admin_password(secret_data["master_user_password"])
+            """
+            AWS requires the admin user password must be at least 8 chars long, contain at least one
+            uppercase letter, one lowercase letter, one number, and one special character.
+
+            This helps to fail early before 'terraform apply' will complain.
+            """
+            password_validator = PasswordValidator(
+                policy_flags=(
+                    PasswordPolicy.HAS_DIGIT
+                    | PasswordPolicy.HAS_LOWER_CASE_CHAR
+                    | PasswordPolicy.HAS_UPPER_CASE_CHAR
+                    | PasswordPolicy.HAS_SPECIAL_CHAR
+                ),
+                minimum_length=8,
+            )
+            password_validator.validate(secret_data["master_user_password"])
             advanced_security_options["internal_user_database_enabled"] = True
             advanced_security_options["master_user_options"] = secret_data
 
