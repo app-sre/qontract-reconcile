@@ -177,7 +177,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
     Usage example (mostly to demonstrate API):
 
     ts = TerrascriptClient("terraform_resources", "qrtf", 20, accounts, settings)
-    ts.populate_resources(tf_namespaces, existing_secrets, account_name, ocm_map=ocm_map)
+    ts.init_populate_specs(tf_namespaces, account_name)
+    ts.populate_resources(ocm_map=ocm_map)
     ts.dump(print_to_file, existing_dirs=working_dirs)
 
     More information on Terrascript: https://python-terrascript.readthedocs.io/en/develop/
@@ -912,26 +913,24 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         return results
 
-    def populate_resources(self, namespaces: Iterable[Mapping[str, Any]],
-                           existing_secrets: Mapping[str, Any],
-                           account_name: Optional[str],
+    def populate_resources(self,
                            ocm_map: Optional[OCMMap] = None) -> None:
         """
-        Populates the terraform configuration from the definitions in app-interface
-        (schemas/openshift/terraform-resource-1.yml).
-        :param namespaces: schemas/openshift/namespace-1.yml object
-        :param existing_secrets:
-        :param account_name: AWS account name
+        Populates the terraform configuration from resource specs.
         :param ocm_map:
         """
-        self.init_populate_specs(namespaces, account_name)
         for specs in self.account_resource_specs.values():
             for spec in specs:
-                self.populate_tf_resources(spec, existing_secrets,
-                                           ocm_map=ocm_map)
+                self.populate_tf_resources(spec, ocm_map=ocm_map)
 
     def init_populate_specs(self, namespaces: Iterable[Mapping[str, Any]],
                             account_name: Optional[str]) -> None:
+        """
+        Initiates resource specs from the definitions in app-interface
+        (schemas/openshift/terraform-resource-1.yml).
+        :param namespaces: schemas/openshift/namespace-1.yml object
+        :param account_name: AWS account name
+        """
         self.account_resource_specs: dict[str, list[ExternalResourceSpec]] = {}
         self.resource_spec_inventory: ExternalResourceSpecInventory = {}
 
@@ -943,7 +942,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 self.account_resource_specs.setdefault(spec.provisioner_name, []).append(spec)
                 self.resource_spec_inventory[spec.id_object()] = spec
 
-    def populate_tf_resources(self, populate_spec, existing_secrets,
+    def populate_tf_resources(self, populate_spec,
                               ocm_map=None):
         if populate_spec.provision_provider != PROVIDER_AWS:
             raise UnknownProviderError(populate_spec.provision_provider)
@@ -951,13 +950,11 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         provider = populate_spec.provider
 
         if provider == 'rds':
-            self.populate_tf_resource_rds(populate_spec,
-                                          existing_secrets)
+            self.populate_tf_resource_rds(populate_spec)
         elif provider == 's3':
             self.populate_tf_resource_s3(populate_spec)
         elif provider == 'elasticache':
-            self.populate_tf_resource_elasticache(populate_spec,
-                                                  existing_secrets)
+            self.populate_tf_resource_elasticache(populate_spec)
         elif provider == 'aws-iam-service-account':
             self.populate_tf_resource_service_account(populate_spec,
                                                       ocm_map=ocm_map)
@@ -993,15 +990,13 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         elif provider == 'secrets-manager':
             self.populate_tf_resource_secrets_manager(populate_spec)
         elif provider == 'asg':
-            self.populate_tf_resource_asg(populate_spec,
-                                          existing_secrets)
+            self.populate_tf_resource_asg(populate_spec)
         elif provider == 'route53-zone':
             self.populate_tf_resource_route53_zone(populate_spec)
         else:
             raise UnknownProviderError(provider)
 
-    def populate_tf_resource_rds(self, spec,
-                                 existing_secrets):
+    def populate_tf_resource_rds(self, spec):
         account, identifier, values, output_prefix, \
             output_resource_name, annotations = \
             self.init_values(spec)
@@ -1123,20 +1118,14 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 f'${{{role_tf_resource.arn}}}'
 
         reset_password_current_value = values.pop('reset_password', None)
+        reset_password_desired_value = spec.get_secret_field('reset_password')
         if self._db_needs_auth(values):
-            reset_password = self._should_reset_password(
-                reset_password_current_value,
-                existing_secrets,
-                account,
-                output_prefix
-            )
+            reset_password = reset_password_current_value != reset_password_desired_value
             if reset_password:
                 password = self.generate_random_password()
             else:
-                try:
-                    existing_secret = existing_secrets[account][output_prefix]
-                    password = existing_secret['db.password']
-                except KeyError:
+                password = spec.get_secret_field('db.password')
+                if not password:
                     password = self.generate_random_password()
         else:
             password = ""
@@ -1301,25 +1290,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     Output(output_name_0_13, value=output_value))
 
         self.add_resources(account, tf_resources)
-
-    @staticmethod
-    def _should_reset_password(current_value, existing_secrets,
-                               account, output_prefix):
-        """
-        If the current value (graphql) of reset_password
-        is different from the existing value (terraform state)
-        password should be reset.
-        """
-        if current_value:
-            try:
-                existing_secret = existing_secrets[account][output_prefix]
-                existing_value = \
-                    existing_secret['reset_password']
-            except KeyError:
-                existing_value = None
-            if current_value != existing_value:
-                return True
-        return False
 
     def _multiregion_account(self, name):
         if name not in self.configs:
@@ -1749,8 +1719,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         return bucket_tf_resource
 
-    def populate_tf_resource_elasticache(self, spec,
-                                         existing_secrets):
+    def populate_tf_resource_elasticache(self, spec):
         account, identifier, values, output_prefix, \
             output_resource_name, annotations = \
             self.init_values(spec)
@@ -1801,10 +1770,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             values['parameter_group_name'] = pg_name
             values.pop('parameter_group', None)
 
-        try:
-            auth_token = \
-                existing_secrets[account][output_prefix]['db.auth_token']
-        except KeyError:
+        auth_token = spec.get_secret_field('db.auth_token')
+        if not auth_token:
             auth_token = self.generate_random_password()
 
         if values.get('transit_encryption_enabled', False):
@@ -4286,8 +4253,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 return True
         return False
 
-    def populate_tf_resource_asg(self, spec,
-                                 existing_secrets: dict) -> None:
+    def populate_tf_resource_asg(self, spec) -> None:
         account, identifier, common_values, \
             output_prefix, output_resource_name, annotations = \
             self.init_values(spec)
@@ -4329,9 +4295,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         if not image_id:
             if self._use_previous_image_id(image):
                 new_commit_sha = commit_sha
-                existing_ami = existing_secrets[account][output_prefix]
-                image_id = existing_ami['image_id']
-                commit_sha = existing_ami['commit_sha']
+                image_id = spec.get_secret_field('image_id')
+                commit_sha = spec.get_secret_field('commit_sha')
                 logging.warning(
                     f"[{account}] ami for commit {new_commit_sha} "
                     f"not yet available. using ami {image_id} "

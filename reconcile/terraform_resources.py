@@ -488,7 +488,6 @@ def setup(
                    working_dirs,
                    thread_pool_size,
                    aws_api)
-    existing_secrets = tf.get_terraform_output_secrets()
     clusters = [c for c in queries.get_clusters()
                 if c.get('ocm') is not None]
     if clusters:
@@ -496,8 +495,12 @@ def setup(
                          settings=settings)
     else:
         ocm_map = None
-    ts.populate_resources(tf_namespaces, existing_secrets, account_name,
-                          ocm_map=ocm_map)
+    ts.init_populate_specs(tf_namespaces, account_name)
+    tf.populate_terraform_output_secrets(
+        resource_specs=ts.resource_spec_inventory,
+        init_rds_replica_source=True
+    )
+    ts.populate_resources(ocm_map=ocm_map)
     ts.dump(print_to_file, existing_dirs=working_dirs)
 
     return ri, oc_map, tf, ts.resource_spec_inventory
