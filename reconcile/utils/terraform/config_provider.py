@@ -7,6 +7,10 @@ from reconcile.utils.ocm import OCMMap
 from reconcile.utils.terrascript_aws_client import TerrascriptClient as Terrascript
 
 
+class UnknownProvisionProviderError(Exception):
+    pass
+
+
 @dataclass
 class TerraformConfigProvider:
     """
@@ -65,4 +69,12 @@ class TerraformConfigProvider:
         self.ts.init_populate_specs(namespaces, provisioner_name)
 
     def populate_resources(self, ocm_map: Optional[OCMMap] = None) -> None:
-        self.ts.populate_resources(ocm_map=ocm_map)
+        """
+        Populates the terraform configuration from resource specs.
+        :param ocm_map:
+        """
+        for spec in self.resource_spec_inventory.values():
+            if spec.provision_provider == PROVIDER_AWS:
+                self.ts.populate_resources(spec, ocm_map=ocm_map)
+            else:
+                raise UnknownProvisionProviderError(spec.provision_provider)

@@ -229,7 +229,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
     ts = TerrascriptClient("terraform_resources", "qrtf", 20, accounts, settings)
     ts.init_populate_specs(tf_namespaces, account_name)
-    ts.populate_resources(ocm_map=ocm_map)
+    for spec in get_external_resource_specs():
+        ts.populate_resources(spec, ocm_map=ocm_map)
     ts.dump(print_to_file, existing_dirs=working_dirs)
 
     More information on Terrascript: https://python-terrascript.readthedocs.io/en/develop/
@@ -953,15 +954,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         return results
 
-    def populate_resources(self, ocm_map: Optional[OCMMap] = None) -> None:
-        """
-        Populates the terraform configuration from resource specs.
-        :param ocm_map:
-        """
-        for specs in self.account_resource_specs.values():
-            for spec in specs:
-                self.populate_tf_resources(spec, ocm_map=ocm_map)
-
     def init_populate_specs(
         self, namespaces: Iterable[Mapping[str, Any]], account_name: Optional[str]
     ) -> None:
@@ -984,9 +976,14 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     spec.provisioner_name, []
                 ).append(spec)
 
-    def populate_tf_resources(
+    def populate_resources(
         self, spec: ExternalResourceSpec, ocm_map: Optional[OCMMap] = None
     ):
+        """
+        Populates the terraform configuration from a resource spec.
+        :param spec:
+        :param ocm_map:
+        """
         if spec.provision_provider != PROVIDER_AWS:
             raise UnknownProviderError(spec.provision_provider)
 
