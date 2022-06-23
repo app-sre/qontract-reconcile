@@ -1052,10 +1052,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         tf_resources = []
         self.init_common_outputs(
             tf_resources,
-            spec.namespace,
-            output_prefix,
-            output_resource_name,
-            annotations,
+            spec,
         )
 
         # we want to allow an empty name, so we
@@ -1405,10 +1402,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         tf_resources = []
         self.init_common_outputs(
             tf_resources,
-            spec.namespace,
-            output_prefix,
-            output_resource_name,
-            annotations,
+            spec,
         )
 
         # s3 bucket
@@ -1776,10 +1770,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         tf_resources = []
         self.init_common_outputs(
             tf_resources,
-            spec.namespace,
-            output_prefix,
-            output_resource_name,
-            annotations,
+            spec,
         )
 
         default_region = self.default_regions.get(account)
@@ -1869,10 +1860,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         tf_resources = []
         self.init_common_outputs(
             tf_resources,
-            spec.namespace,
-            output_prefix,
-            output_resource_name,
-            annotations,
+            spec,
         )
 
         # iam user for bucket
@@ -1970,10 +1958,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         tf_resources = []
         self.init_common_outputs(
             tf_resources,
-            spec.namespace,
-            output_prefix,
-            output_resource_name,
-            annotations,
+            spec,
         )
 
         secrets_prefix = common_values["secrets_prefix"]
@@ -2020,10 +2005,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         tf_resources = []
         self.init_common_outputs(
             tf_resources,
-            spec.namespace,
-            output_prefix,
-            output_resource_name,
-            annotations,
+            spec,
         )
 
         assume_role = common_values["assume_role"]
@@ -2078,10 +2060,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         tf_resources = []
         self.init_common_outputs(
             tf_resources,
-            spec.namespace,
-            output_prefix,
-            output_resource_name,
-            annotations,
+            spec,
         )
         region = common_values.get("region") or self.default_regions.get(account)
         specs = common_values.get("specs")
@@ -2231,10 +2210,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         tf_resources = []
         self.init_common_outputs(
             tf_resources,
-            spec.namespace,
-            output_prefix,
-            output_resource_name,
-            annotations,
+            spec,
         )
         region = common_values.get("region") or self.default_regions.get(account)
         specs = common_values.get("specs")
@@ -2322,10 +2298,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         tf_resources = []
         self.init_common_outputs(
             tf_resources,
-            spec.namespace,
-            output_prefix,
-            output_resource_name,
-            annotations,
+            spec,
         )
 
         # ecr repository
@@ -2770,10 +2743,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         tf_resources = []
         self.init_common_outputs(
             tf_resources,
-            spec.namespace,
-            output_prefix,
-            output_resource_name,
-            annotations,
+            spec,
         )
 
         # ecr repository
@@ -2994,10 +2964,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         tf_resources = []
         self.init_common_outputs(
             tf_resources,
-            spec.namespace,
-            output_prefix,
-            output_resource_name,
-            annotations,
+            spec,
         )
         values.pop("identifier", None)
 
@@ -3048,10 +3015,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         tf_resources = []
         self.init_common_outputs(
             tf_resources,
-            spec.namespace,
-            output_prefix,
-            output_resource_name,
-            annotations,
+            spec,
         )
 
         # pop identifier since we use values and not common_values
@@ -3303,43 +3267,39 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
     def init_common_outputs(
         self,
         tf_resources,
-        namespace_info,
-        output_prefix,
-        output_resource_name,
-        annotations,
+        spec,
     ):
         output_format_0_13 = "{}__{}_{}"
-        cluster, namespace, _, _ = self.unpack_namespace_info(namespace_info)
         # cluster
         output_name_0_13 = output_format_0_13.format(
-            output_prefix, self.integration_prefix, "cluster"
+            spec.output_prefix, self.integration_prefix, "cluster"
         )
-        output_value = cluster
+        output_value = spec.cluster_name
         tf_resources.append(Output(output_name_0_13, value=output_value))
         # namespace
         output_name_0_13 = output_format_0_13.format(
-            output_prefix, self.integration_prefix, "namespace"
+            spec.output_prefix, self.integration_prefix, "namespace"
         )
-        output_value = namespace
+        output_value = spec.namespace_name
         tf_resources.append(Output(output_name_0_13, value=output_value))
         # resource
         output_name_0_13 = output_format_0_13.format(
-            output_prefix, self.integration_prefix, "resource"
+            spec.output_prefix, self.integration_prefix, "resource"
         )
         output_value = "Secret"
         tf_resources.append(Output(output_name_0_13, value=output_value))
         # output_resource_name
         output_name_0_13 = output_format_0_13.format(
-            output_prefix, self.integration_prefix, "output_resource_name"
+            spec.output_prefix, self.integration_prefix, "output_resource_name"
         )
-        output_value = output_resource_name
+        output_value = spec.output_resource_name
         tf_resources.append(Output(output_name_0_13, value=output_value))
         # annotations
-        if annotations:
+        if spec.annotations():
             output_name_0_13 = output_format_0_13.format(
-                output_prefix, self.integration_prefix, "annotations"
+                spec.output_prefix, self.integration_prefix, "annotations"
             )
-            anno_json = json.dumps(annotations).encode("utf-8")
+            anno_json = json.dumps(spec.annotations()).encode("utf-8")
             output_value = base64.b64encode(anno_json).decode()
             tf_resources.append(Output(output_name_0_13, value=output_value))
 
@@ -3582,10 +3542,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         self.init_common_outputs(
             tf_resources,
-            spec.namespace,
-            output_prefix,
-            output_resource_name,
-            annotations,
+            spec,
         )
 
         if not self.is_elasticsearch_domain_name_valid(values["identifier"]):
@@ -3821,10 +3778,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         tf_resources = []
         self.init_common_outputs(
             tf_resources,
-            spec.namespace,
-            output_prefix,
-            output_resource_name,
-            annotations,
+            spec,
         )
 
         values = {}
@@ -3915,10 +3869,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         tf_resources = []
         self.init_common_outputs(
             tf_resources,
-            spec.namespace,
-            output_prefix,
-            output_resource_name,
-            annotations,
+            spec,
         )
 
         values = {"name": identifier, "comment": "managed by app-interface"}
@@ -3997,10 +3948,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         namespace_info = spec.namespace
         self.init_common_outputs(
             tf_resources,
-            namespace_info,
-            output_prefix,
-            output_resource_name,
-            annotations,
+            spec,
         )
 
         default_region = self.default_regions.get(account)
@@ -4289,10 +4237,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         tf_resources = []
         self.init_common_outputs(
             tf_resources,
-            spec.namespace,
-            output_prefix,
-            output_resource_name,
-            annotations,
+            spec,
         )
 
         values = {"name": identifier}
@@ -4391,10 +4336,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         tf_resources: List[Any] = []
         self.init_common_outputs(
             tf_resources,
-            spec.namespace,
-            output_prefix,
-            output_resource_name,
-            annotations,
+            spec,
         )
 
         tags = common_values["tags"]
@@ -4536,10 +4478,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         tf_resources = []
         self.init_common_outputs(
             tf_resources,
-            spec.namespace,
-            output_prefix,
-            output_resource_name,
-            annotations,
+            spec,
         )
 
         # https://www.terraform.io/docs/providers/aws/r/route53_zone.html
