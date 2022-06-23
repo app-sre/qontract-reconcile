@@ -168,6 +168,37 @@ def test_spec_annotation_parsing_none_present():
     assert s.annotations() == {}
 
 
+def test_spec_tags():
+    s = ExternalResourceSpec(
+        provision_provider="aws",
+        provisioner={"name": "a"},
+        resource={
+            "identifier": "i",
+            "provider": "p",
+        },
+        namespace={
+            "name": "ns",
+            "cluster": {
+                "name": "c",
+            },
+            "environment": {
+                "name": "env",
+            },
+            "app": {
+                "name": "app",
+            },
+        },
+    )
+    expected = {
+        "managed_by_integration": "int",
+        "cluster": "c",
+        "namespace": "ns",
+        "environment": "env",
+        "app": "app",
+    }
+    assert s.tags("int") == expected
+
+
 @pytest.fixture
 def resource_secret() -> dict[str, Any]:
     return {"yakk_name": "Furry", "visual_characteristics": "furry", "mood": "grumpy"}

@@ -119,6 +119,15 @@ class ExternalResourceSpec:
         else:
             return {}
 
+    def tags(self, integration: str) -> dict[str, str]:
+        return {
+            "managed_by_integration": integration,
+            "cluster": self.cluster_name,
+            "namespace": self.namespace_name,
+            "environment": self.namespace["environment"]["name"],
+            "app": self.namespace["app"]["name"],
+        }
+
     def get_secret_field(self, field: str) -> Optional[str]:
         return self.secret.get(field)
 
