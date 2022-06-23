@@ -409,6 +409,7 @@ def ocm_aws_infrastructure_access_switch_role_links_data() -> list[dict]:
     settings = queries.get_app_interface_settings()
     clusters = queries.get_clusters()
     clusters = [c for c in clusters if c.get("ocm") is not None]
+    accounts = {a["uid"]: a["name"] for a in queries.get_aws_accounts()}
     ocm_map = OCMMap(clusters=clusters, settings=settings)
 
     results = []
@@ -417,9 +418,15 @@ def ocm_aws_infrastructure_access_switch_role_links_data() -> list[dict]:
         ocm = ocm_map.get(cluster_name)
         role_grants = ocm.get_aws_infrastructure_access_role_grants(cluster_name)
         for user_arn, access_level, _, switch_role_link in role_grants:
+            user = user_arn.split("/")[1]
+            account_id = user_arn.split(":")[4]
+            account_name = accounts.get(account_id, "")
+            src_login = f"{user} @ [{account_id} ({account_name})](https://{account_id}.signin.aws.amazon.com/console)"
             item = {
                 "cluster": cluster_name,
+                "user": user,
                 "user_arn": user_arn,
+                "source_login": src_login,
                 "access_level": access_level,
                 "switch_role_link": switch_role_link,
             }
@@ -444,9 +451,8 @@ def ocm_aws_infrastructure_access_switch_role_links(ctx):
     results = ocm_aws_infrastructure_access_switch_role_links_data()
     by_user = {}
     for r in results:
-        user = r["user_arn"].split("/")[1]
-        by_user.setdefault(user, []).append(r)
-    columns = ["cluster", "user_arn", "access_level", "switch_role_link"]
+        by_user.setdefault(r["user"], []).append(r)
+    columns = ["cluster", "source_login", "access_level", "switch_role_link"]
     for user in sorted(by_user.keys()):
         print(f"- [{user}](#{user})")
     for user in sorted(by_user.keys()):
