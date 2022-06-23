@@ -3647,7 +3647,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 "advanced_security_options"
             ] = self._build_es_advanced_security_options(auth_options)
 
-        # TODO: @fishi0x01 remove after migration
+        # TODO: @fishi0x01 remove after migration APPSRE-3409
         # ++++++++ START: REMOVE +++++++++
         else:
 
@@ -3693,7 +3693,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         self.add_resources(account, tf_resources)
 
-    # TODO: @fishi0x01 remove this function after migration
+    # TODO: @fishi0x01 remove this function after migration APPSRE-3409
     def _build_es_advanced_security_options_deprecated(
         self, advanced_security_options: MutableMapping[str, Any]
     ) -> MutableMapping[str, Any]:
