@@ -85,15 +85,15 @@ class ExternalResourceSpec:
     secret: Mapping[str, str] = field(init=False, default_factory=lambda: {})
 
     @property
-    def provider(self):
+    def provider(self) -> str:
         return self.resource["provider"]
 
     @property
-    def identifier(self):
+    def identifier(self) -> str:
         return self.resource["identifier"]
 
     @property
-    def provisioner_name(self):
+    def provisioner_name(self) -> str:
         return self.provisioner["name"]
 
     @property
@@ -105,11 +105,11 @@ class ExternalResourceSpec:
         return self.namespace["cluster"]["name"]
 
     @property
-    def output_prefix(self):
+    def output_prefix(self) -> str:
         return f"{self.identifier}-{self.provider}"
 
     @property
-    def output_resource_name(self):
+    def output_resource_name(self) -> str:
         return self.resource.get("output_resource_name") or self.output_prefix
 
     def annotations(self) -> dict[str, str]:
