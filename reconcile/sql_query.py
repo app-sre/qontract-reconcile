@@ -128,7 +128,7 @@ def get_tf_resource_info(terrascript: Terrascript, namespace, identifier):
         if spec.identifier != identifier:
             continue
 
-        _, _, values, _ = terrascript.init_values(spec)
+        values = terrascript.init_values(spec)
 
         return {
             "cluster": spec.cluster_name,
