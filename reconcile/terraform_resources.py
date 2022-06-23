@@ -470,7 +470,7 @@ def setup(
     internal: str,
     use_jump_host: bool,
     account_name: Optional[str],
-) -> Tuple[ResourceInventory, OC_Map, Terraform, ExternalResourceSpecInventory,]:
+) -> Tuple[ResourceInventory, OC_Map, Terraform, ExternalResourceSpecInventory]:
     gqlapi = gql.get_api()
     accounts = queries.get_aws_accounts()
     if account_name:
