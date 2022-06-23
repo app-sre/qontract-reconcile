@@ -112,7 +112,7 @@ class ExternalResourceSpec:
     def output_resource_name(self):
         return self.resource.get("output_resource_name") or self.output_prefix
 
-    def _annotations(self) -> dict[str, str]:
+    def annotations(self) -> dict[str, str]:
         annotation_str = self.resource.get("annotations")
         if annotation_str:
             return json.loads(annotation_str)
@@ -128,7 +128,7 @@ class ExternalResourceSpec:
     def build_oc_secret(
         self, integration: str, integration_version: str
     ) -> OpenshiftResource:
-        annotations = self._annotations()
+        annotations = self.annotations()
         annotations["qontract.recycle"] = "true"
 
         return build_secret(

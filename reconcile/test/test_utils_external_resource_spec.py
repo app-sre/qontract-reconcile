@@ -152,7 +152,7 @@ def test_spec_annotation_parsing():
         },
         namespace={},
     )
-    assert s._annotations() == {"key": "value"}
+    assert s.annotations() == {"key": "value"}
 
 
 def test_spec_annotation_parsing_none_present():
@@ -165,7 +165,7 @@ def test_spec_annotation_parsing_none_present():
         },
         namespace={},
     )
-    assert s._annotations() == {}
+    assert s.annotations() == {}
 
 
 @pytest.fixture
