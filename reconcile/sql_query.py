@@ -538,7 +538,10 @@ def run(dry_run, enable_deletion=False):
             state[query_name] = time.time()
 
     for candidate in remove_candidates:
-        if not candidate["is_cronjob"] and time.time() < candidate["timestamp"] + JOB_TTL:
+        if (
+            not candidate["is_cronjob"]
+            and time.time() < candidate["timestamp"] + JOB_TTL
+        ):
             continue
 
         try:
