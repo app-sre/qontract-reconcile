@@ -2904,7 +2904,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
     def populate_tf_resource_kms(self, spec):
         account = spec.provisioner_name
         identifier = spec.identifier
-        common_values = self.init_values(spec)
+        values = self.init_values(spec)
         output_prefix = spec.output_prefix
 
         tf_resources = []
