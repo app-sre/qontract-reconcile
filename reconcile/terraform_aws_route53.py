@@ -196,7 +196,7 @@ def run(
     settings = queries.get_app_interface_settings()
     zones = queries.get_dns_zones(account_name=account_name)
 
-    all_accounts = queries.get_aws_accounts()
+    all_accounts = queries.get_aws_accounts(terraform_state=True)
     participating_account_names = [z["account"]["name"] for z in zones]
     participating_accounts = [
         a for a in all_accounts if a["name"] in participating_account_names
