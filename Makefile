@@ -82,9 +82,17 @@ dev-venv: clean ## Create a local venv for your IDE and remote debugging
 	. ./venv/bin/activate && pip install --upgrade pip
 	. ./venv/bin/activate && pip install -e .
 	. ./venv/bin/activate && pip install -r requirements/requirements-dev.txt
+	. ./venv/bin/activate && pip install -r requirements/requirements-generator.txt
 
 print-files-modified-in-last-30-days:
 	@git log --since '$(shell date --date='-30 day' +"%m/%d/%y")' --until '$(shell date +"%m/%d/%y")' --oneline --name-only --pretty=format: | sort | uniq | grep -E '.py$$'
 
 format:
 	@. ./venv/bin/activate && black reconcile/ tools/ e2e_tests/
+
+gql-introspection:
+	# TODO: make url configurable
+	@. ./venv/bin/activate && qenerate introspection http://localhost:4000/graphql > reconcile/gql_queries/introspection.json
+
+gql-query-classes:
+	@. ./venv/bin/activate && qenerate code -i reconcile/gql_queries/introspection.json reconcile/gql_queries
