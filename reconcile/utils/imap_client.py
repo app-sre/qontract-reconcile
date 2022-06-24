@@ -10,7 +10,7 @@ class ImapClient:
         self.user: str = imap_config["username"]
         self.password: str = imap_config["password"]
         self.port: int = int(imap_config["port"])
-        self.timeout: int = settings["imap"]["timeout"]
+        self.timeout: int = settings["imap"].get("timeout", 30)
         self._server = None
 
     def __enter__(self):

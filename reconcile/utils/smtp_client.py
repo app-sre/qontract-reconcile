@@ -17,7 +17,7 @@ class SmtpClient:
         self.user: str = smtp_config["username"]
         self.passwd: str = smtp_config["password"]
         self.mail_address: str = settings["smtp"]["mailAddress"]
-        self.timeout: int = settings["smtp"]["timeout"]
+        self.timeout: int = settings["smtp"].get("timeout", 30)
 
         self._client = None
 

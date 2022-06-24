@@ -22,7 +22,7 @@ def patch_secret_reader(mocker):
 
 @pytest.fixture
 def settings(mocker):
-    return {"imap": {"timeout": 30, "credentials": "foobar"}}
+    return {"imap": {"credentials": "foobar"}}
 
 
 @pytest.fixture
