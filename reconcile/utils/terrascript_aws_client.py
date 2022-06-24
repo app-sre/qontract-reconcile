@@ -116,6 +116,7 @@ from reconcile.utils.external_resource_spec import (
 from reconcile.utils.external_resources import PROVIDER_AWS, get_external_resource_specs
 from reconcile.utils.jenkins_api import JenkinsApi
 from reconcile.utils.ocm import OCMMap
+from reconcile.utils.password_validator import PasswordPolicy, PasswordValidator
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.git import is_file_in_git_repo
 from reconcile.github_org import get_default_config
@@ -3403,6 +3404,52 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         return tf_resources, publishing_options
 
+    def _build_es_advanced_security_options(
+        self, auth_options: Mapping[str, Any]
+    ) -> dict[str, Any]:
+        advanced_security_options: dict[str, Any] = {
+            "enabled": True,
+        }
+
+        admin_user_arn = auth_options.get("admin_user_arn", "")
+
+        if admin_user_arn:
+            advanced_security_options["internal_user_database_enabled"] = False
+            advanced_security_options["master_user_options"] = {
+                "master_user_arn": admin_user_arn,
+            }
+        else:
+            admin_user_secret = auth_options["admin_user_credentials"]
+            secret_data = self.secret_reader.read_all(admin_user_secret)
+
+            required_keys = {"master_user_name", "master_user_password"}
+            if secret_data.keys() != required_keys:
+                raise KeyError(
+                    f"vault secret '{admin_user_secret['path']}' must "
+                    f"exactly contain these keys: {', '.join(required_keys)}"
+                )
+
+            """
+            AWS requires the admin user password must be at least 8 chars long, contain at least one
+            uppercase letter, one lowercase letter, one number, and one special character.
+
+            This helps to fail early before 'terraform apply' will complain.
+            """
+            password_validator = PasswordValidator(
+                policy_flags=(
+                    PasswordPolicy.HAS_DIGIT
+                    | PasswordPolicy.HAS_LOWER_CASE_CHAR
+                    | PasswordPolicy.HAS_UPPER_CASE_CHAR
+                    | PasswordPolicy.HAS_SPECIAL_CHAR
+                ),
+                minimum_length=8,
+            )
+            password_validator.validate(secret_data["master_user_password"])
+            advanced_security_options["internal_user_database_enabled"] = True
+            advanced_security_options["master_user_options"] = secret_data
+
+        return advanced_security_options
+
     def populate_tf_resource_elasticsearch(self, spec):
         account = spec.provisioner_name
         identifier = spec.identifier
@@ -3547,9 +3594,11 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         if advanced_options is not None:
             es_values["advanced_options"] = advanced_options
 
+        es_deps = []
         svc_role_tf_resource = self.get_elasticsearch_service_role_tf_resource()
         tf_resources.append(svc_role_tf_resource)
-        es_deps = [svc_role_tf_resource]
+        es_deps.append(svc_role_tf_resource)
+
         if resource_policy:
             es_deps.append(resource_policy)
         es_values["depends_on"] = self.get_dependencies(
@@ -3573,11 +3622,25 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         if self._multiregion_account(account):
             es_values["provider"] = "aws." + region
 
-        advanced_security_options = values.get("advanced_security_options", {})
-        if advanced_security_options:
+        auth_options = values.get("auth", {})
+        # TODO: @fishi0x01 make mandatory after migration APPSRE-3409
+        if auth_options:
             es_values[
                 "advanced_security_options"
-            ] = self._build_es_advanced_security_options(advanced_security_options)
+            ] = self._build_es_advanced_security_options(auth_options)
+
+        # TODO: @fishi0x01 remove after migration APPSRE-3409
+        # ++++++++ START: REMOVE +++++++++
+        else:
+
+            advanced_security_options = values.get("advanced_security_options", {})
+            if advanced_security_options:
+                es_values[
+                    "advanced_security_options"
+                ] = self._build_es_advanced_security_options_deprecated(
+                    advanced_security_options
+                )
+        # ++++++++ END: REMOVE ++++++++++
 
         es_tf_resource = aws_elasticsearch_domain(identifier, **es_values)
         tf_resources.append(es_tf_resource)
@@ -3612,7 +3675,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         self.add_resources(account, tf_resources)
 
-    def _build_es_advanced_security_options(
+    # TODO: @fishi0x01 remove this function after migration APPSRE-3409
+    def _build_es_advanced_security_options_deprecated(
         self, advanced_security_options: MutableMapping[str, Any]
     ) -> MutableMapping[str, Any]:
         master_user_options = advanced_security_options.pop("master_user_options", {})

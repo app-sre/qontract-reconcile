@@ -263,6 +263,11 @@ def collect_queries(query_name=None, settings=None):
         if schedule:
             item["schedule"] = schedule
 
+        # Logic to allow users to delete cronjobs
+        delete = sql_query.get("delete")
+        if delete:
+            item["delete"] = delete
+
         queries_list.append(item)
 
     return queries_list
@@ -460,15 +465,19 @@ def run(dry_run, enable_deletion=False):
         # - State is a timestamp: executed and up for removal
         #   after the JOB_TTL
         # - State is 'DONE': executed and removed.
+        # - State is not 'DONE' but 'delete:true' and is a cronjob: up for removal
         try:
             query_state = state[query_name]
             is_cronjob = query.get("schedule")
-            if query_state != "DONE" and not is_cronjob:
+            if (query_state != "DONE" and not is_cronjob) or (
+                query_state != "DONE" and is_cronjob and query["delete"]
+            ):
                 remove_candidates.append(
                     {
                         "name": query_name,
                         "timestamp": query_state,
                         "output": query["output"],
+                        "is_cronjob": is_cronjob,
                     }
                 )
             continue
@@ -529,7 +538,10 @@ def run(dry_run, enable_deletion=False):
             state[query_name] = time.time()
 
     for candidate in remove_candidates:
-        if time.time() < candidate["timestamp"] + JOB_TTL:
+        if (
+            not candidate["is_cronjob"]
+            and time.time() < candidate["timestamp"] + JOB_TTL
+        ):
             continue
 
         try:
@@ -549,9 +561,13 @@ def run(dry_run, enable_deletion=False):
             internal=None,
         )
 
-        resource_types = ["Job", "Secret"]
+        if candidate["is_cronjob"]:
+            resource_types = ["CronJob", "Secret"]
+        else:
+            resource_types = ["Job", "Secret"]
         if candidate["output"] == "encrypted":
             resource_types.append("ConfigMap")
+
         for resource_type in resource_types:
             openshift_delete(dry_run, oc_map, query, resource_type, enable_deletion)
 
