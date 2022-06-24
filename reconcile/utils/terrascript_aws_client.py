@@ -152,6 +152,7 @@ import reconcile.utils.aws_helper as awsh
 
 GH_BASE_URL = os.environ.get("GITHUB_API", "https://api.github.com")
 LOGTOES_RELEASE = "repos/app-sre/logs-to-elasticsearch-lambda/releases/latest"
+ROSA_AUTHENTICATOR_PRE_SIGNUP_RELEASE = "repos/service/rosa-authenticator-lambda-pre-signup/releases/latest"
 VARIABLE_KEYS = [
     "region",
     "availability_zone",
@@ -338,6 +339,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         }
         self.logtoes_zip = ""
         self.logtoes_zip_lock = Lock()
+        self.rosa_authenticator_pre_signup_zip = ''
+        self.rosa_authenticator_pre_signup_zip_lock = Lock()
         self.github: Optional[Github] = None
         self.github_lock = Lock()
 
@@ -365,6 +368,33 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             r.raise_for_status()
             # pylint: disable=consider-using-with
             open(zip_file, "wb").write(r.content)
+        return zip_file
+    
+    def get_rosa_authenticator_zip(self, release_url):
+        if not self.rosa_authenticator_pre_signup_zip:
+            with self.rosa_authenticator_pre_signup_zip_lock:
+                # this may have already happened, so we check again
+                if not self.rosa_authenticator_pre_signup_zip:
+                    self.token = get_default_config()['token']
+                    self.rosa_authenticator_pre_signup_zip = \
+                        self.download_rosa_authenticator_zip(ROSA_AUTHENTICATOR_PRE_SIGNUP_RELEASE)
+        if release_url == ROSA_AUTHENTICATOR_PRE_SIGNUP_RELEASE:
+            return self.rosa_authenticator_pre_signup_zip
+        else:
+            return self.download_rosa_authenticator_zip(release_url)
+
+    def download_rosa_authenticator_zip(self, release_url):
+        headers = {'Authorization': 'token ' + self.token}
+        r = requests.get(GH_BASE_URL + '/' + release_url, headers=headers)
+        r.raise_for_status()
+        data = r.json()
+        zip_url = data['assets'][0]['browser_download_url']
+        zip_file = '/tmp/RosaAuthenticatorLambda-' + data['tag_name'] + '.zip'
+        if not os.path.exists(zip_file):
+            r = requests.get(zip_url)
+            r.raise_for_status()
+            # pylint: disable=consider-using-with
+            open(zip_file, 'wb').write(r.content)
         return zip_file
 
     def init_github(self) -> Github:
