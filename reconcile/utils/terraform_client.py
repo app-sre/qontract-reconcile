@@ -1,6 +1,5 @@
 import logging
 import json
-import os
 import shutil
 
 from datetime import datetime
@@ -143,48 +142,40 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
             enable_deletion=enable_deletion,
         )
 
-        self.deleted_users = []
         self.created_users = []
-        for disabled_deletion_detected, deleted_users, created_users, error in results:
+        for disabled_deletion_detected, created_users, error in results:
             if error:
                 errors = True
             if disabled_deletion_detected:
                 disabled_deletions_detected = True
-                self.deleted_users.extend(deleted_users)
             self.created_users.extend(created_users)
         return disabled_deletions_detected, errors
 
-    def dump_deleted_users(self, io_dir):
-        if not self.deleted_users:
-            return
-        if not os.path.exists(io_dir):
-            os.makedirs(io_dir)
-        file_path = os.path.join(io_dir, self.integration + ".json")
-        with open(file_path, "w") as f:
-            f.write(json.dumps(self.deleted_users))
-
     @retry()
-    def terraform_plan(self, plan_spec, enable_deletion):
+    def terraform_plan(
+        self, plan_spec: dict, enable_deletion: bool
+    ) -> tuple[bool, list[AccountUser], bool]:
         name = plan_spec["name"]
         tf = plan_spec["tf"]
         return_code, stdout, stderr = tf.plan(
             detailed_exitcode=False, parallelism=self.parallelism, out=name
         )
         error = self.check_output(name, "plan", return_code, stdout, stderr)
-        disabled_deletion_detected, deleted_users, created_users = self.log_plan_diff(
+        disabled_deletion_detected, created_users = self.log_plan_diff(
             name, tf, enable_deletion
         )
-        return disabled_deletion_detected, deleted_users, created_users, error
+        return disabled_deletion_detected, created_users, error
 
-    def log_plan_diff(self, name, tf, enable_deletion):
+    def log_plan_diff(
+        self, name: str, tf: Terraform, enable_deletion: bool
+    ) -> tuple[bool, list]:
         disabled_deletion_detected = False
         account_enable_deletion = self.accounts[name].get("enableDeletion") or False
         # deletions are alowed
         # if enableDeletion is true for an account
         # or if the integration's enable_deletion is true
         deletions_allowed = enable_deletion or account_enable_deletion
-        deleted_users = []
-        created_users = []
+        created_users: list[AccountUser] = []
 
         output = self.terraform_show(name, tf.working_dir)
         format_version = output.get("format_version")
@@ -220,7 +211,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
 
         resource_changes = output.get("resource_changes")
         if resource_changes is None:
-            return disabled_deletion_detected, deleted_users, created_users
+            return disabled_deletion_detected, created_users
 
         always_enabled_deletions = {
             "random_id",
@@ -272,8 +263,6 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
                             + "Please run the integration manually "
                             + "with the '--enable-deletion' flag."
                         )
-                    if resource_type == "aws_iam_user":
-                        deleted_users.append({"account": name, "user": resource_name})
                     if resource_type == "aws_db_instance":
                         deletion_protected = resource_change["before"].get(
                             "deletion_protection"
@@ -287,7 +276,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
                                 "deletion_protection to false in a new MR. "
                                 "The new MR must be merged first."
                             )
-        return disabled_deletion_detected, deleted_users, created_users
+        return disabled_deletion_detected, created_users
 
     def deletion_approved(self, account_name, resource_type, resource_name):
         account = self.accounts[account_name]
@@ -499,7 +488,14 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
 
             spec.secret = secret_copy
 
-    def check_output(self, name, cmd, return_code, stdout, stderr):
+    def check_output(
+        self,
+        name: str,
+        cmd: str,
+        return_code: int,
+        stdout: list[str],
+        stderr: list[str],
+    ) -> bool:
         error_occured = False
         line_format = "[{} - {}] {}"
         stdout, stderr = self.split_to_lines(stdout, stderr)

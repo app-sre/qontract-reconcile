@@ -595,7 +595,6 @@ def run(
     dry_run,
     print_to_file=None,
     enable_deletion=False,
-    io_dir="throughput/",
     thread_pool_size=10,
     internal=None,
     use_jump_host=True,
@@ -627,7 +626,6 @@ def run(
         disabled_deletions_detected, err = tf.plan(enable_deletion)
         if err:
             cleanup_and_exit(tf, err)
-        tf.dump_deleted_users(io_dir)
         if disabled_deletions_detected:
             cleanup_and_exit(tf, disabled_deletions_detected)
 
