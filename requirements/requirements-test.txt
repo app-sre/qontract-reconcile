@@ -10,3 +10,4 @@ responses
 testslide~=2.7
 moto~=2.2
 MarkupSafe==2.1.1
+smtpdfix==0.3.3
