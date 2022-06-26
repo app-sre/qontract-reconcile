@@ -470,7 +470,7 @@ def run(dry_run, enable_deletion=False):
             query_state = state[query_name]
             is_cronjob = query.get("schedule")
             if (query_state != "DONE" and not is_cronjob) or (
-                query_state != "DONE" and is_cronjob and query["delete"]
+                query_state != "DONE" and is_cronjob and query.get("delete")
             ):
                 remove_candidates.append(
                     {
