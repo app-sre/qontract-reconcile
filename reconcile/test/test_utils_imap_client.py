@@ -30,8 +30,8 @@ def settings(mocker):
 @pytest.fixture
 def mock_imap_server(mocker):
     mock_imap = mocker.patch("imaplib.IMAP4_SSL", autospec=True)
+    mock_imap.return_value.search.return_value = ["Ok", [b"1 2"]]
     mock_imap.return_value.uid.side_effect = [
-        ("Ok", [b"1 2"]),
         ("Ok", [["1", b"mail message"]]),
         ("Ok", [["2", b"mail message"]]),
     ]
@@ -53,12 +53,11 @@ def test_imap_client_init_and_getting_imap_config(imap_client: ImapClient):
 
 def test_imap_client_context_manager(imap_client: ImapClient):
     with imap_client as _client:
-        assert _client.server
+        assert _client._server
 
 
 def test_imap_client_enforce_context_manager_usage(imap_client: ImapClient):
-    with pytest.raises(Exception):
-        imap_client.server
+    assert not imap_client._server
 
 
 def test_imap_client_get_mails(imap_client: ImapClient):

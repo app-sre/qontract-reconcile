@@ -3,6 +3,7 @@ from email.header import Header
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import formataddr
+from typing import Any, Iterable, Union
 
 from sretoolbox.utils import retry
 
@@ -10,19 +11,19 @@ from reconcile.utils.secret_reader import SecretReader
 
 
 class SmtpClient:
-    def __init__(self, settings):
+    def __init__(self, settings: dict[str, Any]) -> None:
         smtp_config = self.get_smtp_config(settings)
         self.host: str = smtp_config["server"]
-        self.port: str = str(smtp_config["port"])
+        self.port: int = int(smtp_config["port"])
         self.user: str = smtp_config["username"]
         self.passwd: str = smtp_config["password"]
         self.mail_address: str = settings["smtp"]["mailAddress"]
         self.timeout: int = settings["smtp"].get("timeout", 30)
 
-        self._client = None
+        self._client: Union[smtplib.SMTP, None] = None
 
     @property
-    def client(self):
+    def client(self) -> smtplib.SMTP:
         if self._client is None:
             self._client = smtplib.SMTP(
                 host=self.host, port=self.port, timeout=self.timeout
@@ -33,7 +34,7 @@ class SmtpClient:
         return self._client
 
     @staticmethod
-    def get_smtp_config(settings):
+    def get_smtp_config(settings: dict[str, Any]) -> dict[str, str]:
         config = {}
         required_keys = ("password", "port", "require_tls", "server", "username")
         secret_reader = SecretReader(settings=settings)
@@ -47,12 +48,12 @@ class SmtpClient:
             )
         return config
 
-    def send_mails(self, mails):
+    def send_mails(self, mails: Iterable[tuple[str, str, str]]) -> None:
         for name, subject, body in mails:
             self.send_mail([name], subject, body)
 
     @retry()
-    def send_mail(self, names, subject, body):
+    def send_mail(self, names: str, subject: str, body: str) -> None:
         msg = MIMEMultipart()
         from_name = str(Header("App SRE team automation", "utf-8"))
         msg["From"] = formataddr((from_name, self.user))
@@ -66,7 +67,7 @@ class SmtpClient:
         msg["Subject"] = subject
         # add in the message body
         msg.attach(MIMEText(body, "plain"))
-        self.client.sendmail(self.user, to, msg.as_string())
+        self.client.sendmail(self.user, list(to), msg.as_string())
 
-    def get_recipient(self, org_username):
+    def get_recipient(self, org_username: str) -> str:
         return f"{org_username}@{self.mail_address}"
