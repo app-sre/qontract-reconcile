@@ -1569,7 +1569,9 @@ class OpenshiftLazyDiscoverer(LazyDiscoverer):
                 if result.group_version == kwargs["api_version"]
             ]
         # If there are multiple matches, prefer non-List kinds
-        if len(results) > 1 and not all([isinstance(x, ResourceList) for x in results]):  # pylint: disable=R1729
+        if len(results) > 1 and not all(
+            [isinstance(x, ResourceList) for x in results]
+        ):  # pylint: disable=R1729
             results = [
                 result for result in results if not isinstance(result, ResourceList)
             ]
