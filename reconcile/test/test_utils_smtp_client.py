@@ -1,6 +1,8 @@
 # from reconcile.utils.secret_reader import SecretReader
 
 
+from typing import Any
+
 import pytest
 
 from reconcile.utils.smtp_client import SmtpClient
@@ -35,7 +37,7 @@ def settings(mocker):
 
 
 @pytest.fixture
-def smtp_client(settings: dict[str, any], patch_secret_reader):
+def smtp_client(settings: dict[str, Any], patch_secret_reader):
     return SmtpClient(settings)
 
 

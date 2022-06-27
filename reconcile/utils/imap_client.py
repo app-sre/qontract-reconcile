@@ -1,4 +1,5 @@
 import imaplib
+from typing import Union
 
 from reconcile.utils.secret_reader import SecretReader
 
@@ -11,7 +12,7 @@ class ImapClient:
         self.password: str = imap_config["password"]
         self.port: int = int(imap_config["port"])
         self.timeout: int = settings["imap"].get("timeout", 30)
-        self._server = None
+        self._server: Union[imaplib.IMAP4_SSL, None] = None
 
     def __enter__(self):
         self._server = imaplib.IMAP4_SSL(
@@ -21,7 +22,8 @@ class ImapClient:
         return self
 
     def __exit__(self, *args, **kwargs):
-        self._server.logout()
+        if self._server:
+            self._server.logout()
 
     @property
     def server(self):

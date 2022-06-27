@@ -1,6 +1,8 @@
 # from reconcile.utils.secret_reader import SecretReader
 
 
+from typing import Any
+
 import pytest
 
 from reconcile.utils.imap_client import ImapClient
@@ -37,7 +39,7 @@ def mock_imap_server(mocker):
 
 
 @pytest.fixture
-def imap_client(settings: dict[str, any], patch_secret_reader, mock_imap_server):
+def imap_client(settings: dict[str, Any], patch_secret_reader, mock_imap_server):
     return ImapClient(settings)
 
 
