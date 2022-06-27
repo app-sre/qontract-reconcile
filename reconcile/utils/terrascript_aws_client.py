@@ -8,6 +8,8 @@ import random
 import re
 import string
 import tempfile
+import pprint
+pp = pprint.PrettyPrinter(indent=4)
 
 from threading import Lock
 
@@ -153,7 +155,7 @@ import reconcile.utils.aws_helper as awsh
 GH_BASE_URL = os.environ.get("GITHUB_API", "https://api.github.com")
 LOGTOES_RELEASE = "repos/app-sre/logs-to-elasticsearch-lambda/releases/latest"
 ROSA_AUTHENTICATOR_PRE_SIGNUP_RELEASE = "repos/service/rosa-authenticator-lambda-pre-signup/releases/latest"
-# VARIABLE_KEYS are passed directly to the terraform JSON representation of the constructed resource.
+# VARIABLE_KEYS are passed to common_values on instantiation of a provider
 VARIABLE_KEYS = [
     "region",
     "availability_zone",
@@ -185,7 +187,10 @@ VARIABLE_KEYS = [
     "image",
     "assume_role",
     "inline_policy",
-    "assume_condition"
+    "assume_condition",
+    "sms_role_ext_id",
+    "api_proxy_uri",
+    "cognito_callback_bucket_name"
 ]
 
 TMP_DIR_PREFIX = "terrascript-aws-"
@@ -4465,49 +4470,48 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
     def populate_tf_resource_rosa_authenticator(self, spec):
         account = spec.provisioner_name
-        # identifier = spec.identifier
-        # common_values = self.init_values(spec)
-        # output_prefix = spec.output_prefix
+        identifier = spec.identifier
+        common_values = self.init_values(spec)
+        output_prefix = spec.output_prefix
         tf_resources = []
-        # self.init_common_outputs(tf_resources, spec)
+        self.init_common_outputs(tf_resources, spec)
 
-        # # Manage IAM Resources
-        # sms_role_policy = {
-        #     "Version": "2012-10-17",
-        #     "Statement": [
-        #         {
-        #             "Effect": "Allow",
-        #             "Action": [
-        #                 "sts:AssumeRole",
-        #             ],
-        #             "Principal": {
-        #                 "Service": "cognito-idp.amazonaws.com",
-        #             },
-        #             "Condition": {
-        #                 "StringEquals": {
-        #                     "sts:ExternalId": self.get_values("sms_role_ext_id")
-        #                 }
-        #             }
-        #         },  # FIXME: this combined policy may not work on application. as written,
-        #         {   # it is an inline policy
-        #             "Effect": "Allow",
-        #             "Action": [
-        #                 "sns:Publish",
-        #             ],
-        #             "Resource": "*",
-        #         }
-        #     ]
-        # }
+        # Manage IAM Resources
+        sms_role_policy = {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Action": [
+                        "sts:AssumeRole",
+                    ],
+                    "Principal": {
+                        "Service": "cognito-idp.amazonaws.com",
+                    },
+                    "Condition": {
+                        "StringEquals": {
+                            "sts:ExternalId": common_values.get("sms_role_ext_id")
+                        }
+                    }
+                }, {
+                    "Effect": "Allow",
+                    "Action": [
+                        "sns:Publish",
+                    ],
+                    "Resource": "*",
+                }
+            ]
+        }
 
-        # sms_iam_role_resource = aws_iam_role(
-        #     "sms_role",
-        #     name=f'ocm-{identifier}-cognito-sms-role',
-        #     assume_role_policy=sms_role_policy,
-        #     force_detach_policies=False,
-        #     max_session_duration=3600,
-        #     path="/service-role/",
-        # )
-        # tf_resources.append(sms_iam_role_resource)
+        sms_iam_role_resource = aws_iam_role(
+            "sms_role",
+            name=f'ocm-{identifier}-cognito-sms-role',
+            assume_role_policy=json.dumps(sms_role_policy),
+            force_detach_policies=False,
+            max_session_duration=3600,
+            path="/service-role/",
+        )
+        tf_resources.append(sms_iam_role_resource)
 
         # lambda_role_policy = {
         #     "Version": "2012-10-17",
