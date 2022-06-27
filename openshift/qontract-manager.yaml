@@ -11,7 +11,7 @@ objects:
     labels:
       app: qontract-reconcile-integrations-manager
     annotations:
-      ignore-check.kube-linter.io/minimum-three-replicas : "qontract-reconcile integrations are sharded and not replicated"
+      ignore-check.kube-linter.io/minimum-three-replicas: "qontract-reconcile integrations are sharded and not replicated"
     name: qontract-reconcile-integrations-manager
   spec:
     replicas: 1
