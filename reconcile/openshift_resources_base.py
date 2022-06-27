@@ -39,9 +39,10 @@ from reconcile.utils.vault import VaultClient
 from reconcile.github_users import init_github
 from reconcile.certmanager.certmanager import (
     CERT_MANAGER_CERTIFICATE_CRD,
+    CERT_UTILS_SECRET_SYNC_ANNOTATION,
     build_certificate_from_route,
     route_needs_certificate,
-    CERT_UTILS_SECRET_SYNC_ANNOTATION,
+    unleash_post_process_route_enabled,
 )
 
 
@@ -673,9 +674,12 @@ def fetch_desired_state(
     # _post_process_resources
     # Some resources might need existent data in the cluster to populate all its fields.
     # Additionally, post-process might generate additional resources
-    openshift_resources = _post_process_resources(
-        oc, namespace, resource, openshift_resource
-    )
+    if unleash_post_process_route_enabled(cluster, namespace):
+        openshift_resources = _post_process_resources(
+            oc, namespace, resource, openshift_resource
+        )
+    else:
+        openshift_resources = [openshift_resource]
 
     # add to inventory
     try:

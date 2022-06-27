@@ -1,5 +1,10 @@
 from typing import Any, Mapping
 
+from reconcile.utils.unleash import (
+    get_feature_toggle_state,
+    get_feature_toggle_strategies,
+)
+
 CERT_UTILS_SECRET_SYNC_ANNOTATION = (
     "cert-utils-operator.redhat-cop.io/certs-from-secret"
 )
@@ -10,6 +15,8 @@ CERT_MANAGER_CERTIFICATE_CRD = "Certificate.cert-manager.io"
 
 CERT_MANAGER_DEFAULT_ISSUER_NAME = "default-http"
 CERT_MANAGER_DEFAULT_ISSUER_TYPE = "ClusterIssuer"
+
+UNLEASH_CERT_MANAGER_FEATURE_TOOGLE = "cert-manager-routes"
 
 
 def build_certificate(
@@ -68,4 +75,20 @@ def route_needs_certificate(route: Mapping[str, Any]) -> bool:
     if not tls_acme or tls_acme != "true":
         return False
     else:
+        return True
+
+
+def unleash_post_process_route_enabled(cluster: str, namespace: str):
+    strategies = get_feature_toggle_strategies(
+        UNLEASH_CERT_MANAGER_FEATURE_TOOGLE, ["perClusterNamespace"]
+    )
+    post_process = False
+    key = f"{cluster}/{namespace}"
+    if strategies:
+        for s in strategies:
+            if key in s.parameters["cluster_namespace"].split(","):
+                post_process = True
+                break
+
+    if post_process and get_feature_toggle_state(UNLEASH_CERT_MANAGER_FEATURE_TOOGLE):
         return True

@@ -23,6 +23,7 @@ from reconcile.certmanager.certmanager import (
     CERT_UTILS_SECRET_SYNC_ANNOTATION,
     build_certificate_from_route,
     route_needs_certificate,
+    unleash_post_process_route_enabled,
 )
 
 from reconcile.github_org import get_default_config
@@ -612,17 +613,6 @@ class SaasHerder:
     def _additional_resource_process(resources, html_url):
         for resource in resources:
             # add a definition annotation to each PrometheusRule rule
-            if resource["kind"] == "Route":
-                if route_needs_certificate(resource):
-                    # Create the Certificate resource
-                    cert = build_certificate_from_route(resource)
-                    # Annotation the Route with the cert-utils annotation
-                    annotations = resource["metadata"]["annotations"]
-                    annotations[CERT_UTILS_SECRET_SYNC_ANNOTATION] = cert["spec"][
-                        "secretName"
-                    ]
-                    # Append the certificate to the resources
-                    resources.append(cert)
             if resource["kind"] == "PrometheusRule":
                 try:
                     groups = resource["spec"]["groups"]
@@ -637,6 +627,22 @@ class SaasHerder:
                     logging.warning(
                         "could not add html_url annotation to" + resource["name"]
                     )
+
+    def _additional_resource_process_route(self, resources):
+        certs = []
+        for resource in resources:
+            if resource["kind"] == "Route":
+                if route_needs_certificate(resource):
+                    # Create the Certificate resource
+                    cert = build_certificate_from_route(resource)
+                    # Annotation the Route with the cert-utils annotation
+                    annotations = resource["metadata"]["annotations"]
+                    annotations[CERT_UTILS_SECRET_SYNC_ANNOTATION] = cert["spec"][
+                        "secretName"
+                    ]
+                    # Append the certificate to the resources
+                    certs.append(cert)
+        return certs
 
     @staticmethod
     def _parameter_value_needed(parameter_name, consolidated_parameters, template):
@@ -1084,6 +1090,12 @@ class SaasHerder:
         # additional processing of resources
         resources = rs
         self._additional_resource_process(resources, html_url)
+
+        # Post process Routes if unleash cert-manager feature toogle is enabled
+        # for this cluster/namespace
+        if unleash_post_process_route_enabled(cluster, namespace):
+            certs = self._additional_resource_process_route(resources)
+            resources.extend(certs)
         # check images
         check_images_options = {"html_url": html_url, "resources": resources}
         check_images_options.update(check_images_options_base)
