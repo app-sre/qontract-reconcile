@@ -1,3 +1,2 @@
 # TODO we should have this on PyPi
-qenerate @ git+https://github.com/fishi0x01/qenerate.git@205447f407ede068d8c9cb9a254a4ae617ff30df
--e git+ssh://git@github.com/fishi0x01/qontract-reconcile.git@8b336d8aef94261ad676d940691ed0b328ac7082#egg=qontract_reconcile
+qenerate @ git+https://github.com/fishi0x01/qenerate.git@023c54bf62b184b7f37a56e6c5ee808b81e1f277
