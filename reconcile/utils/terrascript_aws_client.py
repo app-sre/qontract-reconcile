@@ -332,13 +332,15 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
             access_key_backend_value = config["aws_access_key_id"]
             secret_key_backend_value = config["aws_secret_access_key"]
-            bucket_backend_value = ""
-            key_backend_value = ""
-            region_backend_value = ""
 
             for filtered_account in filtered_accounts:
                 if filtered_account.get("name") == name:
                     terraform_state = filtered_account.get("terraformState")
+                    bucket_backend_value, key_backend_value, region_backend_value = (
+                        "",
+                        "",
+                        "",
+                    )
                     if not terraform_state:
                         bucket_backend_value = config["bucket"]
                         key_backend_value = config["{}_key".format(integration)]
@@ -346,6 +348,10 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     else:
                         tf_state_integration = terraform_state["integrations"]
                         for key in tf_state_integration:
+                            if "key" not in tf_state_integration.keys():
+                                bucket_backend_value = config["bucket"]
+                                key_backend_value = config["{}_key".format(integration)]
+                                region_backend_value = config["region"]
                             key_value = key.get("key")
                             integration_value = key.get("integration")
                             transformed_integration = str(integration_value).replace(
