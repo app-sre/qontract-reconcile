@@ -1,5 +1,4 @@
 import copy
-import hashlib
 import json
 import logging
 import os
@@ -33,7 +32,6 @@ from kubernetes.dynamic.exceptions import (
     ServerTimeoutError,
     InternalServerError,
     ForbiddenError,
-    ServiceUnavailableError,
     ResourceNotFoundError,
     ResourceNotUniqueError,
 )
