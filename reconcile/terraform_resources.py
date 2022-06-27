@@ -617,7 +617,7 @@ def run(
         defer(oc_map.cleanup)
 
     if print_to_file:
-        cleanup_and_exit()
+        cleanup_and_exit(tf)
     if tf is None:
         err = True
         cleanup_and_exit(tf, err)
