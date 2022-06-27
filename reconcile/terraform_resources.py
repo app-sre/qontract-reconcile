@@ -25,6 +25,7 @@ from reconcile.utils.oc import OC_Map
 from reconcile.utils.ocm import OCMMap
 from reconcile.utils.oc import StatusCodeError
 from reconcile.utils.openshift_resource import ResourceInventory
+from reconcile.utils.terraform_config import TerraformConfigProvider
 from reconcile.utils.terrascript_aws_client import TerrascriptClient as Terrascript
 from reconcile.utils.terraform_client import TerraformClient as Terraform
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
@@ -451,16 +452,16 @@ def init_working_dirs(
     accounts: list[dict[str, Any]],
     thread_pool_size: int,
     settings: Optional[Mapping[str, Any]] = None,
-) -> tuple[Terrascript, dict[str, str]]:
-    ts = Terrascript(
+) -> tuple[TerraformConfigProvider, dict[str, str]]:
+    tf_config_provider = TerraformConfigProvider(
         QONTRACT_INTEGRATION,
         QONTRACT_TF_PREFIX,
         thread_pool_size,
         accounts,
         settings=settings,
     )
-    working_dirs = ts.dump()
-    return ts, working_dirs
+    working_dirs = tf_config_provider.dump()
+    return tf_config_provider, working_dirs
 
 
 def setup(
@@ -488,7 +489,9 @@ def setup(
     )
 
     # initialize terrascript (scripting engine to generate terraform manifests)
-    ts, working_dirs = init_working_dirs(accounts, thread_pool_size, settings=settings)
+    tf_config_provider, working_dirs = init_working_dirs(
+        accounts, thread_pool_size, settings=settings
+    )
 
     # initialize terraform client
     # it is used to plan and apply according to the output of terrascript
@@ -509,14 +512,15 @@ def setup(
         )
     else:
         ocm_map = None
-    ts.init_populate_specs(tf_namespaces, account_name)
+    tf_config_provider.init_spec_inventory(tf_namespaces, account_name)
     tf.populate_terraform_output_secrets(
-        resource_specs=ts.resource_spec_inventory, init_rds_replica_source=True
+        resource_specs=tf_config_provider.resource_spec_inventory,
+        init_rds_replica_source=True,
     )
-    ts.populate_resources(ocm_map=ocm_map)
-    ts.dump(print_to_file, existing_dirs=working_dirs)
+    tf_config_provider.populate_resources(ocm_map=ocm_map)
+    tf_config_provider.dump(print_to_file, existing_dirs=working_dirs)
 
-    return ri, oc_map, tf, ts.resource_spec_inventory
+    return ri, oc_map, tf, tf_config_provider.resource_spec_inventory
 
 
 def filter_tf_namespaces(
