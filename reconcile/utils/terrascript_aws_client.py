@@ -184,12 +184,7 @@ VARIABLE_KEYS = [
     "image",
     "assume_role",
     "inline_policy",
-    "assume_condition",
-    "identifier",
-    "api_proxy_uri",
-    "sms_role_ext_id",
-    "cognito_callback_bucket_name",
-    "defaults"
+    "assume_condition"
 ]
 
 TMP_DIR_PREFIX = "terrascript-aws-"
