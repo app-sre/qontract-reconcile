@@ -317,6 +317,7 @@ provider
   pre_signup_lambda_github_release_url
   output_resource_name
   annotations
+  defaults
 }
 """
 
