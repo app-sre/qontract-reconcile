@@ -308,6 +308,16 @@ provider
   output_resource_name
   annotations
 }
+... on NamespaceTerraformResourceRosaAuthenticator_V1 {
+  region
+  identifier
+  api_proxy_uri
+  sms_role_ext_id
+  cognito_callback_bucket_name
+  pre_signup_lambda_github_release_url
+  output_resource_name
+  annotations
+}
 """
 
 
