@@ -154,7 +154,7 @@ import reconcile.utils.aws_helper as awsh
 
 GH_BASE_URL = os.environ.get("GITHUB_API", "https://api.github.com")
 LOGTOES_RELEASE = "repos/app-sre/logs-to-elasticsearch-lambda/releases/latest"
-ROSA_AUTHENTICATOR_PRE_SIGNUP_RELEASE = "repos/service/rosa-authenticator-lambda-pre-signup/releases/latest"
+ROSA_AUTHENTICATOR_PRE_SIGNUP_RELEASE = "repos/app-sre/cognito-pre-signup-trigger/releases/latest"
 # VARIABLE_KEYS are passed to common_values on instantiation of a provider
 VARIABLE_KEYS = [
     "region",
@@ -394,7 +394,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         r = requests.get(GH_BASE_URL + '/' + release_url, headers=headers)
         r.raise_for_status()
         data = r.json()
-        zip_url = data['assets'][0]['browser_download_url']
+        zip_url = data['zipball_url']
         zip_file = '/tmp/RosaAuthenticatorLambda-' + data['tag_name'] + '.zip'
         if not os.path.exists(zip_file):
             r = requests.get(zip_url)
@@ -4513,357 +4513,350 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         )
         tf_resources.append(sms_iam_role_resource)
 
-        # lambda_role_policy = {
-        #     "Version": "2012-10-17",
-        #     "Statement": [
-        #         {
-        #             "Effect": "Allow",
-        #             "Action": "sts:AssumeRole",
-        #             "Principal": {
-        #                 "Service": "lambda.amazonaws.com",
-        #             },
-        #         },
-        #     ],
-        # }
+        lambda_role_policy = {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Action": "sts:AssumeRole",
+                    "Principal": {
+                        "Service": "lambda.amazonaws.com",
+                    },
+                },
+            ],
+        }
 
-        # managed_policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
-        # region = common_values.get('region') or \
-        #     self.default_regions.get(account)
-        # if region in ("us-gov-west-1", "us-gov-east-1"):
-        #     managed_policy_arn = "arn:aws-us-gov:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+        managed_policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+        region = common_values.get('region') or \
+            self.default_regions.get(account)
+        if region in ("us-gov-west-1", "us-gov-east-1"):
+            managed_policy_arn = "arn:aws-us-gov:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 
-        # lambda_iam_role_resource = aws_iam_role(
-        #     "lambda_role",
-        #     name=f'ocm-{identifier}-cognito-lambda-role',
-        #     assume_role_policy=lambda_role_policy,
-        #     managed_policy_arns=[managed_policy_arn],
-        #     force_detach_policies=False,
-        #     max_session_duration=3600,
-        #     path="/service-role/",
-        # )
-        # tf_resources.append(lambda_iam_role_resource)
+        lambda_iam_role_resource = aws_iam_role(
+            "lambda_role",
+            name=f'ocm-{identifier}-cognito-lambda-role',
+            assume_role_policy=json.dumps(lambda_role_policy),
+            managed_policy_arns=[managed_policy_arn],
+            force_detach_policies=False,
+            max_session_duration=3600,
+            path="/service-role/",
+        )
+        tf_resources.append(lambda_iam_role_resource)
 
-        # # Setup + manage Lambda resources
+        # Setup + manage Lambda resources
 
-        # # pre-signup lambda
-        # release_url = common_values.get('release_url', ROSA_AUTHENTICATOR_PRE_SIGNUP_RELEASE)
-        # zip_file = self.get_rosa_authenticator_zip(release_url)
+        # pre-signup lambda
+        release_url = common_values.get('release_url', ROSA_AUTHENTICATOR_PRE_SIGNUP_RELEASE)
+        zip_file = self.get_rosa_authenticator_zip(release_url)
 
-        # cognito_pre_signup_lambda_resource = aws_lambda_function(
-        #     "cognito_pre_signup",
-        #     function_name=f'ocm-{identifier}-cognito-pre-signup',
-        #     runtime="nodejs14.x",
-        #     role=lambda_iam_role_resource.arn,
-        #     handler="index.handler",
-        #     filename=zip_file,
-        #     source_code_hash='${filebase64sha256("' + zip_file + '")}',
-        #     tracing_config={'mode': 'PassThrough'}
-        # )
-        # tf_resources.append(cognito_pre_signup_lambda_resource)
+        cognito_pre_signup_lambda_resource = aws_lambda_function(
+            "cognito_pre_signup",
+            function_name=f'ocm-{identifier}-cognito-pre-signup',
+            runtime="nodejs14.x",
+            role=lambda_iam_role_resource.arn,
+            handler="index.handler",
+            filename=zip_file,
+            source_code_hash='${filebase64sha256("' + zip_file + '")}',
+            tracing_config={'mode': 'PassThrough'}
+        )
+        tf_resources.append(cognito_pre_signup_lambda_resource)
 
-        # # Check for required defaults file values
-        # pool_args = common_values.get("user_pool_properties", None)
-        # pool_client_args = common_values.get("user_pool_client_properties", None)
-        # cognito_resource_server_args = common_values.get("cognito_resource_server_properties", None)
-        # pool_client_service_account_common_args = common_values.get(
-        #     "pool_client_service_account_common_properties", None
-        # )
-        # rest_api_args = common_values.get("rest_api_properties", None)
-        # gateway_authorizer_args = common_values.get("gateway_authorizer_properties", None)
-        # gateway_method_any_args = common_values.get("gateway_method_any_properties", None)
-        # gateway_method_token_get_args = common_values.get("gateway_method_token_get_properties", None)
-        # gateway_method_token_get_response_args = common_values.get(
-        #     "gateway_method_token_get_response_properties", None)
-        # integration_proxy_args = common_values.get("integration_proxy_properties", None)
-        # integration_token_args = common_values.get("integration_token_properties", None)
-        # waf_acl_args = common_values.get("waf_acl_properties", None)
+        # Prepare all resource arguments from default file
+        pool_args = common_values.get("user_pool_properties", None)
+        pool_client_args = common_values.get("user_pool_client_properties", None)
+        cognito_resource_server_args = common_values.get("cognito_resource_server_properties", None)
+        pool_client_service_account_common_args = common_values.get(
+            "pool_client_service_account_common_properties", None
+        )
+        rest_api_args = common_values.get("rest_api_properties", None)
+        gateway_authorizer_args = common_values.get("gateway_authorizer_properties", None)
+        gateway_method_any_args = common_values.get("gateway_method_any_properties", None)
+        gateway_method_token_get_args = common_values.get("gateway_method_token_get_properties", None)
+        gateway_method_token_get_response_args = common_values.get(
+            "gateway_method_token_get_response_properties", None)
+        integration_proxy_args = common_values.get("integration_proxy_properties", None)
+        integration_token_args = common_values.get("integration_token_properties", None)
+        waf_acl_args = common_values.get("waf_acl_properties", None)
+        
+        # cognito callback bucket domain
+        bucket_domain = f'https://{common_values.get("cognito_callback_bucket_name")}.s3.{region}.amazonaws.com'
 
-        # args_presence_one = pool_args and pool_client_args and cognito_resource_server_args and \
-        #     rest_api_args and gateway_method_any_args and pool_client_service_account_common_args
-        # args_presence_two = gateway_method_token_get_args and gateway_method_token_get_response_args
-        # args_presence_three = gateway_authorizer_args and integration_proxy_args and \
-        #     integration_token_args
-        # args_presence_four = waf_acl_args
+        # USER POOL
+        cognito_user_pool_resource = aws_cognito_user_pool(
+            "pool",
+            name=f'ocm-{identifier}-pool',
+            lambda_config={
+                "pre_sign_up": f'${{{cognito_pre_signup_lambda_resource.arn}}}'
+            },
+            sms_configuration={
+                "external_id": common_values.get("sms_role_ext_id"),
+                "sns_caller_arn": f'${{{lambda_iam_role_resource.arn}}}',
+            },
+            **pool_args
+        )
+        tf_resources.append(cognito_user_pool_resource)
 
-        # # Build the rest of the TF infrastructure
-        # if args_presence_one and args_presence_two and args_presence_three and args_presence_four:
-        #     # USER POOL
-        #     pool_args_values = self.get_values('pool_args')
-        #     cognito_user_pool_resource = aws_cognito_user_pool(
-        #         "pool",
-        #         name=f'ocm-{identifier}-pool',
-        #         lambda_config={
-        #             "pre_sign_up": cognito_pre_signup_lambda_resource.arn
-        #         },
-        #         sms_configuration={
-        #             "external_id": self.get_values("sms_role_ext_id"),
-        #             "sns_caller_arn": lambda_iam_role_resource.arn,
-        #         },
-        #         **pool_args_values
-        #     )
-        #     tf_resources.append(cognito_user_pool_resource)
+        # Finish up lambda - pre signup
+        cognito_pre_signup_lambda_permission_resource = aws_lambda_permission(
+            "cognito_pre_signup_permission",
+            action="lambda:InvokeFunction",
+            function_name=cognito_pre_signup_lambda_resource.function_name,
+            source_arn=f'${{{cognito_user_pool_resource.arn}}}',
+            principal="cognito-idp.amazonaws.com"
+        )
+        tf_resources.append(cognito_pre_signup_lambda_permission_resource)
 
-        #     # Finish up lambda - pre signup
-        #     cognito_pre_signup_lambda_permission_resource = aws_lambda_permission(
-        #         "cognito_pre_signup_permission",
-        #         action="lambda:InvokeFunction",
-        #         function_name=cognito_pre_signup_lambda_resource.function_name,
-        #         source_arn=cognito_user_pool_resource.arn,
-        #         principal="cognito-idp.amazonaws.com"
-        #     )
-        #     tf_resources.append(cognito_pre_signup_lambda_permission_resource)
+        # POOL DOMAIN
+        cognito_user_pool_domain_resource = aws_cognito_user_pool_domain(
+            "userpool_domain",
+            domain=f'ocm-{identifier}-domain',
+            user_pool_id=f'${{{cognito_user_pool_resource.id}}}'
+        )
+        tf_resources.append(cognito_user_pool_domain_resource)
 
-        #     # POOL DOMAIN
-        #     cognito_user_pool_domain_resource = aws_cognito_user_pool_domain(
-        #         "userpool_domain",
-        #         domain=f'ocm-{identifier}-domain',
-        #         user_pool_id=cognito_user_pool_resource.id
-        #     )
-        #     tf_resources.append(cognito_user_pool_domain_resource)
+        # POOL GATEWAY RESOURCE SERVER
+        cognito_resource_server_gateway_resource = aws_cognito_resource_server(
+            "userpool_gateway_resource_server",
+            user_pool_id=f'${{{cognito_user_pool_resource.id}}}',
+            name="API Gateway",
+            identifier="gateway",
+            scope=[{
+                "scope_name": "AccessToken",
+                "scope_description": "Scope used to support Access Token " + 
+                                     "authorization in API Gateway",
+            }]
+        )
+        tf_resources.append(cognito_resource_server_gateway_resource)
 
-        #     # POOL GATEWAY RESOURCE SERVER
-        #     cognito_resource_server_gateway_resource = aws_cognito_resource_server(
-        #         "userpool_gateway_resource_server",
-        #         user_pool_id=cognito_user_pool_resource.id,
-        #         name="API Gateway",
-        #         identifier="gateway",
-        #         scope={
-        #             "scope_name": "AccessToken",
-        #             "scope_description": "Scope used to support Access Token " + 
-        #                                  "authorization in API Gateway",
-        #         }
-        #     )
-        #     tf_resources.append(cognito_resource_server_resource)
+        # POOL CLIENT
+        cognito_user_pool_client = aws_cognito_user_pool_client(
+            "userpool_client",
+            name=f'ocm-{identifier}-pool-client',
+            user_pool_id=f'${{{cognito_user_pool_resource.id}}}',
+            callback_urls=[f'{bucket_domain}/token.html'],
+            depends_on=["aws_cognito_resource_server.userpool_gateway_resource_server"],
+            **pool_client_args
+        )
+        tf_resources.append(cognito_user_pool_client)
+        pp.pprint(cognito_user_pool_client)
 
-        #     # POOL CLIENT
-        #     pool_client_args_values = self.get_values("user_pool_client_properties")
-        #     cognito_user_pool_client = aws_cognito_user_pool_client(
-        #         "userpool_client",
-        #         name=f'ocm-{identifier}-pool-client',
-        #         user_pool_id=cognito_user_pool_resource.id,
-        #         callback_urls=[f'{self.get_values("bucket_domain")}/token.html'],
-        #         depends_on=[cognito_resource_server_resource],
-        #         **pool_client_args_values
-        #     )
-        #     tf_resources.append(cognito_user_pool_client)
+    #     # POOL RESOURCE SERVER
+    #     cognito_resource_server_args_values = self.get_values('cognito_resource_server_args')
+    #     cognito_resource_server_resource = aws_cognito_resource_server(
+    #         "userpool_service_resource_server",
+    #         user_pool_id=cognito_user_pool_resource.id,
+    #         **cognito_resource_server_args_values
+    #     )
+    #     tf_resources.append(cognito_resource_server_resource)
 
-        #     # POOL RESOURCE SERVER
-        #     cognito_resource_server_args_values = self.get_values('cognito_resource_server_args')
-        #     cognito_resource_server_resource = aws_cognito_resource_server(
-        #         "userpool_service_resource_server",
-        #         user_pool_id=cognito_user_pool_resource.id,
-        #         **cognito_resource_server_args_values
-        #     )
-        #     tf_resources.append(cognito_resource_server_resource)
+    #     # SERVICE ACCOUNT CLIENTS
+    #     pool_client_service_account_common_args_values = self.get_values(
+    #         "pool_client_service_account_common_properties"
+    #     )
+    #     # AMS
+    #     ams_service_account_pool_client_resource = aws_cognito_user_pool_client(
+    #         "ocm_ams_service_account",
+    #         name=f'ocm-{identifier}-ams-service-account',
+    #         user_pool_id=cognito_user_pool_resource.id,
+    #         allowed_oauth_scopes=["ocm/AccountManagement"],
+    #         depends_on=[cognito_resource_server_resource],
+    #         **pool_client_service_account_common_args_values
+    #     )
+    #     tf_resources.append(ams_service_account_pool_client_resource)
 
-        #     # SERVICE ACCOUNT CLIENTS
-        #     pool_client_service_account_common_args_values = self.get_values(
-        #         "pool_client_service_account_common_properties"
-        #     )
-        #     # AMS
-        #     ams_service_account_pool_client_resource = aws_cognito_user_pool_client(
-        #         "ocm_ams_service_account",
-        #         name=f'ocm-{identifier}-ams-service-account',
-        #         user_pool_id=cognito_user_pool_resource.id,
-        #         allowed_oauth_scopes=["ocm/AccountManagement"],
-        #         depends_on=[cognito_resource_server_resource],
-        #         **pool_client_service_account_common_args_values
-        #     )
-        #     tf_resources.append(ams_service_account_pool_client_resource)
+    #     # CS
+    #     cs_service_account_pool_client_resource = aws_cognito_user_pool_client(
+    #         "ocm_cs_service_account",
+    #         name=f'ocm-{identifier}-cs-service-account',
+    #         user_pool_id=cognito_user_pool_resource.id,
+    #         allowed_oauth_scopes=["ocm/ClusterService"],
+    #         depends_on=[cognito_resource_server_resource],
+    #         **pool_client_service_account_common_args_values
+    #     )
+    #     tf_resources.append(cs_service_account_pool_client_resource)
 
-        #     # CS
-        #     cs_service_account_pool_client_resource = aws_cognito_user_pool_client(
-        #         "ocm_cs_service_account",
-        #         name=f'ocm-{identifier}-cs-service-account',
-        #         user_pool_id=cognito_user_pool_resource.id,
-        #         allowed_oauth_scopes=["ocm/ClusterService"],
-        #         depends_on=[cognito_resource_server_resource],
-        #         **pool_client_service_account_common_args_values
-        #     )
-        #     tf_resources.append(cs_service_account_pool_client_resource)
+    #     # OSL
+    #     osl_service_account_pool_client_resource = aws_cognito_user_pool_client(
+    #         "ocm_osl_service_account",
+    #         name=f'ocm-{identifier}-osl-service-account',
+    #         user_pool_id=cognito_user_pool_resource.id,
+    #         allowed_oauth_scopes=["ocm/ServiceLogService"],
+    #         depends_on=[cognito_resource_server_resource],
+    #         **pool_client_service_account_common_args_values
+    #     )
+    #     tf_resources.append(osl_service_account_pool_client_resource)
+    #     # USER POOL COMPLETE
 
-        #     # OSL
-        #     osl_service_account_pool_client_resource = aws_cognito_user_pool_client(
-        #         "ocm_osl_service_account",
-        #         name=f'ocm-{identifier}-osl-service-account',
-        #         user_pool_id=cognito_user_pool_resource.id,
-        #         allowed_oauth_scopes=["ocm/ServiceLogService"],
-        #         depends_on=[cognito_resource_server_resource],
-        #         **pool_client_service_account_common_args_values
-        #     )
-        #     tf_resources.append(osl_service_account_pool_client_resource)
-        #     # USER POOL COMPLETE
+    #     # API GATEWAY
+    #     rest_api_args_values = self.get_values("rest_api_properties")
+    #     api_gateway_rest_api_resource = aws_api_gateway_rest_api(
+    #         "gw_api",
+    #         name=f'ocm-{identifier}-rest-api',
+    #         **rest_api_args_values
+    #     )
+    #     tf_resources.append(api_gateway_rest_api_resource)
 
-        #     # API GATEWAY
-        #     rest_api_args_values = self.get_values("rest_api_properties")
-        #     api_gateway_rest_api_resource = aws_api_gateway_rest_api(
-        #         "gw_api",
-        #         name=f'ocm-{identifier}-rest-api',
-        #         **rest_api_args_values
-        #     )
-        #     tf_resources.append(api_gateway_rest_api_resource)
+    #     # PROXY
+    #     api_gateway_proxy_resource = aws_api_gateway_resource(
+    #         "gw_resource_proxy",
+    #         parent_id=api_gateway_rest_api_resource.root_resource_id,
+    #         rest_api_id=api_gateway_rest_api_resource.id,
+    #         path_part="{proxy+}"
+    #     )
+    #     tf_resources.append(api_gateway_proxy_resource)
 
-        #     # PROXY
-        #     api_gateway_proxy_resource = aws_api_gateway_resource(
-        #         "gw_resource_proxy",
-        #         parent_id=api_gateway_rest_api_resource.root_resource_id,
-        #         rest_api_id=api_gateway_rest_api_resource.id,
-        #         path_part="{proxy+}"
-        #     )
-        #     tf_resources.append(api_gateway_proxy_resource)
+    #     # TOKEN
+    #     api_gateway_token_resource = aws_api_gateway_resource(
+    #         "gw_resource_token",
+    #         parent_id=api_gateway_rest_api_resource.root_resource_id,
+    #         rest_api_id=api_gateway_rest_api_resource.id,
+    #         path_part="token"
+    #     )
+    #     tf_resources.append(api_gateway_token_resource)
 
-        #     # TOKEN
-        #     api_gateway_token_resource = aws_api_gateway_resource(
-        #         "gw_resource_token",
-        #         parent_id=api_gateway_rest_api_resource.root_resource_id,
-        #         rest_api_id=api_gateway_rest_api_resource.id,
-        #         path_part="token"
-        #     )
-        #     tf_resources.append(api_gateway_token_resource)
+    #     # AUTH
+    #     api_gateway_auth_resource = aws_api_gateway_resource(
+    #         "gw_resource_token",
+    #         parent_id=api_gateway_rest_api_resource.root_resource_id,
+    #         rest_api_id=api_gateway_rest_api_resource.id,
+    #         path_part="auth"
+    #     )
+    #     tf_resources.append(api_gateway_auth_resource)
 
-        #     # AUTH
-        #     api_gateway_auth_resource = aws_api_gateway_resource(
-        #         "gw_resource_token",
-        #         parent_id=api_gateway_rest_api_resource.root_resource_id,
-        #         rest_api_id=api_gateway_rest_api_resource.id,
-        #         path_part="auth"
-        #     )
-        #     tf_resources.append(api_gateway_auth_resource)
+    #     # AUTHORIZER
+    #     gateway_authorizer_args_values = self.get_values("gateway_authorizer_properties")
+    #     api_gateway_authorizer_resource = aws_api_gateway_authorizer(
+    #         "gw_authorizer",
+    #         name=f'ocm-{identifier}-authorizer',
+    #         rest_api_id=api_gateway_rest_api_resource.id,
+    #         provider_arns=[cognito_user_pool_resource.arn],
+    #         **gateway_authorizer_args_values
+    #     )
+    #     tf_resources.append(api_gateway_authorizer_resource)
 
-        #     # AUTHORIZER
-        #     gateway_authorizer_args_values = self.get_values("gateway_authorizer_properties")
-        #     api_gateway_authorizer_resource = aws_api_gateway_authorizer(
-        #         "gw_authorizer",
-        #         name=f'ocm-{identifier}-authorizer',
-        #         rest_api_id=api_gateway_rest_api_resource.id,
-        #         provider_arns=[cognito_user_pool_resource.arn],
-        #         **gateway_authorizer_args_values
-        #     )
-        #     tf_resources.append(api_gateway_authorizer_resource)
+    #     # RESUME HERE
+    #     # ANY METHOD
+    #     gateway_method_any_args_values = self.get_values("gateway_method_any_args")
+    #     api_gateway_method_any_resource = aws_api_gateway_method(
+    #         "gw_method_any",
+    #         rest_api_id=api_gateway_rest_api_resource.id,
+    #         resource_id=api_gateway_proxy_resource.id,
+    #         authorizer_id=api_gateway_authorizer_resource.id,
+    #         **gateway_method_any_args_values
+    #     )
+    #     tf_resources.append(api_gateway_method_any_resource)
 
-        #     # RESUME HERE
-        #     # ANY METHOD
-        #     gateway_method_any_args_values = self.get_values("gateway_method_any_args")
-        #     api_gateway_method_any_resource = aws_api_gateway_method(
-        #         "gw_method_any",
-        #         rest_api_id=api_gateway_rest_api_resource.id,
-        #         resource_id=api_gateway_proxy_resource.id,
-        #         authorizer_id=api_gateway_authorizer_resource.id,
-        #         **gateway_method_any_args_values
-        #     )
-        #     tf_resources.append(api_gateway_method_any_resource)
+    #     # GET TOKEN METHOD
+    #     gateway_method_token_get_args_values = self.get_values("gateway_method_token_get_args")
+    #     api_gateway_method_token_get_resource = aws_api_gateway_method(
+    #         "gw_method_token_get",
+    #         rest_api_id=api_gateway_rest_api_resource.id,
+    #         resource_id=api_gateway_token_resource.id,
+    #         **gateway_method_token_get_args_values
+    #     )
+    #     tf_resources.append(api_gateway_method_token_get_resource)
 
-        #     # GET TOKEN METHOD
-        #     gateway_method_token_get_args_values = self.get_values("gateway_method_token_get_args")
-        #     api_gateway_method_token_get_resource = aws_api_gateway_method(
-        #         "gw_method_token_get",
-        #         rest_api_id=api_gateway_rest_api_resource.id,
-        #         resource_id=api_gateway_token_resource.id,
-        #         **gateway_method_token_get_args_values
-        #     )
-        #     tf_resources.append(api_gateway_method_token_get_resource)
+    #     # GET TOKEN RESPONSE
+    #     gateway_method_token_get_response_args_values = self.get_values(
+    #         "gateway_method_token_get_response_args")
+    #     api_gateway_method_token_get_response_resource = aws_api_gateway_method_response(
+    #         "gw_method_token_get_response",
+    #         http_method=api_gateway_method_token_get_resource.http_method,
+    #         resource_id=api_gateway_token_resource.id,
+    #         rest_api_id=api_gateway_rest_api_resource.id,
+    #         **gateway_method_token_get_response_args_values
+    #     )
+    #     tf_resources.append(api_gateway_method_token_get_response_resource)
 
-        #     # GET TOKEN RESPONSE
-        #     gateway_method_token_get_response_args_values = self.get_values(
-        #         "gateway_method_token_get_response_args")
-        #     api_gateway_method_token_get_response_resource = aws_api_gateway_method_response(
-        #         "gw_method_token_get_response",
-        #         http_method=api_gateway_method_token_get_resource.http_method,
-        #         resource_id=api_gateway_token_resource.id,
-        #         rest_api_id=api_gateway_rest_api_resource.id,
-        #         **gateway_method_token_get_response_args_values
-        #     )
-        #     tf_resources.append(api_gateway_method_token_get_response_resource)
+    #     api_gateway_lb_resource = aws_lb(
+    #         "lb",
+    #         name=f'{identifier}-lb',
+    #         internal=True,
+    #         load_balancer_type="network",
+    #         subnet=self.get_values("lb_subnet_id")
+    #     )
+    #     tf_resources.append(api_gateway_lb_resource)
 
-        #     api_gateway_lb_resource = aws_lb(
-        #         "lb",
-        #         name=f'{identifier}-lb',
-        #         internal=True,
-        #         load_balancer_type="network",
-        #         subnet=self.get_values("lb_subnet_id")
-        #     )
-        #     tf_resources.append(api_gateway_lb_resource)
+    #     api_gateway_vpc_link_resource = aws_api_gateway_vpc_link(
+    #         "vpc_link",
+    #         name=f'{identifier}-vpc-link',
+    #         target_arns=[api_gateway_lb_resource.arn]
+    #     )
+    #     tf_resources.append(api_gateway_vpc_link_resource)
 
-        #     api_gateway_vpc_link_resource = aws_api_gateway_vpc_link(
-        #         "vpc_link",
-        #         name=f'{identifier}-vpc-link',
-        #         target_arns=[api_gateway_lb_resource.arn]
-        #     )
-        #     tf_resources.append(api_gateway_vpc_link_resource)
+    #     # FIXME: review
+    #     integration_proxy_args_values = self.get_values("integration_proxy_properties")
+    #     api_gateway_integration_proxy_resource = aws_api_gateway_integration(
+    #         "gw_integration_proxy",
+    #         rest_api_id=api_gateway_rest_api_resource.id,
+    #         resource_id=api_gateway_proxy_resource.id,
+    #         http_method=api_gateway_method_any_resource.http_method,
+    #         connection_type="VPC_LINK",
+    #         connection_id=api_gateway_vpc_link_resource.id,
+    #         **integration_proxy_args_values
+    #     )
+    #     tf_resources.append(api_gateway_integration_proxy_resource)
 
-        #     # FIXME: review
-        #     integration_proxy_args_values = self.get_values("integration_proxy_properties")
-        #     api_gateway_integration_proxy_resource = aws_api_gateway_integration(
-        #         "gw_integration_proxy",
-        #         rest_api_id=api_gateway_rest_api_resource.id,
-        #         resource_id=api_gateway_proxy_resource.id,
-        #         http_method=api_gateway_method_any_resource.http_method,
-        #         connection_type="VPC_LINK",
-        #         connection_id=api_gateway_vpc_link_resource.id,
-        #         **integration_proxy_args_values
-        #     )
-        #     tf_resources.append(api_gateway_integration_proxy_resource)
+    #     # FIXME: review
+    #     integration_token_args_values = self.get_values("integration_token_properties")
+    #     api_gateway_integration_token_resource = aws_api_gateway_integration(
+    #         "gw_integration_token",
+    #         rest_api_id=api_gateway_rest_api_resource.id,
+    #         resource_id=api_gateway_token_resource.id,
+    #         http_method=api_gateway_method_token_get_resource.http_method,
+    #         connection_type="VPC_LINK",
+    #         connection_id=api_gateway_vpc_link_resource.id,
+    #         **integration_token_args_values
+    #     )
+    #     tf_resources.append(api_gateway_integration_token_resource)
 
-        #     # FIXME: review
-        #     integration_token_args_values = self.get_values("integration_token_properties")
-        #     api_gateway_integration_token_resource = aws_api_gateway_integration(
-        #         "gw_integration_token",
-        #         rest_api_id=api_gateway_rest_api_resource.id,
-        #         resource_id=api_gateway_token_resource.id,
-        #         http_method=api_gateway_method_token_get_resource.http_method,
-        #         connection_type="VPC_LINK",
-        #         connection_id=api_gateway_vpc_link_resource.id,
-        #         **integration_token_args_values
-        #     )
-        #     tf_resources.append(api_gateway_integration_token_resource)
+    #     api_gateway_integration_response_resource = aws_api_gateway_integration_response(
+    #         "gw_integration_response_token",
+    #         rest_api_id=api_gateway_rest_api_resource.id,
+    #         resource_id=api_gateway_token_resource.id,
+    #         http_method=api_gateway_token_resource.http_method,
+    #         status_code=api_gateway_method_token_get_response_resource.status_code,
+    #         depends_on=[api_gateway_integration_token_resource]
+    #     )
+    #     tf_resources.append(api_gateway_integration_response_resource)
 
-        #     api_gateway_integration_response_resource = aws_api_gateway_integration_response(
-        #         "gw_integration_response_token",
-        #         rest_api_id=api_gateway_rest_api_resource.id,
-        #         resource_id=api_gateway_token_resource.id,
-        #         http_method=api_gateway_token_resource.http_method,
-        #         status_code=api_gateway_method_token_get_response_resource.status_code,
-        #         depends_on=[api_gateway_integration_token_resource]
-        #     )
-        #     tf_resources.append(api_gateway_integration_response_resource)
+    #     api_gateway_deployment_resource = aws_api_gateway_deployment(
+    #         "gw_deployment",
+    #         rest_api_id=api_gateway_rest_api_resource.id,
+    #         triggers={
+    #             "redeployment": '${sha1(jsonencode([' +
+    #                             api_gateway_proxy_resource.id + ',' +
+    #                             api_gateway_token_resource.id + ',' +
+    #                             api_gateway_method_any_resource.id + ',' +
+    #                             api_gateway_method_token_get_resource.id + ',' +
+    #                             api_gateway_integration_proxy_resource.id + ',' +
+    #                             api_gateway_integration_token_resource.id + ')}'
+    #         },
+    #         lifecycle={"create_before_destroy": True}
+    #     )
+    #     tf_resources.append(api_gateway_deployment_resource)
 
-        #     api_gateway_deployment_resource = aws_api_gateway_deployment(
-        #         "gw_deployment",
-        #         rest_api_id=api_gateway_rest_api_resource.id,
-        #         triggers={
-        #             "redeployment": '${sha1(jsonencode([' +
-        #                             api_gateway_proxy_resource.id + ',' +
-        #                             api_gateway_token_resource.id + ',' +
-        #                             api_gateway_method_any_resource.id + ',' +
-        #                             api_gateway_method_token_get_resource.id + ',' +
-        #                             api_gateway_integration_proxy_resource.id + ',' +
-        #                             api_gateway_integration_token_resource.id + ')}'
-        #         },
-        #         lifecycle={"create_before_destroy": True}
-        #     )
-        #     tf_resources.append(api_gateway_deployment_resource)
+    #     api_gateway_stage_resource = aws_api_gateway_stage(
+    #         "gw_stage",
+    #         deployment_id=api_gateway_deployment_resource.id,
+    #         rest_api_id=api_gateway_rest_api_resource.id,
+    #         stage_name="stage"
+    #     )
+    #     tf_resources.append(api_gateway_stage_resource)
 
-        #     api_gateway_stage_resource = aws_api_gateway_stage(
-        #         "gw_stage",
-        #         deployment_id=api_gateway_deployment_resource.id,
-        #         rest_api_id=api_gateway_rest_api_resource.id,
-        #         stage_name="stage"
-        #     )
-        #     tf_resources.append(api_gateway_stage_resource)
+    #     waf_acl_args_values = self.get_values("waf_acl_properties")
+    #     waf_acl_resource = aws_wafv2_web_acl(
+    #         "api_waf",
+    #         name=f'{identifier}-waf',
+    #         **waf_acl_args_values
+    #     )
+    #     tf_resources.append(waf_acl_resource)
 
-        #     waf_acl_args_values = self.get_values("waf_acl_properties")
-        #     waf_acl_resource = aws_wafv2_web_acl(
-        #         "api_waf",
-        #         name=f'{identifier}-waf',
-        #         **waf_acl_args_values
-        #     )
-        #     tf_resources.append(waf_acl_resource)
-
-        #     waf_acl_association_resource = aws_wafv2_web_acl_association(
-        #         "api_waf_association",
-        #         resource_arn=api_gateway_stage_resource.arn,
-        #         web_acl_arn=waf_acl_resource.arn
-        #     )
-        #     tf_resources.append(waf_acl_association_resource)
+    #     waf_acl_association_resource = aws_wafv2_web_acl_association(
+    #         "api_waf_association",
+    #         resource_arn=api_gateway_stage_resource.arn,
+    #         web_acl_arn=waf_acl_resource.arn
+    #     )
+    #     tf_resources.append(waf_acl_association_resource)
 
         self.add_resources(account, tf_resources)
