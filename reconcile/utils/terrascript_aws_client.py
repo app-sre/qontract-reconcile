@@ -1036,7 +1036,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 self.account_resource_specs.setdefault(
                     spec.provisioner_name, []
                 ).append(spec)
-                print(spec)
                 self.resource_spec_inventory[spec.id_object()] = spec
 
     def populate_tf_resources(self, spec, ocm_map=None):
@@ -4465,9 +4464,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         self.add_resources(account, tf_resources)
 
     def populate_tf_resource_rosa_authenticator(self, spec):
-        print(spec)
         account = spec.provisioner_name
-        print(account)
         # identifier = spec.identifier
         # common_values = self.init_values(spec)
         # output_prefix = spec.output_prefix
