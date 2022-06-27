@@ -153,6 +153,7 @@ import reconcile.utils.aws_helper as awsh
 GH_BASE_URL = os.environ.get("GITHUB_API", "https://api.github.com")
 LOGTOES_RELEASE = "repos/app-sre/logs-to-elasticsearch-lambda/releases/latest"
 ROSA_AUTHENTICATOR_PRE_SIGNUP_RELEASE = "repos/service/rosa-authenticator-lambda-pre-signup/releases/latest"
+# VARIABLE_KEYS are passed directly to the terraform JSON representation of the constructed resource.
 VARIABLE_KEYS = [
     "region",
     "availability_zone",
