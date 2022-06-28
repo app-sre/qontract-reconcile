@@ -8,8 +8,6 @@ import random
 import re
 import string
 import tempfile
-import pprint
-pp = pprint.PrettyPrinter(indent=4)
 
 from threading import Lock
 
@@ -4535,7 +4533,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         if region in ("us-gov-west-1", "us-gov-east-1"):
             managed_policy_arn = "arn:aws-us-gov:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 
-        bucket_domain = f'https://{common_values.get("cognito_callback_bucket_name")}.s3.{region}.amazonaws.com'
+        bucket_url = f'https://{common_values.get("cognito_callback_bucket_name")}.s3.{region}.amazonaws.com'
 
         # FIXME
         # user_pool_domain = https://${aws_cognito_user_pool_domain.userpool_domain.domain}.auth-fips.us-gov-west-1.amazoncognito.com
@@ -4644,7 +4642,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             "userpool_client",
             name=f'ocm-{identifier}-pool-client',
             user_pool_id=f'${{{cognito_user_pool_resource.id}}}',
-            callback_urls=[f'{bucket_domain}/token.html'],
+            callback_urls=[f'{bucket_url}/token.html'],
             depends_on=["aws_cognito_resource_server.userpool_gateway_resource_server"],
             **pool_client_args
         )
@@ -4846,7 +4844,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             "vpc_link",
             name=f'{identifier}-vpc-link',
             target_arns=[common_values.get("vpc_arn")]
-            # common_values.get("a")
             # future: use data source to get vpc arn by annotation
         )
         tf_resources.append(api_gateway_vpc_link_resource)
@@ -4857,13 +4854,11 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             rest_api_id=f'${{{api_gateway_rest_api_resource.id}}}',
             resource_id=f'${{{api_gateway_proxy_resource.id}}}',
             http_method=api_gateway_method_proxy_any_response_resource.http_method,
-            connection_type="VPC_LINK",
             connection_id=f'${{{api_gateway_vpc_link_resource.id}}}',
-            uri=f'{common_values.get("api_proxy_uri")}/api/{{proxy}}'
+            uri=f'{common_values.get("api_proxy_uri")}/api/{{proxy}}',
             **integration_proxy_args
         )
         tf_resources.append(api_gateway_integration_proxy_resource)
-        pp.pprint(api_gateway_integration_proxy_resource)
 
         # TOKEN
         api_gateway_integration_token_resource = aws_api_gateway_integration(
@@ -4871,13 +4866,11 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             rest_api_id=f'${{{api_gateway_rest_api_resource.id}}}',
             resource_id=f'${{{api_gateway_token_resource.id}}}',
             http_method=api_gateway_method_token_get_resource.http_method,
-            connection_type="VPC_LINK",
             connection_id=f'${{{api_gateway_vpc_link_resource.id}}}',
-            uri=f'{bucket_domain}/token.html',
+            uri=f'{bucket_url}/token.html',
             **integration_token_args
         )
         tf_resources.append(api_gateway_integration_token_resource)
-        pp.pprint(api_gateway_integration_token_resource)
 
         # AUTH
         api_gateway_integration_auth_resource = aws_api_gateway_integration(
@@ -4887,20 +4880,18 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             http_method=api_gateway_method_auth_get_resource.http_method,
             **integration_auth_args
         )
-        tf_resources.append(api_gateway_integration_token_resource)
-        pp.pprint(api_gateway_integration_token_resource)
+        tf_resources.append(api_gateway_integration_auth_resource)
 
         # PROXY
         api_gateway_integration_proxy_response_resource = aws_api_gateway_integration_response(
-            "gw_integration_response_proxy]",
+            "gw_integration_response_proxy",
             rest_api_id=f'${{{api_gateway_rest_api_resource.id}}}',
             resource_id=f'${{{api_gateway_proxy_resource.id}}}',
             http_method=api_gateway_method_proxy_any_resource.http_method,
-            status_code=api_gateway_integration_proxy_resource.status_code,
+            status_code=api_gateway_method_token_get_response_resource.status_code,
             depends_on=["aws_api_gateway_integration.gw_integration_token"]
         )
         tf_resources.append(api_gateway_integration_proxy_response_resource)
-        pp.pprint(api_gateway_integration_proxy_response_resource)
 
         # TOKEN
         api_gateway_integration_token_response_resource = aws_api_gateway_integration_response(
@@ -4908,11 +4899,10 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             rest_api_id=f'${{{api_gateway_rest_api_resource.id}}}',
             resource_id=f'${{{api_gateway_token_resource.id}}}',
             http_method=api_gateway_method_token_get_resource.http_method,
-            status_code=api_gateway_integration_token_resource.status_code,
+            status_code=api_gateway_method_token_get_response_resource.status_code,
             depends_on=["aws_api_gateway_integration.gw_integration_token"]
         )
         tf_resources.append(api_gateway_integration_token_response_resource)
-        pp.pprint(api_gateway_integration_token_response_resource)
 
         # AUTH
         api_gateway_integration_auth_response_resource = aws_api_gateway_integration_response(
@@ -4920,48 +4910,43 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             rest_api_id=f'${{{api_gateway_rest_api_resource.id}}}',
             resource_id=f'${{{api_gateway_auth_resource.id}}}',
             http_method=api_gateway_method_auth_get_resource.http_method,
-            status_code=api_gateway_integration_auth_resource.status_code,
+            status_code=api_gateway_method_auth_get_response_resource.status_code,
             response_parameters={
                 "method.response.header.Location": f'{user_pool_domain}/oauth2/authorize?client_id=' \
                     f'${{{cognito_user_pool_client.id}}}\u0026response_type=code' \
-                    f'\u0026scope=openid+gateway/AccessToken\u0026redirect_uri={bucket_domain}/' \
+                    f'\u0026scope=openid+gateway/AccessToken\u0026redirect_uri={bucket_url}/' \
                     'token.html',
             },
             depends_on=["aws_api_gateway_integration.gw_integration_auth"]
         )
         tf_resources.append(api_gateway_integration_auth_response_resource)
-        pp.pprint(api_gateway_integration_auth_response_resource)
-
-        # REDEPLOYMENT TRIGGERS
-        api_gateway_resources = [
-            "aws_api_gateway_resource.gw_resource_proxy",
-            "aws_api_gateway_resource.gw_resource_token",
-            "aws_api_gateway_resource.gw_resource_auth",
-            "aws_api_gateway_method.gw_method_proxy_any",
-            "aws_api_gateway_method.gw_method_token_get",
-            "aws_api_gateway_method.gw_method_auth_get",
-            "aws_api_gateway_method_response.gw_method_proxy_any_response",
-            "aws_api_gateway_method_response.gw_method_token_get_response",
-            "aws_api_gateway_method_response.gw_method_auth_get_response",
-            "aws_api_gateway_integration.gw_integration_proxy",
-            "aws_api_gateway_integration.gw_integration_token",
-            "aws_api_gateway_integration.gw_integration_auth",
-            "aws_api_gateway_integration_response.gw_integration_response_proxy",
-            "aws_api_gateway_integration_response.gw_integration_response_token",
-            "aws_api_gateway_integration_response.gw_integration_response_auth",
-        ]
 
         # DEPLOYMENT
         api_gateway_deployment_resource = aws_api_gateway_deployment(
             "gw_deployment",
             rest_api_id=f'${{{api_gateway_rest_api_resource.id}}}',
             triggers={
-                "redeployment": f'${{sha256(base64encode(jsonencode({api_gateway_resources}}}'
+                "redeployment": 'sha256(base64encode(jsonencode([' \
+                    'aws_api_gateway_resource.gw_resource_proxy,' \
+                    'aws_api_gateway_resource.gw_resource_token,' \
+                    'aws_api_gateway_resource.gw_resource_auth,' \
+                    'aws_api_gateway_method.gw_method_proxy_any,' \
+                    'aws_api_gateway_method.gw_method_token_get,' \
+                    'aws_api_gateway_method.gw_method_auth_get,' \
+                    'aws_api_gateway_method_response.gw_method_proxy_any_response,' \
+                    'aws_api_gateway_method_response.gw_method_token_get_response,' \
+                    'aws_api_gateway_method_response.gw_method_auth_get_response,' \
+                    'aws_api_gateway_integration.gw_integration_proxy,' \
+                    'aws_api_gateway_integration.gw_integration_token,' \
+                    'aws_api_gateway_integration.gw_integration_auth,' \
+                    'aws_api_gateway_integration_response.gw_integration_response_proxy,' \
+                    'aws_api_gateway_integration_response.gw_integration_response_token,' \
+                    'aws_api_gateway_integration_response.gw_integration_response_auth,' \
+                    '])))'
             },
             lifecycle={"create_before_destroy": True}
         )   
         tf_resources.append(api_gateway_deployment_resource)
-        pp.pprint(api_gateway_deployment_resource)
 
         # STAGE DEPLOYMENT
         api_gateway_stage_resource = aws_api_gateway_stage(
@@ -4971,7 +4956,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             stage_name="stage"
         )
         tf_resources.append(api_gateway_stage_resource)
-        pp.pprint(api_gateway_stage_resource)
 
         # WAF
         waf_acl_resource = aws_wafv2_web_acl(
@@ -4980,7 +4964,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             **waf_acl_args
         )
         tf_resources.append(waf_acl_resource)
-        pp.pprint(waf_acl_resource)
 
         waf_acl_association_resource = aws_wafv2_web_acl_association(
             "api_waf_association",
@@ -4988,6 +4971,5 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             web_acl_arn=f'${{{waf_acl_resource.arn}}}'
         )
         tf_resources.append(waf_acl_association_resource)
-        pp.pprint(waf_acl_association_resource)
 
         self.add_resources(account, tf_resources)
