@@ -78,7 +78,7 @@ clean:
 	@find . -name "*.pyc" -delete
 
 dev-venv: clean ## Create a local venv for your IDE and remote debugging
-	python3.9 -m venv venv
+	python3 -m venv venv
 	. ./venv/bin/activate && pip install --upgrade pip
 	. ./venv/bin/activate && pip install -e .
 	. ./venv/bin/activate && pip install -r requirements/requirements-dev.txt
