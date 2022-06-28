@@ -374,7 +374,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             # pylint: disable=consider-using-with
             open(zip_file, "wb").write(r.content)
         return zip_file
-    
+
     def get_rosa_authenticator_zip(self, release_url):
         if not self.rosa_authenticator_pre_signup_zip:
             with self.rosa_authenticator_pre_signup_zip_lock:
@@ -4471,7 +4471,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         account = spec.provisioner_name
         identifier = spec.identifier
         common_values = self.init_values(spec)
-        output_prefix = spec.output_prefix
         tf_resources = []
         self.init_common_outputs(tf_resources, spec)
 
@@ -4581,7 +4580,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         integration_token_args = common_values.get("integration_token_properties", None)
         integration_auth_args = common_values.get("integration_auth_properties", None)
         waf_acl_args = common_values.get("waf_acl_properties", None)
-        
+
         # USER POOL
         cognito_user_pool_resource = aws_cognito_user_pool(
             "pool",
@@ -4615,7 +4614,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         )
         tf_resources.append(cognito_user_pool_domain_resource)
 
-        user_pool_url = f'https://${{{cognito_user_pool_domain_resource.domain}}}.auth-fips.us-gov-west-1.amazoncognito.com'
+        user_pool_url = f'https://{cognito_user_pool_domain_resource.domain}.auth-fips.us-gov-west-1.amazoncognito.com'
 
         # POOL GATEWAY RESOURCE SERVER
         cognito_resource_server_gateway_resource = aws_cognito_resource_server(
@@ -4625,7 +4624,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             identifier="gateway",
             scope=[{
                 "scope_name": "AccessToken",
-                "scope_description": "Scope used to support Access Token " + 
+                "scope_description": "Scope used to support Access Token " +
                                      "authorization in API Gateway",
             }]
         )
@@ -4666,7 +4665,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 {
                     "scope_name": "BackplaneService",
                     "scope_description": "Backplane API service account"
-                }   
+                }
             ],
             **cognito_resource_server_args
         )
@@ -4906,10 +4905,10 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             http_method=api_gateway_method_auth_get_resource.http_method,
             status_code=api_gateway_method_auth_get_response_resource.status_code,
             response_parameters={
-                "method.response.header.Location": f'{user_pool_url}/oauth2/authorize?client_id=' \
-                    f'${{{cognito_user_pool_client.id}}}\u0026response_type=code' \
-                    f'\u0026scope=openid+gateway/AccessToken\u0026redirect_uri={bucket_url}/' \
-                    'token.html',
+                "method.response.header.Location": f'{user_pool_url}/oauth2/authorize?client_id='
+                                                   f'${{{cognito_user_pool_client.id}}}\u0026response_type=code'
+                                                   f'\u0026scope=openid+gateway/AccessToken\u0026redirect_uri={bucket_url}/'
+                                                   'token.html',
             },
             depends_on=["aws_api_gateway_integration.gw_integration_auth"]
         )
@@ -4920,26 +4919,26 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             "gw_deployment",
             rest_api_id=f'${{{api_gateway_rest_api_resource.id}}}',
             triggers={
-                "redeployment": 'sha256(base64encode(jsonencode([' \
-                    'aws_api_gateway_resource.gw_resource_proxy,' \
-                    'aws_api_gateway_resource.gw_resource_token,' \
-                    'aws_api_gateway_resource.gw_resource_auth,' \
-                    'aws_api_gateway_method.gw_method_proxy_any,' \
-                    'aws_api_gateway_method.gw_method_token_get,' \
-                    'aws_api_gateway_method.gw_method_auth_get,' \
-                    'aws_api_gateway_method_response.gw_method_proxy_any_response,' \
-                    'aws_api_gateway_method_response.gw_method_token_get_response,' \
-                    'aws_api_gateway_method_response.gw_method_auth_get_response,' \
-                    'aws_api_gateway_integration.gw_integration_proxy,' \
-                    'aws_api_gateway_integration.gw_integration_token,' \
-                    'aws_api_gateway_integration.gw_integration_auth,' \
-                    'aws_api_gateway_integration_response.gw_integration_response_proxy,' \
-                    'aws_api_gateway_integration_response.gw_integration_response_token,' \
-                    'aws_api_gateway_integration_response.gw_integration_response_auth' \
-                    '])))'
+                "redeployment": 'sha256(base64encode(jsonencode(['
+                                'aws_api_gateway_resource.gw_resource_proxy,'
+                                'aws_api_gateway_resource.gw_resource_token,'
+                                'aws_api_gateway_resource.gw_resource_auth,'
+                                'aws_api_gateway_method.gw_method_proxy_any,'
+                                'aws_api_gateway_method.gw_method_token_get,'
+                                'aws_api_gateway_method.gw_method_auth_get,'
+                                'aws_api_gateway_method_response.gw_method_proxy_any_response,'
+                                'aws_api_gateway_method_response.gw_method_token_get_response,'
+                                'aws_api_gateway_method_response.gw_method_auth_get_response,'
+                                'aws_api_gateway_integration.gw_integration_proxy,'
+                                'aws_api_gateway_integration.gw_integration_token,'
+                                'aws_api_gateway_integration.gw_integration_auth,'
+                                'aws_api_gateway_integration_response.gw_integration_response_proxy,'
+                                'aws_api_gateway_integration_response.gw_integration_response_token,'
+                                'aws_api_gateway_integration_response.gw_integration_response_auth'
+                                '])))'
             },
             lifecycle={"create_before_destroy": True}
-        )   
+        )
         tf_resources.append(api_gateway_deployment_resource)
 
         # STAGE DEPLOYMENT
