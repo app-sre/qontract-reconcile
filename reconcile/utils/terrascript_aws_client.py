@@ -190,7 +190,8 @@ VARIABLE_KEYS = [
     "assume_condition",
     "sms_role_ext_id",
     "api_proxy_uri",
-    "cognito_callback_bucket_name"
+    "cognito_callback_bucket_name",
+    #"vpc_arn"
 ]
 
 TMP_DIR_PREFIX = "terrascript-aws-"
@@ -4833,47 +4834,38 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         )
         tf_resources.append(api_gateway_method_auth_get_response_resource)
 
-    #     api_gateway_lb_resource = aws_lb(
-    #         "lb",
-    #         name=f'{identifier}-lb',
-    #         internal=True,
-    #         load_balancer_type="network",
-    #         subnet=self.get_values("lb_subnet_id")
-    #     )
-    #     tf_resources.append(api_gateway_lb_resource)
+        api_gateway_vpc_link_resource = aws_api_gateway_vpc_link(
+            "vpc_link",
+            name=f'{identifier}-vpc-link',
+            target_arns=["arn:aws-us-gov:elasticloadbalancing:us-gov-west-1:657750906120:loadbalancer/net/a608c04db672d48f5a7a393683c59db9/79fe8e4b185f34db"]
+            # common_values.get("a")
+            # future: use data source to get vpc arn by annotation
+        )
+        tf_resources.append(api_gateway_vpc_link_resource)
 
-    #     api_gateway_vpc_link_resource = aws_api_gateway_vpc_link(
-    #         "vpc_link",
-    #         name=f'{identifier}-vpc-link',
-    #         target_arns=[api_gateway_lb_resource.arn]
-    #     )
-    #     tf_resources.append(api_gateway_vpc_link_resource)
+        api_gateway_integration_proxy_resource = aws_api_gateway_integration(
+            "gw_integration_proxy",
+            rest_api_id=f'${{{api_gateway_rest_api_resource.id}}}',
+            resource_id=resource_id=f'${{{api_gateway_auth_resource.id}}}',
+            http_method=api_gateway_method_proxy_any_response_resource.http_method,
+            connection_type="VPC_LINK",
+            connection_id=f'${{{api_gateway_vpc_link_resource.id}}}',
+            uri=common_values.get("api_proxy_uri")
+            **integration_proxy_args
+        )
+        tf_resources.append(api_gateway_integration_proxy_resource)
+        pp.pprint(api_gateway_integration_proxy_resource)
 
-    #     # FIXME: review
-    #     integration_proxy_args_values = self.get_values("integration_proxy_properties")
-    #     api_gateway_integration_proxy_resource = aws_api_gateway_integration(
-    #         "gw_integration_proxy",
-    #         rest_api_id=api_gateway_rest_api_resource.id,
-    #         resource_id=api_gateway_proxy_resource.id,
-    #         http_method=api_gateway_method_any_resource.http_method,
-    #         connection_type="VPC_LINK",
-    #         connection_id=api_gateway_vpc_link_resource.id,
-    #         **integration_proxy_args_values
-    #     )
-    #     tf_resources.append(api_gateway_integration_proxy_resource)
-
-    #     # FIXME: review
-    #     integration_token_args_values = self.get_values("integration_token_properties")
-    #     api_gateway_integration_token_resource = aws_api_gateway_integration(
-    #         "gw_integration_token",
-    #         rest_api_id=api_gateway_rest_api_resource.id,
-    #         resource_id=api_gateway_token_resource.id,
-    #         http_method=api_gateway_method_token_get_resource.http_method,
-    #         connection_type="VPC_LINK",
-    #         connection_id=api_gateway_vpc_link_resource.id,
-    #         **integration_token_args_values
-    #     )
-    #     tf_resources.append(api_gateway_integration_token_resource)
+        api_gateway_integration_token_resource = aws_api_gateway_integration(
+            "gw_integration_token",
+            rest_api_id=f'${{{api_gateway_rest_api_resource.id}}}',
+            resource_id=f'${{{api_gateway_token_resource.id}}}',
+            http_method=api_gateway_method_token_get_resource.http_method,
+            connection_type="VPC_LINK",
+            connection_id=f'${{{api_gateway_vpc_link_resource.id}}}',
+            **integration_token_args
+        )
+        tf_resources.append(api_gateway_integration_token_resource)
 
     #     api_gateway_integration_response_resource = aws_api_gateway_integration_response(
     #         "gw_integration_response_token",
@@ -4918,11 +4910,11 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         )
         tf_resources.append(waf_acl_resource)
 
-    #     waf_acl_association_resource = aws_wafv2_web_acl_association(
-    #         "api_waf_association",
-    #         resource_arn=api_gateway_stage_resource.arn,
-    #         web_acl_arn=waf_acl_resource.arn
-    #     )
-    #     tf_resources.append(waf_acl_association_resource)
+        # waf_acl_association_resource = aws_wafv2_web_acl_association(
+        #     "api_waf_association",
+        #     resource_arn=api_gateway_stage_resource.arn,
+        #     web_acl_arn=waf_acl_resource.arn
+        # )
+        # tf_resources.append(waf_acl_association_resource)
 
         self.add_resources(account, tf_resources)
