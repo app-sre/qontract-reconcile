@@ -4941,7 +4941,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     'aws_api_gateway_integration.gw_integration_auth,' \
                     'aws_api_gateway_integration_response.gw_integration_response_proxy,' \
                     'aws_api_gateway_integration_response.gw_integration_response_token,' \
-                    'aws_api_gateway_integration_response.gw_integration_response_auth,' \
+                    'aws_api_gateway_integration_response.gw_integration_response_auth' \
                     '])))'
             },
             lifecycle={"create_before_destroy": True}
