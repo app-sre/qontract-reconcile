@@ -7,6 +7,13 @@ from reconcile.utils.config import ConfigNotFound, get_config
 from reconcile.utils.helpers import toggle_logger
 from reconcile.utils.secret_reader import SecretReader
 
+# Dirty hack for Python 3.10 to overcome
+# ImportError: cannot import name 'Iterable' from 'collections'
+# when importing from dyn.tm
+import collections.abc
+
+collections.Iterable = collections.abc.Iterable  # type: ignore[misc]
+
 # Dirty hack to silence annoying SyntaxWarnings present as of dyn==1.8.1
 # which will pollute our CLI output
 # PR for fix upstream: https://github.com/dyninc/dyn-python/pull/140
