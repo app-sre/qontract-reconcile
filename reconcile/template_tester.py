@@ -4,7 +4,6 @@ import yaml
 import reconcile.openshift_base as ob
 import reconcile.openshift_resources_base as orb
 
-from reconcile import queries
 from reconcile.status import ExitCodes
 from reconcile.utils import gql
 from reconcile.utils.semver_helper import make_semver
@@ -32,7 +31,6 @@ def load_resource(path: str) -> dict:
 def run(dry_run):
     gqlapi = gql.get_api()
     template_tests = gqlapi.query(TEMPLATE_TESTS_QUERY)["tests"]
-    settings = queries.get_app_interface_settings()
     error = False
     for tt in template_tests:
         found = False
@@ -49,7 +47,7 @@ def run(dry_run):
                     continue
 
                 found = True
-                openshift_resource = orb.fetch_openshift_resource(r, n, settings)
+                openshift_resource = orb.fetch_openshift_resource(r, n)
                 if openshift_resource.body != expected_result:
                     logging.error(
                         f"rendered template is different from expected result in template test {tt['name']}:\n"
