@@ -1533,7 +1533,7 @@ def validate_labels(labels: Dict[str, str]) -> Iterable[str]:
 class OpenshiftLazyDiscoverer(LazyDiscoverer):
     """
     the methods contained in this class have been copied from
-    https://github.com/openshift/openshift-restclient-python
+    https://github.com/openshift/openshift-restclient-python/blob/master/openshift/dynamic/discovery.py
     """
 
     def default_groups(self, request_resources=False):
