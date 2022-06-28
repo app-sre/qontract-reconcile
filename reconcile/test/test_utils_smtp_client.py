@@ -45,7 +45,7 @@ def test_smtp_client_init_and_getting_smtp_config(smtp_client: SmtpClient, smtpd
     assert smtp_client.host == smtpd.hostname
     assert smtp_client.user == smtpd.config.login_username
     assert smtp_client.passwd == smtpd.config.login_password
-    assert smtp_client.port == str(smtpd.port)
+    assert smtp_client.port == smtpd.port
     assert smtp_client.mail_address == "mailAddress.com"
     assert smtp_client.timeout == 30
 
