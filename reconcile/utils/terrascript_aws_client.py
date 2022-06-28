@@ -170,6 +170,8 @@ VARIABLE_KEYS = [
     "assume_condition",
 ]
 
+TMP_DIR_PREFIX = "terrascript-aws-"
+
 
 class UnknownProviderError(Exception):
     def __init__(self, msg):
@@ -3106,7 +3108,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     f.write(str(ts))
                     f.write("\n")
             if existing_dirs is None:
-                wd = tempfile.mkdtemp()
+                wd = tempfile.mkdtemp(prefix=TMP_DIR_PREFIX)
             else:
                 wd = working_dirs[name]
             with open(wd + "/config.tf.json", "w") as f:
