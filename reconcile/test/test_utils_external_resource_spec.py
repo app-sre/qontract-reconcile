@@ -152,7 +152,7 @@ def test_spec_annotation_parsing():
         },
         namespace={},
     )
-    assert s._annotations() == {"key": "value"}
+    assert s.annotations() == {"key": "value"}
 
 
 def test_spec_annotation_parsing_none_present():
@@ -165,7 +165,38 @@ def test_spec_annotation_parsing_none_present():
         },
         namespace={},
     )
-    assert s._annotations() == {}
+    assert s.annotations() == {}
+
+
+def test_spec_tags():
+    s = ExternalResourceSpec(
+        provision_provider="aws",
+        provisioner={"name": "a"},
+        resource={
+            "identifier": "i",
+            "provider": "p",
+        },
+        namespace={
+            "name": "ns",
+            "cluster": {
+                "name": "c",
+            },
+            "environment": {
+                "name": "env",
+            },
+            "app": {
+                "name": "app",
+            },
+        },
+    )
+    expected = {
+        "managed_by_integration": "int",
+        "cluster": "c",
+        "namespace": "ns",
+        "environment": "env",
+        "app": "app",
+    }
+    assert s.tags("int") == expected
 
 
 @pytest.fixture

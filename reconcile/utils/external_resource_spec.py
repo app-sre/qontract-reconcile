@@ -85,15 +85,15 @@ class ExternalResourceSpec:
     secret: Mapping[str, str] = field(init=False, default_factory=lambda: {})
 
     @property
-    def provider(self):
+    def provider(self) -> str:
         return self.resource["provider"]
 
     @property
-    def identifier(self):
+    def identifier(self) -> str:
         return self.resource["identifier"]
 
     @property
-    def provisioner_name(self):
+    def provisioner_name(self) -> str:
         return self.provisioner["name"]
 
     @property
@@ -105,19 +105,28 @@ class ExternalResourceSpec:
         return self.namespace["cluster"]["name"]
 
     @property
-    def output_prefix(self):
+    def output_prefix(self) -> str:
         return f"{self.identifier}-{self.provider}"
 
     @property
-    def output_resource_name(self):
+    def output_resource_name(self) -> str:
         return self.resource.get("output_resource_name") or self.output_prefix
 
-    def _annotations(self) -> dict[str, str]:
+    def annotations(self) -> dict[str, str]:
         annotation_str = self.resource.get("annotations")
         if annotation_str:
             return json.loads(annotation_str)
         else:
             return {}
+
+    def tags(self, integration: str) -> dict[str, str]:
+        return {
+            "managed_by_integration": integration,
+            "cluster": self.cluster_name,
+            "namespace": self.namespace_name,
+            "environment": self.namespace["environment"]["name"],
+            "app": self.namespace["app"]["name"],
+        }
 
     def get_secret_field(self, field: str) -> Optional[str]:
         return self.secret.get(field)
@@ -128,7 +137,7 @@ class ExternalResourceSpec:
     def build_oc_secret(
         self, integration: str, integration_version: str
     ) -> OpenshiftResource:
-        annotations = self._annotations()
+        annotations = self.annotations()
         annotations["qontract.recycle"] = "true"
 
         return build_secret(

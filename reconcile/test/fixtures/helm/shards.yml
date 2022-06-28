@@ -11,7 +11,9 @@ objects:
     labels:
       app: qontract-reconcile-integ
     annotations:
-      ignore-check.kube-linter.io/minimum-three-replicas : "qontract-reconcile integrations are sharded and not replicated"
+      ignore-check.kube-linter.io/minimum-three-replicas: "qontract-reconcile integrations are sharded and not replicated"
+      ignore-check.kube-linter.io/no-readiness-probe: "qontract-reconcile integrations are not getting traffic"
+      ignore-check.kube-linter.io/no-liveness-probe: "qontract-reconcile integrations are monitored for being stuck"
     name: qontract-reconcile-integ-0
   spec:
     replicas: 1
@@ -188,7 +190,9 @@ objects:
     labels:
       app: qontract-reconcile-integ
     annotations:
-      ignore-check.kube-linter.io/minimum-three-replicas : "qontract-reconcile integrations are sharded and not replicated"
+      ignore-check.kube-linter.io/minimum-three-replicas: "qontract-reconcile integrations are sharded and not replicated"
+      ignore-check.kube-linter.io/no-readiness-probe: "qontract-reconcile integrations are not getting traffic"
+      ignore-check.kube-linter.io/no-liveness-probe: "qontract-reconcile integrations are monitored for being stuck"
     name: qontract-reconcile-integ-1
   spec:
     replicas: 1

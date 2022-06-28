@@ -26,18 +26,23 @@ from reconcile.utils.metrics import reconcile_time
 from reconcile.status import RunningState
 from reconcile.utils.jump_host import JumpHostSSH
 from reconcile.utils.secret_reader import SecretReader
-from openshift.dynamic.exceptions import (
+
+from kubernetes.dynamic.exceptions import (
     NotFoundError,
     ServerTimeoutError,
     InternalServerError,
     ForbiddenError,
+    ResourceNotFoundError,
+    ResourceNotUniqueError,
 )
-from openshift.dynamic import DynamicClient
+from kubernetes.dynamic.client import DynamicClient
+from kubernetes.dynamic.discovery import ResourceGroup, LazyDiscoverer
+from kubernetes.dynamic.resource import ResourceList
+
 from reconcile.utils.unleash import (
     get_feature_toggle_strategies,
     get_feature_toggle_state,
 )
-from openshift.dynamic.resource import ResourceList
 
 urllib3.disable_warnings()
 
@@ -953,7 +958,7 @@ class OCNative(OCDeprecated):
 
         k8s_client = ApiClient(configuration)
         try:
-            return DynamicClient(k8s_client)
+            return DynamicClient(k8s_client, discoverer=OpenshiftLazyDiscoverer)
         except urllib3.exceptions.MaxRetryError as e:
             raise StatusCodeError(f"[{self.server}]: {e}")
 
@@ -1523,3 +1528,65 @@ def validate_labels(labels: Dict[str, str]) -> Iterable[str]:
                 err.append(f"Label key prefix is reserved: {prefix}")
 
     return err
+
+
+class OpenshiftLazyDiscoverer(LazyDiscoverer):
+    """
+    the methods contained in this class have been copied from
+    https://github.com/openshift/openshift-restclient-python/blob/master/openshift/dynamic/discovery.py
+    """
+
+    def default_groups(self, request_resources=False):
+        groups = super().default_groups(request_resources)
+        if self.version.get("openshift"):
+            groups["oapi"] = {
+                "": {
+                    "v1": (
+                        ResourceGroup(
+                            True,
+                            resources=self.get_resources_for_api_version(
+                                "oapi", "", "v1", True
+                            ),
+                        )
+                        if request_resources
+                        else ResourceGroup(True)
+                    )
+                }
+            }
+        return groups
+
+    def get(self, **kwargs):
+        """Same as search, but will throw an error if there are multiple or no
+        results. If there are multiple results and only one is an exact match
+        on api_version, that resource will be returned.
+        """
+        results = self.search(**kwargs)
+        # If there are multiple matches, prefer exact matches on api_version
+        if len(results) > 1 and kwargs.get("api_version"):
+            results = [
+                result
+                for result in results
+                if result.group_version == kwargs["api_version"]
+            ]
+        # If there are multiple matches, prefer non-List kinds
+        if len(results) > 1 and not all(  # pylint: disable=R1729
+            [isinstance(x, ResourceList) for x in results]
+        ):
+            results = [
+                result for result in results if not isinstance(result, ResourceList)
+            ]
+        # if multiple resources are found that share a GVK, prefer the one with the most supported verbs
+        if (
+            len(results) > 1
+            and len(set((x.group_version, x.kind) for x in results)) == 1
+        ):
+            if len(set(len(x.verbs) for x in results)) != 1:
+                results = [max(results, key=lambda x: len(x.verbs))]
+        if len(results) == 1:
+            return results[0]
+        elif not results:
+            raise ResourceNotFoundError("No matches found for {}".format(kwargs))
+        else:
+            raise ResourceNotUniqueError(
+                "Multiple matches found for {}: {}".format(kwargs, results)
+            )

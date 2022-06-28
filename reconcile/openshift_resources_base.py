@@ -636,7 +636,7 @@ def fetch_desired_state(
         # combination was not initialized, meaning that it shouldn't be
         # managed. But someone is trying to add it via app-interface
         ri.register_error()
-        msg = "[{}/{}] unknown kind: {}.".format(
+        msg = "[{}/{}] unknown kind: {}. hint: is it missing from managedResourceTypes?".format(
             cluster, namespace, openshift_resource.kind
         )
         _log_lock.acquire()  # pylint: disable=consider-using-with

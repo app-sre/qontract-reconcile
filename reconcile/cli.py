@@ -839,11 +839,10 @@ def gitlab_mr_sqs_consumer(ctx, gitlab_project_id):
 
 
 @integration.command(short_help="Delete orphan AWS resources.")
-@throughput
 @threaded()
 @click.pass_context
-def aws_garbage_collector(ctx, thread_pool_size, io_dir):
-    run_integration(reconcile.aws_garbage_collector, ctx.obj, thread_pool_size, io_dir)
+def aws_garbage_collector(ctx, thread_pool_size):
+    run_integration(reconcile.aws_garbage_collector, ctx.obj, thread_pool_size)
 
 
 @integration.command(short_help="Delete IAM access keys by access key ID.")
@@ -1322,7 +1321,6 @@ def user_validator(ctx):
 
 @integration.command(short_help="Manage AWS Resources using Terraform.")
 @print_to_file
-@throughput
 @vault_output_path
 @threaded(default=20)
 @binary(["terraform", "oc", "git"])
@@ -1342,7 +1340,6 @@ def terraform_resources(
     ctx,
     print_to_file,
     enable_deletion,
-    io_dir,
     thread_pool_size,
     internal,
     use_jump_host,
@@ -1357,7 +1354,6 @@ def terraform_resources(
         ctx.obj,
         print_to_file,
         enable_deletion,
-        io_dir,
         thread_pool_size,
         internal,
         use_jump_host,
@@ -1369,7 +1365,6 @@ def terraform_resources(
 
 @integration.command(short_help="Manage AWS users using Terraform.")
 @print_to_file
-@throughput
 @threaded(default=20)
 @binary(["terraform", "gpg", "git"])
 @binary_version("terraform", ["version"], TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
@@ -1381,7 +1376,6 @@ def terraform_users(
     ctx,
     print_to_file,
     enable_deletion,
-    io_dir,
     thread_pool_size,
     send_mails,
     account_name,
@@ -1393,7 +1387,6 @@ def terraform_users(
         ctx.obj,
         print_to_file,
         enable_deletion,
-        io_dir,
         thread_pool_size,
         send_mails,
         account_name=account_name,

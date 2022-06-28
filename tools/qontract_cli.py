@@ -1,7 +1,7 @@
 import json
 import sys
 from contextlib import suppress
-from typing import Dict, Iterable, List, Mapping, Union
+from typing import Dict, Iterable, List, Mapping, Optional, Union
 
 import click
 import reconcile.ocm_upgrade_scheduler as ous
@@ -122,7 +122,12 @@ def clusters(ctx, name):
     if name:
         clusters = [c for c in clusters if c["name"] == name]
 
-    columns = ["name", "consoleUrl", "kibanaUrl", "prometheusUrl"]
+    for c in clusters:
+        jh = c.get("jumpHost")
+        if jh:
+            c["sshuttle"] = f"sshuttle -r {jh['hostname']} {c['network']['vpc']}"
+
+    columns = ["name", "consoleUrl", "prometheusUrl", "sshuttle"]
     print_output(ctx.obj["options"], clusters, columns)
 
 
@@ -409,6 +414,7 @@ def ocm_aws_infrastructure_access_switch_role_links_data() -> list[dict]:
     settings = queries.get_app_interface_settings()
     clusters = queries.get_clusters()
     clusters = [c for c in clusters if c.get("ocm") is not None]
+    accounts = {a["uid"]: a["name"] for a in queries.get_aws_accounts()}
     ocm_map = OCMMap(clusters=clusters, settings=settings)
 
     results = []
@@ -417,9 +423,15 @@ def ocm_aws_infrastructure_access_switch_role_links_data() -> list[dict]:
         ocm = ocm_map.get(cluster_name)
         role_grants = ocm.get_aws_infrastructure_access_role_grants(cluster_name)
         for user_arn, access_level, _, switch_role_link in role_grants:
+            user = user_arn.split("/")[1]
+            account_id = user_arn.split(":")[4]
+            account_name = accounts.get(account_id, "")
+            src_login = f"{user} @ [{account_id} ({account_name})](https://{account_id}.signin.aws.amazon.com/console)"
             item = {
                 "cluster": cluster_name,
+                "user": user,
                 "user_arn": user_arn,
+                "source_login": src_login,
                 "access_level": access_level,
                 "switch_role_link": switch_role_link,
             }
@@ -444,9 +456,8 @@ def ocm_aws_infrastructure_access_switch_role_links(ctx):
     results = ocm_aws_infrastructure_access_switch_role_links_data()
     by_user = {}
     for r in results:
-        user = r["user_arn"].split("/")[1]
-        by_user.setdefault(user, []).append(r)
-    columns = ["cluster", "user_arn", "access_level", "switch_role_link"]
+        by_user.setdefault(r["user"], []).append(r)
+    columns = ["cluster", "source_login", "access_level", "switch_role_link"]
     for user in sorted(by_user.keys()):
         print(f"- [{user}](#{user})")
     for user in sorted(by_user.keys()):
@@ -600,6 +611,27 @@ def aws_creds(ctx, account_name):
     print(f"export AWS_REGION={account['resourcesDefaultRegion']}")
     print(f"export AWS_ACCESS_KEY_ID={secret['aws_access_key_id']}")
     print(f"export AWS_SECRET_ACCESS_KEY={secret['aws_secret_access_key']}")
+
+
+@get.command(
+    short_help="obtain sshuttle command for "
+    "connecting to private clusters via a jump host. "
+    "executing this command will set up the tunnel: "
+    "$(qontract-cli get sshuttle-command bastion.example.com)"
+)
+@click.argument("jumphost_hostname", required=False)
+@click.argument("cluster_name", required=False)
+@click.pass_context
+def sshuttle_command(ctx, jumphost_hostname: str, cluster_name: Optional[str]):
+    jumphosts = queries.get_jumphosts(hostname=jumphost_hostname)
+    for jh in jumphosts:
+        jh_clusters = jh["clusters"]
+        if cluster_name:
+            jh_clusters = [c for c in jh_clusters if c["name"] == cluster_name]
+
+        vpc_cidr_blocks = [c["network"]["vpc"] for c in jh_clusters]
+        cmd = f"sshuttle -r {jh['hostname']} {' '.join(vpc_cidr_blocks)}"
+        print(cmd)
 
 
 @get.command(

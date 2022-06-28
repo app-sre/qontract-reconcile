@@ -5,7 +5,7 @@ import itertools
 import shlex
 
 from textwrap import indent
-from typing import Any
+from typing import Any, Optional
 
 from jinja2 import Template
 
@@ -452,6 +452,56 @@ def get_queue_aws_accounts():
     return get_aws_accounts(uid=uid)
 
 
+JUMPHOSTS_FILTER_QUERY = """
+{% if hostname %}
+(
+  hostname: "{{ hostname }}"
+)
+{% endif %}
+"""
+
+JUMPHOST_FIELDS = """
+hostname
+knownHosts
+user
+port
+identity {
+  path
+  field
+  version
+  format
+}
+"""
+
+JUMPHOSTS_QUERY = """
+{
+  jumphosts: jumphosts_v1
+  %s
+  {
+    %s
+    clusters {
+      name
+      network {
+        vpc
+      }
+    }
+  }
+}
+""" % (
+    indent(JUMPHOSTS_FILTER_QUERY, 2 * " "),
+    indent(JUMPHOST_FIELDS, 4 * " "),
+)
+
+
+def get_jumphosts(hostname: Optional[str] = None):
+    """Returns all jumphosts"""
+    gqlapi = gql.get_api()
+    query = Template(JUMPHOSTS_QUERY).render(
+        hostname=hostname,
+    )
+    return gqlapi.query(query)["jumphosts"]
+
+
 AWS_INFRA_MANAGEMENT_ACCOUNT = """
 awsInfrastructureManagementAccounts {
   account {
@@ -497,16 +547,7 @@ CLUSTERS_QUERY = """
     managedClusterRoles
     insecureSkipTLSVerify
     jumpHost {
-      hostname
-      knownHosts
-      user
-      port
-      identity {
-        path
-        field
-        version
-        format
-      }
+      %s
     }
     auth {
       service
@@ -742,6 +783,7 @@ CLUSTERS_QUERY = """
 }
 """ % (
     indent(CLUSTER_FILTER_QUERY, 2 * " "),
+    indent(JUMPHOST_FIELDS, 6 * " "),
     indent(AWS_INFRA_MANAGEMENT_ACCOUNT, 4 * " "),
     indent(AWS_INFRA_MANAGEMENT_ACCOUNT, 12 * " "),
 )
@@ -1590,6 +1632,7 @@ APP_INTERFACE_SQL_QUERIES_QUERY = """
     }
     output
     schedule
+    delete
     query
     queries
   }
