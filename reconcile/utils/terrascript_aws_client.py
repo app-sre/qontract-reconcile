@@ -191,7 +191,7 @@ VARIABLE_KEYS = [
     "sms_role_ext_id",
     "api_proxy_uri",
     "cognito_callback_bucket_name",
-    #"vpc_arn"
+    "vpc_arn"
 ]
 
 TMP_DIR_PREFIX = "terrascript-aws-"

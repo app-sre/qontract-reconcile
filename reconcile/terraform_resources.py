@@ -314,6 +314,7 @@ provider
   api_proxy_uri
   sms_role_ext_id
   cognito_callback_bucket_name
+  vpc_arn
   pre_signup_lambda_github_release_url
   output_resource_name
   annotations
