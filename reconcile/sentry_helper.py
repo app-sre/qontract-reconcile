@@ -1,9 +1,8 @@
 import logging
 
-from reconcile.utils.smtp_client import SmtpClient
 from reconcile import queries
-
 from reconcile.slack_base import slackapi_from_queries
+from reconcile.utils.imap_client import ImapClient
 from reconcile.utils.state import State
 
 QONTRACT_INTEGRATION = "sentry-helper"
@@ -41,10 +40,11 @@ def run(dry_run):
     state = State(
         integration=QONTRACT_INTEGRATION, accounts=accounts, settings=settings
     )
-    smtp_client = SmtpClient(settings=settings)
-    mails = smtp_client.get_mails(
-        criteria='SUBJECT "Sentry Access Request"', folder="[Gmail]/Sent Mail"
-    )
+    with ImapClient(settings=settings) as imap_client:
+        mails = imap_client.get_mails(
+            folder="[Gmail]/Sent Mail", criteria='SUBJECT "Sentry Access Request"'
+        )
+
     user_names = get_sentry_users_from_mails(mails)
     if not dry_run:
         slack = slackapi_from_queries(QONTRACT_INTEGRATION, init_usergroups=False)
@@ -53,9 +53,11 @@ def run(dry_run):
         if not guesses:
             logging.debug(f"no users guessed for {user_name}")
             continue
+
         slack_username = guesses[0].get("slack_username") or guesses[0]["org_username"]
         if state.exists(slack_username):
             continue
+
         logging.info(["help_user", slack_username])
         if not dry_run:
             state.add(slack_username)

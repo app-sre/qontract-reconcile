@@ -23,6 +23,16 @@ APP_INTERFACE_SETTINGS_QUERY = """
     hashLength
     smtp {
       mailAddress
+      timeout
+      credentials {
+        path
+        field
+        version
+        format
+      }
+    }
+    imap {
+      timeout
       credentials {
         path
         field
