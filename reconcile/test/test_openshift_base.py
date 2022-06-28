@@ -558,7 +558,7 @@ def test_populate_current_state_unknown_kind(
     """
     oc_cs1.init_api_resources = True
     oc_cs1.api_kind_version = {"Kind": ["some.other.group/v1"]}
-    get_item_mock = mocker.patch.object(oc.OCNative, "get_items", auto_spec=True)
+    get_item_mock = mocker.patch.object(oc.OCNative, "get_items", autospec=True)
 
     spec = sut.CurrentStateSpec(
         oc=oc_cs1,
@@ -579,7 +579,7 @@ def test_populate_current_state_resource_name_filtering(
     """
     test if the resource names are passed properly to the oc client when fetching items
     """
-    get_item_mock = mocker.patch.object(oc.OCNative, "get_items", auto_spec=True)
+    get_item_mock = mocker.patch.object(oc.OCNative, "get_items", autospec=True)
 
     spec = sut.CurrentStateSpec(
         oc=oc_cs1,
@@ -591,7 +591,10 @@ def test_populate_current_state_resource_name_filtering(
     sut.populate_current_state(spec, resource_inventory, TEST_INT, TEST_INT_VER)
 
     get_item_mock.assert_called_with(
-        "Kind.fully.qualified", namespace="ns1", resource_names=["name1", "name2"]
+        oc_cs1,
+        "Kind.fully.qualified",
+        namespace="ns1",
+        resource_names=["name1", "name2"],
     )
 
 
