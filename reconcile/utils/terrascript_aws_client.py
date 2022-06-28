@@ -4845,7 +4845,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         api_gateway_vpc_link_resource = aws_api_gateway_vpc_link(
             "vpc_link",
             name=f'{identifier}-vpc-link',
-            target_arns=["arn:aws-us-gov:elasticloadbalancing:us-gov-west-1:657750906120:loadbalancer/net/a608c04db672d48f5a7a393683c59db9/79fe8e4b185f34db"]
+            target_arns=[common_values.get("vpc_arn")]
             # common_values.get("a")
             # future: use data source to get vpc arn by annotation
         )
