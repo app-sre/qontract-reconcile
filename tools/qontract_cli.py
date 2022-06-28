@@ -1,7 +1,7 @@
 import json
 import sys
 from contextlib import suppress
-from typing import Dict, Iterable, List, Mapping, Union
+from typing import Dict, Iterable, List, Mapping, Optional, Union
 
 import click
 import reconcile.ocm_upgrade_scheduler as ous
@@ -606,6 +606,27 @@ def aws_creds(ctx, account_name):
     print(f"export AWS_REGION={account['resourcesDefaultRegion']}")
     print(f"export AWS_ACCESS_KEY_ID={secret['aws_access_key_id']}")
     print(f"export AWS_SECRET_ACCESS_KEY={secret['aws_secret_access_key']}")
+
+
+@get.command(
+    short_help="obtain sshuttle command for "
+    "connecting to private clusters via a jump host. "
+    "executing this command will set up the tunnel: "
+    "$(qontract-cli get sshuttle-command bastion.example.com)"
+)
+@click.argument("jumphost_hostname", required=False)
+@click.argument("cluster_name", required=False)
+@click.pass_context
+def sshuttle_command(ctx, jumphost_hostname: str, cluster_name: Optional[str]):
+    jumphosts = queries.get_jumphosts(hostname=jumphost_hostname)
+    for jh in jumphosts:
+        jh_clusters = jh["clusters"]
+        if cluster_name:
+            jh_clusters = [c for c in jh_clusters if c["name"] == cluster_name]
+
+        vpc_cidr_blocks = [c["network"]["vpc"] for c in jh_clusters]
+        cmd = f"sshuttle -r {jh['hostname']} {' '.join(vpc_cidr_blocks)}"
+        print(cmd)
 
 
 @get.command(
