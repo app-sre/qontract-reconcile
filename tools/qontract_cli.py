@@ -1,3 +1,4 @@
+import base64
 import json
 import sys
 from contextlib import suppress
@@ -16,6 +17,7 @@ from reconcile import queries
 from reconcile.checkpoint import report_invalid_metadata
 from reconcile.cli import config_file
 from reconcile.slack_base import slackapi_from_queries
+from reconcile.utils import amtool
 from reconcile.utils import config, dnsutils, gql
 from reconcile.utils.external_resources import (
     PROVIDER_AWS,
@@ -1213,16 +1215,161 @@ def template(ctx, cluster, namespace, kind, name):
         print(f"{cluster}/{namespace} error")
         sys.exit(1)
 
+    settings = queries.get_app_interface_settings()
     [namespace_info] = namespace_info
     openshift_resources = namespace_info.get("openshiftResources")
     for r in openshift_resources:
-        openshift_resource = orb.fetch_openshift_resource(r, namespace_info)
+        openshift_resource = orb.fetch_openshift_resource(r, namespace_info, settings)
         if openshift_resource.kind.lower() != kind.lower():
             continue
         if openshift_resource.name != name:
             continue
         print_output({"output": "yaml", "sort": False}, openshift_resource.body)
         break
+
+
+@root.command()
+@click.argument("cluster")
+@click.argument("namespace")
+@click.argument("rules_path")
+@click.argument("alert_name")
+@click.option(
+    "-c",
+    "--alertmanager-secret-path",
+    default="/observability/alertmanager/alertmanager-instance.secret.yaml",
+    help="Alert manager secret path.",
+)
+@click.option(
+    "-n",
+    "--alertmanager-namespace",
+    default="openshift-customer-monitoring",
+    help="Alertmanager namespace.",
+)
+@click.option(
+    "-k",
+    "--alertmanager-secret-key",
+    default="alertmanager.yaml",
+    help="Alertmanager config key in secret.",
+)
+@click.option(
+    "-s",
+    "--secret-reader",
+    default="vault",
+    help="Location to read secrets.",
+    type=click.Choice(["config", "vault"]),
+)
+@click.option(
+    "-l",
+    "--additional-label",
+    help="Additional label in key=value format. It can be specified multiple times. If "
+    "the same label is defined in the alert, the additional label will have "
+    "precedence.",
+    multiple=True,
+)
+@click.pass_context
+def alert_to_receiver(
+    ctx,
+    cluster,
+    namespace,
+    rules_path,
+    alert_name,
+    alertmanager_secret_path,
+    alertmanager_namespace,
+    alertmanager_secret_key,
+    secret_reader,
+    additional_label,
+):
+
+    additional_labels = {}
+    for al in additional_label:
+        try:
+            key, value = al.split("=")
+        except ValueError:
+            print(f"Additional label {al} not passed using key=value format")
+            sys.exit(1)
+
+        if not key or not value:
+            print(f"Additional label {al} not passed using key=value format")
+            sys.exit(1)
+
+        additional_labels[key] = value
+
+    gqlapi = gql.get_api()
+    namespaces = gqlapi.query(orb.NAMESPACES_QUERY)["namespaces"]
+    cluster_namespaces = [n for n in namespaces if n["cluster"]["name"] == cluster]
+
+    if len(cluster_namespaces) == 0:
+        print(f"Unknown cluster {cluster}")
+        sys.exit(1)
+
+    settings = queries.get_app_interface_settings()
+    if secret_reader == "config":
+        settings["vault"] = False
+    else:
+        settings["vault"] = True
+
+    # Get alertmanager config
+    am_config = ""
+    for ni in cluster_namespaces:
+        if ni["name"] != alertmanager_namespace:
+            continue
+        ob.aggregate_shared_resources(ni, "openshiftResources")
+        for r in ni.get("openshiftResources"):
+            if r["path"] != alertmanager_secret_path:
+                continue
+            openshift_resource = orb.fetch_openshift_resource(r, ni, settings)
+            body = openshift_resource.body
+            if "data" in body:
+                am_config = base64.b64decode(
+                    body["data"][alertmanager_secret_key]
+                ).decode("utf-8")
+            elif "stringData" in body:
+                am_config = body["stringData"][alertmanager_secret_key]
+            else:
+                print("Cannot get alertmanager configuration")
+                sys.exit(1)
+        break
+
+    rule_spec = {}
+    for ni in cluster_namespaces:
+        if ni["name"] != namespace:
+            continue
+        for r in ni.get("openshiftResources"):
+            if r["path"] != rules_path:
+                continue
+            openshift_resource = orb.fetch_openshift_resource(r, ni, settings)
+            if openshift_resource.kind.lower() != "prometheusrule":
+                print(f"Object in {rules_path} is not a PrometheusRule")
+                sys.exit(1)
+            rule_spec = openshift_resource.body["spec"]
+
+            break  # openshift resource
+        break  # cluster_namespaces
+
+    if not rule_spec:
+        print(
+            f"Cannot find any rule in {rules_path} from cluster {cluster} and "
+            f"namespace {namespace}"
+        )
+        sys.exit(1)
+
+    labels = []  # array of dicts
+    for group in rule_spec["groups"]:
+        for rule in group["rules"]:
+            if rule["alert"] != alert_name:
+                continue
+            labels.append(rule["labels"] | additional_labels)
+
+    if not labels:
+        print(f"Cannot find alert {alert_name} in rules {rules_path}")
+        sys.exit(1)
+
+    for lbl in labels:
+        result = amtool.config_routes_test(am_config, lbl)
+        if not result:
+            print(f"Error running amtool: {result}")
+            sys.exit(1)
+        print(result)
 
 
 @root.command()
