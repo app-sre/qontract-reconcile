@@ -547,16 +547,7 @@ CLUSTERS_QUERY = """
     managedClusterRoles
     insecureSkipTLSVerify
     jumpHost {
-      hostname
-      knownHosts
-      user
-      port
-      identity {
-        path
-        field
-        version
-        format
-      }
+      %s
     }
     auth {
       service
@@ -792,6 +783,7 @@ CLUSTERS_QUERY = """
 }
 """ % (
     indent(CLUSTER_FILTER_QUERY, 2 * " "),
+    indent(JUMPHOST_FIELDS, 6 * " "),
     indent(AWS_INFRA_MANAGEMENT_ACCOUNT, 4 * " "),
     indent(AWS_INFRA_MANAGEMENT_ACCOUNT, 12 * " "),
 )

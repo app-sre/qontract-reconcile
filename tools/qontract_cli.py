@@ -122,7 +122,12 @@ def clusters(ctx, name):
     if name:
         clusters = [c for c in clusters if c["name"] == name]
 
-    columns = ["name", "consoleUrl", "kibanaUrl", "prometheusUrl"]
+    for c in clusters:
+        jh = c.get("jumpHost")
+        if jh:
+            c["sshuttle"] = f"sshuttle -r {jh['hostname']} {c['network']['vpc']}"
+
+    columns = ["name", "consoleUrl", "prometheusUrl", "sshuttle"]
     print_output(ctx.obj["options"], clusters, columns)
 
 
