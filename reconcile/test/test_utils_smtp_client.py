@@ -41,7 +41,7 @@ def smtp_client(settings: dict[str, Any], patch_secret_reader):
     return SmtpClient(settings)
 
 
-def test_smtp_client_init_and_getting_imap_config(smtp_client: SmtpClient, smtpd):
+def test_smtp_client_init_and_getting_smtp_config(smtp_client: SmtpClient, smtpd):
     assert smtp_client.host == smtpd.hostname
     assert smtp_client.user == smtpd.config.login_username
     assert smtp_client.passwd == smtpd.config.login_password
