@@ -1,6 +1,3 @@
-# from reconcile.utils.secret_reader import SecretReader
-
-
 from typing import Any
 
 import pytest
