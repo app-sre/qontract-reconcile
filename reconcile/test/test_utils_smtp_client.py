@@ -1,6 +1,3 @@
-# from reconcile.utils.secret_reader import SecretReader
-
-
 from typing import Any
 
 import pytest
@@ -16,6 +13,9 @@ def patch_env(monkeypatch):
 
 @pytest.fixture
 def patch_secret_reader(mocker, patch_env, smtpd):
+    # Instead of mocking smtplib.SMTP, we are using a real testing SMTP server
+    # (https://github.com/bebleo/smtpdfix) via pytest fixture (smtpd).
+
     # do not mess around with SSL and certificates
     smtpd.config.use_ssl = False
     return mocker.patch(
@@ -66,8 +66,8 @@ def test_smtp_client_send_mail(smtp_client: SmtpClient, smtpd):
 def test_smtp_client_send_mails(smtp_client: SmtpClient, smtpd):
     smtp_client.send_mails(
         [
-            ["benturner", "subject_subject", "body_body_body"],
-            ["2benturner2", "2subject_subject2", "2body_body_body2"],
+            ("benturner", "subject_subject", "body_body_body"),
+            ("2benturner2", "2subject_subject2", "2body_body_body2"),
         ]
     )
     assert len(smtpd.messages) == 2
