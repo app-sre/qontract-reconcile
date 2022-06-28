@@ -4526,7 +4526,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         }
 
         # Prepare consts
-
         managed_policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
         region = common_values.get('region') or \
             self.default_regions.get(account)
@@ -4534,12 +4533,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             managed_policy_arn = "arn:aws-us-gov:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 
         bucket_url = f'https://{common_values.get("cognito_callback_bucket_name")}.s3.{region}.amazonaws.com'
-
-        # FIXME
-        # user_pool_domain = https://${aws_cognito_user_pool_domain.userpool_domain.domain}.auth-fips.us-gov-west-1.amazoncognito.com
-        user_pool_domain = "https://foo.auth-fips.us-gov-west-1.amazoncognito.com"
-        # gateway_domain = https://${aws_api_gateway_rest_api.gw_api.id}.execute-api.us-gov-west-1.amazonaws.com
-        gateway_domain = "https://foo.execute-api.us-gov-west-1.amazonaws.com"
 
         lambda_iam_role_resource = aws_iam_role(
             "lambda_role",
@@ -4553,7 +4546,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         tf_resources.append(lambda_iam_role_resource)
 
         # Setup + manage Lambda resources
-
         # pre-signup lambda
         release_url = common_values.get('release_url', ROSA_AUTHENTICATOR_PRE_SIGNUP_RELEASE)
         zip_file = self.get_rosa_authenticator_zip(release_url)
@@ -4622,6 +4614,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             user_pool_id=f'${{{cognito_user_pool_resource.id}}}'
         )
         tf_resources.append(cognito_user_pool_domain_resource)
+
+        user_pool_url = f'https://${{{cognito_user_pool_domain_resource.domain}}}.auth-fips.us-gov-west-1.amazoncognito.com'
 
         # POOL GATEWAY RESOURCE SERVER
         cognito_resource_server_gateway_resource = aws_cognito_resource_server(
