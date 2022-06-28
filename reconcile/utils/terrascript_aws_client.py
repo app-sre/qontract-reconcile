@@ -957,26 +957,22 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         return results
 
     def init_populate_specs(
-        self, namespaces: Iterable[Mapping[str, Any]], account_name: Optional[str]
+        self, specs: Iterable[ExternalResourceSpec], account_name: Optional[str]
     ) -> None:
         """
         Initiates resource specs from the definitions in app-interface
         (schemas/openshift/terraform-resource-1.yml).
-        :param namespaces: schemas/openshift/namespace-1.yml object
+        :param specs: external resource specs
         :param account_name: AWS account name
         """
         self.account_resource_specs: dict[str, list[ExternalResourceSpec]] = {}
 
-        for namespace_info in namespaces:
-            specs = get_external_resource_specs(
-                namespace_info, provision_provider=PROVIDER_AWS
+        for spec in specs:
+            if account_name and spec.provisioner_name != account_name:
+                continue
+            self.account_resource_specs.setdefault(spec.provisioner_name, []).append(
+                spec
             )
-            for spec in specs:
-                if account_name and spec.provisioner_name != account_name:
-                    continue
-                self.account_resource_specs.setdefault(
-                    spec.provisioner_name, []
-                ).append(spec)
 
     def populate_resources(
         self, spec: ExternalResourceSpec, ocm_map: Optional[OCMMap] = None

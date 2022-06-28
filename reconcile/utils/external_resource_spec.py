@@ -179,4 +179,6 @@ class ExternalResourceUniqueKey:
         )
 
 
-ExternalResourceSpecInventory = Mapping[ExternalResourceUniqueKey, ExternalResourceSpec]
+ExternalResourceSpecInventory = MutableMapping[
+    ExternalResourceUniqueKey, ExternalResourceSpec
+]

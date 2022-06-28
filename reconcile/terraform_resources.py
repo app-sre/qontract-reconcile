@@ -453,13 +453,19 @@ def init_working_dirs(
     thread_pool_size: int,
     settings: Optional[Mapping[str, Any]] = None,
 ) -> tuple[TerraformConfigProvider, dict[str, str]]:
-    tf_config_provider = TerraformConfigProvider(
+
+    tf_config_provider = TerraformConfigProvider()
+
+    terrascript_aws_client = Terrascript(
         QONTRACT_INTEGRATION,
         QONTRACT_TF_PREFIX,
         thread_pool_size,
         accounts,
         settings=settings,
     )
+
+    tf_config_provider.register_terraform_client("aws", terrascript_aws_client)
+
     working_dirs = tf_config_provider.dump()
     return tf_config_provider, working_dirs
 
@@ -512,7 +518,14 @@ def setup(
         )
     else:
         ocm_map = None
-    tf_config_provider.init_spec_inventory(tf_namespaces, account_name)
+    # The nested list comprehension just flattens the inner lists because
+    # get_external_resource_specs returns a list
+    specs = [
+        spec
+        for namespace in tf_namespaces
+        for spec in get_external_resource_specs(namespace)
+    ]
+    tf_config_provider.init_spec_inventory(specs, account_name)
     tf.populate_terraform_output_secrets(
         resource_specs=tf_config_provider.resource_spec_inventory,
         init_rds_replica_source=True,
