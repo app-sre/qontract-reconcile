@@ -452,9 +452,6 @@ class SaasHerder:
         for saas_file in self.saas_files:
             managed_resource_types = saas_file["managedResourceTypes"]
 
-            if "Route" in managed_resource_types:
-                managed_resource_types.append(CERT_MANAGER_CERTIFICATE_CRD)
-
             resource_templates = saas_file["resourceTemplates"]
             for rt in resource_templates:
                 targets = rt["targets"]
@@ -469,6 +466,14 @@ class SaasHerder:
                         continue
                     # managedResourceTypes is defined per saas_file
                     # add it to each namespace in the current saas_file
+                    if "Route" in managed_resource_types:
+                        cluster_name = namespace["cluster"]["name"]
+                        namespace_name = namespace["name"]
+                        if unleash_post_process_route_enabled(
+                            cluster_name, namespace_name
+                        ):
+                            managed_resource_types.append(CERT_MANAGER_CERTIFICATE_CRD)
+
                     namespace["managedResourceTypes"] = managed_resource_types
                     namespaces.append(namespace)
         return namespaces
