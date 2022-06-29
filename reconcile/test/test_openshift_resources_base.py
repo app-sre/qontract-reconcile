@@ -85,7 +85,7 @@ def test_route(namespaces: list[dict[str, Any]], mocker):
                 ],
             }
         ],
-        ["Route", "Certificate.cert-manager.io"],
+        ["Route"],
     )
     ns, override = canonicalize_namespaces(namespaces, ["route"])
     assert (ns, override) == expected
