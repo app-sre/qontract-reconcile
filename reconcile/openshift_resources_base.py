@@ -604,13 +604,18 @@ def fetch_current_state(
 
 
 def _post_process_route(
-    oc: OCClient,
+    _oc: OCClient,
+    cluster: str,
     namespace: str,
-    resource: Mapping[str, Any],
+    _resource: Mapping[str, Any],
     route: OR,
 ) -> list[OR]:
 
     if not route_needs_certificate(route.body):
+        return []
+
+    # Check if the feature is enabled for this cluster/namespace
+    if not unleash_post_process_route_enabled(cluster, namespace):
         return []
 
     # Build the Certificate Object
@@ -629,6 +634,7 @@ POST_PROCESS_RESOURCES = {"Route": _post_process_route}
 
 def _post_process_resources(
     oc: OCClient,
+    cluster: str,
     namespace: str,
     resource: Mapping[str, Any],
     openshift_resource: OR,
@@ -638,11 +644,13 @@ def _post_process_resources(
     additional_resources = []
     try:
         func = POST_PROCESS_RESOURCES[kind]
-        additional_resources = func(oc, namespace, resource, openshift_resource)
+        additional_resources = func(
+            oc, cluster, namespace, resource, openshift_resource
+        )
     except KeyError as ke:
-        logging.info(f"KeyError: {ke}")
+        logging.debug(f"{kind} does not have a post_process function: {ke}")
 
-    return additional_resources + [openshift_resource]
+    return additional_resources
 
 
 def fetch_desired_state(
@@ -673,13 +681,11 @@ def fetch_desired_state(
 
     # _post_process_resources
     # Some resources might need existent data in the cluster to populate all its fields.
-    # Additionally, post-process might generate additional resources
-    if unleash_post_process_route_enabled(cluster, namespace):
-        openshift_resources = _post_process_resources(
-            oc, namespace, resource, openshift_resource
-        )
-    else:
-        openshift_resources = [openshift_resource]
+    # Additionally, post processing might generate additional resources
+    additional_resources = _post_process_resources(
+        oc, cluster, namespace, resource, openshift_resource
+    )
+    openshift_resources = [openshift_resource] + additional_resources
 
     # add to inventory
     try:
