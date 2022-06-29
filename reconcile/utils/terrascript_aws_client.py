@@ -4497,14 +4497,25 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                         }
                     },
                 },
-                {
-                    "Effect": "Allow",
-                    "Action": [
-                        "sns:Publish",
-                    ],
-                    "Resource": "*",
-                },
             ],
+        }
+
+        sms_role_inline_policy = {
+            "name": f'ocm-{identifier}-cognito-sms-policy',
+            "policy": json.dumps(
+                {
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Action": [
+                                "sns:Publish",
+                            ],
+                            "Resource": "*"
+                        }
+                    ],
+                    "Version": "2012-10-17"
+                }
+            )
         }
 
         sms_iam_role_resource = aws_iam_role(
@@ -4513,6 +4524,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             assume_role_policy=json.dumps(sms_role_policy),
             force_detach_policies=False,
             max_session_duration=3600,
+            inline_policy=[sms_role_inline_policy],
             path="/service-role/",
         )
         tf_resources.append(sms_iam_role_resource)
