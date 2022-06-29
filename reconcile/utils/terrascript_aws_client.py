@@ -4501,7 +4501,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         }
 
         sms_role_inline_policy = {
-            "name": f'ocm-{identifier}-cognito-sms-policy',
+            "name": f"ocm-{identifier}-cognito-sms-policy",
             "policy": json.dumps(
                 {
                     "Statement": [
@@ -4510,12 +4510,12 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                             "Action": [
                                 "sns:Publish",
                             ],
-                            "Resource": "*"
+                            "Resource": "*",
                         }
                     ],
-                    "Version": "2012-10-17"
+                    "Version": "2012-10-17",
                 }
-            )
+            ),
         }
 
         sms_iam_role_resource = aws_iam_role(
