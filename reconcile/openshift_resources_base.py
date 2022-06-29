@@ -37,13 +37,6 @@ from reconcile.utils.openshift_resource import (
 from reconcile.utils.vault import SecretVersionNotFound, SecretVersionIsNone
 from reconcile.utils.vault import VaultClient
 from reconcile.github_users import init_github
-from reconcile.certmanager.certmanager import (
-    CERT_MANAGER_CERTIFICATE_CRD,
-    CERT_UTILS_SECRET_SYNC_ANNOTATION,
-    build_certificate_from_route,
-    route_needs_certificate,
-    unleash_post_process_route_enabled,
-)
 
 
 """
@@ -603,56 +596,6 @@ def fetch_current_state(
         )
 
 
-def _post_process_route(
-    _oc: OCClient,
-    cluster: str,
-    namespace: str,
-    _resource: Mapping[str, Any],
-    route: OR,
-) -> list[OR]:
-
-    if not route_needs_certificate(route.body):
-        return []
-
-    # Check if the feature is enabled for this cluster/namespace
-    if not unleash_post_process_route_enabled(cluster, namespace):
-        return []
-
-    # Build the Certificate Object
-    cert_spec = build_certificate_from_route(route.body)
-
-    # Annotate Route with cert-utils annotation
-    annotations = route.body["metadata"]["annotations"]
-    annotations[CERT_UTILS_SECRET_SYNC_ANNOTATION] = cert_spec["spec"]["secretName"]
-
-    certificate = OR(cert_spec, QONTRACT_INTEGRATION, QONTRACT_INTEGRATION_VERSION)
-    return [certificate]
-
-
-POST_PROCESS_RESOURCES = {"Route": _post_process_route}
-
-
-def _post_process_resources(
-    oc: OCClient,
-    cluster: str,
-    namespace: str,
-    resource: Mapping[str, Any],
-    openshift_resource: OR,
-) -> list[OR]:
-
-    kind = openshift_resource.body["kind"]
-    additional_resources = []
-    try:
-        func = POST_PROCESS_RESOURCES[kind]
-        additional_resources = func(
-            oc, cluster, namespace, resource, openshift_resource
-        )
-    except KeyError as ke:
-        logging.debug(f"{kind} does not have a post_process function: {ke}")
-
-    return additional_resources
-
-
 def fetch_desired_state(
     oc: OCClient,
     ri: ResourceInventory,
@@ -679,23 +622,14 @@ def fetch_desired_state(
         _log_lock.release()
         return
 
-    # _post_process_resources
-    # Some resources might need existent data in the cluster to populate all its fields.
-    # Additionally, post processing might generate additional resources
-    additional_resources = _post_process_resources(
-        oc, cluster, namespace, resource, openshift_resource
-    )
-    openshift_resources = [openshift_resource] + additional_resources
-
     # add to inventory
     try:
-        for r in openshift_resources:
-            ri.add_desired_resource(
-                cluster,
-                namespace,
-                r,
-                privileged,
-            )
+        ri.add_desired_resource(
+            cluster,
+            namespace,
+            openshift_resource,
+            privileged,
+        )
     except KeyError:
         # This is failing because in the managed_type loop (where the
         # `initialize_resource_type` method was called), this specific
@@ -703,7 +637,7 @@ def fetch_desired_state(
         # managed. But someone is trying to add it via app-interface
         ri.register_error()
         msg = "[{}/{}] unknown kind: {}. hint: is it missing from managedResourceTypes?".format(
-            cluster, namespace, r.kind
+            cluster, namespace, openshift_resource.kind
         )
         _log_lock.acquire()  # pylint: disable=consider-using-with
         logging.error(msg)
@@ -715,7 +649,7 @@ def fetch_desired_state(
         # the same type was already added previously
         ri.register_error()
         msg = ("[{}/{}] desired item already exists: {}/{}.").format(
-            cluster, namespace, r.kind, openshift_resource.name
+            cluster, namespace, openshift_resource.kind, openshift_resource.name
         )
         _log_lock.acquire()  # pylint: disable=consider-using-with
         logging.error(msg)
@@ -794,18 +728,7 @@ def canonicalize_namespaces(
     canonicalized_namespaces = []
     override = None
     logging.debug(f"Received providers {providers}")
-
     for namespace_info in namespaces:
-
-        post_process_route = False
-        if "route" in providers or "Route" in namespace_info["managedResourceTypes"]:
-            # Query unleash if only necessary
-            cluster_name = namespace_info["cluster"]["name"]
-            namespace_name = namespace_info["name"]
-            post_process_route = unleash_post_process_route_enabled(
-                cluster_name, namespace_name
-            )
-
         ob.aggregate_shared_resources(namespace_info, "openshiftResources")
         openshift_resources: list = namespace_info.get("openshiftResources") or []
         ors = [r for r in openshift_resources if r["provider"] in providers]
@@ -816,19 +739,7 @@ def canonicalize_namespaces(
             if providers[0] == "vault-secret":
                 override = ["Secret"]
             elif providers[0] == "route":
-                if post_process_route:
-                    override = ["Route", CERT_MANAGER_CERTIFICATE_CRD]
-                else:
-                    override = ["Route"]
-            elif (
-                post_process_route and "Route" in namespace_info["managedResourceTypes"]
-            ):
-                # routes can be managed by other provider types other than route.
-                # grafana Route is managed by a resource-template/jinja2
-                namespace_info["managedResourceTypes"].append(
-                    CERT_MANAGER_CERTIFICATE_CRD
-                )
-
+                override = ["Route"]
             namespace_info["openshiftResources"] = ors
             canonicalized_namespaces.append(namespace_info)
     logging.debug(f"Overriding {override}")
@@ -860,7 +771,6 @@ def run(
     namespaces = filter_namespaces_by_cluster_and_namespace(
         namespaces, cluster_name, namespace_name
     )
-
     namespaces, overrides = canonicalize_namespaces(namespaces, providers)
     oc_map, ri = fetch_data(
         namespaces,
