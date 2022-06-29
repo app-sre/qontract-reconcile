@@ -703,7 +703,7 @@ def fetch_desired_state(
         # managed. But someone is trying to add it via app-interface
         ri.register_error()
         msg = "[{}/{}] unknown kind: {}. hint: is it missing from managedResourceTypes?".format(
-            cluster, namespace, openshift_resource.kind
+            cluster, namespace, r.kind
         )
         _log_lock.acquire()  # pylint: disable=consider-using-with
         logging.error(msg)
@@ -715,7 +715,7 @@ def fetch_desired_state(
         # the same type was already added previously
         ri.register_error()
         msg = ("[{}/{}] desired item already exists: {}/{}.").format(
-            cluster, namespace, openshift_resource.kind, openshift_resource.name
+            cluster, namespace, r.kind, openshift_resource.name
         )
         _log_lock.acquire()  # pylint: disable=consider-using-with
         logging.error(msg)
