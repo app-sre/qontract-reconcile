@@ -794,7 +794,18 @@ def canonicalize_namespaces(
     canonicalized_namespaces = []
     override = None
     logging.debug(f"Received providers {providers}")
+
     for namespace_info in namespaces:
+
+        post_process_route = False
+        if "route" in providers or "Route" in namespace_info["managedResourceTypes"]:
+            # Query unleash if only necessary
+            cluster_name = namespace_info["cluster"]["name"]
+            namespace_name = namespace_info["name"]
+            post_process_route = unleash_post_process_route_enabled(
+                cluster_name, namespace_name
+            )
+
         ob.aggregate_shared_resources(namespace_info, "openshiftResources")
         openshift_resources: list = namespace_info.get("openshiftResources") or []
         ors = [r for r in openshift_resources if r["provider"] in providers]
@@ -805,7 +816,19 @@ def canonicalize_namespaces(
             if providers[0] == "vault-secret":
                 override = ["Secret"]
             elif providers[0] == "route":
-                override = ["Route", CERT_MANAGER_CERTIFICATE_CRD]
+                if post_process_route:
+                    override = ["Route", CERT_MANAGER_CERTIFICATE_CRD]
+                else:
+                    override = ["Route"]
+            elif (
+                post_process_route and "Route" in namespace_info["managedResourceTypes"]
+            ):
+                # routes can be managed by other provider types other than route.
+                # grafana Route is managed by a resource-template/jinja2
+                namespace_info["managedResourceTypes"].append(
+                    CERT_MANAGER_CERTIFICATE_CRD
+                )
+
             namespace_info["openshiftResources"] = ors
             canonicalized_namespaces.append(namespace_info)
     logging.debug(f"Overriding {override}")
@@ -837,6 +860,7 @@ def run(
     namespaces = filter_namespaces_by_cluster_and_namespace(
         namespaces, cluster_name, namespace_name
     )
+
     namespaces, overrides = canonicalize_namespaces(namespaces, providers)
     oc_map, ri = fetch_data(
         namespaces,
