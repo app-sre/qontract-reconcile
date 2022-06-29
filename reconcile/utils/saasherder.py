@@ -18,6 +18,13 @@ from requests import exceptions as rqexc
 from sretoolbox.container import Image
 from sretoolbox.utils import retry
 from sretoolbox.utils import threaded
+from reconcile.certmanager.certmanager import (
+    CERT_MANAGER_CERTIFICATE_CRD,
+    CERT_UTILS_SECRET_SYNC_ANNOTATION,
+    build_certificate_from_route,
+    route_needs_certificate,
+    unleash_post_process_route_enabled,
+)
 
 from reconcile.github_org import get_default_config
 from reconcile.status import RunningState
@@ -444,6 +451,7 @@ class SaasHerder:
         namespaces = []
         for saas_file in self.saas_files:
             managed_resource_types = saas_file["managedResourceTypes"]
+
             resource_templates = saas_file["resourceTemplates"]
             for rt in resource_templates:
                 targets = rt["targets"]
@@ -458,6 +466,14 @@ class SaasHerder:
                         continue
                     # managedResourceTypes is defined per saas_file
                     # add it to each namespace in the current saas_file
+                    if "Route" in managed_resource_types:
+                        cluster_name = namespace["cluster"]["name"]
+                        namespace_name = namespace["name"]
+                        if unleash_post_process_route_enabled(
+                            cluster_name, namespace_name
+                        ):
+                            managed_resource_types.append(CERT_MANAGER_CERTIFICATE_CRD)
+
                     namespace["managedResourceTypes"] = managed_resource_types
                     namespaces.append(namespace)
         return namespaces
@@ -616,6 +632,22 @@ class SaasHerder:
                     logging.warning(
                         "could not add html_url annotation to" + resource["name"]
                     )
+
+    def _additional_resource_process_route(self, resources):
+        certs = []
+        for resource in resources:
+            if resource["kind"] == "Route":
+                if route_needs_certificate(resource):
+                    # Create the Certificate resource
+                    cert = build_certificate_from_route(resource)
+                    # Annotation the Route with the cert-utils annotation
+                    annotations = resource["metadata"]["annotations"]
+                    annotations[CERT_UTILS_SECRET_SYNC_ANNOTATION] = cert["spec"][
+                        "secretName"
+                    ]
+                    # Append the certificate to the resources
+                    certs.append(cert)
+        return certs
 
     @staticmethod
     def _parameter_value_needed(parameter_name, consolidated_parameters, template):
@@ -1063,6 +1095,12 @@ class SaasHerder:
         # additional processing of resources
         resources = rs
         self._additional_resource_process(resources, html_url)
+
+        # Post process Routes if unleash cert-manager feature toogle is enabled
+        # for this cluster/namespace
+        if unleash_post_process_route_enabled(cluster, namespace):
+            certs = self._additional_resource_process_route(resources)
+            resources.extend(certs)
         # check images
         check_images_options = {"html_url": html_url, "resources": resources}
         check_images_options.update(check_images_options_base)
