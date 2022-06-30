@@ -4621,7 +4621,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             },
             sms_configuration={
                 "external_id": common_values.get("sms_role_ext_id"),
-                "sns_caller_arn": f"${{{lambda_iam_role_resource.arn}}}",
+                "sns_caller_arn": f"${{{sms_iam_role_resource.arn}}}",
             },
             **pool_args,
         )
