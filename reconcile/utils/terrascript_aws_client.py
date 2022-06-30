@@ -396,21 +396,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
     def download_rosa_authenticator_zip(self, release_url):
         headers = {"Authorization": "token " + self.token}
         r = requests.get(GH_BASE_URL + "/" + release_url, headers=headers)
-
-        print("\n")
-        print("DUMPING RESPONSE INFO FOR: " + GH_BASE_URL + "/" + release_url + "\n\n")
-        print(f"YOLO REQUEST HEADERS: {headers}\n\n")
-        print(f"REQUEST: {r.request} \n\n")
-        print(f"HEADERS: {r.headers} \n\n")
-        print(f"STATUS CODE: {r.status_code} \n\n")
-        print(f"RESPONSE URL: {r.url} \n\n")
-        print(f"RESPONSE TEXT: {r.text} \n\n")
-        print(f"JSON RESPONSE: {r.json()} \n\n")
-        print("\n")
-
         r.raise_for_status()
         data = r.json()
-        zip_url = data["zipball_url"]
+        zip_url = data["assets"][0]["browser_download_url"]
         zip_file = "/tmp/RosaAuthenticatorLambda-" + data["tag_name"] + ".zip"
         if not os.path.exists(zip_file):
             r = requests.get(zip_url)
