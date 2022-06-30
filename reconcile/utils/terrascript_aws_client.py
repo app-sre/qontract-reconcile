@@ -399,13 +399,13 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         print('\n')
         print('DUMPING RESPONSE INFO FOR: ' + GH_BASE_URL + "/" + release_url + '\n\n')
-        print('YOLO REQUEST HEADERS:' + headers + '\n\n')
-        print('REQUEST:' r.request + '\n\n')
+        print('YOLO REQUEST HEADERS: ' + headers + '\n\n')
+        print('REQUEST: ' r.request + '\n\n')
         print('HEADERS: ' + r.headers + '\n\n')
         print('STATUS CODE: ' + r.status_code + '\n\n')
         print('RESPOSNE URL: ' + r.url + '\n\n')
-        print('RESPONSE TEXT:' + r.text + '\n\n')
-        print('JSON RESPONSE:' + r.json() + '\n\n')
+        print('RESPONSE TEXT: ' + r.text + '\n\n')
+        print('JSON RESPONSE: ' + r.json() + '\n\n')
         print('\n')
 
         r.raise_for_status()
