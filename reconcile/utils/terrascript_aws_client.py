@@ -4574,7 +4574,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             "cognito_pre_signup",
             function_name=f"ocm-{identifier}-cognito-pre-signup",
             runtime="nodejs14.x",
-            role=lambda_iam_role_resource.arn,
+            role=f"${{{lambda_iam_role_resource.arn}}}",
             handler="index.handler",
             filename=zip_file,
             source_code_hash='${filebase64sha256("' + zip_file + '")}',
