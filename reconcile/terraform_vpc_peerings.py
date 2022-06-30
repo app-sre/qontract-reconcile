@@ -168,6 +168,10 @@ def build_desired_state_single_cluster(
             cluster_info, peer_info, peer_cluster, ocm
         )
 
+        # filter on account
+        if account_filter and acc_aws["name"] != account_filter:
+            continue
+
         # verify that the infra mgmt account for both sides of a peering is the same
         # this is a restriction we might lift in the future but it
         # requires work in `populate_vpc_peerings` where the tf resources are hooked up
@@ -178,10 +182,6 @@ def build_desired_state_single_cluster(
                 f"accepter ({peer_connection_name} - {acc_aws['name']}) "
                 "are not suppored"
             )
-
-        # filter on account
-        if account_filter and acc_aws["name"] != account_filter:
-            continue
 
         requester_vpc_id, requester_route_table_ids, _ = awsapi.get_cluster_vpc_details(
             req_aws, route_tables=requester_manage_routes
