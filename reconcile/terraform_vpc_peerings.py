@@ -167,6 +167,18 @@ def build_desired_state_single_cluster(
         req_aws, acc_aws = aws_assume_roles_for_cluster_vpc_peering(
             cluster_info, peer_info, peer_cluster, ocm
         )
+
+        # verify that the infra mgmt account for both sides of a peering is the same
+        # this is a restriction we might lift in the future but it
+        # requires work in `populate_vpc_peerings` where the tf resources are hooked up
+        if req_aws["name"] != acc_aws["name"]:
+            raise BadTerraformPeeringState(
+                f"different infra mgmt accounts for peering "
+                f"requester ({cluster_name} - {req_aws['name']}) and "
+                f"accepter ({peer_connection_name} - {acc_aws['name']}) "
+                "are not suppored"
+            )
+
         # filter on account
         if account_filter and acc_aws["name"] != account_filter:
             continue
