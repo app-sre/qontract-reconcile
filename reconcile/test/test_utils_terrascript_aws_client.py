@@ -145,3 +145,28 @@ def test_resource_specs_with_account_filter(ts):
     specs = ts.resource_spec_inventory
     spec = ExternalResourceSpec(p, pa, ra, ns1)
     assert specs == {ExternalResourceUniqueKey.from_spec(spec): spec}
+
+
+def test_terraform_state(ts):
+    account_name = "some-account"
+    integration_name = "terraform-resources-wrapper"
+    config_test = {
+        "aws_access_key_id": "SOMEKEY123",
+        "aws_secret_access_key": "somesecretkey",
+        "bucket": "some-bucket",
+        "key": "qontract-reconcile.tfstate",
+        "region": "us-east-1",
+        "terraform-resources-wrapper_key": "qontract-reconcile.tfstate",
+        "terraformState": {
+            "provider": "s3",
+            "bucket": "some-bucket",
+            "region": "some-region",
+            "integrations": [
+                {
+                    "key": "terraform-resources-wrapper",
+                    "integration": "qontract-reconcile.tfstate",
+                },
+            ],
+        },
+    }
+    assert ts.state_bucket_for_account(integration_name, account_name, config_test)
