@@ -424,8 +424,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     key_backend_value = key.get("key")
                     region_backend_value = terraform_state.get("region")
                     break
-                else:
-                    continue
+                continue
 
         if bucket_backend_value and key_backend_value and region_backend_value:
             return Backend(
