@@ -254,7 +254,7 @@ def get_rule_files_from_jinja_test_template(template):
     return rule_files
 
 
-def check_prometheus_tests(tests, rules, thread_pool_size):
+def check_prometheus_tests(tests, rules, thread_pool_size, settings):
     """Returns a list of dicts with failed test runs. To make things (much)
     simpler we will allow only one prometheus rule per test as will need to run
     the tests per every appearance of the rule files in a namespace s rules can
@@ -300,7 +300,9 @@ def check_prometheus_tests(tests, rules, thread_pool_size):
                 for namespace, rule_data in namespaces.items():
                     variables = rule_data.get("variables", {})
                     test_yaml_spec = yaml.safe_load(
-                        orb.process_extracurlyjinja2_template(body=test, vars=variables)
+                        orb.process_extracurlyjinja2_template(
+                            body=test, vars=variables, settings=settings
+                        )
                     )
                     test_yaml_spec.pop("$schema")
 
@@ -348,7 +350,7 @@ def run(dry_run, thread_pool_size=10, cluster_name=None):
             )
 
     tests = get_prometheus_tests()
-    failed_tests = check_prometheus_tests(tests, rules, thread_pool_size)
+    failed_tests = check_prometheus_tests(tests, rules, thread_pool_size, settings)
     if failed_tests:
         for f in failed_tests:
             msg = f"Error in test {f['path']}"
