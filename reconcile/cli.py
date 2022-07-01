@@ -1399,8 +1399,11 @@ def terraform_users(
 @binary(["terraform", "git"])
 @binary_version("terraform", ["version"], TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
 @enable_deletion(default=False)
+@account_name
 @click.pass_context
-def terraform_vpc_peerings(ctx, print_to_file, enable_deletion, thread_pool_size):
+def terraform_vpc_peerings(
+    ctx, print_to_file, enable_deletion, thread_pool_size, account_name
+):
     if print_to_file and is_file_in_git_repo(print_to_file):
         raise PrintToFileInGitRepositoryError(print_to_file)
     run_integration(
@@ -1409,6 +1412,7 @@ def terraform_vpc_peerings(ctx, print_to_file, enable_deletion, thread_pool_size
         print_to_file,
         enable_deletion,
         thread_pool_size,
+        account_name,
     )
 
 

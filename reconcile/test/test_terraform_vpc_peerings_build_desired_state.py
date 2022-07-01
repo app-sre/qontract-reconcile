@@ -57,9 +57,6 @@ def test_c2c_all_clusters(mocker):
         .auto_speced_mock(mocker)
     )
 
-    result, error = sut.build_desired_state_all_clusters(
-        [requester_cluster], ocm_map, awsapi
-    )
     expected = [
         {
             "connection_provider": "cluster-vpc-requester",
@@ -98,7 +95,26 @@ def test_c2c_all_clusters(mocker):
             "deleted": False,
         }
     ]
-    assert expected == result
+
+    # no account filter
+    result, error = sut.build_desired_state_all_clusters(
+        [requester_cluster], ocm_map, awsapi, account_filter=None
+    )
+    assert result == expected
+    assert not error
+
+    # correct account filter
+    result, error = sut.build_desired_state_all_clusters(
+        [requester_cluster], ocm_map, awsapi, account_filter="acc"
+    )
+    assert result == expected
+    assert not error
+
+    # wrong account filter
+    result, error = sut.build_desired_state_all_clusters(
+        [requester_cluster], ocm_map, awsapi, account_filter="another_account"
+    )
+    assert not result
     assert not error
 
 
@@ -114,7 +130,9 @@ def test_c2c_one_cluster_failing_recoverable(mocker):
         "something bad"
     )
 
-    result, error = sut.build_desired_state_all_clusters([{"name": "cluster"}], {}, {})
+    result, error = sut.build_desired_state_all_clusters(
+        [{"name": "cluster"}], {}, {}, account_filter=None
+    )
 
     assert not result
     assert error
@@ -132,7 +150,9 @@ def test_c2c_one_cluster_failing_weird(mocker):
     build_desired_state_single_cluster.side_effect = ValueError(SOMETHING_UNEXPECTED)
 
     with pytest.raises(ValueError) as ex:
-        sut.build_desired_state_all_clusters([{"name": "cluster"}], {}, {})
+        sut.build_desired_state_all_clusters(
+            [{"name": "cluster"}], {}, {}, account_filter=None
+        )
 
     assert str(ex.value) == SOMETHING_UNEXPECTED
 
@@ -179,7 +199,6 @@ def test_c2c_base(mocker):
         .auto_speced_mock(mocker)
     )
 
-    result = sut.build_desired_state_single_cluster(requester_cluster, ocm, awsapi)
     expected = [
         {
             "connection_provider": "cluster-vpc-requester",
@@ -218,7 +237,24 @@ def test_c2c_base(mocker):
             "deleted": False,
         }
     ]
-    assert expected == result
+
+    # no account filtering
+    result = sut.build_desired_state_single_cluster(
+        requester_cluster, ocm, awsapi, account_filter=None
+    )
+    assert result == expected
+
+    # correct account filtering
+    result = sut.build_desired_state_single_cluster(
+        requester_cluster, ocm, awsapi, account_filter="acc"
+    )
+    assert result == expected
+
+    # correct account filtering
+    result = sut.build_desired_state_single_cluster(
+        requester_cluster, ocm, awsapi, account_filter="another_account"
+    )
+    assert not result
 
 
 def test_c2c_no_peerings(mocker):
@@ -236,6 +272,7 @@ def test_c2c_no_peerings(mocker):
         requester_cluster,
         MockOCM().auto_speced_mock(mocker),
         MockAWSAPI().auto_speced_mock(mocker),
+        account_filter=None,
     )
     assert not result
 
@@ -267,6 +304,7 @@ def test_c2c_no_matches(mocker):
             requester_cluster,
             MockOCM().auto_speced_mock(mocker),
             MockAWSAPI().auto_speced_mock(mocker),
+            account_filter=None,
         )
     assert str(ex.value).startswith("[no_matching_peering]")
 
@@ -302,7 +340,9 @@ def test_c2c_no_vpc_in_aws(mocker):
     awsapi = MockAWSAPI().auto_speced_mock(mocker)
 
     with pytest.raises(sut.BadTerraformPeeringState) as ex:
-        sut.build_desired_state_single_cluster(requester_cluster, ocm, awsapi)
+        sut.build_desired_state_single_cluster(
+            requester_cluster, ocm, awsapi, account_filter=None
+        )
     assert str(ex.value).endswith("could not find VPC ID for cluster")
 
 
@@ -336,7 +376,9 @@ def test_c2c_no_peer_account(mocker):
     awsapi = MockAWSAPI().auto_speced_mock(mocker)
 
     with pytest.raises(sut.BadTerraformPeeringState) as ex:
-        sut.build_desired_state_single_cluster(requester_cluster, ocm, awsapi)
+        sut.build_desired_state_single_cluster(
+            requester_cluster, ocm, awsapi, account_filter=None
+        )
     assert str(ex.value).startswith("[no_account_available]")
 
 
@@ -484,23 +526,32 @@ class TestBuildDesiredStateVpcMesh(testslide.TestCase):
             },
         ]
         self.vpc_mesh_single_cluster.for_call(
-            self.clusters[0], self.ocm, self.awsapi
+            self.clusters[0], self.ocm, self.awsapi, None
         ).to_return_value(expected)
 
-        rs = sut.build_desired_state_vpc_mesh(self.clusters, self.ocm_map, self.awsapi)
+        rs = sut.build_desired_state_vpc_mesh(
+            self.clusters,
+            self.ocm_map,
+            self.awsapi,
+            None,
+        )
         self.assertEqual(rs, (expected, False))
 
     def test_cluster_raises(self):
         self.vpc_mesh_single_cluster.to_raise(
             sut.BadTerraformPeeringState("This is wrong")
         )
-        rs = sut.build_desired_state_vpc_mesh(self.clusters, self.ocm_map, self.awsapi)
+        rs = sut.build_desired_state_vpc_mesh(
+            self.clusters, self.ocm_map, self.awsapi, None
+        )
         self.assertEqual(rs, ([], True))
 
     def test_cluster_raises_unexpected(self):
         self.vpc_mesh_single_cluster.to_raise(ValueError("Nope"))
         with self.assertRaises(ValueError):
-            sut.build_desired_state_vpc_mesh(self.clusters, self.ocm_map, self.awsapi)
+            sut.build_desired_state_vpc_mesh(
+                self.clusters, self.ocm_map, self.awsapi, None
+            )
 
 
 class TestBuildDesiredStateVpcMeshSingleCluster(testslide.TestCase):
@@ -659,14 +710,14 @@ class TestBuildDesiredStateVpcMeshSingleCluster(testslide.TestCase):
         ]
 
         rs = sut.build_desired_state_vpc_mesh_single_cluster(
-            self.cluster, self.ocm, self.awsapi
+            self.cluster, self.ocm, self.awsapi, None
         )
         self.assertEqual(rs, expected)
 
     def test_no_peering_connections(self):
         self.cluster["peering"]["connections"] = []
         rs = sut.build_desired_state_vpc_mesh_single_cluster(
-            self.cluster, self.ocm, self.awsapi
+            self.cluster, self.ocm, self.awsapi, None
         )
         self.assertEqual(rs, [])
 
@@ -677,7 +728,7 @@ class TestBuildDesiredStateVpcMeshSingleCluster(testslide.TestCase):
 
         with self.assertRaises(sut.BadTerraformPeeringState):
             sut.build_desired_state_vpc_mesh_single_cluster(
-                self.cluster, self.ocm, self.awsapi
+                self.cluster, self.ocm, self.awsapi, None
             )
 
 
@@ -799,9 +850,12 @@ class TestBuildDesiredStateVpc(testslide.TestCase):
             }
         ]
         self.build_single_cluster.for_call(
-            self.clusters[0], self.ocm, self.awsapi
+            self.clusters[0], self.ocm, self.awsapi, None
         ).to_return_value(expected).and_assert_called_once()
-        rs = sut.build_desired_state_vpc(self.clusters, self.ocm_map, self.awsapi)
+
+        rs = sut.build_desired_state_vpc(
+            self.clusters, self.ocm_map, self.awsapi, account_filter=None
+        )
         self.assertEqual(rs, (expected, False))
 
     def test_cluster_fails(self):
@@ -810,7 +864,9 @@ class TestBuildDesiredStateVpc(testslide.TestCase):
         )
 
         self.assertEqual(
-            sut.build_desired_state_vpc(self.clusters, self.ocm_map, self.awsapi),
+            sut.build_desired_state_vpc(
+                self.clusters, self.ocm_map, self.awsapi, account_filter=None
+            ),
             ([], True),
         )
 
@@ -819,14 +875,19 @@ class TestBuildDesiredStateVpc(testslide.TestCase):
         self.clusters[1]["name"] = "afailingcluster"
         self.ocm_map["afailingcluster"] = self.ocm
         self.build_single_cluster.for_call(
-            self.clusters[0], self.ocm, self.awsapi
+            self.clusters[0], self.ocm, self.awsapi, None
         ).to_return_value([{"a dict": "a value"}]).and_assert_called_once()
         self.mock_callable(sut, "build_desired_state_vpc_single_cluster").for_call(
-            self.clusters[1], self.ocm, self.awsapi
+            self.clusters[1],
+            self.ocm,
+            self.awsapi,
+            None,
         ).to_raise(sut.BadTerraformPeeringState("Fail!")).and_assert_called_once()
 
         self.assertEqual(
-            sut.build_desired_state_vpc(self.clusters, self.ocm_map, self.awsapi),
+            sut.build_desired_state_vpc(
+                self.clusters, self.ocm_map, self.awsapi, account_filter=None
+            ),
             ([{"a dict": "a value"}], True),
         )
 
@@ -835,10 +896,12 @@ class TestBuildDesiredStateVpc(testslide.TestCase):
         self.clusters[1]["name"] = "afailingcluster"
         self.ocm_map["afailingcluster"] = self.ocm
         self.build_single_cluster.for_call(
-            self.clusters[0], self.ocm, self.awsapi
+            self.clusters[0], self.ocm, self.awsapi, None
         ).to_raise(ValueError("I am not planned!")).and_assert_called_once()
         with self.assertRaises(ValueError):
-            sut.build_desired_state_vpc(self.clusters, self.ocm_map, self.awsapi)
+            sut.build_desired_state_vpc(
+                self.clusters, self.ocm_map, self.awsapi, account_filter=None
+            )
 
 
 class TestBuildDesiredStateVpcSingleCluster(testslide.TestCase):
@@ -968,7 +1031,7 @@ class TestBuildDesiredStateVpcSingleCluster(testslide.TestCase):
             "this:wonderful:role:hell:yeah"
         ).and_assert_called_once()
         rs = sut.build_desired_state_vpc_single_cluster(
-            self.cluster, self.ocm, self.awsapi
+            self.cluster, self.ocm, self.awsapi, None
         )
         self.assertEqual(rs, expected)
 
@@ -976,7 +1039,7 @@ class TestBuildDesiredStateVpcSingleCluster(testslide.TestCase):
         self.cluster["peering"]["connections"][0]["provider"] = "something-else"
         self.assertEqual(
             sut.build_desired_state_vpc_single_cluster(
-                self.cluster, self.ocm, self.awsapi
+                self.cluster, self.ocm, self.awsapi, None
             ),
             [],
         )
@@ -992,5 +1055,5 @@ class TestBuildDesiredStateVpcSingleCluster(testslide.TestCase):
 
         with self.assertRaises(sut.BadTerraformPeeringState):
             sut.build_desired_state_vpc_single_cluster(
-                self.cluster, self.ocm, self.awsapi
+                self.cluster, self.ocm, self.awsapi, None
             )

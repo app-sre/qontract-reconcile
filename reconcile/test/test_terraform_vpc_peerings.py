@@ -337,7 +337,7 @@ class TestRun(testslide.TestCase):
         self.ocmmap = testslide.StrictMock(ocm.OCMMap)
         self.mock_constructor(ocm, "OCMMap").to_return_value(self.ocmmap)
         self.mock_callable(queries, "get_aws_accounts").to_return_value(
-            [{"name": "desired_requester_account"}]
+            [{"name": "desired_account"}]
         )
         self.clusters = (
             self.mock_callable(queries, "get_clusters")
@@ -368,8 +368,8 @@ class TestRun(testslide.TestCase):
                 [
                     {
                         "connection_name": "desired_vpc_conn",
-                        "requester": {"account": {"name": "desired_requester_account"}},
-                        "accepter": {"account": {"name": "desired_accepter_account"}},
+                        "requester": {"account": {"name": "desired_account"}},
+                        "accepter": {"account": {"name": "desired_account"}},
                     },
                 ],
                 error_code,
@@ -380,12 +380,10 @@ class TestRun(testslide.TestCase):
                 [
                     {
                         "connection_name": "all_clusters_vpc_conn",
-                        "requester": {
-                            "account": {"name": "all_clusters_requester_account"}
-                        },
+                        "requester": {"account": {"name": "all_clusters_account"}},
                         "accepter": {
                             "account": {
-                                "name": "all_clusters_accepter_account",
+                                "name": "all_clusters_account",
                             }
                         },
                     }
@@ -399,10 +397,10 @@ class TestRun(testslide.TestCase):
                     {
                         "connection_name": "mesh_vpc_conn",
                         "requester": {
-                            "account": {"name": "mesh_requester_account"},
+                            "account": {"name": "mesh_account"},
                         },
                         "accepter": {
-                            "account": {"name": "mesh_accepter_account"},
+                            "account": {"name": "mesh_account"},
                         },
                     }
                 ],
@@ -412,12 +410,12 @@ class TestRun(testslide.TestCase):
 
         self.mock_callable(self.terrascript, "populate_additional_providers").for_call(
             [
-                {"name": "desired_requester_account"},
-                {"name": "mesh_requester_account"},
-                {"name": "all_clusters_requester_account"},
-                {"name": "desired_accepter_account"},
-                {"name": "mesh_accepter_account"},
-                {"name": "all_clusters_accepter_account"},
+                {"name": "desired_account"},
+                {"name": "mesh_account"},
+                {"name": "all_clusters_account"},
+                {"name": "desired_account"},
+                {"name": "mesh_account"},
+                {"name": "all_clusters_account"},
             ]
         ).to_return_value(None).and_assert_called_once()
 
