@@ -4825,12 +4825,14 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         # ANY RESPONSE
         # args are shared with this resource  + token get repsonse resource
-        api_gateway_method_proxy_any_response_resource = aws_api_gateway_method_response(
-            "gw_method_proxy_any_response",
-            http_method="${aws_api_gateway_method.gw_method_proxy_any.http_method}",
-            resource_id=f"${{{api_gateway_proxy_resource.id}}}",
-            rest_api_id=f"${{{api_gateway_rest_api_resource.id}}}",
-            **gateway_method_get_response_args,
+        api_gateway_method_proxy_any_response_resource = (
+            aws_api_gateway_method_response(
+                "gw_method_proxy_any_response",
+                http_method="${aws_api_gateway_method.gw_method_proxy_any.http_method}",
+                resource_id=f"${{{api_gateway_proxy_resource.id}}}",
+                rest_api_id=f"${{{api_gateway_rest_api_resource.id}}}",
+                **gateway_method_get_response_args,
+            )
         )
         tf_resources.append(api_gateway_method_proxy_any_response_resource)
 
