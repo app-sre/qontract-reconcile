@@ -62,7 +62,7 @@ def get_prometheus_tests():
 #                'rule_spec': spec
 #                'variables: { ... } # openshift resource variables if any
 #    (...)
-def get_prometheus_rules(cluster_name, settings):
+def get_prometheus_rules(cluster_name):
     """Returns a dict of dicts indexed by path with rule data"""
     gqlapi = gql.get_api()
     rules = {}
@@ -100,9 +100,7 @@ def get_prometheus_rules(cluster_name, settings):
             if "add_path_to_prom_rules" not in r:
                 r["add_path_to_prom_rules"] = False
 
-            openshift_resource = orb.fetch_openshift_resource(
-                resource=r, parent=n, settings=settings
-            )
+            openshift_resource = orb.fetch_openshift_resource(resource=r, parent=n)
 
             if cluster not in rules[path]:
                 rules[path][cluster] = {}
@@ -138,11 +136,11 @@ def get_prometheus_rules(cluster_name, settings):
 #       labels:
 #         service: serviceName
 #         ...
-def check_valid_services(rule, settings):
+def check_valid_services(rule):
     """Check that all services in Prometheus rules are known.
     This replaces an enum in the json schema with a list
     in app-interface settings."""
-    allowed_services = settings["alertingServices"]
+    allowed_services = queries.get_app_interface_settings()["alertingServices"]
     missing_services = set()
     spec = rule["spec"]
     groups = spec["groups"]
@@ -176,9 +174,9 @@ def check_rule_length(rule_length: int) -> CommandExecutionResult:
     return CommandExecutionResult(True, "")
 
 
-def check_rule(rule, settings):
+def check_rule(rule):
     promtool_check_result = promtool.check_rule(yaml_spec=rule["spec"])
-    valid_services_result = check_valid_services(rule, settings)
+    valid_services_result = check_valid_services(rule)
     rule_length_result = check_rule_length(rule["length"])
     rule["check_result"] = (
         promtool_check_result and valid_services_result and rule_length_result
@@ -186,7 +184,7 @@ def check_rule(rule, settings):
     return rule
 
 
-def check_prometheus_rules(rules, thread_pool_size, settings):
+def check_prometheus_rules(rules, thread_pool_size):
     """Returns a list of dicts with failed rule checks"""
     # flatten the list of prometheus rules to have a list of dicts
     rules_to_check = []
@@ -204,10 +202,7 @@ def check_prometheus_rules(rules, thread_pool_size, settings):
                 )
 
     result = threaded.run(
-        func=check_rule,
-        iterable=rules_to_check,
-        thread_pool_size=thread_pool_size,
-        settings=settings,
+        func=check_rule, iterable=rules_to_check, thread_pool_size=thread_pool_size
     )
 
     # return invalid rules
@@ -254,7 +249,7 @@ def get_rule_files_from_jinja_test_template(template):
     return rule_files
 
 
-def check_prometheus_tests(tests, rules, thread_pool_size, settings):
+def check_prometheus_tests(tests, rules, thread_pool_size):
     """Returns a list of dicts with failed test runs. To make things (much)
     simpler we will allow only one prometheus rule per test as will need to run
     the tests per every appearance of the rule files in a namespace s rules can
@@ -300,9 +295,7 @@ def check_prometheus_tests(tests, rules, thread_pool_size, settings):
                 for namespace, rule_data in namespaces.items():
                     variables = rule_data.get("variables", {})
                     test_yaml_spec = yaml.safe_load(
-                        orb.process_extracurlyjinja2_template(
-                            body=test, vars=variables, settings=settings
-                        )
+                        orb.process_extracurlyjinja2_template(body=test, vars=variables)
                     )
                     test_yaml_spec.pop("$schema")
 
@@ -337,10 +330,8 @@ def run(dry_run, thread_pool_size=10, cluster_name=None):
     orb.QONTRACT_INTEGRATION = QONTRACT_INTEGRATION
     orb.QONTRACT_INTEGRATION_VERSION = QONTRACT_INTEGRATION_VERSION
 
-    settings = queries.get_app_interface_settings()
-
-    rules = get_prometheus_rules(cluster_name, settings)
-    invalid_rules = check_prometheus_rules(rules, thread_pool_size, settings)
+    rules = get_prometheus_rules(cluster_name)
+    invalid_rules = check_prometheus_rules(rules, thread_pool_size)
     if invalid_rules:
         for i in invalid_rules:
             logging.error(
@@ -350,7 +341,7 @@ def run(dry_run, thread_pool_size=10, cluster_name=None):
             )
 
     tests = get_prometheus_tests()
-    failed_tests = check_prometheus_tests(tests, rules, thread_pool_size, settings)
+    failed_tests = check_prometheus_tests(tests, rules, thread_pool_size)
     if failed_tests:
         for f in failed_tests:
             msg = f"Error in test {f['path']}"
