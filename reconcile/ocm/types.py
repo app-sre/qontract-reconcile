@@ -55,3 +55,5 @@ class OCMSpec(BaseModel):
 
     class Config:
         smart_union = True
+        # This is need to populate by either console_url or consoleUrl, for instance
+        allow_population_by_field_name = True
