@@ -35,7 +35,7 @@ from reconcile.utils.openshift_resource import (
     ResourceKeyExistsError,
 )
 from reconcile.utils.vault import SecretVersionNotFound, SecretVersionIsNone
-from reconcile.utils.vault import VaultClient
+from reconcile.utils.secret_reader import SecretReader
 from reconcile.github_users import init_github
 
 
@@ -175,9 +175,9 @@ APP_INT_BASE_URL = "https://gitlab.cee.redhat.com/service/app-interface"
 _log_lock = Lock()
 
 
-class FetchVaultSecretError(Exception):
+class FetchSecretError(Exception):
     def __init__(self, msg):
-        super().__init__("error fetching vault secret: " + str(msg))
+        super().__init__("error fetching secret: " + str(msg))
 
 
 class FetchRouteError(Exception):
@@ -205,25 +205,27 @@ class UnknownTemplateTypeError(Exception):
 
 
 @retry()
-def lookup_vault_secret(path, key, version=None, tvars=None):
+def lookup_secret(path, key, version=None, tvars=None, settings=None):
     if tvars is not None:
-        path = process_jinja2_template(path, vars=tvars)
-        key = process_jinja2_template(key, vars=tvars)
+        path = process_jinja2_template(body=path, vars=tvars, settings=settings)
+        key = process_jinja2_template(body=key, vars=tvars, settings=settings)
         if version and not isinstance(version, int):
-            version = process_jinja2_template(version, vars=tvars)
+            version = process_jinja2_template(
+                body=version, vars=tvars, settings=settings
+            )
     secret = {"path": path, "field": key, "version": version}
     try:
-        vault_client = VaultClient()
-        return vault_client.read(secret)
+        secret_reader = SecretReader(settings)
+        return secret_reader.read(secret)
     except Exception as e:
-        raise FetchVaultSecretError(e)
+        raise FetchSecretError(e)
 
 
-def lookup_github_file_content(repo, path, ref, tvars=None):
+def lookup_github_file_content(repo, path, ref, tvars=None, settings=None):
     if tvars is not None:
-        repo = process_jinja2_template(repo, vars=tvars)
-        path = process_jinja2_template(path, vars=tvars)
-        ref = process_jinja2_template(ref, vars=tvars)
+        repo = process_jinja2_template(body=repo, vars=tvars, settings=settings)
+        path = process_jinja2_template(body=path, vars=tvars, settings=settings)
+        ref = process_jinja2_template(body=ref, vars=tvars, settings=settings)
 
     gh = init_github()
     c = gh.get_repo(repo).get_contents(path, ref).decoded_content
@@ -238,14 +240,24 @@ def lookup_graphql_query_results(query: str, **kwargs) -> list[Any]:
     return results
 
 
-def process_jinja2_template(body, vars=None, env=None):
+def process_jinja2_template(body, vars=None, env=None, settings=None):
     if vars is None:
         vars = {}
     if env is None:
         env = {}
-    vars.update({"vault": lambda p, k, v=None: lookup_vault_secret(p, k, v, vars)})
     vars.update(
-        {"github": lambda u, p, r, v=None: lookup_github_file_content(u, p, r, vars)}
+        {
+            "vault": lambda p, k, v=None: lookup_secret(
+                path=p, key=k, version=v, tvars=vars, settings=settings
+            )
+        }
+    )
+    vars.update(
+        {
+            "github": lambda u, p, r, v=None: lookup_github_file_content(
+                repo=u, path=p, ref=r, tvars=vars, settings=settings
+            )
+        }
     )
     vars.update({"query": lookup_graphql_query_results})
     vars.update({"url": url_makes_sense})
@@ -262,7 +274,7 @@ def process_jinja2_template(body, vars=None, env=None):
     return r
 
 
-def process_extracurlyjinja2_template(body, vars=None):
+def process_extracurlyjinja2_template(body, vars=None, settings=None):
     if vars is None:
         vars = {}
     env = {
@@ -273,7 +285,7 @@ def process_extracurlyjinja2_template(body, vars=None):
         "comment_start_string": "{{#",
         "comment_end_string": "#}}",
     }
-    return process_jinja2_template(body, vars=vars, env=env)
+    return process_jinja2_template(body, vars=vars, env=env, settings=settings)
 
 
 def check_alertmanager_config(data, path, alertmanager_config_key, decode_base64=False):
@@ -303,6 +315,7 @@ def fetch_provider_resource(
     validate_alertmanager_config=False,
     alertmanager_config_key="alertmanager.yaml",
     add_path_to_prom_rules=True,
+    settings=None,
 ):
     gqlapi = gql.get_api()
 
@@ -314,7 +327,7 @@ def fetch_provider_resource(
 
     content = resource["content"]
     if tfunc:
-        content = tfunc(content, tvars)
+        content = tfunc(body=content, vars=tvars, settings=settings)
 
     try:
         body = anymarkup.parse(content, force_types=None)
@@ -386,10 +399,11 @@ def fetch_provider_vault_secret(
     integration_version,
     validate_alertmanager_config=False,
     alertmanager_config_key="alertmanager.yaml",
+    settings=None,
 ):
     # get the fields from vault
-    vault_client = VaultClient()
-    raw_data = vault_client.read_all({"path": path, "version": version})
+    secret_reader = SecretReader(settings)
+    raw_data = secret_reader.read_all({"path": path, "version": version})
 
     if validate_alertmanager_config:
         check_alertmanager_config(raw_data, path, alertmanager_config_key)
@@ -421,7 +435,7 @@ def fetch_provider_vault_secret(
         raise FetchResourceError(str(e))
 
 
-def fetch_provider_route(path, tls_path, tls_version):
+def fetch_provider_route(path, tls_path, tls_version, settings=None):
     global _log_lock
 
     openshift_resource = fetch_provider_resource(path)
@@ -433,8 +447,8 @@ def fetch_provider_route(path, tls_path, tls_version):
     openshift_resource.body["spec"].setdefault("tls", {})
     tls = openshift_resource.body["spec"]["tls"]
     # get tls fields from vault
-    vault_client = VaultClient()
-    raw_data = vault_client.read_all({"path": tls_path, "version": tls_version})
+    secret_reader = SecretReader(settings)
+    raw_data = secret_reader.read_all({"path": tls_path, "version": tls_version})
     valid_keys = [
         "termination",
         "insecureEdgeTerminationPolicy",
@@ -466,7 +480,7 @@ def fetch_provider_route(path, tls_path, tls_version):
     return openshift_resource
 
 
-def fetch_openshift_resource(resource, parent):
+def fetch_openshift_resource(resource, parent, settings=None):
     global _log_lock
 
     provider = resource["provider"]
@@ -491,6 +505,7 @@ def fetch_openshift_resource(resource, parent):
             validate_alertmanager_config=validate_alertmanager_config,
             alertmanager_config_key=alertmanager_config_key,
             add_path_to_prom_rules=add_path_to_prom_rules,
+            settings=settings,
         )
     elif provider == "resource-template":
         add_path_to_prom_rules = resource.get("add_path_to_prom_rules", True)
@@ -521,6 +536,7 @@ def fetch_openshift_resource(resource, parent):
                 validate_alertmanager_config=validate_alertmanager_config,
                 alertmanager_config_key=alertmanager_config_key,
                 add_path_to_prom_rules=add_path_to_prom_rules,
+                settings=settings,
             )
         except Exception as e:
             msg = "could not render template at path {}\n{}".format(path, e)
@@ -553,13 +569,14 @@ def fetch_openshift_resource(resource, parent):
                 integration_version=QONTRACT_INTEGRATION_VERSION,
                 validate_alertmanager_config=validate_alertmanager_config,
                 alertmanager_config_key=alertmanager_config_key,
+                settings=settings,
             )
         except (SecretVersionNotFound, SecretVersionIsNone) as e:
-            raise FetchVaultSecretError(e)
+            raise FetchSecretError(e)
     elif provider == "route":
         tls_path = resource["vault_tls_secret_path"]
         tls_version = resource["vault_tls_secret_version"]
-        openshift_resource = fetch_provider_route(path, tls_path, tls_version)
+        openshift_resource = fetch_provider_route(path, tls_path, tls_version, settings)
     else:
         raise UnknownProviderError(provider)
 
@@ -604,14 +621,15 @@ def fetch_desired_state(
     resource: Mapping[str, Any],
     parent: Mapping[str, Any],
     privileged: bool,
+    settings: Optional[Mapping[str, Any]] = None,
 ):
     global _log_lock
 
     try:
-        openshift_resource = fetch_openshift_resource(resource, parent)
+        openshift_resource = fetch_openshift_resource(resource, parent, settings)
     except (
         FetchResourceError,
-        FetchVaultSecretError,
+        FetchSecretError,
         FetchRouteError,
         UnknownProviderError,
     ) as e:
@@ -657,7 +675,11 @@ def fetch_desired_state(
         return
 
 
-def fetch_states(spec: ob.StateSpec, ri: ResourceInventory) -> None:
+def fetch_states(
+    spec: ob.StateSpec,
+    ri: ResourceInventory,
+    settings: Optional[Mapping[str, Any]] = None,
+) -> None:
     try:
         if isinstance(spec, ob.CurrentStateSpec):
             fetch_current_state(
@@ -677,6 +699,7 @@ def fetch_states(spec: ob.StateSpec, ri: ResourceInventory) -> None:
                 spec.resource,
                 spec.parent,
                 spec.privileged,
+                settings,
             )
 
     except StatusCodeError as e:
@@ -707,7 +730,7 @@ def fetch_data(
     state_specs = ob.init_specs_to_fetch(
         ri, oc_map, namespaces=namespaces, override_managed_types=overrides
     )
-    threaded.run(fetch_states, state_specs, thread_pool_size, ri=ri)
+    threaded.run(fetch_states, state_specs, thread_pool_size, ri=ri, settings=settings)
 
     return oc_map, ri
 
