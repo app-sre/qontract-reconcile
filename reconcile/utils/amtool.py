@@ -1,5 +1,4 @@
 import tempfile
-from typing import Mapping
 from subprocess import run, PIPE, CalledProcessError
 
 
@@ -10,40 +9,25 @@ class AmtoolResult:
         self.is_ok = is_ok
         self.message = message
 
-    def __str__(self) -> str:
+    def __str__(self):
         return str(self.message).replace("\n", "")
 
-    def __bool__(self) -> bool:
+    def __bool__(self):
         return self.is_ok
 
 
-def check_config(yaml_config: str) -> AmtoolResult:
+def check_config(yaml_str):
     """Run amtool check rules on the given yaml string"""
-
-    with tempfile.NamedTemporaryFile(mode="w+") as fp:
-        fp.write(yaml_config)
-        fp.flush()
-        cmd = ["amtool", "check-config", fp.name]
-        result = _run_cmd(cmd)
-
-    return result
+    return _run_yaml_str_cmd(cmd=["amtool", "check-config"], yaml_str=yaml_str)
 
 
-def config_routes_test(yaml_config: str, labels: Mapping[str, str]) -> AmtoolResult:
-    labels_lst = [f"{key}={value}" for key, value in labels.items()]
-    with tempfile.NamedTemporaryFile(mode="w+") as fp:
-        fp.write(yaml_config)
-        fp.flush()
-        cmd = ["amtool", "config", "routes", "test", "--config.file", fp.name]
-        cmd.extend(labels_lst)
-        result = _run_cmd(cmd)
-
-    return result
-
-
-def _run_cmd(cmd: list[str]) -> AmtoolResult:
+def _run_yaml_str_cmd(cmd, yaml_str):
     try:
-        result = run(cmd, stdout=PIPE, stderr=PIPE, check=True)
+        with tempfile.NamedTemporaryFile(mode="w+") as fp:
+            fp.write(yaml_str)
+            fp.flush()
+            cmd.append(fp.name)
+            result = run(cmd, stdout=PIPE, stderr=PIPE, check=True)
     except CalledProcessError as e:
         msg = f'Error running amtool command [{" ".join(cmd)}]'
         if e.stdout:
