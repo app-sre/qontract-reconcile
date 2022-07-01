@@ -4631,7 +4631,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         cognito_pre_signup_lambda_permission_resource = aws_lambda_permission(
             "cognito_pre_signup_permission",
             action="lambda:InvokeFunction",
-            function_name=f"${{{cognito_pre_signup_lambda_resource.function_name}}}",
+            function_name=cognito_pre_signup_lambda_resource.function_name,
             source_arn=f"${{{cognito_user_pool_resource.arn}}}",
             principal="cognito-idp.amazonaws.com",
         )
@@ -4828,7 +4828,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         api_gateway_method_proxy_any_response_resource = (
             aws_api_gateway_method_response(
                 "gw_method_proxy_any_response",
-                http_method=f"${{{api_gateway_method_proxy_any_resource.http_method}}}",
+                http_method=api_gateway_method_proxy_any_resource.http_method,
                 resource_id=f"${{{api_gateway_proxy_resource.id}}}",
                 rest_api_id=f"${{{api_gateway_rest_api_resource.id}}}",
                 **gateway_method_get_response_args,
@@ -4849,7 +4849,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         api_gateway_method_token_get_response_resource = (
             aws_api_gateway_method_response(
                 "gw_method_token_get_response",
-                http_method=f"${{{api_gateway_method_token_get_resource.http_method}}}",
+                http_method=api_gateway_method_token_get_resource.http_method,
                 resource_id=f"${{{api_gateway_token_resource.id}}}",
                 rest_api_id=f"${{{api_gateway_rest_api_resource.id}}}",
                 **gateway_method_get_response_args,
@@ -4869,7 +4869,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         # GET AUTH RESPONSE
         api_gateway_method_auth_get_response_resource = aws_api_gateway_method_response(
             "gw_method_auth_get_response",
-            http_method=f"${{{api_gateway_method_auth_get_resource.http_method}}}",
+            http_method=api_gateway_method_auth_get_resource.http_method,
             resource_id=f"${{{api_gateway_auth_resource.id}}}",
             rest_api_id=f"${{{api_gateway_rest_api_resource.id}}}",
             **gateway_method_auth_get_response_args,
@@ -4889,7 +4889,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             "gw_integration_proxy",
             rest_api_id=f"${{{api_gateway_rest_api_resource.id}}}",
             resource_id=f"${{{api_gateway_proxy_resource.id}}}",
-            http_method=f"{{{api_gateway_method_proxy_any_response_resource.http_method}}}",
+            http_method=api_gateway_method_proxy_any_response_resource.http_method,
             connection_id=f"${{{api_gateway_vpc_link_resource.id}}}",
             uri=f'{common_values.get("api_proxy_uri")}/api/{{proxy}}',
             **integration_proxy_args,
@@ -4901,7 +4901,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             "gw_integration_token",
             rest_api_id=f"${{{api_gateway_rest_api_resource.id}}}",
             resource_id=f"${{{api_gateway_token_resource.id}}}",
-            http_method=f"${{{api_gateway_method_token_get_resource.http_method}}}",
+            http_method=api_gateway_method_token_get_resource.http_method,
             connection_id=f"${{{api_gateway_vpc_link_resource.id}}}",
             uri=f"{bucket_url}/token.html",
             **integration_token_args,
@@ -4913,30 +4913,34 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             "gw_integration_auth",
             rest_api_id=f"${{{api_gateway_rest_api_resource.id}}}",
             resource_id=f"${{{api_gateway_auth_resource.id}}}",
-            http_method=f"${{{api_gateway_method_auth_get_resource.http_method}}}",
+            http_method=api_gateway_method_auth_get_resource.http_method,
             **integration_auth_args,
         )
         tf_resources.append(api_gateway_integration_auth_resource)
 
         # PROXY
-        api_gateway_integration_proxy_response_resource = aws_api_gateway_integration_response(
-            "gw_integration_response_proxy",
-            rest_api_id=f"${{{api_gateway_rest_api_resource.id}}}",
-            resource_id=f"${{{api_gateway_proxy_resource.id}}}",
-            http_method=f"${{{api_gateway_method_proxy_any_resource.http_method}}}",
-            status_code=f"${{{api_gateway_method_token_get_response_resource.status_code}}}",
-            depends_on=["aws_api_gateway_integration.gw_integration_token"],
+        api_gateway_integration_proxy_response_resource = (
+            aws_api_gateway_integration_response(
+                "gw_integration_response_proxy",
+                rest_api_id=f"${{{api_gateway_rest_api_resource.id}}}",
+                resource_id=f"${{{api_gateway_proxy_resource.id}}}",
+                http_method=api_gateway_method_proxy_any_resource.http_method,
+                status_code=api_gateway_method_token_get_response_resource.status_code,
+                depends_on=["aws_api_gateway_integration.gw_integration_token"],
+            )
         )
         tf_resources.append(api_gateway_integration_proxy_response_resource)
 
         # TOKEN
-        api_gateway_integration_token_response_resource = aws_api_gateway_integration_response(
-            "gw_integration_response_token",
-            rest_api_id=f"${{{api_gateway_rest_api_resource.id}}}",
-            resource_id=f"${{{api_gateway_token_resource.id}}}",
-            http_method=f"${{{api_gateway_method_token_get_resource.http_method}}}",
-            status_code=f"${{{api_gateway_method_token_get_response_resource.status_code}}}",
-            depends_on=["aws_api_gateway_integration.gw_integration_token"],
+        api_gateway_integration_token_response_resource = (
+            aws_api_gateway_integration_response(
+                "gw_integration_response_token",
+                rest_api_id=f"${{{api_gateway_rest_api_resource.id}}}",
+                resource_id=f"${{{api_gateway_token_resource.id}}}",
+                http_method=api_gateway_method_token_get_resource.http_method,
+                status_code=api_gateway_method_token_get_response_resource.status_code,
+                depends_on=["aws_api_gateway_integration.gw_integration_token"],
+            )
         )
         tf_resources.append(api_gateway_integration_token_response_resource)
 
@@ -4945,8 +4949,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             "gw_integration_response_auth",
             rest_api_id=f"${{{api_gateway_rest_api_resource.id}}}",
             resource_id=f"${{{api_gateway_auth_resource.id}}}",
-            http_method=f"${{{api_gateway_method_auth_get_resource.http_method}}}",
-            status_code=f"${{{api_gateway_method_auth_get_response_resource.status_code}}}",
+            http_method=api_gateway_method_auth_get_resource.http_method,
+            status_code=api_gateway_method_auth_get_response_resource.status_code,
             response_parameters={
                 "method.response.header.Location": f"{user_pool_url}/oauth2/authorize?client_id="
                 f"${{{cognito_user_pool_client.id}}}\u0026response_type=code"
