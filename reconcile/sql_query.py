@@ -235,14 +235,14 @@ def collect_queries(
             )
             sys.exit(ExitCodes.ERROR)
 
-        sql_queries = []
+        _queries = []
         if sql_query["query"] is not None:
-            sql_queries.append(sql_query["query"])
+            _queries.append(sql_query["query"])
 
         if sql_query["queries"] is not None:
-            sql_queries.extend(sql_query["queries"])
+            _queries.extend(sql_query["queries"])
 
-        sql_queries = [item.replace("'", "''") for item in sql_queries]
+        _queries = [item.replace("'", "''") for item in _queries]
 
         # building up the final query dictionary
         item = {
@@ -251,7 +251,7 @@ def collect_queries(
             "identifier": sql_query["identifier"],
             "db_conn": db_conn,
             "output": output,
-            "queries": sql_queries,
+            "queries": _queries,
             **tf_resource_info,
         }
 
