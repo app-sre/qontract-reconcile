@@ -569,7 +569,7 @@ class OCM:  # pylint: disable=too-many-public-methods
             return None
 
         api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/" + f"groups/{group_id}/users"
-        users = self._get_json(api)["items"]
+        users = self._get_json(api).get("items", [])
         return {"users": [u["id"] for u in users]}
 
     def add_user_to_group(self, cluster, group_id, user):
