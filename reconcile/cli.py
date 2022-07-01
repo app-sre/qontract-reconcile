@@ -120,7 +120,10 @@ import reconcile.vpc_peerings_validator
 from reconcile.status import ExitCodes
 from reconcile.status import RunningState
 
-from reconcile.utils.gql import GqlApiErrorForbiddenSchema, GqlApiIntegrationNotFound
+from reconcile.utils.gql import (
+    GqlApiErrorForbiddenSchema,
+    GqlApiIntegrationNotFound,
+)
 from reconcile.utils.aggregated_list import RunnerException
 from reconcile.utils.binary import binary, binary_version
 from reconcile.utils.environ import environ

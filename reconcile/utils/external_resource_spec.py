@@ -10,6 +10,7 @@ from reconcile.utils.openshift_resource import (
     build_secret,
     SECRET_MAX_KEY_LENGTH,
 )
+
 from reconcile import openshift_resources_base
 
 
@@ -179,4 +180,6 @@ class ExternalResourceUniqueKey:
         )
 
 
-ExternalResourceSpecInventory = Mapping[ExternalResourceUniqueKey, ExternalResourceSpec]
+ExternalResourceSpecInventory = MutableMapping[
+    ExternalResourceUniqueKey, ExternalResourceSpec
+]
