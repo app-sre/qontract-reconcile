@@ -4919,28 +4919,24 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         tf_resources.append(api_gateway_integration_auth_resource)
 
         # PROXY
-        api_gateway_integration_proxy_response_resource = (
-            aws_api_gateway_integration_response(
-                "gw_integration_response_proxy",
-                rest_api_id=f"${{{api_gateway_rest_api_resource.id}}}",
-                resource_id=f"${{{api_gateway_proxy_resource.id}}}",
-                http_method=f"${{{api_gateway_method_proxy_any_resource.http_method}}}",
-                status_code=f"${{{api_gateway_method_token_get_response_resource.status_code}}}",
-                depends_on=["aws_api_gateway_integration.gw_integration_token"],
-            )
+        api_gateway_integration_proxy_response_resource = aws_api_gateway_integration_response(
+            "gw_integration_response_proxy",
+            rest_api_id=f"${{{api_gateway_rest_api_resource.id}}}",
+            resource_id=f"${{{api_gateway_proxy_resource.id}}}",
+            http_method=f"${{{api_gateway_method_proxy_any_resource.http_method}}}",
+            status_code=f"${{{api_gateway_method_token_get_response_resource.status_code}}}",
+            depends_on=["aws_api_gateway_integration.gw_integration_token"],
         )
         tf_resources.append(api_gateway_integration_proxy_response_resource)
 
         # TOKEN
-        api_gateway_integration_token_response_resource = (
-            aws_api_gateway_integration_response(
-                "gw_integration_response_token",
-                rest_api_id=f"${{{api_gateway_rest_api_resource.id}}}",
-                resource_id=f"${{{api_gateway_token_resource.id}}}",
-                http_method=f"${{{api_gateway_method_token_get_resource.http_method}}}",
-                status_code=f"${{{api_gateway_method_token_get_response_resource.status_code}}}",
-                depends_on=["aws_api_gateway_integration.gw_integration_token"],
-            )
+        api_gateway_integration_token_response_resource = aws_api_gateway_integration_response(
+            "gw_integration_response_token",
+            rest_api_id=f"${{{api_gateway_rest_api_resource.id}}}",
+            resource_id=f"${{{api_gateway_token_resource.id}}}",
+            http_method=f"${{{api_gateway_method_token_get_resource.http_method}}}",
+            status_code=f"${{{api_gateway_method_token_get_response_resource.status_code}}}",
+            depends_on=["aws_api_gateway_integration.gw_integration_token"],
         )
         tf_resources.append(api_gateway_integration_token_response_resource)
 
