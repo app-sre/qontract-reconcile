@@ -4818,7 +4818,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             "gw_method_proxy_any",
             rest_api_id=f"${{{api_gateway_rest_api_resource.id}}}",
             resource_id=f"${{{api_gateway_proxy_resource.id}}}",
-            authorizer_id=f"{{{api_gateway_authorizer_resource.id}}}",
+            authorizer_id="${aws_api_gateway_authorizer.gw_authorizer.id}",
             **gateway_method_proxy_any_args,
         )
         tf_resources.append(api_gateway_method_proxy_any_resource)
