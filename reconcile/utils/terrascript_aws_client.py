@@ -4952,10 +4952,10 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             http_method="${aws_api_gateway_method.gw_method_auth_get.http_method}",
             status_code=api_gateway_method_auth_get_response_resource.status_code,
             response_parameters={
-                "method.response.header.Location": f"{user_pool_url}/oauth2/authorize?client_id="
+                "method.response.header.Location": f"'{user_pool_url}/oauth2/authorize?client_id="
                 f"${{{cognito_user_pool_client.id}}}\u0026response_type=code"
                 f"\u0026scope=openid+gateway/AccessToken\u0026redirect_uri={bucket_url}/"
-                "token.html",
+                "token.html'",
             },
             depends_on=["aws_api_gateway_integration.gw_integration_auth"],
         )
