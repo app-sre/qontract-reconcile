@@ -4807,7 +4807,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         api_gateway_authorizer_resource = aws_api_gateway_authorizer(
             "gw_authorizer",
             name=f"ocm-{identifier}-authorizer",
-            rest_api_id=f"${{{api_gateway_rest_api_resource.id}}}",
+            rest_api_id="${aws_api_gateway_rest_api.gw_api.id}",
             provider_arns=["${aws_cognito_user_pool.pool.arn}"],
             **gateway_authorizer_args,
         )
@@ -4816,9 +4816,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         # ANY METHOD
         api_gateway_method_proxy_any_resource = aws_api_gateway_method(
             "gw_method_proxy_any",
-            rest_api_id=f"${{{api_gateway_rest_api_resource.id}}}",
-            resource_id=f"${{{api_gateway_proxy_resource.id}}}",
-            authorizer_id=f"{{{api_gateway_authorizer_resource.id}}}",
+            rest_api_id="${aws_api_gateway_rest_api.gw_api.id}",
+            resource_id="${aws_api_gateway_resource.gw_resource_proxy.id}",
+            authorizer_id="${aws_api_gateway_authorizer.gw_authorizer.id}",
             **gateway_method_proxy_any_args,
         )
         tf_resources.append(api_gateway_method_proxy_any_resource)
