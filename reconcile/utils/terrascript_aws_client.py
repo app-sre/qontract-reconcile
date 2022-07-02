@@ -4808,7 +4808,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             "gw_authorizer",
             name=f"ocm-{identifier}-authorizer",
             rest_api_id=f"${{{api_gateway_rest_api_resource.id}}}",
-            provider_arns=[f"${{{cognito_user_pool_resource.arn}}}"],
+            provider_arns=["${aws_cognito_user_pool.pool.arn}"],
             **gateway_authorizer_args,
         )
         tf_resources.append(api_gateway_authorizer_resource)
@@ -5001,8 +5001,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         waf_acl_association_resource = aws_wafv2_web_acl_association(
             "api_waf_association",
-            resource_arn=f"${{{api_gateway_stage_resource.arn}}}",
-            web_acl_arn=f"${{{waf_acl_resource.arn}}}",
+            resource_arn="${aws_api_gateway_stage.gw_stage.arn}",
+            web_acl_arn="${aws_wafv2_web_acl.api_waf.arn}",
         )
         tf_resources.append(waf_acl_association_resource)
 
