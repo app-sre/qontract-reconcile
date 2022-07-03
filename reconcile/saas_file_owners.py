@@ -327,10 +327,13 @@ def run(
     )
     comment_lines = {}
     hold = False
+    changed_paths_copy = changed_paths.copy()
     for diff in diffs:
         # check if this diff was actually changed in the current MR
         saas_file_path = diff["saas_file_path"]
-        changed_path_matches = [c for c in changed_paths if c.endswith(saas_file_path)]
+        changed_path_matches = [
+            c for c in changed_paths_copy if c.endswith(saas_file_path)
+        ]
         if not changed_path_matches:
             # this diff was found in the graphql endpoint comparison
             # but is not a part of the changed paths.
