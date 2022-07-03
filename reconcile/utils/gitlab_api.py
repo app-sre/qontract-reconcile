@@ -293,14 +293,11 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         for note in merge_request.notes.list(all=True):
             if note.system:
                 continue
-            username = note.author["username"]
-            body = note.body
-            created_at = note.created_at
             comments.append(
                 {
-                    "username": username,
-                    "body": body,
-                    "created_at": created_at,
+                    "username": note.author["username"],
+                    "body": note.body,
+                    "created_at": note.created_at,
                     "id": note.id,
                 }
             )
