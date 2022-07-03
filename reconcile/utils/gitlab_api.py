@@ -290,7 +290,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
             changed_paths.add(new_path)
         return list(changed_paths)
 
-    def get_merge_request_comments(self, mr_id, include_description=False):
+    def get_merge_request_comments(self, mr_id: int, include_description: bool = False):
         comments = []
         merge_request = self.project.mergerequests.get(mr_id)
         if include_description:
