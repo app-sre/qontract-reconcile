@@ -37,14 +37,17 @@ def collect_owners():
         if not owner_roles:
             continue
         for owner_role in owner_roles:
-            owner_users = owner_role.get("users")
-            if not owner_users:
-                continue
+            owner_users = owner_role.get("users") or []
             for owner_user in owner_users:
                 owner_username = owner_user["org_username"]
                 if owner_user.get("tag_on_merge_requests"):
                     owner_username = f"@{owner_username}"
                 owners[saas_file_name].add(owner_username)
+            owner_bots = owner_role.get("bots") or []
+            for bot in owner_bots:
+                bot_org_username = bot.get("org_username")
+                if bot_org_username:
+                    owners[saas_file_name].add(bot_org_username)
 
     # make owners suitable for json dump
     ans = {}
