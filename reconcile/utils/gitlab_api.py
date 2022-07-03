@@ -14,6 +14,9 @@ from reconcile.utils.secret_reader import SecretReader
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
+MR_DESCRIPTION_COMMENT_ID = 0
+
+
 class MRState:
     """
     Data class to help users selecting the correct Merge Request state.
@@ -287,9 +290,18 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
             changed_paths.add(new_path)
         return list(changed_paths)
 
-    def get_merge_request_comments(self, mr_id):
+    def get_merge_request_comments(self, mr_id, include_description=False):
         comments = []
         merge_request = self.project.mergerequests.get(mr_id)
+        if include_description:
+            comments.append(
+                {
+                    "username": merge_request.author["username"],
+                    "body": merge_request.description,
+                    "created_at": merge_request.created_at,
+                    "id": MR_DESCRIPTION_COMMENT_ID,
+                }
+            )
         for note in merge_request.notes.list(all=True):
             if note.system:
                 continue
