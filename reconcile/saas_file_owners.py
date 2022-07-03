@@ -322,7 +322,9 @@ def run(
         gl.remove_label_from_merge_request(gitlab_merge_request_id, APPROVED)
         return
 
-    comments = gl.get_merge_request_comments(gitlab_merge_request_id)
+    comments = gl.get_merge_request_comments(
+        gitlab_merge_request_id, include_description=True
+    )
     comment_lines = {}
     hold = False
     for diff in diffs:
