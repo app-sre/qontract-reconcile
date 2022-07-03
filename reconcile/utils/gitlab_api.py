@@ -1,4 +1,5 @@
 import logging
+from typing import Any
 
 from urllib.parse import urlparse
 from sretoolbox.utils import retry
@@ -12,6 +13,9 @@ from reconcile.utils.secret_reader import SecretReader
 # The following line will suppress
 # `InsecureRequestWarning: Unverified HTTPS request is being made`
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+
+MR_DESCRIPTION_COMMENT_ID = 0
 
 
 class MRState:
@@ -287,20 +291,28 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
             changed_paths.add(new_path)
         return list(changed_paths)
 
-    def get_merge_request_comments(self, mr_id):
+    def get_merge_request_comments(
+        self, mr_id: int, include_description: bool = False
+    ) -> list[dict[str, Any]]:
         comments = []
         merge_request = self.project.mergerequests.get(mr_id)
+        if include_description:
+            comments.append(
+                {
+                    "username": merge_request.author["username"],
+                    "body": merge_request.description,
+                    "created_at": merge_request.created_at,
+                    "id": MR_DESCRIPTION_COMMENT_ID,
+                }
+            )
         for note in merge_request.notes.list(all=True):
             if note.system:
                 continue
-            username = note.author["username"]
-            body = note.body
-            created_at = note.created_at
             comments.append(
                 {
-                    "username": username,
-                    "body": body,
-                    "created_at": created_at,
+                    "username": note.author["username"],
+                    "body": note.body,
+                    "created_at": note.created_at,
                     "id": note.id,
                 }
             )
