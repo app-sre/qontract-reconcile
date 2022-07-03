@@ -4904,7 +4904,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             resource_id=f"${{{api_gateway_token_resource.id}}}",
             http_method="${aws_api_gateway_method.gw_method_token_get.http_method}",
             integration_http_method="${aws_api_gateway_method.gw_method_token_get.http_method}",
-            connection_id=f"${{{api_gateway_vpc_link_resource.id}}}",
             uri=f"{bucket_url}/token.html",
             **integration_token_args,
         )
