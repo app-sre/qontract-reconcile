@@ -1,4 +1,5 @@
 import logging
+from typing import Any
 
 from urllib.parse import urlparse
 from sretoolbox.utils import retry
@@ -290,7 +291,9 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
             changed_paths.add(new_path)
         return list(changed_paths)
 
-    def get_merge_request_comments(self, mr_id: int, include_description: bool = False):
+    def get_merge_request_comments(
+        self, mr_id: int, include_description: bool = False
+    ) -> list[dict[str, Any]]:
         comments = []
         merge_request = self.project.mergerequests.get(mr_id)
         if include_description:
