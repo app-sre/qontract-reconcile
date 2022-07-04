@@ -454,24 +454,24 @@ def openshift_delete(
     oc_map: OC_Map,
     cluster: str,
     namespace: str,
-    name: str,
-    resource_type: str,
+    resources: Iterable[OpenshiftResource],
     enable_deletion: bool,
 ) -> None:
-    try:
-        openshift_base.delete(
-            dry_run=dry_run,
-            oc_map=oc_map,
-            cluster=cluster,
-            namespace=namespace,
-            resource_type=resource_type,
-            name=name,
-            enable_deletion=enable_deletion,
-        )
-    except StatusCodeError:
-        LOG.exception(
-            f"Error removing ['{cluster}' '{namespace}' '{resource_type}' '{name}']"
-        )
+    for resource in resources:
+        try:
+            openshift_base.delete(
+                dry_run=dry_run,
+                oc_map=oc_map,
+                cluster=cluster,
+                namespace=namespace,
+                resource_type=resource.kind,
+                name=resource.name,
+                enable_deletion=enable_deletion,
+            )
+        except StatusCodeError:
+            LOG.exception(
+                f"Error removing ['{cluster}' '{namespace}' '{resource.kind}' '{resource.name}']"
+            )
 
 
 def run(dry_run: bool, enable_deletion: bool = False) -> None:
@@ -582,16 +582,14 @@ def run(dry_run: bool, enable_deletion: bool = False) -> None:
             internal=None,
         )
         if cleanup:
-            for resource in openshift_resources:
-                openshift_delete(
-                    dry_run=dry_run,
-                    oc_map=oc_map,
-                    cluster=query["cluster"],
-                    namespace=query["namespace"]["name"],
-                    name=resource.name,
-                    resource_type=resource.kind,
-                    enable_deletion=enable_deletion,
-                )
+            openshift_delete(
+                dry_run=dry_run,
+                oc_map=oc_map,
+                cluster=query["cluster"],
+                namespace=query["namespace"]["name"],
+                resources=openshift_resources,
+                enable_deletion=enable_deletion,
+            )
             if not dry_run and enable_deletion:
                 state[query_name] = "DONE"
         else:
