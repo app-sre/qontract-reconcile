@@ -124,10 +124,10 @@ class ResourceValueResolver:
 
     @staticmethod
     def _get_raw_values(path):
-        gqlapi = gql_client.get_api()
+        gqlapi = gql.get_api()
         try:
             raw_values = gqlapi.get_resource(path)
-        except gql_client.GqlGetResourceError as e:
+        except gql.GqlGetResourceError as e:
             raise FetchResourceError(str(e))
         return raw_values
 

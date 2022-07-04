@@ -6,13 +6,12 @@ from typing import Iterable, Optional
 
 from terrascript import Terrascript, Backend, Terraform, Resource
 from terrascript import provider
-from terrascript.resource import cloudflare_zone, cloudflare_zone_settings_override
 
 from reconcile.utils.external_resource_spec import (
     ExternalResourceSpec,
     ExternalResourceSpecInventory,
 )
-from reconcile.utils.external_resources import ResourceValueResolver
+from reconcile.utils.terrascript.cloudflare_resources import _CloudflareZoneResource
 
 TMP_DIR_PREFIX = "terrascript-cloudflare-"
 
@@ -153,44 +152,6 @@ class TerrascriptCloudflareClientCollection:
 
     def dump(self):
         pass
-
-
-class _CloudflareResource(ABC):
-    """Early proposal, might decide to change method names"""
-
-    def __init__(self, spec: ExternalResourceSpec):
-        self._spec = spec
-
-    @abstractmethod
-    def populate(self):
-        ...
-
-
-class _CloudflareZoneResource(_CloudflareResource):
-    """
-    Translate from the cloudflare_zone provider ExternalResourceSpec to resulting
-    Terrascript resource objects.
-    """
-
-    def populate(self):
-
-        values = ResourceValueResolver(self._spec).resolve()
-
-        zone_settings = values.pop("settings", {})
-
-        zone_values = values
-        zone = cloudflare_zone(self._spec.identifier, **zone_values)
-
-        settings_override_values = {
-            "zone_id": f"${{{zone.id}}}",
-            "settings": zone_settings,
-        }
-
-        zone_settings_override = cloudflare_zone_settings_override(
-            self._spec.identifier, **settings_override_values
-        )
-
-        return [zone, zone_settings_override]
 
 
 def main():
