@@ -221,6 +221,35 @@ def get_json_mock():
         yield get_json
 
 
+def test_ocm_spec_none_to_empty_str_using_constructor(ocm_osd_cluster_spec):
+    n = OCMSpec(
+        console_url=None,
+        server_url="server_url",
+        domain="domain",
+        spec=ocm_osd_cluster_spec.spec,
+        network=ocm_osd_cluster_spec.network,
+    )
+    assert n.console_url == ""
+
+
+def test_ocm_spec_none_to_empty_str_using_attribute_assignment(ocm_osd_cluster_spec):
+    n = ocm_osd_cluster_spec
+    # Pydantic should convert None to ""
+    n.console_url = None
+    assert n.console_url == ""
+
+
+def test_populate_fields_by_attr_name(ocm_osd_cluster_spec):
+    n = OCMSpec(
+        console_url="console_url",
+        server_url="server_url",
+        domain="domain",
+        spec=ocm_osd_cluster_spec.spec,
+        network=ocm_osd_cluster_spec.network,
+    )
+    assert n.server_url == "server_url"
+
+
 def test_ocm_spec_population_rosa(rosa_cluster_fxt):
     n = OCMSpec(**rosa_cluster_fxt)
     assert isinstance(n.spec, ROSAClusterSpec)

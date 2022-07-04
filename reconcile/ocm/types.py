@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, Extra
+from pydantic import BaseModel, Field, Extra, validator
 from typing import Optional, Union
 
 
@@ -57,3 +57,9 @@ class OCMSpec(BaseModel):
         smart_union = True
         # This is need to populate by either console_url or consoleUrl, for instance
         allow_population_by_field_name = True
+        validate_assignment = True
+
+    @validator("server_url", "console_url", "elb_fqdn", pre=True, always=True)
+    @classmethod
+    def none_to_empty_str(cls, _str):
+        return _str or ""
