@@ -1,5 +1,6 @@
 import os
 import tempfile
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Iterable, Optional
 
@@ -65,7 +66,27 @@ def create_terrascript_cloudflare(
     return terrascript
 
 
-class TerrascriptCloudflareClient:
+class TerraformClient(ABC):
+    """Early proposal, might decide to change dump() signature"""
+
+    @abstractmethod
+    def add_specs(self, specs: Iterable[ExternalResourceSpec]):
+        ...
+
+    @abstractmethod
+    def populate_resources(self):
+        ...
+
+    @abstractmethod
+    def dump(self, print_to_file: Optional[str] = None, existing_dirs: Optional[dict[str, str]] = None):
+        ...
+
+    @abstractmethod
+    def dumps(self):
+        ...
+
+
+class TerrascriptCloudflareClient(TerraformClient):
     """
     Build the Terrascript configuration, collect resources, and return Terraform JSON
     configuration
@@ -78,10 +99,6 @@ class TerrascriptCloudflareClient:
         self._terrascript = ts_client
         self._resource_specs: ExternalResourceSpecInventory = {}
         self._resource_classes = {"cloudflare_zone": _CloudflareZoneResource}
-
-    def add_resources(self, tf_resources: Resource):
-        for resource in tf_resources:
-            self._terrascript.add(resource)
 
     def add_specs(self, specs: Iterable[ExternalResourceSpec]) -> None:
         for spec in specs:
@@ -96,9 +113,9 @@ class TerrascriptCloudflareClient:
             resource_class = self._resource_classes[spec.provision_provider]
             resource = resource_class(spec)
             resources_to_add = resource.populate()
-            self.add_resources(resources_to_add)
+            self._add_resources(resources_to_add)
 
-    def dump(self, existing_dir: Optional[str] = None):
+    def dump(self, print_to_file: Optional[str] = None, existing_dir: Optional[str] = None):
         """Write the Terraform JSON representation of the resources to disk"""
         if existing_dir is None:
             temp_dir = tempfile.mkdtemp(prefix=TMP_DIR_PREFIX)
@@ -110,6 +127,10 @@ class TerrascriptCloudflareClient:
     def dumps(self) -> str:
         """Return the Terraform JSON representation of the resources"""
         return str(self._terrascript)
+
+    def _add_resources(self, tf_resources: Resource):
+        for resource in tf_resources:
+            self._terrascript.add(resource)
 
 
 class TerrascriptCloudflareClientCollection:
@@ -134,14 +155,22 @@ class TerrascriptCloudflareClientCollection:
         pass
 
 
-class _CloudflareZoneResource:
+class _CloudflareResource(ABC):
+    """Early proposal, might decide to change method names"""
+
+    def __init__(self, spec: ExternalResourceSpec):
+        self._spec = spec
+
+    @abstractmethod
+    def populate(self):
+        ...
+
+
+class _CloudflareZoneResource(_CloudflareResource):
     """
     Translate from the cloudflare_zone provider ExternalResourceSpec to resulting
     Terrascript resource objects.
     """
-
-    def __init__(self, spec: ExternalResourceSpec):
-        self._spec = spec
 
     def populate(self):
 
