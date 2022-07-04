@@ -1,5 +1,7 @@
 from abc import ABC, abstractmethod
+from collections.abc import Iterable
 
+import terrascript
 from terrascript.resource import cloudflare_zone, cloudflare_zone_settings_override
 
 from reconcile.utils.external_resource_spec import ExternalResourceSpec
@@ -13,7 +15,7 @@ class _CloudflareResource(ABC):
         self._spec = spec
 
     @abstractmethod
-    def populate(self):
+    def populate(self) -> Iterable[terrascript.Resource]:
         ...
 
 
@@ -23,7 +25,7 @@ class _CloudflareZoneResource(_CloudflareResource):
     Terrascript resource objects.
     """
 
-    def populate(self):
+    def populate(self) -> Iterable[terrascript.Resource]:
 
         values = ResourceValueResolver(self._spec).resolve()
 

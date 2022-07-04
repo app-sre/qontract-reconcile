@@ -1,10 +1,9 @@
 import json
 
 import pytest
-from terrascript import Terrascript
 
 from reconcile.utils.external_resource_spec import ExternalResourceSpec
-from reconcile.utils.terrascript_cloudflare_client import (
+from reconcile.utils.terrascript.cloudflare_client import (
     CloudflareAccountConfig,
     S3BackendConfig,
     TerrascriptCloudflareClient,

@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Iterable, Optional
 
-from terrascript import Terrascript, Backend, Terraform, Resource
+from terrascript import Terrascript, Terraform, Resource
 from terrascript import provider
 
 from reconcile.utils.external_resource_spec import (
@@ -35,7 +35,7 @@ class S3BackendConfig:
 
 def create_terrascript_cloudflare(
     account_config: CloudflareAccountConfig, backend_config: S3BackendConfig
-):
+) -> Terrascript:
     terrascript = Terrascript()
 
     terrascript += Terraform(
@@ -51,6 +51,7 @@ def create_terrascript_cloudflare(
         account_id=account_config.account_id,
     )
 
+    """
     backend = Backend(
         "s3",
         access_key=backend_config.access_key,
@@ -59,6 +60,7 @@ def create_terrascript_cloudflare(
         key=backend_config.key,
         region=backend_config.region,
     )
+    """
 
     # terrascript += Terraform(backend=backend)
 
@@ -66,22 +68,26 @@ def create_terrascript_cloudflare(
 
 
 class TerraformClient(ABC):
-    """Early proposal, might decide to change dump() signature"""
+    """Early proposal, might decide to change dump() signature."""
 
     @abstractmethod
-    def add_specs(self, specs: Iterable[ExternalResourceSpec]):
+    def add_specs(self, specs: Iterable[ExternalResourceSpec]) -> None:
         ...
 
     @abstractmethod
-    def populate_resources(self):
+    def populate_resources(self) -> None:
         ...
 
     @abstractmethod
-    def dump(self, print_to_file: Optional[str] = None, existing_dirs: Optional[dict[str, str]] = None):
+    def dump(
+        self,
+        print_to_file: Optional[str] = None,
+        existing_dir: Optional[str] = None,
+    ) -> None:
         ...
 
     @abstractmethod
-    def dumps(self):
+    def dumps(self) -> str:
         ...
 
 
@@ -114,7 +120,9 @@ class TerrascriptCloudflareClient(TerraformClient):
             resources_to_add = resource.populate()
             self._add_resources(resources_to_add)
 
-    def dump(self, print_to_file: Optional[str] = None, existing_dir: Optional[str] = None):
+    def dump(
+        self, print_to_file: Optional[str] = None, existing_dir: Optional[str] = None
+    ) -> None:
         """Write the Terraform JSON representation of the resources to disk"""
         if existing_dir is None:
             temp_dir = tempfile.mkdtemp(prefix=TMP_DIR_PREFIX)
@@ -127,7 +135,7 @@ class TerrascriptCloudflareClient(TerraformClient):
         """Return the Terraform JSON representation of the resources"""
         return str(self._terrascript)
 
-    def _add_resources(self, tf_resources: Resource):
+    def _add_resources(self, tf_resources: Resource) -> None:
         for resource in tf_resources:
             self._terrascript.add(resource)
 
