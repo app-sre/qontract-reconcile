@@ -1,6 +1,7 @@
 import sys
 import logging
 from typing import Any, Mapping
+from reconcile.gql_queries.service_dependencies import service_dependencies
 from reconcile.gql_queries.service_dependencies.service_dependencies import (
     AppV1,
     ServiceDependenciesQuery,
@@ -71,17 +72,8 @@ def run(dry_run):
         sys.exit()
 
     gqlapi = gql.get_api()
-
-    # query data and transform into generated types
-    # TODO: this will be a common pattern. We should
-    # have a utils function for this. When we have a 2nd
-    # integration using this, we should consolidate into
-    # a common approach.
-    with open(
-        "reconcile/gql_queries/service_dependencies/service_dependencies.gql"
-    ) as f:
-        apps_query = f.read()
-    apps: dict[Any, Any] = gqlapi.query(apps_query)
+    query_string: str = service_dependencies.query_string()
+    apps: dict[Any, Any] = gqlapi.query(query_string)
     query_data: ServiceDependenciesQuery = ServiceDependenciesQuery(**apps)
 
     error = False

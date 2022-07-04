@@ -11,6 +11,13 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
 )
 
 
+def query_string() -> str:
+    with open(
+        "reconcile/gql_queries/service_dependencies/service_dependencies.gql", "r"
+    ) as f:
+        return f.read()
+
+
 class DependencyV1(BaseModel):
     name: str = Field(..., alias="name")
 
