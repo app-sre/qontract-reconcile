@@ -259,8 +259,14 @@ def calculate_diff(current_state, desired_state, ocm_map, version_history):
             [c] = c
             version = c.get("version")  # may not exist in automatic upgrades
             if version and ocm.version_blocked(version):
+                next_run = c.get("next_run")
+                if next_run and datetime.strptime(next_run, "%Y-%m-%dT%H:%M:%SZ") < now:
+                    logging.warning(
+                        f"[{cluster}] currently upgrading to blocked version '{version}'"
+                    )
+                    continue
                 logging.debug(
-                    f"[{cluster}] found existing upgrade policy "
+                    f"[{cluster}] found planned upgrade policy "
                     + f"with blocked version {version}"
                 )
                 item = {
@@ -272,7 +278,7 @@ def calculate_diff(current_state, desired_state, ocm_map, version_history):
                 diffs.append(item)
             else:
                 logging.debug(
-                    f"[{cluster}] skipping cluster with " + "existing upgrade policy"
+                    f"[{cluster}] skipping cluster with existing upgrade policy"
                 )
                 continue
 
