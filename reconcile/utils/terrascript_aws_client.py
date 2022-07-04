@@ -4358,7 +4358,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             for c in cloudinit_configs:
                 raw = self.get_raw_values(c["content"])
                 content = orb.process_extracurlyjinja2_template(
-                    body=raw["content"], vars=vars
+                    body=raw["content"], vars=vars, settings=self.settings
                 )
                 # https://www.terraform.io/docs/language/expressions/strings.html#escape-sequences
                 content = content.replace("${", "$${")
