@@ -1,2 +1,2 @@
 # TODO we should have this on PyPi
-qenerate @ git+https://github.com/fishi0x01/qenerate.git@023c54bf62b184b7f37a56e6c5ee808b81e1f277
+qenerate @ git+https://github.com/app-sre/qenerate.git@d65a9b3d5175cc85be8a161801462272549db7bc

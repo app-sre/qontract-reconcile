@@ -103,7 +103,7 @@ class AppV1(BaseModel):
 
 
 class ServiceDependenciesQuery(BaseModel):
-    apps_v1: Optional[list[AppV1]] = Field(..., alias="apps")
+    apps: Optional[list[AppV1]] = Field(..., alias="apps")
 
     class Config:
         smart_union = True

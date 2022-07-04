@@ -74,7 +74,9 @@ def run(dry_run):
 
     # query data and transform into generated types
     # TODO: this will be a common pattern. We should
-    # have a utils function for this.
+    # have a utils function for this. When we have a 2nd
+    # integration using this, we should consolidate into
+    # a common approach.
     with open(
         "reconcile/gql_queries/service_dependencies/service_dependencies.gql"
     ) as f:
@@ -83,7 +85,7 @@ def run(dry_run):
     query_data: ServiceDependenciesQuery = ServiceDependenciesQuery(**apps)
 
     error = False
-    for app in query_data.apps_v1 or []:
+    for app in query_data.apps or []:
         app_name = app.name
         app_deps = app.dependencies
         current_deps = [a.name for a in app_deps] if app_deps else []
