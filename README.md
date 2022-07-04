@@ -323,6 +323,15 @@ qontract-server$ make dev
 make dev-reconcile-loop INTEGRATION_NAME=terraform-resources DRY_RUN=--dry-run INTEGRATION_EXTRA_ARGS=--light SLEEP_DURATION_SECS=100
 ```
 
+## Query Classes
+
+We use [qenerate](https://github.com/app-sre/qenerate) to generate data classes for GQL queries. The workflow is:
+
+1. Define your query in a `.gql` file somewhere in `reconcile/gql_queries`.
+2. Have an up-to-date schema available at localhost:4000
+3. `make gql-introspection` gets the type definitions 
+4. `make gql-query-classes` generates the data classes for you code
+
 ## Release
 
 Release version are calculated from git tags of the form X.Y.Z.
