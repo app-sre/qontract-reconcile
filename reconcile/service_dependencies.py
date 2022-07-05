@@ -4,7 +4,7 @@ from typing import Any, Mapping
 from reconcile.gql_queries.service_dependencies import service_dependencies
 from reconcile.gql_queries.service_dependencies.service_dependencies import (
     AppV1,
-    ServiceDependenciesQuery,
+    ServiceDependenciesQueryData,
 )
 
 from reconcile.utils import gql
@@ -72,9 +72,8 @@ def run(dry_run):
         sys.exit()
 
     gqlapi = gql.get_api()
-    query_string: str = service_dependencies.query_string()
-    apps: dict[Any, Any] = gqlapi.query(query_string)
-    query_data: ServiceDependenciesQuery = ServiceDependenciesQuery(**apps)
+    apps: dict[Any, Any] = gqlapi.query(service_dependencies.QUERY)
+    query_data: ServiceDependenciesQueryData = ServiceDependenciesQueryData(**apps)
 
     error = False
     for app in query_data.apps or []:

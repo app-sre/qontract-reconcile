@@ -11,11 +11,44 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
 )
 
 
-def query_string() -> str:
-    with open(
-        "reconcile/gql_queries/service_dependencies/service_dependencies.gql", "r"
-    ) as f:
-        return f.read()
+QUERY: str = """
+# qenerate: plugin=pydantic_v1
+
+query ServiceDependencies {
+  apps: apps_v1 {
+    name
+    dependencies {
+      name
+    }
+    codeComponents {
+      url
+    }
+    jenkinsConfigs {
+      instance {
+        name
+      }
+    }
+    quayRepos {
+      org {
+        name
+        instance {
+          name
+        }
+      }
+    }
+    namespaces {
+      managedExternalResources
+      externalResources {
+        provider
+      }
+      kafkaCluster {
+        name
+      }
+    }
+  }
+}
+
+"""
 
 
 class DependencyV1(BaseModel):
@@ -122,7 +155,7 @@ class AppV1(BaseModel):
         extra = Extra.forbid
 
 
-class ServiceDependenciesQuery(BaseModel):
+class ServiceDependenciesQueryData(BaseModel):
     apps: Optional[list[AppV1]] = Field(..., alias="apps")
 
     class Config:
