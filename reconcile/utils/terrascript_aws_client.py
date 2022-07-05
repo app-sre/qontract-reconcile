@@ -4990,7 +4990,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             "gw_stage",
             deployment_id=f"${{{api_gateway_deployment_resource.id}}}",
             rest_api_id=f"${{{api_gateway_rest_api_resource.id}}}",
-            stage_name="stage",
+            stage_name="api",
         )
         tf_resources.append(api_gateway_stage_resource)
 
