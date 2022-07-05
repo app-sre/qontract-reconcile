@@ -1,22 +1,6 @@
-import os
-
 from setuptools import find_packages, setup
 
 from release import version
-
-
-def package_gql_files(directory):
-    paths = []
-    for (path, _, filenames) in os.walk(directory):
-        for filename in filenames:
-            if filename.endswith('.gql'):
-                paths.append(os.path.join('..', path, filename))
-    return paths
-
-
-gql_files = package_gql_files('reconcile/gql_queries')
-templates = ['templates/*.j2']
-
 
 setup(
     name="qontract-reconcile",
@@ -32,9 +16,7 @@ setup(
     url='https://github.com/app-sre/qontract-reconcile',
 
     packages=find_packages(exclude=('tests',)),
-    package_data={
-        'reconcile': templates + gql_files
-    },
+    package_data={'reconcile': ['templates/*.j2']},
 
     install_requires=[
         "sretoolbox~=1.2",
