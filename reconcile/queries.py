@@ -5,7 +5,7 @@ import itertools
 import shlex
 
 from textwrap import indent
-from typing import Any, Optional
+from typing import Any, Iterator, Optional
 
 from jinja2 import Template
 from pydantic import BaseModel
@@ -14,7 +14,7 @@ from reconcile.utils import gql
 from reconcile.gql_queries.app_interface import app_interface_settings
 
 
-class SchemaProxy:
+class SchemaProxy(dict):
     """
     This proxy class is used to ease transition towards auto
     generated query data classes.
@@ -24,14 +24,30 @@ class SchemaProxy:
     https://gitlab.cee.redhat.com/service/app-interface/-/blob/master/docs/app-sre/design-docs/custom-python-code-generator-for-gql-queries.md#leverage-a-proxy-class
     """
 
-    def __init__(self, data: BaseModel):
+    # pylint: disable=super-init-not-called
+    def __init__(self, data: Optional[BaseModel]):
         self.data = data
-        self.dict_by_alias = data.dict(by_alias=True)
+        if data:
+            self.dict_by_alias = data.dict(by_alias=True)
+        else:
+            self.dict_by_alias = {}
+
+    def __delitem__(self, item):
+        return self.dict_by_alias.__delitem__(item)
+
+    def __iter__(self) -> Iterator:
+        return self.dict_by_alias.__iter__()
+
+    def __len__(self) -> int:
+        return self.dict_by_alias.__len__()
+
+    def __setitem__(self, key, value):
+        return self.dict_by_alias.__setitem__(key, value)
 
     def __getitem__(self, item):
         if hasattr(self.data, item):
             return getattr(self.data, item)
-        return self.dict_by_alias[item]
+        return self.dict_by_alias.__getitem__(item)
 
 
 def get_app_interface_settings() -> SchemaProxy:
@@ -45,7 +61,7 @@ def get_app_interface_settings() -> SchemaProxy:
     if settings:
         # assuming a single settings file for now
         return SchemaProxy(settings[0])
-    return None
+    return SchemaProxy(None)
 
 
 APP_INTERFACE_EMAILS_QUERY = """
