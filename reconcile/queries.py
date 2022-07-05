@@ -8,89 +8,43 @@ from textwrap import indent
 from typing import Any, Optional
 
 from jinja2 import Template
+from pydantic import BaseModel
 
 from reconcile.utils import gql
+from reconcile.gql_queries.app_interface import app_interface_settings
 
 
-APP_INTERFACE_SETTINGS_QUERY = """
-{
-  settings: app_interface_settings_v1 {
-    repoUrl
-    vault
-    kubeBinary
-    mergeRequestGateway
-    saasDeployJobTemplate
-    hashLength
-    smtp {
-      mailAddress
-      timeout
-      credentials {
-        path
-        field
-        version
-        format
-      }
-    }
-    imap {
-      timeout
-      credentials {
-        path
-        field
-        version
-        format
-      }
-    }
-    githubRepoInvites {
-      credentials {
-        path
-        field
-        version
-        format
-      }
-    }
-    ldap {
-      serverUrl
-      baseDn
-    }
-    dependencies {
-      type
-      services {
-        name
-      }
-    }
-    credentials {
-      name
-      secret {
-        path
-        field
-        version
-        format
-      }
-    }
-    sqlQuery {
-      imageRepository
-      pullSecret {
-        path
-        version
-        labels
-        annotations
-        type
-      }
-    }
-    alertingServices
-    endpointMonitoringBlackboxExporterModules
-  }
-}
-"""
+class SchemaProxy:
+    """
+    This proxy class is used to ease transition towards auto
+    generated query data classes.
+
+    Once the migration is done, we can remove this class.
+
+    https://gitlab.cee.redhat.com/service/app-interface/-/blob/master/docs/app-sre/design-docs/custom-python-code-generator-for-gql-queries.md#leverage-a-proxy-class
+    """
+
+    def __init__(self, data: BaseModel):
+        self.data = data
+        self.dict_by_alias = data.dict(by_alias=True)
+
+    def __getitem__(self, item):
+        if hasattr(self.data, item):
+            return getattr(self.data, item)
+        return self.dict_by_alias[item]
 
 
-def get_app_interface_settings():
+def get_app_interface_settings() -> SchemaProxy:
     """Returns App Interface settings"""
     gqlapi = gql.get_api()
-    settings = gqlapi.query(APP_INTERFACE_SETTINGS_QUERY)["settings"]
+    data: dict[Any, Any] = gqlapi.query(app_interface_settings.QUERY)
+    query_data: app_interface_settings.AppInterfaceSettingsQueryData = (
+        app_interface_settings.AppInterfaceSettingsQueryData(**data)
+    )
+    settings = query_data.settings
     if settings:
         # assuming a single settings file for now
-        return settings[0]
+        return SchemaProxy(settings[0])
     return None
 
 
