@@ -147,10 +147,21 @@ def test_resource_specs_with_account_filter(ts):
     assert specs == {ExternalResourceUniqueKey.from_spec(spec): spec}
 
 
-def test_terraform_state(ts):
+expected_result = {
+    "s3": {
+        "access_key": "SOMEKEY123",
+        "secret_key": "somesecretkey",
+        "bucket": "some-bucket",
+        "key": "qontract-reconcile.tfstate",
+        "region": "us-east-1",
+    }
+}
+
+
+def test_terraform_state_when_present(ts):
     account_name = "some-account"
     integration_name = "terraform-resources-wrapper"
-    config_test = {
+    terraform_state_config_test = {
         "aws_access_key_id": "SOMEKEY123",
         "aws_secret_access_key": "somesecretkey",
         "bucket": "some-bucket",
@@ -169,4 +180,42 @@ def test_terraform_state(ts):
             ],
         },
     }
-    assert ts.state_bucket_for_account(integration_name, account_name, config_test)
+    assert (
+        ts.state_bucket_for_account(
+            integration_name, account_name, terraform_state_config_test
+        )
+        == expected_result
+    )
+
+
+terraform_state_config_test_missing = {
+    "aws_access_key_id": "SOMEKEY123",
+    "aws_secret_access_key": "somesecretkey",
+    "bucket": "some-bucket",
+    "key": "qontract-reconcile.tfstate",
+    "region": "us-east-1",
+    "terraform-resources-wrapper_key": "qontract-reconcile.tfstate",
+    "terraformState": None,
+}
+
+
+def test_terraform_state_when_not_present(ts):
+    account_name = "some-account"
+    integration_name = "terraform-resources-wrapper"
+    assert (
+        ts.state_bucket_for_account(
+            integration_name, account_name, terraform_state_config_test_missing
+        )
+        == expected_result
+    )
+
+
+def test_terraform_state_when_not_present_error(ts):
+    account_name = "some-account"
+    integration_name = "not-found-integration"
+    try:
+        ts.state_bucket_for_account(
+            integration_name, account_name, terraform_state_config_test_missing
+        )
+    except ValueError:
+        pass
