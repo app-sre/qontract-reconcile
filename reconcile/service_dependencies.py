@@ -1,54 +1,20 @@
 import sys
 import logging
+from typing import Any, Mapping
+from reconcile.gql_queries.service_dependencies import service_dependencies
+from reconcile.gql_queries.service_dependencies.service_dependencies import (
+    AppV1,
+    ServiceDependenciesQuery,
+)
 
 from reconcile.utils import gql
 from reconcile import queries
-from reconcile.utils.external_resources import (
-    get_provision_providers,
-    managed_external_resources,
-)
 
-
-APPS_QUERY = """
-{
-  apps: apps_v1 {
-    name
-    dependencies {
-      name
-    }
-    codeComponents {
-      url
-    }
-    jenkinsConfigs {
-      instance {
-        name
-      }
-    }
-    quayRepos {
-      org {
-        name
-        instance {
-          name
-        }
-      }
-    }
-    namespaces {
-      managedExternalResources
-      externalResources {
-        provider
-      }
-      kafkaCluster {
-        name
-      }
-    }
-  }
-}
-"""
 
 QONTRACT_INTEGRATION = "service-dependencies"
 
 
-def get_dependency_names(dependency_map, dep_type):
+def get_dependency_names(dependency_map: Mapping[Any, Any], dep_type: str) -> list[str]:
     dep_names = []
     for dm in dependency_map:
         if dm["type"] != dep_type:
@@ -58,36 +24,41 @@ def get_dependency_names(dependency_map, dep_type):
     return dep_names
 
 
-def get_desired_dependency_names(app, dependency_map):
+def get_desired_dependency_names(
+    app: AppV1, dependency_map: Mapping[Any, Any]
+) -> set[str]:
     required_dep_names = set()
 
-    code_components = app.get("codeComponents")
+    code_components = app.code_components
     if code_components:
-        gitlab_urls = [cc for cc in code_components if "gitlab" in cc["url"]]
+        gitlab_urls = [cc for cc in code_components if "gitlab" in cc.url]
         if gitlab_urls:
             required_dep_names.update(get_dependency_names(dependency_map, "gitlab"))
-        github_urls = [cc for cc in code_components if "github.com" in cc["url"]]
+        github_urls = [cc for cc in code_components if "github.com" in cc.url]
         if github_urls:
             required_dep_names.update(get_dependency_names(dependency_map, "github"))
 
-    jenkins_configs = app.get("jenkinsConfigs")
+    jenkins_configs = app.jenkins_configs
     if jenkins_configs:
-        instances = {jc["instance"]["name"] for jc in jenkins_configs}
+        instances = {jc.instance.name for jc in jenkins_configs}
         for instance in instances:
             required_dep_names.update(get_dependency_names(dependency_map, instance))
 
-    quay_repos = app.get("quayRepos")
+    quay_repos = app.quay_repos
     if quay_repos:
         required_dep_names.update(get_dependency_names(dependency_map, "quay"))
 
-    namespaces = app.get("namespaces")
+    namespaces = app.namespaces
     if namespaces:
         required_dep_names.update(get_dependency_names(dependency_map, "openshift"))
-        er_namespaces = [n for n in namespaces if managed_external_resources(n)]
+        er_namespaces = [n for n in namespaces if n.managed_external_resources]
         for ern in er_namespaces:
-            for p in get_provision_providers(ern):
+            providers: set[str] = set()
+            if ern.managed_external_resources and ern.external_resources:
+                providers = {res.provider for res in ern.external_resources}
+            for p in providers:
                 required_dep_names.update(get_dependency_names(dependency_map, p))
-        kafka_namespaces = [n for n in namespaces if n.get("kafkaCluster")]
+        kafka_namespaces = [n for n in namespaces if n.kafka_cluster]
         if kafka_namespaces:
             required_dep_names.update(get_dependency_names(dependency_map, "kafka"))
 
@@ -101,12 +72,15 @@ def run(dry_run):
         sys.exit()
 
     gqlapi = gql.get_api()
-    apps = gqlapi.query(APPS_QUERY)["apps"]
+    query_string: str = service_dependencies.query_string()
+    apps: dict[Any, Any] = gqlapi.query(query_string)
+    query_data: ServiceDependenciesQuery = ServiceDependenciesQuery(**apps)
+
     error = False
-    for app in apps:
-        app_name = app["name"]
-        app_deps = app.get("dependencies")
-        current_deps = [a["name"] for a in app_deps] if app_deps else []
+    for app in query_data.apps or []:
+        app_name = app.name
+        app_deps = app.dependencies
+        current_deps = [a.name for a in app_deps] if app_deps else []
         desired_deps = get_desired_dependency_names(app, dependency_map)
 
         missing_deps = list(desired_deps.difference(current_deps))

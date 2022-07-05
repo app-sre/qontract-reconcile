@@ -1,0 +1,35 @@
+# qenerate: plugin=pydantic_v1
+
+query ServiceDependencies {
+  apps: apps_v1 {
+    name
+    dependencies {
+      name
+    }
+    codeComponents {
+      url
+    }
+    jenkinsConfigs {
+      instance {
+        name
+      }
+    }
+    quayRepos {
+      org {
+        name
+        instance {
+          name
+        }
+      }
+    }
+    namespaces {
+      managedExternalResources
+      externalResources {
+        provider
+      }
+      kafkaCluster {
+        name
+      }
+    }
+  }
+}

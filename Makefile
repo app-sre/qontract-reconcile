@@ -6,6 +6,7 @@ IMAGE_TEST := reconcile-test
 
 IMAGE_NAME := quay.io/app-sre/qontract-reconcile
 IMAGE_TAG := $(shell git rev-parse --short=7 HEAD)
+VENV_CMD := . venv/bin/activate &&
 
 ifneq (,$(wildcard $(CURDIR)/.docker))
 	DOCKER_CONF := $(CURDIR)/.docker
@@ -79,12 +80,21 @@ clean:
 
 dev-venv: clean ## Create a local venv for your IDE and remote debugging
 	python3.9 -m venv venv
-	. ./venv/bin/activate && pip install --upgrade pip
-	. ./venv/bin/activate && pip install -e .
-	. ./venv/bin/activate && pip install -r requirements/requirements-dev.txt
+	@$(VENV_CMD) pip install --upgrade pip
+	@$(VENV_CMD) pip install -e .
+	@$(VENV_CMD) pip install -r requirements/requirements-dev.txt
+	@$(VENV_CMD) pip install -r requirements/requirements-generator.txt
 
 print-files-modified-in-last-30-days:
 	@git log --since '$(shell date --date='-30 day' +"%m/%d/%y")' --until '$(shell date +"%m/%d/%y")' --oneline --name-only --pretty=format: | sort | uniq | grep -E '.py$$'
 
 format:
-	@. ./venv/bin/activate && black reconcile/ tools/ e2e_tests/
+	@$(VENV_CMD) black reconcile/ tools/ e2e_tests/
+
+gql-introspection:
+	# TODO: make url configurable
+	@$(VENV_CMD) qenerate introspection http://localhost:4000/graphql > reconcile/gql_queries/introspection.json
+
+gql-query-classes:
+	@$(VENV_CMD) qenerate code -i reconcile/gql_queries/introspection.json reconcile/gql_queries
+	@$(VENV_CMD) black reconcile/gql_queries
