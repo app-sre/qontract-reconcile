@@ -646,7 +646,8 @@ def sshuttle_command(ctx, jumphost_hostname: str, cluster_name: Optional[str]):
 @click.argument("job_name")
 @click.pass_context
 def jenkins_job_vault_secrets(ctx, instance_name, job_name):
-    jjb: JJB = init_jjb(instance_name, config_name=None, print_only=True)
+    secret_reader = SecretReader(queries.get_secret_reader_settings())
+    jjb: JJB = init_jjb(secret_reader, instance_name, config_name=None, print_only=True)
     jobs = jjb.get_all_jobs([job_name], instance_name)[instance_name]
     if not jobs:
         print(f"{instance_name}/{job_name} not found.")
