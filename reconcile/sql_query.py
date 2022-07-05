@@ -531,6 +531,7 @@ def run(dry_run: bool, enable_deletion: bool = False) -> None:
                 type=pull_secret["type"],
                 integration=QONTRACT_INTEGRATION,
                 integration_version=QONTRACT_INTEGRATION_VERSION,
+                settings=settings,
             )
             openshift_resources.append(secret_resource)
 
