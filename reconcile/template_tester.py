@@ -1,3 +1,4 @@
+import difflib
 import logging
 import sys
 import yaml
@@ -51,10 +52,17 @@ def run(dry_run):
                 found = True
                 openshift_resource = orb.fetch_openshift_resource(r, n, settings)
                 if openshift_resource.body != expected_result:
+                    diff = difflib.unified_diff(
+                        yaml.safe_dump(expected_result).splitlines(keepends=True),
+                        yaml.safe_dump(openshift_resource.body).splitlines(
+                            keepends=True
+                        ),
+                        "expected",
+                        "rendered",
+                    )
                     logging.error(
                         f"rendered template is different from expected result in template test {tt['name']}:\n"
-                        f"rendered:\n{yaml.safe_dump(openshift_resource.body)}\n"
-                        f"expected result:\n{yaml.safe_dump(expected_result)}"
+                        f"{''.join(diff)}"
                     )
                     error = True
 
