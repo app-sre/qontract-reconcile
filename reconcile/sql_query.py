@@ -500,6 +500,7 @@ def run(dry_run, enable_deletion=False):
                 type=pull_secret["type"],
                 integration=QONTRACT_INTEGRATION,
                 integration_version=QONTRACT_INTEGRATION_VERSION,
+                settings=settings,
             )
 
         job_yaml = process_template(
