@@ -34,14 +34,18 @@ class S3BackendConfig:
 
 
 def create_terrascript_cloudflare(
-    account_config: CloudflareAccountConfig, backend_config: S3BackendConfig
+    account_config: CloudflareAccountConfig,
+    backend_config: S3BackendConfig,
+    provider_version: str,
 ) -> Terrascript:
     terrascript = Terrascript()
 
     terrascript += Terraform(
         required_providers={
-            # TODO: pull this from account file
-            "cloudflare": {"source": "cloudflare/cloudflare", "version": "3.18"}
+            "cloudflare": {
+                "source": "cloudflare/cloudflare",
+                "version": provider_version,
+            }
         }
     )
 
@@ -94,7 +98,12 @@ class TerraformClient(ABC):
 class TerrascriptCloudflareClient(TerraformClient):
     """
     Build the Terrascript configuration, collect resources, and return Terraform JSON
-    configuration
+    configuration.
+
+    There's actually very little that's specific to Cloudflare in this class. This could
+    become a more general TerrascriptClient that could in theory support any resource
+    types with some minor modifications to how resource classes (self._resource_classes)
+    are tracked.
     """
 
     def __init__(
@@ -181,7 +190,12 @@ def main():
     # account config like with AWS resources.
     backend_config = S3BackendConfig("abc", "abc", "some-bucket", "config", "us-east-1")
 
-    terrascript_client = create_terrascript_cloudflare(account_config, backend_config)
+    # TODO: get this from account config
+    cloudflare_provider_version = "3.18"
+
+    terrascript_client = create_terrascript_cloudflare(
+        account_config, backend_config, cloudflare_provider_version
+    )
     cloudflare_client = TerrascriptCloudflareClient(terrascript_client)
 
     # Dummy data for creating a Cloudflare zone object
