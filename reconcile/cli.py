@@ -1417,7 +1417,9 @@ def terraform_vpc_peerings(
     )
 
 
-@integration.command()
+@integration.command(
+    short_help="Validates that VPC peerings do not exist between public and internal clusters."
+)
 @click.pass_context
 def vpc_peerings_validator(ctx):
     run_integration(
