@@ -4619,6 +4619,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 f"Bucket {bucket_name} is not accessible - {str(details)}"
             )
 
+        # todo: probably remove 'RedHat' from the object/variable/filepath
+        # names to keep the code RedHat-agnostic
+
         # download redhat-logo-png file
         redhat_logo_png_obj_name = "Logo-RedHat-B-Color-RGB.png"
         redhat_logo_png_filepath = "/tmp/Logo-RedHat-B-Color-RGB.png"
