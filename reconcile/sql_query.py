@@ -89,6 +89,10 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: {{ JOB_NAME }}
+  labels:
+    app: qontract-reconcile
+    integration: {{ QONTRACT_INTEGRATION }}
+    query-name: {{ QUERY_NAME }}
 %s
 """ % (
     JOB_SPEC
@@ -100,6 +104,10 @@ apiVersion: batch/v1beta1
 kind: CronJob
 metadata:
   name: {{ JOB_NAME }}
+  labels:
+    app: qontract-reconcile
+    integration: {{ QONTRACT_INTEGRATION }}
+    query-name: {{ QUERY_NAME }}
 spec:
   schedule: "{{ SCHEDULE }}"
   concurrencyPolicy: "Forbid"
@@ -397,6 +405,8 @@ def process_template(
     render_kwargs = {
         "JOB_NAME": query["name"],
         "CONFIG_MAPS_MOUNT_PATH": CONFIG_MAPS_MOUNT_PATH,
+        "QUERY_NAME": query["name"],
+        "QONTRACT_INTEGRATION": QONTRACT_INTEGRATION,
         "IMAGE_REPOSITORY": image_repository,
         "SECRET_NAME": query["output_resource_name"],
         "ENGINE": engine,
@@ -418,12 +428,13 @@ def process_template(
     return job_yaml
 
 
-def get_config_map(name: str, data: dict) -> dict[str, Any]:
+def get_config_map(name: str, data: dict, labels: dict) -> dict[str, Any]:
     return {
         "apiVersion": "v1",
         "kind": "ConfigMap",
         "metadata": {
             "name": name,
+            "labels": labels,
         },
         "data": data,
     }
@@ -456,14 +467,26 @@ def openshift_apply(
         )
 
 
-def openshift_delete(
+def openshift_delete_by_label(
     dry_run: bool,
     oc_map: OC_Map,
     cluster: str,
     namespace: str,
-    resources: Iterable[OpenshiftResource],
+    kinds: list[str],
+    labels: dict[str, str],
     enable_deletion: bool,
 ) -> None:
+    oc = oc_map.get_cluster(cluster)
+    resources: list[OpenshiftResource] = [
+        OpenshiftResource(
+            body=item,
+            integration=QONTRACT_INTEGRATION,
+            integration_version=QONTRACT_INTEGRATION_VERSION,
+        )
+        for kind in kinds
+        for item in oc.get_items(kind=kind, namespace=namespace, labels=labels)
+    ]
+
     for resource in resources:
         try:
             openshift_base.delete(
@@ -500,16 +523,17 @@ def run(dry_run: bool, enable_deletion: bool = False) -> None:
     for query in queries_list:
         openshift_resources: list[OpenshiftResource] = []
         query_name = query["name"]
-        cleanup = False
-
-        # Checking the sql-query state:
-        # - No state: up for execution.
-        # - State is a timestamp: executed and up for removal
-        #   after the JOB_TTL
-        # - State is 'DONE': executed and removed.
-        # - State is not 'DONE' but 'delete:true' and is a cronjob: up for removal
+        common_resource_labels = {
+            "app": "qontract-reconcile",
+            "integration": QONTRACT_INTEGRATION,
+            "query-name": query_name,
+        }
         if state.exists(query_name):
-            # state is a TIMESTAMP or "Done"
+            # Query already executed. Now check current state:
+            # - State is a timestamp: executed and up for removal after the JOB_TTL
+            # - State is not 'DONE' but 'delete:true' and is a cronjob: up for removal
+            # - State is 'DONE': executed and removed. Nothing to do here.
+            cleanup = False
             query_state = state[query_name]
             if query_state == "DONE":
                 # nothing to do anymore
@@ -519,21 +543,41 @@ def run(dry_run: bool, enable_deletion: bool = False) -> None:
                 # CronJob
                 if query.get("delete"):
                     cleanup = True
-                else:
-                    continue
             else:
                 # Job
                 if time.time() >= query_state + JOB_TTL:
                     cleanup = True
-                else:
-                    continue
 
+            if cleanup:
+                oc_map = OC_Map(
+                    namespaces=[query["namespace"]],
+                    integration=QONTRACT_INTEGRATION,
+                    settings=settings,
+                )
+                openshift_delete_by_label(
+                    dry_run=dry_run,
+                    oc_map=oc_map,
+                    cluster=query["cluster"],
+                    namespace=query["namespace"]["name"],
+                    kinds=["Job", "CronJob", "ConfigMap", "Secret"],
+                    labels=common_resource_labels,
+                    enable_deletion=enable_deletion,
+                )
+                if not dry_run and enable_deletion:
+                    state[query_name] = "DONE"
+
+            # continue with next query
+            continue
+
+        # New query
         if use_pull_secret:
+            labels = pull_secret["labels"] or {}
+            labels.update(common_resource_labels)
             secret_resource = orb.fetch_provider_vault_secret(
                 path=pull_secret["path"],
                 version=pull_secret["version"],
                 name=query_name,
-                labels=pull_secret["labels"] or {},
+                labels=labels,
                 annotations=pull_secret["annotations"] or {},
                 type=pull_secret["type"],
                 integration=QONTRACT_INTEGRATION,
@@ -547,12 +591,15 @@ def run(dry_run: bool, enable_deletion: bool = False) -> None:
             get_config_map(
                 name=f"{query_name}-{GPG_KEY_NAME}",
                 data={GPG_KEY_NAME: query.get("public_gpg_key", "")},
+                labels=common_resource_labels,
             )
         ]
         # ConfigMaps with SQL queries chunked into smaller pieces
         config_map_resources += [
             get_config_map(
-                name=f"{query_name}-q{i:05d}c{j:05d}", data={f"q{i:05d}c{j:05d}": chunk}
+                name=f"{query_name}-q{i:05d}c{j:05d}",
+                data={f"q{i:05d}c{j:05d}": chunk},
+                labels=common_resource_labels,
             )
             for i, q in enumerate(query["queries"])
             for j, chunk in enumerate(
@@ -587,27 +634,15 @@ def run(dry_run: bool, enable_deletion: bool = False) -> None:
             namespaces=[query["namespace"]],
             integration=QONTRACT_INTEGRATION,
             settings=settings,
-            internal=None,
         )
-        if cleanup:
-            openshift_delete(
-                dry_run=dry_run,
-                oc_map=oc_map,
-                cluster=query["cluster"],
-                namespace=query["namespace"]["name"],
-                resources=openshift_resources,
-                enable_deletion=enable_deletion,
-            )
-            if not dry_run and enable_deletion:
-                state[query_name] = "DONE"
-        else:
-            openshift_apply(
-                dry_run=dry_run,
-                oc_map=oc_map,
-                cluster=query["cluster"],
-                namespace=query["namespace"]["name"],
-                resources=openshift_resources,
-            )
 
-            if not dry_run:
-                state[query_name] = time.time()
+        openshift_apply(
+            dry_run=dry_run,
+            oc_map=oc_map,
+            cluster=query["cluster"],
+            namespace=query["namespace"]["name"],
+            resources=openshift_resources,
+        )
+
+        if not dry_run:
+            state[query_name] = time.time()
