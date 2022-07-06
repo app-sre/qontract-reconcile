@@ -83,7 +83,6 @@ dev-venv: clean ## Create a local venv for your IDE and remote debugging
 	@$(VENV_CMD) pip install --upgrade pip
 	@$(VENV_CMD) pip install -e .
 	@$(VENV_CMD) pip install -r requirements/requirements-dev.txt
-	@$(VENV_CMD) pip install -r requirements/requirements-generator.txt
 
 print-files-modified-in-last-30-days:
 	@git log --since '$(shell date --date='-30 day' +"%m/%d/%y")' --until '$(shell date +"%m/%d/%y")' --oneline --name-only --pretty=format: | sort | uniq | grep -E '.py$$'
