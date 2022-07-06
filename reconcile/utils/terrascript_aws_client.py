@@ -4605,8 +4605,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         # app-interface, and feed those details to the AWSApi class.
         thread_pool_size = 1
         settings = queries.get_app_interface_settings()
-        target_account_arr = queries.get_aws_accounts(name=account)
-        # target_account_arr = [a for a in all_accounts if a["name"] == account]
+        all_aws_accounts = queries.get_aws_accounts()
+        target_account_arr = [a for a in all_aws_accounts if a["name"] == account]
         aws_api = AWSApi(thread_pool_size, target_account_arr, settings=settings)
         session = aws_api.get_session(account)
         s3_client = session.client("s3")
