@@ -11,3 +11,4 @@ types-setuptools
 types-tabulate
 types-toml
 boto3-stubs[ec2,s3,rds,iam,route53]
+qenerate
