@@ -4550,7 +4550,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         if region in ("us-gov-west-1", "us-gov-east-1"):
             managed_policy_arn = "arn:aws-us-gov:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 
-        bucket_url = f'https://{common_values.get("cognito_callback_bucket_name")}.s3.{region}.amazonaws.com'
+        bucket_name = common_values.get("cognito_callback_bucket_name")
+        bucket_url = f"https://{bucket_name}.s3.{region}.amazonaws.com"
 
         lambda_iam_role_resource = aws_iam_role(
             "lambda_role",
@@ -4581,6 +4582,26 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             tracing_config={"mode": "PassThrough"},
         )
         tf_resources.append(cognito_pre_signup_lambda_resource)
+
+        # setup s3_client
+        aws_api = AWSApi(1, [account], settings=settings, init_users=False)
+        session = aws_api.get_session(account)
+        s3_client = session.client("s3")
+
+        # check if the bucket exists
+        try:
+            s3_client.head_bucket(Bucket=bucket_name)
+        except ClientError as details:
+            raise StateInaccessibleException(
+                f"Bucket {bucket_name} is not accessible - {str(details)}"
+            )
+
+        # download redhat-logo-png file
+        redhat_logo_png_obj_name = "Logo-RedHat-B-Color-RGB.png"
+        redhat_logo_png_filepath = "/tmp/Logo-RedHat-B-Color-RGB.png"
+        s3_client.download_file(
+            bucket_name, redhat_logo_png_obj_name, redhat_logo_png_filepath
+        )
 
         # Prepare all resource arguments from default file
         pool_args = common_values.get("user_pool_properties", None)
@@ -4644,6 +4665,13 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             user_pool_id=f"${{{cognito_user_pool_resource.id}}}",
         )
         tf_resources.append(cognito_user_pool_domain_resource)
+
+        # POOL UI
+        cognito_user_pool_ui_customization_resource = aws_cognito_user_pool_ui_customization(
+            "userpool_ui",
+            image_file='filebase64("' + redhat_logo_png_filepath + '")',
+            user_pool_id="${aws_cognito_user_pool_domain.userpool_domain.user_pool_id}",
+        )
 
         user_pool_url = f"https://{cognito_user_pool_domain_resource.domain}.auth-fips.us-gov-west-1.amazoncognito.com"
 
