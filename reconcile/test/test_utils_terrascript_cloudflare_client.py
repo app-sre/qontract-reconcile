@@ -31,7 +31,9 @@ def backend_config():
 
 def test_create_cloudflare_zone(account_config, backend_config):
 
-    terrascript_client = create_terrascript_cloudflare(account_config, backend_config, "3.18")
+    terrascript_client = create_terrascript_cloudflare(
+        account_config, backend_config, "3.18"
+    )
 
     cloudflare_client = TerrascriptCloudflareClient(terrascript_client)
 

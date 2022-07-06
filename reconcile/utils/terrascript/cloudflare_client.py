@@ -16,6 +16,14 @@ from reconcile.utils.terrascript.cloudflare_resources import _CloudflareZoneReso
 TMP_DIR_PREFIX = "terrascript-cloudflare-"
 
 
+class ClientAlreadyRegisteredError(Exception):
+    pass
+
+
+class ClientNotRegisteredError(Exception):
+    pass
+
+
 @dataclass
 class CloudflareAccountConfig:
     name: str
@@ -151,24 +159,38 @@ class TerrascriptCloudflareClient(TerraformClient):
 
 class TerrascriptCloudflareClientCollection:
     """
-    Collection of TerracriptCloudflareClients for consolidating logic related to
-    concurrency and common operations
+    Collection of TerracriptCloudflareClients for consolidating logic related collecting
+    the clients and iterating through them, optionally concurrency as needed.
     """
 
-    def __init__(self):
-        self._clients: set[TerrascriptCloudflareClient] = set()
+    def __init__(self) -> None:
+        self._clients: dict[str, TerrascriptCloudflareClient] = {}
 
-    def register_client(self, client: TerrascriptCloudflareClient):
-        self._clients.add(client)
+    def register_client(
+        self, account_name: str, client: TerrascriptCloudflareClient
+    ) -> None:
+        if account_name in self._clients:
+            raise ClientAlreadyRegisteredError(
+                f"Client already registered for account name: {account_name}"
+            )
 
-    def init_populate_specs(self):
-        pass
+        self._clients[account_name] = client
 
-    def populate_resources(self):
-        pass
+    def add_specs(self, account_name: str, specs: Iterable[ExternalResourceSpec]):
+        try:
+            self._clients[account_name].add_specs(specs)
+        except KeyError:
+            raise ClientNotRegisteredError(
+                f"There aren't any clients registered for account name: {account_name}"
+            )
+
+    def populate_resources(self) -> None:
+        for client in self._clients.values():
+            client.populate_resources()
 
     def dump(self):
-        pass
+        for client in self._clients.values():
+            client.dump()
 
 
 def main():
@@ -193,32 +215,60 @@ def main():
     # TODO: get this from account config
     cloudflare_provider_version = "3.18"
 
-    terrascript_client = create_terrascript_cloudflare(
+    terrascript_client_a = create_terrascript_cloudflare(
         account_config, backend_config, cloudflare_provider_version
     )
-    cloudflare_client = TerrascriptCloudflareClient(terrascript_client)
 
-    # Dummy data for creating a Cloudflare zone object
-    spec = ExternalResourceSpec(
-        "cloudflare_zone",
-        {"name": "dev", "automationToken": {}},
-        {
-            "provider": "cloudflare",
-            "identifier": "domain-com",
-            "zone": "domain.com",
-            "plan": "enterprise",
-            "type": "full",
-        },
-        {},
+    terrascript_client_b = create_terrascript_cloudflare(
+        account_config, backend_config, cloudflare_provider_version
     )
+
+    # Dummy data for two separate accounts just to show how TerrascriptCloudflareClientCollection
+    # would work. This data would all actually come from app-interface from calls in the
+    # terraform-resources-cloudflare integration if that path is agreed upon.
+    acct_a_cloudflare_client = TerrascriptCloudflareClient(terrascript_client_a)
+    acct_a_specs = [
+        ExternalResourceSpec(
+            "cloudflare_zone",
+            {"name": "dev-acct-a", "automationToken": {}},
+            {
+                "provider": "cloudflare",
+                "identifier": "acct-a-domain-com",
+                "zone": "acct-a.domain.com",
+                "plan": "free",
+                "type": "full",
+            },
+            {},
+        )
+    ]
+
+    acct_b_cloudflare_client = TerrascriptCloudflareClient(terrascript_client_b)
+    acct_b_specs = [
+        ExternalResourceSpec(
+            "cloudflare_zone",
+            {"name": "dev-acct-b", "automationToken": {}},
+            {
+                "provider": "cloudflare",
+                "identifier": "acct-b-domain-com",
+                "zone": "acct-b.domain.com",
+                "plan": "enterprise",
+                "type": "partial",
+            },
+            {},
+        )
+    ]
+
     # Deviated from the Terrascript[Aws]Client by calling this add_specs() and just
     # dealing with ExternalResourceSpecs directly. We can deal with namespaces and call
     # it init_populate_specs() if determine that it's important enough to do so, and
     # if we decide this will be a single integration instead of a separate integration.
-    cloudflare_client.add_specs([spec])
-    cloudflare_client.populate_resources()
-
-    cloudflare_client.dump()
+    cloudflare_clients = TerrascriptCloudflareClientCollection()
+    cloudflare_clients.register_client("acct_a", acct_a_cloudflare_client)
+    cloudflare_clients.add_specs("acct_a", acct_a_specs)
+    cloudflare_clients.register_client("acct_b", acct_b_cloudflare_client)
+    cloudflare_clients.add_specs("acct_b", acct_b_specs)
+    cloudflare_clients.populate_resources()
+    cloudflare_clients.dump()
 
 
 if __name__ == "__main__":
