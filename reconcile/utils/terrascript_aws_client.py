@@ -583,16 +583,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                         logging.error(msg)
                         error = True
                         continue
-                    try:
-                        gpg_key_valid(user_public_gpg_key)
-                    except ValueError as e:
-                        msg = (
-                            f"invalid public gpg key for {user_name}. "
-                            + f"details: {str(e)}"
-                        )
-                        logging.error(msg)
-                        error = True
-                        continue
                     # Ref: terraform aws iam_user_login_profile
                     tf_iam_user_login_profile = aws_iam_user_login_profile(
                         user_name,

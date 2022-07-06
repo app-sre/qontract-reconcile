@@ -49,28 +49,6 @@ f6lhzoNbWoDKKpTwRs+CZfVSHJ6KQhfD1zcbhaJhDt/pjQxnsOR6MrHHa6VTU4KoYuvGRw5n3Vlm
 W1DegErhvC6nwh/J0GOLws2gRzVo+2RzB7if"""
 
 
-class TestGpgKeyValid(TestCase):
-    def test_gpg_key_invalid_spaces(self):
-        key = "key with spaces"
-        with self.assertRaises(ValueError) as e:
-            gpg.gpg_key_valid(key)
-        self.assertEqual(str(e.exception), gpg.ERR_SPACES)
-
-    def test_gpg_key_invalid_equal_signs(self):
-        key = "equal=signs=not=at=end=of=key"
-        with self.assertRaises(ValueError) as e:
-            gpg.gpg_key_valid(key)
-        self.assertEqual(str(e.exception), gpg.ERR_EQUAL_SIGNS)
-
-    def test_gpg_key_invalid_base64(self):
-        # $ echo -n "hello world" | base64
-        # aGVsbG8gd29ybGQ=
-        key = "aGVsbG8gd29ybGQ"
-        with self.assertRaises(ValueError) as e:
-            gpg.gpg_key_valid(key)
-        self.assertEqual(str(e.exception), gpg.ERR_BASE64)
-
-
 # We have to mangle the namespace of the gpg module, since it imports
 # Popen. Had that module chosen "import subprocess;
 # subprocess.Popen(...)" we'd be patching subprocess instead.
