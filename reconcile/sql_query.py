@@ -32,8 +32,8 @@ POD_TTL = 3600  # 1 hour (used only when output is "filesystem")
 QUERY_CONFIG_MAP_CHUNK_SIZE = 512 * 1024  # 512 KB
 
 CONFIG_MAPS_MOUNT_PATH = "/configs"
-GPG_KEY = "gpg-key"
-GPG_KEY_PATH = f"{CONFIG_MAPS_MOUNT_PATH}/{GPG_KEY}"
+GPG_KEY_NAME = "gpg-key"
+GPG_KEY_PATH = f"{CONFIG_MAPS_MOUNT_PATH}/{GPG_KEY_NAME}"
 
 JOB_SPEC = """
 spec:
@@ -364,6 +364,10 @@ def process_template(
 
     :param query: the query dictionary containing the parameters
                   to be used in the Template
+    :param image_repository: docker image repo url
+    :param use_pull_secret: add imagePullSecrets to Job
+    :param config_map_names: ConfigMap names to mount in Job
+
     :return: rendered Job YAML
     """
     engine_cmd_map = {"postgres": make_postgres_command, "mysql": make_mysql_command}
@@ -538,8 +542,8 @@ def run(dry_run: bool, enable_deletion: bool = False) -> None:
         # ConfigMap gpg
         config_map_resources = [
             get_config_map(
-                name=f"{query_name}-{GPG_KEY}",
-                data={GPG_KEY: query.get("public_gpg_key", "")},
+                name=f"{query_name}-{GPG_KEY_NAME}",
+                data={GPG_KEY_NAME: query.get("public_gpg_key", "")},
             )
         ]
         # ConfigMaps with SQL queries chunked into smaller pieces

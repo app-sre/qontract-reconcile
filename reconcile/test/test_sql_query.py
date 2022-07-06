@@ -4,7 +4,7 @@ from reconcile.sql_query import split_long_query
 
 
 @pytest.mark.parametrize(
-    "q, size, excepted",
+    "q, size, expected",
     [
         ("test", 1, ["t", "e", "s", "t"]),
         (
@@ -15,5 +15,5 @@ from reconcile.sql_query import split_long_query
         ("testtest", 100, ["testtest"]),
     ],
 )
-def test_split_long_query(q, size, excepted):
-    assert split_long_query(q, size) == excepted
+def test_split_long_query(q, size, expected):
+    assert split_long_query(q, size) == expected
