@@ -1,7 +1,6 @@
 import logging
 import os
 import tempfile
-from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Iterable, Optional
 from unittest.mock import MagicMock
@@ -13,6 +12,7 @@ from reconcile.utils.external_resource_spec import (
     ExternalResourceSpec,
     ExternalResourceSpecInventory,
 )
+from reconcile.utils.terraform.config_client import TerraformConfigClient
 from reconcile.utils.terraform_client import TerraformClient
 from reconcile.utils.terrascript.cloudflare_resources import _CloudflareZoneResource
 
@@ -82,31 +82,7 @@ def create_terrascript_cloudflare(
     return terrascript
 
 
-class AbstractTerraformClient(ABC):
-    """Early proposal, might decide to change dump() signature."""
-
-    @abstractmethod
-    def add_specs(self, specs: Iterable[ExternalResourceSpec]) -> None:
-        ...
-
-    @abstractmethod
-    def populate_resources(self) -> None:
-        ...
-
-    @abstractmethod
-    def dump(
-        self,
-        print_to_file: Optional[str] = None,
-        existing_dir: Optional[str] = None,
-    ) -> None:
-        ...
-
-    @abstractmethod
-    def dumps(self) -> str:
-        ...
-
-
-class TerrascriptCloudflareClient(AbstractTerraformClient):
+class TerrascriptCloudflareClient(TerraformConfigClient):
     """
     Build the Terrascript configuration, collect resources, and return Terraform JSON
     configuration.
@@ -164,7 +140,7 @@ class TerrascriptCloudflareClient(AbstractTerraformClient):
 
 class TerrascriptCloudflareClientCollection:
     """
-    Collection of TerracriptCloudflareClients for consolidating logic related collecting
+    Collection of TerrascriptCloudflareClients for consolidating logic related collecting
     the clients and iterating through them, optionally concurrency as needed.
     """
 
