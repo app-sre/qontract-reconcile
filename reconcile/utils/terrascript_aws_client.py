@@ -29,6 +29,8 @@ import requests
 from github import Github
 
 
+from botocore.errorfactory import ClientError
+
 from terrascript import (
     Terrascript,
     provider,
@@ -123,6 +125,8 @@ from terrascript.resource import (
 from terrascript import Resource, Data
 from sretoolbox.utils import threaded
 
+from reconcile import queries
+
 from reconcile.utils import gql
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.external_resource_spec import (
@@ -197,6 +201,10 @@ VARIABLE_KEYS = [
 TMP_DIR_PREFIX = "terrascript-aws-"
 
 
+class StateInaccessibleException(Exception):
+    pass
+
+
 class UnknownProviderError(Exception):
     def __init__(self, msg):
         super().__init__("unknown provider error: " + str(msg))
@@ -232,6 +240,12 @@ class time(Provider):
 # that supports this resource
 # https://github.com/mjuenema/python-terrascript/pull/166
 class time_sleep(Resource):
+    pass
+
+
+# temporary until we upgrade to a terrascript release
+# that supports this resource
+class aws_cognito_user_pool_ui_customization(Resource):
     pass
 
 
@@ -4550,7 +4564,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         if region in ("us-gov-west-1", "us-gov-east-1"):
             managed_policy_arn = "arn:aws-us-gov:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 
-        bucket_url = f'https://{common_values.get("cognito_callback_bucket_name")}.s3.{region}.amazonaws.com'
+        bucket_name = common_values.get("cognito_callback_bucket_name")
+        bucket_url = f"https://{bucket_name}.s3.{region}.amazonaws.com"
 
         lambda_iam_role_resource = aws_iam_role(
             "lambda_role",
@@ -4581,6 +4596,39 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             tracing_config={"mode": "PassThrough"},
         )
         tf_resources.append(cognito_pre_signup_lambda_resource)
+
+        # setup s3_client
+        # pattern followed from utils/state.py
+        # The variable "account" is the name of the AWS account we are reconciling
+        # against. We assume the target s3 bucket is in the same AWS account as the
+        # rosa-authenticator. We need to grab details of said AWS account from
+        # app-interface, and feed those details to the AWSApi class.
+        thread_pool_size = 1
+        settings = queries.get_app_interface_settings()
+        all_aws_accounts = queries.get_aws_accounts()
+        target_account_arr = [a for a in all_aws_accounts if a["name"] == account]
+        aws_api = AWSApi(thread_pool_size, target_account_arr, settings=settings)
+        session = aws_api.get_session(account)
+        s3_client = session.client("s3")
+
+        # check if the bucket exists
+        try:
+            s3_client.head_bucket(Bucket=bucket_name)
+        except ClientError as details:
+            raise StateInaccessibleException(
+                f"Bucket {bucket_name} is not accessible - {str(details)}"
+            )
+
+        # todo: probably remove 'RedHat' from the object/variable/filepath
+        # names to keep the code RedHat-agnostic?
+        # (then again: ROSA literally means "Red Hat OpenShift Service on AWS")
+
+        # download redhat-logo-png file
+        redhat_logo_png_obj_name = "Logo-RedHat-B-Color-RGB.png"
+        redhat_logo_png_filepath = "/tmp/Logo-RedHat-B-Color-RGB.png"
+        s3_client.download_file(
+            bucket_name, redhat_logo_png_obj_name, redhat_logo_png_filepath
+        )
 
         # Prepare all resource arguments from default file
         pool_args = common_values.get("user_pool_properties", None)
@@ -4646,6 +4694,14 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         tf_resources.append(cognito_user_pool_domain_resource)
 
         user_pool_url = f"https://{cognito_user_pool_domain_resource.domain}.auth-fips.us-gov-west-1.amazoncognito.com"
+
+        # POOL UI
+        cognito_user_pool_ui_customization_resource = aws_cognito_user_pool_ui_customization(
+            "userpool_ui",
+            image_file='filebase64("' + redhat_logo_png_filepath + '")',
+            user_pool_id="${aws_cognito_user_pool_domain.userpool_domain.user_pool_id}",
+        )
+        tf_resources.append(cognito_user_pool_ui_customization_resource)
 
         # POOL GATEWAY RESOURCE SERVER
         cognito_resource_server_gateway_resource = aws_cognito_resource_server(
