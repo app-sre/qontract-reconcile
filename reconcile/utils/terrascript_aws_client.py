@@ -4620,7 +4620,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             )
 
         # todo: probably remove 'RedHat' from the object/variable/filepath
-        # names to keep the code RedHat-agnostic
+        # names to keep the code RedHat-agnostic?
+        # (then again: ROSA literally means "Red Hat OpenShift Service on AWS")
 
         # download redhat-logo-png file
         redhat_logo_png_obj_name = "Logo-RedHat-B-Color-RGB.png"
