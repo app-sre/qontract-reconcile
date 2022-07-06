@@ -29,6 +29,8 @@ import requests
 from github import Github
 
 
+from botocore.errorfactory import ClientError
+
 from terrascript import (
     Terrascript,
     provider,
@@ -198,6 +200,8 @@ VARIABLE_KEYS = [
 
 TMP_DIR_PREFIX = "terrascript-aws-"
 
+class StateInaccessibleException(Exception):
+    pass
 
 class UnknownProviderError(Exception):
     def __init__(self, msg):
