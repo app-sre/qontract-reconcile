@@ -200,8 +200,10 @@ VARIABLE_KEYS = [
 
 TMP_DIR_PREFIX = "terrascript-aws-"
 
+
 class StateInaccessibleException(Exception):
     pass
+
 
 class UnknownProviderError(Exception):
     def __init__(self, msg):
