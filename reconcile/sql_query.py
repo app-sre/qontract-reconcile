@@ -381,11 +381,14 @@ def process_template(
     if output not in supported_outputs:
         raise RuntimeError(f"Output {output} not supported")
 
-    # concatinate all query files into a single one
-    command = merge_files_command(
-        directory=CONFIG_MAPS_MOUNT_PATH,
-        file_glob="q*",
-        output_file="/tmp/queries",
+    # concatenate all query files into a single one
+    command = (
+        merge_files_command(
+            directory=CONFIG_MAPS_MOUNT_PATH,
+            file_glob="q*",
+            output_file="/tmp/queries",
+        )
+        + ";"
     )
     command += engine_cmd_map[engine](sqlqueries_file="/tmp/queries")
     command += make_output_cmd(output=output, recipient=query.get("recipient", ""))
@@ -431,7 +434,7 @@ def split_long_query(q, size) -> list[str]:
 
 
 def merge_files_command(directory, file_glob, output_file):
-    return f"cat ''{directory}''/{file_glob} > ''{output_file}'';"
+    return f"cat ''{directory}''/{file_glob} > ''{output_file}''"
 
 
 def openshift_apply(
