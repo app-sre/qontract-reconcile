@@ -4683,14 +4683,15 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         )
         tf_resources.append(cognito_user_pool_domain_resource)
 
+        user_pool_url = f"https://{cognito_user_pool_domain_resource.domain}.auth-fips.us-gov-west-1.amazoncognito.com"
+
         # POOL UI
         cognito_user_pool_ui_customization_resource = aws_cognito_user_pool_ui_customization(
             "userpool_ui",
             image_file='filebase64("' + redhat_logo_png_filepath + '")',
             user_pool_id="${aws_cognito_user_pool_domain.userpool_domain.user_pool_id}",
         )
-
-        user_pool_url = f"https://{cognito_user_pool_domain_resource.domain}.auth-fips.us-gov-west-1.amazoncognito.com"
+        tf_resources.append(cognito_user_pool_ui_customization_resource)
 
         # POOL GATEWAY RESOURCE SERVER
         cognito_resource_server_gateway_resource = aws_cognito_resource_server(
