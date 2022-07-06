@@ -101,7 +101,6 @@ from terrascript.resource import (
     aws_launch_template,
     aws_autoscaling_group,
     aws_cognito_user_pool,
-    aws_cognito_user_pool_ui_customization,
     aws_cognito_user_pool_client,
     aws_cognito_user_pool_domain,
     aws_cognito_resource_server,
@@ -235,6 +234,12 @@ class time(Provider):
 # that supports this resource
 # https://github.com/mjuenema/python-terrascript/pull/166
 class time_sleep(Resource):
+    pass
+
+
+# temporary until we upgrade to a terrascript release
+# that supports this resource
+class aws_cognito_user_pool_ui_customization(Resource):
     pass
 
 
