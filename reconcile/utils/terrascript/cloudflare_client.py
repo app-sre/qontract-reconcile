@@ -1,8 +1,10 @@
+import logging
 import os
 import tempfile
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Iterable, Optional
+from unittest.mock import MagicMock
 
 from terrascript import Terrascript, Terraform, Resource
 from terrascript import provider
@@ -11,6 +13,7 @@ from reconcile.utils.external_resource_spec import (
     ExternalResourceSpec,
     ExternalResourceSpecInventory,
 )
+from reconcile.utils.terraform_client import TerraformClient
 from reconcile.utils.terrascript.cloudflare_resources import _CloudflareZoneResource
 
 TMP_DIR_PREFIX = "terrascript-cloudflare-"
@@ -79,7 +82,7 @@ def create_terrascript_cloudflare(
     return terrascript
 
 
-class TerraformClient(ABC):
+class AbstractTerraformClient(ABC):
     """Early proposal, might decide to change dump() signature."""
 
     @abstractmethod
@@ -103,7 +106,7 @@ class TerraformClient(ABC):
         ...
 
 
-class TerrascriptCloudflareClient(TerraformClient):
+class TerrascriptCloudflareClient(AbstractTerraformClient):
     """
     Build the Terrascript configuration, collect resources, and return Terraform JSON
     configuration.
@@ -139,14 +142,16 @@ class TerrascriptCloudflareClient(TerraformClient):
 
     def dump(
         self, print_to_file: Optional[str] = None, existing_dir: Optional[str] = None
-    ) -> None:
+    ) -> str:
         """Write the Terraform JSON representation of the resources to disk"""
         if existing_dir is None:
-            temp_dir = tempfile.mkdtemp(prefix=TMP_DIR_PREFIX)
+            working_dir = tempfile.mkdtemp(prefix=TMP_DIR_PREFIX)
         else:
-            temp_dir = existing_dir
-        with open(temp_dir + "/config.tf.json", "w") as terraform_config_file:
+            working_dir = existing_dir
+        with open(working_dir + "/config.tf.json", "w") as terraform_config_file:
             terraform_config_file.write(self.dumps())
+
+        return working_dir
 
     def dumps(self) -> str:
         """Return the Terraform JSON representation of the resources"""
@@ -188,9 +193,13 @@ class TerrascriptCloudflareClientCollection:
         for client in self._clients.values():
             client.populate_resources()
 
-    def dump(self):
-        for client in self._clients.values():
-            client.dump()
+    def dump(self) -> dict[str, str]:
+        working_dirs = {}
+
+        for account, client in self._clients.items():
+            working_dirs[account] = client.dump()
+
+        return working_dirs
 
 
 def main():
@@ -198,6 +207,8 @@ def main():
     All of this will go away, just a testing ground before all the schemas and accounts
     are set up.
     """
+
+    logging.basicConfig(level=logging.INFO)
 
     # This account config will be in Vault and come from the cloudflare/account-1.yml
     # schema.
@@ -268,7 +279,29 @@ def main():
     cloudflare_clients.register_client("acct_b", acct_b_cloudflare_client)
     cloudflare_clients.add_specs("acct_b", acct_b_specs)
     cloudflare_clients.populate_resources()
-    cloudflare_clients.dump()
+    working_dirs = cloudflare_clients.dump()
+
+    QONTRACT_INTEGRATION = "terraform_resources_cloudflare"
+    QONTRACT_INTEGRATION_VERSION = "0.5.2"
+    QONTRACT_TF_PREFIX = "qrtf"
+
+    # TerraformClient has some AWS-specific logic in it that we can probably factor out.
+    # Most of it seems to have to do with log_plan_diff and figuring out whether to
+    # apply or not.
+    tf = TerraformClient(
+        QONTRACT_INTEGRATION,
+        QONTRACT_INTEGRATION_VERSION,
+        QONTRACT_TF_PREFIX,
+        [{"name": "acct_a"}, {"name": "acct_b"}],
+        working_dirs,
+        1,
+        MagicMock(),
+    )
+
+    # Uncomment to run plan
+    # tf.plan(False)
+
+    tf.cleanup()
 
 
 if __name__ == "__main__":
