@@ -80,6 +80,7 @@ def test_create_cloudflare_zone(account_config, backend_config):
                 "domain-com": {
                     "zone_id": "${cloudflare_zone.domain-com.id}",
                     "settings": {},
+                    "depends_on": ["cloudflare_zone.domain-com"],
                 }
             },
         },

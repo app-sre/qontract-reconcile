@@ -2,10 +2,10 @@ import logging
 import os
 import tempfile
 from dataclasses import dataclass
-from typing import Iterable, Optional
+from typing import Iterable, Optional, Union
 from unittest.mock import MagicMock
 
-from terrascript import Terrascript, Terraform, Resource
+from terrascript import Terrascript, Terraform, Resource, Output
 from terrascript import provider
 
 from reconcile.utils.external_resource_spec import (
@@ -133,7 +133,7 @@ class TerrascriptCloudflareClient(TerraformConfigClient):
         """Return the Terraform JSON representation of the resources"""
         return str(self._terrascript)
 
-    def _add_resources(self, tf_resources: Resource) -> None:
+    def _add_resources(self, tf_resources: Iterable[Union[Resource, Output]]) -> None:
         for resource in tf_resources:
             self._terrascript.add(resource)
 
@@ -180,8 +180,8 @@ class TerrascriptCloudflareClientCollection:
 
 def main():
     """
-    All of this will go away, just a testing ground before all the schemas and accounts
-    are set up.
+    All of this will go away, just a testing ground before the decision is made whether
+    this is a standalone integration or not, as well as schemas/gql queries
     """
 
     logging.basicConfig(level=logging.INFO)
