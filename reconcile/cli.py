@@ -116,6 +116,7 @@ import reconcile.status_page_components
 import reconcile.blackbox_exporter_endpoint_monitoring
 import reconcile.signalfx_endpoint_monitoring
 import reconcile.integrations_manager
+import reconcile.vpc_peerings_validator
 
 from reconcile.status import ExitCodes
 from reconcile.status import RunningState
@@ -1413,6 +1414,15 @@ def terraform_vpc_peerings(
         enable_deletion,
         thread_pool_size,
         account_name,
+    )
+
+
+@integration.command()
+@click.pass_context
+def vpc_peerings_validator(ctx):
+    run_integration(
+        reconcile.vpc_peerings_validator,
+        ctx.obj,
     )
 
 
