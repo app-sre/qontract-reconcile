@@ -123,6 +123,8 @@ from terrascript.resource import (
 from terrascript import Resource, Data
 from sretoolbox.utils import threaded
 
+from reconcile import queries
+
 from reconcile.utils import gql
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.external_resource_spec import (
@@ -4584,7 +4586,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         tf_resources.append(cognito_pre_signup_lambda_resource)
 
         # setup s3_client
-        aws_api = AWSApi(1, [account], settings=settings, init_users=False)
+        settings = queries.get_app_interface_settings()
+        thread_pool_size = 1
+        aws_api = AWSApi(thread_pool_size, [account], settings=settings)
         session = aws_api.get_session(account)
         s3_client = session.client("s3")
 
