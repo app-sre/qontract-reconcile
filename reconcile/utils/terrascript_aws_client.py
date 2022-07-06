@@ -101,6 +101,7 @@ from terrascript.resource import (
     aws_launch_template,
     aws_autoscaling_group,
     aws_cognito_user_pool,
+    aws_cognito_user_pool_ui_customization,
     aws_cognito_user_pool_client,
     aws_cognito_user_pool_domain,
     aws_cognito_resource_server,
@@ -4586,9 +4587,16 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         tf_resources.append(cognito_pre_signup_lambda_resource)
 
         # setup s3_client
-        settings = queries.get_app_interface_settings()
+        # pattern followed from utils/state.py
+        # The variable "account" is the name of the AWS account we are reconciling
+        # against. We assume the target s3 bucket is in the same AWS account as the
+        # rosa-authenticator. We need to grab details of said AWS account from
+        # app-interface, and feed those details to the AWSApi class.
         thread_pool_size = 1
-        aws_api = AWSApi(thread_pool_size, [account], settings=settings)
+        settings = queries.get_app_interface_settings()
+        target_account_arr = queries.get_aws_accounts(name=account)
+        # target_account_arr = [a for a in all_accounts if a["name"] == account]
+        aws_api = AWSApi(thread_pool_size, target_account_arr, settings=settings)
         session = aws_api.get_session(account)
         s3_client = session.client("s3")
 
