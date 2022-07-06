@@ -136,7 +136,6 @@ from reconcile.utils.password_validator import PasswordPolicy, PasswordValidator
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.git import is_file_in_git_repo
 from reconcile.github_org import get_default_config
-from reconcile.utils.gpg import gpg_key_valid
 from reconcile.utils.exceptions import (
     FetchResourceError,
     PrintToFileInGitRepositoryError,
