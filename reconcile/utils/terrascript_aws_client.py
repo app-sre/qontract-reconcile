@@ -4637,7 +4637,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 f" but no file exists locally at this path!"
             )
         file_type = imghdr.what(redhat_logo_png_filepath)
-        if imghdr.what(redhat_logo_png_filepath) is not "png":
+        if file_type is not "png":
             raise Exception(
                 f"Attempted to download object {redhat_logo_png_obj_name} "
                 f"from s3 bucket {bucket_name} to local filepath {redhat_logo_png_filepath}."
