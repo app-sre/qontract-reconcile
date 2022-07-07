@@ -146,7 +146,7 @@ def run(
     participating_account_names = [a["name"] for a in participating_accounts]
     accounts = [
         a
-        for a in queries.get_aws_accounts()
+        for a in queries.get_aws_accounts(terraform_state=True)
         if a["name"] in participating_account_names
     ]
 
