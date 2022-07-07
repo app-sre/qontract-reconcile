@@ -12,11 +12,14 @@ class TerraformConfigClient(ABC):
 
     @abstractmethod
     def add_specs(self, specs: Iterable[ExternalResourceSpec]) -> None:
-        ...
+        """
+        Add external resource specs that will be used to populate a Terraform JSON
+        config.
+        """
 
     @abstractmethod
     def populate_resources(self) -> None:
-        ...
+        """Populate the Terraform JSON configuration."""
 
     @abstractmethod
     def dump(
@@ -24,11 +27,11 @@ class TerraformConfigClient(ABC):
         print_to_file: Optional[str] = None,
         existing_dir: Optional[str] = None,
     ) -> str:
-        ...
+        """Dump the Terraform JSON configuration to the filesystem."""
 
     @abstractmethod
     def dumps(self) -> str:
-        ...
+        """Return the Terraform JSON configuration as a string."""
 
 
 class TerraformConfigClientCollection:
