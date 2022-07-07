@@ -46,6 +46,7 @@ from terrascript.resource import (
     aws_api_gateway_base_path_mapping,
     aws_db_instance,
     aws_db_parameter_group,
+    aws_db_event_subscription,
     aws_s3_bucket,
     aws_iam_user,
     aws_s3_bucket_notification,
@@ -63,6 +64,8 @@ from terrascript.resource import (
     aws_elasticache_parameter_group,
     aws_iam_user_policy_attachment,
     aws_sqs_queue,
+    aws_sns_topic,
+    aws_sns_topic_subscription,
     aws_dynamodb_table,
     aws_ecr_repository,
     aws_s3_bucket_policy,
@@ -207,6 +210,8 @@ VARIABLE_KEYS = [
     "subnet_ids",
     "network_interface_ids",
     "vpce_id",
+    "fifo_topic",
+    "subscriptions",
 ]
 
 TMP_DIR_PREFIX = "terrascript-aws-"
@@ -1123,6 +1128,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             self.populate_tf_resource_role(spec)
         elif provider == "sqs":
             self.populate_tf_resource_sqs(spec)
+        elif provider == "sns":
+            self.populate_tf_resource_sns(spec)
         elif provider == "dynamodb":
             self.populate_tf_resource_dynamodb(spec)
         elif provider == "ecr":
@@ -1409,10 +1416,26 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         # this will only affect the output Secret
         output_resource_db_name = values.pop("output_resource_db_name", None)
 
+        if "event_notifications" in values:
+            event_notifications = values.pop("event_notifications")
+            for e_n in event_notifications:
+                sns_topic_name = e_n.pop("destination")
+                if sns_topic_name.startswith("arn:"):
+                    raise (ValueError("destination should not be an arn"))
+                e_n["sns_topic"] = "${aws_sns_topic" + "." + sns_topic_name + ".arn}"
+                e_n["source_ids"] = ["${aws_db_instance" + "." + identifier + ".id}"]
+                source_type = e_n.get("source_type", "all")
+                e_n_identifier = (
+                    f"{sns_topic_name}_{source_type}_aws_db_event_subscription"
+                )
+                e_n_tf_resource = aws_db_event_subscription(e_n_identifier, **e_n)
+                tf_resources.append(e_n_tf_resource)
+
         # rds instance
         # Ref: https://www.terraform.io/docs/providers/aws/r/db_instance.html
         tf_resource = aws_db_instance(identifier, **values)
         tf_resources.append(tf_resource)
+
         # rds outputs
         # we want the outputs to be formed into an OpenShift Secret
         # with the following fields
@@ -2277,6 +2300,51 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             tf_resource = aws_iam_user_policy_attachment(policy_identifier, **values)
             tf_resources.append(tf_resource)
 
+        self.add_resources(account, tf_resources)
+
+    def populate_tf_resource_sns(self, spec):
+        account = spec.provisioner_name
+        identifier = spec.identifier
+        common_values = self.init_values(spec)
+        output_prefix = spec.output_prefix
+        policy = common_values.get("inline_policy")
+        region = common_values.get("region") or self.default_regions.get(account)
+
+        values = {}
+        fifo_topic = common_values.get("fifo_topic", False)
+        if fifo_topic:
+            topic_name = identifier + (".fifo")
+        else:
+            topic_name = identifier
+
+        values["name"] = topic_name
+        values["policy"] = policy
+        values["fifo_topic"] = fifo_topic
+
+        tf_resources = []
+        self.init_common_outputs(tf_resources, spec)
+        tf_resource = aws_sns_topic(identifier, **values)
+        tf_resources.append(tf_resource)
+
+        if "subscriptions" in common_values.keys():
+            subscriptions = common_values.get("subscriptions")
+            for sub in subscriptions:
+                sub_values = {}
+                sub_values["topic_arn"] = "${aws_sns_topic" + "." + identifier + ".arn}"
+                protocol = sub["protocol"]
+                sub_values["protocol"] = protocol
+                sub_values["endpoint"] = sub["endpoint"]
+                sub_identifier = f"{identifier}_{protocol}_aws_sns_topic_subscription"
+                sub_tf_resource = aws_sns_topic_subscription(
+                    sub_identifier, **sub_values
+                )
+                tf_resources.append(sub_tf_resource)
+
+        output_name_0_13 = output_prefix + "__aws_region"
+        tf_resources.append(Output(output_name_0_13, value=region))
+        output_name_0_13 = output_prefix + "__endpoint"
+        output_value = f"https://sns.{region}.amazonaws.com"
+        tf_resources.append(Output(output_name_0_13, value=output_value))
         self.add_resources(account, tf_resources)
 
     def populate_tf_resource_dynamodb(self, spec):
