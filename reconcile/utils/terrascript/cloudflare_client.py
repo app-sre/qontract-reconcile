@@ -12,9 +12,12 @@ from reconcile.utils.external_resource_spec import (
     ExternalResourceSpec,
     ExternalResourceSpecInventory,
 )
+from reconcile.utils.terraform.config import TerraformS3BackendConfig
 from reconcile.utils.terraform.config_client import TerraformConfigClient
 from reconcile.utils.terraform_client import TerraformClient
-from reconcile.utils.terrascript.cloudflare_resources import _CloudflareZoneResource
+from reconcile.utils.terrascript.cloudflare_resources import (
+    create_cloudflare_terrascript_resource,
+)
 
 TMP_DIR_PREFIX = "terrascript-cloudflare-"
 
@@ -29,26 +32,24 @@ class ClientNotRegisteredError(Exception):
 
 @dataclass
 class CloudflareAccountConfig:
+    """Configuration related to authenticating API calls to Cloudflare."""
+
     name: str
     email: str
     api_key: str
     account_id: str
 
 
-@dataclass
-class S3BackendConfig:
-    access_key: str
-    secret_key: str
-    bucket: str
-    key: str
-    region: str
-
-
-def create_terrascript_cloudflare(
+def create_cloudflare_terrascript(
     account_config: CloudflareAccountConfig,
-    backend_config: S3BackendConfig,
+    backend_config: TerraformS3BackendConfig,
     provider_version: str,
 ) -> Terrascript:
+    """
+    Configures a Terrascript class with the required provider(s) and backend
+    configuration. This is offloaded to a separate function to avoid mixing additional
+    logic into TerrascriptCloudflareClient.
+    """
     terrascript = Terrascript()
 
     terrascript += Terraform(
@@ -99,7 +100,6 @@ class TerrascriptCloudflareClient(TerraformConfigClient):
     ):
         self._terrascript = ts_client
         self._resource_specs: ExternalResourceSpecInventory = {}
-        self._resource_classes = {"cloudflare_zone": _CloudflareZoneResource}
 
     def add_specs(self, specs: Iterable[ExternalResourceSpec]) -> None:
         for spec in specs:
@@ -111,9 +111,7 @@ class TerrascriptCloudflareClient(TerraformConfigClient):
         to determine which resources to create.
         """
         for spec in self._resource_specs.values():
-            resource_class = self._resource_classes[spec.provision_provider]
-            resource = resource_class(spec)
-            resources_to_add = resource.populate()
+            resources_to_add = create_cloudflare_terrascript_resource(spec)
             self._add_resources(resources_to_add)
 
     def dump(
@@ -197,16 +195,18 @@ def main():
 
     # Dummy backend config for now, not actually being used, but would again come from
     # account config like with AWS resources.
-    backend_config = S3BackendConfig("abc", "abc", "some-bucket", "config", "us-east-1")
+    backend_config = TerraformS3BackendConfig(
+        "abc", "abc", "some-bucket", "config", "us-east-1"
+    )
 
     # TODO: get this from account config
     cloudflare_provider_version = "3.18"
 
-    terrascript_client_a = create_terrascript_cloudflare(
+    terrascript_client_a = create_cloudflare_terrascript(
         account_config, backend_config, cloudflare_provider_version
     )
 
-    terrascript_client_b = create_terrascript_cloudflare(
+    terrascript_client_b = create_cloudflare_terrascript(
         account_config, backend_config, cloudflare_provider_version
     )
 

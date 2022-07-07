@@ -5,10 +5,10 @@ import pytest
 from reconcile.utils.external_resource_spec import ExternalResourceSpec
 from reconcile.utils.terrascript.cloudflare_client import (
     CloudflareAccountConfig,
-    S3BackendConfig,
     TerrascriptCloudflareClient,
-    create_terrascript_cloudflare,
+    create_cloudflare_terrascript,
 )
+from reconcile.utils.terraform.config import TerraformS3BackendConfig
 
 
 @pytest.fixture
@@ -20,7 +20,7 @@ def account_config():
 
 @pytest.fixture
 def backend_config():
-    return S3BackendConfig(
+    return TerraformS3BackendConfig(
         "access-key",
         "secret-key",
         "bucket-name",
@@ -31,7 +31,7 @@ def backend_config():
 
 def test_create_cloudflare_zone(account_config, backend_config):
 
-    terrascript_client = create_terrascript_cloudflare(
+    terrascript_client = create_cloudflare_terrascript(
         account_config, backend_config, "3.18"
     )
 

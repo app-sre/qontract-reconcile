@@ -1,38 +1,38 @@
-from abc import ABC, abstractmethod
-from typing import Iterable
+from typing import Union
 
-from terrascript import Resource
+from terrascript import Resource, Output
 from terrascript.resource import cloudflare_zone, cloudflare_zone_settings_override
 
 from reconcile.utils.external_resource_spec import ExternalResourceSpec
 from reconcile.utils.external_resources import ResourceValueResolver
+from reconcile.utils.terrascript.resources import TerrascriptResource
 
 
-class _CloudflareResource(ABC):
-    """Early proposal, might decide to change method names"""
-
-    def __init__(self, spec: ExternalResourceSpec):
-        self._spec = spec
-
-    @staticmethod
-    def _get_dependencies(tf_resources: Iterable[Resource]) -> list[str]:
-        return [
-            f"{tf_resource.__class__.__name__}.{tf_resource._name}"
-            for tf_resource in tf_resources
-        ]
-
-    @abstractmethod
-    def populate(self) -> list[Resource]:
-        ...
+class UnsupportedCloudflareResourceError(Exception):
+    pass
 
 
-class _CloudflareZoneResource(_CloudflareResource):
+def create_cloudflare_terrascript_resource(
+    spec: ExternalResourceSpec,
+) -> list[Union[Resource, Output]]:
     """
-    Translate from the cloudflare_zone provider ExternalResourceSpec to resulting
-    Terrascript resource objects.
+    Create the required Cloudflare Terrascript resources as defined by the external
+    resources spec.
     """
+    resource_type = spec.provision_provider
 
-    def populate(self) -> list[Resource]:
+    if resource_type == "cloudflare_zone":
+        return CloudflareZoneTerrascriptResource(spec).populate()
+    else:
+        raise UnsupportedCloudflareResourceError(
+            f"The resource type {resource_type} is not supported"
+        )
+
+
+class CloudflareZoneTerrascriptResource(TerrascriptResource):
+    """Generate a cloudflare_zone and related resources."""
+
+    def populate(self) -> list[Union[Resource, Output]]:
 
         values = ResourceValueResolver(self._spec).resolve()
 
