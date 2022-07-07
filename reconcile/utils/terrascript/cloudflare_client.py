@@ -13,21 +13,16 @@ from reconcile.utils.external_resource_spec import (
     ExternalResourceSpecInventory,
 )
 from reconcile.utils.terraform.config import TerraformS3BackendConfig
-from reconcile.utils.terraform.config_client import TerraformConfigClient
+from reconcile.utils.terraform.config_client import (
+    TerraformConfigClient,
+    TerraformConfigClientCollection,
+)
 from reconcile.utils.terraform_client import TerraformClient
 from reconcile.utils.terrascript.cloudflare_resources import (
     create_cloudflare_terrascript_resource,
 )
 
 TMP_DIR_PREFIX = "terrascript-cloudflare-"
-
-
-class ClientAlreadyRegisteredError(Exception):
-    pass
-
-
-class ClientNotRegisteredError(Exception):
-    pass
 
 
 @dataclass
@@ -136,46 +131,6 @@ class TerrascriptCloudflareClient(TerraformConfigClient):
             self._terrascript.add(resource)
 
 
-class TerrascriptCloudflareClientCollection:
-    """
-    Collection of TerrascriptCloudflareClients for consolidating logic related collecting
-    the clients and iterating through them, optionally concurrency as needed.
-    """
-
-    def __init__(self) -> None:
-        self._clients: dict[str, TerrascriptCloudflareClient] = {}
-
-    def register_client(
-        self, account_name: str, client: TerrascriptCloudflareClient
-    ) -> None:
-        if account_name in self._clients:
-            raise ClientAlreadyRegisteredError(
-                f"Client already registered for account name: {account_name}"
-            )
-
-        self._clients[account_name] = client
-
-    def add_specs(self, account_name: str, specs: Iterable[ExternalResourceSpec]):
-        try:
-            self._clients[account_name].add_specs(specs)
-        except KeyError:
-            raise ClientNotRegisteredError(
-                f"There aren't any clients registered for account name: {account_name}"
-            )
-
-    def populate_resources(self) -> None:
-        for client in self._clients.values():
-            client.populate_resources()
-
-    def dump(self) -> dict[str, str]:
-        working_dirs = {}
-
-        for account, client in self._clients.items():
-            working_dirs[account] = client.dump()
-
-        return working_dirs
-
-
 def main():
     """
     All of this will go away, just a testing ground before the decision is made whether
@@ -249,7 +204,7 @@ def main():
     # dealing with ExternalResourceSpecs directly. We can deal with namespaces and call
     # it init_populate_specs() if determine that it's important enough to do so, and
     # if we decide this will be a single integration instead of a separate integration.
-    cloudflare_clients = TerrascriptCloudflareClientCollection()
+    cloudflare_clients = TerraformConfigClientCollection()
     cloudflare_clients.register_client("acct_a", acct_a_cloudflare_client)
     cloudflare_clients.add_specs("acct_a", acct_a_specs)
     cloudflare_clients.register_client("acct_b", acct_b_cloudflare_client)
