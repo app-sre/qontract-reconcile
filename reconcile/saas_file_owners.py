@@ -234,7 +234,7 @@ def check_if_lgtm(owners, comments):
         commenter = comment["username"]
         if commenter not in owners:
             continue
-        for line in comment["body"].split("\n"):
+        for line in comment.get("body", "").split("\n"):
             if line == "/lgtm":
                 lgtm_comment = True
                 approved = True
