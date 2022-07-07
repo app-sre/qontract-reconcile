@@ -82,13 +82,14 @@ SETTINGS_QUERY = """
 """
 
 
-def get_settings() -> Optional[Mapping[str, Any]]:
+def get_settings() -> Mapping[str, Any]:
     gqlapi = gql.get_api()
     settings = gqlapi.query(SETTINGS_QUERY)["settings"]
     if settings:
         # assuming a single settings file for now
         return settings[0]
-    return None
+    else:
+        raise ValueError("no app-interface-settings found")
 
 
 def run(dry_run):
