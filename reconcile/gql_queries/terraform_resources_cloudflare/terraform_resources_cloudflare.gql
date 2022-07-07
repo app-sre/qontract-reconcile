@@ -1,0 +1,64 @@
+# qenerate: plugin=pydantic_v1
+
+query TerraformResourcesCloudflare {
+  namespaces: namespaces_v1 {
+    name
+    externalResources {
+      ... on NamespaceTerraformProviderResourceCloudflare_v1 {
+        provider
+        provisioner {
+          name
+          providerVersion
+          apiCredentials {
+            path
+            field
+          }
+          terraformStateAccount {
+            name
+            automationToken {
+              path
+              field
+            }
+            terraformState {
+              provider
+              bucket
+              region
+              integrations {
+                integration
+                key
+              }
+            }
+          }
+        }
+        resources {
+          provider
+          ... on NamespaceTerraformResourceCloudflareZone_v1
+          {
+            zone
+            plan
+            type
+            settings
+            records {
+              name
+              type
+              ttl
+              value
+              proxied
+            }
+            workers {
+              identifier
+              pattern
+              script {
+                name
+                content_inline
+                content_file {
+                  content
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

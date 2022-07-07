@@ -81,7 +81,7 @@ def test_create_cloudflare_resources_terraform_json(account_config, backend_conf
             "cloudflare": [
                 {
                     "email": "some@email",
-                    "api_key": "api-token",
+                    "api_token": "api-token",
                     "account_id": "account-id",
                 }
             ]
