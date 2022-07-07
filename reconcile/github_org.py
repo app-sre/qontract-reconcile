@@ -93,8 +93,7 @@ QONTRACT_INTEGRATION = "github"
 def get_config(default=False):
     gqlapi = gql.get_api()
     orgs = gqlapi.query(ORGS_QUERY)["orgs"]
-    settings = queries.get_app_interface_settings()
-    secret_reader = SecretReader(settings=settings)
+    secret_reader = SecretReader(queries.get_secret_reader_settings())
     config = {"github": {}}
     found_defaults = []
     for org in orgs:
