@@ -395,8 +395,9 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
             namespace,
             kind,
             name,
-            f"--cascade={str(cascade).lower()}",
         ]
+        if cascade:
+            cmd.append("--cascade=orphan")
         self._run(cmd)
         resource = {"kind": kind, "metadata": {"name": name}}
         return self._msg_to_process_reconcile_time(namespace, resource)
