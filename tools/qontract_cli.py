@@ -1233,7 +1233,12 @@ def template(ctx, cluster, namespace, kind, name):
 @click.argument("cluster")
 @click.argument("namespace")
 @click.argument("rules_path")
-@click.argument("alert_name")
+@click.option(
+    "-a",
+    "--alert-name",
+    help="Alert name in RULES_PATH. Receivers for all alerts will be returned if not "
+    "specified.",
+)
 @click.option(
     "-c",
     "--alertmanager-secret-path",
@@ -1354,23 +1359,29 @@ def alert_to_receiver(
         )
         sys.exit(1)
 
-    labels = []  # array of dicts
+    alert_labels: list[dict] = []
     for group in rule_spec["groups"]:
         for rule in group["rules"]:
-            if rule["alert"] != alert_name:
-                continue
-            labels.append(rule["labels"] | additional_labels)
+            alert_labels.append(
+                {
+                    "name": rule["alert"],
+                    "labels": rule["labels"] | additional_labels,
+                }
+            )
 
-    if not labels:
-        print(f"Cannot find alert {alert_name} in rules {rules_path}")
-        sys.exit(1)
+    if alert_name:
+        alert_labels = [al for al in alert_labels if al["name"] == alert_name]
 
-    for lbl in labels:
-        result = amtool.config_routes_test(am_config, lbl)
+        if not alert_labels:
+            print(f"Cannot find alert {alert_name} in rules {rules_path}")
+            sys.exit(1)
+
+    for al in alert_labels:
+        result = amtool.config_routes_test(am_config, al["labels"])
         if not result:
             print(f"Error running amtool: {result}")
             sys.exit(1)
-        print(result)
+        print("|".join([al["name"], str(result)]))
 
 
 @root.command()
