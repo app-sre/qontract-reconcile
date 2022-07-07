@@ -64,7 +64,7 @@ def setup(
     print_to_file, thread_pool_size: int, account_name: Optional[str] = None
 ) -> tuple[list[dict[str, Any]], dict[str, str], bool, AWSApi]:
     gqlapi = gql.get_api()
-    accounts = queries.get_aws_accounts()
+    accounts = queries.get_aws_accounts(terraform_state=True)
     if account_name:
         accounts = [n for n in accounts if n["name"] == account_name]
         if not accounts:

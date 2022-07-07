@@ -450,12 +450,25 @@ AWS_ACCOUNTS_QUERY = """
       }
     }
     {% endif %}
+    {% if terraform_state %}
+    terraformState {
+      provider
+      bucket
+      region
+      integrations {
+          key
+          integration
+      }
+    }
+    {% endif %}
   }
 }
 """
 
 
-def get_aws_accounts(reset_passwords=False, name=None, uid=None, sharing=False):
+def get_aws_accounts(
+    reset_passwords=False, name=None, uid=None, sharing=False, terraform_state=False
+):
     """Returns all AWS accounts"""
     gqlapi = gql.get_api()
     search = name or uid
@@ -465,6 +478,7 @@ def get_aws_accounts(reset_passwords=False, name=None, uid=None, sharing=False):
         name=name,
         uid=uid,
         sharing=sharing,
+        terraform_state=terraform_state,
     )
     return gqlapi.query(query)["accounts"]
 

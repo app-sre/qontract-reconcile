@@ -330,15 +330,11 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
             ts += provider.template(version="2.2.0")
 
-            b = Backend(
-                "s3",
-                access_key=config["aws_access_key_id"],
-                secret_key=config["aws_secret_access_key"],
-                bucket=config["bucket"],
-                key=config["{}_key".format(integration)],
-                region=config["region"],
+            ts += Terraform(
+                backend=TerrascriptClient.state_bucket_for_account(
+                    self.integration, name, config
+                )
             )
-            ts += Terraform(backend=b)
             tss[name] = ts
             locks[name] = Lock()
 
@@ -365,6 +361,42 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         self.rosa_authenticator_pre_signup_zip_lock = Lock()
         self.github: Optional[Github] = None
         self.github_lock = Lock()
+
+    @staticmethod
+    def state_bucket_for_account(
+        integration: str, account_name: str, config: dict[str, Any]
+    ) -> Backend:
+        # creds
+        access_key_backend_value = config["aws_access_key_id"]
+        secret_key_backend_value = config["aws_secret_access_key"]
+
+        # defaults from account
+        bucket_backend_value = config.get("bucket")
+        key_backend_value = config.get("{}_key".format(integration))
+        region_backend_value = config.get("region")
+        terraform_state = config["terraformState"]
+        if terraform_state:
+            tf_state_integration = terraform_state["integrations"]
+            for key in tf_state_integration:
+                integration_value = key.get("integration")
+                if integration_value.replace("-", "_") == integration:
+                    bucket_backend_value = terraform_state.get("bucket")
+                    key_backend_value = key.get("key")
+                    region_backend_value = terraform_state.get("region")
+                    break
+                continue
+
+        if bucket_backend_value and key_backend_value and region_backend_value:
+            return Backend(
+                "s3",
+                access_key=access_key_backend_value,
+                secret_key=secret_key_backend_value,
+                bucket=bucket_backend_value,
+                key=key_backend_value,
+                region=region_backend_value,
+            )
+        else:
+            raise ValueError(f"No bucket config found for account {account_name}")
 
     def get_logtoes_zip(self, release_url):
         if not self.logtoes_zip:
@@ -459,6 +491,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             account = awsh.get_account(accounts, account_name)
             config["supportedDeploymentRegions"] = account["supportedDeploymentRegions"]
             config["resourcesDefaultRegion"] = account["resourcesDefaultRegion"]
+            config["terraformState"] = account["terraformState"]
             self.configs[account_name] = config
 
     def _get_partition(self, account):
