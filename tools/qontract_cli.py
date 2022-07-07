@@ -1359,7 +1359,7 @@ def alert_to_receiver(
         )
         sys.exit(1)
 
-    alert_labels: list[dict] = [] 
+    alert_labels: list[dict] = []
     for group in rule_spec["groups"]:
         for rule in group["rules"]:
             alert_labels.append(
