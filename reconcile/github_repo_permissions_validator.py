@@ -18,7 +18,7 @@ QONTRACT_INTEGRATION = "github-repo-permissions-validator"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 
-def get_jobs(jjb, instance_name):
+def get_jobs(jjb: JJB, instance_name: str):
     pr_check_jobs = jjb.get_all_jobs(
         job_types=["gh-pr-check"], instance_name=instance_name
     ).get(instance_name)
