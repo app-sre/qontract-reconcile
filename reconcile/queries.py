@@ -1313,6 +1313,16 @@ APPS_QUERY = """
 }
 """
 
+CODE_COMPONENT_REPO_QUERY = """
+{
+  apps: apps_v1 {
+    codeComponents {
+      url
+    }
+  }
+}
+"""
+
 
 def get_apps():
     """Returns all Apps."""
@@ -1330,14 +1340,18 @@ def get_code_components():
     return code_components
 
 
-def get_repos(server=""):
+def get_repos(server="") -> list[str]:
     """Returns all repos defined under codeComponents
     Optional arguments:
     server: url of the server to return. for example: https://github.com
     """
-    code_components = get_code_components()
-    repos = [c["url"] for c in code_components if c["url"].startswith(server)]
-
+    apps = gql.get_api().query(CODE_COMPONENT_REPO_QUERY)["apps"]
+    repos: list[str] = []
+    for a in apps:
+        if a["codeComponents"] is not None:
+            for c in a["codeComponents"]:
+                if c["url"].startswith(server):
+                    repos.append(c["url"])
     return repos
 
 
