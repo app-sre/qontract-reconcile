@@ -4,7 +4,8 @@ import time
 
 from reconcile import queries
 
-from reconcile.utils.jenkins_api import JenkinsApi
+from reconcile.utils.jenkins_api import init_jenkins_from_secret
+from reconcile.utils.secret_reader import SecretReader
 
 QONTRACT_INTEGRATION = "jenkins-job-builds-cleaner"
 
@@ -62,7 +63,7 @@ def find_builds(jenkins, job_names, rules):
 
 def run(dry_run):
     jenkins_instances = queries.get_jenkins_instances()
-    settings = queries.get_app_interface_settings()
+    secret_reader = SecretReader(queries.get_secret_reader_settings())
 
     for instance in jenkins_instances:
         instance_cleanup_rules = instance.get("buildsCleanupRules", [])
@@ -84,7 +85,7 @@ def run(dry_run):
 
         token = instance["token"]
         instance_name = instance["name"]
-        jenkins = JenkinsApi(token, ssl_verify=False, settings=settings)
+        jenkins = init_jenkins_from_secret(secret_reader, token, ssl_verify=False)
         all_job_names = jenkins.get_job_names()
 
         builds_todel = find_builds(jenkins, all_job_names, cleanup_rules)

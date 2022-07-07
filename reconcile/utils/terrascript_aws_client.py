@@ -135,7 +135,7 @@ from reconcile.utils.external_resource_spec import (
     ExternalResourceSpecInventory,
 )
 from reconcile.utils.external_resources import PROVIDER_AWS, get_external_resource_specs
-from reconcile.utils.jenkins_api import JenkinsApi
+from reconcile.utils.jenkins_api import JenkinsApi, init_jenkins_from_secret
 from reconcile.utils.ocm import OCMMap
 from reconcile.utils.password_validator import PasswordPolicy, PasswordValidator
 from reconcile.utils.secret_reader import SecretReader
@@ -462,7 +462,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         return self.github
 
     def init_jenkins(self, instance: dict) -> JenkinsApi:
-        return JenkinsApi(instance["token"], settings=self.settings)
+        return init_jenkins_from_secret(SecretReader(self.settings), instance["token"])
 
     def filter_disabled_accounts(
         self, accounts: Iterable[dict[str, Any]]

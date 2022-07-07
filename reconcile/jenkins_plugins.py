@@ -1,9 +1,11 @@
 import logging
+from typing import Any, Mapping
 
 from reconcile.utils import gql
 from reconcile import queries
 
-from reconcile.utils.jenkins_api import JenkinsApi
+from reconcile.utils.jenkins_api import JenkinsApi, init_jenkins_from_secret
+from reconcile.utils.secret_reader import SecretReader
 
 
 INSTANCES_QUERY = """
@@ -24,10 +26,12 @@ INSTANCES_QUERY = """
 QONTRACT_INTEGRATION = "jenkins-plugins"
 
 
-def get_jenkins_map(plugins_only=False, desired_instances=None):
+def get_jenkins_map(
+    plugins_only=False, desired_instances=None
+) -> dict[str, JenkinsApi]:
     gqlapi = gql.get_api()
     jenkins_instances = gqlapi.query(INSTANCES_QUERY)["instances"]
-    settings = queries.get_app_interface_settings()
+    secret_reader = SecretReader(queries.get_secret_reader_settings())
 
     jenkins_map = {}
     for instance in jenkins_instances:
@@ -40,13 +44,13 @@ def get_jenkins_map(plugins_only=False, desired_instances=None):
             continue
 
         token = instance["token"]
-        jenkins = JenkinsApi(token, ssl_verify=False, settings=settings)
+        jenkins = init_jenkins_from_secret(secret_reader, token, ssl_verify=False)
         jenkins_map[instance_name] = jenkins
 
     return jenkins_map
 
 
-def get_current_state(jenkins_map):
+def get_current_state(jenkins_map: Mapping[str, JenkinsApi]) -> list[dict[str, Any]]:
     current_state = []
 
     for instance, jenkins in jenkins_map.items():

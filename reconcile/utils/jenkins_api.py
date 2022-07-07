@@ -8,20 +8,28 @@ from sretoolbox.utils import retry
 from reconcile.utils.secret_reader import SecretReader
 
 
+def init_jenkins_from_secret(
+    secret_reader: SecretReader, secret, ssl_verify=True
+) -> "JenkinsApi":
+    token_config = secret_reader.read(secret)
+    config = toml.loads(token_config)
+    return JenkinsApi(
+        config["jenkins"]["url"],
+        config["jenkins"]["user"],
+        config["jenkins"]["password"],
+        ssl_verify=ssl_verify,
+    )
+
+
 class JenkinsApi:
     """Wrapper around Jenkins API calls"""
 
-    def __init__(self, token, ssl_verify=True, settings=None):
-        secret_reader = SecretReader(settings=settings)
-        token_config = secret_reader.read(token)
-        config = toml.loads(token_config)
-
-        self.url = config["jenkins"]["url"]
-        self.user = config["jenkins"]["user"]
-        self.password = config["jenkins"]["password"]
+    def __init__(self, url: str, user: str, password: str, ssl_verify=True):
+        self.url = url
+        self.user = user
+        self.password = password
         self.ssl_verify = ssl_verify
         self.should_restart = False
-        self.settings = settings
 
     def get_job_names(self):
         url = f"{self.url}/api/json?tree=jobs[name]"
