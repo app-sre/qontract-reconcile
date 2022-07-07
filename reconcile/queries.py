@@ -5,11 +5,30 @@ import itertools
 import shlex
 
 from textwrap import indent
-from typing import Any, Optional
+from typing import Any, Mapping, Optional
 
 from jinja2 import Template
 
 from reconcile.utils import gql
+
+
+SECRET_READER_SETTINGS = """
+{
+  settings: app_interface_settings_v1 {
+    vault
+  }
+}
+"""
+
+
+def get_secret_reader_settings() -> Optional[Mapping[str, Any]]:
+    """Returns SecretReader settings"""
+    gqlapi = gql.get_api()
+    settings = gqlapi.query(SECRET_READER_SETTINGS)["settings"]
+    if settings:
+        # assuming a single settings file for now
+        return settings[0]
+    return None
 
 
 APP_INTERFACE_SETTINGS_QUERY = """
