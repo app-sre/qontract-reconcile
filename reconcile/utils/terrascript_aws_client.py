@@ -8,6 +8,7 @@ import random
 import re
 import string
 import tempfile
+import imghdr
 
 from threading import Lock
 
@@ -4629,6 +4630,19 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         s3_client.download_file(
             bucket_name, redhat_logo_png_obj_name, redhat_logo_png_filepath
         )
+        if not os.path.exists(redhat_logo_png_filepath):
+            raise Exception(
+                f"Attempted to download object {redhat_logo_png_obj_name} "
+                f"from s3 bucket {bucket_name} to local filepath {redhat_logo_png_filepath},"
+                f" but no file exists locally at this path!"
+            )
+        file_type = imghdr.what(redhat_logo_png_filepath)
+        if imghdr.what(redhat_logo_png_filepath) is not "png":
+            raise Exception(
+                f"Attempted to download object {redhat_logo_png_obj_name} "
+                f"from s3 bucket {bucket_name} to local filepath {redhat_logo_png_filepath}."
+                f" File exists but filetype is {file_type}. Expected filetype is 'png'."
+            )
 
         # Prepare all resource arguments from default file
         pool_args = common_values.get("user_pool_properties", None)
@@ -4698,7 +4712,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         # POOL UI
         cognito_user_pool_ui_customization_resource = aws_cognito_user_pool_ui_customization(
             "userpool_ui",
-            image_file='filebase64("' + redhat_logo_png_filepath + '")',
+            image_file='${filebase64("' + redhat_logo_png_filepath + '")}',
             user_pool_id="${aws_cognito_user_pool_domain.userpool_domain.user_pool_id}",
         )
         tf_resources.append(cognito_user_pool_ui_customization_resource)
