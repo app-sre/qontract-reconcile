@@ -484,7 +484,7 @@ def setup(
     account_name: Optional[str],
 ) -> Tuple[ResourceInventory, OC_Map, Terraform, ExternalResourceSpecInventory]:
     gqlapi = gql.get_api()
-    accounts = queries.get_aws_accounts()
+    accounts = queries.get_aws_accounts(terraform_state=True)
     if account_name:
         accounts = [n for n in accounts if n["name"] == account_name]
         if not accounts:

@@ -60,7 +60,9 @@ def run(
     account_name=None,
     defer=None,
 ):
-    accounts = filter_accounts(queries.get_aws_accounts(), account_name)
+    accounts = filter_accounts(
+        queries.get_aws_accounts(terraform_state=True), account_name
+    )
     if not accounts:
         logging.debug("nothing to do here")
         # using return because terraform-resources

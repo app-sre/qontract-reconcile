@@ -478,7 +478,7 @@ def run(
         # on the vpc peering defition in the cluster file.
         ocm_map = None
 
-    accounts = queries.get_aws_accounts()
+    accounts = queries.get_aws_accounts(terraform_state=True)
     awsapi = aws_api.AWSApi(1, accounts, settings=settings, init_users=False)
 
     desired_state = []

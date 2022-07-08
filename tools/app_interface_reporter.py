@@ -221,15 +221,16 @@ class Report:
 
 
 def get_apps_data(date, month_delta=1, thread_pool_size=10):
+    settings = queries.get_app_interface_settings()
+    secret_reader = SecretReader(settings)
+
     apps = queries.get_apps()
     saas_files = queries.get_saas_files()
-    jjb: JJB = init_jjb()
+    jjb: JJB = init_jjb(secret_reader)
     jenkins_map = jenkins_base.get_jenkins_map()
     time_limit = date - relativedelta(months=month_delta)
     timestamp_limit = int(time_limit.replace(tzinfo=timezone.utc).timestamp())
 
-    settings = queries.get_app_interface_settings()
-    secret_reader = SecretReader(settings=settings)
     secret_content = secret_reader.read_all({"path": DASHDOTDB_SECRET})
     dashdotdb_url = secret_content["url"]
     dashdotdb_user = secret_content["username"]

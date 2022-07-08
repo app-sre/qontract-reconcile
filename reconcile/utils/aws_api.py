@@ -95,11 +95,15 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         thread_pool_size,
         accounts,
         settings=None,
+        secret_reader=None,
         init_ecr_auth_tokens=False,
         init_users=True,
     ):
         self.thread_pool_size = thread_pool_size
-        self.secret_reader = SecretReader(settings=settings)
+        if secret_reader:
+            self.secret_reader = secret_reader
+        else:
+            self.secret_reader = SecretReader(settings=settings)
         self.init_sessions_and_resources(accounts)
         if init_ecr_auth_tokens:
             self.init_ecr_auth_tokens(accounts)

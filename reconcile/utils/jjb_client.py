@@ -24,8 +24,6 @@ from reconcile.utils import gql
 from reconcile.utils import throughput
 from reconcile.utils.helpers import toggle_logger
 
-
-from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.exceptions import FetchResourceError
 
 JJB_INI = "[jenkins]\nurl = https://JENKINS_URL"
@@ -34,11 +32,9 @@ JJB_INI = "[jenkins]\nurl = https://JENKINS_URL"
 class JJB:  # pylint: disable=too-many-public-methods
     """Wrapper around Jenkins Jobs"""
 
-    def __init__(self, configs, ssl_verify=True, settings=None, print_only=False):
-        self.settings = settings
+    def __init__(self, configs, ssl_verify=True, secret_reader=None, print_only=False):
         self.print_only = print_only
-        if not print_only:
-            self.secret_reader = SecretReader(settings=settings)
+        self.secret_reader = secret_reader
         self.collect_configs(configs)
         self.modify_logger()
         self.python_https_verify = str(int(ssl_verify))
