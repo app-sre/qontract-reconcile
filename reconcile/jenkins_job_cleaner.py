@@ -3,7 +3,7 @@ import logging
 from reconcile import queries
 
 from reconcile.jenkins_job_builder import init_jjb
-from reconcile.utils.jenkins_api import init_jenkins_from_secret
+from reconcile.utils.jenkins_api import JenkinsApi
 from reconcile.utils.secret_reader import SecretReader
 
 QONTRACT_INTEGRATION = "jenkins-job-cleaner"
@@ -39,7 +39,7 @@ def run(dry_run):
             continue
 
         instance_name = instance["name"]
-        jenkins = init_jenkins_from_secret(
+        jenkins = JenkinsApi.init_jenkins_from_secret(
             secret_reader, instance["token"], ssl_verify=False
         )
         all_job_names = jenkins.get_job_names()

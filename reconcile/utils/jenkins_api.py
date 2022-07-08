@@ -8,21 +8,21 @@ from sretoolbox.utils import retry
 from reconcile.utils.secret_reader import SecretReader
 
 
-def init_jenkins_from_secret(
-    secret_reader: SecretReader, secret, ssl_verify=True
-) -> "JenkinsApi":
-    token_config = secret_reader.read(secret)
-    config = toml.loads(token_config)
-    return JenkinsApi(
-        config["jenkins"]["url"],
-        config["jenkins"]["user"],
-        config["jenkins"]["password"],
-        ssl_verify=ssl_verify,
-    )
-
-
 class JenkinsApi:
     """Wrapper around Jenkins API calls"""
+
+    @staticmethod
+    def init_jenkins_from_secret(
+        secret_reader: SecretReader, secret, ssl_verify=True
+    ) -> "JenkinsApi":
+        token_config = secret_reader.read(secret)
+        config = toml.loads(token_config)
+        return JenkinsApi(
+            config["jenkins"]["url"],
+            config["jenkins"]["user"],
+            config["jenkins"]["password"],
+            ssl_verify=ssl_verify,
+        )
 
     def __init__(self, url: str, user: str, password: str, ssl_verify=True):
         self.url = url

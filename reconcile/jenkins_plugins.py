@@ -4,7 +4,7 @@ from typing import Any, Mapping
 from reconcile.utils import gql
 from reconcile import queries
 
-from reconcile.utils.jenkins_api import JenkinsApi, init_jenkins_from_secret
+from reconcile.utils.jenkins_api import JenkinsApi
 from reconcile.utils.secret_reader import SecretReader
 
 
@@ -44,7 +44,9 @@ def get_jenkins_map(
             continue
 
         token = instance["token"]
-        jenkins = init_jenkins_from_secret(secret_reader, token, ssl_verify=False)
+        jenkins = JenkinsApi.init_jenkins_from_secret(
+            secret_reader, token, ssl_verify=False
+        )
         jenkins_map[instance_name] = jenkins
 
     return jenkins_map
