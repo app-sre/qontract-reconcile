@@ -46,6 +46,8 @@ from reconcile.utils.unleash import (
 
 urllib3.disable_warnings()
 
+WAIT_FOR_DEPLOYMENT_MAX_ATTEMPTS = 20
+
 
 class StatusCodeError(Exception):
     pass
@@ -104,6 +106,10 @@ class PodNotReadyError(Exception):
 
 
 class JobNotRunningError(Exception):
+    pass
+
+
+class DeploymentNotReadyError(Exception):
     pass
 
 
@@ -201,6 +207,21 @@ class OCProcessReconcileTimeDecoratorMsg:
 def oc_process(template, parameters=None):
     oc = OCNative(server=None, local=True, cluster_name="cluster", token=None)
     return oc.process(template, parameters)
+
+
+def equal_spec_template(t1: dict, t2: dict) -> bool:
+    """Compare two spec.templates."""
+    t1_copy = copy.deepcopy(t1)
+    t2_copy = copy.deepcopy(t2)
+    try:
+        del t1_copy["metadata"]["labels"]["pod-template-hash"]
+    except KeyError:
+        pass
+    try:
+        del t2_copy["metadata"]["labels"]["pod-template-hash"]
+    except KeyError:
+        pass
+    return t1_copy == t2_copy
 
 
 class OCDeprecated:  # pylint: disable=too-many-public-methods
@@ -541,6 +562,20 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
         if not ready_pods:
             raise JobNotRunningError(name)
 
+    @retry(
+        exceptions=(DeploymentNotReadyError),
+        max_attempts=WAIT_FOR_DEPLOYMENT_MAX_ATTEMPTS,
+    )
+    def wait_for_deployment(self, namespace, name):
+        logging.info(f"waiting for deployment '{name}' to become ready")
+        deployment = self.get(namespace, "Deployment", name)
+
+        for condition in deployment.get("status", {}).get("conditions", []):
+            if condition["type"] == "Available" and condition["status"] == "True":
+                return
+
+        raise DeploymentNotReadyError(name)
+
     def job_logs(self, namespace, name, follow, output):
         self.wait_for_job_running(namespace, name)
         cmd = ["logs", "-n", namespace, f"job/{name}"]
@@ -569,6 +604,34 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
                 owned_pods.append(p)
 
         return owned_pods
+
+    def get_owned_replicasets(self, namespace, resource: dict) -> list[dict]:
+        owned_replicasets = []
+        for rs in self.get(namespace, "ReplicaSet")["items"]:
+            owner = self.get_obj_root_owner(namespace, rs, allow_not_found=True)
+            if (resource["kind"], resource["metadata"]["name"]) == (
+                owner["kind"],
+                owner["metadata"]["name"],
+            ):
+                owned_replicasets.append(rs)
+
+        return owned_replicasets
+
+    def get_replicaset(self, namespace: str, deployment_resource: dict) -> dict:
+        """Get last active ReplicaSet for given Deployment.
+
+        Implements similar logic like in kubectl describe deployment.
+        """
+        for rs in sorted(
+            self.get_owned_replicasets(namespace, deployment_resource),
+            key=lambda x: x["metadata"]["creationTimestamp"],
+            reverse=True,
+        ):
+            if equal_spec_template(
+                rs["spec"]["template"], deployment_resource["spec"]["template"]
+            ):
+                return rs
+        return {}
 
     @staticmethod
     def get_pod_owned_pvc_names(pods: Iterable[dict[str, dict]]) -> set[str]:

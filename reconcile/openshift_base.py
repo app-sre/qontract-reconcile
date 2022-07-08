@@ -345,11 +345,47 @@ def apply(
         except FieldIsImmutableError:
             # Add more resources types to the list when you're
             # sure they're safe.
-            if resource_type not in ["Route", "Service", "Secret"]:
+            if resource_type not in ["Route", "Service", "Secret", "Deployment"]:
                 raise
 
-            oc.delete(namespace=namespace, kind=resource_type, name=resource.name)
-            oc.apply(namespace=namespace, resource=annotated)
+            if resource_type == "Deployment":
+                logging.info(
+                    ["replace", cluster, namespace, resource_type, resource.name]
+                )
+                # spec.selector changes
+                current_resource = oc.get(namespace, resource_type, resource.name)
+
+                # check update strategy
+                if current_resource["spec"]["strategy"]["type"] != "RollingUpdate":
+                    logging.error(
+                        f"Can't replace Deployment '{resource.name}' inplace w/o interruption because spec.strategy.type != 'RollingUpdate'"
+                    )
+                    raise
+
+                # Get active ReplicSet for old Deployment. We've to delete it manually after
+                # the new Deployment is in place.
+                obsolete_rs = oc.get_replicaset(namespace, current_resource)
+
+                # delete old Deployment
+                oc.delete(
+                    namespace=namespace,
+                    kind=resource_type,
+                    name=resource.name,
+                    cascade=False,
+                )
+                # create new one
+                oc.apply(namespace=namespace, resource=annotated)
+                if obsolete_rs:
+                    oc.wait_for_deployment(namespace, resource.name)
+                    # delete old ReplicSet
+                    oc.delete(
+                        namespace=namespace,
+                        kind=obsolete_rs["kind"],
+                        name=obsolete_rs["metadata"]["name"],
+                    )
+            else:
+                oc.delete(namespace=namespace, kind=resource_type, name=resource.name)
+                oc.apply(namespace=namespace, resource=annotated)
         except (MayNotChangeOnceSetError, PrimaryClusterIPCanNotBeUnsetError):
             if resource_type not in ["Service"]:
                 raise
