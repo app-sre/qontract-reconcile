@@ -27,6 +27,7 @@ def create_external_resource_spec(name):
 
 
 def test_terraform_config_client_collection_populate_resources():
+    """populate_resources() is called on all registered clients."""
     client_1: MagicMock = create_autospec(TerraformConfigClient)
     client_2: MagicMock = create_autospec(TerraformConfigClient)
     client_3: MagicMock = create_autospec(TerraformConfigClient)
@@ -44,6 +45,7 @@ def test_terraform_config_client_collection_populate_resources():
 
 
 def test_terraform_config_client_collection_add_specs():
+    """add_specs() is called on the correct client."""
     client_1: MagicMock = create_autospec(TerraformConfigClient)
     client_2: MagicMock = create_autospec(TerraformConfigClient)
     client_3: MagicMock = create_autospec(TerraformConfigClient)
@@ -69,6 +71,7 @@ def test_terraform_config_client_collection_add_specs():
 
 
 def test_terraform_config_client_collection_dump():
+    """The working directories return by clients are aggregated properly in dump()."""
     client_1: MagicMock = create_autospec(TerraformConfigClient)
     client_1.dump.return_value = {"acct_1": "/tmp/acct_1"}
     client_2: MagicMock = create_autospec(TerraformConfigClient)
@@ -91,6 +94,7 @@ def test_terraform_config_client_collection_dump():
 
 
 def test_terraform_config_client_collection_raise_on_duplicate():
+    """Client names must be unique."""
     client_1: MagicMock = create_autospec(TerraformConfigClient)
     client_2: MagicMock = create_autospec(TerraformConfigClient)
 
@@ -102,6 +106,7 @@ def test_terraform_config_client_collection_raise_on_duplicate():
 
 
 def test_terraform_config_client_collection_raise_on_missing():
+    """Specs cannot be added to clients that don't exist."""
     terraform_configs = TerraformConfigClientCollection()
     spec_1 = create_external_resource_spec("dev-1")
 

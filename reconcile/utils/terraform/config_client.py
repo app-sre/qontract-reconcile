@@ -43,20 +43,20 @@ class TerraformConfigClientCollection:
     def __init__(self) -> None:
         self._clients: dict[str, TerraformConfigClient] = {}
 
-    def register_client(self, account_name: str, client: TerraformConfigClient) -> None:
-        if account_name in self._clients:
+    def register_client(self, client_name: str, client: TerraformConfigClient) -> None:
+        if client_name in self._clients:
             raise ClientAlreadyRegisteredError(
-                f"Client already registered for account name: {account_name}"
+                f"Client already registered with the name: {client_name}"
             )
 
-        self._clients[account_name] = client
+        self._clients[client_name] = client
 
-    def add_specs(self, account_name: str, specs: Iterable[ExternalResourceSpec]):
+    def add_specs(self, client_name: str, specs: Iterable[ExternalResourceSpec]):
         try:
-            self._clients[account_name].add_specs(specs)
+            self._clients[client_name].add_specs(specs)
         except KeyError:
             raise ClientNotRegisteredError(
-                f"There aren't any clients registered for account name: {account_name}"
+                f"There aren't any clients registered with the name: {client_name}"
             )
 
     def populate_resources(self) -> None:
@@ -66,8 +66,8 @@ class TerraformConfigClientCollection:
     def dump(self) -> dict[str, str]:
         working_dirs = {}
 
-        for account, client in self._clients.items():
-            working_dirs[account] = client.dump()
+        for client_name, client in self._clients.items():
+            working_dirs[client_name] = client.dump()
 
         return working_dirs
 
