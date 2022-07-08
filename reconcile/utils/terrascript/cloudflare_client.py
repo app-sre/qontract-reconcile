@@ -131,7 +131,7 @@ class TerrascriptCloudflareClient(TerraformConfigClient):
             self._terrascript.add(resource)
 
 
-def main():
+def main():  # pragma: no cover
     """
     All of this will go away, just a testing ground before the decision is made whether
     this is a standalone integration or not, as well as schemas/gql queries
@@ -235,5 +235,5 @@ def main():
     tf.cleanup()
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     main()
