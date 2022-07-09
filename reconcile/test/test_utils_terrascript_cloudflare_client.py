@@ -59,7 +59,7 @@ def test_create_cloudflare_resources_terraform_json(account_config, backend_conf
         {},
     )
 
-    cloudflare_client.add_specs([spec])
+    cloudflare_client.add_spec(spec)
     cloudflare_client.populate_resources()
 
     expected_dict = {

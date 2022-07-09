@@ -11,7 +11,7 @@ class TerraformConfigClient(ABC):
     """
 
     @abstractmethod
-    def add_specs(self, specs: Iterable[ExternalResourceSpec]) -> None:
+    def add_spec(self, spec: ExternalResourceSpec) -> None:
         """
         Add external resource specs that will be used to populate a Terraform JSON
         config.
@@ -43,21 +43,38 @@ class TerraformConfigClientCollection:
     def __init__(self) -> None:
         self._clients: dict[str, TerraformConfigClient] = {}
 
-    def register_client(self, client_name: str, client: TerraformConfigClient) -> None:
-        if client_name in self._clients:
+    def register_client(self, account_name: str, client: TerraformConfigClient) -> None:
+        if account_name in self._clients:
             raise ClientAlreadyRegisteredError(
-                f"Client already registered with the name: {client_name}"
+                f"Client already registered with the name: {account_name}"
             )
 
-        self._clients[client_name] = client
+        self._clients[account_name] = client
 
-    def add_specs(self, client_name: str, specs: Iterable[ExternalResourceSpec]):
-        try:
-            self._clients[client_name].add_specs(specs)
-        except KeyError:
-            raise ClientNotRegisteredError(
-                f"There aren't any clients registered with the name: {client_name}"
-            )
+    def add_specs(
+        self,
+        specs: Iterable[ExternalResourceSpec],
+        account_filter: Optional[str] = None,
+    ) -> None:
+        """
+        Add external resource specs
+        :param specs: external resource specs to add
+        :param account_filter: an account name that can optionally be used to filter out
+                               any resources that don't match the account. If omitted,
+                               all specs will be added.
+        """
+
+        for spec in specs:
+            # If using an account filter and the account name doesn't match, skip the
+            # resource.
+            if account_filter and account_filter != spec.provisioner_name:
+                continue
+            try:
+                self._clients[spec.provisioner_name].add_spec(spec)
+            except KeyError:
+                raise ClientNotRegisteredError(
+                    f"There aren't any clients registered with the account name: {spec.provisioner_name}"
+                )
 
     def populate_resources(self) -> None:
         for client in self._clients.values():
@@ -66,8 +83,8 @@ class TerraformConfigClientCollection:
     def dump(self) -> dict[str, str]:
         working_dirs = {}
 
-        for client_name, client in self._clients.items():
-            working_dirs[client_name] = client.dump()
+        for account_name, client in self._clients.items():
+            working_dirs[account_name] = client.dump()
 
         return working_dirs
 

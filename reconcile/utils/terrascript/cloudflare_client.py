@@ -96,9 +96,8 @@ class TerrascriptCloudflareClient(TerraformConfigClient):
         self._terrascript = ts_client
         self._resource_specs: ExternalResourceSpecInventory = {}
 
-    def add_specs(self, specs: Iterable[ExternalResourceSpec]) -> None:
-        for spec in specs:
-            self._resource_specs[spec.id_object()] = spec
+    def add_spec(self, spec: ExternalResourceSpec) -> None:
+        self._resource_specs[spec.id_object()] = spec
 
     def populate_resources(self) -> None:
         """
@@ -172,7 +171,7 @@ def main():  # pragma: no cover
     acct_a_specs = [
         ExternalResourceSpec(
             "cloudflare_zone",
-            {"name": "dev-acct-a", "automationToken": {}},
+            {"name": "acct_a", "automationToken": {}},
             {
                 "provider": "cloudflare",
                 "identifier": "acct-a-domain-com",
@@ -188,7 +187,7 @@ def main():  # pragma: no cover
     acct_b_specs = [
         ExternalResourceSpec(
             "cloudflare_zone",
-            {"name": "dev-acct-b", "automationToken": {}},
+            {"name": "acct_b", "automationToken": {}},
             {
                 "provider": "cloudflare",
                 "identifier": "acct-b-domain-com",
@@ -206,9 +205,8 @@ def main():  # pragma: no cover
     # if we decide this will be a single integration instead of a separate integration.
     cloudflare_clients = TerraformConfigClientCollection()
     cloudflare_clients.register_client("acct_a", acct_a_cloudflare_client)
-    cloudflare_clients.add_specs("acct_a", acct_a_specs)
     cloudflare_clients.register_client("acct_b", acct_b_cloudflare_client)
-    cloudflare_clients.add_specs("acct_b", acct_b_specs)
+    cloudflare_clients.add_specs(acct_a_specs + acct_b_specs)
     cloudflare_clients.populate_resources()
     working_dirs = cloudflare_clients.dump()
 
