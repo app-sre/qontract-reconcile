@@ -1156,6 +1156,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 + f"underscores, or digits (0-9): {values['name']}"
             )
 
+        if not values.get("apply_immediately"):
+            values["apply_immediately"] = False
+
         # we can't specify the availability_zone for an multi_az
         # rds instance
         if values.get("multi_az"):
@@ -1857,6 +1860,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         if desired_region is not None and self._multiregion_account(account):
             provider = "aws." + desired_region
             values["provider"] = provider
+
+        if not values.get("apply_immediately"):
+            values["apply_immediately"] = False
 
         parameter_group = values.get("parameter_group")
         # Assume that cluster enabled is false if parameter group unset
