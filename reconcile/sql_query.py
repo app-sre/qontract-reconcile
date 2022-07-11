@@ -80,6 +80,10 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: {{ JOB_NAME }}
+  labels:
+    app: qontract-reconcile
+    integration: {{ QONTRACT_INTEGRATION }}
+    query-name: {{ QUERY_NAME }}
 %s
 """ % (
     JOB_SPEC
@@ -91,6 +95,10 @@ apiVersion: batch/v1beta1
 kind: CronJob
 metadata:
   name: {{ JOB_NAME }}
+  labels:
+    app: qontract-reconcile
+    integration: {{ QONTRACT_INTEGRATION }}
+    query-name: {{ QUERY_NAME }}
 spec:
   schedule: "{{ SCHEDULE }}"
   concurrencyPolicy: "Forbid"
@@ -106,6 +114,10 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: {{ GPG_KEY }}
+  labels:
+    app: qontract-reconcile
+    integration: {{ QONTRACT_INTEGRATION }}
+    query-name: {{ QUERY_NAME }}
 data:
   gpg-key: {{ PUBLIC_GPG_KEY }}
 """
@@ -394,6 +406,8 @@ def process_template(query, image_repository, use_pull_secret=False):
     template_to_render = JOB_TEMPLATE
     render_kwargs = {
         "JOB_NAME": query["name"],
+        "QUERY_NAME": query["name"],
+        "QONTRACT_INTEGRATION": QONTRACT_INTEGRATION,
         "IMAGE_REPOSITORY": image_repository,
         "SECRET_NAME": query["output_resource_name"],
         "ENGINE": engine,
@@ -491,11 +505,19 @@ def run(dry_run, enable_deletion=False):
             use_pull_secret = True
             image_repository = sql_query_settings["imageRepository"]
             pull_secret = sql_query_settings["pullSecret"]
+            labels = pull_secret["labels"] or {}
+            labels.update(
+                {
+                    "app": "qontract-reconcile",
+                    "integration": QONTRACT_INTEGRATION,
+                    "query-name": query_name,
+                }
+            )
             secret_resource = orb.fetch_provider_vault_secret(
                 path=pull_secret["path"],
                 version=pull_secret["version"],
                 name=query_name,
-                labels=pull_secret["labels"] or {},
+                labels=labels,
                 annotations=pull_secret["annotations"] or {},
                 type=pull_secret["type"],
                 integration=QONTRACT_INTEGRATION,
@@ -524,6 +546,8 @@ def run(dry_run, enable_deletion=False):
             render_kwargs = {
                 "GPG_KEY": query["name"],
                 "PUBLIC_GPG_KEY": query["public_gpg_key"],
+                "QUERY_NAME": query["name"],
+                "QONTRACT_INTEGRATION": QONTRACT_INTEGRATION,
             }
             template = jinja2.Template(CONFIGMAP_TEMPLATE)
             configmap_yaml = template.render(**render_kwargs)
