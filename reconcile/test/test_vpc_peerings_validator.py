@@ -9,7 +9,10 @@ from reconcile.gql_queries.vpc_peerings_validator.vpc_peerings_validator import 
     ClusterV1,
     VpcPeeringsValidatorQueryData,
 )
-from reconcile.vpc_peerings_validator import validate_no_internal_to_public_peerings
+from reconcile.vpc_peerings_validator import (
+    validate_no_internal_to_public_peerings,
+    validate_no_public_to_public_peerings,
+)
 
 
 @pytest.fixture
@@ -58,3 +61,11 @@ def test_validate_no_internal_to_public_peerings_valid_internal(
     assert query_data.clusters is not None
     query_data.clusters[0].peering.connections[0].cluster.internal = True  # type: ignore[index,union-attr]
     assert validate_no_internal_to_public_peerings(query_data) is True
+
+
+def test_validate_no_public_to_public_peerings_valid(
+    query_data: VpcPeeringsValidatorQueryData,
+):
+    query_data.clusters[0].internal = False  # type: ignore[index]
+    query_data.clusters[0].spec.private = False  # type: ignore[index,union-attr]
+    assert validate_no_public_to_public_peerings(query_data) is False

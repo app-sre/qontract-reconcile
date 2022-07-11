@@ -48,6 +48,43 @@ def validate_no_internal_to_public_peerings(
     return valid
 
 
+def validate_no_public_to_public_peerings(
+    query_data: VpcPeeringsValidatorQueryData,
+) -> bool:
+    """Iterate over VPC peerings of public clusters and validate the peer is not public."""
+    valid = True
+    for cluster in query_data.clusters or []:
+        if (
+            cluster.internal
+            or (cluster.spec and cluster.spec.private)
+            or not cluster.peering
+        ):
+            continue
+        for connection in cluster.peering.connections or []:
+            if connection.provider not in [
+                "cluster-vpc-accepter",
+                "cluster-vpc-requester",
+            ]:
+                continue
+            connection = cast(
+                Union[
+                    ClusterPeeringConnectionClusterAccepterV1,
+                    ClusterPeeringConnectionClusterRequesterV1,
+                ],
+                connection,
+            )
+            peer = connection.cluster
+            if peer.internal or (peer.spec and peer.spec.private):
+                continue
+
+            valid = False
+            logging.error(
+                f"found public to public vpc peering: {cluster.name} <-> {peer.name}"
+            )
+
+    return valid
+
+
 def run(dry_run: bool):
     gqlapi = gql.get_api()
     clusters = gqlapi.query(vpc_peerings_validator.QUERY)
@@ -57,6 +94,8 @@ def run(dry_run: bool):
 
     valid = True
     if not validate_no_internal_to_public_peerings(query_data):
+        valid = False
+    if not validate_no_public_to_public_peerings(query_data):
         valid = False
 
     if not valid:
