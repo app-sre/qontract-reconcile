@@ -606,6 +606,7 @@ def populate_desired_state(
                 resource_type=oc_resource.kind,
                 name=spec.output_resource_name,
                 value=oc_resource,
+                privileged=spec.namespace.get("clusterAdmin") or False,
             )
 
 
