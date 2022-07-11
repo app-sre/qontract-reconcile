@@ -56,6 +56,7 @@ fragment VaultSecretPartial on VaultSecret_v1 {
   field
 }
 fragment GithubOrg on ClusterAuthGithubOrgTeam_v1 {
+    service
     org
     team
 }

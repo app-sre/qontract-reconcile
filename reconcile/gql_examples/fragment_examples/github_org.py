@@ -12,6 +12,7 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
 
 
 class GithubOrg(BaseModel):
+    service: str = Field(..., alias="service")
     org: str = Field(..., alias="org")
     team: str = Field(..., alias="team")
 
