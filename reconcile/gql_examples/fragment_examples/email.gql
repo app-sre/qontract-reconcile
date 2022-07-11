@@ -1,0 +1,34 @@
+# qenerate: plugin=pydantic_v1
+
+fragment Email on AppInterfaceEmail_v1 {
+    name
+    subject
+    to {
+      aliases
+      services {
+        serviceOwners {
+          email
+        }
+      }
+      clusters {
+        name
+      }
+      namespaces {
+        name
+      }
+      aws_accounts {
+        accountOwners {
+          email
+        }
+      }
+      roles {
+        users {
+          org_username
+        }
+      }
+      users {
+        org_username
+      }
+    }
+    body
+}

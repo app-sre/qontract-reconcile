@@ -1,0 +1,6 @@
+# qenerate: plugin=pydantic_v1
+
+fragment GithubOrg on ClusterAuthGithubOrgTeam_v1 {
+    org
+    team
+}

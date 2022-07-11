@@ -95,5 +95,9 @@ gql-introspection:
 	@$(VENV_CMD) qenerate introspection http://localhost:4000/graphql > reconcile/gql_queries/introspection.json
 
 gql-query-classes:
-	@$(VENV_CMD) qenerate code -i reconcile/gql_queries/introspection.json reconcile/gql_queries
+	@$(VENV_CMD) qenerate code -i reconcile/gql_queries/introspection.json -f reconcile/gql_fragments -q reconcile/gql_queries -p "reconcile.gql_fragments"
+	@$(VENV_CMD) black reconcile/gql_queries
+
+gql-example-query-classes:
+	@$(VENV_CMD) qenerate code -i reconcile/gql_queries/introspection.json -f reconcile/gql_examples/fragment_examples -q reconcile/gql_examples/query_examples -p "reconcile.gql_examples.fragment_examples"
 	@$(VENV_CMD) black reconcile/gql_queries

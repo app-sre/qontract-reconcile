@@ -1,6 +1,7 @@
 import sys
 import logging
 from typing import Any, Mapping
+from reconcile.gql_examples.query_examples import ocm_complex_query
 from reconcile.gql_queries.service_dependencies import service_dependencies
 from reconcile.gql_queries.service_dependencies.service_dependencies import (
     AppV1,
@@ -72,6 +73,12 @@ def run(dry_run):
         sys.exit()
 
     gqlapi = gql.get_api()
+
+    test: dict[Any, Any] = gqlapi.query(ocm_complex_query.QUERY)
+    test_data: ocm_complex_query.OCPAuthFullQueryData = ocm_complex_query.OCPAuthFullQueryData(**test)
+    for data in test_data:
+        print(data)
+
     apps: dict[Any, Any] = gqlapi.query(service_dependencies.QUERY)
     query_data: ServiceDependenciesQueryData = ServiceDependenciesQueryData(**apps)
 

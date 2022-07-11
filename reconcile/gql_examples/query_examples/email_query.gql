@@ -1,0 +1,7 @@
+# qenerate: plugin=pydantic_v1
+
+query Emails {
+  emails: app_interface_emails_v1 {
+    ... Email
+  }
+}
