@@ -462,7 +462,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         return self.github
 
     def init_jenkins(self, instance: dict) -> JenkinsApi:
-        return JenkinsApi(instance["token"], settings=self.settings)
+        return JenkinsApi.init_jenkins_from_secret(
+            SecretReader(self.settings), instance["token"]
+        )
 
     def filter_disabled_accounts(
         self, accounts: Iterable[dict[str, Any]]
