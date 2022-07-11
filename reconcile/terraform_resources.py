@@ -327,6 +327,7 @@ TF_NAMESPACES_QUERY = """
 {
   namespaces: namespaces_v1 {
     name
+    clusterAdmin
     managedExternalResources
     externalResources {
       provider
@@ -362,6 +363,12 @@ TF_NAMESPACES_QUERY = """
         }
       }
       automationToken {
+        path
+        field
+        version
+        format
+      }
+      clusterAdminAutomationToken {
         path
         field
         version
