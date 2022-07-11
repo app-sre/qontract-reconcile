@@ -94,7 +94,6 @@ import reconcile.requests_sender
 import reconcile.service_dependencies
 import reconcile.sentry_config
 import reconcile.sql_query
-import reconcile.user_validator
 import reconcile.integrations_validator
 import reconcile.dashdotdb_cso
 import reconcile.ocp_release_mirror
@@ -1312,12 +1311,6 @@ def quay_permissions(ctx):
 @click.pass_context
 def ldap_users(ctx, gitlab_project_id):
     run_integration(reconcile.ldap_users, ctx.obj, gitlab_project_id)
-
-
-@integration.command(short_help="Validate user files.")
-@click.pass_context
-def user_validator(ctx):
-    run_integration(reconcile.user_validator, ctx.obj)
 
 
 @integration.command(short_help="Manage AWS Resources using Terraform.")

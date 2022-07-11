@@ -141,7 +141,6 @@ from reconcile.utils.password_validator import PasswordPolicy, PasswordValidator
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.git import is_file_in_git_repo
 from reconcile.github_org import get_default_config
-from reconcile.utils.gpg import gpg_key_valid
 from reconcile.utils.exceptions import (
     FetchResourceError,
     PrintToFileInGitRepositoryError,
@@ -628,16 +627,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     user_public_gpg_key = user["public_gpg_key"]
                     if user_public_gpg_key is None:
                         msg = f"{user_name} does not have a public gpg key."
-                        logging.error(msg)
-                        error = True
-                        continue
-                    try:
-                        gpg_key_valid(user_public_gpg_key)
-                    except ValueError as e:
-                        msg = (
-                            f"invalid public gpg key for {user_name}. "
-                            + f"details: {str(e)}"
-                        )
                         logging.error(msg)
                         error = True
                         continue
