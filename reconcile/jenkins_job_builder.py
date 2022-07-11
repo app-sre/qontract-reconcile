@@ -7,7 +7,8 @@ from reconcile import queries
 
 from reconcile.utils.defer import defer
 from reconcile.utils.jjb_client import JJB
-from reconcile.utils.state import State
+from reconcile.utils.secret_reader import SecretReader
+from reconcile.utils.state import init_state
 
 
 QUERY = """
@@ -41,7 +42,7 @@ def get_openshift_saas_deploy_job_name(saas_file_name, env_name, settings):
     return f"{job_template_name}-{saas_file_name}-{env_name}"
 
 
-def collect_configs(instance_name, config_name, settings):
+def collect_configs(instance_name, config_name):
     gqlapi = gql.get_api()
     configs = gqlapi.query(QUERY)["jenkins_configs"]
     if instance_name is not None:
@@ -62,16 +63,18 @@ def collect_configs(instance_name, config_name, settings):
 
 
 def init_jjb(
+    secret_reader: SecretReader,
     instance_name: Optional[str] = None,
     config_name: Optional[str] = None,
     print_only: bool = False,
 ) -> JJB:
-    settings = queries.get_app_interface_settings()
-    configs = collect_configs(instance_name, config_name, settings)
-    return JJB(configs, ssl_verify=False, settings=settings, print_only=print_only)
+    configs = collect_configs(instance_name, config_name)
+    return JJB(
+        configs, ssl_verify=False, secret_reader=secret_reader, print_only=print_only
+    )
 
 
-def validate_repos_and_admins(jjb):
+def validate_repos_and_admins(jjb: JJB):
     jjb_repos = jjb.get_repos()
     app_int_repos = queries.get_repos()
     missing_repos = [r for r in jjb_repos if r not in app_int_repos]
@@ -105,7 +108,8 @@ def run(
 ):
     if not print_only and config_name is not None:
         raise Exception("--config-name must works with --print-only mode")
-    jjb: JJB = init_jjb(instance_name, config_name, print_only)
+    secret_reader = SecretReader(queries.get_secret_reader_settings())
+    jjb: JJB = init_jjb(secret_reader, instance_name, config_name, print_only)
     defer(jjb.cleanup)
 
     if print_only:
@@ -114,10 +118,7 @@ def run(
             jjb.generate(io_dir, "printout")
         sys.exit(0)
 
-    accounts = queries.get_state_aws_accounts()
-    state = State(
-        integration=QONTRACT_INTEGRATION, accounts=accounts, settings=jjb.settings
-    )
+    state = init_state(QONTRACT_INTEGRATION, secret_reader)
 
     if dry_run:
         validate_repos_and_admins(jjb)

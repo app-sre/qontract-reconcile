@@ -127,7 +127,7 @@ def run(
         # on the tgw defition in the cluster file.
         ocm_map = {}
 
-    accounts = queries.get_aws_accounts()
+    accounts = queries.get_aws_accounts(terraform_state=True)
     awsapi = AWSApi(1, accounts, settings=settings, init_users=False)
 
     # Fetch desired state for cluster-to-vpc(account) VPCs
@@ -146,7 +146,7 @@ def run(
     participating_account_names = [a["name"] for a in participating_accounts]
     accounts = [
         a
-        for a in queries.get_aws_accounts()
+        for a in queries.get_aws_accounts(terraform_state=True)
         if a["name"] in participating_account_names
     ]
 

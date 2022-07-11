@@ -8,6 +8,7 @@ import random
 import re
 import string
 import tempfile
+import imghdr
 
 from threading import Lock
 
@@ -28,6 +29,8 @@ import anymarkup
 import requests
 from github import Github
 
+
+from botocore.errorfactory import ClientError
 
 from terrascript import (
     Terrascript,
@@ -123,6 +126,8 @@ from terrascript.resource import (
 from terrascript import Resource, Data
 from sretoolbox.utils import threaded
 
+from reconcile import queries
+
 from reconcile.utils import gql
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.external_resource_spec import (
@@ -197,6 +202,10 @@ VARIABLE_KEYS = [
 TMP_DIR_PREFIX = "terrascript-aws-"
 
 
+class StateInaccessibleException(Exception):
+    pass
+
+
 class UnknownProviderError(Exception):
     def __init__(self, msg):
         super().__init__("unknown provider error: " + str(msg))
@@ -232,6 +241,12 @@ class time(Provider):
 # that supports this resource
 # https://github.com/mjuenema/python-terrascript/pull/166
 class time_sleep(Resource):
+    pass
+
+
+# temporary until we upgrade to a terrascript release
+# that supports this resource
+class aws_cognito_user_pool_ui_customization(Resource):
     pass
 
 
@@ -315,15 +330,11 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
             ts += provider.template(version="2.2.0")
 
-            b = Backend(
-                "s3",
-                access_key=config["aws_access_key_id"],
-                secret_key=config["aws_secret_access_key"],
-                bucket=config["bucket"],
-                key=config["{}_key".format(integration)],
-                region=config["region"],
+            ts += Terraform(
+                backend=TerrascriptClient.state_bucket_for_account(
+                    self.integration, name, config
+                )
             )
-            ts += Terraform(backend=b)
             tss[name] = ts
             locks[name] = Lock()
 
@@ -350,6 +361,42 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         self.rosa_authenticator_pre_signup_zip_lock = Lock()
         self.github: Optional[Github] = None
         self.github_lock = Lock()
+
+    @staticmethod
+    def state_bucket_for_account(
+        integration: str, account_name: str, config: dict[str, Any]
+    ) -> Backend:
+        # creds
+        access_key_backend_value = config["aws_access_key_id"]
+        secret_key_backend_value = config["aws_secret_access_key"]
+
+        # defaults from account
+        bucket_backend_value = config.get("bucket")
+        key_backend_value = config.get("{}_key".format(integration))
+        region_backend_value = config.get("region")
+        terraform_state = config["terraformState"]
+        if terraform_state:
+            tf_state_integration = terraform_state["integrations"]
+            for key in tf_state_integration:
+                integration_value = key.get("integration")
+                if integration_value.replace("-", "_") == integration:
+                    bucket_backend_value = terraform_state.get("bucket")
+                    key_backend_value = key.get("key")
+                    region_backend_value = terraform_state.get("region")
+                    break
+                continue
+
+        if bucket_backend_value and key_backend_value and region_backend_value:
+            return Backend(
+                "s3",
+                access_key=access_key_backend_value,
+                secret_key=secret_key_backend_value,
+                bucket=bucket_backend_value,
+                key=key_backend_value,
+                region=region_backend_value,
+            )
+        else:
+            raise ValueError(f"No bucket config found for account {account_name}")
 
     def get_logtoes_zip(self, release_url):
         if not self.logtoes_zip:
@@ -444,6 +491,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             account = awsh.get_account(accounts, account_name)
             config["supportedDeploymentRegions"] = account["supportedDeploymentRegions"]
             config["resourcesDefaultRegion"] = account["resourcesDefaultRegion"]
+            config["terraformState"] = account["terraformState"]
             self.configs[account_name] = config
 
     def _get_partition(self, account):
@@ -4556,7 +4604,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         if region in ("us-gov-west-1", "us-gov-east-1"):
             managed_policy_arn = "arn:aws-us-gov:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 
-        bucket_url = f'https://{common_values.get("cognito_callback_bucket_name")}.s3.{region}.amazonaws.com'
+        bucket_name = common_values.get("cognito_callback_bucket_name")
+        bucket_url = f"https://{bucket_name}.s3.{region}.amazonaws.com"
 
         lambda_iam_role_resource = aws_iam_role(
             "lambda_role",
@@ -4587,6 +4636,52 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             tracing_config={"mode": "PassThrough"},
         )
         tf_resources.append(cognito_pre_signup_lambda_resource)
+
+        # setup s3_client
+        # pattern followed from utils/state.py
+        # The variable "account" is the name of the AWS account we are reconciling
+        # against. We assume the target s3 bucket is in the same AWS account as the
+        # rosa-authenticator. We need to grab details of said AWS account from
+        # app-interface, and feed those details to the AWSApi class.
+        thread_pool_size = 1
+        settings = queries.get_app_interface_settings()
+        all_aws_accounts = queries.get_aws_accounts()
+        target_account_arr = [a for a in all_aws_accounts if a["name"] == account]
+        aws_api = AWSApi(thread_pool_size, target_account_arr, settings=settings)
+        session = aws_api.get_session(account)
+        s3_client = session.client("s3")
+
+        # check if the bucket exists
+        try:
+            s3_client.head_bucket(Bucket=bucket_name)
+        except ClientError as details:
+            raise StateInaccessibleException(
+                f"Bucket {bucket_name} is not accessible - {str(details)}"
+            )
+
+        # todo: probably remove 'RedHat' from the object/variable/filepath
+        # names to keep the code RedHat-agnostic?
+        # (then again: ROSA literally means "Red Hat OpenShift Service on AWS")
+
+        # download redhat-logo-png file
+        redhat_logo_png_obj_name = "Logo-RedHat-B-Color-RGB.png"
+        redhat_logo_png_filepath = "/tmp/Logo-RedHat-B-Color-RGB.png"
+        s3_client.download_file(
+            bucket_name, redhat_logo_png_obj_name, redhat_logo_png_filepath
+        )
+        if not os.path.exists(redhat_logo_png_filepath):
+            raise Exception(
+                f"Attempted to download object {redhat_logo_png_obj_name} "
+                f"from s3 bucket {bucket_name} to local filepath {redhat_logo_png_filepath},"
+                f" but no file exists locally at this path!"
+            )
+        file_type = imghdr.what(redhat_logo_png_filepath)
+        if file_type != "png":
+            raise Exception(
+                f"Attempted to download object {redhat_logo_png_obj_name} "
+                f"from s3 bucket {bucket_name} to local filepath {redhat_logo_png_filepath}."
+                f" File exists but filetype is {file_type}. Expected filetype is 'png'."
+            )
 
         # Prepare all resource arguments from default file
         pool_args = common_values.get("user_pool_properties", None)
@@ -4652,6 +4747,14 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         tf_resources.append(cognito_user_pool_domain_resource)
 
         user_pool_url = f"https://{cognito_user_pool_domain_resource.domain}.auth-fips.us-gov-west-1.amazoncognito.com"
+
+        # POOL UI
+        cognito_user_pool_ui_customization_resource = aws_cognito_user_pool_ui_customization(
+            "userpool_ui",
+            image_file='${filebase64("' + redhat_logo_png_filepath + '")}',
+            user_pool_id="${aws_cognito_user_pool_domain.userpool_domain.user_pool_id}",
+        )
+        tf_resources.append(cognito_user_pool_ui_customization_resource)
 
         # POOL GATEWAY RESOURCE SERVER
         cognito_resource_server_gateway_resource = aws_cognito_resource_server(

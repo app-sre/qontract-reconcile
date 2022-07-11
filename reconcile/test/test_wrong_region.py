@@ -26,6 +26,7 @@ def accounts(default_region):
             "supportedDeploymentRegions": [default_region],
             "providerVersion": "1.2.3",
             "uid": "123",
+            "terraformState": {},
         }
     ]
 
