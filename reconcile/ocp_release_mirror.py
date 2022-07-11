@@ -5,7 +5,10 @@ import sys
 from urllib.parse import urlparse
 from collections import namedtuple
 
+from reconcile.gql_examples.query_examples import ocm_complex_query
+
 from sretoolbox.container import Image
+from reconcile.utils import gql
 from reconcile.utils.external_resources import get_external_resource_specs
 
 from reconcile.utils.oc import OC
@@ -330,6 +333,12 @@ class OcpReleaseMirror:
 
 
 def run(dry_run):
+    gqlapi = gql.get_api()
+    raw_data = gqlapi.query(ocm_complex_query.QUERY)
+    data: ocm_complex_query.OCPAuthFullQueryData = ocm_complex_query.OCPAuthFullQueryData(**raw_data)
+    for d in data:
+        print(d)
+
     instances = queries.get_ocp_release_mirror()
     for instance in instances:
         try:
