@@ -20,6 +20,7 @@ def validate_no_internal_to_public_peerings(
 ) -> bool:
     """Iterate over VPC peerings of internal clusters and validate the peer is not public."""
     valid = True
+    found_pairs: list[set[str]] = []
     for cluster in query_data.clusters or []:
         if not cluster.internal or not cluster.peering:
             continue
@@ -41,6 +42,10 @@ def validate_no_internal_to_public_peerings(
                 continue
 
             valid = False
+            pair = {cluster.name, peer.name}
+            if pair in found_pairs:
+                continue
+            found_pairs.append(pair)
             logging.error(
                 f"found internal to public vpc peering: {cluster.name} <-> {peer.name}"
             )
@@ -53,6 +58,7 @@ def validate_no_public_to_public_peerings(
 ) -> bool:
     """Iterate over VPC peerings of public clusters and validate the peer is not public."""
     valid = True
+    found_pairs: list[set[str]] = []
     for cluster in query_data.clusters or []:
         if (
             cluster.internal
@@ -78,6 +84,10 @@ def validate_no_public_to_public_peerings(
                 continue
 
             valid = False
+            pair = {cluster.name, peer.name}
+            if pair in found_pairs:
+                continue
+            found_pairs.append(pair)
             logging.error(
                 f"found public to public vpc peering: {cluster.name} <-> {peer.name}"
             )
