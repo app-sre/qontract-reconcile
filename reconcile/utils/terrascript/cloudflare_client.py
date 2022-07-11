@@ -108,9 +108,7 @@ class TerrascriptCloudflareClient(TerraformConfigClient):
             resources_to_add = create_cloudflare_terrascript_resource(spec)
             self._add_resources(resources_to_add)
 
-    def dump(
-        self, print_to_file: Optional[str] = None, existing_dir: Optional[str] = None
-    ) -> str:
+    def dump(self, existing_dir: Optional[str] = None) -> str:
         """Write the Terraform JSON representation of the resources to disk"""
         if existing_dir is None:
             working_dir = tempfile.mkdtemp(prefix=TMP_DIR_PREFIX)

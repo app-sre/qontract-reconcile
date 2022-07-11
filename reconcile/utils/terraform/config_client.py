@@ -1,7 +1,10 @@
+import os
 from abc import ABC, abstractmethod
 from typing import Iterable, Optional
 
+from reconcile.utils.exceptions import PrintToFileInGitRepositoryError
 from reconcile.utils.external_resource_spec import ExternalResourceSpec
+from reconcile.utils.git import is_file_in_git_repo
 
 
 class TerraformConfigClient(ABC):
@@ -24,7 +27,6 @@ class TerraformConfigClient(ABC):
     @abstractmethod
     def dump(
         self,
-        print_to_file: Optional[str] = None,
         existing_dir: Optional[str] = None,
     ) -> str:
         """Dump the Terraform JSON configuration to the filesystem."""
@@ -80,11 +82,40 @@ class TerraformConfigClientCollection:
         for client in self._clients.values():
             client.populate_resources()
 
-    def dump(self) -> dict[str, str]:
-        working_dirs = {}
+    def dump(
+        self,
+        print_to_file: Optional[str] = None,
+        existing_dirs: Optional[dict[str, str]] = None,
+    ) -> dict[str, str]:
+        """
+        Dump the Terraform JSON config to the filesystem.
+
+        :param print_to_file: optionally write the Terraform JSON config to the
+                              designated file path. This is helpful for troubleshooting
+                              the Terraform JSON output as a single file.
+        :param existing_dirs: a mapping of the account name to working directory for
+                              the Terraform JSON configs
+        :return: a mapping of the account names to working directories
+        """
+        if existing_dirs is None:
+            working_dirs: dict[str, str] = {}
+        else:
+            working_dirs = existing_dirs
+
+        if print_to_file:
+            if is_file_in_git_repo(print_to_file):
+                raise PrintToFileInGitRepositoryError(print_to_file)
+            if os.path.isfile(print_to_file):
+                os.remove(print_to_file)
 
         for account_name, client in self._clients.items():
             working_dirs[account_name] = client.dump()
+
+            if print_to_file:
+                with open(print_to_file, "a") as f:
+                    f.write(f"##### {account_name} #####\n")
+                    f.write(client.dumps())
+                    f.write("\n")
 
         return working_dirs
 

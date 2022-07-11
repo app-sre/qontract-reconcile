@@ -1,7 +1,10 @@
-from unittest.mock import create_autospec, MagicMock, call
+import subprocess
+from pathlib import Path
+from unittest.mock import create_autospec, MagicMock, call, mock_open
 
 import pytest
 
+from reconcile.utils.exceptions import PrintToFileInGitRepositoryError
 from reconcile.utils.external_resource_spec import ExternalResourceSpec
 from reconcile.utils.terraform.config_client import (
     TerraformConfigClientCollection,
@@ -9,6 +12,13 @@ from reconcile.utils.terraform.config_client import (
     ClientAlreadyRegisteredError,
     ClientNotRegisteredError,
 )
+
+
+@pytest.fixture
+def empty_git_repo(tmp_path_factory) -> Path:
+    temp_dir = tmp_path_factory.mktemp("empty-git-repo")
+    subprocess.check_call(["git", "init", temp_dir])
+    return temp_dir
 
 
 def create_external_resource_spec(provisioner_name, identifier):
@@ -115,6 +125,62 @@ def test_terraform_config_client_collection_dump():
         "acct_2": {"acct_2": "/tmp/acct_2"},
         "acct_3": {"acct_3": "/tmp/acct_3"},
     }
+
+
+def test_terraform_config_client_collection_print_to_file(mocker):
+    """
+    The print_to_file kwarg results in a properly formatted file at the desired file
+    path.
+    """
+    mock_builtins_open = mock_open()
+    mocker.patch("builtins.open", mock_builtins_open)
+
+    client_1: MagicMock = create_autospec(TerraformConfigClient)
+    client_1.dumps.return_value = {"acct_1": "data"}
+    client_2: MagicMock = create_autospec(TerraformConfigClient)
+    client_2.dumps.return_value = {"acct_2": "data"}
+    client_3: MagicMock = create_autospec(TerraformConfigClient)
+    client_3.dumps.return_value = {"acct_3": "data"}
+
+    terraform_configs = TerraformConfigClientCollection()
+    terraform_configs.register_client("acct_1", client_1)
+    terraform_configs.register_client("acct_2", client_2)
+    terraform_configs.register_client("acct_3", client_3)
+
+    # This file is never actually written to because of the patched builtins.open()
+    terraform_configs.dump(print_to_file="/tmp/test-utils-terraform-config-client")
+
+    comment_calls = [
+        call("##### acct_1 #####\n"),
+        call("##### acct_2 #####\n"),
+        call("##### acct_3 #####\n"),
+    ]
+
+    data_calls = [
+        call({"acct_1": "data"}),
+        call({"acct_2": "data"}),
+        call({"acct_3": "data"}),
+    ]
+
+    for comment in comment_calls:
+        assert comment in mock_builtins_open.return_value.write.call_args_list
+
+    for data in data_calls:
+        assert data in mock_builtins_open.return_value.write.call_args_list
+
+
+def test_terraform_config_client_collection_dump_print_file_git(empty_git_repo):
+    """Using print_to_file in a git repo should result in an exception."""
+    client_1: MagicMock = create_autospec(TerraformConfigClient)
+    client_1.dump.return_value = {"acct_1": "/tmp/acct_1"}
+
+    terraform_configs = TerraformConfigClientCollection()
+    terraform_configs.register_client("acct_1", client_1)
+
+    with pytest.raises(PrintToFileInGitRepositoryError):
+        terraform_configs.dump(
+            print_to_file=f"{empty_git_repo}/terraform-config-print-to-file"
+        )
 
 
 def test_terraform_config_client_collection_raise_on_duplicate():
