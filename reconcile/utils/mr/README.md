@@ -92,11 +92,12 @@ then create the SQS Client instance:
 from reconcile import queries
 
 from reconcile.utils.sqs_gateway import SQSGateway
+from reconcile.utils.secret_reader import SecretReader
 
 
 accounts = queries.get_queue_aws_accounts()
-settings = queries.get_app_interface_settings()
-sqs_cli = SQSGateway(accounts, settings=settings)
+secretReader = SecretReader(queries.get_secret_reader_settings())
+sqs_cli = SQSGateway(accounts, secret_reader=secret_reader)
 ```
 
 and then submit the merge request to the SQS:
@@ -115,12 +116,14 @@ first get the SQS messages:
 from reconcile import queries
 
 from reconcile.utils.sqs_gateway import SQSGateway
+from reconcile.utils.secret_reader import SecretReader
 
 
 accounts = queries.get_queue_aws_accounts()
 settings = queries.get_app_interface_settings()
 
-sqs_cli = SQSGateway(accounts, settings=settings)
+secretReader = SecretReader(queries.get_secret_reader_settings())
+sqs_cli = SQSGateway(accounts, secret_reader=secret_reader)
 messages = sqs_cli.receive_messages()
 ```
 
@@ -132,7 +135,7 @@ from reconcile.utils.gitlab_api import GitLabApi
 instance = queries.get_gitlab_instance()
 saas_files = queries.get_saas_files_minimal()
 gitlab_cli = GitLabApi(instance, project_id=gitlab_project_id,
-                       settings=settings, saas_files=saas_files)
+                       settings=settings)
 ```
 
 and then loop the messages, creating the MergeRequest objects and submitting
