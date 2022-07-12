@@ -335,7 +335,9 @@ class OcpReleaseMirror:
 def run(dry_run):
     gqlapi = gql.get_api()
     raw_data = gqlapi.query(ocm_complex_query.QUERY)
-    data: ocm_complex_query.OCPAuthFullQueryData = ocm_complex_query.OCPAuthFullQueryData(**raw_data)
+    data: ocm_complex_query.OCPAuthFullQueryData = (
+        ocm_complex_query.OCPAuthFullQueryData(**raw_data)
+    )
     for d in data:
         print(d)
 

@@ -52,7 +52,9 @@ class AWSAccountV1_OwnerV1(BaseModel):
 
 
 class AWSAccountV1(BaseModel):
-    account_owners: Optional[list[AWSAccountV1_OwnerV1]] = Field(..., alias="accountOwners")
+    account_owners: Optional[list[AWSAccountV1_OwnerV1]] = Field(
+        ..., alias="accountOwners"
+    )
 
     class Config:
         smart_union = True
@@ -90,7 +92,9 @@ class AppInterfaceEmailAudienceV1(BaseModel):
     namespaces: Optional[list[NamespaceV1]] = Field(..., alias="namespaces")
     aws_accounts: Optional[list[AWSAccountV1]] = Field(..., alias="aws_accounts")
     roles: Optional[list[RoleV1]] = Field(..., alias="roles")
-    users: Optional[list[AppInterfaceEmailAudienceV1_UserV1]] = Field(..., alias="users")
+    users: Optional[list[AppInterfaceEmailAudienceV1_UserV1]] = Field(
+        ..., alias="users"
+    )
 
     class Config:
         smart_union = True

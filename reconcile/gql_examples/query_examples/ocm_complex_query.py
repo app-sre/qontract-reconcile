@@ -10,7 +10,9 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 from reconcile.gql_examples.fragment_examples.vault_secret import VaultSecret
-from reconcile.gql_examples.fragment_examples.vault_secret_partial import VaultSecretPartial
+from reconcile.gql_examples.fragment_examples.vault_secret_partial import (
+    VaultSecretPartial,
+)
 from reconcile.gql_examples.fragment_examples.github_org import GithubOrg
 
 
@@ -100,8 +102,12 @@ class ClusterAuthGithubOrgV1(ClusterAuthV1):
 class ClusterV1(BaseModel):
     name: str = Field(..., alias="name")
     ocm: Optional[OpenShiftClusterManagerV1] = Field(..., alias="ocm")
-    automation_token: Optional[ClusterV1_VaultSecretV1] = Field(..., alias="automationToken")
-    auth: Optional[Union[ClusterAuthGithubOrgV1, GithubOrg, ClusterAuthV1]] = Field(..., alias="auth")
+    automation_token: Optional[ClusterV1_VaultSecretV1] = Field(
+        ..., alias="automationToken"
+    )
+    auth: Optional[Union[ClusterAuthGithubOrgV1, GithubOrg, ClusterAuthV1]] = Field(
+        ..., alias="auth"
+    )
 
     class Config:
         smart_union = True
@@ -117,7 +123,9 @@ class OcpReleaseMirrorV1(BaseModel):
 
 
 class OCPAuthFullQueryData(BaseModel):
-    ocp_release_mirror: Optional[list[OcpReleaseMirrorV1]] = Field(..., alias="ocp_release_mirror")
+    ocp_release_mirror: Optional[list[OcpReleaseMirrorV1]] = Field(
+        ..., alias="ocp_release_mirror"
+    )
 
     class Config:
         smart_union = True
