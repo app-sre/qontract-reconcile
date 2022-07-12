@@ -11,10 +11,9 @@ from reconcile.utils.secret_reader import SecretReader
 QONTRACT_INTEGRATION = "jenkins-webhooks"
 
 
-def get_gitlab_api():
+def get_gitlab_api(secret_reader: SecretReader):
     instance = queries.get_gitlab_instance()
-    settings = queries.get_app_interface_settings()
-    return GitLabApi(instance, settings=settings)
+    return GitLabApi(instance, secret_reader=secret_reader)
 
 
 def get_hooks_to_add(desired_state, gl):
@@ -41,7 +40,7 @@ def get_hooks_to_add(desired_state, gl):
 def run(dry_run):
     secret_reader = SecretReader(queries.get_secret_reader_settings())
     jjb: JJB = init_jjb(secret_reader)
-    gl = get_gitlab_api()
+    gl = get_gitlab_api(secret_reader)
 
     desired_state = jjb.get_job_webhooks_data()
     diff = get_hooks_to_add(desired_state, gl)
