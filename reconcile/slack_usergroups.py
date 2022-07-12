@@ -1,6 +1,7 @@
 import logging
 
 from datetime import datetime
+from typing import Any
 from urllib.parse import urlparse
 from sretoolbox.utils import retry
 from github.GithubException import UnknownObjectException
@@ -35,7 +36,7 @@ class GitApi:
         raise ValueError(f"Unable to handle URL: {url}")
 
 
-def get_slack_map(secret_reader: SecretReader):
+def get_slack_map(secret_reader: SecretReader) -> dict[str, dict[str, Any]]:
     permissions = queries.get_permissions_for_slack_usergroup()
     slack_map = {}
     for sp in permissions:

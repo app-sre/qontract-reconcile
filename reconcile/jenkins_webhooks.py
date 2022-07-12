@@ -11,7 +11,7 @@ from reconcile.utils.secret_reader import SecretReader
 QONTRACT_INTEGRATION = "jenkins-webhooks"
 
 
-def get_gitlab_api(secret_reader: SecretReader):
+def get_gitlab_api(secret_reader: SecretReader) -> GitLabApi:
     instance = queries.get_gitlab_instance()
     return GitLabApi(instance, secret_reader=secret_reader)
 
