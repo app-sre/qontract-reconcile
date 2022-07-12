@@ -396,7 +396,7 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
             kind,
             name,
         ]
-        if cascade:
+        if not cascade:
             cmd.append("--cascade=orphan")
         self._run(cmd)
         resource = {"kind": kind, "metadata": {"name": name}}
