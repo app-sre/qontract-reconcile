@@ -6,14 +6,13 @@ from reconcile.slack_base import slackapi_from_slack_workspace
 from reconcile.utils.unleash import get_feature_toggles
 from reconcile.utils.slack_api import SlackApi
 from reconcile.utils.secret_reader import SecretReader
-from reconcile.utils.state import State
+from reconcile.utils.state import init_state
 
 QONTRACT_INTEGRATION = "unleash-watcher"
 
 
-def fetch_current_state(unleash_instance):
+def fetch_current_state(unleash_instance, secret_reader: SecretReader):
     api_url = f"{unleash_instance['url']}/api"
-    secret_reader = SecretReader(settings=queries.get_app_interface_settings())
     admin_access_token = secret_reader.read(unleash_instance["token"])
     return get_feature_toggles(api_url, admin_access_token)
 
@@ -60,24 +59,25 @@ def calculate_diff(current_state, previous_state):
     return diffs
 
 
-def init_slack_map(unleash_instance) -> dict[str, SlackApi]:
-    settings = queries.get_app_interface_settings()
+def init_slack_map(
+    unleash_instance, secret_reader: SecretReader
+) -> dict[str, SlackApi]:
     return {
         slack_info["channel"]: slackapi_from_slack_workspace(
-            slack_info, settings, QONTRACT_INTEGRATION, init_usergroups=False
+            slack_info, secret_reader, QONTRACT_INTEGRATION, init_usergroups=False
         )
         for slack_info in unleash_instance["notifications"]["slack"]
     }
 
 
-def act(dry_run, state, unleash_instance, diffs):
+def act(dry_run, state, unleash_instance, diffs, secret_reader: SecretReader):
     if not dry_run and diffs:
         slack_notifications = unleash_instance.get(
             "notifications"
         ) and unleash_instance["notifications"].get("slack")
         if not slack_notifications:
             return
-        slack_map = init_slack_map(unleash_instance)
+        slack_map = init_slack_map(unleash_instance, secret_reader)
 
     for diff in reversed(diffs):
         event = diff["event"]
@@ -100,15 +100,12 @@ def act(dry_run, state, unleash_instance, diffs):
 
 
 def run(dry_run):
+    secret_reader = SecretReader(settings=queries.get_secret_reader_settings())
     unleash_instances = queries.get_unleash_instances()
-    accounts = queries.get_state_aws_accounts()
-    settings = queries.get_app_interface_settings()
-    state = State(
-        integration=QONTRACT_INTEGRATION, accounts=accounts, settings=settings
-    )
+    state = init_state(QONTRACT_INTEGRATION, secret_reader)
     for unleash_instance in unleash_instances:
         instance_name = unleash_instance["name"]
-        current_state = fetch_current_state(unleash_instance)
+        current_state = fetch_current_state(unleash_instance, secret_reader)
         if not current_state:
             logging.warning(
                 "not acting on empty Unleash instances. "
@@ -118,4 +115,4 @@ def run(dry_run):
         previous_state = fetch_previous_state(state, instance_name)
         diffs = calculate_diff(current_state, previous_state)
         if diffs:
-            act(dry_run, state, unleash_instance, diffs)
+            act(dry_run, state, unleash_instance, diffs, secret_reader)

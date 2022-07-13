@@ -32,7 +32,9 @@ def slack_api(mocker):
     mock_slack_client.return_value.retry_handlers = []
 
     token = {"path": "some/path", "field": "some-field"}
-    slack_api = SlackApi("some-workspace", token)
+    slack_api = SlackApi(
+        "some-workspace", token, reconcile.utils.slack_api.SecretReader()
+    )
 
     SlackApiMock = namedtuple(
         "SlackApiMock", "client mock_secret_reader " "mock_slack_client"
@@ -98,7 +100,9 @@ def test_instantiate_slack_api_with_config(mocker):
     config = SlackApiConfig()
 
     token = {"path": "some/path", "field": "some-field"}
-    slack_api = SlackApi("some-workspace", token, config)
+    slack_api = SlackApi(
+        "some-workspace", token, reconcile.utils.slack_api.SecretReader(), config
+    )
 
     assert slack_api.config is config
 
@@ -344,7 +348,10 @@ def test_slack_api__client_throttle_raise(mock_sleep, mock_secret_reader):
     )
 
     slack_client = SlackApi(
-        "workspace", {"path": "some/path", "field": "some-field"}, init_usergroups=False
+        "workspace",
+        {"path": "some/path", "field": "some-field"},
+        reconcile.utils.slack_api.SecretReader(),
+        init_usergroups=False,
     )
 
     with pytest.raises(SlackApiError):
@@ -373,7 +380,10 @@ def test_slack_api__client_throttle_doesnt_raise(mock_sleep, mock_secret_reader)
     httpretty.register_uri(*uri_args, **uri_kwargs_failure)
 
     slack_client = SlackApi(
-        "workspace", {"path": "some/path", "field": "some-field"}, init_usergroups=False
+        "workspace",
+        {"path": "some/path", "field": "some-field"},
+        reconcile.utils.slack_api.SecretReader(),
+        init_usergroups=False,
     )
 
     slack_client._sc.api_call("users.list")
@@ -394,7 +404,10 @@ def test_slack_api__client_5xx_raise(mock_sleep, mock_secret_reader):
     )
 
     slack_client = SlackApi(
-        "workspace", {"path": "some/path", "field": "some-field"}, init_usergroups=False
+        "workspace",
+        {"path": "some/path", "field": "some-field"},
+        reconcile.utils.slack_api.SecretReader(),
+        init_usergroups=False,
     )
 
     with pytest.raises(SlackApiError):
@@ -422,7 +435,10 @@ def test_slack_api__client_5xx_doesnt_raise(mock_sleep, mock_secret_reader):
     httpretty.register_uri(*uri_args, **uri_kwargs_failure)
 
     slack_client = SlackApi(
-        "workspace", {"path": "some/path", "field": "some-field"}, init_usergroups=False
+        "workspace",
+        {"path": "some/path", "field": "some-field"},
+        reconcile.utils.slack_api.SecretReader(),
+        init_usergroups=False,
     )
 
     slack_client._sc.api_call("users.list")
@@ -443,7 +459,10 @@ def test_slack_api__client_dont_retry(mock_sleep, mock_secret_reader):
     )
 
     slack_client = SlackApi(
-        "workspace", {"path": "some/path", "field": "some-field"}, init_usergroups=False
+        "workspace",
+        {"path": "some/path", "field": "some-field"},
+        reconcile.utils.slack_api.SecretReader(),
+        init_usergroups=False,
     )
 
     with pytest.raises(SlackApiError):

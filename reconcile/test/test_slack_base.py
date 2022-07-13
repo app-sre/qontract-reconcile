@@ -4,6 +4,7 @@ from reconcile.slack_base import (
     slackapi_from_slack_workspace,
     slackapi_from_permissions,
 )
+from reconcile.utils.secret_reader import SecretReader
 
 
 def create_api_config():
@@ -92,13 +93,13 @@ def patch__initiate_usergroups(mocker):
 
 def test_slack_workspace_raises():
     with pytest.raises(ValueError):
-        slackapi_from_slack_workspace({}, {}, "foo")
+        slackapi_from_slack_workspace({}, SecretReader(), "foo")
 
 
 def test_slack_workspace_ok(
     patch_secret_reader, patch__initiate_usergroups, slack_workspace
 ):
-    slack_api = slackapi_from_slack_workspace(slack_workspace, {}, "dummy")
+    slack_api = slackapi_from_slack_workspace(slack_workspace, SecretReader(), "dummy")
     patch_secret_reader.assert_called_once()
     patch__initiate_usergroups.assert_called_once()
     assert slack_api.channel == "test"
@@ -110,7 +111,7 @@ def test_slack_workspace_channel_overwrite(
     patch_secret_reader, patch__initiate_usergroups, slack_workspace
 ):
     slack_api = slackapi_from_slack_workspace(
-        slack_workspace, {}, "dummy", channel="foo"
+        slack_workspace, SecretReader(), "dummy", channel="foo"
     )
     assert slack_api.channel == "foo"
 
@@ -119,7 +120,7 @@ def test_unleash_workspace_ok(
     patch_secret_reader, patch__initiate_usergroups, unleash_slack_workspace
 ):
     slack_api = slackapi_from_slack_workspace(
-        unleash_slack_workspace, {}, "unleash-watcher"
+        unleash_slack_workspace, SecretReader(), "unleash-watcher"
     )
     patch_secret_reader.assert_called_once()
     patch__initiate_usergroups.assert_called_once()
@@ -131,14 +132,16 @@ def test_unleash_workspace_ok(
 def test_slack_workspace_no_init(
     patch_secret_reader, patch__initiate_usergroups, slack_workspace
 ):
-    slackapi_from_slack_workspace(slack_workspace, {}, "dummy", init_usergroups=False)
+    slackapi_from_slack_workspace(
+        slack_workspace, SecretReader(), "dummy", init_usergroups=False
+    )
     patch__initiate_usergroups.assert_not_called()
 
 
 def test_permissions_workspace(
     patch_secret_reader, patch__initiate_usergroups, permissions_workspace
 ):
-    slack_api = slackapi_from_permissions(permissions_workspace, {})
+    slack_api = slackapi_from_permissions(permissions_workspace, SecretReader())
     patch_secret_reader.assert_called_once()
     patch__initiate_usergroups.assert_called_once()
 

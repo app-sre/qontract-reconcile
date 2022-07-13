@@ -38,7 +38,7 @@ def patched_queries_get_users(mocker):
 @pytest.fixture
 def patched_queries_get_app_interface_settings(mocker):
     queries_get_app_interface_settings = mocker.patch.object(
-        ldap_users.queries, "get_app_interface_settings", autospec=True
+        ldap_users, "get_ldap_settings", autospec=True
     )
     queries_get_app_interface_settings.return_value = {}
     return queries_get_app_interface_settings

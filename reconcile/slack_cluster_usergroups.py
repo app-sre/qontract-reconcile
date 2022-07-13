@@ -63,7 +63,9 @@ def get_desired_state(slack):
     :rtype: dict
     """
     desired_state = {}
-    all_users = queries.get_roles()
+    all_users = queries.get_roles(
+        sendgrid=False, saas_files=False, aws=False, permissions=False
+    )
     all_clusters = queries.get_clusters(minimal=True)
     clusters = [
         c

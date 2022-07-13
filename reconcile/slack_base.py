@@ -1,6 +1,7 @@
 from typing import Mapping, Any, Optional
 
 from reconcile import queries
+from reconcile.utils.secret_reader import SecretReader
 
 from reconcile.utils.slack_api import SlackApi, SlackApiConfig
 
@@ -8,16 +9,16 @@ from reconcile.utils.slack_api import SlackApi, SlackApiConfig
 def slackapi_from_queries(
     integration_name: str, init_usergroups: Optional[bool] = True
 ) -> SlackApi:
-    app_interface_settings = queries.get_app_interface_settings()
+    secret_reader = SecretReader(queries.get_secret_reader_settings())
     slack_workspace = {"workspace": queries.get_slack_workspace()}
     return slackapi_from_slack_workspace(
-        slack_workspace, app_interface_settings, integration_name, init_usergroups
+        slack_workspace, secret_reader, integration_name, init_usergroups
     )
 
 
 def slackapi_from_slack_workspace(
     slack_workspace: Mapping[str, Any],
-    app_interface_settings: Mapping[str, Any],
+    secret_reader: SecretReader,
     integration_name: str,
     init_usergroups: Optional[bool] = True,
     channel: Optional[str] = None,
@@ -53,7 +54,7 @@ def slackapi_from_slack_workspace(
     api = SlackApi(
         workspace_name,
         token,
-        app_interface_settings=app_interface_settings,
+        secret_reader,
         channel=channel,
         api_config=api_config,
         init_usergroups=init_usergroups,
@@ -66,7 +67,7 @@ def slackapi_from_slack_workspace(
 
 def slackapi_from_permissions(
     permissions: Mapping[str, Any],
-    app_interface_settings: Mapping[str, Any],
+    secret_reader: SecretReader,
     init_usergroups: Optional[bool] = True,
 ) -> SlackApi:
     if "workspace" not in permissions:
@@ -84,7 +85,7 @@ def slackapi_from_permissions(
     api = SlackApi(
         workspace_name,
         token,
-        app_interface_settings=app_interface_settings,
+        secret_reader,
         init_usergroups=init_usergroups,
         api_config=api_config,
     )
