@@ -1521,6 +1521,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         website = common_values.get("website")
         if website:
             values["website"] = website
+        request_payer = common_values.get("request_payer")
+        if request_payer:
+            values["request_payer"] = request_payer
         lifecycle_rules = common_values.get("lifecycle_rules")
         if lifecycle_rules:
             # common_values['lifecycle_rules'] is a list of lifecycle_rules
