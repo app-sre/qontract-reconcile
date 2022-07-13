@@ -5,7 +5,6 @@ from unittest.mock import patch
 
 import pytest
 import reconcile.utils.oc
-import sretoolbox.utils
 from reconcile.utils.oc import (
     LABEL_MAX_KEY_NAME_LENGTH,
     LABEL_MAX_KEY_PREFIX_LENGTH,
