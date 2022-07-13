@@ -1,6 +1,7 @@
 import logging
 
 from datetime import datetime
+from typing import Any
 from urllib.parse import urlparse
 from sretoolbox.utils import retry
 from github.GithubException import UnknownObjectException
@@ -11,6 +12,7 @@ from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.pagerduty_api import PagerDutyMap
 from reconcile.utils.repo_owners import RepoOwners
 from reconcile.utils.slack_api import SlackApiError
+from reconcile.utils.secret_reader import SecretReader
 from reconcile import queries
 
 
@@ -34,8 +36,7 @@ class GitApi:
         raise ValueError(f"Unable to handle URL: {url}")
 
 
-def get_slack_map():
-    settings = queries.get_app_interface_settings()
+def get_slack_map(secret_reader: SecretReader) -> dict[str, dict[str, Any]]:
     permissions = queries.get_permissions_for_slack_usergroup()
     slack_map = {}
     for sp in permissions:
@@ -45,7 +46,7 @@ def get_slack_map():
             continue
 
         workspace_spec = {
-            "slack": slackapi_from_permissions(sp, settings),
+            "slack": slackapi_from_permissions(sp, secret_reader),
             "managed_usergroups": workspace["managedUsergroups"],
         }
         slack_map[workspace_name] = workspace_spec
@@ -439,7 +440,8 @@ def act(current_state, desired_state, slack_map, dry_run=True):
 
 
 def run(dry_run):
-    slack_map = get_slack_map()
+    secret_reader = SecretReader(queries.get_secret_reader_settings())
+    slack_map = get_slack_map(secret_reader)
     pagerduty_map = get_pagerduty_map()
     desired_state = get_desired_state(slack_map, pagerduty_map)
     current_state = get_current_state(slack_map)

@@ -3,6 +3,7 @@ import logging
 from collections import defaultdict
 
 from reconcile import queries
+from reconcile.utils import gql
 from reconcile.utils.ldap_client import LdapClient
 
 from reconcile import mr_client_gateway
@@ -34,9 +35,32 @@ def init_users():
     return [{"username": username, "paths": paths} for username, paths in users.items()]
 
 
+LDAP_SETTINGS_QUERY = """
+{
+  settings: app_interface_settings_v1 {
+    ldap {
+      serverUrl
+      baseDn
+    }
+  }
+}
+"""
+
+
+def get_ldap_settings() -> dict:
+    """Returns LDAP settings"""
+    gqlapi = gql.get_api()
+    settings = gqlapi.query(LDAP_SETTINGS_QUERY)["settings"]
+    if settings:
+        # assuming a single settings file for now
+        return settings[0]
+    else:
+        raise ValueError("no app-interface-settings settings found")
+
+
 def run(dry_run, gitlab_project_id=None):
     users = init_users()
-    with LdapClient.from_settings(queries.get_app_interface_settings()) as ldap_client:
+    with LdapClient.from_settings(get_ldap_settings()) as ldap_client:
         ldap_users = ldap_client.get_users([u["username"] for u in users])
 
     users_to_delete = [u for u in users if u["username"] not in ldap_users]

@@ -1495,6 +1495,7 @@ ROLES_QUERY = """
     roles {
       name
       path
+      {% if permissions %}
       permissions {
         name
         path
@@ -1514,6 +1515,7 @@ ROLES_QUERY = """
           team
         }
       }
+      {% endif %}
       tag_on_cluster_updates
       access {
         cluster {
@@ -1559,10 +1561,10 @@ ROLES_QUERY = """
 """
 
 
-def get_roles(aws=True, saas_files=True, sendgrid=False):
+def get_roles(aws=True, saas_files=True, sendgrid=False, permissions=True):
     gqlapi = gql.get_api()
     query = Template(ROLES_QUERY).render(
-        aws=aws, saas_files=saas_files, sendgrid=sendgrid
+        aws=aws, saas_files=saas_files, sendgrid=sendgrid, permissions=permissions
     )
     return gqlapi.query(query)["users"]
 
@@ -2366,7 +2368,7 @@ def get_slack_workspace():
     slack_workspaces = gqlapi.query(SLACK_WORKSPACES_QUERY)["slack_workspaces"]
     if len(slack_workspaces) != 1:
         logging.warning("multiple Slack workspaces found.")
-    return gqlapi.query(SLACK_WORKSPACES_QUERY)["slack_workspaces"][0]
+    return slack_workspaces[0]
 
 
 OCP_RELEASE_ECR_MIRROR_QUERY = """
