@@ -1,5 +1,5 @@
 import json
-from typing import Mapping, List, Any, Optional, Set
+from typing import Mapping, List, Any, Optional, Set, MutableMapping
 
 import anymarkup
 
@@ -81,7 +81,7 @@ class ResourceValueResolver:
         self,
         spec: ExternalResourceSpec,
         integration_tag: Optional[str] = None,
-        identifier_as_value=False,
+        identifier_as_value: bool = False,
     ):
         """
         :param spec: external resource spec
@@ -142,7 +142,7 @@ class ResourceValueResolver:
         return values
 
     @staticmethod
-    def _get_raw_values(path):
+    def _get_raw_values(path: str) -> dict[str, str]:
         gqlapi = gql.get_api()
         try:
             raw_values = gqlapi.get_resource(path)
@@ -151,7 +151,7 @@ class ResourceValueResolver:
         return raw_values
 
     @staticmethod
-    def _aggregate_values(values):
+    def _aggregate_values(values: dict[str, Any]) -> None:
         split_char = "."
         copy = values.copy()
         for k, v in copy.items():
@@ -165,7 +165,9 @@ class ResourceValueResolver:
             values.pop(k, None)
 
     @staticmethod
-    def _override_values(values, overrides):
+    def _override_values(
+        values: MutableMapping[str, Any], overrides: Optional[str]
+    ) -> None:
         if overrides is None:
             return
         data = json.loads(overrides)
