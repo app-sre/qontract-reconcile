@@ -18,7 +18,7 @@ class TerrascriptResource(ABC):
     implicitly created certain resources.
     """
 
-    def __init__(self, spec: ExternalResourceSpec):
+    def __init__(self, spec: ExternalResourceSpec) -> None:
         self._spec = spec
 
     @staticmethod

@@ -116,3 +116,23 @@ def test_managed_external_resources():
 def test_managed_external_resources_none():
     namespace_info = {"managedExternalResources": False}
     assert uer.managed_external_resources(namespace_info) is False
+
+
+def test_resource_value_resolver():
+    # TODO: need to add a couple more tests here to cover defaults and other use cases
+    spec = ExternalResourceSpec(
+        provision_provider="other",
+        provisioner={"name": "some_account"},
+        resource={
+            "provider": "other",
+            "field_1": "data1",
+            "field_2": "data2",
+            "field_3": "data3",
+        },
+        namespace={},
+    )
+
+    resolver = uer.ResourceValueResolver(spec)
+    values = resolver.resolve()
+
+    assert values == {"field_1": "data1", "field_2": "data2", "field_3": "data3"}

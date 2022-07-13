@@ -77,9 +77,11 @@ class ResourceValueResolver:
     # instead.
     _IGNORE_KEYS = {"identifier", "defaults", "overrides", "provider"}
 
-    def __init__(self, spec: ExternalResourceSpec, integration: Optional[str] = None):
+    def __init__(
+        self, spec: ExternalResourceSpec, integration_tag: Optional[str] = None
+    ):
         self._spec = spec
-        self._integration = integration
+        self._integration_tag = integration_tag
 
     def resolve(self) -> dict:
         """
@@ -100,8 +102,8 @@ class ResourceValueResolver:
         # Do we really need the identifier if it's already available via spec?
         # values["identifier"] = self._spec.identifier
 
-        if self._integration:
-            values["tags"] = self._spec.tags(self._integration)
+        if self._integration_tag:
+            values["tags"] = self._spec.tags(self._integration_tag)
 
         for key in keys_to_add:
             val = resource.get(key, None)

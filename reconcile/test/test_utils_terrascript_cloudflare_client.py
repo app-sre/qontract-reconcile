@@ -66,7 +66,16 @@ def test_create_cloudflare_resources_terraform_json(account_config, backend_conf
         "terraform": {
             "required_providers": {
                 "cloudflare": {"source": "cloudflare/cloudflare", "version": "3.18"}
-            }
+            },
+            "backend": {
+                "s3": {
+                    "access_key": "access-key",
+                    "secret_key": "secret-key",
+                    "bucket": "bucket-name",
+                    "key": "qontract-reconcile.tfstate",
+                    "region": "us-east-1",
+                }
+            },
         },
         "provider": {
             "cloudflare": [

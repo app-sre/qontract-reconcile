@@ -2,7 +2,7 @@ import tempfile
 from dataclasses import dataclass
 from typing import Iterable, Optional, Union
 
-from terrascript import Terrascript, Terraform, Resource, Output
+from terrascript import Terrascript, Terraform, Resource, Output, Backend
 from terrascript import provider
 
 from reconcile.utils.external_resource_spec import (
@@ -42,22 +42,6 @@ def create_cloudflare_terrascript(
     """
     terrascript = Terrascript()
 
-    terrascript += Terraform(
-        required_providers={
-            "cloudflare": {
-                "source": "cloudflare/cloudflare",
-                "version": provider_version,
-            }
-        }
-    )
-
-    terrascript += provider.cloudflare(
-        email=account_config.email,
-        api_key=account_config.api_key,
-        account_id=account_config.account_id,
-    )
-
-    """
     backend = Backend(
         "s3",
         access_key=backend_config.access_key,
@@ -66,9 +50,21 @@ def create_cloudflare_terrascript(
         key=backend_config.key,
         region=backend_config.region,
     )
-    """
 
-    # terrascript += Terraform(backend=backend)
+    required_providers = {
+        "cloudflare": {
+            "source": "cloudflare/cloudflare",
+            "version": provider_version,
+        }
+    }
+
+    terrascript += Terraform(backend=backend, required_providers=required_providers)
+
+    terrascript += provider.cloudflare(
+        email=account_config.email,
+        api_key=account_config.api_key,
+        account_id=account_config.account_id,
+    )
 
     return terrascript
 
@@ -87,7 +83,7 @@ class TerrascriptCloudflareClient(TerraformConfigClient):
     def __init__(
         self,
         ts_client: Terrascript,
-    ):
+    ) -> None:
         self._terrascript = ts_client
         self._resource_specs: ExternalResourceSpecInventory = {}
 
