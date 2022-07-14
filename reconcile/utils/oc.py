@@ -46,7 +46,7 @@ from reconcile.utils.unleash import (
 
 urllib3.disable_warnings()
 
-WAIT_FOR_DEPLOYMENT_MAX_ATTEMPTS = 20
+GET_REPLICASET_MAX_ATTEMPTS = 20
 
 
 class StatusCodeError(Exception):
@@ -58,6 +58,10 @@ class InvalidValueApplyError(Exception):
 
 
 class FieldIsImmutableError(Exception):
+    pass
+
+
+class DeploymentFieldIsImmutableError(Exception):
     pass
 
 
@@ -562,20 +566,6 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
         if not ready_pods:
             raise JobNotRunningError(name)
 
-    @retry(
-        exceptions=(DeploymentNotReadyError),
-        max_attempts=WAIT_FOR_DEPLOYMENT_MAX_ATTEMPTS,
-    )
-    def wait_for_deployment(self, namespace, name):
-        logging.info(f"waiting for deployment '{name}' to become ready")
-        deployment = self.get(namespace, "Deployment", name)
-
-        for condition in deployment.get("status", {}).get("conditions", []):
-            if condition["type"] == "Available" and condition["status"] == "True":
-                return
-
-        raise DeploymentNotReadyError(name)
-
     def job_logs(self, namespace, name, follow, output):
         self.wait_for_job_running(namespace, name)
         cmd = ["logs", "-n", namespace, f"job/{name}"]
@@ -617,7 +607,13 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
 
         return owned_replicasets
 
-    def get_replicaset(self, namespace: str, deployment_resource: dict) -> dict:
+    @retry(
+        exceptions=(ResourceNotFoundError),
+        max_attempts=GET_REPLICASET_MAX_ATTEMPTS,
+    )
+    def get_replicaset(
+        self, namespace: str, deployment_resource: dict, allow_empty=False
+    ) -> dict:
         """Get last active ReplicaSet for given Deployment.
 
         Implements similar logic like in kubectl describe deployment.
@@ -631,7 +627,10 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
                 rs["spec"]["template"], deployment_resource["spec"]["template"]
             ):
                 return rs
-        return {}
+
+        if allow_empty:
+            return {}
+        raise ResourceNotFoundError("No ReplicaSet found")
 
     @staticmethod
     def get_pod_owned_pvc_names(pods: Iterable[dict[str, dict]]) -> set[str]:
@@ -896,7 +895,12 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
                     raise InvalidValueApplyError(f"[{self.server}]: {err}")
                 if "Invalid value: " in err:
                     if ": field is immutable" in err:
-                        raise FieldIsImmutableError(f"[{self.server}]: {err}")
+                        if "The Deployment" in err:
+                            raise DeploymentFieldIsImmutableError(
+                                f"[{self.server}]: {err}"
+                            )
+                        else:
+                            raise FieldIsImmutableError(f"[{self.server}]: {err}")
                     if ": may not change once set" in err:
                         raise MayNotChangeOnceSetError(f"[{self.server}]: {err}")
                     if ": primary clusterIP can not be unset" in err:

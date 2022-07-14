@@ -10,7 +10,7 @@ from reconcile.utils.oc import (
     LABEL_MAX_KEY_PREFIX_LENGTH,
     LABEL_MAX_VALUE_LENGTH,
     OC,
-    WAIT_FOR_DEPLOYMENT_MAX_ATTEMPTS,
+    GET_REPLICASET_MAX_ATTEMPTS,
     DeploymentNotReadyError,
     OC_Map,
     OCDeprecated,
@@ -23,6 +23,7 @@ from reconcile.utils.oc import (
 )
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.secret_reader import SecretNotFound, SecretReader
+from kubernetes.dynamic.exceptions import ResourceNotFoundError
 
 
 @patch.dict(os.environ, {"USE_NATIVE_CLIENT": "False"}, clear=True)
@@ -858,7 +859,7 @@ def test_get_owned_replicasets(mocker, oc: OCNative, deployment):
     assert len(owned_replicasets) == 2
 
 
-def test_get_replicaset(mocker, oc: OCNative, deployment, replicasets):
+def test_get_replicaset(patch_sleep, mocker, oc: OCNative, deployment, replicasets):
     oc__get_owned_replicasets = mocker.patch.object(
         oc, "get_owned_replicasets", autospec=True
     )
@@ -870,26 +871,20 @@ def test_get_replicaset(mocker, oc: OCNative, deployment, replicasets):
     )
 
 
-def test_wait_for_deployment_fail(patch_sleep, mocker, oc: OCNative):
-    oc__get = mocker.patch.object(oc, "get", autospec=True)
-    oc__get.return_value = {
-        "status": {"conditions": [{"type": "Available", "status": "False"}]}
-    }
-    with pytest.raises(DeploymentNotReadyError):
-        oc.wait_for_deployment("namespace", "deployment_name")
-    assert oc__get.call_count == WAIT_FOR_DEPLOYMENT_MAX_ATTEMPTS
+def test_get_replicaset_fail(patch_sleep, mocker, oc: OCNative, deployment):
+    oc__get_owned_replicasets = mocker.patch.object(
+        oc, "get_owned_replicasets", autospec=True
+    )
+    oc__get_owned_replicasets.return_value = []
 
-    oc__get = mocker.patch.object(oc, "get", autospec=True)
-    oc__get.return_value = {}
-    with pytest.raises(DeploymentNotReadyError):
-        oc.wait_for_deployment("namespace", "deployment_name")
-    assert oc__get.call_count == WAIT_FOR_DEPLOYMENT_MAX_ATTEMPTS
+    with pytest.raises(ResourceNotFoundError):
+        oc.get_replicaset("namespace", deployment)["metadata"]["name"]
+    assert oc__get_owned_replicasets.call_count == GET_REPLICASET_MAX_ATTEMPTS
 
 
-def test_wait_for_deployment(patch_sleep, mocker, oc: OCNative):
-    oc__get = mocker.patch.object(oc, "get", autospec=True)
-    oc__get.return_value = {
-        "status": {"conditions": [{"type": "Available", "status": "True"}]}
-    }
-    oc.wait_for_deployment("namespace", "deployment_name")
-    assert oc__get.call_count == 1
+def test_get_replicaset_allow_empty(patch_sleep, mocker, oc: OCNative, deployment):
+    oc__get_owned_replicasets = mocker.patch.object(
+        oc, "get_owned_replicasets", autospec=True
+    )
+    oc__get_owned_replicasets.return_value = []
+    assert oc.get_replicaset("namespace", deployment, allow_empty=True) == {}
