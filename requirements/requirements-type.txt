@@ -10,5 +10,5 @@ types-requests
 types-setuptools
 types-tabulate
 types-toml
-boto3-stubs[ec2,s3,rds,iam,route53]
+boto3-stubs[ec2,s3,rds,iam,route53]==1.24.29
 qenerate
