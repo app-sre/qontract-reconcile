@@ -185,6 +185,7 @@ def get_merge_requests(gl: GitLabApi) -> reversed:
 def rebase_merge_requests(
     dry_run,
     gl,
+    merge_requests,
     rebase_limit,
     pipeline_timeout=None,
     wait_for_pipeline=False,
@@ -192,7 +193,7 @@ def rebase_merge_requests(
     gl_settings=None,
 ):
     rebases = 0
-    for mr in get_merge_requests(gl):
+    for mr in merge_requests:
         target_branch = mr.target_branch
         head = gl.project.commits.list(ref_name=target_branch)[0].id
         result = gl.project.repository_compare(mr.sha, head)
@@ -235,6 +236,7 @@ def rebase_merge_requests(
 def merge_merge_requests(
     dry_run,
     gl,
+    merge_requests,
     merge_limit,
     rebase,
     pipeline_timeout=None,
@@ -244,7 +246,7 @@ def merge_merge_requests(
     gl_settings=None,
 ):
     merges = 0
-    for mr in get_merge_requests(gl):
+    for mr in merge_requests:
         labels = mr.attributes.get("labels")
         if SAAS_FILE_UPDATE in labels and LGTM in labels:
             logging.warning(
@@ -322,10 +324,12 @@ def run(dry_run, wait_for_pipeline):
         handle_stale_items(dry_run, gl, days_interval, enable_closing, "issue")
         handle_stale_items(dry_run, gl, days_interval, enable_closing, "merge-request")
         rebase = hk.get("rebase")
+        merge_requests = get_merge_requests(gl)
         try:
             merge_merge_requests(
                 dry_run,
                 gl,
+                merge_requests,
                 limit,
                 rebase,
                 pipeline_timeout,
@@ -338,6 +342,7 @@ def run(dry_run, wait_for_pipeline):
             merge_merge_requests(
                 dry_run,
                 gl,
+                merge_requests,
                 limit,
                 rebase,
                 pipeline_timeout,
@@ -349,6 +354,7 @@ def run(dry_run, wait_for_pipeline):
             rebase_merge_requests(
                 dry_run,
                 gl,
+                merge_requests,
                 limit,
                 pipeline_timeout=pipeline_timeout,
                 wait_for_pipeline=wait_for_pipeline,
