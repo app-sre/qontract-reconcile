@@ -169,6 +169,9 @@ def get_merge_requests(gl: GitLabApi) -> reversed:
             continue
         if len(mr.commits()) == 0:
             continue
+        labels = mr.attributes.get("labels")
+        if not labels:
+            continue
 
         results.append(mr)
 
@@ -188,9 +191,6 @@ def rebase_merge_requests(
     for rebase_label in REBASE_LABELS_PRIORITY:
         for mr in get_merge_requests(gl):
             labels = mr.attributes.get("labels")
-            if not labels:
-                continue
-
             good_to_rebase = is_good_to_merge(rebase_label, labels)
             if not good_to_rebase:
                 continue
@@ -251,9 +251,6 @@ def merge_merge_requests(
     for merge_label in MERGE_LABELS_PRIORITY:
         for mr in get_merge_requests(gl):
             labels = mr.attributes.get("labels")
-            if not labels:
-                continue
-
             good_to_merge = is_good_to_merge(merge_label, labels)
             if not good_to_merge:
                 continue
