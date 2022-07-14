@@ -222,7 +222,6 @@ def get_merge_requests(dry_run: bool, gl: GitLabApi) -> list:
 def rebase_merge_requests(
     dry_run,
     gl,
-    merge_requests,
     rebase_limit,
     pipeline_timeout=None,
     wait_for_pipeline=False,
@@ -230,6 +229,7 @@ def rebase_merge_requests(
     gl_settings=None,
 ):
     rebases = 0
+    merge_requests = [item["mr"] for item in get_merge_requests(dry_run, gl)]
     for mr in merge_requests:
         if is_rebased(mr, gl):
             continue
@@ -270,7 +270,6 @@ def rebase_merge_requests(
 def merge_merge_requests(
     dry_run,
     gl,
-    merge_requests,
     merge_limit,
     rebase,
     pipeline_timeout=None,
@@ -280,6 +279,7 @@ def merge_merge_requests(
     gl_settings=None,
 ):
     merges = 0
+    merge_requests = [item["mr"] for item in get_merge_requests(dry_run, gl)]
     for mr in merge_requests:
         if rebase and not is_rebased(mr, gl):
             continue
@@ -345,12 +345,10 @@ def run(dry_run, wait_for_pipeline):
         handle_stale_items(dry_run, gl, days_interval, enable_closing, "issue")
         handle_stale_items(dry_run, gl, days_interval, enable_closing, "merge-request")
         rebase = hk.get("rebase")
-        merge_requests = [item["mr"] for item in get_merge_requests(dry_run, gl)]
         try:
             merge_merge_requests(
                 dry_run,
                 gl,
-                merge_requests,
                 limit,
                 rebase,
                 pipeline_timeout,
@@ -363,7 +361,6 @@ def run(dry_run, wait_for_pipeline):
             merge_merge_requests(
                 dry_run,
                 gl,
-                merge_requests,
                 limit,
                 rebase,
                 pipeline_timeout,
@@ -375,7 +372,6 @@ def run(dry_run, wait_for_pipeline):
             rebase_merge_requests(
                 dry_run,
                 gl,
-                merge_requests,
                 limit,
                 pipeline_timeout=pipeline_timeout,
                 wait_for_pipeline=wait_for_pipeline,
