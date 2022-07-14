@@ -201,13 +201,20 @@ def get_merge_requests(dry_run: bool, gl: GitLabApi) -> list:
                 if l in labels
             ]
         )
+        label_events = mr.resourcelabelevents.list()
+        for label in reversed(label_events):
+            if label.action == "add" and label.label["name"] in MERGE_LABELS_PRIORITY:
+                approved_at = label.created_at
+                break
+
         item = {
             "mr": mr,
             "label_priority": label_priotiry,
+            "approved_at": approved_at,
         }
         results.append(item)
 
-    results.sort(key=itemgetter("label_priority"))
+    results.sort(key=itemgetter("label_priority", "approved_at"))
     result_mrs = [item["mr"] for item in results]
 
     return result_mrs
