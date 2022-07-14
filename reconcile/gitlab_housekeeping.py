@@ -160,7 +160,7 @@ def is_good_to_merge(labels):
     )
 
 
-def get_merge_requests(gl: GitLabApi) -> reversed:
+def get_merge_requests(dry_run: bool, gl: GitLabApi) -> reversed:
     mrs = gl.get_merge_requests(state=MRState.OPENED)
     results = []
     for mr in mrs:
@@ -175,6 +175,15 @@ def get_merge_requests(gl: GitLabApi) -> reversed:
         if not labels:
             continue
         if not is_good_to_merge(labels):
+            continue
+
+        if SAAS_FILE_UPDATE in labels and LGTM in labels:
+            logging.warning(
+                f"[{gl.project.name}/{mr.iid}] 'lgtm' label not "
+                + "suitable for saas file update. removing 'lgtm' label"
+            )
+            if not dry_run:
+                gl.remove_label_from_merge_request(mr.iid, LGTM)
             continue
 
         results.append(mr)
@@ -247,16 +256,6 @@ def merge_merge_requests(
 ):
     merges = 0
     for mr in merge_requests:
-        labels = mr.attributes.get("labels")
-        if SAAS_FILE_UPDATE in labels and LGTM in labels:
-            logging.warning(
-                f"[{gl.project.name}/{mr.iid}] 'lgtm' label not "
-                + "suitable for saas file update. removing 'lgtm' label"
-            )
-            if not dry_run:
-                gl.remove_label_from_merge_request(mr.iid, LGTM)
-            continue
-
         target_branch = mr.target_branch
         head = gl.project.commits.list(ref_name=target_branch)[0].id
         result = gl.project.repository_compare(mr.sha, head)
@@ -324,7 +323,7 @@ def run(dry_run, wait_for_pipeline):
         handle_stale_items(dry_run, gl, days_interval, enable_closing, "issue")
         handle_stale_items(dry_run, gl, days_interval, enable_closing, "merge-request")
         rebase = hk.get("rebase")
-        merge_requests = get_merge_requests(gl)
+        merge_requests = get_merge_requests(dry_run, gl)
         try:
             merge_merge_requests(
                 dry_run,
