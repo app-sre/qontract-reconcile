@@ -196,9 +196,9 @@ def get_merge_requests(dry_run: bool, gl: GitLabApi) -> list:
 
         label_priotiry = min(
             [
-                MERGE_LABELS_PRIORITY.index(l)
-                for l in MERGE_LABELS_PRIORITY
-                if l in labels
+                MERGE_LABELS_PRIORITY.index(merge_label)
+                for merge_label in MERGE_LABELS_PRIORITY
+                if merge_label in labels
             ]
         )
         label_events = mr.resourcelabelevents.list()
