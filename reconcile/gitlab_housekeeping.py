@@ -215,9 +215,8 @@ def get_merge_requests(dry_run: bool, gl: GitLabApi) -> list:
         results.append(item)
 
     results.sort(key=itemgetter("label_priority", "approved_at"))
-    result_mrs = [item["mr"] for item in results]
 
-    return result_mrs
+    return results
 
 
 def rebase_merge_requests(
@@ -346,7 +345,7 @@ def run(dry_run, wait_for_pipeline):
         handle_stale_items(dry_run, gl, days_interval, enable_closing, "issue")
         handle_stale_items(dry_run, gl, days_interval, enable_closing, "merge-request")
         rebase = hk.get("rebase")
-        merge_requests = get_merge_requests(dry_run, gl)
+        merge_requests = [item["mr"] for item in get_merge_requests(dry_run, gl)]
         try:
             merge_merge_requests(
                 dry_run,
