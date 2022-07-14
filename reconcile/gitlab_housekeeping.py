@@ -193,9 +193,14 @@ def get_merge_requests(dry_run: bool, gl: GitLabApi) -> reversed:
                 gl.remove_label_from_merge_request(mr.iid, LGTM)
             continue
 
-        results.append(mr)
+        item = {
+            "mr": mr,
+        }
+        results.append(item)
 
-    return reversed(mrs)
+    result_mrs = [item["mr"] for item in results]
+
+    return reversed(result_mrs)
 
 
 def rebase_merge_requests(
