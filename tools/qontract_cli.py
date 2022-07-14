@@ -27,6 +27,8 @@ from reconcile.utils.external_resources import (
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.environ import environ
 from reconcile.jenkins_job_builder import init_jjb
+from reconcile.utils.gitlab_api import GitLabApi
+from reconcile.gitlab_housekeeping import get_merge_requests
 from reconcile.utils.jjb_client import JJB
 from reconcile.utils.oc import OC_Map
 from reconcile.utils.ocm import OCMMap
@@ -1043,6 +1045,29 @@ def sre_checkpoints(ctx):
 
     columns = ["name", "latest"]
     print_output(ctx.obj["options"], checkpoints_data, columns)
+
+
+@get.command()
+@click.pass_context
+def app_interface_merge_queue(ctx):
+    settings = queries.get_app_interface_settings()
+    instance = queries.get_gitlab_instance()
+    gl = GitLabApi(instance, project_url=settings["repoUrl"], settings=settings)
+    merge_requests = get_merge_requests(True, gl)
+
+    columns = ["id", "title", "label_priority", "approved_at", "approved_by"]
+    merge_queue_data = []
+    for mr in merge_requests:
+        item = {
+            "id": mr["mr"].iid,
+            "title": mr["mr"].title,
+            "label_priority": mr["label_priority"] + 1,  # adding 1 for human readability
+            "approved_at": mr["approved_at"],
+            "approved_by": mr["approved_by"],
+        }
+        merge_queue_data.append(item)
+
+    print_output(ctx.obj["options"], merge_queue_data, columns)
 
 
 def print_output(
