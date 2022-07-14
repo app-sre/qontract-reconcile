@@ -208,6 +208,7 @@ def get_merge_requests(dry_run: bool, gl: GitLabApi) -> list:
 
         item = {
             "mr": mr,
+            "labels": labels,
             "label_priority": label_priotiry,
             "approved_at": approved_at,
             "approved_by": approved_by,

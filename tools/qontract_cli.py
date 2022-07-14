@@ -1055,7 +1055,7 @@ def app_interface_merge_queue(ctx):
     gl = GitLabApi(instance, project_url=settings["repoUrl"], settings=settings)
     merge_requests = get_merge_requests(True, gl)
 
-    columns = ["id", "title", "label_priority", "approved_at", "approved_by"]
+    columns = ["id", "title", "label_priority", "approved_at", "approved_by", "labels"]
     merge_queue_data = []
     for mr in merge_requests:
         item = {
@@ -1065,6 +1065,7 @@ def app_interface_merge_queue(ctx):
             + 1,  # adding 1 for human readability
             "approved_at": mr["approved_at"],
             "approved_by": mr["approved_by"],
+            "labels": ", ".join(mr["labels"]),
         }
         merge_queue_data.append(item)
 
