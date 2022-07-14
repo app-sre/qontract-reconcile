@@ -1056,7 +1056,15 @@ def app_interface_merge_queue(ctx):
     gl = GitLabApi(instance, project_url=settings["repoUrl"], settings=settings)
     merge_requests = glhk.get_merge_requests(True, gl)
 
-    columns = ["id", "title", "label_priority", "approved_at", "approved_span_minutes", "approved_by", "labels"]
+    columns = [
+        "id",
+        "title",
+        "label_priority",
+        "approved_at",
+        "approved_span_minutes",
+        "approved_by",
+        "labels",
+    ]
     merge_queue_data = []
     now = datetime.utcnow()
     for mr in merge_requests:
