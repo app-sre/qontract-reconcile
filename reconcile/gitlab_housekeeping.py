@@ -160,6 +160,13 @@ def is_good_to_merge(labels):
     )
 
 
+def is_rebased(mr, gl: GitLabApi) -> bool:
+    target_branch = mr.target_branch
+    head = gl.project.commits.list(ref_name=target_branch)[0].id
+    result = gl.project.repository_compare(mr.sha, head)
+    return len(result["commits"]) == 0
+
+
 def get_merge_requests(dry_run: bool, gl: GitLabApi) -> reversed:
     mrs = gl.get_merge_requests(state=MRState.OPENED)
     results = []
@@ -203,10 +210,7 @@ def rebase_merge_requests(
 ):
     rebases = 0
     for mr in merge_requests:
-        target_branch = mr.target_branch
-        head = gl.project.commits.list(ref_name=target_branch)[0].id
-        result = gl.project.repository_compare(mr.sha, head)
-        if len(result["commits"]) == 0:  # rebased
+        if is_rebased(mr, gl):
             continue
 
         pipelines = mr.pipelines()
@@ -256,10 +260,7 @@ def merge_merge_requests(
 ):
     merges = 0
     for mr in merge_requests:
-        target_branch = mr.target_branch
-        head = gl.project.commits.list(ref_name=target_branch)[0].id
-        result = gl.project.repository_compare(mr.sha, head)
-        if rebase and len(result["commits"]) != 0:  # not rebased
+        if rebase and not is_rebased(mr, gl):
             continue
 
         pipelines = mr.pipelines()
