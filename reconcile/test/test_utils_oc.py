@@ -11,7 +11,6 @@ from reconcile.utils.oc import (
     LABEL_MAX_VALUE_LENGTH,
     OC,
     GET_REPLICASET_MAX_ATTEMPTS,
-    DeploymentNotReadyError,
     OC_Map,
     OCDeprecated,
     OCLogMsg,

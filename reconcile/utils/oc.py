@@ -113,10 +113,6 @@ class JobNotRunningError(Exception):
     pass
 
 
-class DeploymentNotReadyError(Exception):
-    pass
-
-
 class OCDecorators:
     @classmethod
     def process_reconcile_time(cls, function):
