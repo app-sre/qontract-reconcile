@@ -1061,7 +1061,8 @@ def app_interface_merge_queue(ctx):
         item = {
             "id": mr["mr"].iid,
             "title": mr["mr"].title,
-            "label_priority": mr["label_priority"] + 1,  # adding 1 for human readability
+            "label_priority": mr["label_priority"]
+            + 1,  # adding 1 for human readability
             "approved_at": mr["approved_at"],
             "approved_by": mr["approved_by"],
         }
