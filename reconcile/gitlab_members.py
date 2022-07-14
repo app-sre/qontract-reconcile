@@ -1,37 +1,33 @@
 import logging
+from reconcile.slack_usergroups import get_pagerduty_map, get_usernames_from_pagerduty
 
 from reconcile.utils import gql
 from reconcile import queries
 
 from reconcile.utils.gitlab_api import GitLabApi
 
-USERS_QUERY = """
-{
-  users: users_v1 {
-    org_username
-      roles {
-        permissions {
-          ... on PermissionGitlabGroupMembership_v1 {
-            name
-            group
-            access
-          }
-      }
-    }
-  }
-}
-"""
 
-BOTS_QUERY = """
+PERMISSIONS_QUERY = """
 {
-  bots: bots_v1 {
-    org_username
+  permissions: permissions_v1 {
+    ... on PermissionGitlabGroupMembership_v1 {
+      name
+      group
+      access
+      pagerduty {
+        name
+        instance {
+          name
+        }
+        scheduleID
+        escalationPolicyID
+      }
       roles {
-        permissions {
-          ... on PermissionGitlabGroupMembership_v1 {
-            name
-            group
-            access
+        users {
+          org_username
+        }
+        bots {
+          org_username
         }
       }
     }
@@ -48,24 +44,35 @@ def get_current_state(instance, gl):
 
 def get_desired_state(instance, gl):
     gqlapi = gql.get_api()
-    users = gqlapi.query(USERS_QUERY)["users"]
-    bots = gqlapi.query(BOTS_QUERY)["bots"]
+    permissions = gqlapi.query(PERMISSIONS_QUERY)["permissions"]
     desired_group_members = {g: [] for g in instance["managedGroups"]}
+    pagerduty_map = get_pagerduty_map()
+    all_users = queries.get_users()
     for g in desired_group_members:
-        for u in users:
-            for r in u.get("roles") or []:
-                for p in r["permissions"]:
-                    if "group" in p and p["group"] == g:
+        for p in permissions:
+            if "group" in p and p["group"] == g:
+                for r in p.get("roles") or []:
+                    for u in r.get("users") or []:
                         user = u["org_username"]
                         item = {"user": user, "access_level": p["access"]}
                         desired_group_members[g].append(item)
-        for b in bots:
-            for r in b.get("roles") or []:
-                for p in r["permissions"]:
-                    if "group" in p and p["group"] == g:
+                    for b in r.get("bots") or []:
                         user = b["org_username"]
                         item = {"user": user, "access_level": p["access"]}
                         desired_group_members[g].append(item)
+                pagerduty = p.get("pagerduty")
+                if pagerduty:
+                    usernames_from_pagerduty = get_usernames_from_pagerduty(
+                        pagerduty,
+                        all_users,
+                        g,
+                        pagerduty_map,
+                        get_username_method=lambda u: u["org_username"],
+                    )
+                    for u in usernames_from_pagerduty:
+                        item = {"user": u, "access_level": p["access"]}
+                        desired_group_members[g].append(item)
+
     return desired_group_members
 
 

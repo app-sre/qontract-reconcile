@@ -97,8 +97,10 @@ def get_pagerduty_name(user):
 
 
 @retry()
-def get_slack_usernames_from_pagerduty(pagerduties, users, usergroup, pagerduty_map):
-    all_slack_usernames = []
+def get_usernames_from_pagerduty(
+    pagerduties, users, usergroup, pagerduty_map, get_username_method
+):
+    all_output_usernames = []
     all_pagerduty_names = [get_pagerduty_name(u) for u in users]
     for pagerduty in pagerduties or []:
         pd_schedule_id = pagerduty["scheduleID"]
@@ -119,8 +121,8 @@ def get_slack_usernames_from_pagerduty(pagerduties, users, usergroup, pagerduty_
         ]
         if not pagerduty_names:
             continue
-        slack_usernames = [
-            get_slack_username(u)
+        output_usernames = [
+            get_username_method(u)
             for u in users
             if get_pagerduty_name(u) in pagerduty_names
         ]
@@ -136,9 +138,9 @@ def get_slack_usernames_from_pagerduty(pagerduties, users, usergroup, pagerduty_
                 "pagerduty_username if it is different than org_username)"
             ).format(usergroup, not_found_pagerduty_names)
             logging.warning(msg)
-        all_slack_usernames.extend(slack_usernames)
+        all_output_usernames.extend(output_usernames)
 
-    return all_slack_usernames
+    return all_output_usernames
 
 
 @retry()
@@ -259,8 +261,12 @@ def get_desired_state(slack_map, pagerduty_map):
         ugid = slack.get_usergroup_id(usergroup)
 
         all_user_names = [get_slack_username(u) for r in p["roles"] for u in r["users"]]
-        slack_usernames_pagerduty = get_slack_usernames_from_pagerduty(
-            p["pagerduty"], all_users, usergroup, pagerduty_map
+        slack_usernames_pagerduty = get_usernames_from_pagerduty(
+            p["pagerduty"],
+            all_users,
+            usergroup,
+            pagerduty_map,
+            get_username_method=get_slack_username,
         )
         all_user_names.extend(slack_usernames_pagerduty)
 
