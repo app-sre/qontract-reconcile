@@ -5,33 +5,20 @@ from reconcile import queries
 
 from reconcile.utils.gitlab_api import GitLabApi
 
-USERS_QUERY = """
-{
-  users: users_v1 {
-    org_username
-      roles {
-        permissions {
-          ... on PermissionGitlabGroupMembership_v1 {
-            name
-            group
-            access
-          }
-      }
-    }
-  }
-}
-"""
 
-BOTS_QUERY = """
+PERMISSIONS_QUERY = """
 {
-  bots: bots_v1 {
-    org_username
+  permissions: permissions_v1 {
+    ... on PermissionGitlabGroupMembership_v1 {
+      name
+      group
+      access
       roles {
-        permissions {
-          ... on PermissionGitlabGroupMembership_v1 {
-            name
-            group
-            access
+        users {
+          org_username
+        }
+        bots {
+          org_username
         }
       }
     }
@@ -48,24 +35,21 @@ def get_current_state(instance, gl):
 
 def get_desired_state(instance, gl):
     gqlapi = gql.get_api()
-    users = gqlapi.query(USERS_QUERY)["users"]
-    bots = gqlapi.query(BOTS_QUERY)["bots"]
+    permissions = gqlapi.query(PERMISSIONS_QUERY)["permissions"]
     desired_group_members = {g: [] for g in instance["managedGroups"]}
     for g in desired_group_members:
-        for u in users:
-            for r in u.get("roles") or []:
-                for p in r["permissions"]:
-                    if "group" in p and p["group"] == g:
+        for p in permissions:
+            if "group" in p and p["group"] == g:
+                for r in p.get("roles") or []:
+                    for u in r.get("users") or []:
                         user = u["org_username"]
                         item = {"user": user, "access_level": p["access"]}
                         desired_group_members[g].append(item)
-        for b in bots:
-            for r in b.get("roles") or []:
-                for p in r["permissions"]:
-                    if "group" in p and p["group"] == g:
+                    for b in r.get("bots") or []:
                         user = b["org_username"]
                         item = {"user": user, "access_level": p["access"]}
                         desired_group_members[g].append(item)
+
     return desired_group_members
 
 
