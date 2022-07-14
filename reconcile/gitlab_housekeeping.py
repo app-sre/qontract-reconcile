@@ -161,6 +161,17 @@ def is_good_to_merge(merge_label, labels):
 
 def get_merge_requests(gl: GitLabApi) -> reversed:
     mrs = gl.get_merge_requests(state=MRState.OPENED)
+    results = []
+    for mr in mrs:
+        if mr.merge_status == "cannot_be_merged":
+            continue
+        if mr.work_in_progress:
+            continue
+        if len(mr.commits()) == 0:
+            continue
+
+        results.append(mr)
+
     return reversed(mrs)
 
 
@@ -176,13 +187,6 @@ def rebase_merge_requests(
     rebases = 0
     for rebase_label in REBASE_LABELS_PRIORITY:
         for mr in get_merge_requests(gl):
-            if mr.merge_status == "cannot_be_merged":
-                continue
-            if mr.work_in_progress:
-                continue
-            if len(mr.commits()) == 0:
-                continue
-
             labels = mr.attributes.get("labels")
             if not labels:
                 continue
@@ -246,13 +250,6 @@ def merge_merge_requests(
     merges = 0
     for merge_label in MERGE_LABELS_PRIORITY:
         for mr in get_merge_requests(gl):
-            if mr.merge_status == "cannot_be_merged":
-                continue
-            if mr.work_in_progress:
-                continue
-            if len(mr.commits()) == 0:
-                continue
-
             labels = mr.attributes.get("labels")
             if not labels:
                 continue
