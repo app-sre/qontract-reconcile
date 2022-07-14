@@ -172,7 +172,7 @@ def get_merge_requests(dry_run: bool, gl: GitLabApi) -> list:
     mrs = gl.get_merge_requests(state=MRState.OPENED)
     results = []
     for mr in mrs:
-        if mr.merge_status == "cannot_be_merged":
+        if mr.merge_status != "can_be_merged":
             continue
         if mr.work_in_progress:
             continue
