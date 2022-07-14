@@ -31,6 +31,19 @@ class MRState:
     ALL = "all"
 
 
+class MRStatus:
+    """
+    Data class to help users selecting the correct Merge Request status.
+    """
+
+    # Values taken from https://docs.gitlab.com/ee/api/merge_requests.html#single-merge-request-response-notes
+    UNCHECKED = "unchecked"
+    CHECKING = "checking"
+    CAN_BE_MERGED = "can_be_merged"
+    CANNOT_BE_MERGED = "cannot_be_merged"
+    CANNOT_BE_MERGED_RECHECK = "cannot_be_merged_recheck"
+
+
 class GitLabApi:  # pylint: disable=too-many-public-methods
     def __init__(
         self,
