@@ -2,9 +2,11 @@ import base64
 import json
 import sys
 from contextlib import suppress
+from datetime import datetime
 from typing import Dict, Iterable, List, Mapping, Optional, Union
 
 import click
+import reconcile.gitlab_housekeeping as glhk
 import reconcile.ocm_upgrade_scheduler as ous
 import reconcile.openshift_base as ob
 import reconcile.openshift_resources_base as orb
@@ -28,7 +30,6 @@ from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.environ import environ
 from reconcile.jenkins_job_builder import init_jjb
 from reconcile.utils.gitlab_api import GitLabApi
-from reconcile.gitlab_housekeeping import get_merge_requests
 from reconcile.utils.jjb_client import JJB
 from reconcile.utils.oc import OC_Map
 from reconcile.utils.ocm import OCMMap
@@ -1053,10 +1054,11 @@ def app_interface_merge_queue(ctx):
     settings = queries.get_app_interface_settings()
     instance = queries.get_gitlab_instance()
     gl = GitLabApi(instance, project_url=settings["repoUrl"], settings=settings)
-    merge_requests = get_merge_requests(True, gl)
+    merge_requests = glhk.get_merge_requests(True, gl)
 
-    columns = ["id", "title", "label_priority", "approved_at", "approved_by", "labels"]
+    columns = ["id", "title", "label_priority", "approved_at", "approved_span_minutes", "approved_by", "labels"]
     merge_queue_data = []
+    now = datetime.utcnow()
     for mr in merge_requests:
         item = {
             "id": mr["mr"].iid,
@@ -1064,6 +1066,10 @@ def app_interface_merge_queue(ctx):
             "label_priority": mr["label_priority"]
             + 1,  # adding 1 for human readability
             "approved_at": mr["approved_at"],
+            "approved_span_minutes": (
+                now - datetime.strptime(mr["approved_at"], glhk.DATE_FORMAT)
+            ).total_seconds()
+            / 60,
             "approved_by": mr["approved_by"],
             "labels": ", ".join(mr["labels"]),
         }
