@@ -205,12 +205,14 @@ def get_merge_requests(dry_run: bool, gl: GitLabApi) -> list:
         for label in reversed(label_events):
             if label.action == "add" and label.label["name"] in MERGE_LABELS_PRIORITY:
                 approved_at = label.created_at
+                approved_by = label.user["username"]
                 break
 
         item = {
             "mr": mr,
             "label_priority": label_priotiry,
             "approved_at": approved_at,
+            "approved_by": approved_by,
         }
         results.append(item)
 
