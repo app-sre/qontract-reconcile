@@ -1,4 +1,5 @@
 import logging
+from reconcile.slack_usergroups import get_pagerduty_map, get_usernames_from_pagerduty
 
 from reconcile.utils import gql
 from reconcile import queries
@@ -13,6 +14,14 @@ PERMISSIONS_QUERY = """
       name
       group
       access
+      pagerduty {
+        name
+        instance {
+          name
+        }
+        scheduleID
+        escalationPolicyID
+      }
       roles {
         users {
           org_username
@@ -37,6 +46,8 @@ def get_desired_state(instance, gl):
     gqlapi = gql.get_api()
     permissions = gqlapi.query(PERMISSIONS_QUERY)["permissions"]
     desired_group_members = {g: [] for g in instance["managedGroups"]}
+    pagerduty_map = get_pagerduty_map()
+    all_users = queries.get_users()
     for g in desired_group_members:
         for p in permissions:
             if "group" in p and p["group"] == g:
@@ -48,6 +59,18 @@ def get_desired_state(instance, gl):
                     for b in r.get("bots") or []:
                         user = b["org_username"]
                         item = {"user": user, "access_level": p["access"]}
+                        desired_group_members[g].append(item)
+                pagerduty = p.get("pagerduty")
+                if pagerduty:
+                    usernames_from_pagerduty = get_usernames_from_pagerduty(
+                        pagerduty,
+                        all_users,
+                        g,
+                        pagerduty_map,
+                        get_username_method=lambda u: u["org_username"],
+                    )
+                    for u in usernames_from_pagerduty:
+                        item = {"user": u, "access_level": p["access"]}
                         desired_group_members[g].append(item)
 
     return desired_group_members
