@@ -1067,6 +1067,7 @@ def app_interface_merge_queue(ctx):
         }
         merge_queue_data.append(item)
 
+    ctx.obj["options"]["sort"] = False  # do not sort
     print_output(ctx.obj["options"], merge_queue_data, columns)
 
 
