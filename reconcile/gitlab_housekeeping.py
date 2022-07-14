@@ -1,6 +1,7 @@
 import logging
 
 from datetime import datetime, timedelta
+from operator import itemgetter
 from typing import Dict, List
 
 import gitlab
@@ -167,7 +168,7 @@ def is_rebased(mr, gl: GitLabApi) -> bool:
     return len(result["commits"]) == 0
 
 
-def get_merge_requests(dry_run: bool, gl: GitLabApi) -> reversed:
+def get_merge_requests(dry_run: bool, gl: GitLabApi) -> list:
     mrs = gl.get_merge_requests(state=MRState.OPENED)
     results = []
     for mr in mrs:
@@ -193,14 +194,23 @@ def get_merge_requests(dry_run: bool, gl: GitLabApi) -> reversed:
                 gl.remove_label_from_merge_request(mr.iid, LGTM)
             continue
 
+        label_priotiry = min(
+            [
+                MERGE_LABELS_PRIORITY.index(l)
+                for l in MERGE_LABELS_PRIORITY
+                if l in labels
+            ]
+        )
         item = {
             "mr": mr,
+            "label_priority": label_priotiry,
         }
         results.append(item)
 
+    results.sort(key=itemgetter("label_priority"))
     result_mrs = [item["mr"] for item in results]
 
-    return reversed(result_mrs)
+    return result_mrs
 
 
 def rebase_merge_requests(
