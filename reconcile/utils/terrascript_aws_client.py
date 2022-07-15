@@ -42,6 +42,8 @@ from terrascript import (
     data,
 )
 from terrascript.resource import (
+    aws_api_gateway_domain_name,
+    aws_api_gateway_base_path_mapping,
     aws_db_instance,
     aws_db_parameter_group,
     aws_s3_bucket,
@@ -5100,6 +5102,35 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             stage_name="api",
         )
         tf_resources.append(api_gateway_stage_resource)
+
+        # DOMAIN NAME
+        api_gateway_domain_name_resource = aws_api_gateway_domain_name(
+            "domain",
+            regional_certificate_arn="local.certificate_arn",
+            domain_name="local.domain_name",
+        )
+        tf_resources.append(api_gateway_domain_name_resource)
+
+        # BASE PATH MAPPING - CATCH_ALL
+        # This allows for <domain_name>/auth to be forwarded to the API Gateway
+        # stage, e.g. <api_gw>/<stage>/auth
+        base_path_mapping_catch_all_resource = aws_api_gateway_base_path_mapping(
+            "catch_all",
+            api_id="${aws_api_gateway_rest_api.gw_api.id}",
+            stage_name="${aws_api_gateway_stage.gw_stage.stage_name}",
+            domain_name="${aws_api_gateway_domain_name.domain.domain_name}",
+        )
+        tf_resources.append(base_path_mapping_catch_all_resource)
+
+        # BASE PATH MAPPING - API
+        base_path_mapping_api_resource = aws_api_gateway_base_path_mapping(
+            "api",
+            api_id="${aws_api_gateway_rest_api.gw_api.id}",
+            stage_name="${aws_api_gateway_stage.gw_stage.stage_name}",
+            domain_name="${aws_api_gateway_domain_name.domain.domain_name}",
+            base_path="api",
+        )
+        tf_resources.append(base_path_mapping_api_resource)
 
         # WAF
         waf_acl_resource = aws_wafv2_web_acl(
