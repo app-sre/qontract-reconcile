@@ -4,22 +4,25 @@ from unittest import TestCase
 from unittest.mock import patch
 
 import pytest
-
 import reconcile.utils.oc
 from reconcile.utils.oc import (
     LABEL_MAX_KEY_NAME_LENGTH,
     LABEL_MAX_KEY_PREFIX_LENGTH,
     LABEL_MAX_VALUE_LENGTH,
     OC,
+    GET_REPLICASET_MAX_ATTEMPTS,
+    OC_Map,
     OCDeprecated,
+    OCLogMsg,
+    OCNative,
     PodNotReadyError,
     StatusCodeError,
+    equal_spec_template,
     validate_labels,
-    OC_Map,
-    OCLogMsg,
 )
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
-from reconcile.utils.secret_reader import SecretReader, SecretNotFound
+from reconcile.utils.secret_reader import SecretNotFound, SecretReader
+from kubernetes.dynamic.exceptions import ResourceNotFoundError
 
 
 @patch.dict(os.environ, {"USE_NATIVE_CLIENT": "False"}, clear=True)
@@ -516,8 +519,8 @@ class TestOCMapGetClusters(TestCase):
 
 
 @pytest.fixture
-def oc():
-    os.environ["USE_NATIVE_CLIENT"] = "False"
+def oc(monkeypatch):
+    monkeypatch.setenv("USE_NATIVE_CLIENT", "False")
     return OC("cluster", "server", "token", local=True)
 
 
@@ -618,3 +621,269 @@ def test_oc_map_exception_on_missing_cluster():
 
     assert ctx.value.message == "[test-1] has no serverUrl"
     assert ctx.value.log_level == logging.ERROR
+
+
+@pytest.mark.parametrize(
+    "t1, t2, expected",
+    [
+        # trivial examples
+        ({"a": "b"}, {"a": "b"}, True),
+        ({"a": "b", "c": "d"}, {"c": "d", "a": "b"}, True),
+        ({"a": "b", "c": "d"}, {"a": "b"}, False),
+        # w/o pod-template-hash
+        (
+            # t1
+            {
+                "metadata": {},
+                "spec": {"containers": [{"command": ["foobar"], "image": "lalala"}]},
+            },
+            # t2
+            {
+                "metadata": {},
+                "spec": {"containers": [{"command": ["foobar"], "image": "lalala"}]},
+            },
+            # expected
+            True,
+        ),
+        (
+            # t1
+            {
+                "metadata": {},
+                "spec": {"containers": [{"command": ["foobar"], "image": "lalala"}]},
+            },
+            # t2
+            {
+                "metadata": {},
+                "spec": {
+                    "containers": [{"command": ["something else"], "image": "lalala"}]
+                },
+            },
+            # expected
+            False,
+        ),
+        # with pod-template-hash
+        (
+            # t1
+            {
+                "metadata": {
+                    "labels": {"a": "b", "pod-template-hash": "lala"},
+                },
+                "spec": {"containers": [{"command": ["foobar"], "image": "lalala"}]},
+            },
+            # t2
+            {
+                "metadata": {"labels": {"a": "b"}},
+                "spec": {"containers": [{"command": ["foobar"], "image": "lalala"}]},
+            },
+            # expected
+            True,
+        ),
+    ],
+)
+def test_equal_spec_template(t1, t2, expected):
+    assert equal_spec_template(t1, t2) == expected
+
+
+@pytest.fixture()
+def deployment():
+    return {
+        "apiVersion": "apps/v1",
+        "kind": "Deployment",
+        "metadata": {
+            "annotations": {"qontract.update": "2022-07-12T09:15:14"},
+            "creationTimestamp": "2022-07-12T07:36:50Z",
+            "generation": 5,
+            "name": "busybox",
+        },
+        "spec": {
+            "replicas": 2,
+            "selector": {"matchLabels": {"deployment": "busybox"}},
+            "strategy": {
+                "rollingUpdate": {"maxSurge": "25%", "maxUnavailable": "25%"},
+                "type": "RollingUpdate",
+            },
+            "template": {
+                "metadata": {"labels": {"deployment": "busybox"}},
+                "spec": {
+                    "containers": [
+                        {
+                            "command": ["/bin/sleep", "1000000"],
+                            "image": "busybox",
+                            "name": "busybox",
+                        }
+                    ]
+                },
+            },
+        },
+    }
+
+
+@pytest.fixture()
+def replicasets(deployment):
+    return [
+        # last active
+        {
+            "apiVersion": "apps/v1",
+            "kind": "ReplicaSet",
+            "metadata": {
+                "name": "busybox-current",
+                "creationTimestamp": "2022-07-12T09:37:12Z",
+                "ownerReferences": [
+                    {
+                        "apiVersion": "apps/v1",
+                        "blockOwnerDeletion": True,
+                        "controller": True,
+                        "kind": "Deployment",
+                        "name": "busybox",
+                        "uid": "dab46569-9a6a-43d1-ab6d-53aa410fb737",
+                    }
+                ],
+            },
+            "spec": {
+                "replicas": 2,
+                "selector": {
+                    "matchLabels": {
+                        "deployment": "busybox",
+                        "pod-template-hash": "hashhashhash",
+                    }
+                },
+                "template": deployment["spec"]["template"],
+            },
+        },
+        # older rs
+        {
+            "apiVersion": "apps/v1",
+            "kind": "ReplicaSet",
+            "metadata": {
+                "name": "busybox-old-one",
+                "creationTimestamp": "2022-07-12T09:35:12Z",
+                "ownerReferences": [
+                    {
+                        "apiVersion": "apps/v1",
+                        "blockOwnerDeletion": True,
+                        "controller": True,
+                        "kind": "Deployment",
+                        "name": "busybox",
+                        "uid": "dab46569-9a6a-43d1-ab6d-53aa410fb737",
+                    }
+                ],
+            },
+            "spec": {
+                "replicas": 2,
+                "selector": {
+                    "matchLabels": {
+                        "deployment": "busybox",
+                        "pod-template-hash": "hashhashhash",
+                    }
+                },
+                "template": {
+                    "metadata": {
+                        "labels": {
+                            "deployment": "busybox",
+                            "pod-template-hash": "hashhashhash",
+                        }
+                    },
+                    "spec": {
+                        "containers": [
+                            {
+                                "command": ["something different"],
+                                "image": "busybox",
+                                "name": "busybox",
+                            }
+                        ],
+                    },
+                },
+            },
+        },
+        # another RS
+        {
+            "apiVersion": "apps/v1",
+            "kind": "ReplicaSet",
+            "metadata": {
+                "name": "busybox-older-one",
+                "creationTimestamp": "2022-07-12T09:35:12Z",
+                "ownerReferences": [
+                    {
+                        "apiVersion": "apps/v1",
+                        "blockOwnerDeletion": True,
+                        "controller": True,
+                        "kind": "Deployment",
+                        "name": "busybox",
+                        "uid": "dab46569-9a6a-43d1-ab6d-53aa410fb737",
+                    }
+                ],
+            },
+            "spec": {
+                "replicas": 2,
+                "selector": {
+                    "matchLabels": {
+                        "deployment": "busybox",
+                        "pod-template-hash": "hashhashhash",
+                    }
+                },
+                "template": {
+                    "metadata": {
+                        "labels": {
+                            "deployment": "busybox",
+                            "pod-template-hash": "hashhashhash",
+                        }
+                    },
+                    "spec": {
+                        "containers": [
+                            {
+                                "command": ["something different whatever"],
+                                "image": "busybox",
+                                "name": "busybox",
+                            }
+                        ],
+                    },
+                },
+            },
+        },
+    ]
+
+
+def test_get_owned_replicasets(mocker, oc: OCNative, deployment):
+    oc__get = mocker.patch.object(oc, "get", autospec=True)
+    oc__get_obj_root_owner = mocker.patch.object(
+        oc, "get_obj_root_owner", autospec=True
+    )
+    oc__get.return_value = {"items": ["stub1", "stub2", "stub3"]}
+    oc__get_obj_root_owner.side_effect = [
+        deployment,
+        deployment,
+        {"kind": "ownerkind", "metadata": {"name": "notownername"}},
+    ]
+    owned_replicasets = oc.get_owned_replicasets("namespace", deployment)
+    assert len(owned_replicasets) == 2
+
+
+def test_get_replicaset(patch_sleep, mocker, oc: OCNative, deployment, replicasets):
+    oc__get_owned_replicasets = mocker.patch.object(
+        oc, "get_owned_replicasets", autospec=True
+    )
+    oc__get_owned_replicasets.return_value = replicasets
+
+    assert (
+        oc.get_replicaset("namespace", deployment)["metadata"]["name"]
+        == "busybox-current"
+    )
+
+
+def test_get_replicaset_fail(patch_sleep, mocker, oc: OCNative, deployment):
+    oc__get_owned_replicasets = mocker.patch.object(
+        oc, "get_owned_replicasets", autospec=True
+    )
+    oc__get_owned_replicasets.return_value = []
+
+    with pytest.raises(ResourceNotFoundError):
+        oc.get_replicaset("namespace", deployment)["metadata"]["name"]
+    assert oc__get_owned_replicasets.call_count == GET_REPLICASET_MAX_ATTEMPTS
+
+
+def test_get_replicaset_allow_empty(patch_sleep, mocker, oc: OCNative, deployment):
+    oc__get_owned_replicasets = mocker.patch.object(
+        oc, "get_owned_replicasets", autospec=True
+    )
+    oc__get_owned_replicasets.return_value = []
+    assert oc.get_replicaset("namespace", deployment, allow_empty=True) == {}
