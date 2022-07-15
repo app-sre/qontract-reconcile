@@ -20,11 +20,9 @@ from jenkins_jobs.registry import ModuleRegistry
 from jenkins_jobs.errors import JenkinsJobsException
 from sretoolbox.utils import retry
 
-from reconcile.utils import gql
 from reconcile.utils import throughput
 from reconcile.utils.helpers import toggle_logger
 
-from reconcile.utils.exceptions import FetchResourceError
 
 JJB_INI = "[jenkins]\nurl = https://JENKINS_URL"
 
@@ -40,7 +38,6 @@ class JJB:  # pylint: disable=too-many-public-methods
         self.python_https_verify = str(int(ssl_verify))
 
     def collect_configs(self, configs):
-        gqlapi = gql.get_api()
         instances = {
             c["instance"]["name"]: {
                 "serverUrl": c["instance"]["serverUrl"],
@@ -79,13 +76,7 @@ class JJB:  # pylint: disable=too-many-public-methods
                     yaml.dump(yaml.load(config, Loader=yaml.FullLoader), f)
                     f.write("\n")
             else:
-                config_path = c["config_path"]
-                # get config data
-                try:
-                    config_resource = gqlapi.get_resource(config_path)
-                    config = config_resource["content"]
-                except gql.GqlGetResourceError as e:
-                    raise FetchResourceError(str(e))
+                config = c["config_path"]["content"]
                 with open(config_file_path, "a") as f:
                     f.write(config)
                     f.write("\n")

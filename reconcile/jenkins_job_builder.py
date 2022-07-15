@@ -28,7 +28,9 @@ QUERY = """
     }
     type
     config
-    config_path
+    config_path {
+      content
+    }
   }
 }
 """
