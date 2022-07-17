@@ -1099,6 +1099,7 @@ def app_interface_review_queue(ctx):
     columns = [
         "id",
         "title",
+        "onboarding",
         "author",
         "labels",
     ]
@@ -1134,6 +1135,7 @@ def app_interface_review_queue(ctx):
         item = {
             "id": f"[{mr.iid}]({mr.web_url})",
             "title": mr.title,
+            "onboarding": "onboarding" in labels,
             "author": author,
             "labels": ", ".join(labels),
         }
