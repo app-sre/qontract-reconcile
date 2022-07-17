@@ -29,7 +29,7 @@ from reconcile.utils.external_resources import (
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.environ import environ
 from reconcile.jenkins_job_builder import init_jjb
-from reconcile.utils.gitlab_api import GitLabApi
+from reconcile.utils.gitlab_api import GitLabApi, MRState
 from reconcile.utils.jjb_client import JJB
 from reconcile.utils.oc import OC_Map
 from reconcile.utils.ocm import OCMMap
@@ -1085,6 +1085,33 @@ def app_interface_merge_queue(ctx):
 
     ctx.obj["options"]["sort"] = False  # do not sort
     print_output(ctx.obj["options"], merge_queue_data, columns)
+
+
+@get.command()
+@click.pass_context
+def app_interface_review_queue(ctx):
+    settings = queries.get_app_interface_settings()
+    instance = queries.get_gitlab_instance()
+    gl = GitLabApi(instance, project_url=settings["repoUrl"], settings=settings)
+    merge_requests = gl.get_merge_requests(state=MRState.OPENED)
+
+    columns = [
+        "id",
+        "title",
+        "labels",
+    ]
+    queue_data = []
+    for mr in merge_requests:
+        labels = mr.attributes.get("labels")
+        item = {
+            "id": mr.iid,
+            "title": mr.title,
+            "labels": ", ".join(labels),
+        }
+        queue_data.append(item)
+
+    ctx.obj["options"]["sort"] = False  # do not sort
+    print_output(ctx.obj["options"], queue_data, columns)
 
 
 def print_output(
