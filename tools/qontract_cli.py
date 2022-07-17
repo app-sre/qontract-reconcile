@@ -1109,6 +1109,8 @@ def app_interface_review_queue(ctx):
         if mr.merge_status == "cannot_be_merged":
             continue
         labels = mr.attributes.get("labels")
+        if "stale" in labels:
+            continue
         item = {
             "id": f"[{mr.iid}]({mr.web_url})",
             "title": mr.title,
