@@ -4,6 +4,7 @@ import logging
 from typing import Optional, Set, Iterable
 from reconcile import queries
 
+from reconcile.utils.mr.labels import ONBOARDING, ONBOARDING_STATUS_IN_PROGRESS
 from reconcile.gitlab_housekeeping import MERGE_LABELS_PRIORITY, HOLD_LABELS
 from reconcile.utils.gitlab_api import GitLabApi
 
@@ -115,6 +116,8 @@ def guess_labels(
     onboarding_status = guess_onboarding_status(changed_paths, apps, parent_apps)
     if onboarding_status:
         guesses.add(onboarding_status)
+        if onboarding_status == ONBOARDING_STATUS_IN_PROGRESS:
+            guesses.add(ONBOARDING)
 
     return guesses
 
