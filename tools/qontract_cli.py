@@ -1109,11 +1109,17 @@ def app_interface_review_queue(ctx):
             continue
         if mr.merge_status == "cannot_be_merged":
             continue
+
         labels = mr.attributes.get("labels")
         if "stale" in labels:
             continue
         if SAAS_FILE_UPDATE in labels:
             continue
+
+        pipelines = mr.pipelines()
+        if not pipelines:
+            continue
+
         item = {
             "id": f"[{mr.iid}]({mr.web_url})",
             "title": mr.title,
