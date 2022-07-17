@@ -5070,23 +5070,23 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             "gw_deployment",
             rest_api_id=f"${{{api_gateway_rest_api_resource.id}}}",
             triggers={
-                "redeployment": "sha256(base64encode(jsonencode(["
-                "aws_api_gateway_resource.gw_resource_proxy,"
-                "aws_api_gateway_resource.gw_resource_token,"
-                "aws_api_gateway_resource.gw_resource_auth,"
-                "aws_api_gateway_method.gw_method_proxy_any,"
-                "aws_api_gateway_method.gw_method_token_get,"
-                "aws_api_gateway_method.gw_method_auth_get,"
-                "aws_api_gateway_method_response.gw_method_proxy_any_response,"
-                "aws_api_gateway_method_response.gw_method_token_get_response,"
-                "aws_api_gateway_method_response.gw_method_auth_get_response,"
-                "aws_api_gateway_integration.gw_integration_proxy,"
-                "aws_api_gateway_integration.gw_integration_token,"
-                "aws_api_gateway_integration.gw_integration_auth,"
-                "aws_api_gateway_integration_response.gw_integration_response_proxy,"
-                "aws_api_gateway_integration_response.gw_integration_response_token,"
-                "aws_api_gateway_integration_response.gw_integration_response_auth"
-                "])))"
+                "redeployment": "sha1(["
+                "${jsonencode(aws_api_gateway_resource.gw_resource_proxy)},"
+                "${jsonencode(aws_api_gateway_resource.gw_resource_token)},"
+                "${jsonencode(aws_api_gateway_resource.gw_resource_auth)},"
+                "${jsonencode(aws_api_gateway_method.gw_method_proxy_any)},"
+                "${jsonencode(aws_api_gateway_method.gw_method_token_get)},"
+                "${jsonencode(aws_api_gateway_method.gw_method_auth_get)},"
+                "${jsonencode(aws_api_gateway_method_response.gw_method_proxy_any_response)},"
+                "${jsonencode(aws_api_gateway_method_response.gw_method_token_get_response)},"
+                "${jsonencode(aws_api_gateway_method_response.gw_method_auth_get_response)},"
+                "${jsonencode(aws_api_gateway_integration.gw_integration_proxy)},"
+                "${jsonencode(aws_api_gateway_integration.gw_integration_token)},"
+                "${jsonencode(aws_api_gateway_integration.gw_integration_auth)},"
+                "${jsonencode(aws_api_gateway_integration_response.gw_integration_response_proxy)},"
+                "${jsonencode(aws_api_gateway_integration_response.gw_integration_response_token)},"
+                "${jsonencode(aws_api_gateway_integration_response.gw_integration_response_auth)}"
+                "]))"
             },
             lifecycle={"create_before_destroy": True},
         )
@@ -5095,8 +5095,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         # STAGE DEPLOYMENT
         api_gateway_stage_resource = aws_api_gateway_stage(
             "gw_stage",
-            deployment_id=f"${{{api_gateway_deployment_resource.id}}}",
-            rest_api_id=f"${{{api_gateway_rest_api_resource.id}}}",
+            deployment_id="${aws_api_gateway_deployment.gw_deployment.id}",
+            rest_api_id="${aws_api_gateway_rest_api.gw_api.id}",
             stage_name="api",
         )
         tf_resources.append(api_gateway_stage_resource)
