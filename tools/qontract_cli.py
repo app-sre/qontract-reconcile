@@ -1129,7 +1129,8 @@ def app_interface_review_queue(ctx):
             continue
 
         author = mr.author["username"]
-        if author in [u.username for u in gl.get_app_sre_group_users()]:
+        app_sre_team_members = [u.username for u in gl.get_app_sre_group_users()]
+        if author in app_sre_team_members:
             continue
 
         item = {
