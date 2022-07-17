@@ -1102,6 +1102,12 @@ def app_interface_review_queue(ctx):
     ]
     queue_data = []
     for mr in merge_requests:
+        if mr.work_in_progress:
+            continue
+        if len(mr.commits()) == 0:
+            continue
+        if mr.merge_status == "cannot_be_merged":
+            continue
         labels = mr.attributes.get("labels")
         item = {
             "id": f"[{mr.iid}]({mr.web_url})",
