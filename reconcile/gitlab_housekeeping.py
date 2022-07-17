@@ -10,7 +10,8 @@ from sretoolbox.utils import retry
 
 from reconcile import queries
 
-from reconcile.utils.gitlab_api import GitLabApi, MRState, MRStatus
+from reconcile.utils.gitlab_api import GitLabApi
+from reconcile.utils.gitlab_api import MRState
 from reconcile.utils.mr.labels import (
     APPROVED,
     AUTO_MERGE,
@@ -171,7 +172,7 @@ def get_merge_requests(dry_run: bool, gl: GitLabApi) -> list:
     mrs = gl.get_merge_requests(state=MRState.OPENED)
     results = []
     for mr in mrs:
-        if mr.merge_status != MRStatus.CAN_BE_MERGED:
+        if mr.merge_status == "cannot_be_merged":
             continue
         if mr.work_in_progress:
             continue
