@@ -1107,7 +1107,7 @@ def app_interface_review_queue(ctx):
             continue
         if len(mr.commits()) == 0:
             continue
-        if mr.merge_status == "cannot_be_merged":
+        if mr.merge_status in ["cannot_be_merged", "cannot_be_merged_recheck"]:
             continue
 
         labels = mr.attributes.get("labels")
