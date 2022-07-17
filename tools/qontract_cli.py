@@ -1119,6 +1119,12 @@ def app_interface_review_queue(ctx):
         pipelines = mr.pipelines()
         if not pipelines:
             continue
+        running_pipelines = [p for p in pipelines if p["status"] == "running"]
+        if running_pipelines:
+            continue
+        last_pipeline_result = pipelines[0]["status"]
+        if last_pipeline_result != "success":
+            continue
 
         item = {
             "id": f"[{mr.iid}]({mr.web_url})",
