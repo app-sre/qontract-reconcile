@@ -31,6 +31,7 @@ from reconcile.utils.environ import environ
 from reconcile.jenkins_job_builder import init_jjb
 from reconcile.utils.gitlab_api import GitLabApi, MRState
 from reconcile.utils.jjb_client import JJB
+from reconcile.utils.mr.labels import SAAS_FILE_UPDATE
 from reconcile.utils.oc import OC_Map
 from reconcile.utils.ocm import OCMMap
 from reconcile.utils.secret_reader import SecretReader
@@ -1110,6 +1111,8 @@ def app_interface_review_queue(ctx):
             continue
         labels = mr.attributes.get("labels")
         if "stale" in labels:
+            continue
+        if SAAS_FILE_UPDATE in labels:
             continue
         item = {
             "id": f"[{mr.iid}]({mr.web_url})",
