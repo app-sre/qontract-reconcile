@@ -1104,7 +1104,7 @@ def app_interface_review_queue(ctx):
     for mr in merge_requests:
         labels = mr.attributes.get("labels")
         item = {
-            "id": mr.iid,
+            "id": f"[{mr.iid}]({mr.web_url})",
             "title": mr.title,
             "labels": ", ".join(labels),
         }
