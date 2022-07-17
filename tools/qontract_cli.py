@@ -1099,6 +1099,7 @@ def app_interface_review_queue(ctx):
     columns = [
         "id",
         "title",
+        "author",
         "labels",
     ]
     queue_data = []
@@ -1126,9 +1127,14 @@ def app_interface_review_queue(ctx):
         if last_pipeline_result != "success":
             continue
 
+        author = mr.author["username"]
+        if author in [u.username for u in gl.get_app_sre_group_users()]:
+            continue
+
         item = {
             "id": f"[{mr.iid}]({mr.web_url})",
             "title": mr.title,
+            "author": author,
             "labels": ", ".join(labels),
         }
         queue_data.append(item)
