@@ -4904,6 +4904,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             vpc_id=vpc_id,
             **lb_target_group_args
         )
+        tf_resources.append(aws_lb_target_group_resource)
 
         # LB TARGET GROUP ATTACHMENT
 
