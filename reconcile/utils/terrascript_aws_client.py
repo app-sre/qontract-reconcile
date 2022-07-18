@@ -4670,6 +4670,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         waf_acl_args = common_values.get("waf_acl_properties", None)
         vpce_security_group_rule_common_args = common_values.get("vpce_security_group_rule_common_properties", None)
         vpc_endpoint_args = common_values.get("vpc_endpoint_properties", None)
+        lb_target_group_args = common_values.get("lb_target_group_properties", None)
 
         # USER POOL
         cognito_user_pool_resource = aws_cognito_user_pool(
@@ -4887,9 +4888,24 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             **vpc_endpoint_args
         )
 
-        
+        # VPC ENDPOINT ASSOCIATION
+        for sid in subnet_ids:
+            aws_vpc_endpoint_subnet_association_resource = aws_vpc_endpoint_subnet_association(
+                f"api_gw_{sid}",
+                vpc_endpoint_id=f"${{{aws_vpc_endpoint_resource.id}}}",
+                subnet_id=sid
+            )
+            tf_resources.append(aws_vpc_endpoint_subnet_association_resource)
 
+        # LB TARGET GROUP
+        aws_lb_target_group_resource = aws_lb_target_group(
+            "vpce_target_group",
+            name=f"ocm-{identifier}-api-gateway-vpce-tg",
+            vpc_id=vpc_id,
+            **lb_target_group_args
+        )
 
+        # LB TARGET GROUP ATTACHMENT
 
         # API GATEWAY
         api_gateway_rest_api_resource = aws_api_gateway_rest_api(
