@@ -1071,7 +1071,7 @@ def app_interface_merge_queue(ctx):
     now = datetime.utcnow()
     for mr in merge_requests:
         item = {
-            "id": f"[{mr.iid}]({mr.web_url})",
+            "id": f"[{mr['mr'].iid}]({mr['mr'].web_url})",
             "title": mr["mr"].title,
             "label_priority": mr["label_priority"]
             + 1,  # adding 1 for human readability
