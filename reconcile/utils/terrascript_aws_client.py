@@ -194,7 +194,6 @@ VARIABLE_KEYS = [
     "assume_role",
     "inline_policy",
     "assume_condition",
-    "sms_role_ext_id",
     "api_proxy_uri",
     "cognito_callback_bucket_name",
     "vpc_arn",
@@ -4535,6 +4534,16 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         tf_resources = []
         self.init_common_outputs(tf_resources, spec)
 
+        # Prepare consts
+        bucket_name = common_values.get("cognito_callback_bucket_name")
+        bucket_url = f"https://{bucket_name}.s3.{region}.amazonaws.com"
+        lambda_managed_policy_arn = (
+            "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+        )
+        region = common_values.get("region") or self.default_regions.get(account)
+        if region in ("us-gov-west-1", "us-gov-east-1"):
+            lambda_managed_policy_arn = "arn:aws-us-gov:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+
         # Manage IAM Resources
         lambda_role_policy = {
             "Version": "2012-10-17",
@@ -4549,22 +4558,12 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             ],
         }
 
-        # Prepare consts
-        managed_policy_arn = (
-            "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
-        )
-        region = common_values.get("region") or self.default_regions.get(account)
-        if region in ("us-gov-west-1", "us-gov-east-1"):
-            managed_policy_arn = "arn:aws-us-gov:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
-
-        bucket_name = common_values.get("cognito_callback_bucket_name")
-        bucket_url = f"https://{bucket_name}.s3.{region}.amazonaws.com"
 
         lambda_iam_role_resource = aws_iam_role(
             "lambda_role",
             name=f"ocm-{identifier}-cognito-lambda-role",
             assume_role_policy=json.dumps(lambda_role_policy),
-            managed_policy_arns=[managed_policy_arn],
+            managed_policy_arns=[lambda_managed_policy_arn],
             force_detach_policies=False,
             max_session_duration=3600,
             path="/service-role/",
@@ -4672,10 +4671,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             name=f"ocm-{identifier}-pool",
             lambda_config={
                 "pre_sign_up": f"${{{cognito_pre_signup_lambda_resource.arn}}}"
-            },
-            sms_configuration={
-                "external_id": common_values.get("sms_role_ext_id"),
-                "sns_caller_arn": f"${{{sms_iam_role_resource.arn}}}",
             },
             **pool_args,
         )
