@@ -1189,8 +1189,6 @@ def app_interface_review_queue(ctx):
         is_last_action_by_app_sre = is_last_action_by_team(mr, app_sre_team_members, gl)
         if is_last_action_by_app_sre:
             continue
-        print(mr.iid)
-        print(is_last_action_by_app_sre)
 
         item = {
             "id": f"[{mr.iid}]({mr.web_url})",
