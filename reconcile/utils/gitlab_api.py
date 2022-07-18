@@ -472,7 +472,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
     ) -> bool:
         # what is the time of the last app-sre response?
         last_action_by_team = None
-        ## comments
+        # comments
         comments = self.get_merge_request_comments(mr.iid)
         comments.sort(key=itemgetter("created_at"), reverse=True)
         for comment in comments:
@@ -482,7 +482,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
             if username in team_usernames:
                 last_action_by_team = comment["created_at"]
                 break
-        ## labels
+        # labels
         label_events = mr.resourcelabelevents.list()
         for label in reversed(label_events):
             if label.action == "add" and label.label["name"] in hold_labels:
@@ -499,13 +499,13 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
             return False
         # possible responses from tenants (ignore the bot)
         last_action_not_by_team = None
-        ## commits
-        commits = [c for c in mr.commits()]
+        # commits
+        commits = list(mr.commits())
         commits.sort(key=attrgetter("created_at"), reverse=True)
         for commit in commits:
             last_action_not_by_team = commit.created_at
             break
-        ## comments
+        # comments
         for comment in comments:
             username = comment["username"]
             if username == self.user.username:

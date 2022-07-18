@@ -1,6 +1,6 @@
 import base64
 import json
-from operator import itemgetter, attrgetter
+from operator import itemgetter
 import sys
 from contextlib import suppress
 from datetime import datetime
