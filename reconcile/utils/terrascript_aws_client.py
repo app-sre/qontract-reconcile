@@ -4530,8 +4530,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         account = spec.provisioner_name
         identifier = spec.identifier
         common_values = self.init_values(spec)
-        certificate_arn = common_values.get("certificate_arn")
-        domain_name = common_values.get("domain_name")
+        certificate_arn = spec.resource.get("certificate_arn")
+        domain_name = spec.resource.get("domain_name")
         tf_resources = []
         self.init_common_outputs(tf_resources, spec)
 
