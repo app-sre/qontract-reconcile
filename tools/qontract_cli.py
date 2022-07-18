@@ -1089,57 +1089,6 @@ def app_interface_merge_queue(ctx):
     print_output(ctx.obj["options"], merge_queue_data, columns)
 
 
-def is_last_action_by_team(mr, team_usernames: list[str], gl: GitLabApi):
-    # what is the time of the last app-sre response?
-    last_action_by_team = None
-    ## comments
-    comments = gl.get_merge_request_comments(mr.iid)
-    comments.sort(key=itemgetter("created_at"), reverse=True)
-    for comment in comments:
-        username = comment["username"]
-        if username == gl.user.username:
-            continue
-        if username in team_usernames:
-            last_action_by_team = comment["created_at"]
-            break
-    ## labels
-    label_events = mr.resourcelabelevents.list()
-    for label in reversed(label_events):
-        if label.action == "add" and label.label["name"] in glhk.HOLD_LABELS:
-            username = label.user["username"]
-            if username == gl.user.username:
-                continue
-            if username in team_usernames:
-                if not last_action_by_team:
-                    last_action_by_team = label.created_at
-                else:
-                    last_action_by_team = max(label.created_at, last_action_by_team)
-                break
-    if not last_action_by_team:
-        return False
-    # possible responses from tenants (ignore the bot)
-    last_action_not_by_team = None
-    ## commits
-    commits = [c for c in mr.commits()]
-    commits.sort(key=attrgetter("created_at"), reverse=True)
-    for commit in commits:
-        last_action_not_by_team = commit.created_at
-        break
-    ## comments
-    for comment in comments:
-        username = comment["username"]
-        if username == gl.user.username:
-            continue
-        if username not in team_usernames:
-            last_action_not_by_team = comment["created_at"]
-            break
-
-    if not last_action_not_by_team:
-        return True
-
-    return last_action_not_by_team < last_action_by_team
-
-
 @get.command()
 @click.pass_context
 def app_interface_review_queue(ctx):
@@ -1185,7 +1134,9 @@ def app_interface_review_queue(ctx):
         if author in app_sre_team_members:
             continue
 
-        is_last_action_by_app_sre = is_last_action_by_team(mr, app_sre_team_members, gl)
+        is_last_action_by_app_sre = gl.is_last_action_by_team(
+            mr, app_sre_team_members, glhk.HOLD_LABELS
+        )
         if is_last_action_by_app_sre:
             continue
 

@@ -1,6 +1,7 @@
 import logging
 from typing import Any
 
+from operator import itemgetter, attrgetter
 from urllib.parse import urlparse
 from sretoolbox.utils import retry
 
@@ -465,3 +466,55 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         )
         self.create_branch("staging", "master")
         self.create_branch("production", "master")
+
+    def is_last_action_by_team(
+        self, mr, team_usernames: list[str], hold_labels: list[str]
+    ) -> bool:
+        # what is the time of the last app-sre response?
+        last_action_by_team = None
+        ## comments
+        comments = self.get_merge_request_comments(mr.iid)
+        comments.sort(key=itemgetter("created_at"), reverse=True)
+        for comment in comments:
+            username = comment["username"]
+            if username == self.user.username:
+                continue
+            if username in team_usernames:
+                last_action_by_team = comment["created_at"]
+                break
+        ## labels
+        label_events = mr.resourcelabelevents.list()
+        for label in reversed(label_events):
+            if label.action == "add" and label.label["name"] in hold_labels:
+                username = label.user["username"]
+                if username == self.user.username:
+                    continue
+                if username in team_usernames:
+                    if not last_action_by_team:
+                        last_action_by_team = label.created_at
+                    else:
+                        last_action_by_team = max(label.created_at, last_action_by_team)
+                    break
+        if not last_action_by_team:
+            return False
+        # possible responses from tenants (ignore the bot)
+        last_action_not_by_team = None
+        ## commits
+        commits = [c for c in mr.commits()]
+        commits.sort(key=attrgetter("created_at"), reverse=True)
+        for commit in commits:
+            last_action_not_by_team = commit.created_at
+            break
+        ## comments
+        for comment in comments:
+            username = comment["username"]
+            if username == self.user.username:
+                continue
+            if username not in team_usernames:
+                last_action_not_by_team = comment["created_at"]
+                break
+
+        if not last_action_not_by_team:
+            return True
+
+        return last_action_not_by_team < last_action_by_team
