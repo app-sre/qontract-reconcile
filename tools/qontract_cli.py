@@ -1114,6 +1114,8 @@ def app_interface_review_queue(ctx):
             continue
 
         labels = mr.attributes.get("labels")
+        if glhk.is_good_to_merge(labels):
+            continue
         if "stale" in labels:
             continue
         if SAAS_FILE_UPDATE in labels:
