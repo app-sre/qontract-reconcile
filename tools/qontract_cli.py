@@ -1,5 +1,6 @@
 import base64
 import json
+from operator import itemgetter
 import sys
 from contextlib import suppress
 from datetime import datetime
@@ -29,8 +30,9 @@ from reconcile.utils.external_resources import (
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.environ import environ
 from reconcile.jenkins_job_builder import init_jjb
-from reconcile.utils.gitlab_api import GitLabApi
+from reconcile.utils.gitlab_api import GitLabApi, MRState
 from reconcile.utils.jjb_client import JJB
+from reconcile.utils.mr.labels import SAAS_FILE_UPDATE
 from reconcile.utils.oc import OC_Map
 from reconcile.utils.ocm import OCMMap
 from reconcile.utils.secret_reader import SecretReader
@@ -1069,7 +1071,7 @@ def app_interface_merge_queue(ctx):
     now = datetime.utcnow()
     for mr in merge_requests:
         item = {
-            "id": mr["mr"].iid,
+            "id": f"[{mr['mr'].iid}]({mr['mr'].web_url})",
             "title": mr["mr"].title,
             "label_priority": mr["label_priority"]
             + 1,  # adding 1 for human readability
@@ -1085,6 +1087,74 @@ def app_interface_merge_queue(ctx):
 
     ctx.obj["options"]["sort"] = False  # do not sort
     print_output(ctx.obj["options"], merge_queue_data, columns)
+
+
+@get.command()
+@click.pass_context
+def app_interface_review_queue(ctx):
+    settings = queries.get_app_interface_settings()
+    instance = queries.get_gitlab_instance()
+    gl = GitLabApi(instance, project_url=settings["repoUrl"], settings=settings)
+    merge_requests = gl.get_merge_requests(state=MRState.OPENED)
+
+    columns = [
+        "id",
+        "title",
+        "onboarding",
+        "author",
+        "labels",
+    ]
+    queue_data = []
+    for mr in merge_requests:
+        if mr.work_in_progress:
+            continue
+        if len(mr.commits()) == 0:
+            continue
+        if mr.merge_status in ["cannot_be_merged", "cannot_be_merged_recheck"]:
+            continue
+
+        labels = mr.attributes.get("labels")
+        if glhk.is_good_to_merge(labels):
+            continue
+        if "stale" in labels:
+            continue
+        if SAAS_FILE_UPDATE in labels:
+            continue
+
+        pipelines = mr.pipelines()
+        if not pipelines:
+            continue
+        running_pipelines = [p for p in pipelines if p["status"] == "running"]
+        if running_pipelines:
+            continue
+        last_pipeline_result = pipelines[0]["status"]
+        if last_pipeline_result != "success":
+            continue
+
+        author = mr.author["username"]
+        app_sre_team_members = [u.username for u in gl.get_app_sre_group_users()]
+        if author in app_sre_team_members:
+            continue
+
+        is_last_action_by_app_sre = gl.is_last_action_by_team(
+            mr, app_sre_team_members, glhk.HOLD_LABELS
+        )
+        if is_last_action_by_app_sre:
+            continue
+
+        item = {
+            "id": f"[{mr.iid}]({mr.web_url})",
+            "title": mr.title,
+            "onboarding": "onboarding" in labels,
+            "updated_at": mr.updated_at,
+            "author": author,
+            "labels": ", ".join(labels),
+        }
+        queue_data.append(item)
+
+    queue_data.sort(key=itemgetter("updated_at"))
+    ctx.obj["options"]["sort"] = False  # do not sort
+    print_output(ctx.obj["options"], queue_data, columns)
 
 
 def print_output(
