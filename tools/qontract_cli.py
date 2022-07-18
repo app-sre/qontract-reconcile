@@ -1133,7 +1133,6 @@ def is_last_action_by_team(mr, team_usernames: list[str], gl: GitLabApi):
         if username not in team_usernames:
             last_action_not_by_team = comment["created_at"]
             break
-    ## approve button
 
     if not last_action_not_by_team:
         return True
