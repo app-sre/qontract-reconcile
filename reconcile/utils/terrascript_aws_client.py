@@ -4536,55 +4536,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         self.init_common_outputs(tf_resources, spec)
 
         # Manage IAM Resources
-        sms_role_policy = {
-            "Version": "2012-10-17",
-            "Statement": [
-                {
-                    "Effect": "Allow",
-                    "Action": [
-                        "sts:AssumeRole",
-                    ],
-                    "Principal": {
-                        "Service": "cognito-idp.amazonaws.com",
-                    },
-                    "Condition": {
-                        "StringEquals": {
-                            "sts:ExternalId": common_values.get("sms_role_ext_id")
-                        }
-                    },
-                },
-            ],
-        }
-
-        sms_role_inline_policy = {
-            "name": f"ocm-{identifier}-cognito-sms-policy",
-            "policy": json.dumps(
-                {
-                    "Statement": [
-                        {
-                            "Effect": "Allow",
-                            "Action": [
-                                "sns:Publish",
-                            ],
-                            "Resource": "*",
-                        }
-                    ],
-                    "Version": "2012-10-17",
-                }
-            ),
-        }
-
-        sms_iam_role_resource = aws_iam_role(
-            "sms_role",
-            name=f"ocm-{identifier}-cognito-sms-role",
-            assume_role_policy=json.dumps(sms_role_policy),
-            force_detach_policies=False,
-            max_session_duration=3600,
-            inline_policy=[sms_role_inline_policy],
-            path="/service-role/",
-        )
-        tf_resources.append(sms_iam_role_resource)
-
         lambda_role_policy = {
             "Version": "2012-10-17",
             "Statement": [
