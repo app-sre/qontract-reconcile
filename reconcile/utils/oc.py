@@ -339,19 +339,19 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
             cmd.append("--all-namespaces")
         return self._run_json(cmd)
 
-    def process(self, template, parameters=None):
-        if parameters is None:
-            parameters = {}
-        parameters_to_process = [f"{k}={v}" for k, v in parameters.items()]
-        cmd = [
-            "process",
-            "--local",
-            "--ignore-unknown-parameters",
-            "-f",
-            "-",
-        ] + parameters_to_process
-        result = self._run(cmd, stdin=json.dumps(template, sort_keys=True))
-        return json.loads(result)["items"]
+    # def process(self, template, parameters=None):
+    #     if parameters is None:
+    #         parameters = {}
+    #     parameters_to_process = [f"{k}={v}" for k, v in parameters.items()]
+    #     cmd = [
+    #         "process",
+    #         "--local",
+    #         "--ignore-unknown-parameters",
+    #         "-f",
+    #         "-",
+    #     ] + parameters_to_process
+    #     result = self._run(cmd, stdin=json.dumps(template, sort_keys=True))
+    #     return json.loads(result)["items"]
 
     def remove_last_applied_configuration(self, namespace, kind, name):
         cmd = [
@@ -1207,6 +1207,45 @@ class OCNative(OCDeprecated):
 
 OCClient = Union[OCNative, OCDeprecated]
 
+
+class OCLocal:
+    def __init__(
+        self,
+        cluster_name,
+        server,
+        token,
+        jh=None,
+        settings=None,
+        init_projects=False,
+        init_api_resources=False,
+        local=False,
+        insecure_skip_tls_verify=False,
+    ):
+        super().__init__(
+            cluster_name,
+            server,
+            token,
+            jh,
+            settings,
+            init_projects=False,
+            init_api_resources=False,
+            local=local,
+            insecure_skip_tls_verify=insecure_skip_tls_verify,
+        )
+    
+    def process(self, template, parameters=None):
+        if parameters is None:
+            parameters = {}
+        parameters_to_process = [f"{k}={v}" for k, v in parameters.items()]
+        cmd = [
+            "process",
+            "--local",
+            "--ignore-unknown-parameters",
+            "-f",
+            "-",
+        ] + parameters_to_process
+        result = self._run(cmd, stdin=json.dumps(template, sort_keys=True))
+        return json.loads(result)["items"]
 
 class OC:
     client_status = Counter(
