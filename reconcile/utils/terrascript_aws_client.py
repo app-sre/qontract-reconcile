@@ -4737,6 +4737,22 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             user_pool_id=f"${{{cognito_user_pool_resource.id}}}",
             scope=[
                 {
+                    "scope_name": "AppSRE",
+                    "scope_description": "AppSRE",
+                },
+                {
+                    "scope_name": "SREPAutomation",
+                    "scope_description": "SREPAutomation",
+                },
+                {
+                    "scope_name": "SREPDeveloper",
+                    "scope_description": "SREPDeveloper",
+                },
+                {
+                    "scope_name": "SREPLead",
+                    "scope_description": "SREPLead",
+                },
+                {
                     "scope_name": "AccountManagement",
                     "scope_description": "AMS service account",
                 },
