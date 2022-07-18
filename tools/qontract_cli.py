@@ -1,6 +1,6 @@
 import base64
 import json
-from operator import itemgetter
+from operator import itemgetter, attrgetter
 import sys
 from contextlib import suppress
 from datetime import datetime
@@ -1089,7 +1089,7 @@ def app_interface_merge_queue(ctx):
     print_output(ctx.obj["options"], merge_queue_data, columns)
 
 
-def is_last_action_by(mr, team_usernames: list[str], gl: GitLabApi):
+def is_last_action_by_team(mr, team_usernames: list[str], gl: GitLabApi):
     # what is the time of the last app-sre response?
     last_action_by_team = None
     ## comments
@@ -1120,6 +1120,11 @@ def is_last_action_by(mr, team_usernames: list[str], gl: GitLabApi):
     # possible responses from tenants (ignore the bot)
     last_action_not_by_team = None
     ## commits
+    commits = [c for c in mr.commits()]
+    commits.sort(key=attrgetter("created_at"), reverse=True)
+    for commit in commits:
+        last_action_not_by_team = commit.created_at
+        break
     ## comments
     for comment in comments:
         username = comment["username"]
@@ -1181,7 +1186,9 @@ def app_interface_review_queue(ctx):
         if author in app_sre_team_members:
             continue
 
-        is_last_action_by_app_sre = is_last_action_by(mr, app_sre_team_members, gl)
+        is_last_action_by_app_sre = is_last_action_by_team(mr, app_sre_team_members, gl)
+        if is_last_action_by_app_sre:
+            continue
         print(mr.iid)
         print(is_last_action_by_app_sre)
 
