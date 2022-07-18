@@ -1089,6 +1089,41 @@ def app_interface_merge_queue(ctx):
     print_output(ctx.obj["options"], merge_queue_data, columns)
 
 
+def is_last_action_by(mr, team_usernames: list[str], gl: GitLabApi):
+    # what is the time of the last app-sre response?
+    last_action_by_team = None
+    ## comments
+    comments = gl.get_merge_request_comments(mr.iid)
+    comments.sort(key=itemgetter("created_at"), reverse=True)
+    for comment in comments:
+        username = comment["username"]
+        if username == gl.user.username:
+            continue
+        if username in team_usernames:
+            last_action_by_team = comment["created_at"]
+            break
+    ## labels
+    label_events = mr.resourcelabelevents.list()
+    for label in reversed(label_events):
+        if label.action == "add" and label.label["name"] in glhk.HOLD_LABELS:
+            username = label.user["username"]
+            if username == gl.user.username:
+                continue
+            if username in team_usernames:
+                if not last_action_by_team:
+                    last_action_by_team = label.created_at
+                else:
+                    last_action_by_team = max(label.created_at, last_action_by_team)
+                break
+    if not last_action_by_team:
+        return False
+    # possible responses from tenants (ignore the bot)
+    ## commits
+    ## comments
+    ## approve button
+    return "NOT_HERE_YET"
+
+
 @get.command()
 @click.pass_context
 def app_interface_review_queue(ctx):
@@ -1133,6 +1168,10 @@ def app_interface_review_queue(ctx):
         app_sre_team_members = [u.username for u in gl.get_app_sre_group_users()]
         if author in app_sre_team_members:
             continue
+
+        is_last_action_by_app_sre = is_last_action_by(mr, app_sre_team_members, gl)
+        print(mr.iid)
+        print(is_last_action_by_app_sre)
 
         item = {
             "id": f"[{mr.iid}]({mr.web_url})",
