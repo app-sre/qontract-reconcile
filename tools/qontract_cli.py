@@ -1118,10 +1118,22 @@ def is_last_action_by(mr, team_usernames: list[str], gl: GitLabApi):
     if not last_action_by_team:
         return False
     # possible responses from tenants (ignore the bot)
+    last_action_not_by_team = None
     ## commits
     ## comments
+    for comment in comments:
+        username = comment["username"]
+        if username == gl.user.username:
+            continue
+        if username not in team_usernames:
+            last_action_not_by_team = comment["created_at"]
+            break
     ## approve button
-    return "NOT_HERE_YET"
+
+    if not last_action_not_by_team:
+        return True
+
+    return last_action_not_by_team < last_action_by_team
 
 
 @get.command()
