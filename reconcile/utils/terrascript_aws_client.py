@@ -198,6 +198,8 @@ VARIABLE_KEYS = [
     "api_proxy_uri",
     "cognito_callback_bucket_name",
     "vpc_arn",
+    "domain_name",
+    "certificate_arn",
 ]
 
 TMP_DIR_PREFIX = "terrascript-aws-"
@@ -4530,8 +4532,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         account = spec.provisioner_name
         identifier = spec.identifier
         common_values = self.init_values(spec)
-        certificate_arn = spec.resource.get("certificate_arn")
-        domain_name = spec.resource.get("domain_name")
+        certificate_arn = common_values.get("certificate_arn")
+        domain_name = common_values.get("domain_name")
         tf_resources = []
         self.init_common_outputs(tf_resources, spec)
 
@@ -5108,8 +5110,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         # DOMAIN NAME
         api_gateway_domain_name_resource = aws_api_gateway_domain_name(
             "domain",
-            regional_certificate_arn=certificate_arn,
-            domain_name=domain_name,
+            regional_certificate_arn=f"{certificate_arn}",
+            domain_name=f"{domain_name}",
         )
         tf_resources.append(api_gateway_domain_name_resource)
 
