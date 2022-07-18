@@ -1,5 +1,6 @@
 import base64
 import json
+from operator import itemgetter
 import sys
 from contextlib import suppress
 from datetime import datetime
@@ -1137,11 +1138,13 @@ def app_interface_review_queue(ctx):
             "id": f"[{mr.iid}]({mr.web_url})",
             "title": mr.title,
             "onboarding": "onboarding" in labels,
+            "updated_at": mr.updated_at,
             "author": author,
             "labels": ", ".join(labels),
         }
         queue_data.append(item)
 
+    queue_data.sort(key=itemgetter("updated_at"))
     ctx.obj["options"]["sort"] = False  # do not sort
     print_output(ctx.obj["options"], queue_data, columns)
 
