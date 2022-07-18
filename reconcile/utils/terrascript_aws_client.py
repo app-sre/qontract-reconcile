@@ -121,6 +121,8 @@ from terrascript.resource import (
     aws_api_gateway_integration_response,
     aws_wafv2_web_acl,
     aws_wafv2_web_acl_association,
+    aws_vpc_endpoint,
+    aws_vpc_endpoint_subnet_association,
     random_id,
 )
 
@@ -4543,6 +4545,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         region = common_values.get("region") or self.default_regions.get(account)
         if region in ("us-gov-west-1", "us-gov-east-1"):
             lambda_managed_policy_arn = "arn:aws-us-gov:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+        vpc_id = common_values.get("vpc_id")
+        subnet_ids = common_values.get("subnet_ids")
 
         # Manage IAM Resources
         lambda_role_policy = {
@@ -4664,6 +4668,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         integration_token_args = common_values.get("integration_token_properties", None)
         integration_auth_args = common_values.get("integration_auth_properties", None)
         waf_acl_args = common_values.get("waf_acl_properties", None)
+        vpce_security_group_rule_common_args = common_values.get("vpce_security_group_rule_common_properties", None)
+        vpc_endpoint_args = common_values.get("vpc_endpoint_properties", None)
 
         # USER POOL
         cognito_user_pool_resource = aws_cognito_user_pool(
@@ -4842,6 +4848,48 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         tf_resources.append(backplane_api_service_account_pool_client_resource)
 
         # USER POOL COMPLETE
+
+        # VPC ENDPOINT NETWORK MODULE SECTION
+        # SG
+        aws_security_group_resource = aws_security_group(
+            "api_gw_vpce",
+            name=f"ocm-{identifier}-api-gateway-vpce-sg",
+            description="Control access to the API Gateway VPC endpoint",
+            vpc_id=vpc_id,
+            tags={"Name":f"ocm-{identifier}-api-gateway-vpce-sg"}
+        )
+        tf_resources.append(aws_security_group_resource)
+
+        # SG RULES
+        aws_security_group_rule_inbound_resource = aws_security_group_rule(
+            "vpce_inbound",
+            type="ingress",
+            security_group_id=f"${{{aws_security_group_resource.id}}}",
+            cidr_blocks=["10.0.0.0/8"],
+            **vpce_security_group_rule_common_args
+        )
+        tf_resources.append(aws_security_group_rule_inbound_resource)
+
+        aws_security_group_rule_outbound_resource = aws_security_group_rule(
+            "vpce_outbound",
+            type="egress",
+            security_group_id=f"${{{aws_security_group_resource.id}}}",
+            cidr_blocks=["0.0.0.0/8"],
+            **vpce_security_group_rule_common_args
+        )
+        tf_resources.append(aws_security_group_rule_inbound_resource)
+
+        # VPC ENDPOINT
+        aws_vpc_endpoint_resource = aws_vpc_endpoint(
+            "api_gw",
+            security_group_ids=[f"${{{aws_security_group_resource.id}}}"],
+            tags={"Name":f"ocm-{identifier}-api-gateway-vpc-endpoint"},
+            **vpc_endpoint_args
+        )
+
+        
+
+
 
         # API GATEWAY
         api_gateway_rest_api_resource = aws_api_gateway_rest_api(
