@@ -3381,8 +3381,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 # res.get('', []) won't work, as publish_log_types is
                 # explicitly set to None if not set
                 log_types = res["publish_log_types"] or []
-                region = \
-                    res.get("region") or self.default_regions.get(account)
+                region = res.get("region") or self.default_regions.get(account)
                 for log_type in log_types:
                     account_id = self.accounts[account]["uid"]
                     lg_identifier = (
@@ -3395,7 +3394,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                         ElasticSearchLogGroupInfo(
                             account=account,
                             account_id=account_id,
-                            region=region,
+                            region=str(region),
                             log_group_identifier=lg_identifier,
                         )
                     )
