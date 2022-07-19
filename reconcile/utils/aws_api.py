@@ -40,6 +40,8 @@ if TYPE_CHECKING:
     )
     from mypy_boto3_rds import RDSClient
     from mypy_boto3_rds.type_defs import DBInstanceMessageTypeDef
+    from mypy_boto3_kms import KMSClient
+    from mypy_boto3_kms.type_defs import KeyListEntryTypeDef
 else:
     EC2Client = (
         EC2ServiceResource
@@ -71,6 +73,10 @@ else:
         ResourceRecordSetTypeDef
     ) = (
         ResourceRecordTypeDef
+    ) = (
+        KMSClient
+    ) = (
+        KeyListEntryTypeDef
     ) = HostedZoneTypeDef = RDSClient = DBInstanceMessageTypeDef = object
 
 
@@ -198,7 +204,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
     # pylint: disable=method-hidden
     def _account_kms_client(
         self, account_name: str, region_name: Optional[str] = None
-    ) -> EC2Client:
+    ) -> KMSClient:
         session = self.get_session(account_name)
         region = region_name if region_name else session.region_name
         return session.client("kms", region_name=region)
@@ -826,9 +832,9 @@ class AWSApi:  # pylint: disable=too-many-public-methods
 
     @staticmethod
     # pylint: disable=method-hidden
-    def get_account_cmks(kms):
+    def get_account_cmks(kms: KMSClient) -> List[KeyListEntryTypeDef]:
         cmks = kms.list_keys()
-        return cmks
+        return cmks.get("Keys", [])
 
     # filters a list of aws resources according to tags
     @staticmethod
@@ -977,7 +983,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         self,
         account: Mapping[str, Any],
         region: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
+    ) -> List[KeyListEntryTypeDef]:
         kms = self._account_kms_client(account["name"], region_name=region)
         cmks = self.get_account_cmks(kms)
         return cmks
