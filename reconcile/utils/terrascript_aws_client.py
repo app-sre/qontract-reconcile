@@ -121,6 +121,7 @@ from terrascript.resource import (
     aws_api_gateway_integration_response,
     aws_wafv2_web_acl,
     aws_wafv2_web_acl_association,
+    aws_api_gateway_rest_api_policy
     random_id,
 )
 
@@ -4886,6 +4887,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             subnets=subnet_ids,
             **lb_args
         )
+        tf_resources.append(aws_lb_resource)
 
         # NLB LISTENER
         aws_lb_listener_resource = aws_lb_listener(
@@ -4897,6 +4899,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             ssl_policy="ELBSecurityPolicy-TLS13-1-2-2021-06",
             default_action={"type":"forward","target_group_arn":f"${{{aws_lb_target_group_resource.arn}}}"}
         )
+        tf_resources.append(aws_lb_listener_resource)
 
         # API GATEWAY VPC LINK
         api_gateway_vpc_link_resource = aws_api_gateway_vpc_link(
@@ -5123,8 +5126,40 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             deployment_id="${aws_api_gateway_deployment.gw_deployment.id}",
             rest_api_id="${aws_api_gateway_rest_api.gw_api.id}",
             stage_name="api",
+            cache_cluster_size="0.5"
         )
         tf_resources.append(api_gateway_stage_resource)
+
+        rest_api_policy = json.dumps({
+            "Version" : "2012-10-17",
+            "Statement" : [
+                {
+                    "Effect" : "Allow",
+                    "Principal" : "*",
+                    "Action" : "execute-api:Invoke",
+                    "Resource" : "${aws_api_gateway_rest_api.gw_api.execution_arn}/*"
+                },
+                {
+                    "Effect" : "Deny",
+                    "Principal" : "*",
+                    "Action" : "execute-api:Invoke",
+                    "Resource" : "${aws_api_gateway_rest_api.gw_api.execution_arn}/*",
+                    "Condition" : {
+                        "StringNotEquals" : {
+                        "aws:SourceVpce" : vpc_id
+                        }
+                    }
+                }
+            ]
+        })
+
+        # REST API POLICY
+        api_gateway_rest_api_policy_resource = api_gateway_rest_api_policy(
+            "gw_api_policy",
+            rest_api_id=f"${{{api_gateway_rest_api_resource.id}}}",
+            policy=rest_api_policy
+        )
+        tf_resources.append(api_gateway_rest_api_policy_resource)
 
         # DOMAIN NAME
         api_gateway_domain_name_resource = aws_api_gateway_domain_name(
