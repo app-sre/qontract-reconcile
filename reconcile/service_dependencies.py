@@ -44,6 +44,11 @@ def get_desired_dependency_names(
         for instance in instances:
             required_dep_names.update(get_dependency_names(dependency_map, instance))
 
+    saas_files = app.saas_files or []
+    if [s for s in saas_files if s.pipelines_provider.provider == "tekton"]:
+        # All our tekton SaaS deployment pipelines are in appsrep05ue1
+        required_dep_names.update(get_dependency_names(dependency_map, "openshift"))
+
     quay_repos = app.quay_repos
     if quay_repos:
         required_dep_names.update(get_dependency_names(dependency_map, "quay"))
