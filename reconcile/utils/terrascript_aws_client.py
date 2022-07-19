@@ -4668,9 +4668,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         integration_token_args = common_values.get("integration_token_properties", None)
         integration_auth_args = common_values.get("integration_auth_properties", None)
         waf_acl_args = common_values.get("waf_acl_properties", None)
-        vpce_security_group_rule_common_args = common_values.get("vpce_security_group_rule_common_properties", None)
-        vpc_endpoint_args = common_values.get("vpc_endpoint_properties", None)
         lb_target_group_args = common_values.get("lb_target_group_properties", None)
+        network_interface_ids = common_values.get("network_interface_ids", None)
 
         # USER POOL
         cognito_user_pool_resource = aws_cognito_user_pool(
@@ -4850,53 +4849,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         # USER POOL COMPLETE
 
-        # VPC ENDPOINT NETWORK MODULE SECTION
-        # SG
-        aws_security_group_resource = aws_security_group(
-            "api_gw_vpce",
-            name=f"ocm-{identifier}-api-gateway-vpce-sg",
-            description="Control access to the API Gateway VPC endpoint",
-            vpc_id=vpc_id,
-            tags={"Name":f"ocm-{identifier}-api-gateway-vpce-sg"}
-        )
-        tf_resources.append(aws_security_group_resource)
-
-        # SG RULES
-        aws_security_group_rule_inbound_resource = aws_security_group_rule(
-            "vpce_inbound",
-            type="ingress",
-            security_group_id=f"${{{aws_security_group_resource.id}}}",
-            cidr_blocks=["10.0.0.0/8"],
-            **vpce_security_group_rule_common_args
-        )
-        tf_resources.append(aws_security_group_rule_inbound_resource)
-
-        aws_security_group_rule_outbound_resource = aws_security_group_rule(
-            "vpce_outbound",
-            type="egress",
-            security_group_id=f"${{{aws_security_group_resource.id}}}",
-            cidr_blocks=["0.0.0.0/8"],
-            **vpce_security_group_rule_common_args
-        )
-        tf_resources.append(aws_security_group_rule_inbound_resource)
-
-        # VPC ENDPOINT
-        aws_vpc_endpoint_resource = aws_vpc_endpoint(
-            "api_gw",
-            security_group_ids=[f"${{{aws_security_group_resource.id}}}"],
-            tags={"Name":f"ocm-{identifier}-api-gateway-vpc-endpoint"},
-            **vpc_endpoint_args
-        )
-
-        # VPC ENDPOINT ASSOCIATION
-        for sid in subnet_ids:
-            aws_vpc_endpoint_subnet_association_resource = aws_vpc_endpoint_subnet_association(
-                f"api_gw_{sid}",
-                vpc_endpoint_id=f"${{{aws_vpc_endpoint_resource.id}}}",
-                subnet_id=sid
-            )
-            tf_resources.append(aws_vpc_endpoint_subnet_association_resource)
-
         # LB TARGET GROUP
         aws_lb_target_group_resource = aws_lb_target_group(
             "vpce_target_group",
@@ -4907,7 +4859,14 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         tf_resources.append(aws_lb_target_group_resource)
 
         # LB TARGET GROUP ATTACHMENT
-
+        for idx, niid in enumerate(network_interface_ids):
+            current_network_interface = data.aws_network_interface(f"cni-{idx}", id=niid)
+            aws_lb_target_group_attachment_resource = aws_lb_target_group_attachment(
+                f"vpce_attachment_{idx}",
+                target_group_arn=f"${{{aws_lb_target_group_resource.arn}}}",
+                target_id=f"${{{current_network_interface.endpoint.private_ip}}}",
+                port=443
+            )
 
         # API GATEWAY
         api_gateway_rest_api_resource = aws_api_gateway_rest_api(
