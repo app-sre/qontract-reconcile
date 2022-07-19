@@ -448,6 +448,9 @@ AWS_ACCOUNTS_QUERY = """
         regex
         region
       }
+      ... on AWSAccountSharingOptionAMI_v1 {
+        region
+      }
     }
     {% endif %}
     {% if terraform_state %}

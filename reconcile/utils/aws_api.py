@@ -124,11 +124,13 @@ class AWSApi:  # pylint: disable=too-many-public-methods
             self._account_route53_client
         )
         self._account_ec2_resource = functools.lru_cache()(self._account_ec2_resource)
+        self._account_kms_client = functools.lru_cache()(self._account_kms_client)
         self._get_assumed_role_client = functools.lru_cache()(
             self._get_assumed_role_client
         )
         self.get_account_vpcs = functools.lru_cache()(self.get_account_vpcs)
         self.get_account_amis = functools.lru_cache()(self.get_account_amis)
+        self.get_account_cmks = functools.lru_cache()(self.get_account_cmks)
         self.get_vpc_route_tables = functools.lru_cache()(self.get_vpc_route_tables)
         self.get_vpc_subnets = functools.lru_cache()(self.get_vpc_subnets)
         self.get_vpc_default_sg_id = functools.lru_cache()(self.get_vpc_default_sg_id)
@@ -192,6 +194,14 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         session = self.get_session(account_name)
         region = region_name if region_name else session.region_name
         return session.client("rds", region_name=region)
+
+    # pylint: disable=method-hidden
+    def _account_kms_client(
+        self, account_name: str, region_name: Optional[str] = None
+    ) -> EC2Client:
+        session = self.get_session(account_name)
+        region = region_name if region_name else session.region_name
+        return session.client("kms", region_name=region)
 
     def init_users(self):
         self.users = {}
@@ -814,6 +824,12 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         amis = ec2.describe_images(Owners=[owner])
         return amis.get("Images", [])
 
+    @staticmethod
+    # pylint: disable=method-hidden
+    def get_account_cmks(kms):
+        cmks = kms.list_keys()
+        return cmks
+
     # filters a list of aws resources according to tags
     @staticmethod
     def filter_on_tags(
@@ -956,6 +972,15 @@ class AWSApi:  # pylint: disable=too-many-public-methods
             "Add": [{"UserId": share_account_uid}]
         }
         image.modify_attribute(LaunchPermission=launch_permission)
+
+    def get_cmks_details(
+        self,
+        account: Mapping[str, Any],
+        region: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        kms = self._account_kms_client(account["name"], region_name=region)
+        cmks = self.get_account_cmks(kms)
+        return cmks
 
     def create_tag(
         self, account: Mapping[str, Any], resource_id: str, tag: Mapping[str, str]

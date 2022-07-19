@@ -825,6 +825,14 @@ def aws_ami_share(ctx):
     run_integration(reconcile.aws_ami_share, ctx.obj)
 
 
+@integration.command(short_help="Share Customer Managed Keys between accounts.")
+@click.pass_context
+def aws_cmk_share(ctx):
+    import reconcile.aws_cmk_share
+
+    run_integration(reconcile.aws_cmk_share, ctx.obj)
+
+
 @integration.command(
     short_help="Generate AWS ECR image pull secrets and store them in Vault."
 )
