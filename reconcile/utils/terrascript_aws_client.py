@@ -196,7 +196,7 @@ VARIABLE_KEYS = [
     "assume_condition",
     "api_proxy_uri",
     "cognito_callback_bucket_name",
-    "vpc_arn",
+    "openshift_ingress_load_balancer_arn",
     "domain_name",
     "certificate_arn",
     "vpc_ids",
@@ -4551,6 +4551,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         network_interface_ids = common_values.get("network_interface_ids")
         certificate_arn = common_values.get("certificate_arn")
         domain_name = common_values.get("domain_name")
+        openshift_ingress_load_balancer_arn = common_values.get("openshift_ingress_load_balancer_arn")
 
         # Manage IAM Resources
         lambda_role_policy = {
@@ -4893,7 +4894,17 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             certificate_arn=certificate_arn,
             ssl_policy="ELBSecurityPolicy-TLS13-1-2-2021-06",
             default_action={"type":"forward","target_group_arn":f"${{{aws_lb_target_group_resource.arn}}}"}
-        ) 
+        )
+
+        # API GATEWAY VPC LINK
+        api_gateway_vpc_link_resource = aws_api_gateway_vpc_link(
+            "vpc_link",
+            name=f"{identifier}-vpc-link",
+            target_arns=[openshift_ingress_load_balancer_arn]
+            # future: use data source to get vpc arn by annotation
+        )
+        tf_resources.append(api_gateway_vpc_link_resource)
+
 
         # API GATEWAY
         api_gateway_rest_api_resource = aws_api_gateway_rest_api(
@@ -5000,14 +5011,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             **gateway_method_auth_get_response_args,
         )
         tf_resources.append(api_gateway_method_auth_get_response_resource)
-
-        api_gateway_vpc_link_resource = aws_api_gateway_vpc_link(
-            "vpc_link",
-            name=f"{identifier}-vpc-link",
-            target_arns=[common_values.get("vpc_arn")]
-            # future: use data source to get vpc arn by annotation
-        )
-        tf_resources.append(api_gateway_vpc_link_resource)
 
         # PROXY
         api_gateway_integration_proxy_resource = aws_api_gateway_integration(
