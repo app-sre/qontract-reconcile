@@ -199,7 +199,7 @@ VARIABLE_KEYS = [
     "openshift_ingress_load_balancer_arn",
     "domain_name",
     "certificate_arn",
-    "vpc_ids",
+    "vpc_id",
     "subnet_ids",
     "network_interface_ids"
 ]
@@ -4905,10 +4905,12 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         )
         tf_resources.append(api_gateway_vpc_link_resource)
 
-
         # API GATEWAY
         api_gateway_rest_api_resource = aws_api_gateway_rest_api(
-            "gw_api", name=f"ocm-{identifier}-rest-api", **rest_api_args
+            "gw_api",
+            name=f"ocm-{identifier}-rest-api",
+            endpoint_configuration={"types":["PRIVATE"],"vpc_endpoint_ids":[vpc_id]},
+            **rest_api_args
         )
         tf_resources.append(api_gateway_rest_api_resource)
 
