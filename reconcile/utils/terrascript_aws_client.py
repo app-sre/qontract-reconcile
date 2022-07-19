@@ -121,7 +121,7 @@ from terrascript.resource import (
     aws_api_gateway_integration_response,
     aws_wafv2_web_acl,
     aws_wafv2_web_acl_association,
-    aws_api_gateway_rest_api_policy
+    aws_api_gateway_rest_api_policy,
     random_id,
 )
 
@@ -203,7 +203,7 @@ VARIABLE_KEYS = [
     "vpc_id",
     "subnet_ids",
     "network_interface_ids",
-    "app_gate_ips"
+    "app_gate_ips",
 ]
 
 TMP_DIR_PREFIX = "terrascript-aws-"
@@ -4553,7 +4553,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         network_interface_ids = common_values.get("network_interface_ids")
         certificate_arn = common_values.get("certificate_arn")
         domain_name = common_values.get("domain_name")
-        openshift_ingress_load_balancer_arn = common_values.get("openshift_ingress_load_balancer_arn")
+        openshift_ingress_load_balancer_arn = common_values.get(
+            "openshift_ingress_load_balancer_arn"
+        )
         app_gate_ips = common_values.get("app_gate_ips")
 
         # Manage IAM Resources
@@ -4569,7 +4571,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 },
             ],
         }
-
 
         lambda_iam_role_resource = aws_iam_role(
             "lambda_role",
@@ -4865,27 +4866,29 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             "vpce_target_group",
             name=f"ocm-{identifier}-api-gateway-vpce-tg",
             vpc_id=vpc_id,
-            **lb_target_group_args
+            **lb_target_group_args,
         )
         tf_resources.append(aws_lb_target_group_resource)
 
         # LB TARGET GROUP ATTACHMENT
         for idx, niid in enumerate(network_interface_ids):
-            current_network_interface = data.aws_network_interface(f"cni-{idx}", id=niid)
+            current_network_interface = data.aws_network_interface(
+                f"cni-{idx}", id=niid
+            )
             aws_lb_target_group_attachment_resource = aws_lb_target_group_attachment(
                 f"vpce_attachment_{idx}",
                 target_group_arn=f"${{{aws_lb_target_group_resource.arn}}}",
                 target_id=f"${{{current_network_interface.endpoint.private_ip}}}",
-                port=443
+                port=443,
             )
             tf_resources.append(aws_lb_target_group_attachment_resource)
-        
+
         # LOAD BALANCER
         aws_lb_resource = aws_lb(
             "api_gw",
             name=f"ocm-{identifier}-api-gateway-nlb",
             subnets=subnet_ids,
-            **lb_args
+            **lb_args,
         )
         tf_resources.append(aws_lb_resource)
 
@@ -4897,7 +4900,10 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             protocol="TLS",
             certificate_arn=certificate_arn,
             ssl_policy="ELBSecurityPolicy-TLS13-1-2-2021-06",
-            default_action={"type":"forward","target_group_arn":f"${{{aws_lb_target_group_resource.arn}}}"}
+            default_action={
+                "type": "forward",
+                "target_group_arn": f"${{{aws_lb_target_group_resource.arn}}}",
+            },
         )
         tf_resources.append(aws_lb_listener_resource)
 
@@ -4914,8 +4920,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         api_gateway_rest_api_resource = aws_api_gateway_rest_api(
             "gw_api",
             name=f"ocm-{identifier}-rest-api",
-            endpoint_configuration={"types":["PRIVATE"],"vpc_endpoint_ids":[vpc_id]},
-            **rest_api_args
+            endpoint_configuration={"types": ["PRIVATE"], "vpc_endpoint_ids": [vpc_id]},
+            **rest_api_args,
         )
         tf_resources.append(api_gateway_rest_api_resource)
 
@@ -5126,38 +5132,36 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             deployment_id="${aws_api_gateway_deployment.gw_deployment.id}",
             rest_api_id="${aws_api_gateway_rest_api.gw_api.id}",
             stage_name="api",
-            cache_cluster_size="0.5"
+            cache_cluster_size="0.5",
         )
         tf_resources.append(api_gateway_stage_resource)
 
-        rest_api_policy = json.dumps({
-            "Version" : "2012-10-17",
-            "Statement" : [
-                {
-                    "Effect" : "Allow",
-                    "Principal" : "*",
-                    "Action" : "execute-api:Invoke",
-                    "Resource" : "${aws_api_gateway_rest_api.gw_api.execution_arn}/*"
-                },
-                {
-                    "Effect" : "Deny",
-                    "Principal" : "*",
-                    "Action" : "execute-api:Invoke",
-                    "Resource" : "${aws_api_gateway_rest_api.gw_api.execution_arn}/*",
-                    "Condition" : {
-                        "StringNotEquals" : {
-                        "aws:SourceVpce" : vpc_id
-                        }
-                    }
-                }
-            ]
-        })
+        rest_api_policy = json.dumps(
+            {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Effect": "Allow",
+                        "Principal": "*",
+                        "Action": "execute-api:Invoke",
+                        "Resource": "${aws_api_gateway_rest_api.gw_api.execution_arn}/*",
+                    },
+                    {
+                        "Effect": "Deny",
+                        "Principal": "*",
+                        "Action": "execute-api:Invoke",
+                        "Resource": "${aws_api_gateway_rest_api.gw_api.execution_arn}/*",
+                        "Condition": {"StringNotEquals": {"aws:SourceVpce": vpc_id}},
+                    },
+                ],
+            }
+        )
 
         # REST API POLICY
         api_gateway_rest_api_policy_resource = api_gateway_rest_api_policy(
             "gw_api_policy",
             rest_api_id=f"${{{api_gateway_rest_api_resource.id}}}",
-            policy=rest_api_policy
+            policy=rest_api_policy,
         )
         tf_resources.append(api_gateway_rest_api_policy_resource)
 
