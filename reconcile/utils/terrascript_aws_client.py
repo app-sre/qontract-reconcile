@@ -121,8 +121,6 @@ from terrascript.resource import (
     aws_api_gateway_integration_response,
     aws_wafv2_web_acl,
     aws_wafv2_web_acl_association,
-    aws_vpc_endpoint,
-    aws_vpc_endpoint_subnet_association,
     random_id,
 )
 
@@ -4849,6 +4847,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         # USER POOL COMPLETE
 
+        # rosa-authenticator-vpce provider OR pre-created vpce resources are required for this
+        # section to reconcile properly
+
         # LB TARGET GROUP
         aws_lb_target_group_resource = aws_lb_target_group(
             "vpce_target_group",
@@ -4867,6 +4868,10 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 target_id=f"${{{current_network_interface.endpoint.private_ip}}}",
                 port=443
             )
+            tf_resources.append(aws_lb_target_group_attachment_resource)
+        
+        # NLB LISTENER
+
 
         # API GATEWAY
         api_gateway_rest_api_resource = aws_api_gateway_rest_api(
