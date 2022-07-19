@@ -5198,7 +5198,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             "vpce_outbound",
             type="egress",
             security_group_id=f"${{{aws_security_group_resource.id}}}",
-            cidr_blocks=["0.0.0.0/8"],
+            cidr_blocks=["0.0.0.0/0"],
             **vpce_security_group_rule_common_args,
         )
         tf_resources.append(aws_security_group_rule_inbound_resource)
