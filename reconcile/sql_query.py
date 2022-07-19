@@ -3,7 +3,6 @@ import sys
 import time
 
 from textwrap import indent
-from typing import Any, Iterable, Mapping, Optional, Union
 
 import jinja2
 from ruamel import yaml
@@ -29,11 +28,6 @@ LOG = logging.getLogger(__name__)
 
 JOB_TTL = 604800  # 7 days
 POD_TTL = 3600  # 1 hour (used only when output is "filesystem")
-QUERY_CONFIG_MAP_CHUNK_SIZE = 512 * 1024  # 512 KB
-
-CONFIG_MAPS_MOUNT_PATH = "/configs"
-GPG_KEY_NAME = "gpg-key"
-GPG_KEY_PATH = f"{CONFIG_MAPS_MOUNT_PATH}/{GPG_KEY_NAME}"
 
 JOB_SPEC = """
 spec:
@@ -45,7 +39,6 @@ spec:
       imagePullSecrets:
       - name: {{ PULL_SECRET }}
       {% endif %}
-      restartPolicy: Never
       containers:
       - name: {{ JOB_NAME }}
         image: {{ IMAGE_REPOSITORY }}/{{ ENGINE }}:{{ENGINE_VERSION}}
@@ -69,18 +62,16 @@ spec:
             value: {{ value }}
           {% endif %}
           {% endfor %}
+      {% if GPG_KEY is defined %}
         volumeMounts:
-        - name: configs
-          mountPath: {{ CONFIG_MAPS_MOUNT_PATH }}
-          readOnly: true
+        - name: gpg-key
+          mountPath: /gpg
       volumes:
-        - name: configs
-          projected:
-            sources:
-            {% for cm in CONFIG_MAPS %}
-            - configMap:
-                name: {{ cm }}
-          {% endfor %}
+      - name: gpg-key
+        configMap:
+          name: {{ GPG_KEY }}
+      {% endif %}
+      restartPolicy: Never
 """
 
 
@@ -118,9 +109,21 @@ spec:
 )
 
 
-def get_tf_resource_info(
-    terrascript: Terrascript, namespace: Mapping[str, Any], identifier: str
-) -> Union[dict[str, str], None]:
+CONFIGMAP_TEMPLATE = """
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ GPG_KEY }}
+  labels:
+    app: qontract-reconcile
+    integration: {{ QONTRACT_INTEGRATION }}
+    query-name: {{ QUERY_NAME }}
+data:
+  gpg-key: {{ PUBLIC_GPG_KEY }}
+"""
+
+
+def get_tf_resource_info(terrascript: Terrascript, namespace, identifier):
     """
     Extracting the external resources information from the namespace
     for a given identifier
@@ -145,12 +148,9 @@ def get_tf_resource_info(
             "engine": values.get("engine", "postgres"),
             "engine_version": values.get("engine_version", "latest"),
         }
-    return None
 
 
-def collect_queries(
-    settings: dict[str, Any], query_name: Optional[str] = None
-) -> list[dict[str, Any]]:
+def collect_queries(query_name=None, settings=None):
     """
     Consults the app-interface and constructs the list of queries
     to be executed.
@@ -160,7 +160,7 @@ def collect_queries(
 
     :return: List of queries dictionaries
     """
-    queries_list: list[dict[str, Any]] = []
+    queries_list = []
 
     # Items to be either overridden ot taken from the k8s secret
     db_conn_items = {
@@ -230,7 +230,7 @@ def collect_queries(
                 sys.exit(ExitCodes.ERROR)
 
         # Extracting the external resources information from the namespace
-        # for the given identifier
+        # fo the given identifier
         tf_resource_info = get_tf_resource_info(terrascript, namespace, identifier)
         if tf_resource_info is None:
             logging.error(
@@ -240,12 +240,14 @@ def collect_queries(
             )
             sys.exit(ExitCodes.ERROR)
 
-        _queries = []
+        sql_queries = []
         if sql_query["query"] is not None:
-            _queries.append(sql_query["query"])
+            sql_queries.append(sql_query["query"])
 
         if sql_query["queries"] is not None:
-            _queries.extend(sql_query["queries"])
+            sql_queries.extend(sql_query["queries"])
+
+        sql_queries = [item.replace("'", "''") for item in sql_queries]
 
         # building up the final query dictionary
         item = {
@@ -254,7 +256,7 @@ def collect_queries(
             "identifier": sql_query["identifier"],
             "db_conn": db_conn,
             "output": output,
-            "queries": _queries,
+            "queries": sql_queries,
             **tf_resource_info,
         }
 
@@ -283,54 +285,69 @@ def collect_queries(
     return queries_list
 
 
-def make_postgres_command(sqlqueries_file: str) -> str:
-    command = [
-        "(time PGPASSWORD=''$(db.password)''",
-        "psql",
-        "--host=$(db.host)",
-        "--port=$(db.port)",
-        "--username=$(db.user)",
-        "--dbname=$(db.name)",
-        f'--file="{sqlqueries_file}")',
-    ]
-    return " ".join(command)
+def make_postgres_command(output, sqlqueries, recipient=None):
+    command = []
+    for query in sqlqueries:
+        command.extend(
+            [
+                "(time PGPASSWORD=''$(db.password)''",
+                "psql",
+                "--host=$(db.host)",
+                "--port=$(db.port)",
+                "--username=$(db.user)",
+                "--dbname=$(db.name)",
+                f'--command "{query}")',
+            ]
+        )
 
-
-def make_mysql_command(sqlqueries_file: str) -> str:
-    command = [
-        "(time mysql",
-        "--host=$(db.host)",
-        "--port=$(db.port)",
-        "--database=$(db.name)",
-        "--user=$(db.user)",
-        "--password=''$(db.password)''",
-        f' < "{sqlqueries_file}")',
-    ]
-    return " ".join(command)
-
-
-def make_output_cmd(output: str, recipient: str) -> str:
-    if output in ("filesystem", "encrypted"):
-        command = filesystem_redir_stdout()
-    else:
-        # stdout
-        command = [";"]
+        if output in ("filesystem", "encrypted"):
+            command.extend(filesystem_redir_stdout())
+        else:
+            command.append(";")
 
     if output == "filesystem":
-        command += filesystem_closing_message()
+        command.extend(filesystem_closing_message())
     if output == "encrypted":
-        command += encrypted_closing_message(recipient=recipient)
+        command.extend(encrypted_closing_message(recipient=recipient))
 
     return " ".join(command)
 
 
-def filesystem_redir_stdout() -> list[str]:
+def make_mysql_command(output, sqlqueries, recipient=None):
+    command = []
+    for query in sqlqueries:
+        command.extend(
+            [
+                "(time mysql",
+                "--host=$(db.host)",
+                "--port=$(db.port)",
+                "--database=$(db.name)",
+                "--user=$(db.user)",
+                "--password=''$(db.password)''",
+                f'--execute="{query}")',
+            ]
+        )
+
+        if output in ("filesystem", "encrypted"):
+            command.extend(filesystem_redir_stdout())
+        else:
+            command.append(";")
+
+    if output == "filesystem":
+        command.extend(filesystem_closing_message())
+    if output == "encrypted":
+        command.extend(encrypted_closing_message(recipient=recipient))
+
+    return " ".join(command)
+
+
+def filesystem_redir_stdout():
     return [
         " &>> /tmp/query-result.txt;",
     ]
 
 
-def filesystem_closing_message() -> list[str]:
+def filesystem_closing_message():
     return [
         "echo;",
         "echo Get the sql-query results with:;",
@@ -343,9 +360,9 @@ def filesystem_closing_message() -> list[str]:
     ]
 
 
-def encrypted_closing_message(recipient: str) -> list[str]:
+def encrypted_closing_message(recipient):
     return [
-        f"cat {GPG_KEY_PATH} | base64 --decode | ",
+        "cat /gpg/gpg-key | base64 --decode | ",
         "gpg --homedir /tmp/.gnupg --import;",
         "gpg --trust-model always --homedir /tmp/.gnupg --armor -r ",
         recipient,
@@ -361,21 +378,12 @@ def encrypted_closing_message(recipient: str) -> list[str]:
     ]
 
 
-def process_template(
-    query: dict[str, Any],
-    image_repository: str,
-    use_pull_secret: bool,
-    config_map_names: list[str],
-) -> str:
+def process_template(query, image_repository, use_pull_secret=False):
     """
     Renders the Jinja2 Job Template.
 
     :param query: the query dictionary containing the parameters
                   to be used in the Template
-    :param image_repository: docker image repo url
-    :param use_pull_secret: add imagePullSecrets to Job
-    :param config_map_names: ConfigMap names to mount in Job
-
     :return: rendered Job YAML
     """
     engine_cmd_map = {"postgres": make_postgres_command, "mysql": make_mysql_command}
@@ -389,22 +397,15 @@ def process_template(
     if output not in supported_outputs:
         raise RuntimeError(f"Output {output} not supported")
 
-    # concatenate all query files into a single one
-    command = (
-        merge_files_command(
-            directory=CONFIG_MAPS_MOUNT_PATH,
-            file_glob="q*",
-            output_file="/tmp/queries",
-        )
-        + ";"
+    make_command = engine_cmd_map[engine]
+
+    command = make_command(
+        output=output, sqlqueries=query["queries"], recipient=query.get("recipient")
     )
-    command += engine_cmd_map[engine](sqlqueries_file="/tmp/queries")
-    command += make_output_cmd(output=output, recipient=query.get("recipient", ""))
 
     template_to_render = JOB_TEMPLATE
     render_kwargs = {
         "JOB_NAME": query["name"],
-        "CONFIG_MAPS_MOUNT_PATH": CONFIG_MAPS_MOUNT_PATH,
         "QUERY_NAME": query["name"],
         "QONTRACT_INTEGRATION": QONTRACT_INTEGRATION,
         "IMAGE_REPOSITORY": image_repository,
@@ -412,167 +413,106 @@ def process_template(
         "ENGINE": engine,
         "ENGINE_VERSION": query["engine_version"],
         "DB_CONN": query["db_conn"],
-        "CONFIG_MAPS": config_map_names,
         "COMMAND": command,
     }
     if use_pull_secret:
         render_kwargs["PULL_SECRET"] = query["name"]
-
+    if output == "encrypted":
+        render_kwargs["GPG_KEY"] = query["name"]
     schedule = query.get("schedule")
     if schedule:
         template_to_render = CRONJOB_TEMPLATE
         render_kwargs["SCHEDULE"] = schedule
 
     template = jinja2.Template(template_to_render)
-    job_yaml = template.render(render_kwargs)
+    job_yaml = template.render(**render_kwargs)
     return job_yaml
 
 
-def get_config_map(name: str, data: dict, labels: dict) -> dict[str, Any]:
-    return {
-        "apiVersion": "v1",
-        "kind": "ConfigMap",
-        "metadata": {
-            "name": name,
-            "labels": labels,
-        },
-        "data": data,
-    }
+def openshift_apply(dry_run, oc_map, query, resource):
+    openshift_base.apply(
+        dry_run=dry_run,
+        oc_map=oc_map,
+        cluster=query["cluster"],
+        namespace=query["namespace"]["name"],
+        resource_type=resource.kind,
+        resource=resource,
+        wait_for_namespace=False,
+    )
 
 
-def split_long_query(q, size) -> list[str]:
-    return [q[i : i + size] for i in range(0, len(q), size)]
-
-
-def merge_files_command(directory, file_glob, output_file):
-    return f"cat ''{directory}''/{file_glob} > ''{output_file}''"
-
-
-def openshift_apply(
-    dry_run: bool,
-    oc_map: OC_Map,
-    cluster: str,
-    namespace: str,
-    resources: Iterable[OpenshiftResource],
-) -> None:
-    for resource in resources:
-        openshift_base.apply(
+def openshift_delete(dry_run, oc_map, query, resource_type, enable_deletion):
+    try:
+        openshift_base.delete(
             dry_run=dry_run,
             oc_map=oc_map,
-            cluster=cluster,
-            namespace=namespace,
-            resource_type=resource.kind,
-            resource=resource,
-            wait_for_namespace=False,
+            cluster=query["cluster"],
+            namespace=query["namespace"]["name"],
+            resource_type=resource_type,
+            name=query["name"],
+            enable_deletion=enable_deletion,
+        )
+    except StatusCodeError:
+        LOG.exception(
+            "Error removing ['%s' '%s' '%s' '%s']",
+            query["cluster"],
+            query["namespace"]["name"],
+            resource_type,
+            query["name"],
         )
 
 
-def openshift_delete_by_label(
-    dry_run: bool,
-    oc_map: OC_Map,
-    cluster: str,
-    namespace: str,
-    kinds: list[str],
-    labels: dict[str, str],
-    enable_deletion: bool,
-) -> None:
-    oc = oc_map.get_cluster(cluster)
-    resources: list[OpenshiftResource] = [
-        OpenshiftResource(
-            body=item,
-            integration=QONTRACT_INTEGRATION,
-            integration_version=QONTRACT_INTEGRATION_VERSION,
-        )
-        for kind in kinds
-        for item in oc.get_items(kind=kind, namespace=namespace, labels=labels)
-    ]
-
-    for resource in resources:
-        try:
-            openshift_base.delete(
-                dry_run=dry_run,
-                oc_map=oc_map,
-                cluster=cluster,
-                namespace=namespace,
-                resource_type=resource.kind,
-                name=resource.name,
-                enable_deletion=enable_deletion,
-            )
-        except StatusCodeError:
-            LOG.exception(
-                f"Error removing ['{cluster}' '{namespace}' '{resource.kind}' '{resource.name}']"
-            )
-
-
-def run(dry_run: bool, enable_deletion: bool = False) -> None:
+def run(dry_run, enable_deletion=False):
     settings = queries.get_app_interface_settings()
     accounts = queries.get_state_aws_accounts()
     state = State(
         integration=QONTRACT_INTEGRATION, accounts=accounts, settings=settings
     )
-    image_repository = "quay.io/app-sre"
-
-    sql_query_settings = settings.get("sqlQuery")
-    pull_secret: dict[str, Any] = {}
-    if sql_query_settings:
-        image_repository = sql_query_settings["imageRepository"]
-        pull_secret = sql_query_settings["pullSecret"]
-    use_pull_secret = True if pull_secret else False
 
     queries_list = collect_queries(settings=settings)
+    remove_candidates = []
     for query in queries_list:
-        openshift_resources: list[OpenshiftResource] = []
         query_name = query["name"]
-        common_resource_labels = {
-            "app": "qontract-reconcile",
-            "integration": QONTRACT_INTEGRATION,
-            "query-name": query_name,
-        }
-        if state.exists(query_name):
-            # Query already executed. Now check current state:
-            # - State is a timestamp: executed and up for removal after the JOB_TTL
-            # - State is not 'DONE' but 'delete:true' and is a cronjob: up for removal
-            # - State is 'DONE': executed and removed. Nothing to do here.
-            cleanup = False
+
+        # Checking the sql-query state:
+        # - No state: up for execution.
+        # - State is a timestamp: executed and up for removal
+        #   after the JOB_TTL
+        # - State is 'DONE': executed and removed.
+        # - State is not 'DONE' but 'delete:true' and is a cronjob: up for removal
+        try:
             query_state = state[query_name]
-            if query_state == "DONE":
-                # nothing to do anymore
-                continue
-
-            if query.get("schedule"):
-                # CronJob
-                if query.get("delete"):
-                    cleanup = True
-            else:
-                # Job
-                if time.time() >= query_state + JOB_TTL:
-                    cleanup = True
-
-            if cleanup:
-                oc_map = OC_Map(
-                    namespaces=[query["namespace"]],
-                    integration=QONTRACT_INTEGRATION,
-                    settings=settings,
+            is_cronjob = query.get("schedule")
+            if (query_state != "DONE" and not is_cronjob) or (
+                query_state != "DONE" and is_cronjob and query.get("delete")
+            ):
+                remove_candidates.append(
+                    {
+                        "name": query_name,
+                        "timestamp": query_state,
+                        "output": query["output"],
+                        "is_cronjob": is_cronjob,
+                    }
                 )
-                openshift_delete_by_label(
-                    dry_run=dry_run,
-                    oc_map=oc_map,
-                    cluster=query["cluster"],
-                    namespace=query["namespace"]["name"],
-                    kinds=["Job", "CronJob", "ConfigMap", "Secret"],
-                    labels=common_resource_labels,
-                    enable_deletion=enable_deletion,
-                )
-                if not dry_run and enable_deletion:
-                    state[query_name] = "DONE"
-
-            # continue with next query
             continue
+        except KeyError:
+            pass
 
-        # New query
-        if use_pull_secret:
+        image_repository = "quay.io/app-sre"
+        use_pull_secret = False
+        sql_query_settings = settings.get("sqlQuery")
+        if sql_query_settings:
+            use_pull_secret = True
+            image_repository = sql_query_settings["imageRepository"]
+            pull_secret = sql_query_settings["pullSecret"]
             labels = pull_secret["labels"] or {}
-            labels.update(common_resource_labels)
+            labels.update(
+                {
+                    "app": "qontract-reconcile",
+                    "integration": QONTRACT_INTEGRATION,
+                    "query-name": query_name,
+                }
+            )
             secret_resource = orb.fetch_provider_vault_secret(
                 path=pull_secret["path"],
                 version=pull_secret["version"],
@@ -584,65 +524,77 @@ def run(dry_run: bool, enable_deletion: bool = False) -> None:
                 integration_version=QONTRACT_INTEGRATION_VERSION,
                 settings=settings,
             )
-            openshift_resources.append(secret_resource)
 
-        # ConfigMap gpg
-        config_map_resources = [
-            get_config_map(
-                name=f"{query_name}-{GPG_KEY_NAME}",
-                data={GPG_KEY_NAME: query.get("public_gpg_key", "")},
-                labels=common_resource_labels,
-            )
-        ]
-        # ConfigMaps with SQL queries chunked into smaller pieces
-        config_map_resources += [
-            get_config_map(
-                name=f"{query_name}-q{i:05d}c{j:05d}",
-                data={f"q{i:05d}c{j:05d}": chunk},
-                labels=common_resource_labels,
-            )
-            for i, q in enumerate(query["queries"])
-            for j, chunk in enumerate(
-                split_long_query(q, size=QUERY_CONFIG_MAP_CHUNK_SIZE)
-            )
-        ]
-        openshift_resources += [
-            OpenshiftResource(
-                body=cm,
-                integration=QONTRACT_INTEGRATION,
-                integration_version=QONTRACT_INTEGRATION_VERSION,
-            )
-            for cm in config_map_resources
-        ]
-
-        # Job (sql executer)
         job_yaml = process_template(
-            query,
-            image_repository=image_repository,
-            use_pull_secret=use_pull_secret,
-            config_map_names=[cm["metadata"]["name"] for cm in config_map_resources],
+            query, image_repository=image_repository, use_pull_secret=use_pull_secret
         )
-        openshift_resources.append(
-            OpenshiftResource(
-                body=yaml.safe_load(job_yaml),
-                integration=QONTRACT_INTEGRATION,
-                integration_version=QONTRACT_INTEGRATION_VERSION,
+        job = yaml.safe_load(job_yaml)
+        job_resource = OpenshiftResource(
+            job, QONTRACT_INTEGRATION, QONTRACT_INTEGRATION_VERSION
+        )
+        oc_map = OC_Map(
+            namespaces=[query["namespace"]],
+            integration=QONTRACT_INTEGRATION,
+            settings=settings,
+            internal=None,
+        )
+
+        if use_pull_secret:
+            openshift_apply(dry_run, oc_map, query, secret_resource)
+
+        if query["output"] == "encrypted":
+            render_kwargs = {
+                "GPG_KEY": query["name"],
+                "PUBLIC_GPG_KEY": query["public_gpg_key"],
+                "QUERY_NAME": query["name"],
+                "QONTRACT_INTEGRATION": QONTRACT_INTEGRATION,
+            }
+            template = jinja2.Template(CONFIGMAP_TEMPLATE)
+            configmap_yaml = template.render(**render_kwargs)
+            configmap = yaml.safe_load(configmap_yaml)
+            configmap_resource = OpenshiftResource(
+                configmap, QONTRACT_INTEGRATION, QONTRACT_INTEGRATION_VERSION
             )
-        )
+            openshift_apply(dry_run, oc_map, query, configmap_resource)
+
+        openshift_apply(dry_run, oc_map, query, job_resource)
+
+        if not dry_run:
+            state[query_name] = time.time()
+
+    for candidate in remove_candidates:
+        if (
+            not candidate["is_cronjob"]
+            and time.time() < candidate["timestamp"] + JOB_TTL
+        ):
+            continue
+
+        try:
+            query = collect_queries(query_name=candidate["name"], settings=settings)[0]
+        except IndexError:
+            raise RuntimeError(
+                f'sql-query {candidate["name"]} not present'
+                f"in the app-interface while its Job is still "
+                f"not removed from the cluster. Manual clean "
+                f"up is needed."
+            )
 
         oc_map = OC_Map(
             namespaces=[query["namespace"]],
             integration=QONTRACT_INTEGRATION,
             settings=settings,
+            internal=None,
         )
 
-        openshift_apply(
-            dry_run=dry_run,
-            oc_map=oc_map,
-            cluster=query["cluster"],
-            namespace=query["namespace"]["name"],
-            resources=openshift_resources,
-        )
+        if candidate["is_cronjob"]:
+            resource_types = ["CronJob", "Secret"]
+        else:
+            resource_types = ["Job", "Secret"]
+        if candidate["output"] == "encrypted":
+            resource_types.append("ConfigMap")
+
+        for resource_type in resource_types:
+            openshift_delete(dry_run, oc_map, query, resource_type, enable_deletion)
 
         if not dry_run:
-            state[query_name] = time.time()
+            state[candidate["name"]] = "DONE"
