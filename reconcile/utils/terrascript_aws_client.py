@@ -199,6 +199,9 @@ VARIABLE_KEYS = [
     "vpc_arn",
     "domain_name",
     "certificate_arn",
+    "vpc_ids",
+    "subnet_ids",
+    "network_interface_ids"
 ]
 
 TMP_DIR_PREFIX = "terrascript-aws-"
@@ -4545,6 +4548,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             lambda_managed_policy_arn = "arn:aws-us-gov:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
         vpc_id = common_values.get("vpc_id")
         subnet_ids = common_values.get("subnet_ids")
+        network_interface_ids = common_values.get("network_interface_ids")
 
         # Manage IAM Resources
         lambda_role_policy = {
@@ -4667,7 +4671,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         integration_auth_args = common_values.get("integration_auth_properties", None)
         waf_acl_args = common_values.get("waf_acl_properties", None)
         lb_target_group_args = common_values.get("lb_target_group_properties", None)
-        network_interface_ids = common_values.get("network_interface_ids", None)
 
         # USER POOL
         cognito_user_pool_resource = aws_cognito_user_pool(
@@ -4870,6 +4873,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             )
             tf_resources.append(aws_lb_target_group_attachment_resource)
         
+        # LOAD BALANCER
+        aws_lb_resource
+
         # NLB LISTENER
 
 
