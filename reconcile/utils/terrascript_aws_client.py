@@ -5111,8 +5111,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         # DOMAIN NAME
         api_gateway_domain_name_resource = aws_api_gateway_domain_name(
             "domain",
-            regional_certificate_arn=f"{certificate_arn}",
-            domain_name=f"{domain_name}",
+            regional_certificate_arn=certificate_arn,
+            domain_name=domain_name,
         )
         tf_resources.append(api_gateway_domain_name_resource)
 
