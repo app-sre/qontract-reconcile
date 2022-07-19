@@ -4549,6 +4549,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         vpc_id = common_values.get("vpc_id")
         subnet_ids = common_values.get("subnet_ids")
         network_interface_ids = common_values.get("network_interface_ids")
+        certificate_arn = common_values.get("certificate_arn")
+        domain_name = common_values.get("domain_name")
 
         # Manage IAM Resources
         lambda_role_policy = {
@@ -4671,6 +4673,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         integration_auth_args = common_values.get("integration_auth_properties", None)
         waf_acl_args = common_values.get("waf_acl_properties", None)
         lb_target_group_args = common_values.get("lb_target_group_properties", None)
+        lb_args = common_values.get("lb_properties", None)
 
         # USER POOL
         cognito_user_pool_resource = aws_cognito_user_pool(
@@ -4874,10 +4877,23 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             tf_resources.append(aws_lb_target_group_attachment_resource)
         
         # LOAD BALANCER
-        aws_lb_resource
+        aws_lb_resource = aws_lb(
+            "api_gw",
+            name=f"ocm-{identifier}-api-gateway-nlb",
+            subnets=subnet_ids,
+            **lb_args
+        )
 
         # NLB LISTENER
-
+        aws_lb_listener_resource = aws_lb_listener(
+            "nlb_listener",
+            load_balancer_arn=f"${{{aws_lb_resource.arn}}}",
+            port="443",
+            protocol="TLS",
+            certificate_arn=certificate_arn,
+            ssl_policy="ELBSecurityPolicy-TLS13-1-2-2021-06",
+            default_action={"type":"forward","target_group_arn":f"${{{aws_lb_target_group_resource.arn}}}"}
+        ) 
 
         # API GATEWAY
         api_gateway_rest_api_resource = aws_api_gateway_rest_api(
@@ -5102,9 +5118,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             stage_name="api",
         )
         tf_resources.append(api_gateway_stage_resource)
-
-        certificate_arn = common_values.get("certificate_arn")
-        domain_name = common_values.get("domain_name")
 
         # DOMAIN NAME
         api_gateway_domain_name_resource = aws_api_gateway_domain_name(
