@@ -121,6 +121,8 @@ from terrascript.resource import (
     aws_api_gateway_integration_response,
     aws_wafv2_web_acl,
     aws_wafv2_web_acl_association,
+    aws_vpc_endpoint,
+    aws_vpc_endpoint_subnet_association,
     random_id,
 )
 
@@ -200,6 +202,8 @@ VARIABLE_KEYS = [
     "vpc_arn",
     "domain_name",
     "certificate_arn",
+    "subnet_ids",
+    "vpc_ids",
 ]
 
 TMP_DIR_PREFIX = "terrascript-aws-"
@@ -1140,6 +1144,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             self.populate_tf_resource_route53_zone(spec)
         elif provider == "rosa-authenticator":
             self.populate_tf_resource_rosa_authenticator(spec)
+        elif provider == "rosa-authenticator-vpce":
+            self.populate_tf_resource_rosa_authenticator_vpce(spec)
         else:
             raise UnknownProviderError(provider)
 
@@ -5150,5 +5156,70 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             web_acl_arn="${aws_wafv2_web_acl.api_waf.arn}",
         )
         tf_resources.append(waf_acl_association_resource)
+
+        self.add_resources(account, tf_resources)
+
+    def populate_tf_resource_rosa_authenticator_vpce(self, spec):
+        account = spec.provisioner_name
+        identifier = spec.identifier
+        common_values = self.init_values(spec)
+        tf_resources = []
+        self.init_common_outputs(tf_resources, spec)
+
+        vpc_id = common_values.get("vpc_id")
+        subnet_ids = common_values.get("subnet_ids")
+        vpce_security_group_rule_common_args = common_values.get(
+            "vpce_security_group_rule_common_properties", None
+        )
+        vpc_endpoint_args = common_values.get("vpc_endpoint_properties", None)
+
+        # VPC ENDPOINT NETWORK MODULE SECTION
+        # SG
+        aws_security_group_resource = aws_security_group(
+            "api_gw_vpce",
+            name=f"ocm-{identifier}-api-gateway-vpce-sg",
+            description="Control access to the API Gateway VPC endpoint",
+            vpc_id=vpc_id,
+            tags={"Name": f"ocm-{identifier}-api-gateway-vpce-sg"},
+        )
+        tf_resources.append(aws_security_group_resource)
+
+        # SG RULES
+        aws_security_group_rule_inbound_resource = aws_security_group_rule(
+            "vpce_inbound",
+            type="ingress",
+            security_group_id=f"${{{aws_security_group_resource.id}}}",
+            cidr_blocks=["10.0.0.0/8"],
+            **vpce_security_group_rule_common_args,
+        )
+        tf_resources.append(aws_security_group_rule_inbound_resource)
+
+        aws_security_group_rule_outbound_resource = aws_security_group_rule(
+            "vpce_outbound",
+            type="egress",
+            security_group_id=f"${{{aws_security_group_resource.id}}}",
+            cidr_blocks=["0.0.0.0/8"],
+            **vpce_security_group_rule_common_args,
+        )
+        tf_resources.append(aws_security_group_rule_inbound_resource)
+
+        # VPC ENDPOINT
+        aws_vpc_endpoint_resource = aws_vpc_endpoint(
+            "api_gw",
+            security_group_ids=[f"${{{aws_security_group_resource.id}}}"],
+            tags={"Name": f"ocm-{identifier}-api-gateway-vpc-endpoint"},
+            **vpc_endpoint_args,
+        )
+
+        # VPC ENDPOINT ASSOCIATION
+        for sid in subnet_ids:
+            aws_vpc_endpoint_subnet_association_resource = (
+                aws_vpc_endpoint_subnet_association(
+                    f"api_gw_{sid}",
+                    vpc_endpoint_id=f"${{{aws_vpc_endpoint_resource.id}}}",
+                    subnet_id=sid,
+                )
+            )
+            tf_resources.append(aws_vpc_endpoint_subnet_association_resource)
 
         self.add_resources(account, tf_resources)
