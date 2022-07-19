@@ -4908,6 +4908,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         # LB TARGET GROUP ATTACHMENT
 
+
         # API GATEWAY
         api_gateway_rest_api_resource = aws_api_gateway_rest_api(
             "gw_api", name=f"ocm-{identifier}-rest-api", **rest_api_args
