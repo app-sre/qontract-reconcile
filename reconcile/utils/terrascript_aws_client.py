@@ -5113,6 +5113,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             "domain",
             regional_certificate_arn=certificate_arn,
             domain_name=domain_name,
+            endpoint_configuration={"types": ["REGIONAL"]},
         )
         tf_resources.append(api_gateway_domain_name_resource)
 
