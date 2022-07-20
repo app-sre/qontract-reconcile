@@ -204,7 +204,6 @@ VARIABLE_KEYS = [
     "vpc_id",
     "subnet_ids",
     "network_interface_ids",
-    "app_gate_ips",
 ]
 
 TMP_DIR_PREFIX = "terrascript-aws-"
@@ -4565,7 +4564,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         openshift_ingress_load_balancer_arn = common_values.get(
             "openshift_ingress_load_balancer_arn"
         )
-        app_gate_ips = common_values.get("app_gate_ips")
 
         # Manage IAM Resources
         lambda_role_policy = {
