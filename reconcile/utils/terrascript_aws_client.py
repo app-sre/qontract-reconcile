@@ -203,7 +203,7 @@ VARIABLE_KEYS = [
     "domain_name",
     "certificate_arn",
     "subnet_ids",
-    "vpc_ids",
+    "vpc_id",
 ]
 
 TMP_DIR_PREFIX = "terrascript-aws-"
@@ -5201,7 +5201,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             cidr_blocks=["0.0.0.0/0"],
             **vpce_security_group_rule_common_args,
         )
-        tf_resources.append(aws_security_group_rule_inbound_resource)
+        tf_resources.append(aws_security_group_rule_outbound_resource)
 
         # VPC ENDPOINT
         aws_vpc_endpoint_resource = aws_vpc_endpoint(
@@ -5210,6 +5210,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             tags={"Name": f"ocm-{identifier}-api-gateway-vpc-endpoint"},
             **vpc_endpoint_args,
         )
+        tf_resources.append(aws_vpc_endpoint_resource)
 
         # VPC ENDPOINT ASSOCIATION
         for sid in subnet_ids:
