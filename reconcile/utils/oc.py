@@ -974,15 +974,16 @@ class OCNative(OCDeprecated):
         # thrown here instead to avoid AttributeErrors when accessing
         # methods that rely on client/api_kind_version to be set.
 
-        if not server:
-            raise NotFoundError("Server cannot be found")
+        # if not server:
+        #     raise NotFoundError("Server cannot be found")
 
-        # if server:
-        #     self.client = self._get_client(server, token)
-        #     self.api_kind_version = self.get_api_resources()
-        # else:
-        #     init_api_resources = False
-        #     init_projects = False
+        if server:
+            self.client = self._get_client(server, token)
+            self.api_kind_version = self.get_api_resources()
+        else:
+            # raise ValueError("Server value cannot be found")
+            init_api_resources = False
+            init_projects = False
 
         self.object_clients = {}
         self.init_projects = init_projects
@@ -1216,27 +1217,48 @@ class OCLocal:
     def __init__(
         self,
         cluster_name,
-        server,
-        token,
         jh=None,
         settings=None,
-        init_projects=False,
-        init_api_resources=False,
+        # init_projects=False,
+        # init_api_resources=False,
         local=False,
         insecure_skip_tls_verify=False,
     ):
-        super().__init__(
-            cluster_name,
-            server,
-            token,
-            jh,
-            settings,
-            init_projects=False,
-            init_api_resources=False,
-            local=local,
-            insecure_skip_tls_verify=insecure_skip_tls_verify,
-        )
-    
+        # super().__init__(
+        #     cluster_name,
+        #     jh,
+        #     settings,
+        #     # init_projects=False,
+        #     # init_api_resources=False,
+        #     local=local,
+        #     insecure_skip_tls_verify=insecure_skip_tls_verify,
+        # )
+        # if server:
+        #     self.client = self._get_client(server, token)
+        #     self.api_kind_version = self.get_api_resources()
+        # else:
+        #     # raise ValueError("Server value cannot be found")
+        #     init_api_resources = False
+        #     init_projects = False
+
+        self.cluster_name = cluster_name
+        # self.server = server
+        oc_base_cmd = ["oc", "--kubeconfig", "/dev/null"]
+        if insecure_skip_tls_verify:
+            oc_base_cmd.extend(["--insecure-skip-tls-verify"])
+        # if server:
+        #     oc_base_cmd.extend(["--server", server])
+
+        # if token:
+        #     oc_base_cmd.extend(["--token", token])
+
+        self.jump_host = None
+        if jh is not None:
+            self.jump_host = JumpHostSSH(jh, settings=settings)
+            oc_base_cmd = self.jump_host.get_ssh_base_cmd() + oc_base_cmd
+
+        self.oc_base_cmd = oc_base_cmd
+
     def process(self, template, parameters=None):
         if parameters is None:
             parameters = {}
@@ -1250,6 +1272,68 @@ class OCLocal:
         ] + parameters_to_process
         result = self._run(cmd, stdin=json.dumps(template, sort_keys=True))
         return json.loads(result)["items"]
+    
+    @retry(exceptions=(StatusCodeError, NoOutputError), max_attempts=10)
+    def _run(self, cmd, **kwargs):
+        if kwargs.get("stdin"):
+            stdin = PIPE
+            stdin_text = kwargs.get("stdin").encode()
+        else:
+            stdin = None
+            stdin_text = None
+
+        p = Popen(  # pylint: disable=consider-using-with
+            self.oc_base_cmd + cmd, stdin=stdin, stdout=PIPE, stderr=PIPE
+        )
+        out, err = p.communicate(stdin_text)
+
+        code = p.returncode
+
+        allow_not_found = kwargs.get("allow_not_found")
+
+        if code != 0:
+            err = err.decode("utf-8")
+            if "Unable to connect to the server" in err:
+                raise StatusCodeError(f"[{self.server}]: {err}")
+            if kwargs.get("apply"):
+                if "Invalid value: 0x0" in err:
+                    raise InvalidValueApplyError(f"[{self.server}]: {err}")
+                if "Invalid value: " in err:
+                    if ": field is immutable" in err:
+                        if "The Deployment" in err:
+                            raise DeploymentFieldIsImmutableError(
+                                f"[{self.server}]: {err}"
+                            )
+                        else:
+                            raise FieldIsImmutableError(f"[{self.server}]: {err}")
+                    if ": may not change once set" in err:
+                        raise MayNotChangeOnceSetError(f"[{self.server}]: {err}")
+                    if ": primary clusterIP can not be unset" in err:
+                        raise PrimaryClusterIPCanNotBeUnsetError(
+                            f"[{self.server}]: {err}"
+                        )
+                    raise StatusCodeError(f"[{self.server}]: {err}")
+                if "metadata.annotations: Too long" in err:
+                    raise MetaDataAnnotationsTooLongApplyError(
+                        f"[{self.server}]: {err}"
+                    )
+                if "UnsupportedMediaType" in err:
+                    raise UnsupportedMediaTypeError(f"[{self.server}]: {err}")
+                if "updates to statefulset spec for fields other than" in err:
+                    raise StatefulSetUpdateForbidden(f"[{self.server}]: {err}")
+                if "the object has been modified" in err:
+                    raise ObjectHasBeenModifiedError(f"[{self.server}]: {err}")
+            if not (allow_not_found and "NotFound" in err):
+                raise StatusCodeError(f"[{self.server}]: {err}")
+
+        if not out:
+            if allow_not_found:
+                return "{}"
+            else:
+                raise NoOutputError(err)
+
+        return out.strip()
+
 
 class OC:
     client_status = Counter(
