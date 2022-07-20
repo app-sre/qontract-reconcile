@@ -196,14 +196,14 @@ VARIABLE_KEYS = [
     "assume_role",
     "inline_policy",
     "assume_condition",
-    "sms_role_ext_id",
     "api_proxy_uri",
     "cognito_callback_bucket_name",
-    "vpc_arn",
+    "openshift_ingress_load_balancer_arn",
     "domain_name",
     "certificate_arn",
-    "subnet_ids",
     "vpc_id",
+    "subnet_ids",
+    "network_interface_ids",
 ]
 
 TMP_DIR_PREFIX = "terrascript-aws-"
@@ -254,6 +254,12 @@ class time_sleep(Resource):
 # temporary until we upgrade to a terrascript release
 # that supports this resource
 class aws_cognito_user_pool_ui_customization(Resource):
+    pass
+
+
+# temporary until we upgrade to a terrascript release
+# that supports this resource
+class aws_api_gateway_rest_api_policy(Resource):
     pass
 
 
@@ -4541,56 +4547,25 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         tf_resources = []
         self.init_common_outputs(tf_resources, spec)
 
-        # Manage IAM Resources
-        sms_role_policy = {
-            "Version": "2012-10-17",
-            "Statement": [
-                {
-                    "Effect": "Allow",
-                    "Action": [
-                        "sts:AssumeRole",
-                    ],
-                    "Principal": {
-                        "Service": "cognito-idp.amazonaws.com",
-                    },
-                    "Condition": {
-                        "StringEquals": {
-                            "sts:ExternalId": common_values.get("sms_role_ext_id")
-                        }
-                    },
-                },
-            ],
-        }
-
-        sms_role_inline_policy = {
-            "name": f"ocm-{identifier}-cognito-sms-policy",
-            "policy": json.dumps(
-                {
-                    "Statement": [
-                        {
-                            "Effect": "Allow",
-                            "Action": [
-                                "sns:Publish",
-                            ],
-                            "Resource": "*",
-                        }
-                    ],
-                    "Version": "2012-10-17",
-                }
-            ),
-        }
-
-        sms_iam_role_resource = aws_iam_role(
-            "sms_role",
-            name=f"ocm-{identifier}-cognito-sms-role",
-            assume_role_policy=json.dumps(sms_role_policy),
-            force_detach_policies=False,
-            max_session_duration=3600,
-            inline_policy=[sms_role_inline_policy],
-            path="/service-role/",
+        # Prepare consts
+        region = common_values.get("region") or self.default_regions.get(account)
+        bucket_name = common_values.get("cognito_callback_bucket_name")
+        bucket_url = f"https://{bucket_name}.s3.{region}.amazonaws.com"
+        lambda_managed_policy_arn = (
+            "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
         )
-        tf_resources.append(sms_iam_role_resource)
+        if region in ("us-gov-west-1", "us-gov-east-1"):
+            lambda_managed_policy_arn = "arn:aws-us-gov:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+        vpc_id = common_values.get("vpc_id")
+        subnet_ids = common_values.get("subnet_ids")
+        network_interface_ids = common_values.get("network_interface_ids")
+        certificate_arn = common_values.get("certificate_arn")
+        domain_name = common_values.get("domain_name")
+        openshift_ingress_load_balancer_arn = common_values.get(
+            "openshift_ingress_load_balancer_arn"
+        )
 
+        # Manage IAM Resources
         lambda_role_policy = {
             "Version": "2012-10-17",
             "Statement": [
@@ -4604,22 +4579,11 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             ],
         }
 
-        # Prepare consts
-        managed_policy_arn = (
-            "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
-        )
-        region = common_values.get("region") or self.default_regions.get(account)
-        if region in ("us-gov-west-1", "us-gov-east-1"):
-            managed_policy_arn = "arn:aws-us-gov:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
-
-        bucket_name = common_values.get("cognito_callback_bucket_name")
-        bucket_url = f"https://{bucket_name}.s3.{region}.amazonaws.com"
-
         lambda_iam_role_resource = aws_iam_role(
             "lambda_role",
             name=f"ocm-{identifier}-cognito-lambda-role",
             assume_role_policy=json.dumps(lambda_role_policy),
-            managed_policy_arns=[managed_policy_arn],
+            managed_policy_arns=[lambda_managed_policy_arn],
             force_detach_policies=False,
             max_session_duration=3600,
             path="/service-role/",
@@ -4720,6 +4684,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         integration_token_args = common_values.get("integration_token_properties", None)
         integration_auth_args = common_values.get("integration_auth_properties", None)
         waf_acl_args = common_values.get("waf_acl_properties", None)
+        lb_target_group_args = common_values.get("lb_target_group_properties", None)
+        lb_args = common_values.get("lb_properties", None)
 
         # USER POOL
         cognito_user_pool_resource = aws_cognito_user_pool(
@@ -4727,10 +4693,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             name=f"ocm-{identifier}-pool",
             lambda_config={
                 "pre_sign_up": f"${{{cognito_pre_signup_lambda_resource.arn}}}"
-            },
-            sms_configuration={
-                "external_id": common_values.get("sms_role_ext_id"),
-                "sns_caller_arn": f"${{{sms_iam_role_resource.arn}}}",
             },
             **pool_args,
         )
@@ -4796,6 +4758,22 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             "userpool_service_resource_server",
             user_pool_id=f"${{{cognito_user_pool_resource.id}}}",
             scope=[
+                {
+                    "scope_name": "AppSRE",
+                    "scope_description": "AppSRE",
+                },
+                {
+                    "scope_name": "SREPAutomation",
+                    "scope_description": "SREPAutomation",
+                },
+                {
+                    "scope_name": "SREPDeveloper",
+                    "scope_description": "SREPDeveloper",
+                },
+                {
+                    "scope_name": "SREPLead",
+                    "scope_description": "SREPLead",
+                },
                 {
                     "scope_name": "AccountManagement",
                     "scope_description": "AMS service account",
@@ -4887,9 +4865,70 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         # USER POOL COMPLETE
 
+        # rosa-authenticator-vpce provider OR pre-created vpce resources are required for this
+        # section to reconcile properly
+
+        # LB TARGET GROUP
+        aws_lb_target_group_resource = aws_lb_target_group(
+            "vpce_target_group",
+            name=f"ocm-{identifier}-api-gateway-vpce-tg",
+            vpc_id=vpc_id,
+            **lb_target_group_args,
+        )
+        tf_resources.append(aws_lb_target_group_resource)
+
+        # LB TARGET GROUP ATTACHMENT
+        for idx, niid in enumerate(network_interface_ids):
+            current_network_interface = data.aws_network_interface(
+                f"cni-{idx}", id=niid
+            )
+            aws_lb_target_group_attachment_resource = aws_lb_target_group_attachment(
+                f"vpce_attachment_{idx}",
+                target_group_arn=f"${{{aws_lb_target_group_resource.arn}}}",
+                target_id=f"${{{current_network_interface.endpoint.private_ip}}}",
+                port=443,
+            )
+            tf_resources.append(aws_lb_target_group_attachment_resource)
+
+        # LOAD BALANCER
+        aws_lb_resource = aws_lb(
+            "api_gw",
+            name=f"ocm-{identifier}-api-gateway-nlb",
+            subnets=subnet_ids,
+            **lb_args,
+        )
+        tf_resources.append(aws_lb_resource)
+
+        # NLB LISTENER
+        aws_lb_listener_resource = aws_lb_listener(
+            "nlb_listener",
+            load_balancer_arn=f"${{{aws_lb_resource.arn}}}",
+            port="443",
+            protocol="TLS",
+            certificate_arn=certificate_arn,
+            ssl_policy="ELBSecurityPolicy-TLS13-1-2-2021-06",
+            default_action={
+                "type": "forward",
+                "target_group_arn": f"${{{aws_lb_target_group_resource.arn}}}",
+            },
+        )
+        tf_resources.append(aws_lb_listener_resource)
+
+        # API GATEWAY VPC LINK
+        api_gateway_vpc_link_resource = aws_api_gateway_vpc_link(
+            "vpc_link",
+            name=f"{identifier}-vpc-link",
+            target_arns=[openshift_ingress_load_balancer_arn]
+            # future: use data source to get vpc arn by annotation
+        )
+        tf_resources.append(api_gateway_vpc_link_resource)
+
         # API GATEWAY
         api_gateway_rest_api_resource = aws_api_gateway_rest_api(
-            "gw_api", name=f"ocm-{identifier}-rest-api", **rest_api_args
+            "gw_api",
+            name=f"ocm-{identifier}-rest-api",
+            endpoint_configuration={"types": ["PRIVATE"], "vpc_endpoint_ids": [vpc_id]},
+            **rest_api_args,
         )
         tf_resources.append(api_gateway_rest_api_resource)
 
@@ -4992,14 +5031,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             **gateway_method_auth_get_response_args,
         )
         tf_resources.append(api_gateway_method_auth_get_response_resource)
-
-        api_gateway_vpc_link_resource = aws_api_gateway_vpc_link(
-            "vpc_link",
-            name=f"{identifier}-vpc-link",
-            target_arns=[common_values.get("vpc_arn")]
-            # future: use data source to get vpc arn by annotation
-        )
-        tf_resources.append(api_gateway_vpc_link_resource)
 
         # PROXY
         api_gateway_integration_proxy_resource = aws_api_gateway_integration(
@@ -5108,11 +5139,38 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             deployment_id="${aws_api_gateway_deployment.gw_deployment.id}",
             rest_api_id="${aws_api_gateway_rest_api.gw_api.id}",
             stage_name="api",
+            cache_cluster_size="0.5",
         )
         tf_resources.append(api_gateway_stage_resource)
 
-        certificate_arn = common_values.get("certificate_arn")
-        domain_name = common_values.get("domain_name")
+        rest_api_policy = json.dumps(
+            {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Effect": "Allow",
+                        "Principal": "*",
+                        "Action": "execute-api:Invoke",
+                        "Resource": "${aws_api_gateway_rest_api.gw_api.execution_arn}/*",
+                    },
+                    {
+                        "Effect": "Deny",
+                        "Principal": "*",
+                        "Action": "execute-api:Invoke",
+                        "Resource": "${aws_api_gateway_rest_api.gw_api.execution_arn}/*",
+                        "Condition": {"StringNotEquals": {"aws:SourceVpce": vpc_id}},
+                    },
+                ],
+            }
+        )
+
+        # REST API POLICY
+        api_gateway_rest_api_policy_resource = aws_api_gateway_rest_api_policy(
+            "gw_api_policy",
+            rest_api_id=f"${{{api_gateway_rest_api_resource.id}}}",
+            policy=rest_api_policy,
+        )
+        tf_resources.append(api_gateway_rest_api_policy_resource)
 
         # DOMAIN NAME
         api_gateway_domain_name_resource = aws_api_gateway_domain_name(
