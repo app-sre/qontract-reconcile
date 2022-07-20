@@ -4549,12 +4549,12 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         self.init_common_outputs(tf_resources, spec)
 
         # Prepare consts
+        region = common_values.get("region") or self.default_regions.get(account)
         bucket_name = common_values.get("cognito_callback_bucket_name")
         bucket_url = f"https://{bucket_name}.s3.{region}.amazonaws.com"
         lambda_managed_policy_arn = (
             "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
         )
-        region = common_values.get("region") or self.default_regions.get(account)
         if region in ("us-gov-west-1", "us-gov-east-1"):
             lambda_managed_policy_arn = "arn:aws-us-gov:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
         vpc_id = common_values.get("vpc_id")
