@@ -121,7 +121,6 @@ from terrascript.resource import (
     aws_api_gateway_integration_response,
     aws_wafv2_web_acl,
     aws_wafv2_web_acl_association,
-    aws_api_gateway_rest_api_policy,
     aws_vpc_endpoint,
     aws_vpc_endpoint_subnet_association,
     random_id,
@@ -256,6 +255,12 @@ class time_sleep(Resource):
 # temporary until we upgrade to a terrascript release
 # that supports this resource
 class aws_cognito_user_pool_ui_customization(Resource):
+    pass
+
+
+# temporary until we upgrade to a terrascript release
+# that supports this resource
+class aws_api_gateway_rest_api_policy(Resource):
     pass
 
 
