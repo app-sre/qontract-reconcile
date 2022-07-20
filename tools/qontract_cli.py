@@ -21,6 +21,7 @@ from reconcile.checkpoint import report_invalid_metadata
 from reconcile.cli import config_file
 from reconcile.slack_base import slackapi_from_queries
 from reconcile.utils import amtool
+from reconcile.utils import promtool
 from reconcile.utils import config, dnsutils, gql
 from reconcile.utils.external_resources import (
     PROVIDER_AWS,
@@ -39,6 +40,7 @@ from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.semver_helper import parse_semver
 from reconcile.utils.state import State
 from reconcile.utils.terraform_client import TerraformClient as Terraform
+from reconcile.prometheus_rules_tester import get_rule_files_from_jinja_test_template
 from tabulate import tabulate
 
 from tools.sre_checkpoints import full_name, get_latest_sre_checkpoints
@@ -1339,6 +1341,106 @@ def template(ctx, cluster, namespace, kind, name):
             continue
         print_output({"output": "yaml", "sort": False}, openshift_resource.body)
         break
+
+
+@root.command()
+@click.argument("path")
+@click.argument("cluster")
+@click.option(
+    "-n",
+    "--namespace",
+    default="openshift-customer-monitoring",
+    help="Cluster namespace where the rules are deployed. It defaults to "
+    "openshift-customer-monitoring.",
+)
+@click.option(
+    "-s",
+    "--secret-reader",
+    default="vault",
+    help="Location to read secrets.",
+    type=click.Choice(["config", "vault"]),
+)
+@click.pass_context
+def run_prometheus_test(ctx, path, cluster, namespace, secret_reader):
+    """Run prometheus tests in PATH loading associated rules from CLUSTER."""
+    gqlapi = gql.get_api()
+
+    if path.startswith("resources"):
+        path = path.replace("resources", "", 1)
+
+    try:
+        resource = gqlapi.get_resource(path)
+    except gql.GqlGetResourceError as e:
+        print(f"Error in provided PATH: {e}.")
+        sys.exit(1)
+
+    test = resource["content"]
+    rule_files = get_rule_files_from_jinja_test_template(test)
+    if not rule_files:
+        print(f"Cannot parse test in {path}.")
+        sys.exit(1)
+
+    if len(rule_files) > 1:
+        print("Only 1 rule file per test")
+        sys.exit(1)
+
+    rule_file_path = rule_files[0]
+
+    namespace_info = [
+        n
+        for n in gqlapi.query(orb.NAMESPACES_QUERY)["namespaces"]
+        if n["cluster"]["name"] == cluster and n["name"] == namespace
+    ]
+    if len(namespace_info) != 1:
+        print(f"{cluster}/{namespace} does not exist.")
+        sys.exit(1)
+
+    settings = queries.get_app_interface_settings()
+    settings["vault"] = secret_reader == "vault"
+
+    ni = namespace_info[0]
+    ob.aggregate_shared_resources(ni, "openshiftResources")
+    openshift_resources = ni.get("openshiftResources")
+    rule_spec = {}
+    for r in openshift_resources:
+        if r["path"] != rule_file_path:
+            continue
+
+        if "add_path_to_prom_rules" not in r:
+            r["add_path_to_prom_rules"] = False
+
+        openshift_resource = orb.fetch_openshift_resource(r, ni, settings)
+        if openshift_resource.kind.lower() != "prometheusrule":
+            print(f"Object in {rule_file_path} is not a PrometheusRule.")
+            sys.exit(1)
+
+        rule_spec = openshift_resource.body["spec"]
+        variables = json.loads(r.get("variables") or "{}")
+        variables["resource"] = r
+        break
+
+    if not rule_spec:
+        print(
+            f"Rules file referenced in {path} does not exist in namespace "
+            f"{namespace} from cluster {cluster}."
+        )
+        sys.exit(1)
+
+    test_yaml_spec = yaml.safe_load(
+        orb.process_extracurlyjinja2_template(
+            body=test, vars=variables, settings=settings
+        )
+    )
+    test_yaml_spec.pop("$schema")
+
+    result = promtool.run_test(
+        test_yaml_spec=test_yaml_spec, rule_files={rule_file_path: rule_spec}
+    )
+
+    print(result.message, end="")
+
+    if not result:
+        sys.exit(1)
 
 
 @root.command()
