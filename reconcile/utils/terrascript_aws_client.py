@@ -5206,6 +5206,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         # VPC ENDPOINT
         aws_vpc_endpoint_resource = aws_vpc_endpoint(
             "api_gw",
+            vpc_id=vpc_id,
             security_group_ids=[f"${{{aws_security_group_resource.id}}}"],
             tags={"Name": f"ocm-{identifier}-api-gateway-vpc-endpoint"},
             **vpc_endpoint_args,
