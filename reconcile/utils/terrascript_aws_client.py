@@ -5167,7 +5167,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         )
 
         # REST API POLICY
-        api_gateway_rest_api_policy_resource = api_gateway_rest_api_policy(
+        api_gateway_rest_api_policy_resource = aws_api_gateway_rest_api_policy(
             "gw_api_policy",
             rest_api_id=f"${{{api_gateway_rest_api_resource.id}}}",
             policy=rest_api_policy,
