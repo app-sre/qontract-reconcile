@@ -973,12 +973,16 @@ class OCNative(OCDeprecated):
         # functionality outside of this class would allow an exception to be
         # thrown here instead to avoid AttributeErrors when accessing
         # methods that rely on client/api_kind_version to be set.
-        if server:
-            self.client = self._get_client(server, token)
-            self.api_kind_version = self.get_api_resources()
-        else:
-            init_api_resources = False
-            init_projects = False
+
+        if not server:
+            raise NotFoundError("Server cannot be found")
+
+        # if server:
+        #     self.client = self._get_client(server, token)
+        #     self.api_kind_version = self.get_api_resources()
+        # else:
+        #     init_api_resources = False
+        #     init_projects = False
 
         self.object_clients = {}
         self.init_projects = init_projects
