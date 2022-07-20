@@ -25,7 +25,4 @@ def run(dry_run):
                 continue
             dst_account = share["account"]
 
-            print(share)
-            print(dst_account)
             current_cmks = aws_api.get_cmks_details(src_account)
-            print(current_cmks)

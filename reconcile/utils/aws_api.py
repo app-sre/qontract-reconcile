@@ -41,7 +41,7 @@ if TYPE_CHECKING:
     from mypy_boto3_rds import RDSClient
     from mypy_boto3_rds.type_defs import DBInstanceMessageTypeDef
     from mypy_boto3_kms import KMSClient
-    from mypy_boto3_kms.type_defs import KeyListEntryTypeDef
+    from mypy_boto3_kms.type_defs import KeyListEntryTypeDef, KeyMetadataTypeDef
 else:
     EC2Client = (
         EC2ServiceResource
@@ -77,6 +77,8 @@ else:
         KMSClient
     ) = (
         KeyListEntryTypeDef
+    ) = (
+        KeyMetadataTypeDef
     ) = HostedZoneTypeDef = RDSClient = DBInstanceMessageTypeDef = object
 
 
@@ -836,6 +838,13 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         cmks = kms.list_keys()
         return cmks.get("Keys", [])
 
+    @staticmethod
+    # pylint: disable=method-hidden
+    def describe_cmk(
+        kms: KMSClient, key: KeyListEntryTypeDef
+    ) -> KeyMetadataTypeDef:
+        return kms.describe_key(KeyId=key["KeyId"])["KeyMetadata"]
+
     # filters a list of aws resources according to tags
     @staticmethod
     def filter_on_tags(
@@ -983,10 +992,19 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         self,
         account: Mapping[str, Any],
         region: Optional[str] = None,
-    ) -> List[KeyListEntryTypeDef]:
+    ) -> List[Dict[str, Any]]:
         kms = self._account_kms_client(account["name"], region_name=region)
         cmks = self.get_account_cmks(kms)
-        return cmks
+        results = []
+        for cmk in cmks:
+            print(cmk)
+            metadata = self.describe_cmk(kms, cmk)
+            if metadata["KeyManager"] != "CUSTOMER":
+                continue
+            print(metadata)
+            item = {"key_id": cmk["KeyId"], "metadata": metadata}
+            results.append(item)
+        return results
 
     def create_tag(
         self, account: Mapping[str, Any], resource_id: str, tag: Mapping[str, str]
