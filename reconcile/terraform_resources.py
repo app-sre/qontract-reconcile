@@ -322,6 +322,15 @@ provider
   annotations
   defaults
 }
+... on NamespaceTerraformResourceRosaAuthenticatorVPCE_V1 {
+  region
+  identifier
+  subnet_ids,
+  vpc_id,
+  output_resource_name
+  annotations
+  defaults
+}
 """
 
 
