@@ -343,8 +343,8 @@ def run(
         saas_file_target_path = diff["target_path"]
         if saas_file_target_path:
             changed_path_matches = [
-            c for c in changed_paths_copy if c.endswith(saas_file_target_path)
-        ]
+                c for c in changed_paths_copy if c.endswith(saas_file_target_path)
+            ]
         if not changed_path_matches:
             # this diff was found in the graphql endpoint comparison
             # but is not a part of the changed paths.
