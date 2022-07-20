@@ -4871,7 +4871,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         # LB TARGET GROUP
         aws_lb_target_group_resource = aws_lb_target_group(
             "vpce_target_group",
-            name=f"ocm-{identifier}-api-gateway-vpce-tg",
+            name=f"{identifier}-vpce-tg",
             vpc_id=vpc_id,
             **lb_target_group_args,
         )
@@ -4882,6 +4882,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             current_network_interface = data.aws_network_interface(
                 f"cni-{idx}", id=niid
             )
+            tf_resources.append(current_network_interface)
             aws_lb_target_group_attachment_resource = aws_lb_target_group_attachment(
                 f"vpce_attachment_{idx}",
                 target_group_arn=f"${{{aws_lb_target_group_resource.arn}}}",
@@ -4893,7 +4894,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         # LOAD BALANCER
         aws_lb_resource = aws_lb(
             "api_gw",
-            name=f"ocm-{identifier}-api-gateway-nlb",
+            name=f"{identifier}-nlb",
             subnets=subnet_ids,
             **lb_args,
         )
@@ -4926,7 +4927,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         # API GATEWAY
         api_gateway_rest_api_resource = aws_api_gateway_rest_api(
             "gw_api",
-            name=f"ocm-{identifier}-rest-api",
+            name=f"{identifier}-rest-api",
             endpoint_configuration={"types": ["PRIVATE"], "vpc_endpoint_ids": [vpc_id]},
             **rest_api_args,
         )
@@ -4962,7 +4963,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         # AUTHORIZER
         api_gateway_authorizer_resource = aws_api_gateway_authorizer(
             "gw_authorizer",
-            name=f"ocm-{identifier}-authorizer",
+            name=f"{identifier}-authorizer",
             rest_api_id="${aws_api_gateway_rest_api.gw_api.id}",
             provider_arns=["${aws_cognito_user_pool.pool.arn}"],
             **gateway_authorizer_args,
@@ -5204,7 +5205,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         # WAF
         waf_acl_resource = aws_wafv2_web_acl(
-            "api_waf", name=f"ocm-{identifier}-waf", **waf_acl_args
+            "api_waf", name=f"{identifier}-waf", **waf_acl_args
         )
         tf_resources.append(waf_acl_resource)
 
@@ -5235,7 +5236,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         # SG
         aws_security_group_resource = aws_security_group(
             "api_gw_vpce",
-            name=f"ocm-{identifier}-api-gateway-vpce-sg",
+            name=f"{identifier}-vpce-sg",
             description="Control access to the API Gateway VPC endpoint",
             vpc_id=vpc_id,
             tags={"Name": f"ocm-{identifier}-api-gateway-vpce-sg"},
@@ -5266,7 +5267,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             "api_gw",
             vpc_id=vpc_id,
             security_group_ids=[f"${{{aws_security_group_resource.id}}}"],
-            tags={"Name": f"ocm-{identifier}-api-gateway-vpc-endpoint"},
+            tags={"Name": f"{identifier}-vpce"},
             **vpc_endpoint_args,
         )
         tf_resources.append(aws_vpc_endpoint_resource)
