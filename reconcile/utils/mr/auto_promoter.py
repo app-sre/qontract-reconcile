@@ -89,7 +89,9 @@ class AutoPromoter(MergeRequestBase):
 
     @staticmethod
     def process_target(
-        target: MutableMapping[str, Any], promotion_item: Mapping[str, Any], commit_sha: str
+        target: MutableMapping[str, Any],
+        promotion_item: Mapping[str, Any],
+        commit_sha: str,
     ) -> bool:
         target_updated = False
         target_promotion = target.get("promotion")
