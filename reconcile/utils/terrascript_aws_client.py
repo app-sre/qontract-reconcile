@@ -204,7 +204,7 @@ VARIABLE_KEYS = [
     "vpc_id",
     "subnet_ids",
     "network_interface_ids",
-    "vpce_id"
+    "vpce_id",
 ]
 
 TMP_DIR_PREFIX = "terrascript-aws-"
@@ -4930,7 +4930,10 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         api_gateway_rest_api_resource = aws_api_gateway_rest_api(
             "gw_api",
             name=f"{identifier}-rest-api",
-            endpoint_configuration={"types": ["PRIVATE"], "vpc_endpoint_ids": [vpce_id]},
+            endpoint_configuration={
+                "types": ["PRIVATE"],
+                "vpc_endpoint_ids": [vpce_id],
+            },
             **rest_api_args,
         )
         tf_resources.append(api_gateway_rest_api_resource)
