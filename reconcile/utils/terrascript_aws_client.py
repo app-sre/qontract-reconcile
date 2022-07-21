@@ -4886,7 +4886,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             aws_lb_target_group_attachment_resource = aws_lb_target_group_attachment(
                 f"vpce_attachment_{idx}",
                 target_group_arn=f"${{{aws_lb_target_group_resource.arn}}}",
-                target_id=f"${{{current_network_interface.endpoint.private_ip}}}",
+                target_id=f"${{{current_network_interface.private_ip}}}",
                 port=443,
             )
             tf_resources.append(aws_lb_target_group_attachment_resource)
