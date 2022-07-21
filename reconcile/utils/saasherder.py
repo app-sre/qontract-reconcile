@@ -7,7 +7,7 @@ import itertools
 import hashlib
 import re
 from collections import ChainMap
-from typing import Iterable, Mapping, Any, MutableMapping, Tuple, cast
+from typing import Dict, Iterable, Mapping, Any, MutableMapping, Set, Tuple, cast
 
 from contextlib import suppress
 import yaml
@@ -1615,7 +1615,9 @@ class SaasHerder:
             mr.submit(cli=mr_cli)
 
     @staticmethod
-    def _get_subscribe_saas_file_path_map(saas_files, auto_only=False):
+    def _get_subscribe_path_map(
+        saas_files: Iterable[Mapping[str, Any]], auto_only: bool = False
+    ) -> Dict[str, Set[str]]:
         """
         Returns a dict with subscribe channels as keys and a
         list of paths of saas files containing these channels.
