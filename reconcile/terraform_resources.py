@@ -321,6 +321,7 @@ provider
   annotations
   vpc_id
   subnet_ids
+  vpce_id
   defaults
 }
 ... on NamespaceTerraformResourceRosaAuthenticatorVPCE_V1 {
