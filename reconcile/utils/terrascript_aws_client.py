@@ -1834,7 +1834,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         # iam user policy for bucket
         values = {}
-        values["user"] = identifier
         values["name"] = identifier
 
         action = ["s3:*Object"]
@@ -1863,8 +1862,16 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         }
         values["policy"] = json.dumps(policy, sort_keys=True)
         values["depends_on"] = self.get_dependencies([user_tf_resource])
-        tf_resource = aws_iam_user_policy(identifier, **values)
-        tf_resources.append(tf_resource)
+        tf_aws_iam_policy = aws_iam_policy(identifier, **values)
+        tf_resources.append(tf_aws_iam_policy)
+
+        tf_user_policy_attachment = aws_iam_user_policy_attachment(
+            identifier,
+            user=identifier,
+            policy_arn=f"{{{tf_aws_iam_policy.arn}}}",
+            depends_on=self.get_dependencies([user_tf_resource, tf_aws_iam_policy]),
+        )
+        tf_resources.append(tf_user_policy_attachment)
 
         self.add_resources(account, tf_resources)
 
