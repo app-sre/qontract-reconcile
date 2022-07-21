@@ -1,5 +1,8 @@
 import os
+import threading
+from queue import Queue
 
+from UnleashClient import UnleashClient
 from UnleashClient.features import Feature
 from UnleashClient.strategies import Strategy
 
@@ -98,3 +101,23 @@ def test_get_feature_toggle_strategies(mocker):
     assert strategies is not None and len(strategies) == 0
 
     assert get_feature_toggle_strategies("rab") is None
+
+
+def test__get_unleash_api_client_threaded(mocker):
+    q: Queue[UnleashClient] = Queue()
+    mocker.patch("UnleashClient.UnleashClient.initialize_client")
+
+    def threaded():
+        q.put(_get_unleash_api_client("https://u/api", "foo"))
+
+    for _ in range(0, 2):
+        t = threading.Thread(target=threaded)
+        t.start()
+        t.join()
+
+    assert q.qsize() == 2
+    a = q.get()
+    b = q.get()
+    assert a != b
+    assert isinstance(a, UnleashClient)
+    assert isinstance(b, UnleashClient)

@@ -36,6 +36,7 @@ class CacheDict(BaseCache):
 def _get_unleash_api_client(
     api_url: str, auth_head: str, local=client_local
 ) -> UnleashClient:
+    # Setting the local parameter is intended for running this in tests only!
     if getattr(local, "client", None) is None:
         headers = {"Authorization": f"Bearer {auth_head}"}
         c = UnleashClient(
