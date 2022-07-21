@@ -1842,6 +1842,7 @@ SAAS_FILES_QUERY_V2 = """
         }
       }
       targets {
+        path
         namespace {
           name
           environment {
