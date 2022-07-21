@@ -87,8 +87,8 @@ class AutoPromoter(MergeRequestBase):
 
             return modified
 
-    @staticmethod
     def process_target(
+        self,
         target: MutableMapping[str, Any],
         promotion_item: Mapping[str, Any],
         commit_sha: str,
@@ -112,7 +112,7 @@ class AutoPromoter(MergeRequestBase):
                 target_updated = True
 
             # Update Promotion data
-            modified = AutoPromoter.process_promotion(
+            modified = self.process_promotion(
                 promotion_item, target_promotion, channels
             )
 
@@ -149,7 +149,7 @@ class AutoPromoter(MergeRequestBase):
 
                 for rt in content["resourceTemplates"]:
                     for target in rt["targets"]:
-                        if AutoPromoter.process_target(target, item, commit_sha):
+                        if self.process_target(target, item, commit_sha):
                             saas_file_updated = True
 
                 if saas_file_updated:
@@ -181,7 +181,7 @@ class AutoPromoter(MergeRequestBase):
                     logging.error(e)
 
                 content = yaml.load(raw_file.decode(), Loader=yaml.RoundTripLoader)
-                if AutoPromoter.process_target(content, item, commit_sha):
+                if self.process_target(content, item, commit_sha):
                     new_content = "---\n"
                     new_content += yaml.dump(content, Dumper=yaml.RoundTripDumper)
                     msg = f"auto promote {commit_sha} in {target_path}"
