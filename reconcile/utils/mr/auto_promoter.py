@@ -89,8 +89,9 @@ class AutoPromoter(MergeRequestBase):
 
     def process(self, gitlab_cli):
         for item in self.promotions:
-            saas_file_paths = item.get("saas_file_paths")
-            if not saas_file_paths:
+            saas_file_paths = item.get("saas_file_paths") or []
+            target_paths = item.get("target_paths") or []
+            if not (saas_file_paths or target_paths):
                 continue
             publish = item.get("publish")
             if not publish:
@@ -146,6 +147,61 @@ class AutoPromoter(MergeRequestBase):
                     gitlab_cli.update_file(
                         branch_name=self.branch,
                         file_path=saas_file_path,
+                        commit_message=msg,
+                        content=new_content,
+                    )
+                else:
+                    LOG.info(
+                        f"commit sha {commit_sha} has already been "
+                        f"promoted to all targets in {content['name']} "
+                        f"subscribing to {','.join(item['publish'])}"
+                    )
+
+            for target_path in target_paths:
+                target_updated = False
+                try:
+                    # This will only work with gitlab cli, not with SQS
+                    # this method is only triggered by gitlab_sqs_consumer
+                    # not by openshift_saas_deploy
+                    raw_file = gitlab_cli.project.files.get(
+                        file_path=target_path, ref=self.branch
+                    )
+                except Exception as e:
+                    logging.error(e)
+
+                content = yaml.load(raw_file.decode(), Loader=yaml.RoundTripLoader)
+                target_promotion = content.get("promotion")
+                if not target_promotion:
+                    continue
+                target_auto = target_promotion.get("auto")
+                if not target_auto:
+                    continue
+                subscribe = target_promotion.get("subscribe")
+                if not subscribe:
+                    continue
+
+                channels = [c for c in subscribe if c in publish]
+                if len(channels) > 0:
+                    # Update REF on target if differs.
+                    if target["ref"] != commit_sha:
+                        target["ref"] = commit_sha
+                        target_updated = True
+
+                    # Update Promotion data
+                    modified = AutoPromoter.process_promotion(
+                        item, target_promotion, channels
+                    )
+
+                    if modified:
+                        target_updated = True
+
+                if target_updated:
+                    new_content = "---\n"
+                    new_content += yaml.dump(content, Dumper=yaml.RoundTripDumper)
+                    msg = f"auto promote {commit_sha} in {target_path}"
+                    gitlab_cli.update_file(
+                        branch_name=self.branch,
+                        file_path=target_path,
                         commit_message=msg,
                         content=new_content,
                     )
