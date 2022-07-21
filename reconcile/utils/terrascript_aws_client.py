@@ -5145,6 +5145,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             rest_api_id="${aws_api_gateway_rest_api.gw_api.id}",
             stage_name="api",
             cache_cluster_size="0.5",
+            cache_cluster_enabled=False
         )
         tf_resources.append(api_gateway_stage_resource)
 
