@@ -1,7 +1,7 @@
 import logging
 import json
 import hashlib
-from typing import Any, Dict, Mapping
+from typing import Any, Dict, Mapping, MutableMapping
 from dataclasses import dataclass
 from dataclasses import asdict
 from ruamel import yaml
@@ -87,6 +87,38 @@ class AutoPromoter(MergeRequestBase):
 
             return modified
 
+    @staticmethod
+    def process_target(
+        target: MutableMapping[str, Any], promotion_item: Mapping[str, Any], commit_sha: str
+    ) -> bool:
+        target_updated = False
+        target_promotion = target.get("promotion")
+        if not target_promotion:
+            return target_updated
+        target_auto = target_promotion.get("auto")
+        if not target_auto:
+            return target_updated
+        subscribe = target_promotion.get("subscribe")
+        if not subscribe:
+            return target_updated
+
+        channels = [c for c in subscribe if c in promotion_item["publish"]]
+        if len(channels) > 0:
+            # Update REF on target if differs.
+            if target["ref"] != commit_sha:
+                target["ref"] = commit_sha
+                target_updated = True
+
+            # Update Promotion data
+            modified = AutoPromoter.process_promotion(
+                promotion_item, target_promotion, channels
+            )
+
+            if modified:
+                target_updated = True
+
+        return target_updated
+
     def process(self, gitlab_cli):
         for item in self.promotions:
             saas_file_paths = item.get("saas_file_paths") or []
@@ -115,30 +147,8 @@ class AutoPromoter(MergeRequestBase):
 
                 for rt in content["resourceTemplates"]:
                     for target in rt["targets"]:
-                        target_promotion = target.get("promotion")
-                        if not target_promotion:
-                            continue
-                        target_auto = target_promotion.get("auto")
-                        if not target_auto:
-                            continue
-                        subscribe = target_promotion.get("subscribe")
-                        if not subscribe:
-                            continue
-
-                        channels = [c for c in subscribe if c in publish]
-                        if len(channels) > 0:
-                            # Update REF on target if differs.
-                            if target["ref"] != commit_sha:
-                                target["ref"] = commit_sha
-                                saas_file_updated = True
-
-                            # Update Promotion data
-                            modified = AutoPromoter.process_promotion(
-                                item, target_promotion, channels
-                            )
-
-                            if modified:
-                                saas_file_updated = True
+                        if AutoPromoter.process_target(target, item, commit_sha):
+                            saas_file_updated = True
 
                 if saas_file_updated:
                     new_content = "---\n"
@@ -158,7 +168,6 @@ class AutoPromoter(MergeRequestBase):
                     )
 
             for target_path in target_paths:
-                target_updated = False
                 try:
                     # This will only work with gitlab cli, not with SQS
                     # this method is only triggered by gitlab_sqs_consumer
@@ -170,32 +179,7 @@ class AutoPromoter(MergeRequestBase):
                     logging.error(e)
 
                 content = yaml.load(raw_file.decode(), Loader=yaml.RoundTripLoader)
-                target_promotion = content.get("promotion")
-                if not target_promotion:
-                    continue
-                target_auto = target_promotion.get("auto")
-                if not target_auto:
-                    continue
-                subscribe = target_promotion.get("subscribe")
-                if not subscribe:
-                    continue
-
-                channels = [c for c in subscribe if c in publish]
-                if len(channels) > 0:
-                    # Update REF on target if differs.
-                    if target["ref"] != commit_sha:
-                        target["ref"] = commit_sha
-                        target_updated = True
-
-                    # Update Promotion data
-                    modified = AutoPromoter.process_promotion(
-                        item, target_promotion, channels
-                    )
-
-                    if modified:
-                        target_updated = True
-
-                if target_updated:
+                if AutoPromoter.process_target(content, item, commit_sha):
                     new_content = "---\n"
                     new_content += yaml.dump(content, Dumper=yaml.RoundTripDumper)
                     msg = f"auto promote {commit_sha} in {target_path}"
