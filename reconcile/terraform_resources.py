@@ -319,6 +319,8 @@ provider
   openshift_ingress_load_balancer_arn
   output_resource_name
   annotations
+  vpc_id
+  subnet_ids
   defaults
 }
 ... on NamespaceTerraformResourceRosaAuthenticatorVPCE_V1 {
