@@ -5221,20 +5221,19 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         )
         tf_resources.append(waf_acl_association_resource)
 
-        cloudwatch_assume_role_policy = json.dumps(
-            {
-                "Version": "2012-10-17",
-                "Statement": [
-                    {
-                        "Effect": "Allow",
-                        "Action": "sts:AssumeRole",
-                        "Principal": {
-                            "Service": "apigateway.amazonaws.com",
-                        },
+        policy = {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Action": "sts:AssumeRole",
+                    "Principal": {
+                        "Service": "apigateway.amazonaws.com",
                     },
-                ],
-            }
-        )
+                },
+            ],
+        }
+        cloudwatch_assume_role_policy = json.dumps(policy, sort_keys=True)
 
         cloudwatch_iam_role_resource = aws_iam_role(
             "cloudwatch_assume_role",
@@ -5243,26 +5242,26 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         )
         tf_resources.append(cloudwatch_iam_role_resource)
 
-        cloudwatch_iam_policy_document = json.dumps(
-            {
-                "Version": "2012-10-17",
-                "Statement": [
-                    {
-                        "Effect": "Allow",
-                        "Action": [
-                            "logs:CreateLogGroup",
-                            "logs:CreateLogStream",
-                            "logs:DescribeLogGroups",
-                            "logs:DescribeLogStreams",
-                            "logs:PutLogEvents",
-                            "logs:GetLogEvents",
-                            "logs:FilterLogEvents",
-                        ],
-                        "Resource": ["*"],
-                    }
-                ],
-            }
-        )
+        policy = {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Action": [
+                        "logs:CreateLogGroup",
+                        "logs:CreateLogStream",
+                        "logs:DescribeLogGroups",
+                        "logs:DescribeLogStreams",
+                        "logs:PutLogEvents",
+                        "logs:GetLogEvents",
+                        "logs:FilterLogEvents",
+                    ],
+                    "Resource": ["*"],
+                }
+            ],
+        }
+
+        cloudwatch_iam_policy_document = json.dumps(policy, sort_keys=True)
 
         cloudwatch_iam_policy_resource = aws_iam_policy(
             "cloudwatch",
