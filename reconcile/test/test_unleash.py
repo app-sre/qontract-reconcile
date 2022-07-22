@@ -1,11 +1,8 @@
 import os
-import threading
-from queue import Queue
-
-from UnleashClient import UnleashClient
 from UnleashClient.features import Feature
 from UnleashClient.strategies import Strategy
 
+import reconcile.utils.unleash
 from reconcile.utils.unleash import (
     _get_unleash_api_client,
     get_feature_toggle_default,
@@ -15,26 +12,22 @@ from reconcile.utils.unleash import (
 )
 
 
-class Local:
-    client: None
-
-
 def test__get_unleash_api_client(mocker):
     a = mocker.patch("UnleashClient.UnleashClient.initialize_client")
-    c = _get_unleash_api_client("https://u/api", "foo", local=Local)
+    c = _get_unleash_api_client("https://u/api", "foo")
 
     assert a.call_count == 1
-    assert Local.client == c
+    assert reconcile.utils.unleash.client == c
 
 
 def test__get_unleash_api_client_skip_create(mocker):
     u = mocker.patch("UnleashClient.UnleashClient")
-    Local.client = u
+    reconcile.utils.unleash.client = u
     a = mocker.patch("UnleashClient.UnleashClient.initialize_client")
-    c = _get_unleash_api_client("https://u/api", "foo", local=Local)
+    c = _get_unleash_api_client("https://u/api", "foo")
 
     assert a.call_count == 0
-    assert Local.client == c == u
+    assert reconcile.utils.unleash.client == c == u
 
 
 def test_get_feature_toggle_default():
@@ -45,7 +38,7 @@ def test_get_feature_toggle_state_env_missing():
     assert get_feature_toggle_state("foo")
 
 
-def test_get_feature_toggle_state(mocker):
+def test_get_feature_toggle_state(mocker, monkeypatch):
     def enabled_func(feature, fallback_function):
         return feature == "enabled"
 
@@ -55,22 +48,28 @@ def test_get_feature_toggle_state(mocker):
     defaultfunc = mocker.patch(
         "reconcile.utils.unleash.get_feature_toggle_default", return_value=True
     )
-    mocker.patch("UnleashClient.UnleashClient.initialize_client")
-    mocker.patch("UnleashClient.UnleashClient.is_enabled", side_effect=enabled_func)
+    monkeypatch.setattr(
+        "reconcile.utils.unleash.client",
+        mocker.patch("UnleashClient.UnleashClient", autospec=True),
+    )
+    mocker.patch(
+        "UnleashClient.UnleashClient.is_enabled",
+        side_effect=enabled_func,
+    )
 
     assert get_feature_toggle_state("enabled")
     assert get_feature_toggle_state("disabled") is False
     assert defaultfunc.call_count == 0
 
 
-def test_get_feature_toggles(mocker):
+def test_get_feature_toggles(mocker, monkeypatch):
     c = mocker.patch("UnleashClient.UnleashClient")
     c.features = {
         "foo": Feature("foo", False, []),
         "bar": Feature("bar", True, []),
     }
 
-    mocker.patch("reconcile.utils.unleash._get_unleash_api_client", return_value=c)
+    monkeypatch.setattr("reconcile.utils.unleash.client", c)
     toggles = get_feature_toggles("api", "token")
 
     assert toggles["foo"] == "disabled"
@@ -81,7 +80,7 @@ def test_get_feature_toggle_strategies_env_missing():
     assert get_feature_toggle_strategies("foo") is None
 
 
-def test_get_feature_toggle_strategies(mocker):
+def test_get_feature_toggle_strategies(mocker, monkeypatch):
     os.environ["UNLEASH_API_URL"] = "foo"
     os.environ["UNLEASH_CLIENT_ACCESS_TOKEN"] = "bar"
 
@@ -90,8 +89,7 @@ def test_get_feature_toggle_strategies(mocker):
         "foo": Feature("foo", False, [Strategy(parameters={"foo": "bar"})]),
         "bar": Feature("bar", True, []),
     }
-
-    mocker.patch("reconcile.utils.unleash._get_unleash_api_client", return_value=c)
+    monkeypatch.setattr("reconcile.utils.unleash.client", c)
 
     strategies = get_feature_toggle_strategies("foo")
     assert strategies is not None and len(strategies) == 1
@@ -101,23 +99,3 @@ def test_get_feature_toggle_strategies(mocker):
     assert strategies is not None and len(strategies) == 0
 
     assert get_feature_toggle_strategies("rab") is None
-
-
-def test__get_unleash_api_client_threaded(mocker):
-    q: Queue[UnleashClient] = Queue()
-    mocker.patch("UnleashClient.UnleashClient.initialize_client")
-
-    def threaded():
-        q.put(_get_unleash_api_client("https://u/api", "foo"))
-
-    for _ in range(0, 2):
-        t = threading.Thread(target=threaded)
-        t.start()
-        t.join()
-
-    assert q.qsize() == 2
-    a = q.get()
-    b = q.get()
-    assert a != b
-    assert isinstance(a, UnleashClient)
-    assert isinstance(b, UnleashClient)

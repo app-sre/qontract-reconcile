@@ -8,7 +8,8 @@ from UnleashClient.strategies import Strategy
 
 from reconcile.utils.helpers import toggle_logger
 
-client_local = threading.local()
+client: Optional[UnleashClient] = None
+client_lock = threading.Lock()
 
 custom_strategies = ["perCluster", "perClusterNamespace"]
 
@@ -33,23 +34,23 @@ class CacheDict(BaseCache):
         self.cache = {}
 
 
-def _get_unleash_api_client(
-    api_url: str, auth_head: str, local=client_local
-) -> UnleashClient:
-    # Setting the local parameter is intended for running this in tests only!
-    if getattr(local, "client", None) is None:
-        headers = {"Authorization": f"Bearer {auth_head}"}
-        c = UnleashClient(
-            url=api_url,
-            app_name="qontract-reconcile",
-            custom_headers=headers,
-            cache=CacheDict(),
-            custom_strategies={name: strategies.Strategy for name in custom_strategies},
-        )
-        c.initialize_client()
-        local.client = c
+def _get_unleash_api_client(api_url: str, auth_head: str) -> UnleashClient:
+    global client
+    with client_lock:
+        if client is None:
+            headers = {"Authorization": f"Bearer {auth_head}"}
+            client = UnleashClient(
+                url=api_url,
+                app_name="qontract-reconcile",
+                custom_headers=headers,
+                cache=CacheDict(),
+                custom_strategies={
+                    name: strategies.Strategy for name in custom_strategies
+                },
+            )
+            client.initialize_client()
 
-    return local.client
+    return client
 
 
 def get_feature_toggle_default(feature_name, context):
