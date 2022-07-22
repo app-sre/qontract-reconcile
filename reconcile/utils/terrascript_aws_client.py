@@ -5248,14 +5248,14 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 "Version": "2012-10-17",
                 "Statement": {
                     "Effect": "Allow",
-                    "Actions": [
+                    "Action": [
                         "logs:CreateLogGroup",
                         "logs:CreateLogStream",
                         "logs:DescribeLogGroups",
                         "logs:DescribeLogStreams",
                         "logs:PutLogEvents",
                         "logs:GetLogEvents",
-                        "logs:FilterLogEvents"
+                        "logs:FilterLogEvents",
                     ],
                     "Resources": ["*"],
                 },
