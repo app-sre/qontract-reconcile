@@ -8,7 +8,7 @@ from collections import namedtuple
 from sretoolbox.container import Image
 from reconcile.utils.external_resources import get_external_resource_specs
 
-from reconcile.utils.oc import OC
+from reconcile.utils.oc import OCLocal
 from reconcile.utils.oc import OC_Map
 from reconcile.utils.ocm import OCMMap
 
@@ -216,7 +216,8 @@ class OcpReleaseMirror:
         # Creating a new, bare, OC client since we don't
         # want to run this against any cluster or via
         # a jump host
-        oc_cli = OC("cluster", None, None, local=True)
+        # oc_cli = OC("cluster", None, None, local=True)
+        oc_cli = OCLocal("cluster", None, local=True)
         oc_cli.release_mirror(
             from_release=ocp_release,
             to=dest_ocp_art_dev,
