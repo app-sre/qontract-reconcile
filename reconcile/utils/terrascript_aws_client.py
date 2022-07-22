@@ -5242,26 +5242,26 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         )
         tf_resources.append(cloudwatch_iam_role_resource)
 
-        cloudwatch_iam_policy_document = json.dumps(
-            {
-                "Version": "2012-10-17",
-                "Statement": [
-                    {
-                        "Effect": "Allow",
-                        "Action": [
-                            "logs:CreateLogGroup",
-                            "logs:CreateLogStream",
-                            "logs:DescribeLogGroups",
-                            "logs:DescribeLogStreams",
-                            "logs:PutLogEvents",
-                            "logs:GetLogEvents",
-                            "logs:FilterLogEvents",
-                        ],
-                        "Resource": ["*"],
-                    }
-                ],
-            }
-        )
+        policy = {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Action": [
+                        "logs:CreateLogGroup",
+                        "logs:CreateLogStream",
+                        "logs:DescribeLogGroups",
+                        "logs:DescribeLogStreams",
+                        "logs:PutLogEvents",
+                        "logs:GetLogEvents",
+                        "logs:FilterLogEvents",
+                    ],
+                    "Resource": ["*"],
+                }
+            ],
+        }
+
+        cloudwatch_iam_policy_document = json.dumps(policy, sort_keys=True)
 
         cloudwatch_iam_policy_resource = aws_iam_policy(
             "cloudwatch",
