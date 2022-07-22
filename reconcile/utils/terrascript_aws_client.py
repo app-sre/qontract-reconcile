@@ -123,6 +123,8 @@ from terrascript.resource import (
     aws_wafv2_web_acl_association,
     aws_vpc_endpoint,
     aws_vpc_endpoint_subnet_association,
+    aws_api_gateway_account,
+    aws_api_gateway_method_settings,
     random_id,
 )
 
@@ -5218,6 +5220,82 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             web_acl_arn="${aws_wafv2_web_acl.api_waf.arn}",
         )
         tf_resources.append(waf_acl_association_resource)
+
+        cloudwatch_assume_role_policy = json.dumps(
+            {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Effect": "Allow",
+                        "Action": "sts:AssumeRole",
+                        "Principal": {
+                            "Service": "apigateway.amazonaws.com",
+                        },
+                    },
+                ],
+            }
+        )
+
+        cloudwatch_iam_role_resource = aws_iam_role(
+            "cloudwatch_assume_role",
+            name=f"{identifier}-cloudwatch-role",
+            assume_role_policy=cloudwatch_assume_role_policy,
+        )
+        tf_resources.append(cloudwatch_iam_role_resource)
+
+        cloudwatch_iam_policy_document = json.dumps(
+            {
+                "Version": "2012-10-17",
+                "Statement": {
+                    "Effect": "Allow",
+                    "Actions": [
+                        "logs:CreateLogGroup",
+                        "logs:CreateLogStream",
+                        "logs:DescribeLogGroups",
+                        "logs:DescribeLogStreams",
+                        "logs:PutLogEvents",
+                        "logs:GetLogEvents",
+                        "logs:FilterLogEvents",
+                    ],
+                    "Resources": ["*"],
+                },
+            }
+        )
+
+        cloudwatch_iam_policy_resource = aws_iam_policy(
+            "cloudwatch",
+            name=f"{identifier}-cloudwatch-policy",
+            policy=cloudwatch_iam_policy_document,
+        )
+        tf_resources.append(cloudwatch_iam_policy_resource)
+
+        cloudwatch_iam_policy_role_attachment_resource = aws_iam_role_policy_attachment(
+            "cloudwatch",
+            role=f"${{{cloudwatch_iam_role_resource.id}}}",
+            policy_arn=f"${{{cloudwatch_iam_policy_resource.arn}}}",
+        )
+        tf_resources.append(cloudwatch_iam_policy_role_attachment_resource)
+
+        cloudwatch_log_group_resource = aws_cloudwatch_log_group(
+            "api_gw_access",
+            name=f"API-Gateway-Execution-Logs_${{{api_gateway_rest_api_resource.id}}}/api",
+            retention_in_days=365,
+        )
+        tf_resources.append(cloudwatch_log_group_resource)
+
+        api_gateway_method_settings_resource = aws_api_gateway_method_settings(
+            "gw_api",
+            rest_api_id=f"${{{api_gateway_rest_api_resource.id}}}",
+            stage_name="${aws_api_gateway_stage.gw_stage.stage_name}",
+            method_path="*/*",
+            settings={
+                "logging_level": "INFO",
+                "throttling_burst_limit": 5000,
+                "throttling_rate_limit": 10000,
+            },
+            depends_on=["aws_cloudwatch_log_group.api_gw_access"],
+        )
+        tf_resources.append(api_gateway_method_settings_resource)
 
         self.add_resources(account, tf_resources)
 
