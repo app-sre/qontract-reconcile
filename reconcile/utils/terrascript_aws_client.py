@@ -5257,7 +5257,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                         "logs:GetLogEvents",
                         "logs:FilterLogEvents",
                     ],
-                    "Resources": ["*"],
+                    "Resource": ["*"],
                 },
             }
         )
