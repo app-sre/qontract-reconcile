@@ -5297,6 +5297,11 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         )
         tf_resources.append(api_gateway_method_settings_resource)
 
+        api_gateway_account_resource = aws_api_gateway_account(
+            "apigw", cloudwatch_role_arn=f"${{{cloudwatch_iam_role_resource.arn}}}"
+        )
+        tf_resources.append(api_gateway_account_resource)
+
         self.add_resources(account, tf_resources)
 
     def populate_tf_resource_rosa_authenticator_vpce(self, spec):
