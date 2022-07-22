@@ -2008,14 +2008,21 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     user_policy = user_policy.replace(to_replace, v)
                     output_name_0_13 = output_prefix + "__{}".format(k)
                     tf_resources.append(Output(output_name_0_13, value=v))
-            tf_aws_iam_user_policy = aws_iam_user_policy(
+            tf_aws_iam_policy = aws_iam_policy(
                 identifier,
                 name=identifier,
-                user=identifier,
                 policy=user_policy,
                 depends_on=self.get_dependencies([user_tf_resource]),
             )
-            tf_resources.append(tf_aws_iam_user_policy)
+            tf_resources.append(tf_aws_iam_policy)
+
+            tf_aws_iam_policy_attachment = aws_iam_user_policy_attachment(
+                identifier,
+                user=identifier,
+                policy_arn=f"{{{tf_aws_iam_policy.arn}}}",
+                depends_on=self.get_dependencies([user_tf_resource, tf_aws_iam_policy]),
+            )
+            tf_resources.append(tf_aws_iam_policy_attachment)
 
         aws_infrastructure_access = (
             common_values.get("aws_infrastructure_access") or None
