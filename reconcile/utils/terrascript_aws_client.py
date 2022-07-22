@@ -50,7 +50,6 @@ from terrascript.resource import (
     aws_iam_user,
     aws_s3_bucket_notification,
     aws_iam_access_key,
-    aws_iam_user_policy,
     aws_iam_group,
     aws_iam_group_policy_attachment,
     aws_iam_user_group_membership,
