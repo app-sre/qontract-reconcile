@@ -3522,7 +3522,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         resource: Mapping[str, Any],
         values: Mapping[str, Any],
         output_prefix: str,
-    ) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
+    ) -> tuple[list[dict[str, Any]], list[dict[str, object]]]:
         """
         Generate cloud_watch_log_group terraform_resources
         for the given resource. Further, generate
@@ -3535,11 +3535,22 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         # res.get('', []) won't work, as publish_log_types is
         # explicitly set to None if not set
-        log_types = resource["publish_log_types"] or []
-        for log_type in log_types:
+        publish_log_types = resource["publish_log_types"] or []
+        for t in ElasticSearchLogGroupType:
+            log_type = t.value
+            if log_type not in publish_log_types:
+                publishing_options.append(
+                    {
+                        "log_type": log_type,
+                        "enabled": False,
+                        "cloudwatch_log_group_arn": "",
+                    }
+                )
+                continue
+
             log_type_identifier = TerrascriptClient.elasticsearch_log_group_identifier(
                 domain_identifier=identifier,
-                log_type=ElasticSearchLogGroupType(log_type),
+                log_type=t,
             )
             log_group_values = {
                 "name": log_type_identifier,
@@ -3571,6 +3582,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             publishing_options.append(
                 {
                     "log_type": log_type,
+                    "enabled": True,
                     "cloudwatch_log_group_arn": arn,
                 }
             )
