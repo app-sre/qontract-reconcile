@@ -5221,20 +5221,19 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         )
         tf_resources.append(waf_acl_association_resource)
 
-        cloudwatch_assume_role_policy = json.dumps(
-            {
-                "Version": "2012-10-17",
-                "Statement": [
-                    {
-                        "Effect": "Allow",
-                        "Action": "sts:AssumeRole",
-                        "Principal": {
-                            "Service": "apigateway.amazonaws.com",
-                        },
+        policy = {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Action": "sts:AssumeRole",
+                    "Principal": {
+                        "Service": "apigateway.amazonaws.com",
                     },
-                ],
-            }
-        )
+                },
+            ],
+        }
+        cloudwatch_assume_role_policy = json.dumps(policy, sort_keys=True)
 
         cloudwatch_iam_role_resource = aws_iam_role(
             "cloudwatch_assume_role",
