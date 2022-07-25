@@ -196,7 +196,7 @@ class OCProcessReconcileTimeDecoratorMsg:
 
 def oc_process(template, parameters=None):
     # oc = OCNative(server=None, local=True, cluster_name="cluster", token=None)
-    oc = OCLocal(cluster_name="cluster", token=None)
+    oc = OCLocal(cluster_name="cluster")
     return oc.process(template, parameters)
 
 
