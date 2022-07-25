@@ -964,7 +964,6 @@ class OCNative(OCDeprecated):
             self.client = self._get_client(server, token)
             self.api_kind_version = self.get_api_resources()
         else:
-            # raise ValueError("Server value cannot be found")
             init_api_resources = False
             init_projects = False
 
