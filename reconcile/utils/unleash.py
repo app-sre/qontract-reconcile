@@ -1,3 +1,4 @@
+import logging
 import os
 import threading
 from typing import Mapping, Optional, Any
@@ -6,7 +7,6 @@ from UnleashClient import UnleashClient, BaseCache
 from UnleashClient import strategies
 from UnleashClient.strategies import Strategy
 
-from reconcile.utils.helpers import toggle_logger
 
 client: Optional[UnleashClient] = None
 client_lock = threading.Lock()
@@ -49,7 +49,8 @@ def _get_unleash_api_client(api_url: str, auth_head: str) -> UnleashClient:
                 },
             )
             client.initialize_client()
-
+        logging.getLogger("apscheduler.executors.default").setLevel(logging.ERROR)
+        logging.getLogger("UnleashClient").setLevel(logging.ERROR)
     return client
 
 
@@ -63,20 +64,16 @@ def get_feature_toggle_state(integration_name: str) -> bool:
     if not (api_url and client_access_token):
         return get_feature_toggle_default(None, None)
 
-    # hide INFO logging from UnleashClient
-    with toggle_logger():
-        c = _get_unleash_api_client(
-            api_url,
-            client_access_token,
-        )
+    c = _get_unleash_api_client(
+        api_url,
+        client_access_token,
+    )
 
     return c.is_enabled(integration_name, fallback_function=get_feature_toggle_default)
 
 
 def get_feature_toggles(api_url: str, client_access_token: str) -> Mapping[str, str]:
-    # hide INFO logging from UnleashClient
-    with toggle_logger():
-        c = _get_unleash_api_client(api_url, client_access_token)
+    c = _get_unleash_api_client(api_url, client_access_token)
 
     return {k: "enabled" if v.enabled else "disabled" for k, v in c.features.items()}
 
@@ -87,10 +84,7 @@ def get_feature_toggle_strategies(toggle_name: str) -> Optional[list[Strategy]]:
     if not (api_url and client_access_token):
         return None
 
-    with toggle_logger():
-        c = _get_unleash_api_client(api_url, client_access_token)
-        all_strategies = {
-            name: toggle.strategies for name, toggle in c.features.items()
-        }
+    c = _get_unleash_api_client(api_url, client_access_token)
+    all_strategies = {name: toggle.strategies for name, toggle in c.features.items()}
 
     return all_strategies[toggle_name] if toggle_name in all_strategies else None
