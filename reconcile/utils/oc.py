@@ -960,7 +960,6 @@ class OCNative(OCDeprecated):
         # thrown here instead to avoid AttributeErrors when accessing
         # methods that rely on client/api_kind_version to be set.
 
-
         if server:
             self.client = self._get_client(server, token)
             self.api_kind_version = self.get_api_resources()
@@ -1203,7 +1202,7 @@ class OCLocal:
         cluster_name,
         jh=None,
         settings=None,
-        local=False,
+        # local=False,
         insecure_skip_tls_verify=False,
     ):
         self.cluster_name = cluster_name
@@ -1229,7 +1228,9 @@ class OCLocal:
             "-f",
             "-",
         ] + parameters_to_process
-        result = OCDeprecated._run(self,cmd, stdin=json.dumps(template, sort_keys=True))
+        result = OCDeprecated._run(
+            self, cmd, stdin=json.dumps(template, sort_keys=True)
+        )
         return json.loads(result)["items"]
 
 
