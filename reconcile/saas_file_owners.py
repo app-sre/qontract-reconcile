@@ -264,7 +264,7 @@ def check_saas_files_changes_only(changed_paths, diffs):
                 found = True
                 break
         for saas_file_target_path in saas_file_target_paths:
-            if changed_path.endswith(saas_file_target_path):
+            if saas_file_target_path and changed_path.endswith(saas_file_target_path):
                 found = True
                 break
         if not found:
