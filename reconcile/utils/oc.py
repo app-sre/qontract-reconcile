@@ -1201,7 +1201,6 @@ class OCLocal:
         cluster_name,
         jh=None,
         settings=None,
-        # local=False,
         insecure_skip_tls_verify=False,
     ):
         self.cluster_name = cluster_name
