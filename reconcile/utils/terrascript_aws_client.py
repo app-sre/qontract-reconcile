@@ -3384,39 +3384,37 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         log_type_name = log_type.value.lower()
         return f"OpenSearchService__{domain_identifier}__{log_type_name}"
 
-    def _elasticsearch_get_all_log_group_infos(self) -> list[ElasticSearchLogGroupInfo]:
+    def _elasticsearch_get_all_log_group_infos(
+        self, account: str
+    ) -> list[ElasticSearchLogGroupInfo]:
         """
         Gather all cloud_watch_log_groups for the
         current account. This is required to set
         an account-wide resource policy.
         """
         log_group_infos = []
-        for specs in self.account_resource_specs.values():
-            for spec in specs:
-                account = spec.provisioner_name
-                res = spec.resource
-                if res.get("provider") != "elasticsearch":
-                    continue
-                # res.get('', []) won't work, as publish_log_types is
-                # explicitly set to None if not set
-                log_types = res["publish_log_types"] or []
-                region = res.get("region") or self.default_regions.get(account)
-                for log_type in log_types:
-                    account_id = self.accounts[account]["uid"]
-                    lg_identifier = (
-                        TerrascriptClient.elasticsearch_log_group_identifier(
-                            domain_identifier=res["identifier"],
-                            log_type=ElasticSearchLogGroupType(log_type),
-                        )
+        for spec in self.account_resource_specs[account]:
+            if spec.provider != "elasticsearch":
+                continue
+            res = spec.resource
+            # res.get('', []) won't work, as publish_log_types is
+            # explicitly set to None if not set
+            log_types = res["publish_log_types"] or []
+            region = res.get("region") or self.default_regions.get(account)
+            for log_type in log_types:
+                account_id = self.accounts[account]["uid"]
+                lg_identifier = TerrascriptClient.elasticsearch_log_group_identifier(
+                    domain_identifier=res["identifier"],
+                    log_type=ElasticSearchLogGroupType(log_type),
+                )
+                log_group_infos.append(
+                    ElasticSearchLogGroupInfo(
+                        account=account,
+                        account_id=account_id,
+                        region=str(region),
+                        log_group_identifier=lg_identifier,
                     )
-                    log_group_infos.append(
-                        ElasticSearchLogGroupInfo(
-                            account=account,
-                            account_id=account_id,
-                            region=str(region),
-                            log_group_identifier=lg_identifier,
-                        )
-                    )
+                )
         return log_group_infos
 
     def _get_elasticsearch_account_wide_resource_policy(
@@ -3434,7 +3432,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         This function returns None, if no log groups are found for that
         account.
         """
-        log_group_infos = self._elasticsearch_get_all_log_group_infos()
+        log_group_infos = self._elasticsearch_get_all_log_group_infos(account=account)
 
         if not log_group_infos:
             return None
