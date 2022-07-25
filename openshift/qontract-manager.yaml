@@ -16,6 +16,7 @@ objects:
       ignore-check.kube-linter.io/no-liveness-probe: "qontract-reconcile integrations are monitored for being stuck"
     name: qontract-reconcile-integrations-manager
   spec:
+    revisionHistoryLimit: 50
     replicas: 1
     selector:
       matchLabels:
