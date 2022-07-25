@@ -7,7 +7,7 @@ import itertools
 import hashlib
 import re
 from collections import ChainMap
-from typing import Iterable, Mapping, Any, MutableMapping, Tuple, cast
+from typing import Dict, Iterable, Mapping, Any, MutableMapping, Set, Tuple, cast
 
 from contextlib import suppress
 import yaml
@@ -1564,9 +1564,10 @@ class SaasHerder:
         """
         If there were promotion sections in the participating saas file
         publish the results for future promotion validations."""
-        subscribe_saas_file_path_map = self._get_subscribe_saas_file_path_map(
-            all_saas_files, auto_only=True
-        )
+        (
+            subscribe_saas_file_path_map,
+            subscribe_target_path_map,
+        ) = self._get_subscribe_path_map(all_saas_files, auto_only=True)
         trigger_promotion = False
 
         if self.promotions and not auto_promote:
@@ -1587,6 +1588,7 @@ class SaasHerder:
                     TARGET_CONFIG_HASH: item.get(TARGET_CONFIG_HASH),
                 }
                 all_subscribed_saas_file_paths = set()
+                all_subscribed_target_paths = set()
                 for channel in publish:
                     # publish to state to pass promotion gate
                     state_key = f"promotions/{channel}/{commit_sha}"
@@ -1605,9 +1607,16 @@ class SaasHerder:
                             subscribed_saas_file_paths
                         )
 
-                item["saas_file_paths"] = list(all_subscribed_saas_file_paths)
+                    subscribed_target_paths = subscribe_target_path_map.get(channel)
+                    if subscribed_target_paths:
+                        all_subscribed_target_paths.update(subscribed_target_paths)
 
-                if auto_promote and all_subscribed_saas_file_paths:
+                item["saas_file_paths"] = list(all_subscribed_saas_file_paths)
+                item["target_paths"] = list(all_subscribed_target_paths)
+
+                if auto_promote and (
+                    all_subscribed_saas_file_paths or all_subscribed_target_paths
+                ):
                     trigger_promotion = True
 
         if success and trigger_promotion:
@@ -1615,12 +1624,15 @@ class SaasHerder:
             mr.submit(cli=mr_cli)
 
     @staticmethod
-    def _get_subscribe_saas_file_path_map(saas_files, auto_only=False):
+    def _get_subscribe_path_map(
+        saas_files: Iterable[Mapping[str, Any]], auto_only: bool = False
+    ) -> Tuple[Dict[str, Set[str]], Dict[str, Set[str]]]:
         """
-        Returns a dict with subscribe channels as keys and a
-        list of paths of saas files containing these channels.
+        Returns dicts with subscribe channels as keys and a
+        list of paths of saas files or targets containing these channels.
         """
-        subscribe_saas_file_path_map = {}
+        subscribe_saas_file_path_map: Dict[str, Set[str]] = {}
+        subscribe_target_path_map: Dict[str, Set[str]] = {}
         for saas_file in saas_files:
             saas_file_path = "data" + saas_file["path"]
             for rt in saas_file["resourceTemplates"]:
@@ -1634,8 +1646,15 @@ class SaasHerder:
                     subscribe = target_promotion.get("subscribe")
                     if not subscribe:
                         continue
+                    # targets with a path are referenced and not inlined
+                    target_path = target.get("path")
+                    if target_path:
+                        target_path = "data" + target_path
                     for channel in subscribe:
                         subscribe_saas_file_path_map.setdefault(channel, set())
                         subscribe_saas_file_path_map[channel].add(saas_file_path)
+                        if target_path:
+                            subscribe_target_path_map.setdefault(channel, set())
+                            subscribe_target_path_map[channel].add(target_path)
 
-        return subscribe_saas_file_path_map
+        return subscribe_saas_file_path_map, subscribe_target_path_map
