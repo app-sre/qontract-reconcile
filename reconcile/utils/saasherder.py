@@ -33,7 +33,7 @@ from sretoolbox.utils import threaded
 from reconcile.github_org import get_default_config
 from reconcile.status import RunningState
 from reconcile.utils.mr.auto_promoter import AutoPromoter
-from reconcile.utils.oc import OC, OCLocal, StatusCodeError
+from reconcile.utils.oc import OCLocal, StatusCodeError
 from reconcile.utils.openshift_resource import (
     OpenshiftResource as OR,
     ResourceInventory,
