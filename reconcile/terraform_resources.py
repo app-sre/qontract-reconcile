@@ -312,12 +312,23 @@ provider
   region
   identifier
   api_proxy_uri
-  sms_role_ext_id
   cognito_callback_bucket_name
   certificate_arn
   domain_name
-  vpc_arn
-  pre_signup_lambda_github_release_url
+  network_interface_ids
+  openshift_ingress_load_balancer_arn
+  output_resource_name
+  annotations
+  vpc_id
+  subnet_ids
+  vpce_id
+  defaults
+}
+... on NamespaceTerraformResourceRosaAuthenticatorVPCE_V1 {
+  region
+  identifier
+  subnet_ids,
+  vpc_id,
   output_resource_name
   annotations
   defaults
