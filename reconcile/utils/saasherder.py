@@ -1646,7 +1646,7 @@ class SaasHerder:
                     subscribe = target_promotion.get("subscribe")
                     if not subscribe:
                         continue
-                    # target with a path are referenced and not inlined
+                    # targets with a path are referenced and not inlined
                     target_path = target.get("path")
                     if target_path:
                         target_path = "data" + target_path
