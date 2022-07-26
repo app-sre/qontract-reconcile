@@ -31,6 +31,11 @@ JOB_TTL = 604800  # 7 days
 POD_TTL = 3600  # 1 hour (used only when output is "filesystem")
 QUERY_CONFIG_MAP_CHUNK_SIZE = 512 * 1024  # 512 KB
 
+REQUESTS_MEM = "64Mi"
+REQUESTS_CPU = "100m"
+LIMITS_MEM = "512Mi"
+LIMITS_CPU = "1"
+
 CONFIG_MAPS_MOUNT_PATH = "/configs"
 GPG_KEY_NAME = "gpg-key"
 GPG_KEY_PATH = f"{CONFIG_MAPS_MOUNT_PATH}/{GPG_KEY_NAME}"
@@ -46,6 +51,7 @@ spec:
       - name: {{ PULL_SECRET }}
       {% endif %}
       restartPolicy: Never
+      serviceAccountName: {{ SVC_NAME }}
       containers:
       - name: {{ JOB_NAME }}
         image: {{ IMAGE_REPOSITORY }}/{{ ENGINE }}:{{ENGINE_VERSION}}
@@ -69,6 +75,13 @@ spec:
             value: {{ value }}
           {% endif %}
           {% endfor %}
+        resources:
+          requests:
+            memory: "{{ REQUESTS_MEM }}"
+            cpu: "{{ REQUESTS_CPU }}"
+          limits:
+            memory: "{{ LIMITS_MEM }}"
+            cpu: "{{ LIMITS_CPU }}"
         volumeMounts:
         - name: configs
           mountPath: {{ CONFIG_MAPS_MOUNT_PATH }}
@@ -366,6 +379,7 @@ def process_template(
     image_repository: str,
     use_pull_secret: bool,
     config_map_names: list[str],
+    service_account_name: str,
 ) -> str:
     """
     Renders the Jinja2 Job Template.
@@ -414,6 +428,11 @@ def process_template(
         "DB_CONN": query["db_conn"],
         "CONFIG_MAPS": config_map_names,
         "COMMAND": command,
+        "SVC_NAME": service_account_name,
+        "REQUESTS_MEM": REQUESTS_MEM,
+        "REQUESTS_CPU": REQUESTS_CPU,
+        "LIMITS_MEM": LIMITS_MEM,
+        "LIMITS_CPU": LIMITS_CPU,
     }
     if use_pull_secret:
         render_kwargs["PULL_SECRET"] = query["name"]
@@ -437,6 +456,18 @@ def get_config_map(name: str, data: dict, labels: dict) -> dict[str, Any]:
             "labels": labels,
         },
         "data": data,
+    }
+
+
+def get_service_account(name: str, labels: dict) -> dict[str, Any]:
+    return {
+        "apiVersion": "v1",
+        "kind": "ServiceAccount",
+        "metadata": {
+            "name": name,
+            "labels": labels,
+        },
+        "automountServiceAccountToken": False,
     }
 
 
@@ -559,7 +590,7 @@ def run(dry_run: bool, enable_deletion: bool = False) -> None:
                     oc_map=oc_map,
                     cluster=query["cluster"],
                     namespace=query["namespace"]["name"],
-                    kinds=["Job", "CronJob", "ConfigMap", "Secret"],
+                    kinds=["Job", "CronJob", "ConfigMap", "Secret", "ServiceAccount"],
                     labels=common_resource_labels,
                     enable_deletion=enable_deletion,
                 )
@@ -615,12 +646,23 @@ def run(dry_run: bool, enable_deletion: bool = False) -> None:
             for cm in config_map_resources
         ]
 
+        # ServiceAccount
+        svc = get_service_account(query_name, labels=common_resource_labels)
+        openshift_resources.append(
+            OpenshiftResource(
+                body=svc,
+                integration=QONTRACT_INTEGRATION,
+                integration_version=QONTRACT_INTEGRATION_VERSION,
+            )
+        )
+
         # Job (sql executer)
         job_yaml = process_template(
             query,
             image_repository=image_repository,
             use_pull_secret=use_pull_secret,
             config_map_names=[cm["metadata"]["name"] for cm in config_map_resources],
+            service_account_name=svc["metadata"]["name"],
         )
         openshift_resources.append(
             OpenshiftResource(
