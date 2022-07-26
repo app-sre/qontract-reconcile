@@ -33,6 +33,7 @@ objects:
           requests:
             storage: {{ default "1Gi" $integration.storage }}
     {{- end }}
+    revisionHistoryLimit: 50
     replicas: 1
     selector:
       matchLabels:

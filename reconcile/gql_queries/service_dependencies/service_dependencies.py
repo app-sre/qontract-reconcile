@@ -28,6 +28,11 @@ query ServiceDependencies {
         name
       }
     }
+    saasFiles {
+      pipelinesProvider {
+        provider
+      }
+    }
     quayRepos {
       org {
         name
@@ -77,6 +82,22 @@ class JenkinsInstanceV1(BaseModel):
 
 class JenkinsConfigV1(BaseModel):
     instance: JenkinsInstanceV1 = Field(..., alias="instance")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
+class PipelinesProviderV1(BaseModel):
+    provider: str = Field(..., alias="provider")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
+class SaasFileV2(BaseModel):
+    pipelines_provider: PipelinesProviderV1 = Field(..., alias="pipelinesProvider")
 
     class Config:
         smart_union = True
@@ -147,6 +168,7 @@ class AppV1(BaseModel):
     jenkins_configs: Optional[list[JenkinsConfigV1]] = Field(
         ..., alias="jenkinsConfigs"
     )
+    saas_files: Optional[list[SaasFileV2]] = Field(..., alias="saasFiles")
     quay_repos: Optional[list[AppQuayReposV1]] = Field(..., alias="quayRepos")
     namespaces: Optional[list[NamespaceV1]] = Field(..., alias="namespaces")
 
