@@ -2,6 +2,7 @@ import os
 import json
 
 from reconcile.utils.aws_api import AWSApi
+from reconcile.utils.secret_reader import SecretReader
 
 
 class SQSGatewayInitError(Exception):
@@ -11,11 +12,11 @@ class SQSGatewayInitError(Exception):
 class SQSGateway:
     """Wrapper around SQS AWS SDK"""
 
-    def __init__(self, accounts, settings=None):
+    def __init__(self, accounts, secret_reader: SecretReader):
         queue_url = os.environ["gitlab_pr_submitter_queue_url"]
         account = self.get_queue_account(accounts, queue_url)
         accounts = [a for a in accounts if a["name"] == account]
-        aws_api = AWSApi(1, accounts, settings=settings, init_users=False)
+        aws_api = AWSApi(1, accounts, secret_reader=secret_reader, init_users=False)
         session = aws_api.get_session(account)
 
         self.sqs = session.client("sqs")

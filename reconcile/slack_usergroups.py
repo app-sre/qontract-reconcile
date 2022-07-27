@@ -1,6 +1,7 @@
 import logging
 
 from datetime import datetime
+from typing import Any
 from urllib.parse import urlparse
 from sretoolbox.utils import retry
 from github.GithubException import UnknownObjectException
@@ -11,6 +12,7 @@ from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.pagerduty_api import PagerDutyMap
 from reconcile.utils.repo_owners import RepoOwners
 from reconcile.utils.slack_api import SlackApiError
+from reconcile.utils.secret_reader import SecretReader
 from reconcile import queries
 
 
@@ -34,8 +36,7 @@ class GitApi:
         raise ValueError(f"Unable to handle URL: {url}")
 
 
-def get_slack_map():
-    settings = queries.get_app_interface_settings()
+def get_slack_map(secret_reader: SecretReader) -> dict[str, dict[str, Any]]:
     permissions = queries.get_permissions_for_slack_usergroup()
     slack_map = {}
     for sp in permissions:
@@ -45,7 +46,7 @@ def get_slack_map():
             continue
 
         workspace_spec = {
-            "slack": slackapi_from_permissions(sp, settings),
+            "slack": slackapi_from_permissions(sp, secret_reader),
             "managed_usergroups": workspace["managedUsergroups"],
         }
         slack_map[workspace_name] = workspace_spec
@@ -96,8 +97,10 @@ def get_pagerduty_name(user):
 
 
 @retry()
-def get_slack_usernames_from_pagerduty(pagerduties, users, usergroup, pagerduty_map):
-    all_slack_usernames = []
+def get_usernames_from_pagerduty(
+    pagerduties, users, usergroup, pagerduty_map, get_username_method
+):
+    all_output_usernames = []
     all_pagerduty_names = [get_pagerduty_name(u) for u in users]
     for pagerduty in pagerduties or []:
         pd_schedule_id = pagerduty["scheduleID"]
@@ -118,8 +121,8 @@ def get_slack_usernames_from_pagerduty(pagerduties, users, usergroup, pagerduty_
         ]
         if not pagerduty_names:
             continue
-        slack_usernames = [
-            get_slack_username(u)
+        output_usernames = [
+            get_username_method(u)
             for u in users
             if get_pagerduty_name(u) in pagerduty_names
         ]
@@ -135,9 +138,9 @@ def get_slack_usernames_from_pagerduty(pagerduties, users, usergroup, pagerduty_
                 "pagerduty_username if it is different than org_username)"
             ).format(usergroup, not_found_pagerduty_names)
             logging.warning(msg)
-        all_slack_usernames.extend(slack_usernames)
+        all_output_usernames.extend(output_usernames)
 
-    return all_slack_usernames
+    return all_output_usernames
 
 
 @retry()
@@ -258,8 +261,12 @@ def get_desired_state(slack_map, pagerduty_map):
         ugid = slack.get_usergroup_id(usergroup)
 
         all_user_names = [get_slack_username(u) for r in p["roles"] for u in r["users"]]
-        slack_usernames_pagerduty = get_slack_usernames_from_pagerduty(
-            p["pagerduty"], all_users, usergroup, pagerduty_map
+        slack_usernames_pagerduty = get_usernames_from_pagerduty(
+            p["pagerduty"],
+            all_users,
+            usergroup,
+            pagerduty_map,
+            get_username_method=get_slack_username,
         )
         all_user_names.extend(slack_usernames_pagerduty)
 
@@ -439,7 +446,8 @@ def act(current_state, desired_state, slack_map, dry_run=True):
 
 
 def run(dry_run):
-    slack_map = get_slack_map()
+    secret_reader = SecretReader(queries.get_secret_reader_settings())
+    slack_map = get_slack_map(secret_reader)
     pagerduty_map = get_pagerduty_map()
     desired_state = get_desired_state(slack_map, pagerduty_map)
     current_state = get_current_state(slack_map)

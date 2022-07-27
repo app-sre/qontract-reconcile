@@ -25,6 +25,7 @@ objects:
         resources:
           requests:
             storage: 1Gi
+    revisionHistoryLimit: 50
     replicas: 1
     selector:
       matchLabels:

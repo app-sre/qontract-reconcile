@@ -8,6 +8,7 @@ import pytest
 import reconcile.slack_usergroups as integ
 import reconcile.slack_base as slackbase
 from reconcile.slack_usergroups import act
+from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.slack_api import SlackApi
 from reconcile import queries
 
@@ -97,7 +98,7 @@ class TestSupportFunctions(TestCase):
                 "managed_usergroups": ["app-sre-team", "app-sre-ic"],
             }
         }
-        result = integ.get_slack_map()
+        result = integ.get_slack_map(SecretReader())
         mock_slack_api.assert_called_once()
         self.assertEqual(
             result["coreos"]["managed_usergroups"],

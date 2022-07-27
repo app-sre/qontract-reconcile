@@ -1,6 +1,7 @@
 import logging
 
 from datetime import datetime, timedelta
+from operator import itemgetter
 from typing import Dict, List
 
 import gitlab
@@ -16,6 +17,7 @@ from reconcile.utils.mr.labels import (
     AUTO_MERGE,
     AWAITING_APPROVAL,
     BLOCKED_BOT_ACCESS,
+    CHANGES_REQUESTED,
     DO_NOT_MERGE_HOLD,
     DO_NOT_MERGE_PENDING_REVIEW,
     HOLD,
@@ -24,10 +26,10 @@ from reconcile.utils.mr.labels import (
 )
 
 MERGE_LABELS_PRIORITY = [APPROVED, LGTM, AUTO_MERGE]
-REBASE_LABELS_PRIORITY = MERGE_LABELS_PRIORITY
 HOLD_LABELS = [
     AWAITING_APPROVAL,
     BLOCKED_BOT_ACCESS,
+    CHANGES_REQUESTED,
     HOLD,
     DO_NOT_MERGE_HOLD,
     DO_NOT_MERGE_PENDING_REVIEW,
@@ -155,8 +157,69 @@ def handle_stale_items(dry_run, gl, days_interval, enable_closing, item_type):
                     gl.remove_label(item, item_type, LABEL)
 
 
-def is_good_to_merge(merge_label, labels):
-    return merge_label in labels and not any(b in HOLD_LABELS for b in labels)
+def is_good_to_merge(labels):
+    return any(m in MERGE_LABELS_PRIORITY for m in labels) and not any(
+        b in HOLD_LABELS for b in labels
+    )
+
+
+def is_rebased(mr, gl: GitLabApi) -> bool:
+    target_branch = mr.target_branch
+    head = gl.project.commits.list(ref_name=target_branch)[0].id
+    result = gl.project.repository_compare(mr.sha, head)
+    return len(result["commits"]) == 0
+
+
+def get_merge_requests(dry_run: bool, gl: GitLabApi) -> list:
+    mrs = gl.get_merge_requests(state=MRState.OPENED)
+    results = []
+    for mr in mrs:
+        if mr.merge_status == "cannot_be_merged":
+            continue
+        if mr.work_in_progress:
+            continue
+        if len(mr.commits()) == 0:
+            continue
+
+        labels = mr.attributes.get("labels")
+        if not labels:
+            continue
+        if not is_good_to_merge(labels):
+            continue
+
+        if SAAS_FILE_UPDATE in labels and LGTM in labels:
+            logging.warning(
+                f"[{gl.project.name}/{mr.iid}] 'lgtm' label not "
+                + "suitable for saas file update. removing 'lgtm' label"
+            )
+            if not dry_run:
+                gl.remove_label_from_merge_request(mr.iid, LGTM)
+            continue
+
+        label_priotiry = min(
+            MERGE_LABELS_PRIORITY.index(merge_label)
+            for merge_label in MERGE_LABELS_PRIORITY
+            if merge_label in labels
+        )
+        label_events = mr.resourcelabelevents.list()
+        for label in reversed(label_events):
+            if label.action == "add" and label.label["name"] in MERGE_LABELS_PRIORITY:
+                approved_at = label.created_at
+                approved_by = label.user["username"]
+                break
+
+        item = {
+            "mr": mr,
+            "labels": labels,
+            "label_priority": label_priotiry,
+            "approved_at": approved_at,
+            "approved_by": approved_by,
+        }
+        results.append(item)
+
+    results.sort(key=itemgetter("label_priority", "approved_at"))
+
+    return results
 
 
 def rebase_merge_requests(
@@ -168,63 +231,42 @@ def rebase_merge_requests(
     gl_instance=None,
     gl_settings=None,
 ):
-    mrs = gl.get_merge_requests(state=MRState.OPENED)
     rebases = 0
-    for rebase_label in REBASE_LABELS_PRIORITY:
-        for mr in reversed(mrs):
-            if mr.merge_status == "cannot_be_merged":
-                continue
-            if mr.work_in_progress:
-                continue
-            if len(mr.commits()) == 0:
-                continue
+    merge_requests = [item["mr"] for item in get_merge_requests(dry_run, gl)]
+    for mr in merge_requests:
+        if is_rebased(mr, gl):
+            continue
 
-            labels = mr.attributes.get("labels")
-            if not labels:
-                continue
+        pipelines = mr.pipelines()
 
-            good_to_rebase = is_good_to_merge(rebase_label, labels)
-            if not good_to_rebase:
-                continue
-
-            target_branch = mr.target_branch
-            head = gl.project.commits.list(ref_name=target_branch)[0].id
-            result = gl.project.repository_compare(mr.sha, head)
-            if len(result["commits"]) == 0:  # rebased
-                continue
-
-            pipelines = mr.pipelines()
-
-            # If pipeline_timeout is None no pipeline will be canceled
-            if pipeline_timeout is not None:
-                timed_out_pipelines = get_timed_out_pipelines(
-                    pipelines, pipeline_timeout
+        # If pipeline_timeout is None no pipeline will be canceled
+        if pipeline_timeout is not None:
+            timed_out_pipelines = get_timed_out_pipelines(pipelines, pipeline_timeout)
+            if timed_out_pipelines:
+                clean_pipelines(
+                    dry_run,
+                    gl_instance,
+                    mr.source_project_id,
+                    gl_settings,
+                    timed_out_pipelines,
                 )
-                if timed_out_pipelines:
-                    clean_pipelines(
-                        dry_run,
-                        gl_instance,
-                        mr.source_project_id,
-                        gl_settings,
-                        timed_out_pipelines,
-                    )
 
-            if wait_for_pipeline:
-                if not pipelines:
-                    continue
-                # possible statuses:
-                # running, pending, success, failed, canceled, skipped
-                running_pipelines = [p for p in pipelines if p["status"] == "running"]
-                if running_pipelines:
-                    continue
+        if wait_for_pipeline:
+            if not pipelines:
+                continue
+            # possible statuses:
+            # running, pending, success, failed, canceled, skipped
+            running_pipelines = [p for p in pipelines if p["status"] == "running"]
+            if running_pipelines:
+                continue
 
-            logging.info(["rebase", gl.project.name, mr.iid])
-            if not dry_run and rebases < rebase_limit:
-                try:
-                    mr.rebase()
-                    rebases += 1
-                except gitlab.exceptions.GitlabMRRebaseError as e:
-                    logging.error("unable to rebase {}: {}".format(mr.iid, e))
+        logging.info(["rebase", gl.project.name, mr.iid])
+        if not dry_run and rebases < rebase_limit:
+            try:
+                mr.rebase()
+                rebases += 1
+            except gitlab.exceptions.GitlabMRRebaseError as e:
+                logging.error("unable to rebase {}: {}".format(mr.iid, e))
 
 
 @retry(max_attempts=10)
@@ -239,81 +281,51 @@ def merge_merge_requests(
     gl_instance=None,
     gl_settings=None,
 ):
-    mrs = gl.get_merge_requests(state=MRState.OPENED)
     merges = 0
-    for merge_label in MERGE_LABELS_PRIORITY:
-        for mr in reversed(mrs):
-            if mr.merge_status == "cannot_be_merged":
-                continue
-            if mr.work_in_progress:
-                continue
-            if len(mr.commits()) == 0:
-                continue
+    merge_requests = [item["mr"] for item in get_merge_requests(dry_run, gl)]
+    for mr in merge_requests:
+        if rebase and not is_rebased(mr, gl):
+            continue
 
-            labels = mr.attributes.get("labels")
-            if not labels:
-                continue
+        pipelines = mr.pipelines()
+        if not pipelines:
+            continue
 
-            good_to_merge = is_good_to_merge(merge_label, labels)
-            if not good_to_merge:
-                continue
-
-            if SAAS_FILE_UPDATE in labels and LGTM in labels:
-                logging.warning(
-                    f"[{gl.project.name}/{mr.iid}] 'lgtm' label not "
-                    + "suitable for saas file update. removing 'lgtm' label"
+        # If pipeline_timeout is None no pipeline will be canceled
+        if pipeline_timeout is not None:
+            timed_out_pipelines = get_timed_out_pipelines(pipelines, pipeline_timeout)
+            if timed_out_pipelines:
+                clean_pipelines(
+                    dry_run,
+                    gl_instance,
+                    mr.source_project_id,
+                    gl_settings,
+                    timed_out_pipelines,
                 )
-                if not dry_run:
-                    gl.remove_label_from_merge_request(mr.iid, LGTM)
-                continue
 
-            target_branch = mr.target_branch
-            head = gl.project.commits.list(ref_name=target_branch)[0].id
-            result = gl.project.repository_compare(mr.sha, head)
-            if rebase and len(result["commits"]) != 0:  # not rebased
-                continue
+        if wait_for_pipeline:
+            # possible statuses:
+            # running, pending, success, failed, canceled, skipped
+            running_pipelines = [p for p in pipelines if p["status"] == "running"]
+            if running_pipelines:
+                if insist:
+                    raise Exception(f"insisting on {mr.iid}")
+                else:
+                    continue
 
-            pipelines = mr.pipelines()
-            if not pipelines:
-                continue
+        last_pipeline_result = pipelines[0]["status"]
+        if last_pipeline_result != "success":
+            continue
 
-            # If pipeline_timeout is None no pipeline will be canceled
-            if pipeline_timeout is not None:
-                timed_out_pipelines = get_timed_out_pipelines(
-                    pipelines, pipeline_timeout
-                )
-                if timed_out_pipelines:
-                    clean_pipelines(
-                        dry_run,
-                        gl_instance,
-                        mr.source_project_id,
-                        gl_settings,
-                        timed_out_pipelines,
-                    )
-
-            if wait_for_pipeline:
-                # possible statuses:
-                # running, pending, success, failed, canceled, skipped
-                running_pipelines = [p for p in pipelines if p["status"] == "running"]
-                if running_pipelines:
-                    if insist:
-                        raise Exception(f"insisting on {merge_label}")
-                    else:
-                        continue
-
-            last_pipeline_result = pipelines[0]["status"]
-            if last_pipeline_result != "success":
-                continue
-
-            logging.info(["merge", gl.project.name, mr.iid])
-            if not dry_run and merges < merge_limit:
-                try:
-                    mr.merge()
-                    if rebase:
-                        return
-                    merges += 1
-                except gitlab.exceptions.GitlabMRClosedError as e:
-                    logging.error("unable to merge {}: {}".format(mr.iid, e))
+        logging.info(["merge", gl.project.name, mr.iid])
+        if not dry_run and merges < merge_limit:
+            try:
+                mr.merge()
+                if rebase:
+                    return
+                merges += 1
+            except gitlab.exceptions.GitlabMRClosedError as e:
+                logging.error("unable to merge {}: {}".format(mr.iid, e))
 
 
 def run(dry_run, wait_for_pipeline):

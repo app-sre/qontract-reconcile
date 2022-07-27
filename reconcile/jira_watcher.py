@@ -4,6 +4,7 @@ from reconcile import queries
 from reconcile.slack_base import slackapi_from_slack_workspace
 
 from reconcile.utils.jira_client import JiraClient
+from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.sharding import is_in_shard_round_robin
 from reconcile.utils.state import State
 
@@ -63,12 +64,12 @@ def calculate_diff(server, current_state, previous_state):
 
 
 def init_slack(jira_board):
-    settings = queries.get_app_interface_settings()
+    secret_reader = SecretReader(queries.get_secret_reader_settings())
     slack_info = jira_board["slack"]
 
     return slackapi_from_slack_workspace(
         slack_info,
-        settings,
+        secret_reader,
         QONTRACT_INTEGRATION,
         channel=slack_info.get("channel"),
         init_usergroups=False,

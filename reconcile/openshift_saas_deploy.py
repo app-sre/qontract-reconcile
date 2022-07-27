@@ -9,6 +9,7 @@ from reconcile import queries
 from reconcile import mr_client_gateway
 from reconcile.slack_base import slackapi_from_slack_workspace
 from reconcile.status import ExitCodes
+from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.defer import defer
 from reconcile.utils.gitlab_api import GitLabApi
@@ -78,7 +79,6 @@ def run(
 ):
     all_saas_files = queries.get_saas_files()
     saas_files = queries.get_saas_files(saas_file_name, env_name)
-    app_interface_settings = queries.get_app_interface_settings()
     if not saas_files:
         logging.error("no saas files found")
         sys.exit(ExitCodes.ERROR)
@@ -94,7 +94,7 @@ def run(
         if slack_info:
             slack = slackapi_from_slack_workspace(
                 slack_info,
-                app_interface_settings,
+                SecretReader(queries.get_secret_reader_settings()),
                 QONTRACT_INTEGRATION,
                 init_usergroups=False,
             )
@@ -175,6 +175,10 @@ def run(
         ri.register_error()
         sys.exit(ExitCodes.ERROR)
 
+    # validate that the deployment will succeed
+    # to the best of our ability to predict
+    ob.validate_planned_data(ri, oc_map)
+
     # if saas_file_name is defined, the integration
     # is being called from multiple running instances
     actions = ob.realize_data(
@@ -196,7 +200,7 @@ def run(
                 logging.error(str(e))
                 ri.register_error()
         try:
-            ob.validate_data(oc_map, actions)
+            ob.validate_realized_data(actions, oc_map)
         except Exception as e:
             logging.error(str(e))
             ri.register_error()

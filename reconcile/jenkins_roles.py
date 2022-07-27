@@ -5,6 +5,7 @@ from reconcile.utils import expiration
 from reconcile import queries
 
 from reconcile.utils.jenkins_api import JenkinsApi
+from reconcile.utils.secret_reader import SecretReader
 
 
 PERMISSIONS_QUERY = """
@@ -54,10 +55,10 @@ ROLES_QUERY = """
 QONTRACT_INTEGRATION = "jenkins-roles"
 
 
-def get_jenkins_map():
+def get_jenkins_map() -> dict[str, JenkinsApi]:
     gqlapi = gql.get_api()
     permissions = gqlapi.query(PERMISSIONS_QUERY)["permissions"]
-    settings = queries.get_app_interface_settings()
+    secret_reader = SecretReader(queries.get_secret_reader_settings())
 
     jenkins_permissions = [p for p in permissions if p["service"] == "jenkins-role"]
 
@@ -69,7 +70,9 @@ def get_jenkins_map():
             continue
 
         token = instance["token"]
-        jenkins = JenkinsApi(token, ssl_verify=False, settings=settings)
+        jenkins = JenkinsApi.init_jenkins_from_secret(
+            secret_reader, token, ssl_verify=False
+        )
         jenkins_map[instance_name] = jenkins
 
     return jenkins_map

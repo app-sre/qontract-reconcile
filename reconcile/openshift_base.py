@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 import logging
 import itertools
 
-from typing import Any, Optional, Iterable, Mapping, Union
+from typing import Any, Dict, Optional, Iterable, Mapping, Union
 
 import yaml
 
@@ -10,13 +10,18 @@ from sretoolbox.utils import retry
 from sretoolbox.utils import threaded
 
 from reconcile import queries
-from reconcile.utils.oc import FieldIsImmutableError, OCClient, OCLogMsg
+from reconcile.utils.oc import (
+    DeploymentFieldIsImmutableError,
+    FieldIsImmutableError,
+    OCClient,
+    OCLogMsg,
+)
 from reconcile.utils.oc import MayNotChangeOnceSetError
 from reconcile.utils.oc import PrimaryClusterIPCanNotBeUnsetError
 from reconcile.utils.oc import InvalidValueApplyError
 from reconcile.utils.oc import MetaDataAnnotationsTooLongApplyError
 from reconcile.utils.oc import StatefulSetUpdateForbidden
-from reconcile.utils.oc import OC_Map
+from reconcile.utils.oc import OCDeprecated, OC_Map
 from reconcile.utils.oc import StatusCodeError
 from reconcile.utils.oc import UnsupportedMediaTypeError
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
@@ -347,9 +352,57 @@ def apply(
             # sure they're safe.
             if resource_type not in ["Route", "Service", "Secret"]:
                 raise
-
             oc.delete(namespace=namespace, kind=resource_type, name=resource.name)
             oc.apply(namespace=namespace, resource=annotated)
+        except DeploymentFieldIsImmutableError:
+            logging.info(["replace", cluster, namespace, resource_type, resource.name])
+            # spec.selector changes
+            current_resource = oc.get(namespace, resource_type, resource.name)
+
+            # check update strategy
+            if current_resource["spec"]["strategy"]["type"] != "RollingUpdate":
+                logging.error(
+                    f"Can't replace Deployment '{resource.name}' inplace w/o"
+                    "interruption because spec.strategy.type != 'RollingUpdate'"
+                )
+                raise
+
+            # Get active ReplicSet for old Deployment. We've to take care of it
+            # after the new Deployment is in place.
+            obsolete_rs = oc.get_replicaset(
+                namespace, current_resource, allow_empty=True
+            )
+
+            # delete old Deployment
+            oc.delete(
+                namespace=namespace,
+                kind=resource_type,
+                name=resource.name,
+                cascade=False,
+            )
+            # create new one
+            oc.apply(namespace=namespace, resource=annotated)
+            if obsolete_rs:
+                # refresh resources
+                deployment = oc.get(namespace, resource_type, resource.name)
+                new_rs = oc.get_replicaset(namespace, deployment)
+                obsolete_rs = oc.get(
+                    namespace, obsolete_rs["kind"], obsolete_rs["metadata"]["name"]
+                )
+
+                # adopting old ReplicaSet to new Deployment
+                # labels must match spec.selector.matchLabels of the new Deployment
+                labels = deployment["spec"]["selector"]["matchLabels"]
+                labels["pod-template-hash"] = obsolete_rs["metadata"]["labels"][
+                    "pod-template-hash"
+                ]
+                obsolete_rs["metadata"]["labels"] = labels
+                # restore and set ownerReferences of old ReplicaSet
+                owner_references = new_rs["metadata"]["ownerReferences"]
+                # not allowed to set 'blockOwnerDeletion'
+                del owner_references[0]["blockOwnerDeletion"]
+                obsolete_rs["metadata"]["ownerReferences"] = owner_references
+                oc.apply(namespace=namespace, resource=OR(obsolete_rs, "", ""))
         except (MayNotChangeOnceSetError, PrimaryClusterIPCanNotBeUnsetError):
             if resource_type not in ["Service"]:
                 raise
@@ -641,8 +694,56 @@ def realize_data(
     return list(itertools.chain.from_iterable(results))
 
 
+def _validate_resources_used_exist(
+    ri: ResourceInventory,
+    oc: OCDeprecated,
+    spec: Dict[str, Any],
+    cluster: str,
+    namespace: str,
+    kind: str,
+    name: str,
+    used_kind: str,
+) -> None:
+    used_resources = oc.get_resources_used_in_pod_spec(spec, used_kind)
+    for used_name, used_keys in used_resources.items():
+        # perhaps used resource is deployed together with the using resource?
+        resource = ri.get_desired(cluster, namespace, used_kind, used_name)
+        if not resource:
+            # no. perhaps used resource exists in the namespace?
+            resource = oc.get(
+                namespace, used_kind, name=used_name, allow_not_found=True
+            )
+        err_base = f"[{kind}/{name}] {used_kind} {used_name}"
+        if not resource:
+            # no. where is used resource hiding? we can't find it anywhere
+            logging.error(f"{err_base} does not exist")
+            ri.register_error()
+            continue
+        # here it is! let's make sure it has all the required keys
+        missing_keys = used_keys - resource["data"].keys()
+        if missing_keys:
+            logging.error(f"{err_base} does not contain keys: {missing_keys}")
+            ri.register_error()
+            continue
+
+
+def validate_planned_data(ri: ResourceInventory, oc_map: OC_Map) -> None:
+    for cluster, namespace, kind, data in ri:
+        oc = oc_map.get(cluster)
+
+        for name, d_item in data["desired"].items():
+            if kind in ("Deployment", "DeploymentConfig"):
+                spec = d_item.body["spec"]["template"]["spec"]
+                _validate_resources_used_exist(
+                    ri, oc, spec, cluster, namespace, kind, name, "Secret"
+                )
+                _validate_resources_used_exist(
+                    ri, oc, spec, cluster, namespace, kind, name, "ConfigMap"
+                )
+
+
 @retry(exceptions=(ValidationError), max_attempts=100)
-def validate_data(oc_map, actions):
+def validate_realized_data(actions: Iterable[Dict[str, str]], oc_map: OC_Map):
     """
     Validate the realized desired state.
 

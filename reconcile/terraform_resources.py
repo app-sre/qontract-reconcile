@@ -312,10 +312,23 @@ provider
   region
   identifier
   api_proxy_uri
-  sms_role_ext_id
   cognito_callback_bucket_name
-  vpc_arn
-  pre_signup_lambda_github_release_url
+  certificate_arn
+  domain_name
+  network_interface_ids
+  openshift_ingress_load_balancer_arn
+  output_resource_name
+  annotations
+  vpc_id
+  subnet_ids
+  vpce_id
+  defaults
+}
+... on NamespaceTerraformResourceRosaAuthenticatorVPCE_V1 {
+  region
+  identifier
+  subnet_ids,
+  vpc_id,
   output_resource_name
   annotations
   defaults
@@ -327,6 +340,7 @@ TF_NAMESPACES_QUERY = """
 {
   namespaces: namespaces_v1 {
     name
+    clusterAdmin
     managedExternalResources
     externalResources {
       provider
@@ -362,6 +376,12 @@ TF_NAMESPACES_QUERY = """
         }
       }
       automationToken {
+        path
+        field
+        version
+        format
+      }
+      clusterAdminAutomationToken {
         path
         field
         version
@@ -599,6 +619,7 @@ def populate_desired_state(
                 resource_type=oc_resource.kind,
                 name=spec.output_resource_name,
                 value=oc_resource,
+                privileged=spec.namespace.get("clusterAdmin") or False,
             )
 
 

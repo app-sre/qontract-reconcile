@@ -46,6 +46,8 @@ from reconcile.utils.unleash import (
 
 urllib3.disable_warnings()
 
+GET_REPLICASET_MAX_ATTEMPTS = 20
+
 
 class StatusCodeError(Exception):
     pass
@@ -56,6 +58,10 @@ class InvalidValueApplyError(Exception):
 
 
 class FieldIsImmutableError(Exception):
+    pass
+
+
+class DeploymentFieldIsImmutableError(Exception):
     pass
 
 
@@ -201,6 +207,21 @@ class OCProcessReconcileTimeDecoratorMsg:
 def oc_process(template, parameters=None):
     oc = OCNative(server=None, local=True, cluster_name="cluster", token=None)
     return oc.process(template, parameters)
+
+
+def equal_spec_template(t1: dict, t2: dict) -> bool:
+    """Compare two spec.templates."""
+    t1_copy = copy.deepcopy(t1)
+    t2_copy = copy.deepcopy(t2)
+    try:
+        del t1_copy["metadata"]["labels"]["pod-template-hash"]
+    except KeyError:
+        pass
+    try:
+        del t2_copy["metadata"]["labels"]["pod-template-hash"]
+    except KeyError:
+        pass
+    return t1_copy == t2_copy
 
 
 class OCDeprecated:  # pylint: disable=too-many-public-methods
@@ -396,7 +417,7 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
             kind,
             name,
         ]
-        if cascade:
+        if not cascade:
             cmd.append("--cascade=orphan")
         self._run(cmd)
         resource = {"kind": kind, "metadata": {"name": name}}
@@ -569,6 +590,43 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
                 owned_pods.append(p)
 
         return owned_pods
+
+    def get_owned_replicasets(self, namespace, resource: dict) -> list[dict]:
+        owned_replicasets = []
+        for rs in self.get(namespace, "ReplicaSet")["items"]:
+            owner = self.get_obj_root_owner(namespace, rs, allow_not_found=True)
+            if (resource["kind"], resource["metadata"]["name"]) == (
+                owner["kind"],
+                owner["metadata"]["name"],
+            ):
+                owned_replicasets.append(rs)
+
+        return owned_replicasets
+
+    @retry(
+        exceptions=(ResourceNotFoundError),
+        max_attempts=GET_REPLICASET_MAX_ATTEMPTS,
+    )
+    def get_replicaset(
+        self, namespace: str, deployment_resource: dict, allow_empty=False
+    ) -> dict:
+        """Get last active ReplicaSet for given Deployment.
+
+        Implements similar logic like in kubectl describe deployment.
+        """
+        for rs in sorted(
+            self.get_owned_replicasets(namespace, deployment_resource),
+            key=lambda x: x["metadata"]["creationTimestamp"],
+            reverse=True,
+        ):
+            if equal_spec_template(
+                rs["spec"]["template"], deployment_resource["spec"]["template"]
+            ):
+                return rs
+
+        if allow_empty:
+            return {}
+        raise ResourceNotFoundError("No ReplicaSet found")
 
     @staticmethod
     def get_pod_owned_pvc_names(pods: Iterable[dict[str, dict]]) -> set[str]:
@@ -833,7 +891,12 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
                     raise InvalidValueApplyError(f"[{self.server}]: {err}")
                 if "Invalid value: " in err:
                     if ": field is immutable" in err:
-                        raise FieldIsImmutableError(f"[{self.server}]: {err}")
+                        if "The Deployment" in err:
+                            raise DeploymentFieldIsImmutableError(
+                                f"[{self.server}]: {err}"
+                            )
+                        else:
+                            raise FieldIsImmutableError(f"[{self.server}]: {err}")
                     if ": may not change once set" in err:
                         raise MayNotChangeOnceSetError(f"[{self.server}]: {err}")
                     if ": primary clusterIP can not be unset" in err:
@@ -1168,7 +1231,7 @@ class OC:
             use_native = use_native.lower() in ["true", "yes"]
         else:
             enable_toggle = "openshift-resources-native-client"
-            strategies = get_feature_toggle_strategies(enable_toggle, ["perCluster"])
+            strategies = get_feature_toggle_strategies(enable_toggle)
 
             # only use the native client if the toggle is enabled and this
             # server is listed in the perCluster strategy
