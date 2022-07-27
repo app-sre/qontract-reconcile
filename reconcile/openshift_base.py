@@ -708,7 +708,10 @@ def _validate_resources_used_exist(
     for used_name, used_keys in used_resources.items():
         # perhaps used resource is deployed together with the using resource?
         resource = ri.get_desired(cluster, namespace, used_kind, used_name)
-        if not resource:
+        if resource:
+            # get the body to match with the possible result from oc.get
+            resource = resource.body
+        else:
             # no. perhaps used resource exists in the namespace?
             resource = oc.get(
                 namespace, used_kind, name=used_name, allow_not_found=True
