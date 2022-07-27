@@ -123,6 +123,8 @@ from terrascript.resource import (
     aws_wafv2_web_acl_association,
     aws_vpc_endpoint,
     aws_vpc_endpoint_subnet_association,
+    aws_api_gateway_account,
+    aws_api_gateway_method_settings,
     random_id,
 )
 
@@ -204,6 +206,7 @@ VARIABLE_KEYS = [
     "vpc_id",
     "subnet_ids",
     "network_interface_ids",
+    "vpce_id",
 ]
 
 TMP_DIR_PREFIX = "terrascript-aws-"
@@ -3381,40 +3384,37 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         log_type_name = log_type.value.lower()
         return f"OpenSearchService__{domain_identifier}__{log_type_name}"
 
-    def _elasticsearch_get_all_log_group_infos(self) -> list[ElasticSearchLogGroupInfo]:
+    def _elasticsearch_get_all_log_group_infos(
+        self, account: str
+    ) -> list[ElasticSearchLogGroupInfo]:
         """
         Gather all cloud_watch_log_groups for the
         current account. This is required to set
         an account-wide resource policy.
         """
         log_group_infos = []
-        for specs in self.account_resource_specs.values():
-            for spec in specs:
-                account = spec.provisioner_name
-                res = spec.resource
-                ns = spec.namespace
-                if res.get("provider") != "elasticsearch":
-                    continue
-                # res.get('', []) won't work, as publish_log_types is
-                # explicitly set to None if not set
-                log_types = res["publish_log_types"] or []
-                for log_type in log_types:
-                    region = ns["cluster"]["spec"]["region"]
-                    account_id = self.accounts[account]["uid"]
-                    lg_identifier = (
-                        TerrascriptClient.elasticsearch_log_group_identifier(
-                            domain_identifier=res["identifier"],
-                            log_type=ElasticSearchLogGroupType(log_type),
-                        )
+        for spec in self.account_resource_specs[account]:
+            if spec.provider != "elasticsearch":
+                continue
+            res = spec.resource
+            # res.get('', []) won't work, as publish_log_types is
+            # explicitly set to None if not set
+            log_types = res["publish_log_types"] or []
+            region = res.get("region") or self.default_regions.get(account)
+            for log_type in log_types:
+                account_id = self.accounts[account]["uid"]
+                lg_identifier = TerrascriptClient.elasticsearch_log_group_identifier(
+                    domain_identifier=res["identifier"],
+                    log_type=ElasticSearchLogGroupType(log_type),
+                )
+                log_group_infos.append(
+                    ElasticSearchLogGroupInfo(
+                        account=account,
+                        account_id=account_id,
+                        region=str(region),
+                        log_group_identifier=lg_identifier,
                     )
-                    log_group_infos.append(
-                        ElasticSearchLogGroupInfo(
-                            account=account,
-                            account_id=account_id,
-                            region=region,
-                            log_group_identifier=lg_identifier,
-                        )
-                    )
+                )
         return log_group_infos
 
     def _get_elasticsearch_account_wide_resource_policy(
@@ -3432,7 +3432,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         This function returns None, if no log groups are found for that
         account.
         """
-        log_group_infos = self._elasticsearch_get_all_log_group_infos()
+        log_group_infos = self._elasticsearch_get_all_log_group_infos(account=account)
 
         if not log_group_infos:
             return None
@@ -3477,7 +3477,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         resource: Mapping[str, Any],
         values: Mapping[str, Any],
         output_prefix: str,
-    ) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
+    ) -> tuple[list[dict[str, Any]], list[dict[str, object]]]:
         """
         Generate cloud_watch_log_group terraform_resources
         for the given resource. Further, generate
@@ -3490,11 +3490,22 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         # res.get('', []) won't work, as publish_log_types is
         # explicitly set to None if not set
-        log_types = resource["publish_log_types"] or []
-        for log_type in log_types:
+        publish_log_types = resource["publish_log_types"] or []
+        for t in ElasticSearchLogGroupType:
+            log_type = t.value
+            if log_type not in publish_log_types:
+                publishing_options.append(
+                    {
+                        "log_type": log_type,
+                        "enabled": False,
+                        "cloudwatch_log_group_arn": "",
+                    }
+                )
+                continue
+
             log_type_identifier = TerrascriptClient.elasticsearch_log_group_identifier(
                 domain_identifier=identifier,
-                log_type=ElasticSearchLogGroupType(log_type),
+                log_type=t,
             )
             log_group_values = {
                 "name": log_type_identifier,
@@ -3526,6 +3537,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             publishing_options.append(
                 {
                     "log_type": log_type,
+                    "enabled": True,
                     "cloudwatch_log_group_arn": arn,
                 }
             )
@@ -4564,6 +4576,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         openshift_ingress_load_balancer_arn = common_values.get(
             "openshift_ingress_load_balancer_arn"
         )
+        vpce_id = common_values.get("vpce_id")
 
         # Manage IAM Resources
         lambda_role_policy = {
@@ -4928,7 +4941,10 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         api_gateway_rest_api_resource = aws_api_gateway_rest_api(
             "gw_api",
             name=f"{identifier}-rest-api",
-            endpoint_configuration={"types": ["PRIVATE"], "vpc_endpoint_ids": [vpc_id]},
+            endpoint_configuration={
+                "types": ["PRIVATE"],
+                "vpc_endpoint_ids": [vpce_id],
+            },
             **rest_api_args,
         )
         tf_resources.append(api_gateway_rest_api_resource)
@@ -5140,7 +5156,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             deployment_id="${aws_api_gateway_deployment.gw_deployment.id}",
             rest_api_id="${aws_api_gateway_rest_api.gw_api.id}",
             stage_name="api",
-            cache_cluster_size="0.5",
         )
         tf_resources.append(api_gateway_stage_resource)
 
@@ -5159,7 +5174,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                         "Principal": "*",
                         "Action": "execute-api:Invoke",
                         "Resource": "${aws_api_gateway_rest_api.gw_api.execution_arn}/*",
-                        "Condition": {"StringNotEquals": {"aws:SourceVpce": vpc_id}},
+                        "Condition": {"StringNotEquals": {"aws:SourceVpce": vpce_id}},
                     },
                 ],
             }
@@ -5215,6 +5230,88 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             web_acl_arn="${aws_wafv2_web_acl.api_waf.arn}",
         )
         tf_resources.append(waf_acl_association_resource)
+
+        policy = {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Action": "sts:AssumeRole",
+                    "Principal": {
+                        "Service": "apigateway.amazonaws.com",
+                    },
+                },
+            ],
+        }
+        cloudwatch_assume_role_policy = json.dumps(policy, sort_keys=True)
+
+        cloudwatch_iam_role_resource = aws_iam_role(
+            "cloudwatch_assume_role",
+            name=f"{identifier}-cloudwatch-role",
+            assume_role_policy=cloudwatch_assume_role_policy,
+        )
+        tf_resources.append(cloudwatch_iam_role_resource)
+
+        policy = {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Action": [
+                        "logs:CreateLogGroup",
+                        "logs:CreateLogStream",
+                        "logs:DescribeLogGroups",
+                        "logs:DescribeLogStreams",
+                        "logs:PutLogEvents",
+                        "logs:GetLogEvents",
+                        "logs:FilterLogEvents",
+                    ],
+                    "Resource": ["*"],
+                }
+            ],
+        }
+
+        cloudwatch_iam_policy_document = json.dumps(policy, sort_keys=True)
+
+        cloudwatch_iam_policy_resource = aws_iam_policy(
+            "cloudwatch",
+            name=f"{identifier}-cloudwatch-policy",
+            policy=cloudwatch_iam_policy_document,
+        )
+        tf_resources.append(cloudwatch_iam_policy_resource)
+
+        cloudwatch_iam_policy_role_attachment_resource = aws_iam_role_policy_attachment(
+            "cloudwatch",
+            role=f"${{{cloudwatch_iam_role_resource.id}}}",
+            policy_arn=f"${{{cloudwatch_iam_policy_resource.arn}}}",
+        )
+        tf_resources.append(cloudwatch_iam_policy_role_attachment_resource)
+
+        cloudwatch_log_group_resource = aws_cloudwatch_log_group(
+            "api_gw_access",
+            name=f"API-Gateway-Execution-Logs_${{{api_gateway_rest_api_resource.id}}}/api",
+            retention_in_days=365,
+        )
+        tf_resources.append(cloudwatch_log_group_resource)
+
+        api_gateway_method_settings_resource = aws_api_gateway_method_settings(
+            "gw_api",
+            rest_api_id=f"${{{api_gateway_rest_api_resource.id}}}",
+            stage_name="${aws_api_gateway_stage.gw_stage.stage_name}",
+            method_path="*/*",
+            settings={
+                "logging_level": "INFO",
+                "throttling_burst_limit": 5000,
+                "throttling_rate_limit": 10000,
+            },
+            depends_on=["aws_cloudwatch_log_group.api_gw_access"],
+        )
+        tf_resources.append(api_gateway_method_settings_resource)
+
+        api_gateway_account_resource = aws_api_gateway_account(
+            "apigw", cloudwatch_role_arn=f"${{{cloudwatch_iam_role_resource.arn}}}"
+        )
+        tf_resources.append(api_gateway_account_resource)
 
         self.add_resources(account, tf_resources)
 
