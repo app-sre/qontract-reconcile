@@ -704,7 +704,9 @@ def _validate_resources_used_exist(
     name: str,
     used_kind: str,
 ) -> None:
-    used_resources = oc.get_resources_used_in_pod_spec(spec, used_kind)
+    used_resources = oc.get_resources_used_in_pod_spec(
+        spec, used_kind, include_optional=False
+    )
     for used_name, used_keys in used_resources.items():
         # perhaps used resource is deployed together with the using resource?
         resource = ri.get_desired(cluster, namespace, used_kind, used_name)
