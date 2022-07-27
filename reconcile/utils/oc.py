@@ -817,10 +817,11 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
 
     @staticmethod
     def get_resources_used_in_pod_spec(
-        spec: Dict[str, Any], kind: str
+        spec: Dict[str, Any], kind: str, include_optional: bool = True,
     ) -> Dict[str, Set[str]]:
         if kind not in ("Secret", "ConfigMap"):
             raise KeyError(f"unsupported resource kind: {kind}")
+        optional = "optional"
         if kind == "Secret":
             volume_kind, volume_kind_ref, env_from_kind, env_kind, env_ref = (
                 "secret",
@@ -842,6 +843,8 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
         for v in spec.get("volumes", []):
             try:
                 volume_ref = v[volume_kind]
+                if volume_ref.get(optional) and not include_optional:
+                    continue
                 resource_name = volume_ref[volume_kind_ref]
                 resources.setdefault(resource_name, set())
             except (KeyError, TypeError):
@@ -850,6 +853,8 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
             for e in c.get("envFrom", []):
                 try:
                     resource_ref = e[env_from_kind]
+                    if resource_ref.get(optional) and not include_optional:
+                        continue
                     resource_name = resource_ref[env_ref]
                     resources.setdefault(resource_name, set())
                 except (KeyError, TypeError):
@@ -857,6 +862,8 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
             for e in c.get("env", []):
                 try:
                     resource_ref = e["valueFrom"][env_kind]
+                    if resource_ref.get(optional) and not include_optional:
+                        continue
                     resource_name = resource_ref[env_ref]
                     resources.setdefault(resource_name, set())
                     secret_key = resource_ref["key"]
