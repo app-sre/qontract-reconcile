@@ -817,7 +817,9 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
 
     @staticmethod
     def get_resources_used_in_pod_spec(
-        spec: Dict[str, Any], kind: str, include_optional: bool = True,
+        spec: Dict[str, Any],
+        kind: str,
+        include_optional: bool = True,
     ) -> Dict[str, Set[str]]:
         if kind not in ("Secret", "ConfigMap"):
             raise KeyError(f"unsupported resource kind: {kind}")
