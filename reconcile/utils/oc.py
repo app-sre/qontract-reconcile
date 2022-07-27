@@ -851,7 +851,7 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
                 resources.setdefault(resource_name, set())
             except (KeyError, TypeError):
                 continue
-        for c in spec["containers"] + spec.get("initContainers") or []:
+        for c in spec["containers"] + (spec.get("initContainers") or []):
             for e in c.get("envFrom") or []:
                 try:
                     resource_ref = e[env_from_kind]
