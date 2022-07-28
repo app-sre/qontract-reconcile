@@ -89,7 +89,6 @@ class OCMProduct:
 
 class OCMProductOsd(OCMProduct):
     ALLOWED_SPEC_UPDATE_FIELDS = {
-        SPEC_ATTR_INSTANCE_TYPE,
         SPEC_ATTR_STORAGE,
         SPEC_ATTR_LOAD_BALANCERS,
         SPEC_ATTR_PRIVATE,
@@ -231,10 +230,6 @@ class OCMProductOsd(OCMProduct):
     @staticmethod
     def _get_update_cluster_spec(update_spec: Mapping[str, Any]) -> dict[str, Any]:
         ocm_spec: dict[str, Any] = {}
-
-        instance_type = update_spec.get("instance_type")
-        if instance_type is not None:
-            ocm_spec["nodes"] = {"compute_machine_type": {"id": instance_type}}
 
         storage = update_spec.get("storage")
         if storage is not None:
