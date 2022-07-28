@@ -1474,12 +1474,11 @@ def github_repo_invites(ctx):
 
 
 @integration.command(short_help="Validates permissions in github repositories.")
-@click.argument("instance-name")
 @click.pass_context
-def github_repo_permissions_validator(ctx, instance_name):
+def github_repo_permissions_validator(ctx):
     import reconcile.github_repo_permissions_validator
 
-    run_integration(reconcile.github_repo_permissions_validator, ctx.obj, instance_name)
+    run_integration(reconcile.github_repo_permissions_validator, ctx.obj)
 
 
 @integration.command(short_help="Manage GitLab group members.")
