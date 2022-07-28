@@ -441,25 +441,3 @@ def test_changed_ocm_spec_disable_uwm(
     assert _patch.call_count == 1
     assert _post.call_count == 0
     assert cluster_updates_mr_mock.call_count == 0
-
-
-def test_missing_ocm_spec_disable_uwm(
-    get_json_mock,
-    queries_mock,
-    ocm_mock,
-    ocm_osd_cluster_raw_spec,
-    ocm_osd_cluster_ai_spec,
-    cluster_updates_mr_mock,
-):
-    ocm_osd_cluster_ai_spec["spec"]["disable_user_workload_monitoring"] = None
-
-    get_json_mock.return_value = {"items": [ocm_osd_cluster_raw_spec]}
-    queries_mock[1].return_value = [ocm_osd_cluster_ai_spec]
-
-    with pytest.raises(SystemExit):
-        occ.run(dry_run=False)
-    _post, _patch = ocm_mock
-
-    assert _patch.call_count == 1
-    assert _post.call_count == 0
-    assert cluster_updates_mr_mock.call_count == 1
