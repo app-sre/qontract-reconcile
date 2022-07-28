@@ -4,14 +4,11 @@ import threading
 from typing import Mapping, Optional, Any
 
 from UnleashClient import UnleashClient, BaseCache
-from UnleashClient import strategies
 from UnleashClient.strategies import Strategy
 
 
 client: Optional[UnleashClient] = None
 client_lock = threading.Lock()
-
-custom_strategies = ["perCluster", "perClusterNamespace"]
 
 
 class CacheDict(BaseCache):
@@ -34,6 +31,20 @@ class CacheDict(BaseCache):
         self.cache = {}
 
 
+class DisableNativeClientStrategy(Strategy):
+    def load_provisioning(self) -> list:
+        return [x.strip() for x in self.parameters["cluster_name"].split(",")]
+
+    def apply(self, context: dict = None) -> bool:
+        enable = True
+
+        if "cluster_name" in context.keys():
+            # if cluster in context is in clusters sent from server, disable
+            enable = context["cluster_name"] not in self.parsed_provisioning
+
+        return enable
+
+
 def _get_unleash_api_client(api_url: str, auth_head: str) -> UnleashClient:
     global client
     with client_lock:
@@ -47,9 +58,7 @@ def _get_unleash_api_client(api_url: str, auth_head: str) -> UnleashClient:
                 app_name="qontract-reconcile",
                 custom_headers=headers,
                 cache=CacheDict(),
-                custom_strategies={
-                    name: strategies.Strategy for name in custom_strategies
-                },
+                custom_strategies={"perCluster": DisableNativeClientStrategy},
             )
             client.initialize_client()
     return client
@@ -59,7 +68,9 @@ def get_feature_toggle_default(feature_name, context):
     return True
 
 
-def get_feature_toggle_state(integration_name: str) -> bool:
+def get_feature_toggle_state(
+    integration_name: str, context: Optional[dict] = None
+) -> bool:
     api_url = os.environ.get("UNLEASH_API_URL")
     client_access_token = os.environ.get("UNLEASH_CLIENT_ACCESS_TOKEN")
     if not (api_url and client_access_token):
@@ -70,22 +81,12 @@ def get_feature_toggle_state(integration_name: str) -> bool:
         client_access_token,
     )
 
-    return c.is_enabled(integration_name, fallback_function=get_feature_toggle_default)
+    return c.is_enabled(
+        integration_name, context=context, fallback_function=get_feature_toggle_default
+    )
 
 
 def get_feature_toggles(api_url: str, client_access_token: str) -> Mapping[str, str]:
     c = _get_unleash_api_client(api_url, client_access_token)
 
     return {k: "enabled" if v.enabled else "disabled" for k, v in c.features.items()}
-
-
-def get_feature_toggle_strategies(toggle_name: str) -> Optional[list[Strategy]]:
-    api_url = os.environ.get("UNLEASH_API_URL")
-    client_access_token = os.environ.get("UNLEASH_CLIENT_ACCESS_TOKEN")
-    if not (api_url and client_access_token):
-        return None
-
-    c = _get_unleash_api_client(api_url, client_access_token)
-    all_strategies = {name: toggle.strategies for name, toggle in c.features.items()}
-
-    return all_strategies[toggle_name] if toggle_name in all_strategies else None
