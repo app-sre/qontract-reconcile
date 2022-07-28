@@ -1,11 +1,9 @@
 import json
 import os
-import time
 
 import httpretty
 import pytest
 from UnleashClient.features import Feature
-from UnleashClient.strategies import Strategy
 
 import reconcile.utils.unleash
 from reconcile.utils.unleash import (
@@ -14,6 +12,11 @@ from reconcile.utils.unleash import (
     get_feature_toggle_state,
     get_feature_toggles,
 )
+
+
+@pytest.fixture
+def reset_client():
+    reconcile.utils.unleash.client = None
 
 
 def test__get_unleash_api_client(mocker):
@@ -43,7 +46,7 @@ def test_get_feature_toggle_state_env_missing():
 
 
 def test_get_feature_toggle_state(mocker, monkeypatch):
-    def enabled_func(feature, fallback_function):
+    def enabled_func(feature, context, fallback_function):
         return feature == "enabled"
 
     os.environ["UNLEASH_API_URL"] = "foo"
@@ -80,12 +83,7 @@ def test_get_feature_toggles(mocker, monkeypatch):
     assert toggles["bar"] == "enabled"
 
 
-@httpretty.activate(allow_net_connect=False)
-@pytest.mark.parametrize("enabled", [True, False])
-def test_test_get_feature_toggle_state_with_strategy(enabled):
-    os.environ["UNLEASH_API_URL"] = "http://unleash/api"
-    os.environ["UNLEASH_CLIENT_ACCESS_TOKEN"] = "bar"
-
+def setup_unleash_httpretty(enabled: bool):
     features = {
         "version": 2,
         "features": [
@@ -115,18 +113,23 @@ def test_test_get_feature_toggle_state_with_strategy(enabled):
     register_param = (httpretty.POST, "http://unleash/api/client/register")
     httpretty.register_uri(*register_param, status=202)
 
+
+@httpretty.activate(allow_net_connect=False)
+def test_get_feature_toggle_state_with_strategy(reset_client):
+    os.environ["UNLEASH_API_URL"] = "http://unleash/api"
+    os.environ["UNLEASH_CLIENT_ACCESS_TOKEN"] = "bar"
+    setup_unleash_httpretty(True)
     assert not get_feature_toggle_state(
         "test-strategies", context={"cluster_name": "foo"}
     )
+    assert get_feature_toggle_state("test-strategies", context={"cluster_name": "bar"})
 
-    # Set client to None or caching will fail tests
-    if enabled:
-        reconcile.utils.unleash.client = None
-        assert get_feature_toggle_state(
-            "test-strategies", context={"cluster_name": "bar"}
-        )
-    else:
-        reconcile.utils.unleash.client = None
-        assert not get_feature_toggle_state(
-            "test-strategies", context={"cluster_name": "bar"}
-        )
+
+@httpretty.activate(allow_net_connect=False)
+def test_get_feature_toggle_state_disabled_with_strategy(reset_client):
+    os.environ["UNLEASH_API_URL"] = "http://unleash/api"
+    os.environ["UNLEASH_CLIENT_ACCESS_TOKEN"] = "bar"
+    setup_unleash_httpretty(False)
+    assert not get_feature_toggle_state(
+        "test-strategies", context={"cluster_name": "bar"}
+    )

@@ -39,10 +39,7 @@ from kubernetes.dynamic.client import DynamicClient
 from kubernetes.dynamic.discovery import ResourceGroup, LazyDiscoverer
 from kubernetes.dynamic.resource import ResourceList
 
-from reconcile.utils.unleash import (
-    get_feature_toggle_strategies,
-    get_feature_toggle_state,
-)
+from reconcile.utils.unleash import get_feature_toggle_state
 
 urllib3.disable_warnings()
 

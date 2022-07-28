@@ -35,10 +35,10 @@ class DisableNativeClientStrategy(Strategy):
     def load_provisioning(self) -> list:
         return [x.strip() for x in self.parameters["cluster_name"].split(",")]
 
-    def apply(self, context: dict = None) -> bool:
+    def apply(self, context: Optional[dict] = None) -> bool:
         enable = True
 
-        if "cluster_name" in context.keys():
+        if context and "cluster_name" in context.keys():
             # if cluster in context is in clusters sent from server, disable
             enable = context["cluster_name"] not in self.parsed_provisioning
 
