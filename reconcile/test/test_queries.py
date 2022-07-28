@@ -3,6 +3,9 @@ from unittest.mock import create_autospec, patch
 from copy import deepcopy
 
 from reconcile import queries
+from reconcile.gql_queries.app_interface.app_interface_settings import (
+    AppInterfaceSettingsV1,
+)
 from reconcile.utils import gql
 
 from .fixtures import Fixtures
@@ -28,6 +31,18 @@ class TestQueries:
 
     def mock_gql_query(self, query: str) -> dict[str, Any]:
         return self.fixture_data
+
+    def test_get_app_interface_settings(self) -> None:
+        data = Fixtures("queries").get_json("app_interface_settings.json")
+        self.fixture_data = deepcopy(data)
+        settings = queries.get_app_interface_settings()
+        assert isinstance(settings, dict)
+
+    def test_get_app_interface_settings_typed(self) -> None:
+        data = Fixtures("queries").get_json("app_interface_settings.json")
+        self.fixture_data = deepcopy(data)
+        settings = queries.get_app_interface_settings(typed=True)
+        assert isinstance(settings, AppInterfaceSettingsV1)
 
     def test_get_permissions_return_all_slack_usergroup(self) -> None:
         self.fixture_data = Fixtures("slack_usergroups").get_anymarkup(

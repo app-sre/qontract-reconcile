@@ -9,8 +9,11 @@ from typing import Any, Mapping, Optional
 
 from jinja2 import Template
 
+from reconcile.gql_queries.app_interface import app_interface_settings
+from reconcile.gql_queries.app_interface.app_interface_settings import (
+    AppInterfaceSettingsQueryData,
+)
 from reconcile.utils import gql
-
 
 SECRET_READER_SETTINGS = """
 {
@@ -31,86 +34,27 @@ def get_secret_reader_settings() -> Optional[Mapping[str, Any]]:
     return None
 
 
-APP_INTERFACE_SETTINGS_QUERY = """
-{
-  settings: app_interface_settings_v1 {
-    repoUrl
-    vault
-    kubeBinary
-    mergeRequestGateway
-    saasDeployJobTemplate
-    hashLength
-    smtp {
-      mailAddress
-      timeout
-      credentials {
-        path
-        field
-        version
-        format
-      }
-    }
-    imap {
-      timeout
-      credentials {
-        path
-        field
-        version
-        format
-      }
-    }
-    githubRepoInvites {
-      credentials {
-        path
-        field
-        version
-        format
-      }
-    }
-    ldap {
-      serverUrl
-      baseDn
-    }
-    dependencies {
-      type
-      services {
-        name
-      }
-    }
-    credentials {
-      name
-      secret {
-        path
-        field
-        version
-        format
-      }
-    }
-    sqlQuery {
-      imageRepository
-      pullSecret {
-        path
-        version
-        labels
-        annotations
-        type
-      }
-    }
-    alertingServices
-    endpointMonitoringBlackboxExporterModules
-  }
-}
-"""
+def get_app_interface_settings(typed=False):
+    """Returns App Interface settings as a `dict` or typed data"""
 
-
-def get_app_interface_settings():
-    """Returns App Interface settings"""
     gqlapi = gql.get_api()
-    settings = gqlapi.query(APP_INTERFACE_SETTINGS_QUERY)["settings"]
-    if settings:
-        # assuming a single settings file for now
-        return settings[0]
-    return None
+    result = gqlapi.query(app_interface_settings.QUERY)
+    data: AppInterfaceSettingsQueryData = AppInterfaceSettingsQueryData(**result)
+    if data.settings is None or len(data.settings) == 0:
+        raise ValueError("Could not retrieve app-interface settings")
+
+    # If a typed response is requested, simply return typed data
+    # otherwise convert to a dict backward compatibility
+    if typed:
+        settings = data.settings
+    else:
+        # qenerate sets fields aliases from the graphql query keys
+        # by_alias is used here to ensure dict keys are the same as in the query
+        # https://pydantic-docs.helpmanual.io/usage/exporting_models/#modeldict
+        settings = data.dict(by_alias=True)["settings"]
+
+    # assuming a single settings file for now
+    return settings[0]
 
 
 APP_INTERFACE_EMAILS_QUERY = """

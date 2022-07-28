@@ -1,0 +1,57 @@
+{
+    "settings": [
+        {
+            "repoUrl": "https://github.com/app-sre/app-interface",
+            "vault": true,
+            "kubeBinary": "oc",
+            "mergeRequestGateway": "sqs",
+            "saasDeployJobTemplate": "openshift-saas-deploy",
+            "hashLength": 7,
+            "smtp": {
+                "mailAddress": "example.com",
+                "timeout": 30,
+                "credentials": {
+                    "path": "some/path",
+                    "field": "somefield",
+                    "version": null,
+                    "format": null
+                }
+            },
+            "imap": {
+                "timeout": 30,
+                "credentials": {
+                    "path": "some/path",
+                    "field": "somefield",
+                    "version": null,
+                    "format": null
+                }
+            },
+            "githubRepoInvites": {
+                "credentials": {
+                    "path": "some/path",
+                    "field": "somefield",
+                    "version": null,
+                    "format": null
+                }
+            },
+            "ldap": {
+                "serverUrl": "ldap.example.com",
+                "baseDn": "ou=users,dc=example,dc=com"
+            },
+            "dependencies": [],
+            "credentials": [],
+            "sqlQuery": {
+                "imageRepository": "quay.io/app-sre",
+                "pullSecret": {
+                    "path": "some/path",
+                    "version": 1,
+                    "labels": null,
+                    "annotations": null,
+                    "type": "kubernetes.io/dockercfg"
+                }
+            },
+            "alertingServices": [],
+            "endpointMonitoringBlackboxExporterModules": []
+        }
+    ]
+}
