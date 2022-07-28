@@ -602,6 +602,17 @@ class SaasHerder:
 
         return commit_sha
 
+    def _get_commit_status(self, options):
+        url = options["url"]
+        commit = self._get_commit(options)
+        statuses = None
+        if "github" in url:
+            statuses = commit.get_statuses()
+        elif "gitlab" in url:
+            statuses = commit.statuses.list()
+
+        return statuses
+
     @staticmethod
     def _get_cluster_and_namespace(target):
         cluster = target["namespace"]["cluster"]["name"]
