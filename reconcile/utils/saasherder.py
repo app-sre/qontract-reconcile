@@ -569,24 +569,34 @@ class SaasHerder:
         return resources, html_url, commit_sha
 
     @retry()
-    def _get_commit_sha(self, options):
+    def _get_commit(self, options):
         url = options["url"]
         ref = options["ref"]
         github = options["github"]
-        hash_length = options.get("hash_length")
-        commit_sha = ""
+        commit = None
         if "github" in url:
             repo_name = url.rstrip("/").replace("https://github.com/", "")
             repo = github.get_repo(repo_name)
             commit = repo.get_commit(sha=ref)
-            commit_sha = commit.sha
         elif "gitlab" in url:
             if not self.gitlab:
                 raise Exception("gitlab is not initialized")
             project = self.gitlab.get_project(url)
             commits = project.commits.list(ref_name=ref)
-            commit_sha = commits[0].id
+            commit = commits[0]
 
+        return commit
+
+    def _get_commit_sha(self, options):
+        url = options["url"]
+        commit = self._get_commit(options)
+        commit_sha = ""
+        if "github" in url:
+            commit_sha = commit.sha
+        elif "gitlab" in url:
+            commit_sha = commit.id
+
+        hash_length = options.get("hash_length")
         if hash_length:
             return commit_sha[:hash_length]
 
