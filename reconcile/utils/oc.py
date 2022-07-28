@@ -1230,11 +1230,12 @@ class OC:
         if len(use_native) > 0:
             use_native = use_native.lower() in ["true", "yes"]
         else:
+            enable_toggle_disable = "openshift-resources-native-client-disable"
             enable_toggle = "openshift-resources-native-client"
-            strategies = get_feature_toggle_strategies(enable_toggle)
+            strategies = get_feature_toggle_strategies(enable_toggle_disable)
 
-            # only use the native client if the toggle is enabled and this
-            # server is listed in the perCluster strategy
+            # only use the native client as default and make it possible to
+            # disable with second feature
             cluster_in_strategy = False
             if strategies:
                 for s in strategies:
@@ -1242,7 +1243,8 @@ class OC:
                         cluster_in_strategy = True
                         break
             use_native = (
-                get_feature_toggle_state(enable_toggle) and not cluster_in_strategy
+                get_feature_toggle_state(enable_toggle)
+                and not cluster_in_strategy
             )
 
         if use_native:
