@@ -842,7 +842,7 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
             )
 
         resources: Dict[str, Set[str]] = {}
-        for v in spec.get("volumes", []):
+        for v in spec.get("volumes") or []:
             try:
                 volume_ref = v[volume_kind]
                 if volume_ref.get(optional) and not include_optional:
@@ -851,8 +851,8 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
                 resources.setdefault(resource_name, set())
             except (KeyError, TypeError):
                 continue
-        for c in spec["containers"] + spec.get("initContainers", []):
-            for e in c.get("envFrom", []):
+        for c in spec["containers"] + (spec.get("initContainers") or []):
+            for e in c.get("envFrom") or []:
                 try:
                     resource_ref = e[env_from_kind]
                     if resource_ref.get(optional) and not include_optional:
@@ -861,7 +861,7 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
                     resources.setdefault(resource_name, set())
                 except (KeyError, TypeError):
                     continue
-            for e in c.get("env", []):
+            for e in c.get("env") or []:
                 try:
                     resource_ref = e["valueFrom"][env_kind]
                     if resource_ref.get(optional) and not include_optional:
@@ -1242,7 +1242,7 @@ class OC:
             use_native = use_native.lower() in ["true", "yes"]
         else:
             enable_toggle = "openshift-resources-native-client"
-            strategies = get_feature_toggle_strategies(enable_toggle)
+            strategies = get_feature_toggle_strategies(enable_toggle, ["perCluster"])
 
             # only use the native client if the toggle is enabled and this
             # server is listed in the perCluster strategy

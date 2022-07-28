@@ -164,7 +164,7 @@ def use_jump_host(**kwargs):
     def f(function):
         help_msg = "use jump host if defined."
         function = click.option(
-            "--use-jump-host/--no-use-jump-host", help=help_msg, default=True
+            "--use-jump-host/--no-use-jump-host", help=help_msg, default=False
         )(function)
         return function
 
