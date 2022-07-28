@@ -264,7 +264,6 @@ class OCMProductOsd(OCMProduct):
 
 class OCMProductRosa(OCMProduct):
     ALLOWED_SPEC_UPDATE_FIELDS = {
-        SPEC_ATTR_INSTANCE_TYPE,
         SPEC_ATTR_CHANNEL,
         SPEC_ATTR_AUTOSCALE,
         SPEC_ATTR_NODES,
@@ -285,7 +284,11 @@ class OCMProductRosa(OCMProduct):
 
     @staticmethod
     def update_cluster(ocm: OCM, cluster_name: str, update_spec: Mapping[str, Any]):
-        raise NotImplementedError("update_cluster not implemeneted for ROSA")
+        ocm_spec = OCMProductRosa._get_update_cluster_spec(update_spec)
+        cluster_id = ocm.cluster_ids.get(cluster_name)
+        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}"
+        params: dict[str, Any] = {}
+        ocm._patch(api, ocm_spec, params)
 
     @staticmethod
     def get_ocm_spec(
@@ -380,14 +383,6 @@ class OCMProductRosa(OCMProduct):
     @staticmethod
     def _get_update_cluster_spec(update_spec: Mapping[str, Any]) -> dict[str, Any]:
         ocm_spec: dict[str, Any] = {}
-
-        instance_type = update_spec.get("instance_type")
-        if instance_type is not None:
-            ocm_spec["nodes"] = {"compute_machine_type": {"id": instance_type}}
-
-        private = update_spec.get("private")
-        if private is not None:
-            ocm_spec["api"] = {"listening": "internal" if private else "external"}
 
         channel = update_spec.get("channel")
         if channel is not None:
