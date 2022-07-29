@@ -90,7 +90,7 @@ def setup_unleash_httpretty(enabled: bool):
             {
                 "strategies": [
                     {
-                        "name": "perCluster",
+                        "name": "disableCluster",
                         "constraints": [],
                         "parameters": {"cluster_name": "foo"},
                     }

@@ -31,7 +31,7 @@ class CacheDict(BaseCache):
         self.cache = {}
 
 
-class DisableNativeClientStrategy(Strategy):
+class DisableClusterStrategy(Strategy):
     def load_provisioning(self) -> list:
         return [x.strip() for x in self.parameters["cluster_name"].split(",")]
 
@@ -58,7 +58,7 @@ def _get_unleash_api_client(api_url: str, auth_head: str) -> UnleashClient:
                 app_name="qontract-reconcile",
                 custom_headers=headers,
                 cache=CacheDict(),
-                custom_strategies={"perCluster": DisableNativeClientStrategy},
+                custom_strategies={"disableCluster": DisableClusterStrategy},
             )
             client.initialize_client()
     return client
