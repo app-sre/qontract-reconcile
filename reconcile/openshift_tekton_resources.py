@@ -178,11 +178,6 @@ def fetch_desired_resources(
                 f"provider {tknp['name']}"
             )
 
-        # TODO: remove when tknp objects are managed with this integration
-        tknp["namespace"]["managedResourceNames"] = [
-            {"resource": "Task", "resourceNames": [t["name"] for t in desired_tasks]}
-        ]
-
         desired_resources.extend(desired_tasks)
 
         # We only support pipelines from OpenshiftSaasDeploy
@@ -197,13 +192,6 @@ def fetch_desired_resources(
                     pipeline, pipeline_template_config["path"], cluster, namespace
                 )
             )
-
-        tknp["namespace"]["managedResourceNames"].append(
-            {
-                "resource": "Pipeline",
-                "resourceNames": [p["name"] for p in desired_pipelines],
-            }
-        )
 
         desired_resources.extend(desired_pipelines)
 
