@@ -209,7 +209,7 @@ def get_oc_map(
     """
     Get an OC_Map for our namespaces
     """
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     return OC_Map(
         namespaces=namespaces,
         integration=QONTRACT_INTEGRATION,
@@ -415,7 +415,7 @@ def run(
     _LOG.debug("Collecting desired state ...")
     get_desired(inventory, oc_map, namespaces)
 
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     accounts = queries.get_state_aws_accounts()
     state = State(
         integration=QONTRACT_INTEGRATION, accounts=accounts, settings=settings

@@ -197,7 +197,7 @@ def read_diffs_from_file(io_dir):
 
 def init_gitlab(gitlab_project_id):
     instance = queries.get_gitlab_instance()
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     return GitLabApi(instance, project_id=gitlab_project_id, settings=settings)
 
 

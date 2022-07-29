@@ -136,7 +136,7 @@ def run(
 
     desired_state = get_desired_state(shard_namespaces)
 
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     oc_map = OC_Map(
         namespaces=shard_namespaces,
         integration=QONTRACT_INTEGRATION,

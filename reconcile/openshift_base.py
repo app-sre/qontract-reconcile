@@ -266,7 +266,7 @@ def fetch_current_state(
     cluster_admin=False,
 ):
     ri = ResourceInventory()
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     oc_map = OC_Map(
         namespaces=namespaces,
         clusters=clusters,

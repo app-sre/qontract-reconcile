@@ -57,7 +57,7 @@ def write_output_to_vault(dry_run, vault_path, account, secret_data, name):
 
 def run(dry_run, vault_output_path=""):
     accounts = [a for a in queries.get_aws_accounts() if a.get("ecrs")]
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     aws = AWSApi(1, accounts, settings=settings, init_ecr_auth_tokens=True)
     for account, data in aws.auth_tokens.items():
         dockercfg_secret_data = construct_dockercfg_secret_data(data)

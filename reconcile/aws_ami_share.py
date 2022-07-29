@@ -36,7 +36,7 @@ def get_region(
 def run(dry_run):
     accounts = queries.get_aws_accounts(sharing=True)
     sharing_accounts = filter_accounts(accounts)
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     aws_api = AWSApi(1, sharing_accounts, settings=settings, init_users=False)
 
     for src_account in sharing_accounts:

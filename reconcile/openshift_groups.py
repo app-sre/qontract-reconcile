@@ -93,7 +93,7 @@ def fetch_current_state(thread_pool_size, internal, use_jump_host):
     clusters = [c for c in queries.get_clusters() if is_in_shard(c["name"])]
     ocm_clusters = [c["name"] for c in clusters if c.get("ocm") is not None]
     current_state = []
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     oc_map = OC_Map(
         clusters=clusters,
         integration=QONTRACT_INTEGRATION,

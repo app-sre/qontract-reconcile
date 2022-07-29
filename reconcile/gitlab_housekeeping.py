@@ -333,7 +333,7 @@ def run(dry_run, wait_for_pipeline):
     default_limit = 8
     default_enable_closing = False
     instance = queries.get_gitlab_instance()
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     repos = queries.get_repos_gitlab_housekeeping(server=instance["url"])
 
     for repo in repos:

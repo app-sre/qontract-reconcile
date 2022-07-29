@@ -24,7 +24,7 @@ class EcrMirror:
     def __init__(self, instance: ExternalResourceSpec, dry_run: bool):
         self.dry_run = dry_run
         self.instance = instance
-        self.settings = queries.get_app_interface_settings()
+        self.settings = queries.get_app_interface_settings(typed=False)
         self.secret_reader = SecretReader(settings=self.settings)
         self.skopeo_cli = Skopeo(dry_run)
         self.error = False

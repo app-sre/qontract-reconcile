@@ -18,7 +18,7 @@ def get_repo_services(gl, repo_url):
 
 def run(dry_run):
     instance = queries.get_gitlab_instance()
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     gl = GitLabApi(instance, settings=settings)
     secret_reader = SecretReader(settings=settings)
 

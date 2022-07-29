@@ -472,7 +472,7 @@ def fetch_current_state(
     ri = ResourceInventory()
     if dry_run:
         return ri, None
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     oc_map = OC_Map(
         namespaces=namespaces,
         integration=QONTRACT_INTEGRATION,
@@ -528,7 +528,7 @@ def setup(
         accounts = [n for n in accounts if n["name"] == account_name]
         if not accounts:
             raise ValueError(f"aws account {account_name} is not found")
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
 
     # build a resource inventory for all the kube secrets managed by the
     # app-interface managed terraform resources

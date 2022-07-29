@@ -337,7 +337,7 @@ def run(dry_run, thread_pool_size=10, cluster_name=None):
     orb.QONTRACT_INTEGRATION = QONTRACT_INTEGRATION
     orb.QONTRACT_INTEGRATION_VERSION = QONTRACT_INTEGRATION_VERSION
 
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
 
     rules = get_prometheus_rules(cluster_name, settings)
     invalid_rules = check_prometheus_rules(rules, thread_pool_size, settings)

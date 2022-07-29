@@ -15,7 +15,7 @@ QONTRACT_INTEGRATION = "github-validator"
 def run(dry_run):
     base_url = os.environ.get("GITHUB_API", "https://api.github.com")
     orgs = queries.get_github_orgs()
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     secret_reader = SecretReader(settings=settings)
     error = False
     for org in orgs:

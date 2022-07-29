@@ -15,7 +15,7 @@ def get_quay_api_store():
     Each key contains an initiated QuayApi instance.
     """
     quay_orgs = queries.get_quay_orgs()
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     secret_reader = SecretReader(settings=settings)
     store = {}
     for org_data in quay_orgs:

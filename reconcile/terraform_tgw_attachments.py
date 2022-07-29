@@ -114,7 +114,7 @@ def build_desired_state_tgw_attachments(clusters, ocm_map: OCMMap, awsapi: AWSAp
 def run(
     dry_run, print_to_file=None, enable_deletion=False, thread_pool_size=10, defer=None
 ):
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     clusters = [c for c in queries.get_clusters() if c.get("peering") is not None]
     with_ocm = any(c.get("ocm") for c in clusters)
     if with_ocm:

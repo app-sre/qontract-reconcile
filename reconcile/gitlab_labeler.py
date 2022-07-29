@@ -121,7 +121,7 @@ def guess_labels(
 
 def run(dry_run, gitlab_project_id=None, gitlab_merge_request_id=None) -> None:
     instance = queries.get_gitlab_instance()
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     gl = GitLabApi(instance, project_id=gitlab_project_id, settings=settings)
     project_labels = gl.get_project_labels()
     labels = gl.get_merge_request_labels(gitlab_merge_request_id)

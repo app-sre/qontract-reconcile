@@ -716,7 +716,7 @@ def fetch_data(
     overrides=None,
 ):
     ri = ResourceInventory()
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     logging.debug(f"Overriding keys {overrides}")
     oc_map = OC_Map(
         namespaces=namespaces,

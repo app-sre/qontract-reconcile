@@ -10,7 +10,7 @@ QONTRACT_INTEGRATION = "ocm-machine-pools"
 
 
 def fetch_current_state(clusters):
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     ocm_map = OCMMap(
         clusters=clusters, integration=QONTRACT_INTEGRATION, settings=settings
     )

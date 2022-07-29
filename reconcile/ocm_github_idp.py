@@ -82,7 +82,7 @@ def run(dry_run, vault_input_path=""):
     if not vault_input_path:
         logging.error("must supply vault input path")
         sys.exit(1)
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     clusters = [
         c
         for c in queries.get_clusters()

@@ -10,7 +10,7 @@ QONTRACT_INTEGRATION = "gitlab-projects"
 
 def run(dry_run):
     instance = queries.get_gitlab_instance()
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     code_components = queries.get_code_components()
     app_int_repos = [c["url"] for c in code_components]
     saas_bundle_repos = [c["url"] for c in code_components if c["resource"] == "bundle"]

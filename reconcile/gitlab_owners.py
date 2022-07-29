@@ -390,7 +390,7 @@ def act(repo, dry_run, instance, settings):
 
 def run(dry_run, thread_pool_size=10):
     instance = queries.get_gitlab_instance()
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     repos = queries.get_repos_gitlab_owner(server=instance["url"])
     threaded.run(
         act,

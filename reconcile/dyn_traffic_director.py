@@ -502,7 +502,7 @@ def process_tds(
 
 
 def run(dry_run: bool, enable_deletion: bool):
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     secret_reader = SecretReader(settings=settings)
 
     creds_path = get_config().get("dyn", {}).get("secrets_path", None)

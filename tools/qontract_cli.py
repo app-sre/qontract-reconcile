@@ -107,7 +107,7 @@ def describe(ctx, output):
 @get.command()
 @click.pass_context
 def settings(ctx):
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     columns = ["vault", "kubeBinary", "mergeRequestGateway"]
     print_output(ctx.obj["options"], [settings], columns)
 
@@ -145,7 +145,7 @@ def clusters(ctx, name):
 @click.argument("name", default="")
 @click.pass_context
 def cluster_upgrades(ctx, name):
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
 
     clusters = queries.get_clusters()
 
@@ -197,7 +197,7 @@ def cluster_upgrades(ctx, name):
 @environ(["APP_INTERFACE_STATE_BUCKET", "APP_INTERFACE_STATE_BUCKET_ACCOUNT"])
 @click.pass_context
 def version_history(ctx):
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     clusters = queries.get_clusters()
     clusters = [c for c in clusters if c.get("upgradePolicy") is not None]
     ocm_map = OCMMap(clusters=clusters, settings=settings)
@@ -262,7 +262,7 @@ def cluster_upgrade_policies(
 ):
     md_output = ctx.obj["options"]["output"] == "md"
     clusters = queries.get_clusters()
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     clusters = [c for c in clusters if c.get("upgradePolicy") is not None]
     if cluster:
         clusters = [c for c in clusters if cluster == c["name"]]
@@ -421,7 +421,7 @@ def clusters_network(ctx, name):
 
 
 def ocm_aws_infrastructure_access_switch_role_links_data() -> list[dict]:
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     clusters = queries.get_clusters()
     clusters = [c for c in clusters if c.get("ocm") is not None]
     accounts = {a["uid"]: a["name"] for a in queries.get_aws_accounts()}
@@ -479,7 +479,7 @@ def ocm_aws_infrastructure_access_switch_role_links(ctx):
 @get.command()
 @click.pass_context
 def clusters_egress_ips(ctx):
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     clusters = queries.get_clusters()
     clusters = [
         c
@@ -511,7 +511,7 @@ def clusters_egress_ips(ctx):
 @get.command()
 @click.pass_context
 def clusters_aws_account_ids(ctx):
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     clusters = [c for c in queries.get_clusters() if c.get("ocm") is not None]
     ocm_map = OCMMap(clusters=clusters, settings=settings)
 
@@ -586,7 +586,7 @@ def aws_route53_zones(ctx):
 @click.argument("cluster_name")
 @click.pass_context
 def bot_login(ctx, cluster_name):
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     secret_reader = SecretReader(settings=settings)
     clusters = queries.get_clusters()
     clusters = [c for c in clusters if c["name"] == cluster_name]
@@ -609,7 +609,7 @@ def bot_login(ctx, cluster_name):
 @click.argument("account_name")
 @click.pass_context
 def aws_creds(ctx, account_name):
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     secret_reader = SecretReader(settings=settings)
     accounts = queries.get_aws_accounts(name=account_name)
     if not accounts:
@@ -980,7 +980,7 @@ def quay_mirrors(ctx):
 @click.argument("name")
 @click.pass_context
 def root_owner(ctx, cluster, namespace, kind, name):
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     clusters = [c for c in queries.get_clusters(minimal=True) if c["name"] == cluster]
     oc_map = OC_Map(
         clusters=clusters,
@@ -1056,7 +1056,7 @@ def sre_checkpoints(ctx):
 @get.command()
 @click.pass_context
 def app_interface_merge_queue(ctx):
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     instance = queries.get_gitlab_instance()
     gl = GitLabApi(instance, project_url=settings["repoUrl"], settings=settings)
     merge_requests = glhk.get_merge_requests(True, gl)
@@ -1095,7 +1095,7 @@ def app_interface_merge_queue(ctx):
 @get.command()
 @click.pass_context
 def app_interface_review_queue(ctx):
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     instance = queries.get_gitlab_instance()
     gl = GitLabApi(instance, project_url=settings["repoUrl"], settings=settings)
     merge_requests = gl.get_merge_requests(state=MRState.OPENED)
@@ -1237,7 +1237,7 @@ def slack_usergroup(ctx, workspace, usergroup, username):
     Use an org_username as the username.
     To empty a slack usergroup, pass '' (empty string) as the username.
     """
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     slack = slackapi_from_queries("qontract-cli")
     ugid = slack.get_usergroup_id(usergroup)
     if username:
@@ -1259,7 +1259,7 @@ def state(ctx):
 @click.argument("integration", default="")
 @click.pass_context
 def ls(ctx, integration):
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     accounts = queries.get_state_aws_accounts()
     state = State(integration, accounts, settings=settings)
     keys = state.ls()
@@ -1282,7 +1282,7 @@ def ls(ctx, integration):
 @click.argument("key")
 @click.pass_context
 def get(ctx, integration, key):
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     accounts = queries.get_state_aws_accounts()
     state = State(integration, accounts, settings=settings)
     value = state.get(key)
@@ -1294,7 +1294,7 @@ def get(ctx, integration, key):
 @click.argument("key")
 @click.pass_context
 def add(ctx, integration, key):
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     accounts = queries.get_state_aws_accounts()
     state = State(integration, accounts, settings=settings)
     state.add(key)
@@ -1306,7 +1306,7 @@ def add(ctx, integration, key):
 @click.argument("value")
 @click.pass_context
 def set(ctx, integration, key, value):
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     accounts = queries.get_state_aws_accounts()
     state = State(integration, accounts, settings=settings)
     state.add(key, value=value, force=True)
@@ -1317,7 +1317,7 @@ def set(ctx, integration, key, value):
 @click.argument("key")
 @click.pass_context
 def rm(ctx, integration, key):
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     accounts = queries.get_state_aws_accounts()
     state = State(integration, accounts, settings=settings)
     state.rm(key)
@@ -1341,7 +1341,7 @@ def template(ctx, cluster, namespace, kind, name):
         print(f"{cluster}/{namespace} error")
         sys.exit(1)
 
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     [namespace_info] = namespace_info
     openshift_resources = namespace_info.get("openshiftResources")
     for r in openshift_resources:
@@ -1406,7 +1406,7 @@ def run_prometheus_test(ctx, path, cluster, namespace, secret_reader):
         print(f"{cluster}/{namespace} does not exist.")
         sys.exit(1)
 
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     settings["vault"] = secret_reader == "vault"
 
     ni = namespace_info[0]
@@ -1533,7 +1533,7 @@ def alert_to_receiver(
         print(f"Unknown cluster {cluster}")
         sys.exit(1)
 
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     if secret_reader == "config":
         settings["vault"] = False
     else:
@@ -1698,7 +1698,7 @@ def promquery(cluster, query):
     """Run a PromQL query"""
     config_data = config.get_config()
     auth = {"path": config_data["promql-auth"]["secret_path"], "field": "token"}
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     secret_reader = SecretReader(settings=settings)
     prom_auth_creds = secret_reader.read(auth)
     prom_auth = requests.auth.HTTPBasicAuth(*prom_auth_creds.split(":"))
@@ -1749,7 +1749,7 @@ def sre_checkpoint_metadata(
 ):
     """Check an app path for checkpoint-related metadata."""
     data = queries.get_app_metadata(app_path)
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     app = data[0]
 
     if jiradef:

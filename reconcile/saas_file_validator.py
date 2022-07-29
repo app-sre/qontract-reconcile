@@ -16,7 +16,7 @@ QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 def run(dry_run):
     saas_files = queries.get_saas_files()
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     secret_reader = SecretReader(settings)
     saasherder = SaasHerder(
         saas_files,

@@ -34,7 +34,7 @@ def get_sentry_users_from_mails(mails):
 
 
 def run(dry_run):
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     accounts = queries.get_state_aws_accounts()
     users = queries.get_users()
     state = State(

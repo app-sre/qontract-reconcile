@@ -27,7 +27,7 @@ def fetch_current_state(thread_pool_size):
     clusters = queries.get_clusters()
     clusters = [c for c in clusters if c.get("ocm") is not None]
     current_state = []
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     ocm_map = OCMMap(
         clusters=clusters, integration=QONTRACT_INTEGRATION, settings=settings
     )

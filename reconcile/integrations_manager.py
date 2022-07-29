@@ -130,7 +130,7 @@ def construct_values_file(
 
 
 def get_image_tag_from_ref(ref: str) -> str:
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     gh_token = get_default_config()["token"]
     github = Github(gh_token, base_url=GH_BASE_URL)
     commit_sha = github.get_repo("app-sre/qontract-reconcile").get_commit(sha=ref).sha

@@ -4697,7 +4697,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         # rosa-authenticator. We need to grab details of said AWS account from
         # app-interface, and feed those details to the AWSApi class.
         thread_pool_size = 1
-        settings = queries.get_app_interface_settings()
+        settings = queries.get_app_interface_settings(typed=False)
         all_aws_accounts = queries.get_aws_accounts()
         target_account_arr = [a for a in all_aws_accounts if a["name"] == account]
         aws_api = AWSApi(thread_pool_size, target_account_arr, settings=settings)

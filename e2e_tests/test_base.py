@@ -42,7 +42,7 @@ E2E_NS_PFX = "e2e-test"
 def get_oc_map(test_name):
     gqlapi = gql.get_api()
     clusters = gqlapi.query(CLUSTERS_QUERY)["clusters"]
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     return OC_Map(clusters=clusters, e2e_test=test_name, settings=settings)
 
 

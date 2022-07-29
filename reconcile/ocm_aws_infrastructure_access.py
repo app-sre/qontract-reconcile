@@ -15,7 +15,7 @@ def fetch_current_state():
     current_state = []
     current_failed = []
     current_deleting = []
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     # Temporary solution to exclude Non-OSD clusters. This will be improved
     # in the milestone 2 of the ROSA support initiative.
     clusters = [

@@ -29,7 +29,7 @@ def account_in_roles(roles: Iterable[Mapping[str, Any]], aws_account: str) -> bo
 
 def run(dry_run):
     accounts = queries.get_aws_accounts(reset_passwords=True)
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     roles = queries.get_roles(aws=True)
     state = State(
         integration=QONTRACT_INTEGRATION, accounts=accounts, settings=settings

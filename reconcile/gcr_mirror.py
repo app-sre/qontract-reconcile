@@ -67,7 +67,7 @@ class QuayMirror:
     def __init__(self, dry_run=False):
         self.dry_run = dry_run
         self.gqlapi = gql.get_api()
-        settings = queries.get_app_interface_settings()
+        settings = queries.get_app_interface_settings(typed=False)
         self.secret_reader = SecretReader(settings=settings)
         self.skopeo_cli = Skopeo(dry_run)
         self.push_creds = self._get_push_creds()

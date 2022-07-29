@@ -112,7 +112,7 @@ def run(
         logging.debug("No Kafka clusters found in app-interface")
         sys.exit(ExitCodes.SUCCESS)
 
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     ocm_map = OCMMap(
         clusters=kafka_clusters, integration=QONTRACT_INTEGRATION, settings=settings
     )

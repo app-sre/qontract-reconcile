@@ -120,7 +120,7 @@ from reconcile.utils.secret_reader import SecretReader
 
 
 accounts = queries.get_queue_aws_accounts()
-settings = queries.get_app_interface_settings()
+settings = queries.get_app_interface_settings(typed=False)
 
 secretReader = SecretReader(queries.get_secret_reader_settings())
 sqs_cli = SQSGateway(accounts, secret_reader=secret_reader)

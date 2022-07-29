@@ -20,7 +20,7 @@ def fetch_pages() -> list[StatusPage]:
 
 
 def get_state() -> State:
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     accounts = queries.get_state_aws_accounts()
     return State(integration=QONTRACT_INTEGRATION, accounts=accounts, settings=settings)
 

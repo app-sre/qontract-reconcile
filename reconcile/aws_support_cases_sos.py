@@ -58,7 +58,7 @@ def act(dry_run, gitlab_project_id, accounts, keys_to_delete):
 
 def run(dry_run, gitlab_project_id=None, thread_pool_size=10, enable_deletion=False):
     accounts = filter_accounts(queries.get_aws_accounts())
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     aws = AWSApi(thread_pool_size, accounts, settings=settings)
     deleted_keys = get_deleted_keys(accounts)
     existing_keys = aws.get_users_keys()

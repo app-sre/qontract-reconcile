@@ -75,7 +75,7 @@ def get_desired_dependency_names(
 
 
 def run(dry_run):
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     dependency_map = settings.get("dependencies")
     if not dependency_map:
         sys.exit()

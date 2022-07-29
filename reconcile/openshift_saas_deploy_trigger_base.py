@@ -129,7 +129,7 @@ def setup(
                     targets.remove(target)
 
     instance = queries.get_gitlab_instance()
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     accounts = queries.get_state_aws_accounts()
     gl = GitLabApi(instance, settings=settings)
     jenkins_map = jenkins_base.get_jenkins_map()

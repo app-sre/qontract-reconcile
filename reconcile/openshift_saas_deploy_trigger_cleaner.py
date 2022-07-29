@@ -26,7 +26,7 @@ def within_retention_days(resource, days):
 
 @defer
 def run(dry_run, thread_pool_size=10, internal=None, use_jump_host=True, defer=None):
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     pipelines_providers = queries.get_pipelines_providers()
     tkn_namespaces = [
         pp["namespace"]

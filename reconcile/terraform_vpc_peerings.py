@@ -465,7 +465,7 @@ def run(
     account_name: Optional[str] = None,
     defer=None,
 ):
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     clusters = [c for c in queries.get_clusters() if c.get("peering") is not None]
     with_ocm = any(c.get("ocm") for c in clusters)
     if with_ocm:

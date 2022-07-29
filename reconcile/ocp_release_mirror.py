@@ -34,7 +34,7 @@ class OcpReleaseMirrorError(Exception):
 class OcpReleaseMirror:
     def __init__(self, dry_run, instance):
         self.dry_run = dry_run
-        self.settings = queries.get_app_interface_settings()
+        self.settings = queries.get_app_interface_settings(typed=False)
 
         cluster_info = instance["hiveCluster"]
         hive_cluster = instance["hiveCluster"]["name"]

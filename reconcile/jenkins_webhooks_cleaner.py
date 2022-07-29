@@ -9,7 +9,7 @@ QONTRACT_INTEGRATION = "jenkins-webhooks-cleaner"
 
 def run(dry_run):
     instance = queries.get_gitlab_instance()
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     gl = GitLabApi(instance, settings=settings)
     previous_urls = queries.get_jenkins_instances_previous_urls()
     repos = queries.get_repos(server=gl.server)

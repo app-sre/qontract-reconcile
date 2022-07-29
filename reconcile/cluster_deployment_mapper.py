@@ -18,7 +18,7 @@ def run(dry_run, vault_output_path):
         sys.exit(ExitCodes.ERROR)
 
     clusters = queries.get_clusters()
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     oc_map = OC_Map(
         clusters=clusters,
         integration=QONTRACT_INTEGRATION,

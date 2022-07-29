@@ -130,7 +130,7 @@ def get_version_history(dry_run, upgrade_policies, ocm_map):
     Returns:
         dict: version history per OCM instance
     """
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     accounts = queries.get_state_aws_accounts()
     state = State(
         integration=QONTRACT_INTEGRATION, accounts=accounts, settings=settings
@@ -360,7 +360,7 @@ def act(dry_run, diffs, ocm_map):
 
 def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
     clusters = queries.get_clusters()
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
 
     clusters = [
         c

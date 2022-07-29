@@ -40,7 +40,7 @@ class GitlabForkCompliance:
         self.maintainers_group = maintainers_group
 
         self.instance = queries.get_gitlab_instance()
-        self.settings = queries.get_app_interface_settings()
+        self.settings = queries.get_app_interface_settings(typed=False)
 
         self.gl_cli = GitLabApi(
             self.instance, project_id=project_id, settings=self.settings

@@ -69,7 +69,7 @@ def run(
         # may be the calling entity, and has more to do
         return
 
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     aws = AWSApi(thread_pool_size, accounts, settings=settings)
     keys_to_delete = get_keys_to_delete(accounts)
     working_dirs = init_tf_working_dirs(accounts, thread_pool_size, settings)

@@ -23,7 +23,7 @@ QONTRACT_INTEGRATION = "slack-usergroups"
 class GitApi:
     def __new__(cls, url: str, *args, **kwargs):
         parsed_url = urlparse(url)
-        settings = queries.get_app_interface_settings()
+        settings = queries.get_app_interface_settings(typed=False)
 
         if parsed_url.hostname:
             if "github" in parsed_url.hostname:
@@ -55,7 +55,7 @@ def get_slack_map(secret_reader: SecretReader) -> dict[str, dict[str, Any]]:
 
 def get_pagerduty_map():
     instances = queries.get_pagerduty_instances()
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     return PagerDutyMap(instances, settings)
 
 

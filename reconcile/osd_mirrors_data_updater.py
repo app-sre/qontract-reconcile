@@ -55,7 +55,7 @@ def get_image_uri(aws_cli, account, repository):
 
 
 def run(dry_run, gitlab_project_id=None):
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     namespaces = queries.get_namespaces()
 
     # This is a list of app-interface ECR resources and their

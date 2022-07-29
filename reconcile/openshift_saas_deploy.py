@@ -133,7 +133,7 @@ def run(
     jenkins_map = jenkins_base.get_jenkins_map(
         desired_instances=desired_jenkins_instances
     )
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     accounts = queries.get_aws_accounts()
     try:
         gl = GitLabApi(instance, settings=settings)

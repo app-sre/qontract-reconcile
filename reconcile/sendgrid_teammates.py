@@ -132,7 +132,7 @@ def act(dry_run, sg_client, desired_state, current_state):
 
 
 def run(dry_run):
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     secret_reader = SecretReader(settings=settings)
 
     users = queries.get_roles(aws=False, saas_files=False, sendgrid=True)

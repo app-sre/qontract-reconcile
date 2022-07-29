@@ -93,7 +93,7 @@ def write_state(state, project, state_to_write):
 def run(dry_run):
     jira_boards = [j for j in queries.get_jira_boards() if j.get("slack")]
     accounts = queries.get_state_aws_accounts()
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     state = State(
         integration=QONTRACT_INTEGRATION, accounts=accounts, settings=settings
     )

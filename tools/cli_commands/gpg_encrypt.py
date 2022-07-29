@@ -62,7 +62,7 @@ class GPGEncryptCommand:
         if not clusters:
             raise ArgumentException(f"No cluster found with name '{cluster_name}'")
 
-        settings = queries.get_app_interface_settings()
+        settings = queries.get_app_interface_settings(typed=False)
         data = {}
 
         try:

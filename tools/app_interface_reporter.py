@@ -73,7 +73,7 @@ def promql(url, query, auth=None):
 
 class Report:
     def __init__(self, app, date):
-        settings = queries.get_app_interface_settings()
+        settings = queries.get_app_interface_settings(typed=False)
         self.secret_reader = SecretReader(settings=settings)
         # standard date format
         if hasattr(date, "strftime"):
@@ -221,7 +221,7 @@ class Report:
 
 
 def get_apps_data(date, month_delta=1, thread_pool_size=10):
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     secret_reader = SecretReader(settings)
 
     apps = queries.get_apps()

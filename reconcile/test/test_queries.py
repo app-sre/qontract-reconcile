@@ -32,16 +32,16 @@ class TestQueries:
     def mock_gql_query(self, query: str) -> dict[str, Any]:
         return self.fixture_data
 
-    def test_get_app_interface_settings(self) -> None:
+    def test_get_app_interface_settings_as_dict(self) -> None:
+        data = Fixtures("queries").get_json("app_interface_settings.json")
+        self.fixture_data = deepcopy(data)
+        settings = queries.get_app_interface_settings(typed=False)
+        assert isinstance(settings, dict)
+
+    def test_get_app_interface_settings_as_typed(self) -> None:
         data = Fixtures("queries").get_json("app_interface_settings.json")
         self.fixture_data = deepcopy(data)
         settings = queries.get_app_interface_settings()
-        assert isinstance(settings, dict)
-
-    def test_get_app_interface_settings_typed(self) -> None:
-        data = Fixtures("queries").get_json("app_interface_settings.json")
-        self.fixture_data = deepcopy(data)
-        settings = queries.get_app_interface_settings(typed=True)
         assert isinstance(settings, AppInterfaceSettingsV1)
 
     def test_get_permissions_return_all_slack_usergroup(self) -> None:

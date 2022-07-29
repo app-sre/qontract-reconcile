@@ -19,7 +19,7 @@ class DashdotdbBase:
     def __init__(self, dry_run, thread_pool_size, marker, scope):
         self.dry_run = dry_run
         self.thread_pool_size = thread_pool_size
-        self.settings = queries.get_app_interface_settings()
+        self.settings = queries.get_app_interface_settings(typed=False)
         self.secret_reader = SecretReader(settings=self.settings)
         self.secret_content = self.secret_reader.read_all({"path": DASHDOTDB_SECRET})
         self.dashdotdb_url = self.secret_content["url"]

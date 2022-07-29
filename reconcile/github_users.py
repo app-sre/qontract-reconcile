@@ -75,7 +75,7 @@ def run(
     enable_deletion=False,
     send_mails=False,
 ):
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     users = queries.get_users()
     g = init_github()
 

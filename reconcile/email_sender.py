@@ -76,7 +76,7 @@ def collect_to(to):
 
 
 def run(dry_run):
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     accounts = queries.get_state_aws_accounts()
     state = State(
         integration=QONTRACT_INTEGRATION, accounts=accounts, settings=settings

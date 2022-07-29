@@ -5,7 +5,7 @@ import itertools
 import shlex
 
 from textwrap import indent
-from typing import Any, Mapping, Optional
+from typing import Any, Callable, Mapping, Optional
 
 from jinja2 import Template
 
@@ -14,6 +14,33 @@ from reconcile.gql_queries.app_interface.app_interface_settings import (
     AppInterfaceSettingsQueryData,
 )
 from reconcile.utils import gql
+
+
+def query(query: str, data_type: Optional[Callable] = None, typed: bool = False):
+    """Runs a graphql query and returns either typed data or a dict"""
+
+    gqlapi = gql.get_api()
+    result = gqlapi.query(query)
+    if result is None:
+        raise ValueError("Could not run app-interface query")
+
+    # If we did not pass a data type we returl the raw result
+    if data_type is None:
+        return result
+
+    # Initialize typed data from result
+    data = data_type(**result)
+    if data is None:
+        raise ValueError(
+            "Could not generate typed data from app-interface query results"
+        )
+
+    # Return typed data or a dict
+    if typed:
+        return data
+    else:
+        return data.dict(by_alias=True)
+
 
 SECRET_READER_SETTINGS = """
 {
@@ -34,27 +61,11 @@ def get_secret_reader_settings() -> Optional[Mapping[str, Any]]:
     return None
 
 
-def get_app_interface_settings(typed=False):
+def get_app_interface_settings(typed: bool = True):
     """Returns App Interface settings as a `dict` or typed data"""
-
-    gqlapi = gql.get_api()
-    result = gqlapi.query(app_interface_settings.QUERY)
-    data: AppInterfaceSettingsQueryData = AppInterfaceSettingsQueryData(**result)
-    if data.settings is None or len(data.settings) == 0:
-        raise ValueError("Could not retrieve app-interface settings")
-
-    # If a typed response is requested, simply return typed data
-    # otherwise convert to a dict backward compatibility
-    if typed:
-        settings = data.settings
-    else:
-        # qenerate sets fields aliases from the graphql query keys
-        # by_alias is used here to ensure dict keys are the same as in the query
-        # https://pydantic-docs.helpmanual.io/usage/exporting_models/#modeldict
-        settings = data.dict(by_alias=True)["settings"]
-
+    data = query(app_interface_settings.QUERY, AppInterfaceSettingsQueryData, typed)
     # assuming a single settings file for now
-    return settings[0]
+    return data.settings[0] if typed else data["settings"][0]
 
 
 APP_INTERFACE_EMAILS_QUERY = """

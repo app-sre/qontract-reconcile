@@ -33,7 +33,7 @@ def load_resource(path: str) -> dict:
 def run(dry_run):
     gqlapi = gql.get_api()
     template_tests = gqlapi.query(TEMPLATE_TESTS_QUERY)["tests"]
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     error = False
     for tt in template_tests:
         found = False

@@ -582,7 +582,7 @@ def get_github_email(gh, user):
 
 
 def run(dry_run):
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     gqlapi = gql.get_api()
     github = init_github()
     secret_reader = SecretReader(settings=settings)

@@ -24,7 +24,7 @@ def run(dry_run, namespace_name, resource_kind, vault_output_path):
         logging.error("must supply vault output path")
         sys.exit(ExitCodes.ERROR)
 
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     clusters = queries.get_clusters(minimal=True)
     oc_map = OC_Map(
         clusters=clusters,

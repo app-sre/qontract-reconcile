@@ -26,7 +26,7 @@ def run(
     dry_run: bool, thread_pool_size: int, internal: bool, use_jump_host: bool
 ) -> None:
     # verify that only allowed blackbox-exporter modules are used
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     allowed_modules = set(settings["endpointMonitoringBlackboxExporterModules"])
     verification_errors = False
     if allowed_modules:

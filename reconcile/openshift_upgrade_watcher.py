@@ -92,7 +92,7 @@ def notify_upgrades_done(clusters: list[dict], state: State, slack: Optional[Sla
 
 @defer
 def run(dry_run, thread_pool_size=10, internal=None, use_jump_host=True, defer=None):
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     accounts = queries.get_state_aws_accounts()
     state = State(
         integration=QONTRACT_INTEGRATION, accounts=accounts, settings=settings

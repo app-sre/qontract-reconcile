@@ -69,7 +69,7 @@ def setup(
         accounts = [n for n in accounts if n["name"] == account_name]
         if not accounts:
             raise ValueError(f"aws account {account_name} is not found")
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings(typed=False)
     roles = expiration.filter(gqlapi.query(TF_QUERY)["roles"])
     tf_roles = [
         r
@@ -174,7 +174,7 @@ def run(
 
     if send_mails:
         new_users = tf.get_new_users()
-        settings = queries.get_app_interface_settings()
+        settings = queries.get_app_interface_settings(typed=False)
         send_email_invites(new_users, settings)
 
     cleanup_and_exit(tf, setup_err)
