@@ -1,6 +1,7 @@
 import base64
 import json
 from operator import itemgetter
+import re
 import sys
 from contextlib import suppress
 from datetime import datetime
@@ -1098,6 +1099,10 @@ def app_interface_review_queue(ctx):
     instance = queries.get_gitlab_instance()
     gl = GitLabApi(instance, project_url=settings["repoUrl"], settings=settings)
     merge_requests = gl.get_merge_requests(state=MRState.OPENED)
+    secret_reader = SecretReader(settings=settings)
+    jjb: JJB = init_jjb(secret_reader)
+    job = jjb.get_all_jobs(["service-app-interface-gl-pr-check"])["ci-int"][0]
+    trigger_phrases_regex = job["triggers"][0]["gitlab"]["note-regex"]
 
     columns = [
         "id",
@@ -1141,8 +1146,14 @@ def app_interface_review_queue(ctx):
         is_last_action_by_app_sre = gl.is_last_action_by_team(
             mr, app_sre_team_members, glhk.HOLD_LABELS
         )
+
         if is_last_action_by_app_sre:
-            continue
+            last_comment = gl.last_comment(mr, exclude_bot=True)
+            # skip only if the last comment isn't a trigger phrase
+            if last_comment and not re.fullmatch(
+                trigger_phrases_regex, last_comment["body"]
+            ):
+                continue
 
         item = {
             "id": f"[{mr.iid}]({mr.web_url})",
