@@ -576,6 +576,12 @@ class ResourceInventory:
             ]
             admin_token_usage[name] = privileged
 
+    def get_desired(self, cluster, namespace, resource_type, name):
+        try:
+            return self._clusters[cluster][namespace][resource_type]["desired"][name]
+        except KeyError:
+            return None
+
     def add_current(self, cluster, namespace, resource_type, name, value):
         with self._lock:
             current = self._clusters[cluster][namespace][resource_type]["current"]

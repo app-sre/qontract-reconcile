@@ -58,6 +58,11 @@ provider
     format
   }
   annotations
+  event_notifications {
+    destination
+    source_type
+    event_categories
+  }
 }
 ... on NamespaceTerraformResourceS3_v1 {
   region
@@ -66,7 +71,7 @@ provider
   overrides
   sqs_identifier
   s3_events
-  event_notifications {
+  sns_event_notifications: event_notifications {
     destination_type
     destination
     event_type
@@ -131,6 +136,20 @@ provider
       value
     }
   }
+}
+... on NamespaceTerraformResourceSNSTopic_v1 {
+  defaults
+  region
+  identifier
+  output_resource_name
+  fifo_topic
+  inline_policy
+  annotations
+  subscriptions
+   {
+     protocol
+     endpoint
+   }
 }
 ... on NamespaceTerraformResourceDynamoDB_v1 {
   region
