@@ -217,6 +217,11 @@ class QuayMirror:
                         )
                         continue
 
+                    _LOG.debug(
+                        "Entering deep sync mode. We will check if source tags have "
+                        "been updated and synchronize in case they have"
+                    )
+
                     try:
                         if downstream == upstream:
                             _LOG.debug(
