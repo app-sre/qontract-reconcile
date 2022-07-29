@@ -1898,8 +1898,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         tf_user_policy_attachment = aws_iam_user_policy_attachment(
             identifier,
-            user=f"{{{user_tf_resource.name}}}",
-            policy_arn=f"{{{tf_aws_iam_policy.arn}}}",
+            user=user_tf_resource.name,
+            policy_arn=f"${{{tf_aws_iam_policy.arn}}}",
             depends_on=self.get_dependencies([user_tf_resource, tf_aws_iam_policy]),
         )
         tf_resources.append(tf_user_policy_attachment)
@@ -2061,8 +2061,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
             tf_aws_iam_policy_attachment = aws_iam_user_policy_attachment(
                 identifier,
-                user=f"{{{user_tf_resource.name}}}",
-                policy_arn=f"{{{tf_aws_iam_policy.arn}}}",
+                user=user_tf_resource.name,
+                policy_arn=f"${{{tf_aws_iam_policy.arn}}}",
                 depends_on=self.get_dependencies([user_tf_resource, tf_aws_iam_policy]),
             )
             tf_resources.append(tf_aws_iam_policy_attachment)
@@ -2470,7 +2470,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         tf_aws_iam_user_policy_attachment = aws_iam_user_policy_attachment(
             identifier,
-            user=identifier,
+            user=user_tf_resource.name,
             policy_arn=f"${{{tf_aws_iam_policy.arn}}}",
             depends_on=self.get_dependencies([user_tf_resource, tf_aws_iam_policy]),
         )
@@ -2586,7 +2586,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         tf_aws_iam_user_policy_attachment = aws_iam_user_policy_attachment(
             identifier,
-            user=identifier,
+            user=user_tf_resource.name,
             policy_arn=f"${{{tf_aws_iam_policy.arn}}}",
             depends_on=self.get_dependencies([user_tf_resource, tf_aws_iam_policy]),
         )
@@ -3142,7 +3142,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         tf_aws_iam_user_policy_attachment = aws_iam_user_policy_attachment(
             identifier,
-            user=identifier,
+            user=user_tf_resource.name,
             policy_arn=f"${{{tf_aws_iam_policy.arn}}}",
             depends_on=self.get_dependencies([user_tf_resource, tf_aws_iam_policy]),
         )
@@ -3326,7 +3326,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         tf_aws_iam_user_policy_attachment = aws_iam_user_policy_attachment(
             identifier,
-            user=identifier,
+            user=user_tf_resource.name,
             policy_arn=f"${{{tf_aws_iam_policy.arn}}}",
             depends_on=self.get_dependencies([user_tf_resource, tf_aws_iam_policy]),
         )
