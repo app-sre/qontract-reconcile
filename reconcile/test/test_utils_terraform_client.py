@@ -15,6 +15,14 @@ def aws_api():
     return create_autospec(AWSApi)
 
 
+@pytest.fixture
+def tf(aws_api):
+    account = {"name": "a1", "deletionApprovals": []}
+    return tfclient.TerraformClient(
+        "integ", "v1", "integ_pfx", [account], {}, 1, aws_api
+    )
+
+
 def test_no_deletion_approvals(aws_api):
     account = {"name": "a1", "deletionApprovals": []}
     tf = tfclient.TerraformClient("integ", "v1", "integ_pfx", [account], {}, 1, aws_api)
@@ -210,3 +218,60 @@ def test_populate_terraform_output_secret_with_replica_credentials():
     assert replica.get_secret_field("key") == "value"
     assert replica.get_secret_field("db.user") == "user"
     assert replica.get_secret_field("db.password") == "password"
+
+
+def test_are_deletions_allowed(tf):
+    tf.accounts = {
+        "a1": {"name": "a1"},
+        "a2": {"name": "a2", "enableDeletion": True},
+    }
+    assert tf._are_deletions_allowed("a1", True)
+    assert tf._are_deletions_allowed("a1", False) is False
+    assert tf._are_deletions_allowed("a2", False)
+
+
+def test_detect_disabled_deletion(tf):
+    tf.accounts = {"a1": {"name": "a1"}}
+
+    resource_changes = [
+        {"change": {"actions": ["delete"]}, "type": "random_id", "name": "foo"},
+        {
+            "change": {"actions": ["delete"]},
+            "type": "aws_lb_target_group_attachment",
+            "name": "foo",
+        },
+    ]
+
+    assert tf._detect_disabled_deletion("a1", resource_changes, False) is False
+    assert tf._detect_disabled_deletion("a1", resource_changes, True) is False
+
+    resource_changes = [
+        {"change": {"actions": ["delete"]}, "type": "foo", "name": "bar"}
+    ]
+
+    assert tf._detect_disabled_deletion("a1", resource_changes, False)
+    assert tf._detect_disabled_deletion("a1", resource_changes, True) is False
+
+    resource_changes = [
+        {
+            "change": {
+                "actions": ["delete"],
+                "before": {},
+            },
+            "type": "aws_db_instance",
+            "name": "bar",
+        }
+    ]
+    assert tf._detect_disabled_deletion("a1", resource_changes, True) is False
+
+    resource_changes = [
+        {
+            "change": {
+                "actions": ["delete"],
+                "before": {"deletion_protection": True},
+            },
+            "type": "aws_db_instance",
+            "name": "bar",
+        }
+    ]
+    assert tf._detect_disabled_deletion("a1", resource_changes, True)

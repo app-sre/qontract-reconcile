@@ -6,7 +6,7 @@ from datetime import datetime
 from collections import defaultdict
 from threading import Lock
 from dataclasses import dataclass
-from typing import Iterable, Mapping, Any
+from typing import Iterable, Mapping, Any, List
 
 from python_terraform import Terraform, IsFlagged, TerraformCommandError
 from sretoolbox.utils import retry
@@ -155,26 +155,85 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
     def terraform_plan(
         self, plan_spec: dict, enable_deletion: bool
     ) -> tuple[bool, list[AccountUser], bool]:
+        disabled_deletion_detected = False
         name = plan_spec["name"]
         tf = plan_spec["tf"]
         return_code, stdout, stderr = tf.plan(
             detailed_exitcode=False, parallelism=self.parallelism, out=name
         )
         error = self.check_output(name, "plan", return_code, stdout, stderr)
-        disabled_deletion_detected, created_users = self.log_plan_diff(
-            name, tf, enable_deletion
-        )
-        return disabled_deletion_detected, created_users, error
+        plan = self._get_json_plan(name, tf)
 
-    def log_plan_diff(
-        self, name: str, tf: Terraform, enable_deletion: bool
-    ) -> tuple[bool, list]:
-        disabled_deletion_detected = False
-        account_enable_deletion = self.accounts[name].get("enableDeletion") or False
+        resource_changes = plan.get("resource_changes")
+        if resource_changes is not None:
+            disabled_deletion_detected = self._detect_disabled_deletion(
+                name, resource_changes, enable_deletion
+            )
+
+        created_users = self.log_plan_diff(name, tf)
+        return disabled_deletion_detected, created_users, error
+    
+    def _get_json_plan(self, name: str, tf: Terraform) -> Mapping[str, Any]:
+        json_plan = self.terraform_show(name, tf.working_dir)
+        format_version = json_plan.get("format_version")
+        if format_version != ALLOWED_TF_SHOW_FORMAT_VERSION:
+            raise NotImplementedError("terraform show untested format version")
+        return json_plan
+
+    def _are_deletions_allowed(self, name: str, enable_deletion: bool) -> bool:
         # deletions are alowed
         # if enableDeletion is true for an account
         # or if the integration's enable_deletion is true
-        deletions_allowed = enable_deletion or account_enable_deletion
+        account_enable_deletion = self.accounts[name].get("enableDeletion") or False
+        return enable_deletion or account_enable_deletion
+
+    def _detect_disabled_deletion(
+        self,
+        name: str,
+        resource_changes: List[Mapping[str, Any]],
+        enable_deletions: bool,
+    ) -> bool:
+        always_enabled_deletions = {
+            "random_id",
+            "aws_lb_target_group_attachment",
+        }
+        deletions_allowed = self._are_deletions_allowed(name, enable_deletions)
+        disabled_deletion_detected = False
+        for resource_change in resource_changes:
+            resource_type = resource_change["type"]
+            resource_name = resource_change["name"]
+            actions = resource_change["change"]["actions"]
+            for action in actions:
+                if action == "delete":
+                    if resource_type in always_enabled_deletions:
+                        continue
+                    if not deletions_allowed and not self.deletion_approved(
+                        name, resource_type, resource_name
+                    ):
+                        disabled_deletion_detected = True
+                        logging.error(
+                            "'delete' action is not enabled. "
+                            + "Please run the integration manually "
+                            + "with the '--enable-deletion' flag."
+                        )
+                    if resource_type == "aws_db_instance":
+                        deletion_protected = resource_change["change"]["before"].get(
+                            "deletion_protection"
+                        )
+                        if deletion_protected:
+                            disabled_deletion_detected = True
+                            logging.error(
+                                "'delete' action is not enabled for "
+                                "deletion protected RDS instance: "
+                                f"{resource_name}. Please set "
+                                "deletion_protection to false in a new MR. "
+                                "The new MR must be merged first."
+                            )
+        return disabled_deletion_detected
+
+    def log_plan_diff(
+        self, name: str, tf: Terraform
+    ) -> list:
         created_users: list[AccountUser] = []
 
         output = self.terraform_show(name, tf.working_dir)
@@ -211,12 +270,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
 
         resource_changes = output.get("resource_changes")
         if resource_changes is None:
-            return disabled_deletion_detected, created_users
-
-        always_enabled_deletions = {
-            "random_id",
-            "aws_lb_target_group_attachment",
-        }
+            return created_users
 
         # https://www.terraform.io/docs/internals/json-format.html
         for resource_change in resource_changes:
@@ -250,33 +304,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
                 if action == "create":
                     if resource_type == "aws_iam_user_login_profile":
                         created_users.append(AccountUser(name, resource_name))
-                if action == "delete":
-                    if resource_type in always_enabled_deletions:
-                        continue
-
-                    if not deletions_allowed and not self.deletion_approved(
-                        name, resource_type, resource_name
-                    ):
-                        disabled_deletion_detected = True
-                        logging.error(
-                            "'delete' action is not enabled. "
-                            + "Please run the integration manually "
-                            + "with the '--enable-deletion' flag."
-                        )
-                    if resource_type == "aws_db_instance":
-                        deletion_protected = resource_change["before"].get(
-                            "deletion_protection"
-                        )
-                        if deletion_protected:
-                            disabled_deletion_detected = True
-                            logging.error(
-                                "'delete' action is not enabled for "
-                                "deletion protected RDS instance: "
-                                f"{resource_name}. Please set "
-                                "deletion_protection to false in a new MR. "
-                                "The new MR must be merged first."
-                            )
-        return disabled_deletion_detected, created_users
+        return created_users
 
     def deletion_approved(self, account_name, resource_type, resource_name):
         account = self.accounts[account_name]
