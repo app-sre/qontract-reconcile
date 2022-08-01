@@ -34,6 +34,7 @@ INTEGRATION_EXTRA_ARGS = os.environ.get('INTEGRATION_EXTRA_ARGS')
 CONFIG = os.environ.get('CONFIG', '/config/config.toml')
 
 LOG_FILE = os.environ.get('LOG_FILE')
+LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO')
 SLEEP_DURATION_SECS = os.environ.get('SLEEP_DURATION_SECS', 600)
 SLEEP_ON_ERROR = os.environ.get('SLEEP_ON_ERROR', 10)
 
@@ -52,7 +53,7 @@ if LOG_FILE is not None:
     HANDLERS.append(FILE_HANDLER)
 
 # Setting up the root logger
-logging.basicConfig(level=logging.INFO,
+logging.basicConfig(level=LOG_LEVEL,
                     handlers=HANDLERS)
 
 
@@ -118,6 +119,8 @@ def main():
       or subcommand
     * CONFIG
       path to the config toml file
+    * LOG_LEVEL
+      Log level (defaults to INFO)
     * LOG_FILE
       path for the logfile to write to
     * DRY_RUN (optional)
