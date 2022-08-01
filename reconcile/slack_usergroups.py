@@ -143,7 +143,7 @@ def get_usernames_from_pagerduty(
     return all_output_usernames
 
 
-@retry()
+@retry(max_attempts=10)
 def get_slack_usernames_from_owners(owners_from_repo, users, usergroup):
     if owners_from_repo is None:
         return []
