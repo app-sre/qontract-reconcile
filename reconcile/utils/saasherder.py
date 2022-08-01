@@ -126,10 +126,17 @@ class SaasHerder:
 
     def _validate_allowed_secret_parameter_paths(
         self,
+        saas_file_name: str,
         secret_parameters: dict[str, Any],
         allowed_secret_parameter_paths: Iterable[str],
     ) -> None:
         if not secret_parameters:
+            return
+        if not allowed_secret_parameter_paths:
+            self.valid = False
+            logging.error(
+                f"[{saas_file_name}] " f"missing allowedSecretParameterPaths section"
+            )
             return
 
     def _validate_saas_files(self):
@@ -158,13 +165,16 @@ class SaasHerder:
                 saas_file.get("allowedSecretParameterPaths") or []
             )
             self._validate_allowed_secret_parameter_paths(
-                saas_file.get("secretParameters"), allowed_secret_parameter_paths
+                saas_file_name,
+                saas_file.get("secretParameters"),
+                allowed_secret_parameter_paths,
             )
 
             for resource_template in saas_file["resourceTemplates"]:
                 resource_template_name = resource_template["name"]
                 resource_template_url = resource_template["url"]
                 self._validate_allowed_secret_parameter_paths(
+                    saas_file_name,
                     resource_template.get("secretParameters"),
                     allowed_secret_parameter_paths,
                 )
@@ -185,10 +195,14 @@ class SaasHerder:
                         target,
                     )
                     self._validate_allowed_secret_parameter_paths(
-                        target.get("secretParameters"), allowed_secret_parameter_paths
+                        saas_file_name,
+                        target.get("secretParameters"),
+                        allowed_secret_parameter_paths,
                     )
                     self._validate_allowed_secret_parameter_paths(
-                        environment.get("secretParameters"), allowed_secret_parameter_paths
+                        saas_file_name,
+                        environment.get("secretParameters"),
+                        allowed_secret_parameter_paths,
                     )
 
                     promotion = target.get("promotion")
