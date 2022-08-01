@@ -39,10 +39,7 @@ from kubernetes.dynamic.client import DynamicClient
 from kubernetes.dynamic.discovery import ResourceGroup, LazyDiscoverer
 from kubernetes.dynamic.resource import ResourceList
 
-from reconcile.utils.unleash import (
-    get_feature_toggle_strategies,
-    get_feature_toggle_state,
-)
+from reconcile.utils.unleash import get_feature_toggle_state
 
 urllib3.disable_warnings()
 
@@ -1242,18 +1239,8 @@ class OC:
             use_native = use_native.lower() in ["true", "yes"]
         else:
             enable_toggle = "openshift-resources-native-client"
-            strategies = get_feature_toggle_strategies(enable_toggle, ["perCluster"])
-
-            # only use the native client if the toggle is enabled and this
-            # server is listed in the perCluster strategy
-            cluster_in_strategy = False
-            if strategies:
-                for s in strategies:
-                    if cluster_name in s.parameters["cluster_name"].split(","):
-                        cluster_in_strategy = True
-                        break
-            use_native = (
-                get_feature_toggle_state(enable_toggle) and not cluster_in_strategy
+            use_native = get_feature_toggle_state(
+                enable_toggle, context={"cluster_name": cluster_name}
             )
 
         if use_native:

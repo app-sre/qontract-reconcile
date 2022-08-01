@@ -1143,6 +1143,10 @@ def app_interface_review_queue(ctx):
         if author in app_sre_team_members:
             continue
 
+        is_assigned_by_app_sre = gl.is_assigned_by_team(mr, app_sre_team_members)
+        if is_assigned_by_app_sre:
+            continue
+
         is_last_action_by_app_sre = gl.is_last_action_by_team(
             mr, app_sre_team_members, glhk.HOLD_LABELS
         )

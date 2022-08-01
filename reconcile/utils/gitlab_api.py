@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Optional
+from typing import Any, Optional, Tuple
 
 from operator import itemgetter, attrgetter
 from urllib.parse import urlparse
@@ -520,6 +520,33 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
             return True
 
         return last_action_not_by_team < last_action_by_team
+
+    def is_assigned_by_team(
+        self, mr: ProjectMergeRequest, team_usernames: list[str]
+    ) -> bool:
+        last_assignment = self.last_assignment(mr)
+        if not last_assignment:
+            return False
+
+        author, assignee = last_assignment[0], last_assignment[1]
+        return author in team_usernames and mr.assignee["username"] == assignee
+
+    def last_assignment(self, mr: ProjectMergeRequest) -> Optional[Tuple[str, str]]:
+        body_format = "assigned to @"
+        notes = mr.notes.list(all=True)
+
+        for note in notes:
+            if not note.system:
+                continue
+            body = note.body
+            if not body.startswith(body_format):
+                continue
+            assignee = body.replace(body_format, "")
+            author = note.author["username"]
+
+            return author, assignee
+
+        return None
 
     def last_comment(
         self, mr: ProjectMergeRequest, exclude_bot=True
