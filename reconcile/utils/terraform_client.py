@@ -151,7 +151,6 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
             self.created_users.extend(created_users)
         return disabled_deletions_detected, errors
 
-    @retry()
     def terraform_plan(
         self, plan_spec: dict, enable_deletion: bool
     ) -> tuple[bool, list[AccountUser], bool]:
@@ -168,15 +167,15 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         self._inspect_and_log_output_diff(name, plan)
         resource_changes = plan.get("resource_changes")
         if resource_changes is not None:
+            self._log_resource_diff(name, resource_changes)
             created_users = self._get_created_users(name, resource_changes)
             disabled_deletion_detected = self._detect_disabled_deletion(
                 name, resource_changes, enable_deletion
             )
             self._determine_should_apply_resource_changes(name, resource_changes)
 
-        self.log_plan_diff(name, tf)
         return disabled_deletion_detected, created_users, error
-    
+
     def _get_json_plan(self, name: str, tf: Terraform) -> Mapping[str, Any]:
         json_plan = self.terraform_show(name, tf.working_dir)
         format_version = json_plan.get("format_version")
@@ -190,7 +189,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         # or if the integration's enable_deletion is true
         account_enable_deletion = self.accounts[name].get("enableDeletion") or False
         return enable_deletion or account_enable_deletion
-    
+
     def _inspect_and_log_output_diff(self, name: str, plan: Mapping[str, Any]):
         # https://www.terraform.io/docs/internals/json-format.html
         # Terraform is not yet fully able to
@@ -303,30 +302,20 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
                 else:
                     self.should_apply = True
 
-    def log_plan_diff(
-        self, name: str, tf: Terraform
-    ) -> list:
-        output = self.terraform_show(name, tf.working_dir)
-        format_version = output.get("format_version")
-        if format_version != ALLOWED_TF_SHOW_FORMAT_VERSION:
-            raise NotImplementedError("terraform show untested format version")
-
-        resource_changes = output.get("resource_changes")
-        if resource_changes is None:
-            return
-
+    def _log_resource_diff(
+        self, name: str, resource_changes: List[Mapping[str, Any]]
+    ) -> None:
         # https://www.terraform.io/docs/internals/json-format.html
         for resource_change in resource_changes:
             resource_type = resource_change["type"]
             resource_name = resource_change["name"]
-            resource_change = resource_change["change"]
-            actions = resource_change["actions"]
+            actions = resource_change["change"]["actions"]
             for action in actions:
                 if action == "no-op":
                     logging.debug([action, name, resource_type, resource_name])
-                    continue
-                with self._log_lock:
-                    logging.info([action, name, resource_type, resource_name])
+                else:
+                    with self._log_lock:
+                        logging.info([action, name, resource_type, resource_name])
 
     def deletion_approved(self, account_name, resource_type, resource_name):
         account = self.accounts[account_name]
