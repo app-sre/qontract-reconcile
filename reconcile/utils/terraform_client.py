@@ -172,6 +172,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
             disabled_deletion_detected = self._detect_disabled_deletion(
                 name, resource_changes, enable_deletion
             )
+            self._determine_should_apply_resource_changes(name, resource_changes)
 
         self.log_plan_diff(name, tf)
         return disabled_deletion_detected, created_users, error
@@ -276,6 +277,32 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
                             )
         return disabled_deletion_detected
 
+    def _determine_should_apply_resource_changes(
+        self, name: str, resource_changes: List[Mapping[str, Any]]
+    ):
+        for resource_change in resource_changes:
+            resource_type = resource_change["type"]
+            resource_name = resource_change["name"]
+            actions = resource_change["change"]["actions"]
+            for action in actions:
+                # Ignore RDS modifications that are going to occur during the next
+                # maintenance window. This can be up to 7 days away and will cause
+                # unnecessary Terraform state updates until they complete.
+                if (
+                    action == "update"
+                    and resource_type == "aws_db_instance"
+                    and self._is_ignored_rds_modification(
+                        name, resource_name, resource_change["change"]
+                    )
+                ):
+                    logging.debug(
+                        f"Not setting should_apply for {resource_name} because the "
+                        f"only change is EngineVersion and that setting is in "
+                        f"PendingModifiedValues"
+                    )
+                else:
+                    self.should_apply = True
+
     def log_plan_diff(
         self, name: str, tf: Terraform
     ) -> list:
@@ -298,25 +325,8 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
                 if action == "no-op":
                     logging.debug([action, name, resource_type, resource_name])
                     continue
-                # Ignore RDS modifications that are going to occur during the next
-                # maintenance window. This can be up to 7 days away and will cause
-                # unnecessary Terraform state updates until they complete.
-                if (
-                    action == "update"
-                    and resource_type == "aws_db_instance"
-                    and self._is_ignored_rds_modification(
-                        name, resource_name, resource_change
-                    )
-                ):
-                    logging.debug(
-                        f"Not setting should_apply for {resource_name} because the "
-                        f"only change is EngineVersion and that setting is in "
-                        f"PendingModifiedValues"
-                    )
-                    continue
                 with self._log_lock:
                     logging.info([action, name, resource_type, resource_name])
-                    self.should_apply = True
 
     def deletion_approved(self, account_name, resource_type, resource_name):
         account = self.accounts[account_name]

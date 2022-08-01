@@ -300,6 +300,41 @@ def test_detect_disabled_deletion(tf):
     assert tf._detect_disabled_deletion("a1", resource_changes, True)
 
 
+def test_determine_should_apply_resource_changes(tf):
+    assert tf.should_apply is False
+
+    resource_changes = [
+        {
+            "change": {"actions": ["update"]},
+            "type": "foo",
+            "name": "foo",
+        },
+    ]
+
+    tf._determine_should_apply_resource_changes("a", resource_changes)
+    assert tf.should_apply
+
+
+def test_determine_should_not_apply_resource_changes(tf, mocker):
+    tf._determine_should_apply_resource_changes("a", [])
+    assert tf.should_apply is False
+
+    resource_changes = [
+        {
+            "change": {"actions": ["update"]},
+            "type": "aws_db_instance",
+            "name": "foo",
+        },
+    ]
+    mocker.patch(
+        "reconcile.utils.terraform_client.TerraformClient._is_ignored_rds_modification",
+        return_value=True,
+    )
+
+    tf._determine_should_apply_resource_changes("a", resource_changes)
+    assert tf.should_apply is False
+
+
 def test_inspect_and_log_output_diff_changes(tf, mocker):
     logs = mocker.patch("logging.info")
     tf._inspect_and_log_output_diff("a", {})
