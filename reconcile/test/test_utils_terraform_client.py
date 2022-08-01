@@ -275,3 +275,27 @@ def test_detect_disabled_deletion(tf):
         }
     ]
     assert tf._detect_disabled_deletion("a1", resource_changes, True)
+
+
+def test_inspect_and_log_output_diff_changes(tf, mocker):
+    logs = mocker.patch("logging.info")
+    tf._inspect_and_log_output_diff("a", {})
+    assert tf.should_apply is False
+
+    output_change = {"output_changes": {"foo": {"after": "new"}}}
+    tf.outputs = {"a": {"foo": {"value": "bar"}}}
+
+    tf._inspect_and_log_output_diff("a", output_change)
+    assert logs.call_count == 1
+    logs.assert_called_with(["update", "a", "output", "foo"])
+    assert tf.should_apply
+
+
+def test_inspect_and_log_output_diff_deletion(tf, mocker):
+    plan = {"output_changes": {}, "prior_state": {"values": {"outputs": {"foo"}}}}
+    logs = mocker.patch("logging.info")
+
+    tf._inspect_and_log_output_diff("a", plan)
+    assert logs.call_count == 1
+    logs.assert_called_with(["delete", "a", "output", "foo"])
+    assert tf.should_apply

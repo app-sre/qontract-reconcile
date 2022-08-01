@@ -164,6 +164,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         error = self.check_output(name, "plan", return_code, stdout, stderr)
         plan = self._get_json_plan(name, tf)
 
+        self._inspect_and_log_output_diff(name, plan)
         resource_changes = plan.get("resource_changes")
         if resource_changes is not None:
             disabled_deletion_detected = self._detect_disabled_deletion(
@@ -186,6 +187,32 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         # or if the integration's enable_deletion is true
         account_enable_deletion = self.accounts[name].get("enableDeletion") or False
         return enable_deletion or account_enable_deletion
+    
+    def _inspect_and_log_output_diff(self, name: str, plan: Mapping[str, Any]):
+        # https://www.terraform.io/docs/internals/json-format.html
+        # Terraform is not yet fully able to
+        # track changes to output values, so the actions indicated may not be
+        # fully accurate, but the "after" value will always be correct.
+        # to overcome the "before" value not being accurate,
+        # we find it in the previously initiated outputs.
+        output_changes = plan.get("output_changes", {})
+        for output_name, output_change in output_changes.items():
+            before = self.outputs[name].get(output_name, {}).get("value")
+            after = output_change.get("after")
+            if before != after:
+                logging.info(["update", name, "output", output_name])
+                self.should_apply = True
+
+        # A way to detect deleted outputs is by comparing
+        # the prior state with the output changes.
+        # the output changes do not contain deleted outputs
+        # while the prior state does. for the outputs to
+        # actually be deleted, we should apply.
+        prior_outputs = plan.get("prior_state", {}).get("values", {}).get("outputs", {})
+        deleted_outputs = [po for po in prior_outputs if po not in output_changes]
+        for output_name in deleted_outputs:
+            logging.info(["delete", name, "output", output_name])
+            self.should_apply = True
 
     def _detect_disabled_deletion(
         self,
@@ -240,33 +267,6 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         format_version = output.get("format_version")
         if format_version != ALLOWED_TF_SHOW_FORMAT_VERSION:
             raise NotImplementedError("terraform show untested format version")
-
-        # https://www.terraform.io/docs/internals/json-format.html
-        # Terraform is not yet fully able to
-        # track changes to output values, so the actions indicated may not be
-        # fully accurate, but the "after" value will always be correct.
-        # to overcome the "before" value not being accurate,
-        # we find it in the previously initiated outputs.
-        output_changes = output.get("output_changes", {})
-        for output_name, output_change in output_changes.items():
-            before = self.outputs[name].get(output_name, {}).get("value")
-            after = output_change.get("after")
-            if before != after:
-                logging.info(["update", name, "output", output_name])
-                self.should_apply = True
-
-        # A way to detect deleted outputs is by comparing
-        # the prior state with the output changes.
-        # the output changes do not contain deleted outputs
-        # while the prior state does. for the outputs to
-        # actually be deleted, we should apply.
-        prior_outputs = (
-            output.get("prior_state", {}).get("values", {}).get("outputs", {})
-        )
-        deleted_outputs = [po for po in prior_outputs if po not in output_changes]
-        for output_name in deleted_outputs:
-            logging.info(["delete", name, "output", output_name])
-            self.should_apply = True
 
         resource_changes = output.get("resource_changes")
         if resource_changes is None:
