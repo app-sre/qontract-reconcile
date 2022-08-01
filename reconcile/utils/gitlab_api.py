@@ -528,8 +528,8 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         if not last_assignment:
             return False
 
-        author = last_assignment[0]
-        return author in team_usernames
+        author, assignee = last_assignment[0], last_assignment[1]
+        return author in team_usernames and mr.assignee["username"] == assignee
 
     def last_assignment(self, mr: ProjectMergeRequest) -> Optional[Tuple[str, str]]:
         body_format = "assigned to @"
