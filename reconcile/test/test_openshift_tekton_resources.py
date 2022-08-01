@@ -162,38 +162,6 @@ class TestOpenshiftTektonResources:
         assert task_names == expected_task_names
         assert pipeline_name == expected_pipeline_name
 
-    # we check we have what we need in tkn_providers. This test should
-    # be removed when this integration controls all tekton resources
-    def test_managed_resources_from_desired_resources(self) -> None:
-        self.test_data.saas_files = [self.saas1, self.saas2, self.saas2_wr]
-        self.test_data.providers = [self.provider1, self.provider2_wr]
-
-        tkn_providers = otr.fetch_tkn_providers(None)
-        _ = otr.fetch_desired_resources(tkn_providers)
-        p1_managed = tkn_providers[self.provider1["name"]]["namespace"][
-            "managedResourceNames"
-        ]
-        p2_managed = tkn_providers[self.provider2_wr["name"]]["namespace"][
-            "managedResourceNames"
-        ]
-
-        assert len(p1_managed) == 2
-        assert len(p2_managed) == 2
-
-        # 1 namespace task, 1 saas file task, 1 saas file pipeline
-        for managed in p1_managed:
-            if managed["resource"] == "Task":
-                assert len(managed["resourceNames"]) == 2
-            else:
-                assert len(managed["resourceNames"]) == 1
-
-        # 1 namespace task, 2 saas file tasks, 2 saas file pipelines
-        for managed in p2_managed:
-            if managed["resource"] == "Task":
-                assert len(managed["resourceNames"]) == 3
-            else:
-                assert len(managed["resourceNames"]) == 2
-
     def test_set_deploy_resources_default(self) -> None:
         self.test_data.saas_files = [self.saas1]
         self.test_data.providers = [self.provider1]

@@ -1,12 +1,14 @@
 import logging
-from typing import Any
+from typing import Any, Optional
 
 from operator import itemgetter, attrgetter
 from urllib.parse import urlparse
 from sretoolbox.utils import retry
 
 import gitlab
+from gitlab.v4.objects import ProjectMergeRequest
 import urllib3
+
 
 from reconcile.utils.secret_reader import SecretReader
 
@@ -518,3 +520,15 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
             return True
 
         return last_action_not_by_team < last_action_by_team
+
+    def last_comment(
+        self, mr: ProjectMergeRequest, exclude_bot=True
+    ) -> Optional[dict[str, Any]]:
+        comments = self.get_merge_request_comments(mr.iid)
+        comments.sort(key=itemgetter("created_at"), reverse=True)
+        for comment in comments:
+            username = comment["username"]
+            if username == self.user.username and exclude_bot:
+                continue
+            return comment
+        return None

@@ -175,6 +175,10 @@ def run(
         ri.register_error()
         sys.exit(ExitCodes.ERROR)
 
+    # validate that the deployment will succeed
+    # to the best of our ability to predict
+    ob.validate_planned_data(ri, oc_map)
+
     # if saas_file_name is defined, the integration
     # is being called from multiple running instances
     actions = ob.realize_data(
@@ -196,7 +200,7 @@ def run(
                 logging.error(str(e))
                 ri.register_error()
         try:
-            ob.validate_data(oc_map, actions)
+            ob.validate_realized_data(actions, oc_map)
         except Exception as e:
             logging.error(str(e))
             ri.register_error()

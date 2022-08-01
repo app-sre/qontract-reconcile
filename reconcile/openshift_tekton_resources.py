@@ -76,7 +76,7 @@ def fetch_saas_files(saas_file_name: Optional[str]) -> list[dict[str, Any]]:
 
         return [saas_file] if saas_file else []
 
-    return [s for s in saas_files if is_in_shard(s["name"])]
+    return saas_files
 
 
 def fetch_tkn_providers(saas_file_name: Optional[str]) -> dict[str, Any]:
@@ -115,7 +115,11 @@ def fetch_tkn_providers(saas_file_name: Optional[str]) -> dict[str, Any]:
 
         tkn_providers[provider_name]["saas_files"].append(sf)
 
-    return tkn_providers
+    return {
+        provider_name: sf
+        for provider_name, sf in tkn_providers.items()
+        if is_in_shard(provider_name)
+    }
 
 
 def fetch_desired_resources(
@@ -174,11 +178,6 @@ def fetch_desired_resources(
                 f"provider {tknp['name']}"
             )
 
-        # TODO: remove when tknp objects are managed with this integration
-        tknp["namespace"]["managedResourceNames"] = [
-            {"resource": "Task", "resourceNames": [t["name"] for t in desired_tasks]}
-        ]
-
         desired_resources.extend(desired_tasks)
 
         # We only support pipelines from OpenshiftSaasDeploy
@@ -193,13 +192,6 @@ def fetch_desired_resources(
                     pipeline, pipeline_template_config["path"], cluster, namespace
                 )
             )
-
-        tknp["namespace"]["managedResourceNames"].append(
-            {
-                "resource": "Pipeline",
-                "resourceNames": [p["name"] for p in desired_pipelines],
-            }
-        )
 
         desired_resources.extend(desired_pipelines)
 

@@ -108,6 +108,7 @@ def collect_state():
                         "upstream": target_upstream,
                         "disable": target_disable,
                         "delete": target_delete,
+                        "target_path": target.get("path"),
                     }
                 )
     return state
@@ -254,11 +255,16 @@ def check_if_lgtm(owners, comments):
 
 def check_saas_files_changes_only(changed_paths, diffs):
     saas_file_paths = [d["saas_file_path"] for d in diffs]
+    saas_file_target_paths = [d["target_path"] for d in diffs]
     non_saas_file_changed_paths = []
     for changed_path in changed_paths:
         found = False
         for saas_file_path in saas_file_paths:
             if changed_path.endswith(saas_file_path):
+                found = True
+                break
+        for saas_file_target_path in saas_file_target_paths:
+            if saas_file_target_path and changed_path.endswith(saas_file_target_path):
                 found = True
                 break
         if not found:
@@ -334,6 +340,11 @@ def run(
         changed_path_matches = [
             c for c in changed_paths_copy if c.endswith(saas_file_path)
         ]
+        saas_file_target_path = diff["target_path"]
+        if saas_file_target_path:
+            changed_path_matches.extend(
+                c for c in changed_paths_copy if c.endswith(saas_file_target_path)
+            )
         if not changed_path_matches:
             # this diff was found in the graphql endpoint comparison
             # but is not a part of the changed paths.

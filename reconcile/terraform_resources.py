@@ -58,6 +58,11 @@ provider
     format
   }
   annotations
+  event_notifications {
+    destination
+    source_type
+    event_categories
+  }
 }
 ... on NamespaceTerraformResourceS3_v1 {
   region
@@ -66,7 +71,7 @@ provider
   overrides
   sqs_identifier
   s3_events
-  event_notifications {
+  sns_event_notifications: event_notifications {
     destination_type
     destination
     event_type
@@ -131,6 +136,20 @@ provider
       value
     }
   }
+}
+... on NamespaceTerraformResourceSNSTopic_v1 {
+  defaults
+  region
+  identifier
+  output_resource_name
+  fifo_topic
+  inline_policy
+  annotations
+  subscriptions
+   {
+     protocol
+     endpoint
+   }
 }
 ... on NamespaceTerraformResourceDynamoDB_v1 {
   region
@@ -312,12 +331,23 @@ provider
   region
   identifier
   api_proxy_uri
-  sms_role_ext_id
   cognito_callback_bucket_name
   certificate_arn
   domain_name
-  vpc_arn
-  pre_signup_lambda_github_release_url
+  network_interface_ids
+  openshift_ingress_load_balancer_arn
+  output_resource_name
+  annotations
+  vpc_id
+  subnet_ids
+  vpce_id
+  defaults
+}
+... on NamespaceTerraformResourceRosaAuthenticatorVPCE_V1 {
+  region
+  identifier
+  subnet_ids,
+  vpc_id,
   output_resource_name
   annotations
   defaults
