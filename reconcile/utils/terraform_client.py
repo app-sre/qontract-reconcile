@@ -156,6 +156,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         self, plan_spec: dict, enable_deletion: bool
     ) -> tuple[bool, list[AccountUser], bool]:
         disabled_deletion_detected = False
+        created_users: list[AccountUser] = []
         name = plan_spec["name"]
         tf = plan_spec["tf"]
         return_code, stdout, stderr = tf.plan(
@@ -167,11 +168,12 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         self._inspect_and_log_output_diff(name, plan)
         resource_changes = plan.get("resource_changes")
         if resource_changes is not None:
+            created_users = self._get_created_users(name, resource_changes)
             disabled_deletion_detected = self._detect_disabled_deletion(
                 name, resource_changes, enable_deletion
             )
 
-        created_users = self.log_plan_diff(name, tf)
+        self.log_plan_diff(name, tf)
         return disabled_deletion_detected, created_users, error
     
     def _get_json_plan(self, name: str, tf: Terraform) -> Mapping[str, Any]:
@@ -213,6 +215,22 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         for output_name in deleted_outputs:
             logging.info(["delete", name, "output", output_name])
             self.should_apply = True
+
+    @staticmethod
+    def _get_created_users(
+        name: str, resource_changes: List[Mapping[str, Any]]
+    ) -> list[AccountUser]:
+        created_users: list[AccountUser] = []
+        for resource_change in resource_changes:
+            resource_type = resource_change["type"]
+            resource_name = resource_change["name"]
+            actions = resource_change["change"]["actions"]
+            for action in actions:
+                if action == "create":
+                    if resource_type == "aws_iam_user_login_profile":
+                        created_users.append(AccountUser(name, resource_name))
+
+        return created_users
 
     def _detect_disabled_deletion(
         self,
@@ -261,8 +279,6 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
     def log_plan_diff(
         self, name: str, tf: Terraform
     ) -> list:
-        created_users: list[AccountUser] = []
-
         output = self.terraform_show(name, tf.working_dir)
         format_version = output.get("format_version")
         if format_version != ALLOWED_TF_SHOW_FORMAT_VERSION:
@@ -270,7 +286,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
 
         resource_changes = output.get("resource_changes")
         if resource_changes is None:
-            return created_users
+            return
 
         # https://www.terraform.io/docs/internals/json-format.html
         for resource_change in resource_changes:
@@ -301,10 +317,6 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
                 with self._log_lock:
                     logging.info([action, name, resource_type, resource_name])
                     self.should_apply = True
-                if action == "create":
-                    if resource_type == "aws_iam_user_login_profile":
-                        created_users.append(AccountUser(name, resource_name))
-        return created_users
 
     def deletion_approved(self, account_name, resource_type, resource_name):
         account = self.accounts[account_name]

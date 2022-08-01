@@ -230,6 +230,29 @@ def test_are_deletions_allowed(tf):
     assert tf._are_deletions_allowed("a2", False)
 
 
+def test__get_created_users():
+    users = tfclient.TerraformClient._get_created_users("foo", [])
+    assert len(users) == 0
+
+    users = tfclient.TerraformClient._get_created_users(
+        "foo",
+        [
+            {
+                "change": {"actions": ["create"]},
+                "name": "foo",
+                "type": "aws_iam_user_login_profile",
+            },
+            {
+                "change": {"actions": ["create"]},
+                "name": "foo",
+                "type": "bar",
+            },
+        ],
+    )
+
+    assert len(users) == 1
+
+
 def test_detect_disabled_deletion(tf):
     tf.accounts = {"a1": {"name": "a1"}}
 
