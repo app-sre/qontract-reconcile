@@ -1101,8 +1101,8 @@ def app_interface_review_queue(ctx):
     merge_requests = gl.get_merge_requests(state=MRState.OPENED)
     secret_reader = SecretReader(settings=settings)
     jjb: JJB = init_jjb(secret_reader)
-    job = jjb.get_all_jobs(["service-app-interface-gl-pr-check"])["ci-int"][0]
-    trigger_phrases_regex = job["triggers"][0]["gitlab"]["note-regex"]
+    job = jjb.get_job_by_repo_url(settings["repoUrl"], job_type="gl-pr-check")
+    trigger_phrases_regex = jjb.get_trigger_phrases_regex(job)
 
     columns = [
         "id",
