@@ -151,6 +151,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
             self.created_users.extend(created_users)
         return disabled_deletions_detected, errors
 
+    @retry()
     def terraform_plan(
         self, plan_spec: dict, enable_deletion: bool
     ) -> tuple[bool, list[AccountUser], bool]:
