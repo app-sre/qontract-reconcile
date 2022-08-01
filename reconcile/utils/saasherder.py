@@ -138,6 +138,15 @@ class SaasHerder:
                 f"[{saas_file_name}] " f"missing allowedSecretParameterPaths section"
             )
             return
+        for sp in secret_parameters:
+            path = sp["secret"]["path"]
+            match = [a for a in allowed_secret_parameter_paths if path.startswith(a)]
+            if not match:
+                self.valid = False
+                logging.error(
+                    f"[{saas_file_name}] "
+                    f"secret parameter path '{path}' does not match any of allowedSecretParameterPaths"
+                )
 
     def _validate_saas_files(self):
         self.valid = True
