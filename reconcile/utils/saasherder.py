@@ -127,7 +127,7 @@ class SaasHerder:
     def _validate_allowed_secret_parameter_paths(
         self,
         saas_file_name: str,
-        secret_parameters: dict[str, Any],
+        secret_parameters: Iterable[Mapping[str, Any]],
         allowed_secret_parameter_paths: Iterable[str],
     ) -> None:
         if not secret_parameters:
