@@ -124,6 +124,14 @@ class SaasHerder:
             return default
         return sf_attribute
 
+    def _validate_allowed_secret_parameter_paths(
+        self,
+        secret_parameters: dict[str, Any],
+        allowed_secret_parameter_paths: Iterable[str],
+    ) -> None:
+        if not secret_parameters:
+            return
+
     def _validate_saas_files(self):
         self.valid = True
         saas_file_name_path_map = {}
@@ -146,9 +154,20 @@ class SaasHerder:
                 logging.error(msg.format(saas_file_name, saas_file_path))
                 self.valid = False
 
+            allowed_secret_parameter_paths = (
+                saas_file.get("allowedSecretParameterPaths") or []
+            )
+            self._validate_allowed_secret_parameter_paths(
+                saas_file.get("secretParameters"), allowed_secret_parameter_paths
+            )
+
             for resource_template in saas_file["resourceTemplates"]:
                 resource_template_name = resource_template["name"]
                 resource_template_url = resource_template["url"]
+                self._validate_allowed_secret_parameter_paths(
+                    resource_template.get("secretParameters"),
+                    allowed_secret_parameter_paths,
+                )
                 for target in resource_template["targets"]:
                     target_namespace = target["namespace"]
                     namespace_name = target_namespace["name"]
@@ -164,6 +183,12 @@ class SaasHerder:
                         saas_file_name,
                         resource_template_name,
                         target,
+                    )
+                    self._validate_allowed_secret_parameter_paths(
+                        target.get("secretParameters"), allowed_secret_parameter_paths
+                    )
+                    self._validate_allowed_secret_parameter_paths(
+                        environment.get("secretParameters"), allowed_secret_parameter_paths
                     )
 
                     promotion = target.get("promotion")
