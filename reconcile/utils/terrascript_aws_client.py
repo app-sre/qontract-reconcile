@@ -124,6 +124,7 @@ from terrascript.resource import (
     aws_api_gateway_integration_response,
     aws_wafv2_web_acl,
     aws_wafv2_web_acl_association,
+    aws_wafv2_web_acl_logging_configuration,
     aws_vpc_endpoint,
     aws_vpc_endpoint_subnet_association,
     aws_api_gateway_account,
@@ -5392,6 +5393,23 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             web_acl_arn="${aws_wafv2_web_acl.api_waf.arn}",
         )
         tf_resources.append(waf_acl_association_resource)
+
+        # WAF logging
+        waf_cloudwatch_log_group_resource = aws_cloudwatch_log_group(
+            "waf_log_group",
+            name=f"{identifier}-waf-logs-integration",
+            retention_in_days=365,
+        )
+
+        tf_resources.append(waf_cloudwatch_log_group_resource)
+
+        waf_web_acl_logging_configuration_resource = aws_wafv2_web_acl_logging_configuration(
+            "waf_logging_configuration",
+            log_destination_configs=["${aws_wafv2_web_acl.api_waf.arn}"],
+            resource_arn="${aws_wafv2_web_acl.api_waf.arn}"
+        )
+
+        tf_resources.append(waf_web_acl_logging_configuration_resource)
 
         policy = {
             "Version": "2012-10-17",
