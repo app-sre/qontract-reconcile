@@ -174,6 +174,11 @@ def get_merge_requests(
     dry_run: bool, gl: GitLabApi, labels_allowed: Optional[Iterable[Mapping[str, Any]]]
 ) -> list:
     mrs = gl.get_merge_requests(state=MRState.OPENED)
+    users_allowed_to_label = set()
+    if labels_allowed:
+        for la in labels_allowed:
+            for u in la["role"]["users"]:
+                users_allowed_to_label.add(u["org_username"])
     results = []
     for mr in mrs:
         if mr.merge_status == "cannot_be_merged":
@@ -202,6 +207,15 @@ def get_merge_requests(
             if label.action == "add":
                 label_name = label.label["name"]
                 added_by = label.user["username"]
+                if labels_allowed:
+                    if added_by not in users_allowed_to_label:
+                        logging.warning(
+                            f"[{gl.project.name}/{mr.iid}] user {added_by} is "
+                            + f"not allowed to add labels. removing label {label_name}"
+                        )
+                        if not dry_run:
+                            gl.remove_label_from_merge_request(mr.iid, label_name)
+                        continue
                 if label_name in MERGE_LABELS_PRIORITY and not approval_found:
                     approval_found = True
                     approved_at = label.created_at
