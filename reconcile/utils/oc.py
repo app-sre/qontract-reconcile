@@ -462,29 +462,29 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
         cmd = ["adm", "groups", "new", group]
         self._run(cmd)
 
-    def release_mirror(self, from_release, to, to_release, dockerconfig):
-        with tempfile.NamedTemporaryFile() as fp:
-            content = json.dumps(dockerconfig)
-            fp.write(content.encode())
-            fp.seek(0)
+    # def release_mirror(self, from_release, to, to_release, dockerconfig):
+    #     with tempfile.NamedTemporaryFile() as fp:
+    #         content = json.dumps(dockerconfig)
+    #         fp.write(content.encode())
+    #         fp.seek(0)
 
-            cmd = [
-                "adm",
-                "--registry-config",
-                fp.name,
-                "release",
-                "mirror",
-                "--from",
-                from_release,
-                "--to",
-                to,
-                "--to-release-image",
-                to_release,
-                "--max-per-registry",
-                "1",
-            ]
+    #         cmd = [
+    #             "adm",
+    #             "--registry-config",
+    #             fp.name,
+    #             "release",
+    #             "mirror",
+    #             "--from",
+    #             from_release,
+    #             "--to",
+    #             to,
+    #             "--to-release-image",
+    #             to_release,
+    #             "--max-per-registry",
+    #             "1",
+    #         ]
 
-            self._run(cmd)
+    #         self._run(cmd)
 
     def delete_group(self, group):
         cmd = ["delete", "group", group]
@@ -1200,20 +1200,9 @@ class OCLocal:
     def __init__(
         self,
         cluster_name,
-        jh=None,
-        settings=None,
-        insecure_skip_tls_verify=False,
     ):
         self.cluster_name = cluster_name
         oc_base_cmd = ["oc", "--kubeconfig", "/dev/null"]
-        if insecure_skip_tls_verify:
-            oc_base_cmd.extend(["--insecure-skip-tls-verify"])
-
-        self.jump_host = None
-        if jh is not None:
-            self.jump_host = JumpHostSSH(jh, settings=settings)
-            oc_base_cmd = self.jump_host.get_ssh_base_cmd() + oc_base_cmd
-
         self.oc_base_cmd = oc_base_cmd
 
     def process(self, template, parameters=None):
@@ -1231,6 +1220,30 @@ class OCLocal:
             self, cmd, stdin=json.dumps(template, sort_keys=True)
         )
         return json.loads(result)["items"]
+
+    def release_mirror(self, from_release, to, to_release, dockerconfig):
+        with tempfile.NamedTemporaryFile() as fp:
+            content = json.dumps(dockerconfig)
+            fp.write(content.encode())
+            fp.seek(0)
+
+            cmd = [
+                "adm",
+                "--registry-config",
+                fp.name,
+                "release",
+                "mirror",
+                "--from",
+                from_release,
+                "--to",
+                to,
+                "--to-release-image",
+                to_release,
+                "--max-per-registry",
+                "1",
+            ]
+
+            self._run(cmd)
 
 
 class OC:
