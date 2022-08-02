@@ -171,7 +171,9 @@ def is_rebased(mr, gl: GitLabApi) -> bool:
 
 
 def get_merge_requests(
-    dry_run: bool, gl: GitLabApi, labels_allowed: Optional[Iterable[Mapping[str, Any]]]
+    dry_run: bool,
+    gl: GitLabApi,
+    labels_allowed: Optional[Iterable[Mapping[str, Any]]] = None,
 ) -> list:
     mrs = gl.get_merge_requests(state=MRState.OPENED)
     users_allowed_to_label = set()
