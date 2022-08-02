@@ -426,7 +426,7 @@ class SaasHerder:
     @staticmethod
     def _get_upstream_jobs(
         jjb: JJB,
-        all_jobs: Mapping[str, dict],
+        all_jobs: dict[str, list[dict]],
         url: str,
         ref: str,
     ) -> Iterable[UpstreamJob]:
