@@ -1541,7 +1541,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         # https://www.terraform.io/docs/providers/aws/r/s3_bucket.html
         values = {}
         values["bucket"] = identifier
-        versioning = common_values.get("versioning") or True
+        versioning = common_values.get("versioning", True)
         values["versioning"] = {"enabled": versioning}
         values["tags"] = common_values["tags"]
         if "acl" in common_values:
