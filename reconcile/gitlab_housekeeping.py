@@ -206,8 +206,9 @@ def get_merge_requests(
         label_events = mr.resourcelabelevents.list()
         for label in reversed(label_events):
             if label.action == "add":
+                label_name = label.label["name"]
                 added_by = label.user["username"]
-                if label.label["name"] in MERGE_LABELS_PRIORITY:
+                if label_name in MERGE_LABELS_PRIORITY:
                     approved_at = label.created_at
                     approved_by = added_by
                     break
