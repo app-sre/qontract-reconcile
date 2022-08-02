@@ -170,7 +170,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         return list(app_sre_group.members.list(all=True))
 
     def check_group_exists(self, group_name):
-        groups = self.gl.groups.list()
+        groups = self.gl.groups.list(all=True)
         group_names = list(map(lambda x: x.name, groups))
         if group_name not in group_names:
             return False
