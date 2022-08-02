@@ -198,11 +198,6 @@ def get_merge_requests(
                 gl.remove_label_from_merge_request(mr.iid, LGTM)
             continue
 
-        label_priotiry = min(
-            MERGE_LABELS_PRIORITY.index(merge_label)
-            for merge_label in MERGE_LABELS_PRIORITY
-            if merge_label in labels
-        )
         label_events = mr.resourcelabelevents.list()
         for label in reversed(label_events):
             if label.action == "add":
@@ -212,6 +207,12 @@ def get_merge_requests(
                     approved_at = label.created_at
                     approved_by = added_by
                     break
+
+        label_priotiry = min(
+            MERGE_LABELS_PRIORITY.index(merge_label)
+            for merge_label in MERGE_LABELS_PRIORITY
+            if merge_label in labels
+        )
 
         item = {
             "mr": mr,
