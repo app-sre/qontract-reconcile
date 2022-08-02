@@ -2,7 +2,7 @@ import logging
 
 from datetime import datetime, timedelta
 from operator import itemgetter
-from typing import Dict, List
+from typing import Any, Dict, Iterable, List, Mapping, Optional
 
 import gitlab
 
@@ -170,7 +170,9 @@ def is_rebased(mr, gl: GitLabApi) -> bool:
     return len(result["commits"]) == 0
 
 
-def get_merge_requests(dry_run: bool, gl: GitLabApi) -> list:
+def get_merge_requests(
+    dry_run: bool, gl: GitLabApi, labels_allowed: Optional[Iterable[Mapping[str, Any]]]
+) -> list:
     mrs = gl.get_merge_requests(state=MRState.OPENED)
     results = []
     for mr in mrs:
@@ -206,9 +208,9 @@ def get_merge_requests(dry_run: bool, gl: GitLabApi) -> list:
             if label.action == "add":
                 added_by = label.user["username"]
                 if label.label["name"] in MERGE_LABELS_PRIORITY:
-                approved_at = label.created_at
+                    approved_at = label.created_at
                     approved_by = added_by
-                break
+                    break
 
         item = {
             "mr": mr,
@@ -232,9 +234,12 @@ def rebase_merge_requests(
     wait_for_pipeline=False,
     gl_instance=None,
     gl_settings=None,
+    labels_allowed=None,
 ):
     rebases = 0
-    merge_requests = [item["mr"] for item in get_merge_requests(dry_run, gl)]
+    merge_requests = [
+        item["mr"] for item in get_merge_requests(dry_run, gl, labels_allowed)
+    ]
     for mr in merge_requests:
         if is_rebased(mr, gl):
             continue
@@ -282,9 +287,12 @@ def merge_merge_requests(
     wait_for_pipeline=False,
     gl_instance=None,
     gl_settings=None,
+    labels_allowed=None,
 ):
     merges = 0
-    merge_requests = [item["mr"] for item in get_merge_requests(dry_run, gl)]
+    merge_requests = [
+        item["mr"] for item in get_merge_requests(dry_run, gl, labels_allowed)
+    ]
     for mr in merge_requests:
         if rebase and not is_rebased(mr, gl):
             continue
@@ -345,6 +353,7 @@ def run(dry_run, wait_for_pipeline):
         enable_closing = hk.get("enable_closing") or default_enable_closing
         limit = hk.get("limit") or default_limit
         pipeline_timeout = hk.get("pipeline_timeout")
+        labels_allowed = hk.get("labels_allowed")
         gl = GitLabApi(instance, project_url=project_url, settings=settings)
 
         handle_stale_items(dry_run, gl, days_interval, enable_closing, "issue")
@@ -361,6 +370,7 @@ def run(dry_run, wait_for_pipeline):
                 wait_for_pipeline=wait_for_pipeline,
                 gl_instance=instance,
                 gl_settings=settings,
+                labels_allowed=labels_allowed,
             )
         except Exception:
             merge_merge_requests(
@@ -372,6 +382,7 @@ def run(dry_run, wait_for_pipeline):
                 wait_for_pipeline=wait_for_pipeline,
                 gl_instance=instance,
                 gl_settings=settings,
+                labels_allowed=labels_allowed,
             )
         if rebase:
             rebase_merge_requests(
@@ -382,4 +393,5 @@ def run(dry_run, wait_for_pipeline):
                 wait_for_pipeline=wait_for_pipeline,
                 gl_instance=instance,
                 gl_settings=settings,
+                labels_allowed=labels_allowed,
             )
