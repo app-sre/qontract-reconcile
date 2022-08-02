@@ -1,4 +1,5 @@
 import base64
+from typing import Optional, Mapping, Any
 from unittest.mock import create_autospec
 import pytest
 
@@ -357,3 +358,98 @@ def test_inspect_and_log_output_diff_deletion(tf, mocker):
     assert logs.call_count == 1
     logs.assert_called_with(["delete", "a", "output", "foo"])
     assert tf.should_apply
+
+
+def test__resource_diff_changed_fields(tf):
+    sensitive_keys = set(["a"])
+    changed = tf._resource_diff_changed_fields(
+        {
+            "before": {"a": 1, "c": None},
+            "after": {"a": 2, "b": "foo", "c": 1},
+        },
+        sensitive_keys=sensitive_keys,
+    )
+
+    assert changed["a"] == "sensitive"
+    assert changed["b"] == "foo"
+    assert changed["c"] == 1
+
+    changed = tf._resource_diff_changed_fields(
+        {"after": {"field": 1}}, sensitive_keys=sensitive_keys
+    )
+
+    assert changed["field"] == 1
+
+    changed = tf._resource_diff_changed_fields(
+        {"before": {"field": 1}}, sensitive_keys=sensitive_keys
+    )
+
+    assert not changed
+
+
+def test__find_sensitive_keys(tf):
+    example = """
+sensitive value
+------------------------------------------------------------------------
+
+An execution plan has been generated and is shown below.
+Resource actions are indicated with the following symbols:
+  + create
+  ~ update in-place
+
+Terraform will perform the following actions:
+
+  # aws_db_instance.example-02-rds will be updated in-place
+  ~ resource "aws_db_instance" "example-02-rds" {
+        option_group_name                     = "default:postgres-13"
+        password                              = (sensitive value)
+      ~ publicly_accessible                   = (sensitive value)
+        tags                                  = {
+            "app"                    = "example"
+        }
+    }
+
+  # aws_db_instance.example-32-rds will be created
+  + resource "aws_db_instance" "example-32-rds" {
+      + password                              = (sensitive value)
+      + password_with_underscores             = (sensitive value)
+      + foo_bar                               = (sensitive value)
+    }
+"""
+
+    keys = tf._find_sensitive_keys(example)
+
+    assert "foo_bar" in keys
+
+
+def create_change(
+    action: str, before: Optional[Mapping[str, Any]], after: Optional[Mapping[str, Any]]
+):
+    rc = [
+        {
+            "change": {
+                "actions": [action],
+            },
+            "type": "aws_db_instance",
+            "name": "bar",
+        },
+    ]
+    if before:
+        rc[0]["change"]["before"] = before
+    if after:
+        rc[0]["change"]["after"] = after
+
+    return rc
+
+
+def test__log_resource_diff(tf, mocker):
+    logs_d = mocker.patch("logging.debug")
+    logs_i = mocker.patch("logging.info")
+    resource_change = create_change("no-op", {"a": 1}, {"a": 1})
+    tf._log_resource_diff("test", resource_change, tf._find_sensitive_keys(""))
+    assert logs_d.call_count == 1
+
+    resource_change = create_change("update", {"a": 1, "b": 1}, {"a": 2})
+    tf._log_resource_diff("test", resource_change, tf._find_sensitive_keys(""))
+    assert logs_i.call_count == 2
+    logs_i.assert_called_with(["update", "test", {"a": 2, "b": "(computed key)"}])
