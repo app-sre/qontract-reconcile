@@ -197,14 +197,15 @@ def get_merge_requests(
             continue
 
         label_events = mr.resourcelabelevents.list()
+        approval_found = False
         for label in reversed(label_events):
             if label.action == "add":
                 label_name = label.label["name"]
                 added_by = label.user["username"]
-                if label_name in MERGE_LABELS_PRIORITY:
+                if label_name in MERGE_LABELS_PRIORITY and not approval_found:
+                    approval_found = True
                     approved_at = label.created_at
                     approved_by = added_by
-                    break
 
         if not is_good_to_merge(labels):
             continue
