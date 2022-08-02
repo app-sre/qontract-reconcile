@@ -186,8 +186,6 @@ def get_merge_requests(
         labels = mr.attributes.get("labels")
         if not labels:
             continue
-        if not is_good_to_merge(labels):
-            continue
 
         if SAAS_FILE_UPDATE in labels and LGTM in labels:
             logging.warning(
@@ -207,6 +205,9 @@ def get_merge_requests(
                     approved_at = label.created_at
                     approved_by = added_by
                     break
+
+        if not is_good_to_merge(labels):
+            continue
 
         label_priotiry = min(
             MERGE_LABELS_PRIORITY.index(merge_label)
