@@ -1800,6 +1800,7 @@ SAAS_FILES_QUERY_V2 = """
     publishJobLogs
     clusterAdmin
     imagePatterns
+    allowedSecretParameterPaths
     use_channel_in_image_tag
     authentication {
       code {

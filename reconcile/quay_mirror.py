@@ -191,7 +191,7 @@ class QuayMirror:
                     downstream = image[tag]
                     if tag not in image:
                         _LOG.debug(
-                            "Image %s and mirror %s are out off sync",
+                            "Image %s does not exist. Syncing it from %s",
                             downstream,
                             upstream,
                         )
@@ -206,21 +206,22 @@ class QuayMirror:
                     # Deep (slow) check only in non dry-run mode
                     if self.dry_run:
                         _LOG.debug(
-                            "Image %s and mirror %s are in sync", downstream, upstream
+                            "Running in dry-run mode. We won't check if %s and %s "
+                            "are actually in sync",
+                            downstream,
+                            upstream,
                         )
                         continue
 
                     # Deep (slow) check only from time to time
                     if not is_deep_sync:
                         _LOG.debug(
-                            "Image %s and mirror %s are in sync", downstream, upstream
+                            "Running in non deep-sync mode. We won't check if %s and "
+                            "%s are actually in sync",
+                            downstream,
+                            upstream,
                         )
                         continue
-
-                    _LOG.debug(
-                        "Entering deep sync mode. We will check if source tags have "
-                        "been updated and synchronize in case they have"
-                    )
 
                     try:
                         if downstream == upstream:

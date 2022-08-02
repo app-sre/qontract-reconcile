@@ -124,6 +124,30 @@ class SaasHerder:
             return default
         return sf_attribute
 
+    def _validate_allowed_secret_parameter_paths(
+        self,
+        saas_file_name: str,
+        secret_parameters: Iterable[Mapping[str, Any]],
+        allowed_secret_parameter_paths: Iterable[str],
+    ) -> None:
+        if not secret_parameters:
+            return
+        if not allowed_secret_parameter_paths:
+            self.valid = False
+            logging.error(
+                f"[{saas_file_name}] " f"missing allowedSecretParameterPaths section"
+            )
+            return
+        for sp in secret_parameters:
+            path = sp["secret"]["path"]
+            match = [a for a in allowed_secret_parameter_paths if path.startswith(a)]
+            if not match:
+                self.valid = False
+                logging.error(
+                    f"[{saas_file_name}] "
+                    f"secret parameter path '{path}' does not match any of allowedSecretParameterPaths"
+                )
+
     def _validate_saas_files(self):
         self.valid = True
         saas_file_name_path_map = {}
@@ -146,9 +170,23 @@ class SaasHerder:
                 logging.error(msg.format(saas_file_name, saas_file_path))
                 self.valid = False
 
+            allowed_secret_parameter_paths = (
+                saas_file.get("allowedSecretParameterPaths") or []
+            )
+            self._validate_allowed_secret_parameter_paths(
+                saas_file_name,
+                saas_file.get("secretParameters"),
+                allowed_secret_parameter_paths,
+            )
+
             for resource_template in saas_file["resourceTemplates"]:
                 resource_template_name = resource_template["name"]
                 resource_template_url = resource_template["url"]
+                self._validate_allowed_secret_parameter_paths(
+                    saas_file_name,
+                    resource_template.get("secretParameters"),
+                    allowed_secret_parameter_paths,
+                )
                 for target in resource_template["targets"]:
                     target_namespace = target["namespace"]
                     namespace_name = target_namespace["name"]
@@ -164,6 +202,16 @@ class SaasHerder:
                         saas_file_name,
                         resource_template_name,
                         target,
+                    )
+                    self._validate_allowed_secret_parameter_paths(
+                        saas_file_name,
+                        target.get("secretParameters"),
+                        allowed_secret_parameter_paths,
+                    )
+                    self._validate_allowed_secret_parameter_paths(
+                        saas_file_name,
+                        environment.get("secretParameters"),
+                        allowed_secret_parameter_paths,
                     )
 
                     promotion = target.get("promotion")
@@ -378,7 +426,7 @@ class SaasHerder:
     @staticmethod
     def _get_upstream_jobs(
         jjb: JJB,
-        all_jobs: Mapping[str, dict],
+        all_jobs: dict[str, list[dict]],
         url: str,
         ref: str,
     ) -> Iterable[UpstreamJob]:

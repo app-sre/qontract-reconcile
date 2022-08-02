@@ -65,6 +65,7 @@ def collect_state():
         saas_file_name = saas_file["name"]
         saas_file_deploy_resources = saas_file.get("deployResources")
         saas_file_parameters = json.loads(saas_file.get("parameters") or "{}")
+        saas_file_secret_parameters = saas_file.get("secretParameters") or []
         saas_file_definitions = {
             "managed_resource_types": saas_file["managedResourceTypes"],
             "image_patterns": saas_file["imagePatterns"],
@@ -77,6 +78,9 @@ def collect_state():
             resource_template_parameters = json.loads(
                 resource_template.get("parameters") or "{}"
             )
+            resource_template_secret_parameters = (
+                resource_template.get("secretParameters") or []
+            )
             resource_template_url = resource_template["url"]
             for target in resource_template["targets"]:
                 namespace_info = target["namespace"]
@@ -88,10 +92,15 @@ def collect_state():
                 target_disable = target.get("disable")
                 target_delete = target.get("delete")
                 target_parameters = json.loads(target.get("parameters") or "{}")
+                target_secret_parameters = target.get("secretParameters") or []
                 parameters = {}
                 parameters.update(saas_file_parameters)
                 parameters.update(resource_template_parameters)
                 parameters.update(target_parameters)
+                secret_parameters = []
+                secret_parameters.extend(saas_file_secret_parameters)
+                secret_parameters.extend(resource_template_secret_parameters)
+                secret_parameters.extend(target_secret_parameters)
                 state.append(
                     {
                         "saas_file_path": saas_file_path,
@@ -104,6 +113,7 @@ def collect_state():
                         "url": resource_template_url,
                         "ref": target_ref,
                         "parameters": parameters,
+                        "secret_parameters": secret_parameters,
                         "saas_file_definitions": copy.deepcopy(saas_file_definitions),
                         "upstream": target_upstream,
                         "disable": target_disable,
@@ -208,6 +218,7 @@ def valid_diff(current_state, desired_state):
     for c in current_state_copy:
         c.pop("ref")
         c.pop("parameters")
+        c.pop("secret_parameters")
         c["saas_file_definitions"].pop("use_channel_in_image_tag")
         c.pop("upstream")
         c.pop("disable")
@@ -216,6 +227,7 @@ def valid_diff(current_state, desired_state):
     for d in desired_state_copy:
         d.pop("ref")
         d.pop("parameters")
+        d.pop("secret_parameters")
         d["saas_file_definitions"].pop("use_channel_in_image_tag")
         d.pop("upstream")
         d.pop("disable")

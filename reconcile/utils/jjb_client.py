@@ -4,6 +4,7 @@ import os
 import shutil
 import subprocess
 import tempfile
+from typing import Any, Optional
 import xml.etree.ElementTree as et
 import json
 import re
@@ -336,10 +337,12 @@ class JJB:  # pylint: disable=too-many-public-methods
     def get_ref(job: dict) -> str:
         return job["scm"][0]["git"]["branches"][0]
 
-    def get_all_jobs(self, job_types=None, instance_name=None, include_test=False):
+    def get_all_jobs(
+        self, job_types=None, instance_name=None, include_test=False
+    ) -> dict[str, list[dict]]:
         if job_types is None:
             job_types = []
-        all_jobs = {}
+        all_jobs: dict[str, list[dict]] = {}
         for name, wd in self.working_dirs.items():
             if instance_name and name != instance_name:
                 continue
@@ -374,3 +377,23 @@ class JJB:  # pylint: disable=too-many-public-methods
         if not found:
             raise ValueError(f"job name {job_name} is not found")
         print(json.dumps(all_jobs, indent=2))
+
+    def get_job_by_repo_url(self, repo_url: str, job_type: str) -> dict[str, Any]:
+        for jobs in self.get_all_jobs(job_types=[job_type]).values():
+            for job in jobs:
+                try:
+                    if self.get_repo_url(job).lower() == repo_url.rstrip("/").lower():
+                        return job
+                except KeyError:
+                    # something wrong here. ignore this job
+                    pass
+        raise ValueError(f"job with {job_type=} and {repo_url=} not found")
+
+    @staticmethod
+    def get_trigger_phrases_regex(job: dict) -> Optional[str]:
+        for trigger in job["triggers"]:
+            if "gitlab" in trigger:
+                return trigger["gitlab"].get("note-regex")
+            if "github-pull-request" in trigger:
+                return trigger["github-pull-request"].get("trigger-phrase")
+        return None
