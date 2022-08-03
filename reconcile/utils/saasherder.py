@@ -885,7 +885,9 @@ class SaasHerder:
         error = False
         if not image_patterns:
             error = True
-            logging.error(f"{error_prefix} imagePatterns is empty (does not contain {image})")
+            logging.error(
+                f"{error_prefix} imagePatterns is empty (does not contain {image})"
+            )
         if image_patterns and not any(image.startswith(p) for p in image_patterns):
             error = True
             logging.error(f"{error_prefix} Image is not in imagePatterns: {image}")
