@@ -5397,7 +5397,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         # WAF logging
         waf_cloudwatch_log_group_resource = aws_cloudwatch_log_group(
             "waf_log_group",
-            name=f"{identifier}-waf-logs-integration",
+            name=f"aws-waf-logs-{identifier}",
             retention_in_days=365,
         )
 
