@@ -14,6 +14,21 @@ gql_response:
           name: my_instance
       team: my_team
 
+gql_response2:
+  permissions:
+  - service: quay-membership
+    quayOrg:
+      name: my_org
+      instance:
+        name: my_instance
+    team: my_team
+  - service: quay-membership
+    quayOrg:
+      name: my_org
+      instance:
+        name: my_instance
+    team: my_team2
+
 state:
 - items:
   - user1
@@ -22,4 +37,8 @@ state:
     service: quay-membership
     org: [my_instance, my_org]
     team: my_team
-
+- items: []
+  params:
+    service: quay-membership
+    org: [my_instance, my_org]
+    team: my_team2
