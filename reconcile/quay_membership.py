@@ -42,6 +42,23 @@ QUAY_ORG_QUERY = """
 }
 """
 
+PERMISSIONS_QUERY = """
+{
+  permissions: permissions_v1 {
+      service
+      ...on PermissionQuayOrgTeam_v1 {
+        quayOrg {
+          name
+          instance {
+            name
+          }
+        }
+        team
+      }
+    }
+}
+"""
+
 QONTRACT_INTEGRATION = "quay-membership"
 
 
@@ -62,6 +79,12 @@ def process_permission(permission):
             permission["quayOrg"]["name"],
         ),
     }
+
+
+def get_permissions_for_quay_membership():
+    gqlapi = gql.get_api()
+    permissions = gqlapi.query(PERMISSIONS_QUERY)["permissions"]
+    return [p for p in permissions if p["service"] == "quay-membership"]
 
 
 def fetch_current_state(quay_api_store):
@@ -98,6 +121,7 @@ def fetch_desired_state():
     roles: list[dict] = expiration.filter(gqlapi.query(QUAY_ORG_QUERY)["roles"])
 
     state = AggregatedList()
+    processed_permissions = []
 
     for role in roles:
         permissions = [
@@ -115,7 +139,15 @@ def fetch_desired_state():
                     members.append(quay_username)
 
             for p in permissions:
+                processed_permissions.append(p)
                 state.add(p, members)
+
+    # consider teams (aka permissions) w/o roles as well
+    for permission in get_permissions_for_quay_membership():
+        p = process_permission(permission)
+        if p not in processed_permissions:
+            # permission not processed yet therefore add it to the state
+            state.add(p, [])
 
     return state
 
