@@ -205,7 +205,7 @@ def get_merge_requests(
                 label_name = label.label["name"]
                 added_by = label.user["username"]
                 if users_allowed_to_label and added_by not in (
-                    users_allowed_to_label | set(gl.user.username)
+                    set(users_allowed_to_label) | set(gl.user.username)
                 ):
                     logging.warning(
                         f"[{gl.project.name}/{mr.iid}] user {added_by} is "
