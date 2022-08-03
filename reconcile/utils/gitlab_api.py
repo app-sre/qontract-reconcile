@@ -524,6 +524,8 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
     def is_assigned_by_team(
         self, mr: ProjectMergeRequest, team_usernames: list[str]
     ) -> bool:
+        if not mr.assignee:
+            return False
         last_assignment = self.last_assignment(mr)
         if not last_assignment:
             return False
