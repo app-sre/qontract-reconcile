@@ -124,6 +124,7 @@ from terrascript.resource import (
     aws_api_gateway_integration_response,
     aws_wafv2_web_acl,
     aws_wafv2_web_acl_association,
+    aws_wafv2_web_acl_logging_configuration,
     aws_vpc_endpoint,
     aws_vpc_endpoint_subnet_association,
     aws_api_gateway_account,
@@ -1886,8 +1887,23 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         }
         values["policy"] = json.dumps(policy, sort_keys=True)
         values["depends_on"] = self.get_dependencies([user_tf_resource])
-        tf_resource = aws_iam_user_policy(identifier, **values)
-        tf_resources.append(tf_resource)
+
+        # This is temporary, we are going to remove this after the
+        # aws_iam_user_policy_attachment is deployed
+        tf_aws_iam_user_policy = aws_iam_user_policy(identifier, **values)
+        tf_resources.append(tf_aws_iam_user_policy)
+
+        values.pop("user")
+        tf_aws_iam_policy = aws_iam_policy(identifier, **values)
+        tf_resources.append(tf_aws_iam_policy)
+
+        tf_user_policy_attachment = aws_iam_user_policy_attachment(
+            identifier,
+            user=user_tf_resource.name,
+            policy_arn=f"${{{tf_aws_iam_policy.arn}}}",
+            depends_on=self.get_dependencies([user_tf_resource, tf_aws_iam_policy]),
+        )
+        tf_resources.append(tf_user_policy_attachment)
 
         self.add_resources(account, tf_resources)
 
@@ -2024,6 +2040,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     user_policy = user_policy.replace(to_replace, v)
                     output_name_0_13 = output_prefix + "__{}".format(k)
                     tf_resources.append(Output(output_name_0_13, value=v))
+
+            # This is temporary, we are going to remove this after the
+            # aws_iam_user_policy_attachment is deployed
             tf_aws_iam_user_policy = aws_iam_user_policy(
                 identifier,
                 name=identifier,
@@ -2032,6 +2051,22 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 depends_on=self.get_dependencies([user_tf_resource]),
             )
             tf_resources.append(tf_aws_iam_user_policy)
+
+            tf_aws_iam_policy = aws_iam_policy(
+                identifier,
+                name=identifier,
+                policy=user_policy,
+                depends_on=self.get_dependencies([user_tf_resource]),
+            )
+            tf_resources.append(tf_aws_iam_policy)
+
+            tf_aws_iam_policy_attachment = aws_iam_user_policy_attachment(
+                identifier,
+                user=user_tf_resource.name,
+                policy_arn=f"${{{tf_aws_iam_policy.arn}}}",
+                depends_on=self.get_dependencies([user_tf_resource, tf_aws_iam_policy]),
+            )
+            tf_resources.append(tf_aws_iam_policy_attachment)
 
         aws_infrastructure_access = (
             common_values.get("aws_infrastructure_access") or None
@@ -2424,8 +2459,23 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         }
         values["policy"] = json.dumps(policy, sort_keys=True)
         values["depends_on"] = self.get_dependencies([user_tf_resource])
-        tf_resource = aws_iam_user_policy(identifier, **values)
-        tf_resources.append(tf_resource)
+
+        # This is temporary, we are going to remove this after the
+        # aws_iam_user_policy_attachment is deployed
+        tf_aws_iam_user_policy = aws_iam_user_policy(identifier, **values)
+        tf_resources.append(tf_aws_iam_user_policy)
+
+        values.pop("user")
+        tf_aws_iam_policy = aws_iam_policy(identifier, **values)
+        tf_resources.append(tf_aws_iam_policy)
+
+        tf_aws_iam_user_policy_attachment = aws_iam_user_policy_attachment(
+            identifier,
+            user=user_tf_resource.name,
+            policy_arn=f"${{{tf_aws_iam_policy.arn}}}",
+            depends_on=self.get_dependencies([user_tf_resource, tf_aws_iam_policy]),
+        )
+        tf_resources.append(tf_aws_iam_user_policy_attachment)
 
         self.add_resources(account, tf_resources)
 
@@ -2525,8 +2575,23 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         }
         values["policy"] = json.dumps(policy, sort_keys=True)
         values["depends_on"] = self.get_dependencies([user_tf_resource])
-        tf_resource = aws_iam_user_policy(identifier, **values)
-        tf_resources.append(tf_resource)
+
+        # This is temporary, we are going to remove this after the
+        # aws_iam_user_policy_attachment is deployed
+        tf_aws_iam_user_policy = aws_iam_user_policy(identifier, **values)
+        tf_resources.append(tf_aws_iam_user_policy)
+
+        values.pop("user")
+        tf_aws_iam_policy = aws_iam_policy(identifier, **values)
+        tf_resources.append(tf_aws_iam_policy)
+
+        tf_aws_iam_user_policy_attachment = aws_iam_user_policy_attachment(
+            identifier,
+            user=user_tf_resource.name,
+            policy_arn=f"${{{tf_aws_iam_policy.arn}}}",
+            depends_on=self.get_dependencies([user_tf_resource, tf_aws_iam_policy]),
+        )
+        tf_resources.append(tf_aws_iam_user_policy_attachment)
 
         self.add_resources(account, tf_resources)
 
@@ -3066,8 +3131,23 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             "policy": json.dumps(policy, sort_keys=True),
             "depends_on": self.get_dependencies([user_tf_resource]),
         }
-        tf_resource = aws_iam_user_policy(identifier, **values)
-        tf_resources.append(tf_resource)
+
+        # This is temporary, we are going to remove this after the
+        # aws_iam_user_policy_attachment is deployed
+        tf_aws_iam_user_policy = aws_iam_user_policy(identifier, **values)
+        tf_resources.append(tf_aws_iam_user_policy)
+
+        values.pop("user")
+        tf_aws_iam_policy = aws_iam_policy(identifier, **values)
+        tf_resources.append(tf_aws_iam_policy)
+
+        tf_aws_iam_user_policy_attachment = aws_iam_user_policy_attachment(
+            identifier,
+            user=user_tf_resource.name,
+            policy_arn=f"${{{tf_aws_iam_policy.arn}}}",
+            depends_on=self.get_dependencies([user_tf_resource, tf_aws_iam_policy]),
+        )
+        tf_resources.append(tf_aws_iam_user_policy_attachment)
 
         self.add_resources(account, tf_resources)
 
@@ -3235,8 +3315,23 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         values["name"] = identifier
         values["policy"] = json.dumps(policy, sort_keys=True)
         values["depends_on"] = self.get_dependencies([user_tf_resource])
-        tf_resource = aws_iam_user_policy(identifier, **values)
-        tf_resources.append(tf_resource)
+
+        # This is temporary, we are going to remove this after the
+        # aws_iam_user_policy_attachment is deployed
+        tf_aws_iam_user_policy = aws_iam_user_policy(identifier, **values)
+        tf_resources.append(tf_aws_iam_user_policy)
+
+        values.pop("user")
+        tf_aws_iam_policy = aws_iam_policy(identifier, **values)
+        tf_resources.append(tf_aws_iam_policy)
+
+        tf_aws_iam_user_policy_attachment = aws_iam_user_policy_attachment(
+            identifier,
+            user=user_tf_resource.name,
+            policy_arn=f"${{{tf_aws_iam_policy.arn}}}",
+            depends_on=self.get_dependencies([user_tf_resource, tf_aws_iam_policy]),
+        )
+        tf_resources.append(tf_aws_iam_user_policy_attachment)
 
         return tf_resources
 
@@ -5298,6 +5393,25 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             web_acl_arn="${aws_wafv2_web_acl.api_waf.arn}",
         )
         tf_resources.append(waf_acl_association_resource)
+
+        # WAF logging
+        waf_cloudwatch_log_group_resource = aws_cloudwatch_log_group(
+            "waf_log_group",
+            name=f"{identifier}-waf-logs-integration",
+            retention_in_days=365,
+        )
+
+        tf_resources.append(waf_cloudwatch_log_group_resource)
+
+        waf_web_acl_logging_configuration_resource = (
+            aws_wafv2_web_acl_logging_configuration(
+                "waf_logging_configuration",
+                log_destination_configs=["${aws_wafv2_web_acl.api_waf.arn}"],
+                resource_arn="${aws_wafv2_web_acl.api_waf.arn}",
+            )
+        )
+
+        tf_resources.append(waf_web_acl_logging_configuration_resource)
 
         policy = {
             "Version": "2012-10-17",
