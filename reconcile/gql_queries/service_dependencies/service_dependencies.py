@@ -115,6 +115,7 @@ class QuayInstanceV1(BaseModel):
 class QuayOrgV1(BaseModel):
     name: str = Field(..., alias="name")
     instance: QuayInstanceV1 = Field(..., alias="instance")
+    test: str = Field(..., alias="test")
 
     class Config:
         smart_union = True
