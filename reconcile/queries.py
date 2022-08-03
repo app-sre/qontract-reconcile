@@ -1315,6 +1315,13 @@ APPS_QUERY = """
         limit
         enable_closing
         pipeline_timeout
+        labels_allowed {
+          role {
+            users {
+              org_username
+            }
+          }
+        }
       }
       jira {
         serverUrl
