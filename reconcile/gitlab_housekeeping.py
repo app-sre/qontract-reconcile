@@ -204,7 +204,9 @@ def get_merge_requests(
             if label.action == "add":
                 label_name = label.label["name"]
                 added_by = label.user["username"]
-                if users_allowed_to_label and added_by not in users_allowed_to_label:
+                if users_allowed_to_label and added_by not in (
+                    users_allowed_to_label + gl.user.username
+                ):
                     logging.warning(
                         f"[{gl.project.name}/{mr.iid}] user {added_by} is "
                         + f"not allowed to add labels. removing label {label_name}"
