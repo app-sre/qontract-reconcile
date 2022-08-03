@@ -2,7 +2,7 @@ import logging
 
 from datetime import datetime, timedelta
 from operator import itemgetter
-from typing import Dict, List
+from typing import Dict, Iterable, List, Optional
 
 import gitlab
 
@@ -170,7 +170,11 @@ def is_rebased(mr, gl: GitLabApi) -> bool:
     return len(result["commits"]) == 0
 
 
-def get_merge_requests(dry_run: bool, gl: GitLabApi) -> list:
+def get_merge_requests(
+    dry_run: bool,
+    gl: GitLabApi,
+    users_allowed_to_label: Optional[Iterable[str]] = None,
+) -> list:
     mrs = gl.get_merge_requests(state=MRState.OPENED)
     results = []
     for mr in mrs:
@@ -184,8 +188,6 @@ def get_merge_requests(dry_run: bool, gl: GitLabApi) -> list:
         labels = mr.attributes.get("labels")
         if not labels:
             continue
-        if not is_good_to_merge(labels):
-            continue
 
         if SAAS_FILE_UPDATE in labels and LGTM in labels:
             logging.warning(
@@ -196,17 +198,33 @@ def get_merge_requests(dry_run: bool, gl: GitLabApi) -> list:
                 gl.remove_label_from_merge_request(mr.iid, LGTM)
             continue
 
+        label_events = mr.resourcelabelevents.list()
+        approval_found = False
+        for label in reversed(label_events):
+            if label.action == "add":
+                label_name = label.label["name"]
+                added_by = label.user["username"]
+                if users_allowed_to_label and added_by not in users_allowed_to_label:
+                    logging.warning(
+                        f"[{gl.project.name}/{mr.iid}] user {added_by} is "
+                        + f"not allowed to add labels. removing label {label_name}"
+                    )
+                    if not dry_run:
+                        gl.remove_label_from_merge_request(mr.iid, label_name)
+                    continue
+                if label_name in MERGE_LABELS_PRIORITY and not approval_found:
+                    approval_found = True
+                    approved_at = label.created_at
+                    approved_by = added_by
+
+        if not is_good_to_merge(labels):
+            continue
+
         label_priotiry = min(
             MERGE_LABELS_PRIORITY.index(merge_label)
             for merge_label in MERGE_LABELS_PRIORITY
             if merge_label in labels
         )
-        label_events = mr.resourcelabelevents.list()
-        for label in reversed(label_events):
-            if label.action == "add" and label.label["name"] in MERGE_LABELS_PRIORITY:
-                approved_at = label.created_at
-                approved_by = label.user["username"]
-                break
 
         item = {
             "mr": mr,
@@ -230,9 +248,12 @@ def rebase_merge_requests(
     wait_for_pipeline=False,
     gl_instance=None,
     gl_settings=None,
+    users_allowed_to_label=None,
 ):
     rebases = 0
-    merge_requests = [item["mr"] for item in get_merge_requests(dry_run, gl)]
+    merge_requests = [
+        item["mr"] for item in get_merge_requests(dry_run, gl, users_allowed_to_label)
+    ]
     for mr in merge_requests:
         if is_rebased(mr, gl):
             continue
@@ -280,9 +301,12 @@ def merge_merge_requests(
     wait_for_pipeline=False,
     gl_instance=None,
     gl_settings=None,
+    users_allowed_to_label=None,
 ):
     merges = 0
-    merge_requests = [item["mr"] for item in get_merge_requests(dry_run, gl)]
+    merge_requests = [
+        item["mr"] for item in get_merge_requests(dry_run, gl, users_allowed_to_label)
+    ]
     for mr in merge_requests:
         if rebase and not is_rebased(mr, gl):
             continue
@@ -343,6 +367,14 @@ def run(dry_run, wait_for_pipeline):
         enable_closing = hk.get("enable_closing") or default_enable_closing
         limit = hk.get("limit") or default_limit
         pipeline_timeout = hk.get("pipeline_timeout")
+        labels_allowed = hk.get("labels_allowed")
+        users_allowed_to_label = (
+            None
+            if not labels_allowed
+            else {
+                u["org_username"] for la in labels_allowed for u in la["role"]["users"]
+            }
+        )
         gl = GitLabApi(instance, project_url=project_url, settings=settings)
 
         handle_stale_items(dry_run, gl, days_interval, enable_closing, "issue")
@@ -359,6 +391,7 @@ def run(dry_run, wait_for_pipeline):
                 wait_for_pipeline=wait_for_pipeline,
                 gl_instance=instance,
                 gl_settings=settings,
+                users_allowed_to_label=users_allowed_to_label,
             )
         except Exception:
             merge_merge_requests(
@@ -370,6 +403,7 @@ def run(dry_run, wait_for_pipeline):
                 wait_for_pipeline=wait_for_pipeline,
                 gl_instance=instance,
                 gl_settings=settings,
+                users_allowed_to_label=users_allowed_to_label,
             )
         if rebase:
             rebase_merge_requests(
@@ -380,4 +414,5 @@ def run(dry_run, wait_for_pipeline):
                 wait_for_pipeline=wait_for_pipeline,
                 gl_instance=instance,
                 gl_settings=settings,
+                users_allowed_to_label=users_allowed_to_label,
             )
