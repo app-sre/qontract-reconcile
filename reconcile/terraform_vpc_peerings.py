@@ -4,7 +4,7 @@ import json
 from typing import Any, Optional, Tuple
 
 from reconcile import queries
-from reconcile.utils import aws_api
+from reconcile.utils import aws_api, gql
 from reconcile.utils import ocm
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.ocm import OCM, OCMMap
@@ -456,6 +456,208 @@ def build_desired_state_vpc(
     return desired_state, error
 
 
+CLUSTER_QUERY = """
+{
+  clusters: clusters_v1
+  {
+    path
+    name
+    ocm {
+      name
+      url
+      accessTokenClientId
+      accessTokenUrl
+      offlineToken {
+        path
+        field
+        format
+        version
+      }
+      blockedVersions
+    }
+    awsInfrastructureAccess {
+      awsGroup {
+        account {
+          name
+          uid
+          terraformUsername
+          automationToken {
+            path
+            field
+            version
+            format
+          }
+        }
+        roles {
+          users {
+            org_username
+          }
+        }
+      }
+      accessLevel
+    }
+    awsInfrastructureManagementAccounts {
+      account {
+        name
+        uid
+        terraformUsername
+        resourcesDefaultRegion
+        automationToken {
+          path
+          field
+          version
+          format
+        }
+      }
+      accessLevel
+      default
+    }
+
+    spec {
+      region
+    }
+    network {
+      vpc
+    }
+    peering {
+      connections {
+        name
+        provider
+        manageRoutes
+        delete
+        ... on ClusterPeeringConnectionAccount_v1 {
+          vpc {
+            account {
+              name
+              uid
+              terraformUsername
+              automationToken {
+                path
+                field
+                version
+                format
+              }
+            }
+            vpc_id
+            cidr_block
+            region
+          }
+          assumeRole
+        }
+        ... on ClusterPeeringConnectionAccountVPCMesh_v1 {
+          account {
+            name
+            uid
+            terraformUsername
+            automationToken {
+              path
+              field
+              version
+              format
+            }
+          }
+          tags
+        }
+        ... on ClusterPeeringConnectionAccountTGW_v1 {
+          account {
+            name
+            uid
+            terraformUsername
+            automationToken {
+              path
+              field
+              version
+              format
+            }
+          }
+          tags
+          cidrBlock
+          manageSecurityGroups
+          assumeRole
+        }
+        ... on ClusterPeeringConnectionClusterRequester_v1 {
+          cluster {
+            name
+            network {
+              vpc
+            }
+            spec {
+              region
+            }
+            awsInfrastructureAccess {
+              awsGroup {
+                account {
+                  name
+                  uid
+                  terraformUsername
+                  automationToken {
+                    path
+                    field
+                    version
+                    format
+                  }
+                }
+              }
+              accessLevel
+            }
+            awsInfrastructureManagementAccounts {
+              account {
+                name
+                uid
+                terraformUsername
+                resourcesDefaultRegion
+                automationToken {
+                  path
+                  field
+                  version
+                  format
+                }
+              }
+              accessLevel
+              default
+            }
+
+            peering {
+              connections {
+                name
+                provider
+                manageRoutes
+                ... on ClusterPeeringConnectionClusterAccepter_v1 {
+                  name
+                  cluster {
+                    name
+                  }
+                  awsInfrastructureManagementAccount {
+                    name
+                    uid
+                    terraformUsername
+                    automationToken {
+                      path
+                      field
+                      version
+                      format
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    disable {
+      integrations
+    }
+  }
+}
+"""
+
+
+def fetch_clusters_with_peerings() -> list[dict[str, Any]]:
+    clusters = gql.get_api().query(CLUSTER_QUERY)["clusters"]
+    return [c for c in clusters if c.get("peering") is not None]
+
+
 @defer
 def run(
     dry_run,
@@ -465,8 +667,8 @@ def run(
     account_name: Optional[str] = None,
     defer=None,
 ):
-    settings = queries.get_app_interface_settings()
-    clusters = [c for c in queries.get_clusters() if c.get("peering") is not None]
+    settings = queries.get_secret_reader_settings()
+    clusters = fetch_clusters_with_peerings()
     with_ocm = any(c.get("ocm") for c in clusters)
     if with_ocm:
         ocm_map = ocm.OCMMap(
@@ -559,3 +761,19 @@ def run(
 
     errors.append(tf.apply())
     sys.exit(int(any(errors)))
+
+
+def early_exit_desired_state(
+    print_to_file=None,
+    enable_deletion=False,
+    thread_pool_size=10,
+    account_name: Optional[str] = None,
+) -> dict[str, Any]:
+    if account_name:
+        raise ValueError(
+            "terraform-vpc-peerings early-exit check does not support sharding yet"
+        )
+    return {
+        "clusters": fetch_clusters_with_peerings(),
+        "accounts": queries.get_aws_accounts(terraform_state=True),
+    }
