@@ -6,7 +6,7 @@ from urllib.parse import urlparse
 from sretoolbox.utils import retry
 
 import gitlab
-from gitlab.v4.objects import ProjectMergeRequest
+from gitlab.v4.objects import ProjectMergeRequest, CurrentUser
 import urllib3
 
 
@@ -57,7 +57,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
             self.server, private_token=token, ssl_verify=ssl_verify, timeout=timeout
         )
         self._auth()
-        self.user = self.gl.user
+        self.user: CurrentUser = self.gl.user
         if project_id is None:
             # When project_id is not provide, we try to get the project
             # using the project_url
