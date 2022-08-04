@@ -120,6 +120,8 @@ def handle_stale_items(dry_run, gl, days_interval, enable_closing, item_type):
     for item in items:
         item_iid = item.attributes.get("iid")
         item_labels = item.attributes.get("labels")
+        if AUTO_MERGE in item_labels and item.merge_status == "cannot_be_merged":
+            close_item(dry_run, gl, enable_closing, item_type, item)
         notes = item.notes.list()
         note_dates = [
             datetime.strptime(note.attributes.get("updated_at"), DATE_FORMAT)
