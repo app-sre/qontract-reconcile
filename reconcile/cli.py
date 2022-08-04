@@ -477,10 +477,7 @@ def early_exit_integration(
     from deepdiff import DeepDiff
 
     diff = DeepDiff(previous_desired_state, current_desired_state, ignore_order=True)
-    if diff:
-        return False
-    else:
-        return True
+    return not diff
 
 
 def init_log_level(log_level):
