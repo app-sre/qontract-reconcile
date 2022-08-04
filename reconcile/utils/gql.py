@@ -1,6 +1,6 @@
 import logging
 import textwrap
-from typing import Set, Any, Optional
+from typing import Set, Any, Optional, Tuple
 
 from urllib.parse import urlparse
 
@@ -229,26 +229,38 @@ def get_git_commit_info(sha, server, token=None):
 
 @retry(exceptions=requests.exceptions.ConnectionError, max_attempts=5)
 def init_from_config(
-    sha_url=True, integration=None, validate_schemas=False, print_url=True
+    autodetect_sha=True,
+    sha=None,
+    integration=None,
+    validate_schemas=False,
+    print_url=True,
 ):
-    config = get_config()
-
-    server_url = urlparse(config["graphql"]["server"])
-    server = server_url.geturl()
-
-    token = config["graphql"].get("token")
-    if sha_url:
-        sha = get_sha(server_url, token)
-        server = server_url._replace(path=f"/graphqlsha/{sha}").geturl()
-
-        runing_state = RunningState()
-        git_commit_info = get_git_commit_info(sha, server_url, token)
-        runing_state.timestamp = git_commit_info.get("timestamp")
-        runing_state.commit = git_commit_info.get("commit")
+    server, token = _get_gql_server_and_token(autodetect_sha=autodetect_sha, sha=sha)
 
     if print_url:
         logging.info(f"using gql endpoint {server}")
     return init(server, token, integration, validate_schemas)
+
+
+def _get_gql_server_and_token(
+    autodetect_sha: bool = False, sha: Optional[str] = None
+) -> Tuple[str, str]:
+    config = get_config()
+
+    server_url = urlparse(config["graphql"]["server"])
+    server = server_url.geturl()
+    token = config["graphql"].get("token")
+    if sha:
+        server = server_url._replace(path=f"/graphqlsha/{sha}").geturl()
+    elif autodetect_sha:
+        sha = get_sha(server_url, token)
+        server = server_url._replace(path=f"/graphqlsha/{sha}").geturl()
+    if sha:
+        runing_state = RunningState()
+        git_commit_info = get_git_commit_info(sha, server_url, token)
+        runing_state.timestamp = git_commit_info.get("timestamp")  # type: ignore[attr-defined]
+        runing_state.commit = git_commit_info.get("commit")  # type: ignore[attr-defined]
+    return server, token
 
 
 def get_api():
