@@ -215,6 +215,8 @@ VARIABLE_KEYS = [
     "subscriptions",
 ]
 
+EMAIL_REGEX = re.compile(r"(^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$)")
+
 TMP_DIR_PREFIX = "terrascript-aws-"
 
 
@@ -2367,8 +2369,12 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 sub_values = {}
                 sub_values["topic_arn"] = "${aws_sns_topic" + "." + identifier + ".arn}"
                 protocol = sub["protocol"]
+                endpoint = sub["endpoint"]
+                if protocol == "email" and not EMAIL_REGEX.match(endpoint):
+                    msg = f"SNS topic {identifier} has an invalid subscription email address ({endpoint})"
+                    raise ValueError(msg)
                 sub_values["protocol"] = protocol
-                sub_values["endpoint"] = sub["endpoint"]
+                sub_values["endpoint"] = endpoint
                 sub_identifier = f"{identifier}_{protocol}_aws_sns_topic_subscription"
                 sub_tf_resource = aws_sns_topic_subscription(
                     sub_identifier, **sub_values
