@@ -78,7 +78,9 @@ class PermissionQuayOrgTeamV1(PermissionV1):
 
 
 class QuayMembershipQuery(BaseModel):
-    permissions: Optional[list[Union[PermissionQuayOrgTeamV1, PermissionV1]]] = Field(..., alias="permissions")
+    permissions: Optional[list[Union[PermissionQuayOrgTeamV1, PermissionV1]]] = Field(
+        ..., alias="permissions"
+    )
 
     class Config:
         smart_union = True
