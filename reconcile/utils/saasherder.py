@@ -743,7 +743,7 @@ class SaasHerder:
                 )
             except Exception as e:
                 logging.error(
-                    f"[{url}/{path}:{target_ref}] "
+                    f"[{url}/blob/{target_ref}{path}] "
                     + f"error fetching template: {str(e)}"
                 )
                 return None, None, None
@@ -827,7 +827,7 @@ class SaasHerder:
                 )
             except Exception as e:
                 logging.error(
-                    f"[{url}/{path}:{target_ref}] "
+                    f"[{url}/tree/{target_ref}{path}] "
                     + f"error fetching directory: {str(e)}"
                 )
                 return None, None, None
