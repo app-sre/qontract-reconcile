@@ -2,10 +2,11 @@ import logging
 
 from datetime import datetime, timedelta
 from operator import itemgetter
-from typing import Dict, Iterable, List, Optional
+from typing import Dict, Iterable, List, Optional, Union
 
 import gitlab
 
+from gitlab.v4.objects import ProjectMergeRequest, ProjectIssue
 from sretoolbox.utils import retry
 
 from reconcile import queries
@@ -87,6 +88,26 @@ def clean_pipelines(
                 )
 
 
+def close_item(
+    dry_run: bool,
+    gl: GitLabApi,
+    enable_closing: bool,
+    item_type: str,
+    item: Union[ProjectIssue, ProjectMergeRequest],
+):
+    logging.info(["close_item", gl.project.name, item_type, item.attributes.get("iid")])
+    if enable_closing:
+        if not dry_run:
+            gl.close(item)
+    else:
+        warning_message = (
+            "'close_item' action is not enabled. "
+            + "Please run the integration manually "
+            + "with the '--enable-deletion' flag."
+        )
+        logging.warning(warning_message)
+
+
 def handle_stale_items(dry_run, gl, days_interval, enable_closing, item_type):
     LABEL = "stale"
 
@@ -116,17 +137,7 @@ def handle_stale_items(dry_run, gl, days_interval, enable_closing, item_type):
                     gl.add_label(item, item_type, LABEL)
             # if item has 'stale' label - close it
             else:
-                logging.info(["close_item", gl.project.name, item_type, item_iid])
-                if enable_closing:
-                    if not dry_run:
-                        gl.close(item)
-                else:
-                    warning_message = (
-                        "'close_item' action is not enabled. "
-                        + "Please run the integration manually "
-                        + "with the '--enable-deletion' flag."
-                    )
-                    logging.warning(warning_message)
+                close_item(dry_run, gl, enable_closing, item_type, item)
         # if item is under days_interval
         else:
             if LABEL not in item_labels:
