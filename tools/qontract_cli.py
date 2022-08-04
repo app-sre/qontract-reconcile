@@ -1174,6 +1174,35 @@ def app_interface_review_queue(ctx):
     print_output(ctx.obj["options"], queue_data, columns)
 
 
+@get.command()
+@click.pass_context
+def app_interface_merge_history(ctx):
+    settings = queries.get_app_interface_settings()
+    instance = queries.get_gitlab_instance()
+    gl = GitLabApi(instance, project_url=settings["repoUrl"], settings=settings)
+    merge_requests = gl.project.mergerequests.list(state=MRState.MERGED, per_page=100)
+
+    columns = [
+        "id",
+        "title",
+        "merged_at",
+        "labels",
+    ]
+    merge_queue_data = []
+    for mr in merge_requests:
+        item = {
+            "id": f"[{mr.iid}]({mr.web_url})",
+            "title": mr.title,
+            "merged_at": mr.merged_at,
+            "labels": ", ".join(mr.attributes.get("labels")),
+        }
+        merge_queue_data.append(item)
+
+    merge_queue_data.sort(key=itemgetter("merged_at"), reverse=True)
+    ctx.obj["options"]["sort"] = False  # do not sort
+    print_output(ctx.obj["options"], merge_queue_data, columns)
+
+
 def print_output(
     options: Mapping[str, Union[str, bool]],
     content: List[Dict],
