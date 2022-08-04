@@ -232,8 +232,26 @@ class QuayMirror:
                             )
                             continue
                     except ImageComparisonError as details:
-                        _LOG.error("[%s]", details)
+                        _LOG.error(
+                            "Error comparing image %s and %s - %s",
+                            downstream,
+                            upstream,
+                            details,
+                        )
                         continue
+                    # Temporary fix while sretoolbox cannot handle comparing OCI images
+                    # with content-type: "application/vnd.oci.image.index.v1+json"
+                    except KeyError as details:
+                        if "mediaType" in str(details):
+                            _LOG.error(
+                                "Error comparing image %s and %s - Missing 'mediaType' "
+                                "key in manifest",
+                                downstream,
+                                upstream,
+                            )
+                            continue
+                        else:
+                            raise
 
                     _LOG.debug(
                         "Image %s and mirror %s are out of sync", downstream, upstream
