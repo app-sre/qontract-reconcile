@@ -393,28 +393,31 @@ def run_integration(func_container, ctx, *args, **kwargs):
     early_exit_compare_sha = ctx.get("early_exit_compare_sha")
 
     try:
-        if early_exit_compare_sha:
-            # check if the integration can exit early because there is no difference
-            # in desired state compared to the provided comparison bundle sha
-            # early exit is only supported when the integration is started in
-            # dry-run mode
-            can_exit_early = dry_run and early_exit_integration(
+        # check if the integration can exit early because there is no difference
+        # in desired state compared to the provided comparison bundle sha
+        # early exit is only supported when the integration is started in
+        # dry-run mode
+        can_exit_early = (
+            dry_run
+            and early_exit_compare_sha
+            and early_exit_integration(
                 int_name, early_exit_compare_sha, func_container, args, kwargs
             )
-            if can_exit_early:
-                logging.info("No changes in desired state. Exit PR check early.")
-            else:
-                try:
-                    gql.init_from_config(
-                        autodetect_sha=ctx["gql_sha_url"],
-                        integration=int_name,
-                        validate_schemas=ctx["validate_schemas"],
-                        print_url=ctx["gql_url_print"],
-                    )
-                except GqlApiIntegrationNotFound as e:
-                    sys.stderr.write(str(e) + "\n")
-                    sys.exit(ExitCodes.INTEGRATION_NOT_FOUND)
-                func_container.run(dry_run, *args, **kwargs)
+        )
+        if can_exit_early:
+            logging.info("No changes in desired state. Exit PR check early.")
+        else:
+            try:
+                gql.init_from_config(
+                    autodetect_sha=ctx["gql_sha_url"],
+                    integration=int_name,
+                    validate_schemas=ctx["validate_schemas"],
+                    print_url=ctx["gql_url_print"],
+                )
+            except GqlApiIntegrationNotFound as e:
+                sys.stderr.write(str(e) + "\n")
+                sys.exit(ExitCodes.INTEGRATION_NOT_FOUND)
+            func_container.run(dry_run, *args, **kwargs)
     except RunnerException as e:
         sys.stderr.write(str(e) + "\n")
         sys.exit(ExitCodes.ERROR)
