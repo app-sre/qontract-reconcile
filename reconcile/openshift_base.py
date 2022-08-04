@@ -710,6 +710,31 @@ def _validate_resources_used_exist(
     for used_name, used_keys in used_resources.items():
         # perhaps used resource is deployed together with the using resource?
         resource = ri.get_desired(cluster, namespace, used_kind, used_name)
+        # if not, perhaps it's a secret that will be created from a Service's
+        # serving-cert that is deployed along with the using resource?
+        # lets iterate through all resources and find Services that have the annotation
+        if not resource and used_kind == "Secret":
+            found_serving_cert = False
+            for (cname, nname, restype, res) in ri:
+                # consider only Service resources in the same namespace
+                if cname == cluster and nname == namespace and restype == "Service":
+                    # Check serving-cert-secret-name annotation on every Service
+                    for desired in res["desired"].values():
+                        metadata = desired.body.get("metadata", {})
+                        annotations = metadata.get("annotations", {})
+                        value = annotations.get(
+                            "service.alpha.openshift.io/serving-cert-secret-name", False
+                        )
+                        # we found one! does it's value (secret name) match the
+                        # using resource's?
+                        if value == used_name:
+                            # found a match. we assume the serving cert secret will
+                            # be present at some point soon after the Service is deployed
+                            found_serving_cert = True
+                            resource = desired
+                            break
+                    if found_serving_cert:
+                        break
         if resource:
             # get the body to match with the possible result from oc.get
             resource = resource.body
