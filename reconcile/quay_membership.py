@@ -1,68 +1,61 @@
 import logging
 import sys
+from typing import Optional, Sequence, Union
 
-from reconcile.utils import gql
-from reconcile.utils import expiration
-
-from reconcile.utils.aggregated_list import (
-    AggregatedList,
-    AggregatedDiffRunner,
-    RunnerException,
+from reconcile.gql_queries.quay_membership.quay_membership import (
+    BotV1,
+    PermissionQuayOrgTeamV1,
+    QuayMembershipQuery,
+    RoleV1,
+    UserV1,
+    query_string,
 )
 from reconcile.quay_base import get_quay_api_store
 from reconcile.status import ExitCodes
+from reconcile.utils import expiration, gql
+from reconcile.utils.aggregated_list import (
+    AggregatedDiffRunner,
+    AggregatedList,
+    RunnerException,
+)
 from reconcile.utils.quay_api import QuayTeamNotFoundException
-
-QUAY_ORG_QUERY = """
-{
-  roles: roles_v1 {
-    name
-    users {
-      name
-      quay_username
-    }
-    bots {
-      name
-      quay_username
-    }
-    permissions {
-      service
-      ...on PermissionQuayOrgTeam_v1 {
-        quayOrg {
-          name
-          instance {
-            name
-          }
-        }
-        team
-      }
-    }
-    expirationDate
-  }
-}
-"""
-
-PERMISSIONS_QUERY = """
-{
-  permissions: permissions_v1 {
-      service
-      ...on PermissionQuayOrgTeam_v1 {
-        quayOrg {
-          name
-          instance {
-            name
-          }
-        }
-        team
-      }
-    }
-}
-"""
 
 QONTRACT_INTEGRATION = "quay-membership"
 
 
-def process_permission(permission):
+def get_permissions_for_quay_membership() -> list[PermissionQuayOrgTeamV1]:
+    gqlapi = gql.get_api()
+    query_data = gqlapi.query(query_string())
+    quay_membership = QuayMembershipQuery(**query_data)
+    if not quay_membership.permissions:
+        return []
+    return [
+        p for p in quay_membership.permissions if isinstance(p, PermissionQuayOrgTeamV1)
+    ]
+
+
+def expiration_filter(
+    roles: Optional[list[RoleV1]], key: str = "expiration_date"
+) -> list[RoleV1]:
+    """Filters roles and returns the ones which are not yet expired.
+
+    adaption of reconcile.utils.expiration.filter which isn't GQL classes ready yet.
+    """
+    filtered = []
+    for r in roles or []:
+        expiration_date = getattr(r, key)
+        try:
+            if not expiration_date or expiration.role_still_valid(expiration_date):
+                filtered.append(r)
+        except ValueError:
+            raise ValueError(
+                f"{key} field is not formatted as YYYY-MM-DD, currently set as {expiration_date}"
+            )
+
+    return filtered
+
+
+def process_permission(permission: PermissionQuayOrgTeamV1):
     """Returns a new permission object with the right keys
 
     State needs these fields: service, org, team.
@@ -72,19 +65,13 @@ def process_permission(permission):
     """
 
     return {
-        "service": permission["service"],
-        "team": permission["team"],
+        "service": permission.service,
+        "team": permission.team,
         "org": (
-            permission["quayOrg"]["instance"]["name"],
-            permission["quayOrg"]["name"],
+            permission.quay_org.instance.name,
+            permission.quay_org.name,
         ),
     }
-
-
-def get_permissions_for_quay_membership():
-    gqlapi = gql.get_api()
-    permissions = gqlapi.query(PERMISSIONS_QUERY)["permissions"]
-    return [p for p in permissions if p["service"] == "quay-membership"]
 
 
 def fetch_current_state(quay_api_store):
@@ -116,38 +103,21 @@ def fetch_current_state(quay_api_store):
     return state
 
 
+def get_usernames(users: Sequence[Union[UserV1, BotV1]]) -> list[str]:
+    return [u.quay_username for u in users if u.quay_username]
+
+
 def fetch_desired_state():
-    gqlapi = gql.get_api()
-    roles: list[dict] = expiration.filter(gqlapi.query(QUAY_ORG_QUERY)["roles"])
-
+    permissions = get_permissions_for_quay_membership()
     state = AggregatedList()
-    processed_permissions = []
 
-    for role in roles:
-        permissions = [
-            process_permission(p)
-            for p in role["permissions"]
-            if p.get("service") == "quay-membership"
-        ]
-
-        if permissions:
-            members = []
-
-            for user in role["users"] + role["bots"]:
-                quay_username = user.get("quay_username")
-                if quay_username:
-                    members.append(quay_username)
-
-            for p in permissions:
-                processed_permissions.append(p)
-                state.add(p, members)
-
-    # consider teams (aka permissions) w/o roles as well
-    for permission in get_permissions_for_quay_membership():
+    for permission in permissions:
         p = process_permission(permission)
-        if p not in processed_permissions:
-            # permission not processed yet therefore add it to the state
-            state.add(p, [])
+        members: list[str] = []
+        for role in expiration_filter(permission.roles):
+            members = get_usernames(role.users or []) + get_usernames(role.bots or [])
+
+        state.add(p, members)
 
     return state
 
