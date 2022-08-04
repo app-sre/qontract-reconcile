@@ -63,6 +63,7 @@ setup(
         "packaging~=21.3",
         # Needed to fix issues with router's certificates
         "cryptography==36.0.2",
+        "deepdiff==5.8.1",
     ],
 
     test_suite="tests",

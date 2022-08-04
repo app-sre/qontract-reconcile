@@ -75,6 +75,21 @@ def log_level(function):
     return function
 
 
+def early_exit(function):
+    help_msg = (
+        "Runs integration in early exit mode. If the observed desired state of "
+        "an integration does not change between the provided bundle SHA "
+        "--early-exit-compare-sha and the current bundle sha, the integration "
+        "exits without spending more time with reconciling."
+    )
+    function = click.option(
+        "--early-exit-compare-sha",
+        help=help_msg,
+        default=lambda: os.environ.get("EARLY_EXIT_COMPARE_SHA", None),
+    )(function)
+    return function
+
+
 def dry_run(function):
     help_msg = (
         "If `true`, it will only print the planned actions "
@@ -369,26 +384,37 @@ def run_integration(func_container, ctx, *args, **kwargs):
         sys.stderr.write("Integration missing QONTRACT_INTEGRATION.\n")
         sys.exit(ExitCodes.ERROR)
 
-    try:
-        gql.init_from_config(
-            sha_url=ctx["gql_sha_url"],
-            integration=int_name,
-            validate_schemas=ctx["validate_schemas"],
-            print_url=ctx["gql_url_print"],
-        )
-    except GqlApiIntegrationNotFound as e:
-        sys.stderr.write(str(e) + "\n")
-        sys.exit(ExitCodes.INTEGRATION_NOT_FOUND)
-
     unleash_feature_state = get_feature_toggle_state(int_name)
     if not unleash_feature_state:
         logging.info("Integration toggle is disabled, skipping integration.")
         sys.exit(ExitCodes.SUCCESS)
 
     dry_run = ctx.get("dry_run", False)
+    early_exit_compare_sha = ctx.get("early_exit_compare_sha")
 
     try:
-        func_container.run(dry_run, *args, **kwargs)
+        if early_exit_compare_sha:
+            # check if the integration can exit early because there is no difference
+            # in desired state compared to the provided comparison bundle sha
+            # early exit is only supported when the integration is started in
+            # dry-run mode
+            can_exit_early = dry_run and early_exit_integration(
+                int_name, early_exit_compare_sha, func_container, args, kwargs
+            )
+            if can_exit_early:
+                logging.info("No changes in desired state. Exit PR check early.")
+            else:
+                try:
+                    gql.init_from_config(
+                        autodetect_sha=ctx["gql_sha_url"],
+                        integration=int_name,
+                        validate_schemas=ctx["validate_schemas"],
+                        print_url=ctx["gql_url_print"],
+                    )
+                except GqlApiIntegrationNotFound as e:
+                    sys.stderr.write(str(e) + "\n")
+                    sys.exit(ExitCodes.INTEGRATION_NOT_FOUND)
+                func_container.run(dry_run, *args, **kwargs)
     except RunnerException as e:
         sys.stderr.write(str(e) + "\n")
         sys.exit(ExitCodes.ERROR)
@@ -402,6 +428,58 @@ def run_integration(func_container, ctx, *args, **kwargs):
                 f.write(json.dumps(gqlapi.get_queried_schemas()))
 
 
+def early_exit_integration(
+    int_name: str, compare_sha: str, func_container, *args, **kwargs
+) -> bool:
+    early_exit_desired_state_function = "early_exit_desired_state"
+    # does the integration support early exit?
+    if "early_exit_desired_state" not in dir(func_container):
+        logging.warning(
+            f"{int_name} does not support early exit. it does not offer a "
+            f"function called {early_exit_desired_state_function}"
+        )
+        return False
+
+    # get desired state from comparison bundle
+    try:
+        gql.init_from_config(
+            sha=compare_sha,
+            integration=int_name,
+            validate_schemas=True,
+            print_url=True,
+        )
+        previous_desired_state = func_container.early_exit_desired_state(
+            *args, **kwargs
+        )
+    except Exception:
+        logging.exception(
+            f"Failed to fetch desired state for comparison bundle {compare_sha} failed"
+        )
+        return False
+
+    # get desired state from current bundle
+    try:
+        gql.init_from_config(
+            autodetect_sha=True,
+            integration=int_name,
+            validate_schemas=True,
+            print_url=True,
+        )
+        current_desired_state = func_container.early_exit_desired_state(*args, **kwargs)
+    except Exception:
+        logging.exception("Failed to fetch desired state for current bundle failed")
+        return False
+
+    # compare
+    from deepdiff import DeepDiff
+
+    diff = DeepDiff(previous_desired_state, current_desired_state, ignore_order=True)
+    if diff:
+        return False
+    else:
+        return True
+
+
 def init_log_level(log_level):
     level = getattr(logging, log_level) if log_level else logging.INFO
     logging.basicConfig(format=LOG_FMT, datefmt=LOG_DATEFMT, level=level)
@@ -410,6 +488,7 @@ def init_log_level(log_level):
 @click.group()
 @config_file
 @dry_run
+@early_exit
 @validate_schemas
 @dump_schemas
 @gql_sha_url
@@ -420,6 +499,7 @@ def integration(
     ctx,
     configfile,
     dry_run,
+    early_exit_compare_sha,
     validate_schemas,
     dump_schemas_file,
     log_level,
@@ -431,6 +511,7 @@ def integration(
     init_log_level(log_level)
     config.init_from_toml(configfile)
     ctx.obj["dry_run"] = dry_run
+    ctx.obj["early_exit_compare_sha"] = early_exit_compare_sha
     ctx.obj["validate_schemas"] = validate_schemas
     ctx.obj["gql_sha_url"] = gql_sha_url
     ctx.obj["gql_url_print"] = gql_url_print
