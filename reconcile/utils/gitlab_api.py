@@ -6,8 +6,7 @@ from urllib.parse import urlparse
 from sretoolbox.utils import retry
 
 import gitlab
-from gitlab.v4.objects import CurrentUser
-from gitlab.v4.objects import ProjectMergeRequest
+from gitlab.v4.objects import ProjectMergeRequest, CurrentUser
 import urllib3
 
 
