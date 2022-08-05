@@ -53,6 +53,17 @@ def get_desired_dependency_names(
         # hence openshift is a required dependency.
         required_dep_names.update(get_dependency_names(dependency_map, "openshift"))
 
+    # Check if we got any upstream deps (ci-int/ci-ext)
+    for sf in saas_files:
+        for tmpl in sf.resource_templates or []:
+            for target in tmpl.targets or []:
+                if target.upstream:
+                    required_dep_names.update(
+                        get_dependency_names(
+                            dependency_map, target.upstream.instance.name
+                        )
+                    )
+
     quay_repos = app.quay_repos
     if quay_repos:
         required_dep_names.update(get_dependency_names(dependency_map, "quay"))
