@@ -55,8 +55,8 @@ def get_desired_dependency_names(
 
     # Check if we got any upstream deps (ci-int/ci-ext)
     for sf in saas_files:
-        for tmpl in sf.resource_templates:
-            for target in tmpl.targets:
+        for tmpl in sf.resource_templates or []:
+            for target in tmpl.targets or []:
                 if target.upstream:
                     required_dep_names.update(
                         get_dependency_names(
