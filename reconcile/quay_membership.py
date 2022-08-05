@@ -5,7 +5,7 @@ from typing import Optional, Sequence, Union
 from reconcile.gql_queries.quay_membership.quay_membership import (
     BotV1,
     PermissionQuayOrgTeamV1,
-    QuayMembershipQuery,
+    QuayMembershipQueryData,
     RoleV1,
     UserV1,
     query_string,
@@ -26,7 +26,7 @@ QONTRACT_INTEGRATION = "quay-membership"
 def get_permissions_for_quay_membership() -> list[PermissionQuayOrgTeamV1]:
     gqlapi = gql.get_api()
     query_data = gqlapi.query(query_string())
-    quay_membership = QuayMembershipQuery(**query_data)
+    quay_membership = QuayMembershipQueryData(**query_data)
     if not quay_membership.permissions:
         return []
     return [
