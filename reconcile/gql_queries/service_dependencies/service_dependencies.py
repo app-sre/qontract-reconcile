@@ -32,6 +32,15 @@ query ServiceDependencies {
       pipelinesProvider {
         provider
       }
+      resourceTemplates {
+        targets {
+          upstream {
+            instance {
+              name
+            }
+          }
+        }
+      }
     }
     quayRepos {
       org {
@@ -96,8 +105,47 @@ class PipelinesProviderV1(BaseModel):
         extra = Extra.forbid
 
 
+class SaasResourceTemplateTargetUpstreamV1_JenkinsInstanceV1(BaseModel):
+    name: str = Field(..., alias="name")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
+class SaasResourceTemplateTargetUpstreamV1(BaseModel):
+    instance: SaasResourceTemplateTargetUpstreamV1_JenkinsInstanceV1 = Field(
+        ..., alias="instance"
+    )
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
+class SaasResourceTemplateTargetV2(BaseModel):
+    upstream: Optional[SaasResourceTemplateTargetUpstreamV1] = Field(
+        ..., alias="upstream"
+    )
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
+class SaasResourceTemplateV2(BaseModel):
+    targets: Optional[list[SaasResourceTemplateTargetV2]] = Field(..., alias="targets")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
 class SaasFileV2(BaseModel):
     pipelines_provider: PipelinesProviderV1 = Field(..., alias="pipelinesProvider")
+    resource_templates: Optional[list[SaasResourceTemplateV2]] = Field(
+        ..., alias="resourceTemplates"
+    )
 
     class Config:
         smart_union = True

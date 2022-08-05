@@ -18,6 +18,15 @@ query ServiceDependencies {
       pipelinesProvider {
         provider
       }
+      resourceTemplates {
+        targets {
+          upstream {
+            instance {
+              name
+            }
+          }
+        }
+      }
     }
     quayRepos {
       org {
