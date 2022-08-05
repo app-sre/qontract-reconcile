@@ -92,7 +92,7 @@ def run(dry_run):
         sys.exit()
 
     gqlapi = gql.get_api()
-    apps: dict[Any, Any] = gqlapi.query(service_dependencies.QUERY)
+    apps: dict[Any, Any] = gqlapi.query(service_dependencies.query_string())
     query_data: ServiceDependenciesQueryData = ServiceDependenciesQueryData(**apps)
 
     error = False
