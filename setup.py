@@ -16,7 +16,7 @@ setup(
     url='https://github.com/app-sre/qontract-reconcile',
 
     packages=find_packages(exclude=('tests',)),
-    package_data={'reconcile': ['templates/*.j2']},
+    package_data={'reconcile': ['templates/*.j2', "gql_queries/*/*.gql"]},
 
     install_requires=[
         "sretoolbox~=1.4.0",
