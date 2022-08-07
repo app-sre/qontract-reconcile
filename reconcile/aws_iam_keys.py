@@ -105,5 +105,5 @@ def run(
     if error:
         sys.exit(1)
 
-    if not dry_run:
+    if not dry_run and not disable_service_account_keys:
         update_state(state, keys_to_delete)
