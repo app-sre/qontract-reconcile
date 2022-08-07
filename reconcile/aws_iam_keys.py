@@ -70,8 +70,8 @@ def run(
         return
 
     settings = queries.get_app_interface_settings()
-    aws = AWSApi(thread_pool_size, accounts, settings=settings)
     keys_to_delete = get_keys_to_delete(accounts)
+    aws = AWSApi(thread_pool_size, accounts, settings=settings)
     working_dirs = init_tf_working_dirs(accounts, thread_pool_size, settings)
     defer(lambda: cleanup(working_dirs))
     error = aws.delete_keys(
