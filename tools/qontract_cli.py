@@ -32,7 +32,7 @@ from reconcile.utils.external_resources import (
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.environ import environ
 from reconcile.jenkins_job_builder import init_jjb
-from reconcile.utils.gitlab_api import GitLabApi, MRState
+from reconcile.utils.gitlab_api import GitLabApi, MRState, MRStatus
 from reconcile.utils.jjb_client import JJB
 from reconcile.utils.mr.labels import SAAS_FILE_UPDATE
 from reconcile.utils.oc import OC_Map
@@ -1117,7 +1117,10 @@ def app_interface_review_queue(ctx):
             continue
         if len(mr.commits()) == 0:
             continue
-        if mr.merge_status in ["cannot_be_merged", "cannot_be_merged_recheck"]:
+        if mr.merge_status in [
+            MRStatus.CANNOT_BE_MERGED,
+            MRStatus.CANNOT_BE_MERGED_RECHECK,
+        ]:
             continue
 
         labels = mr.attributes.get("labels")
