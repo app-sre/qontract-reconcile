@@ -30,7 +30,7 @@ def get_keys_to_delete(accounts) -> dict[str, list[str]]:
 def should_run(state: State, keys_to_delete: dict[str, list[str]]) -> bool:
     for account_name, keys in keys_to_delete.items():
         if state.get(account_name, []) != keys:
-                return True
+            return True
     return False
 
 
@@ -99,11 +99,15 @@ def run(
     aws = AWSApi(thread_pool_size, accounts, settings=settings)
     working_dirs = init_tf_working_dirs(accounts, thread_pool_size, settings)
     defer(lambda: cleanup(working_dirs))
-    error = aws.delete_keys(
+    error, service_account_recycle_complete = aws.delete_keys(
         dry_run, keys_to_delete, working_dirs, disable_service_account_keys
     )
     if error:
         sys.exit(1)
 
-    if not dry_run and not disable_service_account_keys:
+    if (
+        not dry_run
+        and not disable_service_account_keys
+        and service_account_recycle_complete
+    ):
         update_state(state, keys_to_delete)
