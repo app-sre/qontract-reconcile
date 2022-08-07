@@ -6,6 +6,7 @@ from reconcile import queries
 
 from reconcile.utils.defer import defer
 from reconcile.utils.aws_api import AWSApi
+from reconcile.utils.state import State
 from reconcile.utils.terrascript_aws_client import TerrascriptClient as Terrascript
 
 QONTRACT_INTEGRATION = "aws-iam-keys"
@@ -18,12 +19,25 @@ def filter_accounts(accounts, account_name):
     return accounts
 
 
-def get_keys_to_delete(accounts):
+def get_keys_to_delete(accounts) -> dict[str, list[str]]:
     return {
         account["name"]: account["deleteKeys"]
         for account in accounts
         if account["deleteKeys"] not in (None, [])
     }
+
+
+def should_run(state: State, keys_to_delete: dict[str, list[str]]) -> bool:
+    for account_name, keys in keys_to_delete.items():
+        if state.get(account_name, []) != keys:
+                return True
+    return False
+
+
+def update_state(state: State, keys_to_update: dict[str, list[str]]):
+    for account_name, keys in keys_to_update.items():
+        if state.get(account_name, []) != keys:
+            state.add(account_name, keys, force=True)
 
 
 def init_tf_working_dirs(accounts, thread_pool_size, settings):
@@ -70,7 +84,18 @@ def run(
         return
 
     settings = queries.get_app_interface_settings()
+    state = State(
+        integration=QONTRACT_INTEGRATION,
+        accounts=queries.get_state_aws_accounts(),
+        settings=settings,
+    )
     keys_to_delete = get_keys_to_delete(accounts)
+    if not should_run(state, keys_to_delete):
+        logging.debug("nothing to do here")
+        # using return because terraform-resources
+        # may be the calling entity, and has more to do
+        return
+
     aws = AWSApi(thread_pool_size, accounts, settings=settings)
     working_dirs = init_tf_working_dirs(accounts, thread_pool_size, settings)
     defer(lambda: cleanup(working_dirs))
@@ -79,3 +104,6 @@ def run(
     )
     if error:
         sys.exit(1)
+
+    if not dry_run:
+        update_state(state, keys_to_delete)
