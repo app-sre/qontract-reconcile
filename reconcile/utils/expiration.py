@@ -4,12 +4,12 @@ from typing import Iterable, Optional, Protocol, TypeVar, Union, cast
 DATE_FORMAT = "%Y-%m-%d"
 
 
-class RoleProtocol(Protocol):
+class FilterableRole(Protocol):
     expiration_date: Optional[str]
 
 
 DictsOrRoles = TypeVar(
-    "DictsOrRoles", bound=Union[Iterable[RoleProtocol], Iterable[dict]]
+    "DictsOrRoles", bound=Union[Iterable[FilterableRole], Iterable[dict]]
 )
 
 
@@ -28,7 +28,7 @@ def filter(roles: Optional[DictsOrRoles]) -> DictsOrRoles:
             expiration_date = r.get(key)
         else:
             key = "expiration_date"
-            expiration_date = getattr(r, key, None)
+            expiration_date = r.expiration_date
 
         try:
             if not expiration_date or not date_expired(expiration_date):
