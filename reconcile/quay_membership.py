@@ -1,6 +1,6 @@
 import logging
 import sys
-from typing import Optional, Sequence, Union
+from typing import Sequence, Union, cast
 
 from reconcile.gql_queries.quay_membership.quay_membership import (
     BotV1,
@@ -32,27 +32,6 @@ def get_permissions_for_quay_membership() -> list[PermissionQuayOrgTeamV1]:
     return [
         p for p in quay_membership.permissions if isinstance(p, PermissionQuayOrgTeamV1)
     ]
-
-
-def expiration_filter(
-    roles: Optional[list[RoleV1]], key: str = "expiration_date"
-) -> list[RoleV1]:
-    """Filters roles and returns the ones which are not yet expired.
-
-    adaption of reconcile.utils.expiration.filter which isn't GQL classes ready yet.
-    """
-    filtered = []
-    for r in roles or []:
-        expiration_date = getattr(r, key)
-        try:
-            if not expiration_date or expiration.role_still_valid(expiration_date):
-                filtered.append(r)
-        except ValueError:
-            raise ValueError(
-                f"{key} field is not formatted as YYYY-MM-DD, currently set as {expiration_date}"
-            )
-
-    return filtered
 
 
 def process_permission(permission: PermissionQuayOrgTeamV1):
@@ -114,7 +93,10 @@ def fetch_desired_state():
     for permission in permissions:
         p = process_permission(permission)
         members: list[str] = []
-        for role in expiration_filter(permission.roles):
+        filtered_roles: list[RoleV1] = [
+            cast(RoleV1, r) for r in expiration.filter(permission.roles)
+        ]
+        for role in filtered_roles:
             members = get_usernames(role.users or []) + get_usernames(role.bots or [])
 
         state.add(p, members)
