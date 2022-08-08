@@ -34,6 +34,7 @@ class JiraClient:
         while True:
             index = block_num * block_size
             issues = self.jira.search_issues(jql, index, block_size, **kwargs)
+            # TODO: investigate why the arg-type ignore is needed in CI
             all_issues.extend(issues)  # type: ignore[arg-type]
             if len(issues) < block_size:
                 break
