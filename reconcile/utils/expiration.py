@@ -13,8 +13,8 @@ DictsOrRoles = TypeVar(
 )
 
 
-def date_expired(role: str) -> bool:
-    exp_date = datetime.datetime.strptime(role, DATE_FORMAT).date()
+def date_expired(date: str) -> bool:
+    exp_date = datetime.datetime.strptime(date, DATE_FORMAT).date()
     current_date = datetime.datetime.utcnow().date()
     return current_date >= exp_date
 
