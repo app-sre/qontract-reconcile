@@ -2,7 +2,7 @@ import logging
 import json
 import shutil
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from collections import defaultdict
 from threading import Lock
 from dataclasses import dataclass
@@ -286,7 +286,9 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         now = datetime.utcnow()
         for da in deletion_approvals:
             try:
-                expiration = datetime.strptime(da["expiration"], DATE_FORMAT)
+                expiration = datetime.strptime(
+                    da["expiration"], DATE_FORMAT
+                ) + timedelta(days=1)
             except ValueError:
                 raise DeletionApprovalExpirationValueError(
                     f"[{account_name}] expiration not does not match "
