@@ -1,3 +1,4 @@
+import pytest
 import reconcile.aws_iam_keys as integ
 
 
@@ -33,3 +34,36 @@ def test_get_keys_to_delete():
     expected_result = {a["name"]: a["deleteKeys"]}
     keys_to_delete = integ.get_keys_to_delete(accounts)
     assert keys_to_delete == expected_result
+
+
+class StateMock():
+    def __init__(self):
+        self.data = {}
+
+    def get(self, key, *args):
+        return self.data.get(key, args[0])
+
+    def add(self, key, value, force):
+        self.data[key] = value
+
+
+@pytest.fixture
+def state():
+    return StateMock()
+
+
+def test_should_run_true(state):
+    keys_to_delete = {"a": ["k1"]}
+    assert integ.should_run(state, keys_to_delete) is True
+
+
+def test_should_run_false(state):
+    keys_to_delete = {"a": ["k1"]}
+    state.data.update(keys_to_delete)
+    assert integ.should_run(state, keys_to_delete) is False
+
+
+def test_update_state(state):
+    keys_to_update = {"a": ["k1"]}
+    integ.update_state(state, keys_to_update)
+    assert state.data == keys_to_update
