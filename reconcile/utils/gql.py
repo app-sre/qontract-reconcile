@@ -256,10 +256,10 @@ def _get_gql_server_and_token(
         sha = get_sha(server_url, token)
         server = server_url._replace(path=f"/graphqlsha/{sha}").geturl()
     if sha:
-        runing_state = RunningState()
+        running_state = RunningState()
         git_commit_info = get_git_commit_info(sha, server_url, token)
-        runing_state.timestamp = git_commit_info.get("timestamp")  # type: ignore[attr-defined]
-        runing_state.commit = git_commit_info.get("commit")  # type: ignore[attr-defined]
+        running_state.timestamp = git_commit_info.get("timestamp")  # type: ignore[attr-defined]
+        running_state.commit = git_commit_info.get("commit")  # type: ignore[attr-defined]
     return server, token
 
 
