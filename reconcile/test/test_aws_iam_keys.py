@@ -36,7 +36,7 @@ def test_get_keys_to_delete():
     assert keys_to_delete == expected_result
 
 
-class StateMock():
+class StateMock:
     def __init__(self):
         self.data = {}
 
