@@ -3,9 +3,9 @@ from jira.client import ResultList
 
 from reconcile.utils.secret_reader import SecretReader
 
-from typing import Any, Iterable, Mapping, Optional, Union
+from typing import Any, Dict, Iterable, Mapping, Optional, Union
 
-GottenIssue = Union[list[dict[str, Any]], ResultList[Issue]]
+GottenIssue = Union[Dict[str, Any], ResultList[Issue]]
 
 
 class JiraClient:
@@ -34,8 +34,7 @@ class JiraClient:
         while True:
             index = block_num * block_size
             issues = self.jira.search_issues(jql, index, block_size, **kwargs)
-            # TODO: investigate why the arg-type ignore is needed in CI
-            all_issues.extend(issues)  # type: ignore[arg-type]
+            all_issues.extend(issues)
             if len(issues) < block_size:
                 break
             block_num += 1
