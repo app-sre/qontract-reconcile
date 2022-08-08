@@ -95,7 +95,7 @@ def fetch_current_state(quay_api_store):
 
 def fetch_desired_state():
     gqlapi = gql.get_api()
-    roles = expiration.filter(gqlapi.query(QUAY_ORG_QUERY)["roles"])
+    roles: dict = expiration.filter(gqlapi.query(QUAY_ORG_QUERY)["roles"])
 
     state = AggregatedList()
 

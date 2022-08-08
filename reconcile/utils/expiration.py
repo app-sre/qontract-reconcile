@@ -1,41 +1,41 @@
 import datetime
+from typing import Iterable, Optional, Protocol, TypeVar, Union, cast
+
+DATE_FORMAT = "%Y-%m-%d"
 
 
-def has_valid_expiration_date(role: str) -> bool:
-    date_bool = True
-    if role is None:
-        return date_bool
-    else:
-        date_format = "%Y-%m-%d"
-        try:
-            date_bool = bool(datetime.datetime.strptime(role, date_format))
-        except ValueError:
-            date_bool = False
-        return date_bool
+class RoleProtocol(Protocol):
+    expiration_date: Optional[str]
 
 
-def role_still_valid(role: str) -> bool:
-    if role is None:
-        return True
-    else:
-        exp_date = datetime.datetime.strptime(role, "%Y-%m-%d").date()
-        current_date = datetime.datetime.utcnow().date()
-        if current_date < exp_date:
-            return True
-        return False
+DictsOrRoles = TypeVar(
+    "DictsOrRoles", bound=Union[Iterable[RoleProtocol], Iterable[dict]]
+)
 
 
-def filter(roles: list[dict], key: str = "expirationDate") -> list[dict]:
+def date_expired(role: str) -> bool:
+    exp_date = datetime.datetime.strptime(role, DATE_FORMAT).date()
+    current_date = datetime.datetime.utcnow().date()
+    return current_date >= exp_date
+
+
+def filter(roles: Optional[DictsOrRoles]) -> DictsOrRoles:
     """Filters roles and returns the ones which are not yet expired."""
     filtered = []
-    for r in roles:
-        expiration_date = r[key]
-        if not has_valid_expiration_date(expiration_date):
-            raise ValueError(
-                f"{key} field is not formatted as YYYY-MM-DD, "
-                f"currently set as {expiration_date}"
-            )
-        if role_still_valid(expiration_date):
-            filtered.append(r)
+    for r in roles or []:
+        if isinstance(r, dict):
+            key = "expirationDate"
+            expiration_date = r.get(key)
+        else:
+            key = "expiration_date"
+            expiration_date = getattr(r, key, None)
 
-    return filtered
+        try:
+            if not expiration_date or not date_expired(expiration_date):
+                filtered.append(r)
+        except ValueError:
+            raise ValueError(
+                f"{key} field is not formatted as YYYY-MM-DD, currently set as {expiration_date}"
+            )
+
+    return cast(DictsOrRoles, filtered)

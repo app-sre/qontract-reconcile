@@ -85,7 +85,7 @@ def construct_sa_oc_resource(role, namespace, sa_name):
 
 def fetch_desired_state(ri, oc_map):
     gqlapi = gql.get_api()
-    roles = expiration.filter(gqlapi.query(ROLES_QUERY)["roles"])
+    roles: dict = expiration.filter(gqlapi.query(ROLES_QUERY)["roles"])
     users_desired_state = []
     for role in roles:
         permissions = [
