@@ -70,7 +70,7 @@ def setup(
         if not accounts:
             raise ValueError(f"aws account {account_name} is not found")
     settings = queries.get_app_interface_settings()
-    roles: dict = expiration.filter(gqlapi.query(TF_QUERY)["roles"])
+    roles: list[dict] = expiration.filter(gqlapi.query(TF_QUERY)["roles"])
     tf_roles = [
         r
         for r in roles

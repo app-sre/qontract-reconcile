@@ -84,7 +84,7 @@ def construct_sa_oc_resource(role, namespace, sa_name):
 
 def fetch_desired_state(ri, oc_map):
     gqlapi = gql.get_api()
-    roles: dict = expiration.filter(gqlapi.query(ROLES_QUERY)["roles"])
+    roles: list[dict] = expiration.filter(gqlapi.query(ROLES_QUERY)["roles"])
     users_desired_state = []
     # set namespace to something indicative
     namepsace = "cluster"
