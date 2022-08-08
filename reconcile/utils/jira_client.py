@@ -38,10 +38,10 @@ class JiraClient:
             )
             if not isinstance(issues, ResultList):
                 # if search_issues was executed with json_result=True, then we have a Dict.
-                # However, we require a ResultList.
+                # However, we require a ResultList[Issue].
                 # See https://github.com/pycontribs/jira/commit/cc2508485c12232a4a9c4a56ee74175ed818ee20
                 logging.warning(
-                    "Jira client did not receive a ResultList."
+                    "Jira client did not receive a ResultList[Issue]."
                     " Maybe the call was made with json_result=True which is"
                     " currently not supported."
                 )
