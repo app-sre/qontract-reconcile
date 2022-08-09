@@ -1,25 +1,46 @@
 gql_response:
-  roles:
-  - users:
-    - quay_username: user1
-    - quay_username: user2
-    bots: []
-    name: role1
-    expirationDate: null
-    permissions:
+  permissions:
+    - service: slack-usergroup
+    - service: jenkins-role
     - service: quay-membership
       quayOrg:
         name: my_org
         instance:
           name: my_instance
       team: my_team
-
+      roles:
+        # expired-role
+        - users:
+            - quay_username: expired1
+          bots: []
+          expirationDate: "1900-01-01"
+        # standard role
+        - users:
+            - quay_username: user1
+            - quay_username: user2
+            - quay_username: null
+          bots:
+            - quay_username: bot1
+            - quay_username: null
+          expirationDate: null
+    - service: quay-membership
+      quayOrg:
+        name: my_org
+        instance:
+          name: my_instance
+      team: my_team2
+      roles: []
 state:
 - items:
   - user1
   - user2
+  - bot1
   params:
     service: quay-membership
     org: [my_instance, my_org]
     team: my_team
-
+- items: []
+  params:
+    service: quay-membership
+    org: [my_instance, my_org]
+    team: my_team2
