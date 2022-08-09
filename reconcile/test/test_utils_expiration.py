@@ -1,79 +1,107 @@
 from datetime import date, timedelta
-from typing import Dict, List
+from typing import Optional
+from pydantic import BaseModel
 
 import pytest
 
 from reconcile.utils import expiration
 
 
-from .fixtures import Fixtures
-
-apply = Fixtures("expiration").get_anymarkup("expiration_date_check.yml")
-
-
-class TestRoleExpiration:
-    @staticmethod
-    def test_check_temp_role_after_expiration_date():
-        expiration_date = date.today() + timedelta(days=1)
-        resource = mock_openshift_role_bindings(expiration_date)
-        for r in resource:
-            assert expiration.role_still_valid(r["expirationDate"])
-
-    @staticmethod
-    def test_check_temp_role_before_expiration_date():
-        expiration_date = date.today() - timedelta(days=1)
-        resource = mock_openshift_role_bindings(expiration_date)
-        for r in resource:
-            assert not expiration.role_still_valid(r["expirationDate"])
-
-    @staticmethod
-    def test_check_temp_role_no_expiration_date():
-        resource = mock_openshift_role_bindings_no_expiration_date()
-        for r in resource:
-            assert expiration.has_valid_expiration_date(r["expirationDate"])
-
-    @staticmethod
-    def test_has_correct_date_format():
-        expiration_date = date.today()
-        resource = mock_openshift_role_bindings(expiration_date)
-        for r in resource:
-            assert expiration.has_valid_expiration_date(r["expirationDate"])
-
-    @staticmethod
-    def test_has_incorrect_date_format():
-        expiration_date = "invalid-date-format"
-        resource = mock_openshift_role_bindings(expiration_date)
-        for r in resource:
-            assert not expiration.has_valid_expiration_date(r["expirationDate"])
+TODAY = date.today()
+YESTERDAY = TODAY - timedelta(days=1)
+TOMORROW = TODAY + timedelta(days=1)
+NEXT_WEEK = TODAY + timedelta(days=7)
+LAST_WEEK = TODAY - timedelta(days=7)
 
 
-def mock_openshift_role_bindings(expirationDate: str) -> List[Dict]:
-    openshift_rolebindings_roles = apply["gql_response"]
-    openshift_rolebindings_roles[0]["expirationDate"] = str(expirationDate)
-    return openshift_rolebindings_roles
+class MyRole(BaseModel):
+    just_another_attr: int = 0
+    expiration_date: Optional[str]
 
 
-def mock_openshift_role_bindings_no_expiration_date() -> List[Dict]:
-    openshift_rolebindings_roles = apply["gql_response"]
-    return openshift_rolebindings_roles
+@pytest.mark.parametrize(
+    "in_date, expired",
+    [
+        (LAST_WEEK.strftime(expiration.DATE_FORMAT), True),
+        (YESTERDAY.strftime(expiration.DATE_FORMAT), True),
+        (TODAY.strftime(expiration.DATE_FORMAT), True),
+        (TOMORROW.strftime(expiration.DATE_FORMAT), False),
+        (NEXT_WEEK.strftime(expiration.DATE_FORMAT), False),
+    ],
+)
+def test_date_expired(in_date: str, expired: bool):
+    assert expiration.date_expired(in_date) == expired
 
 
-class TestRoleExpirationFilter:
-    @staticmethod
-    def test_valid_roles():
-        roles = [{"expirationDate": "2500-01-01"}, {"expirationDate": "1990-01-01"}]
-        filtered = expiration.filter(roles)
-        assert len(filtered) == 1
-        assert filtered[0]["expirationDate"] == "2500-01-01"
+def test_date_expired_invalid_format():
+    with pytest.raises(ValueError):
+        expiration.date_expired("garbage")
 
-    @staticmethod
-    def test_no_roles():
-        roles = [{"expirationDate": "1990-01-01"}]
-        filtered = expiration.filter(roles)
-        assert len(filtered) == 0
 
-    @staticmethod
-    def test_invalid_format():
-        roles = [{"expirationDate": "25000101"}]
-        with pytest.raises(ValueError):
-            expiration.filter(roles)
+@pytest.mark.parametrize(
+    "roles, expected",
+    [
+        # valid roles (dict)
+        (
+            [
+                {"expirationDate": "2500-01-01"},
+                {"expirationDate": "1990-01-01"},
+            ],
+            [{"expirationDate": "2500-01-01"}],
+        ),
+        # valid roles (classes)
+        (
+            [
+                MyRole(expiration_date="2500-01-01"),
+                MyRole(expiration_date="1900-01-01"),
+            ],
+            [MyRole(expiration_date="2500-01-01")],
+        ),
+        # all roles are expired (dict)
+        (
+            [
+                {"expirationDate": "1990-01-01"},
+            ],
+            [],
+        ),
+        # all roles are expired (classes)
+        (
+            [
+                MyRole(expiration_date="1900-01-01"),
+            ],
+            [],
+        ),
+        # empty input lists
+        ([], []),
+        (None, []),
+        # no expiration date or None (dict)
+        (
+            [{"another_key": "foobar"}],
+            [{"another_key": "foobar"}],
+        ),
+        # no expiration date or None (classes)
+        (
+            [
+                MyRole(just_another_attr=1),
+                MyRole(expiration_date=None),
+            ],
+            [MyRole(just_another_attr=1), MyRole(expiration_date=None)],
+        ),
+    ],
+)
+def test_filter(roles, expected):
+    assert expiration.filter(roles) == expected
+
+
+@pytest.mark.parametrize(
+    "roles",
+    [
+        # dict
+        [{"expirationDate": "garbage"}],
+        # class
+        [MyRole(expiration_date="garbage")],
+    ],
+)
+def test_filter_invalid_format(roles):
+    with pytest.raises(ValueError):
+        expiration.filter(roles)
