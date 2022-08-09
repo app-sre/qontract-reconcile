@@ -31,7 +31,7 @@ JOB_TTL = 604800  # 7 days
 POD_TTL = 3600  # 1 hour (used only when output is "filesystem")
 QUERY_CONFIG_MAP_CHUNK_SIZE = 512 * 1024  # 512 KB
 
-REQUESTS_MEM = "64Mi"
+REQUESTS_MEM = "128Mi"
 REQUESTS_CPU = "100m"
 LIMITS_MEM = "512Mi"
 LIMITS_CPU = "1"
