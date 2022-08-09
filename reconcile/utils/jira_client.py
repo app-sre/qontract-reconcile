@@ -1,11 +1,11 @@
+import logging
+
 from jira import JIRA, Issue
 from jira.client import ResultList
 
 from reconcile.utils.secret_reader import SecretReader
 
 from typing import Any, Iterable, Mapping, Optional, Union
-
-GottenIssue = Union[list[dict[str, Any]], ResultList[Issue]]
 
 
 class JiraClient:
@@ -22,18 +22,30 @@ class JiraClient:
         token_auth = self.secret_reader.read(token)
         self.jira = JIRA(self.server, token_auth=token_auth)
 
-    def get_issues(self, fields: Optional[Mapping] = None) -> GottenIssue:
+    def get_issues(self, fields: Optional[Mapping] = None) -> list[Issue]:
         block_size = 100
         block_num = 0
 
-        all_issues: GottenIssue = []
+        all_issues: list[Issue] = []
         jql = "project={}".format(self.project)
         kwargs: dict[str, Any] = {}
         if fields:
             kwargs["fields"] = ",".join(fields)
         while True:
             index = block_num * block_size
-            issues = self.jira.search_issues(jql, index, block_size, **kwargs)
+            issues: Union[dict[str, Any], ResultList[Issue]] = self.jira.search_issues(
+                jql, index, block_size, **kwargs
+            )
+            if not isinstance(issues, ResultList):
+                # if search_issues was executed with json_result=True, then we have a Dict.
+                # However, we require a ResultList[Issue].
+                # See https://github.com/pycontribs/jira/commit/cc2508485c12232a4a9c4a56ee74175ed818ee20
+                logging.warning(
+                    "Jira client did not receive a ResultList[Issue]."
+                    " Maybe the call was made with json_result=True which is"
+                    " currently not supported."
+                )
+                continue
             all_issues.extend(issues)
             if len(issues) < block_size:
                 break
