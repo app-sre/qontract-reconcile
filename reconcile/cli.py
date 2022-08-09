@@ -799,6 +799,7 @@ def aws_garbage_collector(ctx, thread_pool_size):
 @integration.command(short_help="Delete IAM access keys by access key ID.")
 @threaded()
 @account_name
+@environ(["APP_INTERFACE_STATE_BUCKET", "APP_INTERFACE_STATE_BUCKET_ACCOUNT"])
 @click.pass_context
 def aws_iam_keys(ctx, thread_pool_size, account_name):
     import reconcile.aws_iam_keys
