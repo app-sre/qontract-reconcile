@@ -97,7 +97,7 @@ def validate_no_public_to_public_peerings(
 
 def run(dry_run: bool):
     gqlapi = gql.get_api()
-    clusters = gqlapi.query(vpc_peerings_validator.QUERY)
+    clusters = gqlapi.query(vpc_peerings_validator.query_string())
     query_data: VpcPeeringsValidatorQueryData = VpcPeeringsValidatorQueryData(
         **clusters
     )
