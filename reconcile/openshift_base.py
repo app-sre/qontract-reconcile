@@ -522,7 +522,7 @@ def _realize_resource_data(
 
     # desired items
     for name, d_item in data["desired"].items():
-        c_item = data["current"].get(name)
+        c_item: OR = data["current"].get(name)
 
         if c_item is not None:
             if not dry_run and no_dry_run_skip_compare:
@@ -538,6 +538,16 @@ def _realize_resource_data(
                         "w/o annotations, annotating and applying"
                     ).format(cluster, namespace, resource_type, name)
                     logging.info(msg)
+
+                # don't apply if there is a caller (saas file)
+                # and this is not a take over
+                # and current item caller is different from the current caller
+                elif caller and not take_over and c_item.caller != caller:
+                    ri.register_error()
+                    logging.error(
+                        f"[{cluster}/{namespace}] resource '{resource_type}/{name}' present and managed by another caller: {c_item.caller}"
+                    )
+                    continue
 
                 # don't apply if resources match
                 # if there is a caller (saas file) and this is a take over
