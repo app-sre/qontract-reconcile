@@ -215,7 +215,7 @@ VARIABLE_KEYS = [
     "subscriptions",
 ]
 
-EMAIL_REGEX = re.compile(r"(^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$)")
+EMAIL_REGEX = re.compile(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$")
 
 TMP_DIR_PREFIX = "terrascript-aws-"
 
