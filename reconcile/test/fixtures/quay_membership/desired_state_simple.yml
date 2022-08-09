@@ -23,6 +23,15 @@ gql_response:
             - quay_username: bot1
             - quay_username: null
           expirationDate: null
+        # 2nd standard role
+        - users:
+            - quay_username: user3
+            - quay_username: user4
+            - quay_username: null
+          bots:
+            - quay_username: bot2
+            - quay_username: null
+          expirationDate: null
     - service: quay-membership
       quayOrg:
         name: my_org
@@ -34,7 +43,10 @@ state:
 - items:
   - user1
   - user2
+  - user3
+  - user4
   - bot1
+  - bot2
   params:
     service: quay-membership
     org: [my_instance, my_org]

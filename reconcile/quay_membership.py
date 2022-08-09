@@ -97,7 +97,7 @@ def fetch_desired_state():
             cast(RoleV1, r) for r in expiration.filter(permission.roles)
         ]
         for role in filtered_roles:
-            members = get_usernames(role.users or []) + get_usernames(role.bots or [])
+            members += get_usernames(role.users or []) + get_usernames(role.bots or [])
 
         state.add(p, members)
 
