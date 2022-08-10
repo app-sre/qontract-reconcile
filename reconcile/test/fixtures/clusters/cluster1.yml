@@ -28,8 +28,8 @@ spec:
   private: false
   provision_shard_id: 'ashardid'
 network:
+  type: OpenShiftSDN
   vpc: 192.168.1.0/24
   service: 192.168.2.0/24
   pod: 192.168.3.0/24
 internal: false
-

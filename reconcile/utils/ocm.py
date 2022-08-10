@@ -168,7 +168,7 @@ class OCMProductOsd(OCMProduct):
         )
 
         network = OCMClusterNetwork(
-            type=cluster["network"].get("type") or "OpenShiftSDN",
+            type=cluster["network"].get("type") or "OVNKubernetes",
             vpc=cluster["network"]["machine_cidr"],
             service=cluster["network"]["service_cidr"],
             pod=cluster["network"]["pod_cidr"],
@@ -197,7 +197,7 @@ class OCMProductOsd(OCMProduct):
             "multi_az": cluster.spec.multi_az,
             "nodes": {"compute_machine_type": {"id": cluster.spec.instance_type}},
             "network": {
-                "type": cluster.network.type or "OpenShiftSDN",
+                "type": cluster.network.type or "OVNKubernetes",
                 "machine_cidr": cluster.network.vpc,
                 "service_cidr": cluster.network.service,
                 "pod_cidr": cluster.network.pod,
@@ -333,7 +333,7 @@ class OCMProductRosa(OCMProduct):
         )
 
         network = OCMClusterNetwork(
-            type=cluster["network"].get("type") or "OpenShiftSDN",
+            type=cluster["network"].get("type") or "OVNKubernetes",
             vpc=cluster["network"]["machine_cidr"],
             service=cluster["network"]["service_cidr"],
             pod=cluster["network"]["pod_cidr"],
@@ -362,7 +362,7 @@ class OCMProductRosa(OCMProduct):
             "multi_az": cluster.spec.multi_az,
             "nodes": {"compute_machine_type": {"id": cluster.spec.instance_type}},
             "network": {
-                "type": cluster.network.type or "OpenShiftSDN",
+                "type": cluster.network.type or "OVNKubernetes",
                 "machine_cidr": cluster.network.vpc,
                 "service_cidr": cluster.network.service,
                 "pod_cidr": cluster.network.pod,
