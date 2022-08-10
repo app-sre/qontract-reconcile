@@ -50,9 +50,10 @@ query TerraformResourcesCloudflare {
               pattern
               script {
                 name
-                content_inline
-                content_file {
-                  content
+                content_from_github {
+                  repo
+                  path
+                  ref
                 }
               }
             }

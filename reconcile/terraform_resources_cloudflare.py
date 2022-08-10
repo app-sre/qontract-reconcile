@@ -167,7 +167,7 @@ def run(
 ) -> None:
 
     gqlapi = gql.get_api()
-    res = gqlapi.query(terraform_resources_cloudflare.QUERY)
+    res = gqlapi.query(terraform_resources_cloudflare.query_string())
     if res is None:
         logging.error("Aborting due to an error running the GraphQL query")
         sys.exit(ExitCodes.ERROR)

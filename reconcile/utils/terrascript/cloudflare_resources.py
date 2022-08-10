@@ -8,9 +8,11 @@ from terrascript.resource import (
     cloudflare_worker_route,
     cloudflare_worker_script,
 )
+from reconcile import queries
 
 from reconcile.utils.external_resource_spec import ExternalResourceSpec
 from reconcile.utils.external_resources import ResourceValueResolver
+from reconcile.utils.github_api import GithubApi
 from reconcile.utils.terrascript.resources import TerrascriptResource
 from reconcile.utils.terrascript_aws_client import safe_resource_id
 
@@ -75,11 +77,22 @@ class CloudflareZoneTerrascriptResource(TerrascriptResource):
         worker_scripts = []
         for wrk in zone_workers:
             wrk_script = wrk.get("script")
-            wrk_content = (
-                wrk_script["content_inline"]
-                if wrk_script.get("content_inline") is not None
-                else wrk_script["content_file"]["content"]
+
+            gh_repo = wrk_script["content_from_github"]["repo"]
+            gh_path = wrk_script["content_from_github"]["path"]
+            gh_ref = wrk_script["content_from_github"]["ref"]
+            gh = GithubApi(
+                queries.get_github_instance(),
+                gh_repo,
+                queries.get_app_interface_settings(),
             )
+            content = gh.get_file(gh_path, gh_ref)
+            if content is None:
+                raise ValueError(
+                    f"Could not retrieve Github file content at {gh_repo} "
+                    f"for file path {gh_path} at ref {gh_ref}"
+                )
+            wrk_content = content.decode(encoding="utf-8")
 
             worker_script_values = {
                 "name": wrk_script.get("name"),
