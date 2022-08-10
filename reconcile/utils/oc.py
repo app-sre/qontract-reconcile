@@ -964,9 +964,14 @@ class OCNative(OCDeprecated):
         if server:
             self.client = self._get_client(server, token)
             self.api_kind_version = self.get_api_resources()
-        else:
+        elif not server and not token and local:
             init_api_resources = False
             init_projects = False
+        else:
+            raise Exception("a server value is needed")
+        # else:
+        #     init_api_resources = False
+        #     init_projects = False
 
         self.object_clients = {}
         self.init_projects = init_projects
@@ -983,6 +988,9 @@ class OCNative(OCDeprecated):
 
     @retry(exceptions=(ServerTimeoutError, InternalServerError, ForbiddenError))
     def _get_client(self, server, token):
+        logging.debug(token)
+        logging.debug("this is the server")
+        logging.debug(server)
         opts = dict(
             api_key={"authorization": f"Bearer {token}"},
             host=server,
