@@ -1,0 +1,25 @@
+# qenerate: plugin=pydantic_v1
+
+query QuayMembership {
+  permissions: permissions_v1 {
+    service
+    ...on PermissionQuayOrgTeam_v1 {
+      quayOrg {
+        name
+        instance {
+          name
+        }
+      }
+      team
+      roles {
+        users {
+          quay_username
+        }
+        bots {
+          quay_username
+        }
+        expirationDate
+      }
+    }
+  }
+}

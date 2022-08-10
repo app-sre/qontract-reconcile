@@ -566,6 +566,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         self, dry_run, keys_to_delete, working_dirs, disable_service_account_keys
     ):
         error = False
+        service_account_recycle_complete = True
         users_keys = self.get_users_keys()
         for account, s in self.sessions.items():
             iam = s.client("iam")
@@ -613,6 +614,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
                     # will provision a new one.
                     # may be a race condition here. TODO: check it
                     if len(user_keys) == 1:
+                        service_account_recycle_complete = False
                         logging.info(["remove_from_state", account, user, key])
                         if not dry_run:
                             terraform.state_rm_access_key(working_dirs, account, user)
@@ -628,6 +630,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
                         # itself. disable the key and proceed. the key will be
                         # deleted in a following iteration of aws-iam-keys.
                         if disable_service_account_keys:
+                            service_account_recycle_complete = False
                             logging.info(["disable_key", account, user, key])
 
                             if not dry_run:
@@ -639,7 +642,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
                             logging.error(msg.format(user))
                             error = True
 
-        return error
+        return error, service_account_recycle_complete
 
     def get_users_keys(self):
         users_keys = {}

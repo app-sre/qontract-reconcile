@@ -11,8 +11,7 @@ from sretoolbox.utils import retry
 
 from reconcile import queries
 
-from reconcile.utils.gitlab_api import GitLabApi
-from reconcile.utils.gitlab_api import MRState
+from reconcile.utils.gitlab_api import GitLabApi, MRState, MRStatus
 from reconcile.utils.mr.labels import (
     APPROVED,
     AUTO_MERGE,
@@ -120,7 +119,7 @@ def handle_stale_items(dry_run, gl, days_interval, enable_closing, item_type):
     for item in items:
         item_iid = item.attributes.get("iid")
         item_labels = item.attributes.get("labels")
-        if AUTO_MERGE in item_labels and item.merge_status == "cannot_be_merged":
+        if AUTO_MERGE in item_labels and item.merge_status == MRStatus.CANNOT_BE_MERGED:
             close_item(dry_run, gl, enable_closing, item_type, item)
         notes = item.notes.list()
         note_dates = [
@@ -191,7 +190,7 @@ def get_merge_requests(
     mrs = gl.get_merge_requests(state=MRState.OPENED)
     results = []
     for mr in mrs:
-        if mr.merge_status == "cannot_be_merged":
+        if mr.merge_status == MRStatus.CANNOT_BE_MERGED:
             continue
         if mr.work_in_progress:
             continue
