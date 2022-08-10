@@ -150,7 +150,7 @@ def get_cluster_ocm_update_spec(
 
     error = False
     if not desired_spec.network.type:
-        desired_spec.network.type = "OpenShiftSDN"
+        desired_spec.network.type = "OVNKubernetes"
 
     cspec = current_spec.spec.dict()
     cspec[ocmmod.SPEC_ATTR_NETWORK] = current_spec.network.dict()
