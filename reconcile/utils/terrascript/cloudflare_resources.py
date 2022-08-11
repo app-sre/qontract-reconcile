@@ -94,9 +94,15 @@ class CloudflareZoneTerrascriptResource(TerrascriptResource):
                 )
             wrk_content = content.decode(encoding="utf-8")
 
+            worker_script_vars = [
+                {k: v for k, v in var.items()}
+                for var in wrk_script.pop("vars")
+            ]
+
             worker_script_values = {
                 "name": wrk_script.get("name"),
                 "content": wrk_content,
+                "plain_text_binding": worker_script_vars,
             }
             worker_script_resource = cloudflare_worker_script(
                 safe_resource_id(wrk_script.get("name")), **worker_script_values

@@ -55,6 +55,10 @@ query TerraformResourcesCloudflare {
                   path
                   ref
                 }
+                vars {
+                  name
+                  text
+                }
               }
             }
           }

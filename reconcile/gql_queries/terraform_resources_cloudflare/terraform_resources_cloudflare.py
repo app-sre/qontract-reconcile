@@ -114,11 +114,21 @@ class CloudflareZoneWorkerScriptContentFromGithubV1(BaseModel):
         extra = Extra.forbid
 
 
+class CloudflareZoneWorkerScriptVarsV1(BaseModel):
+    name: str = Field(..., alias="name")
+    text: str = Field(..., alias="text")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
 class CloudflareZoneWorkerScriptV1(BaseModel):
     name: str = Field(..., alias="name")
     content_from_github: Optional[
         CloudflareZoneWorkerScriptContentFromGithubV1
     ] = Field(..., alias="content_from_github")
+    vars: Optional[list[CloudflareZoneWorkerScriptVarsV1]] = Field(..., alias="vars")
 
     class Config:
         smart_union = True
