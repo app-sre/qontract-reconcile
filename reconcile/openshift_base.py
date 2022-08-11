@@ -503,6 +503,7 @@ def _realize_resource_data(
     ri: ResourceInventory,
     take_over,
     caller,
+    all_callers,
     wait_for_namespace,
     no_dry_run_skip_compare,
     override_enable_deletion,
@@ -543,11 +544,16 @@ def _realize_resource_data(
                 # and this is not a take over
                 # and current item caller is different from the current caller
                 elif caller and not take_over and c_item.caller != caller:
-                    ri.register_error()
-                    logging.error(
-                        f"[{cluster}/{namespace}] resource '{resource_type}/{name}' present and managed by another caller: {c_item.caller}"
-                    )
-                    continue
+                    # if the current item is owned by a caller that no longer exists,
+                    # do nothing. the condition is nested so we fall into this condition
+                    # so we end up either applying to take ownership, or we error if the
+                    # current caller is still present
+                    if c_item.caller in all_callers:
+                        ri.register_error()
+                        logging.error(
+                            f"[{cluster}/{namespace}] resource '{resource_type}/{name}' present and managed by another caller: {c_item.caller}"
+                        )
+                        continue
 
                 # don't apply if resources match
                 # if there is a caller (saas file) and this is a take over
