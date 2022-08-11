@@ -340,14 +340,14 @@ class TestRun(testslide.TestCase):
             [{"name": "desired_account"}]
         )
         self.clusters = (
-            self.mock_callable(queries, "get_clusters")
+            self.mock_callable(integ, "fetch_clusters_with_peerings")
             .to_return_value(
                 [{"name": "aname", "ocm": "aocm", "peering": {"apeering"}}]
             )
             .and_assert_called_once()
         )
         self.settings = (
-            self.mock_callable(queries, "get_app_interface_settings")
+            self.mock_callable(queries, "get_secret_reader_settings")
             .to_return_value({})
             .and_assert_called_once()
         )

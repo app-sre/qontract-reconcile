@@ -34,7 +34,7 @@ class TestQuayMembership:
     @staticmethod
     def setup_method(method):
         config.init_from_toml(fxt.path("config.toml"))
-        gql.init_from_config(sha_url=False)
+        gql.init_from_config(autodetect_sha=False)
 
     @staticmethod
     def do_current_state_test(path):
