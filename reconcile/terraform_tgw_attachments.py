@@ -192,9 +192,7 @@ def run(
 
 
 def early_exit_desired_state(
-    print_to_file=None,
-    enable_deletion=False,
-    thread_pool_size=10
+    print_to_file=None, enable_deletion=False, thread_pool_size=10
 ) -> dict[str, Any]:
     return {
         "clusters": queries.get_clusters_with_peering_settings(),

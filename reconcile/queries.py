@@ -469,7 +469,12 @@ AWS_ACCOUNTS_QUERY = """
 
 
 def get_aws_accounts(
-    reset_passwords=False, name=None, uid=None, sharing=False, terraform_state=False, ecrs=True
+    reset_passwords=False,
+    name=None,
+    uid=None,
+    sharing=False,
+    terraform_state=False,
+    ecrs=True,
 ):
     """Returns all AWS accounts"""
     gqlapi = gql.get_api()
