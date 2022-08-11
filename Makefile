@@ -96,4 +96,5 @@ gql-introspection:
 
 gql-query-classes:
 	@$(VENV_CMD) qenerate code -i reconcile/gql_queries/introspection.json reconcile/gql_queries
+	find reconcile/gql_queries -path '*/__pycache__' -prune -o -type d -exec touch "{}/__init__.py" \;
 	@$(VENV_CMD) black reconcile/gql_queries
