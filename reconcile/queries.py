@@ -1068,6 +1068,7 @@ def get_clusters_with_peering_settings() -> list[dict[str, Any]]:
     clusters = gql.get_api().query(CLUSTER_PEERING_QUERY)["clusters"]
     return [c for c in clusters if c.get("peering") is not None]
 
+
 @dataclass
 class ClusterFilter:
     name: str = ""

@@ -4,7 +4,7 @@ import json
 from typing import Any, Optional, Tuple
 
 from reconcile import queries
-from reconcile.utils import aws_api, gql
+from reconcile.utils import aws_api
 from reconcile.utils import ocm
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.ocm import OCM, OCMMap
