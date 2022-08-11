@@ -2,6 +2,7 @@ from typing import Union
 
 from terrascript import Resource, Output
 from terrascript.resource import (
+    cloudflare_argo,
     cloudflare_zone,
     cloudflare_zone_settings_override,
     cloudflare_record,
@@ -46,6 +47,7 @@ class CloudflareZoneTerrascriptResource(TerrascriptResource):
         values = ResourceValueResolver(self._spec).resolve()
 
         zone_settings = values.pop("settings", {})
+        zone_argo = values.pop("argo", None)
         zone_records = values.pop("records", [])
         zone_workers = values.pop("workers", [])
 
@@ -61,6 +63,14 @@ class CloudflareZoneTerrascriptResource(TerrascriptResource):
         zone_settings_override = cloudflare_zone_settings_override(
             self._spec.identifier, **settings_override_values
         )
+
+        if zone_argo is not None:
+            argo_values = {
+                "smart_routing": True if zone_argo.get("smart_routing") else False,
+                "tiered_caching": True if zone_argo.get("tiered_caching") else False,
+                "zone_id": f"${{{zone.id}}}",
+            }
+            zone_argo = cloudflare_argo(self._spec.identifier, **argo_values)
 
         records = []
         for rec in zone_records:
@@ -95,8 +105,7 @@ class CloudflareZoneTerrascriptResource(TerrascriptResource):
             wrk_content = content.decode(encoding="utf-8")
 
             worker_script_vars = [
-                {k: v for k, v in var.items()}
-                for var in wrk_script.pop("vars")
+                {k: v for k, v in var.items()} for var in wrk_script.pop("vars")
             ]
 
             worker_script_values = {
@@ -120,4 +129,11 @@ class CloudflareZoneTerrascriptResource(TerrascriptResource):
                     safe_resource_id(wrk.get("identifier")), **worker_route_values
                 )
             )
-        return [zone, zone_settings_override, *records, *workers, *worker_scripts]
+        return [
+            zone,
+            zone_settings_override,
+            zone_argo,
+            *records,
+            *workers,
+            *worker_scripts,
+        ]

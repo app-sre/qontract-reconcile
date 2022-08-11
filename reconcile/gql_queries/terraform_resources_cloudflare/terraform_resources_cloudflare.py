@@ -92,6 +92,15 @@ class NamespaceTerraformResourceCloudflareV1(BaseModel):
         extra = Extra.forbid
 
 
+class CloudflareZoneArgoV1(BaseModel):
+    smart_routing: Optional[bool] = Field(..., alias="smart_routing")
+    tiered_caching: Optional[bool] = Field(..., alias="tiered_caching")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
 class CloudflareZoneRecordV1(BaseModel):
     name: str = Field(..., alias="name")
     q_type: str = Field(..., alias="type")
@@ -152,6 +161,7 @@ class NamespaceTerraformResourceCloudflareZoneV1(
     plan: Optional[str] = Field(..., alias="plan")
     q_type: Optional[str] = Field(..., alias="type")
     settings: Optional[Json] = Field(..., alias="settings")
+    argo: Optional[CloudflareZoneArgoV1] = Field(..., alias="argo")
     records: Optional[list[CloudflareZoneRecordV1]] = Field(..., alias="records")
     workers: Optional[list[CloudflareZoneWorkerV1]] = Field(..., alias="workers")
 

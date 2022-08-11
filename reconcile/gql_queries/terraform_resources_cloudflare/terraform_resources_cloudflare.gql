@@ -38,6 +38,10 @@ query TerraformResourcesCloudflare {
             plan
             type
             settings
+            argo {
+              smart_routing
+              tiered_caching
+            }
             records {
               name
               type

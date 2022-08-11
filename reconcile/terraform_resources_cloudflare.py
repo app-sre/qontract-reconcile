@@ -146,6 +146,7 @@ def build_specs(
                             "plan": res.plan if res.plan else "free",
                             "type": res.q_type if res.q_type else "full",
                             "settings": res.settings,
+                            "argo": res.argo.dict() if res.argo else None,
                             "records": [r.dict() for r in res.records or []],
                             "workers": [r.dict() for r in res.workers or []],
                         },
