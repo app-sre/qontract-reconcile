@@ -683,6 +683,7 @@ def realize_data(
     thread_pool_size,
     take_over=False,
     caller=None,
+    all_callers=None,
     wait_for_namespace=False,
     no_dry_run_skip_compare=False,
     override_enable_deletion=None,
@@ -699,6 +700,8 @@ def realize_data(
     :param caller: name of the calling entity.
                    enables multiple running instances of the same integration
                    to deploy to the same namespace
+    :param all_callers: names of all possible callers. used in conjunction with
+                    caller to allow renaming of saas files.
     :param wait_for_namespace: wait for namespace to exist before applying
     :param no_dry_run_skip_compare: when running without dry-run, skip compare
     :param override_enable_deletion: override calculated enable_deletion value
