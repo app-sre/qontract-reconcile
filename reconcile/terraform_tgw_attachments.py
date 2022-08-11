@@ -1,6 +1,7 @@
 import logging
 import sys
 import json
+from typing import Any
 
 
 from reconcile import queries
@@ -114,8 +115,8 @@ def build_desired_state_tgw_attachments(clusters, ocm_map: OCMMap, awsapi: AWSAp
 def run(
     dry_run, print_to_file=None, enable_deletion=False, thread_pool_size=10, defer=None
 ):
-    settings = queries.get_app_interface_settings()
-    clusters = [c for c in queries.get_clusters() if c.get("peering") is not None]
+    settings = queries.get_secret_reader_settings()
+    clusters = queries.get_clusters_with_peering_settings()
     with_ocm = any(c.get("ocm") for c in clusters)
     if with_ocm:
         ocm_map = OCMMap(
@@ -127,7 +128,7 @@ def run(
         # on the tgw defition in the cluster file.
         ocm_map = {}
 
-    accounts = queries.get_aws_accounts(terraform_state=True)
+    accounts = queries.get_aws_accounts(terraform_state=True, ecrs=False)
     awsapi = AWSApi(1, accounts, settings=settings, init_users=False)
 
     # Fetch desired state for cluster-to-vpc(account) VPCs
@@ -146,7 +147,7 @@ def run(
     participating_account_names = [a["name"] for a in participating_accounts]
     accounts = [
         a
-        for a in queries.get_aws_accounts(terraform_state=True)
+        for a in queries.get_aws_accounts(terraform_state=True, ecrs=False)
         if a["name"] in participating_account_names
     ]
 
@@ -188,3 +189,14 @@ def run(
     err = tf.apply()
     if err:
         sys.exit(1)
+
+
+def early_exit_desired_state(
+    print_to_file=None,
+    enable_deletion=False,
+    thread_pool_size=10
+) -> dict[str, Any]:
+    return {
+        "clusters": queries.get_clusters_with_peering_settings(),
+        "accounts": queries.get_aws_accounts(terraform_state=True, ecrs=False),
+    }
