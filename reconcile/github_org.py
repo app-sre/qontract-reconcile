@@ -499,3 +499,10 @@ def run(dry_run):
     )
 
     runner.run()
+
+
+def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
+    return {
+        "github_org_config": get_config(),
+        "github_org_members": fetch_desired_state().dump(),
+    }
