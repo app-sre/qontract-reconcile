@@ -101,7 +101,6 @@ class QuayMirror:
                     )
                     if (
                         mirror_image.registry == "docker.io"
-                        and mirror_image.repository == "library"
                         and item["public"]
                     ):
                         _LOG.error(
