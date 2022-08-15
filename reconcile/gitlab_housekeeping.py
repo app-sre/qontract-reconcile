@@ -124,7 +124,7 @@ def handle_stale_items(dry_run, gl, days_interval, enable_closing, item_type):
                 # this call triggers a status recheck
                 item = gl.get_merge_request(item_iid)
             if item.merge_status == MRStatus.CANNOT_BE_MERGED:
-            close_item(dry_run, gl, enable_closing, item_type, item)
+                close_item(dry_run, gl, enable_closing, item_type, item)
         notes = item.notes.list()
         note_dates = [
             datetime.strptime(note.attributes.get("updated_at"), DATE_FORMAT)
