@@ -119,7 +119,11 @@ def handle_stale_items(dry_run, gl, days_interval, enable_closing, item_type):
     for item in items:
         item_iid = item.attributes.get("iid")
         item_labels = item.attributes.get("labels")
-        if AUTO_MERGE in item_labels and item.merge_status == MRStatus.CANNOT_BE_MERGED:
+        if AUTO_MERGE in item_labels:
+            if item.merge_status == MRStatus.UNCHECKED:
+                # this call triggers a status recheck
+                item = gl.get_merge_request(item_iid)
+            if item.merge_status == MRStatus.CANNOT_BE_MERGED:
             close_item(dry_run, gl, enable_closing, item_type, item)
         notes = item.notes.list()
         note_dates = [
