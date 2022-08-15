@@ -99,11 +99,7 @@ class QuayMirror:
                     mirror_image = Image(
                         item["mirror"]["url"], response_cache=cls.response_cache
                     )
-                    if (
-                        mirror_image.registry == "docker.io"
-                        and mirror_image.repository == "library"
-                        and item["public"]
-                    ):
+                    if mirror_image.registry == "docker.io" and item["public"]:
                         _LOG.error(
                             "Image %s can't be mirrored to a public "
                             "quay repository.",
