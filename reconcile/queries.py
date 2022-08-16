@@ -2708,31 +2708,31 @@ PERMISSIONS_QUERY = """
       ownersFromRepos
       skip
       pagerduty {
+        name
+        instance {
           name
-          instance {
-            name
-          }
-          scheduleID
-          escalationPolicyID
         }
+        scheduleID
+        escalationPolicyID
+      }
       roles {
         users {
-            name
+          name
+          org_username
+          slack_username
+          pagerduty_username
+        }
+      }
+      schedule {
+        schedule {
+          start
+          end
+          users {
             org_username
             slack_username
-            pagerduty_username
-        }
-    }
-      schedule {
-          schedule {
-            start
-            end
-            users {
-              org_username
-              slack_username
-            }
           }
         }
+      }
       workspace {
         name
         token {
