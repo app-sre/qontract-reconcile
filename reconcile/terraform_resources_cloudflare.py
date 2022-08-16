@@ -202,9 +202,6 @@ def run(
         thread_pool_size,
         MagicMock(),
     )
-    if tf is None:
-        sys.exit(1)
-
     defer(tf.cleanup)
 
     disabled_deletions_detected, err = tf.plan(enable_deletion)
