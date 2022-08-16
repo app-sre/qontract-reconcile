@@ -1,7 +1,6 @@
 import logging
 import sys
 from typing import Any, Optional
-from unittest.mock import MagicMock
 from reconcile import queries
 from reconcile.gql_queries.terraform_resources_cloudflare import (
     terraform_resources_cloudflare,
@@ -201,7 +200,6 @@ def run(
         [{"name": name for name in cf_clients.dump()}],
         working_dirs,
         thread_pool_size,
-        MagicMock(),
     )
     defer(tf.cleanup)
 

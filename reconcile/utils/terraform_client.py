@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from collections import defaultdict
 from threading import Lock
 from dataclasses import dataclass
-from typing import Iterable, Mapping, Any
+from typing import Iterable, Mapping, Any, Optional
 
 from python_terraform import Terraform, IsFlagged, TerraformCommandError
 from sretoolbox.utils import retry
@@ -45,7 +45,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         accounts: Iterable[Mapping[str, Any]],
         working_dirs: Mapping[str, str],
         thread_pool_size: int,
-        aws_api: AWSApi,
+        aws_api: Optional[AWSApi] = None,
         init_users=False,
     ):
         self.integration = integration
@@ -546,6 +546,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         if (
             len(changed_terraform_args) == 1
             and "engine_version" in changed_terraform_args
+            and self._aws_api is not None
         ):
             region_name = get_region_from_availability_zone(before["availability_zone"])
             response = self._aws_api.describe_rds_db_instance(
