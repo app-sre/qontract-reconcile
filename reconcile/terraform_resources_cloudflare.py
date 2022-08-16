@@ -152,7 +152,9 @@ def build_specs(
                     )
                 )
             else:
-                logging.error(f"Unhandled resource type received: {type(res).__name__}")
+                logging.warning(
+                    f"Unhandled resource type received: {type(res).__name__}"
+                )
     return specs
 
 
