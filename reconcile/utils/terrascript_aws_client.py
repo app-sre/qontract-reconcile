@@ -162,6 +162,7 @@ from reconcile.utils.elasticsearch_exceptions import (
 )
 import reconcile.openshift_resources_base as orb
 import reconcile.utils.aws_helper as awsh
+from reconcile.utils.terraform import safe_resource_id
 
 
 GH_BASE_URL = os.environ.get("GITHUB_API", "https://api.github.com")
@@ -227,13 +228,6 @@ class StateInaccessibleException(Exception):
 class UnknownProviderError(Exception):
     def __init__(self, msg):
         super().__init__("unknown provider error: " + str(msg))
-
-
-def safe_resource_id(s):
-    """Sanitize a string into a valid terraform resource id"""
-    res = s.translate({ord(c): "_" for c in "."})
-    res = res.replace("*", "_star")
-    return res
 
 
 class aws_ecrpublic_repository(Resource):
