@@ -38,7 +38,6 @@ QONTRACT_TF_PREFIX = "qrtfcf"
 def create_cloudflare_account_config(
     settings: dict[str, Any], cf_acct: CloudflareAccountV1
 ) -> CloudflareAccountConfig:
-    settings = queries.get_app_interface_settings()
     secret_reader = SecretReader(settings=settings)
     cf_acct_creds = secret_reader.read_all({"path": cf_acct.api_credentials.path})
     return CloudflareAccountConfig(
@@ -103,10 +102,9 @@ def get_resources(
 
 
 def build_clients(
+    settings: dict[str, Any],
     query_data: TerraformResourcesCloudflareQueryData,
 ) -> list[tuple[str, TerrascriptCloudflareClient]]:
-    settings = queries.get_app_interface_settings()
-
     clients = []
     for extres in get_resources(query_data):
         cf_acct = extres.provisioner
@@ -168,6 +166,7 @@ def run(
 ) -> None:
 
     gqlapi = gql.get_api()
+    settings = queries.get_app_interface_settings()
     res = gqlapi.query(terraform_resources_cloudflare.query_string())
     if res is None:
         logging.error("Aborting due to an error running the GraphQL query")
@@ -179,7 +178,7 @@ def run(
 
     # Build Cloudflare clients
     cf_clients = TerraformConfigClientCollection()
-    for client in build_clients(query_data):
+    for client in build_clients(settings, query_data):
         cf_clients.register_client(*client)
 
     # Register Cloudflare resources
