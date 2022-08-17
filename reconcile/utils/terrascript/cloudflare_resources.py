@@ -43,6 +43,7 @@ class CloudflareZoneTerrascriptResource(TerrascriptResource):
     """Generate a cloudflare_zone and related resources."""
 
     def populate(self) -> list[Union[Resource, Output]]:
+        resources = []
 
         values = ResourceValueResolver(self._spec).resolve()
 
@@ -53,6 +54,7 @@ class CloudflareZoneTerrascriptResource(TerrascriptResource):
 
         zone_values = values
         zone = cloudflare_zone(self._spec.identifier, **zone_values)
+        resources.append(zone)
 
         settings_override_values = {
             "zone_id": f"${{{zone.id}}}",
@@ -63,6 +65,7 @@ class CloudflareZoneTerrascriptResource(TerrascriptResource):
         zone_settings_override = cloudflare_zone_settings_override(
             self._spec.identifier, **settings_override_values
         )
+        resources.append(zone_settings_override)
 
         if zone_argo is not None:
             argo_values = {
@@ -71,8 +74,8 @@ class CloudflareZoneTerrascriptResource(TerrascriptResource):
                 "zone_id": f"${{{zone.id}}}",
             }
             zone_argo = cloudflare_argo(self._spec.identifier, **argo_values)
+            resources.append(zone_argo)
 
-        records = []
         for rec in zone_records:
             record_identifier = safe_resource_id(rec.get("name"))
             record_values = {
@@ -81,10 +84,8 @@ class CloudflareZoneTerrascriptResource(TerrascriptResource):
                 "type": rec.pop("q_type"),
                 **rec,
             }
-            records.append(cloudflare_record(record_identifier, **record_values))
+            resources.append(cloudflare_record(record_identifier, **record_values))
 
-        workers = []
-        worker_scripts = []
         for wrk in zone_workers:
             wrk_script = wrk.get("script")
 
@@ -116,7 +117,7 @@ class CloudflareZoneTerrascriptResource(TerrascriptResource):
             worker_script_resource = cloudflare_worker_script(
                 safe_resource_id(wrk_script.get("name")), **worker_script_values
             )
-            worker_scripts.append(worker_script_resource)
+            resources.append(worker_script_resource)
 
             worker_route_values = {
                 "pattern": wrk.get("pattern"),
@@ -124,16 +125,9 @@ class CloudflareZoneTerrascriptResource(TerrascriptResource):
                 "zone_id": f"${{{zone.id}}}",
                 "depends_on": self._get_dependencies([worker_script_resource]),
             }
-            workers.append(
+            resources.append(
                 cloudflare_worker_route(
                     safe_resource_id(wrk.get("identifier")), **worker_route_values
                 )
             )
-        return [
-            zone,
-            zone_settings_override,
-            zone_argo,
-            *records,
-            *workers,
-            *worker_scripts,
-        ]
+        return resources
