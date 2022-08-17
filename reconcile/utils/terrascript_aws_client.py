@@ -3795,11 +3795,24 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         es_values["log_publishing_options"] = publishing_options
         ebs_options = values.get("ebs_options", {})
+        ebs_values = {}
+        if ebs_options:
+            ebs_enabled = ebs_options.get("ebs_enabled", True)
+            ebs_values["ebs_enabled"] = ebs_enabled
+            if ebs_enabled:
+                volume_size = ebs_options.get("volume_size", None)
+                if volume_size is None:
+                    raise ValueError(
+                        f"volume_size is required for enable ebs storgae on "
+                        f" Elasticsearch {values['identifier']}"
+                    )
+                ebs_values["volume_size"] = volume_size
+                volume_type = ebs_options.get("volume_type", "gp2")
+                ebs_values["volume_type"] = volume_type
+                iops = ebs_options.get("iops", 0)
+                ebs_values["iops"] = iops
 
-        es_values["ebs_options"] = {
-            "ebs_enabled": ebs_options.get("ebs_enabled", True),
-            "volume_size": ebs_options.get("volume_size", "100"),
-        }
+        es_values["ebs_options"] = ebs_values
 
         es_values["encrypt_at_rest"] = {
             "enabled": values.get("encrypt_at_rest", {}).get("enabled", True)
