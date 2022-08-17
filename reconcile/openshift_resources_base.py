@@ -274,7 +274,7 @@ def process_jinja2_template(body, vars=None, env=None, settings=None):
     return r
 
 
-def process_extracurlyjinja2_template(body, vars=None, settings=None):
+def process_extracurlyjinja2_template(body, vars=None, env=None, settings=None):
     if vars is None:
         vars = {}
     env = {
@@ -316,7 +316,7 @@ def fetch_provider_resource(
     alertmanager_config_key="alertmanager.yaml",
     add_path_to_prom_rules=True,
     settings=None,
-):
+) -> OR:
     gqlapi = gql.get_api()
 
     # get resource data
@@ -400,7 +400,7 @@ def fetch_provider_vault_secret(
     validate_alertmanager_config=False,
     alertmanager_config_key="alertmanager.yaml",
     settings=None,
-):
+) -> OR:
     # get the fields from vault
     secret_reader = SecretReader(settings)
     raw_data = secret_reader.read_all({"path": path, "version": version})
@@ -435,7 +435,7 @@ def fetch_provider_vault_secret(
         raise FetchResourceError(str(e))
 
 
-def fetch_provider_route(path, tls_path, tls_version, settings=None):
+def fetch_provider_route(path, tls_path, tls_version, settings=None) -> OR:
     global _log_lock
 
     openshift_resource = fetch_provider_resource(path)
@@ -480,7 +480,7 @@ def fetch_provider_route(path, tls_path, tls_version, settings=None):
     return openshift_resource
 
 
-def fetch_openshift_resource(resource, parent, settings=None):
+def fetch_openshift_resource(resource, parent, settings=None) -> OR:
     global _log_lock
 
     provider = resource["provider"]
@@ -769,18 +769,11 @@ def canonicalize_namespaces(
     return canonicalized_namespaces, override
 
 
-@defer
-def run(
-    dry_run,
-    thread_pool_size=10,
-    internal=None,
-    use_jump_host=True,
-    providers=None,
-    cluster_name=None,
-    namespace_name=None,
-    init_api_resources=False,
-    defer=None,
-):
+def get_namespaces(
+    providers: Optional[list[str]] = None,
+    cluster_name: Optional[str] = None,
+    namespace_name: Optional[str] = None,
+) -> Tuple[list[dict[str, Any]], Optional[list[str]]]:
     if providers is None:
         providers = []
     gqlapi = gql.get_api()
@@ -794,7 +787,24 @@ def run(
     namespaces = filter_namespaces_by_cluster_and_namespace(
         namespaces, cluster_name, namespace_name
     )
-    namespaces, overrides = canonicalize_namespaces(namespaces, providers)
+    return canonicalize_namespaces(namespaces, providers)
+
+
+@defer
+def run(
+    dry_run,
+    thread_pool_size=10,
+    internal=None,
+    use_jump_host=True,
+    providers=None,
+    cluster_name=None,
+    namespace_name=None,
+    init_api_resources=False,
+    defer=None,
+):
+    namespaces, overrides = get_namespaces(
+        providers=providers, cluster_name=cluster_name, namespace_name=namespace_name
+    )
     oc_map, ri = fetch_data(
         namespaces,
         thread_pool_size,
