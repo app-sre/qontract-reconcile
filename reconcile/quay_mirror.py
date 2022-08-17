@@ -6,6 +6,7 @@ import tempfile
 import time
 
 from collections import defaultdict, namedtuple
+from typing import Any
 
 from sretoolbox.container.image import ImageComparisonError
 from sretoolbox.container.skopeo import SkopeoCmdError
@@ -99,11 +100,7 @@ class QuayMirror:
                     mirror_image = Image(
                         item["mirror"]["url"], response_cache=cls.response_cache
                     )
-                    if (
-                        mirror_image.registry == "docker.io"
-                        and mirror_image.repository == "library"
-                        and item["public"]
-                    ):
+                    if mirror_image.registry == "docker.io" and item["public"]:
                         _LOG.error(
                             "Image %s can't be mirrored to a public "
                             "quay repository.",
@@ -309,3 +306,11 @@ class QuayMirror:
 def run(dry_run):
     quay_mirror = QuayMirror(dry_run)
     quay_mirror.run()
+
+
+def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
+    quay_mirror = QuayMirror(dry_run=True)
+    return {
+        "repos": quay_mirror.process_repos_query(),
+        "orgs": quay_mirror.push_creds,
+    }

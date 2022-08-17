@@ -187,6 +187,7 @@ def run(
         ri,
         thread_pool_size,
         caller=saas_file_name,
+        all_callers=[sf["name"] for sf in all_saas_files],
         wait_for_namespace=True,
         no_dry_run_skip_compare=(not saasherder.compare),
         take_over=saasherder.take_over,

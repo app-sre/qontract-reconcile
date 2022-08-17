@@ -7,14 +7,6 @@ from reconcile.utils.external_resource_spec import (
 )
 
 
-def test_sanitize_resource_with_dots():
-    assert tsclient.safe_resource_id("foo.example.com") == "foo_example_com"
-
-
-def test_sanitize_resource_with_wildcard():
-    assert tsclient.safe_resource_id("*.foo.example.com") == "_star_foo_example_com"
-
-
 @pytest.fixture
 def ts():
     return tsclient.TerrascriptClient("", "", 1, [])

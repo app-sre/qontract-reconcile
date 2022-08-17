@@ -453,3 +453,9 @@ def run(dry_run):
     current_state = get_current_state(slack_map)
 
     act(current_state, desired_state, slack_map, dry_run)
+
+
+def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
+    return {
+        "permissions": queries.get_permissions_for_slack_usergroup(),
+    }
