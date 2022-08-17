@@ -769,18 +769,11 @@ def canonicalize_namespaces(
     return canonicalized_namespaces, override
 
 
-@defer
-def run(
-    dry_run,
-    thread_pool_size=10,
-    internal=None,
-    use_jump_host=True,
-    providers=None,
-    cluster_name=None,
-    namespace_name=None,
-    init_api_resources=False,
-    defer=None,
-):
+def get_namespaces(
+    providers: Optional[list[str]] = None,
+    cluster_name: Optional[str] = None,
+    namespace_name: Optional[str] = None,
+) -> Tuple[list[dict[str, Any]], Optional[list[str]]]:
     if providers is None:
         providers = []
     gqlapi = gql.get_api()
@@ -794,7 +787,24 @@ def run(
     namespaces = filter_namespaces_by_cluster_and_namespace(
         namespaces, cluster_name, namespace_name
     )
-    namespaces, overrides = canonicalize_namespaces(namespaces, providers)
+    return canonicalize_namespaces(namespaces, providers)
+
+
+@defer
+def run(
+    dry_run,
+    thread_pool_size=10,
+    internal=None,
+    use_jump_host=True,
+    providers=None,
+    cluster_name=None,
+    namespace_name=None,
+    init_api_resources=False,
+    defer=None,
+):
+    namespaces, overrides = get_namespaces(
+        providers=providers, cluster_name=cluster_name, namespace_name=namespace_name
+    )
     oc_map, ri = fetch_data(
         namespaces,
         thread_pool_size,
