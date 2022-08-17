@@ -90,9 +90,13 @@ CLUSTERS_QUERY = """
 QONTRACT_INTEGRATION = "github"
 
 
-def get_config(default=False):
+def get_orgs():
     gqlapi = gql.get_api()
-    orgs = gqlapi.query(ORGS_QUERY)["orgs"]
+    return gqlapi.query(ORGS_QUERY)["orgs"]
+
+
+def get_config(default=False):
+    orgs = get_orgs()
     secret_reader = SecretReader(queries.get_secret_reader_settings())
     config = {"github": {}}
     found_defaults = []
@@ -503,6 +507,6 @@ def run(dry_run):
 
 def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
     return {
-        "github_org_config": get_config(),
+        "github_orgs": get_orgs(),
         "github_org_members": fetch_desired_state().dump(),
     }
