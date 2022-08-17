@@ -274,7 +274,7 @@ def process_jinja2_template(body, vars=None, env=None, settings=None):
     return r
 
 
-def process_extracurlyjinja2_template(body, vars=None, settings=None):
+def process_extracurlyjinja2_template(body, vars=None, env=None, settings=None):
     if vars is None:
         vars = {}
     env = {
