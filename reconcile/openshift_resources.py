@@ -42,18 +42,9 @@ def run(
 
 
 def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
+    early_exit_monkey_patch()
     settings = queries.get_secret_reader_settings()
     namespaces, _ = orb.get_namespaces(PROVIDERS)
-    orb.lookup_secret = (
-        lambda path, key, version=None, tvars=None, settings=None: f"vault({path}, {key}, {version})"
-    )
-    orb.lookup_github_file_content = (
-        lambda repo, path, ref, tvars=None, settings=None: f"github({repo}, {path}, {ref})"
-    )
-    orb.url_makes_sense = lambda url: False
-    orb.check_alertmanager_config = (
-        lambda data, path, alertmanager_config_key, decode_base64=False: True
-    )
     resources = []
     for ns_info in namespaces:
         for r in ns_info["openshiftResources"]:
@@ -65,3 +56,17 @@ def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
         "namespaces": namespaces,
         "resources": resources,
     }
+
+
+def early_exit_monkey_patch():
+    """Avoid looking outside of app-interface on early-exit pr-check."""
+    orb.lookup_secret = (
+        lambda path, key, version=None, tvars=None, settings=None: f"vault({path}, {key}, {version})"
+    )
+    orb.lookup_github_file_content = (
+        lambda repo, path, ref, tvars=None, settings=None: f"github({repo}, {path}, {ref})"
+    )
+    orb.url_makes_sense = lambda url: False
+    orb.check_alertmanager_config = (
+        lambda data, path, alertmanager_config_key, decode_base64=False: True
+    )
