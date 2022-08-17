@@ -1,5 +1,3 @@
-import inspect
-
 from typing import Any
 
 import reconcile.openshift_base as ob
