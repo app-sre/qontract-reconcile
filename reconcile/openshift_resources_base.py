@@ -316,7 +316,7 @@ def fetch_provider_resource(
     alertmanager_config_key="alertmanager.yaml",
     add_path_to_prom_rules=True,
     settings=None,
-):
+) -> OR:
     gqlapi = gql.get_api()
 
     # get resource data
@@ -400,7 +400,7 @@ def fetch_provider_vault_secret(
     validate_alertmanager_config=False,
     alertmanager_config_key="alertmanager.yaml",
     settings=None,
-):
+) -> OR:
     # get the fields from vault
     secret_reader = SecretReader(settings)
     raw_data = secret_reader.read_all({"path": path, "version": version})
@@ -435,7 +435,7 @@ def fetch_provider_vault_secret(
         raise FetchResourceError(str(e))
 
 
-def fetch_provider_route(path, tls_path, tls_version, settings=None):
+def fetch_provider_route(path, tls_path, tls_version, settings=None) -> OR:
     global _log_lock
 
     openshift_resource = fetch_provider_resource(path)
@@ -480,7 +480,7 @@ def fetch_provider_route(path, tls_path, tls_version, settings=None):
     return openshift_resource
 
 
-def fetch_openshift_resource(resource, parent, settings=None):
+def fetch_openshift_resource(resource, parent, settings=None) -> OR:
     global _log_lock
 
     provider = resource["provider"]
