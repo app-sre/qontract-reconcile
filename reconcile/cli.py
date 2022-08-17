@@ -1415,6 +1415,7 @@ def ldap_users(ctx, gitlab_project_id):
 @binary(["terraform", "oc", "git"])
 @binary_version("terraform", ["version"], TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
+@environ(["APP_INTERFACE_STATE_BUCKET", "APP_INTERFACE_STATE_BUCKET_ACCOUNT"])
 @internal()
 @use_jump_host()
 @enable_deletion(default=False)
