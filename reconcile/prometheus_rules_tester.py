@@ -4,6 +4,7 @@ import re
 import sys
 import traceback
 import yaml
+from typing import Any
 
 from sretoolbox.utils import threaded
 
@@ -362,3 +363,12 @@ def run(dry_run, thread_pool_size=10, cluster_name=None):
 
     if invalid_rules or failed_tests:
         sys.exit(ExitCodes.ERROR)
+
+
+def early_exit_desired_state(thread_pool_size=10, cluster_name=None) -> dict[str, Any]:
+    settings = queries.get_app_interface_settings()
+
+    return {
+        "rules": get_prometheus_rules(cluster_name, settings),
+        "tests": get_prometheus_tests(),
+    }
