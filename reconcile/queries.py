@@ -432,9 +432,11 @@ AWS_ACCOUNTS_QUERY = """
     }
     {% endif %}
     premiumSupport
+    {% if ecrs %}
     ecrs {
       region
     }
+    {% endif %}
     partition
     {% if sharing %}
     sharing {
@@ -467,7 +469,12 @@ AWS_ACCOUNTS_QUERY = """
 
 
 def get_aws_accounts(
-    reset_passwords=False, name=None, uid=None, sharing=False, terraform_state=False
+    reset_passwords=False,
+    name=None,
+    uid=None,
+    sharing=False,
+    terraform_state=False,
+    ecrs=True,
 ):
     """Returns all AWS accounts"""
     gqlapi = gql.get_api()
@@ -479,6 +486,7 @@ def get_aws_accounts(
         uid=uid,
         sharing=sharing,
         terraform_state=terraform_state,
+        ecrs=ecrs,
     )
     return gqlapi.query(query)["accounts"]
 
@@ -899,6 +907,171 @@ def get_clusters(minimal=False):
         filter=None,
     )
     return gqlapi.query(query)["clusters"]
+
+
+CLUSTER_PEERING_QUERY = """
+{
+  clusters: clusters_v1
+  {
+    path
+    name
+    ocm {
+      name
+      url
+      accessTokenClientId
+      accessTokenUrl
+      offlineToken {
+        path
+        field
+        format
+        version
+      }
+      blockedVersions
+    }
+    awsInfrastructureManagementAccounts {
+      account {
+        name
+        uid
+        terraformUsername
+        resourcesDefaultRegion
+        automationToken {
+          path
+          field
+          version
+          format
+        }
+      }
+      accessLevel
+      default
+    }
+
+    spec {
+      region
+    }
+    network {
+      vpc
+    }
+    peering {
+      connections {
+        name
+        provider
+        manageRoutes
+        delete
+        ... on ClusterPeeringConnectionAccount_v1 {
+          vpc {
+            account {
+              name
+              uid
+              terraformUsername
+              automationToken {
+                path
+                field
+                version
+                format
+              }
+            }
+            vpc_id
+            cidr_block
+            region
+          }
+          assumeRole
+        }
+        ... on ClusterPeeringConnectionAccountVPCMesh_v1 {
+          account {
+            name
+            uid
+            terraformUsername
+            automationToken {
+              path
+              field
+              version
+              format
+            }
+          }
+          tags
+        }
+        ... on ClusterPeeringConnectionAccountTGW_v1 {
+          account {
+            name
+            uid
+            terraformUsername
+            automationToken {
+              path
+              field
+              version
+              format
+            }
+          }
+          tags
+          cidrBlock
+          manageSecurityGroups
+          assumeRole
+        }
+        ... on ClusterPeeringConnectionClusterRequester_v1 {
+          cluster {
+            name
+            network {
+              vpc
+            }
+            spec {
+              region
+            }
+            awsInfrastructureManagementAccounts {
+              account {
+                name
+                uid
+                terraformUsername
+                resourcesDefaultRegion
+                automationToken {
+                  path
+                  field
+                  version
+                  format
+                }
+              }
+              accessLevel
+              default
+            }
+
+            peering {
+              connections {
+                name
+                provider
+                manageRoutes
+                ... on ClusterPeeringConnectionClusterAccepter_v1 {
+                  name
+                  cluster {
+                    name
+                  }
+                  awsInfrastructureManagementAccount {
+                    name
+                    uid
+                    terraformUsername
+                    automationToken {
+                      path
+                      field
+                      version
+                      format
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    disable {
+      integrations
+    }
+  }
+}
+"""
+
+
+def get_clusters_with_peering_settings() -> list[dict[str, Any]]:
+    clusters = gql.get_api().query(CLUSTER_PEERING_QUERY)["clusters"]
+    return [c for c in clusters if c.get("peering") is not None]
 
 
 @dataclass

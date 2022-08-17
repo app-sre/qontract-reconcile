@@ -340,7 +340,7 @@ class TestRun(testslide.TestCase):
             [{"name": "desired_account"}]
         )
         self.clusters = (
-            self.mock_callable(integ, "fetch_clusters_with_peerings")
+            self.mock_callable(queries, "get_clusters_with_peering_settings")
             .to_return_value(
                 [{"name": "aname", "ocm": "aocm", "peering": {"apeering"}}]
             )
