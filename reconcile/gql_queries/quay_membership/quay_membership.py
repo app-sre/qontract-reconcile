@@ -59,8 +59,8 @@ class BotV1(BaseModel):
 
 
 class RoleV1(BaseModel):
-    users: Optional[list[UserV1]] = Field(..., alias="users")
-    bots: Optional[list[BotV1]] = Field(..., alias="bots")
+    users: Optional[list[Optional[UserV1]]] = Field(..., alias="users")
+    bots: Optional[list[Optional[BotV1]]] = Field(..., alias="bots")
     expiration_date: Optional[str] = Field(..., alias="expirationDate")
 
     class Config:
@@ -71,7 +71,7 @@ class RoleV1(BaseModel):
 class PermissionQuayOrgTeamV1(PermissionV1):
     quay_org: QuayOrgV1 = Field(..., alias="quayOrg")
     team: str = Field(..., alias="team")
-    roles: Optional[list[RoleV1]] = Field(..., alias="roles")
+    roles: Optional[list[Optional[RoleV1]]] = Field(..., alias="roles")
 
     class Config:
         smart_union = True
@@ -79,9 +79,9 @@ class PermissionQuayOrgTeamV1(PermissionV1):
 
 
 class QuayMembershipQueryData(BaseModel):
-    permissions: Optional[list[Union[PermissionQuayOrgTeamV1, PermissionV1]]] = Field(
-        ..., alias="permissions"
-    )
+    permissions: Optional[
+        list[Optional[Union[PermissionQuayOrgTeamV1, PermissionV1]]]
+    ] = Field(..., alias="permissions")
 
     class Config:
         smart_union = True

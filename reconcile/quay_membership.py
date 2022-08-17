@@ -18,6 +18,7 @@ from reconcile.utils.aggregated_list import (
     AggregatedList,
     RunnerException,
 )
+from .utils.helpers import filter_null
 from reconcile.utils.quay_api import QuayTeamNotFoundException
 
 QONTRACT_INTEGRATION = "quay-membership"
@@ -93,11 +94,14 @@ def fetch_desired_state():
     for permission in permissions:
         p = process_permission(permission)
         members: list[str] = []
+        roles: list[RoleV1] = filter_null(permission.roles)
         filtered_roles: list[RoleV1] = [
-            cast(RoleV1, r) for r in expiration.filter(permission.roles)
+            cast(RoleV1, r) for r in expiration.filter(roles)
         ]
         for role in filtered_roles:
-            members += get_usernames(role.users or []) + get_usernames(role.bots or [])
+            users: list[UserV1] = filter_null(role.users)
+            bots: list[BotV1] = filter_null(role.bots)
+            members += get_usernames(users) + get_usernames(bots)
 
         state.add(p, members)
 
