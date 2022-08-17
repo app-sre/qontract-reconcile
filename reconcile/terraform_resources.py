@@ -737,6 +737,10 @@ def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
             parameter_group = spec.resource.get("parameter_group")
             if parameter_group:
                 resources.append(gqlapi.get_resource(parameter_group))
+            for spec_item in spec.resource.get("specs") or []:
+                defaults = spec_item.get("defaults")
+                if defaults:
+                    resources.append(gqlapi.get_resource(defaults))
 
     return {
         "accounts": queries.get_aws_accounts(terraform_state=True),
