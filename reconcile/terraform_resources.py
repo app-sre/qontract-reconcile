@@ -425,6 +425,12 @@ QONTRACT_INTEGRATION_VERSION = make_semver(0, 5, 2)
 QONTRACT_TF_PREFIX = "qrtf"
 
 
+def get_tf_namespaces(account_name: Optional[str] = None):
+    gqlapi = gql.get_api()
+    namespaces = gqlapi.query(TF_NAMESPACES_QUERY)["namespaces"]
+    return filter_tf_namespaces(namespaces, account_name)
+
+
 def populate_oc_resources(
     spec: ob.CurrentStateSpec, ri: ResourceInventory, account_name: Optional[str]
 ):
@@ -522,7 +528,6 @@ def setup(
     use_jump_host: bool,
     account_name: Optional[str],
 ) -> Tuple[ResourceInventory, OC_Map, Terraform, ExternalResourceSpecInventory]:
-    gqlapi = gql.get_api()
     accounts = queries.get_aws_accounts(terraform_state=True)
     if account_name:
         accounts = [n for n in accounts if n["name"] == account_name]
@@ -532,8 +537,7 @@ def setup(
 
     # build a resource inventory for all the kube secrets managed by the
     # app-interface managed terraform resources
-    namespaces = gqlapi.query(TF_NAMESPACES_QUERY)["namespaces"]
-    tf_namespaces = filter_tf_namespaces(namespaces, account_name)
+    tf_namespaces = get_tf_namespaces(account_name)
     ri, oc_map = fetch_current_state(
         dry_run, tf_namespaces, thread_pool_size, internal, use_jump_host, account_name
     )
