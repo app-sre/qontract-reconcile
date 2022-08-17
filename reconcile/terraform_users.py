@@ -181,3 +181,10 @@ def run(
         send_email_invites(new_users, settings)
 
     cleanup_and_exit(tf, setup_err)
+
+
+def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
+    return {
+        "accounts": queries.get_aws_accounts(terraform_state=True),
+        "roles": get_tf_roles(),
+    }
