@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 from typing import Any
 
 import reconcile.openshift_base as ob
@@ -40,14 +41,14 @@ def run(
 
 
 def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
-    early_exit_monkey_patch()
     settings = queries.get_secret_reader_settings()
     namespaces, _ = orb.get_namespaces(PROVIDERS)
-    resources = [
-        orb.fetch_openshift_resource(r, ns_info, settings=settings).body
-        for ns_info in namespaces
-        for r in ns_info["openshiftResources"]
-    ]
+    with early_exit_monkey_patch():
+        resources = [
+            orb.fetch_openshift_resource(r, ns_info, settings=settings).body
+            for ns_info in namespaces
+            for r in ns_info["openshiftResources"]
+        ]
 
     return {
         "namespaces": namespaces,
@@ -55,15 +56,37 @@ def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
     }
 
 
+@contextmanager
 def early_exit_monkey_patch():
     """Avoid looking outside of app-interface on early-exit pr-check."""
-    orb.lookup_secret = (
-        lambda path, key, version=None, tvars=None, settings=None: f"vault({path}, {key}, {version})"
-    )
-    orb.lookup_github_file_content = (
-        lambda repo, path, ref, tvars=None, settings=None: f"github({repo}, {path}, {ref})"
-    )
-    orb.url_makes_sense = lambda url: False  # type: ignore[assignment]
-    orb.check_alertmanager_config = (
-        lambda data, path, alertmanager_config_key, decode_base64=False: True
-    )
+    lookup_secret = orb.lookup_secret
+    lookup_github_file_content = orb.lookup_github_file_content
+    url_makes_sense = orb.url_makes_sense
+    check_alertmanager_config = orb.check_alertmanager_config
+
+    try:
+        yield early_exit_monkey_patch_assign(
+            lambda path, key, version=None, tvars=None, settings=None: f"vault({path}, {key}, {version})",
+            lambda repo, path, ref, tvars=None, settings=None: f"github({repo}, {path}, {ref})",
+            lambda url: False,  # type: ignore[assignment]
+            lambda data, path, alertmanager_config_key, decode_base64=False: True,
+        )
+    finally:
+        early_exit_monkey_patch_assign(
+            lookup_secret,
+            lookup_github_file_content,
+            url_makes_sense,
+            check_alertmanager_config,
+        )
+
+
+def early_exit_monkey_patch_assign(
+    lookup_secret,
+    lookup_github_file_content,
+    url_makes_sense,
+    check_alertmanager_config,
+):
+    orb.lookup_secret = lookup_secret
+    orb.lookup_github_file_content = lookup_github_file_content
+    orb.url_makes_sense = url_makes_sense
+    orb.check_alertmanager_config = check_alertmanager_config
