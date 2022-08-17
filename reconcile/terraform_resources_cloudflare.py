@@ -26,7 +26,7 @@ from reconcile.utils.terrascript.cloudflare_client import (
     TerraformS3BackendConfig,
     TerrascriptCloudflareClient,
 )
-from reconcile.utils.terrascript_aws_client import safe_resource_id
+from reconcile.utils.terraform import safe_resource_id
 
 
 QONTRACT_INTEGRATION = "terraform_resources_cloudflare"
