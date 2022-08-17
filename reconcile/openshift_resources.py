@@ -43,12 +43,11 @@ def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
     early_exit_monkey_patch()
     settings = queries.get_secret_reader_settings()
     namespaces, _ = orb.get_namespaces(PROVIDERS)
-    resources = []
-    for ns_info in namespaces:
-        for r in ns_info["openshiftResources"]:
-            resources.append(
-                orb.fetch_openshift_resource(r, ns_info, settings=settings).body
-            )
+    resources = [
+        orb.fetch_openshift_resource(r, ns_info, settings=settings).body
+        for ns_info in namespaces
+        for r in ns_info["openshiftResources"]
+    ]
 
     return {
         "namespaces": namespaces,
