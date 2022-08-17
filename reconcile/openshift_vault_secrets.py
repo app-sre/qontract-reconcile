@@ -1,3 +1,5 @@
+from typing import Any
+
 import reconcile.openshift_resources_base as orb
 
 from reconcile.utils.semver_helper import make_semver
@@ -28,3 +30,11 @@ def run(
         cluster_name=cluster_name,
         namespace_name=namespace_name,
     )
+
+
+def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
+    namespaces, _ = orb.get_namespaces(PROVIDERS)
+
+    return {
+        "namespaces": namespaces,
+    }
