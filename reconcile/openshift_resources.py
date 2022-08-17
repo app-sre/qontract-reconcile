@@ -64,7 +64,7 @@ def early_exit_monkey_patch():
     orb.lookup_github_file_content = (
         lambda repo, path, ref, tvars=None, settings=None: f"github({repo}, {path}, {ref})"
     )
-    orb.url_makes_sense = lambda url: False
+    orb.url_makes_sense = lambda url: False  # type: ignore[assignment]
     orb.check_alertmanager_config = (
         lambda data, path, alertmanager_config_key, decode_base64=False: True
     )
