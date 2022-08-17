@@ -1,7 +1,7 @@
 import logging
 import re
 import sys
-from typing import Iterable, Mapping
+from typing import Any, Iterable, Mapping
 
 
 from reconcile import queries
@@ -244,3 +244,9 @@ def run(
     err = tf.apply()
     if err:
         sys.exit(ExitCodes.ERROR)
+
+
+def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
+    return {
+        "zones": queries.get_dns_zones(),
+    }
