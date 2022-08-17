@@ -68,7 +68,7 @@ def early_exit_monkey_patch():
         yield early_exit_monkey_patch_assign(
             lambda path, key, version=None, tvars=None, settings=None: f"vault({path}, {key}, {version})",
             lambda repo, path, ref, tvars=None, settings=None: f"github({repo}, {path}, {ref})",
-            lambda url: False,  # type: ignore[assignment]
+            lambda url: False,
             lambda data, path, alertmanager_config_key, decode_base64=False: True,
         )
     finally:
