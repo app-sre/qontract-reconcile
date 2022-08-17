@@ -7,6 +7,7 @@ from typing import Any, Iterable, Optional, Mapping, Tuple, cast
 
 from sretoolbox.utils import threaded
 from reconcile.utils.external_resources import (
+    PROVIDER_AWS,
     get_external_resource_specs,
     managed_external_resources,
 )
@@ -720,3 +721,25 @@ def run(
         cleanup_and_exit(tf, err)
 
     cleanup_and_exit(tf)
+
+
+def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
+    gqlapi = gql.get_api()
+    namespaces = get_tf_namespaces()
+    resources = []
+    for ns_info in namespaces:
+        for spec in get_external_resource_specs(
+            ns_info, provision_provider=PROVIDER_AWS
+        ):
+            defaults = spec.resource.get("defaults")
+            if defaults:
+                resources.append(gqlapi.get_resource(defaults))
+            parameter_group = spec.resource.get("parameter_group")
+            if parameter_group:
+                resources.append(gqlapi.get_resource(parameter_group))
+
+    return {
+        "accounts": queries.get_aws_accounts(terraform_state=True),
+        "namespaces": namespaces,
+        "resources": resources,
+    }
