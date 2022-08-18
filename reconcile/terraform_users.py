@@ -60,22 +60,25 @@ QONTRACT_INTEGRATION_VERSION = make_semver(0, 4, 2)
 QONTRACT_TF_PREFIX = "qrtf"
 
 
+def get_tf_roles() -> list[dict[str, Any]]:
+    gqlapi = gql.get_api()
+    roles: list[dict] = expiration.filter(gqlapi.query(TF_QUERY)["roles"])
+    return [
+        r
+        for r in roles
+        if r["aws_groups"] is not None or r["user_policies"] is not None
+    ]
+
+
 def setup(
     print_to_file, thread_pool_size: int, account_name: Optional[str] = None
 ) -> tuple[list[dict[str, Any]], dict[str, str], bool, AWSApi]:
-    gqlapi = gql.get_api()
     accounts = queries.get_aws_accounts(terraform_state=True)
     if account_name:
         accounts = [n for n in accounts if n["name"] == account_name]
         if not accounts:
             raise ValueError(f"aws account {account_name} is not found")
     settings = queries.get_app_interface_settings()
-    roles: list[dict] = expiration.filter(gqlapi.query(TF_QUERY)["roles"])
-    tf_roles = [
-        r
-        for r in roles
-        if r["aws_groups"] is not None or r["user_policies"] is not None
-    ]
     ts = Terrascript(
         QONTRACT_INTEGRATION,
         QONTRACT_TF_PREFIX,
@@ -83,7 +86,7 @@ def setup(
         accounts,
         settings=settings,
     )
-    err = ts.populate_users(tf_roles)
+    err = ts.populate_users(get_tf_roles())
     working_dirs = ts.dump(print_to_file)
     aws_api = AWSApi(1, accounts, settings=settings, init_users=False)
 
@@ -178,3 +181,10 @@ def run(
         send_email_invites(new_users, settings)
 
     cleanup_and_exit(tf, setup_err)
+
+
+def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
+    return {
+        "accounts": queries.get_aws_accounts(terraform_state=True),
+        "roles": get_tf_roles(),
+    }
