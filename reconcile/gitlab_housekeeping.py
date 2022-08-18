@@ -214,7 +214,7 @@ def get_merge_requests(
                 gl.remove_label_from_merge_request(mr.iid, LGTM)
             continue
 
-        label_events = mr.resourcelabelevents.list()
+        label_events = gl.get_merge_request_label_events(mr)
         approval_found = False
         labels_by_unauthorized_users = set()
         labels_by_authorized_users = set()
