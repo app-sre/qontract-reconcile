@@ -384,16 +384,7 @@ TF_NAMESPACES_QUERY = """
       serverUrl
       insecureSkipTLSVerify
       jumpHost {
-        hostname
-        knownHosts
-        user
-        port
-        identity {
-          path
-          field
-          version
-          format
-        }
+        %s
       }
       automationToken {
         path
@@ -419,6 +410,7 @@ TF_NAMESPACES_QUERY = """
 }
 """ % (
     indent(TF_RESOURCE_AWS, 6 * " "),
+    indent(queries.JUMPHOST_FIELDS, 8 * " "),
 )
 
 QONTRACT_INTEGRATION = "terraform_resources"

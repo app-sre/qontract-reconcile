@@ -126,16 +126,7 @@ NAMESPACES_QUERY = """
         }
       insecureSkipTLSVerify
       jumpHost {
-          hostname
-          knownHosts
-          user
-          port
-          identity {
-            path
-            field
-            version
-            format
-          }
+        %s
       }
       spec {
         version
@@ -165,6 +156,7 @@ NAMESPACES_QUERY = """
 """ % (
     indent(OPENSHIFT_RESOURCE, 8 * " "),
     indent(OPENSHIFT_RESOURCE, 6 * " "),
+    indent(queries.JUMPHOST_FIELDS, 8 * " "),
 )
 
 QONTRACT_INTEGRATION = "openshift_resources_base"

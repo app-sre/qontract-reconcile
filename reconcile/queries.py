@@ -209,16 +209,7 @@ INTEGRATIONS_QUERY = """
           serverUrl
           insecureSkipTLSVerify
           jumpHost {
-            hostname
-            knownHosts
-            user
-            port
-            identity {
-              path
-              field
-              version
-              format
-            }
+            %s
           }
           automationToken {
             path
@@ -269,7 +260,9 @@ INTEGRATIONS_QUERY = """
     }
   }
 }
-"""
+""" % (
+    indent(JUMPHOST_FIELDS, 12 * " "),
+)
 
 
 def get_integrations(managed=False):
@@ -853,16 +846,7 @@ CLUSTERS_MINIMAL_QUERY = """
     prometheusUrl
     insecureSkipTLSVerify
     jumpHost {
-      hostname
-      knownHosts
-      user
-      port
-      identity {
-        path
-        field
-        version
-        format
-      }
+      %s
     }
     managedGroups
     ocm {
@@ -897,6 +881,7 @@ CLUSTERS_MINIMAL_QUERY = """
 }
 """ % (
     indent(CLUSTER_FILTER_QUERY, 2 * " "),
+    indent(JUMPHOST_FIELDS, 6 * " "),
 )
 
 
@@ -1118,16 +1103,7 @@ KAFKA_CLUSTERS_QUERY = """
         serverUrl
         insecureSkipTLSVerify
         jumpHost {
-          hostname
-          knownHosts
-          user
-          port
-          identity {
-            path
-            field
-            version
-            format
-          }
+          %s
         }
         automationToken {
           path
@@ -1139,7 +1115,9 @@ KAFKA_CLUSTERS_QUERY = """
     }
   }
 }
-"""
+""" % (
+    indent(JUMPHOST_FIELDS, 10 * " "),
+)
 
 
 def get_kafka_clusters(minimal=False):
@@ -1203,16 +1181,7 @@ NAMESPACES_QUERY = """
       serverUrl
       insecureSkipTLSVerify
       jumpHost {
-          hostname
-          knownHosts
-          user
-          port
-          identity {
-              path
-              field
-              version
-              format
-          }
+        %s
       }
       automationToken {
         path
@@ -1274,7 +1243,9 @@ NAMESPACES_QUERY = """
     }
   }
 }
-"""
+""" % (
+    indent(JUMPHOST_FIELDS, 8 * " "),
+)
 
 NAMESPACES_MINIMAL_QUERY = """
 {
@@ -1287,16 +1258,7 @@ NAMESPACES_MINIMAL_QUERY = """
       serverUrl
       insecureSkipTLSVerify
       jumpHost {
-          hostname
-          knownHosts
-          user
-          port
-          identity {
-            path
-            field
-            version
-            format
-          }
+        %s
       }
       automationToken {
         path
@@ -1311,7 +1273,9 @@ NAMESPACES_MINIMAL_QUERY = """
     }
   }
 }
-"""
+""" % (
+    indent(JUMPHOST_FIELDS, 8 * " "),
+)
 
 
 def get_namespaces(minimal=False):
@@ -1332,16 +1296,7 @@ namespace {
     serverUrl
     insecureSkipTLSVerify
     jumpHost {
-      hostname
-      knownHosts
-      user
-      port
-      identity {
-        path
-        field
-        version
-        format
-      }
+      %s
     }
     automationToken {
       path
@@ -1356,7 +1311,9 @@ namespace {
   }
 }
 serviceAccountName
-"""
+""" % (
+    indent(JUMPHOST_FIELDS, 6 * " "),
+)
 
 
 SERVICEACCOUNT_TOKENS_QUERY = """
@@ -1368,16 +1325,7 @@ SERVICEACCOUNT_TOKENS_QUERY = """
       serverUrl
       insecureSkipTLSVerify
       jumpHost {
-          hostname
-          knownHosts
-          user
-          port
-          identity {
-            path
-            field
-            version
-            format
-          }
+        %s
       }
       automationToken {
         path
@@ -1401,6 +1349,7 @@ SERVICEACCOUNT_TOKENS_QUERY = """
   }
 }
 """ % (
+    indent(JUMPHOST_FIELDS, 8 * " "),
     indent(SA_TOKEN, 8 * " "),
     indent(SA_TOKEN, 6 * " "),
 )
@@ -1906,16 +1855,7 @@ SAAS_FILES_QUERY_V2 = """
             serverUrl
             insecureSkipTLSVerify
             jumpHost {
-              hostname
-              knownHosts
-              user
-              port
-              identity {
-                path
-                field
-                version
-                format
-              }
+              %s
             }
             automationToken {
               path
@@ -2048,16 +1988,7 @@ SAAS_FILES_QUERY_V2 = """
             serverUrl
             insecureSkipTLSVerify
             jumpHost {
-                hostname
-                knownHosts
-                user
-                port
-                identity {
-                  path
-                  field
-                  version
-                  format
-                }
+              %s
             }
             automationToken {
               path
@@ -2125,7 +2056,10 @@ SAAS_FILES_QUERY_V2 = """
     }
   }
 }
-"""
+""" % (
+    indent(JUMPHOST_FIELDS, 14 * " "),
+    indent(JUMPHOST_FIELDS, 14 * " "),
+)
 
 
 def get_saas_files(saas_file_name=None, env_name=None, app_name=None):
@@ -2226,16 +2160,7 @@ PIPELINES_PROVIDERS_QUERY = """
           serverUrl
           insecureSkipTLSVerify
           jumpHost {
-            hostname
-            knownHosts
-            user
-            port
-            identity {
-              path
-              field
-              version
-              format
-            }
+            %s
           }
           automationToken {
             path
@@ -2282,7 +2207,9 @@ PIPELINES_PROVIDERS_QUERY = """
     }
   }
 }
-"""
+""" % (
+    indent(JUMPHOST_FIELDS, 12 * " "),
+)
 
 
 def get_pipelines_providers():
@@ -2562,16 +2489,7 @@ OCP_RELEASE_ECR_MIRROR_QUERY = """
       serverUrl
       insecureSkipTLSVerify
       jumpHost {
-        hostname
-        knownHosts
-        user
-        port
-        identity {
-          path
-          field
-          version
-          format
-        }
+        %s
       }
       managedGroups
       ocm {
@@ -2654,7 +2572,9 @@ OCP_RELEASE_ECR_MIRROR_QUERY = """
     mirrorChannels
   }
 }
-"""
+""" % (
+    indent(JUMPHOST_FIELDS, 8 * " "),
+)
 
 
 def get_ocp_release_mirror():
@@ -2836,16 +2756,7 @@ GABI_INSTANCES_QUERY = """
           serverUrl
           insecureSkipTLSVerify
           jumpHost {
-            hostname
-            knownHosts
-            user
-            port
-            identity {
-              path
-              field
-              version
-              format
-            }
+            %s
           }
           automationToken {
             path
@@ -2863,7 +2774,9 @@ GABI_INSTANCES_QUERY = """
     expirationDate
   }
 }
-"""
+""" % (
+    indent(JUMPHOST_FIELDS, 12 * " "),
+)
 
 
 def get_gabi_instances():
