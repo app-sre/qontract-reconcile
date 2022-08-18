@@ -216,6 +216,8 @@ def get_merge_requests(
 
         label_events = mr.resourcelabelevents.list()
         approval_found = False
+        labels_by_unauthorized_users = set()
+        labels_by_authorized_users = set()
         for label in reversed(label_events):
             if label.action == "add":
                 label_name = label.label["name"]
@@ -223,17 +225,25 @@ def get_merge_requests(
                 if users_allowed_to_label and added_by not in (
                     set(users_allowed_to_label) | {gl.user.username}
                 ):
-                    logging.warning(
-                        f"[{gl.project.name}/{mr.iid}] user {added_by} is "
-                        + f"not allowed to add labels. removing label {label_name}"
-                    )
-                    if not dry_run:
-                        gl.remove_label_from_merge_request(mr.iid, label_name)
+                    # label added by an unauthorized user. remove it maybe later
+                    labels_by_unauthorized_users.add(label_name)
                     continue
+                else:
+                    # label added by an authorized user, so don't delete it
+                    labels_by_authorized_users.add(label_name)
+
                 if label_name in MERGE_LABELS_PRIORITY and not approval_found:
                     approval_found = True
                     approved_at = label.created_at
                     approved_by = added_by
+
+        for bad_label in labels_by_unauthorized_users - labels_by_authorized_users:
+            logging.warning(
+                f"[{gl.project.name}/{mr.iid}] someone added a label who "
+                f"isn't allowed. removing label {bad_label}"
+            )
+            if not dry_run:
+                gl.remove_label_from_merge_request(mr.iid, bad_label)
 
         if not is_good_to_merge(labels):
             continue
