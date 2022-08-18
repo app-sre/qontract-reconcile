@@ -1,5 +1,7 @@
 import datetime
 
+from textwrap import indent
+
 from reconcile.utils import gql
 from reconcile import queries
 
@@ -12,16 +14,7 @@ CLUSTERS_QUERY = """
     serverUrl
     managedGroups
     jumpHost {
-      hostname
-      knownHosts
-      user
-      port
-      identity {
-        path
-        field
-        version
-        format
-      }
+      %s
     }
     automationToken {
       path
@@ -34,7 +27,9 @@ CLUSTERS_QUERY = """
     }
   }
 }
-"""
+""" % (
+    indent(queries.JUMPHOST_FIELDS, 6 * " "),
+)
 
 E2E_NS_PFX = "e2e-test"
 

@@ -1,6 +1,8 @@
 import sys
 import logging
 
+from textwrap import indent
+from reconcile import queries
 from reconcile.utils import gql
 import reconcile.openshift_base as ob
 
@@ -18,16 +20,7 @@ NAMESPACES_QUERY = """
       serverUrl
       insecureSkipTLSVerify
       jumpHost {
-          hostname
-          knownHosts
-          user
-          port
-          identity {
-            path
-            field
-            version
-            format
-          }
+        %s
       }
       automationToken {
         path
@@ -48,7 +41,9 @@ NAMESPACES_QUERY = """
     }
   }
 }
-"""
+""" % (
+    indent(queries.JUMPHOST_FIELDS, 8 * " "),
+)
 
 QONTRACT_INTEGRATION = "openshift-network-policies"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
