@@ -2953,6 +2953,13 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         es_identifier = common_values.get("es_identifier", None)
         if es_identifier is not None:
+            domain_tf_resource = self._find_resource_spec(
+                account, es_identifier, "elasticsearch"
+            )
+            if not domain_tf_resource:
+                raise FetchResourceError(
+                    f"failed to find elasticsearch domain {es_identifier}"
+                )
 
             assume_role_policy = {
                 "Version": "2012-10-17",
