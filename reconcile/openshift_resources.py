@@ -5,6 +5,7 @@ import reconcile.openshift_base as ob
 import reconcile.openshift_resources_base as orb
 
 from reconcile import queries
+from reconcile.utils import gql
 from reconcile.utils.semver_helper import make_semver
 
 QONTRACT_INTEGRATION = "openshift_resources"
@@ -41,14 +42,23 @@ def run(
 
 
 def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
+    gqlapi = gql.get_api()
     settings = queries.get_secret_reader_settings()
     namespaces, _ = orb.get_namespaces(PROVIDERS)
+    resources = []
     with early_exit_monkey_patch():
-        resources = [
-            orb.fetch_openshift_resource(r, ns_info, settings=settings).body
-            for ns_info in namespaces
-            for r in ns_info["openshiftResources"]
-        ]
+        for ns_info in namespaces:
+            for r in ns_info["openshiftResources"]:
+                if r.get("enable_query_support"):
+                    print("HERE!")
+                    print(r["path"])
+                    item = orb.fetch_openshift_resource(
+                        r, ns_info, settings=settings
+                    ).body
+                else:
+                    item = gqlapi.get_resource(r["path"])
+
+                resources.append(item)
 
     return {
         "namespaces": namespaces,

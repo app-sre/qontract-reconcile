@@ -62,6 +62,7 @@ provider
   validate_json
   validate_alertmanager_config
   alertmanager_config_key
+  enable_query_support
 }
 ... on NamespaceOpenshiftResourceResourceTemplate_v1 {
   path
@@ -69,6 +70,7 @@ provider
   variables
   validate_alertmanager_config
   alertmanager_config_key
+  enable_query_support
 }
 ... on NamespaceOpenshiftResourceVaultSecret_v1 {
   path
