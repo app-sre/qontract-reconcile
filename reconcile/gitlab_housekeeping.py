@@ -203,7 +203,12 @@ def get_merge_requests(
 
         labels = mr.attributes.get("labels")
         if not labels:
-            continue
+            # Sometimes the label attribute is empty but shouldn't. Try it again by fetching this MR separately
+            item = gl.get_merge_request(mr.iid)
+            labels = item.attributes.get("labels")
+            if not labels:
+                # It looks like there aren't really any labels :( Ok, then I'll give up.
+                continue
 
         if SAAS_FILE_UPDATE in labels and LGTM in labels:
             logging.warning(
