@@ -178,6 +178,20 @@ def get_credentials_requests():
     return gqlapi.query(CREDENTIALS_REQUESTS_QUERY)["credentials_requests"]
 
 
+JUMPHOST_FIELDS = """
+hostname
+knownHosts
+user
+port
+identity {
+  path
+  field
+  version
+  format
+}
+"""
+
+
 INTEGRATIONS_QUERY = """
 {
   integrations: integrations_v1 {
@@ -509,19 +523,6 @@ JUMPHOSTS_FILTER_QUERY = """
   hostname: "{{ hostname }}"
 )
 {% endif %}
-"""
-
-JUMPHOST_FIELDS = """
-hostname
-knownHosts
-user
-port
-identity {
-  path
-  field
-  version
-  format
-}
 """
 
 JUMPHOSTS_QUERY = """
