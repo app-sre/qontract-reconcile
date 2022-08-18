@@ -121,7 +121,7 @@ class ClusterV1(BaseModel):
 
 
 class VpcPeeringsValidatorQueryData(BaseModel):
-    clusters: Optional[list[ClusterV1]] = Field(..., alias="clusters")
+    clusters: Optional[list[Optional[ClusterV1]]] = Field(..., alias="clusters")
 
     class Config:
         smart_union = True

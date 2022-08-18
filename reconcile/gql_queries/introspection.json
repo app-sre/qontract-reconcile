@@ -4144,9 +4144,89 @@
                         }
                     ],
                     "inputFields": null,
-                    "interfaces": [],
+                    "interfaces": [
+                        {
+                            "kind": "INTERFACE",
+                            "name": "DatafileObject_v1",
+                            "ofType": null
+                        }
+                    ],
                     "enumValues": null,
                     "possibleTypes": null
+                },
+                {
+                    "kind": "INTERFACE",
+                    "name": "DatafileObject_v1",
+                    "description": null,
+                    "fields": [
+                        {
+                            "name": "path",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "schema",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        }
+                    ],
+                    "inputFields": null,
+                    "interfaces": null,
+                    "enumValues": null,
+                    "possibleTypes": [
+                        {
+                            "kind": "OBJECT",
+                            "name": "App_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "OBJECT",
+                            "name": "Role_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "OBJECT",
+                            "name": "SaasFile_v2",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "OBJECT",
+                            "name": "SRECheckpoint_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "OBJECT",
+                            "name": "Integration_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "OBJECT",
+                            "name": "Report_v1",
+                            "ofType": null
+                        }
+                    ]
                 },
                 {
                     "kind": "OBJECT",
@@ -5551,6 +5631,22 @@
                             "deprecationReason": null
                         },
                         {
+                            "name": "self_service",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "LIST",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "OBJECT",
+                                    "name": "SelfServiceConfig_v1",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
                             "name": "users",
                             "description": null,
                             "args": [],
@@ -5584,7 +5680,13 @@
                         }
                     ],
                     "inputFields": null,
-                    "interfaces": [],
+                    "interfaces": [
+                        {
+                            "kind": "INTERFACE",
+                            "name": "DatafileObject_v1",
+                            "ofType": null
+                        }
+                    ],
                     "enumValues": null,
                     "possibleTypes": null
                 },
@@ -8446,7 +8548,13 @@
                         }
                     ],
                     "inputFields": null,
-                    "interfaces": [],
+                    "interfaces": [
+                        {
+                            "kind": "INTERFACE",
+                            "name": "DatafileObject_v1",
+                            "ofType": null
+                        }
+                    ],
                     "enumValues": null,
                     "possibleTypes": null
                 },
@@ -9880,6 +9988,61 @@
                 },
                 {
                     "kind": "OBJECT",
+                    "name": "SelfServiceConfig_v1",
+                    "description": null,
+                    "fields": [
+                        {
+                            "name": "datafiles",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "LIST",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "INTERFACE",
+                                    "name": "DatafileObject_v1",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "resources",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "LIST",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "description",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "String",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        }
+                    ],
+                    "inputFields": null,
+                    "interfaces": [],
+                    "enumValues": null,
+                    "possibleTypes": null
+                },
+                {
+                    "kind": "OBJECT",
                     "name": "Bot_v1",
                     "description": null,
                     "fields": [
@@ -11022,6 +11185,18 @@
                         },
                         {
                             "name": "issueResolveState",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "String",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "issueReopenState",
                             "description": null,
                             "args": [],
                             "type": {
@@ -12911,7 +13086,13 @@
                         }
                     ],
                     "inputFields": null,
-                    "interfaces": [],
+                    "interfaces": [
+                        {
+                            "kind": "INTERFACE",
+                            "name": "DatafileObject_v1",
+                            "ofType": null
+                        }
+                    ],
                     "enumValues": null,
                     "possibleTypes": null
                 },
@@ -17842,7 +18023,13 @@
                         }
                     ],
                     "inputFields": null,
-                    "interfaces": [],
+                    "interfaces": [
+                        {
+                            "kind": "INTERFACE",
+                            "name": "DatafileObject_v1",
+                            "ofType": null
+                        }
+                    ],
                     "enumValues": null,
                     "possibleTypes": null
                 },
@@ -17929,6 +18116,18 @@
                         },
                         {
                             "name": "run_for_valid_saas_file_changes",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "Boolean",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "early_exit",
                             "description": null,
                             "args": [],
                             "type": {
@@ -18472,7 +18671,13 @@
                         }
                     ],
                     "inputFields": null,
-                    "interfaces": [],
+                    "interfaces": [
+                        {
+                            "kind": "INTERFACE",
+                            "name": "DatafileObject_v1",
+                            "ofType": null
+                        }
+                    ],
                     "enumValues": null,
                     "possibleTypes": null
                 },
