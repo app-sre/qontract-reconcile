@@ -180,7 +180,9 @@ def get_credentials_requests():
 
 JUMPHOST_FIELDS = """
 hostname
-knownHosts
+knownHosts {
+  content
+}
 user
 port
 identity {

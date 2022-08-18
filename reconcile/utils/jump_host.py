@@ -53,7 +53,7 @@ class JumpHostSSH(JumpHostBase):
     def __init__(self, jh, settings=None):
         JumpHostBase.__init__(self, jh, settings=settings)
 
-        self.known_hosts = self.get_known_hosts(jh)
+        self.known_hosts = jh["knownHosts"]["content"]
         self.init_known_hosts_file()
         self.local_port = (
             self.get_random_port()
@@ -70,17 +70,6 @@ class JumpHostSSH(JumpHostBase):
                 port = random.randint(DYNAMIC_PORT_MIN, DYNAMIC_PORT_MAX)
             JumpHostSSH.local_ports.append(port)
             return port
-
-    @staticmethod
-    def get_known_hosts(jh):
-        known_hosts_path = jh["knownHosts"]
-        gqlapi = gql.get_api()
-
-        try:
-            known_hosts = gqlapi.get_resource(known_hosts_path)
-        except gql.GqlGetResourceError as e:
-            raise FetchResourceError(str(e))
-        return known_hosts["content"]
 
     def init_known_hosts_file(self):
         known_hosts_file = self._identity_dir + "/known_hosts"
