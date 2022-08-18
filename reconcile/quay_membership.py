@@ -18,7 +18,7 @@ from reconcile.utils.aggregated_list import (
     AggregatedList,
     RunnerException,
 )
-from .utils.helpers import filter_null
+from reconcile.utils.helpers import filter_null
 from reconcile.utils.quay_api import QuayTeamNotFoundException
 
 QONTRACT_INTEGRATION = "quay-membership"
