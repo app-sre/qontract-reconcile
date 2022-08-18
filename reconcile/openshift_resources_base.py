@@ -378,7 +378,9 @@ def fetch_provider_resource(
                             "html_url"
                         ] = f"{APP_INT_BASE_URL}/blob/master/resources{path}"
             except Exception:
-                logging.warning("could not add html_url annotation to" + body["name"])
+                logging.warning(
+                    "could not add html_url annotation to" + body["metadata"]["name"]
+                )
 
     try:
         return OR(
