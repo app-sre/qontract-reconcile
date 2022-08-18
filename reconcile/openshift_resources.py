@@ -1,5 +1,6 @@
 from contextlib import contextmanager
 from typing import Any
+from sretoolbox.utils import threaded
 
 import reconcile.openshift_base as ob
 import reconcile.openshift_resources_base as orb
@@ -45,25 +46,30 @@ def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
     gqlapi = gql.get_api()
     settings = queries.get_secret_reader_settings()
     namespaces, _ = orb.get_namespaces(PROVIDERS)
-    resources = []
+    fetch_specs = [
+        (r, ns_info) for ns_info in namespaces for r in ns_info["openshiftResources"]
+    ]
     with early_exit_monkey_patch():
-        for ns_info in namespaces:
-            for r in ns_info["openshiftResources"]:
-                if r.get("enable_query_support"):
-                    print("HERE!")
-                    print(r["path"])
-                    item = orb.fetch_openshift_resource(
-                        r, ns_info, settings=settings
-                    ).body
-                else:
-                    item = gqlapi.get_resource(r["path"])
-
-                resources.append(item)
-
+        resources = threaded.run(
+            get_resource,
+            fetch_specs,
+            thread_pool_size=10,
+            gqlapi=gqlapi,
+            settings=settings,
+        )
     return {
         "namespaces": namespaces,
         "resources": resources,
     }
+
+
+def get_resource(spec, gqlapi, settings):
+    resource = spec[0]
+    ns_info = spec[1]
+    if resource.get("enable_query_support"):
+        return orb.fetch_openshift_resource(resource, ns_info, settings=settings).body
+    else:
+        return gqlapi.get_resource(resource["path"])
 
 
 @contextmanager
