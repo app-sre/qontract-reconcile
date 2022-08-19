@@ -118,7 +118,7 @@ def handle_stale_items(dry_run, gl, days_interval, enable_closing, item_type):
     now = datetime.utcnow()
     for item in items:
         item_iid = item.attributes.get("iid")
-        item_labels = item.attributes.get("labels")
+        item_labels = get_labels(item, gl)
         if AUTO_MERGE in item_labels:
             if item.merge_status == MRStatus.UNCHECKED:
                 # this call triggers a status recheck
@@ -186,6 +186,14 @@ def is_rebased(mr, gl: GitLabApi) -> bool:
     return len(result["commits"]) == 0
 
 
+def get_labels(mr: ProjectMergeRequest, gl: GitLabApi) -> list[str]:
+    labels = mr.attributes.get("labels")
+    if not labels:
+        # Sometimes the label attribute is empty but shouldn't. Try it again by fetching this MR separately
+        labels = gl.get_merge_request_labels(mr.iid)
+    return labels
+
+
 def get_merge_requests(
     dry_run: bool,
     gl: GitLabApi,
@@ -201,7 +209,7 @@ def get_merge_requests(
         if len(mr.commits()) == 0:
             continue
 
-        labels = mr.attributes.get("labels")
+        labels = get_labels(mr, gl)
         if not labels:
             continue
 
@@ -238,10 +246,14 @@ def get_merge_requests(
                     approved_by = added_by
 
         for bad_label in labels_by_unauthorized_users - labels_by_authorized_users:
+            if bad_label not in labels:
+                continue
             logging.warning(
                 f"[{gl.project.name}/{mr.iid}] someone added a label who "
                 f"isn't allowed. removing label {bad_label}"
             )
+            # Remove bad_label from the cached labels list. Otherwise, we may face a caching bug
+            labels.remove(bad_label)
             if not dry_run:
                 gl.remove_label_from_merge_request(mr.iid, bad_label)
 
