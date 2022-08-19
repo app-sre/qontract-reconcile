@@ -51,7 +51,7 @@ def run(
     Returns:
         bool: True if there was an error, False otherwise
     """
-    saasherder, jenkins_map, oc_map, settings, error = setup(
+    saasherder, oc_map, error = setup(
         thread_pool_size=thread_pool_size,
         internal=internal,
         use_jump_host=use_jump_host,
@@ -74,10 +74,8 @@ def run(
         thread_pool_size,
         dry_run=dry_run,
         saasherder=saasherder,
-        jenkins_map=jenkins_map,
         oc_map=oc_map,
         already_triggered=already_triggered,
-        settings=settings,
         trigger_type=trigger_type,
         integration=integration,
         integration_version=integration_version,
@@ -159,17 +157,15 @@ def setup(
         include_trigger_trace=include_trigger_trace,
     )
 
-    return saasherder, jenkins_map, oc_map, settings, False
+    return saasherder, oc_map, False
 
 
 def trigger(
     spec,
     dry_run,
     saasherder,
-    jenkins_map,
     oc_map,
     already_triggered,
-    settings,
     trigger_type,
     integration,
     integration_version,
@@ -180,11 +176,9 @@ def trigger(
         spec (dict): A trigger spec as created by saasherder
         dry_run (bool): Is this a dry run
         saasherder (SaasHerder): a SaasHerder instance
-        jenkins_map (dict): Instance names with JenkinsApi instances
         oc_map (OC_Map): a dictionary of OC clients per cluster
         already_triggered (set): A set of already triggered deployments.
                                     It will get populated by this function.
-        settings (dict): App-interface settings
         trigger_type (string): Indicates which method to call to update state
         integration (string): Name of calling integration
         integration_version (string): Version of calling integration
