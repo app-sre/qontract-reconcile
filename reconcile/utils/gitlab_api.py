@@ -298,6 +298,9 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
     def get_merge_requests(self, state):
         return self.get_items(self.project.mergerequests.list, state=state)
 
+    def get_merge_request_label_events(self, mr: ProjectMergeRequest):
+        return self.get_items(mr.resourcelabelevents.list)
+
     def get_merge_request_changed_paths(self, mr_id: int) -> list[str]:
         merge_request = self.project.mergerequests.get(mr_id)
         changes = merge_request.changes()["changes"]
