@@ -750,7 +750,10 @@ def _validate_resources_used_exist(
                 )
                 # we found one! does it's value (secret name) match the
                 # using resource's?
-                if serving_cert_alpha_secret_name == used_name or serving_cert_beta_secret_name == used_name:
+                if (
+                    serving_cert_alpha_secret_name == used_name
+                    or serving_cert_beta_secret_name == used_name
+                ):
                     # found a match. we assume the serving cert secret will
                     # be present at some point soon after the Service is deployed
                     resource = service
