@@ -156,10 +156,7 @@ def integrations(resources: dict[str, Any]) -> Iterable[Mapping[str, Any]]:
                             "name": "test1",
                         },
                     },
-                    "spec": {
-                        "extraArgs": None,
-                        "resources": resources,
-                    },
+                    "spec": {"extraArgs": None, "resources": resources},
                 },
             ],
         },
@@ -175,10 +172,18 @@ def integrations(resources: dict[str, Any]) -> Iterable[Mapping[str, Any]]:
                             "name": "test2",
                         },
                     },
-                    "spec": {
-                        "extraArgs": None,
-                        "resources": resources,
+                    "spec": {"extraArgs": None, "resources": resources},
+                },
+                {
+                    "namespace": {
+                        "path": "path3",
+                        "name": "ns3",
+                        "cluster": {"name": "cl3"},
+                        "environment": {
+                            "name": "test2",
+                        },
                     },
+                    "spec": {"extraArgs": None, "resources": resources},
                 },
             ],
         },
@@ -187,17 +192,14 @@ def integrations(resources: dict[str, Any]) -> Iterable[Mapping[str, Any]]:
             "managed": [
                 {
                     "namespace": {
-                        "path": "path2",
+                        "path": "path3",
                         "name": "ns3",
                         "cluster": {"name": "cl3"},
                         "environment": {
                             "name": "test2",
                         },
                     },
-                    "spec": {
-                        "extraArgs": None,
-                        "resources": resources,
-                    },
+                    "spec": {"extraArgs": None, "resources": resources},
                 },
             ],
         },
@@ -235,12 +237,19 @@ def test_collect_namespaces_multiple_ns(
             "path": "path2",
             "name": "ns2",
             "cluster": {"name": "cl2"},
-            "environment": {
-                "name": "test2",
-            },
+            "environment": {"name": "test2"},
             "integration_specs": [
-                {"name": "integ2", "resources": resources, "extraArgs": None},
-                {"name": "integ3", "resources": resources, "extraArgs": None},
+                {"extraArgs": None, "resources": resources, "name": "integ2"}
+            ],
+        },
+        {
+            "path": "path3",
+            "name": "ns3",
+            "cluster": {"name": "cl3"},
+            "environment": {"name": "test2"},
+            "integration_specs": [
+                {"extraArgs": None, "resources": resources, "name": "integ2"},
+                {"extraArgs": None, "resources": resources, "name": "integ3"},
             ],
         },
     ]
@@ -273,7 +282,16 @@ def test_collect_namespaces_all_environments(
             },
             "integration_specs": [
                 {"name": "integ2", "resources": resources, "extraArgs": None},
-                {"name": "integ3", "resources": resources, "extraArgs": None},
+            ],
+        },
+        {
+            "path": "path3",
+            "name": "ns3",
+            "cluster": {"name": "cl3"},
+            "environment": {"name": "test2"},
+            "integration_specs": [
+                {"extraArgs": None, "resources": resources, "name": "integ2"},
+                {"extraArgs": None, "resources": resources, "name": "integ3"},
             ],
         },
     ]
