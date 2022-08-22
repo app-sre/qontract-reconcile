@@ -151,7 +151,11 @@ objects:
             mountPath: /fluentd/etc/
         containers:
         - name: int
+          {{- if $shard.imageRef }}
+          image: ${IMAGE}:{{$shard.imageRef}}
+          {{- else }}
           image: ${IMAGE}:${IMAGE_TAG}
+          {{- end }}
           ports:
             - name: http
               containerPort: 9090

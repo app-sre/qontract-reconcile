@@ -516,6 +516,7 @@ def test_fetch_desired_state(
         namespaces=collected_namespaces_env_test1,
         ri=ri,
         image_tag_from_ref=None,
+        namespace_override_mapping={"ns1": {}},
     )
 
     resources = [
@@ -526,3 +527,79 @@ def test_fetch_desired_state(
     assert len(resources) == 2
     assert ("cl1", "ns1", "Deployment", ["qontract-reconcile-integ1"]) in resources
     assert ("cl1", "ns1", "Service", ["qontract-reconcile"]) in resources
+
+
+def test_values_set_shard_specifics():
+    values = {
+        "integrations": [
+            {
+                "name": "terraform-resources",
+                "shard_specs": [
+                    {
+                        "shard_key": "app-int-example-01",
+                    },
+                    {
+                        "shard_key": "app-int-example-02",
+                    },
+                ],
+            },
+            {
+                "name": "terraform-users",
+                "shard_specs": [
+                    {
+                        "shard_id": "0",
+                    },
+                    {
+                        "shard_id": "1",
+                    },
+                ],
+            },
+            {
+                "name": "foo-bar"
+            }
+        ],
+    }
+    overrides = {
+        "terraform-resources": [
+            intop.IntegrationShardSpecOverride(
+                imageRef="foo",
+                shardingKey={
+                    "name": "app-int-example-01",
+                    "path": "/aws/app-int-example-01/account.yml",
+                },
+                shard=None,
+            ),
+            intop.IntegrationShardSpecOverride(
+                imageRef="bar",
+                shardingKey={
+                    "name": "app-int-example-02",
+                    "path": "/aws/app-int-example-02/account.yml",
+                },
+                shard=None,
+            ),
+        ],
+        "terraform-users": [
+            intop.IntegrationShardSpecOverride(
+                imageRef="zero",
+                shardingKey=None,
+                shard="0",
+            )
+        ],
+    }
+
+    intop.values_set_shard_specifics(values, overrides)
+
+    assert values["integrations"][0]["shard_specs"][0]["imageRef"] == "foo"
+    assert values["integrations"][0]["shard_specs"][1]["imageRef"] == "bar"
+    assert values["integrations"][1]["shard_specs"][0]["imageRef"] == "zero"
+    assert "imageRef" not in values["integrations"][1]["shard_specs"][1]
+    assert "shard_spec" not in values["integrations"][2]
+
+
+def test_initialize_namespace_override_mapping(integrations):
+
+    environment_name = "test2"
+    namespaces = intop.collect_namespaces(integrations, environment_name)
+    print(namespaces)
+    intop.initialize_namespace_override_mapping(namespaces, integrations)
+    print()

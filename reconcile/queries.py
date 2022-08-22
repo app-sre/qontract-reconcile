@@ -223,6 +223,14 @@ INTEGRATIONS_QUERY = """
           }
         }
       }
+      shardSpecOverride{
+        shardingKey {
+          name
+          path
+        }
+        imageRef
+        shard
+      }
       spec {
         cache
         command
