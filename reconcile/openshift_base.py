@@ -742,12 +742,15 @@ def _validate_resources_used_exist(
             for service in service_resources:
                 metadata = service.body.get("metadata", {})
                 annotations = metadata.get("annotations", {})
-                serving_cert_secret_name = annotations.get(
+                serving_cert_alpha_secret_name = annotations.get(
                     "service.alpha.openshift.io/serving-cert-secret-name", False
+                )
+                serving_cert_beta_secret_name = annotations.get(
+                    "service.beta.openshift.io/serving-cert-secret-name", False
                 )
                 # we found one! does it's value (secret name) match the
                 # using resource's?
-                if serving_cert_secret_name == used_name:
+                if serving_cert_alpha_secret_name == used_name or serving_cert_beta_secret_name == used_name:
                     # found a match. we assume the serving cert secret will
                     # be present at some point soon after the Service is deployed
                     resource = service
