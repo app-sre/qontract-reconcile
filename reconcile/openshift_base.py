@@ -759,6 +759,8 @@ def _validate_resources_used_exist(
                         # be present at some point soon after the Service is deployed
                         resource = service
                         break
+                    else:
+                        continue
         if resource:
             # get the body to match with the possible result from oc.get
             resource = resource.body
