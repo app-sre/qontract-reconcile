@@ -157,6 +157,7 @@ def integrations(resources: dict[str, Any]) -> Iterable[Mapping[str, Any]]:
                         },
                     },
                     "spec": {"extraArgs": None, "resources": resources},
+                    "shardSpecOverride": {},
                 },
             ],
         },
@@ -173,6 +174,7 @@ def integrations(resources: dict[str, Any]) -> Iterable[Mapping[str, Any]]:
                         },
                     },
                     "spec": {"extraArgs": None, "resources": resources},
+                    "shardSpecOverride": {},
                 },
                 {
                     "namespace": {
@@ -184,6 +186,7 @@ def integrations(resources: dict[str, Any]) -> Iterable[Mapping[str, Any]]:
                         },
                     },
                     "spec": {"extraArgs": None, "resources": resources},
+                    "shardSpecOverride": {},
                 },
             ],
         },
@@ -200,6 +203,13 @@ def integrations(resources: dict[str, Any]) -> Iterable[Mapping[str, Any]]:
                         },
                     },
                     "spec": {"extraArgs": None, "resources": resources},
+                    "shardSpecOverride": [
+                        {
+                            "shardingKey": {},
+                            "shard": "0",
+                            "imageRef": "foo",
+                        }
+                    ],
                 },
             ],
         },
@@ -530,7 +540,7 @@ def test_fetch_desired_state(
 
 
 def test_values_set_shard_specifics():
-    values = {
+    values: Mapping[str, Any] = {
         "integrations": [
             {
                 "name": "terraform-resources",
@@ -554,12 +564,10 @@ def test_values_set_shard_specifics():
                     },
                 ],
             },
-            {
-                "name": "foo-bar"
-            }
+            {"name": "foo-bar"},
         ],
     }
-    overrides = {
+    overrides: Mapping[str, Any] = {
         "terraform-resources": [
             intop.IntegrationShardSpecOverride(
                 imageRef="foo",
@@ -571,10 +579,7 @@ def test_values_set_shard_specifics():
             ),
             intop.IntegrationShardSpecOverride(
                 imageRef="bar",
-                shardingKey={
-                    "name": "app-int-example-02",
-                    "path": "/aws/app-int-example-02/account.yml",
-                },
+                shardingKey=None,
                 shard=None,
             ),
         ],
@@ -590,16 +595,21 @@ def test_values_set_shard_specifics():
     intop.values_set_shard_specifics(values, overrides)
 
     assert values["integrations"][0]["shard_specs"][0]["imageRef"] == "foo"
-    assert values["integrations"][0]["shard_specs"][1]["imageRef"] == "bar"
     assert values["integrations"][1]["shard_specs"][0]["imageRef"] == "zero"
     assert "imageRef" not in values["integrations"][1]["shard_specs"][1]
     assert "shard_spec" not in values["integrations"][2]
 
 
 def test_initialize_namespace_override_mapping(integrations):
-
     environment_name = "test2"
     namespaces = intop.collect_namespaces(integrations, environment_name)
-    print(namespaces)
-    intop.initialize_namespace_override_mapping(namespaces, integrations)
-    print()
+    override_mapping = intop.initialize_namespace_override_mapping(
+        namespaces, integrations
+    )
+    assert "ns2" in override_mapping
+    assert "ns3" in override_mapping
+    assert "integ3" in override_mapping["ns3"]
+    assert len(override_mapping["ns3"]["integ3"]) == 1
+    assert isinstance(
+        override_mapping["ns3"]["integ3"][0], intop.IntegrationShardSpecOverride
+    )

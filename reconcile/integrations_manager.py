@@ -1,4 +1,3 @@
-import pprint
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 import os
@@ -138,7 +137,9 @@ def construct_values_file(
     return values
 
 
-def values_set_shard_specifics(values, integration_overrides):
+def values_set_shard_specifics(
+    values: Mapping[str, Any], integration_overrides: Mapping[str, Any]
+):
     for integration in values["integrations"]:
         if "shard_specs" in integration:
             for shard in integration["shard_specs"]:
@@ -147,11 +148,7 @@ def values_set_shard_specifics(values, integration_overrides):
                         override.shardingKey
                         and "shard_key" in shard
                         and override.shardingKey["name"] == shard["shard_key"]
-                    ) or (
-                        override.shard
-                        and "shard_id" in shard
-                        and override.shard == shard["shard_id"]
-                    ):
+                    ) or ("shard_id" in shard and override.shard == shard["shard_id"]):
                         if override.imageRef:
                             shard["imageRef"] = override.imageRef
 
@@ -192,7 +189,7 @@ def collect_parameters(
 def construct_oc_resources(
     namespace_info: Mapping[str, Any],
     image_tag_from_ref: Optional[Mapping[str, str]],
-    integration_overrides: Mapping[str, any],
+    integration_overrides: Mapping[str, Any],
 ) -> list[OpenshiftResource]:
     values = construct_values_file(namespace_info["integration_specs"])
     values_set_shard_specifics(values, integration_overrides)
@@ -227,7 +224,7 @@ def fetch_desired_state(
     namespaces: Iterable[Mapping[str, Any]],
     ri: ResourceInventory,
     image_tag_from_ref: Optional[Mapping[str, str]],
-    namespace_override_mapping: Mapping[str, any],
+    namespace_override_mapping: Mapping[str, Any],
 ) -> None:
     for namespace_info in namespaces:
         namespace = namespace_info["name"]
@@ -259,7 +256,7 @@ def collect_namespaces(
 
 
 def initialize_namespace_override_mapping(namespaces, integrations):
-    namespace_override_mapping = {
+    namespace_override_mapping: Mapping[str, Any] = {
         namespace["name"]: {
             integration["name"]: [] for integration in namespace["integration_specs"]
         }
