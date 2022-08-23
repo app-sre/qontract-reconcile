@@ -1,4 +1,5 @@
 import base64
+from contextlib import contextmanager
 import json
 import logging
 import sys
@@ -836,3 +837,79 @@ def run(
         sys.exit(1)
 
     return ri
+
+
+def early_exit_desired_state(
+    providers: list[str], resource_schema_filter: Optional[str] = None
+) -> dict[str, Any]:
+    settings = queries.get_secret_reader_settings()
+    namespaces, _ = get_namespaces(
+        providers, resource_schema_filter=resource_schema_filter
+    )
+    fetch_specs = [
+        (r, ns_info) for ns_info in namespaces for r in ns_info["openshiftResources"]
+    ]
+
+    with early_exit_monkey_patch():
+        resources = threaded.run(
+            get_resource,
+            fetch_specs,
+            thread_pool_size=10,
+            settings=settings,
+        )
+
+    return {
+        "namespaces": namespaces,
+        "resources": resources,
+    }
+
+
+def get_resource(spec, settings):
+    resource = spec[0]
+    ns_info = spec[1]
+    if resource.get("enable_query_support"):
+        c = fetch_openshift_resource(
+            resource, ns_info, settings=settings
+        ).body
+    else:
+        c = resource["resource"].get("content")
+    if not c:
+        print(resource)
+    del resource["resource"]
+    return c
+
+
+@contextmanager
+def early_exit_monkey_patch():
+    """Avoid looking outside of app-interface on early-exit pr-check."""
+    orig_lookup_secret = lookup_secret
+    orig_lookup_github_file_content = lookup_github_file_content
+    orig_url_makes_sense = url_makes_sense
+    orig_check_alertmanager_config = check_alertmanager_config
+
+    try:
+        yield early_exit_monkey_patch_assign(
+            lambda path, key, version=None, tvars=None, settings=None: f"vault({path}, {key}, {version})",
+            lambda repo, path, ref, tvars=None, settings=None: f"github({repo}, {path}, {ref})",
+            lambda url: False,
+            lambda data, path, alertmanager_config_key, decode_base64=False: True,
+        )
+    finally:
+        early_exit_monkey_patch_assign(
+            orig_lookup_secret,
+            orig_lookup_github_file_content,
+            orig_url_makes_sense,
+            orig_check_alertmanager_config,
+        )
+
+
+def early_exit_monkey_patch_assign(
+    lookup_secret,
+    lookup_github_file_content,
+    url_makes_sense,
+    check_alertmanager_config,
+):
+    sys.modules[__name__].lookup_secret = lookup_secret
+    sys.modules[__name__].lookup_github_file_content = lookup_github_file_content
+    sys.modules[__name__].url_makes_sense = url_makes_sense
+    sys.modules[__name__].check_alertmanager_config = check_alertmanager_config

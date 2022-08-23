@@ -364,10 +364,9 @@ def run(dry_run, thread_pool_size=10, cluster_name=None):
         sys.exit(ExitCodes.ERROR)
 
 
-def early_exit_desired_state(thread_pool_size=10, cluster_name=None) -> dict[str, Any]:
-    settings = queries.get_app_interface_settings()
-
-    return {
-        "rules": get_prometheus_rules(cluster_name, settings),
-        "tests": get_prometheus_tests(),
-    }
+def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
+    state = orb.early_exit_desired_state(
+        PROVIDERS, resource_schema_filter="/openshift/prometheus-rule-1.yml"
+    )
+    state["tests"] = get_prometheus_tests()
+    return state
