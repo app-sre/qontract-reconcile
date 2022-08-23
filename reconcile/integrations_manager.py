@@ -254,7 +254,9 @@ def collect_namespaces(
     return list(unique_namespaces.values())
 
 
-def initialize_namespace_override_mapping(namespaces, integrations):
+def initialize_namespace_override_mapping(
+    namespaces: Mapping[str, Any], integrations: Mapping[str, Any]
+) -> Mapping[str, Any]:
     namespace_override_mapping: Mapping[str, Any] = {
         namespace["name"]: {
             integration["name"]: [] for integration in namespace["integration_specs"]
