@@ -750,7 +750,9 @@ def filter_namespaces_by_cluster_and_namespace(
 
 
 def canonicalize_namespaces(
-    namespaces: Iterable[dict[str, Any]], providers: list[str]
+    namespaces: Iterable[dict[str, Any]],
+    providers: list[str],
+    resource_schema_filter: Optional[str] = None,
 ) -> Tuple[list[dict[str, Any]], Optional[list[str]]]:
     canonicalized_namespaces = []
     override = None
@@ -758,7 +760,15 @@ def canonicalize_namespaces(
     for namespace_info in namespaces:
         ob.aggregate_shared_resources(namespace_info, "openshiftResources")
         openshift_resources: list = namespace_info.get("openshiftResources") or []
-        ors = [r for r in openshift_resources if r["provider"] in providers]
+        ors = [
+            r
+            for r in openshift_resources
+            if r["provider"] in providers
+            and (
+                resource_schema_filter is None
+                or r["resource"]["schema"] == resource_schema_filter
+            )
+        ]
         if ors and providers:
             # For the time being we only care about the first item in
             # providers
@@ -777,6 +787,7 @@ def get_namespaces(
     providers: Optional[list[str]] = None,
     cluster_name: Optional[str] = None,
     namespace_name: Optional[str] = None,
+    resource_schema_filter: Optional[str] = None,
 ) -> Tuple[list[dict[str, Any]], Optional[list[str]]]:
     if providers is None:
         providers = []
@@ -791,7 +802,7 @@ def get_namespaces(
     namespaces = filter_namespaces_by_cluster_and_namespace(
         namespaces, cluster_name, namespace_name
     )
-    return canonicalize_namespaces(namespaces, providers)
+    return canonicalize_namespaces(namespaces, providers, resource_schema_filter)
 
 
 @defer
