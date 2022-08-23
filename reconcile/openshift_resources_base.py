@@ -1,5 +1,6 @@
 import base64
 from contextlib import contextmanager
+from functools import lru_cache
 import json
 import logging
 import sys
@@ -247,11 +248,30 @@ def lookup_graphql_query_results(query: str, **kwargs) -> list[Any]:
     return results
 
 
-def process_jinja2_template(body, vars=None, env=None, settings=None):
+@lru_cache
+def compile_jinja2_template(body, extra_curly: bool = False):
+    env: dict = {}
+    if extra_curly:
+        env = {
+            "block_start_string": "{{%",
+            "block_end_string": "%}}",
+            "variable_start_string": "{{{",
+            "variable_end_string": "}}}",
+            "comment_start_string": "{{#",
+            "comment_end_string": "#}}",
+        }
+
+    jinja_env = jinja2.Environment(
+        extensions=[B64EncodeExtension, RaiseErrorExtension],
+        undefined=jinja2.StrictUndefined,
+        **env,
+    )
+    return jinja_env.from_string(body)
+
+
+def process_jinja2_template(body, vars=None, extra_curly: bool = False, settings=None):
     if vars is None:
         vars = {}
-    if env is None:
-        env = {}
     vars.update(
         {
             "vault": lambda p, k, v=None: lookup_secret(
@@ -269,12 +289,7 @@ def process_jinja2_template(body, vars=None, env=None, settings=None):
     vars.update({"query": lookup_graphql_query_results})
     vars.update({"url": url_makes_sense})
     try:
-        env = jinja2.Environment(
-            extensions=[B64EncodeExtension, RaiseErrorExtension],
-            undefined=jinja2.StrictUndefined,
-            **env,
-        )
-        template = env.from_string(body)
+        template = compile_jinja2_template(body, extra_curly)
         r = template.render(vars)
     except Exception as e:
         raise Jinja2TemplateError(e)
@@ -284,15 +299,7 @@ def process_jinja2_template(body, vars=None, env=None, settings=None):
 def process_extracurlyjinja2_template(body, vars=None, env=None, settings=None):
     if vars is None:
         vars = {}
-    env = {
-        "block_start_string": "{{%",
-        "block_end_string": "%}}",
-        "variable_start_string": "{{{",
-        "variable_end_string": "}}}",
-        "comment_start_string": "{{#",
-        "comment_end_string": "#}}",
-    }
-    return process_jinja2_template(body, vars=vars, env=env, settings=settings)
+    return process_jinja2_template(body, vars=vars, extra_curly=True, settings=settings)
 
 
 def check_alertmanager_config(data, path, alertmanager_config_key, decode_base64=False):
