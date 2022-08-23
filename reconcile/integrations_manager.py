@@ -141,16 +141,15 @@ def values_set_shard_specifics(
     values: Mapping[str, Any], integration_overrides: Mapping[str, Any]
 ):
     for integration in values["integrations"]:
-        if "shard_specs" in integration:
-            for shard in integration["shard_specs"]:
-                for override in integration_overrides.get(integration["name"], []):
-                    if (
-                        override.shardingKey
-                        and "shard_key" in shard
-                        and override.shardingKey["name"] == shard["shard_key"]
-                    ) or ("shard_id" in shard and override.shard == shard["shard_id"]):
-                        if override.imageRef:
-                            shard["imageRef"] = override.imageRef
+        for shard in integration.get("shard_specs", []):
+            for override in integration_overrides.get(integration["name"], []):
+                if (
+                    override.shardingKey
+                    and "shard_key" in shard
+                    and override.shardingKey["name"] == shard["shard_key"]
+                ) or ("shard_id" in shard and override.shard == shard["shard_id"]):
+                    if override.imageRef:
+                        shard["imageRef"] = override.imageRef
 
 
 def get_image_tag_from_ref(ref: str) -> str:
