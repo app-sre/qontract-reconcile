@@ -188,7 +188,7 @@ def collect_parameters(
 def construct_oc_resources(
     namespace_info: Mapping[str, Any],
     image_tag_from_ref: Optional[Mapping[str, str]],
-    integration_overrides: Mapping[str, Any],
+    integration_overrides: Mapping[str, list[IntegrationShardSpecOverride]],
 ) -> list[OpenshiftResource]:
     values = construct_values_file(namespace_info["integration_specs"])
     values_set_shard_specifics(values, integration_overrides)
@@ -223,7 +223,9 @@ def fetch_desired_state(
     namespaces: Iterable[Mapping[str, Any]],
     ri: ResourceInventory,
     image_tag_from_ref: Optional[Mapping[str, str]],
-    namespace_override_mapping: Mapping[str, Any],
+    namespace_override_mapping: Mapping[
+        str, Mapping[str, list[IntegrationShardSpecOverride]]
+    ],
 ) -> None:
     for namespace_info in namespaces:
         namespace = namespace_info["name"]
@@ -255,8 +257,8 @@ def collect_namespaces(
 
 
 def initialize_namespace_override_mapping(
-    namespaces: Mapping[str, Any], integrations: Mapping[str, Any]
-) -> Mapping[str, Any]:
+    namespaces: list[dict[str, Any]], integrations: list[Mapping[str, Any]]
+) -> Mapping[str, Mapping[str, list[IntegrationShardSpecOverride]]]:
     namespace_override_mapping: Mapping[str, Any] = {
         namespace["name"]: {
             integration["name"]: [] for integration in namespace["integration_specs"]
