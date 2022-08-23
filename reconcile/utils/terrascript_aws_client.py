@@ -3988,6 +3988,20 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             "${aws_elasticsearch_domain." + identifier + ".vpc_options.0.vpc_id}"
         )
         tf_resources.append(Output(output_name_0_13, value=output_value))
+        # add master user creds to output if internal_user_database_enabled
+        security_options = es_values.get("advanced_security_options", None)
+        if security_options and security_options.get(
+            "internal_user_database_enabled", False
+        ):
+            master_user = security_options["master_user_options"]
+            # master_user_name
+            output_name_0_13 = output_prefix + "__master_user_name"
+            output_value = master_user["master_user_name"]
+            tf_resources.append(Output(output_name_0_13, value=output_value))
+            # master_user_password
+            output_name_0_13 = output_prefix + "__master_user_password"
+            output_value = master_user["master_user_password"]
+            tf_resources.append(Output(output_name_0_13, value=output_value))
 
         self.add_resources(account, tf_resources)
 
