@@ -476,7 +476,7 @@ def early_exit_integration(
     # compare
     from deepdiff import DeepDiff
 
-    diff = DeepDiff(previous_desired_state, current_desired_state, ignore_order=True)
+    diff = DeepDiff(previous_desired_state, current_desired_state)
     return not diff
 
 
