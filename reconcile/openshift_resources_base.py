@@ -322,12 +322,22 @@ def fetch_provider_resource(
     validate_alertmanager_config=False,
     alertmanager_config_key="alertmanager.yaml",
     add_path_to_prom_rules=True,
+    skip_validation=False,
     settings=None,
 ) -> OR:
     path = resource["path"]
     content = resource["content"]
     if tfunc:
         content = tfunc(body=content, vars=tvars, settings=settings)
+
+    if skip_validation:
+        return OR(
+            content,
+            QONTRACT_INTEGRATION,
+            QONTRACT_INTEGRATION_VERSION,
+            error_details=path,
+            validate_k8s_object=False,
+        )
 
     try:
         body = anymarkup.parse(content, force_types=None)
@@ -483,7 +493,9 @@ def fetch_provider_route(resource: dict, tls_path, tls_version, settings=None) -
     return openshift_resource
 
 
-def fetch_openshift_resource(resource, parent, settings=None) -> OR:
+def fetch_openshift_resource(
+    resource, parent, settings=None, skip_validation=False
+) -> OR:
     global _log_lock
 
     provider = resource["provider"]
@@ -508,6 +520,7 @@ def fetch_openshift_resource(resource, parent, settings=None) -> OR:
             validate_alertmanager_config=validate_alertmanager_config,
             alertmanager_config_key=alertmanager_config_key,
             add_path_to_prom_rules=add_path_to_prom_rules,
+            skip_validation=skip_validation,
             settings=settings,
         )
     elif provider == "resource-template":
@@ -539,6 +552,7 @@ def fetch_openshift_resource(resource, parent, settings=None) -> OR:
                 validate_alertmanager_config=validate_alertmanager_config,
                 alertmanager_config_key=alertmanager_config_key,
                 add_path_to_prom_rules=add_path_to_prom_rules,
+                skip_validation=skip_validation,
                 settings=settings,
             )
         except Exception as e:
@@ -869,7 +883,7 @@ def get_resource(spec, settings):
     ns_info = spec[1]
     if resource.get("enable_query_support"):
         c = fetch_openshift_resource(
-            resource, ns_info, settings=settings
+            resource, ns_info, skip_validation=True, settings=settings
         ).body
     else:
         c = resource["resource"].get("content")
