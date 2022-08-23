@@ -58,14 +58,22 @@ from reconcile.github_users import init_github
 OPENSHIFT_RESOURCE = """
 provider
 ... on NamespaceOpenshiftResourceResource_v1 {
-  path
+  resource: path {
+    content
+    path
+    schema
+  }
   validate_json
   validate_alertmanager_config
   alertmanager_config_key
   enable_query_support
 }
 ... on NamespaceOpenshiftResourceResourceTemplate_v1 {
-  path
+  resource: path {
+    content
+    path
+    schema
+  }
   type
   variables
   validate_alertmanager_config
@@ -83,7 +91,11 @@ provider
   alertmanager_config_key
 }
 ... on NamespaceOpenshiftResourceRoute_v1 {
-  path
+  resource: path {
+    content
+    path
+    schema
+  }
   vault_tls_secret_path
   vault_tls_secret_version
 }
@@ -302,7 +314,7 @@ def check_alertmanager_config(data, path, alertmanager_config_key, decode_base64
 
 
 def fetch_provider_resource(
-    path,
+    resource: dict,
     tfunc=None,
     tvars=None,
     validate_json=False,
@@ -311,14 +323,7 @@ def fetch_provider_resource(
     add_path_to_prom_rules=True,
     settings=None,
 ) -> OR:
-    gqlapi = gql.get_api()
-
-    # get resource data
-    try:
-        resource = gqlapi.get_resource(path)
-    except gql.GqlGetResourceError as e:
-        raise FetchResourceError(str(e))
-
+    path = resource["path"]
     content = resource["content"]
     if tfunc:
         content = tfunc(body=content, vars=tvars, settings=settings)
@@ -431,10 +436,11 @@ def fetch_provider_vault_secret(
         raise FetchResourceError(str(e))
 
 
-def fetch_provider_route(path, tls_path, tls_version, settings=None) -> OR:
+def fetch_provider_route(resource: dict, tls_path, tls_version, settings=None) -> OR:
     global _log_lock
 
-    openshift_resource = fetch_provider_resource(path)
+    path = resource["path"]
+    openshift_resource = fetch_provider_resource(resource)
 
     if tls_path is None or tls_version is None:
         return openshift_resource
@@ -480,7 +486,7 @@ def fetch_openshift_resource(resource, parent, settings=None) -> OR:
     global _log_lock
 
     provider = resource["provider"]
-    path = resource["path"]
+    path = resource["resource"]["path"]
     msg = "Fetching {}: {}".format(provider, path)
     _log_lock.acquire()  # pylint: disable=consider-using-with
     logging.debug(msg)
@@ -496,7 +502,7 @@ def fetch_openshift_resource(resource, parent, settings=None) -> OR:
             resource.get("alertmanager_config_key") or "alertmanager.yaml"
         )
         openshift_resource = fetch_provider_resource(
-            path,
+            resource["resource"],
             validate_json=validate_json,
             validate_alertmanager_config=validate_alertmanager_config,
             alertmanager_config_key=alertmanager_config_key,
@@ -526,7 +532,7 @@ def fetch_openshift_resource(resource, parent, settings=None) -> OR:
             UnknownTemplateTypeError(tt)
         try:
             openshift_resource = fetch_provider_resource(
-                path,
+                resource["resource"],
                 tfunc=tfunc,
                 tvars=tv,
                 validate_alertmanager_config=validate_alertmanager_config,
@@ -572,7 +578,9 @@ def fetch_openshift_resource(resource, parent, settings=None) -> OR:
     elif provider == "route":
         tls_path = resource["vault_tls_secret_path"]
         tls_version = resource["vault_tls_secret_version"]
-        openshift_resource = fetch_provider_route(path, tls_path, tls_version, settings)
+        openshift_resource = fetch_provider_route(
+            resource["resource"], tls_path, tls_version, settings
+        )
     else:
         raise UnknownProviderError(provider)
 

@@ -93,7 +93,7 @@ def get_prometheus_rules(cluster_name, settings):
             continue
 
         for r in openshift_resources:
-            path = r["path"]
+            path = r["resource"]["path"]
             if path not in rules:
                 continue
 
