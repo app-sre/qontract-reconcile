@@ -49,7 +49,7 @@ class MockJenkinsApi:
 
 
 def test_use_previous_image_id_no_upstream(ts):
-    assert ts._use_previous_image_id({}) is False
+    assert ts._use_previous_image_id([]) is False
 
 
 def test_use_previous_image_id_false(mocker, ts):
@@ -58,7 +58,7 @@ def test_use_previous_image_id_false(mocker, ts):
         "reconcile.utils.terrascript_aws_client.TerrascriptClient.init_jenkins",
         return_value=MockJenkinsApi(result),
     )
-    image = {"upstream": {"instance": {"name": "ci"}, "name": "job"}}
+    image = [{"upstream": {"instance": {"name": "ci"}, "name": "job"}}]
     assert ts._use_previous_image_id(image) == result
 
 
@@ -68,7 +68,7 @@ def test_use_previous_image_id_true(mocker, ts):
         "reconcile.utils.terrascript_aws_client.TerrascriptClient.init_jenkins",
         return_value=MockJenkinsApi(result),
     )
-    image = {"upstream": {"instance": {"name": "ci"}, "name": "job"}}
+    image = [{"upstream": {"instance": {"name": "ci"}, "name": "job"}}]
     assert ts._use_previous_image_id(image) == result
 
 

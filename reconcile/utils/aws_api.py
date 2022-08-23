@@ -1358,7 +1358,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
             logging.error(f"[{account_name}] unhandled exception: {e}")
 
     def get_image_id(
-        self, account_name: str, region_name: str, tag: Mapping[str, str]
+        self, account_name: str, region_name: str, tags: Iterable[Mapping[str, str]]
     ) -> Optional[str]:
         """
         Get AMI ID matching the specified criteria.
@@ -1368,14 +1368,17 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         https://docs.aws.amazon.com/cli/latest/reference/ec2/describe-images.html
         """
         ec2 = self._account_ec2_client(account_name, region_name)
-        filter_type_def: FilterTypeDef = {
-            "Name": "tag:" + tag["Key"],
-            "Values": [tag["Value"]],
-        }
-        images = ec2.describe_images(Filters=[filter_type_def])["Images"]
+        filter_type_defs: list[FilterTypeDef] = [
+            {
+                "Name": "tag:" + tag["Key"],
+                "Values": [tag["Value"]],
+            }
+            for tag in tags
+        ]
+        images = ec2.describe_images(Filters=filter_type_defs)["Images"]
         if len(images) > 1:
             raise ValueError(
-                f"found multiple AMI with tag {tag} " + f"in account {account_name}"
+                f"found multiple AMI with {tags=} in account {account_name}"
             )
         elif not images:
             return None
