@@ -4578,7 +4578,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         return ""
 
     def _get_asg_image_id(
-        self, filters: Iterable[dict[str, Any]], account: str, region: str
+        self, filters: Iterable[Mapping[str, Any]], account: str, region: str
     ) -> Optional[str]:
         """
         AMI ID comes form AWS Api filter result.
@@ -4601,7 +4601,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         return image_id
 
-    def _use_previous_image_id(self, filters: Iterable[dict[str, Any]]) -> bool:
+    def _use_previous_image_id(self, filters: Iterable[Mapping[str, Any]]) -> bool:
         for f in filters:
             upstream = f.get("upstream")
             if upstream:
