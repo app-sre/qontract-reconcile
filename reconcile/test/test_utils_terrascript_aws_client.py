@@ -1,4 +1,5 @@
 import pytest
+from reconcile.utils.aws_api import AmiTag
 
 import reconcile.utils.terrascript_aws_client as tsclient
 from reconcile.utils.external_resource_spec import (
@@ -52,8 +53,8 @@ def test_use_previous_image_id_no_upstream(ts):
     assert ts._use_previous_image_id([]) is False
 
 
-def test_use_previous_image_id_false(mocker, ts):
-    result = False
+@pytest.mark.parametrize("result", [True, False])
+def test_use_previous_image_id(mocker, ts, result):
     mocker.patch(
         "reconcile.utils.terrascript_aws_client.TerrascriptClient.init_jenkins",
         return_value=MockJenkinsApi(result),
@@ -62,14 +63,66 @@ def test_use_previous_image_id_false(mocker, ts):
     assert ts._use_previous_image_id(image) == result
 
 
-def test_use_previous_image_id_true(mocker, ts):
-    result = True
+def test_get_asg_image_id(mocker, ts: tsclient.TerrascriptClient):
+    awsapi = mocker.patch("reconcile.utils.terrascript_aws_client.AWSApi")
+    get_image_id_mock = awsapi().get_image_id
+    get_image_id_mock.return_value = "ami-123456"
+
+    ref = "sha-12345"
     mocker.patch(
-        "reconcile.utils.terrascript_aws_client.TerrascriptClient.init_jenkins",
-        return_value=MockJenkinsApi(result),
+        "reconcile.utils.terrascript_aws_client.TerrascriptClient._get_commit_sha",
+        return_value=ref,
     )
-    image = [{"upstream": {"instance": {"name": "ci"}, "name": "job"}}]
-    assert ts._use_previous_image_id(image) == result
+    ts.accounts["some-account"] = "mock"  # type: ignore
+    image_id = ts._get_asg_image_id(
+        filters=[
+            {"provider": "git", "tag_name": "commit", "ref": ref},
+            {
+                "provider": "static",
+                "tag_name": "tag1",
+                "value": "value1",
+            },
+            {
+                "provider": "static",
+                "tag_name": "tag2",
+                "value": "value2",
+            },
+        ],
+        account="some-account",
+        region="us-east-1",
+    )
+    assert image_id == "ami-123456"
+    get_image_id_mock.assert_called_with(
+        "some-account",
+        "us-east-1",
+        [
+            AmiTag(name="commit", value=ref),
+            AmiTag(name="tag1", value="value1"),
+            AmiTag(name="tag2", value="value2"),
+        ],
+    )
+
+
+@pytest.mark.parametrize(
+    "repo_info, expected",
+    [
+        ({"url": "http://fake", "ref": 40 * "1"}, 40 * "1"),
+        ({"url": "http://github.com/foo/bar", "ref": "main"}, "sha-12345"),
+        pytest.param(
+            {"url": "http://gitlab.com/foo/bar", "ref": "main"},
+            "",
+            marks=pytest.mark.xfail(raises=NotImplementedError, strict=True),
+        ),
+    ],
+)
+def test_get_commit_sha(mocker, ts: tsclient.TerrascriptClient, repo_info, expected):
+    init_github = mocker.patch(
+        "reconcile.utils.terrascript_aws_client.TerrascriptClient.init_github"
+    )
+    init_github.return_value.get_repo.return_value.get_commit.return_value.sha = (
+        expected
+    )
+    assert ts._get_commit_sha(repo_info) == expected
 
 
 def test_tf_disabled_namespace_with_resources(ts):
