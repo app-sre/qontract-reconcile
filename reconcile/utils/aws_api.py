@@ -9,6 +9,7 @@ from typing import Literal, Union, TYPE_CHECKING
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
 
 from boto3 import Session
+from pydantic import BaseModel
 from sretoolbox.utils import threaded
 import botocore
 
@@ -85,6 +86,11 @@ class MissingARNError(Exception):
 KeyStatus = Union[Literal["Active"], Literal["Inactive"]]
 
 GOVCLOUD_PARTITION = "aws-us-gov"
+
+
+class AmiTag(BaseModel):
+    name: str
+    value: str
 
 
 class AWSApi:  # pylint: disable=too-many-public-methods
@@ -1358,7 +1364,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
             logging.error(f"[{account_name}] unhandled exception: {e}")
 
     def get_image_id(
-        self, account_name: str, region_name: str, tags: Iterable[Mapping[str, str]]
+        self, account_name: str, region_name: str, tags: Iterable[AmiTag]
     ) -> Optional[str]:
         """
         Get AMI ID matching the specified criteria.
@@ -1370,8 +1376,8 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         ec2 = self._account_ec2_client(account_name, region_name)
         filter_type_defs: list[FilterTypeDef] = [
             {
-                "Name": "tag:" + tag["Key"],
-                "Values": [tag["Value"]],
+                "Name": "tag:" + tag.name,
+                "Values": [tag.value],
             }
             for tag in tags
         ]

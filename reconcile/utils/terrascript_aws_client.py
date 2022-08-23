@@ -138,7 +138,7 @@ from sretoolbox.utils import threaded
 from reconcile import queries
 
 from reconcile.utils import gql
-from reconcile.utils.aws_api import AWSApi
+from reconcile.utils.aws_api import AWSApi, AmiTag
 from reconcile.utils.external_resource_spec import (
     ExternalResourceSpec,
     ExternalResourceSpecInventory,
@@ -4587,12 +4587,12 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
           * a tag_name and its value need to be the commit sha comes from upstream repo.
           * tag_name and value
         """
-        tags: list[dict[str, str]] = []
+        tags: list[AmiTag] = []
         for f in filters:
             if f["provider"] == "git":
-                tags.append({"Key": f["tag_name"], "Value": self._get_commit_sha(f)})
+                tags.append(AmiTag(name=f["tag_name"], value=self._get_commit_sha(f)))
             elif f["provider"] == "static":
-                tags.append({"Key": f["tag_name"], "Value": f["value"]})
+                tags.append(AmiTag(name=f["tag_name"], value=f["value"]))
 
         # Get the most recent AMI id
         aws_account = self.accounts[account]
