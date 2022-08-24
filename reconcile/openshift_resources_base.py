@@ -871,9 +871,9 @@ def early_exit_desired_state(
         (r, ns_info) for ns_info in namespaces for r in ns_info["openshiftResources"]
     ]
 
-    with early_exit_monkey_patch():
+    with _early_exit_monkey_patch():
         resources = threaded.run(
-            get_resource,
+            _early_exit_fetch_resource,
             fetch_specs,
             thread_pool_size=10,
             settings=settings,
@@ -885,7 +885,7 @@ def early_exit_desired_state(
     }
 
 
-def get_resource(spec, settings):
+def _early_exit_fetch_resource(spec, settings):
     resource = spec[0]
     ns_info = spec[1]
     if resource.get("enable_query_support"):
@@ -894,14 +894,12 @@ def get_resource(spec, settings):
         ).body
     else:
         c = resource["resource"].get("content")
-    if not c:
-        print(resource)
     del resource["resource"]
     return c
 
 
 @contextmanager
-def early_exit_monkey_patch():
+def _early_exit_monkey_patch():
     """Avoid looking outside of app-interface on early-exit pr-check."""
     orig_lookup_secret = lookup_secret
     orig_lookup_github_file_content = lookup_github_file_content
@@ -909,14 +907,14 @@ def early_exit_monkey_patch():
     orig_check_alertmanager_config = check_alertmanager_config
 
     try:
-        yield early_exit_monkey_patch_assign(
+        yield _early_exit_monkey_patch_assign(
             lambda path, key, version=None, tvars=None, settings=None: f"vault({path}, {key}, {version})",
             lambda repo, path, ref, tvars=None, settings=None: f"github({repo}, {path}, {ref})",
             lambda url: False,
             lambda data, path, alertmanager_config_key, decode_base64=False: True,
         )
     finally:
-        early_exit_monkey_patch_assign(
+        _early_exit_monkey_patch_assign(
             orig_lookup_secret,
             orig_lookup_github_file_content,
             orig_url_makes_sense,
@@ -924,7 +922,7 @@ def early_exit_monkey_patch():
         )
 
 
-def early_exit_monkey_patch_assign(
+def _early_exit_monkey_patch_assign(
     lookup_secret,
     lookup_github_file_content,
     url_makes_sense,
