@@ -33,4 +33,14 @@ def run(
 
 
 def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
-    return orb.early_exit_desired_state(PROVIDERS)
+    namespaces, _ = orb.get_namespaces(PROVIDERS)
+    resources = [
+        orb.fetch_provider_resource(r["path"]).body
+        for ns_info in namespaces
+        for r in ns_info["openshiftResources"]
+    ]
+
+    return {
+        "namespaces": namespaces,
+        "resources": resources,
+    }

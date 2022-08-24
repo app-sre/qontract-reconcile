@@ -50,21 +50,14 @@ CONTROLLER_MANAGED_LABELS: dict[str, set[Union[str, re.Pattern]]] = {
 
 class OpenshiftResource:
     def __init__(
-        self,
-        body,
-        integration,
-        integration_version,
-        error_details="",
-        caller_name=None,
-        validate_k8s_object=True,
+        self, body, integration, integration_version, error_details="", caller_name=None
     ):
         self.body = body
         self.integration = integration
         self.integration_version = integration_version
         self.error_details = error_details
         self.caller_name = caller_name
-        if validate_k8s_object:
-            self.verify_valid_k8s_object()
+        self.verify_valid_k8s_object()
 
     def __eq__(self, other):
         return self.obj_intersect_equal(self.body, other.body)
