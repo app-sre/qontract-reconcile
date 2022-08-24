@@ -1,6 +1,6 @@
 import base64
 from contextlib import contextmanager
-from functools import lru_cache
+from functools import cache
 import json
 import logging
 import sys
@@ -248,7 +248,7 @@ def lookup_graphql_query_results(query: str, **kwargs) -> list[Any]:
     return results
 
 
-@lru_cache
+@cache
 def compile_jinja2_template(body, extra_curly: bool = False):
     env: dict = {}
     if extra_curly:
