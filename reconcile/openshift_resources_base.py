@@ -500,19 +500,21 @@ def fetch_provider_route(resource: dict, tls_path, tls_version, settings=None) -
     return openshift_resource
 
 
+def _locked_log(lock, msg):
+    lock.acquire()  # pylint: disable=consider-using-with
+    logging.debug(msg)
+    lock.release()
+
+
 def fetch_openshift_resource(
     resource, parent, settings=None, skip_validation=False
 ) -> OR:
     global _log_lock
 
     provider = resource["provider"]
-    path = resource["resource"]["path"]
-    msg = "Fetching {}: {}".format(provider, path)
-    _log_lock.acquire()  # pylint: disable=consider-using-with
-    logging.debug(msg)
-    _log_lock.release()
-
     if provider == "resource":
+        path = resource["resource"]["path"]
+        _locked_log(_log_lock, "Processing {}: {}".format(provider, path))
         validate_json = resource.get("validate_json") or False
         add_path_to_prom_rules = resource.get("add_path_to_prom_rules", True)
         validate_alertmanager_config = (
@@ -531,6 +533,8 @@ def fetch_openshift_resource(
             settings=settings,
         )
     elif provider == "resource-template":
+        path = resource["resource"]["path"]
+        _locked_log(_log_lock, "Processing {}: {}".format(provider, path))
         add_path_to_prom_rules = resource.get("add_path_to_prom_rules", True)
         validate_alertmanager_config = (
             resource.get("validate_alertmanager_config") or False
@@ -566,6 +570,7 @@ def fetch_openshift_resource(
             msg = "could not render template at path {}\n{}".format(path, e)
             raise ResourceTemplateRenderError(msg)
     elif provider == "vault-secret":
+        path = resource["path"]
         version = resource["version"]
         rn = resource["name"]
         name = path.split("/")[-1] if rn is None else rn
@@ -598,6 +603,8 @@ def fetch_openshift_resource(
         except (SecretVersionNotFound, SecretVersionIsNone) as e:
             raise FetchSecretError(e)
     elif provider == "route":
+        path = resource["resource"]["path"]
+        _locked_log(_log_lock, "Processing {}: {}".format(provider, path))
         tls_path = resource["vault_tls_secret_path"]
         tls_version = resource["vault_tls_secret_version"]
         openshift_resource = fetch_provider_route(
