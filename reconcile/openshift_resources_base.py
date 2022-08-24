@@ -871,6 +871,10 @@ def early_exit_desired_state(
         (r, ns_info) for ns_info in namespaces for r in ns_info["openshiftResources"]
     ]
 
+    # this context manager patches functions used during jinja templating
+    # to ignore data that is not part of the desired state in app-interface.
+    # the context manager also ensures this function patching is
+    # reverted afterwards
     with _early_exit_monkey_patch():
         resources = threaded.run(
             _early_exit_fetch_resource,
@@ -889,10 +893,16 @@ def _early_exit_fetch_resource(spec, settings):
     resource = spec[0]
     ns_info = spec[1]
     if resource.get("enable_query_support"):
+        # use the regular resource processing functionality that evaluates templates
+        # and inline queries, if the resource is allowed to use this inline query
+        # functionality. this is crucial in such situations because the result of
+        # the template processing depends heavily on other data in app-interface
         c = fetch_openshift_resource(
             resource, ns_info, skip_validation=True, settings=settings
         ).body
     else:
+        # for regular resources, the plain content is sufficient enough to
+        # detect changes in desired state
         c = resource["resource"].get("content")
     del resource["resource"]
     return c
