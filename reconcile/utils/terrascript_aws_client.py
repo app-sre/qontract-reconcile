@@ -3935,8 +3935,10 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         es_values["access_policies"] = json.dumps(access_policies, sort_keys=True)
 
         region = values.get("region") or self.default_regions.get(account)
+        provider = ""
         if self._multiregion_account(account):
-            es_values["provider"] = "aws." + region
+            provider = "aws." + region
+            es_values["provider"] = provider
 
         auth_options = values.get("auth", {})
         # TODO: @fishi0x01 make mandatory after migration APPSRE-3409
@@ -3988,12 +3990,61 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             "${aws_elasticsearch_domain." + identifier + ".vpc_options.0.vpc_id}"
         )
         tf_resources.append(Output(output_name_0_13, value=output_value))
-        # add master user creds to output if internal_user_database_enabled
+        # add master user creds to output and secretsmanager if internal_user_database_enabled
         security_options = es_values.get("advanced_security_options", None)
         if security_options and security_options.get(
             "internal_user_database_enabled", False
         ):
             master_user = security_options["master_user_options"]
+            secret_name = f"qrtf/es/{identifier}"
+            secret_identifier = secret_name.replace("/", "-")
+            secret_values = {"name": secret_name}
+            if provider:
+                secret_values["provider"] = provider
+            aws_secret_resource = aws_secretsmanager_secret(
+                secret_identifier, **secret_values
+            )
+            tf_resources.append(aws_secret_resource)
+
+            version_values = {
+                "secret_id": "${" + aws_secret_resource.id + "}",
+                "secret_string": json.dumps(master_user, sort_keys=True),
+            }
+            if provider:
+                version_values["provider"] = provider
+            aws_version_resource = aws_secretsmanager_secret_version(
+                secret_identifier, **version_values
+            )
+            tf_resources.append(aws_version_resource)
+
+            policy = {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Effect": "Allow",
+                        "Action": [
+                            "secretsmanager:GetResourcePolicy",
+                            "secretsmanager:GetSecretValue",
+                            "secretsmanager:DescribeSecret",
+                            "secretsmanager:ListSecretVersionIds",
+                        ],
+                        "Resource": "${" + aws_secret_resource.id + "}",
+                    }
+                ],
+            }
+            iam_policy_resource = aws_iam_policy(
+                secret_identifier,
+                name=f"{identifier}-secretsmanager-policy",
+                policy=json.dumps(policy, sort_keys=True),
+            )
+            tf_resources.append(iam_policy_resource)
+
+            output_name_0_13 = output_prefix + "__secret_name"
+            output_value = secret_name
+            tf_resources.append(Output(output_name_0_13, value=output_value))
+            output_name_0_13 = output_prefix + "__secret_policy_arn"
+            output_value = "${" + iam_policy_resource.arn + "}"
+            tf_resources.append(Output(output_name_0_13, value=output_value))
             # master_user_name
             output_name_0_13 = output_prefix + "__master_user_name"
             output_value = master_user["master_user_name"]
