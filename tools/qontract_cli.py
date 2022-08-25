@@ -1450,7 +1450,7 @@ def run_prometheus_test(ctx, path, cluster, namespace, secret_reader):
     openshift_resources = ni.get("openshiftResources")
     rule_spec = {}
     for r in openshift_resources:
-        if r["path"] != rule_file_path:
+        if r["resource"]["path"] != rule_file_path:
             continue
 
         if "add_path_to_prom_rules" not in r:
@@ -1582,7 +1582,7 @@ def alert_to_receiver(
             continue
         ob.aggregate_shared_resources(ni, "openshiftResources")
         for r in ni.get("openshiftResources"):
-            if r["path"] != alertmanager_secret_path:
+            if r.get("resource", {}).get("path") != alertmanager_secret_path:
                 continue
             openshift_resource = orb.fetch_openshift_resource(r, ni, settings)
             body = openshift_resource.body
@@ -1602,7 +1602,7 @@ def alert_to_receiver(
         if ni["name"] != namespace:
             continue
         for r in ni.get("openshiftResources"):
-            if r["path"] != rules_path:
+            if r.get("resource", {}).get("path") != rules_path:
                 continue
             openshift_resource = orb.fetch_openshift_resource(r, ni, settings)
             if openshift_resource.kind.lower() != "prometheusrule":
