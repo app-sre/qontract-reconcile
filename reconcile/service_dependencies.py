@@ -11,7 +11,6 @@ from reconcile.gql_queries.service_dependencies.service_dependencies import (
     SaasFileV2,
     SaasResourceTemplateTargetV2,
     SaasResourceTemplateV2,
-    ServiceDependenciesQueryData,
 )
 
 from reconcile.utils import gql
@@ -105,9 +104,9 @@ def run(dry_run):
     if not dependency_map:
         sys.exit()
 
-    gqlapi = gql.get_api()
-    query_raw: dict[Any, Any] = gqlapi.query(service_dependencies.query_string())
-    query_data: ServiceDependenciesQueryData = ServiceDependenciesQueryData(**query_raw)
+    query_data = service_dependencies.query(
+        query_func=gql.get_api().query
+    )
 
     error = False
     apps: list[AppV1] = filter_null(query_data.apps)

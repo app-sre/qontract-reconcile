@@ -2,8 +2,8 @@ import logging
 import sys
 from typing import Union, cast
 
-from reconcile.gql_queries.vpc_peerings_validator import vpc_peerings_validator
-from reconcile.gql_queries.vpc_peerings_validator.vpc_peerings_validator import (
+from reconcile.gql_definitions.vpc_peerings_validator import vpc_peerings_validator
+from reconcile.gql_definitions.vpc_peerings_validator.vpc_peerings_validator import (
     ClusterPeeringConnectionClusterAccepterV1,
     ClusterPeeringConnectionClusterRequesterV1,
     ClusterV1,
@@ -100,10 +100,8 @@ def validate_no_public_to_public_peerings(
 
 
 def run(dry_run: bool):
-    gqlapi = gql.get_api()
-    clusters = gqlapi.query(vpc_peerings_validator.query_string())
-    query_data: VpcPeeringsValidatorQueryData = VpcPeeringsValidatorQueryData(
-        **clusters
+    query_data = vpc_peerings_validator.query(
+        query_func=gql.get_api().query
     )
 
     valid = True
