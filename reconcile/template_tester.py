@@ -46,7 +46,7 @@ def run(dry_run):
                 continue
 
             for r in openshift_resources:
-                if resource_path != r["path"]:
+                if resource_path != r.get("resource", {}).get("path"):
                     continue
 
                 found = True
