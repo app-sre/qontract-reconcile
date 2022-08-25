@@ -104,9 +104,7 @@ def run(dry_run):
     if not dependency_map:
         sys.exit()
 
-    query_data = service_dependencies.query(
-        query_func=gql.get_api().query
-    )
+    query_data = service_dependencies.query(query_func=gql.get_api().query)
 
     error = False
     apps: list[AppV1] = filter_null(query_data.apps)

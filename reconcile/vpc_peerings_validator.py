@@ -100,9 +100,7 @@ def validate_no_public_to_public_peerings(
 
 
 def run(dry_run: bool):
-    query_data = vpc_peerings_validator.query(
-        query_func=gql.get_api().query
-    )
+    query_data = vpc_peerings_validator.query(query_func=gql.get_api().query)
 
     valid = True
     if not validate_no_internal_to_public_peerings(query_data):

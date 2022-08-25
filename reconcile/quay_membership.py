@@ -24,15 +24,11 @@ QONTRACT_INTEGRATION = "quay-membership"
 
 
 def get_permissions_for_quay_membership() -> list[PermissionQuayOrgTeamV1]:
-    query_data = quay_membership.query(
-        query_func=gql.get_api().query
-    )
+    query_data = quay_membership.query(query_func=gql.get_api().query)
 
     if not query_data.permissions:
         return []
-    return [
-        p for p in query_data.permissions if isinstance(p, PermissionQuayOrgTeamV1)
-    ]
+    return [p for p in query_data.permissions if isinstance(p, PermissionQuayOrgTeamV1)]
 
 
 def process_permission(permission: PermissionQuayOrgTeamV1):
