@@ -3545,7 +3545,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         domain_identifier: str, log_type: ElasticSearchLogGroupType
     ) -> str:
         log_type_name = log_type.value.lower()
-        return f"OpenSearchService__{domain_identifier}__{log_type_name}"
+        return f"OpenSearchService/{domain_identifier}/{log_type_name}"
 
     def _elasticsearch_get_all_log_group_infos(
         self, account: str
@@ -3669,7 +3669,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             log_type_identifier = TerrascriptClient.elasticsearch_log_group_identifier(
                 domain_identifier=identifier,
                 log_type=t,
-            )
+            ).replace("/", "-")
             log_group_values = {
                 "name": log_type_identifier,
                 "tags": {},
