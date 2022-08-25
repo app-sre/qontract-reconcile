@@ -572,6 +572,7 @@ def fetch_openshift_resource(
     elif provider == "vault-secret":
         path = resource["path"]
         version = resource["version"]
+        _locked_log(_log_lock, "Processing {}: {} - {}".format(provider, path, version))
         rn = resource["name"]
         name = path.split("/")[-1] if rn is None else rn
         rl = resource["labels"]
