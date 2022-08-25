@@ -70,11 +70,11 @@ def test_get_asg_image_id(mocker, ts: tsclient.TerrascriptClient):
 
     ref = "sha-12345"
     mocker.patch(
-        "reconcile.utils.terrascript_aws_client.TerrascriptClient._get_commit_sha",
+        "reconcile.utils.terrascript_aws_client.TerrascriptClient.get_commit_sha",
         return_value=ref,
     )
     ts.accounts["some-account"] = "mock"  # type: ignore
-    image_id = ts._get_asg_image_id(
+    image_id = ts.get_asg_image_id(
         filters=[
             {"provider": "git", "tag_name": "commit", "ref": ref},
             {
@@ -122,7 +122,7 @@ def test_get_commit_sha(mocker, ts: tsclient.TerrascriptClient, repo_info, expec
     init_github.return_value.get_repo.return_value.get_commit.return_value.sha = (
         expected
     )
-    assert ts._get_commit_sha(repo_info) == expected
+    assert ts.get_commit_sha(repo_info) == expected
 
 
 def test_tf_disabled_namespace_with_resources(ts):

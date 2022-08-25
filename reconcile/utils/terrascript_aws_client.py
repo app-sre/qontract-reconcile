@@ -4558,7 +4558,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         self.add_resources(account, tf_resources)
 
-    def _get_commit_sha(self, repo_info: Mapping) -> str:
+    def get_commit_sha(self, repo_info: Mapping) -> str:
         url = repo_info["url"]
         ref = repo_info["ref"]
         pattern = r"^[0-9a-f]{40}$"
@@ -4577,7 +4577,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         return ""
 
-    def _get_asg_image_id(
+    def get_asg_image_id(
         self, filters: Iterable[Mapping[str, Any]], account: str, region: str
     ) -> Optional[str]:
         """
@@ -4590,7 +4590,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         tags: list[AmiTag] = []
         for f in filters:
             if f["provider"] == "git":
-                tags.append(AmiTag(name=f["tag_name"], value=self._get_commit_sha(f)))
+                tags.append(AmiTag(name=f["tag_name"], value=self.get_commit_sha(f)))
             elif f["provider"] == "static":
                 tags.append(AmiTag(name=f["tag_name"], value=f["value"]))
 
@@ -4641,7 +4641,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         # common_values is untyped, so casting is necessary
         image = cast(list[dict[str, Any]], common_values.get("image"))
-        image_id = self._get_asg_image_id(filters=image, account=account, region=region)
+        image_id = self.get_asg_image_id(filters=image, account=account, region=region)
         if not image_id:
             if self._use_previous_image_id(image):
                 image_id = spec.get_secret_field("image_id")
