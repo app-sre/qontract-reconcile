@@ -2,8 +2,8 @@ import logging
 import sys
 from typing import Sequence, Union, cast
 
-from reconcile.gql_queries.quay_membership import quay_membership
-from reconcile.gql_queries.quay_membership.quay_membership import (
+from reconcile.gql_definitions.quay_membership import quay_membership
+from reconcile.gql_definitions.quay_membership.quay_membership import (
     BotV1,
     PermissionQuayOrgTeamV1,
     RoleV1,
