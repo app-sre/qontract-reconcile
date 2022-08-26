@@ -2,13 +2,12 @@ import logging
 import sys
 from typing import Sequence, Union, cast
 
-from reconcile.gql_queries.quay_membership.quay_membership import (
+from reconcile.gql_definitions.quay_membership import quay_membership
+from reconcile.gql_definitions.quay_membership.quay_membership import (
     BotV1,
     PermissionQuayOrgTeamV1,
-    QuayMembershipQueryData,
     RoleV1,
     UserV1,
-    query_string,
 )
 from reconcile.quay_base import get_quay_api_store
 from reconcile.status import ExitCodes
@@ -25,14 +24,11 @@ QONTRACT_INTEGRATION = "quay-membership"
 
 
 def get_permissions_for_quay_membership() -> list[PermissionQuayOrgTeamV1]:
-    gqlapi = gql.get_api()
-    query_data = gqlapi.query(query_string())
-    quay_membership = QuayMembershipQueryData(**query_data)
-    if not quay_membership.permissions:
+    query_data = quay_membership.query(query_func=gql.get_api().query)
+
+    if not query_data.permissions:
         return []
-    return [
-        p for p in quay_membership.permissions if isinstance(p, PermissionQuayOrgTeamV1)
-    ]
+    return [p for p in query_data.permissions if isinstance(p, PermissionQuayOrgTeamV1)]
 
 
 def process_permission(permission: PermissionQuayOrgTeamV1):

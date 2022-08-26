@@ -1,6 +1,6 @@
 import pytest
 
-from reconcile.gql_queries.vpc_peerings_validator.vpc_peerings_validator import (
+from reconcile.gql_definitions.vpc_peerings_validator.vpc_peerings_validator import (
     ClusterPeeringConnectionClusterAccepterV1,
     ClusterPeeringConnectionClusterAccepterV1_ClusterV1,
     ClusterPeeringConnectionClusterAccepterV1_ClusterV1_ClusterSpecV1,
