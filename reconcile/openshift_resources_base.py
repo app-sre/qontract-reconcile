@@ -4,8 +4,9 @@ from functools import cache
 import json
 import logging
 import sys
+from types import ModuleType
 
-from typing import Iterable, Mapping, Tuple, Optional, Any
+from typing import Callable, Iterable, Mapping, Tuple, Optional, Any
 
 from threading import Lock
 from textwrap import indent
@@ -14,6 +15,7 @@ from sretoolbox.utils import threaded
 
 import anymarkup
 import jinja2
+from deepdiff import DeepDiff
 from reconcile.checkpoint import url_makes_sense
 
 import reconcile.openshift_base as ob
@@ -905,15 +907,19 @@ def _early_exit_fetch_resource(spec, settings):
         # and inline queries, if the resource is allowed to use this inline query
         # functionality. this is crucial in such situations because the result of
         # the template processing depends heavily on other data in app-interface
-        c = fetch_openshift_resource(
+        content = fetch_openshift_resource(
             resource, ns_info, skip_validation=True, settings=settings
         ).body
     else:
         # for regular resources, the plain content is sufficient enough to
         # detect changes in desired state
-        c = resource["resource"].get("content")
+        content = resource["resource"].get("content")
     del resource["resource"]
-    return c
+    return {
+        "cluster": ns_info["cluster"]["name"],
+        "namespace": ns_info["name"],
+        "content": content,
+    }
 
 
 @contextmanager
@@ -950,3 +956,17 @@ def _early_exit_monkey_patch_assign(
     sys.modules[__name__].lookup_github_file_content = lookup_github_file_content
     sys.modules[__name__].url_makes_sense = url_makes_sense
     sys.modules[__name__].check_alertmanager_config = check_alertmanager_config
+
+
+def run_with_desired_state_diff(
+    diff: DeepDiff, run_function: Callable, *args, **kwargs
+):
+    # extract involved clusters for changes prometheus rules
+    involved_shards = list({d.up.t2["cluster"] for d in diff["values_changed"]})
+
+    # if only one cluster changed, run the integration only for that cluster
+    if len(involved_shards) == 1:
+        print(f"run sharded with ${involved_shards[0]}")
+        kwargs["cluster_name"] = involved_shards[0]
+
+    return run_function(*args, **kwargs)

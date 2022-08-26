@@ -7,6 +7,7 @@ import yaml
 from typing import Any
 
 from sretoolbox.utils import threaded
+from deepdiff import DeepDiff
 
 from reconcile import queries
 from reconcile.utils import gql
@@ -370,3 +371,7 @@ def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
     )
     state["tests"] = get_prometheus_tests()
     return state
+
+
+def run_with_desired_state_diff(diff: DeepDiff, *args, **kwargs):
+    orb.run_with_desired_state_diff(diff, run, *args, **kwargs)

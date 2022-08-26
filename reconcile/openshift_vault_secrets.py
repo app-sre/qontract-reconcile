@@ -4,6 +4,8 @@ import reconcile.openshift_resources_base as orb
 
 from reconcile.utils.semver_helper import make_semver
 
+from deepdiff import DeepDiff
+
 QONTRACT_INTEGRATION = "openshift-vault-secrets"
 QONTRACT_INTEGRATION_VERSION = make_semver(1, 9, 3)
 PROVIDERS = ["vault-secret"]
@@ -38,3 +40,7 @@ def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
     return {
         "namespaces": namespaces,
     }
+
+
+def run_with_desired_state_diff(diff: DeepDiff, *args, **kwargs):
+    orb.run_with_desired_state_diff(diff, run, *args, **kwargs)

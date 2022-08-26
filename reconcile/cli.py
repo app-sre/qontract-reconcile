@@ -23,6 +23,10 @@ from reconcile.utils.runtime.meta import IntegrationMeta
 from reconcile.utils.unleash import get_feature_toggle_state
 from reconcile.utils.exceptions import PrintToFileInGitRepositoryError
 from reconcile.utils.git import is_file_in_git_repo
+from reconcile.utils.early_exit import (
+    find_desired_state_diff,
+    integration_supports,
+)
 
 
 TERRAFORM_VERSION = "0.13.7"
@@ -376,6 +380,9 @@ def include_trigger_trace(function):
 
 
 def run_integration(func_container, ctx, *args, **kwargs):
+    import time
+
+    now = time.time()
     try:
         int_name = func_container.QONTRACT_INTEGRATION.replace("_", "-")
         running_state = RunningState()
@@ -395,16 +402,17 @@ def run_integration(func_container, ctx, *args, **kwargs):
     try:
         # check if the integration can exit early because there is no difference
         # in desired state compared to the provided comparison bundle sha
+        #
         # early exit is only supported when the integration is started in
         # dry-run mode
-        can_exit_early = (
-            dry_run
-            and early_exit_compare_sha
-            and early_exit_integration(
+        if dry_run and early_exit_compare_sha:
+            diff = find_desired_state_diff(
                 int_name, early_exit_compare_sha, func_container, args, kwargs
             )
-        )
-        if can_exit_early:
+        else:
+            diff = None
+
+        if diff and diff.can_exit_early():
             logging.info("No changes in desired state. Exit PR check early.")
         else:
             try:
@@ -417,7 +425,13 @@ def run_integration(func_container, ctx, *args, **kwargs):
             except GqlApiIntegrationNotFound as e:
                 sys.stderr.write(str(e) + "\n")
                 sys.exit(ExitCodes.INTEGRATION_NOT_FOUND)
-            func_container.run(dry_run, *args, **kwargs)
+            if diff and integration_supports(
+                func_container, "run_with_desired_state_diff"
+            ):
+                func_container.run_with_desired_state_diff(diff.diff, *args, **kwargs)
+            else:
+                func_container.run(dry_run, *args, **kwargs)
+            print(f"took - {time.time()-now}")
     except RunnerException as e:
         sys.stderr.write(str(e) + "\n")
         sys.exit(ExitCodes.ERROR)
@@ -429,55 +443,6 @@ def run_integration(func_container, ctx, *args, **kwargs):
             gqlapi = gql.get_api()
             with open(ctx.get("dump_schemas_file"), "w") as f:
                 f.write(json.dumps(gqlapi.get_queried_schemas()))
-
-
-def early_exit_integration(
-    int_name: str, compare_sha: str, func_container, *args, **kwargs
-) -> bool:
-    early_exit_desired_state_function = "early_exit_desired_state"
-    # does the integration support early exit?
-    if "early_exit_desired_state" not in dir(func_container):
-        logging.warning(
-            f"{int_name} does not support early exit. it does not offer a "
-            f"function called {early_exit_desired_state_function}"
-        )
-        return False
-
-    # get desired state from comparison bundle
-    try:
-        gql.init_from_config(
-            sha=compare_sha,
-            integration=int_name,
-            validate_schemas=True,
-            print_url=True,
-        )
-        previous_desired_state = func_container.early_exit_desired_state(
-            *args, **kwargs
-        )
-    except Exception:
-        logging.exception(
-            f"Failed to fetch desired state for comparison bundle {compare_sha} failed"
-        )
-        return False
-
-    # get desired state from current bundle
-    try:
-        gql.init_from_config(
-            autodetect_sha=True,
-            integration=int_name,
-            validate_schemas=True,
-            print_url=True,
-        )
-        current_desired_state = func_container.early_exit_desired_state(*args, **kwargs)
-    except Exception:
-        logging.exception("Failed to fetch desired state for current bundle failed")
-        return False
-
-    # compare
-    from deepdiff import DeepDiff
-
-    diff = DeepDiff(previous_desired_state, current_desired_state)
-    return not diff
 
 
 def init_log_level(log_level):
