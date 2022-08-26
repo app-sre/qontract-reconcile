@@ -325,12 +325,72 @@ make dev-reconcile-loop INTEGRATION_NAME=terraform-resources DRY_RUN=--dry-run I
 
 ## Query Classes
 
-We use [qenerate](https://github.com/app-sre/qenerate) to generate data classes for GQL queries. The workflow is:
+We use [qenerate](https://github.com/app-sre/qenerate) to generate data classes for GQL queries.
 
-1. Define your query in a `.gql` file somewhere in `reconcile/gql_queries`.
-2. Have an up-to-date schema available at localhost:4000
-3. `make gql-introspection` gets the type definitions 
-4. `make gql-query-classes` generates the data classes for you code
+Some integrations are already using `qenerate`, e.g.:
+
+- service_dependencies.py
+- vpc_peerings_validator.py
+- quay_membership.py
+
+There is also an [examples directory](reconcile/gql_definitions/examples/) with example queries and fragments.
+Those examples must not be used in an integration.
+They solely exist for further inspiration.
+
+### Workflow
+
+1. Define your query or fragment in a `.gql` file somewhere in `reconcile/gql_definitions`.
+2. Every gql file must hold exactly one `query` OR `fragment` definition. You must not have multiple definitions within one file.
+3. Do not forget to add `# qenerate: plugin=pydantic_v1` in the beginning of the file. This tells `qenerate` which plugin is used to render the code.
+4. Have an up-to-date schema available at localhost:4000
+5. `make gql-introspection` gets the type definitions. They will be stored in `reconcile/gql_definitions/introspection.json`
+6. `make gql-query-classes` generates the data classes for your queries and fragments
+
+### Creating a new query
+
+We describe how the example query [ocm.gql](reconcile/gql_definitions/examples/queries/ocm.gql) was created.
+
+1. We define the query `.gql` file somewhere under `reconcile/gql_definitions/`
+2. We see that we are using `VaultSecret_v1` within the query and we realize that this is used across many other queries.
+3. We decide to make a re-usable fragment out of `VaultSecret_v1`, by defining a fragment in [vault_secret.gql](reconcile/gql_definitions/examples/fragments/vault_secret.gql). Note, that fragments also need a rendering plugin definition `# qenerate: plugin=pydantic_v1` set on top of the file.
+4. We can now also reference that fragment in other queries.
+5. All is in place to generate the code as described in the previous section: [ocm.py](reconcile/gql_definitions/examples/queries/ocm.py) and [vault_secret.py](reconcile/gql_definitions/examples/fragments/vault_secret.py)
+
+Note, that these examples also contain partial secrets like `VaultSecretPartial`.
+This highlights, that fragments do not need to query all fields. However, a query can still be extended to gather more fields than the fragment does.
+
+We can easily consume generated classes, like
+
+```python
+from reconcile.gql_definitions.examples.queries import ocm
+
+
+# Every generated query code comes with a convenience function `query` to easily fetch the data
+query_data: OCPAuthFullQueryData = ocm.query(
+    query_func=gql.get_api().query,
+)
+```
+
+### Queries with parameters
+
+We can also give parameters determined at runtime to queries, to further reduce the amount of data.
+Have a look at [jenkins.gql](reconcile/gql_definitions/examples/queries/jenkins.gql) - it defines a parameter `path`.
+I.e., only instances with the given `path` are returned.
+
+We can consume the query like this:
+
+```python
+from reconcile.gql_definitions.examples.queries import jenkins
+
+
+query_data: JenkinsInstanceQueryData = jenkins.query(
+    query_func=gql.get_api().query,
+    # Note, that we pass the parameters as a map here
+    {
+      "path": "some-path",
+    }
+)
+```
 
 ## Release
 
