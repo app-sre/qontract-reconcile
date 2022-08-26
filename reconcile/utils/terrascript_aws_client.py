@@ -20,7 +20,6 @@ from typing import (
     Mapping,
     MutableMapping,
     Optional,
-    Tuple,
     cast,
 )
 from ipaddress import ip_network, ip_address
@@ -139,7 +138,7 @@ from sretoolbox.utils import threaded
 from reconcile import queries
 
 from reconcile.utils import gql
-from reconcile.utils.aws_api import AWSApi
+from reconcile.utils.aws_api import AWSApi, AmiTag
 from reconcile.utils.external_resource_spec import (
     ExternalResourceSpec,
     ExternalResourceSpecInventory,
@@ -4559,7 +4558,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         self.add_resources(account, tf_resources)
 
-    def _get_commit_sha(self, repo_info: Mapping) -> str:
+    def get_commit_sha(self, repo_info: Mapping) -> str:
         url = repo_info["url"]
         ref = repo_info["ref"]
         pattern = r"^[0-9a-f]{40}$"
@@ -4578,33 +4577,38 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         return ""
 
-    def _get_asg_image_id(
-        self, image: Mapping, account: str, region: str
-    ) -> Tuple[Optional[str], str]:
+    def get_asg_image_id(
+        self, filters: Iterable[Mapping[str, Any]], account: str, region: str
+    ) -> Optional[str]:
         """
         AMI ID comes form AWS Api filter result.
         AMI needs to be shared by integration aws-ami-share.
-        AMI needs to be taged with a tag_name and
-        its value need to be the commit sha comes from upstream repo.
+        AMI needs to be taged either with:
+          * a tag_name and its value need to be the commit sha comes from upstream repo.
+          * tag_name and value
         """
-        commit_sha = self._get_commit_sha(image)
-        tag_name = image["tag_name"]
+        tags: list[AmiTag] = []
+        for f in filters:
+            if f["provider"] == "git":
+                tags.append(AmiTag(name=f["tag_name"], value=self.get_commit_sha(f)))
+            elif f["provider"] == "static":
+                tags.append(AmiTag(name=f["tag_name"], value=f["value"]))
 
         # Get the most recent AMI id
         aws_account = self.accounts[account]
         aws = AWSApi(1, [aws_account], settings=self.settings, init_users=False)
-        tag = {"Key": tag_name, "Value": commit_sha}
-        image_id = aws.get_image_id(account, region, tag)
+        image_id = aws.get_image_id(account, region, tags)
 
-        return image_id, commit_sha
+        return image_id
 
-    def _use_previous_image_id(self, image: dict) -> bool:
-        upstream = image.get("upstream")
-        if upstream:
-            jenkins = self.init_jenkins(upstream["instance"])
-            if jenkins.is_job_running(upstream["name"]):
-                # AMI is being built, use previous known image id
-                return True
+    def _use_previous_image_id(self, filters: Iterable[Mapping[str, Any]]) -> bool:
+        for f in filters:
+            upstream = f.get("upstream")
+            if upstream:
+                jenkins = self.init_jenkins(upstream["instance"])
+                if jenkins.is_job_running(upstream["name"]):
+                    # AMI is being built, use previous known image id
+                    return True
         return False
 
     def populate_tf_resource_asg(self, spec) -> None:
@@ -4636,22 +4640,17 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         }
 
         # common_values is untyped, so casting is necessary
-        image = cast(dict, common_values.get("image"))
-        image_id, commit_sha = self._get_asg_image_id(image, account, region)
+        image = cast(list[dict[str, Any]], common_values.get("image"))
+        image_id = self.get_asg_image_id(filters=image, account=account, region=region)
         if not image_id:
             if self._use_previous_image_id(image):
-                new_commit_sha = commit_sha
                 image_id = spec.get_secret_field("image_id")
-                commit_sha = spec.get_secret_field("commit_sha")
                 logging.warning(
-                    f"[{account}] ami for commit {new_commit_sha} "
-                    f"not yet available. using ami {image_id} "
-                    f"for previous commit {commit_sha}."
+                    f"[{account}] ami not (yet) available. using previous ami {image_id} instead."
                 )
             else:
                 raise ValueError(
-                    f"could not find ami for commit {commit_sha} "
-                    f"in account {account}"
+                    f"[{identifier}] could not find ami specified in image section in account {account}"
                 )
         template_values["image_id"] = image_id
 
@@ -4738,9 +4737,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         tf_resources.append(Output(output_name_0_13, value=output_value))
         output_name_0_13 = output_prefix + "__image_id"
         output_value = image_id
-        tf_resources.append(Output(output_name_0_13, value=output_value))
-        output_name_0_13 = output_prefix + "__commit_sha"
-        output_value = commit_sha
         tf_resources.append(Output(output_name_0_13, value=output_value))
 
         self.add_resources(account, tf_resources)

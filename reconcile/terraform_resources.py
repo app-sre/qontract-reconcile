@@ -303,19 +303,26 @@ provider
   }
   variables
   image {
-    tag_name
-    url
-    ref
-    upstream {
-      instance {
-        token {
+    provider
+    ... on ASGImageGit_v1 {
+      tag_name
+      url
+      ref
+      upstream {
+        instance {
+          token {
           path
           field
           version
           format
+          }
         }
+        name
       }
-      name
+    }
+    ... on ASGImageStatic_v1 {
+        tag_name
+        value
     }
   }
   output_resource_name
