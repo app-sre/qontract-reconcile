@@ -1741,7 +1741,7 @@ def promquery(cluster, query):
 
     url = f"https://prometheus.{cluster}.devshift.net/api/v1/query"
 
-    response = requests.get(url, params={"query": query}, auth=prom_auth)
+    response = requests.get(url, params={"query": query}, auth=prom_auth, timeout=60)
     response.raise_for_status()
 
     print(json.dumps(response.json(), indent=4))

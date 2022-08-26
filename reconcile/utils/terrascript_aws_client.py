@@ -429,13 +429,13 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
     def download_logtoes_zip(self, release_url):
         headers = {"Authorization": "token " + self.token}
-        r = requests.get(GH_BASE_URL + "/" + release_url, headers=headers)
+        r = requests.get(GH_BASE_URL + "/" + release_url, headers=headers, timeout=60)
         r.raise_for_status()
         data = r.json()
         zip_url = data["assets"][0]["browser_download_url"]
         zip_file = "/tmp/LogsToElasticsearch-" + data["tag_name"] + ".zip"
         if not os.path.exists(zip_file):
-            r = requests.get(zip_url)
+            r = requests.get(zip_url, timeout=60)
             r.raise_for_status()
             # pylint: disable=consider-using-with
             open(zip_file, "wb").write(r.content)
@@ -459,13 +459,13 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
     def download_rosa_authenticator_zip(self, release_url):
         headers = {"Authorization": "token " + self.token}
-        r = requests.get(GH_BASE_URL + "/" + release_url, headers=headers)
+        r = requests.get(GH_BASE_URL + "/" + release_url, headers=headers, timeout=60)
         r.raise_for_status()
         data = r.json()
         zip_url = data["assets"][0]["browser_download_url"]
         zip_file = "/tmp/RosaAuthenticatorLambda-" + data["tag_name"] + ".zip"
         if not os.path.exists(zip_file):
-            r = requests.get(zip_url)
+            r = requests.get(zip_url, timeout=60)
             r.raise_for_status()
             # pylint: disable=consider-using-with
             open(zip_file, "wb").write(r.content)

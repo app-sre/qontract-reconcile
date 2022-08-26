@@ -211,7 +211,7 @@ def _init_gql_client(url: str, token: Optional[str]) -> Client:
 def get_sha(server, token=None):
     sha_endpoint = server._replace(path="/sha256")
     headers = {"Authorization": token} if token else None
-    response = requests.get(sha_endpoint.geturl(), headers=headers)
+    response = requests.get(sha_endpoint.geturl(), headers=headers, timeout=60)
     response.raise_for_status()
     sha = response.content.decode("utf-8")
     return sha
@@ -221,7 +221,9 @@ def get_sha(server, token=None):
 def get_git_commit_info(sha, server, token=None):
     git_commit_info_endpoint = server._replace(path=f"/git-commit-info/{sha}")
     headers = {"Authorization": token} if token else None
-    response = requests.get(git_commit_info_endpoint.geturl(), headers=headers)
+    response = requests.get(
+        git_commit_info_endpoint.geturl(), headers=headers, timeout=60
+    )
     response.raise_for_status()
     git_commit_info = response.json()
     return git_commit_info

@@ -12,7 +12,7 @@ import packaging.version as pep440
 )
 def test_version_bump():
     current_version = pkg_resources.get_distribution("qontract-reconcile").version
-    pypi_version = requests.get("https://pypi.org/pypi/qontract-reconcile/json").json()[
-        "info"
-    ]["version"]
+    pypi_version = requests.get(
+        "https://pypi.org/pypi/qontract-reconcile/json", timeout=60
+    ).json()["info"]["version"]
     assert pep440.Version(current_version) > pep440.Version(pypi_version)
