@@ -62,7 +62,7 @@ def promql(url, query, auth=None):
 
     params = {"query": query}
 
-    response = requests.get(url, params=params, auth=auth)
+    response = requests.get(url, params=params, auth=auth, timeout=60)
 
     response.raise_for_status()
     response = response.json()
@@ -237,13 +237,13 @@ def get_apps_data(date, month_delta=1, thread_pool_size=10):
     dashdotdb_pass = secret_content["password"]
     auth = (dashdotdb_user, dashdotdb_pass)
     vuln_metrics = requests.get(
-        f"{dashdotdb_url}/api/v1/imagemanifestvuln/metrics", auth=auth
+        f"{dashdotdb_url}/api/v1/imagemanifestvuln/metrics", auth=auth, timeout=60
     ).text
     validt_metrics = requests.get(
-        f"{dashdotdb_url}/api/v1/deploymentvalidation/metrics", auth=auth
+        f"{dashdotdb_url}/api/v1/deploymentvalidation/metrics", auth=auth, timeout=60
     ).text
     slo_metrics = requests.get(
-        f"{dashdotdb_url}/api/v1/serviceslometrics/metrics", auth=auth
+        f"{dashdotdb_url}/api/v1/serviceslometrics/metrics", auth=auth, timeout=60
     ).text
     namespaces = queries.get_namespaces()
 
