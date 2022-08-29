@@ -202,7 +202,10 @@ def get_merge_requests(
     mrs = gl.get_merge_requests(state=MRState.OPENED)
     results = []
     for mr in mrs:
-        if mr.merge_status == MRStatus.CANNOT_BE_MERGED:
+        if mr.merge_status in [
+            MRStatus.CANNOT_BE_MERGED,
+            MRStatus.CANNOT_BE_MERGED_RECHECK,
+        ]:
             continue
         if mr.work_in_progress:
             continue
@@ -296,12 +299,6 @@ def rebase_merge_requests(
     ]
     for mr in merge_requests:
         if is_rebased(mr, gl):
-            continue
-
-        if mr.merge_error:
-            logging.info(
-                ["rebase", gl.project.name, mr.iid, "not rebasable", mr.merge_error]
-            )
             continue
 
         pipelines = mr.pipelines()
