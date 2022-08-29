@@ -1450,7 +1450,8 @@ def run_prometheus_test(ctx, path, cluster, namespace, secret_reader):
     openshift_resources = ni.get("openshiftResources")
     rule_spec = {}
     for r in openshift_resources:
-        if r["resource"]["path"] != rule_file_path:
+        resource_path = r.get("resource", {}).get("path")
+        if resource_path != rule_file_path:
             continue
 
         if "add_path_to_prom_rules" not in r:
