@@ -298,6 +298,12 @@ def rebase_merge_requests(
         if is_rebased(mr, gl):
             continue
 
+        if mr.merge_error:
+            logging.info(
+                ["rebase", gl.project.name, mr.iid, "not rebasable", mr.merge_error]
+            )
+            continue
+
         pipelines = mr.pipelines()
 
         # If pipeline_timeout is None no pipeline will be canceled
@@ -321,13 +327,23 @@ def rebase_merge_requests(
             if running_pipelines:
                 continue
 
-        logging.info(["rebase", gl.project.name, mr.iid])
-        if not dry_run and rebases < rebase_limit:
+        if rebases < rebase_limit:
             try:
-                mr.rebase()
-                rebases += 1
+                logging.info(["rebase", gl.project.name, mr.iid])
+                if not dry_run:
+                    mr.rebase()
+                    rebases += 1
             except gitlab.exceptions.GitlabMRRebaseError as e:
                 logging.error("unable to rebase {}: {}".format(mr.iid, e))
+        else:
+            logging.info(
+                [
+                    "rebase",
+                    gl.project.name,
+                    mr.iid,
+                    "rebase limit reached for this reconcile loop. will try next time",
+                ]
+            )
 
 
 @retry(max_attempts=10)
