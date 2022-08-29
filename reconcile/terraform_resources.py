@@ -234,6 +234,7 @@ provider
   region
   identifier
   defaults
+  es_identifier
   output_resource_name
   annotations
 }

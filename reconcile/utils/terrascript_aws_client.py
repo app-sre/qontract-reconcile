@@ -90,6 +90,7 @@ from terrascript.resource import (
     aws_iam_service_linked_role,
     aws_lambda_function,
     aws_lambda_permission,
+    aws_lambda_event_source_mapping,
     aws_cloudwatch_log_subscription_filter,
     aws_acm_certificate,
     aws_kinesis_stream,
@@ -166,6 +167,9 @@ from reconcile.utils.terraform import safe_resource_id
 
 GH_BASE_URL = os.environ.get("GITHUB_API", "https://api.github.com")
 LOGTOES_RELEASE = "repos/app-sre/logs-to-elasticsearch-lambda/releases/latest"
+KINESIS_TO_OS_RELEASE = (
+    "https://github.com/app-sre/kinesis-to-opensearch-lambda/releases/latest"
+)
 ROSA_AUTHENTICATOR_PRE_SIGNUP_RELEASE = (
     "repos/app-sre/cognito-pre-signup-trigger/releases/latest"
 )
@@ -376,6 +380,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         self.logtoes_zip_lock = Lock()
         self.rosa_authenticator_pre_signup_zip = ""
         self.rosa_authenticator_pre_signup_zip_lock = Lock()
+        self.lambda_zip: Dict[str, str] = {}
+        self.lambda_lock = Lock()
         self.github: Optional[Github] = None
         self.github_lock = Lock()
 
@@ -414,6 +420,36 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             )
         else:
             raise ValueError(f"No bucket config found for account {account_name}")
+
+    def get_lambda_zip(self, release_url: str) -> str:
+        if not self.lambda_zip.get(release_url):
+            with self.lambda_lock:
+                # this may have already happened, so we check again
+                if not self.lambda_zip.get(release_url):
+                    self.lambda_zip[release_url] = self.download_lambda_zip(release_url)
+        return self.lambda_zip[release_url]
+
+    def download_lambda_zip(self, release_url: str) -> str:
+        github = self.init_github()
+        url = release_url.replace("https://", "").split("/")
+        repo_name = f"{url[1]}/{url[2]}"
+        repo = github.get_repo(repo_name)
+        tag = url[-1]
+        if tag == "latest":
+            release = repo.get_latest_release()
+        else:
+            release = repo.get_release(tag)
+        zip_url = release.get_assets()[0].browser_download_url
+        zip_file = os.path.join(
+            "/tmp", repo_name, release.tag_name, os.path.basename(zip_url)
+        )
+        if not os.path.exists(zip_file):
+            r = requests.get(zip_url, timeout=60)
+            r.raise_for_status()
+            os.makedirs(os.path.dirname(zip_file), exist_ok=True)
+            # pylint: disable=consider-using-with
+            open(zip_file, "wb").write(r.content)
+        return zip_file
 
     def get_logtoes_zip(self, release_url):
         if not self.logtoes_zip:
@@ -3197,25 +3233,197 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
     def populate_tf_resource_kinesis(self, spec):
         account = spec.provisioner_name
         identifier = spec.identifier
-        values = self.init_values(spec)
+        common_values = self.init_values(spec)
         output_prefix = spec.output_prefix
 
         tf_resources = []
         self.init_common_outputs(tf_resources, spec)
 
-        # pop identifier since we use values and not common_values
-        values.pop("identifier", None)
+        tags = common_values["tags"]
+        kinesis_values = {
+            "name": identifier,
+            "tags": tags,
+        }
+        kinesis_values["shard_count"] = common_values.get("shard_count")
+        kinesis_values["retention_period"] = common_values.get("retention_period", 24)
+        kinesis_values["encryption_type"] = common_values.get("encryption_type", None)
+        if kinesis_values["encryption_type"] == "KMS":
+            kinesis_values["kms_key_id"] = common_values.get("kms_key_id")
 
         # get region and set provider if required
-        region = values.pop("region", None) or self.default_regions.get(account)
+        region = common_values.get("region") or self.default_regions.get(account)
+        provider = ""
         if self._multiregion_account(account):
-            values["provider"] = "aws." + region
-
+            provider = "aws." + region
+            kinesis_values["provider"] = provider
         # kinesis stream
         # Terraform resource reference:
         # https://www.terraform.io/docs/providers/aws/r/kinesis_stream.html
-        kinesis_tf_resource = aws_kinesis_stream(identifier, **values)
+        kinesis_tf_resource = aws_kinesis_stream(identifier, **kinesis_values)
         tf_resources.append(kinesis_tf_resource)
+
+        es_identifier = common_values.get("es_identifier", None)
+        if es_identifier:
+            es_resource = self._find_resource_spec(
+                account, es_identifier, "elasticsearch"
+            )
+            if es_resource is None:
+                raise FetchResourceError(
+                    f"failed to find elasticsearch domain {es_identifier}"
+                )
+
+            assume_role_policy = {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Action": "sts:AssumeRole",
+                        "Principal": {"Service": "lambda.amazonaws.com"},
+                        "Effect": "Allow",
+                    }
+                ],
+            }
+
+            role_identifier = f"{identifier}-lambda-execution-role"
+            role_values = {
+                "name": role_identifier,
+                "assume_role_policy": json.dumps(assume_role_policy, sort_keys=True),
+                "tags": tags,
+            }
+
+            role_tf_resource = aws_iam_role(role_identifier, **role_values)
+            tf_resources.append(role_tf_resource)
+
+            policy_identifier = f"{identifier}-lambda-execution-policy"
+            policy = {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Effect": "Allow",
+                        "Action": [
+                            "logs:CreateLogGroup",
+                            "logs:CreateLogStream",
+                            "logs:PutLogEvents",
+                            "ec2:CreateNetworkInterface",
+                            "ec2:DescribeNetworkInterfaces",
+                            "ec2:DeleteNetworkInterface",
+                            "ec2:AssignPrivateIpAddresses",
+                            "ec2:UnassignPrivateIpAddresses",
+                            "kinesis:GetShardIterator",
+                            "kinesis:GetRecords",
+                            "kinesis:DescribeStream",
+                            "kinesis:ListStreams",
+                            "es:ESHttpPost",
+                            "es:ESHttpPut",
+                        ],
+                        "Resource": "*",
+                    },
+                ],
+            }
+
+            policy_tf_resource = aws_iam_policy(
+                policy_identifier,
+                name=policy_identifier,
+                policy=json.dumps(policy, sort_keys=True),
+                tags=tags,
+            )
+            tf_resources.append(policy_tf_resource)
+
+            attachment_values = {
+                "role": role_tf_resource.name,
+                "policy_arn": "${" + policy_tf_resource.arn + "}",
+            }
+            attachment_tf_resource = aws_iam_role_policy_attachment(
+                policy_identifier, **attachment_values
+            )
+            tf_resources.append(attachment_tf_resource)
+
+            secret_policy_arn = es_resource.get_secret_field("secret_policy_arn")
+            if secret_policy_arn:
+                secret_attachment_values = {
+                    "role": role_tf_resource.name,
+                    "policy_arn": secret_policy_arn,
+                }
+                secret_attachment_tf_resource = aws_iam_role_policy_attachment(
+                    f"{identifier}-lambda-secretsmanager-policy",
+                    **secret_attachment_values,
+                )
+                tf_resources.append(secret_attachment_tf_resource)
+
+            es_domain = {"domain_name": es_identifier}
+            if provider:
+                es_domain["provider"] = provider
+            tf_resources.append(
+                data.aws_elasticsearch_domain(es_identifier, **es_domain)
+            )
+
+            release_url = common_values.get("release_url", KINESIS_TO_OS_RELEASE)
+            zip_file = self.get_lambda_zip(release_url)
+
+            lambda_identifier = f"{identifier}-lambda"
+            lambda_values = {
+                "filename": zip_file,
+                "source_code_hash": '${filebase64sha256("' + zip_file + '")}',
+                "role": "${" + role_tf_resource.arn + "}",
+                "tags": tags,
+            }
+
+            lambda_values["function_name"] = lambda_identifier
+            lambda_values["runtime"] = common_values.get("runtime", "python3.9")
+            lambda_values["timeout"] = common_values.get("timeout", 30)
+            lambda_values["handler"] = common_values.get(
+                "handler", "lambda_function.handler"
+            )
+            lambda_values["memory_size"] = common_values.get("memory_size", 128)
+
+            lambda_values["vpc_config"] = {
+                "subnet_ids": "${data.aws_elasticsearch_domain."
+                + es_identifier
+                + ".vpc_options.0.subnet_ids}",
+                "security_group_ids": "${data.aws_elasticsearch_domain."
+                + es_identifier
+                + ".vpc_options.0.security_group_ids}",
+            }
+
+            index_prefix = common_values.get("index_prefix", f"{identifier}-")
+            lambda_values["environment"] = {
+                "variables": {
+                    "es_endpoint": "${data.aws_elasticsearch_domain."
+                    + es_identifier
+                    + ".endpoint}",
+                    "index_prefix": index_prefix,
+                }
+            }
+            secret_name = es_resource.get_secret_field("secret_name")
+            if secret_name:
+                lambda_values["environment"]["variables"]["secret_name"] = secret_name
+
+            if provider:
+                lambda_values["provider"] = provider
+            lambds_tf_resource = aws_lambda_function(lambda_identifier, **lambda_values)
+            tf_resources.append(lambds_tf_resource)
+
+            source_vaules = {
+                "event_source_arn": "${" + kinesis_tf_resource.arn + "}",
+                "function_name": "${" + lambds_tf_resource.arn + "}",
+            }
+            starting_position = common_values.get("starting_position", "LATEST")
+            source_vaules["starting_position"] = starting_position
+            if starting_position == "AT_TIMESTAMP":
+                starting_position_timestamp = common_values.get(
+                    "starting_position_timestamp", None
+                )
+                if not starting_position_timestamp:
+                    source_vaules[
+                        "starting_position_timestamp"
+                    ] = starting_position_timestamp
+
+            if provider:
+                source_vaules["provider"] = provider
+            permission_tf_resource = aws_lambda_event_source_mapping(
+                lambda_identifier, **source_vaules
+            )
+            tf_resources.append(permission_tf_resource)
+
         # outputs
         # stream_name
         output_name_0_13 = output_prefix + "__stream_name"
@@ -3246,7 +3454,11 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         }
         tf_resources.extend(
             self.get_tf_iam_service_user(
-                kinesis_tf_resource, identifier, policy, values["tags"], output_prefix
+                kinesis_tf_resource,
+                identifier,
+                policy,
+                tags,
+                output_prefix,
             )
         )
 
