@@ -3671,7 +3671,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             ).replace("/", "-")
             log_group_values = {
                 "name": log_type_identifier,
-                "tags": {},
+                "tags": values["tags"],
                 "retention_in_days": ES_LOG_GROUP_RETENTION_DAYS,
             }
             region = values.get("region") or self.default_regions.get(account)
@@ -3770,8 +3770,10 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 + f"{values['identifier']}"
             )
 
+        tags = values["tags"]
         es_values = {}
         es_values["domain_name"] = identifier
+        es_values["tags"] = tags
         es_values["elasticsearch_version"] = values.get("elasticsearch_version")
 
         (
@@ -3997,7 +3999,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             master_user = security_options["master_user_options"]
             secret_name = f"qrtf/es/{identifier}"
             secret_identifier = secret_name.replace("/", "-")
-            secret_values = {"name": secret_name}
+            secret_values = {"name": secret_name, "tags": tags}
             if provider:
                 secret_values["provider"] = provider
             aws_secret_resource = aws_secretsmanager_secret(
@@ -4035,6 +4037,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 secret_identifier,
                 name=f"{identifier}-secretsmanager-policy",
                 policy=json.dumps(policy, sort_keys=True),
+                tags=tags,
             )
             tf_resources.append(iam_policy_resource)
 
