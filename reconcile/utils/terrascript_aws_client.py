@@ -780,16 +780,13 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         for zone in desired_state:
             acct_name = zone["account_name"]
 
-            # Ensure zone is in the state for the given account
-            # zone_id refers to the terraform identifier, not the AWS
-            # route 53 zone ID that is generated after the zone is created
-            zone_id = safe_resource_id(f"{zone['id']}")
+            zone_res_name = safe_resource_id(f"{zone['resource_name']}")
             zone_values = {
                 "name": zone["name"],
                 "vpc": zone.get("vpc"),
                 "comment": "Managed by Terraform",
             }
-            zone_resource = aws_route53_zone(zone_id, **zone_values)
+            zone_resource = aws_route53_zone(zone_res_name, **zone_values)
             self.add_resource(acct_name, zone_resource)
 
             counts = {}

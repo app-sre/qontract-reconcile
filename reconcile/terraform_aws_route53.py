@@ -43,14 +43,14 @@ def build_desired_state(
         domain_name = zone.get("domain_name")
         if domain_name:
             zone_name = domain_name
-            zone_id = zone["name"]
+            resource_name = zone["name"]
         else:
             zone_name = zone["name"]
-            zone_id = zone["name"]
+            resource_name = zone["name"]
 
         zone_values = {
             "name": zone_name,
-            "id": zone_id,
+            "resource_name": resource_name,
             "account_name": account_name,
             "records": [],
         }
