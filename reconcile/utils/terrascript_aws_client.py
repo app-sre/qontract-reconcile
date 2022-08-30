@@ -781,7 +781,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             acct_name = zone["account_name"]
 
             # Ensure zone is in the state for the given account
-            zone_id = safe_resource_id(f"{zone['name']}")
+            # zone_id refers to the terraform identifier, not the AWS
+            # route 53 zone ID that is generated after the zone is created
+            zone_id = safe_resource_id(f"{zone['id']}")
             zone_values = {
                 "name": zone["name"],
                 "vpc": zone.get("vpc"),

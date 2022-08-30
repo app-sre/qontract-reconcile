@@ -37,8 +37,23 @@ def build_desired_state(
         account = zone["account"]
         account_name = account["name"]
 
-        zone_name = zone["name"]
-        zone_values = {"name": zone_name, "account_name": account_name, "records": []}
+        # optionally decouple the name of the DNS file from the domain
+        # it is creating records for to allow split view DNS
+        # https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/hosted-zone-private-considerations.html#hosted-zone-private-considerations-split-view-dns
+        domain_name = zone.get("domain_name")
+        if domain_name:
+            zone_name = domain_name
+            zone_id = zone["name"]
+        else:
+            zone_name = zone["name"]
+            zone_id = zone["name"]
+
+        zone_values = {
+            "name": zone_name,
+            "id": zone_id,
+            "account_name": account_name,
+            "records": [],
+        }
 
         # a vpc will be referenced for a zone to be considered private
         vpc = zone.get("vpc")
