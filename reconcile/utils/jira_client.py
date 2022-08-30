@@ -20,7 +20,15 @@ class JiraClient:
         self.server = jira_server["serverUrl"]
         token = jira_server["token"]
         token_auth = self.secret_reader.read(token)
-        self.jira = JIRA(self.server, token_auth=token_auth)
+        read_timeout = 60
+        connect_timeout = 60
+        if settings and settings["jiraWatcher"]:
+            read_timeout = settings["jiraWatcher"]["readTimeout"]
+            connect_timeout = settings["jiraWatcher"]["connectTimeout"]
+
+        self.jira = JIRA(
+            self.server, token_auth=token_auth, timeout=(read_timeout, connect_timeout)
+        )
 
     def get_issues(self, fields: Optional[Mapping] = None) -> list[Issue]:
         block_size = 100
