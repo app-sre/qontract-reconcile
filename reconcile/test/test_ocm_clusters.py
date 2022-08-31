@@ -38,6 +38,11 @@ def ocm_rosa_cluster_raw_spec():
 
 
 @pytest.fixture
+def ocm_rosa_cluster_ai_spec():
+    return fxt.get_anymarkup("rosa_spec_ai.yml")
+
+
+@pytest.fixture
 def ocm_osd_cluster_spec():
     n = OCMClusterNetwork(
         type="OpenShiftSDN",
@@ -129,6 +134,16 @@ def rosa_cluster_fxt():
     return {
         "spec": {
             "product": "rosa",
+            "account": {
+                "uid": "123123123",
+                "rosa": {
+                    "creator_role_arn": "creator_role",
+                    "installer_role_arn": "installer_role",
+                    "support_role_arn": " support_role",
+                    "controlplane_role_arn": "controlplane_role",
+                    "worker_role_arn": "worker_role",
+                },
+            },
             "id": "the-cluster-id",
             "external_id": "the-cluster-external_id",
             "provider": "aws",
@@ -224,6 +239,32 @@ def get_json_mock():
 def test_ocm_spec_population_rosa(rosa_cluster_fxt):
     n = OCMSpec(**rosa_cluster_fxt)
     assert isinstance(n.spec, ROSAClusterSpec)
+
+
+def test_ocm_spec_population_rosa_default_roles(rosa_cluster_fxt):
+    rosa = rosa_cluster_fxt["spec"]["account"]["rosa"]
+    rosa["installer_role_arn"] = None
+    rosa["support_role_arn"] = None
+    rosa["controlplane_role_arn"] = None
+    rosa["worker_role_arn"] = None
+    n = OCMSpec(**rosa_cluster_fxt)
+    assert isinstance(n.spec, ROSAClusterSpec)
+    assert (
+        n.spec.account.rosa.installer_role_arn
+        == "arn:aws:iam::123123123:role/ManagedOpenShift-Installer-Role"
+    )
+    assert (
+        n.spec.account.rosa.support_role_arn
+        == "arn:aws:iam::123123123:role/ManagedOpenShift-Support-Role"
+    )
+    assert (
+        n.spec.account.rosa.controlplane_role_arn
+        == "arn:aws:iam::123123123:role/ManagedOpenShift-ControlPlane-Role"
+    )
+    assert (
+        n.spec.account.rosa.worker_role_arn
+        == "arn:aws:iam::123123123:role/ManagedOpenShift-Worker-Role"
+    )
 
 
 def test_ocm_spec_population_osd(osd_cluster_fxt):
@@ -360,6 +401,44 @@ def test_ocm_osd_create_cluster(
     assert cluster_updates_mr_mock.call_count == 0
 
 
+def test_ocm_rosa_create_cluster(
+    get_json_mock,
+    queries_mock,
+    ocm_mock,
+    cluster_updates_mr_mock,
+    ocm_rosa_cluster_raw_spec,
+    ocm_rosa_cluster_ai_spec,
+):
+    ocm_rosa_cluster_ai_spec["name"] = "a-new-cluster"
+    get_json_mock.return_value = {"items": [ocm_rosa_cluster_raw_spec]}
+    queries_mock[1].return_value = [ocm_rosa_cluster_ai_spec]
+    with pytest.raises(SystemExit):
+        occ.run(dry_run=False)
+    _post, _patch = ocm_mock
+    assert _post.call_count == 1
+    assert _patch.call_count == 0
+    assert cluster_updates_mr_mock.call_count == 0
+
+
+def test_ocm_rosa_update_cluster(
+    get_json_mock,
+    queries_mock,
+    ocm_mock,
+    cluster_updates_mr_mock,
+    ocm_rosa_cluster_raw_spec,
+    ocm_rosa_cluster_ai_spec,
+):
+    ocm_rosa_cluster_ai_spec["spec"]["channel"] = "rapid"
+    get_json_mock.return_value = {"items": [ocm_rosa_cluster_raw_spec]}
+    queries_mock[1].return_value = [ocm_rosa_cluster_ai_spec]
+    with pytest.raises(SystemExit):
+        occ.run(dry_run=False)
+    _post, _patch = ocm_mock
+    assert _post.call_count == 0
+    assert _patch.call_count == 1
+    assert cluster_updates_mr_mock.call_count == 0
+
+
 def test_ocm_osd_update_cluster(
     get_json_mock,
     queries_mock,
@@ -391,24 +470,6 @@ def test_ocm_returns_a_rosa_cluster(
     get_json_mock.return_value = {
         "items": [ocm_osd_cluster_raw_spec, ocm_rosa_cluster_raw_spec]
     }
-    queries_mock[1].return_value = [ocm_osd_cluster_ai_spec]
-    with pytest.raises(SystemExit):
-        occ.run(dry_run=False)
-    _post, _patch = ocm_mock
-    assert _post.call_count == 0
-    assert _patch.call_count == 0
-    assert cluster_updates_mr_mock.call_count == 0
-
-
-def test_ocm_create_rosa_cluster_should_not_post_anything(
-    get_json_mock,
-    queries_mock,
-    ocm_mock,
-    cluster_updates_mr_mock,
-    ocm_osd_cluster_ai_spec,
-):
-    get_json_mock.return_value = {"items": []}
-    ocm_osd_cluster_ai_spec["spec"]["product"] = "rosa"
     queries_mock[1].return_value = [ocm_osd_cluster_ai_spec]
     with pytest.raises(SystemExit):
         occ.run(dry_run=False)
