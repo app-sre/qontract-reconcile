@@ -98,6 +98,10 @@ APP_INTERFACE_SETTINGS_QUERY = """
     }
     alertingServices
     endpointMonitoringBlackboxExporterModules
+    jiraWatcher {
+      readTimeout
+      connectTimeout
+    }
   }
 }
 """
