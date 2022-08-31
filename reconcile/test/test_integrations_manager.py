@@ -205,8 +205,7 @@ def integrations(resources: dict[str, Any]) -> Iterable[Mapping[str, Any]]:
                     "spec": {"extraArgs": None, "resources": resources},
                     "shardSpecOverride": [
                         {
-                            "shardingKey": {},
-                            "shard": "0",
+                            "awsAccount": {"name": "test"},
                             "imageRef": "foo",
                         }
                     ],
@@ -552,6 +551,9 @@ def test_values_set_shard_specifics():
                         "shard_key": "app-int-example-02",
                     },
                 ],
+                "spec": {
+                    "imageRef": "foobar"
+                }
             },
             {
                 "name": "terraform-users",
@@ -571,31 +573,17 @@ def test_values_set_shard_specifics():
         "terraform-resources": [
             intop.IntegrationShardSpecOverride(
                 imageRef="foo",
-                shardingKey={
+                awsAccount={
                     "name": "app-int-example-01",
                     "path": "/aws/app-int-example-01/account.yml",
                 },
-                shard=None,
             ),
-            intop.IntegrationShardSpecOverride(
-                imageRef="bar",
-                shardingKey=None,
-                shard=None,
-            ),
-        ],
-        "terraform-users": [
-            intop.IntegrationShardSpecOverride(
-                imageRef="zero",
-                shardingKey=None,
-                shard="0",
-            )
         ],
     }
 
     intop.values_set_shard_specifics(values, overrides)
 
     assert values["integrations"][0]["shard_specs"][0]["imageRef"] == "foo"
-    assert values["integrations"][1]["shard_specs"][0]["imageRef"] == "zero"
     assert "imageRef" not in values["integrations"][1]["shard_specs"][1]
     assert "shard_spec" not in values["integrations"][2]
 
