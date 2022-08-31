@@ -25,9 +25,7 @@ class CloudflareAccountConfig:
     """Configuration related to authenticating API calls to Cloudflare."""
 
     name: str
-    email: str
     api_token: str
-    account_id: str
 
 
 def create_cloudflare_terrascript(
@@ -61,9 +59,7 @@ def create_cloudflare_terrascript(
     terrascript += Terraform(backend=backend, required_providers=required_providers)
 
     terrascript += provider.cloudflare(
-        email=account_config.email,
         api_token=account_config.api_token,
-        account_id=account_config.account_id,
     )
 
     return terrascript

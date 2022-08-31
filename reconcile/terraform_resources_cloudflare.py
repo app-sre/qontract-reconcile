@@ -41,9 +41,7 @@ def create_cloudflare_account_config(
     cf_acct_creds = secret_reader.read_all({"path": cf_acct.api_credentials.path})
     return CloudflareAccountConfig(
         cf_acct.name,
-        cf_acct_creds.get("email"),
         cf_acct_creds.get("api_token"),
-        cf_acct_creds.get("account_id"),
     )
 
 
