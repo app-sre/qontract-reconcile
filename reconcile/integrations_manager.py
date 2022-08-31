@@ -119,9 +119,12 @@ class AWSAccountShardManager(ShardingStrategy):
 @dataclass
 class IntegrationShardSpecOverride:
 
-    imageRef: Optional[str]
-    shardingKey: Optional[Mapping[str, str]]
-    shard: Optional[str]
+    imageRef: str
+    awsAccount: Mapping[str, str]
+
+    def update_shard_if_matched(self, shard: Mapping[str, Any]):
+        if shard["shard_key"] == self.awsAccount["name"]:
+            shard["imageRef"] = self.imageRef
 
 
 def construct_values_file(
@@ -143,13 +146,8 @@ def values_set_shard_specifics(
     for integration in values["integrations"]:
         for shard in integration.get("shard_specs", []):
             for override in integration_overrides.get(integration["name"], []):
-                if (
-                    override.shardingKey
-                    and "shard_key" in shard
-                    and override.shardingKey["name"] == shard["shard_key"]
-                ) or ("shard_id" in shard and override.shard == shard["shard_id"]):
-                    if override.imageRef:
-                        shard["imageRef"] = override.imageRef
+                if "shard_key" in shard:
+                    override.update_shard_if_matched(shard)
 
 
 def get_image_tag_from_ref(ref: str) -> str:
@@ -269,10 +267,11 @@ def initialize_namespace_override_mapping(
     for managed_integration in managed_integrations:
         for instance in managed_integration["managed"]:
             overrides = instance.get("shardSpecOverride", [])
-            for override in overrides:
-                namespace_override_mapping[instance["namespace"]["name"]][
-                    instance["spec"]["name"]
-                ].append((IntegrationShardSpecOverride(**override)))
+            if overrides:
+                for override in overrides:
+                    namespace_override_mapping[instance["namespace"]["name"]][
+                        instance["spec"]["name"]
+                    ].append((IntegrationShardSpecOverride(**override)))
 
     return namespace_override_mapping
 
@@ -317,7 +316,7 @@ def run(
     )
     initialize_shard_specs(namespaces, shard_manager)
     fetch_desired_state(namespaces, ri, image_tag_from_ref, namespace_override_mapping)
-    ob.realize_data(dry_run, oc_map, ri, thread_pool_size)
-
-    if ri.has_error_registered():
-        sys.exit(ExitCodes.ERROR)
+    # ob.realize_data(dry_run, oc_map, ri, thread_pool_size)
+    #
+    # if ri.has_error_registered():
+    #     sys.exit(ExitCodes.ERROR)

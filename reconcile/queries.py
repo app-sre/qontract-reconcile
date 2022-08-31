@@ -224,12 +224,11 @@ INTEGRATIONS_QUERY = """
         }
       }
       shardSpecOverride{
-        shardingKey {
+        awsAccount {
           name
           path
         }
         imageRef
-        shard
       }
       spec {
         cache
@@ -268,6 +267,7 @@ INTEGRATIONS_QUERY = """
         restartPolicy
         successfulJobHistoryLimit
         failedJobHistoryLimit
+        imageRef
       }
     }
   }

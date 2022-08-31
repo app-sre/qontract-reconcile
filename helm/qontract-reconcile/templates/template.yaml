@@ -153,6 +153,8 @@ objects:
         - name: int
           {{- if $shard.imageRef }}
           image: ${IMAGE}:{{$shard.imageRef}}
+          {{- else if $integration.imageRef}}
+          image: ${IMAGE}:{{$integration.imageRef}}
           {{- else }}
           image: ${IMAGE}:${IMAGE_TAG}
           {{- end }}
