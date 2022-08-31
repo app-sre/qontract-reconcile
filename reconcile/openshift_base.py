@@ -774,7 +774,11 @@ def _validate_resources_used_exist(
             ri.register_error()
             continue
         # here it is! let's make sure it has all the required keys
-        missing_keys = used_keys - resource.get("data", {}).keys()
+        missing_keys = (
+            used_keys
+            - resource.get("data", {}).keys()
+            - resource.get("stringData", {}).keys()
+        )
         if missing_keys:
             logging.error(f"{err_base} does not contain keys: {missing_keys}")
             ri.register_error()
