@@ -6,7 +6,7 @@ import json
 import logging
 
 from github import Github
-from typing import Any, Iterable, Mapping, Optional
+from typing import Any, Iterable, Mapping, Optional, MutableMapping
 
 import reconcile.openshift_base as ob
 
@@ -122,7 +122,7 @@ class IntegrationShardSpecOverride:
     imageRef: str
     awsAccount: Mapping[str, str]
 
-    def update_shard_if_matched(self, shard: Mapping[str, Any]):
+    def update_shard_if_matched(self, shard: MutableMapping[str, Any]):
         if shard["shard_key"] == self.awsAccount["name"]:
             shard["imageRef"] = self.imageRef
 

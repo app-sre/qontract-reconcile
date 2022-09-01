@@ -551,9 +551,7 @@ def test_values_set_shard_specifics():
                         "shard_key": "app-int-example-02",
                     },
                 ],
-                "spec": {
-                    "imageRef": "foobar"
-                }
+                "spec": {"imageRef": "foobar"},
             },
             {
                 "name": "terraform-users",
