@@ -1,4 +1,3 @@
-import logging
 import sys
 from typing import Any, Optional, cast
 
@@ -13,7 +12,6 @@ from reconcile.gql_definitions.terraform_resources_cloudflare.terraform_resource
     NamespaceTerraformResourceCloudflareZoneV1,
     TerraformResourcesCloudflareQueryData,
 )
-from reconcile.status import ExitCodes
 from reconcile.utils import gql
 from reconcile.utils.defer import defer
 from reconcile.utils.external_resource_spec import ExternalResourceSpec
@@ -29,6 +27,7 @@ from reconcile.utils.terrascript.cloudflare_client import (
     TerrascriptCloudflareClient,
     create_cloudflare_terrascript,
 )
+from reconcile.utils.helpers import filter_null
 
 QONTRACT_INTEGRATION = "terraform_resources_cloudflare"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
@@ -93,8 +92,8 @@ def get_resources(
     """Get all Cloudflare V1 resources from the Cloudflare query data"""
     return [
         res
-        for namespace in query_data.namespaces or []
-        for res in namespace.external_resources or []
+        for namespace in filter_null(query_data.namespaces)
+        for res in filter_null(namespace.external_resources)
         if isinstance(res, NamespaceTerraformProviderResourceCloudflareV1)
     ]
 
@@ -180,7 +179,7 @@ def build_specs(
                 )
 
             # Add zone records
-            for record in res.records or []:
+            for record in filter_null(res.records):
                 specs.append(
                     ExternalResourceSpec(
                         "cloudflare_record",
@@ -201,7 +200,7 @@ def build_specs(
                 )
 
             # Add zone workers
-            for worker in res.workers or []:
+            for worker in filter_null(res.workers):
                 if worker.script.content_from_github:
                     gh_repo = worker.script.content_from_github.repo
                     gh_path = worker.script.content_from_github.path
@@ -241,16 +240,8 @@ def run(
     defer=None,
 ) -> None:
 
-    gqlapi = gql.get_api()
     settings = queries.get_app_interface_settings()
-    res = gqlapi.query(terraform_resources_cloudflare.query_string())
-    if res is None:
-        logging.error("Aborting due to an error running the GraphQL query")
-        sys.exit(ExitCodes.ERROR)
-
-    query_data: TerraformResourcesCloudflareQueryData = (
-        TerraformResourcesCloudflareQueryData(**res)
-    )
+    query_data = terraform_resources_cloudflare.query(query_func=gql.get_api().query)
 
     # Build Cloudflare clients
     cf_clients = TerraformConfigClientCollection()
