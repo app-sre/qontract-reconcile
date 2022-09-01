@@ -8,6 +8,7 @@ from UnleashClient.features import Feature
 import reconcile.utils.unleash
 from reconcile.utils.unleash import (
     _get_unleash_api_client,
+    _shutdown_client,
     get_feature_toggle_default,
     get_feature_toggle_state,
     get_feature_toggles,
@@ -123,7 +124,7 @@ def test_get_feature_toggle_state_with_strategy(reset_client):
         "test-strategies", context={"cluster_name": "foo"}
     )
     assert get_feature_toggle_state("test-strategies", context={"cluster_name": "bar"})
-    reconcile.utils.unleash.client.destroy()
+    _shutdown_client()
 
 
 @httpretty.activate(allow_net_connect=False)
@@ -134,4 +135,4 @@ def test_get_feature_toggle_state_disabled_with_strategy(reset_client):
     assert not get_feature_toggle_state(
         "test-strategies", context={"cluster_name": "bar"}
     )
-    reconcile.utils.unleash.client.destroy()
+    _shutdown_client()
