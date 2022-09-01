@@ -64,6 +64,13 @@ def _get_unleash_api_client(api_url: str, auth_head: str) -> UnleashClient:
     return client
 
 
+def _shutdown_client():
+    # Intended for test usage only
+    with client_lock:
+        if client:
+            client.destroy()
+
+
 def get_feature_toggle_default(feature_name, context):
     return True
 
