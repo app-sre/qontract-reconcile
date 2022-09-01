@@ -316,7 +316,7 @@ def run(
     )
     initialize_shard_specs(namespaces, shard_manager)
     fetch_desired_state(namespaces, ri, image_tag_from_ref, namespace_override_mapping)
-    # ob.realize_data(dry_run, oc_map, ri, thread_pool_size)
-    #
-    # if ri.has_error_registered():
-    #     sys.exit(ExitCodes.ERROR)
+    ob.realize_data(dry_run, oc_map, ri, thread_pool_size)
+
+    if ri.has_error_registered():
+        sys.exit(ExitCodes.ERROR)

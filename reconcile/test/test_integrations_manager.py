@@ -553,18 +553,6 @@ def test_values_set_shard_specifics():
                 ],
                 "spec": {"imageRef": "foobar"},
             },
-            {
-                "name": "terraform-users",
-                "shard_specs": [
-                    {
-                        "shard_id": "0",
-                    },
-                    {
-                        "shard_id": "1",
-                    },
-                ],
-            },
-            {"name": "foo-bar"},
         ],
     }
     overrides: Mapping[str, Any] = {
@@ -582,8 +570,7 @@ def test_values_set_shard_specifics():
     intop.values_set_shard_specifics(values, overrides)
 
     assert values["integrations"][0]["shard_specs"][0]["imageRef"] == "foo"
-    assert "imageRef" not in values["integrations"][1]["shard_specs"][1]
-    assert "shard_spec" not in values["integrations"][2]
+    assert "imageRef" not in values["integrations"][0]["shard_specs"][1]
 
 
 def test_initialize_namespace_override_mapping(integrations):
