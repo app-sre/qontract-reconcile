@@ -15,9 +15,7 @@ from reconcile.utils.terraform.config import TerraformS3BackendConfig
 
 @pytest.fixture
 def account_config():
-    return CloudflareAccountConfig(
-        "account-name", "api-token"
-    )
+    return CloudflareAccountConfig("account-name", "api-token")
 
 
 @pytest.fixture

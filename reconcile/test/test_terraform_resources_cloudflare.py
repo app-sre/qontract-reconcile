@@ -91,8 +91,8 @@ def external_resources(provisioner_config):
     )
 
 
-def test_build_specs_(query_data):
-    actual = build_specs(query_data)
+def test_build_specs_(settings, gh_instance, query_data):
+    actual = build_specs(settings, gh_instance, query_data)
     expected = [
         ExternalResourceSpec(
             "cloudflare_zone",

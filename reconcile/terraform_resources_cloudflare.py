@@ -1,6 +1,7 @@
 import logging
 import sys
-from typing import Any, Optional
+from typing import Any, Optional, cast
+
 from reconcile import queries
 from reconcile.gql_queries.terraform_resources_cloudflare import (
     terraform_resources_cloudflare,
@@ -8,26 +9,26 @@ from reconcile.gql_queries.terraform_resources_cloudflare import (
 from reconcile.gql_queries.terraform_resources_cloudflare.terraform_resources_cloudflare import (
     AWSAccountV1,
     CloudflareAccountV1,
-    NamespaceTerraformResourceCloudflareZoneV1,
     NamespaceTerraformProviderResourceCloudflareV1,
+    NamespaceTerraformResourceCloudflareZoneV1,
     TerraformResourcesCloudflareQueryData,
 )
 from reconcile.status import ExitCodes
 from reconcile.utils import gql
 from reconcile.utils.defer import defer
 from reconcile.utils.external_resource_spec import ExternalResourceSpec
+from reconcile.utils.github_api import GithubApi
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.semver_helper import make_semver
+from reconcile.utils.terraform import safe_resource_id
 from reconcile.utils.terraform.config_client import TerraformConfigClientCollection
 from reconcile.utils.terraform_client import TerraformClient
 from reconcile.utils.terrascript.cloudflare_client import (
-    create_cloudflare_terrascript,
     CloudflareAccountConfig,
     TerraformS3BackendConfig,
     TerrascriptCloudflareClient,
+    create_cloudflare_terrascript,
 )
-from reconcile.utils.terraform import safe_resource_id
-
 
 QONTRACT_INTEGRATION = "terraform_resources_cloudflare"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
@@ -122,6 +123,8 @@ def build_clients(
 
 
 def build_specs(
+    settings: dict[str, Any],
+    gh_instance: dict[str, Any],
     query_data: TerraformResourcesCloudflareQueryData,
 ) -> list[ExternalResourceSpec]:
 
@@ -129,28 +132,105 @@ def build_specs(
     for extres in get_resources(query_data):
         provisioner_name = extres.provisioner.name
         for res in extres.resources or []:
-            if isinstance(res, NamespaceTerraformResourceCloudflareZoneV1):
+            res = cast(NamespaceTerraformResourceCloudflareZoneV1, res)
+            zone_identifier = safe_resource_id(res.zone)
+            specs.append(
+                ExternalResourceSpec(
+                    "cloudflare_zone",
+                    {"name": provisioner_name, "automationToken": {}},
+                    {
+                        "provider": "cloudflare_zone",
+                        "identifier": zone_identifier,
+                        "zone": res.zone,
+                        "plan": res.plan if res.plan else "free",
+                        "type": res.q_type if res.q_type else "full",
+                        "settings": res.settings,
+                    },
+                    {},
+                )
+            )
+
+            # If argo is defined on the zone, add an argo resource spec
+            if res.argo:
                 specs.append(
                     ExternalResourceSpec(
-                        "cloudflare_zone",
+                        "cloudflare_argo",
                         {"name": provisioner_name, "automationToken": {}},
                         {
-                            "provider": "cloudflare_zone",
-                            "identifier": safe_resource_id(res.zone),
-                            "zone": res.zone,
-                            "plan": res.plan if res.plan else "free",
-                            "type": res.q_type if res.q_type else "full",
-                            "settings": res.settings,
-                            "argo": res.argo.dict() if res.argo else None,
-                            "records": [r.dict() for r in res.records or []],
-                            "workers": [r.dict() for r in res.workers or []],
+                            "provider": "cloudflare_argo",
+                            "identifier": zone_identifier,
+                            "depends_on": [f"cloudflare_zone.{zone_identifier}"],
+                            "zone_id": f"${{cloudflare_zone.{zone_identifier}.id}}",
+                            "smart_routing": "on" if res.argo.smart_routing else "off",
+                            "tiered_caching": "on" if res.argo.smart_routing else "off",
                         },
                         {},
                     )
                 )
-            else:
-                logging.warning(
-                    f"Unhandled resource type received: {type(res).__name__}"
+
+            # Add zone records
+            for record in res.records or []:
+                specs.append(
+                    ExternalResourceSpec(
+                        "cloudflare_record",
+                        {"name": provisioner_name, "automationToken": {}},
+                        {
+                            "provider": "cloudflare_record",
+                            "identifier": safe_resource_id(record.name),
+                            "depends_on": [f"cloudflare_zone.{zone_identifier}"],
+                            "zone_id": f"${{cloudflare_zone.{zone_identifier}.id}}",
+                            "name": record.name,
+                            "type": record.q_type,
+                            "ttl": record.ttl,
+                            "value": record.value,
+                            "proxied": record.proxied,
+                        },
+                        {},
+                    )
+                )
+
+            # Add zone workers
+            for worker in res.workers or []:
+                if worker.script.content_from_github:
+                    gh_repo = worker.script.content_from_github.repo
+                    gh_path = worker.script.content_from_github.path
+                    gh_ref = worker.script.content_from_github.ref
+                    gh = GithubApi(
+                        gh_instance,
+                        gh_repo,
+                        settings,
+                    )
+                    content = gh.get_file(
+                        gh_path,
+                        gh_ref,
+                    )
+                    if content is None:
+                        raise ValueError(
+                            f"Could not retrieve Github file content at {gh_repo} "
+                            f"for file path {gh_path} at ref {gh_ref}"
+                        )
+                    wrk_script_content = content.decode(encoding="utf-8")
+
+                worker_script_vars = [
+                    {"name": var.name, "text": var.text}
+                    for var in worker.script.vars or []
+                ]
+                specs.append(
+                    ExternalResourceSpec(
+                        "cloudflare_worker",
+                        {"name": provisioner_name, "automationToken": {}},
+                        {
+                            "provider": "cloudflare_worker",
+                            "identifier": safe_resource_id(worker.identifier),
+                            "depends_on": [f"cloudflare_zone.{zone_identifier}"],
+                            "zone_id": f"${{cloudflare_zone.{zone_identifier}.id}}",
+                            "pattern": worker.pattern,
+                            "script_name": worker.script.name,
+                            "script_content": wrk_script_content,
+                            "script_vars": worker_script_vars,
+                        },
+                        {},
+                    )
                 )
     return specs
 
@@ -166,6 +246,7 @@ def run(
 
     gqlapi = gql.get_api()
     settings = queries.get_app_interface_settings()
+    gh_instance = queries.get_github_instance()
     res = gqlapi.query(terraform_resources_cloudflare.query_string())
     if res is None:
         logging.error("Aborting due to an error running the GraphQL query")
@@ -181,7 +262,7 @@ def run(
         cf_clients.register_client(*client)
 
     # Register Cloudflare resources
-    cf_specs = build_specs(query_data)
+    cf_specs = build_specs(settings, gh_instance, query_data)
     cf_clients.add_specs(cf_specs)
 
     cf_clients.populate_resources()
