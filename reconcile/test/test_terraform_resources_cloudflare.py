@@ -1,7 +1,13 @@
+from unittest.mock import patch
 import pytest
 from reconcile.gql_definitions.terraform_resources_cloudflare.terraform_resources_cloudflare import (
     AWSAccountV1,
     CloudflareAccountV1,
+    CloudflareZoneRecordV1,
+    CloudflareZoneWorkerScriptContentFromGithubV1,
+    CloudflareZoneWorkerScriptV1,
+    CloudflareZoneWorkerScriptVarsV1,
+    CloudflareZoneWorkerV1,
     NamespaceTerraformProviderResourceCloudflareV1,
     NamespaceTerraformResourceCloudflareZoneV1,
     NamespaceV1,
@@ -23,24 +29,29 @@ def query_data(external_resources):
 
 
 @pytest.fixture
+def settings():
+    return {}
+
+
+@pytest.fixture
 def provisioner_config():
     return CloudflareAccountV1(
-        name="cfaccount1",
-        providerVersion="3.18.0",
+        name="cfaccount",
+        providerVersion="3.22.0",
         apiCredentials=VaultSecretV1(
             path="",
             field="",
         ),
         terraformStateAccount=AWSAccountV1(
-            name="awsaccount1",
+            name="awsaccount",
             automationToken=VaultSecretV1(
                 path="",
                 field="",
             ),
             terraformState=TerraformStateAWSV1(
                 provider="s3",
-                bucket="bucket1",
-                region="region1",
+                bucket="bucket",
+                region="region",
                 integrations=[],
             ),
         ),
@@ -55,86 +66,110 @@ def external_resources(provisioner_config):
         resources=[
             NamespaceTerraformResourceCloudflareZoneV1(
                 provider="zone",
-                zone="testzone1.com",
+                zone="testzone.com",
                 plan="enterprise",
                 type="full",
-                settings=None,
-                argo=None,
-                records=[],
-                workers=[],
-            ),
-            NamespaceTerraformResourceCloudflareZoneV1(
-                provider="zone",
-                zone="testzone2.com",
-                plan="enterprise",
-                type="full",
-                settings=None,
-                argo=None,
-                records=[],
-                workers=[],
-            ),
-            NamespaceTerraformResourceCloudflareZoneV1(
-                provider="zone",
-                zone="testzone3.com",
-                plan="enterprise",
-                type="full",
-                settings=None,
-                argo=None,
-                records=[],
-                workers=[],
+                settings='{"foo": "bar"}',
+                argo={
+                    "tiered_caching": True,
+                    "smart_routing": True,
+                },
+                records=[
+                    CloudflareZoneRecordV1(
+                        name="record",
+                        type="CNAME",
+                        ttl=5,
+                        value="example.com",
+                        proxied=False,
+                    ),
+                ],
+                workers=[
+                    CloudflareZoneWorkerV1(
+                        identifier="testworker",
+                        pattern="testzone.com/.*",
+                        script=CloudflareZoneWorkerScriptV1(
+                            name="testscript",
+                            content_from_github=CloudflareZoneWorkerScriptContentFromGithubV1(
+                                repo="foo",
+                                path="bar",
+                                ref="baz",
+                            ),
+                            vars=[
+                                CloudflareZoneWorkerScriptVarsV1(
+                                    name="somename",
+                                    text="sometext",
+                                )
+                            ],
+                        ),
+                    )
+                ],
             ),
         ],
     )
 
 
-def test_build_specs_(settings, gh_instance, query_data):
-    actual = build_specs(settings, gh_instance, query_data)
+def test_build_specs(query_data):
+    with patch(
+        "reconcile.terraform_resources_cloudflare.get_github_file", return_value="foo"
+    ):
+        actual = build_specs(query_data)
     expected = [
         ExternalResourceSpec(
             "cloudflare_zone",
-            {"name": "cfaccount1", "automationToken": {}},
+            {"name": "cfaccount", "automationToken": {}},
             {
                 "provider": "cloudflare_zone",
-                "identifier": "testzone1_com",
-                "zone": "testzone1.com",
+                "identifier": "testzone_com",
+                "zone": "testzone.com",
                 "plan": "enterprise",
                 "type": "full",
-                "settings": None,
-                "argo": None,
-                "records": [],
-                "workers": [],
+                "settings": {
+                    "foo": "bar",
+                },
             },
             {},
         ),
         ExternalResourceSpec(
-            "cloudflare_zone",
-            {"name": "cfaccount1", "automationToken": {}},
+            "cloudflare_argo",
+            {"name": "cfaccount", "automationToken": {}},
             {
-                "provider": "cloudflare_zone",
-                "identifier": "testzone2_com",
-                "zone": "testzone2.com",
-                "plan": "enterprise",
-                "type": "full",
-                "settings": None,
-                "argo": None,
-                "records": [],
-                "workers": [],
+                "provider": "cloudflare_argo",
+                "identifier": "testzone_com",
+                "depends_on": ["cloudflare_zone.testzone_com"],
+                "zone_id": "${cloudflare_zone.testzone_com.id}",
+                "smart_routing": "on",
+                "tiered_caching": "on",
             },
             {},
         ),
         ExternalResourceSpec(
-            "cloudflare_zone",
-            {"name": "cfaccount1", "automationToken": {}},
+            "cloudflare_record",
+            {"name": "cfaccount", "automationToken": {}},
             {
-                "provider": "cloudflare_zone",
-                "identifier": "testzone3_com",
-                "zone": "testzone3.com",
-                "plan": "enterprise",
-                "type": "full",
-                "settings": None,
-                "argo": None,
-                "records": [],
-                "workers": [],
+                "provider": "cloudflare_record",
+                "identifier": "record",
+                "depends_on": ["cloudflare_zone.testzone_com"],
+                "zone_id": "${cloudflare_zone.testzone_com.id}",
+                "name": "record",
+                "type": "CNAME",
+                "ttl": 5,
+                "value": "example.com",
+                "proxied": False,
+            },
+            {},
+        ),
+        ExternalResourceSpec(
+            "cloudflare_worker",
+            {"name": "cfaccount", "automationToken": {}},
+            {
+                "provider": "cloudflare_worker",
+                "identifier": "testworker",
+                "depends_on": ["cloudflare_zone.testzone_com"],
+                "zone_id": "${cloudflare_zone.testzone_com.id}",
+                "pattern": "testzone.com/.*",
+                "script_name": "testscript",
+                "script_content": "foo",
+                "script_vars": [{"name": "somename", "text": "sometext"}],
             },
             {},
         ),
