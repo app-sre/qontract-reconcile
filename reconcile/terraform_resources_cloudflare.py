@@ -3,10 +3,10 @@ import sys
 from typing import Any, Optional, cast
 
 from reconcile import queries
-from reconcile.gql_queries.terraform_resources_cloudflare import (
+from reconcile.gql_definitions.terraform_resources_cloudflare import (
     terraform_resources_cloudflare,
 )
-from reconcile.gql_queries.terraform_resources_cloudflare.terraform_resources_cloudflare import (
+from reconcile.gql_definitions.terraform_resources_cloudflare.terraform_resources_cloudflare import (
     AWSAccountV1,
     CloudflareAccountV1,
     NamespaceTerraformProviderResourceCloudflareV1,

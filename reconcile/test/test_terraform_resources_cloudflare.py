@@ -1,20 +1,16 @@
 import pytest
-
-from reconcile.gql_queries.terraform_resources_cloudflare.terraform_resources_cloudflare import (
+from reconcile.gql_definitions.terraform_resources_cloudflare.terraform_resources_cloudflare import (
     AWSAccountV1,
     CloudflareAccountV1,
     NamespaceTerraformProviderResourceCloudflareV1,
     NamespaceTerraformResourceCloudflareZoneV1,
-    TerraformResourcesCloudflareQueryData,
     NamespaceV1,
+    TerraformResourcesCloudflareQueryData,
     TerraformStateAWSV1,
     VaultSecretV1,
 )
+from reconcile.terraform_resources_cloudflare import build_specs
 from reconcile.utils.external_resource_spec import ExternalResourceSpec
-
-from reconcile.terraform_resources_cloudflare import (
-    build_specs,
-)
 
 
 @pytest.fixture
