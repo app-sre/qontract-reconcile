@@ -5,7 +5,7 @@ from jira.client import ResultList
 
 from reconcile.utils.secret_reader import SecretReader
 
-from typing import Any, Iterable, Mapping, Optional, Union
+from typing import Any, Iterable, Mapping, Optional
 
 
 class JiraClient:
@@ -41,9 +41,7 @@ class JiraClient:
             kwargs["fields"] = ",".join(fields)
         while True:
             index = block_num * block_size
-            issues: Union[dict[str, Any], ResultList[Issue]] = self.jira.search_issues(
-                jql, index, block_size, **kwargs
-            )
+            issues = self.jira.search_issues(jql, index, block_size, **kwargs)
             if not isinstance(issues, ResultList):
                 # if search_issues was executed with json_result=True, then we have a Dict.
                 # However, we require a ResultList[Issue].
