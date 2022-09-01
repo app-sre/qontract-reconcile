@@ -123,6 +123,7 @@ def test_get_feature_toggle_state_with_strategy(reset_client):
         "test-strategies", context={"cluster_name": "foo"}
     )
     assert get_feature_toggle_state("test-strategies", context={"cluster_name": "bar"})
+    reconcile.utils.unleash.client.destroy()
 
 
 @httpretty.activate(allow_net_connect=False)
@@ -133,3 +134,4 @@ def test_get_feature_toggle_state_disabled_with_strategy(reset_client):
     assert not get_feature_toggle_state(
         "test-strategies", context={"cluster_name": "bar"}
     )
+    reconcile.utils.unleash.client.destroy()
