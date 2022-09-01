@@ -8,7 +8,7 @@ import time
 from collections import defaultdict, namedtuple
 from typing import Any
 
-from sretoolbox.container.image import ImageComparisonError
+from sretoolbox.container.image import ImageComparisonError, ImageContainsError
 from sretoolbox.container.skopeo import SkopeoCmdError
 
 from reconcile import queries
@@ -228,6 +228,13 @@ class QuayMirror:
                                 upstream,
                             )
                             continue
+                        elif downstream.is_part_of(upstream):
+                            _LOG.debug(
+                                "Image %s is part of mirror multi-arch image %s",
+                                downstream,
+                                upstream,
+                            )
+                            continue
                     except ImageComparisonError as details:
                         _LOG.error(
                             "Error comparing image %s and %s - %s",
@@ -236,6 +243,10 @@ class QuayMirror:
                             details,
                         )
                         continue
+                    except ImageContainsError:
+                        # Upstream and downstream images are different and not part
+                        # of each other. We will mirror them.
+                        pass
 
                     _LOG.debug(
                         "Image %s and mirror %s are out of sync", downstream, upstream
