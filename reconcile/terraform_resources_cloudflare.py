@@ -122,9 +122,20 @@ def build_clients(
     return clients
 
 
+def get_github_file(repo: str, path: str, ref: str) -> str:
+    settings = queries.get_app_interface_settings()
+    gh_instance = queries.get_github_instance()
+    gh = GithubApi(gh_instance, repo, settings)
+    content = gh.get_file(path, ref)
+    if content is None:
+        raise ValueError(
+            f"Could not retrieve Github file content at {repo} "
+            f"for file path {path} at ref {ref}"
+        )
+    return content.decode("utf-8")
+
+
 def build_specs(
-    settings: dict[str, Any],
-    gh_instance: dict[str, Any],
     query_data: TerraformResourcesCloudflareQueryData,
 ) -> list[ExternalResourceSpec]:
 
@@ -195,21 +206,7 @@ def build_specs(
                     gh_repo = worker.script.content_from_github.repo
                     gh_path = worker.script.content_from_github.path
                     gh_ref = worker.script.content_from_github.ref
-                    gh = GithubApi(
-                        gh_instance,
-                        gh_repo,
-                        settings,
-                    )
-                    content = gh.get_file(
-                        gh_path,
-                        gh_ref,
-                    )
-                    if content is None:
-                        raise ValueError(
-                            f"Could not retrieve Github file content at {gh_repo} "
-                            f"for file path {gh_path} at ref {gh_ref}"
-                        )
-                    wrk_script_content = content.decode(encoding="utf-8")
+                    wrk_script_content = get_github_file(gh_repo, gh_path, gh_ref)
 
                 worker_script_vars = [
                     {"name": var.name, "text": var.text}
@@ -246,7 +243,6 @@ def run(
 
     gqlapi = gql.get_api()
     settings = queries.get_app_interface_settings()
-    gh_instance = queries.get_github_instance()
     res = gqlapi.query(terraform_resources_cloudflare.query_string())
     if res is None:
         logging.error("Aborting due to an error running the GraphQL query")
@@ -262,7 +258,7 @@ def run(
         cf_clients.register_client(*client)
 
     # Register Cloudflare resources
-    cf_specs = build_specs(settings, gh_instance, query_data)
+    cf_specs = build_specs(query_data)
     cf_clients.add_specs(cf_specs)
 
     cf_clients.populate_resources()
