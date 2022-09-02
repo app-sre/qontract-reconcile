@@ -3330,6 +3330,11 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             attachment_values = {
                 "role": role_tf_resource.name,
                 "policy_arn": "${" + policy_tf_resource.arn + "}",
+                "depends_on": self.get_dependencies(
+                    [
+                        role_tf_resource,
+                    ]
+                ),
             }
             attachment_tf_resource = aws_iam_role_policy_attachment(
                 policy_identifier, **attachment_values
@@ -3341,6 +3346,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 secret_attachment_values = {
                     "role": role_tf_resource.name,
                     "policy_arn": secret_policy_arn,
+                    "depends_on": self.get_dependencies([role_tf_resource]),
                 }
                 secret_attachment_tf_resource = aws_iam_role_policy_attachment(
                     f"{identifier}-lambda-secretsmanager-policy",
