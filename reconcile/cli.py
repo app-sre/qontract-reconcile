@@ -1409,12 +1409,57 @@ def quay_mirror(ctx, control_file_dir, compare_tags, compare_tags_interval, imag
 
 
 @integration.command(short_help="Mirrors entire Quay orgs.")
+@click.option(
+    "-d",
+    "--control-file-dir",
+    help="Directory where integration control file will be created. This file controls "
+    "when to compare tags (very slow) apart from mirroring new tags.",
+)
+@click.option(
+    "-t/-n",
+    "--compare-tags/--no-compare-tags",
+    help="Forces the integration to do or do not do tag comparation no matter what the "
+    "control file says.",
+    default=None,
+)
+@click.option(
+    "-c",
+    "--compare-tags-interval",
+    help="Time to wait between compare-tags runs (in seconds). It defaults to 86400 "
+    "(8h).",
+    type=int,
+    default=28800,
+)
+@click.option(
+    "-o",
+    "--org",
+    help="Only considers this organisation to mirror. It can be specified multiple "
+    "times.",
+    multiple=True,
+)
+@click.option(
+    "-r",
+    "--repository",
+    help="Only considers this repository to mirror. It can be specified multiple "
+    "times.",
+    multiple=True,
+)
 @click.pass_context
 @binary(["skopeo"])
-def quay_mirror_org(ctx):
+def quay_mirror_org(
+    ctx, control_file_dir, compare_tags, compare_tags_interval, org, repository
+):
     import reconcile.quay_mirror_org
 
-    run_integration(reconcile.quay_mirror_org, ctx.obj)
+    run_integration(
+        reconcile.quay_mirror_org,
+        ctx.obj,
+        control_file_dir,
+        compare_tags,
+        compare_tags_interval,
+        org,
+        repository,
+    )
 
 
 @integration.command(short_help="Creates and Manages Quay Repos.")

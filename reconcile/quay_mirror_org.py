@@ -1,28 +1,56 @@
 import logging
 import os
 import tempfile
-import time
 
 from collections import defaultdict
+from typing import Iterable, Optional
 
 from sretoolbox.container import Image
-from sretoolbox.container.image import ImageComparisonError
+from sretoolbox.container.image import ImageComparisonError, ImageContainsError
 from sretoolbox.container import Skopeo
 from sretoolbox.container.skopeo import SkopeoCmdError
 
 from reconcile.quay_base import get_quay_api_store
+from reconcile.quay_mirror import QuayMirror
 
 
 _LOG = logging.getLogger(__name__)
 
 QONTRACT_INTEGRATION = "quay-mirror-org"
+CONTROL_FILE_NAME = "qontract-reconcile-quay-mirror-org.timestamp"
 
 
 class QuayMirrorOrg:
-    def __init__(self, dry_run=False):
+    def __init__(
+        self,
+        dry_run: bool = False,
+        control_file_dir: Optional[str] = None,
+        compare_tags: Optional[bool] = None,
+        compare_tags_interval: int = 28800,  # 8 hours
+        orgs: Optional[Iterable[str]] = None,
+        repositories: Optional[Iterable[str]] = None,
+    ) -> None:
         self.dry_run = dry_run
         self.skopeo_cli = Skopeo(dry_run)
         self.quay_api_store = get_quay_api_store()
+        self.compare_tags = compare_tags
+        self.compare_tags_interval = compare_tags_interval
+        self.orgs = orgs
+        self.repositories = repositories
+
+        if control_file_dir:
+            if not os.path.isdir(control_file_dir):
+                raise FileNotFoundError(
+                    f"'{control_file_dir}' does not exist or it is not a directory"
+                )
+
+            self.control_file_path = os.path.join(control_file_dir, CONTROL_FILE_NAME)
+        else:
+            self.control_file_path = os.path.join(
+                tempfile.gettempdir(), CONTROL_FILE_NAME
+            )
+
+        self._has_enough_time_passed_since_last_compare_tags: Optional[bool] = None
 
     def run(self):
         sync_tasks = self.process_sync_tasks()
@@ -37,6 +65,9 @@ class QuayMirrorOrg:
                     )
                 except SkopeoCmdError as details:
                     _LOG.error("[%s]", details)
+
+        if self.is_compare_tags and not self.dry_run:
+            QuayMirror.record_timestamp(self.control_file_path)
 
     def process_org_mirrors(self, summary):
         """adds new keys to the summary dict with information about mirrored
@@ -55,6 +86,9 @@ class QuayMirrorOrg:
             if not org_info.get("mirror"):
                 continue
 
+            if self.orgs and org_key.org_name not in self.orgs:
+                continue
+
             quay_api = org_info["api"]
             upstream_org_key = org_info["mirror"]
             upstream_org = self.quay_api_store[upstream_org_key]
@@ -63,10 +97,14 @@ class QuayMirrorOrg:
             username = upstream_org["push_token"]["user"]
             token = upstream_org["push_token"]["token"]
 
-            repos = [item["name"] for item in quay_api.list_images()]
+            org_repos = [item["name"] for item in quay_api.list_images()]
             for repo in upstream_quay_api.list_images():
-                if repo["name"] not in repos:
+                if repo["name"] not in org_repos:
                     continue
+
+                if self.repositories and repo["name"] not in self.repositories:
+                    continue
+
                 server_url = upstream_org["url"]
                 url = f"{server_url}/{org_key.org_name}/{repo['name']}"
                 data = {
@@ -82,9 +120,6 @@ class QuayMirrorOrg:
         return summary
 
     def process_sync_tasks(self):
-        eight_hours = 28800  # 60 * 60 * 8
-        is_deep_sync = self._is_deep_sync(interval=eight_hours)
-
         summary = defaultdict(list)
         self.process_org_mirrors(summary)
 
@@ -136,17 +171,13 @@ class QuayMirrorOrg:
                         sync_tasks[org_key].append(task)
                         continue
 
-                    # Deep (slow) check only in non dry-run mode
-                    if self.dry_run:
+                    # Compare tags (slow) only from time to time.
+                    if not self.is_compare_tags:
                         _LOG.debug(
-                            "Image %s and mirror %s are in sync", downstream, upstream
-                        )
-                        continue
-
-                    # Deep (slow) check only from time to time
-                    if not is_deep_sync:
-                        _LOG.debug(
-                            "Image %s and mirror %s are in sync", downstream, upstream
+                            "Running in non compare-tags mode. We won't check if %s "
+                            "and %s are actually in sync",
+                            downstream,
+                            upstream,
                         )
                         continue
 
@@ -158,9 +189,25 @@ class QuayMirrorOrg:
                                 upstream,
                             )
                             continue
+                        elif downstream.is_part_of(upstream):
+                            _LOG.debug(
+                                "Image %s is part of mirror multi-arch image %s",
+                                downstream,
+                                upstream,
+                            )
+                            continue
                     except ImageComparisonError as details:
-                        _LOG.error("[%s]", details)
+                        _LOG.error(
+                            "Error comparing image %s and %s - %s",
+                            downstream,
+                            upstream,
+                            details,
+                        )
                         continue
+                    except ImageContainsError:
+                        # Upstream and downstream images are different and not part
+                        # of each other. We will mirror them.
+                        pass
 
                     _LOG.debug(
                         "Image %s and mirror %s are out of sync", downstream, upstream
@@ -175,27 +222,23 @@ class QuayMirrorOrg:
 
         return sync_tasks
 
-    def _is_deep_sync(self, interval):
-        control_file_name = "qontract-reconcile-quay-mirror-org.timestamp"
-        control_file_path = os.path.join(tempfile.gettempdir(), control_file_name)
-        try:
-            with open(control_file_path, "r") as file_obj:
-                last_deep_sync = float(file_obj.read())
-        except FileNotFoundError:
-            self._record_timestamp(control_file_path)
-            return True
+    @property
+    def is_compare_tags(self) -> bool:
+        if self.compare_tags is not None:
+            return self.compare_tags
 
-        next_deep_sync = last_deep_sync + interval
-        if time.time() >= next_deep_sync:
-            self._record_timestamp(control_file_path)
-            return True
+        return self.has_enough_time_passed_since_last_compare_tags
 
-        return False
+    @property
+    def has_enough_time_passed_since_last_compare_tags(self) -> bool:
+        if self._has_enough_time_passed_since_last_compare_tags is None:
+            self._has_enough_time_passed_since_last_compare_tags = (
+                QuayMirror.check_compare_tags_elapsed_time(
+                    self.control_file_path, self.compare_tags_interval
+                )
+            )
 
-    @staticmethod
-    def _record_timestamp(path):
-        with open(path, "w") as file_object:
-            file_object.write(str(time.time()))
+        return self._has_enough_time_passed_since_last_compare_tags
 
     def get_push_creds(self, org_key):
         """returns username and password for the given org
@@ -212,6 +255,20 @@ class QuayMirrorOrg:
         return f"{username}:{password}"
 
 
-def run(dry_run):
-    quay_mirror = QuayMirrorOrg(dry_run)
+def run(
+    dry_run,
+    control_file_dir: Optional[str],
+    compare_tags: Optional[bool],
+    compare_tags_interval: int,
+    orgs: Optional[Iterable[str]],
+    repositories: Optional[Iterable[str]],
+):
+    quay_mirror = QuayMirrorOrg(
+        dry_run,
+        control_file_dir,
+        compare_tags,
+        compare_tags_interval,
+        orgs,
+        repositories,
+    )
     quay_mirror.run()
