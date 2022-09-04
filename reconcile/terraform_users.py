@@ -104,11 +104,17 @@ The password is encrypted with your public gpg key. To decrypt the password:
 echo <password> | base64 -d | gpg -d - && echo
 (you will be asked to provide your passphrase to unlock the secret)
 
+Once you are logged in, navigate to the "Security credentials" page [1] and enable MFA [2].
+Once you have enabled MFA, sign out and sign in again.
+
 Details:
 
 Console URL: {}
 Username: {}
 Encrypted password: {}
+
+[1] https://console.aws.amazon.com/iam/home#security_credential
+[2] https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_mfa.html
 
 """
     mails = []
