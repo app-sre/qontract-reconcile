@@ -159,8 +159,11 @@ def test_act_empty_current_state(base_state):
     slack_client_mock = create_autospec(SlackApi)
     slack_map = {"slack-workspace": {"slack": slack_client_mock}}
 
+    slack_client_mock.create_usergroup.return_value = "USERGA"
+
     act(current_state, desired_state, slack_map, dry_run=False)
 
+    assert slack_client_mock.create_usergroup.call_args_list == [call("usergroup-1")]
     assert slack_client_mock.update_usergroup.call_args_list == [
         call("USERGA", ["CHANA"], "Some description")
     ]
@@ -287,7 +290,14 @@ def test_act_add_new_usergroups(base_state):
     slack_client_mock = create_autospec(SlackApi)
     slack_map = {"slack-workspace": {"slack": slack_client_mock}}
 
+    slack_client_mock.create_usergroup.side_effect = ["USERGB", "USERGC"]
+
     act(current_state, desired_state, slack_map, dry_run=False)
+
+    assert slack_client_mock.create_usergroup.call_args_list == [
+        call("usergroup-2"),
+        call("usergroup-3"),
+    ]
 
     assert slack_client_mock.update_usergroup.call_args_list == [
         call("USERGB", ["CHANB", "CHANC"], "A new usergroup"),
