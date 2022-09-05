@@ -3330,6 +3330,11 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             attachment_values = {
                 "role": role_tf_resource.name,
                 "policy_arn": "${" + policy_tf_resource.arn + "}",
+                "depends_on": self.get_dependencies(
+                    [
+                        role_tf_resource,
+                    ]
+                ),
             }
             attachment_tf_resource = aws_iam_role_policy_attachment(
                 policy_identifier, **attachment_values
@@ -3341,6 +3346,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 secret_attachment_values = {
                     "role": role_tf_resource.name,
                     "policy_arn": secret_policy_arn,
+                    "depends_on": self.get_dependencies([role_tf_resource]),
                 }
                 secret_attachment_tf_resource = aws_iam_role_policy_attachment(
                     f"{identifier}-lambda-secretsmanager-policy",
@@ -4054,7 +4060,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         dedicated_master_count = cluster_config.get("dedicated_master_count", 3)
         zone_awareness_enabled = cluster_config.get("zone_awareness_enabled", True)
 
-        es_values["cluster_config"] = {
+        cluster_vaules = {
             "instance_type": cluster_config.get(
                 "instance_type", "t2.small.elasticsearch"
             ),
@@ -4063,22 +4069,28 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         }
 
         if dedicated_master_enabled:
-            es_values["cluster_config"][
-                "dedicated_master_enabled"
-            ] = dedicated_master_enabled
-            es_values["cluster_config"]["dedicated_master_type"] = dedicated_master_type
-            es_values["cluster_config"][
-                "dedicated_master_count"
-            ] = dedicated_master_count
+            cluster_vaules["dedicated_master_enabled"] = dedicated_master_enabled
+            cluster_vaules["dedicated_master_type"] = dedicated_master_type
+            cluster_vaules["dedicated_master_count"] = dedicated_master_count
 
         if zone_awareness_enabled:
             zone_awareness_config = cluster_config.get("zone_awareness_config", {})
             availability_zone_count = zone_awareness_config.get(
                 "availability_zone_count", 3
             )
-            es_values["cluster_config"]["zone_awareness_config"] = {
+            cluster_vaules["zone_awareness_config"] = {
                 "availability_zone_count": availability_zone_count
             }
+
+        warm_enabled = cluster_config.get("warm_enabled", False)
+        if warm_enabled:
+            cluster_vaules["warm_enabled"] = warm_enabled
+            cluster_vaules["warm_type"] = cluster_config.get(
+                "warm_type", "ultrawarm1.medium.elasticsearch"
+            )
+            cluster_vaules["warm_count"] = cluster_config.get("warm_count", 2)
+
+        es_values["cluster_config"] = cluster_vaules
 
         snapshot_options = values.get("snapshot_options", {})
         automated_snapshot_start_hour = snapshot_options.get(
