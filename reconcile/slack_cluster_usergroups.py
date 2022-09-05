@@ -1,5 +1,4 @@
-import logging
-
+from typing import Any
 from reconcile import queries
 from reconcile import openshift_users
 from reconcile import slack_usergroups
@@ -51,7 +50,7 @@ def include_user(user, cluster_name, cluster_users):
     return result
 
 
-def get_desired_state(slack: SlackApi):
+def get_desired_state(slack: SlackApi) -> dict[str, Any]:
     """
     Get the desired state of the Slack cluster usergroups.
 
@@ -62,7 +61,7 @@ def get_desired_state(slack: SlackApi):
                 (ex. state['coreos']['app-sre-ic']
     :rtype: dict
     """
-    desired_state = {}
+    desired_state: dict[str, Any] = {}
     all_users = queries.get_roles(
         sendgrid=False, saas_files=False, aws=False, permissions=False
     )
@@ -101,7 +100,7 @@ def get_desired_state(slack: SlackApi):
     return desired_state
 
 
-def get_current_state(slack: SlackApi, usergroups: list[str]):
+def get_current_state(slack: SlackApi, usergroups: list[str]) -> dict[str, Any]:
     """
     Get the current state of the Slack cluster usergroups.
 
@@ -115,7 +114,7 @@ def get_current_state(slack: SlackApi, usergroups: list[str]):
                 (ex. state['coreos']['app-sre-ic']
     :rtype: dict
     """
-    current_state = {}
+    current_state: dict[str, Any] = {}
 
     for ug in usergroups:
         try:
