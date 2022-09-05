@@ -11,7 +11,11 @@ from reconcile.utils.github_api import GithubApi
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.pagerduty_api import PagerDutyMap
 from reconcile.utils.repo_owners import RepoOwners
-from reconcile.utils.slack_api import SlackApi, SlackApiError
+from reconcile.utils.slack_api import (
+    SlackApi,
+    SlackApiError,
+    UsergroupNotFoundException,
+)
 from reconcile.utils.secret_reader import SecretReader
 from reconcile import queries
 
@@ -76,7 +80,10 @@ def get_current_state(slack_map):
         slack: SlackApi = spec["slack"]
         managed_usergroups = spec["managed_usergroups"]
         for ug in managed_usergroups:
-            users, channels, description = slack.describe_usergroup(ug)
+            try:
+                users, channels, description = slack.describe_usergroup(ug)
+            except UsergroupNotFoundException:
+                continue
             current_state.setdefault(workspace, {})[ug] = {
                 "workspace": workspace,
                 "usergroup": ug,
@@ -298,6 +305,34 @@ def get_desired_state(slack_map, pagerduty_map):
     return desired_state
 
 
+def _create_usergroups(
+    current_ug_state: dict,
+    desired_ug_state: dict,
+    slack_client: SlackApi,
+    dry_run: bool = True,
+):
+    """
+    Create Slack usergroups.
+    """
+
+    workspace = desired_ug_state["workspace"]
+    usergroup = desired_ug_state["usergroup"]
+
+    if current_ug_state:
+        logging.debug(
+            f"[{workspace}] Usergroup exists and will not be created {usergroup}"
+        )
+        return
+
+    logging.info(["create_usergroup", workspace, usergroup])
+    if not dry_run:
+        try:
+            usergroup_id = slack_client.create_usergroup(usergroup)
+            desired_ug_state["usergroup_id"] = usergroup_id
+        except SlackApiError as error:
+            logging.error(error)
+
+
 def _update_usergroup_users_from_state(
     current_ug_state, desired_ug_state, slack_client, dry_run=True
 ):
@@ -435,6 +470,10 @@ def act(current_state, desired_state, slack_map, dry_run=True):
             current_ug_state = current_state.get(workspace, {}).get(usergroup, {})
 
             slack_client: SlackApi = slack_map[workspace]["slack"]
+
+            _create_usergroups(
+                current_ug_state, desired_ug_state, slack_client, dry_run=dry_run
+            )
 
             _update_usergroup_users_from_state(
                 current_ug_state, desired_ug_state, slack_client, dry_run=dry_run
