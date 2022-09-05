@@ -1366,12 +1366,49 @@ def gcr_mirror(ctx):
 
 
 @integration.command(short_help="Mirrors external images into Quay.")
+@click.option(
+    "-d",
+    "--control-file-dir",
+    help="Directory where integration control file will be created. This file controls "
+    "when to compare tags (very slow) apart from mirroring new tags.",
+)
+@click.option(
+    "-f",
+    "--force-compare-tags",
+    help="Forces the integration to do tag comparation no matter what the control file "
+    "says.",
+    type=bool,
+    default=False,
+)
+@click.option(
+    "-c",
+    "--compare-tags-interval",
+    help="Time to wait between compare-tags runs (in seconds). It defaults to 86400 "
+    "(24h).",
+    type=int,
+    default=86400,
+)
+@click.option(
+    "-i",
+    "--image",
+    help="Only considers this image to mirror. It can be specified multiple times.",
+    multiple=True,
+)
 @click.pass_context
 @binary(["skopeo"])
-def quay_mirror(ctx):
+def quay_mirror(
+    ctx, control_file_dir, force_compare_tags, compare_tags_interval, image
+):
     import reconcile.quay_mirror
 
-    run_integration(reconcile.quay_mirror, ctx.obj)
+    run_integration(
+        reconcile.quay_mirror,
+        ctx.obj,
+        control_file_dir,
+        force_compare_tags,
+        compare_tags_interval,
+        image,
+    )
 
 
 @integration.command(short_help="Mirrors entire Quay orgs.")
