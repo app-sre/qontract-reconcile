@@ -224,11 +224,12 @@ INTEGRATIONS_QUERY = """
         }
       }
       shardSpecOverride{
-        awsAccount {
-          name
-          path
+       ... on AWSShardSpecOverride_v1 {
+          awsAccount {
+            name
+          }
+          imageRef
         }
-        imageRef
       }
       spec {
         cache
