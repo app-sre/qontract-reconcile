@@ -225,9 +225,11 @@ class SlackApi:
         if not info.data["channel"]["is_member"]:  # type: ignore[call-overload]
             self._sc.conversations_join(channel=channel_id)
 
-    def get_usergroup_id(self, handle):
-        usergroup = self.get_usergroup(handle)
-        return usergroup["id"]
+    def get_usergroup_id(self, handle: str) -> Optional[str]:
+        try:
+            return self.get_usergroup(handle)["id"]
+        except UsergroupNotFoundException:
+            return None
 
     def _initiate_usergroups(self) -> None:
         """
@@ -245,6 +247,10 @@ class SlackApi:
             raise UsergroupNotFoundException(handle)
         [usergroup] = usergroup
         return usergroup
+
+    def create_usergroup(self, handle: str) -> str:
+        response = self._sc.usergroups_create(name=handle, handle=handle)
+        return response["usergroup"]["id"]
 
     def update_usergroup(
         self, id: str, channels_list: Sequence[str], description: str
