@@ -248,8 +248,9 @@ class SlackApi:
         [usergroup] = usergroup
         return usergroup
 
-    def create_usergroup(self, handle: str):
-        self._sc.usergroups_create(name=handle, handle=handle)
+    def create_usergroup(self, handle: str) -> str:
+        response = self._sc.usergroups_create(name=handle, handle=handle)
+        return response["usergroup"]["id"]
 
     def update_usergroup(
         self, id: str, channels_list: Sequence[str], description: str
