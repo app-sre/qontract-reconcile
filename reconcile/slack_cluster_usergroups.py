@@ -81,9 +81,8 @@ def get_desired_state(slack: SlackApi):
             if u["cluster"] == cluster_name
         ]
         usergroup = cluster["auth"]["team"]
-        try:
-            ugid = slack.get_usergroup_id(usergroup)
-        except UsergroupNotFoundException:
+        ugid = slack.get_usergroup_id(usergroup)
+        if not ugid:
             logging.warning(f"Usergroup {usergroup} not found")
             continue
         user_names = [

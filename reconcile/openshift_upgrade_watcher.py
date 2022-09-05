@@ -19,7 +19,7 @@ def cluster_slack_handle(cluster: str, slack: Optional[SlackApi]):
     usergroup = f"{cluster}-cluster"
     usergroup_id = f"@{usergroup}"
     if slack:
-        usergroup_id = slack.get_usergroup_id(usergroup)
+        usergroup_id = slack.get_usergroup_id(usergroup) or usergroup_id
     return f"<!subteam^{usergroup_id}>"
 
 
