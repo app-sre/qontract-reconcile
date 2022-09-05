@@ -82,9 +82,6 @@ def get_desired_state(slack: SlackApi):
         ]
         usergroup = cluster["auth"]["team"]
         ugid = slack.get_usergroup_id(usergroup)
-        if not ugid:
-            logging.warning(f"Usergroup {usergroup} not found")
-            continue
         user_names = [
             slack_usergroups.get_slack_username(u)
             for u in all_users
@@ -121,7 +118,10 @@ def get_current_state(slack: SlackApi, usergroups: list[str]):
     current_state = {}
 
     for ug in usergroups:
-        users, channels, description = slack.describe_usergroup(ug)
+        try:
+            users, channels, description = slack.describe_usergroup(ug)
+        except UsergroupNotFoundException:
+            continue
         current_state.setdefault(slack.workspace_name, {})[ug] = {
             "workspace": slack.workspace_name,
             "usergroup": ug,
