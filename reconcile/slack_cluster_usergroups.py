@@ -5,7 +5,7 @@ from reconcile import openshift_users
 from reconcile import slack_usergroups
 
 from reconcile.slack_base import slackapi_from_queries
-from reconcile.utils.slack_api import UsergroupNotFoundException
+from reconcile.utils.slack_api import SlackApi, UsergroupNotFoundException
 
 QONTRACT_INTEGRATION = "slack-cluster-usergroups"
 
@@ -51,7 +51,7 @@ def include_user(user, cluster_name, cluster_users):
     return result
 
 
-def get_desired_state(slack):
+def get_desired_state(slack: SlackApi):
     """
     Get the desired state of the Slack cluster usergroups.
 
@@ -105,7 +105,7 @@ def get_desired_state(slack):
     return desired_state
 
 
-def get_current_state(slack, usergroups):
+def get_current_state(slack: SlackApi, usergroups: list[str]):
     """
     Get the current state of the Slack cluster usergroups.
 

@@ -11,7 +11,7 @@ from reconcile.utils.github_api import GithubApi
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.pagerduty_api import PagerDutyMap
 from reconcile.utils.repo_owners import RepoOwners
-from reconcile.utils.slack_api import SlackApiError
+from reconcile.utils.slack_api import SlackApi, SlackApiError
 from reconcile.utils.secret_reader import SecretReader
 from reconcile import queries
 
@@ -73,7 +73,7 @@ def get_current_state(slack_map):
     current_state = {}
 
     for workspace, spec in slack_map.items():
-        slack = spec["slack"]
+        slack: SlackApi = spec["slack"]
         managed_usergroups = spec["managed_usergroups"]
         for ug in managed_usergroups:
             users, channels, description = slack.describe_usergroup(ug)
@@ -257,7 +257,7 @@ def get_desired_state(slack_map, pagerduty_map):
                     not in managed usergroups {managed_usergroups}"
             )
 
-        slack = slack_map[workspace_name]["slack"]
+        slack: SlackApi = slack_map[workspace_name]["slack"]
         ugid = slack.get_usergroup_id(usergroup)
 
         all_user_names = [get_slack_username(u) for r in p["roles"] for u in r["users"]]
@@ -434,7 +434,7 @@ def act(current_state, desired_state, slack_map, dry_run=True):
         for usergroup, desired_ug_state in desired_ws_state.items():
             current_ug_state = current_state.get(workspace, {}).get(usergroup, {})
 
-            slack_client = slack_map[workspace]["slack"]
+            slack_client: SlackApi = slack_map[workspace]["slack"]
 
             _update_usergroup_users_from_state(
                 current_ug_state, desired_ug_state, slack_client, dry_run=dry_run
