@@ -6,7 +6,7 @@ import tempfile
 import time
 
 from collections import defaultdict, namedtuple
-from typing import Any, Iterable, Optional
+from typing import Any
 
 from sretoolbox.container.image import ImageComparisonError, ImageContainsError
 from sretoolbox.container.skopeo import SkopeoCmdError
@@ -24,7 +24,6 @@ from reconcile.utils.instrumented_wrappers import (
 _LOG = logging.getLogger(__name__)
 
 QONTRACT_INTEGRATION = "quay-mirror"
-CONTROL_FILE_NAME = "qontract-reconcile-quay-mirror.timestamp"
 
 OrgKey = namedtuple("OrgKey", ["instance", "org_name"])
 
@@ -55,39 +54,15 @@ class QuayMirror:
         shard_id=sharding.SHARD_ID,
     )
 
-    def __init__(
-        self,
-        dry_run: bool = False,
-        control_file_dir: Optional[str] = None,
-        force_compare_tags: bool = False,
-        compare_tags_interval: int = 86400,
-        images: Optional[Iterable[str]] = None,
-    ) -> None:
+    def __init__(self, dry_run=False):
         self.dry_run = dry_run
         self.gqlapi = gql.get_api()
         settings = queries.get_app_interface_settings()
         self.secret_reader = SecretReader(settings=settings)
         self.skopeo_cli = Skopeo(dry_run)
         self.push_creds = self._get_push_creds()
-        self.force_compare_tags = force_compare_tags
-        self.compare_tags_interval = compare_tags_interval
-        self.images = images
 
-        if control_file_dir:
-            if not os.path.isdir(control_file_dir):
-                raise FileNotFoundError(
-                    f"'{control_file_dir}' does not exist or it is not a directory"
-                )
-
-            self.control_file_path = os.path.join(control_file_dir, CONTROL_FILE_NAME)
-        else:
-            self.control_file_path = os.path.join(
-                tempfile.gettempdir(), CONTROL_FILE_NAME
-            )
-
-        self._has_enough_time_passed_since_last_compare_tags: Optional[bool] = None
-
-    def run(self) -> None:
+    def run(self):
         sync_tasks = self.process_sync_tasks()
         for org, data in sync_tasks.items():
             for item in data:
@@ -101,13 +76,8 @@ class QuayMirror:
                 except SkopeoCmdError as details:
                     _LOG.error("[%s]", details)
 
-        if self.is_compare_tags:
-            self.record_timestamp(self.control_file_path)
-
     @classmethod
-    def process_repos_query(
-        cls, images: Optional[Iterable[str]] = None
-    ) -> defaultdict[OrgKey, list[dict[str, Any]]]:
+    def process_repos_query(cls):
         apps = queries.get_quay_repos()
 
         summary = defaultdict(list)
@@ -124,9 +94,6 @@ class QuayMirror:
                 server_url = quay_repo["org"]["instance"]["url"]
 
                 for item in quay_repo["items"]:
-                    if images and item["name"] not in images:
-                        continue
-
                     if item["mirror"] is None:
                         continue
 
@@ -149,6 +116,7 @@ class QuayMirror:
                             "server_url": server_url,
                         }
                     )
+
         return summary
 
     @staticmethod
@@ -172,7 +140,10 @@ class QuayMirror:
         return True
 
     def process_sync_tasks(self):
-        summary = self.process_repos_query(self.images)
+        twenty_four_hours = 86400  # 60 * 60 * 24
+        is_deep_sync = self._is_deep_sync(interval=twenty_four_hours)
+
+        summary = self.process_repos_query()
         sync_tasks = defaultdict(list)
         for org_key, data in summary.items():
             org = org_key.org_name
@@ -229,11 +200,21 @@ class QuayMirror:
                         sync_tasks[org_key].append(task)
                         continue
 
-                    # Compare tags (slow) only from time to time.
-                    if not self.is_compare_tags:
+                    # Deep (slow) check only in non dry-run mode
+                    if self.dry_run:
                         _LOG.debug(
-                            "Running in non compare-tags mode. We won't check if %s "
-                            "and %s are actually in sync",
+                            "Running in dry-run mode. We won't check if %s and %s "
+                            "are actually in sync",
+                            downstream,
+                            upstream,
+                        )
+                        continue
+
+                    # Deep (slow) check only from time to time
+                    if not is_deep_sync:
+                        _LOG.debug(
+                            "Running in non deep-sync mode. We won't check if %s and "
+                            "%s are actually in sync",
                             downstream,
                             upstream,
                         )
@@ -280,40 +261,25 @@ class QuayMirror:
 
         return sync_tasks
 
-    @property
-    def is_compare_tags(self) -> bool:
-        return (
-            self.force_compare_tags
-            or self.has_enough_time_passed_since_last_compare_tags
-        )
-
-    @property
-    def has_enough_time_passed_since_last_compare_tags(self) -> bool:
-        if self._has_enough_time_passed_since_last_compare_tags is None:
-            self._has_enough_time_passed_since_last_compare_tags = (
-                self.check_compare_tags_elapsed_time(
-                    self.control_file_path, self.compare_tags_interval
-                )
-            )
-
-        return self._has_enough_time_passed_since_last_compare_tags
-
-    @staticmethod
-    def check_compare_tags_elapsed_time(path, interval) -> bool:
+    def _is_deep_sync(self, interval):
+        control_file_name = "qontract-reconcile-quay-mirror.timestamp"
+        control_file_path = os.path.join(tempfile.gettempdir(), control_file_name)
         try:
-            with open(path, "r") as file_obj:
-                last_compare_tags = float(file_obj.read())
+            with open(control_file_path, "r") as file_obj:
+                last_deep_sync = float(file_obj.read())
         except FileNotFoundError:
+            self._record_timestamp(control_file_path)
             return True
 
-        next_compare_tags = last_compare_tags + interval
-        if time.time() >= next_compare_tags:
+        next_deep_sync = last_deep_sync + interval
+        if time.time() >= next_deep_sync:
+            self._record_timestamp(control_file_path)
             return True
 
         return False
 
     @staticmethod
-    def record_timestamp(path) -> None:
+    def _record_timestamp(path):
         with open(path, "w") as file_object:
             file_object.write(str(time.time()))
 
@@ -335,16 +301,8 @@ class QuayMirror:
         return creds
 
 
-def run(
-    dry_run,
-    control_file_dir: Optional[str],
-    force_compare_tags: bool,
-    compare_tags_interval: int,
-    images: Optional[Iterable[str]],
-):
-    quay_mirror = QuayMirror(
-        dry_run, control_file_dir, force_compare_tags, compare_tags_interval, images
-    )
+def run(dry_run):
+    quay_mirror = QuayMirror(dry_run)
     quay_mirror.run()
 
 
