@@ -37,7 +37,7 @@ setup(
         "slack_sdk>=3.10,<4.0",
         "pypd>=1.1.0,<1.2.0",
         "Jinja2>=2.10.1,<3.2.0",
-        "jira~=3.1",
+        "jira~=3.4.1",
         "pyOpenSSL~=21.0",
         "ruamel.yaml>=0.16.5,<0.18.0",
         "terrascript==0.9.0",
