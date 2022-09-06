@@ -1,60 +1,77 @@
 import os
 import tempfile
+from unittest.mock import patch
 
 import pytest
 
 from reconcile.quay_mirror import QuayMirror, CONTROL_FILE_NAME
 
-
-def test_check_compare_tags_no_control_file():
-    assert QuayMirror.check_compare_tags_elapsed_time("/no-such-file", 100)
+NOW = 1662124612.995397
 
 
-def test_check_compare_tags_with_file(mocker):
-    now = 1662124612.995397
-    mocker.patch("time.time", return_value=now)
+@patch("reconcile.utils.gql.get_api", autospec=True)
+@patch("reconcile.queries.get_app_interface_settings", return_value={})
+class TestControlFile:
+    def test_check_compare_tags_no_control_file(self, mock_gql, mock_settings):
+        assert QuayMirror.check_compare_tags_elapsed_time("/no-such-file", 100)
 
-    with tempfile.NamedTemporaryFile() as fp:
-        fp.write(str(now - 100.0).encode())
-        fp.seek(0)
+    @patch("time.time", return_value=NOW)
+    def test_check_compare_tags_with_file(self, mock_gql, mock_settings, mock_time):
+        with tempfile.NamedTemporaryFile() as fp:
+            fp.write(str(NOW - 100.0).encode())
+            fp.seek(0)
 
-        assert QuayMirror.check_compare_tags_elapsed_time(fp.name, 10)
-        assert not QuayMirror.check_compare_tags_elapsed_time(fp.name, 1000)
+            assert QuayMirror.check_compare_tags_elapsed_time(fp.name, 10)
+            assert not QuayMirror.check_compare_tags_elapsed_time(fp.name, 1000)
 
+    def test_control_file_dir_does_not_exist(self, mock_gql, mock_settings):
+        with pytest.raises(FileNotFoundError):
+            QuayMirror(control_file_dir="/no-such-dir")
 
-def test_control_file_dir_does_not_exist(mocker):
-    mocker.patch("reconcile.utils.gql.get_api", autospec=True)
-    mocker.patch("reconcile.queries.get_app_interface_settings", return_value={})
-
-    with pytest.raises(FileNotFoundError):
-        QuayMirror(control_file_dir="/no-such-dir")
-
-
-def test_control_file_path_from_given_dir(mocker):
-    mocker.patch("reconcile.utils.gql.get_api", autospec=True)
-    mocker.patch("reconcile.queries.get_app_interface_settings", return_value={})
-
-    with tempfile.TemporaryDirectory() as tmp_dir_name:
-        qm = QuayMirror(control_file_dir=tmp_dir_name)
-        assert qm.control_file_path == os.path.join(tmp_dir_name, CONTROL_FILE_NAME)
+    def test_control_file_path_from_given_dir(self, mock_gql, mock_settings):
+        with tempfile.TemporaryDirectory() as tmp_dir_name:
+            qm = QuayMirror(control_file_dir=tmp_dir_name)
+            assert qm.control_file_path == os.path.join(tmp_dir_name, CONTROL_FILE_NAME)
 
 
-def test_is_compare_tags(mocker):
-    now = 1662124612.995397
-    mocker.patch("time.time", return_value=now)
-    mocker.patch("reconcile.utils.gql.get_api", autospec=True)
-    mocker.patch("reconcile.queries.get_app_interface_settings", return_value={})
+@patch("reconcile.utils.gql.get_api", autospec=True)
+@patch("reconcile.queries.get_app_interface_settings", return_value={})
+@patch("time.time", return_value=NOW)
+class TestIsCompareTags:
+    def setup_method(self):
+        self.tmp_dir = (
+            tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
+        )
+        with open(os.path.join(self.tmp_dir.name, CONTROL_FILE_NAME), "w") as fh:
+            fh.write(str(NOW - 100.0))
 
-    with tempfile.TemporaryDirectory() as tmp_dir_name:
-        with open(os.path.join(tmp_dir_name, CONTROL_FILE_NAME), "w") as fh:
-            fh.write(str(now - 100.0))
+    def teardown_mehtod(self):
+        self.tmp_dir.cleanup()
 
-        qm = QuayMirror(control_file_dir=tmp_dir_name, compare_tags_interval=1000)
+    # Last run was in NOW - 100s, we run compare tags every 10s.
+    def test_is_compare_tags_elapsed(self, mock_gql, mock_settings, mock_time):
+        qm = QuayMirror(control_file_dir=self.tmp_dir.name, compare_tags_interval=10)
+        assert qm.is_compare_tags
+
+    # Same as before, but now we force no compare with the option.
+    def test_is_compare_tags_force_no_compare(self, mock_gql, mock_settings, mock_time):
+        qm = QuayMirror(
+            control_file_dir=self.tmp_dir.name,
+            compare_tags_interval=10,
+            compare_tags=False,
+        )
         assert not qm.is_compare_tags
 
+    # Last run was in NOW - 100s, we run compare tags every 1000s.
+    def test_is_compare_tags_not_elapsed(self, mock_gql, mock_settings, mock_time):
+        qm = QuayMirror(control_file_dir=self.tmp_dir.name, compare_tags_interval=1000)
+        assert not qm.is_compare_tags
+
+    # Same as before, but now we force compare with the option.
+    def test_is_compare_tags_force_compare(self, mock_gql, mock_settings, mock_time):
         qm = QuayMirror(
-            control_file_dir=tmp_dir_name,
-            compare_tags_interval=10,
-            force_compare_tags=True,
+            control_file_dir=self.tmp_dir.name,
+            compare_tags_interval=1000,
+            compare_tags=True,
         )
         assert qm.is_compare_tags

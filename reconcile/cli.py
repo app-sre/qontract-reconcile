@@ -1373,12 +1373,11 @@ def gcr_mirror(ctx):
     "when to compare tags (very slow) apart from mirroring new tags.",
 )
 @click.option(
-    "-f",
-    "--force-compare-tags",
-    help="Forces the integration to do tag comparation no matter what the control file "
-    "says.",
-    type=bool,
-    default=False,
+    "-t/-n",
+    "--compare-tags/--no-compare-tags",
+    help="Forces the integration to do or do not do tag comparation no matter what the "
+    "control file says.",
+    default=None,
 )
 @click.option(
     "-c",
@@ -1396,16 +1395,14 @@ def gcr_mirror(ctx):
 )
 @click.pass_context
 @binary(["skopeo"])
-def quay_mirror(
-    ctx, control_file_dir, force_compare_tags, compare_tags_interval, image
-):
+def quay_mirror(ctx, control_file_dir, compare_tags, compare_tags_interval, image):
     import reconcile.quay_mirror
 
     run_integration(
         reconcile.quay_mirror,
         ctx.obj,
         control_file_dir,
-        force_compare_tags,
+        compare_tags,
         compare_tags_interval,
         image,
     )

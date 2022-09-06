@@ -59,7 +59,7 @@ class QuayMirror:
         self,
         dry_run: bool = False,
         control_file_dir: Optional[str] = None,
-        force_compare_tags: bool = False,
+        compare_tags: Optional[bool] = None,
         compare_tags_interval: int = 86400,
         images: Optional[Iterable[str]] = None,
     ) -> None:
@@ -69,7 +69,7 @@ class QuayMirror:
         self.secret_reader = SecretReader(settings=settings)
         self.skopeo_cli = Skopeo(dry_run)
         self.push_creds = self._get_push_creds()
-        self.force_compare_tags = force_compare_tags
+        self.compare_tags = compare_tags
         self.compare_tags_interval = compare_tags_interval
         self.images = images
 
@@ -282,10 +282,10 @@ class QuayMirror:
 
     @property
     def is_compare_tags(self) -> bool:
-        return (
-            self.force_compare_tags
-            or self.has_enough_time_passed_since_last_compare_tags
-        )
+        if self.compare_tags is not None:
+            return self.compare_tags
+
+        return self.has_enough_time_passed_since_last_compare_tags
 
     @property
     def has_enough_time_passed_since_last_compare_tags(self) -> bool:
@@ -338,12 +338,12 @@ class QuayMirror:
 def run(
     dry_run,
     control_file_dir: Optional[str],
-    force_compare_tags: bool,
+    compare_tags: Optional[bool],
     compare_tags_interval: int,
     images: Optional[Iterable[str]],
 ):
     quay_mirror = QuayMirror(
-        dry_run, control_file_dir, force_compare_tags, compare_tags_interval, images
+        dry_run, control_file_dir, compare_tags, compare_tags_interval, images
     )
     quay_mirror.run()
 
