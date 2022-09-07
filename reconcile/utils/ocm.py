@@ -1,24 +1,22 @@
 from __future__ import annotations
-from abc import abstractmethod
+
 import functools
 import logging
 import re
-from typing import Any, Optional, Tuple, Union, Mapping
-
+from abc import abstractmethod
+from typing import Any, Mapping, Optional, Tuple, Union
 
 import reconcile.utils.aws_helper as awsh
 import requests
-from reconcile.utils.secret_reader import SecretReader
-from sretoolbox.utils import retry
-
 from reconcile.ocm.types import (
-    OCMSpec,
-    OSDClusterSpec,
     OCMClusterAutoscale,
     OCMClusterNetwork,
+    OCMSpec,
+    OSDClusterSpec,
     ROSAClusterSpec,
 )
-
+from reconcile.utils.secret_reader import SecretReader
+from sretoolbox.utils import retry
 
 STATUS_READY = "ready"
 STATUS_FAILED = "failed"
