@@ -44,7 +44,6 @@ disable = attribute-defined-outside-init,
           too-many-nested-blocks,
           too-many-return-statements,
           too-many-statements,
-          unbalanced-tuple-unpacking,
           # This makes calls to open too cumbersome
           unspecified-encoding,
           # Not all integrations need all the arguments we pass to
