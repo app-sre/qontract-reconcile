@@ -1452,7 +1452,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             for e_n in event_notifications:
                 sns_topic_name = e_n.pop("destination")
                 if sns_topic_name.startswith("arn:"):
-                    raise (ValueError("destination should not be an arn"))
+                    raise ValueError("destination should not be an arn")
                 e_n["sns_topic"] = "${aws_sns_topic" + "." + sns_topic_name + ".arn}"
                 e_n["source_ids"] = ["${aws_db_instance" + "." + identifier + ".id}"]
                 source_type = e_n.get("source_type", "all")
