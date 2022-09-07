@@ -522,3 +522,9 @@ def run(dry_run: bool, enable_deletion: bool):
     process_tds(
         current["tds"], desired["tds"], dry_run=dry_run, enable_deletion=enable_deletion
     )
+
+
+def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
+    return {
+        "traffic_directors": queries.get_dyn_traffic_directors(),
+    }
