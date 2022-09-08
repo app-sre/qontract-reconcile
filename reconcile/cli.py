@@ -2096,7 +2096,7 @@ def integrations_manager(
 )
 @click.option(
     "--saas-file-owner-change-type-name",
-    help="bundle sha to compare to to find changes",
+    help="changetype to be used to cover changes in saas files owned via Role_v1.saas_file_owners",
 )
 @click.pass_context
 def change_owners(ctx, comparison_sha, saas_file_owner_change_type_name):

@@ -67,7 +67,7 @@ class Diff:
 class BundleFileChange:
     """
     Represents a file within an app-interface bundle that changed during an MR.
-    It holds the old and new state of that file, along with precis differences
+    It holds the old and new state of that file, along with precise differences
     between those states.
     """
 
@@ -80,7 +80,7 @@ class BundleFileChange:
         """
         ChangeTypeV1 are attached to bundle files, react to changes within
         them and use their context to derive who can approve those changes.
-        Extracting this context be done in two ways depending on the configuration
+        Extracting this context can be done in two ways depending on the configuration
         of the ChangeTypeV1.
 
         direct context extraction
@@ -176,7 +176,7 @@ class BundleFileChange:
           context (e.g. a RoleV1) and allows the approvers of that context (e.g.
           the members of that role) to approve that particular change.
 
-        The ChangeTypeV1 that cover a change, are registered within the
+        The change contexts that cover a change, are registered within the
         `Diff` objects `covered_by` list.
         """
         covered_diffs = {}
@@ -629,6 +629,7 @@ def run(
         comparison_sha, QONTRACT_INTEGRATION, validate_schemas=False
     )
     changes = fetch_bundle_changes(comparison_sha)
+    # get change types from the comparison bundle to prevent privilege escalation
     change_type_processors = fetch_change_type_processors(comparision_gql_api)
 
     # an error while trying to cover changes will not fail the integration
