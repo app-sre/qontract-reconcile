@@ -1,5 +1,5 @@
 import sys
-from typing import Any, Optional, cast
+from typing import Optional, cast
 
 from reconcile import queries
 from reconcile.gql_definitions.terraform_cloudflare_resources import (
@@ -34,23 +34,11 @@ QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 QONTRACT_TF_PREFIX = "qrtfcf"
 
 
-def create_cloudflare_account_config(
-    settings: dict[str, Any], cf_acct: CloudflareAccountV1
-) -> CloudflareAccountConfig:
-    secret_reader = SecretReader(settings=settings)
-    cf_acct_creds = secret_reader.read_all({"path": cf_acct.api_credentials.path})
-    return CloudflareAccountConfig(
-        cf_acct.name,
-        cf_acct_creds.get("api_token"),
-    )
-
-
 def create_backend_config(
-    settings: dict[str, Any],
+    secret_reader: SecretReader,
     aws_acct: AWSAccountV1,
     cf_acct: CloudflareAccountV1,
 ) -> TerraformS3BackendConfig:
-    secret_reader = SecretReader(settings=settings)
     aws_acct_creds = secret_reader.read_all({"path": aws_acct.automation_token.path})
 
     # default from AWS account file
@@ -105,10 +93,15 @@ def build_clients(
     clients = []
     for extres in get_resources(query_data):
         cf_acct = extres.provisioner
-        cf_acct_config = create_cloudflare_account_config(settings, cf_acct)
+
+        cf_acct_creds = secret_reader.read_all({"path": cf_acct.api_credentials.path})
+        cf_acct_config = CloudflareAccountConfig(
+            cf_acct.name,
+            cf_acct_creds.get("api_token"),
+        )
 
         aws_acct = cf_acct.terraform_state_account
-        aws_backend_config = create_backend_config(settings, aws_acct, cf_acct)
+        aws_backend_config = create_backend_config(secret_reader, aws_acct, cf_acct)
 
         ts_config = create_cloudflare_terrascript(
             cf_acct_config,
@@ -241,11 +234,13 @@ def run(
 ) -> None:
 
     settings = queries.get_app_interface_settings()
+    secret_reader = SecretReader(settings=settings)
+
     query_data = terraform_cloudflare_resources.query(query_func=gql.get_api().query)
 
     # Build Cloudflare clients
     cf_clients = TerraformConfigClientCollection()
-    for client in build_clients(settings, query_data):
+    for client in build_clients(secret_reader, query_data):
         cf_clients.register_client(*client)
 
     # Register Cloudflare resources
