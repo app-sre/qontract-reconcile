@@ -1921,6 +1921,7 @@ SAAS_FILES_QUERY_V2 = """
     }
     managedResourceTypes
     takeover
+    deprecated
     compare
     publishJobLogs
     clusterAdmin
