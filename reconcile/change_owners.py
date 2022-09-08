@@ -7,6 +7,7 @@ import logging
 import traceback
 import re
 
+from reconcile.utils.output import print_table
 from reconcile.utils import gql
 from reconcile.gql_definitions.change_owners.queries.self_service_roles import RoleV1
 from reconcile.gql_definitions.change_owners.queries.change_types import (
@@ -24,7 +25,6 @@ from deepdiff.helper import CannotCompare
 
 import jsonpath_ng
 import jsonpath_ng.ext
-from tabulate import tabulate
 import anymarkup
 
 
@@ -666,3 +666,16 @@ def run(
                     }
                 )
             results.append(item)
+
+    print_table(
+        results,
+        [
+            "file",
+            "changed path",
+            "old value",
+            "new value",
+            "change type",
+            "context",
+            "approvers",
+        ],
+    )
