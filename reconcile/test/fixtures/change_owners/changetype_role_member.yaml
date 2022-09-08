@@ -1,0 +1,17 @@
+name: change-role-member
+
+# this change type can be used on owned role-1 datafiles
+contextType: datafile
+contextSchema: /access/roles-1.yml
+
+changes:
+# this changetype covers changes on roles within a user-1 but since it can only
+# be used in the context of role-1 datafiles, we need to declare how to find the
+# roles within the user-1 file
+- provider: jsonPath
+  changeSchema: /access/user-1.yml
+  jsonPathSelectors:
+  - roles
+  context:
+    selector: roles[*].'$ref'
+    when: added
