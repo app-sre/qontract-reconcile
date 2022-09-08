@@ -2,15 +2,15 @@ import sys
 from typing import Any, Optional, cast
 
 from reconcile import queries
-from reconcile.gql_definitions.terraform_resources_cloudflare import (
-    terraform_resources_cloudflare,
+from reconcile.gql_definitions.terraform_cloudflare_resources import (
+    terraform_cloudflare_resources,
 )
-from reconcile.gql_definitions.terraform_resources_cloudflare.terraform_resources_cloudflare import (
+from reconcile.gql_definitions.terraform_cloudflare_resources.terraform_cloudflare_resources import (
     AWSAccountV1,
     CloudflareAccountV1,
     NamespaceTerraformProviderResourceCloudflareV1,
     NamespaceTerraformResourceCloudflareZoneV1,
-    TerraformResourcesCloudflareQueryData,
+    TerraformCloudflareResourcesQueryData,
 )
 from reconcile.utils import gql
 from reconcile.utils.defer import defer
@@ -29,7 +29,7 @@ from reconcile.utils.terrascript.cloudflare_client import (
 )
 from reconcile.utils.helpers import filter_null
 
-QONTRACT_INTEGRATION = "terraform_resources_cloudflare"
+QONTRACT_INTEGRATION = "terraform_cloudflare_resources"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 QONTRACT_TF_PREFIX = "qrtfcf"
 
@@ -87,7 +87,7 @@ def create_backend_config(
 
 
 def get_resources(
-    query_data: TerraformResourcesCloudflareQueryData,
+    query_data: TerraformCloudflareResourcesQueryData,
 ) -> list[NamespaceTerraformProviderResourceCloudflareV1]:
     """Get all Cloudflare V1 resources from the Cloudflare query data"""
     return [
@@ -99,8 +99,8 @@ def get_resources(
 
 
 def build_clients(
-    settings: dict[str, Any],
-    query_data: TerraformResourcesCloudflareQueryData,
+    secret_reader: SecretReader,
+    query_data: TerraformCloudflareResourcesQueryData,
 ) -> list[tuple[str, TerrascriptCloudflareClient]]:
     clients = []
     for extres in get_resources(query_data):
@@ -135,7 +135,7 @@ def get_github_file(repo: str, path: str, ref: str) -> str:
 
 
 def build_specs(
-    query_data: TerraformResourcesCloudflareQueryData,
+    query_data: TerraformCloudflareResourcesQueryData,
 ) -> list[ExternalResourceSpec]:
 
     specs = []
@@ -241,7 +241,7 @@ def run(
 ) -> None:
 
     settings = queries.get_app_interface_settings()
-    query_data = terraform_resources_cloudflare.query(query_func=gql.get_api().query)
+    query_data = terraform_cloudflare_resources.query(query_func=gql.get_api().query)
 
     # Build Cloudflare clients
     cf_clients = TerraformConfigClientCollection()

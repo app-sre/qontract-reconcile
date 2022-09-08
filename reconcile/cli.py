@@ -1541,16 +1541,16 @@ def terraform_resources(
 @binary(["terraform"])
 @binary_version("terraform", ["version"], TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
 @click.pass_context
-def terraform_resources_cloudflare(
+def terraform_cloudflare_resources(
     ctx,
     print_to_file,
     enable_deletion,
     thread_pool_size,
 ):
-    import reconcile.terraform_resources_cloudflare
+    import reconcile.terraform_cloudflare_resources
 
     run_integration(
-        reconcile.terraform_resources_cloudflare,
+        reconcile.terraform_cloudflare_resources,
         ctx.obj,
         print_to_file,
         enable_deletion,

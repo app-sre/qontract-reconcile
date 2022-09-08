@@ -1,6 +1,6 @@
 # qenerate: plugin=pydantic_v1
 
-query TerraformResourcesCloudflare {
+query TerraformCloudflareResources {
   namespaces: namespaces_v1 {
     name
     externalResources {

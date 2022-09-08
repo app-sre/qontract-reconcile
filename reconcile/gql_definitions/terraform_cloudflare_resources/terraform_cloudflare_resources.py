@@ -17,7 +17,7 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
 
 
 DEFINITION = """
-query TerraformResourcesCloudflare {
+query TerraformCloudflareResources {
   namespaces: namespaces_v1 {
     name
     externalResources {
@@ -285,7 +285,7 @@ class NamespaceV1(BaseModel):
         extra = Extra.forbid
 
 
-class TerraformResourcesCloudflareQueryData(BaseModel):
+class TerraformCloudflareResourcesQueryData(BaseModel):
     namespaces: Optional[list[Optional[NamespaceV1]]] = Field(..., alias="namespaces")
 
     class Config:
@@ -293,7 +293,7 @@ class TerraformResourcesCloudflareQueryData(BaseModel):
         extra = Extra.forbid
 
 
-def query(query_func: Callable, **kwargs) -> TerraformResourcesCloudflareQueryData:
+def query(query_func: Callable, **kwargs) -> TerraformCloudflareResourcesQueryData:
     """
     This is a convenience function which queries and parses the data into
     concrete types. It should be compatible with most GQL clients.
@@ -306,7 +306,7 @@ def query(query_func: Callable, **kwargs) -> TerraformResourcesCloudflareQueryDa
         kwargs: optional arguments that will be passed to the query function
 
     Returns:
-        TerraformResourcesCloudflareQueryData: queried data parsed into generated classes
+        TerraformCloudflareResourcesQueryData: queried data parsed into generated classes
     """
     raw_data: dict[Any, Any] = query_func(DEFINITION, kwargs)
-    return TerraformResourcesCloudflareQueryData(**raw_data)
+    return TerraformCloudflareResourcesQueryData(**raw_data)
