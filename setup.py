@@ -64,6 +64,7 @@ setup(
         # Needed to fix issues with router's certificates
         "cryptography==36.0.2",
         "deepdiff==5.8.1",
+        "jsonpath-ng~=1.5",
     ],
 
     test_suite="tests",
