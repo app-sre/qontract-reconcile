@@ -8,38 +8,31 @@ import time
 from contextlib import suppress
 from datetime import datetime
 from functools import wraps
-from subprocess import Popen, PIPE
+from subprocess import PIPE, Popen
 from threading import Lock
 from typing import Any, Dict, Iterable, List, Set, Union
 
 import urllib3
-
-from sretoolbox.utils import retry
-from sretoolbox.utils import threaded
-from prometheus_client import Counter
-
-from kubernetes.client import Configuration, ApiClient
+from kubernetes.client import ApiClient, Configuration
 from kubernetes.client.exceptions import ApiException
-
-from reconcile.utils.secret_reader import SecretNotFound
-from reconcile.utils.metrics import reconcile_time
-from reconcile.status import RunningState
-from reconcile.utils.jump_host import JumpHostSSH
-from reconcile.utils.secret_reader import SecretReader
-
+from kubernetes.dynamic.client import DynamicClient
+from kubernetes.dynamic.discovery import LazyDiscoverer, ResourceGroup
 from kubernetes.dynamic.exceptions import (
-    NotFoundError,
-    ServerTimeoutError,
-    InternalServerError,
     ForbiddenError,
+    InternalServerError,
+    NotFoundError,
     ResourceNotFoundError,
     ResourceNotUniqueError,
+    ServerTimeoutError,
 )
-from kubernetes.dynamic.client import DynamicClient
-from kubernetes.dynamic.discovery import ResourceGroup, LazyDiscoverer
 from kubernetes.dynamic.resource import ResourceList
-
+from prometheus_client import Counter
+from reconcile.status import RunningState
+from reconcile.utils.jump_host import JumpHostSSH
+from reconcile.utils.metrics import reconcile_time
+from reconcile.utils.secret_reader import SecretNotFound, SecretReader
 from reconcile.utils.unleash import get_feature_toggle_state
+from sretoolbox.utils import retry, threaded
 
 urllib3.disable_warnings()
 

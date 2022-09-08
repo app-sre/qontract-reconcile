@@ -105,16 +105,14 @@ def setup(
 
     Returns:
         saasherder (SaasHerder): a SaasHerder instance
-        jenkins_map (dict): Instance names with JenkinsApi instances
         oc_map (OC_Map): a dictionary of OC clients per cluster
-        settings (dict): App-interface settings
         error (bool): True if one happened, False otherwise
     """
 
     saas_files = queries.get_saas_files()
     if not saas_files:
         logging.error("no saas files found")
-        return None, None, None, None, True
+        return None, None, True
     saas_files = [sf for sf in saas_files if is_in_shard(sf["name"])]
 
     # Remove saas-file targets that are disabled
