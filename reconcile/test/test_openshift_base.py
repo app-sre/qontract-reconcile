@@ -579,6 +579,8 @@ def test_populate_current_state_unknown_kind(
     get_item_mock.assert_not_called()
 
 
+## fix this!!!
+@patch("reconcile.utils.oc.OCNative")
 def test_populate_current_state_resource_name_filtering(
     resource_inventory: resource.ResourceInventory, oc_cs1: oc.OCNative, mocker
 ):
