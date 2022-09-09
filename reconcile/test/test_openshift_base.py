@@ -1,5 +1,5 @@
 import logging
-from typing import Any, cast
+from typing import Any
 import pytest
 import yaml
 from unittest.mock import patch
@@ -8,7 +8,6 @@ import reconcile.openshift_base as sut
 import reconcile.utils.openshift_resource as resource
 from reconcile.test.fixtures import Fixtures
 from reconcile.utils import oc
-from reconcile.utils.oc import OCNative
 from reconcile.utils.semver_helper import make_semver
 
 fxt = Fixtures("namespaces")
@@ -579,7 +578,6 @@ def test_populate_current_state_unknown_kind(
     get_item_mock.assert_not_called()
 
 
-## fix this!!!
 @patch("reconcile.utils.oc.OCNative")
 def test_populate_current_state_resource_name_filtering(
     resource_inventory: resource.ResourceInventory, oc_cs1: oc.OCNative, mocker

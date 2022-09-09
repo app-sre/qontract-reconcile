@@ -1,4 +1,4 @@
-from typing import Any, cast
+from typing import Any
 from unittest.mock import Mock
 from unittest.mock import patch
 import pytest
@@ -8,7 +8,6 @@ from reconcile.test.fixtures import Fixtures
 from reconcile import openshift_resources_base as orb
 from reconcile.openshift_resources_base import canonicalize_namespaces, ob
 from reconcile.utils import oc
-from reconcile.utils.oc import OCNative
 from reconcile.utils.openshift_resource import ResourceInventory
 
 
