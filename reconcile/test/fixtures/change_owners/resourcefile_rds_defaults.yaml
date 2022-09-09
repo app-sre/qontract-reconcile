@@ -1,0 +1,8 @@
+filepath: /services/github-mirror/cicd/deploy.yaml
+fileschema: /aws/rds-defaults-1.yml
+filetype: resourcefile
+content: |
+  $schema: /aws/rds-defaults-1.yml
+  engine: postgres
+  engine_version: '14.2'
+  backup_retention_period: 8

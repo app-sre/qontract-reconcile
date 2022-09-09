@@ -101,7 +101,7 @@ class QuayMirror:
                 except SkopeoCmdError as details:
                     _LOG.error("[%s]", details)
 
-        if self.is_compare_tags:
+        if self.is_compare_tags and not self.dry_run:
             self.record_timestamp(self.control_file_path)
 
     @classmethod
