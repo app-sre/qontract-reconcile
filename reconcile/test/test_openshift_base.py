@@ -2,11 +2,13 @@ import logging
 from typing import Any, cast
 import pytest
 import yaml
+from unittest.mock import patch
 
 import reconcile.openshift_base as sut
 import reconcile.utils.openshift_resource as resource
 from reconcile.test.fixtures import Fixtures
 from reconcile.utils import oc
+from reconcile.utils.oc import OCNative
 from reconcile.utils.semver_helper import make_semver
 
 fxt = Fixtures("namespaces")
@@ -37,8 +39,11 @@ def namespaces() -> list[dict[str, Any]]:
 
 
 @pytest.fixture
-def oc_cs1() -> oc.OCNative:
-    return cast(oc.OCNative, oc.OC(cluster_name="cs1", server="", token="", local=True))
+@patch("reconcile.utils.oc.OCNative")
+# @patch("reconcile.utils.oc.OCNative")
+def oc_cs1(self) -> oc.OCClient:
+    # return cast(oc.OCNative, oc.OC(cluster_name="cs1", server="", token="", local=True))
+    return oc.OCNative(cluster_name="cs1", server="server", token="token", local=True)
 
 
 @pytest.fixture
@@ -56,6 +61,7 @@ def oc_map(mocker, oc_cs1: oc.OCNative) -> oc.OC_Map:
     oc_map = mocker.patch("reconcile.utils.oc.OC_Map", autospec=True).return_value
     oc_map.get.mock_add_spec(oc.OC_Map.get)
     oc_map.get.side_effect = get_cluster
+    # print(oc_map)
     return oc_map
 
 

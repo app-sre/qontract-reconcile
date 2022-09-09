@@ -964,9 +964,9 @@ class OCNative(OCDeprecated):
         if server:
             self.client = self._get_client(server, token)
             self.api_kind_version = self.get_api_resources()
-        elif not server and not token and local:
-            init_api_resources = False
-            init_projects = False
+        # elif not server and not token and local:
+        #     init_api_resources = False
+        #     init_projects = False
         else:
             raise Exception("a server value is needed")
         # else:
@@ -989,8 +989,10 @@ class OCNative(OCDeprecated):
     @retry(exceptions=(ServerTimeoutError, InternalServerError, ForbiddenError))
     def _get_client(self, server, token):
         logging.debug(token)
+        print(token)
         logging.debug("this is the server")
         logging.debug(server)
+        print(server)
         opts = dict(
             api_key={"authorization": f"Bearer {token}"},
             host=server,
@@ -998,16 +1000,19 @@ class OCNative(OCDeprecated):
             # default timeout seems to be 1+ minutes
             retries=5,
         )
-
+        print(opts)
+        print("I'm here")
         if self.jump_host:
             # the ports could be parameterized, but at this point
             # we only have need of 1 tunnel for 1 service
             self.jump_host.create_ssh_tunnel()
             local_port = self.jump_host.local_port
+            print(local_port)
             opts["proxy"] = f"http://localhost:{local_port}"
-
+            print(opts["proxy"])
+        print("I'm here now")
         configuration = Configuration()
-
+        print("I'm here now pt2")
         # the kubernetes client configuration takes a limited set
         # of parameters during initialization, but there are a lot
         # more options that can be set to tweak the behavior of the
@@ -1018,6 +1023,7 @@ class OCNative(OCDeprecated):
             setattr(configuration, k, v)
 
         k8s_client = ApiClient(configuration)
+        print(k8s_client)
         try:
             return DynamicClient(k8s_client, discoverer=OpenshiftLazyDiscoverer)
         except urllib3.exceptions.MaxRetryError as e:

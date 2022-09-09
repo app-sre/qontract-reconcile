@@ -534,6 +534,9 @@ class ResourceInventory:
         self._error_registered_clusters = {}
         self._lock = Lock()
 
+    def __str__(self):
+        return f"cluster {self._clusters} and error registed {self._error_registered} and error registered clusters {self._error_registered}"
+
     def initialize_resource_type(self, cluster, namespace, resource_type):
         self._clusters.setdefault(cluster, {})
         self._clusters[cluster].setdefault(namespace, {})
