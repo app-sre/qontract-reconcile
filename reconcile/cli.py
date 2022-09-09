@@ -2087,6 +2087,29 @@ def integrations_manager(
     )
 
 
+@integration.command(
+    short_help="Detects owners for changes in app-interface PRs and allows them to self-service merge."
+)
+@click.option(
+    "--comparison-sha",
+    help="bundle sha to compare to to find changes",
+)
+@click.option(
+    "--saas-file-owner-change-type-name",
+    help="changetype to be used to cover changes in saas files owned via Role_v1.saas_file_owners",
+)
+@click.pass_context
+def change_owners(ctx, comparison_sha, saas_file_owner_change_type_name):
+    import reconcile.change_owners
+
+    run_integration(
+        reconcile.change_owners,
+        ctx.obj,
+        comparison_sha,
+        saas_file_owner_change_type_name,
+    )
+
+
 def get_integration_cli_meta() -> dict[str, IntegrationMeta]:
     """
     returns all integrations known to cli.py via click introspection

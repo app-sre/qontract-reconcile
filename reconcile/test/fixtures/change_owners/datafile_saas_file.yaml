@@ -1,0 +1,97 @@
+filepath: "/services/github-mirror/cicd/deploy.yaml"
+fileschema: "/app-sre/saas-file-2.yml"
+filetype: datafile
+content:
+  "$schema": "/app-sre/saas-file-2.yml"
+  labels:
+    service: github-mirror
+  name: saas-github-mirror
+  description: SaaS tracking file for GitHub Mirror
+  app:
+    "$ref": "/services/github-mirror/app.yml"
+  pipelinesProvider:
+    "$ref": "/services/github-mirror/pipelines/tekton.github-mirror-pipelines.appsrep05ue1.yaml"
+  slack:
+    workspace:
+      "$ref": "/dependencies/slack/coreos.yml"
+    channel: sd-app-sre-info
+  managedResourceTypes:
+  - Deployment
+  - Service
+  - PodDisruptionBudget
+  - ConfigMap
+  - ServiceAccount
+  imagePatterns:
+  - quay.io/app-sre/github-mirror
+  allowedSecretParameterPaths:
+  - app-sre/integrations-output/terraform-resources
+  parameters:
+    GITHUB_USERS: app-sre-bot:cs-sre-bot:InsightsDroid:sre-platform-bot:app-sre-fedramp-bot
+  resourceTemplates:
+  - name: github-mirror
+    url: https://github.com/app-sre/github-mirror
+    path: "/openshift/github-mirror.yaml"
+    targets:
+    - namespace:
+        "$ref": "/services/github-mirror/namespaces/github-mirror-stage.yaml"
+      ref: master
+      upstream:
+        instance:
+          "$ref": "/dependencies/ci-ext/ci-ext.yml"
+        name: app-sre-github-mirror-gh-build-master
+      parameters:
+        GITHUB_MIRROR_URL: https://github-mirror.stage.devshift.net
+        EC_SECRET_NAME: ghmirror-elasticache-stage
+        REPLICAS: 3
+      secretParameters:
+      - name: READER_ENDPOINT
+        secret:
+          path: app-sre/integrations-output/terraform-resources/app-sre-stage-01/github-mirror-stage/ghmirror-elasticache-stage
+          field: db.endpoint
+      promotion:
+        publish:
+        - github-mirror-stage-deploy-success-channel
+    - namespace:
+        "$ref": "/services/github-mirror/namespaces/github-mirror-production.yaml"
+      ref: 1affc83ab710c609cefcc85240c0b5b86b9a4170
+      promotion:
+        auto: true
+        subscribe:
+        - github-mirror-stage-post-deploy-tests-success-channel
+        promotion_data:
+        - channel: github-mirror-stage-post-deploy-tests-success-channel
+          data:
+          - parent_saas: saas-github-mirror-test
+            target_config_hash: e0c8182a84a14250
+            type: parent_saas_config
+      parameters:
+        GITHUB_MIRROR_URL: https://github-mirror.devshift.net
+        EC_SECRET_NAME: ghmirror-elasticache-production
+        READER_ENDPOINT: replica.ghmirror-redis-production.huo5rn.use1.cache.amazonaws.com
+        REPLICAS: 5
+  - name: github-mirror-dashboards
+    url: https://github.com/app-sre/github-mirror
+    path: "/dashboards"
+    provider: directory
+    targets:
+    - namespace:
+        "$ref": "/services/observability/namespaces/app-sre-observability-stage.yml"
+      ref: master
+      upstream:
+        instance:
+          "$ref": "/dependencies/ci-ext/ci-ext.yml"
+        name: app-sre-github-mirror-gh-build-master
+    - namespace:
+        "$ref": "/services/observability/namespaces/app-sre-observability-production.yml"
+      ref: 1affc83ab710c609cefcc85240c0b5b86b9a4170
+      promotion:
+        auto: true
+        subscribe:
+        - github-mirror-stage-post-deploy-tests-success-channel
+        promotion_data:
+        - channel: github-mirror-stage-post-deploy-tests-success-channel
+          data:
+          - parent_saas: saas-github-mirror-test
+            target_config_hash: e0c8182a84a14250
+            type: parent_saas_config
+  path: "/services/github-mirror/cicd/deploy.yaml"

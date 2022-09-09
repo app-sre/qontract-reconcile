@@ -1755,6 +1755,33 @@
                             },
                             "isDeprecated": false,
                             "deprecationReason": null
+                        },
+                        {
+                            "name": "change_types_v1",
+                            "description": null,
+                            "args": [
+                                {
+                                    "name": "path",
+                                    "description": null,
+                                    "type": {
+                                        "kind": "SCALAR",
+                                        "name": "String",
+                                        "ofType": null
+                                    },
+                                    "defaultValue": null
+                                }
+                            ],
+                            "type": {
+                                "kind": "LIST",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "OBJECT",
+                                    "name": "ChangeType_v1",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
                         }
                     ],
                     "inputFields": null,
@@ -2088,6 +2115,18 @@
                             "type": {
                                 "kind": "OBJECT",
                                 "name": "LdapSettings_v1",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "jiraWatcher",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "OBJECT",
+                                "name": "jiraWatcherSettings_v1",
                                 "ofType": null
                             },
                             "isDeprecated": false,
@@ -10024,6 +10063,22 @@
                             "deprecationReason": null
                         },
                         {
+                            "name": "change_type",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "OBJECT",
+                                    "name": "ChangeType_v1",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
                             "name": "description",
                             "description": null,
                             "args": [],
@@ -10031,6 +10086,241 @@
                                 "kind": "SCALAR",
                                 "name": "String",
                                 "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        }
+                    ],
+                    "inputFields": null,
+                    "interfaces": [],
+                    "enumValues": null,
+                    "possibleTypes": null
+                },
+                {
+                    "kind": "OBJECT",
+                    "name": "ChangeType_v1",
+                    "description": null,
+                    "fields": [
+                        {
+                            "name": "schema",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "path",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "labels",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "JSON",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "name",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "description",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "contextType",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "contextSchema",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "String",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "changes",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "LIST",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "NON_NULL",
+                                    "name": null,
+                                    "ofType": {
+                                        "kind": "INTERFACE",
+                                        "name": "ChangeTypeChangeDetector_v1",
+                                        "ofType": null
+                                    }
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        }
+                    ],
+                    "inputFields": null,
+                    "interfaces": [],
+                    "enumValues": null,
+                    "possibleTypes": null
+                },
+                {
+                    "kind": "INTERFACE",
+                    "name": "ChangeTypeChangeDetector_v1",
+                    "description": null,
+                    "fields": [
+                        {
+                            "name": "provider",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "changeSchema",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "String",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "context",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "OBJECT",
+                                "name": "ChangeTypeChangeDetectorContextSelector_v1",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        }
+                    ],
+                    "inputFields": null,
+                    "interfaces": null,
+                    "enumValues": null,
+                    "possibleTypes": [
+                        {
+                            "kind": "OBJECT",
+                            "name": "ChangeTypeChangeDetectorJsonPathProvider_v1",
+                            "ofType": null
+                        }
+                    ]
+                },
+                {
+                    "kind": "OBJECT",
+                    "name": "ChangeTypeChangeDetectorContextSelector_v1",
+                    "description": null,
+                    "fields": [
+                        {
+                            "name": "selector",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "when",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
                             },
                             "isDeprecated": false,
                             "deprecationReason": null
@@ -16025,6 +16315,49 @@
                 },
                 {
                     "kind": "OBJECT",
+                    "name": "jiraWatcherSettings_v1",
+                    "description": null,
+                    "fields": [
+                        {
+                            "name": "readTimeout",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "Int",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "connectTimeout",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "Int",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        }
+                    ],
+                    "inputFields": null,
+                    "interfaces": [],
+                    "enumValues": null,
+                    "possibleTypes": null
+                },
+                {
+                    "kind": "OBJECT",
                     "name": "AppInterfaceEmail_v1",
                     "description": null,
                     "fields": [
@@ -19228,6 +19561,18 @@
                                     "name": "String",
                                     "ofType": null
                                 }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "domain_name",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "String",
+                                "ofType": null
                             },
                             "isDeprecated": false,
                             "deprecationReason": null
@@ -24492,12 +24837,16 @@
                             "description": null,
                             "args": [],
                             "type": {
-                                "kind": "NON_NULL",
+                                "kind": "LIST",
                                 "name": null,
                                 "ofType": {
-                                    "kind": "OBJECT",
-                                    "name": "ASGImage_v1",
-                                    "ofType": null
+                                    "kind": "NON_NULL",
+                                    "name": null,
+                                    "ofType": {
+                                        "kind": "INTERFACE",
+                                        "name": "ASGImage_v1",
+                                        "ofType": null
+                                    }
                                 }
                             },
                             "isDeprecated": false,
@@ -24603,10 +24952,80 @@
                     "possibleTypes": null
                 },
                 {
-                    "kind": "OBJECT",
+                    "kind": "INTERFACE",
                     "name": "ASGImage_v1",
                     "description": null,
                     "fields": [
+                        {
+                            "name": "provider",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "tag_name",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        }
+                    ],
+                    "inputFields": null,
+                    "interfaces": null,
+                    "enumValues": null,
+                    "possibleTypes": [
+                        {
+                            "kind": "OBJECT",
+                            "name": "ASGImageGit_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "OBJECT",
+                            "name": "ASGImageStatic_v1",
+                            "ofType": null
+                        }
+                    ]
+                },
+                {
+                    "kind": "OBJECT",
+                    "name": "ASGImageGit_v1",
+                    "description": null,
+                    "fields": [
+                        {
+                            "name": "provider",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
                         {
                             "name": "tag_name",
                             "description": null,
@@ -24669,7 +25088,78 @@
                         }
                     ],
                     "inputFields": null,
-                    "interfaces": [],
+                    "interfaces": [
+                        {
+                            "kind": "INTERFACE",
+                            "name": "ASGImage_v1",
+                            "ofType": null
+                        }
+                    ],
+                    "enumValues": null,
+                    "possibleTypes": null
+                },
+                {
+                    "kind": "OBJECT",
+                    "name": "ASGImageStatic_v1",
+                    "description": null,
+                    "fields": [
+                        {
+                            "name": "provider",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "tag_name",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "value",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        }
+                    ],
+                    "inputFields": null,
+                    "interfaces": [
+                        {
+                            "kind": "INTERFACE",
+                            "name": "ASGImage_v1",
+                            "ofType": null
+                        }
+                    ],
                     "enumValues": null,
                     "possibleTypes": null
                 },
@@ -27379,6 +27869,18 @@
                                     "name": "String",
                                     "ofType": null
                                 }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "es_identifier",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "String",
+                                "ofType": null
                             },
                             "isDeprecated": false,
                             "deprecationReason": null
@@ -30334,6 +30836,83 @@
                     ],
                     "inputFields": null,
                     "interfaces": [],
+                    "enumValues": null,
+                    "possibleTypes": null
+                },
+                {
+                    "kind": "OBJECT",
+                    "name": "ChangeTypeChangeDetectorJsonPathProvider_v1",
+                    "description": null,
+                    "fields": [
+                        {
+                            "name": "provider",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "changeSchema",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "String",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "jsonPathSelectors",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "LIST",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "NON_NULL",
+                                    "name": null,
+                                    "ofType": {
+                                        "kind": "SCALAR",
+                                        "name": "String",
+                                        "ofType": null
+                                    }
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "context",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "OBJECT",
+                                "name": "ChangeTypeChangeDetectorContextSelector_v1",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        }
+                    ],
+                    "inputFields": null,
+                    "interfaces": [
+                        {
+                            "kind": "INTERFACE",
+                            "name": "ChangeTypeChangeDetector_v1",
+                            "ofType": null
+                        }
+                    ],
                     "enumValues": null,
                     "possibleTypes": null
                 }
