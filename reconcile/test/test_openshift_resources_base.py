@@ -111,6 +111,7 @@ def test_no_overrides(namespaces: list[dict[str, Any]], mocker):
     ns, override = canonicalize_namespaces(namespaces, ["resource"])
     assert (ns, override) == expected
 
+
 @pytest.fixture
 @patch("reconcile.utils.oc.OCNative")
 def test_fetch_current_state_ri_not_initialized(
@@ -153,6 +154,7 @@ def test_fetch_current_state_ri_initialized(oc_cs1: oc.OCClient, tmpl1: dict[str
     assert "tmpl1" in resource["current"]
     assert resource["current"]["tmpl1"].kind == "Template"
 
+
 def test_fetch_current_state_kind_not_supported(
     oc_cs1: oc.OCNative, tmpl1: dict[str, Any]
 ):
@@ -188,6 +190,7 @@ def test_fetch_current_state_long_kind(oc_cs1: oc.OCClient, tmpl1: dict[str, Any
     assert len(resource["current"]) == 1
     assert "tmpl1" in resource["current"]
     assert resource["current"]["tmpl1"].kind == "Template"
+
 
 def test_fetch_current_state_long_kind_not_supported(
     oc_cs1: oc.OCNative, tmpl1: dict[str, Any]
