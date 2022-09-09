@@ -3422,6 +3422,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                         "starting_position_timestamp"
                     ] = starting_position_timestamp
 
+            batch_size = common_values.get("batch_size", 100)
+            source_vaules["batch_size"] = batch_size
+
             if provider:
                 source_vaules["provider"] = provider
             permission_tf_resource = aws_lambda_event_source_mapping(
