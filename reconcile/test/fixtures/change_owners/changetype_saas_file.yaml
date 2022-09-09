@@ -1,0 +1,18 @@
+name: saas-file-self-service
+
+contextType: datafile
+contextSchema: /app-sre/saas-file-2.yml
+
+changes:
+- provider: jsonPath
+  jsonPathSelectors:
+  - deployResources
+  - parameters
+  - resourceTemplates[*].parameters
+  - resourceTemplates[*].targets[*].ref
+  - resourceTemplates[*].targets[*].parameters
+  - resourceTemplates[*].targets[*].secretParameters[*].version
+  - resourceTemplates[*].targets[*].upstream
+  - resourceTemplates[*].targets[*].disable
+  changeSchema: null
+  context: null
