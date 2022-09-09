@@ -628,9 +628,16 @@ def run(
     comparision_gql_api = gql.get_api_for_sha(
         comparison_sha, QONTRACT_INTEGRATION, validate_schemas=False
     )
-    changes = fetch_bundle_changes(comparison_sha)
+
+    # fetch change-types from current bundle to verify they are syntactically correct.
+    # this is a cheap way to figure out if a newly introduced change-type works.
+    # needs a lot of improvements!
+    fetch_change_type_processors(gql.get_api())
+
     # get change types from the comparison bundle to prevent privilege escalation
     change_type_processors = fetch_change_type_processors(comparision_gql_api)
+
+    changes = fetch_bundle_changes(comparison_sha)
 
     # an error while trying to cover changes will not fail the integration
     # and the PR check - self service merges will not be available though
