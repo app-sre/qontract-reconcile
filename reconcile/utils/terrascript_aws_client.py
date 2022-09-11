@@ -178,6 +178,7 @@ VARIABLE_KEYS = [
     "region",
     "availability_zone",
     "parameter_group",
+    "new_parameter_group",
     "name",
     "enhanced_monitoring",
     "replica_source",
@@ -1240,13 +1241,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 elif provider != provider_region:
                     raise ValueError("region does not match availability zone")
 
-        # 'deps' should contain a list of terraform resource names
-        # (not full objects) that must be created
-        # before the actual RDS instance should be created
-        deps = []
-        parameter_group = values.pop("parameter_group", None)
-        if parameter_group:
-            pg_values = self.get_values(parameter_group)
+        def populate_parameter_group(name: str) -> aws_db_parameter_group:
+            pg_values = self.get_values(name)
             # Parameter group name is not required by terraform.
             # However, our integration has it marked as required.
             # If user does not provide a name, we will use the rds identifier
@@ -1258,10 +1254,42 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             pg_values["parameter"] = pg_values.pop("parameters")
             if self._multiregion_account(account) and len(provider) > 0:
                 pg_values["provider"] = provider
-            pg_tf_resource = aws_db_parameter_group(pg_identifier, **pg_values)
+            return aws_db_parameter_group(pg_identifier, **pg_values)
+
+        # 'deps' should contain a list of terraform resource names
+        # (not full objects) that must be created
+        # before the actual RDS instance should be created
+        deps = []
+
+        parameter_group = values.pop("parameter_group", None)
+        if parameter_group:
+            pg_tf_resource = populate_parameter_group(parameter_group)
             tf_resources.append(pg_tf_resource)
-            deps = self.get_dependencies([pg_tf_resource])
-            values["parameter_group_name"] = pg_name
+            deps += self.get_dependencies([pg_tf_resource])
+            # Associate parameter group to db instance
+            values["parameter_group_name"] = pg_tf_resource.get("name")
+
+        new_parameter_group = values.pop("new_parameter_group", None)
+        if new_parameter_group:
+            # discourage using new_parameter_group if parameter_group field is not utilized.
+            if parameter_group is None:
+                raise ValueError(
+                    "Cannot use new_parameter_group field without parameter_group."
+                    "This field is only used during RDS major version upgrade"
+                )
+
+            new_pg_tf_resource = populate_parameter_group(new_parameter_group)
+
+            if new_pg_tf_resource.get("name") == pg_tf_resource.get("name"):
+                raise ValueError(
+                    "Must supply a unique name value for new parameter group"
+                )
+
+            tf_resources.append(new_pg_tf_resource)
+            deps += self.get_dependencies([new_pg_tf_resource])
+
+            # Override previously set value, so we know this is for the major version upgrade
+            values["parameter_group_name"] = new_pg_tf_resource.get("name")
 
         enhanced_monitoring = values.pop("enhanced_monitoring", None)
 
