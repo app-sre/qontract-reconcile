@@ -17,12 +17,12 @@ import anymarkup
 import jinja2
 from reconcile.checkpoint import url_makes_sense
 
-import tools.qontract_cli as qontract_cli
 import reconcile.openshift_base as ob
 from reconcile import queries
 from reconcile.utils import amtool
 from reconcile.utils import gql
 from reconcile.utils import openssl
+from tools import qontract_cli
 
 from reconcile.utils.exceptions import FetchResourceError
 from reconcile.utils.semver_helper import make_semver
