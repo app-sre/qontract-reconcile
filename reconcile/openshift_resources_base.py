@@ -22,7 +22,6 @@ from reconcile import queries
 from reconcile.utils import amtool
 from reconcile.utils import gql
 from reconcile.utils import openssl
-from tools import qontract_cli
 
 from reconcile.utils.exceptions import FetchResourceError
 from reconcile.utils.semver_helper import make_semver
@@ -251,6 +250,8 @@ def lookup_graphql_query_results(query: str, **kwargs) -> list[Any]:
 
 
 def get_qontract_cli_command_output(name: str):
+    from tools import qontract_cli
+
     ctx = Context(command=qontract_cli.root)
     ctx.obj = {"options": {"output": "return"}}
     cmd: Command = getattr(qontract_cli, name.replace("-", "_"))
