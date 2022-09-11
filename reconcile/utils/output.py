@@ -26,6 +26,8 @@ def print_output(
         print(json.dumps(content))
     elif output == "yaml":
         print(yaml.dump(content))
+    elif output == "return":
+        return content
     else:
         pass  # error
 

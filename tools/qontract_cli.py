@@ -1174,7 +1174,7 @@ def app_interface_review_queue(ctx):
 
     queue_data.sort(key=itemgetter("updated_at"))
     ctx.obj["options"]["sort"] = False  # do not sort
-    print_output(ctx.obj["options"], queue_data, columns)
+    return print_output(ctx.obj["options"], queue_data, columns)
 
 
 @get.command()
