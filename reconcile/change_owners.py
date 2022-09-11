@@ -22,6 +22,7 @@ from reconcile.utils.semver_helper import make_semver
 
 from deepdiff import DeepDiff
 from deepdiff.helper import CannotCompare
+from deepdiff.model import DiffLevel
 
 import jsonpath_ng
 import jsonpath_ng.ext
@@ -221,7 +222,9 @@ class BundleFileChange:
         return list(filter(lambda d: d.diff_type in diff_types, self.diffs))
 
 
-def compare_object_ctx_identifier(x: Any, y: Any):
+def compare_object_ctx_identifier(
+    x: Any, y: Any, level: Optional[DiffLevel] = None
+) -> bool:
     """
     this function helps the deepdiff library to decide if two objects are
     actually the same in the sense of identity. this helps with finding
@@ -244,8 +247,8 @@ def compare_object_ctx_identifier(x: Any, y: Any):
     of matching properties and values. this situation is signaled back to
     deepdiff by raising the CannotCompare exception.
     """
-    x_id = x.get("__identifier")
-    y_id = y.get("__identifier")
+    x_id = x.get("__identifier") if isinstance(x, dict) else None
+    y_id = y.get("__identifier") if isinstance(y, dict) else None
     if x_id and y_id:
         # if both have an identifier, they are the same if the identifiers are the same
         return x_id == y_id
@@ -285,6 +288,7 @@ def create_bundle_file_change(
             new_file_content,
             ignore_order=True,
             iterable_compare_func=compare_object_ctx_identifier,
+            cutoff_intersection_for_pairs=1,
         )
         # handle changed values
         diffs.extend(
