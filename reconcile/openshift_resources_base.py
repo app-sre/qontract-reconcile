@@ -9,6 +9,7 @@ from typing import Iterable, Mapping, Tuple, Optional, Any
 
 from threading import Lock
 from textwrap import indent
+from click import Command, Context
 from sretoolbox.utils import retry
 from sretoolbox.utils import threaded
 
@@ -16,6 +17,7 @@ import anymarkup
 import jinja2
 from reconcile.checkpoint import url_makes_sense
 
+import tools.qontract_cli as qontract_cli
 import reconcile.openshift_base as ob
 from reconcile import queries
 from reconcile.utils import amtool
@@ -248,6 +250,13 @@ def lookup_graphql_query_results(query: str, **kwargs) -> list[Any]:
     return results
 
 
+def get_qontract_cli_command_output(name: str):
+    ctx = Context(command=qontract_cli.root)
+    ctx.obj = {"options": {"output": "return"}}
+    cmd: Command = getattr(qontract_cli, name.replace("-", "_"))
+    return cmd.invoke(ctx=ctx)
+
+
 @cache
 def compile_jinja2_template(body, extra_curly: bool = False):
     env: dict = {}
@@ -288,6 +297,7 @@ def process_jinja2_template(body, vars=None, extra_curly: bool = False, settings
     )
     vars.update({"query": lookup_graphql_query_results})
     vars.update({"url": url_makes_sense})
+    vars.update({"cli": get_qontract_cli_command_output})
     try:
         template = compile_jinja2_template(body, extra_curly)
         r = template.render(vars)
