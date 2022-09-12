@@ -1970,6 +1970,7 @@ SAAS_FILES_QUERY_V2 = """
       }
       targets {
         path
+        name
         namespace {
           name
           environment {
