@@ -1121,7 +1121,9 @@ class SaasHerder:
                     namespace_name=namespace,
                     state_content=None,
                 )
-                digest = SaasHerder.get_target_config_hash(target_configs[dummy_job_spec.state_key])
+                digest = SaasHerder.get_target_config_hash(
+                    target_configs[dummy_job_spec.state_key]
+                )
 
                 process_template_options = {
                     "saas_file_name": saas_file_name,
