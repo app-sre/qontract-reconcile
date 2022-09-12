@@ -2,6 +2,7 @@ import logging
 import datetime
 
 from threading import Lock
+from typing import cast
 from sretoolbox.utils import threaded
 
 import reconcile.openshift_base as osb
@@ -183,7 +184,7 @@ def trigger(
         bool: True if there was an error, False otherwise
     """
     saas_file_name = spec.saas_file_name
-    provider_name = spec.pipelines_provider["provider"]
+    provider_name = cast(dict, spec.pipelines_provider)["provider"]
 
     error = False
     if provider_name == Providers.TEKTON:
@@ -214,7 +215,7 @@ def _trigger_tekton(
 ):
     saas_file_name = spec.saas_file_name
     env_name = spec.env_name
-    pipelines_provider = spec.pipelines_provider
+    pipelines_provider = cast(dict, spec.pipelines_provider)
 
     pipeline_template_name = pipelines_provider["defaults"]["pipelineTemplates"][
         "openshiftSaasDeploy"
