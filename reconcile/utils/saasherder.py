@@ -1239,7 +1239,7 @@ class SaasHerder:
                 f"saasherder get_diff for trigger type: {trigger_type}"
             )
 
-    def update_state(self, trigger_type, job_spec):
+    def update_state(self, job_spec):
         self.state.add(job_spec.state_key, value=job_spec.state_content, force=True)
 
     def get_moving_commits_diff(self, dry_run):

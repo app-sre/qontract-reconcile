@@ -76,7 +76,6 @@ def run(
         saasherder=saasherder,
         oc_map=oc_map,
         already_triggered=already_triggered,
-        trigger_type=trigger_type,
         integration=integration,
         integration_version=integration_version,
     )
@@ -164,7 +163,6 @@ def trigger(
     saasherder,
     oc_map,
     already_triggered,
-    trigger_type,
     integration,
     integration_version,
 ):
@@ -177,7 +175,6 @@ def trigger(
         oc_map (OC_Map): a dictionary of OC clients per cluster
         already_triggered (set): A set of already triggered deployments.
                                     It will get populated by this function.
-        trigger_type (string): Indicates which method to call to update state
         integration (string): Name of calling integration
         integration_version (string): Version of calling integration
 
@@ -197,7 +194,6 @@ def trigger(
             saasherder,
             oc_map,
             already_triggered,
-            trigger_type,
             integration,
             integration_version,
         )
@@ -214,7 +210,6 @@ def _trigger_tekton(
     saasherder,
     oc_map,
     already_triggered,
-    trigger_type,
     integration,
     integration_version,
 ):
@@ -288,7 +283,7 @@ def _trigger_tekton(
             )
 
     if not error and not dry_run:
-        saasherder.update_state(trigger_type, spec)
+        saasherder.update_state(spec)
 
     return error
 
