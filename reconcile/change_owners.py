@@ -687,9 +687,14 @@ def run(
                     "file": c.fileref.path,
                     "schema": c.fileref.schema,
                     "changed path": d.path,
-                    "old value": d.old,
-                    "new value": d.new,
                 }
+                if str(d.path) != "$":
+                    item.update(
+                        {
+                            "old value": d.old,
+                            "new value": d.new,
+                        }
+                    )
                 if d.covered_by:
                     item.update(
                         {
