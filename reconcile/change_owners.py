@@ -278,8 +278,10 @@ def create_bundle_file_change(
 
     # try to parse the content if a resourcefile has a schema
     if file_type == BundleFileType.RESOURCEFILE and schema:
-        old_file_content = anymarkup.parse(old_file_content, force_types=None)
-        new_file_content = anymarkup.parse(new_file_content, force_types=None)
+        if old_file_content:
+            old_file_content = anymarkup.parse(old_file_content, force_types=None)
+        if new_file_content:
+            new_file_content = anymarkup.parse(new_file_content, force_types=None)
 
     diffs: list[Diff] = []
     if old_file_content and new_file_content:
@@ -290,6 +292,7 @@ def create_bundle_file_change(
             iterable_compare_func=compare_object_ctx_identifier,
             cutoff_intersection_for_pairs=1,
         )
+
         # handle changed values
         diffs.extend(
             [
@@ -304,31 +307,33 @@ def create_bundle_file_change(
             ]
         )
         # handle property added
-        diffs.extend(
-            [
+        for path in deep_diff.get("dictionary_item_added", []):
+            jpath = deepdiff_path_to_jsonpath(path)
+            change = jpath.find(new_file_content)
+            change_value = change[0].value if change else None
+            diffs.append(
                 Diff(
-                    path=deepdiff_path_to_jsonpath(path),
+                    path=jpath,
                     diff_type=DiffType.ADDED,
                     old=None,
-                    new=None,  # TODO(goberlec) get access to new
+                    new=change_value,
                     covered_by=[],
                 )
-                for path in deep_diff.get("dictionary_item_added", [])
-            ]
-        )
+            )
         # handle property removed
-        diffs.extend(
-            [
+        for path in deep_diff.get("dictionary_item_removed", []):
+            jpath = deepdiff_path_to_jsonpath(path)
+            change = jpath.find(old_file_content)
+            change_value = change[0].value if change else None
+            diffs.append(
                 Diff(
-                    path=deepdiff_path_to_jsonpath(path),
+                    path=jpath,
                     diff_type=DiffType.REMOVED,
-                    old=None,  # TODO(goberlec) get access to new
+                    old=change_value,
                     new=None,
                     covered_by=[],
                 )
-                for path in deep_diff.get("dictionary_item_removed", [])
-            ]
-        )
+            )
         # handle added items
         diffs.extend(
             [
@@ -355,6 +360,29 @@ def create_bundle_file_change(
                 for path, change in deep_diff.get("iterable_item_removed", {}).items()
             ]
         )
+    elif old_file_content:
+        # file was deleted
+        diffs.append(
+            Diff(
+                path=jsonpath_ng.Root(),
+                diff_type=DiffType.REMOVED,
+                old=old_file_content,
+                new=None,
+                covered_by=[],
+            )
+        )
+    elif new_file_content:
+        # file was added
+        diffs.append(
+            Diff(
+                path=jsonpath_ng.Root(),
+                diff_type=DiffType.ADDED,
+                old=None,
+                new=new_file_content,
+                covered_by=[],
+            )
+        )
+
     if diffs:
         return BundleFileChange(
             fileref=fileref, old=old_file_content, new=new_file_content, diffs=diffs
@@ -366,7 +394,7 @@ def create_bundle_file_change(
 DEEP_DIFF_RE = re.compile(r"\['?(.*?)'?\]")
 
 
-def deepdiff_path_to_jsonpath(deep_diff_path: str) -> str:
+def deepdiff_path_to_jsonpath(deep_diff_path: str) -> jsonpath_ng.JSONPath:
     """
     deepdiff's way to describe a path within a data structure differs from jsonpath.
     This function translates deepdiff paths into regular jsonpath expressions.
@@ -641,53 +669,53 @@ def run(
     # get change types from the comparison bundle to prevent privilege escalation
     change_type_processors = fetch_change_type_processors(comparision_gql_api)
 
-    changes = fetch_bundle_changes(comparison_sha)
-
     # an error while trying to cover changes will not fail the integration
     # and the PR check - self service merges will not be available though
     try:
+        changes = fetch_bundle_changes(comparison_sha)
         cover_changes(
             changes,
             change_type_processors,
             comparision_gql_api,
             saas_file_owner_change_type_name,
         )
+
+        results = []
+        for c in changes:
+            for d in c.diffs:
+                item = {
+                    "file": c.fileref.path,
+                    "schema": c.fileref.schema,
+                    "changed path": d.path,
+                    "old value": d.old,
+                    "new value": d.new,
+                }
+                if d.covered_by:
+                    item.update(
+                        {
+                            "change type": d.covered_by[
+                                0
+                            ].change_type_processor.change_type.name,
+                            "context": d.covered_by[0].context,
+                            "approvers": ", ".join(
+                                [a.org_username for a in d.covered_by[0].approvers]
+                            )[:20],
+                        }
+                    )
+                results.append(item)
+
+        print_table(
+            results,
+            [
+                "file",
+                "changed path",
+                "old value",
+                "new value",
+                "change type",
+                "context",
+                "approvers",
+            ],
+        )
+
     except BaseException:
         logging.error(traceback.format_exc())
-
-    results = []
-    for c in changes:
-        for d in c.diffs:
-            item = {
-                "file": c.fileref.path,
-                "schema": c.fileref.schema,
-                "changed path": d.path,
-                "old value": d.old,
-                "new value": d.new,
-            }
-            if d.covered_by:
-                item.update(
-                    {
-                        "change type": d.covered_by[
-                            0
-                        ].change_type_processor.change_type.name,
-                        "context": d.covered_by[0].context,
-                        "approvers": ", ".join(
-                            [a.org_username for a in d.covered_by[0].approvers]
-                        )[:20],
-                    }
-                )
-            results.append(item)
-
-    print_table(
-        results,
-        [
-            "file",
-            "changed path",
-            "old value",
-            "new value",
-            "change type",
-            "context",
-            "approvers",
-        ],
-    )
