@@ -97,6 +97,25 @@ class TriggerSpecConfig(TriggerSpecBase):
         )
         return key
 
+    @staticmethod
+    def from_state_key(
+        key: str,
+        state_content: Any,
+        timeout: Optional[str] = None,
+        piplines_provider: Optional[dict[str, Any]] = None,
+    ) -> "TriggerSpecConfig":
+        saas_file_name, rt_name, cluster_name, namespace_name, env_name = key.split("/")
+        return TriggerSpecConfig(
+            saas_file_name=saas_file_name,
+            env_name=env_name,
+            timeout=timeout,
+            pipelines_provider=piplines_provider,
+            resource_template_name=rt_name,
+            cluster_name=cluster_name,
+            namespace_name=namespace_name,
+            state_content=state_content,
+        )
+
 
 @dataclass
 class TriggerSpecMovingCommit(TriggerSpecBase):
@@ -1472,18 +1491,10 @@ class SaasHerder:
             if ctc == dtc:
                 continue
 
-            saas_file_name, rt_name, cluster_name, namespace_name, env_name = key.split(
-                "/"
-            )
-
-            job_spec = TriggerSpecConfig(
-                saas_file_name=saas_file_name,
-                env_name=env_name,
+            job_spec = TriggerSpecConfig.from_state_key(
+                key=key,
                 timeout=saas_file.get("timeout") or None,
                 pipelines_provider=pipelines_provider,
-                resource_template_name=rt_name,
-                cluster_name=cluster_name,
-                namespace_name=namespace_name,
                 state_content=desired_target_config,
             )
             if self.include_trigger_trace:
