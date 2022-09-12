@@ -212,7 +212,6 @@ def _trigger_tekton(
     integration: str,
     integration_version: str,
 ):
-    # TODO: Convert these into a dataclass.
     saas_file_name = spec.saas_file_name
     env_name = spec.env_name
     pipelines_provider = spec.pipelines_provider
