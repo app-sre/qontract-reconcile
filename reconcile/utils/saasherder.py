@@ -126,7 +126,10 @@ class TriggerSpecUpstreamJob(TriggerSpecBase):
         )
         return key
 
-TriggerSpecUnion = Union[TriggerSpecConfig, TriggerSpecMovingCommit, TriggerSpecUpstreamJob]
+
+TriggerSpecUnion = Union[
+    TriggerSpecConfig, TriggerSpecMovingCommit, TriggerSpecUpstreamJob
+]
 
 UNIQUE_SAAS_FILE_ENV_COMBO_LEN = 50
 
