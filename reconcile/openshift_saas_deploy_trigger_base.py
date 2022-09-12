@@ -208,7 +208,7 @@ def _trigger_tekton(
     dry_run: bool,
     saasherder: SaasHerder,
     oc_map: OC_Map,
-    already_triggered: str[str],
+    already_triggered: set[str],
     integration: str,
     integration_version: str,
 ):
