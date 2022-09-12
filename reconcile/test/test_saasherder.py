@@ -6,7 +6,11 @@ import yaml
 
 from github import GithubException
 from reconcile.utils.openshift_resource import ResourceInventory
-from reconcile.utils.saasherder import SaasHerder
+from reconcile.utils.saasherder import (
+    SaasHerder,
+    TriggerSpecConfig,
+    TriggerSpecMovingCommit,
+)
 from reconcile.utils.jjb_client import JJB
 from reconcile.utils.saasherder import TARGET_CONFIG_HASH
 
@@ -329,28 +333,28 @@ class TestGetMovingCommitsDiffSaasFile(TestCase):
         self.get_commit_sha.side_effect = ("abcd4242", "4242efg")
         self.get_pipelines_provider.return_value = "apipelineprovider"
         expected = [
-            {
-                "saas_file_name": self.saas_files[0]["name"],
-                "env_name": "env1",
-                "timeout": None,
-                "ref": "main",
-                "commit_sha": "abcd4242",
-                "cluster_name": "cluster1",
-                "pipelines_provider": "apipelineprovider",
-                "namespace_name": "ns",
-                "rt_name": "rt",
-            },
-            {
-                "saas_file_name": self.saas_files[0]["name"],
-                "env_name": "env2",
-                "timeout": None,
-                "ref": "secondary",
-                "commit_sha": "4242efg",
-                "cluster_name": "cluster2",
-                "pipelines_provider": "apipelineprovider",
-                "namespace_name": "ns",
-                "rt_name": "rt",
-            },
+            TriggerSpecMovingCommit(
+                saas_file_name=self.saas_files[0]["name"],
+                env_name="env1",
+                timeout=None,
+                ref="main",
+                state_content="abcd4242",
+                cluster_name="cluster1",
+                pipelines_provider="apipelineprovider",
+                namespace_name="ns",
+                resource_template_name="rt",
+            ),
+            TriggerSpecMovingCommit(
+                saas_file_name=self.saas_files[0]["name"],
+                env_name="env2",
+                timeout=None,
+                ref="secondary",
+                state_content="4242efg",
+                cluster_name="cluster2",
+                pipelines_provider="apipelineprovider",
+                namespace_name="ns",
+                resource_template_name="rt",
+            ),
         ]
 
         self.assertEqual(
@@ -374,30 +378,30 @@ class TestGetMovingCommitsDiffSaasFile(TestCase):
         self.get_commit_sha.side_effect = ("abcd4242", "4242efg")
         self.get_pipelines_provider.return_value = "apipelineprovider"
         expected = [
-            {
-                "saas_file_name": self.saas_files[0]["name"],
-                "env_name": "env1",
-                "timeout": None,
-                "ref": "main",
-                "commit_sha": "abcd4242",
-                "cluster_name": "cluster1",
-                "pipelines_provider": "apipelineprovider",
-                "namespace_name": "ns",
-                "rt_name": "rt",
-                "reason": "http://github.com/user/repo/commit/abcd4242",
-            },
-            {
-                "saas_file_name": self.saas_files[0]["name"],
-                "env_name": "env2",
-                "timeout": None,
-                "ref": "secondary",
-                "commit_sha": "4242efg",
-                "cluster_name": "cluster2",
-                "pipelines_provider": "apipelineprovider",
-                "namespace_name": "ns",
-                "rt_name": "rt",
-                "reason": "http://github.com/user/repo/commit/4242efg",
-            },
+            TriggerSpecMovingCommit(
+                saas_file_name=self.saas_files[0]["name"],
+                env_name="env1",
+                timeout=None,
+                ref="main",
+                state_content="abcd4242",
+                cluster_name="cluster1",
+                pipelines_provider="apipelineprovider",
+                namespace_name="ns",
+                resource_template_name="rt",
+                reason="http://github.com/user/repo/commit/abcd4242",
+            ),
+            TriggerSpecMovingCommit(
+                saas_file_name=self.saas_files[0]["name"],
+                env_name="env2",
+                timeout=None,
+                ref="secondary",
+                state_content="4242efg",
+                cluster_name="cluster2",
+                pipelines_provider="apipelineprovider",
+                namespace_name="ns",
+                resource_template_name="rt",
+                reason="http://github.com/user/repo/commit/4242efg",
+            ),
         ]
 
         self.assertEqual(
@@ -756,8 +760,10 @@ class TestConfigHashPromotionsValidation(TestCase):
         IMPORTANT: This is not the promotion_data within promotion. This
         fields are set by _process_template method in saasherder
         """
-        job_spec = self.saasherder.get_configs_diff_saas_file(self.saas_file)[0]
-        promotion = job_spec["target_config"]["promotion"]
+        job_spec: TriggerSpecConfig = self.saasherder.get_configs_diff_saas_file(
+            self.saas_file
+        )[0]
+        promotion = job_spec.state_content["promotion"]
         self.assertIsNotNone(promotion[TARGET_CONFIG_HASH])
 
     def test_promotion_state_config_hash_match_validates(self):
