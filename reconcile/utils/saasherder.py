@@ -1495,9 +1495,6 @@ class SaasHerder:
                     f"{saas_file_name}/{rt_name}/{cluster_name}/"
                     f"{namespace_name}/{env_name}"
                 )
-                target_name = desired_target_config.get("name")
-                if target_name:
-                    key += f"/{target_name}"
                 # Convert to dict, ChainMap is not JSON serializable
                 # desired_target_config needs to be serialized to generate
                 # its config hash and to be stored in S3
@@ -1538,9 +1535,6 @@ class SaasHerder:
             f"{saas_file_name}/{rt_name}/{cluster_name}/"
             + f"{namespace_name}/{env_name}"
         )
-        target_name = target_config.get("name")
-        if target_name:
-            key += f"/{target_name}"
         self.state.add(key, value=target_config, force=True)
 
     def validate_promotions(self):
