@@ -1,3 +1,4 @@
+import logging
 import sys
 from typing import Optional, cast
 
@@ -28,6 +29,8 @@ from reconcile.utils.terrascript.cloudflare_client import (
     create_cloudflare_terrascript,
 )
 from reconcile.utils.helpers import filter_null
+
+from reconcile.status import ExitCodes
 
 QONTRACT_INTEGRATION = "terraform_cloudflare_resources"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
@@ -252,7 +255,7 @@ def run(
     working_dirs = cf_clients.dump(print_to_file=print_to_file)
 
     if print_to_file:
-        sys.exit()
+        sys.exit(ExitCodes.SUCCESS)
 
     tf = TerraformClient(
         QONTRACT_INTEGRATION,
@@ -266,13 +269,14 @@ def run(
 
     disabled_deletions_detected, err = tf.plan(enable_deletion)
     if err:
-        sys.exit(1)
+        sys.exit(ExitCodes.ERROR)
     if disabled_deletions_detected:
-        sys.exit(1)
+        logging.error("Deletions detected but they are disabled")
+        sys.exit(ExitCodes.ERROR)
 
     if dry_run:
-        return
+        sys.exit(ExitCodes.SUCCESS)
 
     err = tf.apply()
     if err:
-        sys.exit(1)
+        sys.exit(ExitCodes.ERROR)
