@@ -1,4 +1,3 @@
-from unittest.mock import patch
 import pytest
 from reconcile.gql_definitions.terraform_cloudflare_resources.terraform_cloudflare_resources import (
     AWSAccountV1,
@@ -17,6 +16,8 @@ from reconcile.gql_definitions.terraform_cloudflare_resources.terraform_cloudfla
 )
 from reconcile.terraform_cloudflare_resources import build_specs
 from reconcile.utils.external_resource_spec import ExternalResourceSpec
+
+import reconcile.terraform_cloudflare_resources as integ
 
 
 @pytest.fixture
@@ -108,11 +109,11 @@ def external_resources(provisioner_config):
     )
 
 
-def test_build_specs(query_data):
-    with patch(
-        "reconcile.terraform_cloudflare_resources.get_github_file", return_value="foo"
-    ):
-        actual = build_specs(query_data)
+def test_build_specs(mocker, query_data):
+    get_github_file = mocker.patch.object(integ, "get_github_file")
+    get_github_file.return_value = "foo"
+
+    actual = build_specs(query_data)
     expected = [
         ExternalResourceSpec(
             "cloudflare_zone",
