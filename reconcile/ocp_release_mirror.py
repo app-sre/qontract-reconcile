@@ -216,7 +216,6 @@ class OcpReleaseMirror:
         # Creating a new, bare, OC client since we don't
         # want to run this against any cluster or via
         # a jump host
-        # oc_cli = OC("cluster", None, None, local=True)
         oc_cli = OCLocal("cluster")
         oc_cli.release_mirror(
             from_release=ocp_release,

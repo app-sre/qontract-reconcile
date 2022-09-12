@@ -532,7 +532,7 @@ class ResourceInventory:
         self._clusters = {}
         self._error_registered = False
         self._error_registered_clusters = {}
-        self._lock = Lock() 
+        self._lock = Lock()
 
     def initialize_resource_type(self, cluster, namespace, resource_type):
         self._clusters.setdefault(cluster, {})

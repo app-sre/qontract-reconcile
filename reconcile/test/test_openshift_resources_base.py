@@ -154,11 +154,14 @@ def test_fetch_current_state_ri_initialized(oc_cs1: oc.OCClient, tmpl1: dict[str
     assert resource["current"]["tmpl1"].kind == "Template"
 
 
+@pytest.fixture
+@patch("reconcile.utils.oc.OCNative")
 def test_fetch_current_state_kind_not_supported(
     oc_cs1: oc.OCNative, tmpl1: dict[str, Any]
 ):
     ri = ResourceInventory()
     ri.initialize_resource_type("cs1", "ns1", "AnUnsupportedKind")
+    oc_cs1.get_items = lambda kind, **kwargs: [tmpl1]  # type: ignore[assignment]
     orb.fetch_current_state(
         oc=oc_cs1,
         ri=ri,
@@ -191,11 +194,14 @@ def test_fetch_current_state_long_kind(oc_cs1: oc.OCClient, tmpl1: dict[str, Any
     assert resource["current"]["tmpl1"].kind == "Template"
 
 
+@pytest.fixture
+@patch("reconcile.utils.oc.OCNative")
 def test_fetch_current_state_long_kind_not_supported(
     oc_cs1: oc.OCNative, tmpl1: dict[str, Any]
 ):
     ri = ResourceInventory()
     ri.initialize_resource_type("cs1", "ns1", "UnknownKind.mysterious.io")
+    oc_cs1.get_items = lambda kind, **kwargs: [tmpl1]  # type: ignore[assignment]
     orb.fetch_current_state(
         oc=oc_cs1,
         ri=ri,
