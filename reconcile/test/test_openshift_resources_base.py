@@ -178,7 +178,7 @@ def test_fetch_current_state_kind_not_supported(
 def test_fetch_current_state_long_kind(oc_cs1: oc.OCClient, tmpl1: dict[str, Any]):
     ri = ResourceInventory()
     ri.initialize_resource_type("cs1", "ns1", "Template.template.openshift.io")
-    oc_cs1.get_items = lambda kind, **kwargs: [tmpl1]  # type: ignore[assignment]
+    oc_cs1.get_items = lambda kind, **kwargs: [tmpl1]
     orb.fetch_current_state(
         oc=oc_cs1,
         ri=ri,
@@ -201,7 +201,7 @@ def test_fetch_current_state_long_kind_not_supported(
 ):
     ri = ResourceInventory()
     ri.initialize_resource_type("cs1", "ns1", "UnknownKind.mysterious.io")
-    oc_cs1.get_items = lambda kind, **kwargs: [tmpl1]  # type: ignore[assignment]
+    oc_cs1.get_items = lambda kind, **kwargs: [tmpl1]
     orb.fetch_current_state(
         oc=oc_cs1,
         ri=ri,
