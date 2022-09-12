@@ -511,7 +511,7 @@ def test_bundle_change_diff_property_added():
             path=jsonpath_ng.parse("openshiftResources.[0].new_field"),
             diff_type=DiffType.ADDED,
             old=None,
-            new=None,
+            new="value",
             covered_by=[],
         ),
     ]
@@ -553,7 +553,7 @@ def test_bundle_change_diff_property_removed():
         Diff(
             path=jsonpath_ng.parse("openshiftResources.[0].old_field"),
             diff_type=DiffType.REMOVED,
-            old=None,
+            old="value",
             new=None,
             covered_by=[],
         ),
@@ -782,6 +782,57 @@ def test_bundle_change_diff_resourcefile_with_schema_unparsable():
     assert bundle_change.diffs[0].diff_type == DiffType.CHANGED
     assert bundle_change.diffs[0].old == "somethingsomething"
     assert bundle_change.diffs[0].new == "somethingsomething_different"
+
+
+def test_bundle_change_resource_file_added():
+    bundle_change = create_bundle_file_change(
+        path="path",
+        schema="schema",
+        file_type=BundleFileType.RESOURCEFILE,
+        old_file_content=None,
+        new_file_content="new content",
+    )
+
+    assert bundle_change
+    assert len(bundle_change.diffs) == 1
+    assert str(bundle_change.diffs[0].path) == "$"
+    assert bundle_change.diffs[0].diff_type == DiffType.ADDED
+    assert bundle_change.diffs[0].old is None
+    assert bundle_change.diffs[0].new == "new content"
+
+
+def test_bundle_change_resource_file_removed():
+    bundle_change = create_bundle_file_change(
+        path="path",
+        schema="schema",
+        file_type=BundleFileType.RESOURCEFILE,
+        old_file_content="old content",
+        new_file_content=None,
+    )
+
+    assert bundle_change
+    assert len(bundle_change.diffs) == 1
+    assert str(bundle_change.diffs[0].path) == "$"
+    assert bundle_change.diffs[0].diff_type == DiffType.REMOVED
+    assert bundle_change.diffs[0].old == "old content"
+    assert bundle_change.diffs[0].new is None
+
+
+def test_bundle_change_resource_file_dict_value_added():
+    bundle_change = create_bundle_file_change(
+        path="path",
+        schema="schema",
+        file_type=BundleFileType.RESOURCEFILE,
+        old_file_content='{"field": {}}',
+        new_file_content='{"field": {"new_field": "new_value"}}',
+    )
+
+    assert bundle_change
+    assert len(bundle_change.diffs) == 1
+    assert str(bundle_change.diffs[0].path) == "field.new_field"
+    assert bundle_change.diffs[0].diff_type == DiffType.ADDED
+    assert bundle_change.diffs[0].old is None
+    assert bundle_change.diffs[0].new == "new_value"
 
 
 #
