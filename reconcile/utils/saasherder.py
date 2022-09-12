@@ -1379,6 +1379,7 @@ class SaasHerder:
                     job_name=job_name,
                     state_content=last_build_result,
                 )
+                last_build_result_number = last_build_result["number"]
                 if self.include_trigger_trace:
                     job_spec.reason = f"{upstream['instance']['serverUrl']}/job/{job_name}/{last_build_result_number}"
                 state_build_result = self.state.get(job_spec.state_key, None)
@@ -1400,7 +1401,6 @@ class SaasHerder:
                     continue
 
                 state_build_result_number = state_build_result["number"]
-                last_build_result_number = last_build_result["number"]
                 # this is the most important condition
                 # if there is a successful newer build -
                 # trigger the deployment.
