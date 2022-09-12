@@ -20,6 +20,11 @@ import yaml
 from reconcile import queries
 from reconcile.checkpoint import report_invalid_metadata
 from reconcile.cli import config_file
+from reconcile.openshift_resources_base import (
+    NAMESPACES_QUERY,
+    fetch_openshift_resource,
+    process_extracurlyjinja2_template,
+)
 from reconcile.slack_base import slackapi_from_queries
 from reconcile.utils import amtool
 from reconcile.utils import promtool
@@ -703,7 +708,7 @@ def add_resource(item, resource, columns):
 @click.pass_context
 def cluster_openshift_resources(ctx):
     gqlapi = gql.get_api()
-    namespaces = gqlapi.query(orb.NAMESPACES_QUERY)["namespaces"]
+    namespaces = gqlapi.query(NAMESPACES_QUERY)["namespaces"]
     columns = ["name", "total"]
     results = {}
     for ns_info in namespaces:
@@ -1318,7 +1323,7 @@ def rm(ctx, integration, key):
 @click.pass_context
 def template(ctx, cluster, namespace, kind, name):
     gqlapi = gql.get_api()
-    namespaces = gqlapi.query(orb.NAMESPACES_QUERY)["namespaces"]
+    namespaces = gqlapi.query(NAMESPACES_QUERY)["namespaces"]
     namespace_info = [
         n
         for n in namespaces
@@ -1332,7 +1337,7 @@ def template(ctx, cluster, namespace, kind, name):
     [namespace_info] = namespace_info
     openshift_resources = namespace_info.get("openshiftResources")
     for r in openshift_resources:
-        openshift_resource = orb.fetch_openshift_resource(r, namespace_info, settings)
+        openshift_resource = fetch_openshift_resource(r, namespace_info, settings)
         if openshift_resource.kind.lower() != kind.lower():
             continue
         if openshift_resource.name != name:
@@ -1386,7 +1391,7 @@ def run_prometheus_test(ctx, path, cluster, namespace, secret_reader):
 
     namespace_info = [
         n
-        for n in gqlapi.query(orb.NAMESPACES_QUERY)["namespaces"]
+        for n in gqlapi.query(NAMESPACES_QUERY)["namespaces"]
         if n["cluster"]["name"] == cluster and n["name"] == namespace
     ]
     if len(namespace_info) != 1:
@@ -1408,7 +1413,7 @@ def run_prometheus_test(ctx, path, cluster, namespace, secret_reader):
         if "add_path_to_prom_rules" not in r:
             r["add_path_to_prom_rules"] = False
 
-        openshift_resource = orb.fetch_openshift_resource(r, ni, settings)
+        openshift_resource = fetch_openshift_resource(r, ni, settings)
         if openshift_resource.kind.lower() != "prometheusrule":
             print(f"Object in {rule_file_path} is not a PrometheusRule.")
             sys.exit(1)
@@ -1426,9 +1431,7 @@ def run_prometheus_test(ctx, path, cluster, namespace, secret_reader):
         sys.exit(1)
 
     test_yaml_spec = yaml.safe_load(
-        orb.process_extracurlyjinja2_template(
-            body=test, vars=variables, settings=settings
-        )
+        process_extracurlyjinja2_template(body=test, vars=variables, settings=settings)
     )
     test_yaml_spec.pop("$schema")
 
@@ -1514,7 +1517,7 @@ def alert_to_receiver(
         additional_labels[key] = value
 
     gqlapi = gql.get_api()
-    namespaces = gqlapi.query(orb.NAMESPACES_QUERY)["namespaces"]
+    namespaces = gqlapi.query(NAMESPACES_QUERY)["namespaces"]
     cluster_namespaces = [n for n in namespaces if n["cluster"]["name"] == cluster]
 
     if len(cluster_namespaces) == 0:
@@ -1536,7 +1539,7 @@ def alert_to_receiver(
         for r in ni.get("openshiftResources"):
             if r.get("resource", {}).get("path") != alertmanager_secret_path:
                 continue
-            openshift_resource = orb.fetch_openshift_resource(r, ni, settings)
+            openshift_resource = fetch_openshift_resource(r, ni, settings)
             body = openshift_resource.body
             if "data" in body:
                 am_config = base64.b64decode(
@@ -1556,7 +1559,7 @@ def alert_to_receiver(
         for r in ni.get("openshiftResources"):
             if r.get("resource", {}).get("path") != rules_path:
                 continue
-            openshift_resource = orb.fetch_openshift_resource(r, ni, settings)
+            openshift_resource = fetch_openshift_resource(r, ni, settings)
             if openshift_resource.kind.lower() != "prometheusrule":
                 print(f"Object in {rules_path} is not a PrometheusRule")
                 sys.exit(1)
