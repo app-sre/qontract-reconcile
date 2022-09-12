@@ -138,6 +138,9 @@ def build_specs(
     for extres in get_resources(query_data):
         provisioner_name = extres.provisioner.name
         for res in extres.resources or []:
+            # res (resources) is an interface (NamespaceTerraformResourceCloudflare_v1)
+            # on which we select NamespaceTerraformResourceCloudflare_v1 in the GrapgQL
+            # query. The current implementation of typed classes requires us to cast here
             res = cast(NamespaceTerraformResourceCloudflareZoneV1, res)
             zone_identifier = safe_resource_id(res.zone)
             specs.append(
