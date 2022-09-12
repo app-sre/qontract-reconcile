@@ -74,7 +74,7 @@ class TriggerSpecBase:
     saas_file_name: str
     env_name: str
     timeout: Optional[str]
-    pipelines_provider: dict[str, Any]
+    pipelines_provider: Optional[dict[str, Any]]
     resource_template_name: str
     cluster_name: str
     namespace_name: str
@@ -1111,8 +1111,17 @@ class SaasHerder:
                 namespace = target["namespace"]["name"]
                 env_name = target["namespace"]["environment"]["name"]
 
-                key = f"{saas_file_name}/{rt_name}/{cluster}/{namespace}/{env_name}"
-                digest = SaasHerder.get_target_config_hash(target_configs[key])
+                dummy_job_spec = TriggerSpecConfig(
+                    saas_file_name=saas_file_name,
+                    env_name=env_name,
+                    timeout=None,
+                    pipelines_provider=None,
+                    resource_template_name=rt_name,
+                    cluster_name=cluster,
+                    namespace_name=namespace,
+                    state_content=None,
+                )
+                digest = SaasHerder.get_target_config_hash(target_configs[dummy_job_spec.state_key])
 
                 process_template_options = {
                     "saas_file_name": saas_file_name,
@@ -1522,14 +1531,20 @@ class SaasHerder:
                 desired_target_config["url"] = url
                 desired_target_config["path"] = path
                 desired_target_config["rt_parameters"] = rt_parameters
-                key = (
-                    f"{saas_file_name}/{rt_name}/{cluster_name}/"
-                    f"{namespace_name}/{env_name}"
+                dummy_job_spec = TriggerSpecConfig(
+                    saas_file_name=saas_file_name,
+                    env_name=env_name,
+                    timeout=None,
+                    pipelines_provider=None,
+                    resource_template_name=rt_name,
+                    cluster_name=cluster_name,
+                    namespace_name=namespace_name,
+                    state_content=None,
                 )
                 # Convert to dict, ChainMap is not JSON serializable
                 # desired_target_config needs to be serialized to generate
                 # its config hash and to be stored in S3
-                configs[key] = dict(desired_target_config)
+                configs[dummy_job_spec.state_key] = dict(desired_target_config)
         return configs
 
     @staticmethod
