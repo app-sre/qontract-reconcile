@@ -7,6 +7,8 @@ import time
 
 import hvac
 import requests
+
+from typing import Tuple, Optional
 from hvac.exceptions import InvalidPath
 from requests.adapters import HTTPAdapter
 from sretoolbox.utils import retry
@@ -52,12 +54,14 @@ class _VaultClient:
     and a version (no invalidation required).
     """
 
-    def __init__(self, auto_refresh=True):
+    def __init__(self, server=None, role_id=None, secret_id=None, auto_refresh=True):
         config = get_config()
 
-        server = config["vault"]["server"]
-        self.role_id = config["vault"]["role_id"]
-        self.secret_id = config["vault"]["secret_id"]
+        server = config["vault"]["server"] if server is None else server
+        self.role_id = config["vault"]["role_id"] if role_id is None else role_id
+        self.secret_id = (
+            config["vault"]["secret_id"] if secret_id is None else secret_id
+        )
 
         # This is a threaded world. Let's define a big
         # connections pool to live in that world
@@ -97,7 +101,7 @@ class _VaultClient:
         self._client.auth_approle(self.role_id, self.secret_id)
 
     @retry()
-    def read_all(self, secret):
+    def read_all_version(self, secret) -> Tuple[dict, Optional[str]]:
         """Returns a dictionary of keys and values in a Vault secret.
 
         The input secret is a dictionary which contains the following fields:
@@ -113,6 +117,32 @@ class _VaultClient:
         data = None
         if kv_version == 2:
             data = self._read_all_v2(secret_path, secret_version)
+            logging.info(["vault_helper", data])
+        else:
+            data = self._read_all_v1(secret_path)
+
+        if data is None:
+            raise SecretNotFound
+
+        return data
+
+    @retry()
+    def read_all(self, secret) -> dict:
+        """Returns a dictionary of keys and values in a Vault secret.
+
+        The input secret is a dictionary which contains the following fields:
+        * path - path to the secret in Vault
+        * version (optional) - secret version to read (if this is
+                               a v2 KV engine)
+        """
+        secret_path = secret["path"]
+        secret_version = secret.get("version")
+
+        kv_version = self._get_mount_version_by_secret_path(secret_path)
+
+        data = None
+        if kv_version == 2:
+            data, _ = self._read_all_v2(secret_path, secret_version)
         else:
             data = self._read_all_v1(secret_path)
 
@@ -165,7 +195,8 @@ class _VaultClient:
             raise SecretNotFound(path)
 
         data = secret["data"]["data"]
-        return data
+        secret_verion = secret["data"]["metadata"]["version"]
+        return data, secret_verion
 
     def _read_all_v1(self, path):
         try:
