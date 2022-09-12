@@ -16,6 +16,7 @@ from typing import (
     Optional,
     Set,
     Tuple,
+    Union,
     cast,
 )
 
@@ -125,6 +126,7 @@ class TriggerSpecUpstreamJob(TriggerSpecBase):
         )
         return key
 
+TriggerSpecUnion = Union[TriggerSpecConfig, TriggerSpecMovingCommit, TriggerSpecUpstreamJob]
 
 UNIQUE_SAAS_FILE_ENV_COMBO_LEN = 50
 
@@ -1239,7 +1241,7 @@ class SaasHerder:
                 f"saasherder get_diff for trigger type: {trigger_type}"
             )
 
-    def update_state(self, job_spec: TriggerSpecBase):
+    def update_state(self, job_spec: TriggerSpecUnion):
         self.state.add(job_spec.state_key, value=job_spec.state_content, force=True)
 
     def get_moving_commits_diff(self, dry_run: bool) -> list[TriggerSpecMovingCommit]:
