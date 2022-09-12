@@ -15,6 +15,7 @@ from reconcile.utils.saasherder import (
     SaasHerder,
     Providers,
     UNIQUE_SAAS_FILE_ENV_COMBO_LEN,
+    TriggerSpecUnion,
 )
 from reconcile.utils.sharding import is_in_shard
 from reconcile.utils.defer import defer
@@ -158,14 +159,14 @@ def setup(
 
 
 def trigger(
-    spec,
-    dry_run,
-    saasherder,
-    oc_map,
-    already_triggered,
-    integration,
-    integration_version,
-):
+    spec: TriggerSpecUnion,
+    dry_run: bool,
+    saasherder: SaasHerder,
+    oc_map: OC_Map,
+    already_triggered: set[str],
+    integration: str,
+    integration_version: str,
+) -> bool:
     """Trigger a deployment according to the specified pipelines provider
 
     Args:
@@ -181,10 +182,8 @@ def trigger(
     Returns:
         bool: True if there was an error, False otherwise
     """
-
-    # TODO: Convert these into a dataclass.
-    saas_file_name = spec["saas_file_name"]
-    provider_name = spec["pipelines_provider"]["provider"]
+    saas_file_name = spec.saas_file_name
+    provider_name = spec.pipelines_provider["provider"]
 
     error = False
     if provider_name == Providers.TEKTON:
@@ -205,18 +204,18 @@ def trigger(
 
 
 def _trigger_tekton(
-    spec,
-    dry_run,
-    saasherder,
-    oc_map,
-    already_triggered,
-    integration,
-    integration_version,
+    spec: TriggerSpecUnion,
+    dry_run: bool,
+    saasherder: SaasHerder,
+    oc_map: OC_Map,
+    already_triggered: str[str],
+    integration: str,
+    integration_version: str,
 ):
     # TODO: Convert these into a dataclass.
-    saas_file_name = spec["saas_file_name"]
-    env_name = spec["env_name"]
-    pipelines_provider = spec["pipelines_provider"]
+    saas_file_name = spec.saas_file_name
+    env_name = spec.env_name
+    pipelines_provider = spec.pipelines_provider
 
     pipeline_template_name = pipelines_provider["defaults"]["pipelineTemplates"][
         "openshiftSaasDeploy"
@@ -259,7 +258,7 @@ def _trigger_tekton(
         integration,
         integration_version,
         saasherder.include_trigger_trace,
-        spec.get("reason"),
+        spec.reason,
     )
 
     error = False
