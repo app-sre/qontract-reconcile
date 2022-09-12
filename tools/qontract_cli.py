@@ -11,7 +11,6 @@ import click
 import reconcile.gitlab_housekeeping as glhk
 import reconcile.ocm_upgrade_scheduler as ous
 import reconcile.openshift_base as ob
-import reconcile.openshift_resources_base as orb
 import reconcile.terraform_resources as tfr
 import reconcile.terraform_users as tfu
 import reconcile.terraform_vpc_peerings as tfvpc
