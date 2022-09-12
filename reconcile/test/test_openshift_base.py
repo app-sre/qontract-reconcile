@@ -39,9 +39,7 @@ def namespaces() -> list[dict[str, Any]]:
 
 @pytest.fixture
 @patch("reconcile.utils.oc.OCNative")
-# @patch("reconcile.utils.oc.OCNative")
 def oc_cs1(self) -> oc.OCClient:
-    # return cast(oc.OCNative, oc.OC(cluster_name="cs1", server="", token="", local=True))
     return oc.OCNative(cluster_name="cs1", server="server", token="token", local=True)
 
 
@@ -60,7 +58,6 @@ def oc_map(mocker, oc_cs1: oc.OCNative) -> oc.OC_Map:
     oc_map = mocker.patch("reconcile.utils.oc.OC_Map", autospec=True).return_value
     oc_map.get.mock_add_spec(oc.OC_Map.get)
     oc_map.get.side_effect = get_cluster
-    # print(oc_map)
     return oc_map
 
 

@@ -195,7 +195,6 @@ class OCProcessReconcileTimeDecoratorMsg:
 
 
 def oc_process(template, parameters=None):
-    # oc = OCNative(server=None, local=True, cluster_name="cluster", token=None)
     oc = OCLocal(cluster_name="cluster")
     return oc.process(template, parameters)
 
@@ -461,30 +460,6 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
             return
         cmd = ["adm", "groups", "new", group]
         self._run(cmd)
-
-    # def release_mirror(self, from_release, to, to_release, dockerconfig):
-    #     with tempfile.NamedTemporaryFile() as fp:
-    #         content = json.dumps(dockerconfig)
-    #         fp.write(content.encode())
-    #         fp.seek(0)
-
-    #         cmd = [
-    #             "adm",
-    #             "--registry-config",
-    #             fp.name,
-    #             "release",
-    #             "mirror",
-    #             "--from",
-    #             from_release,
-    #             "--to",
-    #             to,
-    #             "--to-release-image",
-    #             to_release,
-    #             "--max-per-registry",
-    #             "1",
-    #         ]
-
-    #         self._run(cmd)
 
     def delete_group(self, group):
         cmd = ["delete", "group", group]
@@ -955,23 +930,11 @@ class OCNative(OCDeprecated):
             insecure_skip_tls_verify=insecure_skip_tls_verify,
         )
 
-        # server is set to None for certain use cases like saasherder which
-        # uses local operations, such as process(). A refactor to provide that
-        # functionality outside of this class would allow an exception to be
-        # thrown here instead to avoid AttributeErrors when accessing
-        # methods that rely on client/api_kind_version to be set.
-
         if server:
             self.client = self._get_client(server, token)
             self.api_kind_version = self.get_api_resources()
-        # elif not server and not token and local:
-        #     init_api_resources = False
-        #     init_projects = False
         else:
             raise Exception("a server value is needed")
-        # else:
-        #     init_api_resources = False
-        #     init_projects = False
 
         self.object_clients = {}
         self.init_projects = init_projects
@@ -988,11 +951,6 @@ class OCNative(OCDeprecated):
 
     @retry(exceptions=(ServerTimeoutError, InternalServerError, ForbiddenError))
     def _get_client(self, server, token):
-        logging.debug(token)
-        print(token)
-        logging.debug("this is the server")
-        logging.debug(server)
-        print(server)
         opts = dict(
             api_key={"authorization": f"Bearer {token}"},
             host=server,
@@ -1000,19 +958,13 @@ class OCNative(OCDeprecated):
             # default timeout seems to be 1+ minutes
             retries=5,
         )
-        print(opts)
-        print("I'm here")
         if self.jump_host:
             # the ports could be parameterized, but at this point
             # we only have need of 1 tunnel for 1 service
             self.jump_host.create_ssh_tunnel()
             local_port = self.jump_host.local_port
-            print(local_port)
             opts["proxy"] = f"http://localhost:{local_port}"
-            print(opts["proxy"])
-        print("I'm here now")
         configuration = Configuration()
-        print("I'm here now pt2")
         # the kubernetes client configuration takes a limited set
         # of parameters during initialization, but there are a lot
         # more options that can be set to tweak the behavior of the
@@ -1023,7 +975,6 @@ class OCNative(OCDeprecated):
             setattr(configuration, k, v)
 
         k8s_client = ApiClient(configuration)
-        print(k8s_client)
         try:
             return DynamicClient(k8s_client, discoverer=OpenshiftLazyDiscoverer)
         except urllib3.exceptions.MaxRetryError as e:
