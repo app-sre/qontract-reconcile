@@ -1282,24 +1282,6 @@ class SaasHerder:
                     cluster_name = namespace["cluster"]["name"]
                     namespace_name = namespace["name"]
                     env_name = namespace["environment"]["name"]
-                    key = (
-                        f"{saas_file_name}/{rt_name}/{cluster_name}/"
-                        + f"{namespace_name}/{env_name}/{ref}"
-                    )
-                    current_commit_sha = self.state.get(key, None)
-                    # skip if there is no change in commit sha
-                    if current_commit_sha == desired_commit_sha:
-                        continue
-                    # don't trigger if this is the first time
-                    # this target is being deployed.
-                    # that will be taken care of by
-                    # openshift-saas-deploy-trigger-configs
-                    if current_commit_sha is None:
-                        # store the value to take over from now on
-                        if not dry_run:
-                            self.state.add(key, value=desired_commit_sha)
-                        continue
-                    # we finally found something we want to trigger on!
                     job_spec = TriggerSpecMovingCommit(
                         saas_file_name=saas_file_name,
                         env_name=env_name,
@@ -1313,6 +1295,20 @@ class SaasHerder:
                     )
                     if self.include_trigger_trace:
                         job_spec.reason = f"{url}/commit/{desired_commit_sha}"
+                    current_commit_sha = self.state.get(job_spec.state_key, None)
+                    # skip if there is no change in commit sha
+                    if current_commit_sha == desired_commit_sha:
+                        continue
+                    # don't trigger if this is the first time
+                    # this target is being deployed.
+                    # that will be taken care of by
+                    # openshift-saas-deploy-trigger-configs
+                    if current_commit_sha is None:
+                        # store the value to take over from now on
+                        if not dry_run:
+                            self.update_state(job_spec)
+                        continue
+                    # we finally found something we want to trigger on!
                     trigger_specs.append(job_spec)
                 except (GithubException, GitlabError):
                     logging.exception(
@@ -1371,11 +1367,21 @@ class SaasHerder:
                 cluster_name = namespace["cluster"]["name"]
                 namespace_name = namespace["name"]
                 env_name = namespace["environment"]["name"]
-                key = (
-                    f"{saas_file_name}/{rt_name}/{cluster_name}/"
-                    + f"{namespace_name}/{env_name}/{instance_name}/{job_name}"
+                job_spec = TriggerSpecUpstreamJob(
+                    saas_file_name=saas_file_name,
+                    env_name=env_name,
+                    timeout=timeout,
+                    pipelines_provider=pipelines_provider,
+                    resource_template_name=rt_name,
+                    cluster_name=cluster_name,
+                    namespace_name=namespace_name,
+                    instance_name=instance_name,
+                    job_name=job_name,
+                    state_content=last_build_result,
                 )
-                state_build_result = self.state.get(key, None)
+                if self.include_trigger_trace:
+                    job_spec.reason = f"{upstream['instance']['serverUrl']}/job/{job_name}/{last_build_result_number}"
+                state_build_result = self.state.get(job_spec.state_key, None)
                 # skip if last_build_result is incomplete or
                 # there is no change in job state
                 if (
@@ -1390,7 +1396,7 @@ class SaasHerder:
                 if state_build_result is None:
                     # store the value to take over from now on
                     if not dry_run:
-                        self.state.add(key, value=last_build_result)
+                        self.update_state(job_spec)
                     continue
 
                 state_build_result_number = state_build_result["number"]
@@ -1412,20 +1418,6 @@ class SaasHerder:
                     and last_build_result["result"] == "SUCCESS"
                 ):
                     # we finally found something we want to trigger on!
-                    job_spec = TriggerSpecUpstreamJob(
-                        saas_file_name=saas_file_name,
-                        env_name=env_name,
-                        timeout=timeout,
-                        pipelines_provider=pipelines_provider,
-                        resource_template_name=rt_name,
-                        cluster_name=cluster_name,
-                        namespace_name=namespace_name,
-                        instance_name=instance_name,
-                        job_name=job_name,
-                        state_content=last_build_result,
-                    )
-                    if self.include_trigger_trace:
-                        job_spec.reason = f"{upstream['instance']['serverUrl']}/job/{job_name}/{last_build_result_number}"
                     trigger_specs.append(job_spec)
 
         return trigger_specs
