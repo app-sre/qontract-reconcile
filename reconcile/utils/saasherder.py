@@ -1455,7 +1455,6 @@ class SaasHerder:
         targets = self.get_saas_targets_config(saas_file)
 
         pipelines_provider = self._get_pipelines_provider(saas_file)
-        configurable_resources = saas_file.get("configurableResources", False)
         trigger_specs = []
 
         for key, desired_target_config in targets.items():
