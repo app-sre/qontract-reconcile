@@ -13,7 +13,7 @@
     "id": "aws",
     "href": "/api/clusters_mgmt/v1/cloud_providers/aws"
   },
-  "openshift_version": "4.10.5",
+  "openshift_version": "4.10.16",
   "subscription": {
     "kind": "SubscriptionLink",
     "id": "subscription_id",
@@ -61,7 +61,7 @@
   },
   "properties": {
     "rosa_cli_version": "1.1.11",
-    "rosa_creator_arn": "arn:aws:iam::249118421612:user/terraform"
+    "rosa_creator_arn": "arn:aws:iam::249118421612:role/ManagedOpenShift-OCM-Role-12147054"
   },
   "aws": {
     "private_link": false,
@@ -154,9 +154,9 @@
   },
   "version": {
     "kind": "Version",
-    "id": "openshift-v4.10.5",
+    "id": "openshift-v4.10.16",
     "href": "/api/clusters_mgmt/v1/versions/openshift-v4.10.5",
-    "raw_id": "4.10.5",
+    "raw_id": "4.10.16",
     "channel_group": "stable",
     "end_of_life_timestamp": "2022-12-10T00:00:00Z"
   },
