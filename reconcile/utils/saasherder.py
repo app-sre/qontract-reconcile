@@ -1239,10 +1239,10 @@ class SaasHerder:
                 f"saasherder get_diff for trigger type: {trigger_type}"
             )
 
-    def update_state(self, job_spec):
+    def update_state(self, job_spec: TriggerSpecBase):
         self.state.add(job_spec.state_key, value=job_spec.state_content, force=True)
 
-    def get_moving_commits_diff(self, dry_run):
+    def get_moving_commits_diff(self, dry_run: bool) -> list[TriggerSpecMovingCommit]:
         results = threaded.run(
             self.get_moving_commits_diff_saas_file,
             self.saas_files,
@@ -1251,12 +1251,14 @@ class SaasHerder:
         )
         return list(itertools.chain.from_iterable(results))
 
-    def get_moving_commits_diff_saas_file(self, saas_file, dry_run):
+    def get_moving_commits_diff_saas_file(
+        self, saas_file: dict[str, Any], dry_run: bool
+    ) -> list[TriggerSpecMovingCommit]:
         saas_file_name = saas_file["name"]
         timeout = saas_file.get("timeout") or None
         pipelines_provider = self._get_pipelines_provider(saas_file)
         github = self._initiate_github(saas_file)
-        trigger_specs = []
+        trigger_specs: list[TriggerSpecMovingCommit] = []
         for rt in saas_file["resourceTemplates"]:
             rt_name = rt["name"]
             url = rt["url"]
@@ -1315,7 +1317,9 @@ class SaasHerder:
 
         return trigger_specs
 
-    def get_upstream_jobs_diff(self, dry_run):
+    def get_upstream_jobs_diff(
+        self, dry_run: bool
+    ) -> tuple[list[TriggerSpecUpstreamJob], bool]:
         current_state, error = self._get_upstream_jobs_current_state()
         results = threaded.run(
             self.get_upstream_jobs_diff_saas_file,
@@ -1326,8 +1330,8 @@ class SaasHerder:
         )
         return list(itertools.chain.from_iterable(results)), error
 
-    def _get_upstream_jobs_current_state(self):
-        current_state = {}
+    def _get_upstream_jobs_current_state(self) -> tuple[dict[str, Any], bool]:
+        current_state: dict[str, Any] = {}
         error = False
         for instance_name, jenkins in self.jenkins_map.items():
             try:
@@ -1339,7 +1343,9 @@ class SaasHerder:
 
         return current_state, error
 
-    def get_upstream_jobs_diff_saas_file(self, saas_file, dry_run, current_state):
+    def get_upstream_jobs_diff_saas_file(
+        self, saas_file: dict[str, Any], dry_run: bool, current_state: dict[str, Any]
+    ) -> list[TriggerSpecUpstreamJob]:
         saas_file_name = saas_file["name"]
         timeout = saas_file.get("timeout") or None
         pipelines_provider = self._get_pipelines_provider(saas_file)
@@ -1419,7 +1425,7 @@ class SaasHerder:
 
         return trigger_specs
 
-    def get_configs_diff(self):
+    def get_configs_diff(self) -> list[TriggerSpecConfig]:
         results = threaded.run(
             self.get_configs_diff_saas_file, self.saas_files, self.thread_pool_size
         )
@@ -1437,7 +1443,9 @@ class SaasHerder:
                 new[k] = v
         return new
 
-    def get_configs_diff_saas_file(self, saas_file):
+    def get_configs_diff_saas_file(
+        self, saas_file: dict[str, Any]
+    ) -> list[TriggerSpecConfig]:
         # Dict by key
         targets = self.get_saas_targets_config(saas_file)
 
@@ -1529,7 +1537,7 @@ class SaasHerder:
         return configs
 
     @staticmethod
-    def _get_pipelines_provider(saas_file: Mapping[str, Any]) -> str:
+    def _get_pipelines_provider(saas_file: Mapping[str, Any]) -> dict[str, Any]:
         return saas_file["pipelinesProvider"]
 
     @staticmethod
