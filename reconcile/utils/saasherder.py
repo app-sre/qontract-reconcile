@@ -1111,7 +1111,7 @@ class SaasHerder:
                 namespace = target["namespace"]["name"]
                 env_name = target["namespace"]["environment"]["name"]
 
-                key = f"{saas_file_name}/{rt_name}/{cluster}/" f"{namespace}/{env_name}"
+                key = f"{saas_file_name}/{rt_name}/{cluster}/{namespace}/{env_name}"
                 digest = SaasHerder.get_target_config_hash(target_configs[key])
 
                 process_template_options = {
