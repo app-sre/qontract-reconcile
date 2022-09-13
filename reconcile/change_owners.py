@@ -222,6 +222,19 @@ class BundleFileChange:
         return list(filter(lambda d: d.diff_type in diff_types, self.diffs))
 
 
+IDENTIFIER_FIELD_NAME = "__identifier"
+REF_FIELD_NAME = "$ref"
+
+
+def _extract_identifier_from_object(obj: Any) -> Optional[str]:
+    if isinstance(obj, dict):
+        if IDENTIFIER_FIELD_NAME in obj:
+            return obj.get(IDENTIFIER_FIELD_NAME)
+        elif REF_FIELD_NAME in obj and len(obj) == 1:
+            return obj.get(REF_FIELD_NAME)
+    return None
+
+
 def compare_object_ctx_identifier(
     x: Any, y: Any, level: Optional[DiffLevel] = None
 ) -> bool:
@@ -247,8 +260,8 @@ def compare_object_ctx_identifier(
     of matching properties and values. this situation is signaled back to
     deepdiff by raising the CannotCompare exception.
     """
-    x_id = x.get("__identifier") if isinstance(x, dict) else None
-    y_id = y.get("__identifier") if isinstance(y, dict) else None
+    x_id = _extract_identifier_from_object(x)
+    y_id = _extract_identifier_from_object(y)
     if x_id and y_id:
         # if both have an identifier, they are the same if the identifiers are the same
         return x_id == y_id

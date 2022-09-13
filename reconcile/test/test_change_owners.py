@@ -703,6 +703,110 @@ def test_bundle_change_diff_item_replaced():
     assert bundle_change.diffs == expected
 
 
+def test_bundle_change_diff_ref_item_multiple_consecutive_replaced():
+    bundle_change = create_bundle_file_change(
+        path="path",
+        schema="/access/user-1.yml",
+        file_type=BundleFileType.DATAFILE,
+        old_file_content={
+            "$schema": "/access/user-1.yml",
+            "roles": [
+                {"$ref": "1"},
+                {"$ref": "2"},
+                {"$ref": "3"},
+                {"$ref": "4"},
+                {"$ref": "5"},
+                {"$ref": "6"},
+            ],
+        },
+        new_file_content={
+            "$schema": "/access/user-1.yml",
+            "roles": [
+                {"$ref": "1"},
+                {"$ref": "2"},
+                {"$ref": "changed"},
+                {"$ref": "changed as well"},
+                {"$ref": "5"},
+                {"$ref": "6"},
+            ],
+        },
+    )
+
+    assert bundle_change
+
+    expected = [
+        Diff(
+            path=jsonpath_ng.parse("roles.[2]"),
+            diff_type=DiffType.CHANGED,
+            old={"$ref": "3"},
+            new={"$ref": "changed"},
+            covered_by=[],
+        ),
+        Diff(
+            path=jsonpath_ng.parse("roles.[3]"),
+            diff_type=DiffType.CHANGED,
+            old={"$ref": "4"},
+            new={"$ref": "changed as well"},
+            covered_by=[],
+        ),
+    ]
+    diffs = sorted(bundle_change.diffs, key=lambda d: str(d.path))
+    assert diffs == expected
+
+
+def test_bundle_change_diff_ref_item_multiple_replaced():
+    bundle_change = create_bundle_file_change(
+        path="path",
+        schema="/access/user-1.yml",
+        file_type=BundleFileType.DATAFILE,
+        old_file_content={
+            "$schema": "/access/user-1.yml",
+            "roles": [
+                {"$ref": "1"},
+                {"$ref": "2"},
+                {"$ref": "3"},
+                {"$ref": "4"},
+                {"$ref": "5"},
+                {"$ref": "6"},
+                {"$ref": "7"},
+            ],
+        },
+        new_file_content={
+            "$schema": "/access/user-1.yml",
+            "roles": [
+                {"$ref": "1"},
+                {"$ref": "2"},
+                {"$ref": "changed"},
+                {"$ref": "4"},
+                {"$ref": "changed as well"},
+                {"$ref": "6"},
+                {"$ref": "7"},
+            ],
+        },
+    )
+
+    assert bundle_change
+
+    expected = [
+        Diff(
+            path=jsonpath_ng.parse("roles.[2]"),
+            diff_type=DiffType.CHANGED,
+            old={"$ref": "3"},
+            new={"$ref": "changed"},
+            covered_by=[],
+        ),
+        Diff(
+            path=jsonpath_ng.parse("roles.[4]"),
+            diff_type=DiffType.CHANGED,
+            old={"$ref": "5"},
+            new={"$ref": "changed as well"},
+            covered_by=[],
+        ),
+    ]
+    diffs = sorted(bundle_change.diffs, key=lambda d: str(d.path))
+    assert diffs == expected
+
+
 def test_bundle_change_diff_item_reorder():
     bundle_change = create_bundle_file_change(
         path="path",
