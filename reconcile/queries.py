@@ -651,6 +651,18 @@ CLUSTERS_QUERY = """
         storage
         load_balancers
       }
+      ... on ClusterSpecROSA_v1 {
+        account {
+          uid
+          rosa {
+            creator_role_arn
+            installer_role_arn
+            support_role_arn
+            controlplane_role_arn
+            worker_role_arn
+          }
+        }
+      }
       id
       external_id
       provider

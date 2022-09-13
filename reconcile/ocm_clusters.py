@@ -141,8 +141,8 @@ def get_cluster_ocm_update_spec(
 
     :param ocm: ocm implementation for an ocm product (osd, rosa)
     :param cluster: cluster name
-    :param current_spec: Cluster spec retreived from OCM api
-    :param desired_spec: luster spec retreived from App-Interface
+    :param current_spec: Cluster spec retrieved from OCM api
+    :param desired_spec: Cluster spec retrieved from App-Interface
     :return: a tuple with the updates to request to OCM and a bool to notify errors
     """
 
@@ -188,7 +188,7 @@ def get_cluster_ocm_update_spec(
         error = True
         logging.error(f"[{cluster}] invalid updates: {not_allowed_updates}")
 
-    return diffs, error
+    return updated_attrs, error
 
 
 def _app_interface_updates_mr(

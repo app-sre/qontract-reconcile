@@ -2,6 +2,7 @@ import logging
 import datetime
 
 from threading import Lock
+from typing import cast
 from sretoolbox.utils import threaded
 
 import reconcile.openshift_base as osb
@@ -15,6 +16,7 @@ from reconcile.utils.saasherder import (
     SaasHerder,
     Providers,
     UNIQUE_SAAS_FILE_ENV_COMBO_LEN,
+    TriggerSpecUnion,
 )
 from reconcile.utils.sharding import is_in_shard
 from reconcile.utils.defer import defer
@@ -76,7 +78,6 @@ def run(
         saasherder=saasherder,
         oc_map=oc_map,
         already_triggered=already_triggered,
-        trigger_type=trigger_type,
         integration=integration,
         integration_version=integration_version,
     )
@@ -159,15 +160,14 @@ def setup(
 
 
 def trigger(
-    spec,
-    dry_run,
-    saasherder,
-    oc_map,
-    already_triggered,
-    trigger_type,
-    integration,
-    integration_version,
-):
+    spec: TriggerSpecUnion,
+    dry_run: bool,
+    saasherder: SaasHerder,
+    oc_map: OC_Map,
+    already_triggered: set[str],
+    integration: str,
+    integration_version: str,
+) -> bool:
     """Trigger a deployment according to the specified pipelines provider
 
     Args:
@@ -177,17 +177,14 @@ def trigger(
         oc_map (OC_Map): a dictionary of OC clients per cluster
         already_triggered (set): A set of already triggered deployments.
                                     It will get populated by this function.
-        trigger_type (string): Indicates which method to call to update state
         integration (string): Name of calling integration
         integration_version (string): Version of calling integration
 
     Returns:
         bool: True if there was an error, False otherwise
     """
-
-    # TODO: Convert these into a dataclass.
-    saas_file_name = spec["saas_file_name"]
-    provider_name = spec["pipelines_provider"]["provider"]
+    saas_file_name = spec.saas_file_name
+    provider_name = cast(dict, spec.pipelines_provider)["provider"]
 
     error = False
     if provider_name == Providers.TEKTON:
@@ -197,7 +194,6 @@ def trigger(
             saasherder,
             oc_map,
             already_triggered,
-            trigger_type,
             integration,
             integration_version,
         )
@@ -209,19 +205,17 @@ def trigger(
 
 
 def _trigger_tekton(
-    spec,
-    dry_run,
-    saasherder,
-    oc_map,
-    already_triggered,
-    trigger_type,
-    integration,
-    integration_version,
+    spec: TriggerSpecUnion,
+    dry_run: bool,
+    saasherder: SaasHerder,
+    oc_map: OC_Map,
+    already_triggered: set[str],
+    integration: str,
+    integration_version: str,
 ):
-    # TODO: Convert these into a dataclass.
-    saas_file_name = spec["saas_file_name"]
-    env_name = spec["env_name"]
-    pipelines_provider = spec["pipelines_provider"]
+    saas_file_name = spec.saas_file_name
+    env_name = spec.env_name
+    pipelines_provider = cast(dict, spec.pipelines_provider)
 
     pipeline_template_name = pipelines_provider["defaults"]["pipelineTemplates"][
         "openshiftSaasDeploy"
@@ -264,7 +258,7 @@ def _trigger_tekton(
         integration,
         integration_version,
         saasherder.include_trigger_trace,
-        spec.get("reason"),
+        spec.reason,
     )
 
     error = False
@@ -288,7 +282,7 @@ def _trigger_tekton(
             )
 
     if not error and not dry_run:
-        saasherder.update_state(trigger_type, spec)
+        saasherder.update_state(spec)
 
     return error
 

@@ -405,7 +405,7 @@ def run_integration(func_container, ctx, *args, **kwargs):
             )
         )
         if can_exit_early:
-            logging.info("No changes in desired state. Exit PR check early.")
+            logging.debug("No changes in desired state. Exit PR check early.")
         else:
             try:
                 gql.init_from_config(
@@ -449,7 +449,7 @@ def early_exit_integration(
             sha=compare_sha,
             integration=int_name,
             validate_schemas=True,
-            print_url=True,
+            print_url=False,
         )
         previous_desired_state = func_container.early_exit_desired_state(
             *args, **kwargs
@@ -466,7 +466,7 @@ def early_exit_integration(
             autodetect_sha=True,
             integration=int_name,
             validate_schemas=True,
-            print_url=True,
+            print_url=False,
         )
         current_desired_state = func_container.early_exit_desired_state(*args, **kwargs)
     except Exception:

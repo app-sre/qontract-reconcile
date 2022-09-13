@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import functools
 import logging
+import random
 import re
 from abc import abstractmethod
+import string
 from typing import Any, Mapping, Optional, Tuple, Union
 
 import reconcile.utils.aws_helper as awsh
@@ -11,6 +13,8 @@ import requests
 from reconcile.ocm.types import (
     OCMClusterAutoscale,
     OCMClusterNetwork,
+    ROSAClusterAWSAccount,
+    ROSAAWSAttrs,
     OCMSpec,
     OSDClusterSpec,
     ROSAClusterSpec,
@@ -37,7 +41,7 @@ DISABLE_UWM_ATTR = "disable_user_workload_monitoring"
 BYTES_IN_GIGABYTE = 1024**3
 REQUEST_TIMEOUT_SEC = 60
 
-
+SPEC_ATTR_ACCOUNT = "account"
 SPEC_ATTR_DISABLE_UWM = "disable_user_workload_monitoring"
 SPEC_ATTR_AUTOSCALE = "autoscale"
 SPEC_ATTR_INSTANCE_TYPE = "instance_type"
@@ -89,7 +93,6 @@ class OCMProduct:
 
 class OCMProductOsd(OCMProduct):
     ALLOWED_SPEC_UPDATE_FIELDS = {
-        SPEC_ATTR_INSTANCE_TYPE,
         SPEC_ATTR_STORAGE,
         SPEC_ATTR_LOAD_BALANCERS,
         SPEC_ATTR_PRIVATE,
@@ -232,10 +235,6 @@ class OCMProductOsd(OCMProduct):
     def _get_update_cluster_spec(update_spec: Mapping[str, Any]) -> dict[str, Any]:
         ocm_spec: dict[str, Any] = {}
 
-        instance_type = update_spec.get("instance_type")
-        if instance_type is not None:
-            ocm_spec["nodes"] = {"compute_machine_type": {"id": instance_type}}
-
         storage = update_spec.get("storage")
         if storage is not None:
             ocm_spec["storage_quota"] = {"value": float(storage * 1073741824)}  # 1024^3
@@ -269,7 +268,6 @@ class OCMProductOsd(OCMProduct):
 
 class OCMProductRosa(OCMProduct):
     ALLOWED_SPEC_UPDATE_FIELDS = {
-        SPEC_ATTR_INSTANCE_TYPE,
         SPEC_ATTR_CHANNEL,
         SPEC_ATTR_AUTOSCALE,
         SPEC_ATTR_NODES,
@@ -282,15 +280,26 @@ class OCMProductRosa(OCMProduct):
         SPEC_ATTR_PROVISION_SHARD_ID,
         SPEC_ATTR_VERSION,
         SPEC_ATTR_INITIAL_VERSION,
+        SPEC_ATTR_ACCOUNT,
     }
 
     @staticmethod
     def create_cluster(ocm: OCM, name: str, cluster: OCMSpec, dry_run: bool):
-        raise NotImplementedError("create_cluster not implemeneted for ROSA")
+        ocm_spec = OCMProductRosa._get_create_cluster_spec(name, cluster)
+        api = f"{CS_API_BASE}/v1/clusters"
+        params = {}
+        if dry_run:
+            params["dryRun"] = "true"
+
+        ocm._post(api, ocm_spec, params)
 
     @staticmethod
     def update_cluster(ocm: OCM, cluster_name: str, update_spec: Mapping[str, Any]):
-        raise NotImplementedError("update_cluster not implemeneted for ROSA")
+        ocm_spec = OCMProductRosa._get_update_cluster_spec(update_spec)
+        cluster_id = ocm.cluster_ids.get(cluster_name)
+        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}"
+        params: dict[str, Any] = {}
+        ocm._patch(api, ocm_spec, params)
 
     @staticmethod
     def get_ocm_spec(
@@ -311,8 +320,24 @@ class OCMProductRosa(OCMProduct):
             else None
         )
 
+        account = ROSAClusterAWSAccount(
+            uid=cluster["properties"]["rosa_creator_arn"].split(":")[4],
+            rosa=ROSAAWSAttrs(
+                creator_role_arn=cluster["properties"]["rosa_creator_arn"],
+                installer_role_arn=cluster["aws"]["sts"]["role_arn"],
+                support_role_arn=cluster["aws"]["sts"]["support_role_arn"],
+                controlplane_role_arn=cluster["aws"]["sts"]["instance_iam_roles"][
+                    "master_role_arn"
+                ],
+                worker_role_arn=cluster["aws"]["sts"]["instance_iam_roles"][
+                    "worker_role_arn"
+                ],
+            ),
+        )
+
         spec = ROSAClusterSpec(
             product=cluster["product"]["id"],
+            account=account,
             id=cluster["id"],
             external_id=cluster["external_id"],
             provider=cluster["cloud_provider"]["id"],
@@ -349,7 +374,12 @@ class OCMProductRosa(OCMProduct):
 
     @staticmethod
     def _get_create_cluster_spec(cluster_name: str, cluster: OCMSpec) -> dict[str, Any]:
+        operator_roles_prefix = "".join(
+            "".join(random.choices(string.ascii_lowercase + string.digits, k=4))
+        )
+
         ocm_spec: dict[str, Any] = {
+            "api": {"listening": "internal" if cluster.spec.private else "external"},
             "name": cluster_name,
             "cloud_provider": {"id": cluster.spec.provider},
             "region": {"id": cluster.spec.region},
@@ -365,11 +395,9 @@ class OCMProductRosa(OCMProduct):
                 "service_cidr": cluster.network.service,
                 "pod_cidr": cluster.network.pod,
             },
-            "api": {"listening": "internal" if cluster.spec.private else "external"},
             "disable_user_workload_monitoring": cluster.spec.disable_user_workload_monitoring
             or True,
         }
-
         provision_shard_id = cluster.spec.provision_shard_id
         if provision_shard_id:
             ocm_spec.setdefault("properties", {})
@@ -380,19 +408,36 @@ class OCMProductRosa(OCMProduct):
             ocm_spec["nodes"]["autoscale_compute"] = autoscale.dict()
         else:
             ocm_spec["nodes"]["compute"] = cluster.spec.nodes
+
+        if isinstance(cluster.spec, ROSAClusterSpec):
+            rosa_spec: dict[str, Any] = {
+                "properties": {
+                    "rosa_creator_arn": cluster.spec.account.rosa.creator_role_arn
+                },
+                "product": {"id": "rosa"},
+                "ccs": {"enabled": True},
+                "aws": {
+                    "account_id": cluster.spec.account.uid,
+                    "sts": {
+                        "enabled": True,
+                        "auto_mode": True,
+                        "role_arn": cluster.spec.account.rosa.installer_role_arn,
+                        "support_role_arn": cluster.spec.account.rosa.support_role_arn,
+                        "instance_iam_roles": {
+                            "master_role_arn": cluster.spec.account.rosa.controlplane_role_arn,
+                            "worker_role_arn": cluster.spec.account.rosa.worker_role_arn,
+                        },
+                        "operator_role_prefix": f"{cluster_name}-{operator_roles_prefix}",
+                    },
+                },
+            }
+
+        ocm_spec.update(rosa_spec)
         return ocm_spec
 
     @staticmethod
     def _get_update_cluster_spec(update_spec: Mapping[str, Any]) -> dict[str, Any]:
         ocm_spec: dict[str, Any] = {}
-
-        instance_type = update_spec.get("instance_type")
-        if instance_type is not None:
-            ocm_spec["nodes"] = {"compute_machine_type": {"id": instance_type}}
-
-        private = update_spec.get("private")
-        if private is not None:
-            ocm_spec["api"] = {"listening": "internal" if private else "external"}
 
         channel = update_spec.get("channel")
         if channel is not None:
