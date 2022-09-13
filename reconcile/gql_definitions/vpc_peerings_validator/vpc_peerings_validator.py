@@ -68,7 +68,7 @@ class ClusterPeeringConnectionV1(BaseModel):
         extra = Extra.forbid
 
 
-class ClusterPeeringConnectionClusterRequesterV1_ClusterV1_ClusterSpecV1(BaseModel):
+class ClusterSpecV1__2(BaseModel):
     private: bool = Field(..., alias="private")
 
     class Config:
@@ -76,11 +76,9 @@ class ClusterPeeringConnectionClusterRequesterV1_ClusterV1_ClusterSpecV1(BaseMod
         extra = Extra.forbid
 
 
-class ClusterPeeringConnectionClusterRequesterV1_ClusterV1(BaseModel):
+class ClusterV1__2(BaseModel):
     name: str = Field(..., alias="name")
-    spec: Optional[
-        ClusterPeeringConnectionClusterRequesterV1_ClusterV1_ClusterSpecV1
-    ] = Field(..., alias="spec")
+    spec: Optional[ClusterSpecV1__2] = Field(..., alias="spec")
     internal: Optional[bool] = Field(..., alias="internal")
 
     class Config:
@@ -89,16 +87,14 @@ class ClusterPeeringConnectionClusterRequesterV1_ClusterV1(BaseModel):
 
 
 class ClusterPeeringConnectionClusterRequesterV1(ClusterPeeringConnectionV1):
-    cluster: ClusterPeeringConnectionClusterRequesterV1_ClusterV1 = Field(
-        ..., alias="cluster"
-    )
+    cluster: ClusterV1__2 = Field(..., alias="cluster")
 
     class Config:
         smart_union = True
         extra = Extra.forbid
 
 
-class ClusterPeeringConnectionClusterAccepterV1_ClusterV1_ClusterSpecV1(BaseModel):
+class ClusterSpecV1__3(BaseModel):
     private: bool = Field(..., alias="private")
 
     class Config:
@@ -106,11 +102,9 @@ class ClusterPeeringConnectionClusterAccepterV1_ClusterV1_ClusterSpecV1(BaseMode
         extra = Extra.forbid
 
 
-class ClusterPeeringConnectionClusterAccepterV1_ClusterV1(BaseModel):
+class ClusterV1__3(BaseModel):
     name: str = Field(..., alias="name")
-    spec: Optional[
-        ClusterPeeringConnectionClusterAccepterV1_ClusterV1_ClusterSpecV1
-    ] = Field(..., alias="spec")
+    spec: Optional[ClusterSpecV1__3] = Field(..., alias="spec")
     internal: Optional[bool] = Field(..., alias="internal")
 
     class Config:
@@ -119,9 +113,7 @@ class ClusterPeeringConnectionClusterAccepterV1_ClusterV1(BaseModel):
 
 
 class ClusterPeeringConnectionClusterAccepterV1(ClusterPeeringConnectionV1):
-    cluster: ClusterPeeringConnectionClusterAccepterV1_ClusterV1 = Field(
-        ..., alias="cluster"
-    )
+    cluster: ClusterV1__3 = Field(..., alias="cluster")
 
     class Config:
         smart_union = True
