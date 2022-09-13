@@ -1130,7 +1130,8 @@ class SaasHerder:
                 namespace = target["namespace"]["name"]
                 env_name = target["namespace"]["environment"]["name"]
 
-                dummy_job_spec = TriggerSpecConfig(
+                # creating a trigger spec to use the state key property
+                dummy_trigger_spec = TriggerSpecConfig(
                     saas_file_name=saas_file_name,
                     env_name=env_name,
                     timeout=None,
@@ -1141,7 +1142,7 @@ class SaasHerder:
                     state_content=None,
                 )
                 digest = SaasHerder.get_target_config_hash(
-                    target_configs[dummy_job_spec.state_key]
+                    target_configs[dummy_trigger_spec.state_key]
                 )
 
                 process_template_options = {
@@ -1274,8 +1275,10 @@ class SaasHerder:
                 f"saasherder get_diff for trigger type: {trigger_type}"
             )
 
-    def update_state(self, job_spec: TriggerSpecUnion):
-        self.state.add(job_spec.state_key, value=job_spec.state_content, force=True)
+    def update_state(self, trigger_spec: TriggerSpecUnion):
+        self.state.add(
+            trigger_spec.state_key, value=trigger_spec.state_content, force=True
+        )
 
     def get_moving_commits_diff(self, dry_run: bool) -> list[TriggerSpecMovingCommit]:
         results = threaded.run(
@@ -1312,7 +1315,7 @@ class SaasHerder:
                     cluster_name = namespace["cluster"]["name"]
                     namespace_name = namespace["name"]
                     env_name = namespace["environment"]["name"]
-                    job_spec = TriggerSpecMovingCommit(
+                    trigger_spec = TriggerSpecMovingCommit(
                         saas_file_name=saas_file_name,
                         env_name=env_name,
                         timeout=timeout,
@@ -1324,8 +1327,8 @@ class SaasHerder:
                         state_content=desired_commit_sha,
                     )
                     if self.include_trigger_trace:
-                        job_spec.reason = f"{url}/commit/{desired_commit_sha}"
-                    current_commit_sha = self.state.get(job_spec.state_key, None)
+                        trigger_spec.reason = f"{url}/commit/{desired_commit_sha}"
+                    current_commit_sha = self.state.get(trigger_spec.state_key, None)
                     # skip if there is no change in commit sha
                     if current_commit_sha == desired_commit_sha:
                         continue
@@ -1336,10 +1339,10 @@ class SaasHerder:
                     if current_commit_sha is None:
                         # store the value to take over from now on
                         if not dry_run:
-                            self.update_state(job_spec)
+                            self.update_state(trigger_spec)
                         continue
                     # we finally found something we want to trigger on!
-                    trigger_specs.append(job_spec)
+                    trigger_specs.append(trigger_spec)
                 except (GithubException, GitlabError):
                     logging.exception(
                         f"Skipping target {saas_file_name}:{rt_name}"
@@ -1397,7 +1400,7 @@ class SaasHerder:
                 cluster_name = namespace["cluster"]["name"]
                 namespace_name = namespace["name"]
                 env_name = namespace["environment"]["name"]
-                job_spec = TriggerSpecUpstreamJob(
+                trigger_spec = TriggerSpecUpstreamJob(
                     saas_file_name=saas_file_name,
                     env_name=env_name,
                     timeout=timeout,
@@ -1411,8 +1414,8 @@ class SaasHerder:
                 )
                 last_build_result_number = last_build_result["number"]
                 if self.include_trigger_trace:
-                    job_spec.reason = f"{upstream['instance']['serverUrl']}/job/{job_name}/{last_build_result_number}"
-                state_build_result = self.state.get(job_spec.state_key, None)
+                    trigger_spec.reason = f"{upstream['instance']['serverUrl']}/job/{job_name}/{last_build_result_number}"
+                state_build_result = self.state.get(trigger_spec.state_key, None)
                 # skip if last_build_result is incomplete or
                 # there is no change in job state
                 if (
@@ -1427,7 +1430,7 @@ class SaasHerder:
                 if state_build_result is None:
                     # store the value to take over from now on
                     if not dry_run:
-                        self.update_state(job_spec)
+                        self.update_state(trigger_spec)
                     continue
 
                 state_build_result_number = state_build_result["number"]
@@ -1448,7 +1451,7 @@ class SaasHerder:
                     and last_build_result["result"] == "SUCCESS"
                 ):
                     # we finally found something we want to trigger on!
-                    trigger_specs.append(job_spec)
+                    trigger_specs.append(trigger_spec)
 
         return trigger_specs
 
@@ -1491,17 +1494,17 @@ class SaasHerder:
             if ctc == dtc:
                 continue
 
-            job_spec = TriggerSpecConfig.from_state_key(
+            trigger_spec = TriggerSpecConfig.from_state_key(
                 key=key,
                 timeout=saas_file.get("timeout") or None,
                 pipelines_provider=pipelines_provider,
                 state_content=desired_target_config,
             )
             if self.include_trigger_trace:
-                job_spec.reason = (
+                trigger_spec.reason = (
                     f"{self.settings['repoUrl']}/commit/{RunningState().commit}"
                 )
-            trigger_specs.append(job_spec)
+            trigger_specs.append(trigger_spec)
         return trigger_specs
 
     @staticmethod
@@ -1544,7 +1547,8 @@ class SaasHerder:
                 desired_target_config["url"] = url
                 desired_target_config["path"] = path
                 desired_target_config["rt_parameters"] = rt_parameters
-                dummy_job_spec = TriggerSpecConfig(
+                # creating a trigger spec to use the state key property
+                dummy_trigger_spec = TriggerSpecConfig(
                     saas_file_name=saas_file_name,
                     env_name=env_name,
                     timeout=None,
@@ -1557,7 +1561,7 @@ class SaasHerder:
                 # Convert to dict, ChainMap is not JSON serializable
                 # desired_target_config needs to be serialized to generate
                 # its config hash and to be stored in S3
-                configs[dummy_job_spec.state_key] = dict(desired_target_config)
+                configs[dummy_trigger_spec.state_key] = dict(desired_target_config)
         return configs
 
     @staticmethod
