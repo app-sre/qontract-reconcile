@@ -1130,8 +1130,7 @@ class SaasHerder:
                 namespace = target["namespace"]["name"]
                 env_name = target["namespace"]["environment"]["name"]
 
-                # creating a trigger spec to use the state key property
-                dummy_trigger_spec = TriggerSpecConfig(
+                state_key = TriggerSpecConfig(
                     saas_file_name=saas_file_name,
                     env_name=env_name,
                     timeout=None,
@@ -1140,10 +1139,8 @@ class SaasHerder:
                     cluster_name=cluster,
                     namespace_name=namespace,
                     state_content=None,
-                )
-                digest = SaasHerder.get_target_config_hash(
-                    target_configs[dummy_trigger_spec.state_key]
-                )
+                ).state_key
+                digest = SaasHerder.get_target_config_hash(target_configs[state_key])
 
                 process_template_options = {
                     "saas_file_name": saas_file_name,
@@ -1547,8 +1544,7 @@ class SaasHerder:
                 desired_target_config["url"] = url
                 desired_target_config["path"] = path
                 desired_target_config["rt_parameters"] = rt_parameters
-                # creating a trigger spec to use the state key property
-                dummy_trigger_spec = TriggerSpecConfig(
+                state_key = TriggerSpecConfig(
                     saas_file_name=saas_file_name,
                     env_name=env_name,
                     timeout=None,
@@ -1557,11 +1553,11 @@ class SaasHerder:
                     cluster_name=cluster_name,
                     namespace_name=namespace_name,
                     state_content=None,
-                )
+                ).state_key
                 # Convert to dict, ChainMap is not JSON serializable
                 # desired_target_config needs to be serialized to generate
                 # its config hash and to be stored in S3
-                configs[dummy_trigger_spec.state_key] = dict(desired_target_config)
+                configs[state_key] = dict(desired_target_config)
         return configs
 
     @staticmethod
