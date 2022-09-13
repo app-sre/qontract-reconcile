@@ -93,7 +93,7 @@ class TriggerSpecConfig(TriggerSpecBase):
     def state_key(self):
         key = (
             f"{self.saas_file_name}/{self.resource_template_name}/{self.cluster_name}/"
-            + f"{self.namespace_name}/{self.env_name}"
+            f"{self.namespace_name}/{self.env_name}"
         )
         return key
 
@@ -126,7 +126,7 @@ class TriggerSpecMovingCommit(TriggerSpecBase):
     def state_key(self):
         key = (
             f"{self.saas_file_name}/{self.resource_template_name}/{self.cluster_name}/"
-            + f"{self.namespace_name}/{self.env_name}/{self.ref}"
+            f"{self.namespace_name}/{self.env_name}/{self.ref}"
         )
         return key
 
@@ -141,7 +141,7 @@ class TriggerSpecUpstreamJob(TriggerSpecBase):
     def state_key(self):
         key = (
             f"{self.saas_file_name}/{self.resource_template_name}/{self.cluster_name}/"
-            + f"{self.namespace_name}/{self.env_name}/{self.instance_name}/{self.job_name}"
+            f"{self.namespace_name}/{self.env_name}/{self.instance_name}/{self.job_name}"
         )
         return key
 
