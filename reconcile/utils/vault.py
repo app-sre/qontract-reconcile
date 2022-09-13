@@ -195,8 +195,8 @@ class _VaultClient:
             raise SecretNotFound(path)
 
         data = secret["data"]["data"]
-        secret_verion = secret["data"]["metadata"]["version"]
-        return data, secret_verion
+        secret_version = secret["data"]["metadata"]["version"]
+        return data, secret_version
 
     def _read_all_v1(self, path):
         try:
