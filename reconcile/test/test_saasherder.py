@@ -760,10 +760,10 @@ class TestConfigHashPromotionsValidation(TestCase):
         IMPORTANT: This is not the promotion_data within promotion. This
         fields are set by _process_template method in saasherder
         """
-        job_spec: TriggerSpecConfig = self.saasherder.get_configs_diff_saas_file(
+        trigger_spec: TriggerSpecConfig = self.saasherder.get_configs_diff_saas_file(
             self.saas_file
         )[0]
-        promotion = job_spec.state_content["promotion"]
+        promotion = trigger_spec.state_content["promotion"]
         self.assertIsNotNone(promotion[TARGET_CONFIG_HASH])
 
     def test_promotion_state_config_hash_match_validates(self):
@@ -879,8 +879,8 @@ class TestConfigHashTrigger(TestCase):
         """Ensures that if the same config is found, no job is triggered
         current Config is fetched from the state
         """
-        job_specs = self.saasherder.get_configs_diff_saas_file(self.saas_file)
-        self.assertListEqual(job_specs, [])
+        trigger_specs = self.saasherder.get_configs_diff_saas_file(self.saas_file)
+        self.assertListEqual(trigger_specs, [])
 
     def test_config_hash_change_do_trigger(self):
         """Ensures a new job is triggered if the parent config hash changes"""
@@ -890,13 +890,13 @@ class TestConfigHashTrigger(TestCase):
         desired_promo_data = desired_tc["promotion"]["promotion_data"]
         desired_promo_data[0]["data"][0][TARGET_CONFIG_HASH] = "Changed"
 
-        job_specs = self.saasherder.get_configs_diff_saas_file(self.saas_file)
-        self.assertEqual(len(job_specs), 1)
+        trigger_specs = self.saasherder.get_configs_diff_saas_file(self.saas_file)
+        self.assertEqual(len(trigger_specs), 1)
 
     def test_non_existent_config_triggers(self):
         self.state_mock.get.side_effect = [self.deploy_current_state_fxt, None]
-        job_specs = self.saasherder.get_configs_diff_saas_file(self.saas_file)
-        self.assertEqual(len(job_specs), 1)
+        trigger_specs = self.saasherder.get_configs_diff_saas_file(self.saas_file)
+        self.assertEqual(len(trigger_specs), 1)
 
 
 class TestRemoveNoneAttributes(TestCase):
