@@ -1546,6 +1546,10 @@ class SaasHerder:
                 desired_target_config["url"] = url
                 desired_target_config["path"] = path
                 desired_target_config["rt_parameters"] = rt_parameters
+                # Convert to dict, ChainMap is not JSON serializable
+                # desired_target_config needs to be serialized to generate
+                # its config hash and to be stored in S3
+                serializable_target_config = dict(desired_target_config)
                 trigger_spec = TriggerSpecConfig(
                     saas_file_name=saas_file_name,
                     env_name=env_name,
@@ -1554,12 +1558,10 @@ class SaasHerder:
                     resource_template_name=rt_name,
                     cluster_name=cluster_name,
                     namespace_name=namespace_name,
-                    state_content=dict(desired_target_config),
+                    state_content=serializable_target_config,
                 )
-                # Convert to dict, ChainMap is not JSON serializable
-                # desired_target_config needs to be serialized to generate
-                # its config hash and to be stored in S3
                 configs[trigger_spec.state_key] = trigger_spec.state_content
+
         return configs
 
     @staticmethod
