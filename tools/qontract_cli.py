@@ -1314,8 +1314,20 @@ def rm(ctx, integration, key):
 @click.argument("namespace")
 @click.argument("kind")
 @click.argument("name")
+@click.option(
+    "-p",
+    "--path",
+    help="Only show templates that match with the given path.",
+)
+@click.option(
+    "-s",
+    "--secret-reader",
+    default="vault",
+    help="Location to read secrets.",
+    type=click.Choice(["config", "vault"]),
+)
 @click.pass_context
-def template(ctx, cluster, namespace, kind, name):
+def template(ctx, cluster, namespace, kind, name, path, secret_reader):
     gqlapi = gql.get_api()
     namespaces = gqlapi.query(orb.NAMESPACES_QUERY)["namespaces"]
     namespace_info = [
@@ -1328,9 +1340,17 @@ def template(ctx, cluster, namespace, kind, name):
         sys.exit(1)
 
     settings = queries.get_app_interface_settings()
+    settings["vault"] = secret_reader == "vault"
+
+    if path.startswith("resources"):
+        path = path.replace("resources", "", 1)
+
     [namespace_info] = namespace_info
     openshift_resources = namespace_info.get("openshiftResources")
     for r in openshift_resources:
+        resource_path = r.get("resource", {}).get("path")
+        if path and path != resource_path:
+            continue
         openshift_resource = orb.fetch_openshift_resource(r, namespace_info, settings)
         if openshift_resource.kind.lower() != kind.lower():
             continue
