@@ -1511,7 +1511,9 @@ class SaasHerder:
         digest = m.hexdigest()[:16]
         return digest
 
-    def get_saas_targets_config(self, saas_file):
+    def get_saas_targets_config(
+        self, saas_file: dict[str, Any]
+    ) -> dict[str, dict[str, Any]]:
         configs = {}
         saas_file_name = saas_file["name"]
         saas_file_parameters = saas_file.get("parameters")
