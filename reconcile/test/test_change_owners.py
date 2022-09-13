@@ -750,7 +750,8 @@ def test_bundle_change_diff_ref_item_multiple_consecutive_replaced():
             covered_by=[],
         ),
     ]
-    assert bundle_change.diffs == expected
+    diffs = sorted(bundle_change.diffs, key=lambda d: str(d.path))
+    assert diffs == expected
 
 
 def test_bundle_change_diff_ref_item_multiple_replaced():
@@ -802,7 +803,8 @@ def test_bundle_change_diff_ref_item_multiple_replaced():
             covered_by=[],
         ),
     ]
-    assert bundle_change.diffs == expected
+    diffs = sorted(bundle_change.diffs, key=lambda d: str(d.path))
+    assert diffs == expected
 
 
 def test_bundle_change_diff_item_reorder():
