@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Optional, Protocol, Tuple
 from functools import reduce
+import json
 import logging
 import traceback
 import re
@@ -62,6 +63,20 @@ class Diff:
     old: Optional[Any]
     new: Optional[Any]
     covered_by: list["ChangeTypeContext"]
+
+    def old_value_repr(self) -> Optional[str]:
+        return self._value_repr(self.old)
+
+    def new_value_repr(self) -> Optional[str]:
+        return self._value_repr(self.new)
+
+    def _value_repr(self, value: Optional[Any]) -> Optional[str]:
+        if value:
+            if isinstance(value, (dict, list)):
+                return json.dumps(value, indent=2)
+            else:
+                return str(value)
+        return value
 
 
 @dataclass
@@ -704,8 +719,8 @@ def run(
                 if str(d.path) != "$":
                     item.update(
                         {
-                            "old value": d.old,
-                            "new value": d.new,
+                            "old value": d.old_value_repr(),
+                            "new value": d.new_value_repr(),
                         }
                     )
                 if d.covered_by:
