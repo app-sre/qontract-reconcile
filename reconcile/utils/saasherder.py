@@ -7,7 +7,18 @@ import itertools
 import hashlib
 import re
 from collections import ChainMap
-from typing import Dict, Iterable, Mapping, Any, MutableMapping, Set, Tuple, cast
+from typing import (
+    Dict,
+    Iterable,
+    Mapping,
+    Any,
+    MutableMapping,
+    Optional,
+    Set,
+    Tuple,
+    Union,
+    cast,
+)
 
 from contextlib import suppress
 import yaml
@@ -57,6 +68,87 @@ class UpstreamJob:
     def __repr__(self):
         return self.__str__()
 
+
+@dataclass
+class TriggerSpecBase:
+    saas_file_name: str
+    env_name: str
+    timeout: Optional[str]
+    pipelines_provider: Optional[dict[str, Any]]
+    resource_template_name: str
+    cluster_name: str
+    namespace_name: str
+    state_content: Any
+
+    @property
+    def state_key(self):
+        raise NotImplementedError("implement this function in inheriting classes")
+
+
+@dataclass
+class TriggerSpecConfig(TriggerSpecBase):
+    reason: Optional[str] = None
+
+    @property
+    def state_key(self):
+        key = (
+            f"{self.saas_file_name}/{self.resource_template_name}/{self.cluster_name}/"
+            f"{self.namespace_name}/{self.env_name}"
+        )
+        return key
+
+    @staticmethod
+    def from_state_key(
+        key: str,
+        state_content: Any,
+        timeout: Optional[str] = None,
+        pipelines_provider: Optional[dict[str, Any]] = None,
+    ) -> "TriggerSpecConfig":
+        saas_file_name, rt_name, cluster_name, namespace_name, env_name = key.split("/")
+        return TriggerSpecConfig(
+            saas_file_name=saas_file_name,
+            env_name=env_name,
+            timeout=timeout,
+            pipelines_provider=pipelines_provider,
+            resource_template_name=rt_name,
+            cluster_name=cluster_name,
+            namespace_name=namespace_name,
+            state_content=state_content,
+        )
+
+
+@dataclass
+class TriggerSpecMovingCommit(TriggerSpecBase):
+    ref: str
+    reason: Optional[str] = None
+
+    @property
+    def state_key(self):
+        key = (
+            f"{self.saas_file_name}/{self.resource_template_name}/{self.cluster_name}/"
+            f"{self.namespace_name}/{self.env_name}/{self.ref}"
+        )
+        return key
+
+
+@dataclass
+class TriggerSpecUpstreamJob(TriggerSpecBase):
+    instance_name: str
+    job_name: str
+    reason: Optional[str] = None
+
+    @property
+    def state_key(self):
+        key = (
+            f"{self.saas_file_name}/{self.resource_template_name}/{self.cluster_name}/"
+            f"{self.namespace_name}/{self.env_name}/{self.instance_name}/{self.job_name}"
+        )
+        return key
+
+
+TriggerSpecUnion = Union[
+    TriggerSpecConfig, TriggerSpecMovingCommit, TriggerSpecUpstreamJob
+]
 
 UNIQUE_SAAS_FILE_ENV_COMBO_LEN = 50
 
@@ -1038,8 +1130,17 @@ class SaasHerder:
                 namespace = target["namespace"]["name"]
                 env_name = target["namespace"]["environment"]["name"]
 
-                key = f"{saas_file_name}/{rt_name}/{cluster}/" f"{namespace}/{env_name}"
-                digest = SaasHerder.get_target_config_hash(target_configs[key])
+                state_key = TriggerSpecConfig(
+                    saas_file_name=saas_file_name,
+                    env_name=env_name,
+                    timeout=None,
+                    pipelines_provider=None,
+                    resource_template_name=rt_name,
+                    cluster_name=cluster,
+                    namespace_name=namespace,
+                    state_content=None,
+                ).state_key
+                digest = SaasHerder.get_target_config_hash(target_configs[state_key])
 
                 process_template_options = {
                     "saas_file_name": saas_file_name,
@@ -1171,19 +1272,12 @@ class SaasHerder:
                 f"saasherder get_diff for trigger type: {trigger_type}"
             )
 
-    def update_state(self, trigger_type, job_spec):
-        if trigger_type == TriggerTypes.MOVING_COMMITS:
-            self._update_moving_commit(job_spec)
-        elif trigger_type == TriggerTypes.UPSTREAM_JOBS:
-            self._update_upstream_job(job_spec)
-        elif trigger_type == TriggerTypes.CONFIGS:
-            self._update_config(job_spec)
-        else:
-            raise NotImplementedError(
-                f"saasherder update_state for trigger type: {trigger_type}"
-            )
+    def update_state(self, trigger_spec: TriggerSpecUnion):
+        self.state.add(
+            trigger_spec.state_key, value=trigger_spec.state_content, force=True
+        )
 
-    def get_moving_commits_diff(self, dry_run):
+    def get_moving_commits_diff(self, dry_run: bool) -> list[TriggerSpecMovingCommit]:
         results = threaded.run(
             self.get_moving_commits_diff_saas_file,
             self.saas_files,
@@ -1192,12 +1286,14 @@ class SaasHerder:
         )
         return list(itertools.chain.from_iterable(results))
 
-    def get_moving_commits_diff_saas_file(self, saas_file, dry_run):
+    def get_moving_commits_diff_saas_file(
+        self, saas_file: dict[str, Any], dry_run: bool
+    ) -> list[TriggerSpecMovingCommit]:
         saas_file_name = saas_file["name"]
         timeout = saas_file.get("timeout") or None
         pipelines_provider = self._get_pipelines_provider(saas_file)
         github = self._initiate_github(saas_file)
-        trigger_specs = []
+        trigger_specs: list[TriggerSpecMovingCommit] = []
         for rt in saas_file["resourceTemplates"]:
             rt_name = rt["name"]
             url = rt["url"]
@@ -1216,11 +1312,20 @@ class SaasHerder:
                     cluster_name = namespace["cluster"]["name"]
                     namespace_name = namespace["name"]
                     env_name = namespace["environment"]["name"]
-                    key = (
-                        f"{saas_file_name}/{rt_name}/{cluster_name}/"
-                        + f"{namespace_name}/{env_name}/{ref}"
+                    trigger_spec = TriggerSpecMovingCommit(
+                        saas_file_name=saas_file_name,
+                        env_name=env_name,
+                        timeout=timeout,
+                        pipelines_provider=pipelines_provider,
+                        resource_template_name=rt_name,
+                        cluster_name=cluster_name,
+                        namespace_name=namespace_name,
+                        ref=ref,
+                        state_content=desired_commit_sha,
                     )
-                    current_commit_sha = self.state.get(key, None)
+                    if self.include_trigger_trace:
+                        trigger_spec.reason = f"{url}/commit/{desired_commit_sha}"
+                    current_commit_sha = self.state.get(trigger_spec.state_key, None)
                     # skip if there is no change in commit sha
                     if current_commit_sha == desired_commit_sha:
                         continue
@@ -1231,23 +1336,10 @@ class SaasHerder:
                     if current_commit_sha is None:
                         # store the value to take over from now on
                         if not dry_run:
-                            self.state.add(key, value=desired_commit_sha)
+                            self.update_state(trigger_spec)
                         continue
                     # we finally found something we want to trigger on!
-                    job_spec = {
-                        "saas_file_name": saas_file_name,
-                        "env_name": env_name,
-                        "timeout": timeout,
-                        "pipelines_provider": pipelines_provider,
-                        "rt_name": rt_name,
-                        "cluster_name": cluster_name,
-                        "namespace_name": namespace_name,
-                        "ref": ref,
-                        "commit_sha": desired_commit_sha,
-                    }
-                    if self.include_trigger_trace:
-                        job_spec["reason"] = f"{url}/commit/{desired_commit_sha}"
-                    trigger_specs.append(job_spec)
+                    trigger_specs.append(trigger_spec)
                 except (GithubException, GitlabError):
                     logging.exception(
                         f"Skipping target {saas_file_name}:{rt_name}"
@@ -1256,21 +1348,9 @@ class SaasHerder:
 
         return trigger_specs
 
-    def _update_moving_commit(self, job_spec):
-        saas_file_name = job_spec["saas_file_name"]
-        env_name = job_spec["env_name"]
-        rt_name = job_spec["rt_name"]
-        cluster_name = job_spec["cluster_name"]
-        namespace_name = job_spec["namespace_name"]
-        ref = job_spec["ref"]
-        commit_sha = job_spec["commit_sha"]
-        key = (
-            f"{saas_file_name}/{rt_name}/{cluster_name}/"
-            + f"{namespace_name}/{env_name}/{ref}"
-        )
-        self.state.add(key, value=commit_sha, force=True)
-
-    def get_upstream_jobs_diff(self, dry_run):
+    def get_upstream_jobs_diff(
+        self, dry_run: bool
+    ) -> tuple[list[TriggerSpecUpstreamJob], bool]:
         current_state, error = self._get_upstream_jobs_current_state()
         results = threaded.run(
             self.get_upstream_jobs_diff_saas_file,
@@ -1281,8 +1361,8 @@ class SaasHerder:
         )
         return list(itertools.chain.from_iterable(results)), error
 
-    def _get_upstream_jobs_current_state(self):
-        current_state = {}
+    def _get_upstream_jobs_current_state(self) -> tuple[dict[str, Any], bool]:
+        current_state: dict[str, Any] = {}
         error = False
         for instance_name, jenkins in self.jenkins_map.items():
             try:
@@ -1294,7 +1374,9 @@ class SaasHerder:
 
         return current_state, error
 
-    def get_upstream_jobs_diff_saas_file(self, saas_file, dry_run, current_state):
+    def get_upstream_jobs_diff_saas_file(
+        self, saas_file: dict[str, Any], dry_run: bool, current_state: dict[str, Any]
+    ) -> list[TriggerSpecUpstreamJob]:
         saas_file_name = saas_file["name"]
         timeout = saas_file.get("timeout") or None
         pipelines_provider = self._get_pipelines_provider(saas_file)
@@ -1315,11 +1397,22 @@ class SaasHerder:
                 cluster_name = namespace["cluster"]["name"]
                 namespace_name = namespace["name"]
                 env_name = namespace["environment"]["name"]
-                key = (
-                    f"{saas_file_name}/{rt_name}/{cluster_name}/"
-                    + f"{namespace_name}/{env_name}/{instance_name}/{job_name}"
+                trigger_spec = TriggerSpecUpstreamJob(
+                    saas_file_name=saas_file_name,
+                    env_name=env_name,
+                    timeout=timeout,
+                    pipelines_provider=pipelines_provider,
+                    resource_template_name=rt_name,
+                    cluster_name=cluster_name,
+                    namespace_name=namespace_name,
+                    instance_name=instance_name,
+                    job_name=job_name,
+                    state_content=last_build_result,
                 )
-                state_build_result = self.state.get(key, None)
+                last_build_result_number = last_build_result["number"]
+                if self.include_trigger_trace:
+                    trigger_spec.reason = f"{upstream['instance']['serverUrl']}/job/{job_name}/{last_build_result_number}"
+                state_build_result = self.state.get(trigger_spec.state_key, None)
                 # skip if last_build_result is incomplete or
                 # there is no change in job state
                 if (
@@ -1334,11 +1427,10 @@ class SaasHerder:
                 if state_build_result is None:
                     # store the value to take over from now on
                     if not dry_run:
-                        self.state.add(key, value=last_build_result)
+                        self.update_state(trigger_spec)
                     continue
 
                 state_build_result_number = state_build_result["number"]
-                last_build_result_number = last_build_result["number"]
                 # this is the most important condition
                 # if there is a successful newer build -
                 # trigger the deployment.
@@ -1356,42 +1448,11 @@ class SaasHerder:
                     and last_build_result["result"] == "SUCCESS"
                 ):
                     # we finally found something we want to trigger on!
-                    job_spec = {
-                        "saas_file_name": saas_file_name,
-                        "env_name": env_name,
-                        "timeout": timeout,
-                        "pipelines_provider": pipelines_provider,
-                        "rt_name": rt_name,
-                        "cluster_name": cluster_name,
-                        "namespace_name": namespace_name,
-                        "instance_name": instance_name,
-                        "job_name": job_name,
-                        "last_build_result": last_build_result,
-                    }
-                    if self.include_trigger_trace:
-                        job_spec[
-                            "reason"
-                        ] = f"{upstream['instance']['serverUrl']}/job/{job_name}/{last_build_result_number}"
-                    trigger_specs.append(job_spec)
+                    trigger_specs.append(trigger_spec)
 
         return trigger_specs
 
-    def _update_upstream_job(self, job_spec):
-        saas_file_name = job_spec["saas_file_name"]
-        env_name = job_spec["env_name"]
-        rt_name = job_spec["rt_name"]
-        cluster_name = job_spec["cluster_name"]
-        namespace_name = job_spec["namespace_name"]
-        instance_name = job_spec["instance_name"]
-        job_name = job_spec["job_name"]
-        last_build_result = job_spec["last_build_result"]
-        key = (
-            f"{saas_file_name}/{rt_name}/{cluster_name}/"
-            + f"{namespace_name}/{env_name}/{instance_name}/{job_name}"
-        )
-        self.state.add(key, value=last_build_result, force=True)
-
-    def get_configs_diff(self):
+    def get_configs_diff(self) -> list[TriggerSpecConfig]:
         results = threaded.run(
             self.get_configs_diff_saas_file, self.saas_files, self.thread_pool_size
         )
@@ -1409,12 +1470,13 @@ class SaasHerder:
                 new[k] = v
         return new
 
-    def get_configs_diff_saas_file(self, saas_file):
+    def get_configs_diff_saas_file(
+        self, saas_file: dict[str, Any]
+    ) -> list[TriggerSpecConfig]:
         # Dict by key
         targets = self.get_saas_targets_config(saas_file)
 
         pipelines_provider = self._get_pipelines_provider(saas_file)
-        configurable_resources = saas_file.get("configurableResources", False)
         trigger_specs = []
 
         for key, desired_target_config in targets.items():
@@ -1429,26 +1491,17 @@ class SaasHerder:
             if ctc == dtc:
                 continue
 
-            saas_file_name, rt_name, cluster_name, namespace_name, env_name = key.split(
-                "/"
+            trigger_spec = TriggerSpecConfig.from_state_key(
+                key=key,
+                timeout=saas_file.get("timeout") or None,
+                pipelines_provider=pipelines_provider,
+                state_content=desired_target_config,
             )
-
-            job_spec = {
-                "saas_file_name": saas_file_name,
-                "env_name": env_name,
-                "timeout": saas_file.get("timeout") or None,
-                "pipelines_provider": pipelines_provider,
-                "configurable_resources": configurable_resources,
-                "rt_name": rt_name,
-                "cluster_name": cluster_name,
-                "namespace_name": namespace_name,
-                "target_config": desired_target_config,
-            }
             if self.include_trigger_trace:
-                job_spec[
-                    "reason"
-                ] = f"{self.settings['repoUrl']}/commit/{RunningState().commit}"
-            trigger_specs.append(job_spec)
+                trigger_spec.reason = (
+                    f"{self.settings['repoUrl']}/commit/{RunningState().commit}"
+                )
+            trigger_specs.append(trigger_spec)
         return trigger_specs
 
     @staticmethod
@@ -1491,18 +1544,24 @@ class SaasHerder:
                 desired_target_config["url"] = url
                 desired_target_config["path"] = path
                 desired_target_config["rt_parameters"] = rt_parameters
-                key = (
-                    f"{saas_file_name}/{rt_name}/{cluster_name}/"
-                    f"{namespace_name}/{env_name}"
-                )
+                state_key = TriggerSpecConfig(
+                    saas_file_name=saas_file_name,
+                    env_name=env_name,
+                    timeout=None,
+                    pipelines_provider=None,
+                    resource_template_name=rt_name,
+                    cluster_name=cluster_name,
+                    namespace_name=namespace_name,
+                    state_content=None,
+                ).state_key
                 # Convert to dict, ChainMap is not JSON serializable
                 # desired_target_config needs to be serialized to generate
                 # its config hash and to be stored in S3
-                configs[key] = dict(desired_target_config)
+                configs[state_key] = dict(desired_target_config)
         return configs
 
     @staticmethod
-    def _get_pipelines_provider(saas_file: Mapping[str, Any]) -> str:
+    def _get_pipelines_provider(saas_file: Mapping[str, Any]) -> dict[str, Any]:
         return saas_file["pipelinesProvider"]
 
     @staticmethod
@@ -1523,19 +1582,6 @@ class SaasHerder:
         app = namespace["app"]
         namespace["app"] = {k: v for k, v in app.items() if k in new_job_fields["app"]}
         return namespace
-
-    def _update_config(self, job_spec):
-        saas_file_name = job_spec["saas_file_name"]
-        env_name = job_spec["env_name"]
-        rt_name = job_spec["rt_name"]
-        cluster_name = job_spec["cluster_name"]
-        namespace_name = job_spec["namespace_name"]
-        target_config = job_spec["target_config"]
-        key = (
-            f"{saas_file_name}/{rt_name}/{cluster_name}/"
-            + f"{namespace_name}/{env_name}"
-        )
-        self.state.add(key, value=target_config, force=True)
 
     def validate_promotions(self):
         """
