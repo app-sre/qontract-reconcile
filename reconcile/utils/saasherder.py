@@ -1103,7 +1103,7 @@ class SaasHerder:
         saas_file_parameters = self._collect_parameters(saas_file)
         saas_file_secret_parameters = self._collect_secret_parameters(saas_file)
 
-        target_configs = self.get_saas_targets_config(saas_file)
+        all_trigger_specs = self.get_saas_targets_config_trigger_specs(saas_file)
         # iterate over resource templates (multiple per saas_file)
         for rt in resource_templates:
             rt_name = rt["name"]
@@ -1140,7 +1140,9 @@ class SaasHerder:
                     namespace_name=namespace,
                     state_content=None,
                 ).state_key
-                digest = SaasHerder.get_target_config_hash(target_configs[state_key])
+                digest = SaasHerder.get_target_config_hash(
+                    all_trigger_specs[state_key].state_content
+                )
 
                 process_template_options = {
                     "saas_file_name": saas_file_name,
@@ -1473,13 +1475,10 @@ class SaasHerder:
     def get_configs_diff_saas_file(
         self, saas_file: dict[str, Any]
     ) -> list[TriggerSpecConfig]:
-        # Dict by key
-        targets = self.get_saas_targets_config(saas_file)
-
-        pipelines_provider = self._get_pipelines_provider(saas_file)
+        all_trigger_specs = self.get_saas_targets_config_trigger_specs(saas_file)
         trigger_specs = []
 
-        for key, desired_target_config in targets.items():
+        for key, trigger_spec in all_trigger_specs.items():
             current_target_config = self.state.get(key, None)
             # Continue if there are no diffs between configs.
             # Compare existent values only, gql queries return None
@@ -1487,16 +1486,10 @@ class SaasHerder:
             # schema will trigger a job even though the saas file does
             # not have the new parameters set.
             ctc = SaasHerder.remove_none_values(current_target_config)
-            dtc = SaasHerder.remove_none_values(desired_target_config)
+            dtc = SaasHerder.remove_none_values(trigger_spec.state_content)
             if ctc == dtc:
                 continue
 
-            trigger_spec = TriggerSpecConfig.from_state_key(
-                key=key,
-                timeout=saas_file.get("timeout") or None,
-                pipelines_provider=pipelines_provider,
-                state_content=desired_target_config,
-            )
             if self.include_trigger_trace:
                 trigger_spec.reason = (
                     f"{self.settings['repoUrl']}/commit/{RunningState().commit}"
@@ -1511,7 +1504,9 @@ class SaasHerder:
         digest = m.hexdigest()[:16]
         return digest
 
-    def get_saas_targets_config(self, saas_file):
+    def get_saas_targets_config_trigger_specs(
+        self, saas_file: dict[str, Any]
+    ) -> dict[str, TriggerSpecConfig]:
         configs = {}
         saas_file_name = saas_file["name"]
         saas_file_parameters = saas_file.get("parameters")
@@ -1544,20 +1539,22 @@ class SaasHerder:
                 desired_target_config["url"] = url
                 desired_target_config["path"] = path
                 desired_target_config["rt_parameters"] = rt_parameters
-                state_key = TriggerSpecConfig(
-                    saas_file_name=saas_file_name,
-                    env_name=env_name,
-                    timeout=None,
-                    pipelines_provider=None,
-                    resource_template_name=rt_name,
-                    cluster_name=cluster_name,
-                    namespace_name=namespace_name,
-                    state_content=None,
-                ).state_key
                 # Convert to dict, ChainMap is not JSON serializable
                 # desired_target_config needs to be serialized to generate
                 # its config hash and to be stored in S3
-                configs[state_key] = dict(desired_target_config)
+                serializable_target_config = dict(desired_target_config)
+                trigger_spec = TriggerSpecConfig(
+                    saas_file_name=saas_file_name,
+                    env_name=env_name,
+                    timeout=saas_file.get("timeout") or None,
+                    pipelines_provider=self._get_pipelines_provider(saas_file),
+                    resource_template_name=rt_name,
+                    cluster_name=cluster_name,
+                    namespace_name=namespace_name,
+                    state_content=serializable_target_config,
+                )
+                configs[trigger_spec.state_key] = trigger_spec
+
         return configs
 
     @staticmethod

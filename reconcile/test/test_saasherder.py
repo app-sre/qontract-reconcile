@@ -884,9 +884,9 @@ class TestConfigHashTrigger(TestCase):
 
     def test_config_hash_change_do_trigger(self):
         """Ensures a new job is triggered if the parent config hash changes"""
-        configs = self.saasherder.get_saas_targets_config(self.saas_file)
+        configs = self.saasherder.get_saas_targets_config_trigger_specs(self.saas_file)
 
-        desired_tc = list(configs.values())[1]
+        desired_tc = list(configs.values())[1].state_content
         desired_promo_data = desired_tc["promotion"]["promotion_data"]
         desired_promo_data[0]["data"][0][TARGET_CONFIG_HASH] = "Changed"
 
