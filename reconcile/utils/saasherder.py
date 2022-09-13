@@ -97,25 +97,6 @@ class TriggerSpecConfig(TriggerSpecBase):
         )
         return key
 
-    @staticmethod
-    def from_state_key(
-        key: str,
-        state_content: Any,
-        timeout: Optional[str] = None,
-        pipelines_provider: Optional[dict[str, Any]] = None,
-    ) -> "TriggerSpecConfig":
-        saas_file_name, rt_name, cluster_name, namespace_name, env_name = key.split("/")
-        return TriggerSpecConfig(
-            saas_file_name=saas_file_name,
-            env_name=env_name,
-            timeout=timeout,
-            pipelines_provider=pipelines_provider,
-            resource_template_name=rt_name,
-            cluster_name=cluster_name,
-            namespace_name=namespace_name,
-            state_content=state_content,
-        )
-
 
 @dataclass
 class TriggerSpecMovingCommit(TriggerSpecBase):
