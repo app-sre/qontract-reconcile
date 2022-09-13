@@ -87,6 +87,7 @@ class TriggerSpecBase:
 
 @dataclass
 class TriggerSpecConfig(TriggerSpecBase):
+    target_name: Optional[str] = None
     reason: Optional[str] = None
 
     @property
@@ -95,6 +96,8 @@ class TriggerSpecConfig(TriggerSpecBase):
             f"{self.saas_file_name}/{self.resource_template_name}/{self.cluster_name}/"
             f"{self.namespace_name}/{self.env_name}"
         )
+        if self.target_name:
+            key += f"/{self.target_name}"
         return key
 
 
@@ -1119,6 +1122,7 @@ class SaasHerder:
                     resource_template_name=rt_name,
                     cluster_name=cluster,
                     namespace_name=namespace,
+                    target_name=target.get("name"),
                     state_content=None,
                 ).state_key
                 digest = SaasHerder.get_target_config_hash(
@@ -1532,6 +1536,7 @@ class SaasHerder:
                     resource_template_name=rt_name,
                     cluster_name=cluster_name,
                     namespace_name=namespace_name,
+                    target_name=desired_target_config.get("name"),
                     state_content=serializable_target_config,
                 )
                 configs[trigger_spec.state_key] = trigger_spec
