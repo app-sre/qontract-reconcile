@@ -1549,8 +1549,8 @@ class SaasHerder:
                 state_key = TriggerSpecConfig(
                     saas_file_name=saas_file_name,
                     env_name=env_name,
-                    timeout=None,
-                    pipelines_provider=None,
+                    timeout=saas_file.get("timeout") or None,
+                    pipelines_provider=self._get_pipelines_provider(saas_file),
                     resource_template_name=rt_name,
                     cluster_name=cluster_name,
                     namespace_name=namespace_name,
