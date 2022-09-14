@@ -1,4 +1,5 @@
 # qenerate: plugin=pydantic_v1
+# qenerate: naming_collision_strategy=ENUMERATE
 
 query VpcPeeringsValidator {
   clusters: clusters_v1 {
