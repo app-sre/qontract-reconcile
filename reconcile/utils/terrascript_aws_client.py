@@ -178,7 +178,7 @@ VARIABLE_KEYS = [
     "region",
     "availability_zone",
     "parameter_group",
-    "new_parameter_group",
+    "old_parameter_group",
     "name",
     "enhanced_monitoring",
     "replica_source",
@@ -1269,27 +1269,23 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             # Associate parameter group to db instance
             values["parameter_group_name"] = pg_tf_resource.get("name")
 
-        new_parameter_group = values.pop("new_parameter_group", None)
-        if new_parameter_group:
-            # discourage using new_parameter_group if parameter_group field is not utilized.
+        old_parameter_group = values.pop("old_parameter_group", None)
+        if old_parameter_group:
+            # discourage using old_parameter_group if parameter_group field is not utilized.
             if parameter_group is None:
                 raise ValueError(
-                    "Cannot use new_parameter_group field without parameter_group."
+                    "Cannot use old_parameter_group field without parameter_group."
                     "This field is only used during RDS major version upgrade"
                 )
 
-            new_pg_tf_resource = populate_parameter_group(new_parameter_group)
+            old_pg_tf_resource = populate_parameter_group(old_parameter_group)
 
-            if new_pg_tf_resource.get("name") == pg_tf_resource.get("name"):
+            if old_pg_tf_resource.get("name") == pg_tf_resource.get("name"):
                 raise ValueError(
-                    "Must supply a unique name value for new parameter group"
+                    "Must supply a unique name value for parameter group"
                 )
 
-            tf_resources.append(new_pg_tf_resource)
-            deps += self.get_dependencies([new_pg_tf_resource])
-
-            # Override previously set value, so we know this is for the major version upgrade
-            values["parameter_group_name"] = new_pg_tf_resource.get("name")
+            tf_resources.append(old_pg_tf_resource)
 
         enhanced_monitoring = values.pop("enhanced_monitoring", None)
 
