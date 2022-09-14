@@ -1271,8 +1271,15 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         new_parameter_group = values.pop("new_parameter_group", None)
         if new_parameter_group:
+            # discourage using new_parameter_group if parameter_group field is not utilized.
+            if parameter_group is None:
+                raise ValueError(
+                    "Cannot use new_parameter_group field without parameter_group."
+                    "This field is only used during RDS major version upgrade"
+                )
+
             new_pg_tf_resource = populate_parameter_group(new_parameter_group)
-            # pg_tf_resource will not be None as this validation is done at json-schema level.
+
             if new_pg_tf_resource.get("name") == pg_tf_resource.get("name"):
                 raise ValueError(
                     "Must supply a unique name value for new parameter group"
