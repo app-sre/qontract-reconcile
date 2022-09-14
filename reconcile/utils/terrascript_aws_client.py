@@ -1281,9 +1281,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             old_pg_tf_resource = populate_parameter_group(old_parameter_group)
 
             if old_pg_tf_resource.get("name") == pg_tf_resource.get("name"):
-                raise ValueError(
-                    "Must supply a unique name value for parameter group"
-                )
+                raise ValueError("Must supply a unique name value for parameter group")
 
             tf_resources.append(old_pg_tf_resource)
 
