@@ -11,7 +11,6 @@ from reconcile.gql_definitions.vpc_peerings_validator.vpc_peerings_validator imp
 )
 from reconcile.status import ExitCodes
 from reconcile.utils import gql
-from reconcile.utils.helpers import filter_null
 
 
 QONTRACT_INTEGRATION = "vpc-peerings-validator"
@@ -23,11 +22,11 @@ def validate_no_internal_to_public_peerings(
     """Iterate over VPC peerings of internal clusters and validate the peer is not public."""
     valid = True
     found_pairs: list[set[str]] = []
-    clusters: list[ClusterV1] = filter_null(query_data.clusters)
+    clusters: list[ClusterV1] = query_data.clusters or []
     for cluster in clusters:
         if not cluster.internal or not cluster.peering:
             continue
-        for connection in cluster.peering.connections or []:
+        for connection in cluster.peering.connections:
             if connection.provider not in [
                 "cluster-vpc-accepter",
                 "cluster-vpc-requester",
@@ -62,7 +61,7 @@ def validate_no_public_to_public_peerings(
     """Iterate over VPC peerings of public clusters and validate the peer is not public."""
     valid = True
     found_pairs: list[set[str]] = []
-    clusters: list[ClusterV1] = filter_null(query_data.clusters)
+    clusters: list[ClusterV1] = query_data.clusters or []
     for cluster in clusters:
         if (
             cluster.internal
@@ -70,7 +69,7 @@ def validate_no_public_to_public_peerings(
             or not cluster.peering
         ):
             continue
-        for connection in cluster.peering.connections or []:
+        for connection in cluster.peering.connections:
             if connection.provider not in [
                 "cluster-vpc-accepter",
                 "cluster-vpc-requester",
