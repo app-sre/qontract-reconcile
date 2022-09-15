@@ -15,7 +15,6 @@ from reconcile.gql_definitions.service_dependencies.service_dependencies import 
 
 from reconcile.utils import gql
 from reconcile import queries
-from reconcile.utils.helpers import filter_null
 
 
 QONTRACT_INTEGRATION = "service-dependencies"
@@ -36,7 +35,7 @@ def get_desired_dependency_names(
 ) -> set[str]:
     required_dep_names = set()
 
-    code_components: list[AppCodeComponentsV1] = filter_null(app.code_components)
+    code_components: list[AppCodeComponentsV1] = app.code_components or []
     if code_components:
         gitlab_urls = [cc for cc in code_components if "gitlab" in cc.url]
         if gitlab_urls:
@@ -45,13 +44,13 @@ def get_desired_dependency_names(
         if github_urls:
             required_dep_names.update(get_dependency_names(dependency_map, "github"))
 
-    jenkins_configs: list[JenkinsConfigV1] = filter_null(app.jenkins_configs)
+    jenkins_configs: list[JenkinsConfigV1] = app.jenkins_configs or []
     if jenkins_configs:
         instances = {jc.instance.name for jc in jenkins_configs}
         for instance in instances:
             required_dep_names.update(get_dependency_names(dependency_map, instance))
 
-    saas_files: list[SaasFileV2] = filter_null(app.saas_files)
+    saas_files: list[SaasFileV2] = app.saas_files or []
     tekton_pipelines = [
         s for s in saas_files if s.pipelines_provider.provider == "tekton"
     ]
@@ -62,13 +61,10 @@ def get_desired_dependency_names(
 
     # Check if we got any upstream deps (ci-int/ci-ext)
     for sf in saas_files:
-        resource_templates: list[SaasResourceTemplateV2] = filter_null(
-            sf.resource_templates
-        )
+        resource_templates: list[SaasResourceTemplateV2] = sf.resource_templates
+
         for tmpl in resource_templates:
-            template_targets: list[SaasResourceTemplateTargetV2] = filter_null(
-                tmpl.targets
-            )
+            template_targets: list[SaasResourceTemplateTargetV2] = tmpl.targets
             for target in template_targets:
                 if target.upstream:
                     required_dep_names.update(
@@ -81,7 +77,7 @@ def get_desired_dependency_names(
     if quay_repos:
         required_dep_names.update(get_dependency_names(dependency_map, "quay"))
 
-    namespaces: list[NamespaceV1] = filter_null(app.namespaces)
+    namespaces: list[NamespaceV1] = app.namespaces or []
     if namespaces:
         required_dep_names.update(get_dependency_names(dependency_map, "openshift"))
         er_namespaces = [n for n in namespaces if n.managed_external_resources]
@@ -107,10 +103,10 @@ def run(dry_run):
     query_data = service_dependencies.query(query_func=gql.get_api().query)
 
     error = False
-    apps: list[AppV1] = filter_null(query_data.apps)
+    apps: list[AppV1] = query_data.apps or []
     for app in apps:
         app_name = app.name
-        app_deps: list[DependencyV1] = filter_null(app.dependencies)
+        app_deps: list[DependencyV1] = app.dependencies or []
         current_deps = [a.name for a in app_deps]
         desired_deps = get_desired_dependency_names(app, dependency_map)
 
