@@ -99,7 +99,7 @@ class OcpReleaseMirrorV1(BaseModel):
 
 
 class OCPAuthFullQueryData(BaseModel):
-    ocp_release_mirror: Optional[list[Optional[OcpReleaseMirrorV1]]] = Field(
+    ocp_release_mirror: Optional[list[OcpReleaseMirrorV1]] = Field(
         ..., alias="ocp_release_mirror"
     )
 

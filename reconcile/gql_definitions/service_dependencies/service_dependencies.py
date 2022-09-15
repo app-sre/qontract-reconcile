@@ -136,7 +136,7 @@ class SaasResourceTemplateTargetV2(BaseModel):
 
 
 class SaasResourceTemplateV2(BaseModel):
-    targets: Optional[list[SaasResourceTemplateTargetV2]] = Field(..., alias="targets")
+    targets: list[SaasResourceTemplateTargetV2] = Field(..., alias="targets")
 
     class Config:
         smart_union = True
@@ -145,7 +145,7 @@ class SaasResourceTemplateV2(BaseModel):
 
 class SaasFileV2(BaseModel):
     pipelines_provider: PipelinesProviderV1 = Field(..., alias="pipelinesProvider")
-    resource_templates: Optional[list[SaasResourceTemplateV2]] = Field(
+    resource_templates: list[SaasResourceTemplateV2] = Field(
         ..., alias="resourceTemplates"
     )
 
@@ -199,7 +199,7 @@ class NamespaceV1(BaseModel):
     managed_external_resources: Optional[bool] = Field(
         ..., alias="managedExternalResources"
     )
-    external_resources: Optional[list[Optional[NamespaceExternalResourceV1]]] = Field(
+    external_resources: Optional[list[NamespaceExternalResourceV1]] = Field(
         ..., alias="externalResources"
     )
     kafka_cluster: Optional[KafkaClusterV1] = Field(..., alias="kafkaCluster")
@@ -211,18 +211,16 @@ class NamespaceV1(BaseModel):
 
 class AppV1(BaseModel):
     name: str = Field(..., alias="name")
-    dependencies: Optional[list[Optional[DependencyV1]]] = Field(
-        ..., alias="dependencies"
-    )
-    code_components: Optional[list[Optional[AppCodeComponentsV1]]] = Field(
+    dependencies: Optional[list[DependencyV1]] = Field(..., alias="dependencies")
+    code_components: Optional[list[AppCodeComponentsV1]] = Field(
         ..., alias="codeComponents"
     )
-    jenkins_configs: Optional[list[Optional[JenkinsConfigV1]]] = Field(
+    jenkins_configs: Optional[list[JenkinsConfigV1]] = Field(
         ..., alias="jenkinsConfigs"
     )
-    saas_files: Optional[list[Optional[SaasFileV2]]] = Field(..., alias="saasFiles")
-    quay_repos: Optional[list[Optional[AppQuayReposV1]]] = Field(..., alias="quayRepos")
-    namespaces: Optional[list[Optional[NamespaceV1]]] = Field(..., alias="namespaces")
+    saas_files: Optional[list[SaasFileV2]] = Field(..., alias="saasFiles")
+    quay_repos: Optional[list[AppQuayReposV1]] = Field(..., alias="quayRepos")
+    namespaces: Optional[list[NamespaceV1]] = Field(..., alias="namespaces")
 
     class Config:
         smart_union = True
@@ -230,7 +228,7 @@ class AppV1(BaseModel):
 
 
 class ServiceDependenciesQueryData(BaseModel):
-    apps: Optional[list[Optional[AppV1]]] = Field(..., alias="apps")
+    apps: Optional[list[AppV1]] = Field(..., alias="apps")
 
     class Config:
         smart_union = True

@@ -121,13 +121,11 @@ class ClusterPeeringConnectionClusterAccepterV1(ClusterPeeringConnectionV1):
 
 
 class ClusterPeeringV1(BaseModel):
-    connections: Optional[
-        list[
-            Union[
-                ClusterPeeringConnectionClusterRequesterV1,
-                ClusterPeeringConnectionClusterAccepterV1,
-                ClusterPeeringConnectionV1,
-            ]
+    connections: list[
+        Union[
+            ClusterPeeringConnectionClusterRequesterV1,
+            ClusterPeeringConnectionClusterAccepterV1,
+            ClusterPeeringConnectionV1,
         ]
     ] = Field(..., alias="connections")
 
@@ -148,7 +146,7 @@ class ClusterV1(BaseModel):
 
 
 class VpcPeeringsValidatorQueryData(BaseModel):
-    clusters: Optional[list[Optional[ClusterV1]]] = Field(..., alias="clusters")
+    clusters: Optional[list[ClusterV1]] = Field(..., alias="clusters")
 
     class Config:
         smart_union = True

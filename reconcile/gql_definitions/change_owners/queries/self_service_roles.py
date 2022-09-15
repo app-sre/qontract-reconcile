@@ -61,10 +61,8 @@ class DatafileObjectV1(BaseModel):
 
 class SelfServiceConfigV1(BaseModel):
     change_type: ChangeTypeV1 = Field(..., alias="change_type")
-    datafiles: Optional[list[Optional[DatafileObjectV1]]] = Field(
-        ..., alias="datafiles"
-    )
-    resources: Optional[list[Optional[str]]] = Field(..., alias="resources")
+    datafiles: Optional[list[DatafileObjectV1]] = Field(..., alias="datafiles")
+    resources: Optional[list[str]] = Field(..., alias="resources")
 
     class Config:
         smart_union = True
@@ -90,13 +88,9 @@ class UserV1(BaseModel):
 class RoleV1(BaseModel):
     name: str = Field(..., alias="name")
     path: str = Field(..., alias="path")
-    self_service: Optional[list[Optional[SelfServiceConfigV1]]] = Field(
-        ..., alias="self_service"
-    )
-    owned_saas_files: Optional[list[Optional[SaasFileV2]]] = Field(
-        ..., alias="owned_saas_files"
-    )
-    users: Optional[list[Optional[UserV1]]] = Field(..., alias="users")
+    self_service: Optional[list[SelfServiceConfigV1]] = Field(..., alias="self_service")
+    owned_saas_files: Optional[list[SaasFileV2]] = Field(..., alias="owned_saas_files")
+    users: Optional[list[UserV1]] = Field(..., alias="users")
 
     class Config:
         smart_union = True
@@ -104,7 +98,7 @@ class RoleV1(BaseModel):
 
 
 class SelfServiceRolesQueryQueryData(BaseModel):
-    roles: Optional[list[Optional[RoleV1]]] = Field(..., alias="roles")
+    roles: Optional[list[RoleV1]] = Field(..., alias="roles")
 
     class Config:
         smart_union = True

@@ -60,7 +60,7 @@ class ChangeTypeChangeDetectorV1(BaseModel):
 
 
 class ChangeTypeChangeDetectorJsonPathProviderV1(ChangeTypeChangeDetectorV1):
-    json_path_selectors: Optional[list[str]] = Field(..., alias="jsonPathSelectors")
+    json_path_selectors: list[str] = Field(..., alias="jsonPathSelectors")
 
     class Config:
         smart_union = True
@@ -71,12 +71,8 @@ class ChangeTypeV1(BaseModel):
     name: str = Field(..., alias="name")
     context_type: str = Field(..., alias="contextType")
     context_schema: Optional[str] = Field(..., alias="contextSchema")
-    changes: Optional[
-        list[
-            Union[
-                ChangeTypeChangeDetectorJsonPathProviderV1, ChangeTypeChangeDetectorV1
-            ]
-        ]
+    changes: list[
+        Union[ChangeTypeChangeDetectorJsonPathProviderV1, ChangeTypeChangeDetectorV1]
     ] = Field(..., alias="changes")
 
     class Config:
@@ -85,9 +81,7 @@ class ChangeTypeV1(BaseModel):
 
 
 class ChangeTypesQueryData(BaseModel):
-    change_types: Optional[list[Optional[ChangeTypeV1]]] = Field(
-        ..., alias="change_types"
-    )
+    change_types: Optional[list[ChangeTypeV1]] = Field(..., alias="change_types")
 
     class Config:
         smart_union = True
