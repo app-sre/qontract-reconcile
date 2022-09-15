@@ -57,7 +57,7 @@ def copy_vault_secret(
         deep_copy_versions(dry_run, source_vault, dest_vault, 0, version, path)
 
 
-def copy_vault_secrets(
+def check_copy_secret_list(
     dry_run: bool,
     source_vault: VaultClient,
     dest_vault: VaultClient,
@@ -182,6 +182,6 @@ def run(dry_run: bool) -> None:
                         policy_paths = None
 
                     path_list = get_jenkins_secret_list()
-                    copy_vault_secrets(
+                    check_copy_secret_list(
                         dry_run, source_vault, dest_vault, path_list, policy_paths
                     )
