@@ -20,33 +20,41 @@ from typing import List
 QONTRACT_INTEGRATION = "vault-replication"
 
 
+def deep_copy_versions(
+    dry_run: bool,
+    source_vault,
+    dest_vault,
+    current_dest_version,
+    current_source_version,
+    path,
+):
+    for version in range(current_dest_version + 1, current_source_version + 1):
+        secret_dict = {"path": path, "version": version}
+        secret, version = source_vault.read_all_version(secret_dict)
+        write_dict = {"path": path, "data": secret}
+        logging.info(["replicate_vault_secret", version, path])
+        if not dry_run:
+            dest_vault.write(write_dict)
+
+
 def copy_vault_secret(
     dry_run: bool, source_vault: VaultClient, dest_vault: VaultClient, path: str
 ) -> None:
 
     secret_dict = {"path": path, "version": "LATEST"}
-    secrets, version = source_vault.read_all_version(secret_dict)
-    for secret in secrets:
-        write_dict = {"path": path, "data": secret}
-        try:
-            _, dest_version = dest_vault.read_all(secret_dict)
-            if dest_version < version:
-                logging.info(
-                    [
-                        "replicate_vault_secret",
-                        "Secret found, new version",
-                        version,
-                        path,
-                    ]
-                )
-                if not dry_run:
-                    dest_vault.write(write_dict)
-            else:
-                logging.info(["replicate_vault_secret", dest_version, version, secret])
-        except SecretNotFound:
-            logging.info(["replicate_vault_secret", "Secret not found", path])
-            if not dry_run:
-                dest_vault.write(write_dict)
+    _, version = source_vault.read_all_version(secret_dict)
+
+    try:
+        _, dest_version = dest_vault.read_all(secret_dict)
+        if dest_version < version:
+            deep_copy_versions(
+                dry_run, source_vault, dest_vault, dest_version, version, path
+            )
+        else:
+            logging.info(["replicate_vault_secret", dest_version, version, path])
+    except SecretNotFound:
+        logging.info(["replicate_vault_secret", "Secret not found", path])
+        deep_copy_versions(dry_run, source_vault, dest_vault, 0, version, path)
 
 
 def copy_vault_secrets(
