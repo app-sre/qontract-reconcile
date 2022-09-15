@@ -121,7 +121,13 @@ class ClusterPeeringConnectionClusterAccepterV1(ClusterPeeringConnectionV1):
 
 
 class ClusterPeeringV1(BaseModel):
-    connections: list[Union[ClusterPeeringConnectionClusterRequesterV1, ClusterPeeringConnectionClusterAccepterV1, ClusterPeeringConnectionV1]] = Field(..., alias="connections")
+    connections: list[
+        Union[
+            ClusterPeeringConnectionClusterRequesterV1,
+            ClusterPeeringConnectionClusterAccepterV1,
+            ClusterPeeringConnectionV1,
+        ]
+    ] = Field(..., alias="connections")
 
     class Config:
         smart_union = True

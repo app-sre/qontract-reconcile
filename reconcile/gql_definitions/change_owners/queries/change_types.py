@@ -50,7 +50,9 @@ class ChangeTypeChangeDetectorContextSelectorV1(BaseModel):
 class ChangeTypeChangeDetectorV1(BaseModel):
     provider: str = Field(..., alias="provider")
     change_schema: Optional[str] = Field(..., alias="changeSchema")
-    context: Optional[ChangeTypeChangeDetectorContextSelectorV1] = Field(..., alias="context")
+    context: Optional[ChangeTypeChangeDetectorContextSelectorV1] = Field(
+        ..., alias="context"
+    )
 
     class Config:
         smart_union = True
@@ -69,7 +71,9 @@ class ChangeTypeV1(BaseModel):
     name: str = Field(..., alias="name")
     context_type: str = Field(..., alias="contextType")
     context_schema: Optional[str] = Field(..., alias="contextSchema")
-    changes: list[Union[ChangeTypeChangeDetectorJsonPathProviderV1, ChangeTypeChangeDetectorV1]] = Field(..., alias="changes")
+    changes: list[
+        Union[ChangeTypeChangeDetectorJsonPathProviderV1, ChangeTypeChangeDetectorV1]
+    ] = Field(..., alias="changes")
 
     class Config:
         smart_union = True
