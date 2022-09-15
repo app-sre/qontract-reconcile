@@ -1,6 +1,8 @@
 import logging
+from http.client import ImproperConnectionState
 from typing import Any, Dict, List, Mapping
 import warnings
+
 
 from reconcile import queries
 from reconcile.utils.config import ConfigNotFound, get_config
@@ -513,15 +515,25 @@ def run(dry_run: bool, enable_deletion: bool):
     # avoid logging these info messages
     # INFO Establishing SSL connection to api.dynect.net:443
     # INFO DynectSession Authentication Successful
-    with toggle_logger():
-        dyn_session.DynectSession(creds["customer"], creds["dyn_id"], creds["password"])
+    try:
+        with toggle_logger():
+            dyn_session.DynectSession(creds["customer"], creds["dyn_id"], creds["password"])
 
-    desired = fetch_desired_state()
-    current = fetch_current_state()
+        desired = fetch_desired_state()
+        current = fetch_current_state()
 
-    process_tds(
-        current["tds"], desired["tds"], dry_run=dry_run, enable_deletion=enable_deletion
-    )
+        process_tds(
+            current["tds"], desired["tds"], dry_run=dry_run, enable_deletion=enable_deletion
+        )
+    # Since Dyn client internally uses singleton per thread, if there are any connection issues
+    # we need to catch them and close the connection.
+    # The reconcile loop when it runs next time will reinitiate the new connection and avoid us pod restart.
+    # SessionEngine.execute() internally fails to capture CannotSendRequest (which is subclass of ImproperConnectionState) exception hence we catch it here.
+    # We are catching IOError as a safety net if there happens to be other cases where this is missed.
+    except (IOError, ImproperConnectionState) as e:
+        logging.warning(e)
+        logging.debug("Re-initiating Dyn client because of connection error.")
+        dyn_session.DynectSession.close_session()
 
 
 def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
