@@ -16,12 +16,8 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
 )
 
 from reconcile.gql_definitions.examples.fragments.vault_secret import VaultSecret
-from reconcile.gql_definitions.examples.fragments.vault_secret_version import (
-    VaultSecretVersion,
-)
-from reconcile.gql_definitions.examples.fragments.vault_secret_path import (
-    VaultSecretPath,
-)
+from reconcile.gql_definitions.examples.fragments.vault_secret_version import VaultSecretVersion
+from reconcile.gql_definitions.examples.fragments.vault_secret_path import VaultSecretPath
 
 
 DEFINITION = """
@@ -81,9 +77,7 @@ class ClusterV1_VaultSecretV1(VaultSecretVersion, VaultSecretPath):
 class ClusterV1(BaseModel):
     name: str = Field(..., alias="name")
     ocm: Optional[OpenShiftClusterManagerV1] = Field(..., alias="ocm")
-    automation_token: Optional[ClusterV1_VaultSecretV1] = Field(
-        ..., alias="automationToken"
-    )
+    automation_token: Optional[ClusterV1_VaultSecretV1] = Field(..., alias="automationToken")
 
     class Config:
         smart_union = True
@@ -99,9 +93,7 @@ class OcpReleaseMirrorV1(BaseModel):
 
 
 class OCPAuthFullQueryData(BaseModel):
-    ocp_release_mirror: Optional[list[Optional[OcpReleaseMirrorV1]]] = Field(
-        ..., alias="ocp_release_mirror"
-    )
+    ocp_release_mirror: Optional[list[OcpReleaseMirrorV1]] = Field(..., alias="ocp_release_mirror")
 
     class Config:
         smart_union = True

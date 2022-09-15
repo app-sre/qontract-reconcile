@@ -294,7 +294,7 @@ def test_deepdiff_invalid():
 def test_change_type_processor_building_unsupported_provider(
     secret_promoter_change_type: ChangeTypeV1,
 ):
-    secret_promoter_change_type.changes[0] = ChangeTypeChangeDetectorV1(  # type: ignore
+    secret_promoter_change_type.changes[0] = ChangeTypeChangeDetectorV1(
         provider="unsupported-provider", changeSchema=None, context=None
     )
     with pytest.raises(ValueError):

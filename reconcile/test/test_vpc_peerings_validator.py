@@ -57,7 +57,7 @@ def test_validate_no_internal_to_public_peerings_valid_internal(
     query_data_i2p: VpcPeeringsValidatorQueryData,
 ):
     assert query_data_i2p.clusters is not None
-    query_data_i2p.clusters[0].peering.connections[0].cluster.internal = True  # type: ignore[index,union-attr]
+    query_data_i2p.clusters[0].peering.connections[0].cluster.internal = True  # type: ignore[union-attr]
     assert validate_no_internal_to_public_peerings(query_data_i2p) is True
 
 

@@ -51,9 +51,7 @@ class JenkinsInstanceV1(BaseModel):
 
 
 class JenkinsInstanceQueryData(BaseModel):
-    instances: Optional[list[Optional[JenkinsInstanceV1]]] = Field(
-        ..., alias="instances"
-    )
+    instances: Optional[list[JenkinsInstanceV1]] = Field(..., alias="instances")
 
     class Config:
         smart_union = True
