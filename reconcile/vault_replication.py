@@ -65,18 +65,21 @@ def copy_vault_secrets(
     policy_paths: List[str],
 ) -> None:
 
-    for path in path_list:
-        if is_valid_path(path, policy_paths):
-            logging.info(["replicate_vault_secret", path])
+    invalid_paths = list_invalid_paths(path_list, policy_paths)
+    if invalid_paths:
+        logging.error(["replicate_vault_secret", "Invalid paths", invalid_paths])
+    else:
+        for path in path_list:
             copy_vault_secret(dry_run, source_vault, dest_vault, path)
 
 
-def is_valid_path(path: str, policy_paths: List[str]) -> bool:
-    if not policy_contais_path(path, policy_paths):
-        logging.error(["replicate_vault_secret", "Invalid path", path])
-        return False
-    else:
-        return True
+def list_invalid_paths(path_list: List[str], policy_paths: List[str]) -> List[str]:
+    invalid_paths = []
+    for path in path_list:
+        if not policy_contais_path(path, policy_paths):
+            invalid_paths.append(path)
+
+    return invalid_paths
 
 
 def policy_contais_path(path: str, policy_paths: List[str]) -> bool:
