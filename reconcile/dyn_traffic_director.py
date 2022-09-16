@@ -3,7 +3,6 @@ from http.client import ImproperConnectionState
 from typing import Any, Dict, List, Mapping
 import warnings
 
-
 from reconcile import queries
 from reconcile.utils.config import ConfigNotFound, get_config
 from reconcile.utils.helpers import toggle_logger
@@ -517,22 +516,44 @@ def run(dry_run: bool, enable_deletion: bool):
     # INFO DynectSession Authentication Successful
     try:
         with toggle_logger():
-            dyn_session.DynectSession(creds["customer"], creds["dyn_id"], creds["password"])
+            dyn_session.DynectSession(
+                creds["customer"], creds["dyn_id"], creds["password"]
+            )
 
         desired = fetch_desired_state()
         current = fetch_current_state()
 
         process_tds(
-            current["tds"], desired["tds"], dry_run=dry_run, enable_deletion=enable_deletion
+            current["tds"],
+            desired["tds"],
+            dry_run=dry_run,
+            enable_deletion=enable_deletion,
         )
-    # Since Dyn client internally uses singleton per thread, if there are any connection issues
-    # we need to catch them and close the connection.
-    # The reconcile loop when it runs next time will reinitiate the new connection and avoid us pod restart.
-    # SessionEngine.execute() internally fails to capture CannotSendRequest (which is subclass of ImproperConnectionState) exception hence we catch it here.
-    # We are catching IOError as a safety net if there happens to be other cases where this is missed.
-    except (IOError, ImproperConnectionState) as e:
+
+    # Dyn client internally uses singleton per thread, this means SessionEngine is initialized once and cached for
+    # later use. The client it uses HTTPSConnection (part of http library) and only initializes it once.
+    # A singleton HTTPSConnection object is responsible for only creating a single underlying socket connection.
+    # The HTTPSConnection object keeps track state with values such
+    #   - _CS_IDLE (indicates idle connection)
+    #   - _CS_REQ_STARTED (indicates request started. used when sending initial headers)
+    #   - _CS_REQ_SENT (initial headers sent)
+    # More info on this can be found in client.py
+
+    # So when Dyn API is unavailable, the http client sends a request but runs into `OSError: [Errno 101] Network is
+    # unreachable`. This exception is not caught anywhere (blame send_command method within SessionEngine.execute() )
+    # So the 1st reconciliation run fails. At this point the HTTPSConnection state is _CS_REQ_SENT. When the 2nd
+    # reconciliation run starts, the SessionEngine object is reused. And when it's time to send request Dyn client
+    # internally ends up calling put HTTPConnection.putrequest() which throws error (CannotSendRequest) if state is
+    # not _CS_IDLE.
+
+    # This is why we need to catch IOError/OSError and make sure we delete the singleton and recreate it on next run
+    # to avoid manual pod restart.
+
+    except IOError as e:
         logging.warning(e)
-        logging.debug("Re-initiating Dyn client because of connection error.")
+        logging.debug(
+            "Deleting Dyn client singleton because of IOError. The next reconciliation run will recreate it."
+        )
         dyn_session.DynectSession.close_session()
 
 
