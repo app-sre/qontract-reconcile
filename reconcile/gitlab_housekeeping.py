@@ -231,6 +231,9 @@ def get_merge_requests(
         labels_by_authorized_users = set()
         for label in reversed(label_events):
             if label.action == "add":
+                if not label.label:
+                    # label doesn't exist anymore, may be remove later
+                    continue
                 label_name = label.label["name"]
                 added_by = label.user["username"]
                 if users_allowed_to_label and added_by not in (
