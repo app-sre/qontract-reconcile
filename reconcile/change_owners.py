@@ -8,7 +8,7 @@ import logging
 import traceback
 import re
 
-from reconcile.utils.output import print_table
+from reconcile.utils.output import format_table
 from reconcile.utils import gql
 from reconcile.gql_definitions.change_owners.queries.self_service_roles import RoleV1
 from reconcile.gql_definitions.change_owners.queries.change_types import (
@@ -689,47 +689,57 @@ def run(
             comparision_gql_api,
         )
 
-        results = []
-        for c in changes:
-            for d in c.diffs:
-                item = {
-                    "file": c.fileref.path,
-                    "schema": c.fileref.schema,
-                    "changed path": d.path,
-                }
-                if str(d.path) != "$":
-                    item.update(
-                        {
-                            "old value": d.old_value_repr(),
-                            "new value": d.new_value_repr(),
-                        }
-                    )
-                if d.covered_by:
-                    item.update(
-                        {
-                            "change type": d.covered_by[
-                                0
-                            ].change_type_processor.change_type.name,
-                            "context": d.covered_by[0].context,
-                            "approvers": ", ".join(
-                                [a.org_username for a in d.covered_by[0].approvers]
-                            )[:20],
-                        }
-                    )
-                results.append(item)
+        format_changes(changes)
 
-        print_table(
-            results,
-            [
-                "file",
-                "changed path",
-                "old value",
-                "new value",
-                "change type",
-                "context",
-                "approvers",
-            ],
-        )
+    except BaseException:
+        logging.error(traceback.format_exc())
+
+
+def format_changes(changes: list[BundleFileChange]) -> str:
+    """
+    formats the changes in a way that can be used in the PR check
+    """
+    results = []
+    for c in changes:
+        for d in c.diffs:
+            item = {
+                "file": c.fileref.path,
+                "schema": c.fileref.schema,
+                "changed path": d.path,
+            }
+            if str(d.path) != "$":
+                item.update(
+                    {
+                        "old value": d.old_value_repr(),
+                        "new value": d.new_value_repr(),
+                    }
+                )
+            if d.covered_by:
+                item.update(
+                    {
+                        "change type": d.covered_by[
+                            0
+                        ].change_type_processor.change_type.name,
+                        "context": d.covered_by[0].context,
+                        "approvers": ", ".join(
+                            [a.org_username for a in d.covered_by[0].approvers]
+                        )[:20],
+                    }
+                )
+            results.append(item)
+
+    return format_table(
+        results,
+        [
+            "file",
+            "changed path",
+            "old value",
+            "new value",
+            "change type",
+            "context",
+            "approvers",
+        ],
+    )
 
     except BaseException:
         logging.error(traceback.format_exc())
