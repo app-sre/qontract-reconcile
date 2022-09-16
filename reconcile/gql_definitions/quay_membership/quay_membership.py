@@ -85,8 +85,8 @@ class BotV1(BaseModel):
 
 
 class RoleV1(BaseModel):
-    users: Optional[list[UserV1]] = Field(..., alias="users")
-    bots: Optional[list[BotV1]] = Field(..., alias="bots")
+    users: list[UserV1] = Field(..., alias="users")
+    bots: list[BotV1] = Field(..., alias="bots")
     expiration_date: Optional[str] = Field(..., alias="expirationDate")
 
     class Config:
@@ -105,7 +105,7 @@ class PermissionQuayOrgTeamV1(PermissionV1):
 
 
 class QuayMembershipQueryData(BaseModel):
-    permissions: Optional[list[Union[PermissionQuayOrgTeamV1, PermissionV1]]] = Field(
+    permissions: list[Union[PermissionQuayOrgTeamV1, PermissionV1]] = Field(
         ..., alias="permissions"
     )
 

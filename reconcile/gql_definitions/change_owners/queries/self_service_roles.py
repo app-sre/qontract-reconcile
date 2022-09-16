@@ -90,7 +90,7 @@ class RoleV1(BaseModel):
     path: str = Field(..., alias="path")
     self_service: Optional[list[SelfServiceConfigV1]] = Field(..., alias="self_service")
     owned_saas_files: Optional[list[SaasFileV2]] = Field(..., alias="owned_saas_files")
-    users: Optional[list[UserV1]] = Field(..., alias="users")
+    users: list[UserV1] = Field(..., alias="users")
 
     class Config:
         smart_union = True
