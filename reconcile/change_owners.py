@@ -492,11 +492,11 @@ def build_change_type_processor(change_type: ChangeTypeV1) -> ChangeTypeProcesso
     expressions_by_file_type_schema: dict[
         Tuple[BundleFileType, Optional[str]], list[jsonpath_ng.JSONPath]
     ] = defaultdict(list)
-    for c in change_type.changes or []:
+    for c in change_type.changes:
         if isinstance(c, ChangeTypeChangeDetectorJsonPathProviderV1):
             change_schema = c.change_schema or change_type.context_schema
             if change_schema:
-                for jsonpath_expression in c.json_path_selectors or []:
+                for jsonpath_expression in c.json_path_selectors:
                     file_type = BundleFileType[change_type.context_type.upper()]
                     expressions_by_file_type_schema[(file_type, change_schema)].append(
                         jsonpath_ng.ext.parse(jsonpath_expression)
@@ -559,30 +559,27 @@ def cover_changes_with_self_service_roles(
         # build role lookup for owned_saas_files section of a role
         if saas_file_owner_change_type_name and r.owned_saas_files:
             for saas_file in r.owned_saas_files:
-                if saas_file:
-                    role_lookup[
-                        (
-                            BundleFileType.DATAFILE,
-                            saas_file.path,
-                            saas_file_owner_change_type_name,
-                        )
-                    ].append(r)
+                role_lookup[
+                    (
+                        BundleFileType.DATAFILE,
+                        saas_file.path,
+                        saas_file_owner_change_type_name,
+                    )
+                ].append(r)
 
         # build role lookup for self_service section of a role
         if r.self_service:
             for ss in r.self_service:
-                if ss and ss.datafiles:
+                if ss.datafiles:
                     for df in ss.datafiles:
-                        if df:
-                            role_lookup[
-                                (BundleFileType.DATAFILE, df.path, ss.change_type.name)
-                            ].append(r)
-                if ss and ss.resources:
+                        role_lookup[
+                            (BundleFileType.DATAFILE, df.path, ss.change_type.name)
+                        ].append(r)
+                if ss.resources:
                     for res in ss.resources:
-                        if res:
-                            role_lookup[
-                                (BundleFileType.RESOURCEFILE, res, ss.change_type.name)
-                            ].append(r)
+                        role_lookup[
+                            (BundleFileType.RESOURCEFILE, res, ss.change_type.name)
+                        ].append(r)
 
     # match every BundleChange with every relevant ChangeTypeV1
     for bc in bundle_changes:
@@ -632,12 +629,12 @@ def cover_changes(
 
 def fetch_self_service_roles(gql_api: gql.GqlApi) -> list[RoleV1]:
     roles = self_service_roles.query(gql_api.query).roles or []
-    return [r for r in roles if r and (r.self_service or r.owned_saas_files)]
+    return [r for r in roles if r.self_service or r.owned_saas_files]
 
 
 def fetch_change_type_processors(gql_api: gql.GqlApi) -> list[ChangeTypeProcessor]:
     change_type_list = change_types.query(gql_api.query).change_types or []
-    return [build_change_type_processor(ct) for ct in change_type_list if ct]
+    return [build_change_type_processor(ct) for ct in change_type_list]
 
 
 def fetch_bundle_changes(comparison_sha: str) -> list[BundleFileChange]:
