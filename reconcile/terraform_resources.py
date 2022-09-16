@@ -46,6 +46,7 @@ provider
   defaults
   availability_zone
   parameter_group
+  old_parameter_group
   overrides
   output_resource_name
   enhanced_monitoring
