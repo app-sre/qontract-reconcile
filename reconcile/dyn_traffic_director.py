@@ -1,5 +1,4 @@
 import logging
-from http.client import ImproperConnectionState
 from typing import Any, Dict, List, Mapping
 import warnings
 
