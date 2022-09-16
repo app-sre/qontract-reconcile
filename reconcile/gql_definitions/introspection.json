@@ -296,15 +296,19 @@
                                 }
                             ],
                             "type": {
-                                "kind": "LIST",
+                                "kind": "NON_NULL",
                                 "name": null,
                                 "ofType": {
-                                    "kind": "NON_NULL",
+                                    "kind": "LIST",
                                     "name": null,
                                     "ofType": {
-                                        "kind": "INTERFACE",
-                                        "name": "Permission_v1",
-                                        "ofType": null
+                                        "kind": "NON_NULL",
+                                        "name": null,
+                                        "ofType": {
+                                            "kind": "INTERFACE",
+                                            "name": "Permission_v1",
+                                            "ofType": null
+                                        }
                                     }
                                 }
                             },
@@ -6177,15 +6181,19 @@
                             "description": null,
                             "args": [],
                             "type": {
-                                "kind": "LIST",
+                                "kind": "NON_NULL",
                                 "name": null,
                                 "ofType": {
-                                    "kind": "NON_NULL",
+                                    "kind": "LIST",
                                     "name": null,
                                     "ofType": {
-                                        "kind": "OBJECT",
-                                        "name": "User_v1",
-                                        "ofType": null
+                                        "kind": "NON_NULL",
+                                        "name": null,
+                                        "ofType": {
+                                            "kind": "OBJECT",
+                                            "name": "User_v1",
+                                            "ofType": null
+                                        }
                                     }
                                 }
                             },
@@ -6197,15 +6205,19 @@
                             "description": null,
                             "args": [],
                             "type": {
-                                "kind": "LIST",
+                                "kind": "NON_NULL",
                                 "name": null,
                                 "ofType": {
-                                    "kind": "NON_NULL",
+                                    "kind": "LIST",
                                     "name": null,
                                     "ofType": {
-                                        "kind": "OBJECT",
-                                        "name": "Bot_v1",
-                                        "ofType": null
+                                        "kind": "NON_NULL",
+                                        "name": null,
+                                        "ofType": {
+                                            "kind": "OBJECT",
+                                            "name": "Bot_v1",
+                                            "ofType": null
+                                        }
                                     }
                                 }
                             },

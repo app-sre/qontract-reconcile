@@ -1,12 +1,11 @@
 import logging
 import sys
-from typing import Sequence, Union, cast
+from typing import Sequence, Union
 
 from reconcile.gql_definitions.quay_membership import quay_membership
 from reconcile.gql_definitions.quay_membership.quay_membership import (
     BotV1,
     PermissionQuayOrgTeamV1,
-    RoleV1,
     UserV1,
 )
 from reconcile.quay_base import get_quay_api_store
@@ -89,14 +88,8 @@ def fetch_desired_state():
     for permission in permissions:
         p = process_permission(permission)
         members: list[str] = []
-        roles: list[RoleV1] = permission.roles or []
-        filtered_roles: list[RoleV1] = [
-            cast(RoleV1, r) for r in expiration.filter(roles)
-        ]
-        for role in filtered_roles:
-            users: list[UserV1] = role.users or []
-            bots: list[BotV1] = role.bots or []
-            members += get_usernames(users) + get_usernames(bots)
+        for role in expiration.filter(permission.roles):
+            members += get_usernames(role.users) + get_usernames(role.bots)
 
         state.add(p, members)
 
