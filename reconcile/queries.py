@@ -2072,6 +2072,17 @@ SAAS_FILES_QUERY_V2 = """
         org_username
       }
     }
+    selfService {
+      roles {
+        users {
+          org_username
+          tag_on_merge_requests
+        }
+        bots {
+          org_username
+        }
+      }
+    }
   }
 }
 """ % (
