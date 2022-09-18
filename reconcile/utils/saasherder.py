@@ -240,6 +240,11 @@ class SaasHerder:
 
             saas_file_owners = [
                 u["org_username"] for r in saas_file["roles"] for u in r["users"]
+            ] + [
+                u["org_username"]
+                for s in saas_file["selfService"]
+                for r in s["roles"]
+                for u in r["users"]
             ]
             if not saas_file_owners:
                 msg = "saas file {} has no owners: {}"
