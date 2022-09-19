@@ -85,7 +85,10 @@ class CloudflareZoneTerrascriptResource(TerrascriptResource):
         zone_records = values.pop("records", [])
         zone_workers = values.pop("workers", [])
 
-        zone_values = values
+        zone_values = {
+            "account_id": "${var.account_id}",
+            **values,
+        }
         zone = cloudflare_zone(self._spec.identifier, **zone_values)
         resources.append(zone)
 

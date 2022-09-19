@@ -15,7 +15,7 @@ from reconcile.utils.terraform.config import TerraformS3BackendConfig
 
 @pytest.fixture
 def account_config():
-    return CloudflareAccountConfig("account-name", "api-token", "accound_id")
+    return CloudflareAccountConfig("account-name", "api-token", "account_id")
 
 
 @pytest.fixture
@@ -48,7 +48,7 @@ def test_create_cloudflare_resources_terraform_json(account_config, backend_conf
         "cloudflare_zone",
         {"name": "dev", "automationToken": {}},
         {
-            "provider": "cloudflare_zone",
+            "provider": "zone",
             "identifier": "domain-com",
             "zone": "domain.com",
             "plan": "enterprise",
@@ -83,9 +83,11 @@ def test_create_cloudflare_resources_terraform_json(account_config, backend_conf
                 }
             ]
         },
+        "variable": {"account_id": {"default": "account_id", "type": "string"}},
         "resource": {
             "cloudflare_zone": {
                 "domain-com": {
+                    "account_id": "${var.account_id}",
                     "zone": "domain.com",
                     "plan": "enterprise",
                     "type": "partial",
