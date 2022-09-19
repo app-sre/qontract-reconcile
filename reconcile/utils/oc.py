@@ -1208,10 +1208,9 @@ class OCLocal(OCDeprecated):
     ):
         super().__init__(
             cluster_name=cluster_name,
-            oc_base_cmd=["oc", "--kubeconfig", "/dev/null"],
-            # oc_base_cmd = oc_base_cmd,
         )
-
+    oc_base_cmd=["oc", "--kubeconfig", "/dev/null"]
+    oc_base_cmd = oc_base_cmd
 
 class OC:
     client_status = Counter(
