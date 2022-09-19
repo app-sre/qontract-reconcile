@@ -299,6 +299,17 @@ def compare_object_ctx_identifier(
     raise CannotCompare() from None
 
 
+def parse_resource_file_content(content: Optional[Any]) -> Any:
+    if content:
+        try:
+            return anymarkup.parse(content, force_types=None)
+        except Exception:
+            # not parsable content - we will just deal with the plain content
+            return content
+    else:
+        return None
+
+
 def create_bundle_file_change(
     path: str,
     schema: Optional[str],
@@ -317,10 +328,8 @@ def create_bundle_file_change(
 
     # try to parse the content if a resourcefile has a schema
     if file_type == BundleFileType.RESOURCEFILE and schema:
-        if old_file_content:
-            old_file_content = anymarkup.parse(old_file_content, force_types=None)
-        if new_file_content:
-            new_file_content = anymarkup.parse(new_file_content, force_types=None)
+        old_file_content = parse_resource_file_content(old_file_content)
+        new_file_content = parse_resource_file_content(new_file_content)
 
     diffs: list[Diff] = []
     if old_file_content and new_file_content:
