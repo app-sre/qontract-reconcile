@@ -2146,8 +2146,7 @@ def integrations_manager(
     help="if `limited` (default) the integration will not make any final decisions on the MR, but if `authorative` it will ",
     required=True,
     default="limited",
-    type=click.Choice(['limited', 'authorative'], case_sensitive=True)
-
+    type=click.Choice(["limited", "authorative"], case_sensitive=True),
 )
 @click.option(
     "--mr-management",
@@ -2156,7 +2155,13 @@ def integrations_manager(
     help="Manage MR labels and comments (default to false)",
 )
 @click.pass_context
-def change_owners(ctx, gitlab_project_id, gitlab_merge_request_id, comparison_sha, change_type_processing_mode):
+def change_owners(
+    ctx,
+    gitlab_project_id,
+    gitlab_merge_request_id,
+    comparison_sha,
+    change_type_processing_mode,
+):
     import reconcile.change_owners
 
     run_integration(

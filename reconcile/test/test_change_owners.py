@@ -102,7 +102,9 @@ def build_role(
                 resources=None,
             )
         ],
-        users=[UserV1(org_username=u, tag_on_merge_requests=False) for u in users or []],
+        users=[
+            UserV1(org_username=u, tag_on_merge_requests=False) for u in users or []
+        ],
         bots=[BotV1(org_username=b) for b in bots or []],
     )
 
@@ -1069,20 +1071,14 @@ def test_approver_decision_approve_and_hold():
     comments = [
         {
             "username": "user-1",
-            "body": (
-                "nice\n"
-                f"{DecisionCommand.APPROVED.value}"
-            ),
+            "body": ("nice\n" f"{DecisionCommand.APPROVED.value}"),
             "created_at": "2020-01-01T00:00:00Z",
         },
         {
             "username": "user-2",
-            "body": (
-                f"{DecisionCommand.HOLD.value}\n"
-                "oh wait... big problems"
-            ),
+            "body": (f"{DecisionCommand.HOLD.value}\n" "oh wait... big problems"),
             "created_at": "2020-01-02T00:00:00Z",
-        }
+        },
     ]
     assert get_approver_decisions(comments) == {
         "user-1": Decision(approve=True, hold=False),
@@ -1094,10 +1090,7 @@ def test_approver_approve_and_cancel():
     comments = [
         {
             "username": "user-1",
-            "body": (
-                "nice\n"
-                f"{DecisionCommand.APPROVED.value}"
-            ),
+            "body": ("nice\n" f"{DecisionCommand.APPROVED.value}"),
             "created_at": "2020-01-01T00:00:00Z",
         },
         {
@@ -1107,7 +1100,7 @@ def test_approver_approve_and_cancel():
                 "oh wait... changed my mind"
             ),
             "created_at": "2020-01-02T00:00:00Z",
-        }
+        },
     ]
     assert get_approver_decisions(comments) == {
         "user-1": Decision(approve=False, hold=False),
@@ -1118,20 +1111,16 @@ def test_approver_hold_and_unhold():
     comments = [
         {
             "username": "user-1",
-            "body": (
-                "wait...\n"
-                f"{DecisionCommand.HOLD.value}"
-            ),
+            "body": ("wait...\n" f"{DecisionCommand.HOLD.value}"),
             "created_at": "2020-01-01T00:00:00Z",
         },
         {
             "username": "user-1",
             "body": (
-                f"{DecisionCommand.CANCEL_HOLD.value}\n"
-                "oh never mind... keep going"
+                f"{DecisionCommand.CANCEL_HOLD.value}\n" "oh never mind... keep going"
             ),
             "created_at": "2020-01-02T00:00:00Z",
-        }
+        },
     ]
     assert get_approver_decisions(comments) == {
         "user-1": Decision(approve=False, hold=False),
@@ -1143,17 +1132,13 @@ def test_unordered_approval_comments():
         {
             "username": "user-1",
             "body": (
-                f"{DecisionCommand.CANCEL_HOLD.value}\n"
-                "oh never mind... keep going"
+                f"{DecisionCommand.CANCEL_HOLD.value}\n" "oh never mind... keep going"
             ),
             "created_at": "2020-01-02T00:00:00Z",
         },
         {
             "username": "user-1",
-            "body": (
-                "wait...\n"
-                f"{DecisionCommand.HOLD.value}"
-            ),
+            "body": ("wait...\n" f"{DecisionCommand.HOLD.value}"),
             "created_at": "2020-01-01T00:00:00Z",
         },
     ]
