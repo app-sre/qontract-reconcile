@@ -1,7 +1,7 @@
 from collections import defaultdict
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Optional, Protocol, Tuple
+from typing import Any, Optional, Tuple
 from functools import reduce
 import json
 import logging
@@ -519,16 +519,17 @@ def build_change_type_processor(change_type: ChangeTypeV1) -> ChangeTypeProcesso
     )
 
 
-class Approver(Protocol):
+@dataclass
+class Approver:
     """
-    Minimalistic protocol of an approver to be used in ChangeTypeContexts.
+    Minimalistic wrapper for approver sources to be used in ChangeTypeContexts.
     Since we might load different approver contexts via GraphQL query classes,
-    a protocol enables us to deal with different dataclasses representing an
+    a wrapper enables us to deal with different dataclasses representing an
     approver.
     """
 
     org_username: str
-    tag_on_merge_requests: Optional[bool]
+    tag_on_merge_requests: Optional[bool] = False
 
 
 @dataclass
@@ -588,11 +589,21 @@ def cover_changes_with_self_service_roles(
                 for role in role_lookup[
                     (df_ref.file_type, df_ref.path, ctp.change_type.name)
                 ]:
+                    approvers = [
+                        Approver(u.org_username, u.tag_on_merge_requests)
+                        for u in role.users or [] if u
+                    ]
+                    approvers.extend(
+                        [
+                            Approver(b.org_username, False)
+                            for b in role.bots or [] if b and b.org_username
+                        ]
+                    )
                     bc.cover_changes(
                         ChangeTypeContext(
                             change_type_processor=ctp,
                             context=f"RoleV1 - {role.name}",
-                            approvers=[u for u in role.users or [] if u],
+                            approvers=approvers,
                         )
                     )
 
@@ -796,13 +807,13 @@ def write_coverage_report_to_mr(diff_coverage: list[DiffCoverage], mr_id: int, g
     comments = gl.get_merge_request_comments(
         mr_id, include_description=True
     )
-    # delete previous report
+    # delete previous report comment
     for c in sorted(comments, key=lambda k: k["created_at"]):
         if c["username"] == "devtools-bot":
             if c["body"].startswith(change_coverage_report_header):
                 gl.delete_gitlab_comment(mr_id, c["id"])
 
-    # add new report
+    # add new report comment
     results = []
     for dc in diff_coverage:
         approvers = [

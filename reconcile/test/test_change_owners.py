@@ -13,7 +13,8 @@ from reconcile.change_owners import (
     deepdiff_path_to_jsonpath,
     get_approver_decisions,
     DecisionCommand,
-    Decision
+    Decision,
+    Approver,
 )
 from reconcile.gql_definitions.change_owners.queries.change_types import (
     ChangeTypeChangeDetectorV1,
@@ -25,6 +26,7 @@ from reconcile.gql_definitions.change_owners.queries.self_service_roles import (
     RoleV1,
     SelfServiceConfigV1,
     UserV1,
+    BotV1,
 )
 
 from .fixtures import Fixtures
@@ -85,7 +87,8 @@ def build_role(
     name: str,
     change_type_name: str,
     datafiles: Optional[list[DatafileObjectV1]],
-    users: Optional[list[str]],
+    users: Optional[list[str]] = None,
+    bots: Optional[list[str]] = None,
 ) -> RoleV1:
     return RoleV1(
         name=name,
@@ -100,6 +103,7 @@ def build_role(
             )
         ],
         users=[UserV1(org_username=u, tag_on_merge_requests=False) for u in users or []],
+        bots=[BotV1(org_username=b) for b in bots or []],
     )
 
 
@@ -955,7 +959,7 @@ def test_cover_changes_one_file(
     ctx = ChangeTypeContext(
         change_type_processor=build_change_type_processor(saas_file_changetype),
         context="RoleV1 - some-role",
-        approvers=[UserV1(org_username="user", tag_on_merge_requests=False)],
+        approvers=[Approver(org_username="user", tag_on_merge_requests=False)],
     )
     covered_diffs = saas_file_change.cover_changes(ctx)
     assert covered_diffs == saas_file_change.diffs
@@ -969,7 +973,7 @@ def test_uncovered_change_one_file(
     ctx = ChangeTypeContext(
         change_type_processor=build_change_type_processor(saas_file_changetype),
         context="RoleV1 - some-role",
-        approvers=[UserV1(org_username="user", tag_on_merge_requests=False)],
+        approvers=[Approver(org_username="user", tag_on_merge_requests=False)],
     )
     saas_file_change.cover_changes(ctx)
 
@@ -990,7 +994,7 @@ def test_partially_covered_change_one_file(
     ctx = ChangeTypeContext(
         change_type_processor=build_change_type_processor(saas_file_changetype),
         context="RoleV1 - some-role",
-        approvers=[UserV1(org_username="user", tag_on_merge_requests=False)],
+        approvers=[Approver(org_username="user", tag_on_merge_requests=False)],
     )
 
     covered_diffs = saas_file_change.cover_changes(ctx)
