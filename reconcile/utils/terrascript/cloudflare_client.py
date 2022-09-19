@@ -26,6 +26,7 @@ class CloudflareAccountConfig:
 
     name: str
     api_token: str
+    account_id: str
 
 
 def create_cloudflare_terrascript(
@@ -60,6 +61,7 @@ def create_cloudflare_terrascript(
 
     terrascript += provider.cloudflare(
         api_token=account_config.api_token,
+        account_id=account_config.account_id,
     )
 
     return terrascript

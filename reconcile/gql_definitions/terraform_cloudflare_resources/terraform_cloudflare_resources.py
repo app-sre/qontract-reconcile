@@ -20,6 +20,7 @@ DEFINITION = """
 query TerraformCloudflareResources {
   namespaces: namespaces_v1 {
     name
+    managedExternalResources
     externalResources {
       ... on NamespaceTerraformProviderResourceCloudflare_v1 {
         provider
@@ -49,8 +50,23 @@ query TerraformCloudflareResources {
         }
         resources {
           provider
+          ... on NamespaceTerraformResourceCloudflareWorkerScript_v1
+          {
+            identifier
+            name
+            content_from_github {
+              repo
+              path
+              ref
+            }
+            vars {
+              name
+              text
+            }
+          }
           ... on NamespaceTerraformResourceCloudflareZone_v1
           {
+            identifier
             zone
             plan
             type
@@ -69,18 +85,7 @@ query TerraformCloudflareResources {
             workers {
               identifier
               pattern
-              script {
-                name
-                content_from_github {
-                  repo
-                  path
-                  ref
-                }
-                vars {
-                  name
-                  text
-                }
-              }
+              script_name
             }
           }
         }
@@ -166,6 +171,42 @@ class NamespaceTerraformResourceCloudflareV1(BaseModel):
         extra = Extra.forbid
 
 
+class CloudflareZoneWorkerScriptContentFromGithubV1(BaseModel):
+    repo: str = Field(..., alias="repo")
+    path: str = Field(..., alias="path")
+    ref: str = Field(..., alias="ref")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
+class CloudflareZoneWorkerScriptVarsV1(BaseModel):
+    name: str = Field(..., alias="name")
+    text: str = Field(..., alias="text")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
+class NamespaceTerraformResourceCloudflareWorkerScriptV1(
+    NamespaceTerraformResourceCloudflareV1
+):
+    identifier: str = Field(..., alias="identifier")
+    name: str = Field(..., alias="name")
+    content_from_github: Optional[
+        CloudflareZoneWorkerScriptContentFromGithubV1
+    ] = Field(..., alias="content_from_github")
+    vars: Optional[list[Optional[CloudflareZoneWorkerScriptVarsV1]]] = Field(
+        ..., alias="vars"
+    )
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
 class CloudflareZoneArgoV1(BaseModel):
     smart_routing: Optional[bool] = Field(..., alias="smart_routing")
     tiered_caching: Optional[bool] = Field(..., alias="tiered_caching")
@@ -187,43 +228,10 @@ class CloudflareZoneRecordV1(BaseModel):
         extra = Extra.forbid
 
 
-class CloudflareZoneWorkerScriptContentFromGithubV1(BaseModel):
-    repo: str = Field(..., alias="repo")
-    path: str = Field(..., alias="path")
-    ref: str = Field(..., alias="ref")
-
-    class Config:
-        smart_union = True
-        extra = Extra.forbid
-
-
-class CloudflareZoneWorkerScriptVarsV1(BaseModel):
-    name: str = Field(..., alias="name")
-    text: str = Field(..., alias="text")
-
-    class Config:
-        smart_union = True
-        extra = Extra.forbid
-
-
-class CloudflareZoneWorkerScriptV1(BaseModel):
-    name: str = Field(..., alias="name")
-    content_from_github: Optional[
-        CloudflareZoneWorkerScriptContentFromGithubV1
-    ] = Field(..., alias="content_from_github")
-    vars: Optional[list[Optional[CloudflareZoneWorkerScriptVarsV1]]] = Field(
-        ..., alias="vars"
-    )
-
-    class Config:
-        smart_union = True
-        extra = Extra.forbid
-
-
 class CloudflareZoneWorkerV1(BaseModel):
     identifier: str = Field(..., alias="identifier")
     pattern: str = Field(..., alias="pattern")
-    script: CloudflareZoneWorkerScriptV1 = Field(..., alias="script")
+    script_name: str = Field(..., alias="script_name")
 
     class Config:
         smart_union = True
@@ -233,6 +241,7 @@ class CloudflareZoneWorkerV1(BaseModel):
 class NamespaceTerraformResourceCloudflareZoneV1(
     NamespaceTerraformResourceCloudflareV1
 ):
+    identifier: str = Field(..., alias="identifier")
     zone: str = Field(..., alias="zone")
     plan: Optional[str] = Field(..., alias="plan")
     q_type: Optional[str] = Field(..., alias="type")
@@ -257,6 +266,7 @@ class NamespaceTerraformProviderResourceCloudflareV1(NamespaceExternalResourceV1
         list[
             Union[
                 NamespaceTerraformResourceCloudflareZoneV1,
+                NamespaceTerraformResourceCloudflareWorkerScriptV1,
                 NamespaceTerraformResourceCloudflareV1,
             ]
         ]
@@ -269,6 +279,9 @@ class NamespaceTerraformProviderResourceCloudflareV1(NamespaceExternalResourceV1
 
 class NamespaceV1(BaseModel):
     name: str = Field(..., alias="name")
+    managed_external_resources: Optional[bool] = Field(
+        ..., alias="managedExternalResources"
+    )
     external_resources: Optional[
         list[
             Optional[

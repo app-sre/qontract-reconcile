@@ -1,6 +1,6 @@
 import logging
 import sys
-from typing import Optional, cast
+from typing import Optional
 
 from reconcile import queries
 from reconcile.gql_definitions.terraform_cloudflare_resources import (
@@ -10,16 +10,16 @@ from reconcile.gql_definitions.terraform_cloudflare_resources.terraform_cloudfla
     AWSAccountV1,
     CloudflareAccountV1,
     NamespaceTerraformProviderResourceCloudflareV1,
-    NamespaceTerraformResourceCloudflareZoneV1,
     TerraformCloudflareResourcesQueryData,
 )
 from reconcile.utils import gql
 from reconcile.utils.defer import defer
-from reconcile.utils.external_resource_spec import ExternalResourceSpec
-from reconcile.utils.github_api import GithubApi
+from reconcile.utils.external_resources import (
+    PROVIDER_CLOUDFLARE,
+    get_external_resource_specs,
+)
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.semver_helper import make_semver
-from reconcile.utils.terraform import safe_resource_id
 from reconcile.utils.terraform.config_client import TerraformConfigClientCollection
 from reconcile.utils.terraform_client import TerraformClient
 from reconcile.utils.terrascript.cloudflare_client import (
@@ -101,6 +101,7 @@ def build_clients(
         cf_acct_config = CloudflareAccountConfig(
             cf_acct.name,
             cf_acct_creds.get("api_token"),
+            cf_acct_creds.get("account_id"),
         )
 
         aws_acct = cf_acct.terraform_state_account
@@ -115,119 +116,6 @@ def build_clients(
         ts_client = TerrascriptCloudflareClient(ts_config)
         clients.append((cf_acct.name, ts_client))
     return clients
-
-
-def get_github_file(repo: str, path: str, ref: str) -> str:
-    settings = queries.get_app_interface_settings()
-    gh_instance = queries.get_github_instance()
-    gh = GithubApi(gh_instance, repo, settings)
-    content = gh.get_file(path, ref)
-    if content is None:
-        raise ValueError(
-            f"Could not retrieve Github file content at {repo} "
-            f"for file path {path} at ref {ref}"
-        )
-    return content.decode("utf-8")
-
-
-def build_specs(
-    query_data: TerraformCloudflareResourcesQueryData,
-) -> list[ExternalResourceSpec]:
-
-    specs = []
-    for external_resource in get_resources(query_data):
-        provisioner_name = external_resource.provisioner.name
-        for res in external_resource.resources or []:
-            # res (resources) is an interface (NamespaceTerraformResourceCloudflare_v1)
-            # on which we select NamespaceTerraformResourceCloudflare_v1 in the GrapgQL
-            # query. The current implementation of typed classes requires us to cast here
-            res = cast(NamespaceTerraformResourceCloudflareZoneV1, res)
-            zone_identifier = safe_resource_id(res.zone)
-            specs.append(
-                ExternalResourceSpec(
-                    "cloudflare_zone",
-                    {"name": provisioner_name, "automationToken": {}},
-                    {
-                        "provider": "cloudflare_zone",
-                        "identifier": zone_identifier,
-                        "zone": res.zone,
-                        "plan": res.plan if res.plan else "free",
-                        "type": res.q_type if res.q_type else "full",
-                        "settings": res.settings,
-                    },
-                    {},
-                )
-            )
-
-            # If argo is defined on the zone, add an argo resource spec
-            if res.argo:
-                specs.append(
-                    ExternalResourceSpec(
-                        "cloudflare_argo",
-                        {"name": provisioner_name, "automationToken": {}},
-                        {
-                            "provider": "cloudflare_argo",
-                            "identifier": zone_identifier,
-                            "depends_on": [f"cloudflare_zone.{zone_identifier}"],
-                            "zone_id": f"${{cloudflare_zone.{zone_identifier}.id}}",
-                            "smart_routing": "on" if res.argo.smart_routing else "off",
-                            "tiered_caching": "on" if res.argo.smart_routing else "off",
-                        },
-                        {},
-                    )
-                )
-
-            # Add zone records
-            for record in filter_null(res.records):
-                specs.append(
-                    ExternalResourceSpec(
-                        "cloudflare_record",
-                        {"name": provisioner_name, "automationToken": {}},
-                        {
-                            "provider": "cloudflare_record",
-                            "identifier": safe_resource_id(record.name),
-                            "depends_on": [f"cloudflare_zone.{zone_identifier}"],
-                            "zone_id": f"${{cloudflare_zone.{zone_identifier}.id}}",
-                            "name": record.name,
-                            "type": record.q_type,
-                            "ttl": record.ttl,
-                            "value": record.value,
-                            "proxied": record.proxied,
-                        },
-                        {},
-                    )
-                )
-
-            # Add zone workers
-            for worker in filter_null(res.workers):
-                if worker.script.content_from_github:
-                    gh_repo = worker.script.content_from_github.repo
-                    gh_path = worker.script.content_from_github.path
-                    gh_ref = worker.script.content_from_github.ref
-                    wrk_script_content = get_github_file(gh_repo, gh_path, gh_ref)
-
-                worker_script_vars = [
-                    {"name": var.name, "text": var.text}
-                    for var in worker.script.vars or []
-                ]
-                specs.append(
-                    ExternalResourceSpec(
-                        "cloudflare_worker",
-                        {"name": provisioner_name, "automationToken": {}},
-                        {
-                            "provider": "cloudflare_worker",
-                            "identifier": safe_resource_id(worker.identifier),
-                            "depends_on": [f"cloudflare_zone.{zone_identifier}"],
-                            "zone_id": f"${{cloudflare_zone.{zone_identifier}.id}}",
-                            "pattern": worker.pattern,
-                            "script_name": worker.script.name,
-                            "script_content": wrk_script_content,
-                            "script_vars": worker_script_vars,
-                        },
-                        {},
-                    )
-                )
-    return specs
 
 
 @defer
@@ -250,7 +138,13 @@ def run(
         cf_clients.register_client(*client)
 
     # Register Cloudflare resources
-    cf_specs = build_specs(query_data)
+    cf_specs = [
+        spec
+        for namespace in filter_null(query_data.namespaces)
+        for spec in get_external_resource_specs(
+            namespace.dict(by_alias=True), PROVIDER_CLOUDFLARE
+        )
+    ]
     cf_clients.add_specs(cf_specs)
 
     cf_clients.populate_resources()

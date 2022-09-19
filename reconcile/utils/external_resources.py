@@ -9,6 +9,7 @@ from reconcile.utils.external_resource_spec import ExternalResourceSpec
 
 
 PROVIDER_AWS = "aws"
+PROVIDER_CLOUDFLARE = "cloudflare"
 
 
 def get_external_resource_specs(
