@@ -1,7 +1,7 @@
 from collections import defaultdict
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Optional, Tuple
+from typing import Any, Iterable, Optional, Tuple
 from functools import reduce
 import json
 import logging
@@ -24,7 +24,7 @@ from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile import queries
 
-from reconcile.utils.mr.labels import SELF_SERVICE
+from reconcile.utils.mr.labels import SELF_SERVICEABLE, NOT_SELF_SERVICEABLE
 
 from deepdiff import DeepDiff
 from deepdiff.helper import CannotCompare
@@ -241,8 +241,11 @@ class BundleFileChange:
     def _filter_diffs(self, diff_types: list[DiffType]) -> list[Diff]:
         return list(filter(lambda d: d.diff_type in diff_types, self.diffs))
 
-    def uncovered_changes(self) -> list[Diff]:
-        return list(filter(lambda d: not d.covered_by, self.diffs))
+    def uncovered_changes(self) -> Iterable[Diff]:
+        return (d for d in self.diffs if not d.covered_by)
+
+    def all_changes_covered(self) -> bool:
+        return not any(self.uncovered_changes())
 
 
 IDENTIFIER_FIELD_NAME = "__identifier"
@@ -688,6 +691,7 @@ def run(
     gitlab_project_id: str,
     gitlab_merge_request_id: int,
     comparison_sha: str,
+    change_type_processing_mode: str,
 ) -> None:
     comparision_gql_api = gql.get_api_for_sha(
         comparison_sha, QONTRACT_INTEGRATION, validate_schemas=False
@@ -714,20 +718,28 @@ def run(
             comparision_gql_api,
         )
 
-        gl = init_gitlab(gitlab_project_id)
-        labels = gl.get_merge_request_labels(gitlab_merge_request_id)
+        is_self_servicable = (
+            all(c.all_changes_covered() for c in changes) and
+            change_type_processing_mode == "authorative"
+        )
 
         #
         # L A B E L I N G
         #
 
-        # if all changes are covered by change-types, add the self-service label
-        if any(c.uncovered_changes() for c in changes):
-            if SELF_SERVICE in labels:
-                gl.remove_label_from_merge_request(gitlab_merge_request_id, SELF_SERVICE)
+        # add labels about self-servicability
+        gl = init_gitlab(gitlab_project_id)
+        labels = gl.get_merge_request_labels(gitlab_merge_request_id)
+        if is_self_servicable:
+            if SELF_SERVICEABLE not in labels:
+                gl.add_label_to_merge_request(gitlab_merge_request_id, SELF_SERVICEABLE)
+            if NOT_SELF_SERVICEABLE in labels:
+                gl.remove_label_from_merge_request(gitlab_merge_request_id, NOT_SELF_SERVICEABLE)
         else:
-            if SELF_SERVICE not in labels:
-                gl.add_label_to_merge_request(gitlab_merge_request_id, SELF_SERVICE)
+            if NOT_SELF_SERVICEABLE not in labels:
+                gl.add_label_to_merge_request(gitlab_merge_request_id, NOT_SELF_SERVICEABLE)
+            if SELF_SERVICEABLE in labels:
+                gl.remove_label_from_merge_request(gitlab_merge_request_id, SELF_SERVICEABLE)
 
         # todo(goberlec) - what do we do if there are no changes?
         # do we want to add the bot/approved label and be done with it?

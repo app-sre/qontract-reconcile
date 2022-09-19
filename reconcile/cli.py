@@ -2141,8 +2141,22 @@ def integrations_manager(
     "--comparison-sha",
     help="bundle sha to compare to to find changes",
 )
+@click.option(
+    "--change-type-processing-mode",
+    help="if `limited` (default) the integration will not make any final decisions on the MR, but if `authorative` it will ",
+    required=True,
+    default="limited",
+    type=click.Choice(['limited', 'authorative'], case_sensitive=True)
+
+)
+@click.option(
+    "--mr-management",
+    is_flag=True,
+    default=os.environ.get("MR_MANAGEMENT", False),
+    help="Manage MR labels and comments (default to false)",
+)
 @click.pass_context
-def change_owners(ctx, gitlab_project_id, gitlab_merge_request_id, comparison_sha):
+def change_owners(ctx, gitlab_project_id, gitlab_merge_request_id, comparison_sha, change_type_processing_mode):
     import reconcile.change_owners
 
     run_integration(
@@ -2151,6 +2165,7 @@ def change_owners(ctx, gitlab_project_id, gitlab_merge_request_id, comparison_sh
         gitlab_project_id,
         gitlab_merge_request_id,
         comparison_sha,
+        change_type_processing_mode,
     )
 
 
