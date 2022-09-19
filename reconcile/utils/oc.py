@@ -1214,7 +1214,7 @@ class OCLocal(OCDeprecated):
             token=token,
         )
         oc_base_cmd = ["oc", "--kubeconfig", "/dev/null"]
-        # oc_base_cmd = oc_base_cmd
+        oc_base_cmd = oc_base_cmd
 
 
 class OC:
