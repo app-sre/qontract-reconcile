@@ -195,7 +195,8 @@ class OCProcessReconcileTimeDecoratorMsg:
 
 
 def oc_process(template, parameters=None):
-    oc = OCLocal(cluster_name="cluster", server=None, token=None)
+    oc = OCNative(server=None, local=True, cluster_name="cluster", token=None)
+    # oc = OCLocal(cluster_name="cluster", server=None, token=None)
     return oc.process(template, parameters)
 
 
@@ -1213,8 +1214,6 @@ class OCLocal(OCDeprecated):
             server=server,
             token=token,
         )
-        oc_base_cmd = ["oc", "--kubeconfig", "/dev/null"]
-        oc_base_cmd = oc_base_cmd
 
 
 class OC:
