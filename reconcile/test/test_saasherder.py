@@ -69,6 +69,7 @@ class TestSaasFileValid(TestCase):
                     }
                 ],
                 "roles": [{"users": [{"org_username": "myname"}]}],
+                "selfServiceRoles": [{"users": [{"org_username": "theirname"}]}],
             }
         ]
         jjb_mock_data = {
