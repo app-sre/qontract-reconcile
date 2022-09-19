@@ -883,7 +883,7 @@ class SaasHerder:
                     )
                     return None, None, None
 
-            oc = OCLocal("cluster")
+            oc = OCLocal("cluster", None, None)
             try:
                 resources = oc.process(template, consolidated_parameters)
             except StatusCodeError as e:
