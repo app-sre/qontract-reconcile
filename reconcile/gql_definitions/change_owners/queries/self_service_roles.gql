@@ -16,6 +16,7 @@ query SelfServiceRolesQuery {
     }
     users {
       org_username
+      tag_on_merge_requests
     }
   }
 }

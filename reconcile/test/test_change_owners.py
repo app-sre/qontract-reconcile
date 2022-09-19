@@ -99,7 +99,7 @@ def build_role(
                 resources=None,
             )
         ],
-        users=[UserV1(org_username=u) for u in users or []],
+        users=[UserV1(org_username=u, tag_on_merge_requests=False) for u in users or []],
     )
 
 
@@ -955,7 +955,7 @@ def test_cover_changes_one_file(
     ctx = ChangeTypeContext(
         change_type_processor=build_change_type_processor(saas_file_changetype),
         context="RoleV1 - some-role",
-        approvers=[UserV1(org_username="user")],
+        approvers=[UserV1(org_username="user", tag_on_merge_requests=False)],
     )
     covered_diffs = saas_file_change.cover_changes(ctx)
     assert covered_diffs == saas_file_change.diffs
@@ -969,7 +969,7 @@ def test_uncovered_change_one_file(
     ctx = ChangeTypeContext(
         change_type_processor=build_change_type_processor(saas_file_changetype),
         context="RoleV1 - some-role",
-        approvers=[UserV1(org_username="user")],
+        approvers=[UserV1(org_username="user", tag_on_merge_requests=False)],
     )
     saas_file_change.cover_changes(ctx)
 
@@ -990,7 +990,7 @@ def test_partially_covered_change_one_file(
     ctx = ChangeTypeContext(
         change_type_processor=build_change_type_processor(saas_file_changetype),
         context="RoleV1 - some-role",
-        approvers=[UserV1(org_username="user")],
+        approvers=[UserV1(org_username="user", tag_on_merge_requests=False)],
     )
 
     covered_diffs = saas_file_change.cover_changes(ctx)

@@ -528,6 +528,7 @@ class Approver(Protocol):
     """
 
     org_username: str
+    tag_on_merge_requests: Optional[bool]
 
 
 @dataclass
@@ -741,7 +742,8 @@ def run(
                         if decisions[approver.org_username].hold:
                             dc.decision.hold |= True
 
-        write_coverage_report_to_mr(diff_coverage, gitlab_merge_request_id, gl)
+        if not dry_run:
+            write_coverage_report_to_mr(diff_coverage, gitlab_merge_request_id, gl)
 
     except BaseException:
         logging.error(traceback.format_exc())
@@ -804,7 +806,7 @@ def write_coverage_report_to_mr(diff_coverage: list[DiffCoverage], mr_id: int, g
     results = []
     for dc in diff_coverage:
         approvers = [
-            f"{ctctx.context}: { ', '.join([a.org_username for a in ctctx.approvers]) }"
+            f"{ctctx.context} - { ' '.join([f'@{a.org_username}' if a.tag_on_merge_requests else a.org_username for a in ctctx.approvers]) }"
             for ctctx in dc.diff.covered_by
         ]
         if not approvers:

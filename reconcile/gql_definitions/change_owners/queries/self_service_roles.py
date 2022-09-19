@@ -33,6 +33,7 @@ query SelfServiceRolesQuery {
     }
     users {
       org_username
+      tag_on_merge_requests
     }
   }
 }
@@ -68,6 +69,7 @@ class SelfServiceConfigV1(BaseModel):
 
 class UserV1(BaseModel):
     org_username: str = Field(..., alias="org_username")
+    tag_on_merge_requests: Optional[bool] = Field(..., alias="tag_on_merge_requests")
 
     class Config:
         smart_union = True
