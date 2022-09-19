@@ -47,20 +47,18 @@ def collect_owners():
                 if bot_org_username:
                     owners[saas_file_name].add(bot_org_username)
         # self-service configs
-        for self_service in saas_file.get("selfService") or []:
-            owner_roles = self_service.get("roles") or []
-            for owner_role in owner_roles:
-                owner_users = owner_role.get("users") or []
-                for owner_user in owner_users:
-                    owner_username = owner_user["org_username"]
-                    if owner_user.get("tag_on_merge_requests"):
-                        owner_username = f"@{owner_username}"
-                    owners[saas_file_name].add(owner_username)
-                owner_bots = owner_role.get("bots") or []
-                for bot in owner_bots:
-                    bot_org_username = bot.get("org_username")
-                    if bot_org_username:
-                        owners[saas_file_name].add(bot_org_username)
+        for self_service_role in saas_file.get("selfServiceRoles") or []:
+            owner_users = self_service_role.get("users") or []
+            for owner_user in owner_users:
+                owner_username = owner_user["org_username"]
+                if owner_user.get("tag_on_merge_requests"):
+                    owner_username = f"@{owner_username}"
+                owners[saas_file_name].add(owner_username)
+            owner_bots = self_service_role.get("bots") or []
+            for bot in owner_bots:
+                bot_org_username = bot.get("org_username")
+                if bot_org_username:
+                    owners[saas_file_name].add(bot_org_username)
 
     # make owners suitable for json dump
     ans = {}
