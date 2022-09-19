@@ -9,3 +9,5 @@ HOLD = "bot/hold"
 LGTM = "lgtm"
 SAAS_FILE_UPDATE = "saas-file-update"
 SKIP_CI = "bot/skip-ci"
+
+SELF_SERVICE = "self-service"

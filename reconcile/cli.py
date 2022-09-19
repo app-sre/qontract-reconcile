@@ -2135,17 +2135,21 @@ def integrations_manager(
 @integration.command(
     short_help="Detects owners for changes in app-interface PRs and allows them to self-service merge."
 )
+@click.argument("gitlab-project-id")
+@click.argument("gitlab-merge-request-id")
 @click.option(
     "--comparison-sha",
     help="bundle sha to compare to to find changes",
 )
 @click.pass_context
-def change_owners(ctx, comparison_sha):
+def change_owners(ctx, gitlab_project_id, gitlab_merge_request_id, comparison_sha):
     import reconcile.change_owners
 
     run_integration(
         reconcile.change_owners,
         ctx.obj,
+        gitlab_project_id,
+        gitlab_merge_request_id,
         comparison_sha,
     )
 

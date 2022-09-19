@@ -21,6 +21,11 @@ from reconcile.gql_definitions.change_owners.queries import (
 )
 from reconcile.utils.semver_helper import make_semver
 
+from reconcile.utils.gitlab_api import GitLabApi
+from reconcile import queries
+
+from reconcile.utils.mr.labels import SELF_SERVICE
+
 from deepdiff import DeepDiff
 from deepdiff.helper import CannotCompare
 from deepdiff.model import DiffLevel
@@ -235,6 +240,9 @@ class BundleFileChange:
 
     def _filter_diffs(self, diff_types: list[DiffType]) -> list[Diff]:
         return list(filter(lambda d: d.diff_type in diff_types, self.diffs))
+
+    def uncovered_changes(self) -> list[Diff]:
+        return list(filter(lambda d: not d.covered_by, self.diffs))
 
 
 IDENTIFIER_FIELD_NAME = "__identifier"
@@ -665,6 +673,8 @@ def _parse_bundle_changes(bundle_changes) -> list[BundleFileChange]:
 
 def run(
     dry_run: bool,
+    gitlab_project_id: str,
+    gitlab_merge_request_id: int,
     comparison_sha: str,
 ) -> None:
     comparision_gql_api = gql.get_api_for_sha(
@@ -682,6 +692,9 @@ def run(
     # an error while trying to cover changes will not fail the integration
     # and the PR check - self service merges will not be available though
     try:
+        #
+        # C H A N G E   C O V E R A G E
+        #
         changes = fetch_bundle_changes(comparison_sha)
         cover_changes(
             changes,
@@ -689,57 +702,138 @@ def run(
             comparision_gql_api,
         )
 
-        format_changes(changes)
+        gl = init_gitlab(gitlab_project_id)
+        labels = gl.get_merge_request_labels(gitlab_merge_request_id)
+
+        #
+        # L A B E L I N G
+        #
+
+        # if all changes are covered by change-types, add the self-service label
+        if any(c.uncovered_changes() for c in changes):
+            if SELF_SERVICE in labels:
+                gl.remove_label_from_merge_request(gitlab_merge_request_id, SELF_SERVICE)
+        else:
+            if SELF_SERVICE not in labels:
+                gl.add_label_to_merge_request(gitlab_merge_request_id, SELF_SERVICE)
+
+        # todo(goberlec) - what do we do if there are no changes?
+        # do we want to add the bot/approved label and be done with it?
+
+        #
+        # A P P R O V A L S
+        #
+
+        comments = gl.get_merge_request_comments(
+            gitlab_merge_request_id, include_description=True
+        )
+        decisions = get_approver_decisions(comments)
+
+        diff_coverage = []
+        for c in changes:
+            for d in c.diffs:
+                dc = DiffCoverage(file=c.fileref, diff=d, decision=Decision())
+                diff_coverage.append(dc)
+                for change_type_context in d.covered_by:
+                    for approver in change_type_context.approvers:
+                        if decisions[approver.org_username].approve:
+                            dc.decision.approve |= True
+                        if decisions[approver.org_username].hold:
+                            dc.decision.hold |= True
+
+        write_coverage_report_to_mr(diff_coverage, gitlab_merge_request_id, gl)
 
     except BaseException:
         logging.error(traceback.format_exc())
 
 
-def format_changes(changes: list[BundleFileChange]) -> str:
-    """
-    formats the changes in a way that can be used in the PR check
-    """
-    results = []
-    for c in changes:
-        for d in c.diffs:
-            item = {
-                "file": c.fileref.path,
-                "schema": c.fileref.schema,
-                "changed path": d.path,
-            }
-            if str(d.path) != "$":
-                item.update(
-                    {
-                        "old value": d.old_value_repr(),
-                        "new value": d.new_value_repr(),
-                    }
-                )
-            if d.covered_by:
-                item.update(
-                    {
-                        "change type": d.covered_by[
-                            0
-                        ].change_type_processor.change_type.name,
-                        "context": d.covered_by[0].context,
-                        "approvers": ", ".join(
-                            [a.org_username for a in d.covered_by[0].approvers]
-                        )[:20],
-                    }
-                )
-            results.append(item)
+@dataclass
+class Decision:
 
-    return format_table(
+    approve: bool = False
+    hold: bool = False
+
+
+@dataclass
+class DiffCoverage:
+
+    file: FileRef
+    diff: Diff
+    decision: Decision
+
+    @property
+    def approved(self) -> bool:
+        return self.decision.approve and not self.decision.hold
+
+
+class DecisionCommand(Enum):
+    APPROVED = "/passt"
+    CANCEL_APPROVED = "/na doch net"
+    HOLD = "/wort amol"
+    CANCEL_HOLD = "/moch weiter"
+
+
+def get_approver_decisions(comments: list[dict[str, str]]) -> dict[str, Decision]:
+    decisions_by_users: dict[str, Decision] = defaultdict(Decision)
+    for c in sorted(comments, key=lambda k: k["created_at"]):
+        commenter = c["username"]
+        for line in c.get("body", "").split("\n"):
+            if line == DecisionCommand.APPROVED.value:
+                decisions_by_users[commenter].approve = True
+            if line == DecisionCommand.CANCEL_APPROVED.value:
+                decisions_by_users[commenter].approve = False
+            if line == DecisionCommand.HOLD.value:
+                decisions_by_users[commenter].hold = True
+            if line == DecisionCommand.CANCEL_HOLD.value:
+                decisions_by_users[commenter].hold = False
+    return decisions_by_users
+
+
+def write_coverage_report_to_mr(diff_coverage: list[DiffCoverage], mr_id: int, gl: GitLabApi) -> None:
+    change_coverage_report_header = "Change coverage report"
+    comments = gl.get_merge_request_comments(
+        mr_id, include_description=True
+    )
+    # delete previous report
+    for c in sorted(comments, key=lambda k: k["created_at"]):
+        if c["username"] == "devtools-bot":
+            if c["body"].startswith(change_coverage_report_header):
+                gl.delete_gitlab_comment(mr_id, c["id"])
+
+    # add new report
+    results = []
+    for dc in diff_coverage:
+        approvers = [
+            f"{ctctx.context}: { ', '.join([a.org_username for a in ctctx.approvers]) }"
+            for ctctx in dc.diff.covered_by
+        ]
+        if not approvers:
+            approvers = ["not self-serviceable"]
+        item = {
+            "file": dc.file.path,
+            "schema": dc.file.schema,
+            "change": dc.diff.path,
+        }
+        if dc.decision.hold:
+            item["status"] = "hold"
+        elif dc.approved:
+            item["status"] = "approved"
+        item["approvers"] = approvers
+        results.append(item)
+    coverage_report = format_table(
         results,
         [
             "file",
-            "changed path",
-            "old value",
-            "new value",
-            "change type",
-            "context",
-            "approvers",
+            "change",
+            "status",
+            "approvers"
         ],
+        table_format="github"
     )
+    gl.add_comment_to_merge_request(mr_id, f"{change_coverage_report_header}\n{coverage_report}")
 
-    except BaseException:
-        logging.error(traceback.format_exc())
+
+def init_gitlab(gitlab_project_id: str) -> GitLabApi:
+    instance = queries.get_gitlab_instance()
+    settings = queries.get_app_interface_settings()
+    return GitLabApi(instance, project_id=gitlab_project_id, settings=settings)

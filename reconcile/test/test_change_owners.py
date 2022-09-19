@@ -11,6 +11,9 @@ from reconcile.change_owners import (
     create_bundle_file_change,
     cover_changes_with_self_service_roles,
     deepdiff_path_to_jsonpath,
+    get_approver_decisions,
+    DecisionCommand,
+    Decision
 )
 from reconcile.gql_definitions.change_owners.queries.change_types import (
     ChangeTypeChangeDetectorV1,
@@ -1056,3 +1059,100 @@ def test_change_coverage(
             assert len(d.covered_by) == 1
             assert len(d.covered_by[0].approvers) == 1
             assert d.covered_by[0].approvers[0].org_username == expected_approver
+
+
+def test_approver_decision_approve_and_hold():
+    comments = [
+        {
+            "username": "user-1",
+            "body": (
+                "nice\n"
+                f"{DecisionCommand.APPROVED.value}"
+            ),
+            "created_at": "2020-01-01T00:00:00Z",
+        },
+        {
+            "username": "user-2",
+            "body": (
+                f"{DecisionCommand.HOLD.value}\n"
+                "oh wait... big problems"
+            ),
+            "created_at": "2020-01-02T00:00:00Z",
+        }
+    ]
+    assert get_approver_decisions(comments) == {
+        "user-1": Decision(approve=True, hold=False),
+        "user-2": Decision(approve=False, hold=True),
+    }
+
+
+def test_approver_approve_and_cancel():
+    comments = [
+        {
+            "username": "user-1",
+            "body": (
+                "nice\n"
+                f"{DecisionCommand.APPROVED.value}"
+            ),
+            "created_at": "2020-01-01T00:00:00Z",
+        },
+        {
+            "username": "user-1",
+            "body": (
+                f"{DecisionCommand.CANCEL_APPROVED.value}\n"
+                "oh wait... changed my mind"
+            ),
+            "created_at": "2020-01-02T00:00:00Z",
+        }
+    ]
+    assert get_approver_decisions(comments) == {
+        "user-1": Decision(approve=False, hold=False),
+    }
+
+
+def test_approver_hold_and_unhold():
+    comments = [
+        {
+            "username": "user-1",
+            "body": (
+                "wait...\n"
+                f"{DecisionCommand.HOLD.value}"
+            ),
+            "created_at": "2020-01-01T00:00:00Z",
+        },
+        {
+            "username": "user-1",
+            "body": (
+                f"{DecisionCommand.CANCEL_HOLD.value}\n"
+                "oh never mind... keep going"
+            ),
+            "created_at": "2020-01-02T00:00:00Z",
+        }
+    ]
+    assert get_approver_decisions(comments) == {
+        "user-1": Decision(approve=False, hold=False),
+    }
+
+
+def test_unordered_approval_comments():
+    comments = [
+        {
+            "username": "user-1",
+            "body": (
+                f"{DecisionCommand.CANCEL_HOLD.value}\n"
+                "oh never mind... keep going"
+            ),
+            "created_at": "2020-01-02T00:00:00Z",
+        },
+        {
+            "username": "user-1",
+            "body": (
+                "wait...\n"
+                f"{DecisionCommand.HOLD.value}"
+            ),
+            "created_at": "2020-01-01T00:00:00Z",
+        },
+    ]
+    assert get_approver_decisions(comments) == {
+        "user-1": Decision(approve=False, hold=False),
+    }
