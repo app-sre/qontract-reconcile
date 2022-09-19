@@ -1205,12 +1205,16 @@ class OCLocal(OCDeprecated):
     def __init__(
         self,
         cluster_name,
+        server,
+        token,
     ):
         super().__init__(
             cluster_name=cluster_name,
+            server=server,
+            token=token,
         )
         oc_base_cmd = ["oc", "--kubeconfig", "/dev/null"]
-        oc_base_cmd = oc_base_cmd
+        # oc_base_cmd = oc_base_cmd
 
 
 class OC:
