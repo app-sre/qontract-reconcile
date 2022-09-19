@@ -359,6 +359,46 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
             is_log_slow_oc_reconcile=self.is_log_slow_oc_reconcile,
         )
 
+    def process(self, template, parameters=None):
+        if parameters is None:
+            parameters = {}
+        parameters_to_process = [f"{k}={v}" for k, v in parameters.items()]
+        cmd = [
+            "process",
+            "--local",
+            "--ignore-unknown-parameters",
+            "-f",
+            "-",
+        ] + parameters_to_process
+        result = OCDeprecated._run(
+            self, cmd, stdin=json.dumps(template, sort_keys=True)
+        )
+        return json.loads(result)["items"]
+
+    def release_mirror(self, from_release, to, to_release, dockerconfig):
+        with tempfile.NamedTemporaryFile() as fp:
+            content = json.dumps(dockerconfig)
+            fp.write(content.encode())
+            fp.seek(0)
+
+            cmd = [
+                "adm",
+                "--registry-config",
+                fp.name,
+                "release",
+                "mirror",
+                "--from",
+                from_release,
+                "--to",
+                to,
+                "--to-release-image",
+                to_release,
+                "--max-per-registry",
+                "1",
+            ]
+
+            self._run(cmd)
+
     @OCDecorators.process_reconcile_time
     def apply(self, namespace, resource):
         cmd = ["apply", "-n", namespace, "-f", "-"]
@@ -1161,7 +1201,7 @@ class OCNative(OCDeprecated):
 OCClient = Union[OCNative, OCDeprecated]
 
 
-class OCLocal:
+class OCLocal(OCDeprecated):
     def __init__(
         self,
         cluster_name,
@@ -1169,46 +1209,6 @@ class OCLocal:
         self.cluster_name = cluster_name
         oc_base_cmd = ["oc", "--kubeconfig", "/dev/null"]
         self.oc_base_cmd = oc_base_cmd
-
-    def process(self, template, parameters=None):
-        if parameters is None:
-            parameters = {}
-        parameters_to_process = [f"{k}={v}" for k, v in parameters.items()]
-        cmd = [
-            "process",
-            "--local",
-            "--ignore-unknown-parameters",
-            "-f",
-            "-",
-        ] + parameters_to_process
-        result = OCDeprecated._run(
-            self, cmd, stdin=json.dumps(template, sort_keys=True)
-        )
-        return json.loads(result)["items"]
-
-    def release_mirror(self, from_release, to, to_release, dockerconfig):
-        with tempfile.NamedTemporaryFile() as fp:
-            content = json.dumps(dockerconfig)
-            fp.write(content.encode())
-            fp.seek(0)
-
-            cmd = [
-                "adm",
-                "--registry-config",
-                fp.name,
-                "release",
-                "mirror",
-                "--from",
-                from_release,
-                "--to",
-                to,
-                "--to-release-image",
-                to_release,
-                "--max-per-registry",
-                "1",
-            ]
-
-            self._run(cmd)
 
 
 class OC:
