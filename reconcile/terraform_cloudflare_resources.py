@@ -28,8 +28,6 @@ from reconcile.utils.terrascript.cloudflare_client import (
     TerrascriptCloudflareClient,
     create_cloudflare_terrascript,
 )
-from reconcile.utils.helpers import filter_null
-
 from reconcile.status import ExitCodes
 
 QONTRACT_INTEGRATION = "terraform_cloudflare_resources"
@@ -83,8 +81,8 @@ def get_resources(
     """Get all Cloudflare V1 resources from the Cloudflare query data"""
     return [
         res
-        for namespace in filter_null(query_data.namespaces)
-        for res in filter_null(namespace.external_resources)
+        for namespace in query_data.namespaces or []
+        for res in namespace.external_resources or []
         if isinstance(res, NamespaceTerraformProviderResourceCloudflareV1)
     ]
 
@@ -140,7 +138,7 @@ def run(
     # Register Cloudflare resources
     cf_specs = [
         spec
-        for namespace in filter_null(query_data.namespaces)
+        for namespace in query_data.namespaces or []
         for spec in get_external_resource_specs(
             namespace.dict(by_alias=True), PROVIDER_CLOUDFLARE
         )

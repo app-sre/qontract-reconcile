@@ -133,7 +133,7 @@ class TerraformStateAWSV1(BaseModel):
     provider: str = Field(..., alias="provider")
     bucket: str = Field(..., alias="bucket")
     region: str = Field(..., alias="region")
-    integrations: Optional[list[AWSTerraformStateIntegrationsV1]] = Field(
+    integrations: list[AWSTerraformStateIntegrationsV1] = Field(
         ..., alias="integrations"
     )
 
@@ -198,9 +198,7 @@ class NamespaceTerraformResourceCloudflareWorkerScriptV1(
     content_from_github: Optional[
         CloudflareZoneWorkerScriptContentFromGithubV1
     ] = Field(..., alias="content_from_github")
-    vars: Optional[list[Optional[CloudflareZoneWorkerScriptVarsV1]]] = Field(
-        ..., alias="vars"
-    )
+    vars: Optional[list[CloudflareZoneWorkerScriptVarsV1]] = Field(..., alias="vars")
 
     class Config:
         smart_union = True
@@ -247,12 +245,8 @@ class NamespaceTerraformResourceCloudflareZoneV1(
     q_type: Optional[str] = Field(..., alias="type")
     settings: Optional[Json] = Field(..., alias="settings")
     argo: Optional[CloudflareZoneArgoV1] = Field(..., alias="argo")
-    records: Optional[list[Optional[CloudflareZoneRecordV1]]] = Field(
-        ..., alias="records"
-    )
-    workers: Optional[list[Optional[CloudflareZoneWorkerV1]]] = Field(
-        ..., alias="workers"
-    )
+    records: Optional[list[CloudflareZoneRecordV1]] = Field(..., alias="records")
+    workers: Optional[list[CloudflareZoneWorkerV1]] = Field(..., alias="workers")
 
     class Config:
         smart_union = True
@@ -262,13 +256,11 @@ class NamespaceTerraformResourceCloudflareZoneV1(
 class NamespaceTerraformProviderResourceCloudflareV1(NamespaceExternalResourceV1):
     provider: str = Field(..., alias="provider")
     provisioner: CloudflareAccountV1 = Field(..., alias="provisioner")
-    resources: Optional[
-        list[
-            Union[
-                NamespaceTerraformResourceCloudflareZoneV1,
-                NamespaceTerraformResourceCloudflareWorkerScriptV1,
-                NamespaceTerraformResourceCloudflareV1,
-            ]
+    resources: list[
+        Union[
+            NamespaceTerraformResourceCloudflareZoneV1,
+            NamespaceTerraformResourceCloudflareWorkerScriptV1,
+            NamespaceTerraformResourceCloudflareV1,
         ]
     ] = Field(..., alias="resources")
 
@@ -284,11 +276,9 @@ class NamespaceV1(BaseModel):
     )
     external_resources: Optional[
         list[
-            Optional[
-                Union[
-                    NamespaceTerraformProviderResourceCloudflareV1,
-                    NamespaceExternalResourceV1,
-                ]
+            Union[
+                NamespaceTerraformProviderResourceCloudflareV1,
+                NamespaceExternalResourceV1,
             ]
         ]
     ] = Field(..., alias="externalResources")
@@ -299,7 +289,7 @@ class NamespaceV1(BaseModel):
 
 
 class TerraformCloudflareResourcesQueryData(BaseModel):
-    namespaces: Optional[list[Optional[NamespaceV1]]] = Field(..., alias="namespaces")
+    namespaces: Optional[list[NamespaceV1]] = Field(..., alias="namespaces")
 
     class Config:
         smart_union = True

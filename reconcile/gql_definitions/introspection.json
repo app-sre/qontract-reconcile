@@ -426,9 +426,13 @@
                                 "kind": "LIST",
                                 "name": null,
                                 "ofType": {
-                                    "kind": "OBJECT",
-                                    "name": "CloudflareAccount_v1",
-                                    "ofType": null
+                                    "kind": "NON_NULL",
+                                    "name": null,
+                                    "ofType": {
+                                        "kind": "OBJECT",
+                                        "name": "CloudflareAccount_v1",
+                                        "ofType": null
+                                    }
                                 }
                             },
                             "isDeprecated": false,
@@ -18014,15 +18018,19 @@
                             "description": null,
                             "args": [],
                             "type": {
-                                "kind": "LIST",
+                                "kind": "NON_NULL",
                                 "name": null,
                                 "ofType": {
-                                    "kind": "NON_NULL",
+                                    "kind": "LIST",
                                     "name": null,
                                     "ofType": {
-                                        "kind": "OBJECT",
-                                        "name": "Owner_v1",
-                                        "ofType": null
+                                        "kind": "NON_NULL",
+                                        "name": null,
+                                        "ofType": {
+                                            "kind": "OBJECT",
+                                            "name": "Owner_v1",
+                                            "ofType": null
+                                        }
                                     }
                                 }
                             },
@@ -25871,15 +25879,19 @@
                             "description": null,
                             "args": [],
                             "type": {
-                                "kind": "LIST",
+                                "kind": "NON_NULL",
                                 "name": null,
                                 "ofType": {
-                                    "kind": "NON_NULL",
+                                    "kind": "LIST",
                                     "name": null,
                                     "ofType": {
-                                        "kind": "INTERFACE",
-                                        "name": "NamespaceTerraformResourceCloudflare_v1",
-                                        "ofType": null
+                                        "kind": "NON_NULL",
+                                        "name": null,
+                                        "ofType": {
+                                            "kind": "INTERFACE",
+                                            "name": "NamespaceTerraformResourceCloudflare_v1",
+                                            "ofType": null
+                                        }
                                     }
                                 }
                             },
@@ -25928,6 +25940,11 @@
                             "kind": "OBJECT",
                             "name": "NamespaceTerraformResourceCloudflareZone_v1",
                             "ofType": null
+                        },
+                        {
+                            "kind": "OBJECT",
+                            "name": "NamespaceTerraformResourceCloudflareWorkerScript_v1",
+                            "ofType": null
                         }
                     ]
                 },
@@ -25938,6 +25955,22 @@
                     "fields": [
                         {
                             "name": "provider",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "identifier",
                             "description": null,
                             "args": [],
                             "type": {
@@ -26024,9 +26057,13 @@
                                 "kind": "LIST",
                                 "name": null,
                                 "ofType": {
-                                    "kind": "OBJECT",
-                                    "name": "CloudflareZoneRecord_v1",
-                                    "ofType": null
+                                    "kind": "NON_NULL",
+                                    "name": null,
+                                    "ofType": {
+                                        "kind": "OBJECT",
+                                        "name": "CloudflareZoneRecord_v1",
+                                        "ofType": null
+                                    }
                                 }
                             },
                             "isDeprecated": false,
@@ -26040,9 +26077,13 @@
                                 "kind": "LIST",
                                 "name": null,
                                 "ofType": {
-                                    "kind": "OBJECT",
-                                    "name": "CloudflareZoneWorker_v1",
-                                    "ofType": null
+                                    "kind": "NON_NULL",
+                                    "name": null,
+                                    "ofType": {
+                                        "kind": "OBJECT",
+                                        "name": "CloudflareZoneWorker_v1",
+                                        "ofType": null
+                                    }
                                 }
                             },
                             "isDeprecated": false,
@@ -26220,15 +26261,15 @@
                             "deprecationReason": null
                         },
                         {
-                            "name": "script",
+                            "name": "script_name",
                             "description": null,
                             "args": [],
                             "type": {
                                 "kind": "NON_NULL",
                                 "name": null,
                                 "ofType": {
-                                    "kind": "OBJECT",
-                                    "name": "CloudflareZoneWorkerScript_v1",
+                                    "kind": "SCALAR",
+                                    "name": "String",
                                     "ofType": null
                                 }
                             },
@@ -26243,9 +26284,41 @@
                 },
                 {
                     "kind": "OBJECT",
-                    "name": "CloudflareZoneWorkerScript_v1",
+                    "name": "NamespaceTerraformResourceCloudflareWorkerScript_v1",
                     "description": null,
                     "fields": [
+                        {
+                            "name": "provider",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "identifier",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
                         {
                             "name": "name",
                             "description": null,
@@ -26282,9 +26355,13 @@
                                 "kind": "LIST",
                                 "name": null,
                                 "ofType": {
-                                    "kind": "OBJECT",
-                                    "name": "CloudflareZoneWorkerScriptVars_v1",
-                                    "ofType": null
+                                    "kind": "NON_NULL",
+                                    "name": null,
+                                    "ofType": {
+                                        "kind": "OBJECT",
+                                        "name": "CloudflareZoneWorkerScriptVars_v1",
+                                        "ofType": null
+                                    }
                                 }
                             },
                             "isDeprecated": false,
@@ -26292,7 +26369,13 @@
                         }
                     ],
                     "inputFields": null,
-                    "interfaces": [],
+                    "interfaces": [
+                        {
+                            "kind": "INTERFACE",
+                            "name": "NamespaceTerraformResourceCloudflare_v1",
+                            "ofType": null
+                        }
+                    ],
                     "enumValues": null,
                     "possibleTypes": null
                 },
