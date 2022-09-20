@@ -85,6 +85,23 @@ objects:
           - name: SLACK_ICON_EMOJI
             value: ${SLACK_ICON_EMOJI}
           {{- end }}
+          {{- if $logs.google_chat }}
+          - name: GOOGLE_CHAT_WEBHOOK_URL
+            valueFrom:
+              secretKeyRef:
+                key: google_chat.webhook_url
+                name: app-interface
+          - name: GOOGLE_CHAT_WEBHOOK_KEY
+            valueFrom:
+              secretKeyRef:
+                key: google_chat.webhook_key
+                name: app-interface
+          - name: GOOGLE_CHAT_WEBHOOK_TOKEN
+            valueFrom:
+              secretKeyRef:
+                key: google_chat.webhook_token
+                name: app-interface
+          {{- end }}
           - name: LOG_GROUP_NAME
             valueFrom:
               secretKeyRef:
@@ -134,6 +151,15 @@ objects:
                 {{- end }}
                 icon_emoji ${SLACK_ICON_EMOJI}
                 username sd-app-sre-bot
+                flush_interval 10s
+                message "\`\`\`[{{ $integration.name }}] %s\`\`\`"
+              </store>
+              {{- end }}
+              {{- if $logs.google_chat }}
+              <store>
+                @type http
+                webhook_url ${GOOGLE_CHAT_WEBHOOK_URL}/messages?key=${GOOGLE_CHAT_WEBHOOK_KEY}&token=${GOOGLE_CHAT_WEBHOOK_TOKEN}
+                open_timeout 2
                 flush_interval 10s
                 message "\`\`\`[{{ $integration.name }}] %s\`\`\`"
               </store>
