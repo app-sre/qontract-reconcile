@@ -180,16 +180,22 @@ class BundleFileChange:
                     affected_context_paths = new_contexts - old_contexts
                 elif c.context.when == "removed":
                     affected_context_paths = old_contexts - new_contexts
-                contexts.extend(
-                    [
-                        FileRef(
-                            schema=change_type.context_schema,
-                            path=path,
-                            file_type=BundleFileType.DATAFILE,
-                        )
-                        for path in affected_context_paths
-                    ]
-                )
+                elif c.context.when is None and old_contexts == new_contexts:
+                    affected_context_paths = old_contexts
+                else:
+                    affected_context_paths = None
+
+                if affected_context_paths:
+                    contexts.extend(
+                        [
+                            FileRef(
+                                schema=change_type.context_schema,
+                                path=path,
+                                file_type=BundleFileType.DATAFILE,
+                            )
+                            for path in affected_context_paths
+                        ]
+                    )
         return contexts
 
     def cover_changes(self, change_type_context: "ChangeTypeContext") -> list[Diff]:

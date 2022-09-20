@@ -120,6 +120,11 @@ def role_member_change_type() -> ChangeTypeV1:
 
 
 @pytest.fixture
+def cluster_owner_change_type() -> ChangeTypeV1:
+    return load_change_type("changetype_cluster_owner.yml")
+
+
+@pytest.fixture
 def secret_promoter_change_type() -> ChangeTypeV1:
     return load_change_type("changetype_secret_promoter.yaml")
 
@@ -184,7 +189,43 @@ def test_extract_context_file_refs_from_bundle_change_schema_mismatch(
     assert not file_refs
 
 
-def test_extract_context_file_refs_added_selector(
+def test_extract_context_file_refs_selector(
+    cluster_owner_change_type: ChangeTypeV1,
+):
+    """
+    this testcase extracts the context file based on the change types context
+    selector
+    """
+    cluster = "/my/cluster.yml"
+    namespace_change = create_bundle_file_change(
+        path="/my/namespace.yml",
+        schema="/openshift/namespace-1.yml",
+        file_type=BundleFileType.DATAFILE,
+        old_file_content={
+            "the_change": "does not matter in this test",
+            "cluster": {
+                "$ref": cluster,
+            },
+        },
+        new_file_content={
+            "because": "we are just testing the context extraction",
+            "cluster": {
+                "$ref": cluster,
+            },
+        },
+    )
+    assert namespace_change
+    file_refs = namespace_change.extract_context_file_refs(cluster_owner_change_type)
+    assert file_refs == [
+        FileRef(
+            file_type=BundleFileType.DATAFILE,
+            schema="/openshift/cluster-1.yml",
+            path=cluster,
+        )
+    ]
+
+
+def test_extract_context_file_refs_in_list_added_selector(
     role_member_change_type: ChangeTypeV1,
 ):
     """
@@ -218,7 +259,7 @@ def test_extract_context_file_refs_added_selector(
     ]
 
 
-def test_extract_context_file_refs_removed_selector(
+def test_extract_context_file_refs_in_list_removed_selector(
     role_member_change_type: ChangeTypeV1,
 ):
     """
@@ -250,7 +291,7 @@ def test_extract_context_file_refs_removed_selector(
     ]
 
 
-def test_extract_context_file_refs_selector_change_schema_mismatch(
+def test_extract_context_file_refs_in_list_selector_change_schema_mismatch(
     role_member_change_type: ChangeTypeV1,
 ):
     """
