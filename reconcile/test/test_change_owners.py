@@ -12,6 +12,7 @@ from reconcile.change_owners import (
     cover_changes_with_self_service_roles,
     deepdiff_path_to_jsonpath,
     get_approver_decisions,
+    decide_on_changes,
     DecisionCommand,
     Decision,
     Approver,
@@ -1191,3 +1192,44 @@ def test_unordered_approval_comments():
     assert get_approver_decisions(comments) == {
         "user-1": Decision(approve=False, hold=False),
     }
+
+
+#
+# test decide on changes
+#
+
+
+def test_change_decision():
+    yea_user = "yea-sayer"
+    nay_sayer = "nay-sayer"
+    change = create_bundle_file_change(
+        file_type=BundleFileType.DATAFILE,
+        path="/my/file.yml",
+        schema="/my/schema.yml",
+        old_file_content={"foo": "bar"},
+        new_file_content={"foo": "baz"},
+    )
+    assert change and len(change.diffs) == 1 and change.diffs[0]
+    change.diffs[0].covered_by = [
+        ChangeTypeContext(
+            change_type_processor=None,  # type: ignore
+            context="something-something",
+            approvers=[
+                Approver(org_username=yea_user, tag_on_merge_requests=False),
+                Approver(org_username=nay_sayer, tag_on_merge_requests=False),
+            ],
+        )
+    ]
+
+    change_decision = decide_on_changes(
+        approver_decisions={
+            yea_user: Decision(approve=True, hold=False),
+            nay_sayer: Decision(approve=False, hold=True),
+        },
+        changes=[change],
+    )
+
+    assert change_decision[0].decision.approve
+    assert change_decision[0].decision.hold
+    assert change_decision[0].diff == change.diffs[0]
+    assert change_decision[0].file == change.fileref
