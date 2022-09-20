@@ -195,8 +195,8 @@ class OCProcessReconcileTimeDecoratorMsg:
 
 
 def oc_process(template, parameters=None):
-    oc = OCNative(server=None, local=True, cluster_name="cluster", token=None)
-    # oc = OCLocal(cluster_name="cluster", server=None, token=None)
+    # oc = OCNative(server=None, local=True, cluster_name="cluster", token=None)
+    oc = OCLocal(cluster_name="cluster", server=None, token=None)
     return oc.process(template, parameters)
 
 
@@ -1206,8 +1206,8 @@ class OCLocal(OCDeprecated):
     def __init__(
         self,
         cluster_name,
-        server=None,
-        token=None,
+        server,
+        token,
     ):
         super().__init__(
             cluster_name=cluster_name,
