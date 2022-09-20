@@ -1108,6 +1108,11 @@ def test_change_coverage(
             assert d.covered_by[0].approvers[0].org_username == expected_approver
 
 
+#
+# test MR decision comment parsing
+#
+
+
 def test_approver_decision_approve_and_hold():
     comments = [
         {
