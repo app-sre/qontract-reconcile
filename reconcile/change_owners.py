@@ -757,8 +757,11 @@ def run(
         approved = all(
             d.decision.approve and not d.decision.hold for d in change_decisions
         )
+
+        # reporting
         if not dry_run:
             write_coverage_report_to_mr(change_decisions, gitlab_merge_request_id, gl)
+        write_coverage_report_to_stdout(change_decisions)
 
         #
         #   L A B E L I N G
@@ -908,6 +911,57 @@ def write_coverage_report_to_mr(
     )
     gl.add_comment_to_merge_request(
         mr_id, f"{change_coverage_report_header}\n{coverage_report}"
+    )
+
+def write_coverage_report_to_stdout(
+    change_decisions: list[ChangeDecision]
+) -> None:
+    results = []
+    for d in change_decisions:
+        item = {
+            "file": d.file.path,
+            "schema": d.file.schema,
+            "changed path": d.diff.path,
+        }
+        if str(d.diff.path) != "$":
+            item.update(
+                {
+                    "old value": d.diff.old_value_repr(),
+                    "new value": d.diff.new_value_repr(),
+                }
+            )
+        if d.decision.hold:
+            item["status"] = "hold"
+        elif d.decision.approve:
+            item["status"] = "approved"
+        if d.diff.covered_by:
+            item.update(
+                {
+                    "change type": d.diff.covered_by[
+                        0
+                    ].change_type_processor.change_type.name,
+                    "context": d.diff.covered_by[0].context,
+                    "approvers": ", ".join(
+                        [a.org_username for a in d.diff.covered_by[0].approvers]
+                    )[:20],
+                }
+            )
+        results.append(item)
+
+    print(
+        format_table(
+            results,
+            [
+                "file",
+                "changed path",
+                "old value",
+                "new value",
+                "change type",
+                "context",
+                "approvers",
+                "status",
+            ],
+        )
     )
 
 
