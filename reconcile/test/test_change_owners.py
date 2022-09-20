@@ -13,6 +13,7 @@ from reconcile.change_owners import (
     deepdiff_path_to_jsonpath,
     get_approver_decisions,
     decide_on_changes,
+    manage_conditional_label,
     DecisionCommand,
     Decision,
     Approver,
@@ -1233,3 +1234,44 @@ def test_change_decision():
     assert change_decision[0].decision.hold
     assert change_decision[0].diff == change.diffs[0]
     assert change_decision[0].file == change.fileref
+
+
+#
+# test label management
+#
+
+
+def test_label_management_condition_true():
+    assert ["existing-label", "true-label"] == manage_conditional_label(
+        labels=["existing-label"],
+        condition=True,
+        true_label="true-label",
+        false_label="false-label",
+    )
+
+
+def test_label_management_condition_false():
+    assert ["existing-label", "false-label"] == manage_conditional_label(
+        labels=["existing-label"],
+        condition=False,
+        true_label="true-label",
+        false_label="false-label",
+    )
+
+
+def test_label_management_true_to_false():
+    assert ["existing-label", "false-label"] == manage_conditional_label(
+        labels=["existing-label", "true-label"],
+        condition=False,
+        true_label="true-label",
+        false_label="false-label",
+    )
+
+
+def test_label_management_false_to_true():
+    assert ["existing-label", "true-label"] == manage_conditional_label(
+        labels=["existing-label", "false-label"],
+        condition=True,
+        true_label="true-label",
+        false_label="false-label",
+    )
