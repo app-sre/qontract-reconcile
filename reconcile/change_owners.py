@@ -836,10 +836,10 @@ class ChangeDecision:
 
 
 class DecisionCommand(Enum):
-    APPROVED = "/passt"
-    CANCEL_APPROVED = "/na doch net"
-    HOLD = "/wort amol"
-    CANCEL_HOLD = "/moch weiter"
+    APPROVED = "/lgtm"
+    CANCEL_APPROVED = "/lgtm cancel"
+    HOLD = "/hold"
+    CANCEL_HOLD = "/hold cancel"
 
 
 def get_approver_decisions(comments: list[dict[str, str]]) -> dict[str, Decision]:
