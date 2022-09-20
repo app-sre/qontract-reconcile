@@ -913,9 +913,8 @@ def write_coverage_report_to_mr(
         mr_id, f"{change_coverage_report_header}\n{coverage_report}"
     )
 
-def write_coverage_report_to_stdout(
-    change_decisions: list[ChangeDecision]
-) -> None:
+
+def write_coverage_report_to_stdout(change_decisions: list[ChangeDecision]) -> None:
     results = []
     for d in change_decisions:
         item = {
