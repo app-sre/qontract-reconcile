@@ -223,6 +223,14 @@ INTEGRATIONS_QUERY = """
           }
         }
       }
+      shardSpecOverride{
+       ... on AWSShardSpecOverride_v1 {
+          awsAccount {
+            name
+          }
+          imageRef
+        }
+      }
       spec {
         cache
         command
@@ -260,6 +268,7 @@ INTEGRATIONS_QUERY = """
         restartPolicy
         successfulJobHistoryLimit
         failedJobHistoryLimit
+        imageRef
       }
     }
   }

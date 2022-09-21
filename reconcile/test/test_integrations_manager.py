@@ -157,6 +157,7 @@ def integrations(resources: dict[str, Any]) -> Iterable[Mapping[str, Any]]:
                         },
                     },
                     "spec": {"extraArgs": None, "resources": resources},
+                    "shardSpecOverride": {},
                 },
             ],
         },
@@ -173,6 +174,7 @@ def integrations(resources: dict[str, Any]) -> Iterable[Mapping[str, Any]]:
                         },
                     },
                     "spec": {"extraArgs": None, "resources": resources},
+                    "shardSpecOverride": {},
                 },
                 {
                     "namespace": {
@@ -184,6 +186,7 @@ def integrations(resources: dict[str, Any]) -> Iterable[Mapping[str, Any]]:
                         },
                     },
                     "spec": {"extraArgs": None, "resources": resources},
+                    "shardSpecOverride": {},
                 },
             ],
         },
@@ -200,6 +203,12 @@ def integrations(resources: dict[str, Any]) -> Iterable[Mapping[str, Any]]:
                         },
                     },
                     "spec": {"extraArgs": None, "resources": resources},
+                    "shardSpecOverride": [
+                        {
+                            "awsAccount": {"name": "test"},
+                            "imageRef": "foo",
+                        }
+                    ],
                 },
             ],
         },
@@ -516,6 +525,7 @@ def test_fetch_desired_state(
         namespaces=collected_namespaces_env_test1,
         ri=ri,
         image_tag_from_ref=None,
+        namespace_override_mapping={"ns1": {}},
     )
 
     resources = [
@@ -526,3 +536,53 @@ def test_fetch_desired_state(
     assert len(resources) == 2
     assert ("cl1", "ns1", "Deployment", ["qontract-reconcile-integ1"]) in resources
     assert ("cl1", "ns1", "Service", ["qontract-reconcile"]) in resources
+
+
+def test_values_set_shard_specifics():
+    values: Mapping[str, Any] = {
+        "integrations": [
+            {
+                "name": "terraform-resources",
+                "shard_specs": [
+                    {
+                        "shard_key": "app-int-example-01",
+                    },
+                    {
+                        "shard_key": "app-int-example-02",
+                    },
+                ],
+                "spec": {"imageRef": "foobar"},
+            },
+        ],
+    }
+    overrides: Mapping[str, Any] = {
+        "terraform-resources": [
+            intop.IntegrationShardSpecOverride(
+                imageRef="foo",
+                awsAccount={
+                    "name": "app-int-example-01",
+                    "path": "/aws/app-int-example-01/account.yml",
+                },
+            ),
+        ],
+    }
+
+    intop.values_set_shard_specifics(values, overrides)
+
+    assert values["integrations"][0]["shard_specs"][0]["imageRef"] == "foo"
+    assert "imageRef" not in values["integrations"][0]["shard_specs"][1]
+
+
+def test_initialize_namespace_override_mapping(integrations):
+    environment_name = "test2"
+    namespaces = intop.collect_namespaces(integrations, environment_name)
+    override_mapping = intop.initialize_namespace_override_mapping(
+        namespaces, integrations
+    )
+    assert "ns2" in override_mapping
+    assert "ns3" in override_mapping
+    assert "integ3" in override_mapping["ns3"]
+    assert len(override_mapping["ns3"]["integ3"]) == 1
+    assert isinstance(
+        override_mapping["ns3"]["integ3"][0], intop.IntegrationShardSpecOverride
+    )
