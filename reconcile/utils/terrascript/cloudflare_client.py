@@ -61,7 +61,7 @@ def create_cloudflare_terrascript(
 
     terrascript += provider.cloudflare(
         api_token=account_config.api_token,
-        account_id=account_config.account_id,  # needed for some resources, see not beloww
+        account_id=account_config.account_id,  # needed for some resources, see note below
     )
 
     # Some resources need "account_id" to be set at the resource level
