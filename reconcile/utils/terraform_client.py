@@ -244,7 +244,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
             "aws_lb_target_group_attachment",
         }
         deletions_allowed = self._are_deletions_allowed(name, enable_deletions)
-        disabled_deletion_detected = False
+        return_value = False
         for resource_change in resource_changes:
             resource_type = resource_change["type"]
             resource_name = resource_change["name"]
@@ -256,7 +256,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
                     if not deletions_allowed and not self.deletion_approved(
                         name, resource_type, resource_name
                     ):
-                        disabled_deletion_detected = True
+                        return_value = True
                         logging.error(
                             "'delete' action is not enabled. "
                             + "Please run the integration manually "
@@ -267,7 +267,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
                             "deletion_protection"
                         )
                         if deletion_protected:
-                            disabled_deletion_detected = True
+                            return_value = True
                             logging.error(
                                 "'delete' action is not enabled for "
                                 "deletion protected RDS instance: "
@@ -275,7 +275,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
                                 "deletion_protection to false in a new MR. "
                                 "The new MR must be merged first."
                             )
-        return disabled_deletion_detected
+        return return_value
 
     def _determine_should_apply_resource_changes(
         self, name: str, resource_changes: List[Mapping[str, Any]]
