@@ -546,7 +546,6 @@ def cover_changes_with_self_service_roles(
     roles: list[RoleV1],
     change_type_processors: list[ChangeTypeProcessor],
     bundle_changes: list[BundleFileChange],
-    saas_file_owner_change_type_name: Optional[str] = None,
 ) -> None:
     """
     Cover changes with ChangeTypeV1 associated to datafiles and resources via a
@@ -556,17 +555,6 @@ def cover_changes_with_self_service_roles(
     # role lookup enables fast lookup roles for (filetype, filepath, changetype-name)
     role_lookup: dict[Tuple[BundleFileType, str, str], list[RoleV1]] = defaultdict(list)
     for r in roles:
-        # build role lookup for owned_saas_files section of a role
-        if saas_file_owner_change_type_name and r.owned_saas_files:
-            for saas_file in r.owned_saas_files:
-                role_lookup[
-                    (
-                        BundleFileType.DATAFILE,
-                        saas_file.path,
-                        saas_file_owner_change_type_name,
-                    )
-                ].append(r)
-
         # build role lookup for self_service section of a role
         if r.self_service:
             for ss in r.self_service:
@@ -604,7 +592,6 @@ def cover_changes(
     changes: list[BundleFileChange],
     change_type_processors: list[ChangeTypeProcessor],
     comparision_gql_api: gql.GqlApi,
-    saas_file_owner_change_type_name: Optional[str] = None,
 ) -> None:
     """
     Coordinating function that can reach out to different `cover_*` functions
@@ -617,7 +604,6 @@ def cover_changes(
         bundle_changes=changes,
         change_type_processors=change_type_processors,
         roles=roles,
-        saas_file_owner_change_type_name=saas_file_owner_change_type_name,
     )
 
     # ... add more cover_* functions to cover more changes based on dynamic
@@ -629,7 +615,7 @@ def cover_changes(
 
 def fetch_self_service_roles(gql_api: gql.GqlApi) -> list[RoleV1]:
     roles = self_service_roles.query(gql_api.query).roles or []
-    return [r for r in roles if r.self_service or r.owned_saas_files]
+    return [r for r in roles if r.self_service]
 
 
 def fetch_change_type_processors(gql_api: gql.GqlApi) -> list[ChangeTypeProcessor]:
@@ -680,7 +666,6 @@ def _parse_bundle_changes(bundle_changes) -> list[BundleFileChange]:
 def run(
     dry_run: bool,
     comparison_sha: str,
-    saas_file_owner_change_type_name: Optional[str] = None,
 ) -> None:
     comparision_gql_api = gql.get_api_for_sha(
         comparison_sha, QONTRACT_INTEGRATION, validate_schemas=False
@@ -702,7 +687,6 @@ def run(
             changes,
             change_type_processors,
             comparision_gql_api,
-            saas_file_owner_change_type_name,
         )
 
         results = []

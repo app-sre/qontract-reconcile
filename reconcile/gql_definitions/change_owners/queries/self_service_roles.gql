@@ -14,9 +14,6 @@ query SelfServiceRolesQuery {
       }
       resources
     }
-    owned_saas_files {
-      path
-    }
     users {
       org_username
     }

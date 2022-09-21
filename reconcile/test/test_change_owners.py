@@ -96,7 +96,6 @@ def build_role(
                 resources=None,
             )
         ],
-        owned_saas_files=None,
         users=[UserV1(org_username=u) for u in users or []],
     )
 

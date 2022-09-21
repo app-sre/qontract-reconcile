@@ -903,15 +903,18 @@ def roles(ctx, org_username):
                     }
                 )
 
-        for s in role.get("owned_saas_files") or []:
-            add(
-                {
-                    "type": "saas_file",
-                    "name": "owner",
-                    "resource": s["name"],
-                    "ref": role_name,
-                }
-            )
+        for s in role.get("self_service") or []:
+            for d in s.get("datafiles") or []:
+                name = d.get("name")
+                if name:
+                    add(
+                        {
+                            "type": "saas_file",
+                            "name": "owner",
+                            "resource": name,
+                            "ref": role_name,
+                        }
+                    )
 
     columns = ["type", "name", "resource", "ref"]
     print_output(ctx.obj["options"], roles, columns)
