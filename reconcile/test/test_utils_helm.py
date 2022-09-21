@@ -270,3 +270,10 @@ def test_template_cron_failure_history(values_cron):
     template = helm.template(values_cron)
     expected = yaml.safe_load(fxt.get("failure_history.yml"))
     assert template == expected
+
+
+def test_template_enable_google_chat(values):
+    values["integrations"][0]["googleChat"] = True
+    template = helm.template(values)
+    expected = yaml.safe_load(fxt.get("enable_google_chat.yml"))
+    assert template == expected
