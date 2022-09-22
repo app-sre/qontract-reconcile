@@ -27,12 +27,13 @@ def run(dry_run):
     query_validations = gqlapi.query(QUERY_VALIDATIONS_QUERY)["validations"]
     error = False
     for qv in query_validations:
+        qv_name = qv["name"]
         for q in qv["queries"]:
             try:
                 gqlapi.query(gql.get_resource(q["path"])["content"])
             except (gql.GqlGetResourceError, gql.GqlApiError) as e:
                 error = True
-                logging.error(f"query validation error in {qv['name']}: {str(e)}")
+                logging.error(f"query validation error in {qv_name}: {str(e)}")
 
     if error:
         sys.exit(ExitCodes.ERROR)
