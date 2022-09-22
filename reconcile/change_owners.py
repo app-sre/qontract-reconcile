@@ -901,10 +901,11 @@ def apply_decisions_to_changes(
             diff_decisions.append(dc)
             for change_type_context in d.covered_by:
                 for approver in change_type_context.approvers:
-                    if approver_decisions[approver.org_username].approve:
-                        dc.decision.approve |= True
-                    if approver_decisions[approver.org_username].hold:
-                        dc.decision.hold |= True
+                    if approver.org_username in approver_decisions:
+                        if approver_decisions[approver.org_username].approve:
+                            dc.decision.approve |= True
+                        if approver_decisions[approver.org_username].hold:
+                            dc.decision.hold |= True
     return diff_decisions
 
 
