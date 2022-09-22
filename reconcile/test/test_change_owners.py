@@ -7,9 +7,11 @@ from reconcile.changeowners.diff import (
 )
 from reconcile.change_owners import (
     cover_changes_with_self_service_roles,
-    get_approver_decisions_from_mr_comments,
     apply_decisions_to_changes,
     manage_conditional_label,
+)
+from reconcile.changeowners.decision import (
+    get_approver_decisions_from_mr_comments,
     DecisionCommand,
     Decision,
 )

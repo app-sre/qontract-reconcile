@@ -1,11 +1,15 @@
 from collections import defaultdict
 from dataclasses import dataclass
-from enum import Enum
 from typing import Optional, Tuple
 import logging
 import traceback
 
 from reconcile.changeowners.diff import Diff
+from reconcile.changeowners.decision import (
+    Decision,
+    DecisionCommand,
+    get_approver_decisions_from_mr_comments,
+)
 from reconcile.utils.output import format_table
 from reconcile.utils import gql
 from reconcile.gql_definitions.change_owners.queries.self_service_roles import RoleV1
@@ -16,9 +20,14 @@ from reconcile.gql_definitions.change_owners.queries import (
 from reconcile.utils.semver_helper import make_semver
 
 from reconcile.changeowners.changetypes import (
-    BundleFileChange, BundleFileType, FileRef, Approver,
-    ChangeTypeProcessor, ChangeTypeContext,
-    create_bundle_file_change, build_change_type_processor
+    BundleFileChange,
+    BundleFileType,
+    FileRef,
+    Approver,
+    ChangeTypeProcessor,
+    ChangeTypeContext,
+    create_bundle_file_change,
+    build_change_type_processor,
 )
 
 from reconcile.utils.gitlab_api import GitLabApi
@@ -334,44 +343,12 @@ def manage_conditional_label(
 
 
 @dataclass
-class Decision:
-
-    approve: bool = False
-    hold: bool = False
-
-
-@dataclass
 class ChangeDecision:
 
     file: FileRef
     diff: Diff
     coverage: list[ChangeTypeContext]
     decision: Decision
-
-
-class DecisionCommand(Enum):
-    APPROVED = "/lgtm"
-    CANCEL_APPROVED = "/lgtm cancel"
-    HOLD = "/hold"
-    CANCEL_HOLD = "/hold cancel"
-
-
-def get_approver_decisions_from_mr_comments(
-    comments: list[dict[str, str]]
-) -> dict[str, Decision]:
-    decisions_by_users: dict[str, Decision] = defaultdict(Decision)
-    for c in sorted(comments, key=lambda k: k["created_at"]):
-        commenter = c["username"]
-        for line in c.get("body", "").split("\n"):
-            if line == DecisionCommand.APPROVED.value:
-                decisions_by_users[commenter].approve = True
-            if line == DecisionCommand.CANCEL_APPROVED.value:
-                decisions_by_users[commenter].approve = False
-            if line == DecisionCommand.HOLD.value:
-                decisions_by_users[commenter].hold = True
-            if line == DecisionCommand.CANCEL_HOLD.value:
-                decisions_by_users[commenter].hold = False
-    return decisions_by_users
 
 
 def apply_decisions_to_changes(
