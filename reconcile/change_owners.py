@@ -921,9 +921,10 @@ def write_coverage_report_to_mr(
     comments = gl.get_merge_request_comments(mr_id, include_description=True)
     # delete previous report comment
     for c in sorted(comments, key=lambda k: k["created_at"]):
-        if c["username"] == "devtools-bot":
-            if c["body"].startswith(change_coverage_report_header):
-                gl.delete_gitlab_comment(mr_id, c["id"])
+        if c["username"] == gl.user.username and c["body"].startswith(
+            change_coverage_report_header
+        ):
+            gl.delete_gitlab_comment(mr_id, c["id"])
 
     # add new report comment
     results = []
