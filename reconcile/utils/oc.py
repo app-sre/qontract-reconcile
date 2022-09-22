@@ -195,7 +195,6 @@ class OCProcessReconcileTimeDecoratorMsg:
 
 
 def oc_process(template, parameters=None):
-    # oc = OCNative(server=None, local=True, cluster_name="cluster", token=None)
     oc = OCLocal(cluster_name="cluster", server=None, token=None)
     return oc.process(template, parameters)
 
@@ -975,7 +974,7 @@ class OCNative(OCDeprecated):
             self.client = self._get_client(server, token)
             self.api_kind_version = self.get_api_resources()
         else:
-            raise Exception("a server value is needed")
+            raise Exception("A method relies on client/api_kind_version to be set")
 
         self.object_clients = {}
         self.init_projects = init_projects
