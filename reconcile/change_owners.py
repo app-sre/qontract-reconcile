@@ -949,7 +949,11 @@ def write_coverage_report_to_mr(
         results, ["file", "change", "status", "approvers"], table_format="github"
     )
     gl.add_comment_to_merge_request(
-        mr_id, f"{change_coverage_report_header}\n{coverage_report}"
+        mr_id,
+        f"{change_coverage_report_header}<br/> "
+        "All changes require an `/lgtm` from a listed approver\n"
+        f"{coverage_report}\n\n"
+        f"Supported commands: {' '.join([f'`{d.value}`' for d in DecisionCommand])} ",
     )
 
 
