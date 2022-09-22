@@ -26,27 +26,6 @@ query TerraformCloudflareResources {
         provider
         provisioner {
           name
-          providerVersion
-          apiCredentials {
-            path
-            field
-          }
-          terraformStateAccount {
-            name
-            automationToken {
-              path
-              field
-            }
-            terraformState {
-              provider
-              bucket
-              region
-              integrations {
-                integration
-                key
-              }
-            }
-          }
         }
         resources {
           provider
@@ -102,61 +81,8 @@ class NamespaceExternalResourceV1(BaseModel):
         extra = Extra.forbid
 
 
-class VaultSecretV1(BaseModel):
-    path: str = Field(..., alias="path")
-    field: str = Field(..., alias="field")
-
-    class Config:
-        smart_union = True
-        extra = Extra.forbid
-
-
-class AWSAccountV1_VaultSecretV1(BaseModel):
-    path: str = Field(..., alias="path")
-    field: str = Field(..., alias="field")
-
-    class Config:
-        smart_union = True
-        extra = Extra.forbid
-
-
-class AWSTerraformStateIntegrationsV1(BaseModel):
-    integration: str = Field(..., alias="integration")
-    key: str = Field(..., alias="key")
-
-    class Config:
-        smart_union = True
-        extra = Extra.forbid
-
-
-class TerraformStateAWSV1(BaseModel):
-    provider: str = Field(..., alias="provider")
-    bucket: str = Field(..., alias="bucket")
-    region: str = Field(..., alias="region")
-    integrations: list[AWSTerraformStateIntegrationsV1] = Field(
-        ..., alias="integrations"
-    )
-
-    class Config:
-        smart_union = True
-        extra = Extra.forbid
-
-
-class AWSAccountV1(BaseModel):
-    name: str = Field(..., alias="name")
-    automation_token: AWSAccountV1_VaultSecretV1 = Field(..., alias="automationToken")
-    terraform_state: Optional[TerraformStateAWSV1] = Field(..., alias="terraformState")
-
-    class Config:
-        smart_union = True
-        extra = Extra.forbid
-
-
 class CloudflareAccountV1(BaseModel):
     name: str = Field(..., alias="name")
-    provider_version: str = Field(..., alias="providerVersion")
-    api_credentials: VaultSecretV1 = Field(..., alias="apiCredentials")
-    terraform_state_account: AWSAccountV1 = Field(..., alias="terraformStateAccount")
 
     class Config:
         smart_union = True
