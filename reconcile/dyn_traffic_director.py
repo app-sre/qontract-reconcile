@@ -513,15 +513,47 @@ def run(dry_run: bool, enable_deletion: bool):
     # avoid logging these info messages
     # INFO Establishing SSL connection to api.dynect.net:443
     # INFO DynectSession Authentication Successful
-    with toggle_logger():
-        dyn_session.DynectSession(creds["customer"], creds["dyn_id"], creds["password"])
+    try:
+        with toggle_logger():
+            dyn_session.DynectSession(
+                creds["customer"], creds["dyn_id"], creds["password"]
+            )
 
-    desired = fetch_desired_state()
-    current = fetch_current_state()
+        desired = fetch_desired_state()
+        current = fetch_current_state()
 
-    process_tds(
-        current["tds"], desired["tds"], dry_run=dry_run, enable_deletion=enable_deletion
-    )
+        process_tds(
+            current["tds"],
+            desired["tds"],
+            dry_run=dry_run,
+            enable_deletion=enable_deletion,
+        )
+
+    # Dyn client internally uses singleton per thread, this means SessionEngine is initialized once and cached for
+    # later use. The client it uses HTTPSConnection (part of http library) and only initializes it once.
+    # A singleton HTTPSConnection object is responsible for only creating a single underlying socket connection.
+    # The HTTPSConnection object keeps track state with values such
+    #   - _CS_IDLE (indicates idle connection)
+    #   - _CS_REQ_STARTED (indicates request started. used when sending initial headers)
+    #   - _CS_REQ_SENT (initial headers sent)
+    # More info on this can be found in client.py
+
+    # So when Dyn API is unavailable, the http client sends a request but runs into `OSError: [Errno 101] Network is
+    # unreachable`. This exception is not caught anywhere (blame send_command method within SessionEngine.execute() )
+    # So the 1st reconciliation run fails. At this point the HTTPSConnection state is _CS_REQ_SENT. When the 2nd
+    # reconciliation run starts, the SessionEngine object is reused. And when it's time to send request Dyn client
+    # internally ends up calling put HTTPConnection.putrequest() which throws error (CannotSendRequest) if state is
+    # not _CS_IDLE.
+
+    # This is why we need to catch IOError/OSError and make sure we delete the singleton and recreate it on next run
+    # to avoid manual pod restart.
+
+    except IOError as e:
+        logging.warning(e)
+        logging.debug(
+            "Deleting Dyn client singleton because of IOError. The next reconciliation run will recreate it."
+        )
+        dyn_session.DynectSession.close_session()
 
 
 def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
