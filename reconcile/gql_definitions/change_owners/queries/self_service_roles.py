@@ -33,6 +33,10 @@ query SelfServiceRolesQuery {
     }
     users {
       org_username
+      tag_on_merge_requests
+    }
+    bots {
+      org_username
     }
   }
 }
@@ -68,6 +72,15 @@ class SelfServiceConfigV1(BaseModel):
 
 class UserV1(BaseModel):
     org_username: str = Field(..., alias="org_username")
+    tag_on_merge_requests: Optional[bool] = Field(..., alias="tag_on_merge_requests")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
+class BotV1(BaseModel):
+    org_username: Optional[str] = Field(..., alias="org_username")
 
     class Config:
         smart_union = True
@@ -79,6 +92,7 @@ class RoleV1(BaseModel):
     path: str = Field(..., alias="path")
     self_service: Optional[list[SelfServiceConfigV1]] = Field(..., alias="self_service")
     users: list[UserV1] = Field(..., alias="users")
+    bots: list[BotV1] = Field(..., alias="bots")
 
     class Config:
         smart_union = True

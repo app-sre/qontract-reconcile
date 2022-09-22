@@ -30,7 +30,7 @@ def print_output(
         pass  # error
 
 
-def print_table(content, columns, table_format="simple"):
+def format_table(content, columns, table_format="simple") -> str:
     headers = [column.upper() for column in columns]
     table_data = []
     for item in content:
@@ -50,5 +50,8 @@ def print_table(content, columns, table_format="simple"):
                     cell = "\n".join(cell)
             row_data.append(cell)
         table_data.append(row_data)
+    return tabulate(table_data, headers=headers, tablefmt=table_format)
 
-    print(tabulate(table_data, headers=headers, tablefmt=table_format))
+
+def print_table(content, columns, table_format="simple"):
+    print(format_table(content, columns, table_format))
