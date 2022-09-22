@@ -4,13 +4,13 @@ from typing import Optional
 
 from reconcile import queries
 from reconcile.gql_definitions.terraform_cloudflare_resources import (
+    terraform_cloudflare_accounts,
     terraform_cloudflare_resources,
 )
-from reconcile.gql_definitions.terraform_cloudflare_resources.terraform_cloudflare_resources import (
+from reconcile.gql_definitions.terraform_cloudflare_resources.terraform_cloudflare_accounts import (
     AWSAccountV1,
     CloudflareAccountV1,
-    NamespaceTerraformProviderResourceCloudflareV1,
-    TerraformCloudflareResourcesQueryData,
+    TerraformCloudflareAccountsQueryData,
 )
 from reconcile.utils import gql
 from reconcile.utils.defer import defer
@@ -75,26 +75,12 @@ def create_backend_config(
     return backend_config
 
 
-def get_resources(
-    query_data: TerraformCloudflareResourcesQueryData,
-) -> list[NamespaceTerraformProviderResourceCloudflareV1]:
-    """Get all Cloudflare V1 resources from the Cloudflare query data"""
-    return [
-        res
-        for namespace in query_data.namespaces or []
-        for res in namespace.external_resources or []
-        if isinstance(res, NamespaceTerraformProviderResourceCloudflareV1)
-    ]
-
-
 def build_clients(
     secret_reader: SecretReader,
-    query_data: TerraformCloudflareResourcesQueryData,
+    query_accounts: TerraformCloudflareAccountsQueryData,
 ) -> list[tuple[str, TerrascriptCloudflareClient]]:
     clients = []
-    for extres in get_resources(query_data):
-        cf_acct = extres.provisioner
-
+    for cf_acct in query_accounts.accounts or []:
         cf_acct_creds = secret_reader.read_all({"path": cf_acct.api_credentials.path})
         cf_acct_config = CloudflareAccountConfig(
             cf_acct.name,
@@ -128,17 +114,19 @@ def run(
     settings = queries.get_app_interface_settings()
     secret_reader = SecretReader(settings=settings)
 
-    query_data = terraform_cloudflare_resources.query(query_func=gql.get_api().query)
-
     # Build Cloudflare clients
+    query_accounts = terraform_cloudflare_accounts.query(query_func=gql.get_api().query)
     cf_clients = TerraformConfigClientCollection()
-    for client in build_clients(secret_reader, query_data):
+    for client in build_clients(secret_reader, query_accounts):
         cf_clients.register_client(*client)
 
     # Register Cloudflare resources
+    query_resources = terraform_cloudflare_resources.query(
+        query_func=gql.get_api().query
+    )
     cf_specs = [
         spec
-        for namespace in query_data.namespaces or []
+        for namespace in query_resources.namespaces or []
         for spec in get_external_resource_specs(
             namespace.dict(by_alias=True), PROVIDER_CLOUDFLARE
         )

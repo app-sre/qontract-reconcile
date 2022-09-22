@@ -1,6 +1,5 @@
 import pytest
 from reconcile.gql_definitions.terraform_cloudflare_resources.terraform_cloudflare_resources import (
-    AWSAccountV1,
     CloudflareAccountV1,
     CloudflareZoneRecordV1,
     CloudflareZoneWorkerV1,
@@ -8,8 +7,6 @@ from reconcile.gql_definitions.terraform_cloudflare_resources.terraform_cloudfla
     NamespaceTerraformResourceCloudflareZoneV1,
     NamespaceV1,
     TerraformCloudflareResourcesQueryData,
-    TerraformStateAWSV1,
-    VaultSecretV1,
 )
 
 
@@ -30,24 +27,6 @@ def query_data(external_resources):
 def provisioner_config():
     return CloudflareAccountV1(
         name="cfaccount",
-        providerVersion="3.22.0",
-        apiCredentials=VaultSecretV1(
-            path="",
-            field="",
-        ),
-        terraformStateAccount=AWSAccountV1(
-            name="awsaccount",
-            automationToken=VaultSecretV1(
-                path="",
-                field="",
-            ),
-            terraformState=TerraformStateAWSV1(
-                provider="s3",
-                bucket="bucket",
-                region="region",
-                integrations=[],
-            ),
-        ),
     )
 
 

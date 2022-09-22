@@ -1,0 +1,28 @@
+# qenerate: plugin=pydantic_v1
+
+query TerraformCloudflareAccounts {
+  accounts: cloudflare_accounts_v1 {
+    name
+    providerVersion
+    apiCredentials {
+      path
+      field
+    }
+    terraformStateAccount {
+      name
+      automationToken {
+        path
+        field
+      }
+      terraformState {
+        provider
+        bucket
+        region
+        integrations {
+          integration
+          key
+        }
+      }
+    }
+  }
+}

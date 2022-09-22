@@ -1,5 +1,4 @@
 # qenerate: plugin=pydantic_v1
-
 query TerraformCloudflareResources {
   namespaces: namespaces_v1 {
     name
@@ -9,27 +8,6 @@ query TerraformCloudflareResources {
         provider
         provisioner {
           name
-          providerVersion
-          apiCredentials {
-            path
-            field
-          }
-          terraformStateAccount {
-            name
-            automationToken {
-              path
-              field
-            }
-            terraformState {
-              provider
-              bucket
-              region
-              integrations {
-                integration
-                key
-              }
-            }
-          }
         }
         resources {
           provider
