@@ -195,7 +195,7 @@ class OCProcessReconcileTimeDecoratorMsg:
 
 
 def oc_process(template, parameters=None):
-    oc = OCLocal(cluster_name="cluster", server=None, token=None)
+    oc = OCLocal(cluster_name="cluster", server=None, token=None, local=True)
     return oc.process(template, parameters)
 
 
@@ -1207,11 +1207,13 @@ class OCLocal(OCDeprecated):
         cluster_name,
         server,
         token,
+        local=False,
     ):
         super().__init__(
             cluster_name=cluster_name,
             server=server,
             token=token,
+            local=local,
         )
 
 
