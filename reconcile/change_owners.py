@@ -721,7 +721,7 @@ def run(
     change_type_processing_mode: str,
     mr_management_enabled: bool = False,
 ) -> None:
-    comparision_gql_api = gql.get_api_for_sha(
+    comparison_gql_api = gql.get_api_for_sha(
         comparison_sha, QONTRACT_INTEGRATION, validate_schemas=False
     )
 
@@ -752,10 +752,10 @@ def run(
     # get change types from the comparison bundle to prevent privilege escalation
     logging.info(
         f"fetching change types and permissions from comparison bundle "
-        f"(sha={comparison_sha}, commit_id={comparision_gql_api.commit}, "
-        f"build_time {comparision_gql_api.commit_timestamp_utc})"
+        f"(sha={comparison_sha}, commit_id={comparison_gql_api.commit}, "
+        f"build_time {comparison_gql_api.commit_timestamp_utc})"
     )
-    change_type_processors = fetch_change_type_processors(comparision_gql_api)
+    change_type_processors = fetch_change_type_processors(comparison_gql_api)
 
     # an error while trying to cover changes will not fail the integration
     # and the PR check - self service merges will not be available though
@@ -767,7 +767,7 @@ def run(
         cover_changes(
             changes,
             change_type_processors,
-            comparision_gql_api,
+            comparison_gql_api,
         )
 
         self_servicable = (
