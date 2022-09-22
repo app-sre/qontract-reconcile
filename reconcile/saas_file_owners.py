@@ -33,19 +33,6 @@ def collect_owners():
     for saas_file in saas_files:
         saas_file_name = saas_file["name"]
         owners[saas_file_name] = set()
-        # roles with owned saas files
-        for owner_role in saas_file.get("roles") or []:
-            owner_users = owner_role.get("users") or []
-            for owner_user in owner_users:
-                owner_username = owner_user["org_username"]
-                if owner_user.get("tag_on_merge_requests"):
-                    owner_username = f"@{owner_username}"
-                owners[saas_file_name].add(owner_username)
-            owner_bots = owner_role.get("bots") or []
-            for bot in owner_bots:
-                bot_org_username = bot.get("org_username")
-                if bot_org_username:
-                    owners[saas_file_name].add(bot_org_username)
         # self-service configs
         for self_service_role in saas_file.get("selfServiceRoles") or []:
             owner_users = self_service_role.get("users") or []

@@ -40,7 +40,7 @@ query ChangeTypes {
 
 class ChangeTypeChangeDetectorContextSelectorV1(BaseModel):
     selector: str = Field(..., alias="selector")
-    when: str = Field(..., alias="when")
+    when: Optional[str] = Field(..., alias="when")
 
     class Config:
         smart_union = True

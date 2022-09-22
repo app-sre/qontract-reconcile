@@ -11128,13 +11128,9 @@
                             "description": null,
                             "args": [],
                             "type": {
-                                "kind": "NON_NULL",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "SCALAR",
-                                    "name": "String",
-                                    "ofType": null
-                                }
+                                "kind": "SCALAR",
+                                "name": "String",
+                                "ofType": null
                             },
                             "isDeprecated": false,
                             "deprecationReason": null
@@ -19553,6 +19549,26 @@
                             "deprecationReason": null
                         },
                         {
+                            "name": "shardSpecOverride",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "LIST",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "NON_NULL",
+                                    "name": null,
+                                    "ofType": {
+                                        "kind": "INTERFACE",
+                                        "name": "IntegrationSpecShardSpecOverride_v1",
+                                        "ofType": null
+                                    }
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
                             "name": "spec",
                             "description": null,
                             "args": [],
@@ -19573,6 +19589,55 @@
                     "interfaces": [],
                     "enumValues": null,
                     "possibleTypes": null
+                },
+                {
+                    "kind": "INTERFACE",
+                    "name": "IntegrationSpecShardSpecOverride_v1",
+                    "description": null,
+                    "fields": [
+                        {
+                            "name": "shardingStrategy",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "imageRef",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        }
+                    ],
+                    "inputFields": null,
+                    "interfaces": null,
+                    "enumValues": null,
+                    "possibleTypes": [
+                        {
+                            "kind": "OBJECT",
+                            "name": "AWSShardSpecOverride_v1",
+                            "ofType": null
+                        }
+                    ]
                 },
                 {
                     "kind": "OBJECT",
@@ -19838,6 +19903,18 @@
                             "type": {
                                 "kind": "SCALAR",
                                 "name": "Int",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "imageRef",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "String",
                                 "ofType": null
                             },
                             "isDeprecated": false,
@@ -31409,6 +31486,71 @@
                         {
                             "kind": "INTERFACE",
                             "name": "Permission_v1",
+                            "ofType": null
+                        }
+                    ],
+                    "enumValues": null,
+                    "possibleTypes": null
+                },
+                {
+                    "kind": "OBJECT",
+                    "name": "AWSShardSpecOverride_v1",
+                    "description": null,
+                    "fields": [
+                        {
+                            "name": "shardingStrategy",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "awsAccount",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "OBJECT",
+                                    "name": "AWSAccount_v1",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "imageRef",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        }
+                    ],
+                    "inputFields": null,
+                    "interfaces": [
+                        {
+                            "kind": "INTERFACE",
+                            "name": "IntegrationSpecShardSpecOverride_v1",
                             "ofType": null
                         }
                     ],
