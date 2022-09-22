@@ -755,11 +755,12 @@ def run(
         #
 
         gl = init_gitlab(gitlab_project_id)
-        comments = gl.get_merge_request_comments(
-            gitlab_merge_request_id, include_description=True
+        approver_decisions = get_approver_decisions_from_mr_comments(
+            gl.get_merge_request_comments(
+                gitlab_merge_request_id, include_description=True
+            )
         )
-        approver_decisions = get_approver_decisions(comments)
-        change_decisions = decide_on_changes(changes, approver_decisions)
+        change_decisions = apply_decisions_to_changes(changes, approver_decisions)
         hold = any(d.decision.hold for d in change_decisions)
         approved = all(
             d.decision.approve and not d.decision.hold for d in change_decisions
@@ -865,7 +866,9 @@ class DecisionCommand(Enum):
     CANCEL_HOLD = "/hold cancel"
 
 
-def get_approver_decisions(comments: list[dict[str, str]]) -> dict[str, Decision]:
+def get_approver_decisions_from_mr_comments(
+    comments: list[dict[str, str]]
+) -> dict[str, Decision]:
     decisions_by_users: dict[str, Decision] = defaultdict(Decision)
     for c in sorted(comments, key=lambda k: k["created_at"]):
         commenter = c["username"]
@@ -881,9 +884,16 @@ def get_approver_decisions(comments: list[dict[str, str]]) -> dict[str, Decision
     return decisions_by_users
 
 
-def decide_on_changes(
+def apply_decisions_to_changes(
     changes: list[BundleFileChange], approver_decisions: dict[str, Decision]
 ) -> list[ChangeDecision]:
+    """
+    Apply and aggregate approver decisions to changes. Each diff of a
+    BundleFileChange is mapped to a ChangeDecisions that carries the
+    decisions of their respective approvers. This datastructure is used
+    to generate the coverage report and to reason about the approval
+    state of the MR.
+    """
     diff_decisions = []
     for c in changes:
         for d in c.diffs:
@@ -901,6 +911,11 @@ def decide_on_changes(
 def write_coverage_report_to_mr(
     change_decisions: list[ChangeDecision], mr_id: int, gl: GitLabApi
 ) -> None:
+    """
+    adds the change coverage report and decision summary as a comment
+    to the merge request. this will delete the last report comment and add
+    a new one.
+    """
     change_coverage_report_header = "Change coverage report"
     comments = gl.get_merge_request_comments(mr_id, include_description=True)
     # delete previous report comment

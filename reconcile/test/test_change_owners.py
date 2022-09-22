@@ -11,8 +11,8 @@ from reconcile.change_owners import (
     create_bundle_file_change,
     cover_changes_with_self_service_roles,
     deepdiff_path_to_jsonpath,
-    get_approver_decisions,
-    decide_on_changes,
+    get_approver_decisions_from_mr_comments,
+    apply_decisions_to_changes,
     manage_conditional_label,
     DecisionCommand,
     Decision,
@@ -1128,7 +1128,7 @@ def test_approver_decision_approve_and_hold():
             "created_at": "2020-01-02T00:00:00Z",
         },
     ]
-    assert get_approver_decisions(comments) == {
+    assert get_approver_decisions_from_mr_comments(comments) == {
         "user-1": Decision(approve=True, hold=False),
         "user-2": Decision(approve=False, hold=True),
     }
@@ -1150,7 +1150,7 @@ def test_approver_approve_and_cancel():
             "created_at": "2020-01-02T00:00:00Z",
         },
     ]
-    assert get_approver_decisions(comments) == {
+    assert get_approver_decisions_from_mr_comments(comments) == {
         "user-1": Decision(approve=False, hold=False),
     }
 
@@ -1170,7 +1170,7 @@ def test_approver_hold_and_unhold():
             "created_at": "2020-01-02T00:00:00Z",
         },
     ]
-    assert get_approver_decisions(comments) == {
+    assert get_approver_decisions_from_mr_comments(comments) == {
         "user-1": Decision(approve=False, hold=False),
     }
 
@@ -1190,7 +1190,7 @@ def test_unordered_approval_comments():
             "created_at": "2020-01-01T00:00:00Z",
         },
     ]
-    assert get_approver_decisions(comments) == {
+    assert get_approver_decisions_from_mr_comments(comments) == {
         "user-1": Decision(approve=False, hold=False),
     }
 
@@ -1222,7 +1222,7 @@ def test_change_decision():
         )
     ]
 
-    change_decision = decide_on_changes(
+    change_decision = apply_decisions_to_changes(
         approver_decisions={
             yea_user: Decision(approve=True, hold=False),
             nay_sayer: Decision(approve=False, hold=True),
