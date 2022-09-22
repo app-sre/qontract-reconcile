@@ -49,7 +49,7 @@ def run(dry_run):
                 logging.error(f"query validation error in {qv_name}: {str(e)}")
         for r in qv.get("resources") or []:
             try:
-                fetch_openshift_resource(r, qv, settings=settings)
+                fetch_openshift_resource(r, qv, settings=settings, skip_validation=True)
             except Exception as e:
                 error = True
                 logging.error(f"query validation error in {qv_name}: {str(e)}")
