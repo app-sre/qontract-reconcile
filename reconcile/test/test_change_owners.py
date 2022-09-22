@@ -6,20 +6,22 @@ from reconcile.changeowners.diff import (
     deepdiff_path_to_jsonpath,
 )
 from reconcile.change_owners import (
-    BundleFileChange,
-    BundleFileType,
-    ChangeTypeContext,
-    FileRef,
-    build_change_type_processor,
-    create_bundle_file_change,
     cover_changes_with_self_service_roles,
     get_approver_decisions_from_mr_comments,
     apply_decisions_to_changes,
     manage_conditional_label,
     DecisionCommand,
     Decision,
+)
+from reconcile.changeowners.changetypes import (
+    BundleFileChange,
+    BundleFileType,
+    ChangeTypeContext,
     Approver,
+    FileRef,
     DiffCoverage,
+    build_change_type_processor,
+    create_bundle_file_change,
 )
 from reconcile.gql_definitions.change_owners.queries.change_types import (
     ChangeTypeChangeDetectorV1,
