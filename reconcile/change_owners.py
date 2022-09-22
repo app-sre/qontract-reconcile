@@ -2,12 +2,10 @@ from collections import defaultdict
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Iterable, Optional, Tuple
-from functools import reduce
-import json
 import logging
 import traceback
-import re
 
+from reconcile.changeowners.diff import Diff, DiffType, extract_diffs
 from reconcile.utils.output import format_table
 from reconcile.utils import gql
 from reconcile.gql_definitions.change_owners.queries.self_service_roles import RoleV1
@@ -32,10 +30,6 @@ from reconcile.utils.mr.labels import (
     AWAITING_APPROVAL,
 )
 
-from deepdiff import DeepDiff
-from deepdiff.helper import CannotCompare
-from deepdiff.model import DiffLevel
-
 import jsonpath_ng
 import jsonpath_ng.ext
 import anymarkup
@@ -57,37 +51,10 @@ class FileRef:
     schema: Optional[str]
 
 
-class DiffType(Enum):
-    ADDED = "added"
-    REMOVED = "removed"
-    CHANGED = "changed"
-
-
 @dataclass
-class Diff:
-    """
-    A change within a file, pinpointing the location of the change with a jsonpath.
-    """
-
-    path: jsonpath_ng.JSONPath
-    diff_type: DiffType
-    old: Optional[Any]
-    new: Optional[Any]
-    covered_by: list["ChangeTypeContext"]
-
-    def old_value_repr(self) -> Optional[str]:
-        return self._value_repr(self.old)
-
-    def new_value_repr(self) -> Optional[str]:
-        return self._value_repr(self.new)
-
-    def _value_repr(self, value: Optional[Any]) -> Optional[str]:
-        if value:
-            if isinstance(value, (dict, list)):
-                return json.dumps(value, indent=2)
-            else:
-                return str(value)
-        return value
+class DiffCoverage:
+    diff: Diff
+    coverage: list["ChangeTypeContext"]
 
 
 @dataclass
@@ -101,7 +68,7 @@ class BundleFileChange:
     fileref: FileRef
     old: Optional[dict[str, Any]]
     new: Optional[dict[str, Any]]
-    diffs: list[Diff]
+    diff_coverage: list[DiffCoverage]
 
     def extract_context_file_refs(self, change_type: ChangeTypeV1) -> list[FileRef]:
         """
@@ -209,8 +176,8 @@ class BundleFileChange:
           context (e.g. a RoleV1) and allows the approvers of that context (e.g.
           the members of that role) to approve that particular change.
 
-        The change contexts that cover a change, are registered within the
-        `Diff` objects `covered_by` list.
+        The change-type contexts that cover a change, are registered in the
+        `DiffCoverage.coverage` list right next to the Diff that is covered.
         """
         covered_diffs = {}
         # observe the new state for added fields or list items or entire object sutrees
@@ -231,7 +198,7 @@ class BundleFileChange:
 
     def _cover_changes_for_diffs(
         self,
-        diffs: list[Diff],
+        diffs: list[DiffCoverage],
         file_content: Any,
         change_type_context: "ChangeTypeContext",
     ) -> dict[str, Diff]:
@@ -243,72 +210,21 @@ class BundleFileChange:
             ) in change_type_context.change_type_processor.allowed_changed_paths(
                 self.fileref, file_content
             ):
-                for d in diffs:
-                    covered = str(d.path).startswith(allowed_path)
+                for dc in diffs:
+                    covered = str(dc.diff.path).startswith(allowed_path)
                     if covered:
-                        covered_diffs[str(d.path)] = d
-                        d.covered_by.append(change_type_context)
+                        covered_diffs[str(dc.diff.path)] = dc.diff
+                        dc.coverage.append(change_type_context)
         return covered_diffs
 
-    def _filter_diffs(self, diff_types: list[DiffType]) -> list[Diff]:
-        return list(filter(lambda d: d.diff_type in diff_types, self.diffs))
+    def _filter_diffs(self, diff_types: list[DiffType]) -> list[DiffCoverage]:
+        return [d for d in self.diff_coverage if d.diff.diff_type in diff_types]
 
-    def uncovered_changes(self) -> Iterable[Diff]:
-        return (d for d in self.diffs if not d.covered_by)
+    def uncovered_changes(self) -> Iterable[DiffCoverage]:
+        return (d for d in self.diff_coverage if not d.coverage)
 
     def all_changes_covered(self) -> bool:
         return not any(self.uncovered_changes())
-
-
-IDENTIFIER_FIELD_NAME = "__identifier"
-REF_FIELD_NAME = "$ref"
-
-
-def _extract_identifier_from_object(obj: Any) -> Optional[str]:
-    if isinstance(obj, dict):
-        if IDENTIFIER_FIELD_NAME in obj:
-            return obj.get(IDENTIFIER_FIELD_NAME)
-        elif REF_FIELD_NAME in obj and len(obj) == 1:
-            return obj.get(REF_FIELD_NAME)
-    return None
-
-
-def compare_object_ctx_identifier(
-    x: Any, y: Any, level: Optional[DiffLevel] = None
-) -> bool:
-    """
-    this function helps the deepdiff library to decide if two objects are
-    actually the same in the sense of identity. this helps with finding
-    changes in lists where reordering of items might occure.
-    the __identifier key of an object is maintained by the qontract-validator
-    based on the contextUnique flags on properties in jsonschemas of qontract-schema.
-
-    in a list of heterogenous elements (e.g. openshiftResources), not every element
-    necessarily has an __identitry property, e.g. vault-secret elements have one,
-    but resource-template elements don't (because there is no set of properties
-    clearly identifying the resulting resource). this is fine!
-
-    if two objects have identities, they can be used to figure out if they are
-    the same object.
-
-    if only one of them has an identity, they are clearly not the same object.
-
-    if two objects with no identity properties are compared, deepdiff will still
-    try to figure out if they might be the same object based on a critical number
-    of matching properties and values. this situation is signaled back to
-    deepdiff by raising the CannotCompare exception.
-    """
-    x_id = _extract_identifier_from_object(x)
-    y_id = _extract_identifier_from_object(y)
-    if x_id and y_id:
-        # if both have an identifier, they are the same if the identifiers are the same
-        return x_id == y_id
-    if x_id or y_id:
-        # if only one of them has an identifier, they must be different objects
-        return False
-    # detecting if two objects without identifiers are the same, is beyond this
-    # functions capability, hence it tells deepdiff to figure it out on its own
-    raise CannotCompare() from None
 
 
 def parse_resource_file_content(content: Optional[Any]) -> Any:
@@ -342,143 +258,21 @@ def create_bundle_file_change(
     if file_type == BundleFileType.RESOURCEFILE and schema:
         old_file_content = parse_resource_file_content(old_file_content)
         new_file_content = parse_resource_file_content(new_file_content)
-
-    diffs: list[Diff] = []
-    if old_file_content and new_file_content:
-        deep_diff = DeepDiff(
-            old_file_content,
-            new_file_content,
-            ignore_order=True,
-            iterable_compare_func=compare_object_ctx_identifier,
-            cutoff_intersection_for_pairs=1,
-        )
-
-        # handle changed values
-        diffs.extend(
-            [
-                Diff(
-                    path=deepdiff_path_to_jsonpath(path),
-                    diff_type=DiffType.CHANGED,
-                    old=change.get("old_value"),
-                    new=change.get("new_value"),
-                    covered_by=[],
-                )
-                for path, change in deep_diff.get("values_changed", {}).items()
-            ]
-        )
-        # handle property added
-        for path in deep_diff.get("dictionary_item_added", []):
-            jpath = deepdiff_path_to_jsonpath(path)
-            change = jpath.find(new_file_content)
-            change_value = change[0].value if change else None
-            diffs.append(
-                Diff(
-                    path=jpath,
-                    diff_type=DiffType.ADDED,
-                    old=None,
-                    new=change_value,
-                    covered_by=[],
-                )
-            )
-        # handle property removed
-        for path in deep_diff.get("dictionary_item_removed", []):
-            jpath = deepdiff_path_to_jsonpath(path)
-            change = jpath.find(old_file_content)
-            change_value = change[0].value if change else None
-            diffs.append(
-                Diff(
-                    path=jpath,
-                    diff_type=DiffType.REMOVED,
-                    old=change_value,
-                    new=None,
-                    covered_by=[],
-                )
-            )
-        # handle added items
-        diffs.extend(
-            [
-                Diff(
-                    path=deepdiff_path_to_jsonpath(path),
-                    diff_type=DiffType.ADDED,
-                    old=None,
-                    new=change,
-                    covered_by=[],
-                )
-                for path, change in deep_diff.get("iterable_item_added", {}).items()
-            ]
-        )
-        # handle removed items
-        diffs.extend(
-            [
-                Diff(
-                    path=deepdiff_path_to_jsonpath(path),
-                    diff_type=DiffType.REMOVED,
-                    old=change,
-                    new=None,
-                    covered_by=[],
-                )
-                for path, change in deep_diff.get("iterable_item_removed", {}).items()
-            ]
-        )
-    elif old_file_content:
-        # file was deleted
-        diffs.append(
-            Diff(
-                path=jsonpath_ng.Root(),
-                diff_type=DiffType.REMOVED,
-                old=old_file_content,
-                new=None,
-                covered_by=[],
-            )
-        )
-    elif new_file_content:
-        # file was added
-        diffs.append(
-            Diff(
-                path=jsonpath_ng.Root(),
-                diff_type=DiffType.ADDED,
-                old=None,
-                new=new_file_content,
-                covered_by=[],
-            )
-        )
+    diffs = extract_diffs(
+        schema=schema,
+        old_file_content=old_file_content,
+        new_file_content=new_file_content,
+    )
 
     if diffs:
         return BundleFileChange(
-            fileref=fileref, old=old_file_content, new=new_file_content, diffs=diffs
+            fileref=fileref,
+            old=old_file_content,
+            new=new_file_content,
+            diff_coverage=[DiffCoverage(d, []) for d in diffs],
         )
     else:
         return None
-
-
-DEEP_DIFF_RE = re.compile(r"\['?(.*?)'?\]")
-
-
-def deepdiff_path_to_jsonpath(deep_diff_path: str) -> jsonpath_ng.JSONPath:
-    """
-    deepdiff's way to describe a path within a data structure differs from jsonpath.
-    This function translates deepdiff paths into regular jsonpath expressions.
-
-    deepdiff paths start with "root" followed by a series of square bracket expressions
-    fields and indices, e.g. `root['openshiftResources'][1]['version']`. The matching
-    jsonpath expression is `openshiftResources.[1].version`
-    """
-    if not deep_diff_path.startswith("root"):
-        raise ValueError("a deepdiff path must start with 'root'")
-
-    def build_jsonpath_part(element: str) -> jsonpath_ng.JSONPath:
-        if element.isdigit():
-            return jsonpath_ng.Index(int(element))
-        else:
-            return jsonpath_ng.Fields(element)
-
-    path_parts = [
-        build_jsonpath_part(p) for p in DEEP_DIFF_RE.findall(deep_diff_path[4:])
-    ]
-    if path_parts:
-        return reduce(lambda a, b: a.child(b), path_parts)
-    else:
-        return jsonpath_ng.Root()
 
 
 @dataclass
@@ -884,6 +678,7 @@ class ChangeDecision:
 
     file: FileRef
     diff: Diff
+    coverage: list[ChangeTypeContext]
     decision: Decision
 
 
@@ -924,16 +719,18 @@ def apply_decisions_to_changes(
     """
     diff_decisions = []
     for c in changes:
-        for d in c.diffs:
-            dc = ChangeDecision(file=c.fileref, diff=d, decision=Decision())
-            diff_decisions.append(dc)
-            for change_type_context in d.covered_by:
+        for d in c.diff_coverage:
+            change_decision = ChangeDecision(
+                file=c.fileref, diff=d.diff, coverage=d.coverage, decision=Decision()
+            )
+            diff_decisions.append(change_decision)
+            for change_type_context in change_decision.coverage:
                 for approver in change_type_context.approvers:
                     if approver.org_username in approver_decisions:
                         if approver_decisions[approver.org_username].approve:
-                            dc.decision.approve |= True
+                            change_decision.decision.approve |= True
                         if approver_decisions[approver.org_username].hold:
-                            dc.decision.hold |= True
+                            change_decision.decision.hold |= True
     return diff_decisions
 
 
@@ -959,7 +756,7 @@ def write_coverage_report_to_mr(
     for d in change_decisions:
         approvers = [
             f"{ctctx.context} - { ' '.join([f'@{a.org_username}' if a.tag_on_merge_requests else a.org_username for a in ctctx.approvers]) }"
-            for ctctx in d.diff.covered_by
+            for ctctx in d.coverage
         ]
         if not approvers:
             approvers = ["not self-serviceable"]
@@ -1005,15 +802,13 @@ def write_coverage_report_to_stdout(change_decisions: list[ChangeDecision]) -> N
             item["status"] = "hold"
         elif d.decision.approve:
             item["status"] = "approved"
-        if d.diff.covered_by:
+        if d.coverage:
             item.update(
                 {
-                    "change type": d.diff.covered_by[
-                        0
-                    ].change_type_processor.change_type.name,
-                    "context": d.diff.covered_by[0].context,
+                    "change type": d.coverage[0].change_type_processor.change_type.name,
+                    "context": d.coverage[0].context,
                     "approvers": ", ".join(
-                        [a.org_username for a in d.diff.covered_by[0].approvers]
+                        [a.org_username for a in d.coverage[0].approvers]
                     )[:20],
                 }
             )

@@ -1,22 +1,25 @@
 from dataclasses import dataclass
 from typing import Any, Optional
+from reconcile.changeowners.diff import (
+    Diff,
+    DiffType,
+    deepdiff_path_to_jsonpath,
+)
 from reconcile.change_owners import (
     BundleFileChange,
     BundleFileType,
     ChangeTypeContext,
-    Diff,
-    DiffType,
     FileRef,
     build_change_type_processor,
     create_bundle_file_change,
     cover_changes_with_self_service_roles,
-    deepdiff_path_to_jsonpath,
     get_approver_decisions_from_mr_comments,
     apply_decisions_to_changes,
     manage_conditional_label,
     DecisionCommand,
     Decision,
     Approver,
+    DiffCoverage,
 )
 from reconcile.gql_definitions.change_owners.queries.change_types import (
     ChangeTypeChangeDetectorV1,
@@ -410,11 +413,11 @@ def test_bundle_change_diff_value_changed():
     )
 
     assert bundle_change
-    assert len(bundle_change.diffs) == 1
-    assert str(bundle_change.diffs[0].path) == "field"
-    assert bundle_change.diffs[0].diff_type == DiffType.CHANGED
-    assert bundle_change.diffs[0].old == "old_value"
-    assert bundle_change.diffs[0].new == "new_value"
+    assert len(bundle_change.diff_coverage) == 1
+    assert str(bundle_change.diff_coverage[0].diff.path) == "field"
+    assert bundle_change.diff_coverage[0].diff.diff_type == DiffType.CHANGED
+    assert bundle_change.diff_coverage[0].diff.old == "old_value"
+    assert bundle_change.diff_coverage[0].diff.new == "new_value"
 
 
 def test_bundle_change_diff_value_changed_deep():
@@ -427,11 +430,11 @@ def test_bundle_change_diff_value_changed_deep():
     )
 
     assert bundle_change
-    assert len(bundle_change.diffs) == 1
-    assert str(bundle_change.diffs[0].path) == "parent.children.[0].age"
-    assert bundle_change.diffs[0].diff_type == DiffType.CHANGED
-    assert bundle_change.diffs[0].old == 1
-    assert bundle_change.diffs[0].new == 2
+    assert len(bundle_change.diff_coverage) == 1
+    assert str(bundle_change.diff_coverage[0].diff.path) == "parent.children.[0].age"
+    assert bundle_change.diff_coverage[0].diff.diff_type == DiffType.CHANGED
+    assert bundle_change.diff_coverage[0].diff.old == 1
+    assert bundle_change.diff_coverage[0].diff.new == 2
 
 
 def test_bundle_change_diff_value_changed_multiple_in_iterable():
@@ -501,29 +504,35 @@ def test_bundle_change_diff_value_changed_multiple_in_iterable():
     assert bundle_change
 
     expected = [
-        Diff(
-            path=jsonpath_ng.parse("openshiftResources.[1].version"),
-            diff_type=DiffType.CHANGED,
-            old=2,
-            new=1,
-            covered_by=[],
+        DiffCoverage(
+            diff=Diff(
+                path=jsonpath_ng.parse("openshiftResources.[1].version"),
+                diff_type=DiffType.CHANGED,
+                old=2,
+                new=1,
+            ),
+            coverage=[],
         ),
-        Diff(
-            path=jsonpath_ng.parse("openshiftResources.[2].variables.var2"),
-            diff_type=DiffType.CHANGED,
-            old="val2",
-            new="new_val",
-            covered_by=[],
+        DiffCoverage(
+            diff=Diff(
+                path=jsonpath_ng.parse("openshiftResources.[2].variables.var2"),
+                diff_type=DiffType.CHANGED,
+                old="val2",
+                new="new_val",
+            ),
+            coverage=[],
         ),
-        Diff(
-            path=jsonpath_ng.parse("openshiftResources.[0].version"),
-            diff_type=DiffType.CHANGED,
-            old=1,
-            new=2,
-            covered_by=[],
+        DiffCoverage(
+            diff=Diff(
+                path=jsonpath_ng.parse("openshiftResources.[0].version"),
+                diff_type=DiffType.CHANGED,
+                old=1,
+                new=2,
+            ),
+            coverage=[],
         ),
     ]
-    assert bundle_change.diffs == expected
+    assert bundle_change.diff_coverage == expected
 
 
 def test_bundle_change_diff_property_added():
@@ -558,15 +567,17 @@ def test_bundle_change_diff_property_added():
     assert bundle_change
 
     expected = [
-        Diff(
-            path=jsonpath_ng.parse("openshiftResources.[0].new_field"),
-            diff_type=DiffType.ADDED,
-            old=None,
-            new="value",
-            covered_by=[],
-        ),
+        DiffCoverage(
+            diff=Diff(
+                path=jsonpath_ng.parse("openshiftResources.[0].new_field"),
+                diff_type=DiffType.ADDED,
+                old=None,
+                new="value",
+            ),
+            coverage=[],
+        )
     ]
-    assert bundle_change.diffs == expected
+    assert bundle_change.diff_coverage == expected
 
 
 def test_bundle_change_diff_property_removed():
@@ -601,15 +612,17 @@ def test_bundle_change_diff_property_removed():
     assert bundle_change
 
     expected = [
-        Diff(
-            path=jsonpath_ng.parse("openshiftResources.[0].old_field"),
-            diff_type=DiffType.REMOVED,
-            old="value",
-            new=None,
-            covered_by=[],
-        ),
+        DiffCoverage(
+            diff=Diff(
+                path=jsonpath_ng.parse("openshiftResources.[0].old_field"),
+                diff_type=DiffType.REMOVED,
+                old="value",
+                new=None,
+            ),
+            coverage=[],
+        )
     ]
-    assert bundle_change.diffs == expected
+    assert bundle_change.diff_coverage == expected
 
 
 def test_bundle_change_diff_item_added():
@@ -649,20 +662,22 @@ def test_bundle_change_diff_item_added():
     assert bundle_change
 
     expected = [
-        Diff(
-            path=jsonpath_ng.parse("openshiftResources.[0]"),
-            diff_type=DiffType.ADDED,
-            old=None,
-            new={
-                "provider": "vault-secret",
-                "path": "path-2",
-                "version": 2,
-                "__identifier": "secret-2",
-            },
-            covered_by=[],
-        ),
+        DiffCoverage(
+            diff=Diff(
+                path=jsonpath_ng.parse("openshiftResources.[0]"),
+                diff_type=DiffType.ADDED,
+                old=None,
+                new={
+                    "provider": "vault-secret",
+                    "path": "path-2",
+                    "version": 2,
+                    "__identifier": "secret-2",
+                },
+            ),
+            coverage=[],
+        )
     ]
-    assert bundle_change.diffs == expected
+    assert bundle_change.diff_coverage == expected
 
 
 def test_bundle_change_diff_item_removed():
@@ -702,20 +717,22 @@ def test_bundle_change_diff_item_removed():
     assert bundle_change
 
     expected = [
-        Diff(
-            path=jsonpath_ng.parse("openshiftResources.[0]"),
-            diff_type=DiffType.REMOVED,
-            old={
-                "provider": "vault-secret",
-                "path": "path-1",
-                "version": 1,
-                "__identifier": "secret-1",
-            },
-            new=None,
-            covered_by=[],
-        ),
+        DiffCoverage(
+            diff=Diff(
+                path=jsonpath_ng.parse("openshiftResources.[0]"),
+                diff_type=DiffType.REMOVED,
+                old={
+                    "provider": "vault-secret",
+                    "path": "path-1",
+                    "version": 1,
+                    "__identifier": "secret-1",
+                },
+                new=None,
+            ),
+            coverage=[],
+        )
     ]
-    assert bundle_change.diffs == expected
+    assert bundle_change.diff_coverage == expected
 
 
 def test_bundle_change_diff_item_replaced():
@@ -743,15 +760,17 @@ def test_bundle_change_diff_item_replaced():
     assert bundle_change
 
     expected = [
-        Diff(
-            path=jsonpath_ng.parse("roles.[1].'$ref'"),
-            diff_type=DiffType.CHANGED,
-            old="old_item",
-            new="new_item",
-            covered_by=[],
-        ),
+        DiffCoverage(
+            diff=Diff(
+                path=jsonpath_ng.parse("roles.[1].'$ref'"),
+                diff_type=DiffType.CHANGED,
+                old="old_item",
+                new="new_item",
+            ),
+            coverage=[],
+        )
     ]
-    assert bundle_change.diffs == expected
+    assert bundle_change.diff_coverage == expected
 
 
 def test_bundle_change_diff_ref_item_multiple_consecutive_replaced():
@@ -786,22 +805,26 @@ def test_bundle_change_diff_ref_item_multiple_consecutive_replaced():
     assert bundle_change
 
     expected = [
-        Diff(
-            path=jsonpath_ng.parse("roles.[2]"),
-            diff_type=DiffType.CHANGED,
-            old={"$ref": "3"},
-            new={"$ref": "changed"},
-            covered_by=[],
+        DiffCoverage(
+            diff=Diff(
+                path=jsonpath_ng.parse("roles.[2]"),
+                diff_type=DiffType.CHANGED,
+                old={"$ref": "3"},
+                new={"$ref": "changed"},
+            ),
+            coverage=[],
         ),
-        Diff(
-            path=jsonpath_ng.parse("roles.[3]"),
-            diff_type=DiffType.CHANGED,
-            old={"$ref": "4"},
-            new={"$ref": "changed as well"},
-            covered_by=[],
+        DiffCoverage(
+            diff=Diff(
+                path=jsonpath_ng.parse("roles.[3]"),
+                diff_type=DiffType.CHANGED,
+                old={"$ref": "4"},
+                new={"$ref": "changed as well"},
+            ),
+            coverage=[],
         ),
     ]
-    diffs = sorted(bundle_change.diffs, key=lambda d: str(d.path))
+    diffs = sorted(bundle_change.diff_coverage, key=lambda d: str(d.diff.path))
     assert diffs == expected
 
 
@@ -839,22 +862,26 @@ def test_bundle_change_diff_ref_item_multiple_replaced():
     assert bundle_change
 
     expected = [
-        Diff(
-            path=jsonpath_ng.parse("roles.[2]"),
-            diff_type=DiffType.CHANGED,
-            old={"$ref": "3"},
-            new={"$ref": "changed"},
-            covered_by=[],
+        DiffCoverage(
+            diff=Diff(
+                path=jsonpath_ng.parse("roles.[2]"),
+                diff_type=DiffType.CHANGED,
+                old={"$ref": "3"},
+                new={"$ref": "changed"},
+            ),
+            coverage=[],
         ),
-        Diff(
-            path=jsonpath_ng.parse("roles.[4]"),
-            diff_type=DiffType.CHANGED,
-            old={"$ref": "5"},
-            new={"$ref": "changed as well"},
-            covered_by=[],
+        DiffCoverage(
+            diff=Diff(
+                path=jsonpath_ng.parse("roles.[4]"),
+                diff_type=DiffType.CHANGED,
+                old={"$ref": "5"},
+                new={"$ref": "changed as well"},
+            ),
+            coverage=[],
         ),
     ]
-    diffs = sorted(bundle_change.diffs, key=lambda d: str(d.path))
+    diffs = sorted(bundle_change.diff_coverage, key=lambda d: str(d.diff.path))
     assert diffs == expected
 
 
@@ -894,11 +921,11 @@ def test_bundle_change_diff_resourcefile_without_schema():
     )
 
     assert bundle_change
-    assert len(bundle_change.diffs) == 1
-    assert str(bundle_change.diffs[0].path) == "$"
-    assert bundle_change.diffs[0].diff_type == DiffType.CHANGED
-    assert bundle_change.diffs[0].old == "field: old_value"
-    assert bundle_change.diffs[0].new == "field: new_value"
+    assert len(bundle_change.diff_coverage) == 1
+    assert str(bundle_change.diff_coverage[0].diff.path) == "$"
+    assert bundle_change.diff_coverage[0].diff.diff_type == DiffType.CHANGED
+    assert bundle_change.diff_coverage[0].diff.old == "field: old_value"
+    assert bundle_change.diff_coverage[0].diff.new == "field: new_value"
 
 
 def test_bundle_change_diff_resourcefile_with_schema():
@@ -915,11 +942,11 @@ def test_bundle_change_diff_resourcefile_with_schema():
     )
 
     assert bundle_change
-    assert len(bundle_change.diffs) == 1
-    assert str(bundle_change.diffs[0].path) == "field"
-    assert bundle_change.diffs[0].diff_type == DiffType.CHANGED
-    assert bundle_change.diffs[0].old == "old_value"
-    assert bundle_change.diffs[0].new == "new_value"
+    assert len(bundle_change.diff_coverage) == 1
+    assert str(bundle_change.diff_coverage[0].diff.path) == "field"
+    assert bundle_change.diff_coverage[0].diff.diff_type == DiffType.CHANGED
+    assert bundle_change.diff_coverage[0].diff.old == "old_value"
+    assert bundle_change.diff_coverage[0].diff.new == "new_value"
 
 
 def test_bundle_change_diff_resourcefile_with_schema_unparsable():
@@ -932,11 +959,11 @@ def test_bundle_change_diff_resourcefile_with_schema_unparsable():
     )
 
     assert bundle_change
-    assert len(bundle_change.diffs) == 1
-    assert str(bundle_change.diffs[0].path) == "$"
-    assert bundle_change.diffs[0].diff_type == DiffType.CHANGED
-    assert bundle_change.diffs[0].old == "somethingsomething"
-    assert bundle_change.diffs[0].new == "somethingsomething_different"
+    assert len(bundle_change.diff_coverage) == 1
+    assert str(bundle_change.diff_coverage[0].diff.path) == "$"
+    assert bundle_change.diff_coverage[0].diff.diff_type == DiffType.CHANGED
+    assert bundle_change.diff_coverage[0].diff.old == "somethingsomething"
+    assert bundle_change.diff_coverage[0].diff.new == "somethingsomething_different"
 
 
 def test_bundle_change_resource_file_added():
@@ -949,11 +976,11 @@ def test_bundle_change_resource_file_added():
     )
 
     assert bundle_change
-    assert len(bundle_change.diffs) == 1
-    assert str(bundle_change.diffs[0].path) == "$"
-    assert bundle_change.diffs[0].diff_type == DiffType.ADDED
-    assert bundle_change.diffs[0].old is None
-    assert bundle_change.diffs[0].new == "new content"
+    assert len(bundle_change.diff_coverage) == 1
+    assert str(bundle_change.diff_coverage[0].diff.path) == "$"
+    assert bundle_change.diff_coverage[0].diff.diff_type == DiffType.ADDED
+    assert bundle_change.diff_coverage[0].diff.old is None
+    assert bundle_change.diff_coverage[0].diff.new == "new content"
 
 
 def test_bundle_change_resource_file_removed():
@@ -966,11 +993,11 @@ def test_bundle_change_resource_file_removed():
     )
 
     assert bundle_change
-    assert len(bundle_change.diffs) == 1
-    assert str(bundle_change.diffs[0].path) == "$"
-    assert bundle_change.diffs[0].diff_type == DiffType.REMOVED
-    assert bundle_change.diffs[0].old == "old content"
-    assert bundle_change.diffs[0].new is None
+    assert len(bundle_change.diff_coverage) == 1
+    assert str(bundle_change.diff_coverage[0].diff.path) == "$"
+    assert bundle_change.diff_coverage[0].diff.diff_type == DiffType.REMOVED
+    assert bundle_change.diff_coverage[0].diff.old == "old content"
+    assert bundle_change.diff_coverage[0].diff.new is None
 
 
 def test_bundle_change_resource_file_dict_value_added():
@@ -983,11 +1010,11 @@ def test_bundle_change_resource_file_dict_value_added():
     )
 
     assert bundle_change
-    assert len(bundle_change.diffs) == 1
-    assert str(bundle_change.diffs[0].path) == "field.new_field"
-    assert bundle_change.diffs[0].diff_type == DiffType.ADDED
-    assert bundle_change.diffs[0].old is None
-    assert bundle_change.diffs[0].new == "new_value"
+    assert len(bundle_change.diff_coverage) == 1
+    assert str(bundle_change.diff_coverage[0].diff.path) == "field.new_field"
+    assert bundle_change.diff_coverage[0].diff.diff_type == DiffType.ADDED
+    assert bundle_change.diff_coverage[0].diff.old is None
+    assert bundle_change.diff_coverage[0].diff.new == "new_value"
 
 
 #
@@ -1007,8 +1034,8 @@ def test_cover_changes_one_file(
         approvers=[Approver(org_username="user", tag_on_merge_requests=False)],
     )
     covered_diffs = saas_file_change.cover_changes(ctx)
-    assert covered_diffs == saas_file_change.diffs
-    assert saas_file_change.diffs[0].covered_by == [ctx]
+    assert covered_diffs == [dc.diff for dc in saas_file_change.diff_coverage]
+    assert saas_file_change.diff_coverage[0].coverage == [ctx]
 
 
 def test_uncovered_change_one_file(
@@ -1022,8 +1049,8 @@ def test_uncovered_change_one_file(
     )
     saas_file_change.cover_changes(ctx)
 
-    for diff in saas_file_change.diffs:
-        assert diff.covered_by == []
+    for dc in saas_file_change.diff_coverage:
+        assert dc.coverage == []
 
 
 def test_partially_covered_change_one_file(
@@ -1034,7 +1061,7 @@ def test_partially_covered_change_one_file(
         {ref_update_path: "new-ref", "name": "new-name"}
     )
     ref_update_diff = next(
-        d for d in saas_file_change.diffs if str(d.path) == ref_update_path
+        d for d in saas_file_change.diff_coverage if str(d.diff.path) == ref_update_path
     )
     ctx = ChangeTypeContext(
         change_type_processor=build_change_type_processor(saas_file_changetype),
@@ -1043,7 +1070,7 @@ def test_partially_covered_change_one_file(
     )
 
     covered_diffs = saas_file_change.cover_changes(ctx)
-    assert [ref_update_diff] == covered_diffs
+    assert [ref_update_diff.diff] == covered_diffs
 
 
 #
@@ -1098,16 +1125,16 @@ def test_change_coverage(
     )
 
     for bc in bundle_changes:
-        for d in bc.diffs:
-            if str(d.path) == "roles.[0].$ref":
+        for d in bc.diff_coverage:
+            if str(d.diff.path) == "roles.[0].$ref":
                 expected_approver = role_approver_user
-            elif str(d.path) == "openshiftResources.[1].version":
+            elif str(d.diff.path) == "openshiftResources.[1].version":
                 expected_approver = secret_approver_user
             else:
-                pytest.fail(f"unexpected change path {str(d.path)}")
-            assert len(d.covered_by) == 1
-            assert len(d.covered_by[0].approvers) == 1
-            assert d.covered_by[0].approvers[0].org_username == expected_approver
+                pytest.fail(f"unexpected change path {str(d.diff.path)}")
+            assert len(d.coverage) == 1
+            assert len(d.coverage[0].approvers) == 1
+            assert d.coverage[0].approvers[0].org_username == expected_approver
 
 
 #
@@ -1210,8 +1237,8 @@ def test_change_decision():
         old_file_content={"foo": "bar"},
         new_file_content={"foo": "baz"},
     )
-    assert change and len(change.diffs) == 1 and change.diffs[0]
-    change.diffs[0].covered_by = [
+    assert change and len(change.diff_coverage) == 1 and change.diff_coverage[0]
+    change.diff_coverage[0].coverage = [
         ChangeTypeContext(
             change_type_processor=None,  # type: ignore
             context="something-something",
@@ -1232,7 +1259,7 @@ def test_change_decision():
 
     assert change_decision[0].decision.approve
     assert change_decision[0].decision.hold
-    assert change_decision[0].diff == change.diffs[0]
+    assert change_decision[0].diff == change.diff_coverage[0].diff
     assert change_decision[0].file == change.fileref
 
 
