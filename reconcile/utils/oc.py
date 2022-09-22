@@ -195,7 +195,7 @@ class OCProcessReconcileTimeDecoratorMsg:
 
 
 def oc_process(template, parameters=None):
-    oc = OCNative(server=None, local=True, cluster_name="cluster", token=None)
+    oc = OCLocal(cluster_name="cluster", server=None, token=None, local=True)
     return oc.process(template, parameters)
 
 
@@ -339,20 +339,6 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
             cmd.append("--all-namespaces")
         return self._run_json(cmd)
 
-    def process(self, template, parameters=None):
-        if parameters is None:
-            parameters = {}
-        parameters_to_process = [f"{k}={v}" for k, v in parameters.items()]
-        cmd = [
-            "process",
-            "--local",
-            "--ignore-unknown-parameters",
-            "-f",
-            "-",
-        ] + parameters_to_process
-        result = self._run(cmd, stdin=json.dumps(template, sort_keys=True))
-        return json.loads(result)["items"]
-
     def remove_last_applied_configuration(self, namespace, kind, name):
         cmd = [
             "annotate",
@@ -372,6 +358,44 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
             slow_oc_reconcile_threshold=self.slow_oc_reconcile_threshold,
             is_log_slow_oc_reconcile=self.is_log_slow_oc_reconcile,
         )
+
+    def process(self, template, parameters=None):
+        if parameters is None:
+            parameters = {}
+        parameters_to_process = [f"{k}={v}" for k, v in parameters.items()]
+        cmd = [
+            "process",
+            "--local",
+            "--ignore-unknown-parameters",
+            "-f",
+            "-",
+        ] + parameters_to_process
+        result = self._run(cmd, stdin=json.dumps(template, sort_keys=True))
+        return json.loads(result)["items"]
+
+    def release_mirror(self, from_release, to, to_release, dockerconfig):
+        with tempfile.NamedTemporaryFile() as fp:
+            content = json.dumps(dockerconfig)
+            fp.write(content.encode())
+            fp.seek(0)
+
+            cmd = [
+                "adm",
+                "--registry-config",
+                fp.name,
+                "release",
+                "mirror",
+                "--from",
+                from_release,
+                "--to",
+                to,
+                "--to-release-image",
+                to_release,
+                "--max-per-registry",
+                "1",
+            ]
+
+            self._run(cmd)
 
     @OCDecorators.process_reconcile_time
     def apply(self, namespace, resource):
@@ -474,30 +498,6 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
             return
         cmd = ["adm", "groups", "new", group]
         self._run(cmd)
-
-    def release_mirror(self, from_release, to, to_release, dockerconfig):
-        with tempfile.NamedTemporaryFile() as fp:
-            content = json.dumps(dockerconfig)
-            fp.write(content.encode())
-            fp.seek(0)
-
-            cmd = [
-                "adm",
-                "--registry-config",
-                fp.name,
-                "release",
-                "mirror",
-                "--from",
-                from_release,
-                "--to",
-                to,
-                "--to-release-image",
-                to_release,
-                "--max-per-registry",
-                "1",
-            ]
-
-            self._run(cmd)
 
     def delete_group(self, group):
         cmd = ["delete", "group", group]
@@ -968,17 +968,11 @@ class OCNative(OCDeprecated):
             insecure_skip_tls_verify=insecure_skip_tls_verify,
         )
 
-        # server is set to None for certain use cases like saasherder which
-        # uses local operations, such as process(). A refactor to provide that
-        # functionality outside of this class would allow an exception to be
-        # thrown here instead to avoid AttributeErrors when accessing
-        # methods that rely on client/api_kind_version to be set.
         if server:
             self.client = self._get_client(server, token)
             self.api_kind_version = self.get_api_resources()
         else:
-            init_api_resources = False
-            init_projects = False
+            raise Exception("A method relies on client/api_kind_version to be set")
 
         self.object_clients = {}
         self.init_projects = init_projects
@@ -1002,16 +996,13 @@ class OCNative(OCDeprecated):
             # default timeout seems to be 1+ minutes
             retries=5,
         )
-
         if self.jump_host:
             # the ports could be parameterized, but at this point
             # we only have need of 1 tunnel for 1 service
             self.jump_host.create_ssh_tunnel()
             local_port = self.jump_host.local_port
             opts["proxy"] = f"http://localhost:{local_port}"
-
         configuration = Configuration()
-
         # the kubernetes client configuration takes a limited set
         # of parameters during initialization, but there are a lot
         # more options that can be set to tweak the behavior of the
@@ -1206,6 +1197,22 @@ class OCNative(OCDeprecated):
 
 
 OCClient = Union[OCNative, OCDeprecated]
+
+
+class OCLocal(OCDeprecated):
+    def __init__(
+        self,
+        cluster_name,
+        server,
+        token,
+        local=False,
+    ):
+        super().__init__(
+            cluster_name=cluster_name,
+            server=server,
+            token=token,
+            local=local,
+        )
 
 
 class OC:
