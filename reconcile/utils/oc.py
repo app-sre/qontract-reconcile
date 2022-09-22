@@ -370,9 +370,7 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
             "-f",
             "-",
         ] + parameters_to_process
-        result = self._run(
-            self, cmd, stdin=json.dumps(template, sort_keys=True)
-        )
+        result = self._run(cmd, stdin=json.dumps(template, sort_keys=True))
         return json.loads(result)["items"]
 
     def release_mirror(self, from_release, to, to_release, dockerconfig):
