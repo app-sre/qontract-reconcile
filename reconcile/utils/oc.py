@@ -370,7 +370,7 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
             "-f",
             "-",
         ] + parameters_to_process
-        result = OCDeprecated._run(
+        result = self._run(
             self, cmd, stdin=json.dumps(template, sort_keys=True)
         )
         return json.loads(result)["items"]
