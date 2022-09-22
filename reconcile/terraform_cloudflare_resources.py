@@ -156,7 +156,7 @@ def run(
         QONTRACT_INTEGRATION,
         QONTRACT_INTEGRATION_VERSION,
         QONTRACT_TF_PREFIX,
-        [{"name": name for name in cf_clients.dump()}],
+        [{"name": name} for name in cf_clients.dump()],
         working_dirs,
         thread_pool_size,
     )
