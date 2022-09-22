@@ -715,6 +715,7 @@ def run(
     gitlab_merge_request_id: int,
     comparison_sha: str,
     change_type_processing_mode: str,
+    mr_management_enabled: bool = False,
 ) -> None:
     comparision_gql_api = gql.get_api_for_sha(
         comparison_sha, QONTRACT_INTEGRATION, validate_schemas=False
@@ -764,8 +765,11 @@ def run(
             d.decision.approve and not d.decision.hold for d in change_decisions
         )
 
-        # reporting
-        if not dry_run:
+        #
+        #   R E P O R T I N G
+        #
+
+        if mr_management_enabled:
             write_coverage_report_to_mr(change_decisions, gitlab_merge_request_id, gl)
         write_coverage_report_to_stdout(change_decisions)
 
@@ -774,32 +778,36 @@ def run(
         #
 
         labels = gl.get_merge_request_labels(gitlab_merge_request_id)
+
         # for current testing purposes, the self servability label wills be managed
-        # also in dry-run mode. this way change-owners can run in dry-run mode next
-        # to saas-file-owners and we can observe if bot integrations consider the MR
-        # self servicable or not.
+        # also when MR management is not enabled. this way change-owners can run next
+        # to saas-file-owners and we can observe if bot integrations would consider
+        # a saas-file only MR
         labels = manage_conditional_label(
             labels=labels,
             condition=self_servicable,
             true_label=SELF_SERVICEABLE,
             false_label=NOT_SELF_SERVICEABLE,
+            dry_run=False,
         )
-        if not dry_run:
-            labels = manage_conditional_label(
-                labels=labels,
-                condition=self_servicable and hold,
-                true_label=HOLD,
-            )
-            labels = manage_conditional_label(
-                labels=labels,
-                condition=self_servicable and approved,
-                true_label=APPROVED,
-            )
-            labels = manage_conditional_label(
-                labels=labels,
-                condition=self_servicable and not approved,
-                true_label=AWAITING_APPROVAL,
-            )
+        labels = manage_conditional_label(
+            labels=labels,
+            condition=self_servicable and hold,
+            true_label=HOLD,
+            dry_run=mr_management_enabled,
+        )
+        labels = manage_conditional_label(
+            labels=labels,
+            condition=self_servicable and approved,
+            true_label=APPROVED,
+            dry_run=mr_management_enabled,
+        )
+        labels = manage_conditional_label(
+            labels=labels,
+            condition=self_servicable and not approved,
+            true_label=AWAITING_APPROVAL,
+            dry_run=mr_management_enabled,
+        )
         gl.set_labels_on_merge_request(gitlab_merge_request_id, labels)
 
     except BaseException:
@@ -811,18 +819,27 @@ def manage_conditional_label(
     condition: bool,
     true_label: Optional[str] = None,
     false_label: Optional[str] = None,
+    dry_run: bool = True,
 ) -> list[str]:
     new_labels = labels.copy()
     if condition:
         if true_label and true_label not in labels:
-            new_labels.append(true_label)
+            if not dry_run:
+                new_labels.append(true_label)
+            logging.info(f"adding label {true_label}")
         if false_label and false_label in labels:
-            new_labels.remove(false_label)
+            if not dry_run:
+                new_labels.remove(false_label)
+            logging.info(f"removing label {false_label}")
     else:
         if true_label and true_label in labels:
-            new_labels.remove(true_label)
+            if not dry_run:
+                new_labels.remove(true_label)
+            logging.info(f"removing label {true_label}")
         if false_label and false_label not in labels:
-            new_labels.append(false_label)
+            if not dry_run:
+                new_labels.append(false_label)
+            logging.info(f"adding label {false_label}")
     return new_labels
 
 

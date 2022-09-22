@@ -1247,6 +1247,15 @@ def test_label_management_condition_true():
         condition=True,
         true_label="true-label",
         false_label="false-label",
+        dry_run=False,
+    )
+
+    assert ["existing-label"] == manage_conditional_label(
+        labels=["existing-label"],
+        condition=True,
+        true_label="true-label",
+        false_label="false-label",
+        dry_run=True,
     )
 
 
@@ -1256,6 +1265,15 @@ def test_label_management_condition_false():
         condition=False,
         true_label="true-label",
         false_label="false-label",
+        dry_run=False,
+    )
+
+    assert ["existing-label"] == manage_conditional_label(
+        labels=["existing-label"],
+        condition=False,
+        true_label="true-label",
+        false_label="false-label",
+        dry_run=True,
     )
 
 
@@ -1265,6 +1283,15 @@ def test_label_management_true_to_false():
         condition=False,
         true_label="true-label",
         false_label="false-label",
+        dry_run=False,
+    )
+
+    assert ["existing-label", "true-label"] == manage_conditional_label(
+        labels=["existing-label", "true-label"],
+        condition=False,
+        true_label="true-label",
+        false_label="false-label",
+        dry_run=True,
     )
 
 
@@ -1274,4 +1301,13 @@ def test_label_management_false_to_true():
         condition=True,
         true_label="true-label",
         false_label="false-label",
+        dry_run=False,
+    )
+
+    assert ["existing-label", "false-label"] == manage_conditional_label(
+        labels=["existing-label", "false-label"],
+        condition=True,
+        true_label="true-label",
+        false_label="false-label",
+        dry_run=True,
     )

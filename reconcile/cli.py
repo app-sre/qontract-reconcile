@@ -2154,6 +2154,12 @@ def integrations_manager(
     default=os.environ.get("MR_MANAGEMENT", False),
     help="Manage MR labels and comments (default to false)",
 )
+@click.option(
+    "--mr-management",
+    is_flag=True,
+    default=os.environ.get("MR_MANAGEMENT", False),
+    help="Manage MR labels and comments (default to false)",
+)
 @click.pass_context
 def change_owners(
     ctx,
@@ -2161,6 +2167,7 @@ def change_owners(
     gitlab_merge_request_id,
     comparison_sha,
     change_type_processing_mode,
+    mr_management,
 ):
     import reconcile.change_owners
 
@@ -2171,6 +2178,7 @@ def change_owners(
         gitlab_merge_request_id,
         comparison_sha,
         change_type_processing_mode,
+        mr_management,
     )
 
 
