@@ -11,6 +11,12 @@ from reconcile.change_owners import (
     create_bundle_file_change,
     cover_changes_with_self_service_roles,
     deepdiff_path_to_jsonpath,
+    get_approver_decisions_from_mr_comments,
+    apply_decisions_to_changes,
+    manage_conditional_label,
+    DecisionCommand,
+    Decision,
+    Approver,
 )
 from reconcile.gql_definitions.change_owners.queries.change_types import (
     ChangeTypeChangeDetectorV1,
@@ -22,6 +28,7 @@ from reconcile.gql_definitions.change_owners.queries.self_service_roles import (
     RoleV1,
     SelfServiceConfigV1,
     UserV1,
+    BotV1,
 )
 
 from .fixtures import Fixtures
@@ -82,7 +89,8 @@ def build_role(
     name: str,
     change_type_name: str,
     datafiles: Optional[list[DatafileObjectV1]],
-    users: Optional[list[str]],
+    users: Optional[list[str]] = None,
+    bots: Optional[list[str]] = None,
 ) -> RoleV1:
     return RoleV1(
         name=name,
@@ -96,8 +104,10 @@ def build_role(
                 resources=None,
             )
         ],
-        owned_saas_files=None,
-        users=[UserV1(org_username=u) for u in users or []],
+        users=[
+            UserV1(org_username=u, tag_on_merge_requests=False) for u in users or []
+        ],
+        bots=[BotV1(org_username=b) for b in bots or []],
     )
 
 
@@ -109,6 +119,11 @@ def saas_file_changetype() -> ChangeTypeV1:
 @pytest.fixture
 def role_member_change_type() -> ChangeTypeV1:
     return load_change_type("changetype_role_member.yaml")
+
+
+@pytest.fixture
+def cluster_owner_change_type() -> ChangeTypeV1:
+    return load_change_type("changetype_cluster_owner.yml")
 
 
 @pytest.fixture
@@ -176,7 +191,43 @@ def test_extract_context_file_refs_from_bundle_change_schema_mismatch(
     assert not file_refs
 
 
-def test_extract_context_file_refs_added_selector(
+def test_extract_context_file_refs_selector(
+    cluster_owner_change_type: ChangeTypeV1,
+):
+    """
+    this testcase extracts the context file based on the change types context
+    selector
+    """
+    cluster = "/my/cluster.yml"
+    namespace_change = create_bundle_file_change(
+        path="/my/namespace.yml",
+        schema="/openshift/namespace-1.yml",
+        file_type=BundleFileType.DATAFILE,
+        old_file_content={
+            "the_change": "does not matter in this test",
+            "cluster": {
+                "$ref": cluster,
+            },
+        },
+        new_file_content={
+            "because": "we are just testing the context extraction",
+            "cluster": {
+                "$ref": cluster,
+            },
+        },
+    )
+    assert namespace_change
+    file_refs = namespace_change.extract_context_file_refs(cluster_owner_change_type)
+    assert file_refs == [
+        FileRef(
+            file_type=BundleFileType.DATAFILE,
+            schema="/openshift/cluster-1.yml",
+            path=cluster,
+        )
+    ]
+
+
+def test_extract_context_file_refs_in_list_added_selector(
     role_member_change_type: ChangeTypeV1,
 ):
     """
@@ -210,7 +261,7 @@ def test_extract_context_file_refs_added_selector(
     ]
 
 
-def test_extract_context_file_refs_removed_selector(
+def test_extract_context_file_refs_in_list_removed_selector(
     role_member_change_type: ChangeTypeV1,
 ):
     """
@@ -242,7 +293,7 @@ def test_extract_context_file_refs_removed_selector(
     ]
 
 
-def test_extract_context_file_refs_selector_change_schema_mismatch(
+def test_extract_context_file_refs_in_list_selector_change_schema_mismatch(
     role_member_change_type: ChangeTypeV1,
 ):
     """
@@ -953,7 +1004,7 @@ def test_cover_changes_one_file(
     ctx = ChangeTypeContext(
         change_type_processor=build_change_type_processor(saas_file_changetype),
         context="RoleV1 - some-role",
-        approvers=[UserV1(org_username="user")],
+        approvers=[Approver(org_username="user", tag_on_merge_requests=False)],
     )
     covered_diffs = saas_file_change.cover_changes(ctx)
     assert covered_diffs == saas_file_change.diffs
@@ -967,7 +1018,7 @@ def test_uncovered_change_one_file(
     ctx = ChangeTypeContext(
         change_type_processor=build_change_type_processor(saas_file_changetype),
         context="RoleV1 - some-role",
-        approvers=[UserV1(org_username="user")],
+        approvers=[Approver(org_username="user", tag_on_merge_requests=False)],
     )
     saas_file_change.cover_changes(ctx)
 
@@ -988,7 +1039,7 @@ def test_partially_covered_change_one_file(
     ctx = ChangeTypeContext(
         change_type_processor=build_change_type_processor(saas_file_changetype),
         context="RoleV1 - some-role",
-        approvers=[UserV1(org_username="user")],
+        approvers=[Approver(org_username="user", tag_on_merge_requests=False)],
     )
 
     covered_diffs = saas_file_change.cover_changes(ctx)
@@ -1057,3 +1108,206 @@ def test_change_coverage(
             assert len(d.covered_by) == 1
             assert len(d.covered_by[0].approvers) == 1
             assert d.covered_by[0].approvers[0].org_username == expected_approver
+
+
+#
+# test MR decision comment parsing
+#
+
+
+def test_approver_decision_approve_and_hold():
+    comments = [
+        {
+            "username": "user-1",
+            "body": ("nice\n" f"{DecisionCommand.APPROVED.value}"),
+            "created_at": "2020-01-01T00:00:00Z",
+        },
+        {
+            "username": "user-2",
+            "body": (f"{DecisionCommand.HOLD.value}\n" "oh wait... big problems"),
+            "created_at": "2020-01-02T00:00:00Z",
+        },
+    ]
+    assert get_approver_decisions_from_mr_comments(comments) == {
+        "user-1": Decision(approve=True, hold=False),
+        "user-2": Decision(approve=False, hold=True),
+    }
+
+
+def test_approver_approve_and_cancel():
+    comments = [
+        {
+            "username": "user-1",
+            "body": ("nice\n" f"{DecisionCommand.APPROVED.value}"),
+            "created_at": "2020-01-01T00:00:00Z",
+        },
+        {
+            "username": "user-1",
+            "body": (
+                f"{DecisionCommand.CANCEL_APPROVED.value}\n"
+                "oh wait... changed my mind"
+            ),
+            "created_at": "2020-01-02T00:00:00Z",
+        },
+    ]
+    assert get_approver_decisions_from_mr_comments(comments) == {
+        "user-1": Decision(approve=False, hold=False),
+    }
+
+
+def test_approver_hold_and_unhold():
+    comments = [
+        {
+            "username": "user-1",
+            "body": ("wait...\n" f"{DecisionCommand.HOLD.value}"),
+            "created_at": "2020-01-01T00:00:00Z",
+        },
+        {
+            "username": "user-1",
+            "body": (
+                f"{DecisionCommand.CANCEL_HOLD.value}\n" "oh never mind... keep going"
+            ),
+            "created_at": "2020-01-02T00:00:00Z",
+        },
+    ]
+    assert get_approver_decisions_from_mr_comments(comments) == {
+        "user-1": Decision(approve=False, hold=False),
+    }
+
+
+def test_unordered_approval_comments():
+    comments = [
+        {
+            "username": "user-1",
+            "body": (
+                f"{DecisionCommand.CANCEL_HOLD.value}\n" "oh never mind... keep going"
+            ),
+            "created_at": "2020-01-02T00:00:00Z",
+        },
+        {
+            "username": "user-1",
+            "body": ("wait...\n" f"{DecisionCommand.HOLD.value}"),
+            "created_at": "2020-01-01T00:00:00Z",
+        },
+    ]
+    assert get_approver_decisions_from_mr_comments(comments) == {
+        "user-1": Decision(approve=False, hold=False),
+    }
+
+
+#
+# test decide on changes
+#
+
+
+def test_change_decision():
+    yea_user = "yea-sayer"
+    nay_sayer = "nay-sayer"
+    change = create_bundle_file_change(
+        file_type=BundleFileType.DATAFILE,
+        path="/my/file.yml",
+        schema="/my/schema.yml",
+        old_file_content={"foo": "bar"},
+        new_file_content={"foo": "baz"},
+    )
+    assert change and len(change.diffs) == 1 and change.diffs[0]
+    change.diffs[0].covered_by = [
+        ChangeTypeContext(
+            change_type_processor=None,  # type: ignore
+            context="something-something",
+            approvers=[
+                Approver(org_username=yea_user, tag_on_merge_requests=False),
+                Approver(org_username=nay_sayer, tag_on_merge_requests=False),
+            ],
+        )
+    ]
+
+    change_decision = apply_decisions_to_changes(
+        approver_decisions={
+            yea_user: Decision(approve=True, hold=False),
+            nay_sayer: Decision(approve=False, hold=True),
+        },
+        changes=[change],
+    )
+
+    assert change_decision[0].decision.approve
+    assert change_decision[0].decision.hold
+    assert change_decision[0].diff == change.diffs[0]
+    assert change_decision[0].file == change.fileref
+
+
+#
+# test label management
+#
+
+
+def test_label_management_condition_true():
+    assert ["existing-label", "true-label"] == manage_conditional_label(
+        labels=["existing-label"],
+        condition=True,
+        true_label="true-label",
+        false_label="false-label",
+        dry_run=False,
+    )
+
+    assert ["existing-label"] == manage_conditional_label(
+        labels=["existing-label"],
+        condition=True,
+        true_label="true-label",
+        false_label="false-label",
+        dry_run=True,
+    )
+
+
+def test_label_management_condition_false():
+    assert ["existing-label", "false-label"] == manage_conditional_label(
+        labels=["existing-label"],
+        condition=False,
+        true_label="true-label",
+        false_label="false-label",
+        dry_run=False,
+    )
+
+    assert ["existing-label"] == manage_conditional_label(
+        labels=["existing-label"],
+        condition=False,
+        true_label="true-label",
+        false_label="false-label",
+        dry_run=True,
+    )
+
+
+def test_label_management_true_to_false():
+    assert ["existing-label", "false-label"] == manage_conditional_label(
+        labels=["existing-label", "true-label"],
+        condition=False,
+        true_label="true-label",
+        false_label="false-label",
+        dry_run=False,
+    )
+
+    assert ["existing-label", "true-label"] == manage_conditional_label(
+        labels=["existing-label", "true-label"],
+        condition=False,
+        true_label="true-label",
+        false_label="false-label",
+        dry_run=True,
+    )
+
+
+def test_label_management_false_to_true():
+    assert ["existing-label", "true-label"] == manage_conditional_label(
+        labels=["existing-label", "false-label"],
+        condition=True,
+        true_label="true-label",
+        false_label="false-label",
+        dry_run=False,
+    )
+
+    assert ["existing-label", "false-label"] == manage_conditional_label(
+        labels=["existing-label", "false-label"],
+        condition=True,
+        true_label="true-label",
+        false_label="false-label",
+        dry_run=True,
+    )

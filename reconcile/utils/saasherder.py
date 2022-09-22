@@ -239,8 +239,6 @@ class SaasHerder:
             saas_file_name_path_map[saas_file_name].append(saas_file_path)
 
             saas_file_owners = [
-                u["org_username"] for r in saas_file["roles"] for u in r["users"]
-            ] + [
                 u["org_username"]
                 for r in saas_file["selfServiceRoles"]
                 for u in r["users"]

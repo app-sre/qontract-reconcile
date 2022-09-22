@@ -1,0 +1,13 @@
+name: cluser-owner
+
+contextType: datafile
+contextSchema: /openshift/cluster-1.yml
+
+changes:
+- provider: jsonPath
+  changeSchema: /openshift/namespace-1.yml
+  jsonPathSelectors:
+  - $
+  context:
+    selector: cluster.'$ref'
+    when: null

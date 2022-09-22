@@ -14,10 +14,11 @@ query SelfServiceRolesQuery {
       }
       resources
     }
-    owned_saas_files {
-      path
-    }
     users {
+      org_username
+      tag_on_merge_requests
+    }
+    bots {
       org_username
     }
   }

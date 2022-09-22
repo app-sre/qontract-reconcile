@@ -1699,8 +1699,12 @@ ROLES_QUERY = """
       {% endif %}
 
       {% if saas_files %}
-      owned_saas_files {
-        name
+      self_service {
+        datafiles {
+          ... on SaasFile_v2 {
+            name
+          }
+        }
       }
       {% endif %}
 
@@ -2070,15 +2074,6 @@ SAAS_FILES_QUERY_V2 = """
         }
         disable
         delete
-      }
-    }
-    roles {
-      users {
-        org_username
-        tag_on_merge_requests
-      }
-      bots {
-        org_username
       }
     }
     selfServiceRoles {

@@ -373,6 +373,11 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         mr_labels += labels
         self.update_labels(merge_request, "merge-request", mr_labels)
 
+    def set_labels_on_merge_request(self, mr_id, labels):
+        """Set labels to a Merge Request"""
+        merge_request = self.project.mergerequests.get(mr_id)
+        self.update_labels(merge_request, "merge-request", labels)
+
     def remove_label_from_merge_request(self, mr_id, label):
         merge_request = self.project.mergerequests.get(mr_id)
         labels = merge_request.attributes.get("labels")

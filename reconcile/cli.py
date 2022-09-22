@@ -2159,23 +2159,50 @@ def integrations_manager(
 @integration.command(
     short_help="Detects owners for changes in app-interface PRs and allows them to self-service merge."
 )
+@click.argument("gitlab-project-id")
+@click.argument("gitlab-merge-request-id")
 @click.option(
     "--comparison-sha",
     help="bundle sha to compare to to find changes",
 )
 @click.option(
-    "--saas-file-owner-change-type-name",
-    help="changetype to be used to cover changes in saas files owned via Role_v1.saas_file_owners",
+    "--change-type-processing-mode",
+    help="if `limited` (default) the integration will not make any final decisions on the MR, but if `authorative` it will ",
+    required=True,
+    default="limited",
+    type=click.Choice(["limited", "authorative"], case_sensitive=True),
+)
+@click.option(
+    "--mr-management",
+    is_flag=True,
+    default=os.environ.get("MR_MANAGEMENT", False),
+    help="Manage MR labels and comments (default to false)",
+)
+@click.option(
+    "--mr-management",
+    is_flag=True,
+    default=os.environ.get("MR_MANAGEMENT", False),
+    help="Manage MR labels and comments (default to false)",
 )
 @click.pass_context
-def change_owners(ctx, comparison_sha, saas_file_owner_change_type_name):
+def change_owners(
+    ctx,
+    gitlab_project_id,
+    gitlab_merge_request_id,
+    comparison_sha,
+    change_type_processing_mode,
+    mr_management,
+):
     import reconcile.change_owners
 
     run_integration(
         reconcile.change_owners,
         ctx.obj,
+        gitlab_project_id,
+        gitlab_merge_request_id,
         comparison_sha,
-        saas_file_owner_change_type_name,
+        change_type_processing_mode,
+        mr_management,
     )
 
 
