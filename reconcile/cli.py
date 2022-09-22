@@ -1534,6 +1534,30 @@ def terraform_resources(
     )
 
 
+@integration.command(short_help="Manage Cloudflare Resources using Terraform.")
+@print_to_file
+@enable_deletion(default=False)
+@threaded(default=20)
+@binary(["terraform"])
+@binary_version("terraform", ["version"], TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
+@click.pass_context
+def terraform_cloudflare_resources(
+    ctx,
+    print_to_file,
+    enable_deletion,
+    thread_pool_size,
+):
+    import reconcile.terraform_cloudflare_resources
+
+    run_integration(
+        reconcile.terraform_cloudflare_resources,
+        ctx.obj,
+        print_to_file,
+        enable_deletion,
+        thread_pool_size,
+    )
+
+
 @integration.command(short_help="Manage AWS users using Terraform.")
 @print_to_file
 @threaded(default=20)

@@ -2,7 +2,7 @@ import tempfile
 from dataclasses import dataclass
 from typing import Iterable, Optional, Union
 
-from terrascript import Terrascript, Terraform, Resource, Output, Backend
+from terrascript import Terrascript, Terraform, Resource, Output, Backend, Variable
 from terrascript import provider
 
 from reconcile.utils.external_resource_spec import (
@@ -25,8 +25,7 @@ class CloudflareAccountConfig:
     """Configuration related to authenticating API calls to Cloudflare."""
 
     name: str
-    email: str
-    api_key: str
+    api_token: str
     account_id: str
 
 
@@ -61,9 +60,17 @@ def create_cloudflare_terrascript(
     terrascript += Terraform(backend=backend, required_providers=required_providers)
 
     terrascript += provider.cloudflare(
-        email=account_config.email,
-        api_key=account_config.api_key,
-        account_id=account_config.account_id,
+        api_token=account_config.api_token,
+        account_id=account_config.account_id,  # needed for some resources, see note below
+    )
+
+    # Some resources need "account_id" to be set at the resource level
+    # The cloudflare provider is being migrated from settings account_id at the provider
+    # level to requiring it at the resource level, for resources that needs it.
+    # This is also listed in version 4.x breaking changes:
+    #   https://github.com/cloudflare/terraform-provider-cloudflare/issues/1646
+    terrascript += Variable(
+        "account_id", type="string", default=account_config.account_id
     )
 
     return terrascript
