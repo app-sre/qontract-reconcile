@@ -1,14 +1,14 @@
 from collections import defaultdict
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Optional, Protocol, Tuple
+from typing import Any, Iterable, Optional, Tuple
 from functools import reduce
 import json
 import logging
 import traceback
 import re
 
-from reconcile.utils.output import print_table
+from reconcile.utils.output import format_table
 from reconcile.utils import gql
 from reconcile.gql_definitions.change_owners.queries.self_service_roles import RoleV1
 from reconcile.gql_definitions.change_owners.queries.change_types import (
@@ -20,6 +20,17 @@ from reconcile.gql_definitions.change_owners.queries import (
     change_types,
 )
 from reconcile.utils.semver_helper import make_semver
+
+from reconcile.utils.gitlab_api import GitLabApi
+from reconcile import queries
+
+from reconcile.utils.mr.labels import (
+    SELF_SERVICEABLE,
+    NOT_SELF_SERVICEABLE,
+    HOLD,
+    APPROVED,
+    AWAITING_APPROVAL,
+)
 
 from deepdiff import DeepDiff
 from deepdiff.helper import CannotCompare
@@ -169,16 +180,22 @@ class BundleFileChange:
                     affected_context_paths = new_contexts - old_contexts
                 elif c.context.when == "removed":
                     affected_context_paths = old_contexts - new_contexts
-                contexts.extend(
-                    [
-                        FileRef(
-                            schema=change_type.context_schema,
-                            path=path,
-                            file_type=BundleFileType.DATAFILE,
-                        )
-                        for path in affected_context_paths
-                    ]
-                )
+                elif c.context.when is None and old_contexts == new_contexts:
+                    affected_context_paths = old_contexts
+                else:
+                    affected_context_paths = None
+
+                if affected_context_paths:
+                    contexts.extend(
+                        [
+                            FileRef(
+                                schema=change_type.context_schema,
+                                path=path,
+                                file_type=BundleFileType.DATAFILE,
+                            )
+                            for path in affected_context_paths
+                        ]
+                    )
         return contexts
 
     def cover_changes(self, change_type_context: "ChangeTypeContext") -> list[Diff]:
@@ -236,6 +253,12 @@ class BundleFileChange:
     def _filter_diffs(self, diff_types: list[DiffType]) -> list[Diff]:
         return list(filter(lambda d: d.diff_type in diff_types, self.diffs))
 
+    def uncovered_changes(self) -> Iterable[Diff]:
+        return (d for d in self.diffs if not d.covered_by)
+
+    def all_changes_covered(self) -> bool:
+        return not any(self.uncovered_changes())
+
 
 IDENTIFIER_FIELD_NAME = "__identifier"
 REF_FIELD_NAME = "$ref"
@@ -288,6 +311,17 @@ def compare_object_ctx_identifier(
     raise CannotCompare() from None
 
 
+def parse_resource_file_content(content: Optional[Any]) -> Any:
+    if content:
+        try:
+            return anymarkup.parse(content, force_types=None)
+        except Exception:
+            # not parsable content - we will just deal with the plain content
+            return content
+    else:
+        return None
+
+
 def create_bundle_file_change(
     path: str,
     schema: Optional[str],
@@ -306,10 +340,8 @@ def create_bundle_file_change(
 
     # try to parse the content if a resourcefile has a schema
     if file_type == BundleFileType.RESOURCEFILE and schema:
-        if old_file_content:
-            old_file_content = anymarkup.parse(old_file_content, force_types=None)
-        if new_file_content:
-            new_file_content = anymarkup.parse(new_file_content, force_types=None)
+        old_file_content = parse_resource_file_content(old_file_content)
+        new_file_content = parse_resource_file_content(new_file_content)
 
     diffs: list[Diff] = []
     if old_file_content and new_file_content:
@@ -511,15 +543,17 @@ def build_change_type_processor(change_type: ChangeTypeV1) -> ChangeTypeProcesso
     )
 
 
-class Approver(Protocol):
+@dataclass
+class Approver:
     """
-    Minimalistic protocol of an approver to be used in ChangeTypeContexts.
+    Minimalistic wrapper for approver sources to be used in ChangeTypeContexts.
     Since we might load different approver contexts via GraphQL query classes,
-    a protocol enables us to deal with different dataclasses representing an
+    a wrapper enables us to deal with different dataclasses representing an
     approver.
     """
 
     org_username: str
+    tag_on_merge_requests: Optional[bool] = False
 
 
 @dataclass
@@ -579,11 +613,23 @@ def cover_changes_with_self_service_roles(
                 for role in role_lookup[
                     (df_ref.file_type, df_ref.path, ctp.change_type.name)
                 ]:
+                    approvers = [
+                        Approver(u.org_username, u.tag_on_merge_requests)
+                        for u in role.users or []
+                        if u
+                    ]
+                    approvers.extend(
+                        [
+                            Approver(b.org_username, False)
+                            for b in role.bots or []
+                            if b and b.org_username
+                        ]
+                    )
                     bc.cover_changes(
                         ChangeTypeContext(
                             change_type_processor=ctp,
                             context=f"RoleV1 - {role.name}",
-                            approvers=[u for u in role.users or [] if u],
+                            approvers=approvers,
                         )
                     )
 
@@ -665,7 +711,11 @@ def _parse_bundle_changes(bundle_changes) -> list[BundleFileChange]:
 
 def run(
     dry_run: bool,
+    gitlab_project_id: str,
+    gitlab_merge_request_id: int,
     comparison_sha: str,
+    change_type_processing_mode: str,
+    mr_management_enabled: bool = False,
 ) -> None:
     comparision_gql_api = gql.get_api_for_sha(
         comparison_sha, QONTRACT_INTEGRATION, validate_schemas=False
@@ -682,6 +732,9 @@ def run(
     # an error while trying to cover changes will not fail the integration
     # and the PR check - self service merges will not be available though
     try:
+        #
+        #   C H A N G E   C O V E R A G E
+        #
         changes = fetch_bundle_changes(comparison_sha)
         cover_changes(
             changes,
@@ -689,36 +742,257 @@ def run(
             comparision_gql_api,
         )
 
-        results = []
-        for c in changes:
-            for d in c.diffs:
-                item = {
-                    "file": c.fileref.path,
-                    "schema": c.fileref.schema,
-                    "changed path": d.path,
-                }
-                if str(d.path) != "$":
-                    item.update(
-                        {
-                            "old value": d.old_value_repr(),
-                            "new value": d.new_value_repr(),
-                        }
-                    )
-                if d.covered_by:
-                    item.update(
-                        {
-                            "change type": d.covered_by[
-                                0
-                            ].change_type_processor.change_type.name,
-                            "context": d.covered_by[0].context,
-                            "approvers": ", ".join(
-                                [a.org_username for a in d.covered_by[0].approvers]
-                            )[:20],
-                        }
-                    )
-                results.append(item)
+        self_servicable = (
+            all(c.all_changes_covered() for c in changes)
+            and change_type_processing_mode == "authorative"
+        )
 
-        print_table(
+        # todo(goberlec) - what do we do if there are no changes?
+        # do we want to add the bot/approved label and be done with it?
+
+        #
+        #   D E C I S I O N S
+        #
+
+        gl = init_gitlab(gitlab_project_id)
+        approver_decisions = get_approver_decisions_from_mr_comments(
+            gl.get_merge_request_comments(
+                gitlab_merge_request_id, include_description=True
+            )
+        )
+        change_decisions = apply_decisions_to_changes(changes, approver_decisions)
+        hold = any(d.decision.hold for d in change_decisions)
+        approved = all(
+            d.decision.approve and not d.decision.hold for d in change_decisions
+        )
+
+        #
+        #   R E P O R T I N G
+        #
+
+        if mr_management_enabled:
+            write_coverage_report_to_mr(change_decisions, gitlab_merge_request_id, gl)
+        write_coverage_report_to_stdout(change_decisions)
+
+        #
+        #   L A B E L I N G
+        #
+
+        labels = gl.get_merge_request_labels(gitlab_merge_request_id)
+
+        # for current testing purposes, the self servability label wills be managed
+        # also when MR management is not enabled. this way change-owners can run next
+        # to saas-file-owners and we can observe if bot integrations would consider
+        # a saas-file only MR
+        labels = manage_conditional_label(
+            labels=labels,
+            condition=self_servicable,
+            true_label=SELF_SERVICEABLE,
+            false_label=NOT_SELF_SERVICEABLE,
+            dry_run=False,
+        )
+        labels = manage_conditional_label(
+            labels=labels,
+            condition=self_servicable and hold,
+            true_label=HOLD,
+            dry_run=not mr_management_enabled,
+        )
+        labels = manage_conditional_label(
+            labels=labels,
+            condition=self_servicable and approved,
+            true_label=APPROVED,
+            dry_run=not mr_management_enabled,
+        )
+        labels = manage_conditional_label(
+            labels=labels,
+            condition=self_servicable and not approved,
+            true_label=AWAITING_APPROVAL,
+            dry_run=not mr_management_enabled,
+        )
+        gl.set_labels_on_merge_request(gitlab_merge_request_id, labels)
+
+    except BaseException:
+        logging.error(traceback.format_exc())
+
+
+def manage_conditional_label(
+    labels: list[str],
+    condition: bool,
+    true_label: Optional[str] = None,
+    false_label: Optional[str] = None,
+    dry_run: bool = True,
+) -> list[str]:
+    new_labels = labels.copy()
+    if condition:
+        if true_label and true_label not in labels:
+            if not dry_run:
+                new_labels.append(true_label)
+            logging.info(f"adding label {true_label}")
+        if false_label and false_label in labels:
+            if not dry_run:
+                new_labels.remove(false_label)
+            logging.info(f"removing label {false_label}")
+    else:
+        if true_label and true_label in labels:
+            if not dry_run:
+                new_labels.remove(true_label)
+            logging.info(f"removing label {true_label}")
+        if false_label and false_label not in labels:
+            if not dry_run:
+                new_labels.append(false_label)
+            logging.info(f"adding label {false_label}")
+    return new_labels
+
+
+@dataclass
+class Decision:
+
+    approve: bool = False
+    hold: bool = False
+
+
+@dataclass
+class ChangeDecision:
+
+    file: FileRef
+    diff: Diff
+    decision: Decision
+
+
+class DecisionCommand(Enum):
+    APPROVED = "/lgtm"
+    CANCEL_APPROVED = "/lgtm cancel"
+    HOLD = "/hold"
+    CANCEL_HOLD = "/hold cancel"
+
+
+def get_approver_decisions_from_mr_comments(
+    comments: list[dict[str, str]]
+) -> dict[str, Decision]:
+    decisions_by_users: dict[str, Decision] = defaultdict(Decision)
+    for c in sorted(comments, key=lambda k: k["created_at"]):
+        commenter = c["username"]
+        for line in c.get("body", "").split("\n"):
+            if line == DecisionCommand.APPROVED.value:
+                decisions_by_users[commenter].approve = True
+            if line == DecisionCommand.CANCEL_APPROVED.value:
+                decisions_by_users[commenter].approve = False
+            if line == DecisionCommand.HOLD.value:
+                decisions_by_users[commenter].hold = True
+            if line == DecisionCommand.CANCEL_HOLD.value:
+                decisions_by_users[commenter].hold = False
+    return decisions_by_users
+
+
+def apply_decisions_to_changes(
+    changes: list[BundleFileChange], approver_decisions: dict[str, Decision]
+) -> list[ChangeDecision]:
+    """
+    Apply and aggregate approver decisions to changes. Each diff of a
+    BundleFileChange is mapped to a ChangeDecisions that carries the
+    decisions of their respective approvers. This datastructure is used
+    to generate the coverage report and to reason about the approval
+    state of the MR.
+    """
+    diff_decisions = []
+    for c in changes:
+        for d in c.diffs:
+            dc = ChangeDecision(file=c.fileref, diff=d, decision=Decision())
+            diff_decisions.append(dc)
+            for change_type_context in d.covered_by:
+                for approver in change_type_context.approvers:
+                    if approver.org_username in approver_decisions:
+                        if approver_decisions[approver.org_username].approve:
+                            dc.decision.approve |= True
+                        if approver_decisions[approver.org_username].hold:
+                            dc.decision.hold |= True
+    return diff_decisions
+
+
+def write_coverage_report_to_mr(
+    change_decisions: list[ChangeDecision], mr_id: int, gl: GitLabApi
+) -> None:
+    """
+    adds the change coverage report and decision summary as a comment
+    to the merge request. this will delete the last report comment and add
+    a new one.
+    """
+    change_coverage_report_header = "Change coverage report"
+    comments = gl.get_merge_request_comments(mr_id, include_description=True)
+    # delete previous report comment
+    for c in sorted(comments, key=lambda k: k["created_at"]):
+        if c["username"] == gl.user.username and c["body"].startswith(
+            change_coverage_report_header
+        ):
+            gl.delete_gitlab_comment(mr_id, c["id"])
+
+    # add new report comment
+    results = []
+    for d in change_decisions:
+        approvers = [
+            f"{ctctx.context} - { ' '.join([f'@{a.org_username}' if a.tag_on_merge_requests else a.org_username for a in ctctx.approvers]) }"
+            for ctctx in d.diff.covered_by
+        ]
+        if not approvers:
+            approvers = ["not self-serviceable"]
+        item = {
+            "file": d.file.path,
+            "schema": d.file.schema,
+            "change": d.diff.path,
+        }
+        if d.decision.hold:
+            item["status"] = "hold"
+        elif d.decision.approve:
+            item["status"] = "approved"
+        item["approvers"] = approvers
+        results.append(item)
+    coverage_report = format_table(
+        results, ["file", "change", "status", "approvers"], table_format="github"
+    )
+    gl.add_comment_to_merge_request(
+        mr_id,
+        f"{change_coverage_report_header}<br/> "
+        "All changes require an `/lgtm` from a listed approver\n"
+        f"{coverage_report}\n\n"
+        f"Supported commands: {' '.join([f'`{d.value}`' for d in DecisionCommand])} ",
+    )
+
+
+def write_coverage_report_to_stdout(change_decisions: list[ChangeDecision]) -> None:
+    results = []
+    for d in change_decisions:
+        item = {
+            "file": d.file.path,
+            "schema": d.file.schema,
+            "changed path": d.diff.path,
+        }
+        if str(d.diff.path) != "$":
+            item.update(
+                {
+                    "old value": d.diff.old_value_repr(),
+                    "new value": d.diff.new_value_repr(),
+                }
+            )
+        if d.decision.hold:
+            item["status"] = "hold"
+        elif d.decision.approve:
+            item["status"] = "approved"
+        if d.diff.covered_by:
+            item.update(
+                {
+                    "change type": d.diff.covered_by[
+                        0
+                    ].change_type_processor.change_type.name,
+                    "context": d.diff.covered_by[0].context,
+                    "approvers": ", ".join(
+                        [a.org_username for a in d.diff.covered_by[0].approvers]
+                    )[:20],
+                }
+            )
+        results.append(item)
+
+    print(
+        format_table(
             results,
             [
                 "file",
@@ -728,8 +1002,13 @@ def run(
                 "change type",
                 "context",
                 "approvers",
+                "status",
             ],
         )
+    )
 
-    except BaseException:
-        logging.error(traceback.format_exc())
+
+def init_gitlab(gitlab_project_id: str) -> GitLabApi:
+    instance = queries.get_gitlab_instance()
+    settings = queries.get_app_interface_settings()
+    return GitLabApi(instance, project_id=gitlab_project_id, settings=settings)
