@@ -795,19 +795,19 @@ def run(
             labels=labels,
             condition=self_servicable and hold,
             true_label=HOLD,
-            dry_run=mr_management_enabled,
+            dry_run=not mr_management_enabled,
         )
         labels = manage_conditional_label(
             labels=labels,
             condition=self_servicable and approved,
             true_label=APPROVED,
-            dry_run=mr_management_enabled,
+            dry_run=not mr_management_enabled,
         )
         labels = manage_conditional_label(
             labels=labels,
             condition=self_servicable and not approved,
             true_label=AWAITING_APPROVAL,
-            dry_run=mr_management_enabled,
+            dry_run=not mr_management_enabled,
         )
         gl.set_labels_on_merge_request(gitlab_merge_request_id, labels)
 
