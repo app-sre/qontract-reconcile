@@ -11,13 +11,13 @@
 * `reconcile.change_owners.decision` handles MR decision command parsing from eligible change approvers.
 * `reconcile.change_owners.change_owners` is the entry point for the integrations and acts mostly as a coordinator between the other modules.
 
-## Funcationality
+## Functionality
 
 `change_owners` uses the `qontract-server` diff endpoint to get a highlevel overview what changed in an MR. It leverages `change_types` to find fine grained differences in datafiles and resourcefiles and build `BundleFileChange` objects that hold the state of diffs and diff coverage.
 
 `change_owners` reachs out to pluggable functionality to find out which `change-types` can be applied to which changes with a set of approvers. Currently, the only module to provide such `ChangeTypeContext` is `self_service_roles` which looks for explicitly bound `change-types` and files in the context of a `Role` with users and bots will can act as approvers.
 
-The funcationality provided by `self_service_roles` is very explicit because it sets up the self-service relationship by listing all involved components. Other mechanisms to provide `ChangeTypeContexts` based on other explicit or implicit ownership information can be added easily and plugged into the `change_owners.cover_changes()` function.
+The functionality provided by `self_service_roles` is very explicit because it sets up the self-service relationship by listing all involved components. Other mechanisms to provide `ChangeTypeContexts` based on other explicit or implicit ownership information can be added easily and plugged into the `change_owners.cover_changes()` function.
 
 The result of this coverage process is a list of `BundleFileChange` objects, each of them having a list of `DiffCoverage` objects, listing all differences and how (and if) they are covered by `ChangeTypeContexts`. That way every change has a list of `Approvers` provided by the context of the `ChangeType`.
 
