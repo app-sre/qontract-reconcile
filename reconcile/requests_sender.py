@@ -48,6 +48,8 @@ def get_encrypted_credentials(credentials_name, user, settings):
 
 def run(dry_run):
     settings = queries.get_app_interface_settings()
+    if not settings:
+        raise Exception("No settings found!")
     accounts = queries.get_state_aws_accounts()
     smtp_client = SmtpClient(settings=settings)
     state = State(

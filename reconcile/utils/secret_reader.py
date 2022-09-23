@@ -1,8 +1,11 @@
-from typing import Mapping, Optional
+from typing import Mapping, Optional, Union
 
 from hvac.exceptions import Forbidden
 from sretoolbox.utils import retry
 
+from reconcile.gql_definitions.common.app_interface_settings import (
+    AppInterfaceSettingsV1,
+)
 from reconcile.utils import config, vault
 from reconcile.utils.vault import VaultClient
 
@@ -18,7 +21,10 @@ class SecretNotFound(Exception):
 class SecretReader:
     """Read secrets from either Vault or a config file."""
 
-    def __init__(self, settings: Optional[Mapping] = None) -> None:
+    def __init__(
+        self,
+        settings: Optional[Union[Mapping, AppInterfaceSettingsV1]] = None,
+    ) -> None:
         """
         :param settings: app-interface-settings object. It is a dictionary
         containing `value: true` if Vault is to be used as the secret backend.
@@ -31,6 +37,16 @@ class SecretReader:
         if self._vault_client is None:
             self._vault_client = VaultClient()
         return self._vault_client
+
+    @property
+    def vault_enabled(self):
+        if not self.settings:
+            return False
+
+        if isinstance(self.settings, Mapping):
+            return self.settings.get("vault")
+
+        return self.settings.vault
 
     @retry()
     def read(self, secret: Mapping[str, str]):
@@ -49,7 +65,7 @@ class SecretReader:
         :raises secret_reader.SecretNotFound:
         """
 
-        if self.settings and self.settings.get("vault"):
+        if self.vault_enabled:
             try:
                 data = self.vault_client.read(secret)
             except vault.SecretNotFound as e:
@@ -78,7 +94,7 @@ class SecretReader:
         :raises secret_reader.SecretNotFound:
         """
 
-        if self.settings and self.settings.get("vault"):
+        if self.vault_enabled:
             try:
                 data = self.vault_client.read_all(secret)
             except Forbidden:

@@ -209,6 +209,8 @@ def run(
     defer=None,
 ):
     settings = queries.get_app_interface_settings()
+    if not settings:
+        raise Exception("No settings found!")
     zones = queries.get_dns_zones(account_name=account_name)
 
     all_accounts = queries.get_aws_accounts(terraform_state=True)

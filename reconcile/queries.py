@@ -10,7 +10,11 @@ from typing import Any, Mapping, Optional
 from jinja2 import Template
 
 from reconcile.utils import gql
-
+from reconcile.gql_definitions.common.app_interface_settings import (
+    AppInterfaceSettingsV1,
+    query as app_interface_settings_query,
+    DEFINITION as APP_INTERFACE_SETTINGS_QUERY,
+)
 
 SECRET_READER_SETTINGS = """
 {
@@ -31,86 +35,20 @@ def get_secret_reader_settings() -> Optional[Mapping[str, Any]]:
     return None
 
 
-APP_INTERFACE_SETTINGS_QUERY = """
-{
-  settings: app_interface_settings_v1 {
-    repoUrl
-    vault
-    kubeBinary
-    mergeRequestGateway
-    saasDeployJobTemplate
-    hashLength
-    smtp {
-      mailAddress
-      timeout
-      credentials {
-        path
-        field
-        version
-        format
-      }
-    }
-    imap {
-      timeout
-      credentials {
-        path
-        field
-        version
-        format
-      }
-    }
-    githubRepoInvites {
-      credentials {
-        path
-        field
-        version
-        format
-      }
-    }
-    ldap {
-      serverUrl
-      baseDn
-    }
-    dependencies {
-      type
-      services {
-        name
-      }
-    }
-    credentials {
-      name
-      secret {
-        path
-        field
-        version
-        format
-      }
-    }
-    sqlQuery {
-      imageRepository
-      pullSecret {
-        path
-        version
-        labels
-        annotations
-        type
-      }
-    }
-    alertingServices
-    endpointMonitoringBlackboxExporterModules
-    jiraWatcher {
-      readTimeout
-      connectTimeout
-    }
-  }
-}
-"""
-
-
-def get_app_interface_settings():
+def get_app_interface_settings() -> Optional[Mapping]:
     """Returns App Interface settings"""
     gqlapi = gql.get_api()
     settings = gqlapi.query(APP_INTERFACE_SETTINGS_QUERY)["settings"]
+    if settings:
+        # assuming a single settings file for now
+        return settings[0]
+    return None
+
+
+def get_app_interface_settings_class() -> Optional[AppInterfaceSettingsV1]:
+    """Returns App Interface settings as GQL class"""
+    gqlapi = gql.get_api()
+    settings = app_interface_settings_query(query_func=gqlapi.query).settings
     if settings:
         # assuming a single settings file for now
         return settings[0]

@@ -3,7 +3,7 @@ from email.header import Header
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import formataddr
-from typing import Any, Iterable, Union
+from typing import Any, Iterable, Mapping, Union
 
 from sretoolbox.utils import retry
 
@@ -11,7 +11,7 @@ from reconcile.utils.secret_reader import SecretReader
 
 
 class SmtpClient:
-    def __init__(self, settings: dict[str, Any]) -> None:
+    def __init__(self, settings: Mapping[str, Any]) -> None:
         smtp_config = self.get_smtp_config(settings)
         self.host: str = smtp_config["server"]
         self.port: int = int(smtp_config["port"])
@@ -34,7 +34,7 @@ class SmtpClient:
         return self._client
 
     @staticmethod
-    def get_smtp_config(settings: dict[str, Any]) -> dict[str, str]:
+    def get_smtp_config(settings: Mapping[str, Any]) -> dict[str, str]:
         config = {}
         required_keys = ("password", "port", "require_tls", "server", "username")
         secret_reader = SecretReader(settings=settings)
