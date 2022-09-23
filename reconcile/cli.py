@@ -2167,9 +2167,9 @@ def integrations_manager(
 )
 @click.option(
     "--change-type-processing-mode",
-    help="if `limited` (default) the integration will not make any final decisions on the MR, but if `authorative` it will ",
+    help="if `limited` (default) the integration will not make any final decisions on the MR, but if `authoritative` it will ",
     default=os.environ.get("CHANGE_TYPE_PROCESSING_MODE", "limited"),
-    type=click.Choice(["limited", "authorative"], case_sensitive=True),
+    type=click.Choice(["limited", "authoritative"], case_sensitive=True),
 )
 @click.option(
     "--mr-management",

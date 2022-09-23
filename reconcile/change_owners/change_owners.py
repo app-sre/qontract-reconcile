@@ -119,7 +119,7 @@ def _parse_bundle_changes(bundle_changes) -> list[BundleFileChange]:
 
 
 CHANGE_TYPE_PROCESSING_MODE_LIMITED = "limited"
-CHANGE_TYPE_PROCESSING_MODE_AUTHORATIVE = "authorative"
+CHANGE_TYPE_PROCESSING_MODE_AUTHORITATIVE = "authoritative"
 
 
 def manage_conditional_label(
@@ -272,9 +272,9 @@ def run(
             f"prevents full self-service MR {gitlab_merge_request_id} contains "
             "changes other than datafiles, resources, docs or testdata"
         )
-    elif change_type_processing_mode == CHANGE_TYPE_PROCESSING_MODE_AUTHORATIVE:
+    elif change_type_processing_mode == CHANGE_TYPE_PROCESSING_MODE_AUTHORITATIVE:
         logging.info(
-            f"running in `{CHANGE_TYPE_PROCESSING_MODE_AUTHORATIVE}` mode "
+            f"running in `{CHANGE_TYPE_PROCESSING_MODE_AUTHORITATIVE}` mode "
             "that allows full self-service"
         )
     else:
@@ -332,7 +332,7 @@ def run(
 
         self_servicable = (
             all(c.all_changes_covered() for c in changes)
-            and change_type_processing_mode == CHANGE_TYPE_PROCESSING_MODE_AUTHORATIVE
+            and change_type_processing_mode == CHANGE_TYPE_PROCESSING_MODE_AUTHORITATIVE
         )
 
         # todo(goberlec) - what do we do if there are no changes?
