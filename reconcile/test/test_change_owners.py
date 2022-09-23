@@ -9,7 +9,7 @@ from reconcile.change_owners.change_owners import (
     manage_conditional_label,
 )
 from reconcile.change_owners.self_service_roles import (
-    cover_changes_with_self_service_roles
+    cover_changes_with_self_service_roles,
 )
 from reconcile.change_owners.decision import (
     get_approver_decisions_from_mr_comments,

@@ -123,136 +123,6 @@ CHANGE_TYPE_PROCESSING_MODE_LIMITED = "limited"
 CHANGE_TYPE_PROCESSING_MODE_AUTHORATIVE = "authorative"
 
 
-def run(
-    dry_run: bool,
-    gitlab_project_id: str,
-    gitlab_merge_request_id: int,
-    comparison_sha: str,
-    change_type_processing_mode: str,
-    mr_management_enabled: bool = False,
-) -> None:
-    comparison_gql_api = gql.get_api_for_sha(
-        comparison_sha, QONTRACT_INTEGRATION, validate_schemas=False
-    )
-
-    if change_type_processing_mode == CHANGE_TYPE_PROCESSING_MODE_LIMITED:
-        logging.info(
-            f"running in `{CHANGE_TYPE_PROCESSING_MODE_LIMITED}` mode that "
-            f"prevents full self-service MR {gitlab_merge_request_id} contains "
-            "changes other than datafiles, resources, docs or testdata"
-        )
-    elif change_type_processing_mode == CHANGE_TYPE_PROCESSING_MODE_AUTHORATIVE:
-        logging.info(
-            f"running in `{CHANGE_TYPE_PROCESSING_MODE_AUTHORATIVE}` mode "
-            "that allows full self-service"
-        )
-    else:
-        logging.info(
-            f"running in unknown mode {change_type_processing_mode}. end "
-            "processing. this integration is still in active development "
-            "therefore it will not fail right now but exit(0) instead."
-        )
-        return
-
-    # fetch change-types from current bundle to verify they are syntactically correct.
-    # this is a cheap way to figure out if a newly introduced change-type works.
-    # needs a lot of improvements!
-    fetch_change_type_processors(gql.get_api())
-
-    # get change types from the comparison bundle to prevent privilege escalation
-    logging.info(
-        f"fetching change types and permissions from comparison bundle "
-        f"(sha={comparison_sha}, commit_id={comparison_gql_api.commit}, "
-        f"build_time {comparison_gql_api.commit_timestamp_utc})"
-    )
-    change_type_processors = fetch_change_type_processors(comparison_gql_api)
-
-    # an error while trying to cover changes will not fail the integration
-    # and the PR check - self service merges will not be available though
-    try:
-        #
-        #   C H A N G E   C O V E R A G E
-        #
-        changes = fetch_bundle_changes(comparison_sha)
-        cover_changes(
-            changes,
-            change_type_processors,
-            comparison_gql_api,
-        )
-
-        self_servicable = (
-            all(c.all_changes_covered() for c in changes)
-            and change_type_processing_mode == CHANGE_TYPE_PROCESSING_MODE_AUTHORATIVE
-        )
-
-        # todo(goberlec) - what do we do if there are no changes?
-        # do we want to add the bot/approved label and be done with it?
-
-        #
-        #   D E C I S I O N S
-        #
-
-        gl = init_gitlab(gitlab_project_id)
-        approver_decisions = get_approver_decisions_from_mr_comments(
-            gl.get_merge_request_comments(
-                gitlab_merge_request_id, include_description=True
-            )
-        )
-        change_decisions = apply_decisions_to_changes(changes, approver_decisions)
-        hold = any(d.decision.hold for d in change_decisions)
-        approved = all(
-            d.decision.approve and not d.decision.hold for d in change_decisions
-        )
-
-        #
-        #   R E P O R T I N G
-        #
-
-        if mr_management_enabled:
-            write_coverage_report_to_mr(change_decisions, gitlab_merge_request_id, gl)
-        write_coverage_report_to_stdout(change_decisions)
-
-        #
-        #   L A B E L I N G
-        #
-
-        labels = gl.get_merge_request_labels(gitlab_merge_request_id)
-
-        # for current testing purposes, the self servability label wills be managed
-        # also when MR management is not enabled. this way change-owners can run next
-        # to saas-file-owners and we can observe if bot integrations would consider
-        # a saas-file only MR
-        labels = manage_conditional_label(
-            labels=labels,
-            condition=self_servicable,
-            true_label=SELF_SERVICEABLE,
-            false_label=NOT_SELF_SERVICEABLE,
-            dry_run=False,
-        )
-        labels = manage_conditional_label(
-            labels=labels,
-            condition=self_servicable and hold,
-            true_label=HOLD,
-            dry_run=not mr_management_enabled,
-        )
-        labels = manage_conditional_label(
-            labels=labels,
-            condition=self_servicable and approved,
-            true_label=APPROVED,
-            dry_run=not mr_management_enabled,
-        )
-        labels = manage_conditional_label(
-            labels=labels,
-            condition=self_servicable and not approved,
-            true_label=AWAITING_APPROVAL,
-            dry_run=not mr_management_enabled,
-        )
-        gl.set_labels_on_merge_request(gitlab_merge_request_id, labels)
-
-    except BaseException:
-        logging.error(traceback.format_exc())
-
-
 def manage_conditional_label(
     labels: list[str],
     condition: bool,
@@ -383,3 +253,133 @@ def init_gitlab(gitlab_project_id: str) -> GitLabApi:
     instance = queries.get_gitlab_instance()
     settings = queries.get_app_interface_settings()
     return GitLabApi(instance, project_id=gitlab_project_id, settings=settings)
+
+
+def run(
+    dry_run: bool,
+    gitlab_project_id: str,
+    gitlab_merge_request_id: int,
+    comparison_sha: str,
+    change_type_processing_mode: str,
+    mr_management_enabled: bool = False,
+) -> None:
+    comparison_gql_api = gql.get_api_for_sha(
+        comparison_sha, QONTRACT_INTEGRATION, validate_schemas=False
+    )
+
+    if change_type_processing_mode == CHANGE_TYPE_PROCESSING_MODE_LIMITED:
+        logging.info(
+            f"running in `{CHANGE_TYPE_PROCESSING_MODE_LIMITED}` mode that "
+            f"prevents full self-service MR {gitlab_merge_request_id} contains "
+            "changes other than datafiles, resources, docs or testdata"
+        )
+    elif change_type_processing_mode == CHANGE_TYPE_PROCESSING_MODE_AUTHORATIVE:
+        logging.info(
+            f"running in `{CHANGE_TYPE_PROCESSING_MODE_AUTHORATIVE}` mode "
+            "that allows full self-service"
+        )
+    else:
+        logging.info(
+            f"running in unknown mode {change_type_processing_mode}. end "
+            "processing. this integration is still in active development "
+            "therefore it will not fail right now but exit(0) instead."
+        )
+        return
+
+    # fetch change-types from current bundle to verify they are syntactically correct.
+    # this is a cheap way to figure out if a newly introduced change-type works.
+    # needs a lot of improvements!
+    fetch_change_type_processors(gql.get_api())
+
+    # get change types from the comparison bundle to prevent privilege escalation
+    logging.info(
+        f"fetching change types and permissions from comparison bundle "
+        f"(sha={comparison_sha}, commit_id={comparison_gql_api.commit}, "
+        f"build_time {comparison_gql_api.commit_timestamp_utc})"
+    )
+    change_type_processors = fetch_change_type_processors(comparison_gql_api)
+
+    # an error while trying to cover changes will not fail the integration
+    # and the PR check - self service merges will not be available though
+    try:
+        #
+        #   C H A N G E   C O V E R A G E
+        #
+        changes = fetch_bundle_changes(comparison_sha)
+        cover_changes(
+            changes,
+            change_type_processors,
+            comparison_gql_api,
+        )
+
+        self_servicable = (
+            all(c.all_changes_covered() for c in changes)
+            and change_type_processing_mode == CHANGE_TYPE_PROCESSING_MODE_AUTHORATIVE
+        )
+
+        # todo(goberlec) - what do we do if there are no changes?
+        # do we want to add the bot/approved label and be done with it?
+
+        #
+        #   D E C I S I O N S
+        #
+
+        gl = init_gitlab(gitlab_project_id)
+        approver_decisions = get_approver_decisions_from_mr_comments(
+            gl.get_merge_request_comments(
+                gitlab_merge_request_id, include_description=True
+            )
+        )
+        change_decisions = apply_decisions_to_changes(changes, approver_decisions)
+        hold = any(d.decision.hold for d in change_decisions)
+        approved = all(
+            d.decision.approve and not d.decision.hold for d in change_decisions
+        )
+
+        #
+        #   R E P O R T I N G
+        #
+
+        if mr_management_enabled:
+            write_coverage_report_to_mr(change_decisions, gitlab_merge_request_id, gl)
+        write_coverage_report_to_stdout(change_decisions)
+
+        #
+        #   L A B E L I N G
+        #
+
+        labels = gl.get_merge_request_labels(gitlab_merge_request_id)
+
+        # for current testing purposes, the self servability label wills be managed
+        # also when MR management is not enabled. this way change-owners can run next
+        # to saas-file-owners and we can observe if bot integrations would consider
+        # a saas-file only MR
+        labels = manage_conditional_label(
+            labels=labels,
+            condition=self_servicable,
+            true_label=SELF_SERVICEABLE,
+            false_label=NOT_SELF_SERVICEABLE,
+            dry_run=False,
+        )
+        labels = manage_conditional_label(
+            labels=labels,
+            condition=self_servicable and hold,
+            true_label=HOLD,
+            dry_run=not mr_management_enabled,
+        )
+        labels = manage_conditional_label(
+            labels=labels,
+            condition=self_servicable and approved,
+            true_label=APPROVED,
+            dry_run=not mr_management_enabled,
+        )
+        labels = manage_conditional_label(
+            labels=labels,
+            condition=self_servicable and not approved,
+            true_label=AWAITING_APPROVAL,
+            dry_run=not mr_management_enabled,
+        )
+        gl.set_labels_on_merge_request(gitlab_merge_request_id, labels)
+
+    except BaseException:
+        logging.error(traceback.format_exc())

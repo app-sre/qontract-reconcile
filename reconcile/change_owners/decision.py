@@ -4,7 +4,9 @@ from enum import Enum
 
 from reconcile.change_owners.diff import Diff
 from reconcile.change_owners.change_types import (
-    BundleFileChange, FileRef, ChangeTypeContext
+    BundleFileChange,
+    FileRef,
+    ChangeTypeContext,
 )
 
 
