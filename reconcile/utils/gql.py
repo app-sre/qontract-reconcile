@@ -4,6 +4,8 @@ from typing import Set, Any, Optional, Tuple
 
 from urllib.parse import urlparse
 
+from datetime import datetime, timezone
+
 import requests
 
 from sretoolbox.utils import retry
@@ -89,11 +91,15 @@ class GqlApi:
         token: Optional[str] = None,
         int_name=None,
         validate_schemas=False,
+        commit: Optional[str] = None,
+        commit_timestamp: Optional[str] = None,
     ) -> None:
         self.url = url
         self.token = token
         self.integration = int_name
         self.validate_schemas = validate_schemas
+        self.commit = commit
+        self.commit_timestamp = commit_timestamp
 
         if validate_schemas and not int_name:
             raise Exception(
@@ -185,12 +191,33 @@ class GqlApi:
     def get_queried_schemas(self):
         return list(self._queried_schemas)
 
+    @property
+    def commit_timestamp_utc(self) -> Optional[str]:
+        if self.commit_timestamp:
+            return datetime.fromtimestamp(
+                int(self.commit_timestamp), timezone.utc
+            ).isoformat()
+        else:
+            return None
+
 
 def init(
-    url: str, token: Optional[str] = None, integration=None, validate_schemas=False
+    url: str,
+    token: Optional[str] = None,
+    integration=None,
+    validate_schemas=False,
+    commit: Optional[str] = None,
+    commit_timestamp: Optional[str] = None,
 ):
     global _gqlapi
-    _gqlapi = GqlApi(url, token, integration, validate_schemas)
+    _gqlapi = GqlApi(
+        url,
+        token,
+        integration,
+        validate_schemas,
+        commit=commit,
+        commit_timestamp=commit_timestamp,
+    )
     return _gqlapi
 
 
@@ -237,16 +264,25 @@ def init_from_config(
     validate_schemas=False,
     print_url=True,
 ):
-    server, token = _get_gql_server_and_token(autodetect_sha=autodetect_sha, sha=sha)
+    server, token, commit, timestamp = _get_gql_server_and_token(
+        autodetect_sha=autodetect_sha, sha=sha
+    )
 
     if print_url:
         logging.info(f"using gql endpoint {server}")
-    return init(server, token, integration, validate_schemas)
+    return init(
+        server,
+        token,
+        integration,
+        validate_schemas,
+        commit=commit,
+        commit_timestamp=timestamp,
+    )
 
 
 def _get_gql_server_and_token(
     autodetect_sha: bool = False, sha: Optional[str] = None
-) -> Tuple[str, str]:
+) -> Tuple[str, str, Optional[str], Optional[str]]:
     config = get_config()
 
     server_url = urlparse(config["graphql"]["server"])
@@ -262,7 +298,9 @@ def _get_gql_server_and_token(
         git_commit_info = get_git_commit_info(sha, server_url, token)
         running_state.timestamp = git_commit_info.get("timestamp")  # type: ignore[attr-defined]
         running_state.commit = git_commit_info.get("commit")  # type: ignore[attr-defined]
-    return server, token
+        return server, token, running_state.commit, running_state.timestamp
+
+    return server, token, None, None
 
 
 def get_api():
@@ -277,8 +315,17 @@ def get_api():
 def get_api_for_sha(
     sha: str, integration: Optional[str] = None, validate_schemas: bool = True
 ) -> GqlApi:
-    server, token = _get_gql_server_and_token(autodetect_sha=False, sha=sha)
-    return GqlApi(server, token, integration, validate_schemas)
+    server, token, commit, timestamp = _get_gql_server_and_token(
+        autodetect_sha=False, sha=sha
+    )
+    return GqlApi(
+        server,
+        token,
+        integration,
+        validate_schemas,
+        commit=commit,
+        commit_timestamp=timestamp,
+    )
 
 
 @retry(exceptions=requests.exceptions.HTTPError, max_attempts=5)

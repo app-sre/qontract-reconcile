@@ -709,6 +709,10 @@ def _parse_bundle_changes(bundle_changes) -> list[BundleFileChange]:
     return [c for c in change_list if c]
 
 
+CHANGE_TYPE_PROCESSING_MODE_LIMITED = "limited"
+CHANGE_TYPE_PROCESSING_MODE_AUTHORATIVE = "authorative"
+
+
 def run(
     dry_run: bool,
     gitlab_project_id: str,
@@ -717,9 +721,28 @@ def run(
     change_type_processing_mode: str,
     mr_management_enabled: bool = False,
 ) -> None:
-    comparision_gql_api = gql.get_api_for_sha(
+    comparison_gql_api = gql.get_api_for_sha(
         comparison_sha, QONTRACT_INTEGRATION, validate_schemas=False
     )
+
+    if change_type_processing_mode == CHANGE_TYPE_PROCESSING_MODE_LIMITED:
+        logging.info(
+            f"running in `{CHANGE_TYPE_PROCESSING_MODE_LIMITED}` mode that "
+            f"prevents full self-service MR {gitlab_merge_request_id} contains "
+            "changes other than datafiles, resources, docs or testdata"
+        )
+    elif change_type_processing_mode == CHANGE_TYPE_PROCESSING_MODE_AUTHORATIVE:
+        logging.info(
+            f"running in `{CHANGE_TYPE_PROCESSING_MODE_AUTHORATIVE}` mode "
+            "that allows full self-service"
+        )
+    else:
+        logging.info(
+            f"running in unknown mode {change_type_processing_mode}. end "
+            "processing. this integration is still in active development "
+            "therefore it will not fail right now but exit(0) instead."
+        )
+        return
 
     # fetch change-types from current bundle to verify they are syntactically correct.
     # this is a cheap way to figure out if a newly introduced change-type works.
@@ -727,7 +750,12 @@ def run(
     fetch_change_type_processors(gql.get_api())
 
     # get change types from the comparison bundle to prevent privilege escalation
-    change_type_processors = fetch_change_type_processors(comparision_gql_api)
+    logging.info(
+        f"fetching change types and permissions from comparison bundle "
+        f"(sha={comparison_sha}, commit_id={comparison_gql_api.commit}, "
+        f"build_time {comparison_gql_api.commit_timestamp_utc})"
+    )
+    change_type_processors = fetch_change_type_processors(comparison_gql_api)
 
     # an error while trying to cover changes will not fail the integration
     # and the PR check - self service merges will not be available though
@@ -739,12 +767,12 @@ def run(
         cover_changes(
             changes,
             change_type_processors,
-            comparision_gql_api,
+            comparison_gql_api,
         )
 
         self_servicable = (
             all(c.all_changes_covered() for c in changes)
-            and change_type_processing_mode == "authorative"
+            and change_type_processing_mode == CHANGE_TYPE_PROCESSING_MODE_AUTHORATIVE
         )
 
         # todo(goberlec) - what do we do if there are no changes?
