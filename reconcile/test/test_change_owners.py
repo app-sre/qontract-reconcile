@@ -1228,6 +1228,17 @@ def test_unordered_approval_comments():
     }
 
 
+def test_approval_comments_none_body():
+    comments = [
+        {
+            "username": "user-1",
+            "body": None,
+            "created_at": "2020-01-02T00:00:00Z",
+        },
+    ]
+    assert not get_approver_decisions_from_mr_comments(comments)
+
+
 #
 # test decide on changes
 #
