@@ -27,8 +27,6 @@ def run(
 ) -> None:
     # verify that only allowed blackbox-exporter modules are used
     settings = queries.get_app_interface_settings()
-    if not settings:
-        raise Exception("No settings found!")
     allowed_modules = set(settings["endpointMonitoringBlackboxExporterModules"])
     verification_errors = False
     if allowed_modules:

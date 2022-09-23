@@ -152,8 +152,6 @@ def values_set_shard_specifics(
 
 def get_image_tag_from_ref(ref: str) -> str:
     settings = queries.get_app_interface_settings()
-    if not settings:
-        raise Exception("No settings found!")
     gh_token = get_default_config()["token"]
     github = Github(gh_token, base_url=GH_BASE_URL)
     commit_sha = github.get_repo("app-sre/qontract-reconcile").get_commit(sha=ref).sha
