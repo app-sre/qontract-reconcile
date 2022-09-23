@@ -1,11 +1,8 @@
-from typing import Mapping, Optional, Union
+from typing import Mapping, Optional, Protocol, Union
 
 from hvac.exceptions import Forbidden
 from sretoolbox.utils import retry
 
-from reconcile.gql_definitions.common.app_interface_settings import (
-    AppInterfaceSettingsV1,
-)
 from reconcile.utils import config, vault
 from reconcile.utils.vault import VaultClient
 
@@ -18,12 +15,16 @@ class SecretNotFound(Exception):
     pass
 
 
+class SupportsVault(Protocol):
+    vault: bool
+
+
 class SecretReader:
     """Read secrets from either Vault or a config file."""
 
     def __init__(
         self,
-        settings: Optional[Union[Mapping, AppInterfaceSettingsV1]] = None,
+        settings: Optional[Union[Mapping, SupportsVault]] = None,
     ) -> None:
         """
         :param settings: app-interface-settings object. It is a dictionary
@@ -39,12 +40,12 @@ class SecretReader:
         return self._vault_client
 
     @property
-    def vault_enabled(self):
+    def vault_enabled(self) -> bool:
         if not self.settings:
             return False
 
         if isinstance(self.settings, Mapping):
-            return self.settings.get("vault")
+            return self.settings.get("vault", False)
 
         return self.settings.vault
 
