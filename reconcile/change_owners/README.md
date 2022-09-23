@@ -29,4 +29,4 @@ If at least one `ChangeDecision` is on `hold`, the `bot/hold` label is applied, 
 
 If at least one `ChangeDecision` is not `approved`, the the MR can not proceed without further approvals or without AppSRE intervention.
 
-In the case of changes not having a `ChangeTypeContext` attached allowing approvers to decide, the MR is considered `non-self-servicable` and can't proceed without AppSRE intervention.
+In the case of changes not having a `ChangeTypeContext` attached allowing approvers to decide, the MR is considered `non-self-serviceable` and can't proceed without AppSRE intervention.

@@ -330,7 +330,7 @@ def run(
             comparison_gql_api,
         )
 
-        self_servicable = (
+        self_serviceable = (
             all(c.all_changes_covered() for c in changes)
             and change_type_processing_mode == CHANGE_TYPE_PROCESSING_MODE_AUTHORITATIVE
         )
@@ -373,20 +373,20 @@ def run(
         # a saas-file only MR
         labels = manage_conditional_label(
             labels=labels,
-            condition=self_servicable,
+            condition=self_serviceable,
             true_label=SELF_SERVICEABLE,
             false_label=NOT_SELF_SERVICEABLE,
             dry_run=False,
         )
         labels = manage_conditional_label(
             labels=labels,
-            condition=self_servicable and hold,
+            condition=self_serviceable and hold,
             true_label=HOLD,
             dry_run=not mr_management_enabled,
         )
         labels = manage_conditional_label(
             labels=labels,
-            condition=self_servicable and approved,
+            condition=self_serviceable and approved,
             true_label=APPROVED,
             dry_run=not mr_management_enabled,
         )
