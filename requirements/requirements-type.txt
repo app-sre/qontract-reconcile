@@ -11,4 +11,4 @@ types-setuptools
 types-tabulate
 types-toml
 boto3-stubs[ec2,s3,rds,iam,route53]==1.24.29
-qenerate==0.2.4
+qenerate==0.2.6
