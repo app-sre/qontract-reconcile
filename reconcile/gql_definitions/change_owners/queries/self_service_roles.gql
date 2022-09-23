@@ -12,6 +12,17 @@ query SelfServiceRolesQuery {
         datafileSchema: schema
         path
       }
+      datafileProviders {
+        provider
+        ... on ResourceTemplateDatafileProvider_v1 {
+          template: path {
+            content
+          }
+          template_format: type
+          variables
+          enable_query_support
+        }
+      }
       resources
     }
     users {

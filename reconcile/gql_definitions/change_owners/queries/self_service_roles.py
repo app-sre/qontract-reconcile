@@ -29,6 +29,17 @@ query SelfServiceRolesQuery {
         datafileSchema: schema
         path
       }
+      datafileProviders {
+        provider
+        ... on ResourceTemplateDatafileProvider_v1 {
+          template: path {
+            content
+          }
+          template_format: type
+          variables
+          enable_query_support
+        }
+      }
       resources
     }
     users {
@@ -60,9 +71,39 @@ class DatafileObjectV1(BaseModel):
         extra = Extra.forbid
 
 
+class DatafileProviderV1(BaseModel):
+    provider: str = Field(..., alias="provider")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
+class ResourceV1(BaseModel):
+    content: str = Field(..., alias="content")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
+class ResourceTemplateDatafileProviderV1(DatafileProviderV1):
+    template: ResourceV1 = Field(..., alias="template")
+    template_format: Optional[str] = Field(..., alias="template_format")
+    variables: Optional[Json] = Field(..., alias="variables")
+    enable_query_support: Optional[bool] = Field(..., alias="enable_query_support")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
 class SelfServiceConfigV1(BaseModel):
     change_type: ChangeTypeV1 = Field(..., alias="change_type")
     datafiles: Optional[list[DatafileObjectV1]] = Field(..., alias="datafiles")
+    datafile_providers: Optional[
+        list[Union[ResourceTemplateDatafileProviderV1, DatafileProviderV1]]
+    ] = Field(..., alias="datafileProviders")
     resources: Optional[list[str]] = Field(..., alias="resources")
 
     class Config:

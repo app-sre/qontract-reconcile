@@ -1,7 +1,10 @@
 from collections import defaultdict
 from typing import Tuple
 
-from reconcile.gql_definitions.change_owners.queries.self_service_roles import RoleV1
+from reconcile.gql_definitions.change_owners.queries.self_service_roles import (
+    RoleV1,
+    ResourceTemplateDatafileProviderV1,
+)
 
 from reconcile.change_owners.change_types import (
     BundleFileChange,
@@ -10,6 +13,10 @@ from reconcile.change_owners.change_types import (
     ChangeTypeProcessor,
     ChangeTypeContext,
 )
+
+from reconcile.openshift_resources_base import process_jinja2_template
+
+from yaml import safe_load
 
 
 def cover_changes_with_self_service_roles(
@@ -33,6 +40,25 @@ def cover_changes_with_self_service_roles(
                         role_lookup[
                             (BundleFileType.DATAFILE, df.path, ss.change_type.name)
                         ].append(r)
+                if ss.datafile_providers:
+                    for dfp in ss.datafile_providers:
+                        if isinstance(dfp, ResourceTemplateDatafileProviderV1):
+                            template_result = process_jinja2_template(
+                                dfp.template.content,
+                                extra_curly=dfp.template_format == "extracurlyjinja2",
+                                vars=dfp.variables,
+                            )
+                            datafile_list = safe_load(template_result)
+                            if isinstance(datafile_list, list):
+                                for df_path in datafile_list:
+                                    if isinstance(df_path, str):
+                                        role_lookup[
+                                            (
+                                                BundleFileType.DATAFILE,
+                                                df_path,
+                                                ss.change_type.name,
+                                            )
+                                        ].append(r)
                 if ss.resources:
                     for res in ss.resources:
                         role_lookup[

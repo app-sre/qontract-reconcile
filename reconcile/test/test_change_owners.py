@@ -110,6 +110,7 @@ def build_role(
                     name=change_type_name,
                 ),
                 datafiles=datafiles,
+                datafileProviders=None,
                 resources=None,
             )
         ],
