@@ -16,9 +16,6 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
 )
 
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
-from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
-from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
-from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
 
 DEFINITION = """
