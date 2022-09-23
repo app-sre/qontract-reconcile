@@ -1,13 +1,12 @@
-from dataclasses import dataclass
 from typing import Optional
 import logging
 import traceback
 
-from reconcile.change_owners.diff import Diff
 from reconcile.change_owners.decision import (
-    Decision,
     DecisionCommand,
+    ChangeDecision,
     get_approver_decisions_from_mr_comments,
+    apply_decisions_to_changes,
 )
 from reconcile.utils.output import format_table
 from reconcile.utils import gql
@@ -21,9 +20,7 @@ from reconcile.utils.semver_helper import make_semver
 from reconcile.change_owners.change_types import (
     BundleFileChange,
     BundleFileType,
-    FileRef,
     ChangeTypeProcessor,
-    ChangeTypeContext,
     create_bundle_file_change,
     build_change_type_processor,
 )
@@ -283,42 +280,6 @@ def manage_conditional_label(
                 new_labels.append(false_label)
             logging.info(f"adding label {false_label}")
     return new_labels
-
-
-@dataclass
-class ChangeDecision:
-
-    file: FileRef
-    diff: Diff
-    coverage: list[ChangeTypeContext]
-    decision: Decision
-
-
-def apply_decisions_to_changes(
-    changes: list[BundleFileChange], approver_decisions: dict[str, Decision]
-) -> list[ChangeDecision]:
-    """
-    Apply and aggregate approver decisions to changes. Each diff of a
-    BundleFileChange is mapped to a ChangeDecisions that carries the
-    decisions of their respective approvers. This datastructure is used
-    to generate the coverage report and to reason about the approval
-    state of the MR.
-    """
-    diff_decisions = []
-    for c in changes:
-        for d in c.diff_coverage:
-            change_decision = ChangeDecision(
-                file=c.fileref, diff=d.diff, coverage=d.coverage, decision=Decision()
-            )
-            diff_decisions.append(change_decision)
-            for change_type_context in change_decision.coverage:
-                for approver in change_type_context.approvers:
-                    if approver.org_username in approver_decisions:
-                        if approver_decisions[approver.org_username].approve:
-                            change_decision.decision.approve |= True
-                        if approver_decisions[approver.org_username].hold:
-                            change_decision.decision.hold |= True
-    return diff_decisions
 
 
 def write_coverage_report_to_mr(

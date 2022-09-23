@@ -2,6 +2,11 @@ from dataclasses import dataclass
 from collections import defaultdict
 from enum import Enum
 
+from reconcile.change_owners.diff import Diff
+from reconcile.change_owners.change_types import (
+    BundleFileChange, FileRef, ChangeTypeContext
+)
+
 
 @dataclass
 class Decision:
@@ -33,3 +38,39 @@ def get_approver_decisions_from_mr_comments(
             if line == DecisionCommand.CANCEL_HOLD.value:
                 decisions_by_users[commenter].hold = False
     return decisions_by_users
+
+
+@dataclass
+class ChangeDecision:
+
+    file: FileRef
+    diff: Diff
+    coverage: list[ChangeTypeContext]
+    decision: Decision
+
+
+def apply_decisions_to_changes(
+    changes: list[BundleFileChange], approver_decisions: dict[str, Decision]
+) -> list[ChangeDecision]:
+    """
+    Apply and aggregate approver decisions to changes. Each diff of a
+    BundleFileChange is mapped to a ChangeDecisions that carries the
+    decisions of their respective approvers. This datastructure is used
+    to generate the coverage report and to reason about the approval
+    state of the MR.
+    """
+    diff_decisions = []
+    for c in changes:
+        for d in c.diff_coverage:
+            change_decision = ChangeDecision(
+                file=c.fileref, diff=d.diff, coverage=d.coverage, decision=Decision()
+            )
+            diff_decisions.append(change_decision)
+            for change_type_context in change_decision.coverage:
+                for approver in change_type_context.approvers:
+                    if approver.org_username in approver_decisions:
+                        if approver_decisions[approver.org_username].approve:
+                            change_decision.decision.approve |= True
+                        if approver_decisions[approver.org_username].hold:
+                            change_decision.decision.hold |= True
+    return diff_decisions
