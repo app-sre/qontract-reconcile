@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from collections import defaultdict
 from enum import Enum
+from typing import Any
 
 from reconcile.change_owners.diff import Diff
 from reconcile.change_owners.change_types import (
@@ -25,12 +26,13 @@ class DecisionCommand(Enum):
 
 
 def get_approver_decisions_from_mr_comments(
-    comments: list[dict[str, str]]
+    comments: list[dict[str, Any]]
 ) -> dict[str, Decision]:
     decisions_by_users: dict[str, Decision] = defaultdict(Decision)
     for c in sorted(comments, key=lambda k: k["created_at"]):
         commenter = c["username"]
-        for line in c.get("body", "").split("\n"):
+        comment_body = c.get("body")
+        for line in comment_body.split("\n") if comment_body else []:
             if line == DecisionCommand.APPROVED.value:
                 decisions_by_users[commenter].approve = True
             if line == DecisionCommand.CANCEL_APPROVED.value:
