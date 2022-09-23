@@ -291,6 +291,25 @@ def run(
     # needs a lot of improvements!
     fetch_change_type_processors(gql.get_api())
 
+    gl = init_gitlab(gitlab_project_id)
+    mr = gl.get_merge_request(gitlab_merge_request_id)
+
+    # skip processing if the MR is not in open state
+    if mr.state != "opened":
+        logging.info(
+            f"skip processing of MR {gitlab_merge_request_id} in "
+            f"{gl.project.name} because it is '{mr.state}'"
+        )
+        return
+
+    # skip processing if the MR has been opened by the app-interface bot
+    if mr.author.get("username") == gl.user.username:
+        logging.info(
+            f"skip processing of MR {gitlab_merge_request_id} in "
+            f"{gl.project.name} as it has been opened by {gl.user.username}"
+        )
+        return
+
     # get change types from the comparison bundle to prevent privilege escalation
     logging.info(
         f"fetching change types and permissions from comparison bundle "
@@ -324,7 +343,6 @@ def run(
         #   D E C I S I O N S
         #
 
-        gl = init_gitlab(gitlab_project_id)
         approver_decisions = get_approver_decisions_from_mr_comments(
             gl.get_merge_request_comments(
                 gitlab_merge_request_id, include_description=True
