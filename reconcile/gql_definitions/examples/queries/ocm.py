@@ -15,13 +15,9 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
-from reconcile.gql_definitions.examples.fragments.vault_secret import VaultSecret
-from reconcile.gql_definitions.examples.fragments.vault_secret_version import (
-    VaultSecretVersion,
-)
-from reconcile.gql_definitions.examples.fragments.vault_secret_path import (
-    VaultSecretPath,
-)
+from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
+from reconcile.gql_definitions.fragments.vault_secret_version import VaultSecretVersion
+from reconcile.gql_definitions.fragments.vault_secret_path import VaultSecretPath
 
 
 DEFINITION = """
