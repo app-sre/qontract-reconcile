@@ -10,5 +10,5 @@ LGTM = "lgtm"
 SAAS_FILE_UPDATE = "saas-file-update"
 SKIP_CI = "bot/skip-ci"
 
-SELF_SERVICEABLE = "self-servicable"
-NOT_SELF_SERVICEABLE = "not-self-servicable"
+SELF_SERVICEABLE = "self-serviceable"
+NOT_SELF_SERVICEABLE = "not-self-serviceable"
