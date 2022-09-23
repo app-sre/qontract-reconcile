@@ -2186,10 +2186,10 @@ def change_owners(
     change_type_processing_mode,
     mr_management,
 ):
-    import reconcile.change_owners
+    import reconcile.change_owners.change_owners
 
     run_integration(
-        reconcile.change_owners,
+        reconcile.change_owners.change_owners,
         ctx.obj,
         gitlab_project_id,
         gitlab_merge_request_id,
