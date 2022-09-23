@@ -3,7 +3,7 @@ from typing import Tuple
 
 from reconcile.gql_definitions.change_owners.queries.self_service_roles import RoleV1
 
-from reconcile.changeowners.changetypes import (
+from reconcile.change_owners.change_types import (
     BundleFileChange,
     BundleFileType,
     Approver,

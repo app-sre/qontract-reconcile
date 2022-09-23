@@ -1,23 +1,23 @@
 from dataclasses import dataclass
 from typing import Any, Optional
-from reconcile.changeowners.diff import (
+from reconcile.change_owners.diff import (
     Diff,
     DiffType,
     deepdiff_path_to_jsonpath,
 )
-from reconcile.change_owners import (
+from reconcile.change_owners.change_owners import (
     apply_decisions_to_changes,
     manage_conditional_label,
 )
-from reconcile.changeowners.selfserviceroles import (
+from reconcile.change_owners.self_service_roles import (
     cover_changes_with_self_service_roles
 )
-from reconcile.changeowners.decision import (
+from reconcile.change_owners.decision import (
     get_approver_decisions_from_mr_comments,
     DecisionCommand,
     Decision,
 )
-from reconcile.changeowners.changetypes import (
+from reconcile.change_owners.change_types import (
     BundleFileChange,
     BundleFileType,
     ChangeTypeContext,

@@ -3,8 +3,8 @@ from typing import Optional
 import logging
 import traceback
 
-from reconcile.changeowners.diff import Diff
-from reconcile.changeowners.decision import (
+from reconcile.change_owners.diff import Diff
+from reconcile.change_owners.decision import (
     Decision,
     DecisionCommand,
     get_approver_decisions_from_mr_comments,
@@ -18,7 +18,7 @@ from reconcile.gql_definitions.change_owners.queries import (
 )
 from reconcile.utils.semver_helper import make_semver
 
-from reconcile.changeowners.changetypes import (
+from reconcile.change_owners.change_types import (
     BundleFileChange,
     BundleFileType,
     FileRef,
@@ -27,7 +27,7 @@ from reconcile.changeowners.changetypes import (
     create_bundle_file_change,
     build_change_type_processor,
 )
-from reconcile.changeowners.selfserviceroles import (
+from reconcile.change_owners.self_service_roles import (
     cover_changes_with_self_service_roles,
 )
 

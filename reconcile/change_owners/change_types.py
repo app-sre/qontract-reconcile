@@ -8,7 +8,7 @@ import jsonpath_ng
 import jsonpath_ng.ext
 import anymarkup
 
-from reconcile.changeowners.diff import Diff, DiffType, extract_diffs
+from reconcile.change_owners.diff import Diff, DiffType, extract_diffs
 from reconcile.gql_definitions.change_owners.queries.change_types import (
     ChangeTypeV1,
     ChangeTypeChangeDetectorJsonPathProviderV1,
