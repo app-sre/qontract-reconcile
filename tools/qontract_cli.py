@@ -1112,6 +1112,7 @@ def app_interface_review_queue(ctx):
         "title",
         "onboarding",
         "author",
+        "updated_at",
         "labels",
     ]
     queue_data = []
