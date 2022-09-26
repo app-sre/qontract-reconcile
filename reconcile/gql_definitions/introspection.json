@@ -2431,7 +2431,7 @@
                             "args": [],
                             "type": {
                                 "kind": "OBJECT",
-                                "name": "jiraWatcherSettings_v1",
+                                "name": "JiraWatcherSettings_v1",
                                 "ofType": null
                             },
                             "isDeprecated": false,
@@ -15951,6 +15951,46 @@
                             "deprecationReason": null
                         },
                         {
+                            "name": "upgradePolicyAllowedWorkloads",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "LIST",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "NON_NULL",
+                                    "name": null,
+                                    "ofType": {
+                                        "kind": "SCALAR",
+                                        "name": "String",
+                                        "ofType": null
+                                    }
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "upgradePolicyAllowedMutexes",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "LIST",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "NON_NULL",
+                                    "name": null,
+                                    "ofType": {
+                                        "kind": "SCALAR",
+                                        "name": "String",
+                                        "ofType": null
+                                    }
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
                             "name": "clusters",
                             "description": null,
                             "args": [],
@@ -17304,7 +17344,7 @@
                 },
                 {
                     "kind": "OBJECT",
-                    "name": "jiraWatcherSettings_v1",
+                    "name": "JiraWatcherSettings_v1",
                     "description": null,
                     "fields": [
                         {
@@ -20436,6 +20476,26 @@
                                             "name": "QontractQuery_v1",
                                             "ofType": null
                                         }
+                                    }
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "resources",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "LIST",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "NON_NULL",
+                                    "name": null,
+                                    "ofType": {
+                                        "kind": "INTERFACE",
+                                        "name": "NamespaceOpenshiftResource_v1",
+                                        "ofType": null
                                     }
                                 }
                             },

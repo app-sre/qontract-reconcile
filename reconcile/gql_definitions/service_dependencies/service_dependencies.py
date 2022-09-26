@@ -15,8 +15,16 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
+from reconcile.gql_definitions.service_dependencies.jenkins_instance_fragment import (
+    ServiceDependenciesJenkinsInstance,
+)
+
 
 DEFINITION = """
+fragment ServiceDependenciesJenkinsInstance on JenkinsInstance_v1 {
+    name
+}
+
 query ServiceDependencies {
   apps: apps_v1 {
     name
@@ -28,7 +36,7 @@ query ServiceDependencies {
     }
     jenkinsConfigs {
       instance {
-        name
+        ... ServiceDependenciesJenkinsInstance
       }
     }
     saasFiles {
@@ -39,7 +47,7 @@ query ServiceDependencies {
         targets {
           upstream {
             instance {
-              name
+              ... ServiceDependenciesJenkinsInstance
             }
           }
         }
@@ -83,16 +91,8 @@ class AppCodeComponentsV1(BaseModel):
         extra = Extra.forbid
 
 
-class JenkinsInstanceV1(BaseModel):
-    name: str = Field(..., alias="name")
-
-    class Config:
-        smart_union = True
-        extra = Extra.forbid
-
-
 class JenkinsConfigV1(BaseModel):
-    instance: JenkinsInstanceV1 = Field(..., alias="instance")
+    instance: ServiceDependenciesJenkinsInstance = Field(..., alias="instance")
 
     class Config:
         smart_union = True
@@ -107,18 +107,8 @@ class PipelinesProviderV1(BaseModel):
         extra = Extra.forbid
 
 
-class SaasResourceTemplateTargetUpstreamV1_JenkinsInstanceV1(BaseModel):
-    name: str = Field(..., alias="name")
-
-    class Config:
-        smart_union = True
-        extra = Extra.forbid
-
-
 class SaasResourceTemplateTargetUpstreamV1(BaseModel):
-    instance: SaasResourceTemplateTargetUpstreamV1_JenkinsInstanceV1 = Field(
-        ..., alias="instance"
-    )
+    instance: ServiceDependenciesJenkinsInstance = Field(..., alias="instance")
 
     class Config:
         smart_union = True
