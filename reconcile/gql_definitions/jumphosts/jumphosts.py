@@ -41,7 +41,7 @@ query Jumphosts ($hostname: String) {
     clusters {
       name
       network {
-      vpc
+        vpc
       }
     }
   }
@@ -97,5 +97,5 @@ def query(query_func: Callable, **kwargs) -> JumphostsQueryData:
     Returns:
         JumphostsQueryData: queried data parsed into generated classes
     """
-    raw_data: dict[Any, Any] = query_func(DEFINITION, kwargs)
+    raw_data: dict[Any, Any] = query_func(DEFINITION, **kwargs)
     return JumphostsQueryData(**raw_data)

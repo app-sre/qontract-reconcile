@@ -168,5 +168,5 @@ def query(query_func: Callable, **kwargs) -> VpcPeeringsValidatorQueryData:
     Returns:
         VpcPeeringsValidatorQueryData: queried data parsed into generated classes
     """
-    raw_data: dict[Any, Any] = query_func(DEFINITION, kwargs)
+    raw_data: dict[Any, Any] = query_func(DEFINITION, **kwargs)
     return VpcPeeringsValidatorQueryData(**raw_data)

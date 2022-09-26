@@ -11,8 +11,8 @@ from jinja2 import Template
 
 from reconcile.utils import gql
 from reconcile.gql_definitions.jumphosts.jumphosts import (
-  query as jumphosts_query,
-  JumphostsQueryData,
+    query as jumphosts_query,
+    JumphostsQueryData,
 )
 
 
@@ -529,13 +529,16 @@ def get_queue_aws_accounts():
 
 def get_jumphosts(hostname: Optional[str] = None) -> JumphostsQueryData:
     """Returns all jumphosts"""
-
+    variables = {}
+    # The dictionary must be empty if no hostname is set.
+    # That way it will return every hostname.
+    # Otherwise GQL will try to find hostname: null
+    if hostname:
+        variables["hostname"] = hostname
     gqlapi = gql.get_api()
     return jumphosts_query(
-      query_func=gqlapi.query,
-      variables={
-        "hostname": hostname,
-      }
+        query_func=gqlapi.query,
+        variables=variables,
     )
 
 

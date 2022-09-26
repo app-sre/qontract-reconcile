@@ -129,5 +129,5 @@ def query(query_func: Callable, **kwargs) -> QuayMembershipQueryData:
     Returns:
         QuayMembershipQueryData: queried data parsed into generated classes
     """
-    raw_data: dict[Any, Any] = query_func(DEFINITION, kwargs)
+    raw_data: dict[Any, Any] = query_func(DEFINITION, **kwargs)
     return QuayMembershipQueryData(**raw_data)
