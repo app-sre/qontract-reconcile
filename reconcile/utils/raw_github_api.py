@@ -30,7 +30,7 @@ class RawGithubApi:
         return new_headers
 
     def patch(self, url):
-        res = requests.patch(url, headers=self.headers())
+        res = requests.patch(url, headers=self.headers(), timeout=60)
         res.raise_for_status()
         return res
 
@@ -39,7 +39,7 @@ class RawGithubApi:
         if headers is None:
             headers = {}
         h = self.headers(headers)
-        res = requests.get(self.BASE_URL + url, headers=h)
+        res = requests.get(self.BASE_URL + url, headers=h, timeout=60)
         res.raise_for_status()
         result = res.json()
 
@@ -52,7 +52,7 @@ class RawGithubApi:
             while "last" in res.links and "next" in res.links:
                 if res.links["last"]["url"] == res.links["next"]["url"]:
                     req_url = res.links["next"]["url"]
-                    res = requests.get(req_url, headers=h)
+                    res = requests.get(req_url, headers=h, timeout=60)
                     res.raise_for_status()
 
                     for element in res.json():
@@ -61,7 +61,7 @@ class RawGithubApi:
                     return elements
                 else:
                     req_url = res.links["next"]["url"]
-                    res = requests.get(req_url, headers=h)
+                    res = requests.get(req_url, headers=h, timeout=60)
                     res.raise_for_status()
 
                     for element in res.json():

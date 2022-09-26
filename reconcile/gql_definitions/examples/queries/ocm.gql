@@ -1,0 +1,20 @@
+# qenerate: plugin=pydantic_v1
+
+query OCPAuthFull {
+  ocp_release_mirror: ocp_release_mirror_v1 {
+    hiveCluster {
+      name
+      ocm {
+        name
+        offlineToken {
+            ... VaultSecret
+        }
+      }
+      automationToken {
+        ... VaultSecretVersion
+        ... VaultSecretPath
+        format
+      }
+    }
+  }
+}

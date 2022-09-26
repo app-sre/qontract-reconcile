@@ -1,7 +1,7 @@
 import pytest
 import boto3
-from moto import mock_iam, mock_route53
-from reconcile.utils.aws_api import AWSApi
+from moto import mock_iam, mock_route53, mock_ec2
+from reconcile.utils.aws_api import AWSApi, AmiTag
 
 
 @pytest.fixture
@@ -158,3 +158,75 @@ def test_extract_records(aws_api):
     ]
     results = aws_api._extract_records(resource_records)
     assert results == [record]
+
+
+@pytest.fixture
+def ec2_client():
+    with mock_ec2():
+        yield boto3.client("ec2", region_name="us-east-1")
+
+
+def test_get_image_id(ec2_client, aws_api: AWSApi):
+    # RHEL7 ami from moto/ec2/resources/amis.json
+    reservation = ec2_client.run_instances(
+        ImageId="ami-bb9a6bc2", MinCount=1, MaxCount=1
+    )
+    instance_id = reservation["Instances"][0]["InstanceId"]
+
+    # just another image which shouldn't be returned
+    ec2_client.create_image(InstanceId=instance_id, Name="image-1")
+    # arch=x86_64 image
+    ami_x86_64 = ec2_client.create_image(
+        InstanceId=instance_id,
+        Name="x86_64",
+        TagSpecifications=[
+            {
+                "ResourceType": "image",
+                "Tags": [
+                    {"Key": "foo", "Value": "bar"},
+                    {"Key": "commit", "Value": "sha-123456"},
+                    {"Key": "arch", "Value": "x86_64"},
+                ],
+            },
+        ],
+    )["ImageId"]
+    # arch=aarch64 image
+    ami_aarch64 = ec2_client.create_image(
+        InstanceId=instance_id,
+        Name="aarch64",
+        TagSpecifications=[
+            {
+                "ResourceType": "image",
+                "Tags": [
+                    {"Key": "foo", "Value": "bar"},
+                    {"Key": "commit", "Value": "sha-123456"},
+                    {"Key": "arch", "Value": "aarch64"},
+                ],
+            },
+        ],
+    )["ImageId"]
+
+    # just one tag
+    assert (
+        aws_api.get_image_id(
+            "some-account", "us-east-1", tags=[AmiTag(name="arch", value="x86_64")]
+        )
+        == ami_x86_64
+    )
+    # multiple tags
+    assert (
+        aws_api.get_image_id(
+            "some-account",
+            "us-east-1",
+            tags=[
+                AmiTag(name="commit", value="sha-123456"),
+                AmiTag(name="arch", value="aarch64"),
+            ],
+        )
+        == ami_aarch64
+    )
+    # multiple amis returned ... error
+    with pytest.raises(ValueError):
+        aws_api.get_image_id(
+            "some-account", "us-east-1", tags=[AmiTag(name="foo", value="bar")]
+        )

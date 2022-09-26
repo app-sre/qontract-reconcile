@@ -75,6 +75,21 @@ def log_level(function):
     return function
 
 
+def early_exit(function):
+    help_msg = (
+        "Runs integration in early exit mode. If the observed desired state of "
+        "an integration does not change between the provided bundle SHA "
+        "--early-exit-compare-sha and the current bundle sha, the integration "
+        "exits without spending more time with reconciling."
+    )
+    function = click.option(
+        "--early-exit-compare-sha",
+        help=help_msg,
+        default=lambda: os.environ.get("EARLY_EXIT_COMPARE_SHA", None),
+    )(function)
+    return function
+
+
 def dry_run(function):
     help_msg = (
         "If `true`, it will only print the planned actions "
@@ -164,7 +179,7 @@ def use_jump_host(**kwargs):
     def f(function):
         help_msg = "use jump host if defined."
         function = click.option(
-            "--use-jump-host/--no-use-jump-host", help=help_msg, default=True
+            "--use-jump-host/--no-use-jump-host", help=help_msg, default=False
         )(function)
         return function
 
@@ -369,26 +384,40 @@ def run_integration(func_container, ctx, *args, **kwargs):
         sys.stderr.write("Integration missing QONTRACT_INTEGRATION.\n")
         sys.exit(ExitCodes.ERROR)
 
-    try:
-        gql.init_from_config(
-            sha_url=ctx["gql_sha_url"],
-            integration=int_name,
-            validate_schemas=ctx["validate_schemas"],
-            print_url=ctx["gql_url_print"],
-        )
-    except GqlApiIntegrationNotFound as e:
-        sys.stderr.write(str(e) + "\n")
-        sys.exit(ExitCodes.INTEGRATION_NOT_FOUND)
-
     unleash_feature_state = get_feature_toggle_state(int_name)
     if not unleash_feature_state:
         logging.info("Integration toggle is disabled, skipping integration.")
         sys.exit(ExitCodes.SUCCESS)
 
     dry_run = ctx.get("dry_run", False)
+    early_exit_compare_sha = ctx.get("early_exit_compare_sha")
 
     try:
-        func_container.run(dry_run, *args, **kwargs)
+        # check if the integration can exit early because there is no difference
+        # in desired state compared to the provided comparison bundle sha
+        # early exit is only supported when the integration is started in
+        # dry-run mode
+        can_exit_early = (
+            dry_run
+            and early_exit_compare_sha
+            and early_exit_integration(
+                int_name, early_exit_compare_sha, func_container, args, kwargs
+            )
+        )
+        if can_exit_early:
+            logging.debug("No changes in desired state. Exit PR check early.")
+        else:
+            try:
+                gql.init_from_config(
+                    autodetect_sha=ctx["gql_sha_url"],
+                    integration=int_name,
+                    validate_schemas=ctx["validate_schemas"],
+                    print_url=ctx["gql_url_print"],
+                )
+            except GqlApiIntegrationNotFound as e:
+                sys.stderr.write(str(e) + "\n")
+                sys.exit(ExitCodes.INTEGRATION_NOT_FOUND)
+            func_container.run(dry_run, *args, **kwargs)
     except RunnerException as e:
         sys.stderr.write(str(e) + "\n")
         sys.exit(ExitCodes.ERROR)
@@ -402,6 +431,55 @@ def run_integration(func_container, ctx, *args, **kwargs):
                 f.write(json.dumps(gqlapi.get_queried_schemas()))
 
 
+def early_exit_integration(
+    int_name: str, compare_sha: str, func_container, *args, **kwargs
+) -> bool:
+    early_exit_desired_state_function = "early_exit_desired_state"
+    # does the integration support early exit?
+    if "early_exit_desired_state" not in dir(func_container):
+        logging.warning(
+            f"{int_name} does not support early exit. it does not offer a "
+            f"function called {early_exit_desired_state_function}"
+        )
+        return False
+
+    # get desired state from comparison bundle
+    try:
+        gql.init_from_config(
+            sha=compare_sha,
+            integration=int_name,
+            validate_schemas=True,
+            print_url=False,
+        )
+        previous_desired_state = func_container.early_exit_desired_state(
+            *args, **kwargs
+        )
+    except Exception:
+        logging.exception(
+            f"Failed to fetch desired state for comparison bundle {compare_sha} failed"
+        )
+        return False
+
+    # get desired state from current bundle
+    try:
+        gql.init_from_config(
+            autodetect_sha=True,
+            integration=int_name,
+            validate_schemas=True,
+            print_url=False,
+        )
+        current_desired_state = func_container.early_exit_desired_state(*args, **kwargs)
+    except Exception:
+        logging.exception("Failed to fetch desired state for current bundle failed")
+        return False
+
+    # compare
+    from deepdiff import DeepDiff
+
+    diff = DeepDiff(previous_desired_state, current_desired_state)
+    return not diff
+
+
 def init_log_level(log_level):
     level = getattr(logging, log_level) if log_level else logging.INFO
     logging.basicConfig(format=LOG_FMT, datefmt=LOG_DATEFMT, level=level)
@@ -410,6 +488,7 @@ def init_log_level(log_level):
 @click.group()
 @config_file
 @dry_run
+@early_exit
 @validate_schemas
 @dump_schemas
 @gql_sha_url
@@ -420,6 +499,7 @@ def integration(
     ctx,
     configfile,
     dry_run,
+    early_exit_compare_sha,
     validate_schemas,
     dump_schemas_file,
     log_level,
@@ -431,6 +511,7 @@ def integration(
     init_log_level(log_level)
     config.init_from_toml(configfile)
     ctx.obj["dry_run"] = dry_run
+    ctx.obj["early_exit_compare_sha"] = early_exit_compare_sha
     ctx.obj["validate_schemas"] = validate_schemas
     ctx.obj["gql_sha_url"] = gql_sha_url
     ctx.obj["gql_url_print"] = gql_url_print
@@ -799,6 +880,7 @@ def aws_garbage_collector(ctx, thread_pool_size):
 @integration.command(short_help="Delete IAM access keys by access key ID.")
 @threaded()
 @account_name
+@environ(["APP_INTERFACE_STATE_BUCKET", "APP_INTERFACE_STATE_BUCKET_ACCOUNT"])
 @click.pass_context
 def aws_iam_keys(ctx, thread_pool_size, account_name):
     import reconcile.aws_iam_keys
@@ -1284,21 +1366,100 @@ def gcr_mirror(ctx):
 
 
 @integration.command(short_help="Mirrors external images into Quay.")
+@click.option(
+    "-d",
+    "--control-file-dir",
+    help="Directory where integration control file will be created. This file controls "
+    "when to compare tags (very slow) apart from mirroring new tags.",
+)
+@click.option(
+    "-t/-n",
+    "--compare-tags/--no-compare-tags",
+    help="Forces the integration to do or do not do tag comparation no matter what the "
+    "control file says.",
+    default=None,
+)
+@click.option(
+    "-c",
+    "--compare-tags-interval",
+    help="Time to wait between compare-tags runs (in seconds). It defaults to 86400 "
+    "(24h).",
+    type=int,
+    default=86400,
+)
+@click.option(
+    "-i",
+    "--image",
+    help="Only considers this image to mirror. It can be specified multiple times.",
+    multiple=True,
+)
 @click.pass_context
 @binary(["skopeo"])
-def quay_mirror(ctx):
+def quay_mirror(ctx, control_file_dir, compare_tags, compare_tags_interval, image):
     import reconcile.quay_mirror
 
-    run_integration(reconcile.quay_mirror, ctx.obj)
+    run_integration(
+        reconcile.quay_mirror,
+        ctx.obj,
+        control_file_dir,
+        compare_tags,
+        compare_tags_interval,
+        image,
+    )
 
 
 @integration.command(short_help="Mirrors entire Quay orgs.")
+@click.option(
+    "-d",
+    "--control-file-dir",
+    help="Directory where integration control file will be created. This file controls "
+    "when to compare tags (very slow) apart from mirroring new tags.",
+)
+@click.option(
+    "-t/-n",
+    "--compare-tags/--no-compare-tags",
+    help="Forces the integration to do or do not do tag comparation no matter what the "
+    "control file says.",
+    default=None,
+)
+@click.option(
+    "-c",
+    "--compare-tags-interval",
+    help="Time to wait between compare-tags runs (in seconds). It defaults to 86400 "
+    "(8h).",
+    type=int,
+    default=28800,
+)
+@click.option(
+    "-o",
+    "--org",
+    help="Only considers this organisation to mirror. It can be specified multiple "
+    "times.",
+    multiple=True,
+)
+@click.option(
+    "-r",
+    "--repository",
+    help="Only considers this repository to mirror. It can be specified multiple "
+    "times.",
+    multiple=True,
+)
 @click.pass_context
 @binary(["skopeo"])
-def quay_mirror_org(ctx):
+def quay_mirror_org(
+    ctx, control_file_dir, compare_tags, compare_tags_interval, org, repository
+):
     import reconcile.quay_mirror_org
 
-    run_integration(reconcile.quay_mirror_org, ctx.obj)
+    run_integration(
+        reconcile.quay_mirror_org,
+        ctx.obj,
+        control_file_dir,
+        compare_tags,
+        compare_tags_interval,
+        org,
+        repository,
+    )
 
 
 @integration.command(short_help="Creates and Manages Quay Repos.")
@@ -1333,6 +1494,7 @@ def ldap_users(ctx, gitlab_project_id):
 @binary(["terraform", "oc", "git"])
 @binary_version("terraform", ["version"], TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
+@environ(["APP_INTERFACE_STATE_BUCKET", "APP_INTERFACE_STATE_BUCKET_ACCOUNT"])
 @internal()
 @use_jump_host()
 @enable_deletion(default=False)
@@ -1369,6 +1531,30 @@ def terraform_resources(
         light,
         vault_output_path,
         account_name=account_name,
+    )
+
+
+@integration.command(short_help="Manage Cloudflare Resources using Terraform.")
+@print_to_file
+@enable_deletion(default=False)
+@threaded(default=20)
+@binary(["terraform"])
+@binary_version("terraform", ["version"], TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
+@click.pass_context
+def terraform_cloudflare_resources(
+    ctx,
+    print_to_file,
+    enable_deletion,
+    thread_pool_size,
+):
+    import reconcile.terraform_cloudflare_resources
+
+    run_integration(
+        reconcile.terraform_cloudflare_resources,
+        ctx.obj,
+        print_to_file,
+        enable_deletion,
+        thread_pool_size,
     )
 
 
@@ -1967,6 +2153,49 @@ def integrations_manager(
         internal,
         use_jump_host,
         image_tag_from_ref,
+    )
+
+
+@integration.command(
+    short_help="Detects owners for changes in app-interface PRs and allows them to self-service merge."
+)
+@click.argument("gitlab-project-id")
+@click.argument("gitlab-merge-request-id")
+@click.option(
+    "--comparison-sha",
+    help="bundle sha to compare to to find changes",
+)
+@click.option(
+    "--change-type-processing-mode",
+    help="if `limited` (default) the integration will not make any final decisions on the MR, but if `authoritative` it will ",
+    default=os.environ.get("CHANGE_TYPE_PROCESSING_MODE", "limited"),
+    type=click.Choice(["limited", "authoritative"], case_sensitive=True),
+)
+@click.option(
+    "--mr-management",
+    is_flag=True,
+    default=os.environ.get("MR_MANAGEMENT", False),
+    help="Manage MR labels and comments (default to false)",
+)
+@click.pass_context
+def change_owners(
+    ctx,
+    gitlab_project_id,
+    gitlab_merge_request_id,
+    comparison_sha,
+    change_type_processing_mode,
+    mr_management,
+):
+    import reconcile.change_owners.change_owners
+
+    run_integration(
+        reconcile.change_owners.change_owners,
+        ctx.obj,
+        gitlab_project_id,
+        gitlab_merge_request_id,
+        comparison_sha,
+        change_type_processing_mode,
+        mr_management,
     )
 
 

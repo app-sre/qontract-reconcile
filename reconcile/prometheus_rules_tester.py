@@ -4,13 +4,13 @@ import re
 import sys
 import traceback
 import yaml
+from typing import Any
 
 from sretoolbox.utils import threaded
 
 from reconcile import queries
 from reconcile.utils import gql
 from reconcile.utils import promtool
-import reconcile.openshift_base as ob
 import reconcile.openshift_resources_base as orb
 
 from reconcile.utils.semver_helper import make_semver
@@ -24,6 +24,8 @@ MAX_CONFIGMAP_SIZE = 0.5 * 1024 * 1024
 
 QONTRACT_INTEGRATION = "prometheus_rules_tester"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
+
+PROVIDERS = ["resource", "resource-template"]
 
 PROMETHEUS_RULES_PATHS_QUERY = """
 {
@@ -64,12 +66,11 @@ def get_prometheus_tests():
 #    (...)
 def get_prometheus_rules(cluster_name, settings):
     """Returns a dict of dicts indexed by path with rule data"""
-    gqlapi = gql.get_api()
     rules = {}
-    for r in gqlapi.query(PROMETHEUS_RULES_PATHS_QUERY)["resources"]:
-        rules[r["path"]] = {}
-
-    for n in gqlapi.query(orb.NAMESPACES_QUERY)["namespaces"]:
+    namespaces_with_prom_rules, _ = orb.get_namespaces(
+        PROVIDERS, resource_schema_filter="/openshift/prometheus-rule-1.yml"
+    )
+    for n in namespaces_with_prom_rules:
         namespace = n["name"]
         cluster = n["cluster"]["name"]
 
@@ -82,7 +83,6 @@ def get_prometheus_rules(cluster_name, settings):
         ):
             continue
 
-        ob.aggregate_shared_resources(n, "openshiftResources")
         openshift_resources = n.get("openshiftResources")
         if not openshift_resources:
             logging.warning(
@@ -92,9 +92,9 @@ def get_prometheus_rules(cluster_name, settings):
             continue
 
         for r in openshift_resources:
-            path = r["path"]
+            path = r["resource"]["path"]
             if path not in rules:
-                continue
+                rules[path] = {}
 
             # Or we will get an unexepected and confusing html_url annotation
             if "add_path_to_prom_rules" not in r:
@@ -362,3 +362,11 @@ def run(dry_run, thread_pool_size=10, cluster_name=None):
 
     if invalid_rules or failed_tests:
         sys.exit(ExitCodes.ERROR)
+
+
+def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
+    state = orb.early_exit_desired_state(
+        PROVIDERS, resource_schema_filter="/openshift/prometheus-rule-1.yml"
+    )
+    state["tests"] = get_prometheus_tests()
+    return state

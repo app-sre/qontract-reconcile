@@ -16,10 +16,10 @@ setup(
     url='https://github.com/app-sre/qontract-reconcile',
 
     packages=find_packages(exclude=('tests',)),
-    package_data={'reconcile': ['templates/*.j2']},
+    package_data={'reconcile': ['templates/*.j2', "gql_queries/*/*.gql"]},
 
     install_requires=[
-        "sretoolbox~=1.2",
+        "sretoolbox~=1.6.0",
         "Click>=7.0,<9.0",
         "gql==3.1.0",
         "toml>=0.10.0,<0.11.0",
@@ -42,14 +42,14 @@ setup(
         "ruamel.yaml>=0.16.5,<0.18.0",
         "terrascript==0.9.0",
         "tabulate>=0.8.6,<0.9.0",
-        "UnleashClient~=5.2",
+        "UnleashClient~=5.3",
         "prometheus-client~=0.8",
         "sentry-sdk~=0.14",
         "jenkins-job-builder~=4.0.0",
         "parse==1.18.0",
         "sendgrid>=6.4.8,<6.5.0",
         "dnspython~=2.1",
-        "requests==2.28.1",
+        "requests==2.22.0",
         "kubernetes~=24.0",
         "websocket-client<0.55.0,>=0.35",
         "sshtunnel>=0.4.0",
@@ -63,6 +63,8 @@ setup(
         "packaging~=21.3",
         # Needed to fix issues with router's certificates
         "cryptography==36.0.2",
+        "deepdiff6==6.2.0",
+        "jsonpath-ng~=1.5",
     ],
 
     test_suite="tests",

@@ -1,9 +1,9 @@
 import pytest
 
-from reconcile.gql_queries.vpc_peerings_validator.vpc_peerings_validator import (
+from reconcile.gql_definitions.vpc_peerings_validator.vpc_peerings_validator import (
     ClusterPeeringConnectionClusterAccepterV1,
-    ClusterPeeringConnectionClusterAccepterV1_ClusterV1,
-    ClusterPeeringConnectionClusterAccepterV1_ClusterV1_ClusterSpecV1,
+    ClusterV1__3,
+    ClusterSpecV1__3,
     ClusterPeeringV1,
     ClusterSpecV1,
     ClusterV1,
@@ -27,11 +27,9 @@ def query_data_i2p() -> VpcPeeringsValidatorQueryData:
                     connections=[
                         ClusterPeeringConnectionClusterAccepterV1(
                             provider="cluster-vpc-accepter",
-                            cluster=ClusterPeeringConnectionClusterAccepterV1_ClusterV1(
+                            cluster=ClusterV1__3(
                                 name="cluster2",
-                                spec=ClusterPeeringConnectionClusterAccepterV1_ClusterV1_ClusterSpecV1(
-                                    private=False
-                                ),
+                                spec=ClusterSpecV1__3(private=False),
                                 internal=False,
                             ),
                         ),
@@ -59,7 +57,7 @@ def test_validate_no_internal_to_public_peerings_valid_internal(
     query_data_i2p: VpcPeeringsValidatorQueryData,
 ):
     assert query_data_i2p.clusters is not None
-    query_data_i2p.clusters[0].peering.connections[0].cluster.internal = True  # type: ignore[index,union-attr]
+    query_data_i2p.clusters[0].peering.connections[0].cluster.internal = True  # type: ignore[union-attr]
     assert validate_no_internal_to_public_peerings(query_data_i2p) is True
 
 
@@ -75,11 +73,9 @@ def query_data_p2p() -> VpcPeeringsValidatorQueryData:
                     connections=[
                         ClusterPeeringConnectionClusterAccepterV1(
                             provider="cluster-vpc-accepter",
-                            cluster=ClusterPeeringConnectionClusterAccepterV1_ClusterV1(
+                            cluster=ClusterV1__3(
                                 name="cluster2",
-                                spec=ClusterPeeringConnectionClusterAccepterV1_ClusterV1_ClusterSpecV1(
-                                    private=False
-                                ),
+                                spec=ClusterSpecV1__3(private=False),
                                 internal=False,
                             ),
                         ),

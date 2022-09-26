@@ -1,0 +1,50 @@
+---
+$schema: /openshift/cluster-1.yml
+labels:
+  service: ocm-quay
+name: tst-jpr-rosa
+description: A test cluster
+consoleUrl: "https://console-url"
+kibanaUrl: ""
+prometheusUrl: ""
+alertmanagerUrl: ""
+serverUrl: "https://api-url"
+elbFQDN: "elb.apps.an-osd-test-cluster.k3s7.p1.openshiftapps.com"
+ocm:
+  name: non-existent-ocm
+  url: non-existent-ocm-url
+  accessTokenClientId: cloud-services
+  offlineToken:
+    path: "offline-token-secret-path"
+    field: "offline-token"
+spec:
+  product: rosa
+  account:
+    uid: '249118421612'
+    rosa:
+      creator_role_arn: "arn:aws:iam::249118421612:role/ManagedOpenShift-OCM-Role-12147054"
+      installer_role_arn: "arn:aws:iam::249118421612:role/ManagedOpenShift-Installer-Role"
+      support_role_arn: "arn:aws:iam::249118421612:role/ManagedOpenShift-Support-Role"
+      controlplane_role_arn: "arn:aws:iam::249118421612:role/ManagedOpenShift-ControlPlane-Role"
+      worker_role_arn: "arn:aws:iam::249118421612:role/ManagedOpenShift-Worker-Role"
+  id: "rosa-cluster-id"
+  external_id: "external-id"
+  provider: aws
+  region: us-east-1
+  channel: 2
+  version: 4.10.16
+  initial_version: 4.8.10
+  multi_az: false
+  instance_type: m5.xlarge
+  private: false
+  provision_shard_id: provision_shard_id
+  autoscale:
+    min_replicas: 21
+    max_replicas: 30
+  disable_user_workload_monitoring: true
+network:
+  type: OpenShiftSDN
+  vpc: 10.0.0.0/16
+  service: 172.30.0.0/16
+  pod: 10.128.0.0/14
+internal: false

@@ -18,7 +18,7 @@ from reconcile.utils.defer import defer
 def scan_history(repo_url, existing_keys, defer=None):
     # pylint: disable=consider-using-with
     logging.info("scanning {}".format(repo_url))
-    if requests.get(repo_url).status_code == 404:
+    if requests.get(repo_url, timeout=60).status_code == 404:
         logging.info("not found {}".format(repo_url))
         return []
 

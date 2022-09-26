@@ -1,4 +1,6 @@
 import base64
+from contextlib import contextmanager
+from functools import cache
 import json
 import logging
 import sys
@@ -58,17 +60,27 @@ from reconcile.github_users import init_github
 OPENSHIFT_RESOURCE = """
 provider
 ... on NamespaceOpenshiftResourceResource_v1 {
-  path
+  resource: path {
+    content
+    path
+    schema
+  }
   validate_json
   validate_alertmanager_config
   alertmanager_config_key
+  enable_query_support
 }
 ... on NamespaceOpenshiftResourceResourceTemplate_v1 {
-  path
+  resource: path {
+    content
+    path
+    schema
+  }
   type
   variables
   validate_alertmanager_config
   alertmanager_config_key
+  enable_query_support
 }
 ... on NamespaceOpenshiftResourceVaultSecret_v1 {
   path
@@ -81,7 +93,11 @@ provider
   alertmanager_config_key
 }
 ... on NamespaceOpenshiftResourceRoute_v1 {
-  path
+  resource: path {
+    content
+    path
+    schema
+  }
   vault_tls_secret_path
   vault_tls_secret_version
 }
@@ -126,16 +142,7 @@ NAMESPACES_QUERY = """
         }
       insecureSkipTLSVerify
       jumpHost {
-          hostname
-          knownHosts
-          user
-          port
-          identity {
-            path
-            field
-            version
-            format
-          }
+        %s
       }
       spec {
         version
@@ -165,6 +172,7 @@ NAMESPACES_QUERY = """
 """ % (
     indent(OPENSHIFT_RESOURCE, 8 * " "),
     indent(OPENSHIFT_RESOURCE, 6 * " "),
+    indent(queries.JUMPHOST_FIELDS, 8 * " "),
 )
 
 QONTRACT_INTEGRATION = "openshift_resources_base"
@@ -240,11 +248,30 @@ def lookup_graphql_query_results(query: str, **kwargs) -> list[Any]:
     return results
 
 
-def process_jinja2_template(body, vars=None, env=None, settings=None):
+@cache
+def compile_jinja2_template(body, extra_curly: bool = False):
+    env: dict = {}
+    if extra_curly:
+        env = {
+            "block_start_string": "{{%",
+            "block_end_string": "%}}",
+            "variable_start_string": "{{{",
+            "variable_end_string": "}}}",
+            "comment_start_string": "{{#",
+            "comment_end_string": "#}}",
+        }
+
+    jinja_env = jinja2.Environment(
+        extensions=[B64EncodeExtension, RaiseErrorExtension],
+        undefined=jinja2.StrictUndefined,
+        **env,
+    )
+    return jinja_env.from_string(body)
+
+
+def process_jinja2_template(body, vars=None, extra_curly: bool = False, settings=None):
     if vars is None:
         vars = {}
-    if env is None:
-        env = {}
     vars.update(
         {
             "vault": lambda p, k, v=None: lookup_secret(
@@ -262,30 +289,17 @@ def process_jinja2_template(body, vars=None, env=None, settings=None):
     vars.update({"query": lookup_graphql_query_results})
     vars.update({"url": url_makes_sense})
     try:
-        env = jinja2.Environment(
-            extensions=[B64EncodeExtension, RaiseErrorExtension],
-            undefined=jinja2.StrictUndefined,
-            **env,
-        )
-        template = env.from_string(body)
+        template = compile_jinja2_template(body, extra_curly)
         r = template.render(vars)
     except Exception as e:
         raise Jinja2TemplateError(e)
     return r
 
 
-def process_extracurlyjinja2_template(body, vars=None, settings=None):
+def process_extracurlyjinja2_template(body, vars=None, env=None, settings=None):
     if vars is None:
         vars = {}
-    env = {
-        "block_start_string": "{{%",
-        "block_end_string": "%}}",
-        "variable_start_string": "{{{",
-        "variable_end_string": "}}}",
-        "comment_start_string": "{{#",
-        "comment_end_string": "#}}",
-    }
-    return process_jinja2_template(body, vars=vars, env=env, settings=settings)
+    return process_jinja2_template(body, vars=vars, extra_curly=True, settings=settings)
 
 
 def check_alertmanager_config(data, path, alertmanager_config_key, decode_base64=False):
@@ -308,26 +322,29 @@ def check_alertmanager_config(data, path, alertmanager_config_key, decode_base64
 
 
 def fetch_provider_resource(
-    path,
+    resource: dict,
     tfunc=None,
     tvars=None,
     validate_json=False,
     validate_alertmanager_config=False,
     alertmanager_config_key="alertmanager.yaml",
     add_path_to_prom_rules=True,
+    skip_validation=False,
     settings=None,
-):
-    gqlapi = gql.get_api()
-
-    # get resource data
-    try:
-        resource = gqlapi.get_resource(path)
-    except gql.GqlGetResourceError as e:
-        raise FetchResourceError(str(e))
-
+) -> OR:
+    path = resource["path"]
     content = resource["content"]
     if tfunc:
         content = tfunc(body=content, vars=tvars, settings=settings)
+
+    if skip_validation:
+        return OR(
+            content,
+            QONTRACT_INTEGRATION,
+            QONTRACT_INTEGRATION_VERSION,
+            error_details=path,
+            validate_k8s_object=False,
+        )
 
     try:
         body = anymarkup.parse(content, force_types=None)
@@ -378,7 +395,9 @@ def fetch_provider_resource(
                             "html_url"
                         ] = f"{APP_INT_BASE_URL}/blob/master/resources{path}"
             except Exception:
-                logging.warning("could not add html_url annotation to" + body["name"])
+                logging.warning(
+                    "could not add html_url annotation to" + body["metadata"]["name"]
+                )
 
     try:
         return OR(
@@ -400,7 +419,7 @@ def fetch_provider_vault_secret(
     validate_alertmanager_config=False,
     alertmanager_config_key="alertmanager.yaml",
     settings=None,
-):
+) -> OR:
     # get the fields from vault
     secret_reader = SecretReader(settings)
     raw_data = secret_reader.read_all({"path": path, "version": version})
@@ -435,10 +454,11 @@ def fetch_provider_vault_secret(
         raise FetchResourceError(str(e))
 
 
-def fetch_provider_route(path, tls_path, tls_version, settings=None):
+def fetch_provider_route(resource: dict, tls_path, tls_version, settings=None) -> OR:
     global _log_lock
 
-    openshift_resource = fetch_provider_resource(path)
+    path = resource["path"]
+    openshift_resource = fetch_provider_resource(resource)
 
     if tls_path is None or tls_version is None:
         return openshift_resource
@@ -480,17 +500,21 @@ def fetch_provider_route(path, tls_path, tls_version, settings=None):
     return openshift_resource
 
 
-def fetch_openshift_resource(resource, parent, settings=None):
+def _locked_log(lock, msg):
+    lock.acquire()  # pylint: disable=consider-using-with
+    logging.debug(msg)
+    lock.release()
+
+
+def fetch_openshift_resource(
+    resource, parent, settings=None, skip_validation=False
+) -> OR:
     global _log_lock
 
     provider = resource["provider"]
-    path = resource["path"]
-    msg = "Fetching {}: {}".format(provider, path)
-    _log_lock.acquire()  # pylint: disable=consider-using-with
-    logging.debug(msg)
-    _log_lock.release()
-
     if provider == "resource":
+        path = resource["resource"]["path"]
+        _locked_log(_log_lock, "Processing {}: {}".format(provider, path))
         validate_json = resource.get("validate_json") or False
         add_path_to_prom_rules = resource.get("add_path_to_prom_rules", True)
         validate_alertmanager_config = (
@@ -500,14 +524,17 @@ def fetch_openshift_resource(resource, parent, settings=None):
             resource.get("alertmanager_config_key") or "alertmanager.yaml"
         )
         openshift_resource = fetch_provider_resource(
-            path,
+            resource["resource"],
             validate_json=validate_json,
             validate_alertmanager_config=validate_alertmanager_config,
             alertmanager_config_key=alertmanager_config_key,
             add_path_to_prom_rules=add_path_to_prom_rules,
+            skip_validation=skip_validation,
             settings=settings,
         )
     elif provider == "resource-template":
+        path = resource["resource"]["path"]
+        _locked_log(_log_lock, "Processing {}: {}".format(provider, path))
         add_path_to_prom_rules = resource.get("add_path_to_prom_rules", True)
         validate_alertmanager_config = (
             resource.get("validate_alertmanager_config") or False
@@ -530,19 +557,22 @@ def fetch_openshift_resource(resource, parent, settings=None):
             UnknownTemplateTypeError(tt)
         try:
             openshift_resource = fetch_provider_resource(
-                path,
+                resource["resource"],
                 tfunc=tfunc,
                 tvars=tv,
                 validate_alertmanager_config=validate_alertmanager_config,
                 alertmanager_config_key=alertmanager_config_key,
                 add_path_to_prom_rules=add_path_to_prom_rules,
+                skip_validation=skip_validation,
                 settings=settings,
             )
         except Exception as e:
             msg = "could not render template at path {}\n{}".format(path, e)
             raise ResourceTemplateRenderError(msg)
     elif provider == "vault-secret":
+        path = resource["path"]
         version = resource["version"]
+        _locked_log(_log_lock, "Processing {}: {} - {}".format(provider, path, version))
         rn = resource["name"]
         name = path.split("/")[-1] if rn is None else rn
         rl = resource["labels"]
@@ -574,9 +604,13 @@ def fetch_openshift_resource(resource, parent, settings=None):
         except (SecretVersionNotFound, SecretVersionIsNone) as e:
             raise FetchSecretError(e)
     elif provider == "route":
+        path = resource["resource"]["path"]
+        _locked_log(_log_lock, "Processing {}: {}".format(provider, path))
         tls_path = resource["vault_tls_secret_path"]
         tls_version = resource["vault_tls_secret_version"]
-        openshift_resource = fetch_provider_route(path, tls_path, tls_version, settings)
+        openshift_resource = fetch_provider_route(
+            resource["resource"], tls_path, tls_version, settings
+        )
     else:
         raise UnknownProviderError(provider)
 
@@ -746,7 +780,9 @@ def filter_namespaces_by_cluster_and_namespace(
 
 
 def canonicalize_namespaces(
-    namespaces: Iterable[dict[str, Any]], providers: list[str]
+    namespaces: Iterable[dict[str, Any]],
+    providers: list[str],
+    resource_schema_filter: Optional[str] = None,
 ) -> Tuple[list[dict[str, Any]], Optional[list[str]]]:
     canonicalized_namespaces = []
     override = None
@@ -754,7 +790,15 @@ def canonicalize_namespaces(
     for namespace_info in namespaces:
         ob.aggregate_shared_resources(namespace_info, "openshiftResources")
         openshift_resources: list = namespace_info.get("openshiftResources") or []
-        ors = [r for r in openshift_resources if r["provider"] in providers]
+        ors = [
+            r
+            for r in openshift_resources
+            if r["provider"] in providers
+            and (
+                resource_schema_filter is None
+                or r["resource"]["schema"] == resource_schema_filter
+            )
+        ]
         if ors and providers:
             # For the time being we only care about the first item in
             # providers
@@ -769,18 +813,12 @@ def canonicalize_namespaces(
     return canonicalized_namespaces, override
 
 
-@defer
-def run(
-    dry_run,
-    thread_pool_size=10,
-    internal=None,
-    use_jump_host=True,
-    providers=None,
-    cluster_name=None,
-    namespace_name=None,
-    init_api_resources=False,
-    defer=None,
-):
+def get_namespaces(
+    providers: Optional[list[str]] = None,
+    cluster_name: Optional[str] = None,
+    namespace_name: Optional[str] = None,
+    resource_schema_filter: Optional[str] = None,
+) -> Tuple[list[dict[str, Any]], Optional[list[str]]]:
     if providers is None:
         providers = []
     gqlapi = gql.get_api()
@@ -794,7 +832,24 @@ def run(
     namespaces = filter_namespaces_by_cluster_and_namespace(
         namespaces, cluster_name, namespace_name
     )
-    namespaces, overrides = canonicalize_namespaces(namespaces, providers)
+    return canonicalize_namespaces(namespaces, providers, resource_schema_filter)
+
+
+@defer
+def run(
+    dry_run,
+    thread_pool_size=10,
+    internal=None,
+    use_jump_host=True,
+    providers=None,
+    cluster_name=None,
+    namespace_name=None,
+    init_api_resources=False,
+    defer=None,
+):
+    namespaces, overrides = get_namespaces(
+        providers=providers, cluster_name=cluster_name, namespace_name=namespace_name
+    )
     oc_map, ri = fetch_data(
         namespaces,
         thread_pool_size,
@@ -811,3 +866,87 @@ def run(
         sys.exit(1)
 
     return ri
+
+
+def early_exit_desired_state(
+    providers: list[str], resource_schema_filter: Optional[str] = None
+) -> dict[str, Any]:
+    settings = queries.get_secret_reader_settings()
+    namespaces, _ = get_namespaces(
+        providers, resource_schema_filter=resource_schema_filter
+    )
+    fetch_specs = [
+        (r, ns_info) for ns_info in namespaces for r in ns_info["openshiftResources"]
+    ]
+
+    # this context manager patches functions used during jinja templating
+    # to ignore data that is not part of the desired state in app-interface.
+    # the context manager also ensures this function patching is
+    # reverted afterwards
+    with _early_exit_monkey_patch():
+        resources = threaded.run(
+            _early_exit_fetch_resource,
+            fetch_specs,
+            thread_pool_size=10,
+            settings=settings,
+        )
+
+    return {
+        "namespaces": namespaces,
+        "resources": resources,
+    }
+
+
+def _early_exit_fetch_resource(spec, settings):
+    resource = spec[0]
+    ns_info = spec[1]
+    if resource.get("enable_query_support"):
+        # use the regular resource processing functionality that evaluates templates
+        # and inline queries, if the resource is allowed to use this inline query
+        # functionality. this is crucial in such situations because the result of
+        # the template processing depends heavily on other data in app-interface
+        c = fetch_openshift_resource(
+            resource, ns_info, skip_validation=True, settings=settings
+        ).body
+    else:
+        # for regular resources, the plain content is sufficient enough to
+        # detect changes in desired state
+        c = resource["resource"].get("content")
+    del resource["resource"]
+    return c
+
+
+@contextmanager
+def _early_exit_monkey_patch():
+    """Avoid looking outside of app-interface on early-exit pr-check."""
+    orig_lookup_secret = lookup_secret
+    orig_lookup_github_file_content = lookup_github_file_content
+    orig_url_makes_sense = url_makes_sense
+    orig_check_alertmanager_config = check_alertmanager_config
+
+    try:
+        yield _early_exit_monkey_patch_assign(
+            lambda path, key, version=None, tvars=None, settings=None: f"vault({path}, {key}, {version})",
+            lambda repo, path, ref, tvars=None, settings=None: f"github({repo}, {path}, {ref})",
+            lambda url: False,
+            lambda data, path, alertmanager_config_key, decode_base64=False: True,
+        )
+    finally:
+        _early_exit_monkey_patch_assign(
+            orig_lookup_secret,
+            orig_lookup_github_file_content,
+            orig_url_makes_sense,
+            orig_check_alertmanager_config,
+        )
+
+
+def _early_exit_monkey_patch_assign(
+    lookup_secret,
+    lookup_github_file_content,
+    url_makes_sense,
+    check_alertmanager_config,
+):
+    sys.modules[__name__].lookup_secret = lookup_secret
+    sys.modules[__name__].lookup_github_file_content = lookup_github_file_content
+    sys.modules[__name__].url_makes_sense = url_makes_sense
+    sys.modules[__name__].check_alertmanager_config = check_alertmanager_config

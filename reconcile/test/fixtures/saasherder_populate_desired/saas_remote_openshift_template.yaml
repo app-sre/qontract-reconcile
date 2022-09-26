@@ -22,6 +22,8 @@ _placeholders:
     app:
       name: app-1
 
+pipelinesProvider: {}
+
 managedResourceTypes:
 - Deployment
 - Service

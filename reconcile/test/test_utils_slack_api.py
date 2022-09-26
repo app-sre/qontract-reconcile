@@ -250,6 +250,14 @@ def test_join_channel_already_joined(slack_api, mocker, joined):
         )
 
 
+def test_create_usergroup(slack_api):
+    slack_api.client.create_usergroup("ABCD")
+
+    assert slack_api.mock_slack_client.return_value.usergroups_create.call_args == call(
+        name="ABCD", handle="ABCD"
+    )
+
+
 def test_update_usergroup_users(slack_api):
     slack_api.client.update_usergroup_users("ABCD", ["USERA", "USERB"])
 

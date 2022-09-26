@@ -1,12 +1,14 @@
 import logging
-from typing import Any
+from typing import Any, Optional, Tuple
 
 from operator import itemgetter, attrgetter
 from urllib.parse import urlparse
 from sretoolbox.utils import retry
 
 import gitlab
+from gitlab.v4.objects import ProjectMergeRequest, CurrentUser
 import urllib3
+
 
 from reconcile.utils.secret_reader import SecretReader
 
@@ -32,6 +34,19 @@ class MRState:
     ALL = "all"
 
 
+class MRStatus:
+    """
+    Data class to help users selecting the correct Merge Request status.
+    """
+
+    # Values taken from https://docs.gitlab.com/ee/api/merge_requests.html#single-merge-request-response-notes
+    UNCHECKED = "unchecked"
+    CHECKING = "checking"
+    CAN_BE_MERGED = "can_be_merged"
+    CANNOT_BE_MERGED = "cannot_be_merged"
+    CANNOT_BE_MERGED_RECHECK = "cannot_be_merged_recheck"
+
+
 class GitLabApi:  # pylint: disable=too-many-public-methods
     def __init__(
         self,
@@ -55,7 +70,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
             self.server, private_token=token, ssl_verify=ssl_verify, timeout=timeout
         )
         self._auth()
-        self.user = self.gl.user
+        self.user: CurrentUser = self.gl.user
         if project_id is None:
             # When project_id is not provide, we try to get the project
             # using the project_url
@@ -168,7 +183,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         return list(app_sre_group.members.list(all=True))
 
     def check_group_exists(self, group_name):
-        groups = self.gl.groups.list()
+        groups = self.gl.groups.list(all=True)
         group_names = list(map(lambda x: x.name, groups))
         if group_name not in group_names:
             return False
@@ -283,6 +298,14 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
     def get_merge_requests(self, state):
         return self.get_items(self.project.mergerequests.list, state=state)
 
+    def get_merge_request_label_events(self, mr: ProjectMergeRequest):
+        return self.get_items(mr.resourcelabelevents.list)
+
+    def get_merge_request_pipelines(self, mr: ProjectMergeRequest) -> list[dict]:
+        return sorted(
+            self.get_items(mr.pipelines), key=lambda x: x["created_at"], reverse=True
+        )
+
     def get_merge_request_changed_paths(self, mr_id: int) -> list[str]:
         merge_request = self.project.mergerequests.get(mr_id)
         changes = merge_request.changes()["changes"]
@@ -349,6 +372,11 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         mr_labels = merge_request.attributes.get("labels")
         mr_labels += labels
         self.update_labels(merge_request, "merge-request", mr_labels)
+
+    def set_labels_on_merge_request(self, mr_id, labels):
+        """Set labels to a Merge Request"""
+        merge_request = self.project.mergerequests.get(mr_id)
+        self.update_labels(merge_request, "merge-request", labels)
 
     def remove_label_from_merge_request(self, mr_id, label):
         merge_request = self.project.mergerequests.get(mr_id)
@@ -518,3 +546,44 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
             return True
 
         return last_action_not_by_team < last_action_by_team
+
+    def is_assigned_by_team(
+        self, mr: ProjectMergeRequest, team_usernames: list[str]
+    ) -> bool:
+        if not mr.assignee:
+            return False
+        last_assignment = self.last_assignment(mr)
+        if not last_assignment:
+            return False
+
+        author, assignee = last_assignment[0], last_assignment[1]
+        return author in team_usernames and mr.assignee["username"] == assignee
+
+    def last_assignment(self, mr: ProjectMergeRequest) -> Optional[Tuple[str, str]]:
+        body_format = "assigned to @"
+        notes = mr.notes.list(all=True)
+
+        for note in notes:
+            if not note.system:
+                continue
+            body = note.body
+            if not body.startswith(body_format):
+                continue
+            assignee = body.replace(body_format, "")
+            author = note.author["username"]
+
+            return author, assignee
+
+        return None
+
+    def last_comment(
+        self, mr: ProjectMergeRequest, exclude_bot=True
+    ) -> Optional[dict[str, Any]]:
+        comments = self.get_merge_request_comments(mr.iid)
+        comments.sort(key=itemgetter("created_at"), reverse=True)
+        for comment in comments:
+            username = comment["username"]
+            if username == self.user.username and exclude_bot:
+                continue
+            return comment
+        return None

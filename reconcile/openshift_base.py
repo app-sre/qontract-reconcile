@@ -503,6 +503,7 @@ def _realize_resource_data(
     ri: ResourceInventory,
     take_over,
     caller,
+    all_callers,
     wait_for_namespace,
     no_dry_run_skip_compare,
     override_enable_deletion,
@@ -522,7 +523,7 @@ def _realize_resource_data(
 
     # desired items
     for name, d_item in data["desired"].items():
-        c_item = data["current"].get(name)
+        c_item: OR = data["current"].get(name)
 
         if c_item is not None:
             if not dry_run and no_dry_run_skip_compare:
@@ -538,6 +539,21 @@ def _realize_resource_data(
                         "w/o annotations, annotating and applying"
                     ).format(cluster, namespace, resource_type, name)
                     logging.info(msg)
+
+                # don't apply if there is a caller (saas file)
+                # and this is not a take over
+                # and current item caller is different from the current caller
+                elif caller and not take_over and c_item.caller != caller:
+                    # if the current item is owned by a caller that no longer exists,
+                    # do nothing. the condition is nested so we fall into this condition
+                    # so we end up either applying to take ownership, or we error if the
+                    # current caller is still present
+                    if c_item.caller in all_callers:
+                        ri.register_error()
+                        logging.error(
+                            f"[{cluster}/{namespace}] resource '{resource_type}/{name}' present and managed by another caller: {c_item.caller}"
+                        )
+                        continue
 
                 # don't apply if resources match
                 # if there is a caller (saas file) and this is a take over
@@ -667,6 +683,7 @@ def realize_data(
     thread_pool_size,
     take_over=False,
     caller=None,
+    all_callers=None,
     wait_for_namespace=False,
     no_dry_run_skip_compare=False,
     override_enable_deletion=None,
@@ -683,6 +700,8 @@ def realize_data(
     :param caller: name of the calling entity.
                    enables multiple running instances of the same integration
                    to deploy to the same namespace
+    :param all_callers: names of all possible callers. used in conjunction with
+                    caller to allow renaming of saas files.
     :param wait_for_namespace: wait for namespace to exist before applying
     :param no_dry_run_skip_compare: when running without dry-run, skip compare
     :param override_enable_deletion: override calculated enable_deletion value
@@ -704,10 +723,42 @@ def _validate_resources_used_exist(
     name: str,
     used_kind: str,
 ) -> None:
-    used_resources = oc.get_resources_used_in_pod_spec(spec, used_kind)
+    used_resources = oc.get_resources_used_in_pod_spec(
+        spec, used_kind, include_optional=False
+    )
     for used_name, used_keys in used_resources.items():
         # perhaps used resource is deployed together with the using resource?
         resource = ri.get_desired(cluster, namespace, used_kind, used_name)
+        # if not, perhaps it's a secret that will be created from a Service's
+        # serving-cert that is deployed along with the using resource?
+        # lets iterate through all resources and find Services that have the annotation
+        if not resource and used_kind == "Secret":
+            # consider only Service resources that are in the same cluster & namespace
+            service_resources = []
+            for (cname, nname, restype, res) in ri:
+                if cname == cluster and nname == namespace and restype == "Service":
+                    service_resources.extend(res["desired"].values())
+            # Check serving-cert-secret-name annotation on every considered resource
+            for service in service_resources:
+                metadata = service.body.get("metadata", {})
+                annotations = metadata.get("annotations", {})
+                serving_cert_alpha_secret_name = annotations.get(
+                    "service.alpha.openshift.io/serving-cert-secret-name", False
+                )
+                serving_cert_beta_secret_name = annotations.get(
+                    "service.beta.openshift.io/serving-cert-secret-name", False
+                )
+                # we found one! does it's value (secret name) match the
+                # using resource's?
+                if used_name in (
+                    serving_cert_alpha_secret_name,
+                    serving_cert_beta_secret_name,
+                ):
+                    # found a match. we assume the serving cert secret will
+                    # be present at some point soon after the Service is deployed
+                    resource = service
+                    break
+
         if resource:
             # get the body to match with the possible result from oc.get
             resource = resource.body
@@ -723,7 +774,11 @@ def _validate_resources_used_exist(
             ri.register_error()
             continue
         # here it is! let's make sure it has all the required keys
-        missing_keys = used_keys - resource["data"].keys()
+        missing_keys = (
+            used_keys
+            - resource.get("data", {}).keys()
+            - resource.get("stringData", {}).keys()
+        )
         if missing_keys:
             logging.error(f"{err_base} does not contain keys: {missing_keys}")
             ri.register_error()

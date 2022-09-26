@@ -9,6 +9,7 @@ from reconcile.utils.external_resource_spec import ExternalResourceSpec
 
 
 PROVIDER_AWS = "aws"
+PROVIDER_CLOUDFLARE = "cloudflare"
 
 
 def get_external_resource_specs(
@@ -20,7 +21,7 @@ def get_external_resource_specs(
 
     external_resources = namespace_info.get("externalResources") or []
     for e in external_resources:
-        for r in e["resources"]:
+        for r in e.get("resources", []):
             spec = ExternalResourceSpec(
                 provision_provider=e["provider"],
                 provisioner=e["provisioner"],

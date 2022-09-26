@@ -1,0 +1,12 @@
+# qenerate: plugin=pydantic_v1
+
+query JenkinsInstance ($path: String!) {
+  instances: jenkins_instances_v1 (path: $path) {
+    path
+    name
+    serverUrl
+    token {
+      ... VaultSecret
+    }
+  }
+}

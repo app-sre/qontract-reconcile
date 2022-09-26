@@ -2,7 +2,7 @@ import logging
 import json
 import shutil
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from collections import defaultdict
 from threading import Lock
 from dataclasses import dataclass
@@ -45,7 +45,8 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         accounts: Iterable[Mapping[str, Any]],
         working_dirs: Mapping[str, str],
         thread_pool_size: int,
-        aws_api: AWSApi,
+        aws_api: 
+        [AWSApi] = None,
         init_users=False,
     ):
         self.integration = integration
@@ -326,7 +327,9 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         now = datetime.utcnow()
         for da in deletion_approvals:
             try:
-                expiration = datetime.strptime(da["expiration"], DATE_FORMAT)
+                expiration = datetime.strptime(
+                    da["expiration"], DATE_FORMAT
+                ) + timedelta(days=1)
             except ValueError:
                 raise DeletionApprovalExpirationValueError(
                     f"[{account_name}] expiration not does not match "
@@ -584,6 +587,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         if (
             len(changed_terraform_args) == 1
             and "engine_version" in changed_terraform_args
+            and self._aws_api is not None
         ):
             region_name = get_region_from_availability_zone(before["availability_zone"])
             response = self._aws_api.describe_rds_db_instance(

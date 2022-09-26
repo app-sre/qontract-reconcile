@@ -92,8 +92,9 @@ format:
 
 gql-introspection:
 	# TODO: make url configurable
-	@$(VENV_CMD) qenerate introspection http://localhost:4000/graphql > reconcile/gql_queries/introspection.json
+	@$(VENV_CMD) qenerate introspection http://localhost:4000/graphql > reconcile/gql_definitions/introspection.json
 
 gql-query-classes:
-	@$(VENV_CMD) qenerate code -i reconcile/gql_queries/introspection.json reconcile/gql_queries
-	@$(VENV_CMD) black reconcile/gql_queries
+	@$(VENV_CMD) qenerate code -i reconcile/gql_definitions/introspection.json reconcile/gql_definitions
+	find reconcile/gql_definitions -path '*/__pycache__' -prune -o -type d -exec touch "{}/__init__.py" \;
+	@$(VENV_CMD) black reconcile/gql_definitions

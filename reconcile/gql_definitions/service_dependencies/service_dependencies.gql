@@ -11,12 +11,21 @@ query ServiceDependencies {
     }
     jenkinsConfigs {
       instance {
-        name
+        ... ServiceDependenciesJenkinsInstance
       }
     }
     saasFiles {
       pipelinesProvider {
         provider
+      }
+      resourceTemplates {
+        targets {
+          upstream {
+            instance {
+              ... ServiceDependenciesJenkinsInstance
+            }
+          }
+        }
       }
     }
     quayRepos {

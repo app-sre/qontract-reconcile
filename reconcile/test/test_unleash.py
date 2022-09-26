@@ -1,15 +1,23 @@
+import json
 import os
+
+import httpretty
+import pytest
 from UnleashClient.features import Feature
-from UnleashClient.strategies import Strategy
 
 import reconcile.utils.unleash
 from reconcile.utils.unleash import (
     _get_unleash_api_client,
+    _shutdown_client,
     get_feature_toggle_default,
     get_feature_toggle_state,
     get_feature_toggles,
-    get_feature_toggle_strategies,
 )
+
+
+@pytest.fixture
+def reset_client():
+    reconcile.utils.unleash.client = None
 
 
 def test__get_unleash_api_client(mocker):
@@ -39,7 +47,7 @@ def test_get_feature_toggle_state_env_missing():
 
 
 def test_get_feature_toggle_state(mocker, monkeypatch):
-    def enabled_func(feature, fallback_function):
+    def enabled_func(feature, context, fallback_function):
         return feature == "enabled"
 
     os.environ["UNLEASH_API_URL"] = "foo"
@@ -76,26 +84,55 @@ def test_get_feature_toggles(mocker, monkeypatch):
     assert toggles["bar"] == "enabled"
 
 
-def test_get_feature_toggle_strategies_env_missing():
-    assert get_feature_toggle_strategies("foo") is None
-
-
-def test_get_feature_toggle_strategies(mocker, monkeypatch):
-    os.environ["UNLEASH_API_URL"] = "foo"
-    os.environ["UNLEASH_CLIENT_ACCESS_TOKEN"] = "bar"
-
-    c = mocker.patch("UnleashClient.UnleashClient")
-    c.features = {
-        "foo": Feature("foo", False, [Strategy(parameters={"foo": "bar"})]),
-        "bar": Feature("bar", True, []),
+def setup_unleash_httpretty(enabled: bool):
+    features = {
+        "version": 2,
+        "features": [
+            {
+                "strategies": [
+                    {
+                        "name": "disableCluster",
+                        "constraints": [],
+                        "parameters": {"cluster_name": "foo"},
+                    }
+                ],
+                "impressionData": False,
+                "enabled": enabled,
+                "name": "test-strategies",
+                "description": "",
+                "project": "default",
+                "stale": False,
+                "type": "release",
+                "variants": [],
+            }
+        ],
     }
-    monkeypatch.setattr("reconcile.utils.unleash.client", c)
 
-    strategies = get_feature_toggle_strategies("foo")
-    assert strategies is not None and len(strategies) == 1
-    assert strategies[0].parameters["foo"] == "bar"
+    feature_param = (httpretty.GET, "http://unleash/api/client/features")
+    httpretty.register_uri(*feature_param, body=json.dumps(features), status=200)
 
-    strategies = get_feature_toggle_strategies("bar")
-    assert strategies is not None and len(strategies) == 0
+    register_param = (httpretty.POST, "http://unleash/api/client/register")
+    httpretty.register_uri(*register_param, status=202)
 
-    assert get_feature_toggle_strategies("rab") is None
+
+@httpretty.activate(allow_net_connect=False)
+def test_get_feature_toggle_state_with_strategy(reset_client):
+    os.environ["UNLEASH_API_URL"] = "http://unleash/api"
+    os.environ["UNLEASH_CLIENT_ACCESS_TOKEN"] = "bar"
+    setup_unleash_httpretty(True)
+    assert not get_feature_toggle_state(
+        "test-strategies", context={"cluster_name": "foo"}
+    )
+    assert get_feature_toggle_state("test-strategies", context={"cluster_name": "bar"})
+    _shutdown_client()
+
+
+@httpretty.activate(allow_net_connect=False)
+def test_get_feature_toggle_state_disabled_with_strategy(reset_client):
+    os.environ["UNLEASH_API_URL"] = "http://unleash/api"
+    os.environ["UNLEASH_CLIENT_ACCESS_TOKEN"] = "bar"
+    setup_unleash_httpretty(False)
+    assert not get_feature_toggle_state(
+        "test-strategies", context={"cluster_name": "bar"}
+    )
+    _shutdown_client()

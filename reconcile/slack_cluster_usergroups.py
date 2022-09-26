@@ -1,11 +1,10 @@
-import logging
-
+from typing import Any
 from reconcile import queries
 from reconcile import openshift_users
 from reconcile import slack_usergroups
 
 from reconcile.slack_base import slackapi_from_queries
-from reconcile.utils.slack_api import UsergroupNotFoundException
+from reconcile.utils.slack_api import SlackApi, UsergroupNotFoundException
 
 QONTRACT_INTEGRATION = "slack-cluster-usergroups"
 
@@ -51,7 +50,7 @@ def include_user(user, cluster_name, cluster_users):
     return result
 
 
-def get_desired_state(slack):
+def get_desired_state(slack: SlackApi) -> dict[str, Any]:
     """
     Get the desired state of the Slack cluster usergroups.
 
@@ -62,7 +61,7 @@ def get_desired_state(slack):
                 (ex. state['coreos']['app-sre-ic']
     :rtype: dict
     """
-    desired_state = {}
+    desired_state: dict[str, Any] = {}
     all_users = queries.get_roles(
         sendgrid=False, saas_files=False, aws=False, permissions=False
     )
@@ -81,11 +80,7 @@ def get_desired_state(slack):
             if u["cluster"] == cluster_name
         ]
         usergroup = cluster["auth"]["team"]
-        try:
-            ugid = slack.get_usergroup_id(usergroup)
-        except UsergroupNotFoundException:
-            logging.warning(f"Usergroup {usergroup} not found")
-            continue
+        ugid = slack.get_usergroup_id(usergroup)
         user_names = [
             slack_usergroups.get_slack_username(u)
             for u in all_users
@@ -105,7 +100,7 @@ def get_desired_state(slack):
     return desired_state
 
 
-def get_current_state(slack, usergroups):
+def get_current_state(slack: SlackApi, usergroups: list[str]) -> dict[str, Any]:
     """
     Get the current state of the Slack cluster usergroups.
 
@@ -119,10 +114,13 @@ def get_current_state(slack, usergroups):
                 (ex. state['coreos']['app-sre-ic']
     :rtype: dict
     """
-    current_state = {}
+    current_state: dict[str, Any] = {}
 
     for ug in usergroups:
-        users, channels, description = slack.describe_usergroup(ug)
+        try:
+            users, channels, description = slack.describe_usergroup(ug)
+        except UsergroupNotFoundException:
+            continue
         current_state.setdefault(slack.workspace_name, {})[ug] = {
             "workspace": slack.workspace_name,
             "usergroup": ug,

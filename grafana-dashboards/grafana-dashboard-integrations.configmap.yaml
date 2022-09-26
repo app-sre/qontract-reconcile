@@ -6,29 +6,36 @@ data:
         "list": [
           {
             "builtIn": 1,
-            "datasource": "-- Grafana --",
+            "datasource": {
+              "type": "datasource",
+              "uid": "grafana"
+            },
             "enable": true,
             "hide": true,
             "iconColor": "rgba(0, 211, 255, 1)",
             "name": "Annotations & Alerts",
+            "target": {
+              "limit": 100,
+              "matchAny": false,
+              "tags": [],
+              "type": "dashboard"
+            },
             "type": "dashboard"
           }
         ]
       },
       "editable": true,
-      "gnetId": null,
+      "fiscalYearStartMonth": 0,
       "graphTooltip": 0,
-      "iteration": 1612175974039,
+      "id": 20842,
+      "iteration": 1659460376041,
       "links": [],
+      "liveNow": false,
       "panels": [
         {
           "columns": [],
-          "datasource": "$datasource",
-          "fieldConfig": {
-            "defaults": {
-              "custom": {}
-            },
-            "overrides": []
+          "datasource": {
+            "uid": "$datasource"
           },
           "fontSize": "100%",
           "gridPos": {
@@ -39,7 +46,6 @@ data:
           },
           "id": 8,
           "links": [],
-          "pageSize": null,
           "scroll": true,
           "showHeader": true,
           "sort": {
@@ -59,7 +65,6 @@ data:
               "$$hashKey": "object:764",
               "alias": "",
               "align": "auto",
-              "colorMode": null,
               "colors": [
                 "rgba(245, 54, 54, 0.9)",
                 "rgba(237, 129, 40, 0.89)",
@@ -74,6 +79,9 @@ data:
           ],
           "targets": [
             {
+              "datasource": {
+                "uid": "$datasource"
+              },
               "expr": "sort(topk(10, avg(qontract_reconcile_last_run_seconds) by (integration)))",
               "format": "table",
               "instant": true,
@@ -86,14 +94,10 @@ data:
         },
         {
           "columns": [],
-          "datasource": "$datasource",
-          "description": "",
-          "fieldConfig": {
-            "defaults": {
-              "custom": {}
-            },
-            "overrides": []
+          "datasource": {
+            "uid": "$datasource"
           },
+          "description": "",
           "fontSize": "100%",
           "gridPos": {
             "h": 7,
@@ -104,7 +108,6 @@ data:
           "id": 29,
           "interval": "",
           "links": [],
-          "pageSize": null,
           "scroll": true,
           "showHeader": true,
           "sort": {
@@ -122,7 +125,6 @@ data:
             {
               "alias": "",
               "align": "auto",
-              "colorMode": null,
               "colors": [
                 "rgba(245, 54, 54, 0.9)",
                 "rgba(237, 129, 40, 0.89)",
@@ -137,6 +139,9 @@ data:
           ],
           "targets": [
             {
+              "datasource": {
+                "uid": "$datasource"
+              },
               "expr": "sort(sum(increase(qontract_reconcile_run_status_total{status!~\"0|3|-9\"}[10m])) by (status, integration) > 0)",
               "format": "table",
               "instant": true,
@@ -151,10 +156,11 @@ data:
           "type": "table-old"
         },
         {
-          "datasource": "$datasource",
+          "datasource": {
+            "uid": "$datasource"
+          },
           "fieldConfig": {
             "defaults": {
-              "custom": {},
               "mappings": [],
               "max": 1,
               "min": 0,
@@ -194,17 +200,18 @@ data:
             "showThresholdLabels": false,
             "showThresholdMarkers": true
           },
-          "pluginVersion": "7.2.1",
+          "pluginVersion": "9.0.3",
           "targets": [
             {
+              "datasource": {
+                "uid": "$datasource"
+              },
               "expr": "sum(rate(qontract_reconcile_function_elapsed_seconds_since_bundle_commit_bucket{le=\"1200.0\",name=~\"reconcile\\\\.utils\\\\.oc\\\\.OC[^.]*\\\\.(apply|replace|delete|create)\",integration!~\"terraform-resources|sql-query\"}[30d])) / sum(rate(qontract_reconcile_function_elapsed_seconds_since_bundle_commit_count{name=~\"reconcile\\\\.utils\\\\.oc\\\\.OC[^.]*\\\\.(apply|replace|delete|create)\",integration!~\"terraform-resources|sql-query\"}[30d]))",
               "interval": "",
               "legendFormat": "",
               "refId": "A"
             }
           ],
-          "timeFrom": null,
-          "timeShift": null,
           "title": "Openshift reconciliation time SLO (30d)",
           "type": "gauge"
         },
@@ -213,11 +220,12 @@ data:
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$datasource",
+          "datasource": {
+            "uid": "$datasource"
+          },
           "description": "",
           "fieldConfig": {
             "defaults": {
-              "custom": {},
               "links": [],
               "unit": "s"
             },
@@ -250,7 +258,7 @@ data:
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "7.2.1",
+          "pluginVersion": "9.0.3",
           "pointradius": 5,
           "points": false,
           "renderer": "flot",
@@ -260,6 +268,9 @@ data:
           "steppedLine": false,
           "targets": [
             {
+              "datasource": {
+                "uid": "$datasource"
+              },
               "expr": "histogram_quantile(0.50, sum by (integration, le) (qontract_reconcile_function_elapsed_seconds_since_bundle_commit_bucket{name=~\"reconcile\\\\.utils\\\\.oc\\\\.OC[^.]*\\\\.(apply|replace|delete)\",integration!~\"terraform-resources|sql-query\"}))",
               "instant": false,
               "interval": "",
@@ -268,9 +279,7 @@ data:
             }
           ],
           "thresholds": [],
-          "timeFrom": null,
           "timeRegions": [],
-          "timeShift": null,
           "title": "Integrations p50 reconcile time openshift resources",
           "tooltip": {
             "shared": true,
@@ -279,9 +288,7 @@ data:
           },
           "type": "graph",
           "xaxis": {
-            "buckets": null,
             "mode": "time",
-            "name": null,
             "show": true,
             "values": []
           },
@@ -289,25 +296,18 @@ data:
             {
               "$$hashKey": "object:174",
               "format": "s",
-              "label": null,
               "logBase": 1,
-              "max": null,
-              "min": null,
               "show": true
             },
             {
               "$$hashKey": "object:175",
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
-              "min": null,
               "show": true
             }
           ],
           "yaxis": {
-            "align": false,
-            "alignLevel": null
+            "align": false
           }
         },
         {
@@ -315,11 +315,12 @@ data:
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$datasource",
+          "datasource": {
+            "uid": "$datasource"
+          },
           "description": "",
           "fieldConfig": {
             "defaults": {
-              "custom": {},
               "links": [],
               "unit": "s"
             },
@@ -352,7 +353,7 @@ data:
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "7.2.1",
+          "pluginVersion": "9.0.3",
           "pointradius": 5,
           "points": false,
           "renderer": "flot",
@@ -362,6 +363,9 @@ data:
           "steppedLine": false,
           "targets": [
             {
+              "datasource": {
+                "uid": "$datasource"
+              },
               "expr": "histogram_quantile(0.90, sum by (integration, le) (qontract_reconcile_function_elapsed_seconds_since_bundle_commit_bucket{name=~\"reconcile\\\\.utils\\\\.oc\\\\.OC[^.]*\\\\.(apply|replace|delete)\",integration!~\"terraform-resources|sql-query\"}))",
               "instant": false,
               "interval": "",
@@ -370,9 +374,7 @@ data:
             }
           ],
           "thresholds": [],
-          "timeFrom": null,
           "timeRegions": [],
-          "timeShift": null,
           "title": "Integrations p90 reconcile time openshift resources",
           "tooltip": {
             "shared": true,
@@ -381,9 +383,7 @@ data:
           },
           "type": "graph",
           "xaxis": {
-            "buckets": null,
             "mode": "time",
-            "name": null,
             "show": true,
             "values": []
           },
@@ -391,25 +391,18 @@ data:
             {
               "$$hashKey": "object:174",
               "format": "s",
-              "label": null,
               "logBase": 1,
-              "max": null,
-              "min": null,
               "show": true
             },
             {
               "$$hashKey": "object:175",
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
-              "min": null,
               "show": true
             }
           ],
           "yaxis": {
-            "align": false,
-            "alignLevel": null
+            "align": false
           }
         },
         {
@@ -417,11 +410,12 @@ data:
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$datasource",
+          "datasource": {
+            "uid": "$datasource"
+          },
           "description": "",
           "fieldConfig": {
             "defaults": {
-              "custom": {},
               "links": [],
               "unit": "s"
             },
@@ -454,7 +448,7 @@ data:
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "7.2.1",
+          "pluginVersion": "9.0.3",
           "pointradius": 5,
           "points": false,
           "renderer": "flot",
@@ -464,6 +458,9 @@ data:
           "steppedLine": false,
           "targets": [
             {
+              "datasource": {
+                "uid": "$datasource"
+              },
               "expr": "histogram_quantile(0.99, sum by (integration, le) (qontract_reconcile_function_elapsed_seconds_since_bundle_commit_bucket{name=~\"reconcile\\\\.utils\\\\.oc\\\\.OC[^.]*\\\\.(apply|replace|delete)\",integration!~\"terraform-resources|sql-query\"}))",
               "instant": false,
               "interval": "",
@@ -472,9 +469,7 @@ data:
             }
           ],
           "thresholds": [],
-          "timeFrom": null,
           "timeRegions": [],
-          "timeShift": null,
           "title": "Integrations p99 reconcile time openshift resources",
           "tooltip": {
             "shared": true,
@@ -483,9 +478,7 @@ data:
           },
           "type": "graph",
           "xaxis": {
-            "buckets": null,
             "mode": "time",
-            "name": null,
             "show": true,
             "values": []
           },
@@ -493,25 +486,18 @@ data:
             {
               "$$hashKey": "object:174",
               "format": "s",
-              "label": null,
               "logBase": 1,
-              "max": null,
-              "min": null,
               "show": true
             },
             {
               "$$hashKey": "object:175",
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
-              "min": null,
               "show": true
             }
           ],
           "yaxis": {
-            "align": false,
-            "alignLevel": null
+            "align": false
           }
         },
         {
@@ -519,11 +505,12 @@ data:
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$datasource",
+          "datasource": {
+            "uid": "$datasource"
+          },
           "description": "",
           "fieldConfig": {
             "defaults": {
-              "custom": {},
               "links": [],
               "unit": "s"
             },
@@ -556,7 +543,7 @@ data:
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "7.2.1",
+          "pluginVersion": "9.0.3",
           "pointradius": 5,
           "points": false,
           "renderer": "flot",
@@ -566,15 +553,16 @@ data:
           "steppedLine": false,
           "targets": [
             {
+              "datasource": {
+                "uid": "$datasource"
+              },
               "expr": "sum(qontract_reconcile_last_run_seconds) by (integration, shard_id)",
               "instant": false,
               "refId": "A"
             }
           ],
           "thresholds": [],
-          "timeFrom": null,
           "timeRegions": [],
-          "timeShift": null,
           "title": "Integration run-time",
           "tooltip": {
             "shared": true,
@@ -583,9 +571,7 @@ data:
           },
           "type": "graph",
           "xaxis": {
-            "buckets": null,
             "mode": "time",
-            "name": null,
             "show": true,
             "values": []
           },
@@ -593,25 +579,18 @@ data:
             {
               "$$hashKey": "object:427",
               "format": "s",
-              "label": null,
               "logBase": 1,
-              "max": null,
-              "min": null,
               "show": true
             },
             {
               "$$hashKey": "object:428",
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
-              "min": null,
               "show": true
             }
           ],
           "yaxis": {
-            "align": false,
-            "alignLevel": null
+            "align": false
           }
         },
         {
@@ -619,11 +598,12 @@ data:
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$datasource",
+          "datasource": {
+            "uid": "$datasource"
+          },
           "description": "",
           "fieldConfig": {
             "defaults": {
-              "custom": {},
               "links": []
             },
             "overrides": []
@@ -655,7 +635,7 @@ data:
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "7.2.1",
+          "pluginVersion": "9.0.3",
           "pointradius": 5,
           "points": false,
           "renderer": "flot",
@@ -665,15 +645,16 @@ data:
           "steppedLine": false,
           "targets": [
             {
+              "datasource": {
+                "uid": "$datasource"
+              },
               "expr": "sum(increase(qontract_reconcile_run_status_total{status!~\"0|3|-9\"}[5m])) by (integration, status)",
               "instant": false,
               "refId": "A"
             }
           ],
           "thresholds": [],
-          "timeFrom": null,
           "timeRegions": [],
-          "timeShift": null,
           "title": "Integration Errors",
           "tooltip": {
             "shared": true,
@@ -682,55 +663,286 @@ data:
           },
           "type": "graph",
           "xaxis": {
-            "buckets": null,
             "mode": "time",
-            "name": null,
             "show": true,
             "values": []
           },
           "yaxes": [
             {
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
-              "min": null,
               "show": true
             },
             {
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
-              "min": null,
               "show": true
             }
           ],
           "yaxis": {
-            "align": false,
-            "alignLevel": null
+            "align": false
           }
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "description": "Messages waiting to be processed and currently processing",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds",
+                "seriesBy": "last"
+              },
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 25,
+                "gradientMode": "scheme",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "smooth",
+                "lineWidth": 3,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "line"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 25
+                  }
+                ]
+              },
+              "unit": "messages"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 0,
+            "y": 23
+          },
+          "id": 37,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "9.0.3",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${datasource}"
+              },
+              "expr": "aws_sqs_approximate_number_of_messages_visible_average{queue_name=\"app-interface-gitlab-pr-submitter\"}+aws_sqs_approximate_number_of_messages_not_visible_average{queue_name=\"app-interface-gitlab-pr-submitter\"}",
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${datasource}"
+              },
+              "expr": "",
+              "hide": false,
+              "refId": "B"
+            }
+          ],
+          "title": "GitLab MR Queue Depth",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "description": "",
+          "fieldConfig": {
+            "defaults": {
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 600
+                  }
+                ]
+              },
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 3,
+            "w": 4,
+            "x": 12,
+            "y": 23
+          },
+          "id": 39,
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "mean"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "textMode": "auto"
+          },
+          "pluginVersion": "9.0.3",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${datasource}"
+              },
+              "expr": "aws_sqs_approximate_age_of_oldest_message_maximum{queue_name=\"app-interface-gitlab-pr-submitter\"}",
+              "refId": "A"
+            }
+          ],
+          "title": "Gitlab MR Queue Average Age of Oldest Message",
+          "type": "stat"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "description": "",
+          "fieldConfig": {
+            "defaults": {
+              "decimals": 0,
+              "mappings": [],
+              "max": 40,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "orange",
+                    "value": 10
+                  },
+                  {
+                    "color": "red",
+                    "value": 25
+                  }
+                ]
+              },
+              "unit": "msg"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 4,
+            "x": 12,
+            "y": 26
+          },
+          "id": 40,
+          "options": {
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "mean"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true
+          },
+          "pluginVersion": "9.0.3",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${datasource}"
+              },
+              "editorMode": "code",
+              "expr": "aws_sqs_approximate_number_of_messages_visible_average{queue_name=\"app-interface-gitlab-pr-submitter\"}",
+              "legendFormat": "Not Yet Processed",
+              "range": true,
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${datasource}"
+              },
+              "editorMode": "code",
+              "expr": "aws_sqs_approximate_number_of_messages_not_visible_average{queue_name=\"app-interface-gitlab-pr-submitter\"}",
+              "hide": false,
+              "legendFormat": "Currently Processing",
+              "range": true,
+              "refId": "B"
+            }
+          ],
+          "title": "GitLab MR Queue Messages",
+          "type": "gauge"
         }
       ],
       "refresh": false,
-      "schemaVersion": 26,
+      "schemaVersion": 36,
       "style": "dark",
       "tags": [],
       "templating": {
         "list": [
           {
             "current": {
-              "selected": false,
+              "selected": true,
               "text": "app-sre-prod-01-prometheus",
               "value": "app-sre-prod-01-prometheus"
             },
             "hide": 0,
             "includeAll": false,
-            "label": null,
             "multi": false,
             "name": "datasource",
             "options": [],
             "query": "prometheus",
+            "queryValue": "",
             "refresh": 1,
             "regex": "/app-sre-prod-01-prometheus/",
             "skipUrlSync": false,
@@ -770,7 +982,8 @@ data:
       "timezone": "",
       "title": "Integrations",
       "uid": "Integrations",
-      "version": 2
+      "version": 1,
+      "weekStart": ""
     }
 kind: ConfigMap
 metadata:

@@ -1,10 +1,11 @@
 import base64
 import json
 from operator import itemgetter
+import re
 import sys
 from contextlib import suppress
 from datetime import datetime
-from typing import Dict, Iterable, List, Mapping, Optional, Union
+from typing import Optional
 
 import click
 import reconcile.gitlab_housekeeping as glhk
@@ -31,17 +32,17 @@ from reconcile.utils.external_resources import (
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.environ import environ
 from reconcile.jenkins_job_builder import init_jjb
-from reconcile.utils.gitlab_api import GitLabApi, MRState
+from reconcile.utils.gitlab_api import GitLabApi, MRState, MRStatus
 from reconcile.utils.jjb_client import JJB
 from reconcile.utils.mr.labels import SAAS_FILE_UPDATE
 from reconcile.utils.oc import OC_Map
 from reconcile.utils.ocm import OCMMap
+from reconcile.utils.output import print_output
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.semver_helper import parse_semver
 from reconcile.utils.state import State
 from reconcile.utils.terraform_client import TerraformClient as Terraform
 from reconcile.prometheus_rules_tester import get_rule_files_from_jinja_test_template
-from tabulate import tabulate
 
 from tools.sre_checkpoints import full_name, get_latest_sre_checkpoints
 from tools.cli_commands.gpg_encrypt import GPGEncryptCommand, GPGEncryptCommandData
@@ -902,15 +903,18 @@ def roles(ctx, org_username):
                     }
                 )
 
-        for s in role.get("owned_saas_files") or []:
-            add(
-                {
-                    "type": "saas_file",
-                    "name": "owner",
-                    "resource": s["name"],
-                    "ref": role_name,
-                }
-            )
+        for s in role.get("self_service") or []:
+            for d in s.get("datafiles") or []:
+                name = d.get("name")
+                if name:
+                    add(
+                        {
+                            "type": "saas_file",
+                            "name": "owner",
+                            "resource": name,
+                            "ref": role_name,
+                        }
+                    )
 
     columns = ["type", "name", "resource", "ref"]
     print_output(ctx.obj["options"], roles, columns)
@@ -1098,12 +1102,17 @@ def app_interface_review_queue(ctx):
     instance = queries.get_gitlab_instance()
     gl = GitLabApi(instance, project_url=settings["repoUrl"], settings=settings)
     merge_requests = gl.get_merge_requests(state=MRState.OPENED)
+    secret_reader = SecretReader(settings=settings)
+    jjb: JJB = init_jjb(secret_reader)
+    job = jjb.get_job_by_repo_url(settings["repoUrl"], job_type="gl-pr-check")
+    trigger_phrases_regex = jjb.get_trigger_phrases_regex(job)
 
     columns = [
         "id",
         "title",
         "onboarding",
         "author",
+        "updated_at",
         "labels",
     ]
     queue_data = []
@@ -1112,7 +1121,10 @@ def app_interface_review_queue(ctx):
             continue
         if len(mr.commits()) == 0:
             continue
-        if mr.merge_status in ["cannot_be_merged", "cannot_be_merged_recheck"]:
+        if mr.merge_status in [
+            MRStatus.CANNOT_BE_MERGED,
+            MRStatus.CANNOT_BE_MERGED_RECHECK,
+        ]:
             continue
 
         labels = mr.attributes.get("labels")
@@ -1138,11 +1150,21 @@ def app_interface_review_queue(ctx):
         if author in app_sre_team_members:
             continue
 
+        is_assigned_by_app_sre = gl.is_assigned_by_team(mr, app_sre_team_members)
+        if is_assigned_by_app_sre:
+            continue
+
         is_last_action_by_app_sre = gl.is_last_action_by_team(
             mr, app_sre_team_members, glhk.HOLD_LABELS
         )
+
         if is_last_action_by_app_sre:
-            continue
+            last_comment = gl.last_comment(mr, exclude_bot=True)
+            # skip only if the last comment isn't a trigger phrase
+            if last_comment and not re.fullmatch(
+                trigger_phrases_regex, last_comment["body"]
+            ):
+                continue
 
         item = {
             "id": f"[{mr.iid}]({mr.web_url})",
@@ -1159,54 +1181,33 @@ def app_interface_review_queue(ctx):
     print_output(ctx.obj["options"], queue_data, columns)
 
 
-def print_output(
-    options: Mapping[str, Union[str, bool]],
-    content: List[Dict],
-    columns: Iterable[str] = (),
-):
-    if options["sort"]:
-        content.sort(key=lambda c: tuple(c.values()))
-    if options.get("to_string"):
-        for c in content:
-            for k, v in c.items():
-                c[k] = str(v)
+@get.command()
+@click.pass_context
+def app_interface_merge_history(ctx):
+    settings = queries.get_app_interface_settings()
+    instance = queries.get_gitlab_instance()
+    gl = GitLabApi(instance, project_url=settings["repoUrl"], settings=settings)
+    merge_requests = gl.project.mergerequests.list(state=MRState.MERGED, per_page=100)
 
-    output = options["output"]
+    columns = [
+        "id",
+        "title",
+        "merged_at",
+        "labels",
+    ]
+    merge_queue_data = []
+    for mr in merge_requests:
+        item = {
+            "id": f"[{mr.iid}]({mr.web_url})",
+            "title": mr.title,
+            "merged_at": mr.merged_at,
+            "labels": ", ".join(mr.attributes.get("labels")),
+        }
+        merge_queue_data.append(item)
 
-    if output == "table":
-        print_table(content, columns)
-    elif output == "md":
-        print_table(content, columns, table_format="github")
-    elif output == "json":
-        print(json.dumps(content))
-    elif output == "yaml":
-        print(yaml.dump(content))
-    else:
-        pass  # error
-
-
-def print_table(content, columns, table_format="simple"):
-    headers = [column.upper() for column in columns]
-    table_data = []
-    for item in content:
-        row_data = []
-        for column in columns:
-            # example: for column 'cluster.name'
-            # cell = item['cluster']['name']
-            cell = item
-            for token in column.split("."):
-                cell = cell.get(token) or {}
-            if cell == {}:
-                cell = ""
-            if isinstance(cell, list):
-                if table_format == "github":
-                    cell = "<br />".join(cell)
-                else:
-                    cell = "\n".join(cell)
-            row_data.append(cell)
-        table_data.append(row_data)
-
-    print(tabulate(table_data, headers=headers, tablefmt=table_format))
+    merge_queue_data.sort(key=itemgetter("merged_at"), reverse=True)
+    ctx.obj["options"]["sort"] = False  # do not sort
+    print_output(ctx.obj["options"], merge_queue_data, columns)
 
 
 @root.group()
@@ -1317,8 +1318,20 @@ def rm(ctx, integration, key):
 @click.argument("namespace")
 @click.argument("kind")
 @click.argument("name")
+@click.option(
+    "-p",
+    "--path",
+    help="Only show templates that match with the given path.",
+)
+@click.option(
+    "-s",
+    "--secret-reader",
+    default="vault",
+    help="Location to read secrets.",
+    type=click.Choice(["config", "vault"]),
+)
 @click.pass_context
-def template(ctx, cluster, namespace, kind, name):
+def template(ctx, cluster, namespace, kind, name, path, secret_reader):
     gqlapi = gql.get_api()
     namespaces = gqlapi.query(orb.NAMESPACES_QUERY)["namespaces"]
     namespace_info = [
@@ -1331,9 +1344,17 @@ def template(ctx, cluster, namespace, kind, name):
         sys.exit(1)
 
     settings = queries.get_app_interface_settings()
+    settings["vault"] = secret_reader == "vault"
+
+    if path.startswith("resources"):
+        path = path.replace("resources", "", 1)
+
     [namespace_info] = namespace_info
     openshift_resources = namespace_info.get("openshiftResources")
     for r in openshift_resources:
+        resource_path = r.get("resource", {}).get("path")
+        if path and path != resource_path:
+            continue
         openshift_resource = orb.fetch_openshift_resource(r, namespace_info, settings)
         if openshift_resource.kind.lower() != kind.lower():
             continue
@@ -1403,7 +1424,8 @@ def run_prometheus_test(ctx, path, cluster, namespace, secret_reader):
     openshift_resources = ni.get("openshiftResources")
     rule_spec = {}
     for r in openshift_resources:
-        if r["path"] != rule_file_path:
+        resource_path = r.get("resource", {}).get("path")
+        if resource_path != rule_file_path:
             continue
 
         if "add_path_to_prom_rules" not in r:
@@ -1535,7 +1557,7 @@ def alert_to_receiver(
             continue
         ob.aggregate_shared_resources(ni, "openshiftResources")
         for r in ni.get("openshiftResources"):
-            if r["path"] != alertmanager_secret_path:
+            if r.get("resource", {}).get("path") != alertmanager_secret_path:
                 continue
             openshift_resource = orb.fetch_openshift_resource(r, ni, settings)
             body = openshift_resource.body
@@ -1555,7 +1577,7 @@ def alert_to_receiver(
         if ni["name"] != namespace:
             continue
         for r in ni.get("openshiftResources"):
-            if r["path"] != rules_path:
+            if r.get("resource", {}).get("path") != rules_path:
                 continue
             openshift_resource = orb.fetch_openshift_resource(r, ni, settings)
             if openshift_resource.kind.lower() != "prometheusrule":
@@ -1694,7 +1716,7 @@ def promquery(cluster, query):
 
     url = f"https://prometheus.{cluster}.devshift.net/api/v1/query"
 
-    response = requests.get(url, params={"query": query}, auth=prom_auth)
+    response = requests.get(url, params={"query": query}, auth=prom_auth, timeout=60)
     response.raise_for_status()
 
     print(json.dumps(response.json(), indent=4))

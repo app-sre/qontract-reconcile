@@ -1,0 +1,5 @@
+# qenerate: plugin=pydantic_v1
+
+fragment ServiceDependenciesJenkinsInstance on JenkinsInstance_v1 {
+    name
+}

@@ -8,41 +8,31 @@ import time
 from contextlib import suppress
 from datetime import datetime
 from functools import wraps
-from subprocess import Popen, PIPE
+from subprocess import PIPE, Popen
 from threading import Lock
 from typing import Any, Dict, Iterable, List, Set, Union
 
 import urllib3
-
-from sretoolbox.utils import retry
-from sretoolbox.utils import threaded
-from prometheus_client import Counter
-
-from kubernetes.client import Configuration, ApiClient
+from kubernetes.client import ApiClient, Configuration
 from kubernetes.client.exceptions import ApiException
-
-from reconcile.utils.secret_reader import SecretNotFound
-from reconcile.utils.metrics import reconcile_time
-from reconcile.status import RunningState
-from reconcile.utils.jump_host import JumpHostSSH
-from reconcile.utils.secret_reader import SecretReader
-
+from kubernetes.dynamic.client import DynamicClient
+from kubernetes.dynamic.discovery import LazyDiscoverer, ResourceGroup
 from kubernetes.dynamic.exceptions import (
-    NotFoundError,
-    ServerTimeoutError,
-    InternalServerError,
     ForbiddenError,
+    InternalServerError,
+    NotFoundError,
     ResourceNotFoundError,
     ResourceNotUniqueError,
+    ServerTimeoutError,
 )
-from kubernetes.dynamic.client import DynamicClient
-from kubernetes.dynamic.discovery import ResourceGroup, LazyDiscoverer
 from kubernetes.dynamic.resource import ResourceList
-
-from reconcile.utils.unleash import (
-    get_feature_toggle_strategies,
-    get_feature_toggle_state,
-)
+from prometheus_client import Counter
+from reconcile.status import RunningState
+from reconcile.utils.jump_host import JumpHostSSH
+from reconcile.utils.metrics import reconcile_time
+from reconcile.utils.secret_reader import SecretNotFound, SecretReader
+from reconcile.utils.unleash import get_feature_toggle_state
+from sretoolbox.utils import retry, threaded
 
 urllib3.disable_warnings()
 
@@ -205,7 +195,7 @@ class OCProcessReconcileTimeDecoratorMsg:
 
 
 def oc_process(template, parameters=None):
-    oc = OCNative(server=None, local=True, cluster_name="cluster", token=None)
+    oc = OCLocal(cluster_name="cluster", server=None, token=None, local=True)
     return oc.process(template, parameters)
 
 
@@ -349,20 +339,6 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
             cmd.append("--all-namespaces")
         return self._run_json(cmd)
 
-    def process(self, template, parameters=None):
-        if parameters is None:
-            parameters = {}
-        parameters_to_process = [f"{k}={v}" for k, v in parameters.items()]
-        cmd = [
-            "process",
-            "--local",
-            "--ignore-unknown-parameters",
-            "-f",
-            "-",
-        ] + parameters_to_process
-        result = self._run(cmd, stdin=json.dumps(template, sort_keys=True))
-        return json.loads(result)["items"]
-
     def remove_last_applied_configuration(self, namespace, kind, name):
         cmd = [
             "annotate",
@@ -382,6 +358,44 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
             slow_oc_reconcile_threshold=self.slow_oc_reconcile_threshold,
             is_log_slow_oc_reconcile=self.is_log_slow_oc_reconcile,
         )
+
+    def process(self, template, parameters=None):
+        if parameters is None:
+            parameters = {}
+        parameters_to_process = [f"{k}={v}" for k, v in parameters.items()]
+        cmd = [
+            "process",
+            "--local",
+            "--ignore-unknown-parameters",
+            "-f",
+            "-",
+        ] + parameters_to_process
+        result = self._run(cmd, stdin=json.dumps(template, sort_keys=True))
+        return json.loads(result)["items"]
+
+    def release_mirror(self, from_release, to, to_release, dockerconfig):
+        with tempfile.NamedTemporaryFile() as fp:
+            content = json.dumps(dockerconfig)
+            fp.write(content.encode())
+            fp.seek(0)
+
+            cmd = [
+                "adm",
+                "--registry-config",
+                fp.name,
+                "release",
+                "mirror",
+                "--from",
+                from_release,
+                "--to",
+                to,
+                "--to-release-image",
+                to_release,
+                "--max-per-registry",
+                "1",
+            ]
+
+            self._run(cmd)
 
     @OCDecorators.process_reconcile_time
     def apply(self, namespace, resource):
@@ -484,30 +498,6 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
             return
         cmd = ["adm", "groups", "new", group]
         self._run(cmd)
-
-    def release_mirror(self, from_release, to, to_release, dockerconfig):
-        with tempfile.NamedTemporaryFile() as fp:
-            content = json.dumps(dockerconfig)
-            fp.write(content.encode())
-            fp.seek(0)
-
-            cmd = [
-                "adm",
-                "--registry-config",
-                fp.name,
-                "release",
-                "mirror",
-                "--from",
-                from_release,
-                "--to",
-                to,
-                "--to-release-image",
-                to_release,
-                "--max-per-registry",
-                "1",
-            ]
-
-            self._run(cmd)
 
     def delete_group(self, group):
         cmd = ["delete", "group", group]
@@ -817,10 +807,13 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
 
     @staticmethod
     def get_resources_used_in_pod_spec(
-        spec: Dict[str, Any], kind: str
+        spec: Dict[str, Any],
+        kind: str,
+        include_optional: bool = True,
     ) -> Dict[str, Set[str]]:
         if kind not in ("Secret", "ConfigMap"):
             raise KeyError(f"unsupported resource kind: {kind}")
+        optional = "optional"
         if kind == "Secret":
             volume_kind, volume_kind_ref, env_from_kind, env_kind, env_ref = (
                 "secret",
@@ -839,22 +832,30 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
             )
 
         resources: Dict[str, Set[str]] = {}
-        for v in spec.get("volumes", []):
+        for v in spec.get("volumes") or []:
             try:
-                resource_name = v[volume_kind][volume_kind_ref]
+                volume_ref = v[volume_kind]
+                if volume_ref.get(optional) and not include_optional:
+                    continue
+                resource_name = volume_ref[volume_kind_ref]
                 resources.setdefault(resource_name, set())
             except (KeyError, TypeError):
                 continue
-        for c in spec["containers"] + spec.get("initContainers", []):
-            for e in c.get("envFrom", []):
+        for c in spec["containers"] + (spec.get("initContainers") or []):
+            for e in c.get("envFrom") or []:
                 try:
-                    resource_name = e[env_from_kind][env_ref]
+                    resource_ref = e[env_from_kind]
+                    if resource_ref.get(optional) and not include_optional:
+                        continue
+                    resource_name = resource_ref[env_ref]
                     resources.setdefault(resource_name, set())
                 except (KeyError, TypeError):
                     continue
-            for e in c.get("env", []):
+            for e in c.get("env") or []:
                 try:
                     resource_ref = e["valueFrom"][env_kind]
+                    if resource_ref.get(optional) and not include_optional:
+                        continue
                     resource_name = resource_ref[env_ref]
                     resources.setdefault(resource_name, set())
                     secret_key = resource_ref["key"]
@@ -967,17 +968,11 @@ class OCNative(OCDeprecated):
             insecure_skip_tls_verify=insecure_skip_tls_verify,
         )
 
-        # server is set to None for certain use cases like saasherder which
-        # uses local operations, such as process(). A refactor to provide that
-        # functionality outside of this class would allow an exception to be
-        # thrown here instead to avoid AttributeErrors when accessing
-        # methods that rely on client/api_kind_version to be set.
         if server:
             self.client = self._get_client(server, token)
             self.api_kind_version = self.get_api_resources()
         else:
-            init_api_resources = False
-            init_projects = False
+            raise Exception("A method relies on client/api_kind_version to be set")
 
         self.object_clients = {}
         self.init_projects = init_projects
@@ -1001,16 +996,13 @@ class OCNative(OCDeprecated):
             # default timeout seems to be 1+ minutes
             retries=5,
         )
-
         if self.jump_host:
             # the ports could be parameterized, but at this point
             # we only have need of 1 tunnel for 1 service
             self.jump_host.create_ssh_tunnel()
             local_port = self.jump_host.local_port
             opts["proxy"] = f"http://localhost:{local_port}"
-
         configuration = Configuration()
-
         # the kubernetes client configuration takes a limited set
         # of parameters during initialization, but there are a lot
         # more options that can be set to tweak the behavior of the
@@ -1207,6 +1199,22 @@ class OCNative(OCDeprecated):
 OCClient = Union[OCNative, OCDeprecated]
 
 
+class OCLocal(OCDeprecated):
+    def __init__(
+        self,
+        cluster_name,
+        server,
+        token,
+        local=False,
+    ):
+        super().__init__(
+            cluster_name=cluster_name,
+            server=server,
+            token=token,
+            local=local,
+        )
+
+
 class OC:
     client_status = Counter(
         name="qontract_reconcile_native_client",
@@ -1231,18 +1239,8 @@ class OC:
             use_native = use_native.lower() in ["true", "yes"]
         else:
             enable_toggle = "openshift-resources-native-client"
-            strategies = get_feature_toggle_strategies(enable_toggle)
-
-            # only use the native client if the toggle is enabled and this
-            # server is listed in the perCluster strategy
-            cluster_in_strategy = False
-            if strategies:
-                for s in strategies:
-                    if cluster_name in s.parameters["cluster_name"].split(","):
-                        cluster_in_strategy = True
-                        break
-            use_native = (
-                get_feature_toggle_state(enable_toggle) and not cluster_in_strategy
+            use_native = get_feature_toggle_state(
+                enable_toggle, context={"cluster_name": cluster_name}
             )
 
         if use_native:

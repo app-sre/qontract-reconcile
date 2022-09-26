@@ -33,7 +33,9 @@ class JenkinsApi:
 
     def get_job_names(self):
         url = f"{self.url}/api/json?tree=jobs[name]"
-        res = requests.get(url, verify=self.ssl_verify, auth=(self.user, self.password))
+        res = requests.get(
+            url, verify=self.ssl_verify, auth=(self.user, self.password), timeout=60
+        )
 
         res.raise_for_status()
         job_names = [r["name"] for r in res.json()["jobs"]]
@@ -42,7 +44,9 @@ class JenkinsApi:
     @retry()
     def get_jobs_state(self):
         url = f"{self.url}/api/json?tree=jobs[name,builds[number,result]]"
-        res = requests.get(url, verify=self.ssl_verify, auth=(self.user, self.password))
+        res = requests.get(
+            url, verify=self.ssl_verify, auth=(self.user, self.password), timeout=60
+        )
 
         res.raise_for_status()
         jobs_state = {}
@@ -56,9 +60,7 @@ class JenkinsApi:
     def delete_build(self, job_name, build_id):
         url = f"{self.url}/job/{job_name}/{build_id}/doDelete"
         res = requests.post(
-            url,
-            verify=self.ssl_verify,
-            auth=(self.user, self.password),
+            url, verify=self.ssl_verify, auth=(self.user, self.password), timeout=60
         )
         res.raise_for_status()
 
@@ -67,14 +69,20 @@ class JenkinsApi:
 
         url = f"{self.url}/job/{job_name}/doDelete"
         res = requests.post(
-            url, verify=self.ssl_verify, auth=(self.user, self.password), **kwargs
+            url,
+            verify=self.ssl_verify,
+            auth=(self.user, self.password),
+            timeout=60,
+            **kwargs,
         )
 
         res.raise_for_status()
 
     def get_all_roles(self):
         url = "{}/role-strategy/strategy/getAllRoles".format(self.url)
-        res = requests.get(url, verify=self.ssl_verify, auth=(self.user, self.password))
+        res = requests.get(
+            url, verify=self.ssl_verify, auth=(self.user, self.password), timeout=60
+        )
 
         res.raise_for_status()
         return res.json()
@@ -83,7 +91,11 @@ class JenkinsApi:
         url = "{}/role-strategy/strategy/assignRole".format(self.url)
         data = {"type": "globalRoles", "roleName": role, "sid": user}
         res = requests.post(
-            url, verify=self.ssl_verify, data=data, auth=(self.user, self.password)
+            url,
+            verify=self.ssl_verify,
+            data=data,
+            auth=(self.user, self.password),
+            timeout=60,
         )
 
         res.raise_for_status()
@@ -92,7 +104,11 @@ class JenkinsApi:
         url = "{}/role-strategy/strategy/unassignRole".format(self.url)
         data = {"type": "globalRoles", "roleName": role, "sid": user}
         res = requests.post(
-            url, verify=self.ssl_verify, data=data, auth=(self.user, self.password)
+            url,
+            verify=self.ssl_verify,
+            data=data,
+            auth=(self.user, self.password),
+            timeout=60,
         )
 
         res.raise_for_status()
@@ -100,7 +116,9 @@ class JenkinsApi:
     def list_plugins(self):
         url = "{}/pluginManager/api/json?depth=1".format(self.url)
 
-        res = requests.get(url, verify=self.ssl_verify, auth=(self.user, self.password))
+        res = requests.get(
+            url, verify=self.ssl_verify, auth=(self.user, self.password), timeout=60
+        )
 
         res.raise_for_status()
         return res.json()["plugins"]
@@ -116,6 +134,7 @@ class JenkinsApi:
             data=data,
             headers=header,
             auth=(self.user, self.password),
+            timeout=60,
         )
 
         res.raise_for_status()
@@ -129,7 +148,7 @@ class JenkinsApi:
                 f"force_restart={force_restart}."
             )
             res = requests.post(
-                url, verify=self.ssl_verify, auth=(self.user, self.password)
+                url, verify=self.ssl_verify, auth=(self.user, self.password), timeout=60
             )
 
             res.raise_for_status()
@@ -139,7 +158,9 @@ class JenkinsApi:
             f"{self.url}/job/{job_name}/api/json"
             + "?tree=allBuilds[timestamp,result,id]"
         )
-        res = requests.get(url, verify=self.ssl_verify, auth=(self.user, self.password))
+        res = requests.get(
+            url, verify=self.ssl_verify, auth=(self.user, self.password), timeout=60
+        )
         res.raise_for_status()
         return res.json()["allBuilds"]
 
@@ -152,7 +173,9 @@ class JenkinsApi:
 
     def is_job_running(self, job_name):
         url = f"{self.url}/job/{job_name}/lastBuild/api/json"
-        res = requests.get(url, verify=self.ssl_verify, auth=(self.user, self.password))
+        res = requests.get(
+            url, verify=self.ssl_verify, auth=(self.user, self.password), timeout=60
+        )
 
         if res.status_code == 404:
             # assuming the job exists due to the nature of our integrations,
@@ -166,7 +189,10 @@ class JenkinsApi:
         try:
             crumb_url = f"{self.url}/crumbIssuer/api/json"
             res = requests.get(
-                crumb_url, verify=self.ssl_verify, auth=(self.user, self.password)
+                crumb_url,
+                verify=self.ssl_verify,
+                auth=(self.user, self.password),
+                timeout=60,
             )
             body = res.json()
             kwargs = {
@@ -183,7 +209,11 @@ class JenkinsApi:
 
         url = f"{self.url}/job/{job_name}/build"
         res = requests.post(
-            url, verify=self.ssl_verify, auth=(self.user, self.password), **kwargs
+            url,
+            verify=self.ssl_verify,
+            auth=(self.user, self.password),
+            timeout=60,
+            **kwargs,
         )
 
         res.raise_for_status()

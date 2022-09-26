@@ -1,5 +1,6 @@
-from typing import Any, cast
+from typing import Any
 from unittest.mock import Mock
+from unittest.mock import patch
 import pytest
 from reconcile.openshift_base import CurrentStateSpec
 from reconcile.test.fixtures import Fixtures
@@ -19,10 +20,9 @@ def namespaces() -> list[dict[str, Any]]:
 
 
 @pytest.fixture
-def oc_cs1() -> oc.OCClient:
-    client = cast(
-        oc.OCNative, oc.OC(cluster_name="cs1", server="", token="", local=True)
-    )
+@patch("reconcile.utils.oc.OCNative")
+def oc_cs1(self) -> oc.OCClient:
+    client = oc.OCNative(cluster_name="cs1", server="s", token="t", local=True)
     client.init_api_resources = True
     client.api_kind_version = {
         "Template": ["template.openshift.io/v1"],
@@ -43,7 +43,7 @@ def tmpl1() -> dict[str, Any]:
 
 
 @pytest.fixture
-def current_state_spec(oc_cs1: oc.OCClient) -> CurrentStateSpec:
+def current_state_spec(oc_cs1: oc.OCNative) -> CurrentStateSpec:
     return CurrentStateSpec(
         oc=oc_cs1, cluster="cs1", namespace="ns1", kind="Template", resource_names=None
     )
@@ -111,6 +111,8 @@ def test_no_overrides(namespaces: list[dict[str, Any]], mocker):
     assert (ns, override) == expected
 
 
+@pytest.fixture
+@patch("reconcile.utils.oc.OCNative")
 def test_fetch_current_state_ri_not_initialized(
     oc_cs1: oc.OCClient, tmpl1: dict[str, Any]
 ):
@@ -152,12 +154,14 @@ def test_fetch_current_state_ri_initialized(oc_cs1: oc.OCClient, tmpl1: dict[str
     assert resource["current"]["tmpl1"].kind == "Template"
 
 
+@pytest.fixture
+@patch("reconcile.utils.oc.OCNative")
 def test_fetch_current_state_kind_not_supported(
-    oc_cs1: oc.OCClient, tmpl1: dict[str, Any]
+    oc_cs1: oc.OCNative, tmpl1: dict[str, Any]
 ):
     ri = ResourceInventory()
     ri.initialize_resource_type("cs1", "ns1", "AnUnsupportedKind")
-    oc_cs1.get_items = lambda kind, **kwargs: [tmpl1]  # type: ignore[assignment]
+    oc_cs1.get_items = lambda kind, **kwargs: [tmpl1]
     orb.fetch_current_state(
         oc=oc_cs1,
         ri=ri,
@@ -174,7 +178,7 @@ def test_fetch_current_state_kind_not_supported(
 def test_fetch_current_state_long_kind(oc_cs1: oc.OCClient, tmpl1: dict[str, Any]):
     ri = ResourceInventory()
     ri.initialize_resource_type("cs1", "ns1", "Template.template.openshift.io")
-    oc_cs1.get_items = lambda kind, **kwargs: [tmpl1]  # type: ignore[assignment]
+    oc_cs1.get_items = lambda kind, **kwargs: [tmpl1]  # type: ignore
     orb.fetch_current_state(
         oc=oc_cs1,
         ri=ri,
@@ -190,12 +194,14 @@ def test_fetch_current_state_long_kind(oc_cs1: oc.OCClient, tmpl1: dict[str, Any
     assert resource["current"]["tmpl1"].kind == "Template"
 
 
+@pytest.fixture
+@patch("reconcile.utils.oc.OCNative")
 def test_fetch_current_state_long_kind_not_supported(
-    oc_cs1: oc.OCClient, tmpl1: dict[str, Any]
+    oc_cs1: oc.OCNative, tmpl1: dict[str, Any]
 ):
     ri = ResourceInventory()
     ri.initialize_resource_type("cs1", "ns1", "UnknownKind.mysterious.io")
-    oc_cs1.get_items = lambda kind, **kwargs: [tmpl1]  # type: ignore[assignment]
+    oc_cs1.get_items = lambda kind, **kwargs: [tmpl1]
     orb.fetch_current_state(
         oc=oc_cs1,
         ri=ri,

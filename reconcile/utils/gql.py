@@ -1,8 +1,10 @@
 import logging
 import textwrap
-from typing import Set, Any, Optional
+from typing import Set, Any, Optional, Tuple
 
 from urllib.parse import urlparse
+
+from datetime import datetime, timezone
 
 import requests
 
@@ -89,11 +91,15 @@ class GqlApi:
         token: Optional[str] = None,
         int_name=None,
         validate_schemas=False,
+        commit: Optional[str] = None,
+        commit_timestamp: Optional[str] = None,
     ) -> None:
         self.url = url
         self.token = token
         self.integration = int_name
         self.validate_schemas = validate_schemas
+        self.commit = commit
+        self.commit_timestamp = commit_timestamp
 
         if validate_schemas and not int_name:
             raise Exception(
@@ -185,12 +191,33 @@ class GqlApi:
     def get_queried_schemas(self):
         return list(self._queried_schemas)
 
+    @property
+    def commit_timestamp_utc(self) -> Optional[str]:
+        if self.commit_timestamp:
+            return datetime.fromtimestamp(
+                int(self.commit_timestamp), timezone.utc
+            ).isoformat()
+        else:
+            return None
+
 
 def init(
-    url: str, token: Optional[str] = None, integration=None, validate_schemas=False
+    url: str,
+    token: Optional[str] = None,
+    integration=None,
+    validate_schemas=False,
+    commit: Optional[str] = None,
+    commit_timestamp: Optional[str] = None,
 ):
     global _gqlapi
-    _gqlapi = GqlApi(url, token, integration, validate_schemas)
+    _gqlapi = GqlApi(
+        url,
+        token,
+        integration,
+        validate_schemas,
+        commit=commit,
+        commit_timestamp=commit_timestamp,
+    )
     return _gqlapi
 
 
@@ -211,7 +238,7 @@ def _init_gql_client(url: str, token: Optional[str]) -> Client:
 def get_sha(server, token=None):
     sha_endpoint = server._replace(path="/sha256")
     headers = {"Authorization": token} if token else None
-    response = requests.get(sha_endpoint.geturl(), headers=headers)
+    response = requests.get(sha_endpoint.geturl(), headers=headers, timeout=60)
     response.raise_for_status()
     sha = response.content.decode("utf-8")
     return sha
@@ -221,7 +248,9 @@ def get_sha(server, token=None):
 def get_git_commit_info(sha, server, token=None):
     git_commit_info_endpoint = server._replace(path=f"/git-commit-info/{sha}")
     headers = {"Authorization": token} if token else None
-    response = requests.get(git_commit_info_endpoint.geturl(), headers=headers)
+    response = requests.get(
+        git_commit_info_endpoint.geturl(), headers=headers, timeout=60
+    )
     response.raise_for_status()
     git_commit_info = response.json()
     return git_commit_info
@@ -229,26 +258,49 @@ def get_git_commit_info(sha, server, token=None):
 
 @retry(exceptions=requests.exceptions.ConnectionError, max_attempts=5)
 def init_from_config(
-    sha_url=True, integration=None, validate_schemas=False, print_url=True
+    autodetect_sha=True,
+    sha=None,
+    integration=None,
+    validate_schemas=False,
+    print_url=True,
 ):
+    server, token, commit, timestamp = _get_gql_server_and_token(
+        autodetect_sha=autodetect_sha, sha=sha
+    )
+
+    if print_url:
+        logging.info(f"using gql endpoint {server}")
+    return init(
+        server,
+        token,
+        integration,
+        validate_schemas,
+        commit=commit,
+        commit_timestamp=timestamp,
+    )
+
+
+def _get_gql_server_and_token(
+    autodetect_sha: bool = False, sha: Optional[str] = None
+) -> Tuple[str, str, Optional[str], Optional[str]]:
     config = get_config()
 
     server_url = urlparse(config["graphql"]["server"])
     server = server_url.geturl()
-
     token = config["graphql"].get("token")
-    if sha_url:
+    if sha:
+        server = server_url._replace(path=f"/graphqlsha/{sha}").geturl()
+    elif autodetect_sha:
         sha = get_sha(server_url, token)
         server = server_url._replace(path=f"/graphqlsha/{sha}").geturl()
-
-        runing_state = RunningState()
+    if sha:
+        running_state = RunningState()
         git_commit_info = get_git_commit_info(sha, server_url, token)
-        runing_state.timestamp = git_commit_info.get("timestamp")
-        runing_state.commit = git_commit_info.get("commit")
+        running_state.timestamp = git_commit_info.get("timestamp")  # type: ignore[attr-defined]
+        running_state.commit = git_commit_info.get("commit")  # type: ignore[attr-defined]
+        return server, token, running_state.commit, running_state.timestamp
 
-    if print_url:
-        logging.info(f"using gql endpoint {server}")
-    return init(server, token, integration, validate_schemas)
+    return server, token, None, None
 
 
 def get_api():
@@ -258,3 +310,33 @@ def get_api():
         raise GqlApiError("gql module has not been initialized.")
 
     return _gqlapi
+
+
+def get_api_for_sha(
+    sha: str, integration: Optional[str] = None, validate_schemas: bool = True
+) -> GqlApi:
+    server, token, commit, timestamp = _get_gql_server_and_token(
+        autodetect_sha=False, sha=sha
+    )
+    return GqlApi(
+        server,
+        token,
+        integration,
+        validate_schemas,
+        commit=commit,
+        commit_timestamp=timestamp,
+    )
+
+
+@retry(exceptions=requests.exceptions.HTTPError, max_attempts=5)
+def get_diff(old_sha: str):
+    config = get_config()
+
+    server_url = urlparse(config["graphql"]["server"])
+    token = config["graphql"].get("token")
+    current_sha = get_sha(server_url, token)
+    diff_endpoint = server_url._replace(path=f"/diff/{old_sha}/{current_sha}")
+    headers = {"Authorization": token} if token else None
+    response = requests.get(diff_endpoint.geturl(), headers=headers, timeout=30)
+    response.raise_for_status()
+    return response.json()

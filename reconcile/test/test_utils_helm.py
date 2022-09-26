@@ -138,6 +138,28 @@ def test_template_aws_account_shards(values):
     assert template == expected
 
 
+def test_template_aws_account_shard_spec_override(values):
+    values["integrations"][0]["imageRef"] = "oofrab"
+    values["integrations"][0]["shard_specs"] = [
+        {
+            "shard_id": "0",
+            "shards": "2",
+            "shard_name_suffix": "-acc-1",
+            "extra_args": "--account-name acc-1",
+        },
+        {
+            "shard_id": "1",
+            "shards": "2",
+            "shard_name_suffix": "-acc-2",
+            "extra_args": "--account-name acc-2",
+            "imageRef": "foobar",
+        },
+    ]
+    template = helm.template(values)
+    expected = yaml.safe_load(fxt.get("aws_account_shard_spec_override.yml"))
+    assert template == expected
+
+
 def test_template_sleep_duration(values):
     values["integrations"][0]["sleepDurationSecs"] = 29
     template = helm.template(values)

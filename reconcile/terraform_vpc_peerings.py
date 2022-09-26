@@ -465,8 +465,8 @@ def run(
     account_name: Optional[str] = None,
     defer=None,
 ):
-    settings = queries.get_app_interface_settings()
-    clusters = [c for c in queries.get_clusters() if c.get("peering") is not None]
+    settings = queries.get_secret_reader_settings()
+    clusters = queries.get_clusters_with_peering_settings()
     with_ocm = any(c.get("ocm") for c in clusters)
     if with_ocm:
         ocm_map = ocm.OCMMap(
@@ -478,7 +478,7 @@ def run(
         # on the vpc peering defition in the cluster file.
         ocm_map = None
 
-    accounts = queries.get_aws_accounts(terraform_state=True)
+    accounts = queries.get_aws_accounts(terraform_state=True, ecrs=False)
     awsapi = aws_api.AWSApi(1, accounts, settings=settings, init_users=False)
 
     desired_state = []
@@ -559,3 +559,19 @@ def run(
 
     errors.append(tf.apply())
     sys.exit(int(any(errors)))
+
+
+def early_exit_desired_state(
+    print_to_file=None,
+    enable_deletion=False,
+    thread_pool_size=10,
+    account_name: Optional[str] = None,
+) -> dict[str, Any]:
+    if account_name:
+        raise ValueError(
+            "terraform-vpc-peerings early-exit check does not support sharding yet"
+        )
+    return {
+        "clusters": queries.get_clusters_with_peering_settings(),
+        "accounts": queries.get_aws_accounts(terraform_state=True, ecrs=False),
+    }

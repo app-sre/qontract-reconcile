@@ -1,0 +1,25 @@
+# qenerate: plugin=pydantic_v1
+
+query SelfServiceRolesQuery {
+  roles: roles_v1 {
+    name
+    path
+    self_service {
+      change_type {
+        name
+      }
+      datafiles {
+        datafileSchema: schema
+        path
+      }
+      resources
+    }
+    users {
+      org_username
+      tag_on_merge_requests
+    }
+    bots {
+      org_username
+    }
+  }
+}

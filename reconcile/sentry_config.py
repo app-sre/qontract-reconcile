@@ -1,4 +1,5 @@
 import logging
+from typing import Any
 
 import requests
 
@@ -601,3 +602,13 @@ def run(dry_run):
 
         reconciler = SentryReconciler(sentry_client, dry_run)
         reconciler.reconcile(current_state, desired_state)
+
+
+def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
+    gqlapi = gql.get_api()
+    return {
+        "roles": gqlapi.query(SENTRY_USERS_QUERY)["roles"],
+        "teams": gqlapi.query(SENTRY_TEAMS_QUERY)["teams"],
+        "apps": gqlapi.query(SENTRY_PROJECTS_QUERY)["apps"],
+        "instances": gqlapi.query(SENTRY_INSTANCES_QUERY)["instances"],
+    }

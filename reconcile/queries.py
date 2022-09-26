@@ -98,6 +98,10 @@ APP_INTERFACE_SETTINGS_QUERY = """
     }
     alertingServices
     endpointMonitoringBlackboxExporterModules
+    jiraWatcher {
+      readTimeout
+      connectTimeout
+    }
   }
 }
 """
@@ -178,6 +182,20 @@ def get_credentials_requests():
     return gqlapi.query(CREDENTIALS_REQUESTS_QUERY)["credentials_requests"]
 
 
+JUMPHOST_FIELDS = """
+hostname
+knownHosts
+user
+port
+identity {
+  path
+  field
+  version
+  format
+}
+"""
+
+
 INTEGRATIONS_QUERY = """
 {
   integrations: integrations_v1 {
@@ -195,16 +213,7 @@ INTEGRATIONS_QUERY = """
           serverUrl
           insecureSkipTLSVerify
           jumpHost {
-            hostname
-            knownHosts
-            user
-            port
-            identity {
-              path
-              field
-              version
-              format
-            }
+            %s
           }
           automationToken {
             path
@@ -212,6 +221,14 @@ INTEGRATIONS_QUERY = """
             version
             format
           }
+        }
+      }
+      shardSpecOverride{
+       ... on AWSShardSpecOverride_v1 {
+          awsAccount {
+            name
+          }
+          imageRef
         }
       }
       spec {
@@ -251,11 +268,14 @@ INTEGRATIONS_QUERY = """
         restartPolicy
         successfulJobHistoryLimit
         failedJobHistoryLimit
+        imageRef
       }
     }
   }
 }
-"""
+""" % (
+    indent(JUMPHOST_FIELDS, 12 * " "),
+)
 
 
 def get_integrations(managed=False):
@@ -432,9 +452,11 @@ AWS_ACCOUNTS_QUERY = """
     }
     {% endif %}
     premiumSupport
+    {% if ecrs %}
     ecrs {
       region
     }
+    {% endif %}
     partition
     {% if sharing %}
     sharing {
@@ -467,7 +489,12 @@ AWS_ACCOUNTS_QUERY = """
 
 
 def get_aws_accounts(
-    reset_passwords=False, name=None, uid=None, sharing=False, terraform_state=False
+    reset_passwords=False,
+    name=None,
+    uid=None,
+    sharing=False,
+    terraform_state=False,
+    ecrs=True,
 ):
     """Returns all AWS accounts"""
     gqlapi = gql.get_api()
@@ -479,6 +506,7 @@ def get_aws_accounts(
         uid=uid,
         sharing=sharing,
         terraform_state=terraform_state,
+        ecrs=ecrs,
     )
     return gqlapi.query(query)["accounts"]
 
@@ -501,19 +529,6 @@ JUMPHOSTS_FILTER_QUERY = """
   hostname: "{{ hostname }}"
 )
 {% endif %}
-"""
-
-JUMPHOST_FIELDS = """
-hostname
-knownHosts
-user
-port
-identity {
-  path
-  field
-  version
-  format
-}
 """
 
 JUMPHOSTS_QUERY = """
@@ -644,6 +659,18 @@ CLUSTERS_QUERY = """
       ... on ClusterSpecOSD_v1 {
         storage
         load_balancers
+      }
+      ... on ClusterSpecROSA_v1 {
+        account {
+          uid
+          rosa {
+            creator_role_arn
+            installer_role_arn
+            support_role_arn
+            controlplane_role_arn
+            worker_role_arn
+          }
+        }
       }
       id
       external_id
@@ -844,16 +871,7 @@ CLUSTERS_MINIMAL_QUERY = """
     prometheusUrl
     insecureSkipTLSVerify
     jumpHost {
-      hostname
-      knownHosts
-      user
-      port
-      identity {
-        path
-        field
-        version
-        format
-      }
+      %s
     }
     managedGroups
     ocm {
@@ -888,6 +906,7 @@ CLUSTERS_MINIMAL_QUERY = """
 }
 """ % (
     indent(CLUSTER_FILTER_QUERY, 2 * " "),
+    indent(JUMPHOST_FIELDS, 6 * " "),
 )
 
 
@@ -899,6 +918,171 @@ def get_clusters(minimal=False):
         filter=None,
     )
     return gqlapi.query(query)["clusters"]
+
+
+CLUSTER_PEERING_QUERY = """
+{
+  clusters: clusters_v1
+  {
+    path
+    name
+    ocm {
+      name
+      url
+      accessTokenClientId
+      accessTokenUrl
+      offlineToken {
+        path
+        field
+        format
+        version
+      }
+      blockedVersions
+    }
+    awsInfrastructureManagementAccounts {
+      account {
+        name
+        uid
+        terraformUsername
+        resourcesDefaultRegion
+        automationToken {
+          path
+          field
+          version
+          format
+        }
+      }
+      accessLevel
+      default
+    }
+
+    spec {
+      region
+    }
+    network {
+      vpc
+    }
+    peering {
+      connections {
+        name
+        provider
+        manageRoutes
+        delete
+        ... on ClusterPeeringConnectionAccount_v1 {
+          vpc {
+            account {
+              name
+              uid
+              terraformUsername
+              automationToken {
+                path
+                field
+                version
+                format
+              }
+            }
+            vpc_id
+            cidr_block
+            region
+          }
+          assumeRole
+        }
+        ... on ClusterPeeringConnectionAccountVPCMesh_v1 {
+          account {
+            name
+            uid
+            terraformUsername
+            automationToken {
+              path
+              field
+              version
+              format
+            }
+          }
+          tags
+        }
+        ... on ClusterPeeringConnectionAccountTGW_v1 {
+          account {
+            name
+            uid
+            terraformUsername
+            automationToken {
+              path
+              field
+              version
+              format
+            }
+          }
+          tags
+          cidrBlock
+          manageSecurityGroups
+          assumeRole
+        }
+        ... on ClusterPeeringConnectionClusterRequester_v1 {
+          cluster {
+            name
+            network {
+              vpc
+            }
+            spec {
+              region
+            }
+            awsInfrastructureManagementAccounts {
+              account {
+                name
+                uid
+                terraformUsername
+                resourcesDefaultRegion
+                automationToken {
+                  path
+                  field
+                  version
+                  format
+                }
+              }
+              accessLevel
+              default
+            }
+
+            peering {
+              connections {
+                name
+                provider
+                manageRoutes
+                ... on ClusterPeeringConnectionClusterAccepter_v1 {
+                  name
+                  cluster {
+                    name
+                  }
+                  awsInfrastructureManagementAccount {
+                    name
+                    uid
+                    terraformUsername
+                    automationToken {
+                      path
+                      field
+                      version
+                      format
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    disable {
+      integrations
+    }
+  }
+}
+"""
+
+
+def get_clusters_with_peering_settings() -> list[dict[str, Any]]:
+    clusters = gql.get_api().query(CLUSTER_PEERING_QUERY)["clusters"]
+    return [c for c in clusters if c.get("peering") is not None]
 
 
 @dataclass
@@ -944,16 +1128,7 @@ KAFKA_CLUSTERS_QUERY = """
         serverUrl
         insecureSkipTLSVerify
         jumpHost {
-          hostname
-          knownHosts
-          user
-          port
-          identity {
-            path
-            field
-            version
-            format
-          }
+          %s
         }
         automationToken {
           path
@@ -965,7 +1140,9 @@ KAFKA_CLUSTERS_QUERY = """
     }
   }
 }
-"""
+""" % (
+    indent(JUMPHOST_FIELDS, 10 * " "),
+)
 
 
 def get_kafka_clusters(minimal=False):
@@ -1029,16 +1206,7 @@ NAMESPACES_QUERY = """
       serverUrl
       insecureSkipTLSVerify
       jumpHost {
-          hostname
-          knownHosts
-          user
-          port
-          identity {
-              path
-              field
-              version
-              format
-          }
+        %s
       }
       automationToken {
         path
@@ -1100,7 +1268,9 @@ NAMESPACES_QUERY = """
     }
   }
 }
-"""
+""" % (
+    indent(JUMPHOST_FIELDS, 8 * " "),
+)
 
 NAMESPACES_MINIMAL_QUERY = """
 {
@@ -1113,16 +1283,7 @@ NAMESPACES_MINIMAL_QUERY = """
       serverUrl
       insecureSkipTLSVerify
       jumpHost {
-          hostname
-          knownHosts
-          user
-          port
-          identity {
-            path
-            field
-            version
-            format
-          }
+        %s
       }
       automationToken {
         path
@@ -1137,7 +1298,9 @@ NAMESPACES_MINIMAL_QUERY = """
     }
   }
 }
-"""
+""" % (
+    indent(JUMPHOST_FIELDS, 8 * " "),
+)
 
 
 def get_namespaces(minimal=False):
@@ -1158,16 +1321,7 @@ namespace {
     serverUrl
     insecureSkipTLSVerify
     jumpHost {
-      hostname
-      knownHosts
-      user
-      port
-      identity {
-        path
-        field
-        version
-        format
-      }
+      %s
     }
     automationToken {
       path
@@ -1182,7 +1336,9 @@ namespace {
   }
 }
 serviceAccountName
-"""
+""" % (
+    indent(JUMPHOST_FIELDS, 6 * " "),
+)
 
 
 SERVICEACCOUNT_TOKENS_QUERY = """
@@ -1194,16 +1350,7 @@ SERVICEACCOUNT_TOKENS_QUERY = """
       serverUrl
       insecureSkipTLSVerify
       jumpHost {
-          hostname
-          knownHosts
-          user
-          port
-          identity {
-            path
-            field
-            version
-            format
-          }
+        %s
       }
       automationToken {
         path
@@ -1227,6 +1374,7 @@ SERVICEACCOUNT_TOKENS_QUERY = """
   }
 }
 """ % (
+    indent(JUMPHOST_FIELDS, 8 * " "),
     indent(SA_TOKEN, 8 * " "),
     indent(SA_TOKEN, 6 * " "),
 )
@@ -1315,6 +1463,13 @@ APPS_QUERY = """
         limit
         enable_closing
         pipeline_timeout
+        labels_allowed {
+          role {
+            users {
+              org_username
+            }
+          }
+        }
       }
       jira {
         serverUrl
@@ -1544,8 +1699,12 @@ ROLES_QUERY = """
       {% endif %}
 
       {% if saas_files %}
-      owned_saas_files {
-        name
+      self_service {
+        datafiles {
+          ... on SaasFile_v2 {
+            name
+          }
+        }
       }
       {% endif %}
 
@@ -1725,16 +1884,7 @@ SAAS_FILES_QUERY_V2 = """
             serverUrl
             insecureSkipTLSVerify
             jumpHost {
-              hostname
-              knownHosts
-              user
-              port
-              identity {
-                path
-                field
-                version
-                format
-              }
+              %s
             }
             automationToken {
               path
@@ -1796,10 +1946,12 @@ SAAS_FILES_QUERY_V2 = """
     }
     managedResourceTypes
     takeover
+    deprecated
     compare
     publishJobLogs
     clusterAdmin
     imagePatterns
+    allowedSecretParameterPaths
     use_channel_in_image_tag
     authentication {
       code {
@@ -1843,6 +1995,7 @@ SAAS_FILES_QUERY_V2 = """
       }
       targets {
         path
+        name
         namespace {
           name
           environment {
@@ -1866,16 +2019,7 @@ SAAS_FILES_QUERY_V2 = """
             serverUrl
             insecureSkipTLSVerify
             jumpHost {
-                hostname
-                knownHosts
-                user
-                port
-                identity {
-                  path
-                  field
-                  version
-                  format
-                }
+              %s
             }
             automationToken {
               path
@@ -1932,7 +2076,7 @@ SAAS_FILES_QUERY_V2 = """
         delete
       }
     }
-    roles {
+    selfServiceRoles {
       users {
         org_username
         tag_on_merge_requests
@@ -1943,7 +2087,10 @@ SAAS_FILES_QUERY_V2 = """
     }
   }
 }
-"""
+""" % (
+    indent(JUMPHOST_FIELDS, 14 * " "),
+    indent(JUMPHOST_FIELDS, 14 * " "),
+)
 
 
 def get_saas_files(saas_file_name=None, env_name=None, app_name=None):
@@ -2044,16 +2191,7 @@ PIPELINES_PROVIDERS_QUERY = """
           serverUrl
           insecureSkipTLSVerify
           jumpHost {
-            hostname
-            knownHosts
-            user
-            port
-            identity {
-              path
-              field
-              version
-              format
-            }
+            %s
           }
           automationToken {
             path
@@ -2100,7 +2238,9 @@ PIPELINES_PROVIDERS_QUERY = """
     }
   }
 }
-"""
+""" % (
+    indent(JUMPHOST_FIELDS, 12 * " "),
+)
 
 
 def get_pipelines_providers():
@@ -2252,6 +2392,7 @@ DNS_ZONES_QUERY = """
 {
   zones: dns_zone_v1 {
     name
+    domain_name
     account {
       name
       uid
@@ -2380,16 +2521,7 @@ OCP_RELEASE_ECR_MIRROR_QUERY = """
       serverUrl
       insecureSkipTLSVerify
       jumpHost {
-        hostname
-        knownHosts
-        user
-        port
-        identity {
-          path
-          field
-          version
-          format
-        }
+        %s
       }
       managedGroups
       ocm {
@@ -2472,7 +2604,9 @@ OCP_RELEASE_ECR_MIRROR_QUERY = """
     mirrorChannels
   }
 }
-"""
+""" % (
+    indent(JUMPHOST_FIELDS, 8 * " "),
+)
 
 
 def get_ocp_release_mirror():
@@ -2654,16 +2788,7 @@ GABI_INSTANCES_QUERY = """
           serverUrl
           insecureSkipTLSVerify
           jumpHost {
-            hostname
-            knownHosts
-            user
-            port
-            identity {
-              path
-              field
-              version
-              format
-            }
+            %s
           }
           automationToken {
             path
@@ -2681,7 +2806,9 @@ GABI_INSTANCES_QUERY = """
     expirationDate
   }
 }
-"""
+""" % (
+    indent(JUMPHOST_FIELDS, 12 * " "),
+)
 
 
 def get_gabi_instances():
@@ -2700,31 +2827,31 @@ PERMISSIONS_QUERY = """
       ownersFromRepos
       skip
       pagerduty {
+        name
+        instance {
           name
-          instance {
-            name
-          }
-          scheduleID
-          escalationPolicyID
         }
+        scheduleID
+        escalationPolicyID
+      }
       roles {
         users {
-            name
+          name
+          org_username
+          slack_username
+          pagerduty_username
+        }
+      }
+      schedule {
+        schedule {
+          start
+          end
+          users {
             org_username
             slack_username
-            pagerduty_username
-        }
-    }
-      schedule {
-          schedule {
-            start
-            end
-            users {
-              org_username
-              slack_username
-            }
           }
         }
+      }
       workspace {
         name
         token {

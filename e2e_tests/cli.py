@@ -1,16 +1,15 @@
-import sys
 import logging
-import click
+import sys
 
-from reconcile.utils import config
-from reconcile.utils import gql
+import click
+from reconcile.cli import threaded
+from reconcile.utils import config, gql
+from reconcile.utils.aggregated_list import RunnerException
+
 import e2e_tests.create_namespace
 import e2e_tests.dedicated_admin_rolebindings
 import e2e_tests.default_network_policies
 import e2e_tests.default_project_labels
-
-from reconcile.utils.aggregated_list import RunnerException
-from reconcile.cli import threaded
 
 
 def run_test(func, *args):
