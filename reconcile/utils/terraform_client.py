@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from collections import defaultdict
 from threading import Lock
 from dataclasses import dataclass
-from typing import Iterable, Mapping, Any, List
+from typing import Iterable, Mapping, Any, List, Optional
 
 from python_terraform import Terraform, IsFlagged, TerraformCommandError
 from sretoolbox.utils import retry
@@ -45,8 +45,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         accounts: Iterable[Mapping[str, Any]],
         working_dirs: Mapping[str, str],
         thread_pool_size: int,
-        aws_api: 
-        [AWSApi] = None,
+        aws_api: Optional[AWSApi] = None,
         init_users=False,
     ):
         self.integration = integration
