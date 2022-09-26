@@ -5,7 +5,7 @@ import re
 import sys
 from contextlib import suppress
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Protocol
 
 import click
 import reconcile.gitlab_housekeeping as glhk
@@ -623,6 +623,20 @@ def aws_creds(ctx, account_name):
     print(f"export AWS_SECRET_ACCESS_KEY={secret['aws_secret_access_key']}")
 
 
+class JumphostClusterNetwork(Protocol):
+    vpc: str
+
+
+class JumphostCluster(Protocol):
+    name: str
+    network: JumphostClusterNetwork
+
+
+class Jumphost(Protocol):
+    clusters: Optional[list[JumphostCluster]]
+    hostname: str
+
+
 @get.command(
     short_help="obtain sshuttle command for "
     "connecting to private clusters via a jump host. "
@@ -633,14 +647,15 @@ def aws_creds(ctx, account_name):
 @click.argument("cluster_name", required=False)
 @click.pass_context
 def sshuttle_command(ctx, jumphost_hostname: str, cluster_name: Optional[str]):
-    jumphosts = queries.get_jumphosts(hostname=jumphost_hostname)
+    jumphosts_query_data = queries.get_jumphosts(hostname=jumphost_hostname)
+    jumphosts: list[Jumphost] = jumphosts_query_data.jumphosts or []
     for jh in jumphosts:
-        jh_clusters = jh["clusters"]
+        jh_clusters = jh.clusters or []
         if cluster_name:
-            jh_clusters = [c for c in jh_clusters if c["name"] == cluster_name]
+            jh_clusters = [c for c in jh_clusters if c.name == cluster_name]
 
-        vpc_cidr_blocks = [c["network"]["vpc"] for c in jh_clusters]
-        cmd = f"sshuttle -r {jh['hostname']} {' '.join(vpc_cidr_blocks)}"
+        vpc_cidr_blocks = [c.network.vpc for c in jh_clusters]
+        cmd = f"sshuttle -r {jh.hostname} {' '.join(vpc_cidr_blocks)}"
         print(cmd)
 
 

@@ -10,6 +10,10 @@ from typing import Any, Mapping, Optional
 from jinja2 import Template
 
 from reconcile.utils import gql
+from reconcile.gql_definitions.jumphosts.jumphosts import (
+  query as jumphosts_query,
+  JumphostsQueryData,
+)
 
 
 SECRET_READER_SETTINGS = """
@@ -523,41 +527,16 @@ def get_queue_aws_accounts():
     return get_aws_accounts(uid=uid)
 
 
-JUMPHOSTS_FILTER_QUERY = """
-{% if hostname %}
-(
-  hostname: "{{ hostname }}"
-)
-{% endif %}
-"""
-
-JUMPHOSTS_QUERY = """
-{
-  jumphosts: jumphosts_v1
-  %s
-  {
-    %s
-    clusters {
-      name
-      network {
-        vpc
-      }
-    }
-  }
-}
-""" % (
-    indent(JUMPHOSTS_FILTER_QUERY, 2 * " "),
-    indent(JUMPHOST_FIELDS, 4 * " "),
-)
-
-
-def get_jumphosts(hostname: Optional[str] = None):
+def get_jumphosts(hostname: Optional[str] = None) -> JumphostsQueryData:
     """Returns all jumphosts"""
+
     gqlapi = gql.get_api()
-    query = Template(JUMPHOSTS_QUERY).render(
-        hostname=hostname,
+    return jumphosts_query(
+      query_func=gqlapi.query,
+      variables={
+        "hostname": hostname,
+      }
     )
-    return gqlapi.query(query)["jumphosts"]
 
 
 AWS_INFRA_MANAGEMENT_ACCOUNT = """
