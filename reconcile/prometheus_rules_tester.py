@@ -221,55 +221,40 @@ def run_test(test):
     return test
 
 
-def get_data_from_jinja_test_template(
-    template: str, desired_lists: list[str]
-) -> dict[str, Any]:
-
-    # Sort the list to allow the comparison with parsed_lists later
-    desired_lists.sort()
-
-    data: dict[str, Any] = {k: [] for k in desired_lists}
-
+def get_rule_files_from_jinja_test_template(template):
+    """Parse test template to get prometheus rule files paths"""
+    rule_files = []
     try:
         parsed = yaml.safe_load(template)
-        return {k: v for k, v in parsed.items() if k in desired_lists}
-
+        rule_files = parsed["rule_files"]
     except Exception:
         # The jinja template is not valid yaml :(
-        # A poor man's approach is used to get the required data
+        # A poor man's approach is used to get the rule files
         # Let's assume people will follow the examples and use yaml lists as:
         # rule_files:
         # - file
         # - file
-        parsed_lists = []
-        list_element_re = re.compile(r"\s*-\s+(.+)$")
-        root_attr_re = re.compile(r"^([a-z_]+):\s*$")
+        in_rule_files = False
+        in_re = re.compile(r"^rule_files:\s*$")
+        array_element_re = re.compile(r"\s*-\s+(.+)$")
 
-        target = ""
-        in_list = False
         for line in template.split("\n"):
-            if in_list:
-                m = list_element_re.match(line)
-                if m:
-                    data[target].append(m.group(1))
-                    continue
-                else:
-                    in_list = False
-                    parsed_lists.append(target)
-                    parsed_lists.sort()
-                    if parsed_lists == desired_lists:
-                        break
-
-            m = root_attr_re.match(line)
+            m = in_re.match(line)
             if m:
-                attr = m.group(1)
-                if attr in desired_lists:
-                    target = attr
-                    in_list = True
-    return data
+                in_rule_files = True
+                continue
+
+            if in_rule_files:
+                m = array_element_re.match(line)
+                if m:
+                    rule_files.append(m.group(1))
+                else:
+                    break
+
+    return rule_files
 
 
-def check_prometheus_tests(tests, rules, clusters, thread_pool_size, settings):
+def check_prometheus_tests(tests, rules, thread_pool_size, settings):
     """Returns a list of dicts with failed test runs. To make things (much)
     simpler we will allow only one prometheus rule per test as will need to run
     the tests per every appearance of the rule files in a namespace s rules can
@@ -290,22 +275,7 @@ def check_prometheus_tests(tests, rules, clusters, thread_pool_size, settings):
     for path, test in tests.items():
         test_to_run = {"path": path}
 
-        data = get_data_from_jinja_test_template(
-            test, ["rule_files", "target_clusters"]
-        )
-        target_clusters = data["target_clusters"]
-        rule_files = data["rule_files"]
-
-        non_existing_target_clusters = [c for c in target_clusters if c not in clusters]
-        if len(non_existing_target_clusters) > 0:
-            failed_tests.append(
-                {
-                    **test_to_run,
-                    "check_result": f"There are non-existing clusters in the target_clusters list: {non_existing_target_clusters}",
-                }
-            )
-            continue
-
+        rule_files = get_rule_files_from_jinja_test_template(test)
         if not rule_files:
             failed_tests.append({**test_to_run, "check_result": "Cannot parse test"})
             continue
@@ -327,11 +297,6 @@ def check_prometheus_tests(tests, rules, clusters, thread_pool_size, settings):
 
         try:
             for cluster, namespaces in rules[rule_files[0]].items():
-                if len(target_clusters) > 0 and cluster not in target_clusters:
-                    logging.debug(
-                        f"Skipping test {path} in cluster: {cluster}, cluster is not in the test target_clusters"
-                    )
-                    continue
                 for namespace, rule_data in namespaces.items():
                     variables = rule_data.get("variables", {})
                     test_yaml_spec = yaml.safe_load(
@@ -340,7 +305,6 @@ def check_prometheus_tests(tests, rules, clusters, thread_pool_size, settings):
                         )
                     )
                     test_yaml_spec.pop("$schema")
-                    test_yaml_spec.pop("target_clusters", None)
 
                     tests_to_run.append(
                         {
@@ -385,11 +349,8 @@ def run(dry_run, thread_pool_size=10, cluster_name=None):
                 f"{i['cluster']}:  {i['check_result']}"
             )
 
-    clusters = [c["name"] for c in queries.get_clusters(minimal=True)]
     tests = get_prometheus_tests()
-    failed_tests = check_prometheus_tests(
-        tests, rules, clusters, thread_pool_size, settings
-    )
+    failed_tests = check_prometheus_tests(tests, rules, thread_pool_size, settings)
     if failed_tests:
         for f in failed_tests:
             msg = f"Error in test {f['path']}"

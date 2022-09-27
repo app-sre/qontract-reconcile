@@ -42,7 +42,7 @@ from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.semver_helper import parse_semver
 from reconcile.utils.state import State
 from reconcile.utils.terraform_client import TerraformClient as Terraform
-from reconcile.prometheus_rules_tester import get_data_from_jinja_test_template
+from reconcile.prometheus_rules_tester import get_rule_files_from_jinja_test_template
 
 from tools.sre_checkpoints import full_name, get_latest_sre_checkpoints
 from tools.cli_commands.gpg_encrypt import GPGEncryptCommand, GPGEncryptCommandData
@@ -1399,13 +1399,7 @@ def run_prometheus_test(ctx, path, cluster, namespace, secret_reader):
         sys.exit(1)
 
     test = resource["content"]
-    data = get_data_from_jinja_test_template(test, ["rule_files", "target_clusters"])
-    target_clusters = data["target_clusters"]
-    if len(target_clusters) > 0 and cluster not in target_clusters:
-        print(
-            f"Skipping test: {path}, cluster {cluster} not in target_clusters {target_clusters}"
-        )
-    rule_files = data["rule_files"]
+    rule_files = get_rule_files_from_jinja_test_template(test)
     if not rule_files:
         print(f"Cannot parse test in {path}.")
         sys.exit(1)
