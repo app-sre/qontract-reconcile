@@ -2260,6 +2260,16 @@ def change_owners(
     )
 
 
+@integration.command(
+    short_help="Configure and enforce glitchtip instance configuration."
+)
+@click.pass_context
+def glitchtip(ctx):
+    import reconcile.glitchtip
+
+    run_integration(reconcile.glitchtip, ctx.obj)
+
+
 def get_integration_cli_meta() -> dict[str, IntegrationMeta]:
     """
     returns all integrations known to cli.py via click introspection
