@@ -103,5 +103,5 @@ def query(query_func: Callable, **kwargs) -> ChangeTypesQueryData:
     Returns:
         ChangeTypesQueryData: queried data parsed into generated classes
     """
-    raw_data: dict[Any, Any] = query_func(DEFINITION, kwargs)
+    raw_data: dict[Any, Any] = query_func(DEFINITION, **kwargs)
     return ChangeTypesQueryData(**raw_data)

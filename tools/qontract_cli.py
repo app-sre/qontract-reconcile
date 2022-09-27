@@ -632,15 +632,18 @@ def aws_creds(ctx, account_name):
 @click.argument("jumphost_hostname", required=False)
 @click.argument("cluster_name", required=False)
 @click.pass_context
-def sshuttle_command(ctx, jumphost_hostname: str, cluster_name: Optional[str]):
-    jumphosts = queries.get_jumphosts(hostname=jumphost_hostname)
+def sshuttle_command(
+    ctx, jumphost_hostname: Optional[str], cluster_name: Optional[str]
+):
+    jumphosts_query_data = queries.get_jumphosts(hostname=jumphost_hostname)
+    jumphosts = jumphosts_query_data.jumphosts or []
     for jh in jumphosts:
-        jh_clusters = jh["clusters"]
+        jh_clusters = jh.clusters or []
         if cluster_name:
-            jh_clusters = [c for c in jh_clusters if c["name"] == cluster_name]
+            jh_clusters = [c for c in jh_clusters if c.name == cluster_name]
 
-        vpc_cidr_blocks = [c["network"]["vpc"] for c in jh_clusters]
-        cmd = f"sshuttle -r {jh['hostname']} {' '.join(vpc_cidr_blocks)}"
+        vpc_cidr_blocks = [c.network.vpc for c in jh_clusters if c.network]
+        cmd = f"sshuttle -r {jh.hostname} {' '.join(vpc_cidr_blocks)}"
         print(cmd)
 
 
