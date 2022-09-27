@@ -1,9 +1,13 @@
 import sys
 import logging
 
-from reconcile.utils.smtp_client import SmtpClient
+from reconcile.gql_definitions.common.smtp_client_settings import (
+    query as smtp_client_config_query,
+)
+from reconcile.utils.secret_reader import SecretReader
+from reconcile.utils.smtp_client import SmtpClient, get_smtp_credentials
 from reconcile import queries
-
+from reconcile.utils import gql
 from reconcile.utils.state import State
 
 QONTRACT_INTEGRATION = "email-sender"
@@ -82,7 +86,24 @@ def run(dry_run):
         integration=QONTRACT_INTEGRATION, accounts=accounts, settings=settings
     )
     emails = queries.get_app_interface_emails()
-    smtp_client = SmtpClient(settings=settings)
+    if _settings := smtp_client_config_query(query_func=gql.get_api().query).settings:
+        if not _settings[0].smtp:
+            raise Exception("settings.smtp missing")
+        smtp_settings = _settings[0].smtp
+    else:
+        raise Exception("settings missing")
+
+    smtp_credentials = get_smtp_credentials(
+        secret_reader=SecretReader(settings=settings), secret=smtp_settings.credentials
+    )
+    smtp_client = SmtpClient(
+        host=smtp_credentials.server,
+        port=smtp_credentials.port,
+        username=smtp_credentials.username,
+        password=smtp_credentials.password,
+        mail_address=smtp_settings.mail_address,
+        timeout=smtp_settings.timeout or 30,
+    )
     # validate no 2 emails have the same name
     email_names = {e["name"] for e in emails}
     if len(emails) != len(email_names):
