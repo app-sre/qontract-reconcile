@@ -227,12 +227,12 @@ def get_data_from_jinja_test_template(
 
     # Sort the list to allow the comparison with parsed_lists later
     desired_lists.sort()
-
-    data: dict[str, Any] = {k: [] for k in desired_lists}
+    data: dict[str, Any] = {}
 
     try:
         parsed = yaml.safe_load(template)
-        return {k: v for k, v in parsed.items() if k in desired_lists}
+        data = {k: parsed.get(k, []) for k in desired_lists}
+        return data
 
     except Exception:
         # The jinja template is not valid yaml :(
@@ -241,6 +241,7 @@ def get_data_from_jinja_test_template(
         # rule_files:
         # - file
         # - file
+        data = {k: [] for k in desired_lists}
         parsed_lists = []
         list_element_re = re.compile(r"\s*-\s+(.+)$")
         root_attr_re = re.compile(r"^([a-z_]+):\s*$")

@@ -47,8 +47,11 @@ lol_key: lol_value
 class TestGetRuleFilesFromJinjaTestTemplate:
     @staticmethod
     def test_good_yaml():
-        data = prt.get_data_from_jinja_test_template(GOOD_YAML, ["rule_files"])
+        data = prt.get_data_from_jinja_test_template(
+            GOOD_YAML, ["rule_files", "target_clusters"]
+        )
         assert data["rule_files"] == ["/kiss.yml"]
+        assert data["target_clusters"] == []
 
     @staticmethod
     def test_bad_yaml_parseable_1():
