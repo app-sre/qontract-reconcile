@@ -1,4 +1,3 @@
-import base64
 import logging
 import sys
 
@@ -16,7 +15,7 @@ QONTRACT_INTEGRATION = "openshift-serviceaccount-tokens"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 
-def construct_sa_token_oc_resource(name, sa_name, sa_token):
+def construct_sa_token_oc_resource(name, sa_token):
     body = {
         "apiVersion": "v1",
         "kind": "Secret",
@@ -24,11 +23,23 @@ def construct_sa_token_oc_resource(name, sa_name, sa_token):
         "metadata": {
             "name": name,
         },
-        "data": {"token": base64.b64encode(sa_token).decode("utf-8")},
+        "data": {"token": sa_token},
     }
     return OR(
         body, QONTRACT_INTEGRATION, QONTRACT_INTEGRATION_VERSION, error_details=name
     )
+
+
+def get_token_for_service_account(service_account, tokens):
+    result = []
+    for token in tokens:
+        if (
+            token["metadata"]["annotations"]["kubernetes.io/service-account.name"]
+            == service_account
+            and service_account + "-token" in token["metadata"]["name"]
+        ):
+            result.append(token)
+    return result
 
 
 def fetch_desired_state(namespaces, ri, oc_map):
@@ -52,13 +63,29 @@ def fetch_desired_state(namespaces, ri, oc_map):
                     ri.register_error()
                 logging.log(level=oc.log_level, msg=oc.message)
                 continue
-            sa_token = oc.sa_get_token(sa_namespace_name, sa_name)
+
+            all_tokens = oc.get_items(kind="Secret", namespace=sa_namespace_name)
+            try:
+                sa_token_list = get_token_for_service_account(sa_name, all_tokens)
+                sa_token_list.sort()
+                sa_token = sa_token_list[0]["data"]["token"]
+            except KeyError:
+                logging.log(
+                    level=logging.ERROR,
+                    msg=f"Token not found for service account: {sa_name}",
+                )
+                raise
+            except IndexError:
+                logging.log(
+                    level=logging.ERROR,
+                    msg=f"0 Secret found for service account: {sa_name}",
+                )
+                raise
+
             oc_resource_name = (
                 sat.get("name") or f"{sa_cluster_name}-{sa_namespace_name}-{sa_name}"
             )
-            oc_resource = construct_sa_token_oc_resource(
-                oc_resource_name, sa_name, sa_token
-            )
+            oc_resource = construct_sa_token_oc_resource(oc_resource_name, sa_token)
             ri.add_desired(
                 cluster_name, namespace_name, "Secret", oc_resource_name, oc_resource
             )
