@@ -1,9 +1,10 @@
 import logging
-from reconcile.slack_usergroups import get_pagerduty_map, get_usernames_from_pagerduty
 
+from typing import Any
+
+from reconcile.slack_usergroups import get_pagerduty_map, get_usernames_from_pagerduty
 from reconcile.utils import gql
 from reconcile import queries
-
 from reconcile.utils.gitlab_api import GitLabApi
 
 
@@ -42,9 +43,13 @@ def get_current_state(instance, gl):
     return {g: gl.get_group_members(g) for g in instance["managedGroups"]}
 
 
-def get_desired_state(instance, gl):
+def get_permissions():
     gqlapi = gql.get_api()
-    permissions = gqlapi.query(PERMISSIONS_QUERY)["permissions"]
+    return gqlapi.query(PERMISSIONS_QUERY)["permissions"]
+
+
+def get_desired_state(instance, gl):
+    permissions = get_permissions()
     desired_group_members = {g: [] for g in instance["managedGroups"]}
     pagerduty_map = get_pagerduty_map()
     all_users = queries.get_users()
@@ -159,3 +164,10 @@ def run(dry_run):
 
         if not dry_run:
             act(diff, gl)
+
+
+def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
+    return {
+        "instance": queries.get_gitlab_instance(),
+        "permissions": get_permissions(),
+    }

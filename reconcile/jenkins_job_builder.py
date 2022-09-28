@@ -44,9 +44,13 @@ def get_openshift_saas_deploy_job_name(saas_file_name, env_name, settings):
     return f"{job_template_name}-{saas_file_name}-{env_name}"
 
 
-def collect_configs(instance_name, config_name):
+def get_jenkins_configs():
     gqlapi = gql.get_api()
-    configs = gqlapi.query(QUERY)["jenkins_configs"]
+    return gqlapi.query(QUERY)["jenkins_configs"]
+
+
+def collect_configs(instance_name, config_name):
+    configs = get_jenkins_configs()
     if instance_name is not None:
         configs = [n for n in configs if n["instance"]["name"] == instance_name]
     if config_name is not None:
