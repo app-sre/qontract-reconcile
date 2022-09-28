@@ -576,8 +576,9 @@ def test_values_set_shard_specifics():
 def test_initialize_namespace_override_mapping(integrations):
     environment_name = "test2"
     namespaces = intop.collect_namespaces(integrations, environment_name)
+
     override_mapping = intop.initialize_namespace_override_mapping(
-        namespaces, integrations
+        namespaces, intop.collect_managed_integrations(integrations, environment_name)
     )
     assert "ns2" in override_mapping
     assert "ns3" in override_mapping
@@ -586,3 +587,14 @@ def test_initialize_namespace_override_mapping(integrations):
     assert isinstance(
         override_mapping["ns3"]["integ3"][0], intop.IntegrationShardSpecOverride
     )
+
+
+def test_collect_managed_integrations(integrations):
+    environment_name = "test2"
+    managed_integrations = intop.collect_managed_integrations(
+        integrations, environment_name
+    )
+
+    assert len(managed_integrations) == 3
+    for i in managed_integrations:
+        assert i["namespace"]["environment"]["name"] == environment_name
