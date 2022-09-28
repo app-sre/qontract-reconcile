@@ -12,74 +12,77 @@ import click
 
 from reconcile.status import ExitCodes
 from reconcile.cli import LOG_FMT, LOG_DATEFMT
-from reconcile.utils.metrics import (
-  run_time, run_status, execution_counter
-)
+from reconcile.utils.metrics import run_time, run_status, execution_counter
 
 
-SHARDS = int(os.environ.get('SHARDS', 1))
-SHARD_ID = int(os.environ.get('SHARD_ID', 0))
-SHARD_ID_LABEL = os.environ.get('SHARD_KEY', f"{SHARD_ID}-{SHARDS}")
+SHARDS = int(os.environ.get("SHARDS", 1))
+SHARD_ID = int(os.environ.get("SHARD_ID", 0))
+SHARD_ID_LABEL = os.environ.get("SHARD_KEY", f"{SHARD_ID}-{SHARDS}")
 
-INTEGRATION_NAME = os.environ['INTEGRATION_NAME']
-COMMAND_NAME = os.environ.get('COMMAND_NAME', 'qontract-reconcile')
+INTEGRATION_NAME = os.environ["INTEGRATION_NAME"]
+COMMAND_NAME = os.environ.get("COMMAND_NAME", "qontract-reconcile")
 
-RUN_ONCE = os.environ.get('RUN_ONCE')
+RUN_ONCE = os.environ.get("RUN_ONCE")
 DRY_RUN = (
     os.environ.get("MANAGER_DRY_RUN")
     if INTEGRATION_NAME == "integrations-manager"
     else os.environ.get("DRY_RUN")
 )
-INTEGRATION_EXTRA_ARGS = os.environ.get('INTEGRATION_EXTRA_ARGS')
-CONFIG = os.environ.get('CONFIG', '/config/config.toml')
+INTEGRATION_EXTRA_ARGS = os.environ.get("INTEGRATION_EXTRA_ARGS")
+CONFIG = os.environ.get("CONFIG", "/config/config.toml")
 
-LOG_FILE = os.environ.get('LOG_FILE')
-LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO')
-SLEEP_DURATION_SECS = os.environ.get('SLEEP_DURATION_SECS', 600)
-SLEEP_ON_ERROR = os.environ.get('SLEEP_ON_ERROR', 10)
+LOG_FILE = os.environ.get("LOG_FILE")
+LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO")
+SLEEP_DURATION_SECS = os.environ.get("SLEEP_DURATION_SECS", 600)
+SLEEP_ON_ERROR = os.environ.get("SLEEP_ON_ERROR", 10)
 
 LOG = logging.getLogger(__name__)
 
 # Messages to stdout
 STREAM_HANDLER = logging.StreamHandler(sys.stdout)
-STREAM_HANDLER.setFormatter(logging.Formatter(fmt=LOG_FMT,
-                                              datefmt=LOG_DATEFMT))
+STREAM_HANDLER.setFormatter(logging.Formatter(fmt=LOG_FMT, datefmt=LOG_DATEFMT))
 HANDLERS = [STREAM_HANDLER]
 
 # Messages to the log file
 if LOG_FILE is not None:
     FILE_HANDLER = logging.FileHandler(LOG_FILE)
-    FILE_HANDLER.setFormatter(logging.Formatter(fmt='%(message)s'))
-    HANDLERS.append(FILE_HANDLER)
+    FILE_HANDLER.setFormatter(logging.Formatter(fmt="%(message)s"))
+    HANDLERS.append(FILE_HANDLER)  # type: ignore
 
 # Setting up the root logger
-logging.basicConfig(level=LOG_LEVEL,
-                    handlers=HANDLERS)
+logging.basicConfig(level=LOG_LEVEL, handlers=HANDLERS)
 
 
-def _parse_dry_run_flag(dry_run: str) -> Optional[str]:
-    dry_run_options = ['--dry-run', '--no-dry-run']
+def _parse_dry_run_flag(dry_run: Optional[str]) -> Optional[str]:
+    dry_run_options = ["--dry-run", "--no-dry-run"]
     if dry_run is not None and dry_run not in dry_run_options:
         msg = (
-          f'Invalid DRY_RUN option given: "{dry_run}".'
-          f'Only the following options are allowed: {dry_run_options}'
+            f'Invalid DRY_RUN option given: "{dry_run}".'
+            f"Only the following options are allowed: {dry_run_options}"
         )
         logging.error(msg)
         raise ValueError(msg)
     return dry_run if dry_run else None
 
 
-def build_entry_point_args(command: click.Command, config: str,
-                           dry_run: Optional[str], integration_name: str,
-                           extra_args: Optional[str]) -> list[str]:
-    args = ['--config', config]
+def build_entry_point_args(
+    command: click.Command,
+    config: str,
+    dry_run: Optional[str],
+    integration_name: str,
+    extra_args: Optional[str],
+) -> list[str]:
+    args = ["--config", config]
     if dry_run_flag := _parse_dry_run_flag(dry_run):
         args.append(dry_run_flag)
 
     # if the integration_name is a known sub command,
     # we add it right before the extra_args
-    if integration_name and isinstance(command, click.MultiCommand) and \
-            command.get_command(None, integration_name):  # type: ignore
+    if (
+        integration_name
+        and isinstance(command, click.MultiCommand)
+        and command.get_command(None, integration_name)  # type: ignore
+    ):
         args.append(integration_name)
 
     if extra_args is not None:
@@ -93,17 +96,18 @@ def build_entry_point_func(command_name: str) -> click.Command:
     find the function to invoke for a command.
     """
     console_script_entry_points = {
-        ep.name: ep
-        for ep in metadata.entry_points()["console_scripts"]
+        ep.name: ep for ep in metadata.entry_points()["console_scripts"]
     }
-    entry_point: Optional[metadata.EntryPoint] = \
-        console_script_entry_points.get(command_name, None)
+    entry_point: Optional[metadata.EntryPoint] = console_script_entry_points.get(
+        command_name, None
+    )
     if entry_point:
         return entry_point.load()
     else:
         raise ValueError(
             f"Command {command_name} unknown."
-            f"Have a look at setup.py for valid entry points.")
+            f"Have a look at setup.py for valid entry points."
+        )
 
 
 def main():
@@ -144,20 +148,18 @@ def main():
 
     command = build_entry_point_func(COMMAND_NAME)
     while True:
-        args = build_entry_point_args(command, CONFIG, DRY_RUN,
-                                      INTEGRATION_NAME, INTEGRATION_EXTRA_ARGS)
+        args = build_entry_point_args(
+            command, CONFIG, DRY_RUN, INTEGRATION_NAME, INTEGRATION_EXTRA_ARGS
+        )
         sleep = SLEEP_DURATION_SECS
         start_time = time.monotonic()
         # Running the integration via Click, so we don't have to replicate
         # the CLI logic here
         execution_counter.labels(
-            integration=INTEGRATION_NAME,
-            shards=SHARDS,
-            shard_id=SHARD_ID_LABEL
+            integration=INTEGRATION_NAME, shards=SHARDS, shard_id=SHARD_ID_LABEL
         ).inc()
         try:
-            with command.make_context(info_name=COMMAND_NAME, args=args) \
-              as ctx:
+            with command.make_context(info_name=COMMAND_NAME, args=args) as ctx:  # type: ignore
                 ctx.ensure_object(dict)
                 command.invoke(ctx)
                 return_code = 0
@@ -174,10 +176,12 @@ def main():
 
         time_spent = time.monotonic() - start_time
 
-        run_time.labels(integration=INTEGRATION_NAME,
-                        shards=SHARDS, shard_id=SHARD_ID_LABEL).set(time_spent)
-        run_status.labels(integration=INTEGRATION_NAME,
-                          shards=SHARDS, shard_id=SHARD_ID_LABEL).set(return_code)
+        run_time.labels(
+            integration=INTEGRATION_NAME, shards=SHARDS, shard_id=SHARD_ID_LABEL
+        ).set(time_spent)
+        run_status.labels(
+            integration=INTEGRATION_NAME, shards=SHARDS, shard_id=SHARD_ID_LABEL
+        ).set(return_code)
 
         if RUN_ONCE:
             sys.exit(return_code)
