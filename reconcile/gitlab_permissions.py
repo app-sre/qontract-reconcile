@@ -1,6 +1,7 @@
 import logging
 import itertools
 
+from typing import Any
 from sretoolbox.utils import threaded
 
 from reconcile import queries
@@ -39,3 +40,11 @@ def run(dry_run, thread_pool_size=10):
         logging.info(["add_maintainer", m["repo"], m["user"].username])
         if not dry_run:
             gl.add_project_member(m["repo"], m["user"])
+
+
+def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
+    instance = queries.get_gitlab_instance()
+    return {
+        "instance": instance,
+        "repos": queries.get_repos(server=instance["url"]),
+    }
