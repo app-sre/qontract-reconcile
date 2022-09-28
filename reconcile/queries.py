@@ -18,6 +18,10 @@ from reconcile.gql_definitions.jumphosts.jumphosts import (
     query as jumphosts_query,
     JumphostsQueryData,
 )
+from reconcile.utils.exceptions import (
+    AppInterfaceSettingsError,
+    AppInterfaceSmtpSettingsError,
+)
 
 SECRET_READER_SETTINGS = """
 {
@@ -3086,6 +3090,6 @@ def get_blackbox_exporter_monitoring_provider() -> dict:
 def get_smtp_client_settings() -> SmtpSettingsV1:
     if _settings := smtp_client_config_query(query_func=gql.get_api().query).settings:
         if not _settings[0].smtp:
-            raise Exception("settings.smtp missing")
+            raise AppInterfaceSmtpSettingsError("settings.smtp missing")
         return _settings[0].smtp
-    raise Exception("settings missing")
+    raise AppInterfaceSettingsError("settings missing")
