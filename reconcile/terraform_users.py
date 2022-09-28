@@ -6,7 +6,8 @@ from typing import Any, Optional
 from reconcile.utils import expiration
 from reconcile.utils import gql
 from reconcile.utils.aws_api import AWSApi
-from reconcile.utils.smtp_client import SmtpClient
+from reconcile.utils.secret_reader import SecretReader
+from reconcile.utils.smtp_client import SmtpClient, get_smtp_credentials
 from reconcile import queries
 
 from reconcile.utils.semver_helper import make_semver
@@ -93,7 +94,7 @@ def setup(
     return accounts, working_dirs, err, aws_api
 
 
-def send_email_invites(new_users, settings):
+def send_email_invites(new_users, smtp_client: SmtpClient):
     msg_template = """
 You have been invited to join the {} AWS account!
 Below you will find credentials for the first sign in.
@@ -123,7 +124,6 @@ Encrypted password: {}
         subject = "Invitation to join the {} AWS account".format(account)
         body = msg_template.format(account, console_url, user_name, enc_password)
         mails.append((to, subject, body))
-    smtp_client = SmtpClient(settings=settings)
     smtp_client.send_mails(mails)
 
 
@@ -183,8 +183,20 @@ def run(
 
     if send_mails:
         new_users = tf.get_new_users()
-        settings = queries.get_app_interface_settings()
-        send_email_invites(new_users, settings)
+        smtp_settings = queries.get_smtp_client_settings()
+        smtp_credentials = get_smtp_credentials(
+            secret_reader=SecretReader(settings=queries.get_secret_reader_settings()),
+            secret=smtp_settings.credentials,
+        )
+        smtp_client = SmtpClient(
+            host=smtp_credentials.server,
+            port=smtp_credentials.port,
+            username=smtp_credentials.username,
+            password=smtp_credentials.password,
+            mail_address=smtp_settings.mail_address,
+            timeout=smtp_settings.timeout or 30,
+        )
+        send_email_invites(new_users, smtp_client)
 
     cleanup_and_exit(tf, setup_err)
 

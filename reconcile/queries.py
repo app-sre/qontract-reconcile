@@ -9,12 +9,15 @@ from typing import Any, Mapping, Optional
 
 from jinja2 import Template
 
+from reconcile.gql_definitions.common.smtp_client_settings import (
+    query as smtp_client_config_query,
+    SmtpSettingsV1,
+)
 from reconcile.utils import gql
 from reconcile.gql_definitions.jumphosts.jumphosts import (
     query as jumphosts_query,
     JumphostsQueryData,
 )
-
 
 SECRET_READER_SETTINGS = """
 {
@@ -3078,3 +3081,11 @@ BLACKBOX_EXPORTER_MONITORING_PROVIDER = """
 def get_blackbox_exporter_monitoring_provider() -> dict:
     gqlapi = gql.get_api()
     return gqlapi.query(BLACKBOX_EXPORTER_MONITORING_PROVIDER)["providers"]
+
+
+def get_smtp_client_settings() -> SmtpSettingsV1:
+    if _settings := smtp_client_config_query(query_func=gql.get_api().query).settings:
+        if not _settings[0].smtp:
+            raise Exception("settings.smtp missing")
+        return _settings[0].smtp
+    raise Exception("settings missing")

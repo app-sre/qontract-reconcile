@@ -12,11 +12,12 @@ from reconcile import openshift_base
 from reconcile import openshift_resources_base as orb
 from reconcile import queries
 from reconcile.utils.external_resources import get_external_resource_specs
+from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.oc import OC_Map
 from reconcile.utils.oc import StatusCodeError
 from reconcile.utils.openshift_resource import OpenshiftResource
-from reconcile.utils.smtp_client import SmtpClient
+from reconcile.utils.smtp_client import SmtpClient, get_smtp_credentials
 from reconcile.utils.state import State
 from reconcile.status import ExitCodes
 from reconcile.utils.terrascript_aws_client import TerrascriptClient as Terrascript
@@ -162,7 +163,7 @@ def get_tf_resource_info(
 
 
 def collect_queries(
-    settings: dict[str, Any], query_name: Optional[str] = None
+    settings: dict[str, Any], smtp_client: SmtpClient, query_name: Optional[str] = None
 ) -> list[dict[str, Any]]:
     """
     Consults the app-interface and constructs the list of queries
@@ -272,7 +273,6 @@ def collect_queries(
         }
 
         if output == "encrypted":
-            smtp_client = SmtpClient(settings=settings)
             item["recipient"] = smtp_client.get_recipient(
                 sql_query["requestor"]["org_username"]
             )
@@ -541,6 +541,19 @@ def run(dry_run: bool, enable_deletion: bool = False) -> None:
     state = State(
         integration=QONTRACT_INTEGRATION, accounts=accounts, settings=settings
     )
+    smtp_settings = queries.get_smtp_client_settings()
+    smtp_credentials = get_smtp_credentials(
+        secret_reader=SecretReader(settings=queries.get_secret_reader_settings()),
+        secret=smtp_settings.credentials,
+    )
+    smtp_client = SmtpClient(
+        host=smtp_credentials.server,
+        port=smtp_credentials.port,
+        username=smtp_credentials.username,
+        password=smtp_credentials.password,
+        mail_address=smtp_settings.mail_address,
+        timeout=smtp_settings.timeout or 30,
+    )
     image_repository = "quay.io/app-sre"
 
     sql_query_settings = settings.get("sqlQuery")
@@ -550,7 +563,7 @@ def run(dry_run: bool, enable_deletion: bool = False) -> None:
         pull_secret = sql_query_settings["pullSecret"]
     use_pull_secret = True if pull_secret else False
 
-    queries_list = collect_queries(settings=settings)
+    queries_list = collect_queries(settings=settings, smtp_client=smtp_client)
     for query in queries_list:
         openshift_resources: list[OpenshiftResource] = []
         query_name = query["name"]
