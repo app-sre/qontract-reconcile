@@ -7,7 +7,11 @@ from reconcile.utils import expiration
 from reconcile.utils import gql
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.secret_reader import SecretReader
-from reconcile.utils.smtp_client import SmtpClient, get_smtp_credentials
+from reconcile.utils.smtp_client import (
+    DEFAULT_SMTP_TIMEOUT,
+    SmtpClient,
+    get_smtp_server_connection,
+)
 from reconcile import queries
 
 from reconcile.utils.semver_helper import make_semver
@@ -184,17 +188,15 @@ def run(
     if send_mails:
         new_users = tf.get_new_users()
         smtp_settings = queries.get_smtp_client_settings()
-        smtp_credentials = get_smtp_credentials(
-            secret_reader=SecretReader(settings=queries.get_secret_reader_settings()),
-            secret=smtp_settings.credentials,
-        )
         smtp_client = SmtpClient(
-            host=smtp_credentials.server,
-            port=smtp_credentials.port,
-            username=smtp_credentials.username,
-            password=smtp_credentials.password,
+            server=get_smtp_server_connection(
+                secret_reader=SecretReader(
+                    settings=queries.get_secret_reader_settings()
+                ),
+                secret=smtp_settings.credentials,
+            ),
             mail_address=smtp_settings.mail_address,
-            timeout=smtp_settings.timeout or 30,
+            timeout=smtp_settings.timeout or DEFAULT_SMTP_TIMEOUT,
         )
         send_email_invites(new_users, smtp_client)
 

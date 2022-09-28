@@ -1,6 +1,6 @@
 import pytest
 
-from reconcile.utils.smtp_client import SmtpClient
+from reconcile.utils.smtp_client import SmtpClient, SmtpServerConnectionInfo
 
 
 @pytest.fixture
@@ -17,10 +17,12 @@ def smtp_client(patch_env, smtpd):
     # do not mess around with SSL and certificates
     smtpd.config.use_ssl = False
     return SmtpClient(
-        host=smtpd.hostname,
-        port=smtpd.port,
-        username=smtpd.config.login_username,
-        password=smtpd.config.login_password,
+        server=SmtpServerConnectionInfo(
+            server=smtpd.hostname,
+            port=smtpd.port,
+            username=smtpd.config.login_username,
+            password=smtpd.config.login_password,
+        ),
         mail_address="mailAddress.com",
         timeout=30,
     )

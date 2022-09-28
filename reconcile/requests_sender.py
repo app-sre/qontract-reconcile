@@ -3,7 +3,11 @@ import logging
 from subprocess import CalledProcessError
 
 from reconcile.utils.secret_reader import SecretReader
-from reconcile.utils.smtp_client import SmtpClient, get_smtp_credentials
+from reconcile.utils.smtp_client import (
+    DEFAULT_SMTP_TIMEOUT,
+    SmtpClient,
+    get_smtp_server_connection,
+)
 from reconcile import queries
 
 from reconcile.utils.state import State
@@ -50,16 +54,13 @@ def run(dry_run):
     settings = queries.get_app_interface_settings()
     accounts = queries.get_state_aws_accounts()
     smtp_settings = queries.get_smtp_client_settings()
-    smtp_credentials = get_smtp_credentials(
-        secret_reader=SecretReader(settings=settings), secret=smtp_settings.credentials
-    )
     smtp_client = SmtpClient(
-        host=smtp_credentials.server,
-        port=smtp_credentials.port,
-        username=smtp_credentials.username,
-        password=smtp_credentials.password,
+        server=get_smtp_server_connection(
+            secret_reader=SecretReader(settings=settings),
+            secret=smtp_settings.credentials,
+        ),
         mail_address=smtp_settings.mail_address,
-        timeout=smtp_settings.timeout or 30,
+        timeout=smtp_settings.timeout or DEFAULT_SMTP_TIMEOUT,
     )
     state = State(
         integration=QONTRACT_INTEGRATION, accounts=accounts, settings=settings

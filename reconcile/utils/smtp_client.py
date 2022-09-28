@@ -4,24 +4,26 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import formataddr
 from typing import Iterable, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from sretoolbox.utils import retry
 
 from reconcile.utils.secret_reader import SecretReader, SupportsSecret
 
+DEFAULT_SMTP_TIMEOUT = 30
 
-class SmtpCredentials(BaseModel):
-    server: str
+
+class SmtpServerConnectionInfo(BaseModel):
+    host: str = Field(..., alias="server")
     port: int
     username: str
     password: str
     # require_tls: bool - currently not in use
 
 
-def get_smtp_credentials(
+def get_smtp_server_connection(
     secret_reader: SecretReader, secret: SupportsSecret
-) -> SmtpCredentials:
+) -> SmtpServerConnectionInfo:
     """Retrieve SMTP credentials from config or vault."""
     # This will change later when SecretReader fully supports 'SupportsSecret'
     data = secret_reader.read_all(
@@ -32,23 +34,20 @@ def get_smtp_credentials(
             "version": secret.version,
         }
     )
-    return SmtpCredentials(**data)
+    return SmtpServerConnectionInfo(**data)
 
 
 class SmtpClient:
     def __init__(
         self,
-        host: str,
-        port: int,
-        username: str,
-        password: str,
+        server: SmtpServerConnectionInfo,
         mail_address: str,
-        timeout: int = 30,
+        timeout: int = DEFAULT_SMTP_TIMEOUT,
     ) -> None:
-        self.host = host
-        self.port = port
-        self.user = username
-        self.passwd = password
+        self.host = server.host
+        self.port = server.port
+        self.user = server.username
+        self.passwd = server.password
         self.mail_address = mail_address
         self.timeout = timeout
         self._client: Optional[smtplib.SMTP] = None

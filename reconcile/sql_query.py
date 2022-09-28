@@ -17,7 +17,11 @@ from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.oc import OC_Map
 from reconcile.utils.oc import StatusCodeError
 from reconcile.utils.openshift_resource import OpenshiftResource
-from reconcile.utils.smtp_client import SmtpClient, get_smtp_credentials
+from reconcile.utils.smtp_client import (
+    DEFAULT_SMTP_TIMEOUT,
+    SmtpClient,
+    get_smtp_server_connection,
+)
 from reconcile.utils.state import State
 from reconcile.status import ExitCodes
 from reconcile.utils.terrascript_aws_client import TerrascriptClient as Terrascript
@@ -542,17 +546,13 @@ def run(dry_run: bool, enable_deletion: bool = False) -> None:
         integration=QONTRACT_INTEGRATION, accounts=accounts, settings=settings
     )
     smtp_settings = queries.get_smtp_client_settings()
-    smtp_credentials = get_smtp_credentials(
-        secret_reader=SecretReader(settings=queries.get_secret_reader_settings()),
-        secret=smtp_settings.credentials,
-    )
     smtp_client = SmtpClient(
-        host=smtp_credentials.server,
-        port=smtp_credentials.port,
-        username=smtp_credentials.username,
-        password=smtp_credentials.password,
+        server=get_smtp_server_connection(
+            secret_reader=SecretReader(settings=queries.get_secret_reader_settings()),
+            secret=smtp_settings.credentials,
+        ),
         mail_address=smtp_settings.mail_address,
-        timeout=smtp_settings.timeout or 30,
+        timeout=smtp_settings.timeout or DEFAULT_SMTP_TIMEOUT,
     )
     image_repository = "quay.io/app-sre"
 
