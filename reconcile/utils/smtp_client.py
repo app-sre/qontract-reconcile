@@ -24,7 +24,12 @@ class SmtpServerConnectionInfo(BaseModel):
 def get_smtp_server_connection(
     secret_reader: SecretReader, secret: SupportsSecret
 ) -> SmtpServerConnectionInfo:
-    """Retrieve SMTP credentials from config or vault."""
+    """Retrieve SMTP credentials from config or vault.
+
+    Args:
+    - secret_reader: a SecretReader instance
+    - secret: a 'secret' class instance which implements the SupportsSecret protocol. E.g. VaultSecret (reconcile.gql_definitions.common.smtp_client_settings.SmtpSettingsV1.credentials)
+    """
     # This will change later when SecretReader fully supports 'SupportsSecret'
     data = secret_reader.read_all(
         {

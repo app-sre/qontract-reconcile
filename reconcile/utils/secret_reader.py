@@ -16,6 +16,11 @@ class SecretNotFound(Exception):
 
 
 class SupportsSecret(Protocol):
+    """SupportsSecret defines all attributes needed to fetch a secret from Vault or config.
+
+    This is the protocol/interface for app-interface's VaultSecretV1.
+    """
+
     path: str
     field: str
     version: Optional[int]
