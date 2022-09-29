@@ -76,8 +76,8 @@ class TestSaasFileValid(TestCase):
                                     "org": {
                                         "name": "org1",
                                         "instance": {"name": "q1"},
-                                        "name": "image",
-                                    }
+                                    },
+                                    "name": "image",
                                 },
                                 "parameters": {},
                             },
