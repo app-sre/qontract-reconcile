@@ -162,6 +162,20 @@ class TestSaasFileValid(TestCase):
 
         self.assertFalse(saasherder.valid)
 
+    def test_check_saas_file_upstream_used_with_image(self):
+        self.saas_files[0]["resourceTemplates"][0]["targets"][0]["image"] = "here"
+        saasherder = SaasHerder(
+            self.saas_files,
+            thread_pool_size=1,
+            gitlab=None,
+            integration="",
+            integration_version="",
+            settings={},
+            validate=True,
+        )
+
+        self.assertFalse(saasherder.valid)
+
     def test_check_saas_file_image_used_with_commit_sha(self):
         self.saas_files[0]["resourceTemplates"][0]["targets"][2][
             "ref"

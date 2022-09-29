@@ -281,6 +281,11 @@ class SaasHerder:
                         resource_template_name,
                         target,
                     )
+                    self._validate_upstream_not_used_with_image(
+                        saas_file_name,
+                        resource_template_name,
+                        target,
+                    )
                     self._validate_image_not_used_with_commit_sha(
                         saas_file_name,
                         resource_template_name,
@@ -489,6 +494,21 @@ class SaasHerder:
                     f"upstream used with commit sha: {ref}"
                 )
                 self.valid = False
+
+    def _validate_upstream_not_used_with_image(
+        self,
+        saas_file_name: str,
+        resource_template_name: str,
+        target: dict,
+    ):
+        upstream = target.get("upstream")
+        image = target.get("image")
+        if image and upstream:
+            logging.error(
+                f"[{saas_file_name}/{resource_template_name}] "
+                f"image used with upstream"
+            )
+            self.valid = False
 
     def _validate_image_not_used_with_commit_sha(
         self,
