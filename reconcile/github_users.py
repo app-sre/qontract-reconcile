@@ -8,7 +8,7 @@ from requests.exceptions import ReadTimeout
 from sretoolbox.utils import retry
 from sretoolbox.utils import threaded
 
-from reconcile import queries
+from reconcile import queries, typed_queries
 from reconcile import mr_client_gateway
 from reconcile.github_org import get_default_config
 from reconcile.ldap_users import init_users as init_users_and_paths
@@ -79,7 +79,7 @@ def run(
     enable_deletion=False,
     send_mails=False,
 ):
-    smtp_settings = queries.get_smtp_client_settings()
+    smtp_settings = typed_queries.smtp.settings()
     smtp_client = SmtpClient(
         server=get_smtp_server_connection(
             secret_reader=SecretReader(settings=queries.get_secret_reader_settings()),

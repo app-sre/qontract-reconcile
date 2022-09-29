@@ -12,7 +12,7 @@ from reconcile.utils.smtp_client import (
     SmtpClient,
     get_smtp_server_connection,
 )
-from reconcile import queries
+from reconcile import queries, typed_queries
 
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.terrascript_aws_client import TerrascriptClient as Terrascript
@@ -187,7 +187,7 @@ def run(
 
     if send_mails:
         new_users = tf.get_new_users()
-        smtp_settings = queries.get_smtp_client_settings()
+        smtp_settings = typed_queries.smtp.settings()
         smtp_client = SmtpClient(
             server=get_smtp_server_connection(
                 secret_reader=SecretReader(

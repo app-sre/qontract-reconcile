@@ -8,7 +8,7 @@ from typing import Any, Iterable, Mapping, Optional, Union
 import jinja2
 from ruamel import yaml
 
-from reconcile import openshift_base
+from reconcile import openshift_base, typed_queries
 from reconcile import openshift_resources_base as orb
 from reconcile import queries
 from reconcile.utils.external_resources import get_external_resource_specs
@@ -545,7 +545,7 @@ def run(dry_run: bool, enable_deletion: bool = False) -> None:
     state = State(
         integration=QONTRACT_INTEGRATION, accounts=accounts, settings=settings
     )
-    smtp_settings = queries.get_smtp_client_settings()
+    smtp_settings = typed_queries.smtp.settings()
     smtp_client = SmtpClient(
         server=get_smtp_server_connection(
             secret_reader=SecretReader(settings=queries.get_secret_reader_settings()),

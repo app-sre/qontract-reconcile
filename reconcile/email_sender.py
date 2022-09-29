@@ -7,7 +7,7 @@ from reconcile.utils.smtp_client import (
     SmtpClient,
     get_smtp_server_connection,
 )
-from reconcile import queries
+from reconcile import queries, typed_queries
 from reconcile.utils.state import State
 
 QONTRACT_INTEGRATION = "email-sender"
@@ -86,7 +86,7 @@ def run(dry_run):
         integration=QONTRACT_INTEGRATION, accounts=accounts, settings=settings
     )
     emails = queries.get_app_interface_emails()
-    smtp_settings = queries.get_smtp_client_settings()
+    smtp_settings = typed_queries.smtp.settings()
     smtp_client = SmtpClient(
         server=get_smtp_server_connection(
             secret_reader=SecretReader(settings=settings),
