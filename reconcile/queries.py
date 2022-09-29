@@ -2054,6 +2054,15 @@ SAAS_FILES_QUERY_V2 = """
           }
           name
         }
+        image {
+          org {
+            name
+            instance {
+              url
+            }
+          }
+          name
+        }
         disable
         delete
       }

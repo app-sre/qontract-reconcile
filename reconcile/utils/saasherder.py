@@ -281,6 +281,11 @@ class SaasHerder:
                         resource_template_name,
                         target,
                     )
+                    self._validate_image_not_used_with_commit_sha(
+                        saas_file_name,
+                        resource_template_name,
+                        target,
+                    )
                     self._validate_allowed_secret_parameter_paths(
                         saas_file_name,
                         target.get("secretParameters"),
@@ -482,6 +487,23 @@ class SaasHerder:
                 logging.error(
                     f"[{saas_file_name}/{resource_template_name}] "
                     f"upstream used with commit sha: {ref}"
+                )
+                self.valid = False
+
+    def _validate_image_not_used_with_commit_sha(
+        self,
+        saas_file_name: str,
+        resource_template_name: str,
+        target: dict,
+    ):
+        image = target.get("image")
+        if image:
+            pattern = r"^[0-9a-f]{40}$"
+            ref = target["ref"]
+            if re.search(pattern, ref):
+                logging.error(
+                    f"[{saas_file_name}/{resource_template_name}] "
+                    f"image used with commit sha: {ref}"
                 )
                 self.valid = False
 
@@ -1288,8 +1310,8 @@ class SaasHerder:
             url = rt["url"]
             for target in rt["targets"]:
                 try:
-                    # don't trigger if there is a linked upstream job
-                    if target.get("upstream"):
+                    # don't trigger if there is a linked upstream job or container image
+                    if target.get("upstream") or target.get("image"):
                         continue
                     ref = target["ref"]
                     get_commit_sha_options = {"url": url, "ref": ref, "github": github}
