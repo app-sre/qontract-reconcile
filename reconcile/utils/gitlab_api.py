@@ -175,15 +175,15 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
             project = self.get_project(repo_url)
         if project is None:
             return None
-        members = project.members.all(all=True)
+        members = self.get_items(project.members.all)
         return [m.username for m in members if m.access_level >= 40]
 
     def get_app_sre_group_users(self):
         app_sre_group = self.gl.groups.get("app-sre")
-        return list(app_sre_group.members.list(all=True))
+        return self.get_items(app_sre_group.members.list)
 
     def check_group_exists(self, group_name):
-        groups = self.gl.groups.list(all=True)
+        groups = self.get_items(self.gl.groups.list)
         group_names = list(map(lambda x: x.name, groups))
         if group_name not in group_names:
             return False
@@ -199,7 +199,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
                 "user": m.username,
                 "access_level": self.get_access_level_string(m.access_level),
             }
-            for m in group.members.list(all=True)
+            for m in self.get_items(group.members.list)
         ]
 
     def add_project_member(self, repo_url, user, access="maintainer"):
@@ -331,7 +331,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
                     "id": MR_DESCRIPTION_COMMENT_ID,
                 }
             )
-        for note in merge_request.notes.list(all=True):
+        for note in self.get_items(merge_request.notes.list):
             if note.system:
                 continue
             comments.append(
@@ -354,7 +354,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         merge_request.notes.create({"body": comment})
 
     def get_project_labels(self):
-        return [ln.name for ln in self.project.labels.list(all=True)]
+        return [ln.name for ln in self.get_items(self.project.labels.list)]
 
     def get_merge_request_labels(self, mr_id):
         merge_request = self.project.mergerequests.get(mr_id)
@@ -467,9 +467,9 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
 
     def get_repository_tree(self, ref="master"):
         """
-        Wrapper around Gitlab.repository_tree() with pagination disabled.
+        Wrapper around Gitlab.repository_tree() with pagination enabled.
         """
-        return self.project.repository_tree(ref=ref, recursive=True, all=True)
+        return self.get_items(self.project.repository_tree, ref=ref, recursive=True)
 
     def get_file(self, path, ref="master"):
         """
@@ -561,7 +561,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
 
     def last_assignment(self, mr: ProjectMergeRequest) -> Optional[Tuple[str, str]]:
         body_format = "assigned to @"
-        notes = mr.notes.list(all=True)
+        notes = self.get_items(mr.notes.list)
 
         for note in notes:
             if not note.system:
