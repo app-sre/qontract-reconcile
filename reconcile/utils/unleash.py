@@ -49,8 +49,7 @@ def _get_unleash_api_client(api_url: str, auth_head: str) -> UnleashClient:
     global client
     with client_lock:
         if client is None:
-            logging.getLogger("apscheduler.executors.default").setLevel(logging.ERROR)
-            logging.getLogger("apscheduler.scheduler").setLevel(logging.ERROR)
+            logging.getLogger("apscheduler").setLevel(logging.ERROR)
             logging.getLogger("UnleashClient").setLevel(logging.ERROR)
             headers = {"Authorization": f"Bearer {auth_head}"}
             client = UnleashClient(
