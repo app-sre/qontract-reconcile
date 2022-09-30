@@ -589,6 +589,12 @@ class ResourceInventory:
         except KeyError:
             return None
 
+    def get_current(self, cluster, namespace, resource_type, name):
+        try:
+            return self._clusters[cluster][namespace][resource_type]["current"][name]
+        except KeyError:
+            return None
+
     def add_current(self, cluster, namespace, resource_type, name, value):
         with self._lock:
             current = self._clusters[cluster][namespace][resource_type]["current"]

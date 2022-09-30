@@ -254,6 +254,17 @@ def collect_namespaces(
     return list(unique_namespaces.values())
 
 
+def collect_managed_integrations(
+    integrations: Iterable[Mapping[str, Any]], environment_name: str
+) -> list[Mapping[str, Any]]:
+    matched_integrations = []
+    for managed_integration in [i for i in integrations if i.get("managed")]:
+        for instance in managed_integration["managed"]:
+            if instance["namespace"]["environment"]["name"] == environment_name:
+                matched_integrations.append(instance)
+    return matched_integrations
+
+
 def initialize_namespace_override_mapping(
     namespaces: list[dict[str, Any]], integrations: list[Mapping[str, Any]]
 ) -> Mapping[str, Mapping[str, list[IntegrationShardSpecOverride]]]:
@@ -263,15 +274,13 @@ def initialize_namespace_override_mapping(
         }
         for namespace in namespaces
     }
-    managed_integrations = [i for i in integrations if i.get("managed")]
-    for managed_integration in managed_integrations:
-        for instance in managed_integration["managed"]:
-            overrides = instance.get("shardSpecOverride", [])
-            if overrides:
-                for override in overrides:
-                    namespace_override_mapping[instance["namespace"]["name"]][
-                        instance["spec"]["name"]
-                    ].append((IntegrationShardSpecOverride(**override)))
+    for instance in integrations:
+        overrides = instance.get("shardSpecOverride", [])
+        if overrides:
+            for override in overrides:
+                namespace_override_mapping[instance["namespace"]["name"]][
+                    instance["spec"]["name"]
+                ].append((IntegrationShardSpecOverride(**override)))
 
     return namespace_override_mapping
 
@@ -287,10 +296,13 @@ def run(
     image_tag_from_ref=None,
     defer=None,
 ):
-    integrations = queries.get_integrations(managed=True)
-    namespaces = collect_namespaces(integrations, environment_name)
+    all_integrations = queries.get_integrations(managed=True)
+    managed_integrations = collect_managed_integrations(
+        all_integrations, environment_name
+    )
+    namespaces = collect_namespaces(all_integrations, environment_name)
     namespace_override_mapping = initialize_namespace_override_mapping(
-        namespaces, integrations
+        namespaces, managed_integrations
     )
 
     if not namespaces:
