@@ -4,7 +4,7 @@ import sys
 
 from unittest import TestCase
 from unittest.mock import patch
-from reconcile import queries
+from reconcile import queries, typed_queries
 import reconcile.requests_sender as integ
 
 
@@ -33,10 +33,10 @@ class TestRunInteg(TestCase):
             queries, "get_app_interface_settings", autospec=True
         )
         self.get_smtp_credentials_patcher = patch.object(
-            integ, "get_smtp_credentials", autospec=True
+            integ, "get_smtp_server_connection", autospec=True
         )
-        self.get_smtp_client_settings_patcher = patch.object(
-            queries, "get_smtp_client_settings", autospec=True
+        self.smtp_settings_patcher = patch.object(
+            typed_queries.smtp, "settings", autospec=True
         )
         self.get_aws_accounts_patcher = patch.object(
             queries, "get_aws_accounts", autospec=True
@@ -51,7 +51,7 @@ class TestRunInteg(TestCase):
         self.smtpclient = self.smtpclient_patcher.start()
         self.get_app_interface_settings = self.get_settings_patcher.start()
         self.get_smtp_credentials = self.get_smtp_credentials_patcher.start()
-        self.get_smtp_client_settings = self.get_smtp_client_settings_patcher.start()
+        self.smtp_settings = self.smtp_settings_patcher.start()
         self.get_aws_accounts = self.get_aws_accounts_patcher.start()
         self.get_credentials_requests = self.get_credentials_requests_patcher.start()
         self.get_credentials_requests.return_value = self.requests
@@ -77,7 +77,7 @@ class TestRunInteg(TestCase):
             self.smtpclient_patcher,
             self.get_settings_patcher,
             self.get_smtp_credentials_patcher,
-            self.get_smtp_client_settings_patcher,
+            self.smtp_settings_patcher,
             self.get_credentials_requests_patcher,
             self.get_aws_accounts_patcher,
             self.state_patcher,
