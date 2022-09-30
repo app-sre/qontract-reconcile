@@ -685,8 +685,8 @@ class SaasHerder:
             if not self.gitlab:
                 raise Exception("gitlab is not initialized")
             project = self.gitlab.get_project(url)
-            for f in project.repository_tree(
-                path=path.lstrip("/"), ref=commit_sha, all=True
+            for f in self.gitlab.get_items(
+                project.repository_tree, path=path.lstrip("/"), ref=commit_sha
             ):
                 file_contents = project.files.get(file_path=f["path"], ref=commit_sha)
                 resource = yaml.safe_load(file_contents.decode())

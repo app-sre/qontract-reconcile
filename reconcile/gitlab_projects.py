@@ -1,5 +1,6 @@
 import sys
 import logging
+from typing import Any
 
 from reconcile import queries
 
@@ -40,3 +41,10 @@ def run(dry_run):
                     gl.initiate_saas_bundle_repo(project_url)
 
     sys.exit(error)
+
+
+def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
+    instance = queries.get_gitlab_instance()
+    return {
+        "instance": instance,
+    }
