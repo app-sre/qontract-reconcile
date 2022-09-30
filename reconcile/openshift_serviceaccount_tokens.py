@@ -87,7 +87,9 @@ def fetch_desired_state(namespaces: list[dict], ri: ResourceInventory, oc_map: O
                 )
                 if cur:
                     for token in sa_token_list:
-                        if token["data"]["token"] == cur.body.get("data", {}).get("token"):
+                        if token["data"]["token"] == cur.body.get("data", {}).get(
+                            "token"
+                        ):
                             sa_token = token["data"]["token"]
             except KeyError:
                 logging.log(
