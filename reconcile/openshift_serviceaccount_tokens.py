@@ -4,10 +4,14 @@ import sys
 
 from reconcile import queries
 import reconcile.openshift_base as ob
+from reconcile.utils.oc import OC_Map
 
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.defer import defer
-from reconcile.utils.openshift_resource import OpenshiftResource as OR
+from reconcile.utils.openshift_resource import (
+    OpenshiftResource as OR,
+    ResourceInventory,
+)
 from reconcile.utils.vault import VaultClient
 
 
@@ -30,19 +34,25 @@ def construct_sa_token_oc_resource(name, sa_token):
     )
 
 
-def get_token_for_service_account(service_account, tokens):
+def get_tokens_for_service_account(
+    service_account: str, tokens: list[dict]
+) -> list[dict]:
     result = []
     for token in tokens:
+        # if we start creating a dedicated token secret for this integration,
+        # it could have a label or annotation we could rely on.
         if (
-            token["metadata"]["annotations"]["kubernetes.io/service-account.name"]
+            token["metadata"]
+            .get("annotations", {})
+            .get("kubernetes.io/service-account.name")
             == service_account
-            and service_account + "-token" in token["metadata"]["name"]
+            and token["type"] == "kubernetes.io/service-account-token"
         ):
             result.append(token)
     return result
 
 
-def fetch_desired_state(namespaces, ri, oc_map):
+def fetch_desired_state(namespaces: list[dict], ri: ResourceInventory, oc_map: OC_Map):
     for namespace_info in namespaces:
         if not namespace_info.get("openshiftServiceAccountTokens"):
             continue
@@ -65,10 +75,20 @@ def fetch_desired_state(namespaces, ri, oc_map):
                 continue
 
             all_tokens = oc.get_items(kind="Secret", namespace=sa_namespace_name)
+            oc_resource_name = (
+                sat.get("name") or f"{sa_cluster_name}-{sa_namespace_name}-{sa_name}"
+            )
             try:
-                sa_token_list = get_token_for_service_account(sa_name, all_tokens)
-                sa_token_list.sort()
+                sa_token_list = get_tokens_for_service_account(sa_name, all_tokens)
+                sa_token_list.sort(key=lambda t: t["metadata"]["name"])
                 sa_token = sa_token_list[0]["data"]["token"]
+                cur = ri.get_current(
+                    cluster_name, namespace_name, "Secret", oc_resource_name
+                )
+                if cur:
+                    for token in sa_token_list:
+                        if token["data"]["token"] == cur.body.get("data", {}).get("token"):
+                            sa_token = token["data"]["token"]
             except KeyError:
                 logging.log(
                     level=logging.ERROR,
@@ -82,9 +102,6 @@ def fetch_desired_state(namespaces, ri, oc_map):
                 )
                 raise
 
-            oc_resource_name = (
-                sat.get("name") or f"{sa_cluster_name}-{sa_namespace_name}-{sa_name}"
-            )
             oc_resource = construct_sa_token_oc_resource(oc_resource_name, sa_token)
             ri.add_desired(
                 cluster_name, namespace_name, "Secret", oc_resource_name, oc_resource
