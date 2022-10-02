@@ -81,6 +81,15 @@ class TestSaasFileValid(TestCase):
                                 },
                                 "parameters": {},
                             },
+                            {
+                                "namespace": {
+                                    "name": "ns",
+                                    "environment": {"name": "env4", "parameters": "{}"},
+                                    "cluster": {"name": "cluster"},
+                                },
+                                "ref": "2637b6c41bda7731b1bcaaf18b4a50d7c5e63e30",
+                                "parameters": {},
+                            },
                         ],
                     }
                 ],
@@ -121,6 +130,39 @@ class TestSaasFileValid(TestCase):
         self.saas_files[0][
             "name"
         ] = "long-name-which-is-too-long-to-produce-unique-combo"
+        saasherder = SaasHerder(
+            self.saas_files,
+            thread_pool_size=1,
+            gitlab=None,
+            integration="",
+            integration_version="",
+            settings={},
+            validate=True,
+        )
+
+        self.assertFalse(saasherder.valid)
+
+    def test_saas_file_auto_promotion_used_with_commit_sha(self):
+        self.saas_files[0]["resourceTemplates"][0]["targets"][3]["promotion"] = {
+            "auto": True
+        }
+        saasherder = SaasHerder(
+            self.saas_files,
+            thread_pool_size=1,
+            gitlab=None,
+            integration="",
+            integration_version="",
+            settings={},
+            validate=True,
+        )
+
+        self.assertTrue(saasherder.valid)
+
+    def test_saas_file_auto_promotion_not_used_with_commit_sha(self):
+        self.saas_files[0]["resourceTemplates"][0]["targets"][2]["ref"] = "main"
+        self.saas_files[0]["resourceTemplates"][0]["targets"][2]["promotion"] = {
+            "auto": True
+        }
         saasherder = SaasHerder(
             self.saas_files,
             thread_pool_size=1,
