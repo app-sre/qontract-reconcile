@@ -1519,6 +1519,10 @@ class SaasHerder:
     def get_container_images_diff_saas_file(
         self, saas_file: dict[str, Any], dry_run: bool
     ) -> list[TriggerSpecContainerImage]:
+        """
+        Get a list of trigger specs based on the diff between the
+        desired state (git commit) and the current state for a single saas file.
+        """
         saas_file_name = saas_file["name"]
         timeout = saas_file.get("timeout") or None
         pipelines_provider = self._get_pipelines_provider(saas_file)
