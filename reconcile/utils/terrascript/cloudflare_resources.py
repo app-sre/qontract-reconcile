@@ -109,7 +109,7 @@ class CloudflareZoneTerrascriptResource(TerrascriptResource):
         zone_argo = values.pop("argo", None)
         zone_records = values.pop("records", [])
         zone_workers = values.pop("workers", [])
-        zone_certs = values.pop("certificates", {})
+        zone_certs = values.pop("certificates", [])
 
         zone_values = {
             "account_id": "${var.account_id}",
