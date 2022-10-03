@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Union, Iterable, Any, MutableMapping
 
 from terrascript import Resource, Output
 from terrascript.resource import (
@@ -27,8 +27,6 @@ class cloudflare_certificate_pack(Resource):
 
     This resource isn't supported directly by Terrascript.
     """
-
-    pass
 
 
 def create_cloudflare_terrascript_resource(
@@ -85,9 +83,12 @@ class CloudflareWorkerScriptTerrascriptResource(TerrascriptResource):
 class CloudflareZoneTerrascriptResource(TerrascriptResource):
     """Generate a cloudflare_zone and related resources."""
 
-    def _create_cloudflare_certificate_pack(self, zone: Resource, zone_certs: dict[str, str]) -> list[Union[Resource, Output]]:
+    def _create_cloudflare_certificate_pack(
+        self, zone: Resource, zone_certs: Iterable[MutableMapping[str, Any]]
+    ) -> list[Union[Resource, Output]]:
         resources = []
-        for identifier, cert_values in zone_certs.items():
+        for cert_values in zone_certs:
+            identifier = safe_resource_id(cert_values.pop("identifier"))
             zone_cert_values = {
                 "zone_id": f"${{{zone.id}}}",
                 "depends_on": self._get_dependencies([zone]),
