@@ -21,6 +21,16 @@ class UnsupportedCloudflareResourceError(Exception):
     pass
 
 
+class cloudflare_certificate_pack(Resource):
+    """
+    https://registry.terraform.io/providers/cloudflare/cloudflare/latest/docs/resources/certificate_pack
+
+    This resource isn't supported directly by Terrascript.
+    """
+
+    pass
+
+
 def create_cloudflare_terrascript_resource(
     spec: ExternalResourceSpec,
 ) -> list[Union[Resource, Output]]:
@@ -75,6 +85,20 @@ class CloudflareWorkerScriptTerrascriptResource(TerrascriptResource):
 class CloudflareZoneTerrascriptResource(TerrascriptResource):
     """Generate a cloudflare_zone and related resources."""
 
+    def _create_cloudflare_certificate_pack(self, zone: Resource, zone_certs: dict[str, str]) -> list[Union[Resource, Output]]:
+        resources = []
+        for identifier, cert_values in zone_certs.items():
+            zone_cert_values = {
+                "zone_id": f"${{{zone.id}}}",
+                "depends_on": self._get_dependencies([zone]),
+                **cert_values,
+            }
+            resources.append(
+                cloudflare_certificate_pack(identifier, **zone_cert_values)
+            )
+
+        return resources
+
     def populate(self) -> list[Union[Resource, Output]]:
         resources = []
 
@@ -84,6 +108,7 @@ class CloudflareZoneTerrascriptResource(TerrascriptResource):
         zone_argo = values.pop("argo", None)
         zone_records = values.pop("records", [])
         zone_workers = values.pop("workers", [])
+        zone_certs = values.pop("certificates", {})
 
         zone_values = {
             "account_id": "${var.account_id}",
@@ -136,5 +161,7 @@ class CloudflareZoneTerrascriptResource(TerrascriptResource):
                 **worker,
             }
             resources.append(cloudflare_worker_route(identifier, **worker_route_values))
+
+        resources.extend(self._create_cloudflare_certificate_pack(zone, zone_certs))
 
         return resources

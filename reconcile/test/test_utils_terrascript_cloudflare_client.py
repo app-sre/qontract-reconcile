@@ -53,6 +53,17 @@ def test_create_cloudflare_resources_terraform_json(account_config, backend_conf
             "zone": "domain.com",
             "plan": "enterprise",
             "type": "partial",
+            "certificates": {
+                "main": {
+                    "type": "advanced",
+                    "hosts": ["domain.com"],
+                    "validation_method": "txt",
+                    "validity_days": "90",
+                    "certificate_authority": "lets_encrypt",
+                    "cloudflare_branding": "false",
+                    "wait_for_active_status": "false",
+                }
+            },
         },
         {},
     )
@@ -97,6 +108,19 @@ def test_create_cloudflare_resources_terraform_json(account_config, backend_conf
                 "domain-com": {
                     "zone_id": "${cloudflare_zone.domain-com.id}",
                     "settings": {},
+                    "depends_on": ["cloudflare_zone.domain-com"],
+                }
+            },
+            "cloudflare_certificate_pack": {
+                "main": {
+                    "zone_id": "${cloudflare_zone.domain-com.id}",
+                    "type": "advanced",
+                    "hosts": ["domain.com"],
+                    "validation_method": "txt",
+                    "validity_days": "90",
+                    "certificate_authority": "lets_encrypt",
+                    "cloudflare_branding": "false",
+                    "wait_for_active_status": "false",
                     "depends_on": ["cloudflare_zone.domain-com"],
                 }
             },
