@@ -55,6 +55,7 @@ class TriggerTypes:
     CONFIGS = 0
     MOVING_COMMITS = 1
     UPSTREAM_JOBS = 2
+    CONTAINER_IMAGES = 3
 
 
 @dataclass
@@ -130,8 +131,25 @@ class TriggerSpecUpstreamJob(TriggerSpecBase):
         return key
 
 
+@dataclass
+class TriggerSpecContainerImage(TriggerSpecBase):
+    image: str
+    reason: Optional[str] = None
+
+    @property
+    def state_key(self):
+        key = (
+            f"{self.saas_file_name}/{self.resource_template_name}/{self.cluster_name}/"
+            f"{self.namespace_name}/{self.env_name}/{self.image}"
+        )
+        return key
+
+
 TriggerSpecUnion = Union[
-    TriggerSpecConfig, TriggerSpecMovingCommit, TriggerSpecUpstreamJob
+    TriggerSpecConfig,
+    TriggerSpecMovingCommit,
+    TriggerSpecUpstreamJob,
+    TriggerSpecContainerImage,
 ]
 
 UNIQUE_SAAS_FILE_ENV_COMBO_LEN = 50
@@ -276,6 +294,16 @@ class SaasHerder:
                         saas_file_name, environment_name
                     )
                     self._validate_upstream_not_used_with_commit_sha(
+                        saas_file_name,
+                        resource_template_name,
+                        target,
+                    )
+                    self._validate_upstream_not_used_with_image(
+                        saas_file_name,
+                        resource_template_name,
+                        target,
+                    )
+                    self._validate_image_not_used_with_commit_sha(
                         saas_file_name,
                         resource_template_name,
                         target,
@@ -481,6 +509,38 @@ class SaasHerder:
                 logging.error(
                     f"[{saas_file_name}/{resource_template_name}] "
                     f"upstream used with commit sha: {ref}"
+                )
+                self.valid = False
+
+    def _validate_upstream_not_used_with_image(
+        self,
+        saas_file_name: str,
+        resource_template_name: str,
+        target: dict,
+    ):
+        upstream = target.get("upstream")
+        image = target.get("image")
+        if image and upstream:
+            logging.error(
+                f"[{saas_file_name}/{resource_template_name}] "
+                f"image used with upstream"
+            )
+            self.valid = False
+
+    def _validate_image_not_used_with_commit_sha(
+        self,
+        saas_file_name: str,
+        resource_template_name: str,
+        target: dict,
+    ):
+        image = target.get("image")
+        if image:
+            pattern = r"^[0-9a-f]{40}$"
+            ref = target["ref"]
+            if re.search(pattern, ref):
+                logging.error(
+                    f"[{saas_file_name}/{resource_template_name}] "
+                    f"image used with commit sha: {ref}"
                 )
                 self.valid = False
 
@@ -1255,6 +1315,10 @@ class SaasHerder:
             # TODO: replace error with actual error handling when needed
             error = False
             return self.get_configs_diff(), error
+        elif trigger_type == TriggerTypes.CONTAINER_IMAGES:
+            # TODO: replace error with actual error handling when needed
+            error = False
+            return self.get_container_images_diff(dry_run), error
         else:
             raise NotImplementedError(
                 f"saasherder get_diff for trigger type: {trigger_type}"
@@ -1287,8 +1351,8 @@ class SaasHerder:
             url = rt["url"]
             for target in rt["targets"]:
                 try:
-                    # don't trigger if there is a linked upstream job
-                    if target.get("upstream"):
+                    # don't trigger if there is a linked upstream job or container image
+                    if target.get("upstream") or target.get("image"):
                         continue
                     ref = target["ref"]
                     get_commit_sha_options = {"url": url, "ref": ref, "github": github}
@@ -1437,6 +1501,97 @@ class SaasHerder:
                 ):
                     # we finally found something we want to trigger on!
                     trigger_specs.append(trigger_spec)
+
+        return trigger_specs
+
+    def get_container_images_diff(
+        self, dry_run: bool
+    ) -> list[TriggerSpecContainerImage]:
+        results = threaded.run(
+            self.get_container_images_diff_saas_file,
+            self.saas_files,
+            self.thread_pool_size,
+            dry_run=dry_run,
+        )
+        return list(itertools.chain.from_iterable(results))
+
+    def get_container_images_diff_saas_file(
+        self, saas_file: dict[str, Any], dry_run: bool
+    ) -> list[TriggerSpecContainerImage]:
+        """
+        Get a list of trigger specs based on the diff between the
+        desired state (git commit) and the current state for a single saas file.
+        """
+        saas_file_name = saas_file["name"]
+        timeout = saas_file.get("timeout") or None
+        pipelines_provider = self._get_pipelines_provider(saas_file)
+        github = self._initiate_github(saas_file)
+        trigger_specs: list[TriggerSpecContainerImage] = []
+        for rt in saas_file["resourceTemplates"]:
+            rt_name = rt["name"]
+            url = rt["url"]
+            for target in rt["targets"]:
+                try:
+                    image = target.get("image")
+                    if not image:
+                        continue
+                    ref = target["ref"]
+                    hash_length = rt.get("hash_length") or self.settings["hashLength"]
+                    get_commit_sha_options = {
+                        "url": url,
+                        "ref": ref,
+                        "github": github,
+                        "hash_length": hash_length,
+                    }
+                    desired_image_tag = self._get_commit_sha(get_commit_sha_options)
+                    # don't trigger if image doesn't exist
+                    image_registry = f"{image['org']['instance']['url']}/{image['org']['name']}/{image['name']}"
+                    image_uri = f"{image_registry}:{desired_image_tag}"
+                    image_patterns = saas_file["imagePatterns"]
+                    image_auth = self._initiate_image_auth(saas_file)
+                    error_prefix = f"[{saas_file_name}/{rt_name}] {ref}:"
+                    error = self._check_image(
+                        image_uri, image_patterns, image_auth, error_prefix
+                    )
+                    if error:
+                        continue
+                    namespace = target["namespace"]
+                    cluster_name = namespace["cluster"]["name"]
+                    namespace_name = namespace["name"]
+                    env_name = namespace["environment"]["name"]
+                    trigger_spec = TriggerSpecContainerImage(
+                        saas_file_name=saas_file_name,
+                        env_name=env_name,
+                        timeout=timeout,
+                        pipelines_provider=pipelines_provider,
+                        resource_template_name=rt_name,
+                        cluster_name=cluster_name,
+                        namespace_name=namespace_name,
+                        image=image_registry,
+                        state_content=desired_image_tag,
+                    )
+                    if self.include_trigger_trace:
+                        trigger_spec.reason = image_uri
+                    current_image_tag = self.state.get(trigger_spec.state_key, None)
+                    # skip if there is no change in image tag
+                    if current_image_tag == desired_image_tag:
+                        continue
+                    # don't trigger if this is the first time
+                    # this target is being deployed.
+                    # that will be taken care of by
+                    # openshift-saas-deploy-trigger-configs
+                    if current_image_tag is None:
+                        # store the value to take over from now on
+                        if not dry_run:
+                            self.update_state(trigger_spec)
+                        continue
+                    # we finally found something we want to trigger on!
+                    trigger_specs.append(trigger_spec)
+                except (GithubException, GitlabError):
+                    logging.exception(
+                        f"Skipping target {saas_file_name}:{rt_name}"
+                        f" - repo: {url} - ref: {ref}"
+                    )
 
         return trigger_specs
 

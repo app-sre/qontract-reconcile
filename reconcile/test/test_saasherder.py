@@ -65,6 +65,22 @@ class TestSaasFileValid(TestCase):
                                 "upstream": {"instance": {"name": "ci"}, "name": "job"},
                                 "parameters": {},
                             },
+                            {
+                                "namespace": {
+                                    "name": "ns",
+                                    "environment": {"name": "env3", "parameters": "{}"},
+                                    "cluster": {"name": "cluster"},
+                                },
+                                "ref": "master",
+                                "image": {
+                                    "org": {
+                                        "name": "org1",
+                                        "instance": {"name": "q1"},
+                                    },
+                                    "name": "image",
+                                },
+                                "parameters": {},
+                            },
                         ],
                     }
                 ],
@@ -132,6 +148,36 @@ class TestSaasFileValid(TestCase):
 
     def test_check_saas_file_upstream_used_with_commit_sha(self):
         self.saas_files[0]["resourceTemplates"][0]["targets"][0][
+            "ref"
+        ] = "2637b6c41bda7731b1bcaaf18b4a50d7c5e63e30"
+        saasherder = SaasHerder(
+            self.saas_files,
+            thread_pool_size=1,
+            gitlab=None,
+            integration="",
+            integration_version="",
+            settings={},
+            validate=True,
+        )
+
+        self.assertFalse(saasherder.valid)
+
+    def test_check_saas_file_upstream_used_with_image(self):
+        self.saas_files[0]["resourceTemplates"][0]["targets"][0]["image"] = "here"
+        saasherder = SaasHerder(
+            self.saas_files,
+            thread_pool_size=1,
+            gitlab=None,
+            integration="",
+            integration_version="",
+            settings={},
+            validate=True,
+        )
+
+        self.assertFalse(saasherder.valid)
+
+    def test_check_saas_file_image_used_with_commit_sha(self):
+        self.saas_files[0]["resourceTemplates"][0]["targets"][2][
             "ref"
         ] = "2637b6c41bda7731b1bcaaf18b4a50d7c5e63e30"
         saasherder = SaasHerder(
