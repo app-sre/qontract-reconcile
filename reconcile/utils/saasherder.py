@@ -293,6 +293,11 @@ class SaasHerder:
                     self._check_saas_file_env_combo_unique(
                         saas_file_name, environment_name
                     )
+                    self._validate_auto_promotion_used_with_commit_sha(
+                        saas_file_name,
+                        resource_template_name,
+                        target,
+                    )
                     self._validate_upstream_not_used_with_commit_sha(
                         saas_file_name,
                         resource_template_name,
@@ -494,6 +499,31 @@ class SaasHerder:
             self.valid = False
         else:
             self.tkn_unique_pipelineruns[tkn_name] = tkn_long_name
+
+    def _validate_auto_promotion_used_with_commit_sha(
+        self,
+        saas_file_name: str,
+        resource_template_name: str,
+        target: dict,
+    ):
+        target_promotion = target.get("promotion") or {}
+        if not target_promotion:
+            return
+
+        target_auto = target_promotion.get("auto")
+        if not target_auto:
+            return
+
+        pattern = r"^[0-9a-f]{40}$"
+        ref = target["ref"]
+        if re.search(pattern, ref):
+            return
+
+        self.valid = False
+        logging.error(
+            f"[{saas_file_name}/{resource_template_name}] "
+            f"auto promotion should be used with commit sha instead of: {ref}"
+        )
 
     def _validate_upstream_not_used_with_commit_sha(
         self,
