@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import Any, Optional
 from reconcile.change_owners.diff import (
+    SHA256SUM_FIELD_NAME,
     Diff,
     DiffType,
     deepdiff_path_to_jsonpath,
@@ -1021,6 +1022,46 @@ def test_bundle_change_resource_file_dict_value_added():
     assert bundle_change.diff_coverage[0].diff.diff_type == DiffType.ADDED
     assert bundle_change.diff_coverage[0].diff.old is None
     assert bundle_change.diff_coverage[0].diff.new == "new_value"
+
+
+def test_only_checksum_changed():
+    """
+    only the checksum changed
+    """
+    bundle_change = create_bundle_file_change(
+        path="path",
+        schema="schema",
+        file_type=BundleFileType.DATAFILE,
+        old_file_content={"field": "value", SHA256SUM_FIELD_NAME: "old_checksum"},
+        new_file_content={"field": "value", SHA256SUM_FIELD_NAME: "new_checksum"},
+    )
+
+    assert bundle_change
+    assert len(bundle_change.diff_coverage) == 1
+    assert str(bundle_change.diff_coverage[0].diff.path) == SHA256SUM_FIELD_NAME
+    assert bundle_change.diff_coverage[0].diff.diff_type == DiffType.CHANGED
+    assert bundle_change.diff_coverage[0].diff.old == "old_checksum"
+    assert bundle_change.diff_coverage[0].diff.new == "new_checksum"
+
+
+def test_checksum_and_content_changed():
+    """
+    the checksum changed because a real field changed
+    """
+    bundle_change = create_bundle_file_change(
+        path="path",
+        schema="schema",
+        file_type=BundleFileType.DATAFILE,
+        old_file_content={"field": "value1", SHA256SUM_FIELD_NAME: "old_checksum"},
+        new_file_content={"field": "value2", SHA256SUM_FIELD_NAME: "new_checksum"},
+    )
+
+    assert bundle_change
+    assert len(bundle_change.diff_coverage) == 1
+    assert str(bundle_change.diff_coverage[0].diff.path) == "field"
+    assert bundle_change.diff_coverage[0].diff.diff_type == DiffType.CHANGED
+    assert bundle_change.diff_coverage[0].diff.old == "value1"
+    assert bundle_change.diff_coverage[0].diff.new == "value2"
 
 
 #
