@@ -1084,13 +1084,13 @@ def openshift_saas_deploy_trigger_upstream_jobs(
 @use_jump_host()
 @include_trigger_trace
 @click.pass_context
-def openshift_saas_deploy_trigger_container_images(
+def openshift_saas_deploy_trigger_images(
     ctx, thread_pool_size, internal, use_jump_host, include_trigger_trace
 ):
-    import reconcile.openshift_saas_deploy_trigger_container_images
+    import reconcile.openshift_saas_deploy_trigger_images
 
     run_integration(
-        reconcile.openshift_saas_deploy_trigger_container_images,
+        reconcile.openshift_saas_deploy_trigger_images,
         ctx.obj,
         thread_pool_size,
         internal,
