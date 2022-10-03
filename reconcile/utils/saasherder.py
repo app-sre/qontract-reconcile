@@ -293,7 +293,6 @@ class SaasHerder:
                     self._check_saas_file_env_combo_unique(
                         saas_file_name, environment_name
                     )
-                    # validate upstream not used with commit sha
                     self._validate_upstream_not_used_with_commit_sha(
                         saas_file_name,
                         resource_template_name,
