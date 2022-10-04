@@ -557,7 +557,7 @@ def github_owners(ctx):
     run_integration(reconcile.github_owners, ctx.obj)
 
 
-@integration.command(short_help="Pushes latest versions of git repos to S3.")
+@integration.command(short_help="Uploads gpg encrypte gitlab projects to S3.")
 @threaded()
 @click.pass_context
 def gitlab_sync_push(ctx, thread_pool_size):
