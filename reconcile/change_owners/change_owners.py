@@ -349,17 +349,22 @@ def run(
 
         labels = gl.get_merge_request_labels(gitlab_merge_request_id)
 
-        # for current testing purposes, the self servability label wills be managed
-        # also when MR management is not enabled. this way change-owners can run next
-        # to saas-file-owners and we can observe if bot integrations would consider
-        # a saas-file only MR
-        labels = manage_conditional_label(
-            labels=labels,
-            condition=self_serviceable,
-            true_label=SELF_SERVICEABLE,
-            false_label=NOT_SELF_SERVICEABLE,
-            dry_run=False,
-        )
+        if mr_management_enabled:
+            labels = manage_conditional_label(
+                labels=labels,
+                condition=self_serviceable,
+                true_label=SELF_SERVICEABLE,
+                false_label=NOT_SELF_SERVICEABLE,
+                dry_run=False,
+            )
+        else:
+            # if MR management is disabled, we need to make sure the self-serviceable
+            # labels is not present, because other integration react to them
+            # e.g. gitlab-housekeeper rejects direct lgtm labels and the review-queue
+            # skips MRs with this label
+            if SELF_SERVICEABLE in labels:
+                labels.remove(SELF_SERVICEABLE)
+
         labels = manage_conditional_label(
             labels=labels,
             condition=self_serviceable and hold,

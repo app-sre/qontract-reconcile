@@ -34,7 +34,7 @@ from reconcile.utils.environ import environ
 from reconcile.jenkins_job_builder import init_jjb
 from reconcile.utils.gitlab_api import GitLabApi, MRState, MRStatus
 from reconcile.utils.jjb_client import JJB
-from reconcile.utils.mr.labels import SAAS_FILE_UPDATE
+from reconcile.utils.mr.labels import SAAS_FILE_UPDATE, SELF_SERVICEABLE
 from reconcile.utils.oc import OC_Map
 from reconcile.utils.ocm import OCMMap
 from reconcile.utils.output import print_output
@@ -1136,6 +1136,8 @@ def app_interface_review_queue(ctx):
         if "stale" in labels:
             continue
         if SAAS_FILE_UPDATE in labels:
+            continue
+        if SELF_SERVICEABLE in labels:
             continue
 
         pipelines = mr.pipelines()
