@@ -1,6 +1,5 @@
 import base64
 import os
-import sh
 import sys
 import shutil
 import gnupg
@@ -32,7 +31,6 @@ class GitArchive:
         self.to_delete_key = key
         self.vault_gpg_path = vault_gpg_path
         self.workdir = workdir
-        self.tar = sh.tar.bake("-cf")
 
     @staticmethod
     def b64_encode(original) -> str:
@@ -75,7 +73,8 @@ class GitArchive:
         repo = Repo.clone_from(clone_url, repo_dir)
         # archive and encrypt repo
         repo_tar = repo_dir + ".tar"
-        self.tar(repo_tar, repo_dir)
+        with open(repo_tar, "wb") as f:
+            repo.archive(f)
         repo_gpg = repo_tar + ".gpg"
         with open(repo_tar, "rb") as f:
             GitArchive.gpgs[self.vault_gpg_path]["gpg"].encrypt_file(
