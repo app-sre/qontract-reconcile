@@ -6,18 +6,14 @@ setup(
     name="qontract-reconcile",
     version=version.pip(),
     license="Apache License 2.0",
-
     author="Red Hat App-SRE Team",
     author_email="sd-app-sre@redhat.com",
     python_requires=">=3.9",
     description="Collection of tools to reconcile services with their desired "
-                "state as defined in the app-interface DB.",
-
-    url='https://github.com/app-sre/qontract-reconcile',
-
-    packages=find_packages(exclude=('tests',)),
-    package_data={'reconcile': ['templates/*.j2', "gql_queries/*/*.gql"]},
-
+    "state as defined in the app-interface DB.",
+    url="https://github.com/app-sre/qontract-reconcile",
+    packages=find_packages(exclude=("tests",)),
+    package_data={"reconcile": ["templates/*.j2", "gql_queries/*/*.gql"]},
     install_requires=[
         "sretoolbox~=1.6.0",
         "python-gnupg>=0.5.0",
@@ -70,21 +66,19 @@ setup(
         "deepdiff6==6.2.0",
         "jsonpath-ng~=1.5",
     ],
-
     test_suite="tests",
-
     classifiers=[
-        'Development Status :: 2 - Pre-Alpha',
-        'Programming Language :: Python',
-        'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.9',
+        "Development Status :: 2 - Pre-Alpha",
+        "Programming Language :: Python",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.9",
     ],
     entry_points={
-        'console_scripts': [
-            'qontract-reconcile = reconcile.cli:integration',
-            'e2e-tests = e2e_tests.cli:test',
-            'app-interface-reporter = tools.app_interface_reporter:main',
-            'qontract-cli = tools.qontract_cli:root',
+        "console_scripts": [
+            "qontract-reconcile = reconcile.cli:integration",
+            "e2e-tests = e2e_tests.cli:test",
+            "app-interface-reporter = tools.app_interface_reporter:main",
+            "qontract-cli = tools.qontract_cli:root",
         ],
     },
 )
