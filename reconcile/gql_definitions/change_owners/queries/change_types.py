@@ -22,6 +22,7 @@ query ChangeTypes {
     name
     contextType
     contextSchema
+    disabled
     changes {
       provider
       changeSchema
@@ -71,6 +72,7 @@ class ChangeTypeV1(BaseModel):
     name: str = Field(..., alias="name")
     context_type: str = Field(..., alias="contextType")
     context_schema: Optional[str] = Field(..., alias="contextSchema")
+    disabled: Optional[bool] = Field(..., alias="disabled")
     changes: list[
         Union[ChangeTypeChangeDetectorJsonPathProviderV1, ChangeTypeChangeDetectorV1]
     ] = Field(..., alias="changes")

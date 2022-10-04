@@ -37,6 +37,9 @@ class DiffCoverage:
     diff: Diff
     coverage: list["ChangeTypeContext"]
 
+    def is_covered(self) -> bool:
+        return self.coverage and any(not ctx.disabled for ctx in self.coverage)
+
 
 @dataclass
 class BundleFileChange:
@@ -203,7 +206,7 @@ class BundleFileChange:
         return [d for d in self.diff_coverage if d.diff.diff_type in diff_types]
 
     def uncovered_changes(self) -> Iterable[DiffCoverage]:
-        return (d for d in self.diff_coverage if not d.coverage)
+        return (d for d in self.diff_coverage if not d.is_covered())
 
     def all_changes_covered(self) -> bool:
         return not any(self.uncovered_changes())
@@ -352,6 +355,10 @@ class ChangeTypeContext:
     change_type_processor: ChangeTypeProcessor
     context: str
     approvers: list[Approver]
+
+    @property
+    def disabled(self) -> bool:
+        return self.change_type_processor.change_type.disabled
 
 
 JSON_PATH_ROOT = "$"

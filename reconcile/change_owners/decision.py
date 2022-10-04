@@ -71,6 +71,9 @@ def apply_decisions_to_changes(
             )
             diff_decisions.append(change_decision)
             for change_type_context in change_decision.coverage:
+                if change_type_context.disabled:
+                    # approvers of a disabled change-type are ignored
+                    continue
                 for approver in change_type_context.approvers:
                     if approver.org_username in approver_decisions:
                         if approver_decisions[approver.org_username].approve:

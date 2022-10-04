@@ -207,33 +207,18 @@ def write_coverage_report_to_mr(
 def write_coverage_report_to_stdout(change_decisions: list[ChangeDecision]) -> None:
     results = []
     for d in change_decisions:
-        item = {
-            "file": d.file.path,
-            "schema": d.file.schema,
-            "changed path": d.diff.path,
-        }
-        if str(d.diff.path) != "$":
-            item.update(
-                {
-                    "old value": d.diff.old_value_repr(),
-                    "new value": d.diff.new_value_repr(),
-                }
-            )
-        if d.decision.hold:
-            item["status"] = "hold"
-        elif d.decision.approve:
-            item["status"] = "approved"
         if d.coverage:
-            item.update(
-                {
-                    "change type": d.coverage[0].change_type_processor.change_type.name,
-                    "context": d.coverage[0].context,
-                    "approvers": ", ".join(
-                        [a.org_username for a in d.coverage[0].approvers]
-                    )[:20],
-                }
-            )
-        results.append(item)
+            for ctx in d.coverage:
+                results.append(
+                    {
+                        "file": d.file.path,
+                        "schema": d.file.schema,
+                        "changed path": d.diff.path,
+                        "change type": ctx.change_type_processor.change_type.name,
+                        "context": ctx.context,
+                        "disabled": ctx.disabled,
+                    }
+                )
 
     print(
         format_table(
@@ -241,12 +226,9 @@ def write_coverage_report_to_stdout(change_decisions: list[ChangeDecision]) -> N
             [
                 "file",
                 "changed path",
-                "old value",
-                "new value",
                 "change type",
+                "disabled",
                 "context",
-                "approvers",
-                "status",
             ],
         )
     )
@@ -343,10 +325,10 @@ def run(
         #   R E P O R T I N G
         #
 
-        if mr_management_enabled:
-            write_coverage_report_to_mr(
-                self_serviceable, change_decisions, gitlab_merge_request_id, gl
-            )
+        # if mr_management_enabled:
+        write_coverage_report_to_mr(
+            self_serviceable, change_decisions, gitlab_merge_request_id, gl
+        )
         write_coverage_report_to_stdout(change_decisions)
 
         #

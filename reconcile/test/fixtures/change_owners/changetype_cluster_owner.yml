@@ -3,6 +3,8 @@ name: cluster-owner
 contextType: datafile
 contextSchema: /openshift/cluster-1.yml
 
+disabled: false
+
 changes:
 - provider: jsonPath
   changeSchema: /openshift/namespace-1.yml
