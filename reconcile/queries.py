@@ -1435,6 +1435,17 @@ APPS_QUERY = """
     }
     codeComponents {
       url
+      gitlabSync {
+        bucket_name
+        bucket_account {
+          name
+        }
+        public_key {
+          path
+          field
+        }
+        destination_url
+      }
       resource
       gitlabRepoOwners {
         enabled
@@ -1505,6 +1516,23 @@ def get_repos(server="") -> list[str]:
                 if c["url"].startswith(server):
                     repos.append(c["url"])
     return repos
+
+
+def get_gitlab_sync_repos(server="") -> list[dict[str, str]]:
+    """Returns all repos defined under codeComponents with sync enabled
+    Optional arguments:
+    server: url of the server to return. for example: https://github.com
+    """
+    sync_enabled_repos: list[dict[str, str]] = []
+    apps = get_apps()
+    for a in apps:
+        if a["codeComponents"] is not None:
+            for c in a["codeComponents"]:
+                if c["gitlabSync"] is not None and c["url"].startswith(server):
+                    sync_enabled_repos.append(
+                        {"origin_url": c["url"]} | c["gitlabSync"]
+                    )
+    return sync_enabled_repos
 
 
 def get_repos_gitlab_owner(server=""):

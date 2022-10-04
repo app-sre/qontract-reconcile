@@ -557,6 +557,15 @@ def github_owners(ctx):
     run_integration(reconcile.github_owners, ctx.obj)
 
 
+@integration.command(short_help="Pushes latest versions of git repos to S3.")
+@threaded()
+@click.pass_context
+def gitlab_sync_push(ctx, thread_pool_size):
+    import reconcile.gitlab_sync_push
+
+    run_integration(reconcile.gitlab_sync_push, ctx.obj, thread_pool_size)
+
+
 @integration.command(short_help="Validate compliance of GitHub user profiles.")
 @environ(["gitlab_pr_submitter_queue_url"])
 @gitlab_project_id
