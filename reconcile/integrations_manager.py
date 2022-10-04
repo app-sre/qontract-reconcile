@@ -267,7 +267,8 @@ def collect_managed_integrations(
     filtered_integrations = []
     for managed_integration in [i for i in integrations if i.get("managed")]:
         for instance in managed_integration["managed"]:
-            if instance["namespace"]["environment"]["name"] in environments:
+            environment_name = instance["namespace"]["environment"]["name"]
+            if environment_name in environments:
                 filtered_integrations.append(instance)
     return filtered_integrations
 
@@ -282,12 +283,12 @@ def initialize_environment_override_mapping(
         for namespace in namespaces
     }
     for instance in integrations:
+        environment_name = instance["namespace"]["environment"]["name"]
+        name = instance["spec"]["name"]
         overrides = instance.get("shardSpecOverride", [])
         if overrides:
             for override in overrides:
-                environment_override_mapping[
-                    instance["namespace"]["environment"]["name"]
-                ][instance["spec"]["name"]].append(
+                environment_override_mapping[environment_name][name].append(
                     (IntegrationShardSpecOverride(**override))
                 )
 
