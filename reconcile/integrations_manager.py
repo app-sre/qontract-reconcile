@@ -221,15 +221,18 @@ def fetch_desired_state(
     namespaces: Iterable[Mapping[str, Any]],
     ri: ResourceInventory,
     image_tag_from_ref: Optional[Mapping[str, str]],
-    namespace_override_mapping: Mapping[
+    environment_override_mapping: Mapping[
         str, Mapping[str, list[IntegrationShardSpecOverride]]
     ],
 ) -> None:
     for namespace_info in namespaces:
         namespace = namespace_info["name"]
+        environment_name = namespace_info["environment"]["name"]
         cluster = namespace_info["cluster"]["name"]
         oc_resources = construct_oc_resources(
-            namespace_info, image_tag_from_ref, namespace_override_mapping[namespace]
+            namespace_info,
+            image_tag_from_ref,
+            environment_override_mapping[environment_name],
         )
         for r in oc_resources:
             ri.add_desired(cluster, namespace, r.kind, r.name, r)
@@ -255,21 +258,25 @@ def collect_namespaces(
 
 
 def collect_managed_integrations(
-    integrations: Iterable[Mapping[str, Any]], environment_name: str
+    integrations: Iterable[Mapping[str, Any]], namespaces: Iterable[Mapping[str, Any]]
 ) -> list[Mapping[str, Any]]:
-    matched_integrations = []
+    # Filter integrations, return a list of integrations with key managed,
+    # that are deployed to the passed in namespaces
+    environments = {ns["environment"]["name"] for ns in namespaces}
+
+    filtered_integrations = []
     for managed_integration in [i for i in integrations if i.get("managed")]:
         for instance in managed_integration["managed"]:
-            if instance["namespace"]["environment"]["name"] == environment_name:
-                matched_integrations.append(instance)
-    return matched_integrations
+            if instance["namespace"]["environment"]["name"] in environments:
+                filtered_integrations.append(instance)
+    return filtered_integrations
 
 
-def initialize_namespace_override_mapping(
+def initialize_environment_override_mapping(
     namespaces: list[dict[str, Any]], integrations: list[Mapping[str, Any]]
 ) -> Mapping[str, Mapping[str, list[IntegrationShardSpecOverride]]]:
-    namespace_override_mapping: Mapping[str, Any] = {
-        namespace["name"]: {
+    environment_override_mapping: Mapping[str, Any] = {
+        namespace["environment"]["name"]: {
             integration["name"]: [] for integration in namespace["integration_specs"]
         }
         for namespace in namespaces
@@ -278,11 +285,13 @@ def initialize_namespace_override_mapping(
         overrides = instance.get("shardSpecOverride", [])
         if overrides:
             for override in overrides:
-                namespace_override_mapping[instance["namespace"]["name"]][
-                    instance["spec"]["name"]
-                ].append((IntegrationShardSpecOverride(**override)))
+                environment_override_mapping[
+                    instance["namespace"]["environment"]["name"]
+                ][instance["spec"]["name"]].append(
+                    (IntegrationShardSpecOverride(**override))
+                )
 
-    return namespace_override_mapping
+    return environment_override_mapping
 
 
 @defer
@@ -296,14 +305,16 @@ def run(
     image_tag_from_ref=None,
     defer=None,
 ):
+    # Beware, environment_name can be empty! It's optional to set it!
+    # If not set, all environments should be considered.
     all_integrations = queries.get_integrations(managed=True)
-    managed_integrations = collect_managed_integrations(
-        all_integrations, environment_name
-    )
     namespaces = collect_namespaces(all_integrations, environment_name)
-    namespace_override_mapping = initialize_namespace_override_mapping(
+    managed_integrations = collect_managed_integrations(all_integrations, namespaces)
+    environment_override_mapping = initialize_environment_override_mapping(
         namespaces, managed_integrations
     )
+
+    print(environment_override_mapping)
 
     if not namespaces:
         logging.debug("Nothing to do, exiting.")
@@ -327,7 +338,9 @@ def run(
         integration_runtime_meta=integration_runtime_meta,
     )
     initialize_shard_specs(namespaces, shard_manager)
-    fetch_desired_state(namespaces, ri, image_tag_from_ref, namespace_override_mapping)
+    fetch_desired_state(
+        namespaces, ri, image_tag_from_ref, environment_override_mapping
+    )
     ob.realize_data(dry_run, oc_map, ri, thread_pool_size)
 
     if ri.has_error_registered():
