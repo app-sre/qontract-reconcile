@@ -6,9 +6,7 @@ import gnupg
 import logging
 
 from typing import Any, Dict, List
-from unicodedata import name
 from git import Repo
-from codecs import ignore_errors
 
 from reconcile import queries
 from reconcile.utils.gitlab_api import GitLabApi
@@ -192,7 +190,7 @@ def run(dry_run, thread_pool_size=10):
     account_to_syncs: Dict[str, List[Any]] = {}
     for sync in sync_enabled:
         account_to_syncs.setdefault(sync["bucket_account"]["name"], []).append(sync)
-    accounts = [a for a in all_accounts if a.get("name") in account_to_syncs]
+    accounts = [a for a in all_accounts if a["name"] in account_to_syncs]
     aws = AWSApi(thread_pool_size, accounts, settings=settings)
     acct_bucket_keys = get_acct_bucket_keys(aws, account_to_syncs)
     repos = [s["origin_url"] for s in sync_enabled]
