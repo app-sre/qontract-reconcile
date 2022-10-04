@@ -20,7 +20,7 @@ QONTRACT_INTEGRATION = "gitlab-sync-push"
 
 # Inspired by https://github.com/app-sre/git-keeper
 class GitArchive:
-    gpgs = {}
+    gpgs: dict[str, dict[str, Any]] = {}
 
     def __init__(
         self, origin, destination, commit, key, vault_gpg_path, workdir="clone-workdir"
@@ -113,7 +113,7 @@ def get_acct_bucket_keys(aws, accts_to_syncs) -> dict[str, dict[str, list[str]]]
     """
     Returns dict of accout names to bucket names to decoded object keys
     """
-    acct_bucket_keys = {}
+    acct_bucket_keys: dict[str, dict[str, list[str]]] = {}
     for a, syncs in accts_to_syncs.items():
         s = aws.sessions[a]
         s3 = s.client("s3")
@@ -147,7 +147,7 @@ def get_objects_to_update(
     """
     to_update = {}
     for acct, buckets in acct_bucket_keys.items():
-        out_of_date_buckets = {}
+        out_of_date_buckets: dict[str, list[GitArchive]] = {}
         for sync in acct_syncs[acct]:
             i = 0
             to_delete_key = ""
@@ -188,7 +188,7 @@ def run(dry_run, thread_pool_size=10):
     sync_enabled = queries.get_gitlab_sync_repos(server=instance["url"])
     all_accounts = queries.get_aws_accounts()
 
-    account_to_syncs: dict[str, list[any]] = {}
+    account_to_syncs: Dict[str, list[Any]] = {}
     for sync in sync_enabled:
         account_to_syncs.setdefault(sync["bucket_account"]["name"], []).append(sync)
     accounts = [a for a in all_accounts if a.get("name") in account_to_syncs]
