@@ -188,7 +188,7 @@ def run(dry_run, thread_pool_size=10):
     sync_enabled = queries.get_gitlab_sync_repos(server=instance["url"])
     all_accounts = queries.get_aws_accounts()
 
-    account_to_syncs = {}
+    account_to_syncs: dict[str, list[any]] = {}
     for sync in sync_enabled:
         account_to_syncs.setdefault(sync["bucket_account"]["name"], []).append(sync)
     accounts = [a for a in all_accounts if a.get("name") in account_to_syncs]
