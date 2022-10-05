@@ -2,11 +2,11 @@ import base64
 import os
 import sys
 import shutil
-import gnupg
 import logging
 
 from typing import Any, Dict, List
 from git import Repo
+from gnupg import GPG
 
 from reconcile import queries
 from reconcile.utils.gitlab_api import GitLabApi
@@ -48,7 +48,7 @@ class GitArchive:
                         "field": sync["public_key"]["field"],
                     }
                 )
-                gpg = gnupg.GPG()
+                gpg = GPG()
                 gpg.import_keys(key_data)
                 recipients = [k["fingerprint"] for k in gpg.list_keys()]
                 GitArchive.gpgs[sync["public_key"]["path"]] = {
