@@ -152,7 +152,10 @@ def manage_conditional_label(
 
 
 def write_coverage_report_to_mr(
-    change_decisions: list[ChangeDecision], mr_id: int, gl: GitLabApi
+    self_serviceable: bool,
+    change_decisions: list[ChangeDecision],
+    mr_id: int,
+    gl: GitLabApi,
 ) -> None:
     """
     adds the change coverage report and decision summary as a comment
@@ -191,13 +194,14 @@ def write_coverage_report_to_mr(
     coverage_report = format_table(
         results, ["file", "change", "status", "approvers"], table_format="github"
     )
-    gl.add_comment_to_merge_request(
-        mr_id,
-        f"{change_coverage_report_header}<br/> "
-        "All changes require an `/lgtm` from a listed approver\n"
-        f"{coverage_report}\n\n"
-        f"Supported commands: {' '.join([f'`{d.value}`' for d in DecisionCommand])} ",
-    )
+    if self_serviceable:
+        gl.add_comment_to_merge_request(
+            mr_id,
+            f"{change_coverage_report_header}<br/> "
+            "All changes require an `/lgtm` from a listed approver\n"
+            f"{coverage_report}\n\n"
+            f"Supported commands: {' '.join([f'`{d.value}`' for d in DecisionCommand])} ",
+        )
 
 
 def write_coverage_report_to_stdout(change_decisions: list[ChangeDecision]) -> None:
@@ -340,7 +344,9 @@ def run(
         #
 
         if mr_management_enabled:
-            write_coverage_report_to_mr(change_decisions, gitlab_merge_request_id, gl)
+            write_coverage_report_to_mr(
+                self_serviceable, change_decisions, gitlab_merge_request_id, gl
+            )
         write_coverage_report_to_stdout(change_decisions)
 
         #
@@ -349,17 +355,22 @@ def run(
 
         labels = gl.get_merge_request_labels(gitlab_merge_request_id)
 
-        # for current testing purposes, the self servability label wills be managed
-        # also when MR management is not enabled. this way change-owners can run next
-        # to saas-file-owners and we can observe if bot integrations would consider
-        # a saas-file only MR
-        labels = manage_conditional_label(
-            labels=labels,
-            condition=self_serviceable,
-            true_label=SELF_SERVICEABLE,
-            false_label=NOT_SELF_SERVICEABLE,
-            dry_run=False,
-        )
+        if mr_management_enabled:
+            labels = manage_conditional_label(
+                labels=labels,
+                condition=self_serviceable,
+                true_label=SELF_SERVICEABLE,
+                false_label=NOT_SELF_SERVICEABLE,
+                dry_run=False,
+            )
+        else:
+            # if MR management is disabled, we need to make sure the self-serviceable
+            # labels is not present, because other integration react to them
+            # e.g. gitlab-housekeeper rejects direct lgtm labels and the review-queue
+            # skips MRs with this label
+            if SELF_SERVICEABLE in labels:
+                labels.remove(SELF_SERVICEABLE)
+
         labels = manage_conditional_label(
             labels=labels,
             condition=self_serviceable and hold,

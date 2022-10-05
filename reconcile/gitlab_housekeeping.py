@@ -23,6 +23,7 @@ from reconcile.utils.mr.labels import (
     HOLD,
     LGTM,
     SAAS_FILE_UPDATE,
+    SELF_SERVICEABLE,
 )
 
 MERGE_LABELS_PRIORITY = [APPROVED, AUTO_MERGE, LGTM]
@@ -216,10 +217,12 @@ def get_merge_requests(
         if not labels:
             continue
 
-        if SAAS_FILE_UPDATE in labels and LGTM in labels:
+        if (
+            SAAS_FILE_UPDATE in labels or SELF_SERVICEABLE in labels
+        ) and LGTM in labels:
             logging.warning(
                 f"[{gl.project.name}/{mr.iid}] 'lgtm' label not "
-                + "suitable for saas file update. removing 'lgtm' label"
+                + "suitable for self serviceable MRs. removing 'lgtm' label"
             )
             if not dry_run:
                 gl.remove_label_from_merge_request(mr.iid, LGTM)
