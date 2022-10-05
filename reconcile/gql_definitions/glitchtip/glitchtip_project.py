@@ -15,33 +15,31 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
-from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
-
 
 DEFINITION = """
-fragment VaultSecret on VaultSecret_v1 {
-    path
-    field
-    version
-    format
-}
-
-query GlitchtipInstance {
-  instances: glitchtip_instances_v1 {
-    name
-    consoleUrl
-    automationUserEmail
-    automationToken{
-      ... VaultSecret
-    }
-    organizations {
+query Projects {
+  apps: apps_v1 {
+    glitchtipProjects {
       name
-      roles{
-        glitchtip_roles {
-          role
+      platform
+      teams {
+        name
+        roles {
+          glitchtip_roles {
+            organization {
+              name
+            }
+            role
+          }
+          users {
+            github_username
+          }
         }
-        users {
-          github_username
+      }
+      organization {
+        name
+        instance {
+          name
         }
       }
     }
@@ -50,7 +48,16 @@ query GlitchtipInstance {
 """
 
 
+class GlitchtipOrganizationV1(BaseModel):
+    name: str = Field(..., alias="name")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
 class GlitchtipRoleV1(BaseModel):
+    organization: GlitchtipOrganizationV1 = Field(..., alias="organization")
     role: str = Field(..., alias="role")
 
     class Config:
@@ -77,7 +84,7 @@ class RoleV1(BaseModel):
         extra = Extra.forbid
 
 
-class GlitchtipOrganizationV1(BaseModel):
+class GlitchtipTeamV1(BaseModel):
     name: str = Field(..., alias="name")
     roles: list[RoleV1] = Field(..., alias="roles")
 
@@ -88,25 +95,53 @@ class GlitchtipOrganizationV1(BaseModel):
 
 class GlitchtipInstanceV1(BaseModel):
     name: str = Field(..., alias="name")
-    console_url: str = Field(..., alias="consoleUrl")
-    automation_user_email: str = Field(..., alias="automationUserEmail")
-    automation_token: VaultSecret = Field(..., alias="automationToken")
-    organizations: list[GlitchtipOrganizationV1] = Field(..., alias="organizations")
 
     class Config:
         smart_union = True
         extra = Extra.forbid
 
 
-class GlitchtipInstanceQueryData(BaseModel):
-    instances: list[GlitchtipInstanceV1] = Field(..., alias="instances")
+class GlitchtipProjectsV1_GlitchtipOrganizationV1(BaseModel):
+    name: str = Field(..., alias="name")
+    instance: GlitchtipInstanceV1 = Field(..., alias="instance")
 
     class Config:
         smart_union = True
         extra = Extra.forbid
 
 
-def query(query_func: Callable, **kwargs) -> GlitchtipInstanceQueryData:
+class GlitchtipProjectsV1(BaseModel):
+    name: str = Field(..., alias="name")
+    platform: str = Field(..., alias="platform")
+    teams: list[GlitchtipTeamV1] = Field(..., alias="teams")
+    organization: GlitchtipProjectsV1_GlitchtipOrganizationV1 = Field(
+        ..., alias="organization"
+    )
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
+class AppV1(BaseModel):
+    glitchtip_projects: Optional[list[GlitchtipProjectsV1]] = Field(
+        ..., alias="glitchtipProjects"
+    )
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
+class ProjectsQueryData(BaseModel):
+    apps: Optional[list[AppV1]] = Field(..., alias="apps")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
+def query(query_func: Callable, **kwargs) -> ProjectsQueryData:
     """
     This is a convenience function which queries and parses the data into
     concrete types. It should be compatible with most GQL clients.
@@ -119,7 +154,7 @@ def query(query_func: Callable, **kwargs) -> GlitchtipInstanceQueryData:
         kwargs: optional arguments that will be passed to the query function
 
     Returns:
-        GlitchtipInstanceQueryData: queried data parsed into generated classes
+        ProjectsQueryData: queried data parsed into generated classes
     """
     raw_data: dict[Any, Any] = query_func(DEFINITION, **kwargs)
-    return GlitchtipInstanceQueryData(**raw_data)
+    return ProjectsQueryData(**raw_data)

@@ -3,28 +3,28 @@ from pydantic import BaseModel, Field
 
 
 class User(BaseModel):
-    pk: int = Field(..., alias="id")
+    pk: Optional[int] = Field(None, alias="id")
     email: str
     role: str
-    pending: bool
+    pending: bool = False
 
 
 class Team(BaseModel):
-    pk: int = Field(..., alias="id")
+    pk: Optional[int] = Field(None, alias="id")
     slug: str
     users: list[User] = []
 
 
 class Project(BaseModel):
-    pk: int = Field(..., alias="id")
+    pk: Optional[int] = Field(None, alias="id")
     name: str
-    slug: str
+    slug: str = ""
     platform: Optional[str]
     teams: list[Team] = []
 
 
 class Organization(BaseModel):
-    pk: int = Field(..., alias="id")
+    pk: Optional[int] = Field(None, alias="id")
     name: str
     slug: str = ""
     projects: list[Project] = []

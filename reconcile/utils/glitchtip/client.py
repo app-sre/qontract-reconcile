@@ -43,26 +43,164 @@ class GlitchtipClient:
         return results
 
     def organizations(self) -> list[Organization]:
+        """List organizations.
+
+        REST API response example:
+        [{
+            "id": 10,
+            "name": "ESA",
+            "slug": "esa",
+            "dateCreated": "2022-09-13T12:01:05.186161Z",
+            "status": {
+                "id": "active",
+                "name": "active"
+                },
+            "avatar": {
+                "avatarType": "",
+                "avatarUuid": null
+                },
+            "isEarlyAdopter": false,
+            "require2FA": false,
+            "isAcceptingEvents": true
+        },]
+        """
         return [Organization(**r) for r in self._list("/api/0/organizations")]
 
-    def teams(self, org: Organization) -> list[Team]:
+    def teams(self, organization: Organization) -> list[Team]:
+        """List teams.
+
+        REST API response example:
+        [{
+            "dateCreated": "2022-09-20T11:52:00.382966Z",
+            "id": "5",
+            "isMember": true,
+            "memberCount": 1,
+            "slug": "pilots"
+        },]
+        """
         return [
-            Team(**r) for r in self._list(f"/api/0/organizations/{org.slug}/teams/")
+            Team(**r)
+            for r in self._list(f"/api/0/organizations/{organization.slug}/teams/")
         ]
 
-    def projects(self, org: Organization) -> list[Project]:
+    def projects(self, organization: Organization) -> list[Project]:
+        """List projects.
+
+        Note: project.team.users is an empty list because it isn't returned by the API.
+
+        REST API response example:
+        [{
+            "avatar": {
+                "avatarType": "",
+                "avatarUuid": null
+            },
+            "color": "",
+            "features": [],
+            "firstEvent": null,
+            "hasAccess": true,
+            "id": "6",
+            "isBookmarked": false,
+            "isInternal": false,
+            "isMember": true,
+            "isPublic": false,
+            "name": "apollo-11",
+            "organization": {
+                "id": 4,
+                "name": "NASA",
+                "slug": "nasa",
+                "dateCreated": "2022-09-13T11:23:23.306148Z",
+                "status": {
+                    "id": "active",
+                    "name": "active"
+                },
+                "avatar": {
+                    "avatarType": "",
+                    "avatarUuid": null
+                },
+                "isEarlyAdopter": false,
+                "require2FA": false,
+                "isAcceptingEvents": true
+            },
+            "teams": [
+            {
+                "id": "5",
+                "slug": "pilots"
+            }
+            ],
+            "scrubIPAddresses": true,
+            "slug": "apollo-11",
+            "dateCreated": "2022-09-19T13:46:05.740945Z",
+            "platform": null
+        },]
+        """
         return [
             Project(**r)
-            for r in self._list(f"/api/0/organizations/{org.slug}/projects/")
+            for r in self._list(f"/api/0/organizations/{organization.slug}/projects/")
         ]
 
-    def organization_users(self, org: Organization) -> list[User]:
-        return [
-            User(**r) for r in self._list(f"/api/0/organizations/{org.slug}/members/")
-        ]
+    def organization_users(self, organization: Organization) -> list[User]:
+        """List organization users (aka members).
 
-    def team_users(self, org: Organization, team: Team) -> list[User]:
+        REST API response example:
+        [{
+            "role": "member",
+            "id": 19,
+            "user": {
+                "username": "cassing@redhat.com",
+                "lastLogin": "2022-09-23T11:16:38.750691Z",
+                "isSuperuser": false,
+                "emails": [],
+                "identities": [],
+                "id": "1",
+                "isActive": true,
+                "name": "",
+                "dateJoined": "2022-09-13T10:35:53.988312Z",
+                "hasPasswordAuth": true,
+                "email": "cassing@redhat.com",
+                "options": {}
+            },
+            "roleName": "Member",
+            "dateCreated": "2022-09-20T10:25:43.908164Z",
+            "email": "cassing@redhat.com",
+            "pending": false
+        },]
+        """
         return [
             User(**r)
-            for r in self._list(f"/api/0/teams/{org.slug}/{team.slug}/members/")
+            for r in self._list(f"/api/0/organizations/{organization.slug}/members/")
+        ]
+
+    def team_users(self, organization: Organization, team: Team) -> list[User]:
+        """List team users (aka members).
+
+        REST API response example:
+
+        [{
+          "role": "owner",
+          "id": 5,
+          "user": {
+            "username": "sd-app-sre+glitchtip@redhat.com",
+            "lastLogin": "2022-09-21T11:08:20.306968Z",
+            "isSuperuser": false,
+            "emails": [],
+            "identities": [],
+            "id": "3",
+            "isActive": true,
+            "name": "",
+            "dateJoined": "2022-09-13T10:58:07.053773Z",
+            "hasPasswordAuth": true,
+            "email": "sd-app-sre+glitchtip@redhat.com",
+            "options": "{}"
+          },
+          "roleName": "Owner",
+          "dateCreated": "2022-09-13T11:23:23.313535Z",
+          "email": "sd-app-sre+glitchtip@redhat.com",
+          "pending": false
+        },]
+        """
+        return [
+            User(**r)
+            for r in self._list(
+                f"/api/0/teams/{organization.slug}/{team.slug}/members/"
+            )
         ]

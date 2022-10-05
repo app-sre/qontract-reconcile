@@ -1,11 +1,24 @@
-from typing import Iterable
+from functools import cache
+from typing import Iterable, Optional
 
-from rich import print
+from github import Github, UnknownObjectException
 
 from reconcile import queries
-from reconcile.gql_definitions.glitchtip import glitchtip_instance
+from reconcile.github_users import (
+    init_github,
+)  # TODO: init_github must be move into a utils module
+from reconcile.gql_definitions.glitchtip.glitchtip_instance import (
+    query as glitchtip_instance_query,
+)
+from reconcile.gql_definitions.glitchtip.glitchtip_project import (
+    GlitchtipProjectsV1,
+    RoleV1,
+)
+from reconcile.gql_definitions.glitchtip.glitchtip_project import (
+    query as glitchtip_project_query,
+)
 from reconcile.utils import gql
-from reconcile.utils.glitchtip.client import GlitchtipClient, User
+from reconcile.utils.glitchtip import GlitchtipClient, Organization, Project, Team, User
 from reconcile.utils.secret_reader import SecretReader
 
 QONTRACT_INTEGRATION = "glitchtip"
@@ -15,42 +28,114 @@ def filter_users(users: Iterable[User], ignore_users: Iterable[str]) -> list[Use
     return [user for user in users if user.email not in ignore_users]
 
 
-def fetch_current_state(glitchtip_client: GlitchtipClient, ignore_users: Iterable[str]):
-    orgs = glitchtip_client.organizations()
-    for org in orgs:
-        org.teams = glitchtip_client.teams(org=org)
-        org.projects = glitchtip_client.projects(org=org)
-        org.users = filter_users(
-            glitchtip_client.organization_users(org=org), ignore_users
+def get_user_role(organization: Organization, roles: RoleV1) -> str:
+    for role in roles.glitchtip_roles or []:
+        if role.organization.name == organization.name:
+            return role.role
+    # this can not be reached due to GQL but makes mypy happy
+    return "member"
+
+
+@cache
+def github_email(gh: Github, github_username: str) -> Optional[str]:
+    try:
+        return gh.get_user(login=github_username).email
+    except UnknownObjectException:
+        return None
+
+
+def fetch_current_state(
+    glitchtip_client: GlitchtipClient, ignore_users: Iterable[str]
+) -> list[Organization]:
+    organizations = glitchtip_client.organizations()
+    for organization in organizations:
+        organization.teams = glitchtip_client.teams(organization=organization)
+        organization.projects = glitchtip_client.projects(organization=organization)
+        organization.users = filter_users(
+            glitchtip_client.organization_users(organization=organization), ignore_users
         )
-        for team in org.teams:
+        for team in organization.teams:
             team.users = filter_users(
-                glitchtip_client.team_users(org=org, team=team), ignore_users
+                glitchtip_client.team_users(organization=organization, team=team),
+                ignore_users,
             )
-    print(orgs)
+    return organizations
+
+
+def fetch_desired_state(
+    glitchtip_projects: list[GlitchtipProjectsV1],
+    gh: Github,
+) -> list[Organization]:
+    organizations: dict[str, Organization] = {}
+    for glitchtip_project in glitchtip_projects:
+        organization = organizations.setdefault(
+            glitchtip_project.organization.name,
+            Organization(name=glitchtip_project.organization.name),
+        )
+        project = Project(
+            name=glitchtip_project.name, platform=glitchtip_project.platform
+        )
+        for glitchtip_team in glitchtip_project.teams:
+            users: list[User] = []
+            for role in glitchtip_team.roles:
+                for role_user in role.users:
+                    if email := github_email(
+                        gh=gh, github_username=role_user.github_username
+                    ):
+                        users.append(
+                            User(
+                                email=email,
+                                role=get_user_role(organization, role),
+                            )
+                        )
+
+            team = Team(slug=glitchtip_team.name, users=users)
+            project.teams.append(team)
+            if team not in organization.teams:
+                organization.teams.append(team)
+
+            for user in team.users:
+                if user not in organization.users:
+                    organization.users.append(user)
+        organization.projects.append(project)
+    return [org for org in organizations.values()]
 
 
 def run(dry_run):
     gqlapi = gql.get_api()
-    # github = init_github()
+    github = init_github()
     secret_reader = SecretReader(queries.get_secret_reader_settings())
-    instances = glitchtip_instance.query(query_func=gqlapi.query).instances
-    for instance in instances:
+    glitchtip_instances = glitchtip_instance_query(query_func=gqlapi.query).instances
+    glitchtip_projects: list[GlitchtipProjectsV1] = []
+    for app in glitchtip_project_query(query_func=gqlapi.query).apps or []:
+        glitchtip_projects += app.glitchtip_projects if app.glitchtip_projects else []
+
+    for glitchtip_instance in glitchtip_instances:
         glitchtip_client = GlitchtipClient(
-            host=instance.console_url,
+            host=glitchtip_instance.console_url,
             token=secret_reader.read(
                 {
-                    "path": instance.automation_token.path,
-                    "field": instance.automation_token.field,
-                    "format": instance.automation_token.q_format,
-                    "version": instance.automation_token.version,
+                    "path": glitchtip_instance.automation_token.path,
+                    "field": glitchtip_instance.automation_token.field,
+                    "format": glitchtip_instance.automation_token.q_format,
+                    "version": glitchtip_instance.automation_token.version,
                 }
             ),
         )
         current_state = fetch_current_state(
-            glitchtip_client, ignore_users=[instance.automation_user_email]
+            glitchtip_client=glitchtip_client,
+            ignore_users=[glitchtip_instance.automation_user_email],
         )
-        # desired_state = fetch_desired_state(gqlapi, instance, github)
+        print(current_state)
+        desired_state = fetch_desired_state(
+            glitchtip_projects=[
+                p
+                for p in glitchtip_projects
+                if p.organization.instance.name == glitchtip_instance.name
+            ],
+            gh=github,
+        )
+        print(desired_state)
 
         # reconciler = SentryReconciler(sentry_client, dry_run)
         # reconciler.reconcile(current_state, desired_state)
