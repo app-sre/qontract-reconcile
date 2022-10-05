@@ -1,9 +1,13 @@
 import sys
 import logging
 
-from reconcile.utils.smtp_client import SmtpClient
-from reconcile import queries
-
+from reconcile.utils.secret_reader import SecretReader
+from reconcile.utils.smtp_client import (
+    DEFAULT_SMTP_TIMEOUT,
+    SmtpClient,
+    get_smtp_server_connection,
+)
+from reconcile import queries, typed_queries
 from reconcile.utils.state import State
 
 QONTRACT_INTEGRATION = "email-sender"
@@ -82,7 +86,15 @@ def run(dry_run):
         integration=QONTRACT_INTEGRATION, accounts=accounts, settings=settings
     )
     emails = queries.get_app_interface_emails()
-    smtp_client = SmtpClient(settings=settings)
+    smtp_settings = typed_queries.smtp.settings()
+    smtp_client = SmtpClient(
+        server=get_smtp_server_connection(
+            secret_reader=SecretReader(settings=settings),
+            secret=smtp_settings.credentials,
+        ),
+        mail_address=smtp_settings.mail_address,
+        timeout=smtp_settings.timeout or DEFAULT_SMTP_TIMEOUT,
+    )
     # validate no 2 emails have the same name
     email_names = {e["name"] for e in emails}
     if len(emails) != len(email_names):

@@ -9,6 +9,7 @@ from typing import Any, Mapping, Optional
 
 from jinja2 import Template
 
+
 from reconcile.utils import gql
 from reconcile.gql_definitions.jumphosts.jumphosts import (
     query as jumphosts_query,

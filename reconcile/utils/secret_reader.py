@@ -1,4 +1,4 @@
-from typing import Mapping, Optional
+from typing import Mapping, Optional, Protocol
 
 from hvac.exceptions import Forbidden
 from sretoolbox.utils import retry
@@ -13,6 +13,18 @@ class VaultForbidden(Exception):
 
 class SecretNotFound(Exception):
     pass
+
+
+class SupportsSecret(Protocol):
+    """SupportsSecret defines all attributes needed to fetch a secret from Vault or config.
+
+    This is the protocol/interface for app-interface's VaultSecretV1.
+    """
+
+    path: str
+    field: str
+    version: Optional[int]
+    q_format: Optional[str]
 
 
 class SecretReader:
