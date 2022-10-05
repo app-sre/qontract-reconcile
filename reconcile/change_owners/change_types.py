@@ -8,7 +8,12 @@ import jsonpath_ng
 import jsonpath_ng.ext
 import anymarkup
 
-from reconcile.change_owners.diff import Diff, DiffType, extract_diffs
+from reconcile.change_owners.diff import (
+    SHA256SUM_FIELD_NAME,
+    Diff,
+    DiffType,
+    extract_diffs,
+)
 from reconcile.gql_definitions.change_owners.queries.change_types import (
     ChangeTypeV1,
     ChangeTypeChangeDetectorJsonPathProviderV1,
@@ -298,7 +303,9 @@ def build_change_type_processor(change_type: ChangeTypeV1) -> ChangeTypeProcesso
         if isinstance(c, ChangeTypeChangeDetectorJsonPathProviderV1):
             change_schema = c.change_schema or change_type.context_schema
             if change_schema:
-                for jsonpath_expression in c.json_path_selectors:
+                for jsonpath_expression in c.json_path_selectors + [
+                    f"'{SHA256SUM_FIELD_NAME}'"
+                ]:
                     file_type = BundleFileType[change_type.context_type.upper()]
                     expressions_by_file_type_schema[(file_type, change_schema)].append(
                         jsonpath_ng.ext.parse(jsonpath_expression)

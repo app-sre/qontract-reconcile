@@ -1075,6 +1075,30 @@ def openshift_saas_deploy_trigger_upstream_jobs(
     )
 
 
+@integration.command(short_help="Trigger deployments when images are pushed.")
+@environ(["APP_INTERFACE_STATE_BUCKET", "APP_INTERFACE_STATE_BUCKET_ACCOUNT"])
+@threaded()
+@binary(["oc", "ssh"])
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
+@internal()
+@use_jump_host()
+@include_trigger_trace
+@click.pass_context
+def openshift_saas_deploy_trigger_images(
+    ctx, thread_pool_size, internal, use_jump_host, include_trigger_trace
+):
+    import reconcile.openshift_saas_deploy_trigger_images
+
+    run_integration(
+        reconcile.openshift_saas_deploy_trigger_images,
+        ctx.obj,
+        thread_pool_size,
+        internal,
+        use_jump_host,
+        include_trigger_trace,
+    )
+
+
 @integration.command(short_help="Trigger deployments when configuration changes.")
 @environ(["APP_INTERFACE_STATE_BUCKET", "APP_INTERFACE_STATE_BUCKET_ACCOUNT"])
 @threaded()

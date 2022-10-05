@@ -4962,6 +4962,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             "min_size": common_values.get("min_size"),
             "vpc_zone_identifier": common_values.get("vpc_zone_identifier"),
             "capacity_rebalance": common_values.get("capacity_rebalance"),
+            "max_instance_lifetime": common_values.get("max_instance_lifetime"),
             "mixed_instances_policy": {
                 "instances_distribution": common_values.get("instances_distribution"),
                 "launch_template": {
