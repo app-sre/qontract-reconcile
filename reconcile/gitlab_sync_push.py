@@ -6,7 +6,7 @@ import logging
 
 from typing import Any, Dict, List
 from git import Repo
-from gnupg import GPG
+from gnupg import GPG # type: ignore
 
 from reconcile import queries
 from reconcile.utils.gitlab_api import GitLabApi
@@ -187,7 +187,7 @@ def run(dry_run, thread_pool_size=10):
     sync_enabled = queries.get_gitlab_sync_repos(server=instance["url"])
     all_accounts = queries.get_aws_accounts()
 
-    account_to_syncs: Dict[str, List[Any]] = {}
+    account_to_syncs: Dict[str, List[Dict[str, Any]]] = {}
     for sync in sync_enabled:
         account_to_syncs.setdefault(sync["bucket_account"]["name"], []).append(sync)
     accounts = [a for a in all_accounts if a["name"] in account_to_syncs]

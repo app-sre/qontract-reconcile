@@ -1518,12 +1518,12 @@ def get_repos(server="") -> list[str]:
     return repos
 
 
-def get_gitlab_sync_repos(server="") -> list[dict[str, str]]:
+def get_gitlab_sync_repos(server="") -> list[dict[str, Any]]:
     """Returns all repos defined under codeComponents with sync enabled
     Optional arguments:
     server: url of the server to return. for example: https://github.com
     """
-    sync_enabled_repos: list[dict[str, str]] = []
+    sync_enabled_repos: list[dict[str, Any]] = []
     apps = get_apps()
     for a in apps:
         if a["codeComponents"] is not None:
