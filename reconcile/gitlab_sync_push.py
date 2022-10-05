@@ -6,7 +6,7 @@ import logging
 
 from typing import Any, Dict, List
 from git import Repo
-from gnupg import GPG # type: ignore
+from gnupg import GPG  # type: ignore
 
 from reconcile import queries
 from reconcile.utils.gitlab_api import GitLabApi
