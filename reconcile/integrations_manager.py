@@ -315,8 +315,6 @@ def run(
         namespaces, managed_integrations
     )
 
-    print(environment_override_mapping)
-
     if not namespaces:
         logging.debug("Nothing to do, exiting.")
         sys.exit(ExitCodes.SUCCESS)
