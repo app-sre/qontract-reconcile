@@ -179,7 +179,7 @@ class CloudflareZoneCertificateV1(BaseModel):
     validation_method: str = Field(..., alias="validation_method")
     validity_days: int = Field(..., alias="validity_days")
     certificate_authority: str = Field(..., alias="certificate_authority")
-    cloudflare_branding: Optional[str] = Field(..., alias="cloudflare_branding")
+    cloudflare_branding: Optional[bool] = Field(..., alias="cloudflare_branding")
     wait_for_active_status: Optional[bool] = Field(..., alias="wait_for_active_status")
 
     class Config:
