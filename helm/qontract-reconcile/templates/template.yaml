@@ -91,16 +91,10 @@ objects:
               secretKeyRef:
                 key: google_chat.webhook_url
                 name: app-interface
-          - name: GOOGLE_CHAT_WEBHOOK_KEY
+          - name: POD_NAME
             valueFrom:
-              secretKeyRef:
-                key: google_chat.webhook_key
-                name: app-interface
-          - name: GOOGLE_CHAT_WEBHOOK_TOKEN
-            valueFrom:
-              secretKeyRef:
-                key: google_chat.webhook_token
-                name: app-interface
+              fieldRef:
+                fieldPath: metadata.name
           {{- end }}
           - name: LOG_GROUP_NAME
             valueFrom:
@@ -157,11 +151,9 @@ objects:
               {{- end }}
               {{- if $logs.google_chat }}
               <store>
-                @type http
-                webhook_url ${GOOGLE_CHAT_WEBHOOK_URL}/messages?key=${GOOGLE_CHAT_WEBHOOK_KEY}&token=${GOOGLE_CHAT_WEBHOOK_TOKEN}
-                open_timeout 2
-                flush_interval 10s
-                message "\`\`\`[{{ $integration.name }}] %s\`\`\`"
+                @type teams
+                webhook_url "${GOOGLE_CHAT_WEBHOOK_URL}&threadKey=${POD_NAME}"
+                text "<%= Time.at(time) %> [${POD_NAME}] <%= record['message'] %>\n\n"
               </store>
               {{- end }}
               <store>
