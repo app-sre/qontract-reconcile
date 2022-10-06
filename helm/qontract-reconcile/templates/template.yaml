@@ -85,7 +85,7 @@ objects:
           - name: SLACK_ICON_EMOJI
             value: ${SLACK_ICON_EMOJI}
           {{- end }}
-          {{- if $logs.google_chat }}
+          {{- if $logs.googleChat }}
           - name: GOOGLE_CHAT_WEBHOOK_URL
             valueFrom:
               secretKeyRef:
@@ -149,7 +149,7 @@ objects:
                 message "\`\`\`[{{ $integration.name }}] %s\`\`\`"
               </store>
               {{- end }}
-              {{- if $logs.google_chat }}
+              {{- if $logs.googleChat }}
               <store>
                 @type teams
                 webhook_url "${GOOGLE_CHAT_WEBHOOK_URL}&threadKey=${POD_NAME}"
