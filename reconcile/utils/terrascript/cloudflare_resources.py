@@ -25,7 +25,8 @@ class cloudflare_certificate_pack(Resource):
     """
     https://registry.terraform.io/providers/cloudflare/cloudflare/latest/docs/resources/certificate_pack
 
-    This resource isn't supported directly by Terrascript.
+    This resource isn't supported directly by Terrascript, which is why it needs to be
+    defined like this as a Resource.
     """
 
 
