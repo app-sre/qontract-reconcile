@@ -1,0 +1,90 @@
+[
+    {
+        "role": "owner",
+        "id": 27,
+        "user": {
+            "username": "global-flight-director@global-space-agency.com",
+            "lastLogin": "2022-10-06T13:08:39.888726Z",
+            "isSuperuser": false,
+            "emails": [],
+            "identities": [],
+            "id": "5",
+            "isActive": true,
+            "name": "",
+            "dateJoined": "2022-10-06T12:59:31.537066Z",
+            "hasPasswordAuth": true,
+            "email": "global-flight-director@global-space-agency.com",
+            "options": {}
+        },
+        "roleName": "Owner",
+        "dateCreated": "2022-10-06T13:08:21.560252Z",
+        "email": "global-flight-director@global-space-agency.com",
+        "pending": false
+    },
+    {
+        "role": "member",
+        "id": 26,
+        "user": {
+            "username": "Tim.Peake@esa.com",
+            "lastLogin": "2022-10-06T13:07:47.290506Z",
+            "isSuperuser": false,
+            "emails": [],
+            "identities": [],
+            "id": "9",
+            "isActive": true,
+            "name": "",
+            "dateJoined": "2022-10-06T13:07:47.267447Z",
+            "hasPasswordAuth": true,
+            "email": "Tim.Peake@esa.com",
+            "options": {}
+        },
+        "roleName": "Member",
+        "dateCreated": "2022-10-06T13:07:27.236347Z",
+        "email": "Tim.Peake@esa.com",
+        "pending": false
+    },
+    {
+        "role": "member",
+        "id": 25,
+        "user": {
+            "username": "Matthias.Maurer@esa.com",
+            "lastLogin": "2022-10-06T13:06:20.245842Z",
+            "isSuperuser": false,
+            "emails": [],
+            "identities": [],
+            "id": "8",
+            "isActive": true,
+            "name": "",
+            "dateJoined": "2022-10-06T13:06:20.217193Z",
+            "hasPasswordAuth": true,
+            "email": "Matthias.Maurer@esa.com",
+            "options": {}
+        },
+        "roleName": "Member",
+        "dateCreated": "2022-10-06T13:05:47.985388Z",
+        "email": "Matthias.Maurer@esa.com",
+        "pending": false
+    },
+    {
+        "role": "owner",
+        "id": 11,
+        "user": {
+            "username": "sd-app-sre+glitchtip@redhat.com",
+            "lastLogin": "2022-10-06T12:42:41.361955Z",
+            "isSuperuser": false,
+            "emails": [],
+            "identities": [],
+            "id": "3",
+            "isActive": true,
+            "name": "",
+            "dateJoined": "2022-09-13T10:58:07.053773Z",
+            "hasPasswordAuth": true,
+            "email": "sd-app-sre+glitchtip@redhat.com",
+            "options": "{}"
+        },
+        "roleName": "Owner",
+        "dateCreated": "2022-09-13T12:01:05.193811Z",
+        "email": "sd-app-sre+glitchtip@redhat.com",
+        "pending": false
+    }
+]

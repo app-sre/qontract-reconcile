@@ -1,9 +1,16 @@
 import json
 from typing import Optional
 
-import pytest
-from reconcile.utils.glitchtip.client import get_next_url, GlitchtipClient
 import httpretty as httpretty_module
+import pytest
+from reconcile.utils.glitchtip import (
+    GlitchtipClient,
+    Organization,
+    Project,
+    Team,
+    User,
+)
+from reconcile.utils.glitchtip.client import get_next_url
 
 
 @pytest.mark.parametrize(
@@ -79,26 +86,10 @@ def test_get_next_url(
     assert get_next_url(test_input) == expected
 
 
-@pytest.fixture
-def glitchtip_url() -> str:
-    return "http://fake-glitchtip-server.com"
-
-
-@pytest.fixture
-def glitchtip_token() -> str:
-    return "1234567890"
-
-
-@pytest.fixture
-def glitchtip_client(glitchtip_url, glitchtip_token) -> GlitchtipClient:
-    return GlitchtipClient(host=glitchtip_url, token=glitchtip_token)
-
-
 def test_glitchtip_client_list(
     httpretty: httpretty_module,
     glitchtip_client: GlitchtipClient,
     glitchtip_url: str,
-    glitchtip_token: str,
 ):
     first_url = f"{glitchtip_url}/data"
     second_url = f"{glitchtip_url}/data2"
@@ -125,7 +116,6 @@ def test_glitchtip_client_get(
     httpretty: httpretty_module,
     glitchtip_client: GlitchtipClient,
     glitchtip_url: str,
-    glitchtip_token: str,
 ):
     url = f"{glitchtip_url}/data"
     test_obj = {"test": "object"}
@@ -133,3 +123,80 @@ def test_glitchtip_client_get(
         httpretty.GET, url, body=json.dumps(test_obj), content_type="text/json"
     )
     assert glitchtip_client._get(url) == test_obj
+
+
+def test_glitchtip_organizations(
+    glitchtip_client: GlitchtipClient, glitchtip_server_full_api_response
+):
+    assert glitchtip_client.organizations() == [
+        Organization(id=10, name="ESA", slug="esa", projects=[], teams=[], users=[]),
+        Organization(id=4, name="NASA", slug="nasa", projects=[], teams=[], users=[]),
+    ]
+
+
+def test_glitchtip_teams(
+    glitchtip_client: GlitchtipClient, glitchtip_server_full_api_response
+):
+    assert glitchtip_client.teams(organization_slug="nasa") == [
+        Team(id=4, slug="nasa-flight-control", users=[]),
+        Team(id=2, slug="nasa-pilots", users=[]),
+    ]
+
+
+def test_glitchtip_projects(
+    glitchtip_client: GlitchtipClient, glitchtip_server_full_api_response
+):
+    assert glitchtip_client.projects(organization_slug="nasa") == [
+        Project(
+            id=8,
+            name="apollo-11-flight-control",
+            slug="apollo-11-flight-control",
+            platform="python",
+            teams=[Team(id=4, slug="nasa-flight-control", users=[])],
+        ),
+        Project(
+            id=7,
+            name="apollo-11-spacecraft",
+            slug="apollo-11-spacecraft",
+            platform="python",
+            teams=[
+                Team(id=2, slug="nasa-pilots", users=[]),
+                Team(id=4, slug="nasa-flight-control", users=[]),
+            ],
+        ),
+    ]
+
+
+def test_glitchtip_organization_users(
+    glitchtip_client: GlitchtipClient, glitchtip_server_full_api_response
+):
+    assert glitchtip_client.organization_users(organization_slug="nasa") == [
+        User(id=23, email="Michael.Collins@nasa.com", role="member", pending=False),
+        User(
+            id=22,
+            email="global-flight-director@global-space-agency.com",
+            role="owner",
+            pending=True,
+        ),
+        User(id=21, email="Buzz.Aldrin@nasa.com", role="member", pending=True),
+        User(id=20, email="Neil.Armstrong@nasa.com", role="member", pending=False),
+        User(
+            id=5, email="sd-app-sre+glitchtip@redhat.com", role="owner", pending=False
+        ),
+    ]
+
+
+def test_glitchtip_team_users(
+    glitchtip_client: GlitchtipClient, glitchtip_server_full_api_response
+):
+    assert glitchtip_client.team_users(
+        organization_slug="nasa", team_slug="nasa-flight-control"
+    ) == [
+        User(id=23, email="Michael.Collins@nasa.com", role="member", pending=False),
+        User(
+            id=22,
+            email="global-flight-director@global-space-agency.com",
+            role="owner",
+            pending=True,
+        ),
+    ]

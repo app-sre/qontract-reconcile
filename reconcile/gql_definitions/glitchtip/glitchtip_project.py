@@ -32,6 +32,7 @@ query Projects {
             role
           }
           users {
+            org_username
             github_username
           }
         }
@@ -66,6 +67,7 @@ class GlitchtipRoleV1(BaseModel):
 
 
 class UserV1(BaseModel):
+    org_username: str = Field(..., alias="org_username")
     github_username: str = Field(..., alias="github_username")
 
     class Config:

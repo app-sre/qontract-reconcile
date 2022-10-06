@@ -49,14 +49,19 @@ def fetch_current_state(
 ) -> list[Organization]:
     organizations = glitchtip_client.organizations()
     for organization in organizations:
-        organization.teams = glitchtip_client.teams(organization=organization)
-        organization.projects = glitchtip_client.projects(organization=organization)
+        organization.teams = glitchtip_client.teams(organization_slug=organization.slug)
+        organization.projects = glitchtip_client.projects(
+            organization_slug=organization.slug
+        )
         organization.users = filter_users(
-            glitchtip_client.organization_users(organization=organization), ignore_users
+            glitchtip_client.organization_users(organization_slug=organization.slug),
+            ignore_users,
         )
         for team in organization.teams:
             team.users = filter_users(
-                glitchtip_client.team_users(organization=organization, team=team),
+                glitchtip_client.team_users(
+                    organization_slug=organization.slug, team_slug=team.slug
+                ),
                 ignore_users,
             )
     return organizations
@@ -79,15 +84,19 @@ def fetch_desired_state(
             users: list[User] = []
             for role in glitchtip_team.roles:
                 for role_user in role.users:
-                    if email := github_email(
-                        gh=gh, github_username=role_user.github_username
-                    ):
-                        users.append(
-                            User(
-                                email=email,
-                                role=get_user_role(organization, role),
-                            )
+                    if not (
+                        email := github_email(
+                            gh=gh, github_username=role_user.github_username
                         )
+                    ):
+                        # TODO must be configurable
+                        email = role_user.org_username + "@redhat.com"
+                    users.append(
+                        User(
+                            email=email,
+                            role=get_user_role(organization, role),
+                        )
+                    )
 
             team = Team(slug=glitchtip_team.name, users=users)
             project.teams.append(team)

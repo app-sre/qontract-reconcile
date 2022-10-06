@@ -1,0 +1,46 @@
+[
+    {
+        "role": "member",
+        "id": 24,
+        "user": {
+            "username": "Samantha.Cristoforetti@esa.com",
+            "lastLogin": "2022-10-06T13:05:28.126199Z",
+            "isSuperuser": false,
+            "emails": [],
+            "identities": [],
+            "id": "7",
+            "isActive": true,
+            "name": "",
+            "dateJoined": "2022-10-06T13:05:28.099362Z",
+            "hasPasswordAuth": true,
+            "email": "Samantha.Cristoforetti@esa.com",
+            "options": {}
+        },
+        "roleName": "Member",
+        "dateCreated": "2022-10-06T13:03:43.851289Z",
+        "email": "Samantha.Cristoforetti@esa.com",
+        "pending": false
+    },
+    {
+        "role": "owner",
+        "id": 11,
+        "user": {
+            "username": "sd-app-sre+glitchtip@redhat.com",
+            "lastLogin": "2022-10-06T12:42:41.361955Z",
+            "isSuperuser": false,
+            "emails": [],
+            "identities": [],
+            "id": "3",
+            "isActive": true,
+            "name": "",
+            "dateJoined": "2022-09-13T10:58:07.053773Z",
+            "hasPasswordAuth": true,
+            "email": "sd-app-sre+glitchtip@redhat.com",
+            "options": "{}"
+        },
+        "roleName": "Owner",
+        "dateCreated": "2022-09-13T12:01:05.193811Z",
+        "email": "sd-app-sre+glitchtip@redhat.com",
+        "pending": false
+    }
+]
