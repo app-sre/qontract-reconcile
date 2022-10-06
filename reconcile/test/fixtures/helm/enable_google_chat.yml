@@ -45,16 +45,10 @@ objects:
               secretKeyRef:
                 key: google_chat.webhook_url
                 name: app-interface
-          - name: GOOGLE_CHAT_WEBHOOK_KEY
+          - name: POD_NAME
             valueFrom:
-              secretKeyRef:
-                key: google_chat.webhook_key
-                name: app-interface
-          - name: GOOGLE_CHAT_WEBHOOK_TOKEN
-            valueFrom:
-              secretKeyRef:
-                key: google_chat.webhook_token
-                name: app-interface
+              fieldRef:
+                fieldPath: metadata.name
           - name: LOG_GROUP_NAME
             valueFrom:
               secretKeyRef:
@@ -94,11 +88,9 @@ objects:
             <match integration>
               @type copy
               <store>
-                @type http
-                webhook_url ${GOOGLE_CHAT_WEBHOOK_URL}/messages?key=${GOOGLE_CHAT_WEBHOOK_KEY}&token=${GOOGLE_CHAT_WEBHOOK_TOKEN}
-                open_timeout 2
-                flush_interval 10s
-                message "\`\`\`[{{ $integration.name }}] %s\`\`\`"
+                @type teams
+                webhook_url "${GOOGLE_CHAT_WEBHOOK_URL}&threadKey=${POD_NAME}"
+                text "<%= Time.at(time) %> [${POD_NAME}] <%= record['message'] %>\n\n"
               </store>
               <store>
                 @type cloudwatch_logs
@@ -118,10 +110,6 @@ objects:
             - name: http
               containerPort: 9090
           env:
-          - name: SHARDS
-            value: "1"
-          - name: SHARD_ID
-            value: "0"
           - name: DRY_RUN
             value: ${DRY_RUN}
           - name: INTEGRATION_NAME
@@ -140,6 +128,16 @@ objects:
                 key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
+          - name: UNLEASH_API_URL
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: API_URL
+          - name: UNLEASH_CLIENT_ACCESS_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: CLIENT_ACCESS_TOKEN
           - name: SLOW_OC_RECONCILE_THRESHOLD
             value: "${SLOW_OC_RECONCILE_THRESHOLD}"
           - name: LOG_SLOW_OC_RECONCILE
