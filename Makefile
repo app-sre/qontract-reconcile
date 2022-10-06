@@ -43,6 +43,7 @@ rc: git_version
 generate:
 	@helm lint helm/qontract-reconcile
 	@helm template helm/qontract-reconcile -n qontract-reconcile -f helm/qontract-reconcile/values-manager.yaml > openshift/qontract-manager.yaml
+	@helm template helm/qontract-reconcile -n qontract-reconcile -f helm/qontract-reconcile/values-manager-fedramp.yaml > openshift/qontract-manager-fedramp.yaml
 
 build-test:
 	@$(CONTAINER_ENGINE) build -t $(IMAGE_TEST) -f dockerfiles/Dockerfile.test .
