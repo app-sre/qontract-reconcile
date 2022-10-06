@@ -4,7 +4,7 @@ import copy
 import logging
 
 from reconcile import queries
-from reconcile.utils import throughput
+from reconcile.utils import throughput, gql
 
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.mr.labels import APPROVED, HOLD, SAAS_FILE_UPDATE
@@ -55,9 +55,9 @@ def collect_owners():
     return ans
 
 
-def collect_state():
+def collect_state(gqlapi):
     state = []
-    saas_files = queries.get_saas_files()
+    saas_files = queries.get_saas_files(gqlapi=gqlapi)
     for saas_file in saas_files:
         saas_file_path = saas_file["path"]
         saas_file_name = saas_file["name"]
@@ -124,7 +124,7 @@ def collect_state():
 
 def collect_baseline():
     owners = collect_owners()
-    state = collect_state()
+    state = collect_state(gql.get_api())
     return {"owners": owners, "state": state}
 
 
@@ -302,7 +302,7 @@ def run(
     baseline = read_baseline_from_file(io_dir)
     owners = baseline["owners"]
     current_state = baseline["state"]
-    desired_state = collect_state()
+    desired_state = collect_state(gql.get_api())
     diffs = [s for s in desired_state if s not in current_state]
     changed_paths = gl.get_merge_request_changed_paths(gitlab_merge_request_id)
 

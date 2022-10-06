@@ -1019,6 +1019,43 @@ def openshift_saas_deploy_wrapper(
     )
 
 
+@integration.command(
+    short_help="Runs openshift-saas-deploy for each saas-file that changed within a bundle."
+)
+@click.argument("gitlab-project-id")
+@click.argument("gitlab-merge-request-id")
+@environ(["APP_INTERFACE_STATE_BUCKET", "APP_INTERFACE_STATE_BUCKET_ACCOUNT"])
+@environ(["gitlab_pr_submitter_queue_url"])  # do we need this???
+@threaded()
+@click.option(
+    "--comparison-sha",
+    help="bundle sha to compare to to find changes",
+)
+@binary(["oc", "ssh"])
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
+@use_jump_host()
+@click.pass_context
+def openshift_saas_deploy_change_tester(
+    ctx,
+    gitlab_project_id,
+    gitlab_merge_request_id,
+    thread_pool_size,
+    comparison_sha,
+    use_jump_host,
+):
+    import reconcile.openshift_saas_deploy_change_tester
+
+    run_integration(
+        reconcile.openshift_saas_deploy_change_tester,
+        ctx.obj,
+        gitlab_project_id,
+        gitlab_merge_request_id,
+        thread_pool_size,
+        comparison_sha,
+        use_jump_host,
+    )
+
+
 @integration.command(short_help="Validates Saas files.")
 @click.pass_context
 def saas_file_validator(ctx):
