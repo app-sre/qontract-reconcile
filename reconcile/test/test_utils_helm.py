@@ -62,6 +62,11 @@ def test_template_disable_unleash(values):
     expected = yaml.safe_load(fxt.get("disable_unleash.yml"))
     assert template == expected
 
+def test_template_enable_google_chat(values):
+    values["integrations"][0]["googleChat"] = True
+    template = helm.template(values)
+    expected = yaml.safe_load(fxt.get("enable_google_chat.yml"))
+    assert template == expected
 
 def test_template_extra_args(values):
     values["integrations"][0]["shard_specs"][0]["extra_args"] = "--test-extra-args"
@@ -269,11 +274,4 @@ def test_template_cron_failure_history(values_cron):
     values_cron["cronjobs"][0]["failedJobHistoryLimit"] = 24
     template = helm.template(values_cron)
     expected = yaml.safe_load(fxt.get("failure_history.yml"))
-    assert template == expected
-
-
-def test_template_enable_google_chat(values):
-    values["integrations"][0]["googleChat"] = True
-    template = helm.template(values)
-    expected = yaml.safe_load(fxt.get("enable_google_chat.yml"))
     assert template == expected
