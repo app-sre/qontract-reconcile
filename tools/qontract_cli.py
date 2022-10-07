@@ -1103,83 +1103,95 @@ def app_interface_merge_queue(ctx):
 def app_interface_review_queue(ctx):
     settings = queries.get_app_interface_settings()
     instance = queries.get_gitlab_instance()
-    gl = GitLabApi(instance, project_url=settings["repoUrl"], settings=settings)
-    merge_requests = gl.get_merge_requests(state=MRState.OPENED)
     secret_reader = SecretReader(settings=settings)
     jjb: JJB = init_jjb(secret_reader)
-    job = jjb.get_job_by_repo_url(settings["repoUrl"], job_type="gl-pr-check")
-    trigger_phrases_regex = jjb.get_trigger_phrases_regex(job)
-
     columns = [
         "id",
+        "repo",
         "title",
         "onboarding",
         "author",
         "updated_at",
         "labels",
     ]
-    queue_data = []
-    for mr in merge_requests:
-        if mr.work_in_progress:
-            continue
-        if len(mr.commits()) == 0:
-            continue
-        if mr.merge_status in [
-            MRStatus.CANNOT_BE_MERGED,
-            MRStatus.CANNOT_BE_MERGED_RECHECK,
-        ]:
-            continue
+    
+    def get_mrs(repo, url) -> list:
+        gl = GitLabApi(instance, project_url=url, settings=settings)
+        merge_requests = gl.get_merge_requests(state=MRState.OPENED)
+        job = jjb.get_job_by_repo_url(url, job_type="gl-pr-check")
+        trigger_phrases_regex = jjb.get_trigger_phrases_regex(job)
 
-        labels = mr.attributes.get("labels")
-        if glhk.is_good_to_merge(labels):
-            continue
-        if "stale" in labels:
-            continue
-        if SAAS_FILE_UPDATE in labels:
-            continue
-        if SELF_SERVICEABLE in labels:
-            continue
-
-        pipelines = mr.pipelines()
-        if not pipelines:
-            continue
-        running_pipelines = [p for p in pipelines if p["status"] == "running"]
-        if running_pipelines:
-            continue
-        last_pipeline_result = pipelines[0]["status"]
-        if last_pipeline_result != "success":
-            continue
-
-        author = mr.author["username"]
-        app_sre_team_members = [u.username for u in gl.get_app_sre_group_users()]
-        if author in app_sre_team_members:
-            continue
-
-        is_assigned_by_app_sre = gl.is_assigned_by_team(mr, app_sre_team_members)
-        if is_assigned_by_app_sre:
-            continue
-
-        is_last_action_by_app_sre = gl.is_last_action_by_team(
-            mr, app_sre_team_members, glhk.HOLD_LABELS
-        )
-
-        if is_last_action_by_app_sre:
-            last_comment = gl.last_comment(mr, exclude_bot=True)
-            # skip only if the last comment isn't a trigger phrase
-            if last_comment and not re.fullmatch(
-                trigger_phrases_regex, last_comment["body"]
-            ):
+        queue_data = []
+        for mr in merge_requests:
+            if mr.work_in_progress:
+                continue
+            if len(mr.commits()) == 0:
+                continue
+            if mr.merge_status in [
+                MRStatus.CANNOT_BE_MERGED,
+                MRStatus.CANNOT_BE_MERGED_RECHECK,
+            ]:
                 continue
 
-        item = {
-            "id": f"[{mr.iid}]({mr.web_url})",
-            "title": mr.title,
-            "onboarding": "onboarding" in labels,
-            "updated_at": mr.updated_at,
-            "author": author,
-            "labels": ", ".join(labels),
-        }
-        queue_data.append(item)
+            labels = mr.attributes.get("labels")
+            if glhk.is_good_to_merge(labels):
+                continue
+            if "stale" in labels:
+                continue
+            if SAAS_FILE_UPDATE in labels:
+                continue
+            if SELF_SERVICEABLE in labels:
+                continue
+
+            pipelines = mr.pipelines()
+            if not pipelines:
+                continue
+            running_pipelines = [p for p in pipelines if p["status"] == "running"]
+            if running_pipelines:
+                continue
+            last_pipeline_result = pipelines[0]["status"]
+            if last_pipeline_result != "success":
+                continue
+
+            author = mr.author["username"]
+            app_sre_team_members = [u.username for u in gl.get_app_sre_group_users()]
+            if author in app_sre_team_members:
+                continue
+
+            is_assigned_by_app_sre = gl.is_assigned_by_team(mr, app_sre_team_members)
+            if is_assigned_by_app_sre:
+                continue
+
+            is_last_action_by_app_sre = gl.is_last_action_by_team(
+                mr, app_sre_team_members, glhk.HOLD_LABELS
+            )
+
+            if is_last_action_by_app_sre:
+                last_comment = gl.last_comment(mr, exclude_bot=True)
+                # skip only if the last comment isn't a trigger phrase
+                if last_comment and not re.fullmatch(
+                    trigger_phrases_regex, last_comment["body"]
+                ):
+                    continue
+
+            item = {
+                "id": f"[{mr.iid}]({mr.web_url})",
+                "repo": repo,
+                "title": mr.title,
+                "onboarding": "onboarding" in labels,
+                "updated_at": mr.updated_at,
+                "author": author,
+                "labels": ", ".join(labels),
+            }
+            queue_data.append(item)
+        return queue_data
+
+    queue_data = get_mrs("app-interface", settings["repoUrl"])
+
+    review_repos = settings["reviewRepos"]
+    if review_repos:
+        for repo in review_repos:
+            queue_data.extend(get_mrs(repo["name"]))
 
     queue_data.sort(key=itemgetter("updated_at"))
     ctx.obj["options"]["sort"] = False  # do not sort

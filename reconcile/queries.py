@@ -109,7 +109,7 @@ APP_INTERFACE_SETTINGS_QUERY = """
     }
     reviewRepos {
       name
-      repoUrl
+      url
     }
   }
 }
