@@ -1188,6 +1188,69 @@ def app_interface_review_queue(ctx):
 
 @get.command()
 @click.pass_context
+def app_interface_open_selfserviceable_mr_queue(ctx):
+    settings = queries.get_app_interface_settings()
+    instance = queries.get_gitlab_instance()
+    gl = GitLabApi(instance, project_url=settings["repoUrl"], settings=settings)
+    merge_requests = gl.get_merge_requests(state=MRState.OPENED)
+
+    columns = [
+        "id",
+        "title",
+        "author",
+        "updated_at",
+        "labels",
+    ]
+    queue_data = []
+    for mr in merge_requests:
+        if mr.work_in_progress:
+            continue
+        if len(mr.commits()) == 0:
+            continue
+
+        # skip stale or non self serviceable MRs
+        labels = mr.attributes.get("labels")
+        if "stale" in labels:
+            continue
+        if SELF_SERVICEABLE not in labels and SAAS_FILE_UPDATE not in labels:
+            continue
+
+        # skip MRs where AppSRE is involved already (author or assignee)
+        author = mr.author["username"]
+        app_sre_team_members = [u.username for u in gl.get_app_sre_group_users()]
+        if author in app_sre_team_members:
+            continue
+        is_assigned_by_app_sre = gl.is_assigned_by_team(mr, app_sre_team_members)
+        if is_assigned_by_app_sre:
+            continue
+
+        # skip MRs where the pipeline is still running or where it failed
+        pipelines = mr.pipelines()
+        if not pipelines:
+            continue
+        running_pipelines = [p for p in pipelines if p["status"] == "running"]
+        if running_pipelines:
+            continue
+        last_pipeline_result = pipelines[0]["status"]
+        if last_pipeline_result != "success":
+            continue
+
+        item = {
+            "id": f"[{mr.iid}]({mr.web_url})",
+            "title": mr.title,
+            "updated_at": mr.updated_at,
+            "author": author,
+            "labels": ", ".join(labels),
+        }
+        queue_data.append(item)
+
+    queue_data.sort(key=itemgetter("updated_at"))
+    ctx.obj["options"]["sort"] = False  # do not sort
+    print_output(ctx.obj["options"], queue_data, columns)
+
+
+@get.command()
+@click.pass_context
 def app_interface_merge_history(ctx):
     settings = queries.get_app_interface_settings()
     instance = queries.get_gitlab_instance()
