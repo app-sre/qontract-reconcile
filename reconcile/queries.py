@@ -107,6 +107,10 @@ APP_INTERFACE_SETTINGS_QUERY = """
       readTimeout
       connectTimeout
     }
+    reviewRepos {
+      name
+      repoUrl
+    }
   }
 }
 """
