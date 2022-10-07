@@ -48,6 +48,16 @@ query TerraformCloudflareResources {
               pattern
               script_name
             }
+            certificates {
+              identifier
+              type
+              hosts
+              validation_method
+              validity_days
+              certificate_authority
+              cloudflare_branding
+              wait_for_active_status
+            }
           }
         }
       }

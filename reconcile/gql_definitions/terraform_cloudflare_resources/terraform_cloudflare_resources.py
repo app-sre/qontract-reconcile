@@ -66,6 +66,16 @@ query TerraformCloudflareResources {
               pattern
               script_name
             }
+            certificates {
+              identifier
+              type
+              hosts
+              validation_method
+              validity_days
+              certificate_authority
+              cloudflare_branding
+              wait_for_active_status
+            }
           }
         }
       }
@@ -162,6 +172,21 @@ class CloudflareZoneWorkerV1(BaseModel):
         extra = Extra.forbid
 
 
+class CloudflareZoneCertificateV1(BaseModel):
+    identifier: str = Field(..., alias="identifier")
+    q_type: str = Field(..., alias="type")
+    hosts: list[str] = Field(..., alias="hosts")
+    validation_method: str = Field(..., alias="validation_method")
+    validity_days: int = Field(..., alias="validity_days")
+    certificate_authority: str = Field(..., alias="certificate_authority")
+    cloudflare_branding: Optional[bool] = Field(..., alias="cloudflare_branding")
+    wait_for_active_status: Optional[bool] = Field(..., alias="wait_for_active_status")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
 class NamespaceTerraformResourceCloudflareZoneV1(
     NamespaceTerraformResourceCloudflareV1
 ):
@@ -173,6 +198,9 @@ class NamespaceTerraformResourceCloudflareZoneV1(
     argo: Optional[CloudflareZoneArgoV1] = Field(..., alias="argo")
     records: Optional[list[CloudflareZoneRecordV1]] = Field(..., alias="records")
     workers: Optional[list[CloudflareZoneWorkerV1]] = Field(..., alias="workers")
+    certificates: Optional[list[CloudflareZoneCertificateV1]] = Field(
+        ..., alias="certificates"
+    )
 
     class Config:
         smart_union = True

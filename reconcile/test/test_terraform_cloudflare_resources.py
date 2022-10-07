@@ -7,6 +7,7 @@ from reconcile.gql_definitions.terraform_cloudflare_resources.terraform_cloudfla
     NamespaceTerraformResourceCloudflareZoneV1,
     NamespaceV1,
     TerraformCloudflareResourcesQueryData,
+    CloudflareZoneCertificateV1,
 )
 
 
@@ -61,6 +62,18 @@ def external_resources(provisioner_config):
                         identifier="testworker",
                         pattern="testzone.com/.*",
                         script_name="testscript",
+                    )
+                ],
+                certificates=[
+                    CloudflareZoneCertificateV1(
+                        identifier="testcert",
+                        type="advanced",
+                        hosts=["testzone.com"],
+                        validation_method="txt",
+                        validity_days=90,
+                        certificate_authority="lets_encrypt",
+                        cloudflare_branding=False,
+                        wait_for_active_status=False,
                     )
                 ],
             ),
