@@ -1191,7 +1191,7 @@ def app_interface_review_queue(ctx):
     review_repos = settings["reviewRepos"]
     if review_repos:
         for repo in review_repos:
-            queue_data.extend(get_mrs(repo["name"]))
+            queue_data.extend(get_mrs(repo["name"], repo["url"]))
 
     queue_data.sort(key=itemgetter("updated_at"))
     ctx.obj["options"]["sort"] = False  # do not sort
