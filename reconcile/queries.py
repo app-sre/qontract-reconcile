@@ -2085,9 +2085,15 @@ SAAS_FILES_QUERY_V2 = """
 )
 
 
-def get_saas_files(saas_file_name=None, env_name=None, app_name=None):
+def get_saas_files(
+    saas_file_name: Optional[str] = None,
+    env_name: Optional[str] = None,
+    app_name: Optional[str] = None,
+    gqlapi: Optional[gql.GqlApi] = None,
+):
     """Returns SaasFile resources defined in app-interface."""
-    gqlapi = gql.get_api()
+    if gqlapi is None:
+        gqlapi = gql.get_api()
     saas_files = gqlapi.query(SAAS_FILES_QUERY_V2)["saas_files"]
 
     if saas_file_name is None and env_name is None and app_name is None:
