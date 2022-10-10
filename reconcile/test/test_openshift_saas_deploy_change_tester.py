@@ -164,6 +164,18 @@ def saas_files() -> list[dict[str, Any]]:
 
 
 def test_collect_state(saas_files: list[dict[str, Any]]) -> None:
+    """
+    this implementation of collect_state may contain a bug when compared to the
+    saas_herder way to of collecting parameters and secrets.
+    there are 4 places where parameters and secrets can be defined with qontract-schema:
+    1) environment-1
+    2) saas-file-2
+    3) saas-file-2.resourceTemplates
+    4) saas-file-2.resourceTemplates.targets
+
+    - saas-herder collects from 1), 2), 4)
+    - collect_state collects from 2), 3), 4)
+    """
     state = collect_state(saas_files)
     expected = {
         "saas_file_path": "/path.yml",
