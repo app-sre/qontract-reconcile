@@ -1169,8 +1169,10 @@ def app_interface_review_queue(ctx):
             if is_last_action_by_app_sre:
                 last_comment = gl.last_comment(mr, exclude_bot=True)
                 # skip only if the last comment isn't a trigger phrase
-                if last_comment and not re.fullmatch(
-                    trigger_phrases_regex, last_comment["body"]
+                if (
+                    last_comment
+                    and trigger_phrases_regex
+                    and not re.fullmatch(trigger_phrases_regex, last_comment["body"])
                 ):
                     continue
 
