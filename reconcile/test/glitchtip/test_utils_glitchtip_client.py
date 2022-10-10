@@ -87,9 +87,7 @@ def test_get_next_url(
 
 
 def test_glitchtip_client_list(
-    httpretty: httpretty_module,
-    glitchtip_client: GlitchtipClient,
-    glitchtip_url: str,
+    httpretty: httpretty_module, glitchtip_client: GlitchtipClient, glitchtip_url: str
 ):
     first_url = f"{glitchtip_url}/data"
     second_url = f"{glitchtip_url}/data2"
@@ -113,9 +111,7 @@ def test_glitchtip_client_list(
 
 
 def test_glitchtip_client_get(
-    httpretty: httpretty_module,
-    glitchtip_client: GlitchtipClient,
-    glitchtip_url: str,
+    httpretty: httpretty_module, glitchtip_client: GlitchtipClient, glitchtip_url: str
 ):
     url = f"{glitchtip_url}/data"
     test_obj = {"test": "object"}
@@ -125,27 +121,49 @@ def test_glitchtip_client_get(
     assert glitchtip_client._get(url) == test_obj
 
 
-def test_glitchtip_organizations(
-    glitchtip_client: GlitchtipClient, glitchtip_server_full_api_response
+def test_glitchtip_client_post(
+    httpretty: httpretty_module, glitchtip_client: GlitchtipClient, glitchtip_url: str
 ):
+    url = f"{glitchtip_url}/data"
+    request_data = {"test": "object"}
+    response_data = {"foo": "bar"}
+
+    def request_callback(request, uri, response_headers):
+        assert request.headers.get("Content-Type") == "application/json"
+        assert json.loads(request.body) == request_data
+        return [201, response_headers, json.dumps(response_data)]
+
+    httpretty.register_uri(
+        httpretty.POST, url, content_type="text/json", body=request_callback
+    )
+    assert glitchtip_client._post(url, data=request_data) == response_data
+
+
+def test_glitchtip_organizations(glitchtip_client: GlitchtipClient):
     assert glitchtip_client.organizations() == [
         Organization(id=10, name="ESA", slug="esa", projects=[], teams=[], users=[]),
         Organization(id=4, name="NASA", slug="nasa", projects=[], teams=[], users=[]),
     ]
 
 
-def test_glitchtip_teams(
-    glitchtip_client: GlitchtipClient, glitchtip_server_full_api_response
-):
+def test_glitchtip_create_organization(glitchtip_client: GlitchtipClient):
+    org = glitchtip_client.create_organization(name="ASA")
+    assert org.name == "ASA"
+    assert org.slug == "asa"
+
+
+def test_glitchtip_delete_organization(glitchtip_client: GlitchtipClient):
+    glitchtip_client.delete_organization(slug="esa")
+
+
+def test_glitchtip_teams(glitchtip_client: GlitchtipClient):
     assert glitchtip_client.teams(organization_slug="nasa") == [
         Team(id=4, slug="nasa-flight-control", users=[]),
         Team(id=2, slug="nasa-pilots", users=[]),
     ]
 
 
-def test_glitchtip_projects(
-    glitchtip_client: GlitchtipClient, glitchtip_server_full_api_response
-):
+def test_glitchtip_projects(glitchtip_client: GlitchtipClient):
     assert glitchtip_client.projects(organization_slug="nasa") == [
         Project(
             id=8,
@@ -167,35 +185,31 @@ def test_glitchtip_projects(
     ]
 
 
-def test_glitchtip_organization_users(
-    glitchtip_client: GlitchtipClient, glitchtip_server_full_api_response
-):
+def test_glitchtip_organization_users(glitchtip_client: GlitchtipClient):
     assert glitchtip_client.organization_users(organization_slug="nasa") == [
-        User(id=23, email="Michael.Collins@nasa.com", role="member", pending=False),
+        User(id=23, email="MichaelCollins@redhat.com", role="member", pending=False),
         User(
             id=22,
-            email="global-flight-director@global-space-agency.com",
+            email="GlobalFlightDirector@redhat.com",
             role="owner",
             pending=True,
         ),
-        User(id=21, email="Buzz.Aldrin@nasa.com", role="member", pending=True),
-        User(id=20, email="Neil.Armstrong@nasa.com", role="member", pending=False),
+        User(id=21, email="BuzzAldrin@redhat.com", role="member", pending=True),
+        User(id=20, email="NeilArmstrong@redhat.com", role="member", pending=False),
         User(
             id=5, email="sd-app-sre+glitchtip@redhat.com", role="owner", pending=False
         ),
     ]
 
 
-def test_glitchtip_team_users(
-    glitchtip_client: GlitchtipClient, glitchtip_server_full_api_response
-):
+def test_glitchtip_team_users(glitchtip_client: GlitchtipClient):
     assert glitchtip_client.team_users(
         organization_slug="nasa", team_slug="nasa-flight-control"
     ) == [
-        User(id=23, email="Michael.Collins@nasa.com", role="member", pending=False),
+        User(id=23, email="MichaelCollins@redhat.com", role="member", pending=False),
         User(
             id=22,
-            email="global-flight-director@global-space-agency.com",
+            email="GlobalFlightDirector@redhat.com",
             role="owner",
             pending=True,
         ),
