@@ -57,7 +57,7 @@ copy_count = Counter(
 )
 
 gitlab_request = Counter(
-    name="gitlab_request_total",
+    name="qontract_reconcile_gitlab_request_total",
     documentation="Number of calls made to Gitlab API",
     labelnames=["integration"],
 )
