@@ -135,7 +135,6 @@ def run(dry_run):
             glitchtip_client=glitchtip_client,
             ignore_users=[glitchtip_instance.automation_user_email],
         )
-        print(current_state)
         desired_state = fetch_desired_state(
             glitchtip_projects=[
                 p
@@ -144,7 +143,6 @@ def run(dry_run):
             ],
             gh=github,
         )
-        print(desired_state)
 
         # reconciler = SentryReconciler(sentry_client, dry_run)
         # reconciler.reconcile(current_state, desired_state)

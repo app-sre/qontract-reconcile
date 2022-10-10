@@ -1,0 +1,179 @@
+---
+- name: ESA
+  id: null
+  projects:
+    - name: rosetta-spacecraft
+      id: null
+      platform: python
+      slug: ""
+      teams:
+        - id: null
+          slug: esa-pilots
+          users:
+            - email: SamanthaCristoforetti@redhat.com
+              pending: false
+              id: null
+              role: member
+        - id: null
+          slug: esa-flight-control
+          users:
+            - email: GlobalFlightDirector@redhat.com
+              pending: false
+              id: null
+              role: owner
+            - email: MatthiasMaurer@redhat.com
+              pending: false
+              id: null
+              role: member
+            - email: TimPeake@redhat.com
+              pending: false
+              id: null
+              role: member
+    - name: rosetta-flight-control
+      id: null
+      platform: python
+      slug: ""
+      teams:
+        - id: null
+          slug: esa-flight-control
+          users:
+            - email: GlobalFlightDirector@redhat.com
+              pending: false
+              id: null
+              role: owner
+            - email: MatthiasMaurer@redhat.com
+              pending: false
+              id: null
+              role: member
+            - email: TimPeake@redhat.com
+              pending: false
+              id: null
+              role: member
+  slug: ""
+  teams:
+    - id: null
+      slug: esa-pilots
+      users:
+        - email: SamanthaCristoforetti@redhat.com
+          pending: false
+          id: null
+          role: member
+    - id: null
+      slug: esa-flight-control
+      users:
+        - email: GlobalFlightDirector@redhat.com
+          pending: false
+          id: null
+          role: owner
+        - email: MatthiasMaurer@redhat.com
+          pending: false
+          id: null
+          role: member
+        - email: TimPeake@redhat.com
+          pending: false
+          id: null
+          role: member
+  users:
+    - email: SamanthaCristoforetti@redhat.com
+      pending: false
+      id: null
+      role: member
+    - email: GlobalFlightDirector@redhat.com
+      pending: false
+      id: null
+      role: owner
+    - email: MatthiasMaurer@redhat.com
+      pending: false
+      id: null
+      role: member
+    - email: TimPeake@redhat.com
+      pending: false
+      id: null
+      role: member
+- name: NASA
+  id: null
+  projects:
+    - name: apollo-11-spacecraft
+      id: null
+      platform: python
+      slug: ""
+      teams:
+        - id: null
+          slug: nasa-pilots
+          users:
+            - email: NeilArmstrong@redhat.com
+              pending: false
+              id: null
+              role: member
+            - email: BuzzAldrin@redhat.com
+              pending: false
+              id: null
+              role: member
+        - id: null
+          slug: nasa-flight-control
+          users:
+            - email: GlobalFlightDirector@redhat.com
+              pending: false
+              id: null
+              role: owner
+            - email: MichaelCollins@redhat.com
+              pending: false
+              id: null
+              role: member
+    - name: apollo-11-flight-control
+      id: null
+      platform: python
+      slug: ""
+      teams:
+        - id: null
+          slug: nasa-flight-control
+          users:
+            - email: GlobalFlightDirector@redhat.com
+              pending: false
+              id: null
+              role: owner
+            - email: MichaelCollins@redhat.com
+              pending: false
+              id: null
+              role: member
+  slug: ""
+  teams:
+    - id: null
+      slug: nasa-pilots
+      users:
+        - email: NeilArmstrong@redhat.com
+          pending: false
+          id: null
+          role: member
+        - email: BuzzAldrin@redhat.com
+          pending: false
+          id: null
+          role: member
+    - id: null
+      slug: nasa-flight-control
+      users:
+        - email: GlobalFlightDirector@redhat.com
+          pending: false
+          id: null
+          role: owner
+        - email: MichaelCollins@redhat.com
+          pending: false
+          id: null
+          role: member
+  users:
+    - email: NeilArmstrong@redhat.com
+      pending: false
+      id: null
+      role: member
+    - email: BuzzAldrin@redhat.com
+      pending: false
+      id: null
+      role: member
+    - email: GlobalFlightDirector@redhat.com
+      pending: false
+      id: null
+      role: owner
+    - email: MichaelCollins@redhat.com
+      pending: false
+      id: null
+      role: member

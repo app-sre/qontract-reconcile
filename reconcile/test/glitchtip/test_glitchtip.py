@@ -1,5 +1,23 @@
-from reconcile.glitchtip.integration import fetch_current_state
+from github import UnknownObjectException
+from reconcile.glitchtip.integration import fetch_current_state, fetch_desired_state
 from reconcile.utils.glitchtip import GlitchtipClient, Organization
+from reconcile.gql_definitions.glitchtip.glitchtip_project import GlitchtipProjectsV1
+
+
+def sort_all(orgs: list[Organization]) -> list[Organization]:
+    """sort everything for easier comparison"""
+    for org in orgs:
+        for proj in org.projects:
+            proj.teams.sort()
+            for team in proj.teams:
+                team.users.sort()
+        org.projects.sort()
+        for team in org.teams:
+            team.users.sort()
+        org.teams.sort()
+        org.users.sort()
+    orgs.sort()
+    return orgs
 
 
 def test_fetch_current_state(
@@ -8,28 +26,21 @@ def test_fetch_current_state(
     current_state = fetch_current_state(
         glitchtip_client, ignore_users=["sd-app-sre+glitchtip@redhat.com"]
     )
-    # sort everything for easier comparison
-    for org in current_state:
-        for proj in org.projects:
-            proj.teams.sort()
-        org.projects.sort()
-        for team in org.teams:
-            team.users.sort()
-        org.teams.sort()
-        org.users.sort()
-    current_state.sort()
-
     expected_current_state = [
-        Organization(**i) for i in fx.get_anymarkup("current_state.yml")
+        Organization(**i) for i in fx.get_anymarkup("current_state_expected.yml")
     ]
-    # sort everything for easier comparison
-    for org in expected_current_state:
-        for proj in org.projects:
-            proj.teams.sort()
-        org.projects.sort()
-        for team in org.teams:
-            team.users.sort()
-        org.teams.sort()
-        org.users.sort()
-    expected_current_state.sort()
-    assert current_state == expected_current_state
+
+    assert sort_all(current_state) == sort_all(expected_current_state)
+
+
+def test_desire_state(mocker, fx):
+    gh = mocker.patch("github.Github")
+    gh.get_user.side_effect = UnknownObjectException(status=404, data="", headers={})
+    projects = [
+        GlitchtipProjectsV1(**i) for i in fx.get_anymarkup("desire_state_projects.yml")
+    ]
+    desired_state = fetch_desired_state(glitchtip_projects=projects, gh=gh)
+    expected_desire_state = [
+        Organization(**i) for i in fx.get_anymarkup("desire_state_expected.yml")
+    ]
+    assert sort_all(desired_state)[1] == sort_all(expected_desire_state)[1]
