@@ -83,10 +83,22 @@ def collect_state(saas_files: list[dict[str, Any]]):
                 parameters.update(saas_file_parameters)
                 parameters.update(resource_template_parameters)
                 parameters.update(target_parameters)
-                secret_parameters = []
-                secret_parameters.extend(saas_file_secret_parameters)
-                secret_parameters.extend(resource_template_secret_parameters)
-                secret_parameters.extend(target_secret_parameters)
+                secret_parameters = {}
+                secret_parameters.update(
+                    {
+                        s.get("name"): s.get("secret")
+                        for s in saas_file_secret_parameters
+                    }
+                )
+                secret_parameters.update(
+                    {
+                        s.get("name"): s.get("secret")
+                        for s in resource_template_secret_parameters
+                    }
+                )
+                secret_parameters.update(
+                    {s.get("name"): s.get("secret") for s in target_secret_parameters}
+                )
                 state.append(
                     {
                         "saas_file_path": saas_file_path,
