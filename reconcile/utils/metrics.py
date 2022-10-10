@@ -55,3 +55,9 @@ copy_count = Counter(
     documentation="Number of copy commands issued by Skopeo",
     labelnames=["integration", "shard", "shard_id"],
 )
+
+gitlab_request = Counter(
+    name="gitlab_request_total",
+    documentation="Number of calls made to Gitlab API",
+    labelnames=["integration"],
+)
