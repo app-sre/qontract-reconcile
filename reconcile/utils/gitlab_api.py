@@ -22,7 +22,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 MR_DESCRIPTION_COMMENT_ID = 0
 
 # The default value is there for unit test
-INTEGRATION_NAME = os.getenv("INTEGRATION_NAME", "qontract-reconcile")
+INTEGRATION_NAME = os.getenv("INTEGRATION_NAME", "")
 
 
 class MRState:
@@ -242,6 +242,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
                         {"user_id": user.id, "access_level": access_level}
                     )
                 except gitlab.exceptions.GitlabCreateError:
+                    gitlab_request.labels(integration=INTEGRATION_NAME).inc()
                     member = group.members.get(user.id)
                     member.access_level = access_level
 
