@@ -44,9 +44,15 @@ def glitchtip_server_full_api_response(
         "api/0/organizations/nasa/projects/",
         "api/0/organizations/esa/members/",
         "api/0/organizations/nasa/members/",
+        "api/0/organizations/nasa/members/29/",
+        "api/0/organizations/nasa/members/29/teams/nasa-pilots/",
+        "api/0/projects/nasa/science-tools/teams/nasa-flight-control/",
+        "api/0/teams/esa/esa-pilots/",
         "api/0/teams/esa/esa-pilots/members/",
         "api/0/teams/esa/esa-flight-control/members/",
         "api/0/teams/nasa/nasa-pilots/members/",
+        "api/0/teams/nasa/nasa-pilots/projects/",
+        "api/0/teams/nasa/nasa-pilots/projects/science-tools/",
         "api/0/teams/nasa/nasa-flight-control/members/",
     ]:
         get_file = Path(fx.path(path)) / "get.json"
@@ -63,6 +69,14 @@ def glitchtip_server_full_api_response(
                 httpretty.POST,
                 f"{glitchtip_url}/{path}",
                 body=post_file.read_text(),
+                content_type="text/json",
+            )
+        put_file = Path(fx.path(path)) / "put.json"
+        if put_file.exists():
+            httpretty.register_uri(
+                httpretty.PUT,
+                f"{glitchtip_url}/{path}",
+                body=put_file.read_text(),
                 content_type="text/json",
             )
         delete_file = Path(fx.path(path)) / "delete.json"
