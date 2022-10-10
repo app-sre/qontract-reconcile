@@ -248,6 +248,16 @@ def lookup_graphql_query_results(query: str, **kwargs) -> list[Any]:
     return results
 
 
+def json_to_dict(input):
+    """Jinja2 filter to parse JSON strings into dictionaries.
+       This becomes useful to access Graphql queries data (labels)
+    :param input: json string
+    :return: dict with the parsed inputs contents
+    """
+    data = json.loads(input)
+    return data
+
+
 @cache
 def compile_jinja2_template(body, extra_curly: bool = False):
     env: dict = {}
@@ -266,6 +276,9 @@ def compile_jinja2_template(body, extra_curly: bool = False):
         undefined=jinja2.StrictUndefined,
         **env,
     )
+    # Register Custom filters
+    jinja_env.filters["json_to_dict"] = json_to_dict
+
     return jinja_env.from_string(body)
 
 
