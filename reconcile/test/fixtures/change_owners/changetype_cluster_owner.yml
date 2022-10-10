@@ -1,4 +1,4 @@
-name: cluser-owner
+name: cluster-owner
 
 contextType: datafile
 contextSchema: /openshift/cluster-1.yml
