@@ -104,7 +104,9 @@ def get_latest_commits(repos, instance, settings) -> dict[str, str]:
     for repo in repos:
         gl = GitLabApi(instance, project_url=repo["url"], settings=settings)
         project = gl.get_project(repo_url=repo["url"])
-        gitlab_commits[repo["url"]] = project.commits.list(ref_name=repo["branch"])[0].id
+        gitlab_commits[repo["url"]] = project.commits.list(ref_name=repo["branch"])[
+            0
+        ].id
     return gitlab_commits
 
 
