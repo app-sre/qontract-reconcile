@@ -20,8 +20,18 @@ def glitchtip_client(glitchtip_url, glitchtip_token) -> GlitchtipClient:
 
 
 @pytest.fixture
-def glitchtip_server_full_api_response(httpretty: httpretty_module, glitchtip_url: str):
-    fx = Fixtures("glitchtip")
+def fx():
+    return Fixtures("glitchtip")
+
+
+@pytest.fixture
+def glitchtip_server_full_api_response(
+    httpretty: httpretty_module, glitchtip_url: str, fx: Fixtures
+):
+    """Text fixture.
+
+    See reconcile/glitchtip/README.md for more details.
+    """
     httpretty.register_uri(
         httpretty.GET,
         f"{glitchtip_url}/api/0/organizations",
@@ -54,28 +64,6 @@ def glitchtip_server_full_api_response(httpretty: httpretty_module, glitchtip_ur
         body=fx.get("nasa_projects.json"),
         content_type="text/json",
     )
-    # sd-app-sre+glitchtip@redhat.com
-    # - automation account
-    # - must be ignored
-    # ESA
-    # Samantha.Cristoforetti@esa.com
-    # - esa-pilot member
-    # Matthias.Maurer@esa.com
-    # - esa-flight-control
-    # Tim.Peake@esa.com
-    # - esa-flight-control
-    # NASA
-    # Neil.Armstrong@nasa.com
-    # - nasa-pilot member
-    # Buzz.Aldrin@nasa.com
-    # - user account not created yet
-    # - invited but user ignored the invitation
-    # global-flight-director@global-space-agency.com
-    # - owner role in organizations
-    # - ESA.esa-flight-control team member
-    # - invited to nasa-flight-control but not accepted yet
-    # Michael.Collins@nasa.com
-    # - nasa-flight-control member
     httpretty.register_uri(
         httpretty.GET,
         f"{glitchtip_url}/api/0/organizations/esa/members/",

@@ -5,14 +5,14 @@
         "user": null,
         "roleName": "Member",
         "dateCreated": "2022-10-06T12:48:19.024377Z",
-        "email": "Buzz.Aldrin@nasa.com",
+        "email": "BuzzAldrin@redhat.com",
         "pending": true
     },
     {
         "role": "member",
         "id": 20,
         "user": {
-            "username": "Neil.Armstrong@nasa.com",
+            "username": "NeilArmstrong@redhat.com",
             "lastLogin": "2022-10-06T12:50:49.096608Z",
             "isSuperuser": false,
             "emails": [],
@@ -22,12 +22,12 @@
             "name": "",
             "dateJoined": "2022-10-06T12:50:49.011349Z",
             "hasPasswordAuth": true,
-            "email": "Neil.Armstrong@nasa.com",
+            "email": "NeilArmstrong@redhat.com",
             "options": {}
         },
         "roleName": "Member",
         "dateCreated": "2022-10-06T12:48:04.108931Z",
-        "email": "Neil.Armstrong@nasa.com",
+        "email": "NeilArmstrong@redhat.com",
         "pending": false
     }
 ]

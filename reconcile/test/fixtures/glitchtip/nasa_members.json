@@ -3,7 +3,7 @@
         "role": "member",
         "id": 23,
         "user": {
-            "username": "Michael.Collins@nasa.com",
+            "username": "MichaelCollins@redhat.com",
             "lastLogin": "2022-10-06T13:01:35.044295Z",
             "isSuperuser": false,
             "emails": [],
@@ -13,12 +13,12 @@
             "name": "",
             "dateJoined": "2022-10-06T13:01:35.015971Z",
             "hasPasswordAuth": true,
-            "email": "Michael.Collins@nasa.com",
+            "email": "MichaelCollins@redhat.com",
             "options": {}
         },
         "roleName": "Member",
         "dateCreated": "2022-10-06T13:00:00.317600Z",
-        "email": "Michael.Collins@nasa.com",
+        "email": "MichaelCollins@redhat.com",
         "pending": false
     },
     {
@@ -27,7 +27,7 @@
         "user": null,
         "roleName": "Owner",
         "dateCreated": "2022-10-06T12:59:00.789632Z",
-        "email": "global-flight-director@global-space-agency.com",
+        "email": "GlobalFlightDirector@redhat.com",
         "pending": true
     },
     {
@@ -36,14 +36,14 @@
         "user": null,
         "roleName": "Member",
         "dateCreated": "2022-10-06T12:48:19.024377Z",
-        "email": "Buzz.Aldrin@nasa.com",
+        "email": "BuzzAldrin@redhat.com",
         "pending": true
     },
     {
         "role": "member",
         "id": 20,
         "user": {
-            "username": "Neil.Armstrong@nasa.com",
+            "username": "NeilArmstrong@redhat.com",
             "lastLogin": "2022-10-06T12:50:49.096608Z",
             "isSuperuser": false,
             "emails": [],
@@ -53,12 +53,12 @@
             "name": "",
             "dateJoined": "2022-10-06T12:50:49.011349Z",
             "hasPasswordAuth": true,
-            "email": "Neil.Armstrong@nasa.com",
+            "email": "NeilArmstrong@redhat.com",
             "options": {}
         },
         "roleName": "Member",
         "dateCreated": "2022-10-06T12:48:04.108931Z",
-        "email": "Neil.Armstrong@nasa.com",
+        "email": "NeilArmstrong@redhat.com",
         "pending": false
     },
     {

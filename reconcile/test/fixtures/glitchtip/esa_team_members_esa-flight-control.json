@@ -3,7 +3,7 @@
         "role": "owner",
         "id": 27,
         "user": {
-            "username": "global-flight-director@global-space-agency.com",
+            "username": "GlobalFlightDirector@redhat.com",
             "lastLogin": "2022-10-06T13:08:39.888726Z",
             "isSuperuser": false,
             "emails": [],
@@ -13,19 +13,19 @@
             "name": "",
             "dateJoined": "2022-10-06T12:59:31.537066Z",
             "hasPasswordAuth": true,
-            "email": "global-flight-director@global-space-agency.com",
+            "email": "GlobalFlightDirector@redhat.com",
             "options": {}
         },
         "roleName": "Owner",
         "dateCreated": "2022-10-06T13:08:21.560252Z",
-        "email": "global-flight-director@global-space-agency.com",
+        "email": "GlobalFlightDirector@redhat.com",
         "pending": false
     },
     {
         "role": "member",
         "id": 26,
         "user": {
-            "username": "Tim.Peake@esa.com",
+            "username": "TimPeake@redhat.com",
             "lastLogin": "2022-10-06T13:07:47.290506Z",
             "isSuperuser": false,
             "emails": [],
@@ -35,19 +35,19 @@
             "name": "",
             "dateJoined": "2022-10-06T13:07:47.267447Z",
             "hasPasswordAuth": true,
-            "email": "Tim.Peake@esa.com",
+            "email": "TimPeake@redhat.com",
             "options": {}
         },
         "roleName": "Member",
         "dateCreated": "2022-10-06T13:07:27.236347Z",
-        "email": "Tim.Peake@esa.com",
+        "email": "TimPeake@redhat.com",
         "pending": false
     },
     {
         "role": "member",
         "id": 25,
         "user": {
-            "username": "Matthias.Maurer@esa.com",
+            "username": "MatthiasMaurer@redhat.com",
             "lastLogin": "2022-10-06T13:06:20.245842Z",
             "isSuperuser": false,
             "emails": [],
@@ -57,12 +57,12 @@
             "name": "",
             "dateJoined": "2022-10-06T13:06:20.217193Z",
             "hasPasswordAuth": true,
-            "email": "Matthias.Maurer@esa.com",
+            "email": "MatthiasMaurer@redhat.com",
             "options": {}
         },
         "roleName": "Member",
         "dateCreated": "2022-10-06T13:05:47.985388Z",
-        "email": "Matthias.Maurer@esa.com",
+        "email": "MatthiasMaurer@redhat.com",
         "pending": false
     },
     {
