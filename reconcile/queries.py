@@ -2086,9 +2086,9 @@ SAAS_FILES_QUERY_V2 = """
 
 
 def get_saas_files(
-    saas_file_name=None,
-    env_name=None,
-    app_name=None,
+    saas_file_name: Optional[str] = None,
+    env_name: Optional[str] = None,
+    app_name: Optional[str] = None,
     gqlapi: Optional[gql.GqlApi] = None,
 ):
     """Returns SaasFile resources defined in app-interface."""
