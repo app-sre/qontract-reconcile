@@ -1114,7 +1114,7 @@ def app_interface_review_queue(ctx):
         "updated_at",
         "labels",
     ]
-    
+
     def get_mrs(repo, url) -> list:
         gl = GitLabApi(instance, project_url=url, settings=settings)
         merge_requests = gl.get_merge_requests(state=MRState.OPENED)
