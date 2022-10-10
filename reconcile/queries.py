@@ -1445,6 +1445,7 @@ APPS_QUERY = """
           field
         }
         destination_url
+        origin_branch
       }
       resource
       gitlabRepoOwners {

@@ -102,9 +102,9 @@ def get_latest_commits(repos, instance, settings) -> dict[str, str]:
     """Returns dict of repo name to latest commit sha for gitlab projects"""
     gitlab_commits = {}
     for repo in repos:
-        gl = GitLabApi(instance, project_url=repo, settings=settings)
-        project = gl.get_project(repo_url=repo)
-        gitlab_commits[repo] = project.commits.list()[0].id
+        gl = GitLabApi(instance, project_url=repo["url"], settings=settings)
+        project = gl.get_project(repo_url=repo["url"])
+        gitlab_commits[repo["url"]] = project.commits.list(ref_name=repo["branch"])[0].id
     return gitlab_commits
 
 
@@ -193,7 +193,9 @@ def run(dry_run, thread_pool_size=10):
     accounts = [a for a in all_accounts if a["name"] in account_to_syncs]
     aws = AWSApi(thread_pool_size, accounts, settings=settings)
     acct_bucket_keys = get_acct_bucket_keys(aws, account_to_syncs)
-    repos = [s["origin_url"] for s in sync_enabled]
+    repos = [
+        {"url": s["origin_url"], "branch": s["origin_branch"]} for s in sync_enabled
+    ]
 
     gitlab_commits = get_latest_commits(repos, instance, settings)
     GitArchive.init_gpgs(VaultClient(), sync_enabled)
