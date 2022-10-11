@@ -1188,7 +1188,7 @@ def app_interface_review_queue(ctx):
             queue_data.append(item)
         return queue_data
 
-    queue_data = list()
+    queue_data = []
 
     review_repos = queries.get_review_repos()
     if review_repos:
