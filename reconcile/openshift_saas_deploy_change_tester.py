@@ -19,10 +19,9 @@ QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 
 def osd_run_wrapper(
-    diff, dry_run, available_thread_pool_size, use_jump_host, gitlab_project_id
+    spec, dry_run, available_thread_pool_size, use_jump_host, gitlab_project_id
 ):
-    saas_file_name = diff["saas_file_name"]
-    env_name = diff["environment"]
+    saas_file_name, env_name = spec
     exit_code = 0
     try:
         osd.run(
@@ -205,6 +204,9 @@ def run(
     ]
     if not saas_file_state_diffs:
         return
+    changed_saas_file_envs = {
+        (d["saas_file_name"], d["environment"]) for d in saas_file_state_diffs
+    }
 
     update_mr_with_ref_diffs(
         gitlab_project_id,
@@ -214,12 +216,12 @@ def run(
     )
 
     available_thread_pool_size = threaded.estimate_available_thread_pool_size(
-        thread_pool_size, len(saas_file_state_diffs)
+        thread_pool_size, len(changed_saas_file_envs)
     )
 
     exit_codes = threaded.run(
         osd_run_wrapper,
-        saas_file_state_diffs,
+        changed_saas_file_envs,
         thread_pool_size,
         dry_run=dry_run,
         available_thread_pool_size=available_thread_pool_size,
