@@ -1477,6 +1477,7 @@ CODE_COMPONENT_REPO_QUERY = """
 }
 """
 
+
 def get_apps():
     """Returns all Apps."""
     gqlapi = gql.get_api()
@@ -1492,14 +1493,15 @@ def get_code_components():
     code_components = list(itertools.chain.from_iterable(code_components_lists))
     return code_components
 
+
 def get_review_repos():
-  """Returns name and url of code components marked for review"""
-  code_components = get_code_components()
-  return [
-    {"url": c["url"], "name": c["name"]}
-    for c in code_components
-    if c is not None and c["showInReviewQueue"] is not None
-  ]
+    """Returns name and url of code components marked for review"""
+    code_components = get_code_components()
+    return [
+        {"url": c["url"], "name": c["name"]}
+        for c in code_components
+        if c is not None and c["showInReviewQueue"] is not None
+    ]
 
 
 def get_repos(server="") -> list[str]:
