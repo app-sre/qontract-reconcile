@@ -2265,9 +2265,9 @@ def change_owners(
 )
 @click.pass_context
 def glitchtip(ctx):
-    import reconcile.glitchtip
+    import reconcile.glitchtip.integration
 
-    run_integration(reconcile.glitchtip, ctx.obj)
+    run_integration(reconcile.glitchtip.integration, ctx.obj)
 
 
 def get_integration_cli_meta() -> dict[str, IntegrationMeta]:

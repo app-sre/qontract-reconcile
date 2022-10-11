@@ -2,11 +2,11 @@ from functools import cache
 from typing import Iterable, Optional
 
 from github import Github, UnknownObjectException
-
 from reconcile import queries
-from reconcile.github_users import (
-    init_github,
-)  # TODO: init_github must be move into a utils module
+
+# TODO: init_github must be move into a utils module
+from reconcile.github_users import init_github
+from reconcile.glitchtip.reconciler import GlitchtipReconciler
 from reconcile.gql_definitions.glitchtip.glitchtip_instance import (
     query as glitchtip_instance_query,
 )
@@ -98,7 +98,7 @@ def fetch_desired_state(
                         )
                     )
 
-            team = Team(slug=glitchtip_team.name, users=users)
+            team = Team(name=glitchtip_team.name, users=users)
             project.teams.append(team)
             if team not in organization.teams:
                 organization.teams.append(team)
@@ -144,11 +144,8 @@ def run(dry_run):
             gh=github,
         )
 
-        # reconciler = SentryReconciler(sentry_client, dry_run)
-        # reconciler.reconcile(current_state, desired_state)
-
-    # fetch_current_state()
-    # print(query_data)
+        reconciler = GlitchtipReconciler(glitchtip_client, dry_run)
+        reconciler.reconcile(current_state, desired_state)
 
 
 # def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:

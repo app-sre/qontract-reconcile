@@ -214,7 +214,10 @@ def test_glitchtip_projects(glitchtip_client: GlitchtipClient):
 
 def test_glitchtip_create_project(glitchtip_client: GlitchtipClient):
     project = glitchtip_client.create_project(
-        organization_slug="nasa", team_slug="nasa-pilots", name="science-tools"
+        organization_slug="nasa",
+        team_slug="nasa-pilots",
+        name="science-tools",
+        platform="python",
     )
     assert project.pk == 13
     assert project.slug == "science-tools"
@@ -234,8 +237,8 @@ def test_glitchtip_add_project_to_team(glitchtip_client: GlitchtipClient):
     assert len(project.teams) == 2
 
 
-def test_glitchtip_delete_project_from_team(glitchtip_client: GlitchtipClient):
-    glitchtip_client.delete_project_from_team(
+def test_glitchtip_remove_project_from_team(glitchtip_client: GlitchtipClient):
+    glitchtip_client.remove_project_from_team(
         organization_slug="nasa", team_slug="nasa-flight-control", slug="science-tools"
     )
 
@@ -265,6 +268,10 @@ def test_glitchtip_invite_user(glitchtip_client: GlitchtipClient):
     assert user.pending
 
 
+def test_glitchtip_delete_user(glitchtip_client: GlitchtipClient):
+    glitchtip_client.delete_user(organization_slug="nasa", pk=29)
+
+
 def test_glitchtip_update_user_role(glitchtip_client: GlitchtipClient):
     user = glitchtip_client.update_user_role(
         organization_slug="nasa", role="manager", pk=29
@@ -288,12 +295,12 @@ def test_glitchtip_team_users(glitchtip_client: GlitchtipClient):
 
 def test_glitchtip_add_user_to_team(glitchtip_client: GlitchtipClient):
     team = glitchtip_client.add_user_to_team(
-        organization_slug="nasa", team_slug="nasa-pilots", pk=29
+        organization_slug="nasa", team_slug="nasa-pilots", user_pk=29
     )
     assert len(team.users) > 0
 
 
-def test_glitchtip_delete_user_from_team(glitchtip_client: GlitchtipClient):
-    glitchtip_client.delete_user_from_team(
-        organization_slug="nasa", team_slug="nasa-pilots", pk=29
+def test_glitchtip_remove_user_from_team(glitchtip_client: GlitchtipClient):
+    glitchtip_client.remove_user_from_team(
+        organization_slug="nasa", team_slug="nasa-pilots", user_pk=29
     )
