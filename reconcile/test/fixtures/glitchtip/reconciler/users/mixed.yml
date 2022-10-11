@@ -1,0 +1,38 @@
+---
+organization_slug: esa
+current_users:
+  - email: MatthiasMaurer@redhat.com
+    pending: false
+    id: 25
+    role: member
+  - email: SamanthaCristoforetti@redhat.com
+    pending: false
+    id: 24
+    role: member
+
+desired_users:
+  - email: SamanthaCristoforetti@redhat.com
+    role: member
+  - email: TimPeake@redhat.com
+    role: owner
+
+expected_return_value:
+  - email: SamanthaCristoforetti@redhat.com
+    pending: false
+    id: 24
+    role: member
+  - &new-user
+    email: TimPeake@redhat.com
+    pending: true
+    id: 1
+    role: owner
+
+glitchtip_urls:
+  - name: "invite_users"
+    uri: /api/0/organizations/esa/members/
+    method: post
+    responses:
+      - *new-user
+  - name: "delete_users"
+    uri: /api/0/organizations/esa/members/25/
+    method: delete

@@ -15,7 +15,7 @@ class GlitchtipReconciler:
         organization_teams: list[Team],
         current_projects: Iterable[Project],
         desired_projects: Iterable[Project],
-    ) -> None:
+    ) -> list[Project]:
         """Reconcile organization projects."""
         organization_projects = list(current_projects)
         for project in set(current_projects).difference(desired_projects):
@@ -94,6 +94,7 @@ class GlitchtipReconciler:
                         team_slug=org_team.slug,
                         slug=current_project.slug,
                     )
+        return organization_projects
 
     def _reconcile_teams(
         self,
@@ -208,8 +209,30 @@ class GlitchtipReconciler:
                     role=user.role,
                 )
             else:
-                new_user = User(email=user.email, role=user.role)
+                new_user = User(email=user.email, role=user.role, pending=True)
             organization_users.append(new_user)
+
+        for desired_user in desired_users:
+            org_user = organization_users[organization_users.index(desired_user)]
+            if desired_user.role != org_user.role:
+                logging.info(
+                    [
+                        "update_user_role",
+                        organization_slug,
+                        desired_user.email,
+                        desired_user.role,
+                        self.client.host,
+                    ]
+                )
+                if not self.dry_run:
+                    if org_user.pk is None:
+                        continue
+                    self.client.update_user_role(
+                        organization_slug=organization_slug,
+                        role=desired_user.role,
+                        pk=org_user.pk,
+                    )
+
         return organization_users
 
     def reconcile(

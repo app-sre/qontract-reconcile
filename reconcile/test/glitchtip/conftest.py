@@ -16,10 +16,15 @@ def glitchtip_token() -> str:
 
 
 @pytest.fixture
-def glitchtip_client(
-    glitchtip_url, glitchtip_token, glitchtip_server_full_api_response
-) -> GlitchtipClient:
+def glitchtip_client_minimal(glitchtip_url, glitchtip_token) -> GlitchtipClient:
     return GlitchtipClient(host=glitchtip_url, token=glitchtip_token)
+
+
+@pytest.fixture
+def glitchtip_client(
+    glitchtip_client_minimal, glitchtip_server_full_api_response
+) -> GlitchtipClient:
+    return glitchtip_client_minimal
 
 
 @pytest.fixture

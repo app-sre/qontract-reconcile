@@ -12,4 +12,5 @@ def patch_sleep(mocker):
 @pytest.fixture()
 def httpretty():
     with _httpretty.enabled(allow_net_connect=False):
+        _httpretty.reset()
         yield _httpretty

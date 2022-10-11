@@ -1,0 +1,25 @@
+---
+organization_slug: esa
+current_users:
+  - email: TimPeake@redhat.com
+    pending: false
+    id: 25
+    role: member
+
+desired_users:
+  - email: TimPeake@redhat.com
+    role: owner
+
+expected_return_value:
+  - &user
+    email: TimPeake@redhat.com
+    pending: true
+    id: 25
+    role: owner
+
+glitchtip_urls:
+  - name: "update_user_role"
+    uri: /api/0/organizations/esa/members/25/
+    method: put
+    responses:
+      - *user

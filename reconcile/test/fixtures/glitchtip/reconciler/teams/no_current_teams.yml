@@ -1,0 +1,95 @@
+---
+organization_slug: esa
+organization_users:
+  - email: MatthiasMaurer@redhat.com
+    pending: false
+    id: 25
+    role: member
+  - email: SamanthaCristoforetti@redhat.com
+    pending: false
+    id: 24
+    role: member
+  - email: TimPeake@redhat.com
+    pending: false
+    id: 26
+    role: member
+  - email: GlobalFlightDirector@redhat.com
+    pending: false
+    id: 27
+    role: owner
+
+current_teams: []
+
+desired_teams:
+  - slug: esa-flight-control
+    users:
+      - email: TimPeake@redhat.com
+        pending: false
+        id: 26
+        role: member
+  - slug: esa-pilots
+    users:
+      - email: SamanthaCristoforetti@redhat.com
+        pending: false
+        id: 24
+        role: member
+
+expected_return_value:
+  - id: 7
+    slug: esa-flight-control
+    users:
+      - email: TimPeake@redhat.com
+        pending: false
+        id: 26
+        role: member
+  - id: 6
+    slug: esa-pilots
+    users:
+      - email: SamanthaCristoforetti@redhat.com
+        pending: false
+        id: 24
+        role: member
+
+glitchtip_urls:
+  - name: "create esa-pilots"
+    uri: /api/0/organizations/esa/teams/
+    method: post
+    responses:
+      - id: 6
+        slug: esa-pilots
+  - name: "create esa-flight-control"
+    uri: /api/0/organizations/esa/teams/
+    method: post
+    responses:
+      - id: 7
+        slug: esa-flight-control
+
+  - name: "add SamanthaCristoforetti to esa-pilots"
+    uri: /api/0/organizations/esa/members/24/teams/esa-pilots/
+    method: post
+    responses:
+      - id: 6
+        slug: esa-pilots
+  - name: "team users"
+    uri: /api/0/teams/esa/esa-pilots/members/?limit=100"
+    method: get
+    responses:
+      - - email: SamanthaCristoforetti@redhat.com
+          pending: false
+          id: 24
+          role: member
+
+  - name: "add TimPeake to esa-flight-control"
+    uri: /api/0/organizations/esa/members/26/teams/esa-flight-control/
+    method: post
+    responses:
+      - id: 7
+        slug: esa-flight-control
+  - name: "team users"
+    uri: /api/0/teams/esa/esa-flight-control/members/?limit=100"
+    method: get
+    responses:
+      - - email: TimPeake@redhat.com
+          pending: false
+          id: 26
+          role: member
