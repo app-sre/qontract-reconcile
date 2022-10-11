@@ -80,7 +80,7 @@ class GitArchive:
                 f,
                 recipients=GitArchive.gpgs[self.vault_gpg_path]["recipients"],
                 output=repo_gpg,
-                armor=True,
+                armor=False,
                 always_trust=True,
             )
         # upload to s3
