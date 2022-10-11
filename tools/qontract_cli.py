@@ -1188,9 +1188,9 @@ def app_interface_review_queue(ctx):
             queue_data.append(item)
         return queue_data
 
-    queue_data = get_mrs("app-interface", settings["repoUrl"])
+    queue_data = list()
 
-    review_repos = settings["reviewRepos"]
+    review_repos = queries.get_review_repos()
     if review_repos:
         for repo in review_repos:
             queue_data.extend(get_mrs(repo["name"], repo["url"]))
