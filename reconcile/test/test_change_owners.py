@@ -1463,3 +1463,99 @@ def test_label_management_false_to_true():
         false_label="false-label",
         dry_run=True,
     )
+
+
+#
+# DiffCoverage tests
+#
+
+
+def test_diff_no_coverage():
+    dc = DiffCoverage(diff=None, coverage=[])  # type: ignore
+    assert not dc.is_covered()
+
+
+def test_diff_covered(saas_file_changetype: ChangeTypeV1):
+    dc = DiffCoverage(
+        diff=None,  # type: ignore
+        coverage=[
+            ChangeTypeContext(
+                change_type_processor=build_change_type_processor(saas_file_changetype),
+                context="RoleV1 - some-role",
+                approvers=[],
+            ),
+        ],
+    )
+    assert dc.is_covered()
+
+
+def test_diff_covered_many(
+    saas_file_changetype: ChangeTypeV1, role_member_change_type: ChangeTypeV1
+):
+    dc = DiffCoverage(
+        diff=None,  # type: ignore
+        coverage=[
+            ChangeTypeContext(
+                change_type_processor=build_change_type_processor(saas_file_changetype),
+                context="RoleV1 - some-role",
+                approvers=[],
+            ),
+            ChangeTypeContext(
+                change_type_processor=build_change_type_processor(
+                    role_member_change_type
+                ),
+                context="RoleV1 - some-role",
+                approvers=[],
+            ),
+        ],
+    )
+    assert dc.is_covered()
+
+
+def test_diff_covered_partially_disabled(
+    saas_file_changetype: ChangeTypeV1, role_member_change_type: ChangeTypeV1
+):
+    role_member_change_type.disabled = True
+    dc = DiffCoverage(
+        diff=None,  # type: ignore
+        coverage=[
+            ChangeTypeContext(
+                change_type_processor=build_change_type_processor(saas_file_changetype),
+                context="RoleV1 - some-role",
+                approvers=[],
+            ),
+            ChangeTypeContext(
+                change_type_processor=build_change_type_processor(
+                    role_member_change_type
+                ),
+                context="RoleV1 - some-role",
+                approvers=[],
+            ),
+        ],
+    )
+    assert dc.is_covered()
+
+
+def test_diff_no_coverage_all_disabled(
+    saas_file_changetype: ChangeTypeV1, role_member_change_type: ChangeTypeV1
+):
+    role_member_change_type.disabled = True
+    saas_file_changetype.disabled = True
+    dc = DiffCoverage(
+        diff=None,  # type: ignore
+        coverage=[
+            ChangeTypeContext(
+                change_type_processor=build_change_type_processor(saas_file_changetype),
+                context="RoleV1 - some-role",
+                approvers=[],
+            ),
+            ChangeTypeContext(
+                change_type_processor=build_change_type_processor(
+                    role_member_change_type
+                ),
+                context="RoleV1 - some-role",
+                approvers=[],
+            ),
+        ],
+    )
+    assert not dc.is_covered()
