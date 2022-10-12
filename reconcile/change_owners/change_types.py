@@ -38,7 +38,9 @@ class DiffCoverage:
     coverage: list["ChangeTypeContext"]
 
     def is_covered(self) -> bool:
-        return self.coverage is not None and any(not ctx.disabled for ctx in self.coverage)
+        return self.coverage is not None and any(
+            not ctx.disabled for ctx in self.coverage
+        )
 
 
 @dataclass
