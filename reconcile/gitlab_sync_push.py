@@ -126,15 +126,16 @@ def get_acct_bucket_keys(aws, accts_to_syncs) -> dict[str, dict[str, list[str]]]
                 logging.error(err)
                 result = None
             # TODO: handle IsTruncated == True (more than 1k items returned)
-            if result is not None and "Contents" in result:
+            if result is not None:
                 keys = []
-                for obj in result["Contents"]:
-                    # remove file extension
-                    b64_key = obj["Key"].split(".", 1)[0]
-                    b64_bytes = b64_key.encode("ascii")
-                    decoded_bytes = base64.b64decode(b64_bytes)
-                    decoded_key = decoded_bytes.decode("ascii")
-                    keys.append(decoded_key)
+                if "Contents" in result:
+                    for obj in result["Contents"]:
+                        # remove file extension
+                        b64_key = obj["Key"].split(".", 1)[0]
+                        b64_bytes = b64_key.encode("ascii")
+                        decoded_bytes = base64.b64decode(b64_bytes)
+                        decoded_key = decoded_bytes.decode("ascii")
+                        keys.append(decoded_key)
                 acct_bucket_keys[a][sync["bucket_name"]] = keys
     return acct_bucket_keys
 
