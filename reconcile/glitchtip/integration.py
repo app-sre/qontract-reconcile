@@ -58,12 +58,10 @@ def fetch_current_state(
             ignore_users,
         )
         for team in organization.teams:
-            team.users = filter_users(
-                glitchtip_client.team_users(
-                    organization_slug=organization.slug, team_slug=team.slug
-                ),
-                ignore_users,
+            team.users = glitchtip_client.team_users(
+                organization_slug=organization.slug, team_slug=team.slug
             )
+
     return organizations
 
 
