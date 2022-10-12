@@ -38,7 +38,7 @@ class DiffCoverage:
     coverage: list["ChangeTypeContext"]
 
     def is_covered(self) -> bool:
-        return self.coverage and any(not ctx.disabled for ctx in self.coverage)
+        return self.coverage is not None and any(not ctx.disabled for ctx in self.coverage)
 
 
 @dataclass
@@ -358,7 +358,7 @@ class ChangeTypeContext:
 
     @property
     def disabled(self) -> bool:
-        return self.change_type_processor.change_type.disabled
+        return bool(self.change_type_processor.change_type.disabled)
 
 
 JSON_PATH_ROOT = "$"
