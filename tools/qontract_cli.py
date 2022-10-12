@@ -1115,7 +1115,7 @@ def app_interface_review_queue(ctx):
         "labels",
     ]
 
-    def get_mrs(repo, url) -> list:
+    def get_mrs(repo, url) -> list[dict[str, str]]:
         gl = GitLabApi(instance, project_url=url, settings=settings)
         merge_requests = gl.get_merge_requests(state=MRState.OPENED)
         job = jjb.get_job_by_repo_url(url, job_type="gl-pr-check")
@@ -1190,10 +1190,8 @@ def app_interface_review_queue(ctx):
 
     queue_data = []
 
-    review_repos = queries.get_review_repos()
-    if review_repos:
-        for repo in review_repos:
-            queue_data.extend(get_mrs(repo["name"], repo["url"]))
+    for repo in queries.get_review_repos():
+        queue_data.extend(get_mrs(repo["name"], repo["url"]))
 
     queue_data.sort(key=itemgetter("updated_at"))
     ctx.obj["options"]["sort"] = False  # do not sort
