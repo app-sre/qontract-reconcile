@@ -220,7 +220,6 @@ def test_extract_context_file_refs_selector(
             },
         },
         new_file_content={
-            "because": "we are just testing the context extraction",
             "cluster": {
                 "$ref": cluster,
             },
@@ -1118,6 +1117,40 @@ def test_partially_covered_change_one_file(
 
     covered_diffs = saas_file_change.cover_changes(ctx)
     assert [ref_update_diff.diff] == covered_diffs
+
+
+def test_root_change_type(cluster_owner_change_type: ChangeTypeV1, saas_file: TestFile):
+    namespace_change = create_bundle_file_change(
+        path="/my/namespace.yml",
+        schema="/openshift/namespace-1.yml",
+        file_type=BundleFileType.DATAFILE,
+        old_file_content={
+            "cluster": {
+                "$ref": "cluster.yml",
+            },
+            "networkPolicy": [
+                {"$ref": "networkpolicy.yml"},
+            ],
+        },
+        new_file_content={
+            "cluster": {
+                "$ref": "cluster.yml",
+            },
+            "networkPolicy": [
+                {"$ref": "networkpolicy.yml"},
+                {"$ref": "new-networkpolicy.yml"},
+            ],
+        },
+    )
+    assert namespace_change
+    ctx = ChangeTypeContext(
+        change_type_processor=build_change_type_processor(cluster_owner_change_type),
+        context="RoleV1 - some-role",
+        approvers=[Approver(org_username="user", tag_on_merge_requests=False)],
+    )
+
+    covered_diffs = namespace_change.cover_changes(ctx)
+    assert covered_diffs
 
 
 #

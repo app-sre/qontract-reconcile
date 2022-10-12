@@ -192,8 +192,9 @@ class BundleFileChange:
                 self.fileref, file_content
             ):
                 for dc in diffs:
-                    covered = str(dc.diff.path).startswith(allowed_path)
-                    if covered:
+                    if change_path_covered_by_allowed_path(
+                        str(dc.diff.path), allowed_path
+                    ):
                         covered_diffs[str(dc.diff.path)] = dc.diff
                         dc.coverage.append(change_type_context)
         return covered_diffs
@@ -351,3 +352,10 @@ class ChangeTypeContext:
     change_type_processor: ChangeTypeProcessor
     context: str
     approvers: list[Approver]
+
+
+JSON_PATH_ROOT = "$"
+
+
+def change_path_covered_by_allowed_path(changed_path: str, allowed_path: str) -> bool:
+    return changed_path.startswith(allowed_path) or allowed_path == JSON_PATH_ROOT
