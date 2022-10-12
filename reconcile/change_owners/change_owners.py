@@ -216,7 +216,7 @@ def write_coverage_report_to_stdout(change_decisions: list[ChangeDecision]) -> N
                         "changed path": d.diff.path,
                         "change type": ctx.change_type_processor.change_type.name,
                         "context": ctx.context,
-                        "disabled": ctx.disabled,
+                        "disabled": str(ctx.disabled),
                     }
                 )
 
