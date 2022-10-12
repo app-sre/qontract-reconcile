@@ -38,9 +38,11 @@ class DiffCoverage:
     coverage: list["ChangeTypeContext"]
 
     def is_covered(self) -> bool:
-        return self.coverage is not None and any(
-            not ctx.disabled for ctx in self.coverage
-        )
+        """
+        a diff is considered covered, if there is at least one change-type
+        assosciated that is not disabled
+        """
+        return any(not ctx.disabled for ctx in self.coverage)
 
 
 @dataclass
