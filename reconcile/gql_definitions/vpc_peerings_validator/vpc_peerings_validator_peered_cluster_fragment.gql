@@ -1,0 +1,9 @@
+# qenerate: plugin=pydantic_v1
+
+fragment VpcPeeringsValidatorPeeredCluster on Cluster_v1 {
+  name
+  spec {
+    private
+  }
+  internal
+}
