@@ -325,10 +325,10 @@ def run(
         #   R E P O R T I N G
         #
 
-        # if mr_management_enabled:
-        write_coverage_report_to_mr(
-            self_serviceable, change_decisions, gitlab_merge_request_id, gl
-        )
+        if mr_management_enabled:
+            write_coverage_report_to_mr(
+                self_serviceable, change_decisions, gitlab_merge_request_id, gl
+            )
         write_coverage_report_to_stdout(change_decisions)
 
         #
