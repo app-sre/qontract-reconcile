@@ -219,6 +219,14 @@ def write_coverage_report_to_stdout(change_decisions: list[ChangeDecision]) -> N
                         "disabled": str(ctx.disabled),
                     }
                 )
+        else:
+            results.append(
+                {
+                    "file": d.file.path,
+                    "schema": d.file.schema,
+                    "changed path": d.diff.path,
+                }
+            )
 
     print(
         format_table(
