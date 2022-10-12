@@ -1,5 +1,5 @@
 from functools import cache
-from typing import Iterable, Optional
+from typing import Iterable, Optional, Sequence
 
 from github import Github, UnknownObjectException
 from reconcile import queries
@@ -68,7 +68,7 @@ def fetch_current_state(
 
 
 def fetch_desired_state(
-    glitchtip_projects: list[GlitchtipProjectsV1],
+    glitchtip_projects: Sequence[GlitchtipProjectsV1],
     gh: Github,
 ) -> list[Organization]:
     organizations: dict[str, Organization] = {}

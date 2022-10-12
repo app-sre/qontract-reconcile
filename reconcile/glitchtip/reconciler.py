@@ -1,5 +1,5 @@
 import logging
-from typing import Iterable
+from typing import Iterable, Sequence
 
 from reconcile.utils.glitchtip import GlitchtipClient, Organization, Project, Team, User
 
@@ -12,7 +12,7 @@ class GlitchtipReconciler:
     def _reconcile_projects(
         self,
         organization_slug: str,
-        organization_teams: list[Team],
+        organization_teams: Sequence[Team],
         current_projects: Iterable[Project],
         desired_projects: Iterable[Project],
     ) -> list[Project]:
@@ -99,8 +99,8 @@ class GlitchtipReconciler:
     def _reconcile_teams(
         self,
         organization_slug: str,
-        organization_users: list[User],
-        current_teams: list[Team],
+        organization_users: Sequence[User],
+        current_teams: Sequence[Team],
         desired_teams: Iterable[Team],
     ) -> list[Team]:
         """Reconcile organization teams.
@@ -237,7 +237,7 @@ class GlitchtipReconciler:
 
     def reconcile(
         self,
-        current: list[Organization],
+        current: Sequence[Organization],
         desired: Iterable[Organization],
     ) -> None:
         for org in set(current).difference(desired):
