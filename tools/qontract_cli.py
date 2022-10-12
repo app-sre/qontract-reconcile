@@ -367,8 +367,17 @@ def cluster_upgrade_policies(
             results.append(item)
 
     if md_output:
-        print(
-            """
+        fields = [
+            {"key": "cluster", "sortable": True},
+            {"key": "version", "sortable": True},
+            {"key": "channel", "sortable": True},
+            {"key": "schedule"},
+            {"key": "mutexes", "sortable": True},
+            {"key": "soak_days", "sortable": True},
+            {"key": "workload"},
+            {"key": "soaking_upgrades"},
+        ]
+        md = """
 The table below regroups upgrade information for each clusters:
 * `version` is the current openshift version on the cluster
 * `channel` is the OCM upgrade channel being tracked by the cluster
@@ -388,26 +397,18 @@ comparing with the `soak_days` columns, you can see when a version is close to
 be upgraded to. A 🎉 sign is displayed for versions which have soaked
 enough and are ready to be upgraded to. A 💫 sign is displayed for versions
 which are scheduled or being upgraded to.
+
+```json:table
+{}
+```
         """
-        )
-        print("```json:table")
-        fields = [
-            {"key": "cluster", "sortable": True},
-            {"key": "version", "sortable": True},
-            {"key": "channel", "sortable": True},
-            {"key": "schedule"},
-            {"key": "mutexes", "sortable": True},
-            {"key": "soak_days", "sortable": True},
-            {"key": "workload"},
-            {"key": "soaking_upgrades"},
-        ]
-        print(
+        md = md.format(
             json.dumps(
                 {"fields": fields, "items": results, "filter": True, "caption": ""},
-                indent=2,
+                indent=1,
             )
         )
-        print("```")
+        print(md)
     else:
         columns = [
             "cluster",
@@ -421,6 +422,7 @@ which are scheduled or being upgraded to.
         ]
         ctx.obj["options"]["to_string"] = True
         print_output(ctx.obj["options"], results, columns)
+
 
 @get.command()
 @click.argument("name", default="")
