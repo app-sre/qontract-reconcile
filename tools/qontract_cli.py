@@ -293,9 +293,9 @@ def cluster_upgrade_policies(
             for i, data in enumerate(sorted_soaking):
                 v, s = data
                 if v == upgrade_version:
-                    sorted_soaking[i] = (v, f'{s} [:dizzy:](a "{upgrade_next_run}")')
+                    sorted_soaking[i] = (v, f'{s} [💫](a "{upgrade_next_run}")')
                 elif v == upgradeable_version:
-                    sorted_soaking[i] = (v, f"{s} :tada:")
+                    sorted_soaking[i] = (v, f"{s} 🎉")
         return ", ".join([f"{v} ({s})" for v, s in sorted_soaking])
 
     for c in desired_state:
@@ -305,7 +305,7 @@ def cluster_upgrade_policies(
         mutexes = c.get("conditions", {}).get("mutexes") or []
         item = {
             "cluster": cluster_name,
-            "version": parse_semver(version),
+            "version": version,
             "channel": channel,
             "schedule": schedule,
             "soak_days": soakdays,
@@ -367,8 +367,17 @@ def cluster_upgrade_policies(
             results.append(item)
 
     if md_output:
-        print(
-            """
+        fields = [
+            {"key": "cluster", "sortable": True},
+            {"key": "version", "sortable": True},
+            {"key": "channel", "sortable": True},
+            {"key": "schedule"},
+            {"key": "mutexes", "sortable": True},
+            {"key": "soak_days", "sortable": True},
+            {"key": "workload"},
+            {"key": "soaking_upgrades"},
+        ]
+        md = """
 The table below regroups upgrade information for each clusters:
 * `version` is the current openshift version on the cluster
 * `channel` is the OCM upgrade channel being tracked by the cluster
@@ -385,24 +394,34 @@ upgrade.
 for that cluster. The number in parenthesis shows the number of days this
 version has been running on other clusters with the same workloads. By
 comparing with the `soak_days` columns, you can see when a version is close to
-be upgraded to. A :tada: sign is displayed for versions which have soaked
-enough and are ready to be upgraded to. A :dizzy: sign is displayed for versions
+be upgraded to. A 🎉 sign is displayed for versions which have soaked
+enough and are ready to be upgraded to. A 💫 sign is displayed for versions
 which are scheduled or being upgraded to.
-        """
-        )
 
-    columns = [
-        "cluster",
-        "version",
-        "channel",
-        "schedule",
-        "mutexes",
-        "soak_days",
-        "workload",
-        "soaking_upgrades",
-    ]
-    ctx.obj["options"]["to_string"] = True
-    print_output(ctx.obj["options"], results, columns)
+```json:table
+{}
+```
+        """
+        md = md.format(
+            json.dumps(
+                {"fields": fields, "items": results, "filter": True, "caption": ""},
+                indent=1,
+            )
+        )
+        print(md)
+    else:
+        columns = [
+            "cluster",
+            "version",
+            "channel",
+            "schedule",
+            "mutexes",
+            "soak_days",
+            "workload",
+            "soaking_upgrades",
+        ]
+        ctx.obj["options"]["to_string"] = True
+        print_output(ctx.obj["options"], results, columns)
 
 
 @get.command()
