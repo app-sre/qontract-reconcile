@@ -50,13 +50,13 @@ class DashdotdbSLO(DashdotdbBase):
     def __init__(self, dry_run, thread_pool_size):
         super().__init__(dry_run, thread_pool_size, "DDDB_SLO:", "serviceslometrics")
 
-    def _post(self, service_slo: Iterable[ServiceSLO]):
-        for item in service_slo:
+    def _post(self, service_slos: Iterable[ServiceSLO]):
+        for item in service_slos:
             LOG.debug(f"About to POST SLO JSON item to dashdotDB:\n{item}\n")
 
         response = None
 
-        for item in service_slo:
+        for item in service_slos:
             slo_name = item.name
             endpoint = f"{self.dashdotdb_url}/api/v1/" f"serviceslometrics/{slo_name}"
             payload = item.dashdot_payload()
@@ -130,7 +130,7 @@ class DashdotdbSLO(DashdotdbBase):
     def run(self):
         slo_documents = get_slo_documents()
 
-        service_slos: list[ServiceSLO] = threaded.run(
+        service_slos: list[list[ServiceSLO]] = threaded.run(
             func=self._get_service_slo,
             iterable=slo_documents,
             thread_pool_size=self.thread_pool_size,
