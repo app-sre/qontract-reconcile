@@ -58,11 +58,12 @@ class DashdotdbSLO(DashdotdbBase):
 
         for item in service_slo:
             slo_name = item.name
-            LOG.info("%s syncing slo %s", self.logmarker, slo_name)
             endpoint = f"{self.dashdotdb_url}/api/v1/" f"serviceslometrics/{slo_name}"
             payload = item.dashdot_payload()
             if self.dry_run:
                 continue
+
+            LOG.info("%s syncing slo %s", self.logmarker, slo_name)
             response = self._do_post(endpoint, payload)
             try:
                 response.raise_for_status()
