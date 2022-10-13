@@ -2683,49 +2683,6 @@ def get_quay_repos():
     return gqlapi.query(QUAY_REPOS_QUERY)["apps"]
 
 
-SLO_DOCUMENTS_QUERY = """
-{
-  slo_documents: slo_document_v1 {
-    name
-    namespaces {
-      name
-      app {
-        name
-      }
-      cluster {
-        name
-        automationToken {
-          path
-          field
-          version
-          format
-        }
-        prometheusUrl
-        spec {
-          private
-        }
-      }
-    }
-    slos {
-      name
-      expr
-      SLIType
-      SLOParameters {
-        window
-      }
-      SLOTarget
-      SLOTargetUnit
-    }
-  }
-}
-"""
-
-
-def get_slo_documents():
-    gqlapi = gql.get_api()
-    return gqlapi.query(SLO_DOCUMENTS_QUERY)["slo_documents"]
-
-
 SRE_CHECKPOINTS_QUERY = """
 {
   sre_checkpoints: sre_checkpoints_v1 {
