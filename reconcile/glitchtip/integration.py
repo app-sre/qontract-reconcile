@@ -44,6 +44,10 @@ def github_email(gh: Github, github_username: str) -> Optional[str]:
         return None
 
 
+class GlitchtipException(Exception):
+    pass
+
+
 def fetch_current_state(
     glitchtip_client: GlitchtipClient, ignore_users: Iterable[str]
 ) -> list[Organization]:
@@ -78,6 +82,9 @@ def fetch_desired_state(
         project = Project(
             name=glitchtip_project.name, platform=glitchtip_project.platform
         )
+        # Check project is unique within an organization
+        if project.name in [p.name for p in organization.projects]:
+            raise GlitchtipException(f'project name "{project.name}" already in use!')
         for glitchtip_team in glitchtip_project.teams:
             users: list[User] = []
             for role in glitchtip_team.roles:
