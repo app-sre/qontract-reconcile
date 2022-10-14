@@ -15,7 +15,7 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
-from reconcile.gql_definitions.fragments.jumphost_common_fields_fragment import (
+from reconcile.gql_definitions.fragments.jumphost_common_fields import (
     CommonJumphostFields,
 )
 
