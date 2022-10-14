@@ -38,6 +38,7 @@ class GlitchtipClient:
     @retry()
     def _list(self, url: str, limit: int = 100) -> list[dict[str, Any]]:
         response = self._session.get(urljoin(self.host, url), params={"limit": limit})
+        response.raise_for_status()
         results = response.json()
         # handle pagination
         while next_url := get_next_url(response.links):
@@ -48,6 +49,7 @@ class GlitchtipClient:
     @retry()
     def _post(self, url: str, data: Optional[dict[Any, Any]] = None) -> dict[str, Any]:
         response = self._session.post(urljoin(self.host, url), json=data)
+        response.raise_for_status()
         if response.status_code == 204:
             return {}
         return response.json()
@@ -55,6 +57,7 @@ class GlitchtipClient:
     @retry()
     def _put(self, url: str, data: Optional[dict[Any, Any]] = None) -> dict[str, Any]:
         response = self._session.put(urljoin(self.host, url), json=data)
+        response.raise_for_status()
         if response.status_code == 204:
             return {}
         return response.json()
