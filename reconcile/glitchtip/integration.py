@@ -108,7 +108,7 @@ def fetch_desired_state(
     return [org for org in organizations.values()]
 
 
-def run(dry_run):
+def run(dry_run: bool, instance: Optional[str] = None):
     gqlapi = gql.get_api()
     github = init_github()
     secret_reader = SecretReader(queries.get_secret_reader_settings())
@@ -118,6 +118,9 @@ def run(dry_run):
         glitchtip_projects += app.glitchtip_projects if app.glitchtip_projects else []
 
     for glitchtip_instance in glitchtip_instances:
+        if instance and glitchtip_instance.name != instance:
+            continue
+
         glitchtip_client = GlitchtipClient(
             host=glitchtip_instance.console_url,
             token=secret_reader.read(

@@ -2263,11 +2263,12 @@ def change_owners(
 @integration.command(
     short_help="Configure and enforce glitchtip instance configuration."
 )
+@click.option("--instance", help="Reconcile just this instance.", default=None)
 @click.pass_context
-def glitchtip(ctx):
+def glitchtip(ctx, instance):
     import reconcile.glitchtip.integration
 
-    run_integration(reconcile.glitchtip.integration, ctx.obj)
+    run_integration(reconcile.glitchtip.integration, ctx.obj, instance)
 
 
 def get_integration_cli_meta() -> dict[str, IntegrationMeta]:
