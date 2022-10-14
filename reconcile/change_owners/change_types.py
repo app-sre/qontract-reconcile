@@ -268,6 +268,11 @@ def create_bundle_file_change(
 
 
 class PathExpression:
+    """
+    PathExpression is a wrapper around a JSONPath expression that can contain
+    Jinja2 template fragments. The template has access to ChangeTypeContext.
+    """
+
     CTX_FILE_PATH_VAR_NAME = "ctx_file_path"
     SUPPORTED_VARS = {CTX_FILE_PATH_VAR_NAME}
 
