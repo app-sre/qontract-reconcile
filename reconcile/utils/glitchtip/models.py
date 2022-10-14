@@ -35,14 +35,14 @@ class Team(BaseModel):
     users: list[User] = []
 
     @root_validator(pre=True)
-    def name_xor_slug_must_be_set(cls, values):
+    def name_xor_slug_must_be_set(cls, values):  # pylint: disable=no-self-argument
         assert ("name" in values or "slug" in values) and not (
             "name" in values and "slug" in values
         ), "name xor slug must be set!"
         return values
 
     @root_validator
-    def slugify(cls, values):
+    def slugify(cls, values):  # pylint: disable=no-self-argument
         values["slug"] = values.get("slug") or slugify(values.get("name"))
         values["name"] = slugify(values.get("name")) or values.get("slug")
         return values
@@ -65,7 +65,7 @@ class Project(BaseModel):
     teams: list[Team] = []
 
     @root_validator
-    def slugify(cls, values):
+    def slugify(cls, values):  # pylint: disable=no-self-argument
         values["slug"] = values.get("slug") or slugify(values.get("name"))
         return values
 
@@ -88,7 +88,7 @@ class Organization(BaseModel):
     users: list[User] = []
 
     @root_validator
-    def slugify(cls, values):
+    def slugify(cls, values):  # pylint: disable=no-self-argument
         values["slug"] = values.get("slug") or slugify(values.get("name"))
         return values
 

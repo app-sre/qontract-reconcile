@@ -112,7 +112,7 @@ def fetch_desired_state(
                 if user not in organization.users:
                     organization.users.append(user)
         organization.projects.append(project)
-    return [org for org in organizations.values()]
+    return list(organizations.values())
 
 
 def run(dry_run: bool, instance: Optional[str] = None):
