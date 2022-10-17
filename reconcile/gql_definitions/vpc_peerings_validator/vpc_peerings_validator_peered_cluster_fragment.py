@@ -16,8 +16,18 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
 )
 
 
-class VaultSecretVersion(BaseModel):
-    version: Optional[int] = Field(..., alias="version")
+class ClusterSpecV1(BaseModel):
+    private: bool = Field(..., alias="private")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
+class VpcPeeringsValidatorPeeredCluster(BaseModel):
+    name: str = Field(..., alias="name")
+    spec: Optional[ClusterSpecV1] = Field(..., alias="spec")
+    internal: Optional[bool] = Field(..., alias="internal")
 
     class Config:
         smart_union = True

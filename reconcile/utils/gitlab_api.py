@@ -1,4 +1,5 @@
 import logging
+import os
 from typing import Any, Optional, Tuple
 
 from operator import itemgetter, attrgetter
@@ -11,7 +12,7 @@ import urllib3
 
 
 from reconcile.utils.secret_reader import SecretReader
-
+from reconcile.utils.metrics import gitlab_request
 
 # The following line will suppress
 # `InsecureRequestWarning: Unverified HTTPS request is being made`
@@ -19,6 +20,9 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 MR_DESCRIPTION_COMMENT_ID = 0
+
+# The default value is there for unit test
+INTEGRATION_NAME = os.getenv("INTEGRATION_NAME", "")
 
 
 class MRState:
@@ -84,13 +88,16 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
 
     @retry()
     def _auth(self):
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         self.gl.auth()
 
     def create_branch(self, new_branch, source_branch):
         data = {"branch": new_branch, "ref": source_branch}
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         self.project.branches.create(data)
 
     def delete_branch(self, branch):
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         self.project.branches.delete(branch)
 
     def create_commit(self, branch_name, commit_message, actions):
@@ -100,6 +107,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
                          #create-a-commit-with-multiple-files-and-actions
         """
 
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         self.project.commits.create(
             {
                 "branch": branch_name,
@@ -116,6 +124,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
                 {"action": "create", "file_path": file_path, "content": content}
             ],
         }
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         self.project.commits.create(data)
 
     def delete_file(self, branch_name, file_path, commit_message):
@@ -124,6 +133,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
             "commit_message": commit_message,
             "actions": [{"action": "delete", "file_path": file_path}],
         }
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         self.project.commits.create(data)
 
     def update_file(self, branch_name, file_path, commit_message, content):
@@ -134,6 +144,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
                 {"action": "update", "file_path": file_path, "content": content}
             ],
         }
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         self.project.commits.create(data)
 
     def create_mr(
@@ -153,6 +164,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
             "remove_source_branch": str(remove_source_branch),
             "labels": labels,
         }
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         return self.project.mergerequests.create(data)
 
     def mr_exists(self, title):
@@ -175,15 +187,16 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
             project = self.get_project(repo_url)
         if project is None:
             return None
-        members = project.members.all(all=True)
+        members = self.get_items(project.members.all)
         return [m.username for m in members if m.access_level >= 40]
 
     def get_app_sre_group_users(self):
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         app_sre_group = self.gl.groups.get("app-sre")
-        return list(app_sre_group.members.list(all=True))
+        return self.get_items(app_sre_group.members.list)
 
     def check_group_exists(self, group_name):
-        groups = self.gl.groups.list(all=True)
+        groups = self.get_items(self.gl.groups.list)
         group_names = list(map(lambda x: x.name, groups))
         if group_name not in group_names:
             return False
@@ -193,13 +206,14 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         if not self.check_group_exists(group_name):
             logging.error(group_name + " group not found")
             return []
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         group = self.gl.groups.get(group_name)
         return [
             {
                 "user": m.username,
                 "access_level": self.get_access_level_string(m.access_level),
             }
-            for m in group.members.list(all=True)
+            for m in self.get_items(group.members.list)
         ]
 
     def add_project_member(self, repo_url, user, access="maintainer"):
@@ -217,27 +231,34 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         if not self.check_group_exists(group_name):
             logging.error(group_name + " group not found")
         else:
+            gitlab_request.labels(integration=INTEGRATION_NAME).inc()
             group = self.gl.groups.get(group_name)
             user = self.get_user(username)
             access_level = self.get_access_level(access)
             if user is not None:
+                gitlab_request.labels(integration=INTEGRATION_NAME).inc()
                 try:
                     group.members.create(
                         {"user_id": user.id, "access_level": access_level}
                     )
                 except gitlab.exceptions.GitlabCreateError:
+                    gitlab_request.labels(integration=INTEGRATION_NAME).inc()
                     member = group.members.get(user.id)
                     member.access_level = access_level
 
     def remove_group_member(self, group_name, username):
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         group = self.gl.groups.get(group_name)
         user = self.get_user(username)
         if user is not None:
+            gitlab_request.labels(integration=INTEGRATION_NAME).inc()
             group.members.delete(user.id)
 
     def change_access(self, group, username, access):
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         group = self.gl.groups.get(group)
         user = self.get_user(username)
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         member = group.members.get(user.id)
         member.access_level = self.get_access_level(access)
         member.save()
@@ -270,10 +291,12 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
             return gitlab.GUEST_ACCESS
 
     def get_group_id_and_projects(self, group_name):
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         group = self.gl.groups.get(group_name)
         return group.id, [p.name for p in self.get_items(group.projects.list)]
 
     def create_project(self, group_id, project):
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         self.gl.projects.create({"name": project, "namespace_id": group_id})
 
     def get_project_url(self, group, project):
@@ -282,6 +305,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
     @retry()
     def get_project(self, repo_url):
         repo = repo_url.replace(self.server + "/", "")
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         try:
             project = self.gl.projects.get(repo)
         except gitlab.exceptions.GitlabGetError:
@@ -293,6 +317,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         return self.get_items(self.project.issues.list, state=state)
 
     def get_merge_request(self, mr_id):
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         return self.project.mergerequests.get(mr_id)
 
     def get_merge_requests(self, state):
@@ -307,6 +332,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         )
 
     def get_merge_request_changed_paths(self, mr_id: int) -> list[str]:
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         merge_request = self.project.mergerequests.get(mr_id)
         changes = merge_request.changes()["changes"]
         changed_paths = set()
@@ -321,6 +347,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         self, mr_id: int, include_description: bool = False
     ) -> list[dict[str, Any]]:
         comments = []
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         merge_request = self.project.mergerequests.get(mr_id)
         if include_description:
             comments.append(
@@ -331,7 +358,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
                     "id": MR_DESCRIPTION_COMMENT_ID,
                 }
             )
-        for note in merge_request.notes.list(all=True):
+        for note in self.get_items(merge_request.notes.list):
             if note.system:
                 continue
             comments.append(
@@ -345,22 +372,29 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         return comments
 
     def delete_gitlab_comment(self, mr_id, comment_id):
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         merge_request = self.project.mergerequests.get(mr_id)
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         note = merge_request.notes.get(comment_id)
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         note.delete()
 
     def add_merge_request_comment(self, mr_id, comment):
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         merge_request = self.project.mergerequests.get(mr_id)
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         merge_request.notes.create({"body": comment})
 
     def get_project_labels(self):
-        return [ln.name for ln in self.project.labels.list(all=True)]
+        return [ln.name for ln in self.get_items(self.project.labels.list)]
 
     def get_merge_request_labels(self, mr_id):
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         merge_request = self.project.mergerequests.get(mr_id)
         return merge_request.labels
 
     def add_label_to_merge_request(self, mr_id, label):
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         merge_request = self.project.mergerequests.get(mr_id)
         labels = merge_request.attributes.get("labels")
         labels.append(label)
@@ -368,6 +402,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
 
     def add_labels_to_merge_request(self, mr_id, labels):
         """Adds labels to a Merge Request"""
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         merge_request = self.project.mergerequests.get(mr_id)
         mr_labels = merge_request.attributes.get("labels")
         mr_labels += labels
@@ -375,10 +410,12 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
 
     def set_labels_on_merge_request(self, mr_id, labels):
         """Set labels to a Merge Request"""
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         merge_request = self.project.mergerequests.get(mr_id)
         self.update_labels(merge_request, "merge-request", labels)
 
     def remove_label_from_merge_request(self, mr_id, label):
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         merge_request = self.project.mergerequests.get(mr_id)
         labels = merge_request.attributes.get("labels")
         if label in labels:
@@ -386,6 +423,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         self.update_labels(merge_request, "merge-request", labels)
 
     def add_comment_to_merge_request(self, mr_id, body):
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         merge_request = self.project.mergerequests.get(mr_id)
         merge_request.notes.create({"body": body})
 
@@ -394,6 +432,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         all_items = []
         page = 1
         while True:
+            gitlab_request.labels(integration=INTEGRATION_NAME).inc()
             items = method(page=page, per_page=100, **kwargs)
             all_items.extend(items)
             if len(items) < 100:
@@ -403,6 +442,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         return all_items
 
     def create_label(self, label_text: str, label_color: str) -> None:
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         self.project.labels.create({"name": label_text, "color": label_color})
 
     def add_label(self, item, item_type, label):
@@ -411,6 +451,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         ).format(label)
         labels = item.attributes.get("labels")
         labels.append(label)
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         item.notes.create({"body": note_body})
         self.update_labels(item, item_type, labels)
 
@@ -421,22 +462,27 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
 
     def update_labels(self, item, item_type, labels):
         if item_type == "issue":
+            gitlab_request.labels(integration=INTEGRATION_NAME).inc()
             editable_item = self.project.issues.get(
                 item.attributes.get("iid"), lazy=True
             )
         elif item_type == "merge-request":
+            gitlab_request.labels(integration=INTEGRATION_NAME).inc()
             editable_item = self.project.mergerequests.get(
                 item.attributes.get("iid"), lazy=True
             )
         editable_item.labels = labels
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         editable_item.save()
 
     @staticmethod
     def close(item):
         item.state_event = "close"
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         item.save()
 
     def get_user(self, username):
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         user = self.gl.users.list(search=username)
         if len(user) == 0:
             logging.error(username + " user not found")
@@ -445,9 +491,11 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
 
     @retry()
     def get_project_hooks(self, repo_url):
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         p = self.get_project(repo_url)
         if p is None:
             return []
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         return p.hooks.list(per_page=100)
 
     def create_project_hook(self, repo_url, data):
@@ -463,18 +511,20 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
             "push_events": int(trigger == "push"),
             "merge_requests_events": int(trigger == "mr"),
         }
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         p.hooks.create(hook)
 
     def get_repository_tree(self, ref="master"):
         """
-        Wrapper around Gitlab.repository_tree() with pagination disabled.
+        Wrapper around Gitlab.repository_tree() with pagination enabled.
         """
-        return self.project.repository_tree(ref=ref, recursive=True, all=True)
+        return self.get_items(self.project.repository_tree, ref=ref, recursive=True)
 
     def get_file(self, path, ref="master"):
         """
         Wrapper around Gitlab.files.get() with exception handling.
         """
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         try:
             path = path.lstrip("/")
             return self.project.files.get(file_path=path, ref=ref)
@@ -511,6 +561,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
                 last_action_by_team = comment["created_at"]
                 break
         # labels
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         label_events = mr.resourcelabelevents.list()
         for label in reversed(label_events):
             if label.action == "add" and label.label["name"] in hold_labels:
@@ -528,6 +579,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         # possible responses from tenants (ignore the bot)
         last_action_not_by_team = None
         # commits
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         commits = list(mr.commits())
         commits.sort(key=attrgetter("created_at"), reverse=True)
         for commit in commits:
@@ -561,7 +613,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
 
     def last_assignment(self, mr: ProjectMergeRequest) -> Optional[Tuple[str, str]]:
         body_format = "assigned to @"
-        notes = mr.notes.list(all=True)
+        notes = self.get_items(mr.notes.list)
 
         for note in notes:
             if not note.system:

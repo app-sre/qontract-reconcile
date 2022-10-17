@@ -6,7 +6,7 @@ from urllib.parse import urljoin
 import requests
 
 from reconcile import queries
-from reconcile.utils.secret_reader import SecretReader
+from reconcile.utils.secret_reader import SecretReader, SupportsSecret
 
 LOG = logging.getLogger(__name__)
 
@@ -105,3 +105,16 @@ class DashdotdbBase:
         autotoken_reader = SecretReader(settings=self.settings)
         token = autotoken_reader.read(tokenpath)
         return token
+
+    def _get_automation_token(self, secret: SupportsSecret) -> str:
+        secret_reader = SecretReader(settings=self.settings)
+
+        # This will change later when SecretReader fully supports 'SupportsSecret'
+        return secret_reader.read(
+            {
+                "path": secret.path,
+                "field": secret.field,
+                "format": secret.q_format,
+                "version": secret.version,
+            }
+        )

@@ -97,6 +97,9 @@ def compare_object_ctx_identifier(
     raise CannotCompare() from None
 
 
+SHA256SUM_FIELD_NAME = "$file_sha256sum"
+
+
 def extract_diffs(
     schema: Optional[str], old_file_content: Any, new_file_content: Any
 ) -> list[Diff]:
@@ -172,6 +175,12 @@ def extract_diffs(
                 for path, change in deep_diff.get("iterable_item_removed", {}).items()
             ]
         )
+
+        # if real changes have been detected, we are going to delete the
+        # diff for the checksum field
+        if len(diffs) > 1:
+            diffs = [d for d in diffs if str(d.path) != SHA256SUM_FIELD_NAME]
+
     elif old_file_content:
         # file was deleted
         diffs.append(

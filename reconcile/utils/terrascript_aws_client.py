@@ -2078,7 +2078,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             tf_iam_user_policy_attachment = aws_iam_user_policy_attachment(
                 identifier + "-" + policy,
                 user=identifier,
-                policy_arn="arn:aws:iam::aws:policy/" + policy,
+                policy_arn=f"arn:{self._get_partition(account)}:iam::aws:policy/{policy}",
                 depends_on=self.get_dependencies([user_tf_resource]),
             )
             tf_resources.append(tf_iam_user_policy_attachment)
@@ -4962,6 +4962,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             "min_size": common_values.get("min_size"),
             "vpc_zone_identifier": common_values.get("vpc_zone_identifier"),
             "capacity_rebalance": common_values.get("capacity_rebalance"),
+            "max_instance_lifetime": common_values.get("max_instance_lifetime"),
             "mixed_instances_policy": {
                 "instances_distribution": common_values.get("instances_distribution"),
                 "launch_template": {

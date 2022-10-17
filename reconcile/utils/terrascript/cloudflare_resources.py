@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Union, Iterable, Any, MutableMapping
 
 from terrascript import Resource, Output
 from terrascript.resource import (
@@ -19,6 +19,15 @@ from reconcile.utils.terraform import safe_resource_id
 
 class UnsupportedCloudflareResourceError(Exception):
     pass
+
+
+class cloudflare_certificate_pack(Resource):
+    """
+    https://registry.terraform.io/providers/cloudflare/cloudflare/latest/docs/resources/certificate_pack
+
+    This resource isn't supported directly by Terrascript, which is why it needs to be
+    defined like this as a Resource.
+    """
 
 
 def create_cloudflare_terrascript_resource(
@@ -75,6 +84,23 @@ class CloudflareWorkerScriptTerrascriptResource(TerrascriptResource):
 class CloudflareZoneTerrascriptResource(TerrascriptResource):
     """Generate a cloudflare_zone and related resources."""
 
+    def _create_cloudflare_certificate_pack(
+        self, zone: Resource, zone_certs: Iterable[MutableMapping[str, Any]]
+    ) -> list[Union[Resource, Output]]:
+        resources = []
+        for cert_values in zone_certs:
+            identifier = safe_resource_id(cert_values.pop("identifier"))
+            zone_cert_values = {
+                "zone_id": f"${{{zone.id}}}",
+                "depends_on": self._get_dependencies([zone]),
+                **cert_values,
+            }
+            resources.append(
+                cloudflare_certificate_pack(identifier, **zone_cert_values)
+            )
+
+        return resources
+
     def populate(self) -> list[Union[Resource, Output]]:
         resources = []
 
@@ -84,6 +110,7 @@ class CloudflareZoneTerrascriptResource(TerrascriptResource):
         zone_argo = values.pop("argo", None)
         zone_records = values.pop("records", [])
         zone_workers = values.pop("workers", [])
+        zone_certs = values.pop("certificates", [])
 
         zone_values = {
             "account_id": "${var.account_id}",
@@ -136,5 +163,7 @@ class CloudflareZoneTerrascriptResource(TerrascriptResource):
                 **worker,
             }
             resources.append(cloudflare_worker_route(identifier, **worker_route_values))
+
+        resources.extend(self._create_cloudflare_certificate_pack(zone, zone_certs))
 
         return resources

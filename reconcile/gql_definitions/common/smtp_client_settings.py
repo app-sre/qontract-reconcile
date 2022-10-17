@@ -15,7 +15,7 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
-from reconcile.gql_definitions.examples.fragments.vault_secret import VaultSecret
+from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
 
 DEFINITION = """
@@ -26,39 +26,47 @@ fragment VaultSecret on VaultSecret_v1 {
     format
 }
 
-query JenkinsInstance ($path: String!) {
-  instances: jenkins_instances_v1 (path: $path) {
-    path
-    name
-    serverUrl
-    token {
-      ... VaultSecret
-    }
-  }
-}
+query AppInterfaceSettings {
+   settings: app_interface_settings_v1 {
+     smtp {
+       mailAddress
+       timeout
+       credentials {
+         ... VaultSecret
+       }
+     }
+   }
+ }
 """
 
 
-class JenkinsInstanceV1(BaseModel):
-    path: str = Field(..., alias="path")
-    name: str = Field(..., alias="name")
-    server_url: str = Field(..., alias="serverUrl")
-    token: VaultSecret = Field(..., alias="token")
+class SmtpSettingsV1(BaseModel):
+    mail_address: str = Field(..., alias="mailAddress")
+    timeout: Optional[int] = Field(..., alias="timeout")
+    credentials: VaultSecret = Field(..., alias="credentials")
 
     class Config:
         smart_union = True
         extra = Extra.forbid
 
 
-class JenkinsInstanceQueryData(BaseModel):
-    instances: Optional[list[JenkinsInstanceV1]] = Field(..., alias="instances")
+class AppInterfaceSettingsV1(BaseModel):
+    smtp: Optional[SmtpSettingsV1] = Field(..., alias="smtp")
 
     class Config:
         smart_union = True
         extra = Extra.forbid
 
 
-def query(query_func: Callable, **kwargs) -> JenkinsInstanceQueryData:
+class AppInterfaceSettingsQueryData(BaseModel):
+    settings: Optional[list[AppInterfaceSettingsV1]] = Field(..., alias="settings")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
+def query(query_func: Callable, **kwargs) -> AppInterfaceSettingsQueryData:
     """
     This is a convenience function which queries and parses the data into
     concrete types. It should be compatible with most GQL clients.
@@ -71,7 +79,7 @@ def query(query_func: Callable, **kwargs) -> JenkinsInstanceQueryData:
         kwargs: optional arguments that will be passed to the query function
 
     Returns:
-        JenkinsInstanceQueryData: queried data parsed into generated classes
+        AppInterfaceSettingsQueryData: queried data parsed into generated classes
     """
-    raw_data: dict[Any, Any] = query_func(DEFINITION, kwargs)
-    return JenkinsInstanceQueryData(**raw_data)
+    raw_data: dict[Any, Any] = query_func(DEFINITION, **kwargs)
+    return AppInterfaceSettingsQueryData(**raw_data)

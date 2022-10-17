@@ -9,7 +9,12 @@ from typing import Any, Mapping, Optional
 
 from jinja2 import Template
 
+
 from reconcile.utils import gql
+from reconcile.gql_definitions.jumphosts.jumphosts import (
+    query as jumphosts_query,
+    JumphostsQueryData,
+)
 
 
 SECRET_READER_SETTINGS = """
@@ -523,41 +528,19 @@ def get_queue_aws_accounts():
     return get_aws_accounts(uid=uid)
 
 
-JUMPHOSTS_FILTER_QUERY = """
-{% if hostname %}
-(
-  hostname: "{{ hostname }}"
-)
-{% endif %}
-"""
-
-JUMPHOSTS_QUERY = """
-{
-  jumphosts: jumphosts_v1
-  %s
-  {
-    %s
-    clusters {
-      name
-      network {
-        vpc
-      }
-    }
-  }
-}
-""" % (
-    indent(JUMPHOSTS_FILTER_QUERY, 2 * " "),
-    indent(JUMPHOST_FIELDS, 4 * " "),
-)
-
-
-def get_jumphosts(hostname: Optional[str] = None):
+def get_jumphosts(hostname: Optional[str] = None) -> JumphostsQueryData:
     """Returns all jumphosts"""
+    variables = {}
+    # The dictionary must be empty if no hostname is set.
+    # That way it will return every hostname.
+    # Otherwise GQL will try to find hostname: null
+    if hostname:
+        variables["hostname"] = hostname
     gqlapi = gql.get_api()
-    query = Template(JUMPHOSTS_QUERY).render(
-        hostname=hostname,
+    return jumphosts_query(
+        query_func=gqlapi.query,
+        variables=variables,
     )
-    return gqlapi.query(query)["jumphosts"]
 
 
 AWS_INFRA_MANAGEMENT_ACCOUNT = """
@@ -1451,8 +1434,10 @@ APPS_QUERY = """
       name
     }
     codeComponents {
+      name
       url
       resource
+      showInReviewQueue
       gitlabRepoOwners {
         enabled
       }
@@ -1507,6 +1492,16 @@ def get_code_components():
     ]
     code_components = list(itertools.chain.from_iterable(code_components_lists))
     return code_components
+
+
+def get_review_repos():
+    """Returns name and url of code components marked for review"""
+    code_components = get_code_components()
+    return [
+        {"url": c["url"], "name": c["name"]}
+        for c in code_components
+        if c is not None and c["showInReviewQueue"] is not None
+    ]
 
 
 def get_repos(server="") -> list[str]:
@@ -2072,6 +2067,15 @@ SAAS_FILES_QUERY_V2 = """
           }
           name
         }
+        image {
+          org {
+            name
+            instance {
+              url
+            }
+          }
+          name
+        }
         disable
         delete
       }
@@ -2093,9 +2097,15 @@ SAAS_FILES_QUERY_V2 = """
 )
 
 
-def get_saas_files(saas_file_name=None, env_name=None, app_name=None):
+def get_saas_files(
+    saas_file_name: Optional[str] = None,
+    env_name: Optional[str] = None,
+    app_name: Optional[str] = None,
+    gqlapi: Optional[gql.GqlApi] = None,
+):
     """Returns SaasFile resources defined in app-interface."""
-    gqlapi = gql.get_api()
+    if gqlapi is None:
+        gqlapi = gql.get_api()
     saas_files = gqlapi.query(SAAS_FILES_QUERY_V2)["saas_files"]
 
     if saas_file_name is None and env_name is None and app_name is None:
@@ -2671,49 +2681,6 @@ QUAY_REPOS_QUERY = """
 def get_quay_repos():
     gqlapi = gql.get_api()
     return gqlapi.query(QUAY_REPOS_QUERY)["apps"]
-
-
-SLO_DOCUMENTS_QUERY = """
-{
-  slo_documents: slo_document_v1 {
-    name
-    namespaces {
-      name
-      app {
-        name
-      }
-      cluster {
-        name
-        automationToken {
-          path
-          field
-          version
-          format
-        }
-        prometheusUrl
-        spec {
-          private
-        }
-      }
-    }
-    slos {
-      name
-      expr
-      SLIType
-      SLOParameters {
-        window
-      }
-      SLOTarget
-      SLOTargetUnit
-    }
-  }
-}
-"""
-
-
-def get_slo_documents():
-    gqlapi = gql.get_api()
-    return gqlapi.query(SLO_DOCUMENTS_QUERY)["slo_documents"]
 
 
 SRE_CHECKPOINTS_QUERY = """

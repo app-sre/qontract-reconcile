@@ -8,12 +8,17 @@ from requests.exceptions import ReadTimeout
 from sretoolbox.utils import retry
 from sretoolbox.utils import threaded
 
-from reconcile import queries
+from reconcile import queries, typed_queries
 from reconcile import mr_client_gateway
 from reconcile.github_org import get_default_config
 from reconcile.ldap_users import init_users as init_users_and_paths
 from reconcile.utils.mr import CreateDeleteUser
-from reconcile.utils.smtp_client import SmtpClient
+from reconcile.utils.secret_reader import SecretReader
+from reconcile.utils.smtp_client import (
+    DEFAULT_SMTP_TIMEOUT,
+    SmtpClient,
+    get_smtp_server_connection,
+)
 
 
 GH_BASE_URL = os.environ.get("GITHUB_API", "https://api.github.com")
@@ -41,7 +46,7 @@ def get_users_to_delete(results):
     return [u for u in users_and_paths if u["username"] in org_usernames_to_delete]
 
 
-def send_email_notification(user, settings):
+def send_email_notification(user, smtp_client: SmtpClient):
     msg_template = """
 Hello,
 
@@ -64,7 +69,6 @@ App-Interface repository: https://gitlab.cee.redhat.com/service/app-interface
     to = user["username"]
     subject = "App-Interface compliance - GitHub profile"
     body = msg_template
-    smtp_client = SmtpClient(settings=settings)
     smtp_client.send_mail([to], subject, body)
 
 
@@ -75,7 +79,15 @@ def run(
     enable_deletion=False,
     send_mails=False,
 ):
-    settings = queries.get_app_interface_settings()
+    smtp_settings = typed_queries.smtp.settings()
+    smtp_client = SmtpClient(
+        server=get_smtp_server_connection(
+            secret_reader=SecretReader(settings=queries.get_secret_reader_settings()),
+            secret=smtp_settings.credentials,
+        ),
+        mail_address=smtp_settings.mail_address,
+        timeout=smtp_settings.timeout or DEFAULT_SMTP_TIMEOUT,
+    )
     users = queries.get_users()
     g = init_github()
 
@@ -93,7 +105,7 @@ def run(
 
         if not dry_run:
             if send_mails:
-                send_email_notification(user, settings)
+                send_email_notification(user, smtp_client)
             elif enable_deletion:
                 mr = CreateDeleteUser(username, paths)
                 mr.submit(cli=mr_cli)

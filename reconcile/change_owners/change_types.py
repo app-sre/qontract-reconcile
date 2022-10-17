@@ -8,7 +8,12 @@ import jsonpath_ng
 import jsonpath_ng.ext
 import anymarkup
 
-from reconcile.change_owners.diff import Diff, DiffType, extract_diffs
+from reconcile.change_owners.diff import (
+    SHA256SUM_FIELD_NAME,
+    Diff,
+    DiffType,
+    extract_diffs,
+)
 from reconcile.gql_definitions.change_owners.queries.change_types import (
     ChangeTypeV1,
     ChangeTypeChangeDetectorJsonPathProviderV1,
@@ -31,6 +36,13 @@ class FileRef:
 class DiffCoverage:
     diff: Diff
     coverage: list["ChangeTypeContext"]
+
+    def is_covered(self) -> bool:
+        """
+        a diff is considered covered, if there is at least one change-type
+        assosciated that is not disabled
+        """
+        return any(not ctx.disabled for ctx in self.coverage)
 
 
 @dataclass
@@ -187,8 +199,9 @@ class BundleFileChange:
                 self.fileref, file_content
             ):
                 for dc in diffs:
-                    covered = str(dc.diff.path).startswith(allowed_path)
-                    if covered:
+                    if change_path_covered_by_allowed_path(
+                        str(dc.diff.path), allowed_path
+                    ):
                         covered_diffs[str(dc.diff.path)] = dc.diff
                         dc.coverage.append(change_type_context)
         return covered_diffs
@@ -197,7 +210,7 @@ class BundleFileChange:
         return [d for d in self.diff_coverage if d.diff.diff_type in diff_types]
 
     def uncovered_changes(self) -> Iterable[DiffCoverage]:
-        return (d for d in self.diff_coverage if not d.coverage)
+        return (d for d in self.diff_coverage if not d.is_covered())
 
     def all_changes_covered(self) -> bool:
         return not any(self.uncovered_changes())
@@ -298,7 +311,9 @@ def build_change_type_processor(change_type: ChangeTypeV1) -> ChangeTypeProcesso
         if isinstance(c, ChangeTypeChangeDetectorJsonPathProviderV1):
             change_schema = c.change_schema or change_type.context_schema
             if change_schema:
-                for jsonpath_expression in c.json_path_selectors:
+                for jsonpath_expression in c.json_path_selectors + [
+                    f"'{SHA256SUM_FIELD_NAME}'"
+                ]:
                     file_type = BundleFileType[change_type.context_type.upper()]
                     expressions_by_file_type_schema[(file_type, change_schema)].append(
                         jsonpath_ng.ext.parse(jsonpath_expression)
@@ -344,3 +359,14 @@ class ChangeTypeContext:
     change_type_processor: ChangeTypeProcessor
     context: str
     approvers: list[Approver]
+
+    @property
+    def disabled(self) -> bool:
+        return bool(self.change_type_processor.change_type.disabled)
+
+
+JSON_PATH_ROOT = "$"
+
+
+def change_path_covered_by_allowed_path(changed_path: str, allowed_path: str) -> bool:
+    return changed_path.startswith(allowed_path) or allowed_path == JSON_PATH_ROOT

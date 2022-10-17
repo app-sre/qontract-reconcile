@@ -63,6 +63,13 @@ def test_template_disable_unleash(values):
     assert template == expected
 
 
+def test_template_enable_google_chat(values):
+    values["integrations"][0]["logs"] = {"googleChat": True}
+    template = helm.template(values)
+    expected = yaml.safe_load(fxt.get("enable_google_chat.yml"))
+    assert template == expected
+
+
 def test_template_extra_args(values):
     values["integrations"][0]["shard_specs"][0]["extra_args"] = "--test-extra-args"
     template = helm.template(values)

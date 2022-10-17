@@ -1,0 +1,15 @@
+# qenerate: plugin=pydantic_v1
+
+fragment CommonJumphostFields on ClusterJumpHost_v1 {
+  hostname
+  knownHosts
+  user
+  port
+  # TODO: once qenerate supports nested fragments, we should use the VaultSecret fragment here
+  identity {
+    path
+    field
+    version
+    format
+  }
+}

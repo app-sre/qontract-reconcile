@@ -152,7 +152,10 @@ def manage_conditional_label(
 
 
 def write_coverage_report_to_mr(
-    change_decisions: list[ChangeDecision], mr_id: int, gl: GitLabApi
+    self_serviceable: bool,
+    change_decisions: list[ChangeDecision],
+    mr_id: int,
+    gl: GitLabApi,
 ) -> None:
     """
     adds the change coverage report and decision summary as a comment
@@ -191,45 +194,39 @@ def write_coverage_report_to_mr(
     coverage_report = format_table(
         results, ["file", "change", "status", "approvers"], table_format="github"
     )
-    gl.add_comment_to_merge_request(
-        mr_id,
-        f"{change_coverage_report_header}<br/> "
-        "All changes require an `/lgtm` from a listed approver\n"
-        f"{coverage_report}\n\n"
-        f"Supported commands: {' '.join([f'`{d.value}`' for d in DecisionCommand])} ",
-    )
+    if self_serviceable:
+        gl.add_comment_to_merge_request(
+            mr_id,
+            f"{change_coverage_report_header}<br/> "
+            "All changes require an `/lgtm` from a listed approver\n"
+            f"{coverage_report}\n\n"
+            f"Supported commands: {' '.join([f'`{d.value}`' for d in DecisionCommand])} ",
+        )
 
 
 def write_coverage_report_to_stdout(change_decisions: list[ChangeDecision]) -> None:
     results = []
     for d in change_decisions:
-        item = {
-            "file": d.file.path,
-            "schema": d.file.schema,
-            "changed path": d.diff.path,
-        }
-        if str(d.diff.path) != "$":
-            item.update(
-                {
-                    "old value": d.diff.old_value_repr(),
-                    "new value": d.diff.new_value_repr(),
-                }
-            )
-        if d.decision.hold:
-            item["status"] = "hold"
-        elif d.decision.approve:
-            item["status"] = "approved"
         if d.coverage:
-            item.update(
+            for ctx in d.coverage:
+                results.append(
+                    {
+                        "file": d.file.path,
+                        "schema": d.file.schema,
+                        "changed path": d.diff.path,
+                        "change type": ctx.change_type_processor.change_type.name,
+                        "context": ctx.context,
+                        "disabled": str(ctx.disabled),
+                    }
+                )
+        else:
+            results.append(
                 {
-                    "change type": d.coverage[0].change_type_processor.change_type.name,
-                    "context": d.coverage[0].context,
-                    "approvers": ", ".join(
-                        [a.org_username for a in d.coverage[0].approvers]
-                    )[:20],
+                    "file": d.file.path,
+                    "schema": d.file.schema,
+                    "changed path": d.diff.path,
                 }
             )
-        results.append(item)
 
     print(
         format_table(
@@ -237,12 +234,9 @@ def write_coverage_report_to_stdout(change_decisions: list[ChangeDecision]) -> N
             [
                 "file",
                 "changed path",
-                "old value",
-                "new value",
                 "change type",
+                "disabled",
                 "context",
-                "approvers",
-                "status",
             ],
         )
     )
@@ -290,25 +284,6 @@ def run(
     # needs a lot of improvements!
     fetch_change_type_processors(gql.get_api())
 
-    gl = init_gitlab(gitlab_project_id)
-    mr = gl.get_merge_request(gitlab_merge_request_id)
-
-    # skip processing if the MR is not in open state
-    if mr.state != "opened":
-        logging.info(
-            f"skip processing of MR {gitlab_merge_request_id} in "
-            f"{gl.project.name} because it is '{mr.state}'"
-        )
-        return
-
-    # skip processing if the MR has been opened by the app-interface bot
-    if mr.author.get("username") == gl.user.username:
-        logging.info(
-            f"skip processing of MR {gitlab_merge_request_id} in "
-            f"{gl.project.name} as it has been opened by {gl.user.username}"
-        )
-        return
-
     # get change types from the comparison bundle to prevent privilege escalation
     logging.info(
         f"fetching change types and permissions from comparison bundle "
@@ -342,6 +317,7 @@ def run(
         #   D E C I S I O N S
         #
 
+        gl = init_gitlab(gitlab_project_id)
         approver_decisions = get_approver_decisions_from_mr_comments(
             gl.get_merge_request_comments(
                 gitlab_merge_request_id, include_description=True
@@ -358,7 +334,9 @@ def run(
         #
 
         if mr_management_enabled:
-            write_coverage_report_to_mr(change_decisions, gitlab_merge_request_id, gl)
+            write_coverage_report_to_mr(
+                self_serviceable, change_decisions, gitlab_merge_request_id, gl
+            )
         write_coverage_report_to_stdout(change_decisions)
 
         #
@@ -367,17 +345,22 @@ def run(
 
         labels = gl.get_merge_request_labels(gitlab_merge_request_id)
 
-        # for current testing purposes, the self servability label wills be managed
-        # also when MR management is not enabled. this way change-owners can run next
-        # to saas-file-owners and we can observe if bot integrations would consider
-        # a saas-file only MR
-        labels = manage_conditional_label(
-            labels=labels,
-            condition=self_serviceable,
-            true_label=SELF_SERVICEABLE,
-            false_label=NOT_SELF_SERVICEABLE,
-            dry_run=False,
-        )
+        if mr_management_enabled:
+            labels = manage_conditional_label(
+                labels=labels,
+                condition=self_serviceable,
+                true_label=SELF_SERVICEABLE,
+                false_label=NOT_SELF_SERVICEABLE,
+                dry_run=False,
+            )
+        else:
+            # if MR management is disabled, we need to make sure the self-serviceable
+            # labels is not present, because other integration react to them
+            # e.g. gitlab-housekeeper rejects direct lgtm labels and the review-queue
+            # skips MRs with this label
+            if SELF_SERVICEABLE in labels:
+                labels.remove(SELF_SERVICEABLE)
+
         labels = manage_conditional_label(
             labels=labels,
             condition=self_serviceable and hold,

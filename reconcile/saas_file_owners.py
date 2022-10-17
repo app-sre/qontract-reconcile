@@ -4,6 +4,10 @@ import copy
 import logging
 
 from reconcile import queries
+from reconcile.openshift_saas_deploy_change_tester import (
+    collect_state,
+    collect_compare_diffs,
+)
 from reconcile.utils import throughput
 
 from reconcile.utils.gitlab_api import GitLabApi
@@ -55,113 +59,11 @@ def collect_owners():
     return ans
 
 
-def collect_state():
-    state = []
-    saas_files = queries.get_saas_files()
-    for saas_file in saas_files:
-        saas_file_path = saas_file["path"]
-        saas_file_name = saas_file["name"]
-        saas_file_deploy_resources = saas_file.get("deployResources")
-        saas_file_parameters = json.loads(saas_file.get("parameters") or "{}")
-        saas_file_secret_parameters = saas_file.get("secretParameters") or []
-        saas_file_definitions = {
-            "managed_resource_types": saas_file["managedResourceTypes"],
-            "image_patterns": saas_file["imagePatterns"],
-            "use_channel_in_image_tag": saas_file.get("use_channel_in_image_tag")
-            or False,
-        }
-        resource_templates = saas_file["resourceTemplates"]
-        for resource_template in resource_templates:
-            resource_template_name = resource_template["name"]
-            resource_template_parameters = json.loads(
-                resource_template.get("parameters") or "{}"
-            )
-            resource_template_secret_parameters = (
-                resource_template.get("secretParameters") or []
-            )
-            resource_template_url = resource_template["url"]
-            for target in resource_template["targets"]:
-                namespace_info = target["namespace"]
-                namespace = namespace_info["name"]
-                cluster = namespace_info["cluster"]["name"]
-                environment = namespace_info["environment"]["name"]
-                target_ref = target["ref"]
-                target_upstream = target.get("upstream")
-                target_disable = target.get("disable")
-                target_delete = target.get("delete")
-                target_parameters = json.loads(target.get("parameters") or "{}")
-                target_secret_parameters = target.get("secretParameters") or []
-                parameters = {}
-                parameters.update(saas_file_parameters)
-                parameters.update(resource_template_parameters)
-                parameters.update(target_parameters)
-                secret_parameters = []
-                secret_parameters.extend(saas_file_secret_parameters)
-                secret_parameters.extend(resource_template_secret_parameters)
-                secret_parameters.extend(target_secret_parameters)
-                state.append(
-                    {
-                        "saas_file_path": saas_file_path,
-                        "saas_file_name": saas_file_name,
-                        "saas_file_deploy_resources": saas_file_deploy_resources,
-                        "resource_template_name": resource_template_name,
-                        "cluster": cluster,
-                        "namespace": namespace,
-                        "environment": environment,
-                        "url": resource_template_url,
-                        "ref": target_ref,
-                        "parameters": parameters,
-                        "secret_parameters": secret_parameters,
-                        "saas_file_definitions": copy.deepcopy(saas_file_definitions),
-                        "upstream": target_upstream,
-                        "disable": target_disable,
-                        "delete": target_delete,
-                        "target_path": target.get("path"),
-                    }
-                )
-    return state
-
-
 def collect_baseline():
     owners = collect_owners()
-    state = collect_state()
+    saas_files = queries.get_saas_files()
+    state = collect_state(saas_files)
     return {"owners": owners, "state": state}
-
-
-def collect_compare_diffs(current_state, desired_state, changed_paths):
-    """Collect a list of URLs in a git diff format
-    for each change in the merge request"""
-    compare_diffs = set()
-    for d in desired_state:
-        # check if this diff was actually changed in the current MR
-        changed_path_matches = [
-            c for c in changed_paths if c.endswith(d["saas_file_path"])
-        ]
-        if not changed_path_matches:
-            # this diff was found in the graphql endpoint comparison
-            # but is not a part of the changed paths.
-            # the only known case for this currently is if a previous MR
-            # that changes another saas file was merged but is not yet
-            # reflected in the baseline graphql endpoint.
-            # https://issues.redhat.com/browse/APPSRE-3029
-            logging.debug(f"Diff not found in changed paths, skipping: {str(d)}")
-            continue
-        for c in current_state:
-            if d["saas_file_name"] != c["saas_file_name"]:
-                continue
-            if d["resource_template_name"] != c["resource_template_name"]:
-                continue
-            if d["environment"] != c["environment"]:
-                continue
-            if d["cluster"] != c["cluster"]:
-                continue
-            if d["namespace"] != c["namespace"]:
-                continue
-            if d["ref"] == c["ref"]:
-                continue
-            compare_diffs.add(f"{d['url']}/compare/{c['ref']}...{d['ref']}")
-
-    return compare_diffs
 
 
 def write_baseline_to_file(io_dir, baseline):
@@ -302,7 +204,7 @@ def run(
     baseline = read_baseline_from_file(io_dir)
     owners = baseline["owners"]
     current_state = baseline["state"]
-    desired_state = collect_state()
+    desired_state = collect_state(queries.get_saas_files())
     diffs = [s for s in desired_state if s not in current_state]
     changed_paths = gl.get_merge_request_changed_paths(gitlab_merge_request_id)
 

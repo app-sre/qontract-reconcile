@@ -525,7 +525,7 @@ def test_fetch_desired_state(
         namespaces=collected_namespaces_env_test1,
         ri=ri,
         image_tag_from_ref=None,
-        namespace_override_mapping={"ns1": {}},
+        environment_override_mapping={"test1": {}},
     )
 
     resources = [
@@ -576,13 +576,39 @@ def test_values_set_shard_specifics():
 def test_initialize_namespace_override_mapping(integrations):
     environment_name = "test2"
     namespaces = intop.collect_namespaces(integrations, environment_name)
-    override_mapping = intop.initialize_namespace_override_mapping(
-        namespaces, integrations
+
+    override_mapping = intop.initialize_environment_override_mapping(
+        namespaces, intop.collect_managed_integrations(integrations, namespaces)
     )
-    assert "ns2" in override_mapping
-    assert "ns3" in override_mapping
-    assert "integ3" in override_mapping["ns3"]
-    assert len(override_mapping["ns3"]["integ3"]) == 1
+    assert "test2" in override_mapping
+    assert "integ3" in override_mapping["test2"]
+    assert len(override_mapping["test2"]["integ3"]) == 1
     assert isinstance(
-        override_mapping["ns3"]["integ3"][0], intop.IntegrationShardSpecOverride
+        override_mapping["test2"]["integ3"][0], intop.IntegrationShardSpecOverride
     )
+
+
+def test_collect_managed_integrations(integrations):
+    environment_name = "test2"
+    namespaces = intop.collect_namespaces(integrations, environment_name)
+    managed_integrations = intop.collect_managed_integrations(integrations, namespaces)
+
+    assert len(managed_integrations) == 3
+    for i in managed_integrations:
+        assert i["namespace"]["environment"]["name"] == environment_name
+
+
+def test_collect_managed_integrations_all(integrations):
+    namespaces = intop.collect_namespaces(integrations, "")
+    managed_integrations = intop.collect_managed_integrations(integrations, namespaces)
+
+    assert len(managed_integrations) == 4
+    found = []
+    for i in managed_integrations:
+        found.append(i["spec"]["name"])
+
+    assert "integ1" in found
+    assert "integ2" in found
+    assert "integ3" in found
+
+    assert len([i for i in found if i == "integ2"]) == 2

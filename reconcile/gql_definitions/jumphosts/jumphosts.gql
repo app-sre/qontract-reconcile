@@ -1,0 +1,13 @@
+# qenerate: plugin=pydantic_v1
+
+query Jumphosts ($hostname: String) {
+  jumphosts: jumphosts_v1 (hostname: $hostname) {
+    ... CommonJumphostFields
+    clusters {
+      name
+      network {
+        vpc
+      }
+    }
+  }
+}

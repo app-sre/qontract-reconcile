@@ -1,0 +1,41 @@
+# qenerate: plugin=pydantic_v1
+
+query ClustersMinimal($name: String) {
+  clusters: clusters_v1(name: $name) {
+    name
+    serverUrl
+    consoleUrl
+    kibanaUrl
+    prometheusUrl
+    insecureSkipTLSVerify
+    jumpHost {
+      ... CommonJumphostFields
+    }
+    managedGroups
+    ocm {
+      name
+    }
+    spec {
+        private
+    }
+    automationToken {
+      ... VaultSecret
+    }
+    internal
+    disable {
+      integrations
+    }
+    auth {
+      service
+      ... on ClusterAuthGithubOrg_v1 {
+        org
+      }
+      ... on ClusterAuthGithubOrgTeam_v1 {
+        org
+        team
+      }
+      # ... on ClusterAuthOIDC_v1 {
+      # }
+    }
+  }
+}

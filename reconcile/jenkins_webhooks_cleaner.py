@@ -1,5 +1,7 @@
 import logging
 
+from typing import Any
+
 from reconcile import queries
 
 from reconcile.utils.gitlab_api import GitLabApi
@@ -31,3 +33,9 @@ def run(dry_run):
                     logging.info(["delete_hook", repo, hook_url])
                     if not dry_run:
                         hook.delete()
+
+
+def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
+    return {
+        "previous_urls": queries.get_jenkins_instances_previous_urls(),
+    }

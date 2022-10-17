@@ -34,6 +34,7 @@ https://github.com/helm/helm/releases
 | internalCertificates        | integration requires internal certificates to execute                    | false                              |
 | logs                        | ship logs to providers                                                   | cloudwatch is enabled by default   |
 | logs.slack                  | ship logs to slack                                                       | false                              |
+| logs.googleChat             | ship logs to google chat                                                 | false                              |
 | resources                   | CPU/Memory resource requests/limits                                      |                                    |
 | shards                      | number of shards to run integration with                                 | 1                                  |
 | sleepDurationSecs           | time to sleep in seconds between integration executions                  | 600s                               |
@@ -46,3 +47,9 @@ https://github.com/helm/helm/releases
 | restartPolicy               | restarts of the integration                                              | OnFailure                          |
 | successfulJobHistoryLimit   | number of history records reserved for successful integration executions | 3                                  |
 | failedJobHistoryLimit       | number of history records reserved for failed integration executions     | 1                                  |
+
+## Logging
+
+### Usage of "teams" plugin for Google Chat support
+
+Shipping logs (via fluentd sidecar) to Google Chat requires the use of a webhook API and requires a properly constructed payload. After failing to construct the correctly formatted payload with the built-in http fluentd plugin, we searched for another community plugin that would provide general webhook functionality. The Microsoft Teams plugin is poorly named, as the code for said plugin can be used with any general webhook API which accepts json payloads. The app-sre fluentd image was updated to include this plugin, and can be used for applications when a webhook API is being used with fluentd. 
