@@ -644,7 +644,7 @@ def fetch_current_state(
     _log_lock.acquire()  # pylint: disable=consider-using-with
     logging.debug(msg)
     _log_lock.release()
-    if oc.init_api_resources and not oc.is_kind_supported(kind):
+    if not oc.is_kind_supported(kind):
         logging.warning(f"[{cluster}] cluster has no API resource {kind}.")
         return
     for item in oc.get_items(kind, namespace=namespace, resource_names=resource_names):
