@@ -272,10 +272,7 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
                 kind = "Project.project.openshift.io"
             else:
                 kind = "Namespace"
-            self.projects = [
-                p["metadata"]["name"]
-                for p in self.get_all(kind)["items"]
-            ]
+            self.projects = [p["metadata"]["name"] for p in self.get_all(kind)["items"]]
 
         self.slow_oc_reconcile_threshold = float(
             os.environ.get("SLOW_OC_RECONCILE_THRESHOLD", 600)
@@ -1003,10 +1000,7 @@ class OCNative(OCDeprecated):
                 kind = "Project.project.openshift.io"
             else:
                 kind = "Namespace"
-            self.projects = [
-                p["metadata"]["name"]
-                for p in self.get_all(kind)["items"]
-            ]
+            self.projects = [p["metadata"]["name"] for p in self.get_all(kind)["items"]]
 
     @retry(exceptions=(ServerTimeoutError, InternalServerError, ForbiddenError))
     def _get_client(self, server, token):
