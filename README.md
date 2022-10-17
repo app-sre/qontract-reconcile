@@ -392,6 +392,10 @@ query_data: JenkinsInstanceQueryData = jenkins.query(
 )
 ```
 
+## Troubleshooting
+
+`faulthandler` is enabled for this project and SIGUSR1 is registered to dump the traceback. To do so, you can use `kill -USR1 pid` where pid is the ID of the qontract-reconcile process.
+
 ## Release
 
 Release version are calculated from git tags of the form X.Y.Z.
