@@ -1,0 +1,22 @@
+# qenerate: plugin=pydantic_v1
+
+query CNAResources {
+  namespaces: namespaces_v1 {
+    name
+    externalResources {
+      provider
+      provisioner {
+        name
+      }
+      ... on NamespaceCNAResource_v1 {
+        resources {
+          provider
+          ... on CNANullResource_v1 {
+            name: identifier
+            addr_block
+          }
+        }
+      }
+    }
+  }
+}
