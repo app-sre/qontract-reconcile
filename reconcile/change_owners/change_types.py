@@ -7,6 +7,9 @@ from typing import Any, Iterable, Optional, Tuple
 import jsonpath_ng
 import jsonpath_ng.ext
 import anymarkup
+import jinja2
+import jinja2.meta
+
 
 from reconcile.change_owners.diff import (
     SHA256SUM_FIELD_NAME,
@@ -196,7 +199,7 @@ class BundleFileChange:
             for (
                 allowed_path
             ) in change_type_context.change_type_processor.allowed_changed_paths(
-                self.fileref, file_content
+                self.fileref, file_content, change_type_context
             ):
                 for dc in diffs:
                     if change_path_covered_by_allowed_path(
@@ -264,6 +267,43 @@ def create_bundle_file_change(
         return None
 
 
+class PathExpression:
+    """
+    PathExpression is a wrapper around a JSONPath expression that can contain
+    Jinja2 template fragments. The template has access to ChangeTypeContext.
+    """
+
+    CTX_FILE_PATH_VAR_NAME = "ctx_file_path"
+    SUPPORTED_VARS = {CTX_FILE_PATH_VAR_NAME}
+
+    def __init__(self, jsonpath_expression: str):
+        self.jsonpath_expression = jsonpath_expression
+        self.parsed_jsonpath = None
+        if "{{" in jsonpath_expression:
+            env = jinja2.Environment()
+            ast = env.parse(self.jsonpath_expression)
+            used_variable = jinja2.meta.find_undeclared_variables(ast)
+            if used_variable - self.SUPPORTED_VARS:
+                raise ValueError(
+                    f"only the variables '{self.SUPPORTED_VARS}' are allowed "
+                    f"in path expressions. found: {used_variable}"
+                )
+            self.template = env.from_string(self.jsonpath_expression)
+        else:
+            self.parsed_jsonpath = jsonpath_ng.ext.parse(jsonpath_expression)
+
+    def jsonpath_for_context(self, ctx: "ChangeTypeContext") -> jsonpath_ng.JSONPath:
+        if self.parsed_jsonpath:
+            return self.parsed_jsonpath
+        else:
+            expr = self.template.render(
+                {
+                    self.CTX_FILE_PATH_VAR_NAME: ctx.context_file.path,
+                }
+            )
+            return jsonpath_ng.ext.parse(expr)
+
+
 @dataclass
 class ChangeTypeProcessor:
     """
@@ -274,10 +314,12 @@ class ChangeTypeProcessor:
 
     change_type: ChangeTypeV1
     expressions_by_file_type_schema: dict[
-        Tuple[BundleFileType, Optional[str]], list[jsonpath_ng.JSONPath]
+        Tuple[BundleFileType, Optional[str]], list[PathExpression]
     ]
 
-    def allowed_changed_paths(self, file_ref: FileRef, file_content: Any) -> list[str]:
+    def allowed_changed_paths(
+        self, file_ref: FileRef, file_content: Any, ctx: "ChangeTypeContext"
+    ) -> list[str]:
         """
         find all paths within the provide file_content, that are covered by this
         ChangeTypeV1. the paths are represented as jsonpath expressions pinpointing
@@ -294,7 +336,9 @@ class ChangeTypeProcessor:
                 paths.extend(
                     [
                         str(p.full_path)
-                        for p in change_type_path_expression.find(file_content)
+                        for p in change_type_path_expression.jsonpath_for_context(
+                            ctx
+                        ).find(file_content)
                     ]
                 )
         return paths
@@ -305,7 +349,7 @@ def build_change_type_processor(change_type: ChangeTypeV1) -> ChangeTypeProcesso
     Build a ChangeTypeProcessor from a ChangeTypeV1 and pre-initializing jsonpaths.
     """
     expressions_by_file_type_schema: dict[
-        Tuple[BundleFileType, Optional[str]], list[jsonpath_ng.JSONPath]
+        Tuple[BundleFileType, Optional[str]], list[PathExpression]
     ] = defaultdict(list)
     for c in change_type.changes:
         if isinstance(c, ChangeTypeChangeDetectorJsonPathProviderV1):
@@ -316,7 +360,7 @@ def build_change_type_processor(change_type: ChangeTypeV1) -> ChangeTypeProcesso
                 ]:
                     file_type = BundleFileType[change_type.context_type.upper()]
                     expressions_by_file_type_schema[(file_type, change_schema)].append(
-                        jsonpath_ng.ext.parse(jsonpath_expression)
+                        PathExpression(jsonpath_expression)
                     )
         else:
             raise ValueError(
@@ -359,6 +403,7 @@ class ChangeTypeContext:
     change_type_processor: ChangeTypeProcessor
     context: str
     approvers: list[Approver]
+    context_file: FileRef
 
     @property
     def disabled(self) -> bool:
