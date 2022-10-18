@@ -3,9 +3,20 @@
 
 [toc]
 
-# Dev
+# Introduction
 
-glitchtip `docker-compose.yml`
+This integration manages the following glitchtip objects:
+
+* organizations
+* teams
+* projects
+* and users
+
+
+# Development
+
+glitchtip `docker-compose.yml` for local development:
+
 ```yaml
 x-environment:
   &default-environment
@@ -70,9 +81,10 @@ networks:
     external:
       name: qontract-development
 ```
-# Test
 
-## Fixtures
+# Fixtures
+
+The unit tests use this structure and are based on these [app-interface-dev-data](https://gitlab.cee.redhat.com/app-sre/app-interface-dev-data/-/merge_requests/19) definitions.
 
 ```mermaid
 classDiagram
