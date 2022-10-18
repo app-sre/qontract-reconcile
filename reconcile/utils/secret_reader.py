@@ -1,4 +1,4 @@
-from typing import Mapping, Optional, Protocol
+from typing import Any, Mapping, Optional, Protocol
 
 from hvac.exceptions import Forbidden
 from sretoolbox.utils import retry
@@ -27,15 +27,19 @@ class SupportsSecret(Protocol):
     q_format: Optional[str]
 
 
-class SecretReader:
+class SupportsVaultSettings(Protocol):
+    """
+    SupportsVaultSettings defines all attributes needed from app-interface-settings
+    to instantiate a SecretReader
+    """
+
+    vault: bool
+
+
+class SecretReaderBase:
     """Read secrets from either Vault or a config file."""
 
-    def __init__(self, settings: Optional[Mapping] = None) -> None:
-        """
-        :param settings: app-interface-settings object. It is a dictionary
-        containing `value: true` if Vault is to be used as the secret backend.
-        """
-        self.settings = settings
+    def __init__(self) -> None:
         self._vault_client: Optional[VaultClient] = None
 
     @property
@@ -45,7 +49,7 @@ class SecretReader:
         return self._vault_client
 
     @retry()
-    def read(self, secret: Mapping[str, str]):
+    def _read_base(self, secret: Mapping[str, Any], use_vault: bool) -> dict[str, str]:
         """Returns a value of a key from Vault secret or configuration file.
 
         The input secret is a dictionary which contains the following fields:
@@ -61,7 +65,7 @@ class SecretReader:
         :raises secret_reader.SecretNotFound:
         """
 
-        if self.settings and self.settings.get("vault"):
+        if use_vault:
             try:
                 data = self.vault_client.read(secret)
             except vault.SecretNotFound as e:
@@ -75,7 +79,9 @@ class SecretReader:
         return data
 
     @retry()
-    def read_all(self, secret: Mapping[str, str]):
+    def _read_all_base(
+        self, secret: Mapping[str, Any], use_vault: bool
+    ) -> dict[str, str]:
         """Returns a dictionary of keys and values
         from Vault secret or configuration file.
 
@@ -90,7 +96,7 @@ class SecretReader:
         :raises secret_reader.SecretNotFound:
         """
 
-        if self.settings and self.settings.get("vault"):
+        if use_vault:
             try:
                 data = self.vault_client.read_all(secret)
             except Forbidden:
@@ -106,3 +112,62 @@ class SecretReader:
                 raise SecretNotFound(*e.args) from e
 
         return data
+
+
+class TypedSecretReader(SecretReaderBase):
+    """
+    Typed version of SecretReader. Once all references to the
+    untyped version are removed, we can merge this fully with
+    the SecretReaderBase class.
+    """
+
+    def __init__(self, settings: Optional[SupportsVaultSettings]):
+        super().__init__()
+        self._use_vault = settings and settings.vault
+
+    def _to_secret_dict(self, secret: SupportsSecret) -> dict[str, Any]:
+        """
+        VaultClient currently works with dictionaries. Once we got a typed
+        version of VaultClient, we could remove this
+        """
+        return {
+            "path": secret.path,
+            "field": secret.field,
+            "version": secret.version,
+            "format": secret.q_format,
+        }
+
+    def read(self, secret: SupportsSecret) -> dict[str, str]:
+        return self._read_base(
+            secret=self._to_secret_dict(secret),
+            use_vault=self._use_vault,
+        )
+
+    def read_all(self, secret: SupportsSecret) -> dict[str, str]:
+        return self._read_all_base(
+            secret=self._to_secret_dict(secret),
+            use_vault=self._use_vault,
+        )
+
+
+class SecretReader(SecretReaderBase):
+    """
+    Untyped version of SecretReader.
+    Once all references are cleared, this can be removed
+    """
+
+    def __init__(self, settings: Optional[Mapping] = None) -> None:
+        super().__init__()
+        self.settings = settings
+
+    def read(self, secret: Mapping[str, Any]):
+        return self._read_base(
+            secret=secret,
+            use_vault=self.settings and self.settings.get("vault"),
+        )
+
+    def read_all(self, secret: Mapping[str, Any]):
+        return self._read_all_base(
+            secret=secret,
+            use_vault=self.settings and self.settings.get("vault"),
+        )

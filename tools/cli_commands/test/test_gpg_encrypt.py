@@ -13,9 +13,7 @@ from tools.cli_commands.gpg_encrypt import (
 )
 
 
-def craft_command(
-    command_data: GPGEncryptCommandData, secret: Mapping[str, str]
-) -> GPGEncryptCommand:
+def craft_command(command_data: GPGEncryptCommandData, secret: Mapping[str, str]):
     secret_reader = MagicMock(spec=SecretReader)
     secret_reader.read_all = MagicMock()
     secret_reader.read_all.side_effect = [secret]
