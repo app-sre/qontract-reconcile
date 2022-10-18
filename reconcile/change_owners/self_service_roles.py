@@ -66,5 +66,6 @@ def cover_changes_with_self_service_roles(
                             change_type_processor=ctp,
                             context=f"RoleV1 - {role.name}",
                             approvers=approvers,
+                            context_file=df_ref,
                         )
                     )

@@ -1,36 +1,70 @@
+from dataclasses import dataclass
 import jinja2
 import requests
+from typing import Any, Iterable
 
 from sretoolbox.utils import threaded
 
-from reconcile import queries
 from reconcile.dashdotdb_base import DashdotdbBase, LOG
+from reconcile.utils import gql
+from reconcile.gql_definitions.dashdotdb_slo.slo_documents_query import (
+    SLODocumentV1,
+    query,
+)
 
 
 QONTRACT_INTEGRATION = "dashdotdb-slo"
+
+
+def get_slo_documents() -> list[SLODocumentV1]:
+    gqlapi = gql.get_api()
+    data = query(gqlapi.query)
+    return list(data.slo_documents or [])
+
+
+@dataclass
+class ServiceSLO:
+    name: str
+    sli_type: str
+    slo_doc_name: str
+    namespace_name: str
+    cluster_name: str
+    service_name: str
+    value: float
+    target: float
+
+    def dashdot_payload(self) -> dict[str, Any]:
+        return {
+            "name": self.name,
+            "SLIType": self.sli_type,
+            "SLODoc": {"name": self.slo_doc_name},
+            "namespace": {"name": self.namespace_name},
+            "cluster": {"name": self.cluster_name},
+            "service": {"name": self.service_name},
+            "value": self.value,
+            "target": self.target,
+        }
 
 
 class DashdotdbSLO(DashdotdbBase):
     def __init__(self, dry_run, thread_pool_size):
         super().__init__(dry_run, thread_pool_size, "DDDB_SLO:", "serviceslometrics")
 
-    def _post(self, service_slo):
-        if service_slo is None:
-            return None
-
-        for item in service_slo:
+    def _post(self, service_slos: Iterable[ServiceSLO]):
+        for item in service_slos:
             LOG.debug(f"About to POST SLO JSON item to dashdotDB:\n{item}\n")
 
         response = None
 
-        if self.dry_run:
-            return response
-
-        for item in service_slo:
-            slo_name = item["name"]
-            LOG.info("%s syncing slo %s", self.logmarker, slo_name)
+        for item in service_slos:
+            slo_name = item.name
             endpoint = f"{self.dashdotdb_url}/api/v1/" f"serviceslometrics/{slo_name}"
-            response = self._do_post(endpoint, item)
+            payload = item.dashdot_payload()
+            if self.dry_run:
+                continue
+
+            LOG.info("%s syncing slo %s", self.logmarker, slo_name)
+            response = self._do_post(endpoint, payload)
             try:
                 response.raise_for_status()
             except requests.exceptions.HTTPError as details:
@@ -39,20 +73,23 @@ class DashdotdbSLO(DashdotdbBase):
             LOG.info("%s slo %s synced", self.logmarker, slo_name)
         return response
 
-    def _get_service_slo(self, slo_document):
-        LOG.debug("SLO: processing %s", slo_document["name"])
-        result = []
-        for ns in slo_document["namespaces"]:
-            if not ns["cluster"].get("prometheusUrl"):
+    def _get_service_slo(self, slo_document: SLODocumentV1) -> list[ServiceSLO]:
+        LOG.debug("SLO: processing %s", slo_document.name)
+        result: list[ServiceSLO] = []
+        for ns in slo_document.namespaces:
+            promurl = ns.cluster.prometheus_url
+            ssl_verify = False if ns.cluster.spec and ns.cluster.spec.private else True
+            if not ns.cluster.automation_token:
+                LOG.error(
+                    "namespace does not have automation token set %s - skipping", ns
+                )
                 continue
-            promurl = ns["cluster"]["prometheusUrl"]
-            ssl_verify = False if ns["cluster"]["spec"]["private"] else True
-            promtoken = self._get_automationtoken(ns["cluster"]["automationToken"])
-            for slo in slo_document["slos"]:
-                unit = slo["SLOTargetUnit"]
-                expr = slo["expr"]
+            promtoken = self._get_automation_token(ns.cluster.automation_token)
+            for slo in slo_document.slos or []:
+                unit = slo.slo_target_unit
+                expr = slo.expr
                 template = jinja2.Template(expr)
-                window = slo["SLOParameters"]["window"]
+                window = slo.slo_parameters.window
                 promquery = template.render({"window": window})
                 prom_response = self._promget(
                     url=promurl,
@@ -69,7 +106,7 @@ class DashdotdbSLO(DashdotdbBase):
                     continue
 
                 slo_value = float(slo_value[1])
-                slo_target = float(slo["SLOTarget"])
+                slo_target = float(slo.slo_target)
 
                 # In Dash.DB we want to always store SLOs in percentages
                 if unit == "percent_0_1":
@@ -77,23 +114,23 @@ class DashdotdbSLO(DashdotdbBase):
                     slo_target *= 100
 
                 result.append(
-                    {
-                        "name": slo["name"],
-                        "SLIType": slo["SLIType"],
-                        "namespace": ns,
-                        "cluster": ns["cluster"],
-                        "service": ns["app"],
-                        "value": slo_value,
-                        "target": slo_target,
-                        "SLODoc": {"name": slo_document["name"]},
-                    }
+                    ServiceSLO(
+                        name=slo.name,
+                        sli_type=slo.sli_type,
+                        namespace_name=ns.name,
+                        cluster_name=ns.cluster.name,
+                        service_name=ns.app.name,
+                        value=slo_value,
+                        target=slo_target,
+                        slo_doc_name=slo_document.name,
+                    )
                 )
         return result
 
     def run(self):
-        slo_documents = queries.get_slo_documents()
+        slo_documents = get_slo_documents()
 
-        service_slos = threaded.run(
+        service_slos: list[list[ServiceSLO]] = threaded.run(
             func=self._get_service_slo,
             iterable=slo_documents,
             thread_pool_size=self.thread_pool_size,

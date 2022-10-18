@@ -293,9 +293,9 @@ def cluster_upgrade_policies(
             for i, data in enumerate(sorted_soaking):
                 v, s = data
                 if v == upgrade_version:
-                    sorted_soaking[i] = (v, f'{s} [:dizzy:](a "{upgrade_next_run}")')
+                    sorted_soaking[i] = (v, f'{s} [💫](a "{upgrade_next_run}")')
                 elif v == upgradeable_version:
-                    sorted_soaking[i] = (v, f"{s} :tada:")
+                    sorted_soaking[i] = (v, f"{s} 🎉")
         return ", ".join([f"{v} ({s})" for v, s in sorted_soaking])
 
     for c in desired_state:
@@ -305,7 +305,7 @@ def cluster_upgrade_policies(
         mutexes = c.get("conditions", {}).get("mutexes") or []
         item = {
             "cluster": cluster_name,
-            "version": parse_semver(version),
+            "version": version,
             "channel": channel,
             "schedule": schedule,
             "soak_days": soakdays,
@@ -367,8 +367,17 @@ def cluster_upgrade_policies(
             results.append(item)
 
     if md_output:
-        print(
-            """
+        fields = [
+            {"key": "cluster", "sortable": True},
+            {"key": "version", "sortable": True},
+            {"key": "channel", "sortable": True},
+            {"key": "schedule"},
+            {"key": "mutexes", "sortable": True},
+            {"key": "soak_days", "sortable": True},
+            {"key": "workload"},
+            {"key": "soaking_upgrades"},
+        ]
+        md = """
 The table below regroups upgrade information for each clusters:
 * `version` is the current openshift version on the cluster
 * `channel` is the OCM upgrade channel being tracked by the cluster
@@ -385,24 +394,34 @@ upgrade.
 for that cluster. The number in parenthesis shows the number of days this
 version has been running on other clusters with the same workloads. By
 comparing with the `soak_days` columns, you can see when a version is close to
-be upgraded to. A :tada: sign is displayed for versions which have soaked
-enough and are ready to be upgraded to. A :dizzy: sign is displayed for versions
+be upgraded to. A 🎉 sign is displayed for versions which have soaked
+enough and are ready to be upgraded to. A 💫 sign is displayed for versions
 which are scheduled or being upgraded to.
-        """
-        )
 
-    columns = [
-        "cluster",
-        "version",
-        "channel",
-        "schedule",
-        "mutexes",
-        "soak_days",
-        "workload",
-        "soaking_upgrades",
-    ]
-    ctx.obj["options"]["to_string"] = True
-    print_output(ctx.obj["options"], results, columns)
+```json:table
+{}
+```
+        """
+        md = md.format(
+            json.dumps(
+                {"fields": fields, "items": results, "filter": True, "caption": ""},
+                indent=1,
+            )
+        )
+        print(md)
+    else:
+        columns = [
+            "cluster",
+            "version",
+            "channel",
+            "schedule",
+            "mutexes",
+            "soak_days",
+            "workload",
+            "soaking_upgrades",
+        ]
+        ctx.obj["options"]["to_string"] = True
+        print_output(ctx.obj["options"], results, columns)
 
 
 @get.command()
@@ -1103,83 +1122,95 @@ def app_interface_merge_queue(ctx):
 def app_interface_review_queue(ctx):
     settings = queries.get_app_interface_settings()
     instance = queries.get_gitlab_instance()
-    gl = GitLabApi(instance, project_url=settings["repoUrl"], settings=settings)
-    merge_requests = gl.get_merge_requests(state=MRState.OPENED)
     secret_reader = SecretReader(settings=settings)
     jjb: JJB = init_jjb(secret_reader)
-    job = jjb.get_job_by_repo_url(settings["repoUrl"], job_type="gl-pr-check")
-    trigger_phrases_regex = jjb.get_trigger_phrases_regex(job)
-
     columns = [
         "id",
+        "repo",
         "title",
         "onboarding",
         "author",
         "updated_at",
         "labels",
     ]
-    queue_data = []
-    for mr in merge_requests:
-        if mr.work_in_progress:
-            continue
-        if len(mr.commits()) == 0:
-            continue
-        if mr.merge_status in [
-            MRStatus.CANNOT_BE_MERGED,
-            MRStatus.CANNOT_BE_MERGED_RECHECK,
-        ]:
-            continue
 
-        labels = mr.attributes.get("labels")
-        if glhk.is_good_to_merge(labels):
-            continue
-        if "stale" in labels:
-            continue
-        if SAAS_FILE_UPDATE in labels:
-            continue
-        if SELF_SERVICEABLE in labels:
-            continue
+    def get_mrs(repo, url) -> list[dict[str, str]]:
+        gl = GitLabApi(instance, project_url=url, settings=settings)
+        merge_requests = gl.get_merge_requests(state=MRState.OPENED)
+        job = jjb.get_job_by_repo_url(url, job_type="gl-pr-check")
+        trigger_phrases_regex = jjb.get_trigger_phrases_regex(job)
 
-        pipelines = mr.pipelines()
-        if not pipelines:
-            continue
-        running_pipelines = [p for p in pipelines if p["status"] == "running"]
-        if running_pipelines:
-            continue
-        last_pipeline_result = pipelines[0]["status"]
-        if last_pipeline_result != "success":
-            continue
-
-        author = mr.author["username"]
-        app_sre_team_members = [u.username for u in gl.get_app_sre_group_users()]
-        if author in app_sre_team_members:
-            continue
-
-        is_assigned_by_app_sre = gl.is_assigned_by_team(mr, app_sre_team_members)
-        if is_assigned_by_app_sre:
-            continue
-
-        is_last_action_by_app_sre = gl.is_last_action_by_team(
-            mr, app_sre_team_members, glhk.HOLD_LABELS
-        )
-
-        if is_last_action_by_app_sre:
-            last_comment = gl.last_comment(mr, exclude_bot=True)
-            # skip only if the last comment isn't a trigger phrase
-            if last_comment and not re.fullmatch(
-                trigger_phrases_regex, last_comment["body"]
-            ):
+        queue_data = []
+        for mr in merge_requests:
+            if mr.work_in_progress:
+                continue
+            if len(mr.commits()) == 0:
+                continue
+            if mr.merge_status in [
+                MRStatus.CANNOT_BE_MERGED,
+                MRStatus.CANNOT_BE_MERGED_RECHECK,
+            ]:
                 continue
 
-        item = {
-            "id": f"[{mr.iid}]({mr.web_url})",
-            "title": mr.title,
-            "onboarding": "onboarding" in labels,
-            "updated_at": mr.updated_at,
-            "author": author,
-            "labels": ", ".join(labels),
-        }
-        queue_data.append(item)
+            labels = mr.attributes.get("labels")
+            if glhk.is_good_to_merge(labels):
+                continue
+            if "stale" in labels:
+                continue
+            if SAAS_FILE_UPDATE in labels:
+                continue
+            if SELF_SERVICEABLE in labels:
+                continue
+
+            pipelines = mr.pipelines()
+            if not pipelines:
+                continue
+            running_pipelines = [p for p in pipelines if p["status"] == "running"]
+            if running_pipelines:
+                continue
+            last_pipeline_result = pipelines[0]["status"]
+            if last_pipeline_result != "success":
+                continue
+
+            author = mr.author["username"]
+            app_sre_team_members = [u.username for u in gl.get_app_sre_group_users()]
+            if author in app_sre_team_members:
+                continue
+
+            is_assigned_by_app_sre = gl.is_assigned_by_team(mr, app_sre_team_members)
+            if is_assigned_by_app_sre:
+                continue
+
+            is_last_action_by_app_sre = gl.is_last_action_by_team(
+                mr, app_sre_team_members, glhk.HOLD_LABELS
+            )
+
+            if is_last_action_by_app_sre:
+                last_comment = gl.last_comment(mr, exclude_bot=True)
+                # skip only if the last comment isn't a trigger phrase
+                if (
+                    last_comment
+                    and trigger_phrases_regex
+                    and not re.fullmatch(trigger_phrases_regex, last_comment["body"])
+                ):
+                    continue
+
+            item = {
+                "id": f"[{mr.iid}]({mr.web_url})",
+                "repo": repo,
+                "title": mr.title,
+                "onboarding": "onboarding" in labels,
+                "updated_at": mr.updated_at,
+                "author": author,
+                "labels": ", ".join(labels),
+            }
+            queue_data.append(item)
+        return queue_data
+
+    queue_data = []
+
+    for repo in queries.get_review_repos():
+        queue_data.extend(get_mrs(repo["name"], repo["url"]))
 
     queue_data.sort(key=itemgetter("updated_at"))
     ctx.obj["options"]["sort"] = False  # do not sort

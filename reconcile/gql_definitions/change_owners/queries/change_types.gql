@@ -5,6 +5,7 @@ query ChangeTypes {
     name
     contextType
     contextSchema
+    disabled
     changes {
       provider
       changeSchema

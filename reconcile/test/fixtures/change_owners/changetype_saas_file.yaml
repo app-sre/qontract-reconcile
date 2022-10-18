@@ -3,6 +3,8 @@ name: saas-file-self-service
 contextType: datafile
 contextSchema: /app-sre/saas-file-2.yml
 
+disabled: false
+
 changes:
 - provider: jsonPath
   jsonPathSelectors:
