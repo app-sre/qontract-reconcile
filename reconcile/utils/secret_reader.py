@@ -1,4 +1,4 @@
-from typing import Mapping, Optional, Protocol
+from typing import Any, Mapping, Optional, Protocol
 
 from hvac.exceptions import Forbidden
 from sretoolbox.utils import retry
@@ -37,14 +37,23 @@ class SupportsVaultSettings(Protocol):
 
 
 class TypedSecretReader():
-    """
-    Interface
-    """
     def read(self, secret: SupportsSecret) -> dict[str, str]:
         raise NotImplementedError()
 
     def read_all(self, secret: SupportsSecret) -> dict[str, str]:
         raise NotImplementedError()
+
+    def _secret_to_dict(self, secret: SupportsSecret) -> dict[str, Any]:
+        """
+        Config.read() and VaultClient.read() do not support types yet.
+        Once they do, we can remove this helper function.
+        """
+        return {
+            "path": secret.path,
+            "field": secret.field,
+            "version": secret.version,
+            "format": secret.q_format,
+        }
 
 
 class VaultSecretReader(TypedSecretReader):
@@ -63,7 +72,7 @@ class VaultSecretReader(TypedSecretReader):
     @retry()
     def read(self, secret: SupportsSecret) -> dict[str, str]:
         try:
-            data = self.vault_client.read(secret)
+            data = self.vault_client.read(self._secret_to_dict(secret))
         except vault.SecretNotFound as e:
             raise SecretNotFound(*e.args) from e
         return data
@@ -71,7 +80,7 @@ class VaultSecretReader(TypedSecretReader):
     @retry()
     def read_all(self, secret: SupportsSecret) -> dict[str, str]:
         try:
-            data = self.vault_client.read_all(secret)
+            data = self.vault_client.read_all(self._secret_to_dict(secret))
         except Forbidden:
             raise VaultForbidden(
                 f"permission denied reading vault secret " f'at {secret.path}'
@@ -87,14 +96,14 @@ class ConfigSecretReader(TypedSecretReader):
     """
     def read(self, secret: SupportsSecret) -> dict[str, str]:
         try:
-            data = config.read(secret)
+            data = config.read(self._secret_to_dict(secret))
         except config.SecretNotFound as e:
             raise SecretNotFound(*e.args) from e
         return data
 
     def read_all(self, secret: SupportsSecret) -> dict[str, str]:
         try:
-            data = config.read_all(secret)
+            data = config.read_all(self._secret_to_dict(secret))
         except config.SecretNotFound as e:
             raise SecretNotFound(*e.args) from e
         return data
