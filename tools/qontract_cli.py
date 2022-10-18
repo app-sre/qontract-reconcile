@@ -2,6 +2,7 @@ import base64
 import json
 from operator import itemgetter
 import re
+import os
 import sys
 from contextlib import suppress
 from datetime import datetime
@@ -1919,6 +1920,21 @@ def gpg_encrypt(
             target_user=for_user,
         ),
     ).execute()
+
+
+@root.command()
+@click.option("--change-type-name")
+@click.option("--role-name")
+@click.option(
+    "--app-interface-path",
+    help="filesystem path to a local app-interface repo",
+    default=os.environ.get("APP_INTERFACE_PATH", None),
+)
+def test_change_type(change_type_name: str, role_name: str, app_interface_path: str):
+    from reconcile.change_owners import tester
+
+    # tester.test_change_type(change_type_name, datafile_path)
+    tester.test_change_type_in_context(change_type_name, role_name, app_interface_path)
 
 
 if __name__ == "__main__":
