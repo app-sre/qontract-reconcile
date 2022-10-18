@@ -36,7 +36,7 @@ class SupportsVaultSettings(Protocol):
     vault: bool
 
 
-class TypedSecretReader():
+class TypedSecretReader:
     def read(self, secret: SupportsSecret) -> dict[str, str]:
         raise NotImplementedError()
 
@@ -60,6 +60,7 @@ class VaultSecretReader(TypedSecretReader):
     """
     Read secrets from vault via a vault_client
     """
+
     def __init__(self, vault_client: Optional[VaultClient] = None):
         self._vault_client = vault_client
 
@@ -83,7 +84,7 @@ class VaultSecretReader(TypedSecretReader):
             data = self.vault_client.read_all(self._secret_to_dict(secret))
         except Forbidden:
             raise VaultForbidden(
-                f"permission denied reading vault secret " f'at {secret.path}'
+                f"permission denied reading vault secret " f"at {secret.path}"
             )
         except vault.SecretNotFound as e:
             raise SecretNotFound(*e.args) from e
@@ -94,6 +95,7 @@ class ConfigSecretReader(TypedSecretReader):
     """
     Read secrets from a config file
     """
+
     def read(self, secret: SupportsSecret) -> dict[str, str]:
         try:
             data = config.read(self._secret_to_dict(secret))
@@ -109,7 +111,9 @@ class ConfigSecretReader(TypedSecretReader):
         return data
 
 
-def create_secret_reader(settings: Optional[SupportsVaultSettings]) -> TypedSecretReader:
+def create_secret_reader(
+    settings: Optional[SupportsVaultSettings],
+) -> TypedSecretReader:
     """
     This function could be used in an integrations run() function to instantiate a
     TypedSecretReader.
@@ -120,7 +124,7 @@ def create_secret_reader(settings: Optional[SupportsVaultSettings]) -> TypedSecr
 class SecretReader:
     """
     Read secrets from either Vault or a config file.
-    
+
     This class is untyped and we try to eliminate it across our codebase.
     Consider using create_secret_reader() instead.
     """
