@@ -39,8 +39,8 @@ class SupportsVaultSettings(Protocol):
 class SecretReaderBase:
     """Read secrets from either Vault or a config file."""
 
-    def __init__(self) -> None:
-        self._vault_client: Optional[VaultClient] = None
+    def __init__(self, vault_client: Optional[VaultClient] = None) -> None:
+        self._vault_client: Optional[VaultClient] = vault_client
 
     @property
     def vault_client(self):
@@ -121,8 +121,12 @@ class TypedSecretReader(SecretReaderBase):
     the SecretReaderBase class.
     """
 
-    def __init__(self, settings: Optional[SupportsVaultSettings]):
-        super().__init__()
+    def __init__(
+        self,
+        settings: Optional[SupportsVaultSettings],
+        vault_client: Optional[VaultClient] = None,
+    ):
+        super().__init__(vault_client=vault_client)
         self._use_vault = settings and settings.vault
 
     def _to_secret_dict(self, secret: SupportsSecret) -> dict[str, Any]:
