@@ -17,6 +17,7 @@ setup(
     install_requires=[
         "sretoolbox~=1.6.0",
         "python-gnupg>=0.5.0",
+        "sh>=1.14.0",
         "gitpython>=3.1.27",
         "Click>=7.0,<9.0",
         "gql==3.1.0",
