@@ -4,6 +4,7 @@ import logging
 import os
 import re
 import tempfile
+import threading
 import time
 from contextlib import suppress
 from datetime import datetime
@@ -260,6 +261,8 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
         # calling get_version to check if cluster is reachable
         if not local:
             self.get_version()
+
+        self.api_resources_lock = threading.RLock()
         self.init_api_resources = init_api_resources
         if self.init_api_resources:
             self.api_resources = self.get_api_resources()
@@ -540,10 +543,11 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
     def get_api_resources(self):
         # oc api-resources only has name or wide output
         # and we need to get the KIND, which is the last column
-        if not self.api_resources:
-            cmd = ["api-resources", "--no-headers"]
-            results = self._run(cmd).decode("utf-8").split("\n")
-            self.api_resources = [r.split()[-1] for r in results]
+        with self.api_resources_lock:
+            if not self.api_resources:
+                cmd = ["api-resources", "--no-headers"]
+                results = self._run(cmd).decode("utf-8").split("\n")
+                self.api_resources = [r.split()[-1] for r in results]
         return self.api_resources
 
     def get_version(self):
@@ -988,7 +992,9 @@ class OCNative(OCDeprecated):
             raise Exception("A method relies on client/api_kind_version to be set")
 
         self.object_clients = {}
+
         self.init_api_resources = init_api_resources
+        self.api_resources_lock = threading.RLock()
         if self.init_api_resources:
             self.api_resources = self.api_kind_version.keys()
         else:
@@ -1109,8 +1115,9 @@ class OCNative(OCDeprecated):
         return kind_groupversion
 
     def get_api_resources(self):
-        if not self.api_resources:
-            self.api_resources = self.get_api_kind_version().keys()
+        with self.api_resources_lock:
+            if not self.api_resources:
+                self.api_resources = self.get_api_kind_version().keys()
         return self.api_resources
 
     @retry(max_attempts=5, exceptions=(ServerTimeoutError))
