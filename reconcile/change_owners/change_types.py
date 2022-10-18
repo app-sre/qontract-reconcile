@@ -219,15 +219,16 @@ class BundleFileChange:
         return not any(self.uncovered_changes())
 
 
-def parse_resource_file_content(content: Optional[Any]) -> Any:
+def parse_resource_file_content(content: Optional[Any]) -> Tuple[Any, Optional[str]]:
     if content:
         try:
-            return anymarkup.parse(content, force_types=None)
+            data = anymarkup.parse(content, force_types=None)
+            return data, data.get("$schema")
         except Exception:
             # not parsable content - we will just deal with the plain content
-            return content
+            return content, None
     else:
-        return None
+        return None, None
 
 
 def create_bundle_file_change(
@@ -248,8 +249,8 @@ def create_bundle_file_change(
 
     # try to parse the content if a resourcefile has a schema
     if file_type == BundleFileType.RESOURCEFILE and schema:
-        old_file_content = parse_resource_file_content(old_file_content)
-        new_file_content = parse_resource_file_content(new_file_content)
+        old_file_content, _ = parse_resource_file_content(old_file_content)
+        new_file_content, _ = parse_resource_file_content(new_file_content)
     diffs = extract_diffs(
         schema=schema,
         old_file_content=old_file_content,

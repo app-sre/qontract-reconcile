@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from typing import Any, Optional
+import yaml
 from reconcile.change_owners.diff import (
     SHA256SUM_FIELD_NAME,
     Diff,
@@ -28,6 +29,7 @@ from reconcile.change_owners.change_types import (
     PathExpression,
     build_change_type_processor,
     create_bundle_file_change,
+    parse_resource_file_content,
 )
 from reconcile.gql_definitions.change_owners.queries.change_types import (
     ChangeTypeChangeDetectorV1,
@@ -1638,3 +1640,35 @@ def test_template_path_expression_unsupported_variable():
         PathExpression(
             jsonpath_expression="path[?(@.name == '{{ unsupported_variable }}')]"
         )
+
+
+#
+# Test resource file parsing
+#
+
+
+def test_parse_resource_file_content_structured_with_schema():
+    expected_content = {"$schema": "schema-1.yml", "some_field": "some_value"}
+    content, schema = parse_resource_file_content(yaml.dump(expected_content))
+    assert schema == expected_content["$schema"]
+    assert content == expected_content
+
+
+def test_parse_resource_file_content_structured_no_schema():
+    expected_content = {"some_field": "some_value"}
+    content, schema = parse_resource_file_content(yaml.dump(expected_content))
+    assert schema is None
+    assert content == expected_content
+
+
+def test_parse_resource_file_content_unstructured():
+    expected_content = "something something"
+    content, schema = parse_resource_file_content(expected_content)
+    assert schema is None
+    assert content == expected_content
+
+
+def test_parse_resource_file_content_none():
+    content, schema = parse_resource_file_content(None)
+    assert schema is None
+    assert content is None
