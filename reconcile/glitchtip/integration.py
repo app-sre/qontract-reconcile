@@ -159,6 +159,7 @@ def run(dry_run: bool, instance: Optional[str] = None):
         )
         current_state = fetch_current_state(
             glitchtip_client=glitchtip_client,
+            # the automation user isn't managed by app-interface (chicken - egg problem), so just ignore it
             ignore_users=[glitchtip_instance.automation_user_email],
         )
         desired_state = fetch_desired_state(
