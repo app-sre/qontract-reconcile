@@ -4,7 +4,7 @@ from typing import Any, Iterable, Optional, Sequence
 from github import Github, UnknownObjectException
 from reconcile import queries
 
-# TODO: init_github must be move into a utils module
+# TODO: init_github must be moved into a utils module
 from reconcile.github_users import init_github
 from reconcile.glitchtip.reconciler import GlitchtipReconciler
 from reconcile.gql_definitions.glitchtip.glitchtip_instance import (
