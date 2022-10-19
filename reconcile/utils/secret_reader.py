@@ -39,23 +39,79 @@ class SupportsVaultSettings(Protocol):
 
 class TypedSecretReader(ABC):
     @abstractmethod
-    def read(self, secret: SupportsSecret) -> dict[str, str]:
+    def read(self, secret: Mapping[str, Any]) -> dict[str, str]:
+        """
+        Kept to stay backwards compatible with to-be deprecated
+        SecretReader. Once SecretReader is not used, we can
+        remove this.
+        """
         raise NotImplementedError()
 
     @abstractmethod
-    def read_all(self, secret: SupportsSecret) -> dict[str, str]:
+    def read_all(self, secret: Mapping[str, Any]) -> dict[str, str]:
+        """
+        Kept to stay backwards compatible with to-be deprecated
+        SecretReader. Once SecretReader is not used, we can
+        remove this.
+        """
         raise NotImplementedError()
 
-    def _secret_to_dict(self, secret: SupportsSecret) -> dict[str, Any]:
-        """
-        Config.read() and VaultClient.read() do not support types yet.
-        Once they do, we can remove this helper function.
-        """
+    @abstractmethod
+    def _read(
+        self, path: str, field: str, format: Optional[str], version: Optional[int]
+    ) -> dict[str, str]:
+        raise NotImplementedError()
+
+    @abstractmethod
+    def _read_all(
+        self, path: str, field: str, format: Optional[str], version: Optional[int]
+    ) -> dict[str, str]:
+        raise NotImplementedError()
+
+    def typed_read(self, secret: SupportsSecret) -> dict[str, str]:
+        return self._read(
+            path=secret.path,
+            field=secret.field,
+            format=secret.q_format,
+            version=secret.version,
+        )
+
+    def typed_read_all(self, secret: SupportsSecret) -> dict[str, str]:
+        return self._read_all(
+            path=secret.path,
+            field=secret.field,
+            format=secret.q_format,
+            version=secret.version,
+        )
+
+    def read_with_parameters(
+        self, path: str, field: str, format: Optional[str], version: Optional[int]
+    ) -> dict[str, str]:
+        return self._read(
+            path=path,
+            field=field,
+            format=format,
+            version=version,
+        )
+
+    def read_all_with_parameters(
+        self, path: str, field: str, format: Optional[str], version: Optional[int]
+    ) -> dict[str, str]:
+        return self._read_all(
+            path=path,
+            field=field,
+            format=format,
+            version=version,
+        )
+
+    def _parameters_to_dict(
+        self, path: str, field: str, format: Optional[str], version: Optional[int]
+    ) -> dict[str, Any]:
         return {
-            "path": secret.path,
-            "field": secret.field,
-            "version": secret.version,
-            "format": secret.q_format,
+            "path": path,
+            "field": field,
+            "format": format,
+            "version": version,
         }
 
 
@@ -73,21 +129,51 @@ class VaultSecretReader(TypedSecretReader):
             self._vault_client = VaultClient()
         return self._vault_client
 
+    def read(self, secret: Mapping[str, Any]) -> dict[str, str]:
+        """
+        This method is to be deprecated and will not be implemented.
+        """
+        raise NotImplementedError()
+
+    def read_all(self, secret: Mapping[str, Any]) -> dict[str, str]:
+        """
+        This method is to be deprecated and will not be implemented.
+        """
+        raise NotImplementedError()
+
     @retry()
-    def read(self, secret: SupportsSecret) -> dict[str, str]:
+    def _read_all(
+        self, path: str, field: str, format: Optional[str], version: Optional[int]
+    ) -> dict[str, str]:
         try:
-            data = self.vault_client.read(self._secret_to_dict(secret))
+            data = self.vault_client.read_all(
+                self._parameters_to_dict(
+                    path=path,
+                    field=field,
+                    format=format,
+                    version=version,
+                )
+            )
+        except Forbidden:
+            raise VaultForbidden(
+                f"permission denied reading vault secret " f"at {path}"
+            )
         except vault.SecretNotFound as e:
             raise SecretNotFound(*e.args) from e
         return data
 
     @retry()
-    def read_all(self, secret: SupportsSecret) -> dict[str, str]:
+    def _read(
+        self, path: str, field: str, format: Optional[str], version: Optional[int]
+    ) -> dict[str, str]:
         try:
-            data = self.vault_client.read_all(self._secret_to_dict(secret))
-        except Forbidden:
-            raise VaultForbidden(
-                f"permission denied reading vault secret " f"at {secret.path}"
+            data = self.vault_client.read(
+                self._parameters_to_dict(
+                    path=path,
+                    field=field,
+                    format=format,
+                    version=version,
+                )
             )
         except vault.SecretNotFound as e:
             raise SecretNotFound(*e.args) from e
@@ -99,16 +185,46 @@ class ConfigSecretReader(TypedSecretReader):
     Read secrets from a config file
     """
 
-    def read(self, secret: SupportsSecret) -> dict[str, str]:
+    def read(self, secret: Mapping[str, Any]) -> dict[str, str]:
+        """
+        This method is to be deprecated and will not be implemented.
+        """
+        raise NotImplementedError()
+
+    def read_all(self, secret: Mapping[str, Any]) -> dict[str, str]:
+        """
+        This method is to be deprecated and will not be implemented.
+        """
+        raise NotImplementedError()
+
+    def _read(
+        self, path: str, field: str, format: Optional[str], version: Optional[int]
+    ) -> dict[str, str]:
         try:
-            data = config.read(self._secret_to_dict(secret))
+            data = config.read(
+                self._parameters_to_dict(
+                    path=path,
+                    field=field,
+                    format=format,
+                    version=version,
+                )
+            )
         except config.SecretNotFound as e:
             raise SecretNotFound(*e.args) from e
         return data
 
-    def read_all(self, secret: SupportsSecret) -> dict[str, str]:
+    def _read_all(
+        self, path: str, field: str, format: Optional[str], version: Optional[int]
+    ) -> dict[str, str]:
         try:
-            data = config.read_all(self._secret_to_dict(secret))
+            data = config.read_all(
+                self._parameters_to_dict(
+                    path=path,
+                    field=field,
+                    format=format,
+                    version=version,
+                )
+            )
         except config.SecretNotFound as e:
             raise SecretNotFound(*e.args) from e
         return data
@@ -124,7 +240,7 @@ def create_secret_reader(
     return VaultSecretReader() if settings and settings.vault else ConfigSecretReader()
 
 
-class SecretReader:
+class SecretReader(TypedSecretReader):
     """
     Read secrets from either Vault or a config file.
 
@@ -147,7 +263,9 @@ class SecretReader:
         return self._vault_client
 
     @retry()
-    def read(self, secret: Mapping[str, str]):
+    def _read(
+        self, path: str, field: str, format: Optional[str], version: Optional[int]
+    ):
         """Returns a value of a key from Vault secret or configuration file.
         The input secret is a dictionary which contains the following fields:
         * path - path to the secret in Vault or config
@@ -160,21 +278,30 @@ class SecretReader:
         :raises secret_reader.SecretNotFound:
         """
 
+        params = self._parameters_to_dict(
+            path=path,
+            field=field,
+            format=format,
+            version=version,
+        )
+
         if self.settings and self.settings.get("vault"):
             try:
-                data = self.vault_client.read(secret)
+                data = self.vault_client.read(params)
             except vault.SecretNotFound as e:
                 raise SecretNotFound(*e.args) from e
         else:
             try:
-                data = config.read(secret)
+                data = config.read(params)
             except config.SecretNotFound as e:
                 raise SecretNotFound(*e.args) from e
 
         return data
 
     @retry()
-    def read_all(self, secret: Mapping[str, str]):
+    def _read_all(
+        self, path: str, field: str, format: Optional[str], version: Optional[int]
+    ):
         """Returns a dictionary of keys and values
         from Vault secret or configuration file.
         The input secret is a dictionary which contains the following fields:
@@ -186,19 +313,42 @@ class SecretReader:
         :raises secret_reader.SecretNotFound:
         """
 
+        params = self._parameters_to_dict(
+            path=path,
+            field=field,
+            format=format,
+            version=version,
+        )
+
         if self.settings and self.settings.get("vault"):
             try:
-                data = self.vault_client.read_all(secret)
+                data = self.vault_client.read_all(params)
             except Forbidden:
                 raise VaultForbidden(
-                    f"permission denied reading vault secret " f'at {secret["path"]}'
+                    f"permission denied reading vault secret " f"at {path}"
                 )
             except vault.SecretNotFound as e:
                 raise SecretNotFound(*e.args) from e
         else:
             try:
-                data = config.read_all(secret)
+                data = config.read_all(params)
             except config.SecretNotFound as e:
                 raise SecretNotFound(*e.args) from e
 
         return data
+
+    def read(self, secret: Mapping[str, Any]):
+        return self._read(
+            path=secret.get("path"),
+            field=secret.get("field"),
+            format=secret.get("format"),
+            version=secret.get("version"),
+        )
+
+    def read_all(self, secret: Mapping[str, Any]):
+        return self._read_all(
+            path=secret.get("path"),
+            field=secret.get("field"),
+            format=secret.get("format"),
+            version=secret.get("version"),
+        )
