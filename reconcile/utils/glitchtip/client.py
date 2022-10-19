@@ -3,8 +3,8 @@ from typing import Any, Optional
 from urllib.parse import urljoin
 
 import requests
+from responses import HTTPAdapter
 from reconcile.utils.glitchtip.models import Organization, Project, Team, User
-from sretoolbox.utils import retry
 
 
 def get_next_url(links: dict[str, dict[str, str]]) -> Optional[str]:
@@ -20,9 +20,13 @@ def get_next_url(links: dict[str, dict[str, str]]) -> Optional[str]:
 
 
 class GlitchtipClient:
-    def __init__(self, host: str, token: str) -> None:
+    def __init__(
+        self, host: str, token: str, max_retries: int = 3, read_timeout: float = 30
+    ) -> None:
         self.host = host
-        self._token = token
+        self.token = token
+        self.max_retries = max_retries
+        self.read_timeout = read_timeout
         self._thread_local = threading.local()
 
     @property
@@ -32,22 +36,28 @@ class GlitchtipClient:
         except AttributeError:
             # todo timeout
             self._thread_local.session = requests.Session()
+            self._thread_local.session.mount(
+                "https://", HTTPAdapter(max_retries=self.max_retries)
+            )
+            self._thread_local.session.mount(
+                "http://", HTTPAdapter(max_retries=self.max_retries)
+            )
             self._thread_local.session.headers.update(
                 {
-                    "Authorization": f"Bearer {self._token}",
+                    "Authorization": f"Bearer {self.token}",
                     "Content-Type": "application/json",
                 }
             )
             return self._thread_local.session
 
-    @retry()
     def _get(self, url: str) -> dict[str, Any]:
-        response = self._session.get(urljoin(self.host, url))
+        response = self._session.get(urljoin(self.host, url), timeout=self.read_timeout)
         return response.json()
 
-    @retry()
     def _list(self, url: str, limit: int = 100) -> list[dict[str, Any]]:
-        response = self._session.get(urljoin(self.host, url), params={"limit": limit})
+        response = self._session.get(
+            urljoin(self.host, url), params={"limit": limit}, timeout=self.read_timeout
+        )
         response.raise_for_status()
         results = response.json()
         # handle pagination
@@ -56,25 +66,26 @@ class GlitchtipClient:
             results += response.json()
         return results
 
-    @retry()
     def _post(self, url: str, data: Optional[dict[Any, Any]] = None) -> dict[str, Any]:
-        response = self._session.post(urljoin(self.host, url), json=data)
+        response = self._session.post(
+            urljoin(self.host, url), json=data, timeout=self.read_timeout
+        )
         response.raise_for_status()
         if response.status_code == 204:
             return {}
         return response.json()
 
-    @retry()
     def _put(self, url: str, data: Optional[dict[Any, Any]] = None) -> dict[str, Any]:
-        response = self._session.put(urljoin(self.host, url), json=data)
+        response = self._session.put(
+            urljoin(self.host, url), json=data, timeout=self.read_timeout
+        )
         response.raise_for_status()
         if response.status_code == 204:
             return {}
         return response.json()
 
-    @retry()
     def _delete(self, url: str) -> None:
-        self._session.delete(urljoin(self.host, url))
+        self._session.delete(urljoin(self.host, url), timeout=self.read_timeout)
 
     def organizations(self) -> list[Organization]:
         """List organizations."""

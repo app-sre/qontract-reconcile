@@ -3,17 +3,17 @@ organization_slug: esa
 current_users: []
 
 desired_users:
-  - email: SamanthaCristoforetti@redhat.com
+  - email: SamanthaCristoforetti@nasa.com
     role: member
-  - email: TimPeake@redhat.com
+  - email: TimPeake@nasa.com
     role: owner
 
 expected_return_value: &new-users
-  - email: SamanthaCristoforetti@redhat.com
+  - email: SamanthaCristoforetti@nasa.com
     pending: false
     id: 24
     role: member
-  - email: TimPeake@redhat.com
+  - email: TimPeake@nasa.com
     pending: true
     id: "1"
     role: owner

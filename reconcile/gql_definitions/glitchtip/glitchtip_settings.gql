@@ -1,0 +1,11 @@
+# qenerate: plugin=pydantic_v1
+
+query GlitchtipSettings {
+  settings: app_interface_settings_v1 {
+    glitchtip {
+      readTimeout
+      maxRetries
+      mailAddress
+    }
+  }
+}

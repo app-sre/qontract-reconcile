@@ -1,18 +1,18 @@
 ---
 organization_slug: esa
 current_users:
-  - email: TimPeake@redhat.com
+  - email: TimPeake@nasa.com
     pending: false
     id: 25
     role: member
 
 desired_users:
-  - email: TimPeake@redhat.com
+  - email: TimPeake@nasa.com
     role: owner
 
 expected_return_value:
   - &user
-    email: TimPeake@redhat.com
+    email: TimPeake@nasa.com
     pending: true
     id: 25
     role: owner

@@ -1,11 +1,11 @@
 ---
 organization_slug: esa
 current_users:
-  - email: MatthiasMaurer@redhat.com
+  - email: MatthiasMaurer@nasa.com
     pending: false
     id: 25
     role: member
-  - email: SamanthaCristoforetti@redhat.com
+  - email: SamanthaCristoforetti@nasa.com
     pending: false
     id: 24
     role: member

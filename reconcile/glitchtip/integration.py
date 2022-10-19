@@ -17,6 +17,9 @@ from reconcile.gql_definitions.glitchtip.glitchtip_project import (
 from reconcile.gql_definitions.glitchtip.glitchtip_project import (
     query as glitchtip_project_query,
 )
+from reconcile.gql_definitions.glitchtip.glitchtip_settings import (
+    query as glitchtip_settings_query,
+)
 from reconcile.utils import gql
 from reconcile.utils.glitchtip import GlitchtipClient, Organization, Project, Team, User
 from reconcile.utils.secret_reader import SecretReader
@@ -70,8 +73,7 @@ def fetch_current_state(
 
 
 def fetch_desired_state(
-    glitchtip_projects: Sequence[GlitchtipProjectsV1],
-    gh: Github,
+    glitchtip_projects: Sequence[GlitchtipProjectsV1], gh: Github, mail_address: str
 ) -> list[Organization]:
     organizations: dict[str, Organization] = {}
     for glitchtip_project in glitchtip_projects:
@@ -94,8 +96,7 @@ def fetch_desired_state(
                             gh=gh, github_username=role_user.github_username
                         )
                     ):
-                        # TODO must be configurable
-                        email = role_user.org_username + "@redhat.com"
+                        email = role_user.org_username + f"@{mail_address}"
                     users.append(
                         User(
                             email=email,
@@ -119,6 +120,15 @@ def run(dry_run: bool, instance: Optional[str] = None):
     gqlapi = gql.get_api()
     github = init_github()
     secret_reader = SecretReader(queries.get_secret_reader_settings())
+    read_timeout = 30
+    max_retries = 3
+    mail_address = "redhat.com"
+    if _s := glitchtip_settings_query(query_func=gqlapi.query).settings:
+        if _gs := _s[0].glitchtip:
+            read_timeout = _gs.read_timeout
+            max_retries = _gs.max_retries
+            mail_address = _gs.mail_address
+
     glitchtip_instances = glitchtip_instance_query(query_func=gqlapi.query).instances
     glitchtip_projects: list[GlitchtipProjectsV1] = []
     for app in glitchtip_project_query(query_func=gqlapi.query).apps or []:
@@ -138,6 +148,8 @@ def run(dry_run: bool, instance: Optional[str] = None):
                     "version": glitchtip_instance.automation_token.version,
                 }
             ),
+            read_timeout=read_timeout,
+            max_retries=max_retries,
         )
         current_state = fetch_current_state(
             glitchtip_client=glitchtip_client,
@@ -150,6 +162,7 @@ def run(dry_run: bool, instance: Optional[str] = None):
                 if p.organization.instance.name == glitchtip_instance.name
             ],
             gh=github,
+            mail_address=mail_address,
         )
 
         reconciler = GlitchtipReconciler(glitchtip_client, dry_run)

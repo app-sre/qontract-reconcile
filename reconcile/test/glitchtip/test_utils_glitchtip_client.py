@@ -245,17 +245,17 @@ def test_glitchtip_remove_project_from_team(glitchtip_client: GlitchtipClient):
 
 def test_glitchtip_organization_users(glitchtip_client: GlitchtipClient):
     assert glitchtip_client.organization_users(organization_slug="nasa") == [
-        User(id=23, email="MichaelCollins@redhat.com", role="member", pending=False),
+        User(id=23, email="MichaelCollins@nasa.com", role="member", pending=False),
         User(
             id=22,
-            email="GlobalFlightDirector@redhat.com",
+            email="GlobalFlightDirector@nasa.com",
             role="owner",
             pending=True,
         ),
-        User(id=21, email="BuzzAldrin@redhat.com", role="member", pending=True),
-        User(id=20, email="NeilArmstrong@redhat.com", role="member", pending=False),
+        User(id=21, email="BuzzAldrin@nasa.com", role="member", pending=True),
+        User(id=20, email="NeilArmstrong@nasa.com", role="member", pending=False),
         User(
-            id=5, email="sd-app-sre+glitchtip@redhat.com", role="owner", pending=False
+            id=5, email="sd-app-sre+glitchtip@nasa.com", role="owner", pending=False
         ),
     ]
 
@@ -283,10 +283,10 @@ def test_glitchtip_team_users(glitchtip_client: GlitchtipClient):
     assert glitchtip_client.team_users(
         organization_slug="nasa", team_slug="nasa-flight-control"
     ) == [
-        User(id=23, email="MichaelCollins@redhat.com", role="member", pending=False),
+        User(id=23, email="MichaelCollins@nasa.com", role="member", pending=False),
         User(
             id=22,
-            email="GlobalFlightDirector@redhat.com",
+            email="GlobalFlightDirector@nasa.com",
             role="owner",
             pending=True,
         ),

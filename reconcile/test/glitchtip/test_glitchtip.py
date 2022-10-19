@@ -24,7 +24,7 @@ def test_fetch_current_state(
     glitchtip_client: GlitchtipClient, glitchtip_server_full_api_response, fx
 ):
     current_state = fetch_current_state(
-        glitchtip_client, ignore_users=["sd-app-sre+glitchtip@redhat.com"]
+        glitchtip_client, ignore_users=["sd-app-sre+glitchtip@nasa.com"]
     )
     expected_current_state = [
         Organization(**i) for i in fx.get_anymarkup("current_state_expected.yml")
@@ -39,7 +39,9 @@ def test_desire_state(mocker, fx):
     projects = [
         GlitchtipProjectsV1(**i) for i in fx.get_anymarkup("desire_state_projects.yml")
     ]
-    desired_state = fetch_desired_state(glitchtip_projects=projects, gh=gh)
+    desired_state = fetch_desired_state(
+        glitchtip_projects=projects, gh=gh, mail_address="nasa.com"
+    )
     expected_desire_state = [
         Organization(**i) for i in fx.get_anymarkup("desire_state_expected.yml")
     ]
