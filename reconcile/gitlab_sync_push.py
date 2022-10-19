@@ -80,7 +80,7 @@ class GitArchive:
         # get local copy of repo
         clone_url = self.origin + ".git"
         repo_dir = os.path.join(self.workdir, os.path.basename(clone_url))
-        repo = Repo.clone_from(clone_url, repo_dir, None, None, None, bare=True)
+        Repo.clone_from(clone_url, repo_dir, None, None, None, bare=True)
         # archive and encrypt repo
         repo_tar = repo_dir + ".tar"
         self.tar(repo_tar, repo_dir)
