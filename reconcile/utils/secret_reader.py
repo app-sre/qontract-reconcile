@@ -30,24 +30,6 @@ class SupportsSecret(Protocol):
 
 class TypedSecretReader(ABC):
     @abstractmethod
-    def read(self, secret: Mapping[str, Any]) -> dict[str, str]:
-        """
-        Kept to stay backwards compatible with to-be deprecated
-        SecretReader. Once SecretReader is not used, we can
-        remove this.
-        """
-        raise NotImplementedError()
-
-    @abstractmethod
-    def read_all(self, secret: Mapping[str, Any]) -> dict[str, str]:
-        """
-        Kept to stay backwards compatible with to-be deprecated
-        SecretReader. Once SecretReader is not used, we can
-        remove this.
-        """
-        raise NotImplementedError()
-
-    @abstractmethod
     def _read(
         self, path: str, field: str, format: Optional[str], version: Optional[int]
     ) -> dict[str, str]:
@@ -58,6 +40,32 @@ class TypedSecretReader(ABC):
         self, path: str, field: str, format: Optional[str], version: Optional[int]
     ) -> dict[str, str]:
         raise NotImplementedError()
+
+    def read(self, secret: Mapping[str, Any]) -> dict[str, str]:
+        """
+        Kept to stay backwards compatible with to-be deprecated
+        SecretReader. Once SecretReader is not used, we can
+        remove this.
+        """
+        return self._read(
+            path=secret.get("path"),
+            field=secret.get("field"),
+            format=secret.get("format"),
+            version=secret.get("version"),
+        )
+
+    def read_all(self, secret: Mapping[str, Any]) -> dict[str, str]:
+        """
+        Kept to stay backwards compatible with to-be deprecated
+        SecretReader. Once SecretReader is not used, we can
+        remove this.
+        """
+        return self._read_all(
+            path=secret.get("path"),
+            field=secret.get("field"),
+            format=secret.get("format"),
+            version=secret.get("version"),
+        )
 
     def typed_read(self, secret: SupportsSecret) -> dict[str, str]:
         return self._read(
@@ -120,18 +128,6 @@ class VaultSecretReader(TypedSecretReader):
             self._vault_client = VaultClient()
         return self._vault_client
 
-    def read(self, secret: Mapping[str, Any]) -> dict[str, str]:
-        """
-        This method is to be deprecated and will not be implemented.
-        """
-        raise NotImplementedError()
-
-    def read_all(self, secret: Mapping[str, Any]) -> dict[str, str]:
-        """
-        This method is to be deprecated and will not be implemented.
-        """
-        raise NotImplementedError()
-
     @retry()
     def _read_all(
         self, path: str, field: str, format: Optional[str], version: Optional[int]
@@ -175,18 +171,6 @@ class ConfigSecretReader(TypedSecretReader):
     """
     Read secrets from a config file
     """
-
-    def read(self, secret: Mapping[str, Any]) -> dict[str, str]:
-        """
-        This method is to be deprecated and will not be implemented.
-        """
-        raise NotImplementedError()
-
-    def read_all(self, secret: Mapping[str, Any]) -> dict[str, str]:
-        """
-        This method is to be deprecated and will not be implemented.
-        """
-        raise NotImplementedError()
 
     def _read(
         self, path: str, field: str, format: Optional[str], version: Optional[int]
@@ -325,19 +309,3 @@ class SecretReader(TypedSecretReader):
                 raise SecretNotFound(*e.args) from e
 
         return data
-
-    def read(self, secret: Mapping[str, Any]):
-        return self._read(
-            path=secret.get("path"),
-            field=secret.get("field"),
-            format=secret.get("format"),
-            version=secret.get("version"),
-        )
-
-    def read_all(self, secret: Mapping[str, Any]):
-        return self._read_all(
-            path=secret.get("path"),
-            field=secret.get("field"),
-            format=secret.get("format"),
-            version=secret.get("version"),
-        )
