@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 from typing import Any, Mapping, Optional, Protocol
 
 from hvac.exceptions import Forbidden
@@ -36,10 +37,12 @@ class SupportsVaultSettings(Protocol):
     vault: bool
 
 
-class TypedSecretReader:
+class TypedSecretReader(ABC):
+    @abstractmethod
     def read(self, secret: SupportsSecret) -> dict[str, str]:
         raise NotImplementedError()
 
+    @abstractmethod
     def read_all(self, secret: SupportsSecret) -> dict[str, str]:
         raise NotImplementedError()
 
