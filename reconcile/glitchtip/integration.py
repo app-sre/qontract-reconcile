@@ -1,5 +1,5 @@
 from functools import cache
-from typing import Iterable, Optional, Sequence
+from typing import Any, Iterable, Optional, Sequence
 
 from github import Github, UnknownObjectException
 from reconcile import queries
@@ -8,7 +8,13 @@ from reconcile import queries
 from reconcile.github_users import init_github
 from reconcile.glitchtip.reconciler import GlitchtipReconciler
 from reconcile.gql_definitions.glitchtip.glitchtip_instance import (
+    DEFINITION as GLITCHTIP_INSTANCE_DEFINITION,
+)
+from reconcile.gql_definitions.glitchtip.glitchtip_instance import (
     query as glitchtip_instance_query,
+)
+from reconcile.gql_definitions.glitchtip.glitchtip_project import (
+    DEFINITION as GLITCHTIP_PROJECT_DEFINITION,
 )
 from reconcile.gql_definitions.glitchtip.glitchtip_project import (
     GlitchtipProjectsV1,
@@ -169,11 +175,9 @@ def run(dry_run: bool, instance: Optional[str] = None):
         reconciler.reconcile(current_state, desired_state)
 
 
-# def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
-#     gqlapi = gql.get_api()
-#     return {
-#         "roles": gqlapi.query(SENTRY_USERS_QUERY)["roles"],
-#         "teams": gqlapi.query(SENTRY_TEAMS_QUERY)["teams"],
-#         "apps": gqlapi.query(SENTRY_PROJECTS_QUERY)["apps"],
-#         "instances": gqlapi.query(SENTRY_INSTANCES_QUERY)["instances"],
-#     }
+def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
+    gqlapi = gql.get_api()
+    return {
+        "apps": gqlapi.query(GLITCHTIP_PROJECT_DEFINITION)["apps"],
+        "instances": gqlapi.query(GLITCHTIP_INSTANCE_DEFINITION)["instances"],
+    }
