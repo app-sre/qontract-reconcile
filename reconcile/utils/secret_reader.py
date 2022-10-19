@@ -28,15 +28,6 @@ class SupportsSecret(Protocol):
     q_format: Optional[str]
 
 
-class SupportsVaultSettings(Protocol):
-    """
-    SupportsVaultSettings defines all attributes needed from app-interface-settings
-    to instantiate a SecretReader
-    """
-
-    vault: bool
-
-
 class TypedSecretReader(ABC):
     @abstractmethod
     def read(self, secret: Mapping[str, Any]) -> dict[str, str]:
@@ -230,14 +221,12 @@ class ConfigSecretReader(TypedSecretReader):
         return data
 
 
-def create_secret_reader(
-    settings: Optional[SupportsVaultSettings],
-) -> TypedSecretReader:
+def create_secret_reader(use_vault: bool) -> TypedSecretReader:
     """
     This function could be used in an integrations run() function to instantiate a
     TypedSecretReader.
     """
-    return VaultSecretReader() if settings and settings.vault else ConfigSecretReader()
+    return VaultSecretReader() if use_vault else ConfigSecretReader()
 
 
 class SecretReader(TypedSecretReader):
