@@ -16,6 +16,7 @@ from reconcile.utils.vault import VaultClient
 
 
 QONTRACT_INTEGRATION = "gitlab-sync-push"
+GITLAB_SYNC_WORKDIR = os.environ.get("GITLAB_SYNC_WORKDIR", "clone-workdir")
 
 
 # Inspired by https://github.com/app-sre/git-keeper
@@ -23,9 +24,17 @@ class GitArchive:
     gpgs: Dict[str, Dict[str, Any]] = {}
 
     def __init__(
-        self, origin, destination, commit, key, vault_gpg_path, workdir="clone-workdir"
+        self,
+        origin,
+        branch,
+        destination,
+        commit,
+        key,
+        vault_gpg_path,
+        workdir=GITLAB_SYNC_WORKDIR,
     ):
         self.origin = origin
+        self.branch = branch
         self.destination = destination
         self.commit = commit
         self.to_delete_key = key
@@ -71,7 +80,7 @@ class GitArchive:
         # get local copy of repo
         clone_url = self.origin + ".git"
         repo_dir = os.path.join(self.workdir, os.path.basename(clone_url))
-        repo = Repo.clone_from(clone_url, repo_dir)
+        repo = Repo.clone_from(clone_url, repo_dir, None, None, None, bare=True)
         # archive and encrypt repo
         repo_tar = repo_dir + ".tar"
         self.tar(repo_tar, repo_dir)
@@ -85,8 +94,9 @@ class GitArchive:
                 always_trust=True,
             )
         # upload to s3
-        to_b64_name = self.destination + "/" + self.commit
-        b64_name = GitArchive.b64_encode(to_b64_name)
+        b64_name = GitArchive.b64_encode(
+            self.destination + "/" + self.commit + "/" + self.branch
+        )
         obj_key = b64_name + ".tar.gpg"
         s3 = s3_session.client("s3")
         s3.upload_file(repo_gpg, bucket_name, obj_key)
@@ -172,6 +182,7 @@ def get_objects_to_update(
                 out_of_date_buckets.setdefault(sync["bucket_name"], []).append(
                     GitArchive(
                         sync["origin_url"],
+                        sync["origin_branch"],
                         sync["destination_url"],
                         gitlab_commits[sync["origin_url"]],
                         to_delete_key,
