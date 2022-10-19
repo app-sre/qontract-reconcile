@@ -969,7 +969,6 @@ class OCNative(OCDeprecated):
         jh=None,
         settings=None,
         init_projects=False,
-        init_api_resources=False,
         local=False,
         insecure_skip_tls_verify=False,
     ):
@@ -988,17 +987,11 @@ class OCNative(OCDeprecated):
         if server:
             self.client = self._get_client(server, token)
             self.api_kind_version = self.get_api_kind_version()
+            self.api_resources = self.api_kind_version.keys()
         else:
             raise Exception("A method relies on client/api_kind_version to be set")
 
         self.object_clients = {}
-
-        self.init_api_resources = init_api_resources
-        self.api_resources_lock = threading.RLock()
-        if self.init_api_resources:
-            self.api_resources = self.api_kind_version.keys()
-        else:
-            self.api_resources = None
 
         self.init_projects = init_projects
         if self.init_projects:
@@ -1115,10 +1108,7 @@ class OCNative(OCDeprecated):
         return kind_groupversion
 
     def get_api_resources(self):
-        with self.api_resources_lock:
-            if not self.api_resources:
-                self.api_resources = self.get_api_kind_version().keys()
-        return self.api_resources
+        return self.api_kind_version.keys()
 
     @retry(max_attempts=5, exceptions=(ServerTimeoutError))
     def get_items(self, kind, **kwargs):
@@ -1279,7 +1269,6 @@ class OC:
                 jh,
                 settings,
                 init_projects,
-                init_api_resources,
                 local,
                 insecure_skip_tls_verify,
             )
