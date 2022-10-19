@@ -254,9 +254,7 @@ def test_glitchtip_organization_users(glitchtip_client: GlitchtipClient):
         ),
         User(id=21, email="BuzzAldrin@nasa.com", role="member", pending=True),
         User(id=20, email="NeilArmstrong@nasa.com", role="member", pending=False),
-        User(
-            id=5, email="sd-app-sre+glitchtip@nasa.com", role="owner", pending=False
-        ),
+        User(id=5, email="sd-app-sre+glitchtip@nasa.com", role="owner", pending=False),
     ]
 
 
