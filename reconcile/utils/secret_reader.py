@@ -41,28 +41,28 @@ class TypedSecretReader(ABC):
     ) -> dict[str, str]:
         raise NotImplementedError()
 
-    def read(self, secret: Mapping[str, Any]) -> dict[str, str]:
+    def read(self, secret: Mapping[str, Any]):
         """
         Kept to stay backwards compatible with to-be deprecated
         SecretReader. Once SecretReader is not used, we can
         remove this.
         """
         return self._read(
-            path=secret.get("path"),
-            field=secret.get("field"),
+            path=secret.get("path", ""),
+            field=secret.get("field", ""),
             format=secret.get("format"),
             version=secret.get("version"),
         )
 
-    def read_all(self, secret: Mapping[str, Any]) -> dict[str, str]:
+    def read_all(self, secret: Mapping[str, Any]):
         """
         Kept to stay backwards compatible with to-be deprecated
         SecretReader. Once SecretReader is not used, we can
         remove this.
         """
         return self._read_all(
-            path=secret.get("path"),
-            field=secret.get("field"),
+            path=secret.get("path", ""),
+            field=secret.get("field", ""),
             format=secret.get("format"),
             version=secret.get("version"),
         )
