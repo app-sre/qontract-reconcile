@@ -15,6 +15,8 @@ This integration manages the following glitchtip objects:
 
 # Development
 
+Development and testing were done for `glitchtip/glitchtip:v2.0.5`
+
 glitchtip `docker-compose.yml` for local development:
 
 ```yaml
@@ -48,7 +50,7 @@ services:
     networks:
       - qontract-development
   glitchtip:
-    image: glitchtip/glitchtip
+    image: glitchtip/glitchtip:v2.0.5
     depends_on: *default-depends_on
     ports:
       - "8000:8000"
@@ -57,7 +59,7 @@ services:
     networks:
       - qontract-development
   worker:
-    image: glitchtip/glitchtip
+    image: glitchtip/glitchtip:v2.0.5
     command: ./bin/run-celery-with-beat.sh
     depends_on: *default-depends_on
     environment: *default-environment
@@ -65,7 +67,7 @@ services:
     networks:
       - qontract-development
   migrate:
-    image: glitchtip/glitchtip
+    image: glitchtip/glitchtip:v2.0.5
     depends_on: *default-depends_on
     command: "./manage.py migrate"
     environment: *default-environment
