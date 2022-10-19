@@ -1,3 +1,4 @@
+import threading
 from typing import Any, Optional
 from urllib.parse import urljoin
 
@@ -21,14 +22,23 @@ def get_next_url(links: dict[str, dict[str, str]]) -> Optional[str]:
 class GlitchtipClient:
     def __init__(self, host: str, token: str) -> None:
         self.host = host
-        # todo timeout
-        self._session = requests.Session()
-        self._session.headers.update(
-            {
-                "Authorization": f"Bearer {token}",
-                "Content-Type": "application/json",
-            }
-        )
+        self._token = token
+        self._thread_local = threading.local()
+
+    @property
+    def _session(self) -> requests.Session:
+        try:
+            return self._thread_local.session
+        except AttributeError:
+            # todo timeout
+            self._thread_local.session = requests.Session()
+            self._thread_local.session.headers.update(
+                {
+                    "Authorization": f"Bearer {self._token}",
+                    "Content-Type": "application/json",
+                }
+            )
+            return self._thread_local.session
 
     @retry()
     def _get(self, url: str) -> dict[str, Any]:
