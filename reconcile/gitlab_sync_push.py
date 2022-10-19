@@ -1,6 +1,6 @@
 import base64
 import os
-import sh
+import sh # type: ignore
 import sys
 import shutil
 import logging
