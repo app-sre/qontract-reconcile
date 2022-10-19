@@ -17,11 +17,12 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
 
 
 DEFINITION = """
-query ChangeTypes {
-  change_types: change_types_v1 {
+query ChangeTypes($name: String) {
+  change_types: change_types_v1(name: $name) {
     name
     contextType
     contextSchema
+    disabled
     changes {
       provider
       changeSchema
@@ -71,6 +72,7 @@ class ChangeTypeV1(BaseModel):
     name: str = Field(..., alias="name")
     context_type: str = Field(..., alias="contextType")
     context_schema: Optional[str] = Field(..., alias="contextSchema")
+    disabled: Optional[bool] = Field(..., alias="disabled")
     changes: list[
         Union[ChangeTypeChangeDetectorJsonPathProviderV1, ChangeTypeChangeDetectorV1]
     ] = Field(..., alias="changes")

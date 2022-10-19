@@ -1,5 +1,4 @@
 # qenerate: plugin=pydantic_v1
-# qenerate: naming_collision_strategy=ENUMERATE
 
 query VpcPeeringsValidator {
   clusters: clusters_v1 {
@@ -13,20 +12,12 @@ query VpcPeeringsValidator {
         provider
         ... on ClusterPeeringConnectionClusterRequester_v1 {
           cluster {
-            name
-            spec {
-              private
-            }
-            internal
+            ... VpcPeeringsValidatorPeeredCluster
           }
         }
         ... on ClusterPeeringConnectionClusterAccepter_v1 {
           cluster {
-            name
-            spec {
-              private
-            }
-            internal
+            ... VpcPeeringsValidatorPeeredCluster
           }
         }
       }

@@ -15,8 +15,20 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
+from reconcile.gql_definitions.vpc_peerings_validator.vpc_peerings_validator_peered_cluster_fragment import (
+    VpcPeeringsValidatorPeeredCluster,
+)
+
 
 DEFINITION = """
+fragment VpcPeeringsValidatorPeeredCluster on Cluster_v1 {
+  name
+  spec {
+    private
+  }
+  internal
+}
+
 query VpcPeeringsValidator {
   clusters: clusters_v1 {
     name
@@ -29,20 +41,12 @@ query VpcPeeringsValidator {
         provider
         ... on ClusterPeeringConnectionClusterRequester_v1 {
           cluster {
-            name
-            spec {
-              private
-            }
-            internal
+            ... VpcPeeringsValidatorPeeredCluster
           }
         }
         ... on ClusterPeeringConnectionClusterAccepter_v1 {
           cluster {
-            name
-            spec {
-              private
-            }
-            internal
+            ... VpcPeeringsValidatorPeeredCluster
           }
         }
       }
@@ -68,44 +72,8 @@ class ClusterPeeringConnectionV1(BaseModel):
         extra = Extra.forbid
 
 
-class ClusterSpecV1__2(BaseModel):
-    private: bool = Field(..., alias="private")
-
-    class Config:
-        smart_union = True
-        extra = Extra.forbid
-
-
-class ClusterV1__2(BaseModel):
-    name: str = Field(..., alias="name")
-    spec: Optional[ClusterSpecV1__2] = Field(..., alias="spec")
-    internal: Optional[bool] = Field(..., alias="internal")
-
-    class Config:
-        smart_union = True
-        extra = Extra.forbid
-
-
 class ClusterPeeringConnectionClusterRequesterV1(ClusterPeeringConnectionV1):
-    cluster: ClusterV1__2 = Field(..., alias="cluster")
-
-    class Config:
-        smart_union = True
-        extra = Extra.forbid
-
-
-class ClusterSpecV1__3(BaseModel):
-    private: bool = Field(..., alias="private")
-
-    class Config:
-        smart_union = True
-        extra = Extra.forbid
-
-
-class ClusterV1__3(BaseModel):
-    name: str = Field(..., alias="name")
-    spec: Optional[ClusterSpecV1__3] = Field(..., alias="spec")
-    internal: Optional[bool] = Field(..., alias="internal")
+    cluster: VpcPeeringsValidatorPeeredCluster = Field(..., alias="cluster")
 
     class Config:
         smart_union = True
@@ -113,7 +81,7 @@ class ClusterV1__3(BaseModel):
 
 
 class ClusterPeeringConnectionClusterAccepterV1(ClusterPeeringConnectionV1):
-    cluster: ClusterV1__3 = Field(..., alias="cluster")
+    cluster: VpcPeeringsValidatorPeeredCluster = Field(..., alias="cluster")
 
     class Config:
         smart_union = True

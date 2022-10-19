@@ -1,10 +1,11 @@
 # qenerate: plugin=pydantic_v1
 
-query ChangeTypes {
-  change_types: change_types_v1 {
+query ChangeTypes($name: String) {
+  change_types: change_types_v1(name: $name) {
     name
     contextType
     contextSchema
+    disabled
     changes {
       provider
       changeSchema
