@@ -1,0 +1,36 @@
+[
+    {
+        "id": 10,
+        "name": "ESA",
+        "slug": "esa",
+        "dateCreated": "2022-09-13T12:01:05.186161Z",
+        "status": {
+            "id": "active",
+            "name": "active"
+        },
+        "avatar": {
+            "avatarType": "",
+            "avatarUuid": null
+        },
+        "isEarlyAdopter": false,
+        "require2FA": false,
+        "isAcceptingEvents": true
+    },
+    {
+        "id": 4,
+        "name": "NASA",
+        "slug": "nasa",
+        "dateCreated": "2022-09-13T11:23:23.306148Z",
+        "status": {
+            "id": "active",
+            "name": "active"
+        },
+        "avatar": {
+            "avatarType": "",
+            "avatarUuid": null
+        },
+        "isEarlyAdopter": false,
+        "require2FA": false,
+        "isAcceptingEvents": true
+    }
+]
