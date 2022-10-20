@@ -1,6 +1,8 @@
+import faulthandler
 import json
 import logging
 import os
+from signal import SIGUSR1
 import sys
 import re
 
@@ -375,7 +377,26 @@ def include_trigger_trace(function):
     return function
 
 
+def register_faulthandler(fileobj=sys.__stderr__):
+    if fileobj:
+        if not faulthandler.is_enabled():
+            try:
+                faulthandler.enable(file=fileobj)
+                logging.debug("faulthandler enabled.")
+                faulthandler.register(SIGUSR1, file=fileobj, all_threads=True)
+                logging.debug("SIGUSR1 registered with faulthandler.")
+            except RunnerException:
+                logging.warning("Failed to register USR1 or enable faulthandler.")
+        else:
+            logging.debug("Skipping, faulthandler already enabled")
+    else:
+        logging.warning(
+            "None referenced as file descriptor, skipping faulthandler enablement."
+        )
+
+
 def run_integration(func_container, ctx, *args, **kwargs):
+    register_faulthandler()
     try:
         int_name = func_container.QONTRACT_INTEGRATION.replace("_", "-")
         running_state = RunningState()
