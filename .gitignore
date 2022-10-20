@@ -4,7 +4,7 @@
 
 .vscode
 .tox
-.pytest_cache
+.*_cache
 .eggs
 .coverage
 build
