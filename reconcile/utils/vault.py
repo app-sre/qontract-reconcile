@@ -118,7 +118,8 @@ class _VaultClient:
         if kv_version == 2:
             data = self._read_all_v2(secret_path, secret_version)
         else:
-            data = self._read_all_v1(secret_path)
+            secret_data = self._read_all_v1(secret_path)
+            data = secret_data, None
 
         if data is None:
             raise SecretNotFound
