@@ -28,7 +28,7 @@ class SupportsSecret(Protocol):
     q_format: Optional[str]
 
 
-class TypedSecretReader(ABC):
+class SecretReaderBase(ABC):
     @abstractmethod
     def _read(
         self, path: str, field: str, format: Optional[str], version: Optional[int]
@@ -67,7 +67,7 @@ class TypedSecretReader(ABC):
             version=secret.get("version"),
         )
 
-    def typed_read(self, secret: SupportsSecret) -> dict[str, str]:
+    def read_secret(self, secret: SupportsSecret) -> dict[str, str]:
         return self._read(
             path=secret.path,
             field=secret.field,
@@ -75,7 +75,7 @@ class TypedSecretReader(ABC):
             version=secret.version,
         )
 
-    def typed_read_all(self, secret: SupportsSecret) -> dict[str, str]:
+    def read_all_secret(self, secret: SupportsSecret) -> dict[str, str]:
         return self._read_all(
             path=secret.path,
             field=secret.field,
@@ -114,7 +114,7 @@ class TypedSecretReader(ABC):
         }
 
 
-class VaultSecretReader(TypedSecretReader):
+class VaultSecretReader(SecretReaderBase):
     """
     Read secrets from vault via a vault_client
     """
@@ -167,7 +167,7 @@ class VaultSecretReader(TypedSecretReader):
         return data
 
 
-class ConfigSecretReader(TypedSecretReader):
+class ConfigSecretReader(SecretReaderBase):
     """
     Read secrets from a config file
     """
@@ -205,7 +205,7 @@ class ConfigSecretReader(TypedSecretReader):
         return data
 
 
-def create_secret_reader(use_vault: bool) -> TypedSecretReader:
+def create_secret_reader(use_vault: bool) -> SecretReaderBase:
     """
     This function could be used in an integrations run() function to instantiate a
     TypedSecretReader.
@@ -213,7 +213,7 @@ def create_secret_reader(use_vault: bool) -> TypedSecretReader:
     return VaultSecretReader() if use_vault else ConfigSecretReader()
 
 
-class SecretReader(TypedSecretReader):
+class SecretReader(SecretReaderBase):
     """
     Read secrets from either Vault or a config file.
 

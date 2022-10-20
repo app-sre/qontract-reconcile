@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock
+from unittest.mock import create_autospec
 import pytest
 
 import reconcile.utils.secret_reader
@@ -19,13 +19,9 @@ VAULT_READ_ALL_EXPECTED = {"key2": "value2"}
 
 @pytest.fixture
 def vault_mock():
-    read_mock = MagicMock()
-    read_mock.side_effect = [VAULT_READ_EXPECTED] * 100
-    read_all_mock = MagicMock()
-    read_all_mock.side_effect = [VAULT_READ_ALL_EXPECTED] * 100
-    vault_mock = MagicMock(spec=_VaultClient)
-    vault_mock.read = read_mock
-    vault_mock.read_all = read_all_mock
+    vault_mock = create_autospec(_VaultClient)
+    vault_mock.read.side_effect = [VAULT_READ_EXPECTED] * 100
+    vault_mock.read_all.side_effect = [VAULT_READ_ALL_EXPECTED] * 100
     return vault_mock
 
 
@@ -50,7 +46,7 @@ def to_dict(secret):
 
 def test_vault_secret_reader_typed_read(vault_mock, vault_secret):
     vault_secret_reader = VaultSecretReader(vault_client=vault_mock)
-    result = vault_secret_reader.typed_read(vault_secret)
+    result = vault_secret_reader.read_secret(vault_secret)
 
     assert result == VAULT_READ_EXPECTED
     vault_mock.read.assert_called_once_with(to_dict(vault_secret))
@@ -59,7 +55,7 @@ def test_vault_secret_reader_typed_read(vault_mock, vault_secret):
 
 def test_vault_secret_reader_typed_read_all(vault_mock, vault_secret):
     vault_secret_reader = VaultSecretReader(vault_client=vault_mock)
-    result = vault_secret_reader.typed_read_all(vault_secret)
+    result = vault_secret_reader.read_all_secret(vault_secret)
 
     assert result == VAULT_READ_ALL_EXPECTED
     vault_mock.read_all.assert_called_once_with(to_dict(vault_secret))
@@ -99,7 +95,7 @@ def test_vault_secret_reader_raises(vault_mock, vault_secret, patch_sleep):
     vault_secret_reader = VaultSecretReader(vault_client=vault_mock)
 
     with pytest.raises(SecretNotFound):
-        vault_secret_reader.typed_read(vault_secret)
+        vault_secret_reader.read_secret(vault_secret)
 
     vault_mock.read.assert_called_with(to_dict(vault_secret))
     vault_mock.read_all.assert_not_called()
@@ -109,7 +105,7 @@ def test_config_secret_reader_raises(vault_secret, patch_sleep):
     config_secret_reader = ConfigSecretReader()
 
     with pytest.raises(SecretNotFound):
-        config_secret_reader.typed_read(vault_secret)
+        config_secret_reader.read_secret(vault_secret)
 
 
 def test_read_vault_raises(mocker, patch_sleep):
