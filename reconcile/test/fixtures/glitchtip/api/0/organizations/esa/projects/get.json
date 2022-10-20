@@ -1,0 +1,92 @@
+[
+    {
+        "avatar": {
+            "avatarType": "",
+            "avatarUuid": null
+        },
+        "color": "",
+        "features": [],
+        "firstEvent": null,
+        "hasAccess": true,
+        "id": "10",
+        "isBookmarked": false,
+        "isInternal": false,
+        "isMember": true,
+        "isPublic": false,
+        "name": "rosetta-flight-control",
+        "organization": {
+            "id": 10,
+            "name": "ESA",
+            "slug": "esa",
+            "dateCreated": "2022-09-13T12:01:05.186161Z",
+            "status": {
+                "id": "active",
+                "name": "active"
+            },
+            "avatar": {
+                "avatarType": "",
+                "avatarUuid": null
+            },
+            "isEarlyAdopter": false,
+            "require2FA": false,
+            "isAcceptingEvents": true
+        },
+        "teams": [
+            {
+                "id": "7",
+                "slug": "esa-flight-control"
+            }
+        ],
+        "scrubIPAddresses": true,
+        "slug": "rosetta-flight-control",
+        "dateCreated": "2022-10-06T13:02:59.854641Z",
+        "platform": "python"
+    },
+    {
+        "avatar": {
+            "avatarType": "",
+            "avatarUuid": null
+        },
+        "color": "",
+        "features": [],
+        "firstEvent": null,
+        "hasAccess": true,
+        "id": "9",
+        "isBookmarked": false,
+        "isInternal": false,
+        "isMember": true,
+        "isPublic": false,
+        "name": "rosetta-spacecraft",
+        "organization": {
+            "id": 10,
+            "name": "ESA",
+            "slug": "esa",
+            "dateCreated": "2022-09-13T12:01:05.186161Z",
+            "status": {
+                "id": "active",
+                "name": "active"
+            },
+            "avatar": {
+                "avatarType": "",
+                "avatarUuid": null
+            },
+            "isEarlyAdopter": false,
+            "require2FA": false,
+            "isAcceptingEvents": true
+        },
+        "teams": [
+            {
+                "id": "6",
+                "slug": "esa-pilots"
+            },
+            {
+                "id": "7",
+                "slug": "esa-flight-control"
+            }
+        ],
+        "scrubIPAddresses": true,
+        "slug": "rosetta-spacecraft",
+        "dateCreated": "2022-10-06T13:02:18.264979Z",
+        "platform": "python"
+    }
+]

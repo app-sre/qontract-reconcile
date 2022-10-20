@@ -1,6 +1,7 @@
 anymarkup==0.8.1
 flake8~=4.0
-httpretty
+# Pin httpretty because of https://github.com/gabrielfalcao/HTTPretty/issues/425. version 1.1.5 should be fine when released
+git+https://github.com/gabrielfalcao/HTTPretty.git@c255165a86bef7f894c3a446b41d0b3379c5c2be
 kubernetes~=24.0
 pylint~=2.13
 pytest~=7.1
