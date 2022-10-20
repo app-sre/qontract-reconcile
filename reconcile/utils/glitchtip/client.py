@@ -3,7 +3,6 @@ from typing import Any, Optional
 from urllib.parse import urljoin
 
 import requests
-from responses import HTTPAdapter
 from reconcile.utils.glitchtip.models import Organization, Project, Team, User
 
 
@@ -37,10 +36,10 @@ class GlitchtipClient:
             # todo timeout
             self._thread_local.session = requests.Session()
             self._thread_local.session.mount(
-                "https://", HTTPAdapter(max_retries=self.max_retries)
+                "https://", requests.adapters.HTTPAdapter(max_retries=self.max_retries)
             )
             self._thread_local.session.mount(
-                "http://", HTTPAdapter(max_retries=self.max_retries)
+                "http://", requests.adapters.HTTPAdapter(max_retries=self.max_retries)
             )
             self._thread_local.session.headers.update(
                 {
