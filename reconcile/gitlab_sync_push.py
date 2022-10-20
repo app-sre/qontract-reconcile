@@ -165,12 +165,10 @@ def get_objects_to_update(
             i = 0
             to_delete_key = ""
             for key in buckets[sync["bucket_name"]]:
-                # separate destination project and commit
-                dest_and_commit = key.rsplit("/", 1)
-                destination = dest_and_commit[0]
-                commit = dest_and_commit[1]
-                # remove file extension
-                commit = commit.split(".", 1)[0]
+                # separate destination project, commit, and branch
+                dest_commit_branch = key.rsplit("/", 2)
+                destination = dest_commit_branch[0]
+                commit = dest_commit_branch[1]
                 if destination == sync["destination_url"]:
                     if gitlab_commits[sync["origin_url"]] != commit:
                         to_delete_key = key
