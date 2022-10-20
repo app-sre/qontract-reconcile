@@ -19,8 +19,7 @@ query VaultInstances {
     }
     }
     replication {
-      provider
-      instance {
+      vaultInstance {
         name
         address
         auth {
@@ -38,11 +37,20 @@ query VaultInstances {
             }
           }
       }
-      policy {
-        name
-        instance {
+      paths {
+        provider
+        ...on VaultReplicationJenkins_v1 {
+        jenkinsInstance {
           name
-          address
+          serverUrl
+        }
+        policy {
+          name
+          instance {
+            name
+            address
+          }
+        }
         }
       }
     }

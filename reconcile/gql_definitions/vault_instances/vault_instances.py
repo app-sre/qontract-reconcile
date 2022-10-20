@@ -36,8 +36,7 @@ query VaultInstances {
     }
     }
     replication {
-      provider
-      instance {
+      vaultInstance {
         name
         address
         auth {
@@ -55,11 +54,20 @@ query VaultInstances {
             }
           }
       }
-      policy {
-        name
-        instance {
+      paths {
+        provider
+        ...on VaultReplicationJenkins_v1 {
+        jenkinsInstance {
           name
-          address
+          serverUrl
+        }
+        policy {
+          name
+          instance {
+            name
+            address
+          }
+        }
         }
       }
     }
@@ -104,7 +112,7 @@ class VaultInstanceAuthApproleV1(VaultInstanceAuthV1):
         extra = Extra.forbid
 
 
-class VaultReplicationV1_VaultInstanceV1_VaultInstanceAuthV1(BaseModel):
+class VaultReplicationConfigV1_VaultInstanceV1_VaultInstanceAuthV1(BaseModel):
     provider: str = Field(..., alias="provider")
     secret_engine: str = Field(..., alias="secretEngine")
 
@@ -113,7 +121,7 @@ class VaultReplicationV1_VaultInstanceV1_VaultInstanceAuthV1(BaseModel):
         extra = Extra.forbid
 
 
-class VaultReplicationV1_VaultInstanceV1_VaultInstanceAuthV1_VaultInstanceAuthApproleV1_VaultSecretV1(
+class VaultReplicationConfigV1_VaultInstanceV1_VaultInstanceAuthV1_VaultInstanceAuthApproleV1_VaultSecretV1(
     BaseModel
 ):
     path: str = Field(..., alias="path")
@@ -124,7 +132,7 @@ class VaultReplicationV1_VaultInstanceV1_VaultInstanceAuthV1_VaultInstanceAuthAp
         extra = Extra.forbid
 
 
-class VaultReplicationV1_VaultInstanceV1_VaultInstanceAuthV1_VaultReplicationV1_VaultInstanceV1_VaultInstanceAuthV1_VaultInstanceAuthApproleV1_VaultSecretV1(
+class VaultReplicationConfigV1_VaultInstanceV1_VaultInstanceAuthV1_VaultReplicationConfigV1_VaultInstanceV1_VaultInstanceAuthV1_VaultInstanceAuthApproleV1_VaultSecretV1(
     BaseModel
 ):
     path: str = Field(..., alias="path")
@@ -135,13 +143,13 @@ class VaultReplicationV1_VaultInstanceV1_VaultInstanceAuthV1_VaultReplicationV1_
         extra = Extra.forbid
 
 
-class VaultReplicationV1_VaultInstanceV1_VaultInstanceAuthV1_VaultInstanceAuthApproleV1(
-    VaultReplicationV1_VaultInstanceV1_VaultInstanceAuthV1
+class VaultReplicationConfigV1_VaultInstanceV1_VaultInstanceAuthV1_VaultInstanceAuthApproleV1(
+    VaultReplicationConfigV1_VaultInstanceV1_VaultInstanceAuthV1
 ):
-    role_id: VaultReplicationV1_VaultInstanceV1_VaultInstanceAuthV1_VaultInstanceAuthApproleV1_VaultSecretV1 = Field(
+    role_id: VaultReplicationConfigV1_VaultInstanceV1_VaultInstanceAuthV1_VaultInstanceAuthApproleV1_VaultSecretV1 = Field(
         ..., alias="roleID"
     )
-    secret_id: VaultReplicationV1_VaultInstanceV1_VaultInstanceAuthV1_VaultReplicationV1_VaultInstanceV1_VaultInstanceAuthV1_VaultInstanceAuthApproleV1_VaultSecretV1 = Field(
+    secret_id: VaultReplicationConfigV1_VaultInstanceV1_VaultInstanceAuthV1_VaultReplicationConfigV1_VaultInstanceV1_VaultInstanceAuthV1_VaultInstanceAuthApproleV1_VaultSecretV1 = Field(
         ..., alias="secretID"
     )
 
@@ -150,13 +158,30 @@ class VaultReplicationV1_VaultInstanceV1_VaultInstanceAuthV1_VaultInstanceAuthAp
         extra = Extra.forbid
 
 
-class VaultReplicationV1_VaultInstanceV1(BaseModel):
+class VaultReplicationConfigV1_VaultInstanceV1(BaseModel):
     name: str = Field(..., alias="name")
     address: str = Field(..., alias="address")
     auth: Union[
-        VaultReplicationV1_VaultInstanceV1_VaultInstanceAuthV1_VaultInstanceAuthApproleV1,
-        VaultReplicationV1_VaultInstanceV1_VaultInstanceAuthV1,
+        VaultReplicationConfigV1_VaultInstanceV1_VaultInstanceAuthV1_VaultInstanceAuthApproleV1,
+        VaultReplicationConfigV1_VaultInstanceV1_VaultInstanceAuthV1,
     ] = Field(..., alias="auth")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
+class VaultReplicationV1(BaseModel):
+    provider: str = Field(..., alias="provider")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
+class JenkinsInstanceV1(BaseModel):
+    name: str = Field(..., alias="name")
+    server_url: str = Field(..., alias="serverUrl")
 
     class Config:
         smart_union = True
@@ -181,10 +206,22 @@ class VaultPolicyV1(BaseModel):
         extra = Extra.forbid
 
 
-class VaultReplicationV1(BaseModel):
-    provider: str = Field(..., alias="provider")
-    instance: VaultReplicationV1_VaultInstanceV1 = Field(..., alias="instance")
+class VaultReplicationJenkinsV1(VaultReplicationV1):
+    jenkins_instance: JenkinsInstanceV1 = Field(..., alias="jenkinsInstance")
     policy: Optional[VaultPolicyV1] = Field(..., alias="policy")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
+class VaultReplicationConfigV1(BaseModel):
+    vault_instance: VaultReplicationConfigV1_VaultInstanceV1 = Field(
+        ..., alias="vaultInstance"
+    )
+    paths: Optional[
+        list[Optional[Union[VaultReplicationJenkinsV1, VaultReplicationV1]]]
+    ] = Field(..., alias="paths")
 
     class Config:
         smart_union = True
@@ -197,7 +234,7 @@ class VaultInstanceV1(BaseModel):
     auth: Union[VaultInstanceAuthApproleV1, VaultInstanceAuthV1] = Field(
         ..., alias="auth"
     )
-    replication: Optional[list[Optional[VaultReplicationV1]]] = Field(
+    replication: Optional[list[Optional[VaultReplicationConfigV1]]] = Field(
         ..., alias="replication"
     )
 
@@ -231,5 +268,5 @@ def query(query_func: Callable, **kwargs) -> VaultInstancesQueryData:
     Returns:
         VaultInstancesQueryData: queried data parsed into generated classes
     """
-    raw_data: dict[Any, Any] = query_func(DEFINITION, kwargs)
+    raw_data: dict[Any, Any] = query_func(DEFINITION, **kwargs)
     return VaultInstancesQueryData(**raw_data)

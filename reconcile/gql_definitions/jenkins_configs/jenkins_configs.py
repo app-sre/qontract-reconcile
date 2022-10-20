@@ -117,5 +117,5 @@ def query(query_func: Callable, **kwargs) -> JenkinsConfigsQueryData:
     Returns:
         JenkinsConfigsQueryData: queried data parsed into generated classes
     """
-    raw_data: dict[Any, Any] = query_func(DEFINITION, kwargs)
+    raw_data: dict[Any, Any] = query_func(DEFINITION, **kwargs)
     return JenkinsConfigsQueryData(**raw_data)

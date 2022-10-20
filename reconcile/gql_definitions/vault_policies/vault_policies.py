@@ -70,5 +70,5 @@ def query(query_func: Callable, **kwargs) -> VaultPoliciesQueryData:
     Returns:
         VaultPoliciesQueryData: queried data parsed into generated classes
     """
-    raw_data: dict[Any, Any] = query_func(DEFINITION, kwargs)
+    raw_data: dict[Any, Any] = query_func(DEFINITION, **kwargs)
     return VaultPoliciesQueryData(**raw_data)
