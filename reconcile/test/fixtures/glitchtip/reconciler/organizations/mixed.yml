@@ -1,0 +1,26 @@
+---
+current_organizations:
+  - name: NASA
+    id: 4
+    slug: nasa
+  - name: ASA
+    id: 1
+    slug: asa
+
+desired_organizations:
+  - name: ESA
+    slug: esa
+  - name: NASA
+    slug: nasa
+
+glitchtip_urls:
+  - name: delete asa
+    uri: /api/0/organizations/asa/
+    method: delete
+  - name: create esa
+    uri: /api/0/organizations/
+    method: post
+    responses:
+      - name: ESA
+        id: 10
+        slug: esa

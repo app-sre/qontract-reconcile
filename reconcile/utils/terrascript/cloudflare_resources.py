@@ -1,6 +1,6 @@
 from typing import Union, Iterable, Any, MutableMapping
 
-from terrascript import Resource, Output
+from terrascript import Resource, Output, Variable
 from terrascript.resource import (
     cloudflare_argo,
     cloudflare_zone,
@@ -69,16 +69,25 @@ class CloudflareWorkerScriptTerrascriptResource(TerrascriptResource):
                 f"Could not retrieve Github file content at {gh_repo} "
                 f"for file path {gh_path} at ref {gh_ref}"
             )
-        wrk_content = content.decode(encoding="utf-8")
 
         name = values["name"]
         identifier = safe_resource_id(name)
+
+        worker_script_content = Variable(
+            f"{identifier}_content",
+            type="string",
+            default=content.decode(encoding="utf-8"),
+        )
+
         worker_script_values = {
             "name": name,
-            "content": wrk_content,
+            "content": f"${{var.{identifier}_content}}",
             "plain_text_binding": values.pop("vars"),
         }
-        return [cloudflare_worker_script(identifier, **worker_script_values)]
+        return [
+            cloudflare_worker_script(identifier, **worker_script_values),
+            worker_script_content,
+        ]
 
 
 class CloudflareZoneTerrascriptResource(TerrascriptResource):

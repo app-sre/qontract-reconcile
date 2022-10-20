@@ -1,0 +1,16 @@
+[
+    {
+        "dateCreated": "2022-09-19T13:41:11.380651Z",
+        "id": "4",
+        "isMember": false,
+        "memberCount": 2,
+        "slug": "nasa-flight-control"
+    },
+    {
+        "dateCreated": "2022-09-15T11:27:11.095826Z",
+        "id": "2",
+        "isMember": false,
+        "memberCount": 2,
+        "slug": "nasa-pilots"
+    }
+]

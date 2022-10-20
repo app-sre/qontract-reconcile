@@ -17,8 +17,8 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
 
 
 DEFINITION = """
-query ChangeTypes {
-  change_types: change_types_v1 {
+query ChangeTypes($name: String) {
+  change_types: change_types_v1(name: $name) {
     name
     contextType
     contextSchema

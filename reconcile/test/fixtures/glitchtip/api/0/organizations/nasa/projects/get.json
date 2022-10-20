@@ -1,0 +1,92 @@
+[
+    {
+        "avatar": {
+            "avatarType": "",
+            "avatarUuid": null
+        },
+        "color": "",
+        "features": [],
+        "firstEvent": null,
+        "hasAccess": true,
+        "id": "8",
+        "isBookmarked": false,
+        "isInternal": false,
+        "isMember": false,
+        "isPublic": false,
+        "name": "apollo-11-flight-control",
+        "organization": {
+            "id": 4,
+            "name": "NASA",
+            "slug": "nasa",
+            "dateCreated": "2022-09-13T11:23:23.306148Z",
+            "status": {
+                "id": "active",
+                "name": "active"
+            },
+            "avatar": {
+                "avatarType": "",
+                "avatarUuid": null
+            },
+            "isEarlyAdopter": false,
+            "require2FA": false,
+            "isAcceptingEvents": true
+        },
+        "teams": [
+            {
+                "id": "4",
+                "slug": "nasa-flight-control"
+            }
+        ],
+        "scrubIPAddresses": true,
+        "slug": "apollo-11-flight-control",
+        "dateCreated": "2022-10-06T12:46:17.814766Z",
+        "platform": "python"
+    },
+    {
+        "avatar": {
+            "avatarType": "",
+            "avatarUuid": null
+        },
+        "color": "",
+        "features": [],
+        "firstEvent": null,
+        "hasAccess": true,
+        "id": "7",
+        "isBookmarked": false,
+        "isInternal": false,
+        "isMember": false,
+        "isPublic": false,
+        "name": "apollo-11-spacecraft",
+        "organization": {
+            "id": 4,
+            "name": "NASA",
+            "slug": "nasa",
+            "dateCreated": "2022-09-13T11:23:23.306148Z",
+            "status": {
+                "id": "active",
+                "name": "active"
+            },
+            "avatar": {
+                "avatarType": "",
+                "avatarUuid": null
+            },
+            "isEarlyAdopter": false,
+            "require2FA": false,
+            "isAcceptingEvents": true
+        },
+        "teams": [
+            {
+                "id": "2",
+                "slug": "nasa-pilots"
+            },
+            {
+                "id": "4",
+                "slug": "nasa-flight-control"
+            }
+        ],
+        "scrubIPAddresses": true,
+        "slug": "apollo-11-spacecraft",
+        "dateCreated": "2022-10-06T12:45:59.711512Z",
+        "platform": "python"
+    }
+]
