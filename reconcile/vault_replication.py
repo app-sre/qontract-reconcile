@@ -1,13 +1,17 @@
 import logging
 import re
 
-from reconcile.utils.vault import VaultClient, SecretNotFound
+from reconcile.utils.vault import VaultClient, _VaultClient, SecretNotFound
 from reconcile.gql_definitions.jenkins_configs import jenkins_configs
+from reconcile.gql_definitions.jenkins_configs.jenkins_configs import (
+    JenkinsConfigV1,
+)
 
 from reconcile.gql_definitions.vault_policies import vault_policies
 from reconcile.gql_definitions.vault_instances import vault_instances
 from reconcile.gql_definitions.vault_instances.vault_instances import (
     VaultReplicationV1,
+    VaultInstanceV1,
 )
 from reconcile.gql_definitions.vault_policies.vault_policies import (
     VaultPolicyV1,
@@ -15,7 +19,7 @@ from reconcile.gql_definitions.vault_policies.vault_policies import (
 
 from reconcile.utils import gql
 
-from typing import List
+from typing import List, cast, Optional
 
 QONTRACT_INTEGRATION = "vault-replication"
 
@@ -73,13 +77,15 @@ def copy_vault_secret(
 
 def check_copy_secret_list(
     dry_run: bool,
-    source_vault: VaultClient,
-    dest_vault: VaultClient,
+    source_vault: _VaultClient,
+    dest_vault: _VaultClient,
     path_list: List[str],
-    policy_paths: List[str],
+    policy_paths: Optional[List[str]],
 ) -> None:
 
-    invalid_paths = list_invalid_paths(path_list, policy_paths)
+    invalid_paths = []
+    if policy_paths is not None:
+        invalid_paths = list_invalid_paths(path_list, policy_paths)
     if invalid_paths:
         logging.error(["replicate_vault_secret", "Invalid paths", invalid_paths])
     else:
@@ -122,12 +128,16 @@ def get_policy_paths(policy_name, instance_name) -> List[str]:
     return policy_paths
 
 
-def get_jenkins_secret_list() -> List[str]:
+def get_jenkins_secret_list(jenkins_instance: str) -> List[str]:
     secret_list = []
     query_data = jenkins_configs.query(query_func=gql.get_api().query)
 
     for p in query_data.jenkins_configs:
-        if p.config_path and p.config_path.content != "":
+        if (
+            isinstance(p, JenkinsConfigV1)
+            and p.instance.name == jenkins_instance
+            and p.config_path
+        ):
             secret_paths = [
                 line
                 for line in p.config_path.content.split("\n")
@@ -141,8 +151,8 @@ def get_jenkins_secret_list() -> List[str]:
 
 
 def get_vault_credentials(vault_instance: vault_instances.VaultInstanceV1):
-    vault_creds = {"server": None, "role_id": None, "secret_id": None}
-    vault = VaultClient()
+    vault_creds = {"server": "", "role_id": None, "secret_id": None}
+    vault = cast(_VaultClient, VaultClient())
 
     if isinstance(vault_instance, VaultReplicationV1):
         vault_instance = vault_instance.instance
@@ -163,39 +173,53 @@ def get_vault_credentials(vault_instance: vault_instances.VaultInstanceV1):
     return vault_creds
 
 
+def replicate_paths(
+    dry_run: bool, source_vault: _VaultClient, dest_vault: _VaultClient, replications
+) -> None:
+    for path in replications.paths:
+
+        provider = path.provider
+
+        if provider == "jenkins":
+            if path.policy is not None:
+                policy_paths = get_policy_paths(
+                    path.policy.name,
+                    path.policy.instance.name,
+                )
+            else:
+                policy_paths = None
+
+            path_list = get_jenkins_secret_list(path.jenkins_instance.name)
+            check_copy_secret_list(
+                dry_run, source_vault, dest_vault, path_list, policy_paths
+            )
+
+
 def run(dry_run: bool) -> None:
 
     query_data = vault_instances.query(query_func=gql.get_api().query)
 
     for instance in query_data.vault_instances:
-        if instance.replication is not None:
+        if isinstance(instance, VaultInstanceV1) and instance.replication:
             for replication in instance.replication:
                 source_creds = get_vault_credentials(instance)
-                dest_creds = get_vault_credentials(instance.replication[0])
+                dest_creds = get_vault_credentials(replication.vault_instance)
 
-                source_vault = VaultClient(
-                    server=source_creds["server"],
-                    role_id=source_creds["role_id"],
-                    secret_id=source_creds["secret_id"],
+                source_vault = cast(
+                    _VaultClient,
+                    VaultClient(
+                        server=source_creds["server"],
+                        role_id=source_creds["role_id"],
+                        secret_id=source_creds["secret_id"],
+                    ),
                 )
-                dest_vault = VaultClient(
-                    server=dest_creds["server"],
-                    role_id=dest_creds["role_id"],
-                    secret_id=dest_creds["secret_id"],
+                dest_vault = cast(
+                    _VaultClient,
+                    VaultClient(
+                        server=dest_creds["server"],
+                        role_id=dest_creds["role_id"],
+                        secret_id=dest_creds["secret_id"],
+                    ),
                 )
 
-                provider = replication.provider
-
-                if provider == "jenkins":
-                    if replication.policy is not None:
-                        policy_paths = get_policy_paths(
-                            replication.policy.name,
-                            replication.policy.instance.name,
-                        )
-                    else:
-                        policy_paths = None
-
-                    path_list = get_jenkins_secret_list()
-                    check_copy_secret_list(
-                        dry_run, source_vault, dest_vault, path_list, policy_paths
-                    )
+            replicate_paths(dry_run, source_vault, dest_vault, replication)
