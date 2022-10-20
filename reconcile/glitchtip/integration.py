@@ -79,7 +79,7 @@ def fetch_current_state(
 
 
 def fetch_desired_state(
-    glitchtip_projects: Sequence[GlitchtipProjectsV1], gh: Github, mail_address: str
+    glitchtip_projects: Sequence[GlitchtipProjectsV1], gh: Github, mail_domain: str
 ) -> list[Organization]:
     organizations: dict[str, Organization] = {}
     for glitchtip_project in glitchtip_projects:
@@ -102,7 +102,7 @@ def fetch_desired_state(
                             gh=gh, github_username=role_user.github_username
                         )
                     ):
-                        email = role_user.org_username + f"@{mail_address}"
+                        email = role_user.org_username + f"@{mail_domain}"
                     users.append(
                         User(
                             email=email,
@@ -128,12 +128,15 @@ def run(dry_run: bool, instance: Optional[str] = None):
     secret_reader = SecretReader(queries.get_secret_reader_settings())
     read_timeout = 30
     max_retries = 3
-    mail_address = "redhat.com"
+    mail_domain = "redhat.com"
     if _s := glitchtip_settings_query(query_func=gqlapi.query).settings:
         if _gs := _s[0].glitchtip:
-            read_timeout = _gs.read_timeout
-            max_retries = _gs.max_retries
-            mail_address = _gs.mail_address
+            if _gs.read_timeout is not None:
+                read_timeout = _gs.read_timeout
+            if _gs.max_retries is not None:
+                max_retries = _gs.max_retries
+            if _gs.mail_domain is not None:
+                mail_domain = _gs.mail_domain
 
     glitchtip_instances = glitchtip_instance_query(query_func=gqlapi.query).instances
     glitchtip_projects: list[GlitchtipProjectsV1] = []
@@ -169,7 +172,7 @@ def run(dry_run: bool, instance: Optional[str] = None):
                 if p.organization.instance.name == glitchtip_instance.name
             ],
             gh=github,
-            mail_address=mail_address,
+            mail_domain=mail_domain,
         )
 
         reconciler = GlitchtipReconciler(glitchtip_client, dry_run)

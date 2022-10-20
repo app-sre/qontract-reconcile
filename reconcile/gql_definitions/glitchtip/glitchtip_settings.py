@@ -22,7 +22,7 @@ query GlitchtipSettings {
     glitchtip {
       readTimeout
       maxRetries
-      mailAddress
+      mailDomain
     }
   }
 }
@@ -30,9 +30,9 @@ query GlitchtipSettings {
 
 
 class GlitchtipSettingsV1(BaseModel):
-    read_timeout: int = Field(..., alias="readTimeout")
-    max_retries: int = Field(..., alias="maxRetries")
-    mail_address: str = Field(..., alias="mailAddress")
+    read_timeout: Optional[int] = Field(..., alias="readTimeout")
+    max_retries: Optional[int] = Field(..., alias="maxRetries")
+    mail_domain: Optional[str] = Field(..., alias="mailDomain")
 
     class Config:
         smart_union = True

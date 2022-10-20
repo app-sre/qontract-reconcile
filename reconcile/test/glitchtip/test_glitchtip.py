@@ -40,7 +40,7 @@ def test_desire_state(mocker, fx):
         GlitchtipProjectsV1(**i) for i in fx.get_anymarkup("desire_state_projects.yml")
     ]
     desired_state = fetch_desired_state(
-        glitchtip_projects=projects, gh=gh, mail_address="nasa.com"
+        glitchtip_projects=projects, gh=gh, mail_domain="nasa.com"
     )
     expected_desire_state = [
         Organization(**i) for i in fx.get_anymarkup("desire_state_expected.yml")

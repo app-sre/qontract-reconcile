@@ -5,7 +5,7 @@ query GlitchtipSettings {
     glitchtip {
       readTimeout
       maxRetries
-      mailAddress
+      mailDomain
     }
   }
 }
