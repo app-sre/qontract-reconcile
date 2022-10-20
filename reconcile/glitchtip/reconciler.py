@@ -240,11 +240,6 @@ class GlitchtipReconciler:
         current: Sequence[Organization],
         desired: Iterable[Organization],
     ) -> None:
-        for org in set(current).difference(desired):
-            logging.info(["delete_organization", org.name, self.client.host])
-            if not self.dry_run:
-                self.client.delete_organization(slug=org.slug)
-
         for desired_org in desired:
             if desired_org not in current:
                 logging.info(
@@ -276,3 +271,10 @@ class GlitchtipReconciler:
                 current_projects=current_org.projects,
                 desired_projects=desired_org.projects,
             )
+
+        # remove obsolete organizations after creating/updating other ones. this avoids a chicken-egg problem when onboarding a new glitchtip instance.
+        # the automation user must have the owner role in an existing organization (bootstrap organization) but this one is maybe not app-interface managed
+        for org in set(current).difference(desired):
+            logging.info(["delete_organization", org.name, self.client.host])
+            if not self.dry_run:
+                self.client.delete_organization(slug=org.slug)
