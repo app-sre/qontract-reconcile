@@ -401,8 +401,7 @@ def init_change_type_processors(
         processors[change_type.name] = build_change_type_processor(change_type)
 
     # detect cycles
-    cycles = list(networkx.simple_cycles(change_type_graph))
-    if cycles:
+    if cycles := list(networkx.simple_cycles(change_type_graph)):
         raise ChangeTypeInheritanceCycleError(
             "Cycles detected in change-type inheritance", cycles
         )
