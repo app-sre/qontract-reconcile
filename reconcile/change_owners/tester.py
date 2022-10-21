@@ -118,20 +118,17 @@ class AppInterfaceRepo:
     ) -> list[BundleFileChange]:
         bundle_files = []
         processed_schemas = set()
-        for c in ctp.change_type.changes:
+        for c in ctp.changes:
             if (
                 c.change_schema
-                and c.change_schema != ctp.change_type.context_schema
+                and c.change_schema != ctp.context_schema
                 and c.change_schema not in processed_schemas
             ):
                 # the changes can happen in other files, not the one related
                 # under RoleV1.self_service
                 bundle_files.extend(self.bundle_files_with_schemas(c.change_schema))
                 processed_schemas.add(c.change_schema)
-            elif (
-                c.change_schema is None
-                or c.change_schema == ctp.change_type.context_schema
-            ):
+            elif c.change_schema is None or c.change_schema == ctp.context_schema:
                 # the change happens in the self_service related files
                 for ssc in role.self_service or []:
                     for df in ssc.datafiles or []:

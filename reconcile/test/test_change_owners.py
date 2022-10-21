@@ -185,7 +185,9 @@ def test_extract_context_file_refs_from_bundle_change(
     bundle_change = saas_file.create_bundle_change(
         {"resourceTemplates[0].targets[0].ref": "new-ref"}
     )
-    file_refs = bundle_change.extract_context_file_refs(saas_file_changetype)
+    file_refs = bundle_change.extract_context_file_refs(
+        build_change_type_processor(saas_file_changetype)
+    )
     assert file_refs == [saas_file.file_ref()]
 
 
@@ -200,7 +202,9 @@ def test_extract_context_file_refs_from_bundle_change_schema_mismatch(
     bundle_change = saas_file.create_bundle_change(
         {"resourceTemplates[0].targets[0].ref": "new-ref"}
     )
-    file_refs = bundle_change.extract_context_file_refs(saas_file_changetype)
+    file_refs = bundle_change.extract_context_file_refs(
+        build_change_type_processor(saas_file_changetype)
+    )
     assert not file_refs
 
 
@@ -229,7 +233,9 @@ def test_extract_context_file_refs_selector(
         },
     )
     assert namespace_change
-    file_refs = namespace_change.extract_context_file_refs(cluster_owner_change_type)
+    file_refs = namespace_change.extract_context_file_refs(
+        build_change_type_processor(cluster_owner_change_type)
+    )
     assert file_refs == [
         FileRef(
             file_type=BundleFileType.DATAFILE,
@@ -263,7 +269,9 @@ def test_extract_context_file_refs_in_list_added_selector(
         },
     )
     assert user_change
-    file_refs = user_change.extract_context_file_refs(role_member_change_type)
+    file_refs = user_change.extract_context_file_refs(
+        build_change_type_processor(role_member_change_type)
+    )
     assert file_refs == [
         FileRef(
             file_type=BundleFileType.DATAFILE,
@@ -295,7 +303,9 @@ def test_extract_context_file_refs_in_list_removed_selector(
         },
     )
     assert user_change
-    file_refs = user_change.extract_context_file_refs(role_member_change_type)
+    file_refs = user_change.extract_context_file_refs(
+        build_change_type_processor(role_member_change_type)
+    )
     assert file_refs == [
         FileRef(
             file_type=BundleFileType.DATAFILE,
@@ -320,7 +330,9 @@ def test_extract_context_file_refs_in_list_selector_change_schema_mismatch(
         new_file_content={"field": "new-value"},
     )
     assert datafile_change
-    file_refs = datafile_change.extract_context_file_refs(role_member_change_type)
+    file_refs = datafile_change.extract_context_file_refs(
+        build_change_type_processor(role_member_change_type)
+    )
     assert not file_refs
 
 
@@ -1361,7 +1373,21 @@ def test_approval_comments_none_body():
 #
 
 
-def test_change_decision(saas_file_changetype: ChangeTypeV1):
+@pytest.mark.parametrize(
+    "disable_change_type,expected_approve,expected_hold",
+    [
+        (True, False, False),
+        (False, True, True),
+    ],
+)
+def test_change_decision(
+    saas_file_changetype: ChangeTypeV1,
+    disable_change_type: bool,
+    expected_approve: bool,
+    expected_hold: bool,
+):
+    saas_file_changetype.disabled = disable_change_type
+
     yea_user = "yea-sayer"
     nay_sayer = "nay-sayer"
     change = create_bundle_file_change(
@@ -1392,23 +1418,10 @@ def test_change_decision(saas_file_changetype: ChangeTypeV1):
         changes=[change],
     )
 
-    assert change_decision[0].decision.approve
-    assert change_decision[0].decision.hold
+    assert change_decision[0].decision.approve == expected_approve
+    assert change_decision[0].decision.hold == expected_hold
     assert change_decision[0].diff == change.diff_coverage[0].diff
     assert change_decision[0].file == change.fileref
-
-    # disable the change_type and ensure that the approval has no effect
-    saas_file_changetype.disabled = True
-    change_decision = apply_decisions_to_changes(
-        approver_decisions={
-            yea_user: Decision(approve=True, hold=False),
-            nay_sayer: Decision(approve=False, hold=True),
-        },
-        changes=[change],
-    )
-
-    assert not change_decision[0].decision.approve
-    assert not change_decision[0].decision.hold
 
 
 #
