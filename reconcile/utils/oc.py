@@ -986,8 +986,9 @@ class OCNative(OCDeprecated):
 
         if server:
             self.client = self._get_client(server, token)
-            self.api_kind_version = self.get_api_kind_version()
+            self.api_kind_version = self.get_api_resources()
             self.api_resources = self.api_kind_version.keys()
+            self.init_api_resources = True
         else:
             raise Exception("A method relies on client/api_kind_version to be set")
 
@@ -1067,7 +1068,7 @@ class OCNative(OCDeprecated):
 
     # this function returns a kind:apigroup/version map for each kind on the
     # cluster
-    def get_api_kind_version(self):
+    def get_api_resources(self):
         c_res = self.client.resources
         # this returns a prefix:apis map
         api_prefix = c_res.parse_api_groups(request_resources=False, update=True)
@@ -1106,9 +1107,6 @@ class OCNative(OCDeprecated):
                                 kind, kind_groupversion, r.group_version, obj.preferred
                             )
         return kind_groupversion
-
-    def get_api_resources(self):
-        return self.api_kind_version.keys()
 
     @retry(max_attempts=5, exceptions=(ServerTimeoutError))
     def get_items(self, kind, **kwargs):
@@ -1210,7 +1208,7 @@ class OCNative(OCDeprecated):
             except StatusCodeError:
                 return False
         else:
-            return kind in self.get_api_resources()
+            return kind in self.api_resources
 
 
 OCClient = Union[OCNative, OCDeprecated]
