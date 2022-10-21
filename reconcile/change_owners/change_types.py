@@ -9,7 +9,7 @@ import jsonpath_ng.ext
 import anymarkup
 import jinja2
 import jinja2.meta
-
+import networkx
 
 from reconcile.change_owners.diff import (
     SHA256SUM_FIELD_NAME,
@@ -387,6 +387,51 @@ def build_change_type_processor(change_type: ChangeTypeV1) -> ChangeTypeProcesso
     for change in change_type.changes:
         ctp.add_change(change)
     return ctp
+
+
+def init_change_type_processors(
+    change_types: Sequence[ChangeTypeV1],
+) -> dict[str, ChangeTypeProcessor]:
+    processors = {}
+    change_type_graph = networkx.DiGraph()
+    for change_type in change_types:
+        change_type_graph.add_node(change_type.name)
+        for i in change_type.inherit or []:
+            change_type_graph.add_edge(change_type.name, i.name)
+        processors[change_type.name] = build_change_type_processor(change_type)
+
+    # detect cycles
+    cycles = list(networkx.simple_cycles(change_type_graph))
+    if cycles:
+        raise ChangeTypeInheritanceCycleError(
+            "Cycles detected in change-type inheritance", cycles
+        )
+
+    # aggregate inherited changes
+    for ctp in processors.values():
+        for d in networkx.descendants(change_type_graph, ctp.name):
+            if ctp.context_type != processors[d].context_type:
+                raise ChangeTypeIncompatibleInheritanceError(
+                    f"change-type '{ctp.name}' inherits from '{d}' "
+                    "but has a different context_type"
+                )
+            if ctp.context_schema != processors[d].context_schema:
+                raise ChangeTypeIncompatibleInheritanceError(
+                    f"change-type '{ctp.name}' inherits from '{d}' "
+                    "but has a different context_schema"
+                )
+            for change in processors[d].changes:
+                ctp.add_change(change)
+
+    return processors
+
+
+class ChangeTypeIncompatibleInheritanceError(ValueError):
+    pass
+
+
+class ChangeTypeInheritanceCycleError(ValueError):
+    pass
 
 
 @dataclass

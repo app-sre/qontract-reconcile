@@ -13,10 +13,10 @@ from pygments.formatters.terminal256 import (
 )
 import jsonpath_ng
 
+from reconcile.change_owners.change_owners import fetch_change_type_processors
 from reconcile.change_owners.change_types import (
     BundleFileChange,
     ChangeTypeProcessor,
-    build_change_type_processor,
     parse_resource_file_content,
     FileRef,
     BundleFileType,
@@ -26,7 +26,6 @@ from reconcile.change_owners.self_service_roles import (
 )
 from reconcile.gql_definitions.change_owners.queries.self_service_roles import RoleV1
 from reconcile.gql_definitions.change_owners.queries import (
-    change_types,
     self_service_roles,
 )
 
@@ -214,13 +213,8 @@ class SelfServiceableHighlighter(Filter):
 def get_changetype_processor_by_name(
     change_type_name: str,
 ) -> Optional[ChangeTypeProcessor]:
-    result = change_types.query(
-        gql.get_api().query, variables={"name": change_type_name}
-    ).change_types
-    if result:
-        return build_change_type_processor(result[0])
-    else:
-        return None
+    processors = fetch_change_type_processors(gql.get_api())
+    return next((p for p in processors if p.name == change_type_name), None)
 
 
 def get_self_service_role_by_name(
