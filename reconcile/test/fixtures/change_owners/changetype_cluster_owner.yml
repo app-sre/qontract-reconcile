@@ -5,6 +5,8 @@ contextSchema: /openshift/cluster-1.yml
 
 disabled: false
 
+inherit: null
+
 changes:
 - provider: jsonPath
   changeSchema: /openshift/namespace-1.yml
