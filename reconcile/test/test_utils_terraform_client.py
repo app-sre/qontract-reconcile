@@ -15,6 +15,14 @@ def aws_api():
     return create_autospec(AWSApi)
 
 
+@pytest.fixture
+def tf(aws_api):
+    account = {"name": "a1", "deletionApprovals": []}
+    return tfclient.TerraformClient(
+        "integ", "v1", "integ_pfx", [account], {}, 1, aws_api
+    )
+
+
 def test_no_deletion_approvals(aws_api):
     account = {"name": "a1", "deletionApprovals": []}
     tf = tfclient.TerraformClient("integ", "v1", "integ_pfx", [account], {}, 1, aws_api)
@@ -210,3 +218,68 @@ def test_populate_terraform_output_secret_with_replica_credentials():
     assert replica.get_secret_field("key") == "value"
     assert replica.get_secret_field("db.user") == "user"
     assert replica.get_secret_field("db.password") == "password"
+
+
+def test__resource_diff_changed_fields(tf):
+    sensitive_keys = set(["a"])
+    changed = tf._resource_diff_changed_fields(
+        "update",
+        {
+            "before": {"a": 1, "c": None},
+            "after": {"a": 2, "b": "foo", "c": 1},
+        },
+        sensitive_keys=sensitive_keys,
+    )
+
+    assert changed["a"] == "(sensitive key)"
+    assert changed["b"] == "foo"
+    assert changed["c"] == 1
+
+    changed = tf._resource_diff_changed_fields(
+        "update", {"after": {"field": 1}}, sensitive_keys=sensitive_keys
+    )
+
+    assert changed["field"] == 1
+
+    changed = tf._resource_diff_changed_fields(
+        "update", {"before": {"field": 1}}, sensitive_keys=sensitive_keys
+    )
+
+    assert changed["field"] == "(computed key)"
+
+    changed = tf._resource_diff_changed_fields(
+        "create", {"before": {"field": 1}}, sensitive_keys=sensitive_keys
+    )
+
+    assert changed == []
+
+
+def test__find_sensitive_keys(tf):
+    example = """
+sensitive value
+------------------------------------------------------------------------
+An execution plan has been generated and is shown below.
+Resource actions are indicated with the following symbols:
+  + create
+  ~ update in-place
+Terraform will perform the following actions:
+  # aws_db_instance.example-02-rds will be updated in-place
+  ~ resource "aws_db_instance" "example-02-rds" {
+        option_group_name                     = "default:postgres-13"
+        password                              = (sensitive value)
+      ~ publicly_accessible                   = (sensitive value)
+        tags                                  = {
+            "app"                    = "example"
+        }
+    }
+  # aws_db_instance.example-32-rds will be created
+  + resource "aws_db_instance" "example-32-rds" {
+      + password                              = (sensitive value)
+      + password_with_underscores             = (sensitive value)
+      + foo_bar                               = (sensitive value)
+    }
+"""
+
+    keys = tf._find_sensitive_keys(example)
+
+    assert "foo_bar" in keys

@@ -161,13 +161,127 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
             detailed_exitcode=False, parallelism=self.parallelism, out=name
         )
         error = self.check_output(name, "plan", return_code, stdout, stderr)
+        sensitive_keys = self._find_sensitive_keys(stdout)
         disabled_deletion_detected, created_users = self.log_plan_diff(
-            name, tf, enable_deletion
+            name, tf, enable_deletion, sensitive_keys
         )
         return disabled_deletion_detected, created_users, error
 
+    @staticmethod
+    def _find_sensitive_keys(stdout: str) -> set[str]:
+        # Initial values are retrieved using:
+        # `git grep -B 4 Sensitive: internal/  |grep '{'  |awk -F'-' '{print $2}' |cut -d '"' -f2|sort -u`
+        # in terraform aws provider repository
+        return_set: set[str] = set(
+            [
+                "access_key",
+                "access_token",
+                "account_password",
+                "ad_domain_join_password",
+                "airflow_configuration_options",
+                "api_key",
+                "authorization_token",
+                "auth_token",
+                "basic_auth_credentials",
+                "bundle_id",
+                "certificate",
+                "certificate_pem",
+                "certificate_private_key",
+                "certificate_wallet",
+                "client_id",
+                "client_secret",
+                "connection_properties",
+                "cross_realm_trust_principal_password",
+                "customer_key",
+                "db_password",
+                "fsx_admin_password",
+                "host_key",
+                "kdc_admin_password",
+                "key",
+                "key_material_base64",
+                "master_password",
+                "master_user_password",
+                "oauth_token",
+                "password",
+                "payload",
+                "plaintext",
+                "platform_credential",
+                "platform_principal",
+                "private_key",
+                "public_key",
+                "sasl_password",
+                "secret",
+                "secret_binary",
+                "secret_key",
+                "secret_string",
+                "secret_token",
+                "service_account_password",
+                "ses_smtp_password_v4",
+                "smb_guest_password",
+                "source_customer_key",
+                "ssh_key",
+                "ssl_client_key_password",
+                "svm_admin_password",
+                "team_id",
+                "token",
+                "token_key",
+                "token_key_id",
+                "token_signing_public_keys",
+                "tunnel1_preshared_key",
+                "tunnel2_preshared_key",
+            ]
+        )
+
+        for line in stdout.split("\n"):
+            if "(sensitive value)" in line:
+                key_stripped = line.split("=")[0].strip()
+                if " " in key_stripped:
+                    return_set.add(key_stripped.split(" ")[1])
+                else:
+                    return_set.add(key_stripped)
+
+        return return_set
+
+    @staticmethod
+    def _resource_diff_changed_fields(
+        action: str, change: Mapping[str, Any], sensitive_keys: set[str]
+    ):
+        if action != "update":
+            return []
+
+        before = change.get("before", {})
+        if not before:
+            before = {}
+        after = change.get("after", {})
+        if not after:
+            after = {}
+
+        keys = set(before)
+        keys.update(set(after))
+
+        changed_fields = {}
+
+        for k in keys:
+            # JSON format is subject of change, adding try catch to make sure
+            # key errors do not crash integration
+            try:
+                if k in before and k not in after:
+                    changed_fields[k] = "(computed key)"
+                elif before.get(k, "") != after.get(k, ""):
+                    if k in sensitive_keys:
+                        changed_fields[k] = "(sensitive key)"
+                    else:
+                        changed_fields[k] = after[k]
+            except KeyError:
+                logging.error("Key error in _resource_diff_changed_fields, key: %s", k)
+        return changed_fields
+
     def log_plan_diff(
-        self, name: str, tf: Terraform, enable_deletion: bool
+        self,
+        name: str,
+        tf: Terraform,
+        enable_deletion: bool,
+        sensitive_keys: set[str],
     ) -> tuple[bool, list]:
         disabled_deletion_detected = False
         account_enable_deletion = self.accounts[name].get("enableDeletion") or False
@@ -245,7 +359,17 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
                     )
                     continue
                 with self._log_lock:
-                    logging.info([action, name, resource_type, resource_name])
+                    logging.info(
+                        [
+                            action,
+                            name,
+                            resource_type,
+                            resource_name,
+                            self._resource_diff_changed_fields(
+                                action, resource_change, sensitive_keys
+                            ),
+                        ]
+                    )
                     self.should_apply = True
                 if action == "create":
                     if resource_type == "aws_iam_user_login_profile":
