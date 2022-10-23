@@ -293,14 +293,6 @@ def get_desired_state(
         ugid = slack.get_usergroup_id(usergroup)
 
         all_user_names = [get_slack_username(u) for r in p["roles"] for u in r["users"]]
-        slack_usernames_pagerduty = get_usernames_from_pagerduty(
-            p["pagerduty"],
-            all_users,
-            usergroup,
-            pagerduty_map,
-            get_username_method=get_slack_username,
-        )
-        all_user_names.extend(slack_usernames_pagerduty)
 
         slack_usernames_repo = get_slack_usernames_from_owners(
             p["ownersFromRepos"], all_users, usergroup
@@ -309,6 +301,15 @@ def get_desired_state(
 
         slack_usernames_schedule = get_slack_usernames_from_schedule(p["schedule"])
         all_user_names.extend(slack_usernames_schedule)
+
+        slack_usernames_pagerduty = get_usernames_from_pagerduty(
+            p["pagerduty"],
+            all_users,
+            usergroup,
+            pagerduty_map,
+            get_username_method=get_slack_username,
+        )
+        all_user_names.extend(slack_usernames_pagerduty)
 
         user_names = list(set(all_user_names))
         users = slack.get_users_by_names(user_names)
