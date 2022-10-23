@@ -303,8 +303,11 @@ class SlackApi:
         return ""
 
     def get_user_id_by_name(self, user_name: str, mail_address: str) -> str:
+        return self.get_user_by_email(f"{user_name}@{mail_address}")["id"]
+
+    def get_user_by_email(self, email: str) -> Any:
         """
-        Get user id from their username.
+        Get user from their username.
 
         :param user_name: Slack user name
         :return: encoded user ID (ex. W012A3CDE)
@@ -313,14 +316,14 @@ class SlackApi:
         :raises UserNotFoundException: if the Slack user is not found
         """
         try:
-            result = self._sc.users_lookupByEmail(email=f"{user_name}@{mail_address}")
+            result = self._sc.users_lookupByEmail(email=email)
         except SlackApiError as e:
             if e.response["error"] == "users_not_found":
                 raise UserNotFoundException(e.response["error"])
             else:
                 raise
 
-        return result["user"]["id"]
+        return result["user"]
 
     def get_channels_by_names(self, channels_names):
         return {
