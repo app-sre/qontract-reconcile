@@ -294,11 +294,11 @@ def get_desired_state(
 
         slack_users_pagerduty = get_users_from_pagerduty(
             p["pagerduty"],
-            usergroup,
             pagerduty_map,
             get_user_method=slack.get_user_by_email,
         )
-        users.update({u["id"]: u for u in slack_users_pagerduty})
+        for u in slack_users_pagerduty:
+            users[u["id"]] = u["name"]
 
         channel_names = [] if p["channels"] is None else p["channels"]
         channels = slack.get_channels_by_names(channel_names)
