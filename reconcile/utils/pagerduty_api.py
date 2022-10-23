@@ -42,7 +42,7 @@ class PagerDutyApi:
         # handle for users not initiated
         user = pypd.User.fetch(user_id)
         self.users.append(user)
-        return user.email.split("@")[0]
+        return user.email
 
     def get_schedule_user_emails(self, schedule_id, now):
         s = pypd.Schedule.fetch(id=schedule_id, since=now, until=now, time_zone="UTC")
