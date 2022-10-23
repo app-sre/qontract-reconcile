@@ -40,6 +40,7 @@ class GitApi:
         raise ValueError(f"Unable to handle URL: {url}")
 
 
+SlackState = dict[str, dict[str, dict[str, Any]]]
 SlackMap = dict[str, dict[str, Any]]
 
 
@@ -74,7 +75,7 @@ def get_current_state(
     slack_map: SlackMap,
     desired_workspace_name: Optional[str],
     desired_usergroup_name: Optional[str],
-):
+) -> SlackState:
     """
     Get the current state of Slack usergroups.
 
@@ -85,7 +86,7 @@ def get_current_state(
                 (ex. state['coreos']['app-sre-ic']
     :rtype: dict
     """
-    current_state = {}
+    current_state: SlackState = {}
 
     for workspace, spec in slack_map.items():
         if desired_workspace_name and desired_workspace_name != workspace:
@@ -246,7 +247,7 @@ def get_desired_state(
     pagerduty_map: PagerDutyMap,
     desired_workspace_name: Optional[str],
     desired_usergroup_name: Optional[str],
-):
+) -> SlackState:
     """
     Get the desired state of Slack usergroups.
 
@@ -263,7 +264,7 @@ def get_desired_state(
     permissions = queries.get_permissions_for_slack_usergroup()
     all_users = queries.get_users()
 
-    desired_state = {}
+    desired_state: SlackState = {}
     for p in permissions:
         if p["service"] != "slack-usergroup":
             continue
