@@ -65,10 +65,10 @@ def get_slack_map(
     return slack_map
 
 
-def get_pagerduty_map():
+def get_pagerduty_map(init_users: bool = True):
     instances = queries.get_pagerduty_instances()
     settings = queries.get_app_interface_settings()
-    return PagerDutyMap(instances, settings)
+    return PagerDutyMap(instances, init_users=init_users, settings=settings)
 
 
 def get_current_state(
@@ -514,7 +514,8 @@ def run(
 ):
     secret_reader = SecretReader(queries.get_secret_reader_settings())
     slack_map = get_slack_map(secret_reader, workspace_name)
-    pagerduty_map = get_pagerduty_map()
+    init_users = False if usergroup_name else True
+    pagerduty_map = get_pagerduty_map(init_users=init_users)
     desired_state = get_desired_state(
         slack_map, pagerduty_map, workspace_name, usergroup_name
     )
