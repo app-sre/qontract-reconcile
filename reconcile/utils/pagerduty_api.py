@@ -21,40 +21,40 @@ class PagerDutyApi:
     def init_users(self):
         self.users = pypd.User.find()
 
-    def get_pagerduty_users(self, resource_type, resource_id):
+    def get_pagerduty_user_emails(self, resource_type, resource_id):
         now = datetime.datetime.utcnow()
 
         try:
             if resource_type == "schedule":
-                users = self.get_schedule_users(resource_id, now)
+                users = self.get_schedule_user_emails(resource_id, now)
             elif resource_type == "escalationPolicy":
-                users = self.get_escalation_policy_users(resource_id, now)
+                users = self.get_escalation_policy_user_emails(resource_id, now)
         except requests.exceptions.HTTPError:
             return None
 
         return users
 
-    def get_user(self, user_id):
+    def get_user_email(self, user_id):
         for user in self.users:
             if user.id == user_id:
-                return user.email.split("@")[0]
+                return user.email
 
         # handle for users not initiated
         user = pypd.User.fetch(user_id)
         self.users.append(user)
         return user.email.split("@")[0]
 
-    def get_schedule_users(self, schedule_id, now):
+    def get_schedule_user_emails(self, schedule_id, now):
         s = pypd.Schedule.fetch(id=schedule_id, since=now, until=now, time_zone="UTC")
         entries = s["final_schedule"]["rendered_schedule_entries"]
 
         return [
-            self.get_user(entry["user"]["id"])
+            self.get_user_email(entry["user"]["id"])
             for entry in entries
             if not entry["user"].get("deleted_at")
         ]
 
-    def get_escalation_policy_users(self, escalation_policy_id, now):
+    def get_escalation_policy_user_emails(self, escalation_policy_id, now):
         ep = pypd.EscalationPolicy.fetch(
             id=escalation_policy_id, since=now, until=now, time_zone="UTC"
         )
@@ -65,10 +65,10 @@ class PagerDutyApi:
             for target in targets:
                 target_type = target["type"]
                 if target_type == "schedule_reference":
-                    schedule_users = self.get_schedule_users(target["id"], now)
+                    schedule_users = self.get_schedule_user_emails(target["id"], now)
                     users.extend(schedule_users)
                 elif target_type == "user_reference":
-                    users.append(self.get_user(target["id"]))
+                    users.append(self.get_user_email(target["id"]))
             if users and rule["escalation_delay_in_minutes"] != 0:
                 # process rules until users are found
                 # and next escalation is not 0 minutes from now

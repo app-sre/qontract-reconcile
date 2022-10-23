@@ -9,7 +9,7 @@ from github.GithubException import UnknownObjectException
 from reconcile.slack_base import slackapi_from_permissions
 from reconcile.utils.github_api import GithubApi
 from reconcile.utils.gitlab_api import GitLabApi
-from reconcile.utils.pagerduty_api import PagerDutyMap
+from reconcile.utils.pagerduty_api import PagerDutyApi, PagerDutyMap
 from reconcile.utils.repo_owners import RepoOwners
 from reconcile.utils.slack_api import (
     SlackApi,
@@ -120,11 +120,8 @@ def get_pagerduty_name(user):
 
 
 @retry()
-def get_usernames_from_pagerduty(
-    pagerduties, users, usergroup, pagerduty_map, get_username_method
-):
-    all_output_usernames = []
-    all_pagerduty_names = [get_pagerduty_name(u) for u in users]
+def get_users_from_pagerduty(pagerduties, pagerduty_map, get_user_method):
+    all_output_users = []
     for pagerduty in pagerduties or []:
         pd_schedule_id = pagerduty["scheduleID"]
         if pd_schedule_id is not None:
@@ -135,35 +132,22 @@ def get_usernames_from_pagerduty(
             pd_resource_type = "escalationPolicy"
             pd_resource_id = pd_escalation_policy_id
 
-        pd = pagerduty_map.get(pagerduty["instance"]["name"])
-        pagerduty_names = pd.get_pagerduty_users(pd_resource_type, pd_resource_id)
-        if not pagerduty_names:
+        pd: PagerDutyApi = pagerduty_map.get(pagerduty["instance"]["name"])
+        pagerduty_user_emails = pd.get_pagerduty_user_emails(
+            pd_resource_type, pd_resource_id
+        )
+        if not pagerduty_user_emails:
             continue
-        pagerduty_names = [
-            name.split("+", 1)[0] for name in pagerduty_names if "nobody" not in name
+        pagerduty_user_emails = [
+            email for email in pagerduty_user_emails if "nobody" not in email
         ]
-        if not pagerduty_names:
+        if not pagerduty_user_emails:
             continue
-        output_usernames = [
-            get_username_method(u)
-            for u in users
-            if get_pagerduty_name(u) in pagerduty_names
-        ]
-        not_found_pagerduty_names = [
-            pagerduty_name
-            for pagerduty_name in pagerduty_names
-            if pagerduty_name not in all_pagerduty_names
-        ]
-        if not_found_pagerduty_names:
-            msg = (
-                "[{}] PagerDuty username not found in app-interface: {} "
-                "(hint: user files should contain "
-                "pagerduty_username if it is different than org_username)"
-            ).format(usergroup, not_found_pagerduty_names)
-            logging.warning(msg)
-        all_output_usernames.extend(output_usernames)
+        output_users = [get_user_method(e) for e in pagerduty_user_emails]
 
-    return all_output_usernames
+        all_output_users.extend(output_users)
+
+    return all_output_users
 
 
 @retry(max_attempts=10)
@@ -302,17 +286,19 @@ def get_desired_state(
         slack_usernames_schedule = get_slack_usernames_from_schedule(p["schedule"])
         all_user_names.extend(slack_usernames_schedule)
 
-        slack_usernames_pagerduty = get_usernames_from_pagerduty(
+        user_names = list(set(all_user_names))
+        if user_names:
+            users = slack.get_users_by_names(user_names)
+        else:
+            users = {}
+
+        slack_users_pagerduty = get_users_from_pagerduty(
             p["pagerduty"],
-            all_users,
             usergroup,
             pagerduty_map,
-            get_username_method=get_slack_username,
+            get_user_method=slack.get_user_by_email,
         )
-        all_user_names.extend(slack_usernames_pagerduty)
-
-        user_names = list(set(all_user_names))
-        users = slack.get_users_by_names(user_names)
+        users.update({u["id"]: u for u in slack_users_pagerduty})
 
         channel_names = [] if p["channels"] is None else p["channels"]
         channels = slack.get_channels_by_names(channel_names)
