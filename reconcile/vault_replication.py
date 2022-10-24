@@ -97,6 +97,9 @@ def check_copy_secret_list(
 
 def list_invalid_paths(path_list: List[str], policy_paths: List[str]) -> List[str]:
     invalid_paths = []
+    if policy_paths is None:
+        return invalid_paths
+
     for path in path_list:
         if not policy_contais_path(path, policy_paths):
             invalid_paths.append(path)
@@ -105,10 +108,7 @@ def list_invalid_paths(path_list: List[str], policy_paths: List[str]) -> List[st
 
 
 def policy_contais_path(path: str, policy_paths: List[str]) -> bool:
-    if policy_paths is None:
-        return True
-    else:
-        return any(path in p_path for p_path in policy_paths)
+    return any(path in p_path for p_path in policy_paths)
 
 
 def get_policy_paths(policy_name, instance_name) -> List[str]:
