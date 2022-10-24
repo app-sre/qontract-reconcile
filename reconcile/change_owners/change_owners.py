@@ -22,7 +22,7 @@ from reconcile.change_owners.change_types import (
     BundleFileType,
     ChangeTypeProcessor,
     create_bundle_file_change,
-    build_change_type_processor,
+    init_change_type_processors,
 )
 from reconcile.change_owners.self_service_roles import (
     cover_changes_with_self_service_roles,
@@ -75,7 +75,7 @@ def fetch_self_service_roles(gql_api: gql.GqlApi) -> list[RoleV1]:
 
 def fetch_change_type_processors(gql_api: gql.GqlApi) -> list[ChangeTypeProcessor]:
     change_type_list = change_types.query(gql_api.query).change_types or []
-    return [build_change_type_processor(ct) for ct in change_type_list]
+    return list(init_change_type_processors(change_type_list).values())
 
 
 def fetch_bundle_changes(comparison_sha: str) -> list[BundleFileChange]:
@@ -214,7 +214,7 @@ def write_coverage_report_to_stdout(change_decisions: list[ChangeDecision]) -> N
                         "file": d.file.path,
                         "schema": d.file.schema,
                         "changed path": d.diff.path,
-                        "change type": ctx.change_type_processor.change_type.name,
+                        "change type": ctx.change_type_processor.name,
                         "context": ctx.context,
                         "disabled": str(ctx.disabled),
                     }

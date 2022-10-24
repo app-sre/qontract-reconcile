@@ -17,5 +17,8 @@ query ChangeTypes($name: String) {
         jsonPathSelectors
       }
     }
+    inherit {
+      name
+    }
   }
 }

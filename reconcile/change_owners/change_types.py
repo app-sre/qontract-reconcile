@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from collections import defaultdict
 from enum import Enum
-from typing import Any, Iterable, Optional, Tuple
+from typing import Any, Iterable, Optional, Sequence, Tuple
 
 
 import jsonpath_ng
@@ -9,7 +9,7 @@ import jsonpath_ng.ext
 import anymarkup
 import jinja2
 import jinja2.meta
-
+import networkx
 
 from reconcile.change_owners.diff import (
     SHA256SUM_FIELD_NAME,
@@ -20,6 +20,7 @@ from reconcile.change_owners.diff import (
 from reconcile.gql_definitions.change_owners.queries.change_types import (
     ChangeTypeV1,
     ChangeTypeChangeDetectorJsonPathProviderV1,
+    ChangeTypeChangeDetectorV1,
 )
 
 
@@ -61,7 +62,9 @@ class BundleFileChange:
     new: Optional[dict[str, Any]]
     diff_coverage: list[DiffCoverage]
 
-    def extract_context_file_refs(self, change_type: ChangeTypeV1) -> list[FileRef]:
+    def extract_context_file_refs(
+        self, change_type: "ChangeTypeProcessor"
+    ) -> list[FileRef]:
         """
         ChangeTypeV1 are attached to bundle files, react to changes within
         them and use their context to derive who can approve those changes.
@@ -313,10 +316,20 @@ class ChangeTypeProcessor:
     like computing the jsonpaths that are allowed to change in a file.
     """
 
-    change_type: ChangeTypeV1
-    expressions_by_file_type_schema: dict[
-        Tuple[BundleFileType, Optional[str]], list[PathExpression]
-    ]
+    name: str
+    context_type: BundleFileType
+    context_schema: Optional[str]
+    disabled: bool
+
+    def __post_init__(self):
+        self._expressions_by_file_type_schema: dict[
+            Tuple[BundleFileType, Optional[str]], list[PathExpression]
+        ] = defaultdict(list)
+        self._changes: list[ChangeTypeChangeDetectorV1] = []
+
+    @property
+    def changes(self) -> Sequence[ChangeTypeChangeDetectorV1]:
+        return self._changes
 
     def allowed_changed_paths(
         self, file_ref: FileRef, file_content: Any, ctx: "ChangeTypeContext"
@@ -330,8 +343,8 @@ class ChangeTypeProcessor:
         if (
             file_ref.file_type,
             file_ref.schema,
-        ) in self.expressions_by_file_type_schema:
-            for change_type_path_expression in self.expressions_by_file_type_schema[
+        ) in self._expressions_by_file_type_schema:
+            for change_type_path_expression in self._expressions_by_file_type_schema[
                 (file_ref.file_type, file_ref.schema)
             ]:
                 paths.extend(
@@ -344,33 +357,80 @@ class ChangeTypeProcessor:
                 )
         return paths
 
+    def add_change(self, change: ChangeTypeChangeDetectorV1) -> None:
+        self._changes.append(change)
+        if isinstance(change, ChangeTypeChangeDetectorJsonPathProviderV1):
+            change_schema = change.change_schema or self.context_schema
+            if change_schema:
+                for jsonpath_expression in change.json_path_selectors + [
+                    f"'{SHA256SUM_FIELD_NAME}'"
+                ]:
+                    self._expressions_by_file_type_schema[
+                        (self.context_type, change_schema)
+                    ].append(PathExpression(jsonpath_expression))
+        else:
+            raise ValueError(
+                f"{change.provider} is not a supported change detection provider within ChangeTypes"
+            )
+
 
 def build_change_type_processor(change_type: ChangeTypeV1) -> ChangeTypeProcessor:
     """
     Build a ChangeTypeProcessor from a ChangeTypeV1 and pre-initializing jsonpaths.
     """
-    expressions_by_file_type_schema: dict[
-        Tuple[BundleFileType, Optional[str]], list[PathExpression]
-    ] = defaultdict(list)
-    for c in change_type.changes:
-        if isinstance(c, ChangeTypeChangeDetectorJsonPathProviderV1):
-            change_schema = c.change_schema or change_type.context_schema
-            if change_schema:
-                for jsonpath_expression in c.json_path_selectors + [
-                    f"'{SHA256SUM_FIELD_NAME}'"
-                ]:
-                    file_type = BundleFileType[change_type.context_type.upper()]
-                    expressions_by_file_type_schema[(file_type, change_schema)].append(
-                        PathExpression(jsonpath_expression)
-                    )
-        else:
-            raise ValueError(
-                f"{c.provider} is not a supported change detection provider within ChangeTypes"
-            )
-    return ChangeTypeProcessor(
-        change_type=change_type,
-        expressions_by_file_type_schema=expressions_by_file_type_schema,
+    ctp = ChangeTypeProcessor(
+        name=change_type.name,
+        context_type=BundleFileType[change_type.context_type.upper()],
+        context_schema=change_type.context_schema,
+        disabled=bool(change_type.disabled),
     )
+    for change in change_type.changes:
+        ctp.add_change(change)
+    return ctp
+
+
+def init_change_type_processors(
+    change_types: Sequence[ChangeTypeV1],
+) -> dict[str, ChangeTypeProcessor]:
+    processors = {}
+    change_type_graph = networkx.DiGraph()
+    for change_type in change_types:
+        change_type_graph.add_node(change_type.name)
+        for i in change_type.inherit or []:
+            change_type_graph.add_edge(change_type.name, i.name)
+        processors[change_type.name] = build_change_type_processor(change_type)
+
+    # detect cycles
+    if cycles := list(networkx.simple_cycles(change_type_graph)):
+        raise ChangeTypeInheritanceCycleError(
+            "Cycles detected in change-type inheritance", cycles
+        )
+
+    # aggregate inherited changes
+    for ctp in processors.values():
+        for d in networkx.descendants(change_type_graph, ctp.name):
+            if ctp.context_type != processors[d].context_type:
+                raise ChangeTypeIncompatibleInheritanceError(
+                    f"change-type '{ctp.name}' inherits from '{d}' "
+                    "but has a different context_type"
+                )
+            if ctp.context_schema != processors[d].context_schema:
+                raise ChangeTypeIncompatibleInheritanceError(
+                    f"change-type '{ctp.name}' inherits from '{d}' "
+                    "but has a different context_schema"
+                )
+            for change in processors[d].changes:
+                ctp.add_change(change)
+
+    return processors
+
+
+class ChangeTypeIncompatibleInheritanceError(ValueError):
+    pass
+
+
+class ChangeTypeInheritanceCycleError(ValueError):
+    pass
 
 
 @dataclass
@@ -408,7 +468,7 @@ class ChangeTypeContext:
 
     @property
     def disabled(self) -> bool:
-        return bool(self.change_type_processor.change_type.disabled)
+        return self.change_type_processor.disabled
 
 
 JSON_PATH_ROOT = "$"

@@ -61,6 +61,7 @@ setup(
         "cryptography==36.0.2",
         "deepdiff6==6.2.0",
         "jsonpath-ng~=1.5",
+        "networkx~=2.8",
     ],
     test_suite="tests",
     classifiers=[
