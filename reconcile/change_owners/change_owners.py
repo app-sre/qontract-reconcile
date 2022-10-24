@@ -155,8 +155,8 @@ def manage_conditional_label(
 def get_approved_label_by_priority(change_type_processors: list[ChangeTypeProcessor]):
     priorities = [ctp.priority for ctp in change_type_processors]
     for p in reversed(ChangeTypePriority):
-        if p in priorities:
-            return f"{APPROVED}: {p}"
+        if p.value in priorities:
+            return f"{APPROVED}: {p.value}"
 
 
 def write_coverage_report_to_mr(
