@@ -318,6 +318,7 @@ class ChangeTypeProcessor:
     """
 
     name: str
+    priority: str
     context_type: BundleFileType
     context_schema: Optional[str]
     disabled: bool
@@ -380,6 +381,7 @@ def build_change_type_processor(change_type: ChangeTypeV1) -> ChangeTypeProcesso
     """
     ctp = ChangeTypeProcessor(
         name=change_type.name,
+        priority=change_type.priority,
         context_type=BundleFileType[change_type.context_type.upper()],
         context_schema=change_type.context_schema,
         disabled=bool(change_type.disabled),
