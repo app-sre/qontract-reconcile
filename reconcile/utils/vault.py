@@ -101,7 +101,7 @@ class _VaultClient:
         self._client.auth_approle(self.role_id, self.secret_id)
 
     @retry()
-    def read_all_version(self, secret) -> Tuple[dict, Optional[str]]:
+    def read_all_with_version(self, secret) -> Tuple[dict, Optional[str]]:
         """Returns a dictionary of keys and values in a Vault secret.
 
         The input secret is a dictionary which contains the following fields:

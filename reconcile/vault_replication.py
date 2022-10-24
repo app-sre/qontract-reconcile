@@ -45,7 +45,7 @@ def copy_secret(
     version: int,
     secret_dict: dict,
 ) -> None:
-    secret, version = source_vault.read_all_version(secret_dict)
+    secret, version = source_vault.read_all_with_version(secret_dict)
     write_dict = {"path": path, "data": secret}
     logging.info(["replicate_vault_secret", version, path])
     if not dry_run:
@@ -57,10 +57,10 @@ def copy_vault_secret(
 ) -> None:
 
     secret_dict = {"path": path, "version": "LATEST"}
-    _, version = source_vault.read_all_version(secret_dict)
+    _, version = source_vault.read_all_with_version(secret_dict)
 
     try:
-        _, dest_version = dest_vault.read_all_version(secret_dict)
+        _, dest_version = dest_vault.read_all_with_version(secret_dict)
         if dest_version is None and version is None:
             # Secret is a v1 and does not return version
             copy_secret(dry_run, source_vault, dest_vault, path, 1, secret_dict)
