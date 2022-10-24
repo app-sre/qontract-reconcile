@@ -75,10 +75,7 @@ def copy_vault_secret(
         deep_copy_versions(dry_run, source_vault, dest_vault, 0, version, path)
 
 
-def check_copy_secret_list(
-    dry_run: bool,
-    source_vault: _VaultClient,
-    dest_vault: _VaultClient,
+def check_invalid_paths(
     path_list: List[str],
     policy_paths: Optional[List[str]],
 ) -> None:
@@ -89,10 +86,15 @@ def check_copy_secret_list(
     if invalid_paths:
         logging.error(["replicate_vault_secret", "Invalid paths", invalid_paths])
         sys.exit(1)
-    else:
-        for path in path_list:
-            copy_vault_secret(dry_run, source_vault, dest_vault, path)
 
+def copy_vault_secrets(
+    dry_run: bool,
+    source_vault: _VaultClient,
+    dest_vault: _VaultClient,
+    path_list: List[str],
+) -> None:
+    for path in path_list:
+        copy_vault_secret(dry_run, source_vault, dest_vault, path)
 
 def list_invalid_paths(path_list: List[str], policy_paths: List[str]) -> List[str]:
     invalid_paths = []
@@ -191,9 +193,8 @@ def replicate_paths(
                 policy_paths = None
 
             path_list = get_jenkins_secret_list(path.jenkins_instance.name)
-            check_copy_secret_list(
-                dry_run, source_vault, dest_vault, path_list, policy_paths
-            )
+            check_invalid_paths(path_list, policy_paths)
+            copy_vault_secrets(dry_run, source_vault, dest_vault, path_list)
 
 
 def run(dry_run: bool) -> None:
