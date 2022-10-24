@@ -310,6 +310,22 @@ def account_name(function):
     return function
 
 
+def workspace_name(function):
+    function = click.option(
+        "--workspace-name", help="slack workspace name to act on.", default=None
+    )(function)
+
+    return function
+
+
+def usergroup_name(function):
+    function = click.option(
+        "--usergroup-name", help="slack usergroup name to act on.", default=None
+    )(function)
+
+    return function
+
+
 def gitlab_project_id(function):
     function = click.option(
         "--gitlab-project-id",
@@ -831,11 +847,18 @@ def openshift_upgrade_watcher(ctx, thread_pool_size, internal, use_jump_host):
 
 
 @integration.command(short_help="Manage Slack User Groups (channels and users).")
+@workspace_name
+@usergroup_name
 @click.pass_context
-def slack_usergroups(ctx):
+def slack_usergroups(ctx, workspace_name, usergroup_name):
     import reconcile.slack_usergroups
 
-    run_integration(reconcile.slack_usergroups, ctx.obj)
+    run_integration(
+        reconcile.slack_usergroups,
+        ctx.obj,
+        workspace_name,
+        usergroup_name,
+    )
 
 
 @integration.command(

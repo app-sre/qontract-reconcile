@@ -13,10 +13,10 @@ from pygments.formatters.terminal256 import (
 )
 import jsonpath_ng
 
+from reconcile.change_owners.change_owners import fetch_change_type_processors
 from reconcile.change_owners.change_types import (
     BundleFileChange,
     ChangeTypeProcessor,
-    build_change_type_processor,
     parse_resource_file_content,
     FileRef,
     BundleFileType,
@@ -26,7 +26,6 @@ from reconcile.change_owners.self_service_roles import (
 )
 from reconcile.gql_definitions.change_owners.queries.self_service_roles import RoleV1
 from reconcile.gql_definitions.change_owners.queries import (
-    change_types,
     self_service_roles,
 )
 
@@ -118,20 +117,17 @@ class AppInterfaceRepo:
     ) -> list[BundleFileChange]:
         bundle_files = []
         processed_schemas = set()
-        for c in ctp.change_type.changes:
+        for c in ctp.changes:
             if (
                 c.change_schema
-                and c.change_schema != ctp.change_type.context_schema
+                and c.change_schema != ctp.context_schema
                 and c.change_schema not in processed_schemas
             ):
                 # the changes can happen in other files, not the one related
                 # under RoleV1.self_service
                 bundle_files.extend(self.bundle_files_with_schemas(c.change_schema))
                 processed_schemas.add(c.change_schema)
-            elif (
-                c.change_schema is None
-                or c.change_schema == ctp.change_type.context_schema
-            ):
+            elif c.change_schema is None or c.change_schema == ctp.context_schema:
                 # the change happens in the self_service related files
                 for ssc in role.self_service or []:
                     for df in ssc.datafiles or []:
@@ -217,13 +213,8 @@ class SelfServiceableHighlighter(Filter):
 def get_changetype_processor_by_name(
     change_type_name: str,
 ) -> Optional[ChangeTypeProcessor]:
-    result = change_types.query(
-        gql.get_api().query, variables={"name": change_type_name}
-    ).change_types
-    if result:
-        return build_change_type_processor(result[0])
-    else:
-        return None
+    processors = fetch_change_type_processors(gql.get_api())
+    return next((p for p in processors if p.name == change_type_name), None)
 
 
 def get_self_service_role_by_name(

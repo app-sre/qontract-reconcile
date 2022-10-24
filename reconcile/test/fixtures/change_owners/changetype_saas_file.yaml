@@ -5,6 +5,8 @@ contextSchema: /app-sre/saas-file-2.yml
 
 disabled: false
 
+inherit: null
+
 changes:
 - provider: jsonPath
   jsonPathSelectors:
