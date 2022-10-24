@@ -89,7 +89,8 @@ def act(dry_run, diffs, ocm_map):
 def _cluster_is_compatible(cluster: Mapping[str, Any]) -> bool:
 
     return (
-        cluster["spec"]["product"] in SUPPORTED_OCM_PRODUCTS
+        cluster.get("ocm") is not None
+        and cluster["spec"]["product"] in SUPPORTED_OCM_PRODUCTS
         and cluster.get("additionalRouters") is not None
     )
 

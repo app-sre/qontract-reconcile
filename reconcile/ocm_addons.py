@@ -94,7 +94,7 @@ def act(dry_run, diffs, ocm_map):
 
 
 def _cluster_is_compatible(cluster: Mapping[str, Any]) -> bool:
-    return cluster.get("addons") is not None
+    return cluster.get("ocm") is not None and cluster.get("addons") is not None
 
 
 def run(dry_run, gitlab_project_id=None, thread_pool_size=10):

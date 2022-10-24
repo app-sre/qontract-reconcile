@@ -1,15 +1,21 @@
 gql_response:
   - name: cluster1
+    ocm:
+      name: ocm-production
     spec:
       product: osd
     additionalRouters:
     - private: True
   - name: cluster2
+    ocm:
+      name: ocm-production
     spec:
       product: osd
     additionalRouters:
     - private: False
   - name: cluster3
+    ocm:
+      name: ocm-production
     spec:
       product: osd
     additionalRouters:
@@ -18,6 +24,8 @@ gql_response:
   - name: cluster4
     spec:
       product: osd
+    ocm:
+      name: ocm-production
     additionalRouters: []
 
 desired_state:
