@@ -1,10 +1,13 @@
 import sys
 import logging
 import json
+from typing import Any, Mapping
 
 from reconcile import queries
 
 from reconcile.utils.ocm import OCMMap
+from reconcile.ocm.utils import cluster_disabled_integrations
+
 
 QONTRACT_INTEGRATION = "ocm-machine-pools"
 
@@ -111,9 +114,18 @@ def act(dry_run, diffs, ocm_map):
                 ocm.delete_machine_pool(cluster, diff)
 
 
+def _cluster_is_compatible(cluster: Mapping[str, Any]) -> bool:
+    return cluster.get("ocm") is not None and cluster.get("machinePools") is not None
+
+
 def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
     clusters = queries.get_clusters()
-    clusters = [c for c in clusters if c.get("machinePools") is not None]
+    clusters = [
+        c
+        for c in clusters
+        if QONTRACT_INTEGRATION not in cluster_disabled_integrations(c)
+        and _cluster_is_compatible(c)
+    ]
     if not clusters:
         logging.debug("No machinePools definitions found in app-interface")
         sys.exit(0)

@@ -1,28 +1,26 @@
 import logging
+import sys
+from typing import Any, Mapping
 from reconcile.utils.external_resources import PROVIDER_AWS, get_external_resource_specs
 
 from reconcile.utils import gql
 from reconcile import queries
+from reconcile.status import ExitCodes
 
 from reconcile.utils.ocm import OCM_PRODUCT_OSD, STATUS_DELETING, STATUS_FAILED, OCMMap
+from reconcile.ocm.utils import cluster_disabled_integrations
 from reconcile.terraform_resources import TF_NAMESPACES_QUERY
 
 QONTRACT_INTEGRATION = "ocm-aws-infrastructure-access"
 SUPPORTED_OCM_PRODUCTS = [OCM_PRODUCT_OSD]
 
 
-def fetch_current_state():
+def fetch_current_state(clusters):
     current_state = []
     current_failed = []
     current_deleting = []
     settings = queries.get_app_interface_settings()
-    # Temporary solution to exclude Non-OSD clusters. This will be improved
-    # in the milestone 2 of the ROSA support initiative.
-    clusters = [
-        c
-        for c in queries.get_clusters()
-        if c.get("ocm") is not None and c["spec"]["product"] in SUPPORTED_OCM_PRODUCTS
-    ]
+
     ocm_map = OCMMap(
         clusters=clusters, integration=QONTRACT_INTEGRATION, settings=settings
     )
@@ -172,8 +170,29 @@ def act(
             )
 
 
+def _cluster_is_compatible(cluster: Mapping[str, Any]) -> bool:
+    return (
+        cluster.get("ocm") is not None
+        and cluster["spec"]["product"] in SUPPORTED_OCM_PRODUCTS
+    )
+
+
 def run(dry_run):
-    ocm_map, current_state, current_failed, current_deleting = fetch_current_state()
+    clusters = [
+        c
+        for c in queries.get_clusters()
+        if QONTRACT_INTEGRATION not in cluster_disabled_integrations(c)
+        and _cluster_is_compatible(c)
+    ]
+    if not clusters:
+        logging.debug(
+            "No OCM Aws infrastructure access definitions found in app-interface"
+        )
+        sys.exit(ExitCodes.SUCCESS)
+
+    ocm_map, current_state, current_failed, current_deleting = fetch_current_state(
+        clusters
+    )
     desired_state = fetch_desired_state()
     act(
         dry_run, ocm_map, current_state, current_failed, desired_state, current_deleting
