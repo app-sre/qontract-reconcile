@@ -1,5 +1,6 @@
 import logging
 import re
+import sys
 
 from reconcile.utils.vault import VaultClient, _VaultClient, SecretNotFound
 from reconcile.gql_definitions.jenkins_configs import jenkins_configs
@@ -88,6 +89,7 @@ def check_copy_secret_list(
         invalid_paths = list_invalid_paths(path_list, policy_paths)
     if invalid_paths:
         logging.error(["replicate_vault_secret", "Invalid paths", invalid_paths])
+        sys.exit(1)
     else:
         for path in path_list:
             copy_vault_secret(dry_run, source_vault, dest_vault, path)
