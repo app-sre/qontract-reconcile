@@ -15,6 +15,14 @@ def aws_api():
     return create_autospec(AWSApi)
 
 
+@pytest.fixture
+def tf(aws_api):
+    account = {"name": "a1", "deletionApprovals": []}
+    return tfclient.TerraformClient(
+        "integ", "v1", "integ_pfx", [account], {}, 1, aws_api
+    )
+
+
 def test_no_deletion_approvals(aws_api):
     account = {"name": "a1", "deletionApprovals": []}
     tf = tfclient.TerraformClient("integ", "v1", "integ_pfx", [account], {}, 1, aws_api)
@@ -210,3 +218,36 @@ def test_populate_terraform_output_secret_with_replica_credentials():
     assert replica.get_secret_field("key") == "value"
     assert replica.get_secret_field("db.user") == "user"
     assert replica.get_secret_field("db.password") == "password"
+
+
+def test__resource_diff_changed_fields(tf):
+    changed = tf._resource_diff_changed_fields(
+        "update",
+        {
+            "before": {"a": 1, "c": None},
+            "after": {"a": 2, "b": "foo", "c": 1},
+        },
+    )
+
+    assert changed == {"a", "b", "c"}
+
+    changed = tf._resource_diff_changed_fields(
+        "update",
+        {"after": {"field": 1}},
+    )
+
+    assert changed == {"field"}
+
+    changed = tf._resource_diff_changed_fields(
+        "update",
+        {"before": {"field": 1}},
+    )
+
+    assert changed == {"field"}
+
+    changed = tf._resource_diff_changed_fields(
+        "create",
+        {"before": {"field": 1}},
+    )
+
+    assert changed == set()

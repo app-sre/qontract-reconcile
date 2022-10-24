@@ -166,8 +166,44 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         )
         return disabled_deletion_detected, created_users, error
 
+    @staticmethod
+    def _resource_diff_changed_fields(
+        action: str, change: Mapping[str, Any]
+    ) -> set[str]:
+        if action != "update":
+            return set()
+
+        before = change.get("before", {})
+        if not before:
+            before = {}
+        after = change.get("after", {})
+        if not after:
+            after = {}
+
+        keys = set(before)
+        keys.update(set(after))
+
+        changed_fields = set()
+
+        for k in keys:
+            # JSON format is subject of change, adding try catch to make sure
+            # key errors do not crash integration
+            try:
+                if k in before and k not in after:
+                    # computed value
+                    changed_fields.add(k)
+                elif before.get(k, "") != after.get(k, ""):
+                    # changed value
+                    changed_fields.add(k)
+            except KeyError:
+                logging.error("Key error in _resource_diff_changed_fields, key: %s", k)
+        return changed_fields
+
     def log_plan_diff(
-        self, name: str, tf: Terraform, enable_deletion: bool
+        self,
+        name: str,
+        tf: Terraform,
+        enable_deletion: bool,
     ) -> tuple[bool, list]:
         disabled_deletion_detected = False
         account_enable_deletion = self.accounts[name].get("enableDeletion") or False
@@ -245,7 +281,15 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
                     )
                     continue
                 with self._log_lock:
-                    logging.info([action, name, resource_type, resource_name])
+                    logging.info(
+                        [
+                            action,
+                            name,
+                            resource_type,
+                            resource_name,
+                            self._resource_diff_changed_fields(action, resource_change),
+                        ]
+                    )
                     self.should_apply = True
                 if action == "create":
                     if resource_type == "aws_iam_user_login_profile":
