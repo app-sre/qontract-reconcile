@@ -20,6 +20,7 @@ from reconcile.utils.semver_helper import make_semver
 from reconcile.change_owners.change_types import (
     BundleFileChange,
     BundleFileType,
+    ChangeTypePriority,
     ChangeTypeProcessor,
     create_bundle_file_change,
     init_change_type_processors,
@@ -149,6 +150,13 @@ def manage_conditional_label(
                 new_labels.append(false_label)
             logging.info(f"adding label {false_label}")
     return new_labels
+
+
+def get_approved_label_by_priority(change_type_processors: list[ChangeTypeProcessor]):
+    priorities = [ctp.priority for ctp in change_type_processors]
+    for p in reversed(ChangeTypePriority):
+        if p in priorities:
+            return f"{APPROVED}: {p}"
 
 
 def write_coverage_report_to_mr(
@@ -370,7 +378,7 @@ def run(
         labels = manage_conditional_label(
             labels=labels,
             condition=self_serviceable and approved,
-            true_label=APPROVED,
+            true_label=get_approved_label_by_priority(change_type_processors),
             dry_run=not mr_management_enabled,
         )
         gl.set_labels_on_merge_request(gitlab_merge_request_id, labels)
