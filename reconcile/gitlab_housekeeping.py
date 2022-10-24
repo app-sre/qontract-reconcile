@@ -13,6 +13,11 @@ from reconcile import queries
 
 from reconcile.utils.gitlab_api import GitLabApi, MRState, MRStatus
 from reconcile.utils.mr.labels import (
+    APPROVED_CRITICAL,
+    APPROVED_URGENT,
+    APPROVED_HIGH,
+    APPROVED_MEDIUM,
+    APPROVED_LOW,
     APPROVED,
     AUTO_MERGE,
     AWAITING_APPROVAL,
@@ -26,7 +31,16 @@ from reconcile.utils.mr.labels import (
     SELF_SERVICEABLE,
 )
 
-MERGE_LABELS_PRIORITY = [APPROVED, AUTO_MERGE, LGTM]
+MERGE_LABELS_PRIORITY = [
+    APPROVED_CRITICAL,
+    APPROVED_URGENT,
+    APPROVED_HIGH,
+    APPROVED_MEDIUM,
+    APPROVED_LOW,
+    APPROVED,
+    AUTO_MERGE,
+    LGTM,
+]
 HOLD_LABELS = [
     AWAITING_APPROVAL,
     BLOCKED_BOT_ACCESS,
