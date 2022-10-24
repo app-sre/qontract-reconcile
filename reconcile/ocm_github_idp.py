@@ -1,10 +1,13 @@
 import sys
 import logging
+from typing import Any, Mapping
 
 from reconcile import queries
 
 from reconcile.utils.ocm import OCMMap
 from reconcile.utils.secret_reader import SecretReader
+from reconcile.status import ExitCodes
+from reconcile.ocm.utils import cluster_disabled_integrations
 
 QONTRACT_INTEGRATION = "ocm-github-idp"
 
@@ -78,6 +81,10 @@ def act(dry_run, ocm_map, current_state, desired_state):
             ocm.create_github_idp_teams(item)
 
 
+def _cluster_is_compatible(cluster: Mapping[str, Any]) -> bool:
+    return cluster.get("ocm") is not None and cluster.get("auth") is not None
+
+
 def run(dry_run, vault_input_path=""):
     if not vault_input_path:
         logging.error("must supply vault input path")
@@ -86,8 +93,13 @@ def run(dry_run, vault_input_path=""):
     clusters = [
         c
         for c in queries.get_clusters()
-        if c.get("ocm") is not None and c.get("auth") is not None
+        if QONTRACT_INTEGRATION not in cluster_disabled_integrations(c)
+        and _cluster_is_compatible(c)
     ]
+    if not clusters:
+        logging.debug("No github-idp definitions found in app-interface")
+        sys.exit(ExitCodes.SUCCESS)
+
     ocm_map, current_state = fetch_current_state(clusters, settings)
     desired_state, error = fetch_desired_state(clusters, vault_input_path, settings)
     if error:
