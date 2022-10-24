@@ -35,7 +35,7 @@ def deep_copy_versions(
 ):
     for version in range(current_dest_version + 1, current_source_version + 1):
         secret_dict = {"path": path, "version": version}
-        copy_secret(dry_run, source_vault, dest_vault, path, version, secret_dict)
+        copy_secret(dry_run, source_vault, dest_vault, path, secret_dict)
 
 
 def copy_secret(
@@ -43,12 +43,11 @@ def copy_secret(
     source_vault: _VaultClient,
     dest_vault: _VaultClient,
     path: str,
-    version: int,
     secret_dict: dict,
 ) -> None:
-    secret, version = source_vault.read_all_with_version(secret_dict)
+    secret, src_version = source_vault.read_all_with_version(secret_dict)
     write_dict = {"path": path, "data": secret}
-    logging.info(["replicate_vault_secret", version, path])
+    logging.info(["replicate_vault_secret", src_version, path])
     if not dry_run:
         dest_vault.write(write_dict)
 
@@ -63,8 +62,8 @@ def copy_vault_secret(
     try:
         _, dest_version = dest_vault.read_all_with_version(secret_dict)
         if dest_version is None and version is None:
-            # Secret is a v1 and does not return version
-            copy_secret(dry_run, source_vault, dest_vault, path, 1, secret_dict)
+            # v1 secrets don't have version
+            copy_secret(dry_run, source_vault, dest_vault, path, secret_dict)
         elif dest_version < version:
             deep_copy_versions(
                 dry_run, source_vault, dest_vault, dest_version, version, path
