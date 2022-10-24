@@ -122,7 +122,7 @@ def get_policy_paths(policy_name, instance_name) -> List[str]:
             and policy.instance.name == instance_name
         ):
             for line in policy.rules.split("\n"):
-                res = re.search(r"path \s*[\'\"](.*)[\'\"]", line)
+                res = re.search(r"path \s*[\'\"](.+)[\'\"]", line)
 
                 if res is not None:
                     policy_paths.append(res.group(1))
@@ -146,7 +146,7 @@ def get_jenkins_secret_list(jenkins_instance: str) -> List[str]:
                 if "secret-path" in line
             ]
             for line in secret_paths:
-                res = re.search(r"secret-path:\s*[\'\"](.*)[\'\"]", line).group(1)
+                res = re.search(r"secret-path:\s*[\'\"](.+)[\'\"]", line).group(1)
                 secret_list.append(res)
 
     return secret_list
