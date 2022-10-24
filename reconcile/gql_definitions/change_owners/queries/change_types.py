@@ -20,6 +20,7 @@ DEFINITION = """
 query ChangeTypes($name: String) {
   change_types: change_types_v1(name: $name) {
     name
+    priority
     contextType
     contextSchema
     disabled
@@ -81,6 +82,7 @@ class ChangeTypeV1_ChangeTypeV1(BaseModel):
 
 class ChangeTypeV1(BaseModel):
     name: str = Field(..., alias="name")
+    priority: str = Field(..., alias="priority")
     context_type: str = Field(..., alias="contextType")
     context_schema: Optional[str] = Field(..., alias="contextSchema")
     disabled: Optional[bool] = Field(..., alias="disabled")
