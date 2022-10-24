@@ -135,21 +135,7 @@ class _VaultClient:
         * version (optional) - secret version to read (if this is
                                a v2 KV engine)
         """
-        secret_path = secret["path"]
-        secret_version = secret.get("version")
-
-        kv_version = self._get_mount_version_by_secret_path(secret_path)
-
-        data = None
-        if kv_version == 2:
-            data, _ = self._read_all_v2(secret_path, secret_version)
-        else:
-            data = self._read_all_v1(secret_path)
-
-        if data is None:
-            raise SecretNotFound
-
-        return data
+        return self.read_all_with_version(secret)[0]
 
     def _get_mount_version_by_secret_path(self, path):
         path_split = path.split("/")
