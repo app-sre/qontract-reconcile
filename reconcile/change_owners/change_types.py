@@ -29,6 +29,14 @@ class BundleFileType(Enum):
     RESOURCEFILE = "resourcefile"
 
 
+class ChangeTypePriority(Enum):
+    CRITICAL = "critical"
+    URGENT = "urgent"
+    HIGH = "high"
+    MEDIUM = "medium"
+    LOW = "low"
+
+
 @dataclass(frozen=True)
 class FileRef:
     file_type: BundleFileType
