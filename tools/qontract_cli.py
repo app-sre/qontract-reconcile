@@ -289,12 +289,21 @@ def cluster_upgrade_policies(
     def soaking_str(soaking, upgrade_policy, upgradeable_version):
         upgrade_version = upgrade_policy.get("version")
         upgrade_next_run = upgrade_policy.get("next_run")
+        upgrade_emoji = "💫"
+        if upgrade_next_run:
+            dt = datetime.strptime(upgrade_next_run, "%Y-%m-%dT%H:%M:%SZ")
+            now = datetime.utcnow()
+            if dt > now:
+                upgrade_emoji = "⏰"
+            hours_ago = (now - dt).total_seconds() / 3600
+            if hours_ago > 6:  # 6 hours
+                upgrade_emoji = "💫 - started {hours_ago:.1f}h ago❗️"
         sorted_soaking = sorted(soaking.items(), key=lambda x: parse_semver(x[0]))
         if md_output:
             for i, data in enumerate(sorted_soaking):
                 v, s = data
                 if v == upgrade_version:
-                    sorted_soaking[i] = (v, f'{s} [💫](a "{upgrade_next_run}")')
+                    sorted_soaking[i] = (v, f"{s} {upgrade_emoji}")
                 elif v == upgradeable_version:
                     sorted_soaking[i] = (v, f"{s} 🎉")
         return ", ".join([f"{v} ({s})" for v, s in sorted_soaking])
@@ -395,9 +404,12 @@ upgrade.
 for that cluster. The number in parenthesis shows the number of days this
 version has been running on other clusters with the same workloads. By
 comparing with the `soak_days` columns, you can see when a version is close to
-be upgraded to. A 🎉 sign is displayed for versions which have soaked
-enough and are ready to be upgraded to. A 💫 sign is displayed for versions
-which are scheduled or being upgraded to.
+be upgraded to.
+  * A 🎉 is displayed for versions which have soaked enough and are ready to be
+upgraded to.
+  * A ⏰ is displayed for versions scheduled to be upgraded to.
+  * A 💫 is displayed for versions which are being upgraded to. Upgrades taking
+more than 6 hours will be highlighted.
 
 ```json:table
 {}
