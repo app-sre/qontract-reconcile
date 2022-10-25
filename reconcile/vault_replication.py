@@ -35,7 +35,13 @@ def deep_copy_versions(
 ):
     for version in range(current_dest_version + 1, current_source_version + 1):
         secret_dict = {"path": path, "version": version}
-        copy_secret(dry_run, source_vault, dest_vault, path, secret_dict)
+        copy_secret(
+            dry_run=dry_run,
+            source_vault=source_vault,
+            dest_vault=dest_vault,
+            path=path,
+            secret_dict=secret_dict,
+        )
 
 
 def copy_secret(
@@ -63,16 +69,34 @@ def copy_vault_secret(
         _, dest_version = dest_vault.read_all_with_version(secret_dict)
         if dest_version is None and version is None:
             # v1 secrets don't have version
-            copy_secret(dry_run, source_vault, dest_vault, path, secret_dict)
+            copy_secret(
+                dry_run=dry_run,
+                source_vault=source_vault,
+                dest_vault=dest_vault,
+                path=path,
+                secret_dict=secret_dict,
+            )
         elif dest_version < version:
             deep_copy_versions(
-                dry_run, source_vault, dest_vault, dest_version, version, path
+                dry_run=dry_run,
+                source_vault=source_vault,
+                dest_vault=dest_vault,
+                current_dest_version=dest_version,
+                current_source_version=version,
+                path=path,
             )
         else:
             logging.info(["replicate_vault_secret", dest_version, version, path])
     except SecretNotFound:
         logging.info(["replicate_vault_secret", "Secret not found", path])
-        deep_copy_versions(dry_run, source_vault, dest_vault, 0, version, path)
+        deep_copy_versions(
+            dry_run=dry_run,
+            source_vault=source_vault,
+            dest_vault=dest_vault,
+            current_dest_version=0,
+            current_source_version=version,
+            path=path,
+        )
 
 
 def check_invalid_paths(
@@ -87,6 +111,7 @@ def check_invalid_paths(
         logging.error(["replicate_vault_secret", "Invalid paths", invalid_paths])
         sys.exit(1)
 
+
 def copy_vault_secrets(
     dry_run: bool,
     source_vault: _VaultClient,
@@ -95,6 +120,7 @@ def copy_vault_secrets(
 ) -> None:
     for path in path_list:
         copy_vault_secret(dry_run, source_vault, dest_vault, path)
+
 
 def list_invalid_paths(path_list: List[str], policy_paths: List[str]) -> List[str]:
     invalid_paths = []
@@ -224,4 +250,9 @@ def run(dry_run: bool) -> None:
                     ),
                 )
 
-            replicate_paths(dry_run, source_vault, dest_vault, replication)
+            replicate_paths(
+                dry_run=dry_run,
+                source_vault=source_vault,
+                dest_vault=dest_vault,
+                replications=replication,
+            )
