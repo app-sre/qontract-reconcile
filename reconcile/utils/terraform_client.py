@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from collections import defaultdict
 from threading import Lock
 from dataclasses import dataclass
-from typing import Iterable, Mapping, Any, Optional
+from typing import Iterable, Mapping, Any, Optional, cast
 
 from python_terraform import Terraform, IsFlagged, TerraformCommandError
 from sretoolbox.utils import retry
@@ -21,6 +21,8 @@ from reconcile.utils.external_resource_spec import (
 import reconcile.utils.lean_terraform_client as lean_tf
 
 from reconcile.utils.aws_api import AWSApi
+
+from botocore.errorfactory import ClientError
 
 ALLOWED_TF_SHOW_FORMAT_VERSION = "0.1"
 DATE_FORMAT = "%Y-%m-%d"
@@ -270,14 +272,13 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
                 if (
                     action == "update"
                     and resource_type == "aws_db_instance"
-                    and self._is_ignored_rds_modification(
+                    and self._can_skip_rds_modifications(
                         name, resource_name, resource_change
                     )
                 ):
                     logging.debug(
-                        f"Not setting should_apply for {resource_name} because the "
-                        f"only change is EngineVersion and that setting is in "
-                        f"PendingModifiedValues"
+                        f"Resource {resource_name} contains pending changes that "
+                        f"can be skipped, should_apply will not be set."
                     )
                     continue
                 with self._log_lock:
@@ -575,34 +576,97 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         for _, wd in self.working_dirs.items():
             shutil.rmtree(wd)
 
-    def _is_ignored_rds_modification(
+    def _can_skip_rds_modifications(
         self, account_name: str, resource_name: str, resource_change: Mapping[str, Any]
     ) -> bool:
+        """Skip pending RDS modifications.
+
+        Determine whether the RDS resource has pending modifications to the
+        underlying database instance that can be skipped at this time.  If the
+        apply_immediately property of the resource has not been set, then any
+        pending changes will be automatically applied during next scheduled
+        maintenance window.
+
+        :param str account_name: Name of the AWS account.
+        :param str resource_name: Name of the RDS database instance.  This is the
+            unique database instance identifier.
+        :param resource_change: A dict that describes changes pending, before
+            and after, for the underlying resource.  Format of the data follows
+            Terraform's JSON-formatted output specification, see:
+              https://developer.hashicorp.com/terraform/internals/json-format
+        :type resource_changes: typing.Mapping[str, Any]
+        :returns: A bool to indicate that any pending modifications to an RDS
+            database instance are safe to ignore and a Terraform apply should be
+            skipped for the underlying resource.
+        :rtype: bool
         """
-        Determine whether the RDS resource changes are cases where a terraform apply
-        should be skipped.
-        """
+        # A commonly changed RDS database settings that can be applied either
+        # immediately or during the next scheduled maintenance window, see:
+        #  https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Overview.DBInstance.Modifying.html#USER_ModifyInstance.Settings
+        #
+        # Note that changing the RDS database identifier (the database name) is
+        # a complex operation that also involves Terraform performing a resource
+        # replacement and thus it's not included here, see:
+        #   https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_RenameInstance.html
+        allowed_modifications: dict[str, str] = {
+            "engine_version": "EngineVersion",
+            "storage_type": "StorageType",
+            "allocated_storage": "AllocatedStorage",
+            "instance_class": "DBInstanceClass",
+            "multi_az": "MultiAZ",
+            "iops": "Iops",
+        }
         before = resource_change["before"]
         after = resource_change["after"]
-        changed_terraform_args = [
+        changed_resource_arguments = [
             key for key, value in before.items() if value != after.get(key)
         ]
-        if (
-            len(changed_terraform_args) == 1
-            and "engine_version" in changed_terraform_args
-            and self._aws_api is not None
-        ):
+        logging.debug(
+            f"Resource {resource_name} changes in Terraform: {changed_resource_arguments}"
+        )
+        if changed_resource_arguments and self._aws_api is not None:
             region_name = get_region_from_availability_zone(before["availability_zone"])
-            response = self._aws_api.describe_rds_db_instance(
-                account_name, resource_name, region_name=region_name
-            )
-            pending_modified_values = response["DBInstances"][0][
+            try:
+                response = self._aws_api.describe_rds_db_instance(
+                    account_name, resource_name, region_name=region_name
+                )
+            except ClientError as e:
+                # The RDS database might have been already removed, or there was
+                # a resource name change, and we no longer use valid references.
+                # There is no need to delay apply.
+                if e.response.get("Error", {}).get("Code") == "DBInstanceNotFound":
+                    logging.debug(f"Resource does not exist: {resource_name}")
+                    return False
+                else:
+                    raise
+            pending_modified_values = response["DBInstances"][0].get(
                 "PendingModifiedValues"
-            ]
-            if (
-                "EngineVersion" in pending_modified_values
-                and pending_modified_values["EngineVersion"]
-                == resource_change["after"]["engine_version"]
-            ):
-                return True
-        return False
+            )
+            logging.debug(
+                f"Resource {resource_name} changes in AWS: {pending_modified_values}"
+            )
+            # The PendingModifiedValues attribute might not be included as part
+            # of the RDS database instance object. However, we expect it to be
+            # included here, especially since, at this point, Terraform also
+            # claims a pending change for the underlying resource. Thus if we
+            # can't agree on AWS API vs Terraform state, then perhaps changes
+            # have already been applied.
+            if not pending_modified_values:
+                return False
+            changed_values: list[str] = []
+            for argument in changed_resource_arguments:
+                # We skip anything that is not safe to leave as pending.
+                value = allowed_modifications.get(argument)
+                if (
+                    value in pending_modified_values
+                    and cast(dict[str, str], pending_modified_values)[value]
+                    == after[argument]
+                ):
+                    changed_values.append(argument)
+            # A change to the resource on Terraform's side without being reflected
+            # on the AWS' side should not delay the apply, so that a new change to
+            # the underlying resource can be scheduled and added to the set of
+            # pending changes.
+            return not set(changed_resource_arguments) - set(changed_values)
+        else:
+            return False

@@ -9,6 +9,12 @@ from reconcile.utils.external_resource_spec import (
 import reconcile.utils.terraform_client as tfclient
 from reconcile.utils.aws_api import AWSApi
 
+from botocore.errorfactory import ClientError
+
+from logging import DEBUG
+
+from operator import itemgetter
+
 
 @pytest.fixture
 def aws_api():
@@ -23,9 +29,7 @@ def tf(aws_api):
     )
 
 
-def test_no_deletion_approvals(aws_api):
-    account = {"name": "a1", "deletionApprovals": []}
-    tf = tfclient.TerraformClient("integ", "v1", "integ_pfx", [account], {}, 1, aws_api)
+def test_no_deletion_approvals(tf):
     result = tf.deletion_approved("a1", "t1", "n1")
     assert result is False
 
@@ -251,3 +255,212 @@ def test__resource_diff_changed_fields(tf):
     )
 
     assert changed == set()
+
+
+@pytest.mark.parametrize(
+    "before,after,response,expected",
+    [
+        pytest.param(
+            {},
+            {},
+            {},
+            False,
+            id="should return false with no data",
+        ),
+        pytest.param(
+            {
+                "availability_zone": "us-east-1a",
+                "allocated_storage": "100",
+            },
+            {
+                "availability_zone": "us-east-1a",
+                "allocated_storage": "100",
+            },
+            {},
+            False,
+            id="should return false with identical before and after",
+        ),
+        pytest.param(
+            {
+                "availability_zone": "us-east-1a",
+                "allocated_storage": 100,
+            },
+            {
+                "availability_zone": "us-east-1a",
+                "allocated_storage": 200,
+            },
+            {"DBInstances": [{}]},
+            False,
+            id="should return false with no database instance",
+        ),
+        pytest.param(
+            {
+                "availability_zone": "us-east-1a",
+                "allocated_storage": 100,
+            },
+            {
+                "availability_zone": "us-east-1a",
+                "allocated_storage": 200,
+            },
+            {"DBInstances": [{"PendingModifiedValues": {}}]},
+            False,
+            id="should return false for database instance without pending changes",
+        ),
+        pytest.param(
+            {
+                "availability_zone": "us-east-1a",
+                "apply_immediately": True,
+            },
+            {
+                "availability_zone": "us-east-1a",
+                "apply_immediately": False,
+            },
+            {
+                "DBInstances": [
+                    {
+                        "PendingModifiedValues": {
+                            "AllocatedStorage": 200,
+                        }
+                    }
+                ]
+            },
+            False,
+            id="should return false with data that does not match",
+        ),
+        pytest.param(
+            {
+                "availability_zone": "us-east-1a",
+                "allocated_storage": 100,
+            },
+            {
+                "availability_zone": "us-east-1a",
+                "allocated_storage": 200,
+            },
+            {
+                "DBInstances": [
+                    {
+                        "PendingModifiedValues": {
+                            "AllocatedStorage": 100,
+                        }
+                    }
+                ]
+            },
+            False,
+            id="should return false with data that is old",
+        ),
+        pytest.param(
+            {
+                "availability_zone": "us-east-1a",
+                "apply_immediately": False,
+                "allocated_storage": 100,
+            },
+            {
+                "availability_zone": "us-east-1a",
+                "apply_immediately": True,
+                "allocated_storage": 200,
+            },
+            {
+                "DBInstances": [
+                    {
+                        "PendingModifiedValues": {
+                            "AllocatedStorage": 200,
+                        }
+                    }
+                ]
+            },
+            False,
+            id="should return false with attribute that is not allowed",
+        ),
+        pytest.param(
+            {
+                "availability_zone": "us-east-1a",
+                "allocated_storage": 100,
+                "engine_version": "11.13",
+            },
+            {
+                "availability_zone": "us-east-1a",
+                "allocated_storage": 200,
+                "engine_version": "11.14",
+            },
+            {
+                "DBInstances": [
+                    {
+                        "PendingModifiedValues": {
+                            "AllocatedStorage": 200,
+                            "EngineVersion": "11.14",
+                        }
+                    }
+                ]
+            },
+            True,
+            id="should return true with valid data that matches",
+        ),
+    ],
+)
+def test__can_skip_rds_modifications(aws_api, tf, before, after, response, expected):
+    aws_api.describe_rds_db_instance.return_value = response
+
+    actual = tf._can_skip_rds_modifications(
+        account_name="a1",
+        resource_name="test-database-1",
+        resource_change={"before": before, "after": after},
+    )
+
+    assert actual == expected
+
+
+def test__can_skip_rds_modifications_with_client_error(aws_api, tf, caplog):
+    aws_api.describe_rds_db_instance.side_effect = ClientError(
+        {
+            "Error": {
+                "Code": "DBInstanceNotFound",
+                "Message": "DBInstance test-database-1 not found.",
+            }
+        },
+        "DescribeDBInstances",
+    )
+
+    caplog.set_level(DEBUG)
+
+    actual = tf._can_skip_rds_modifications(
+        account_name="a1",
+        resource_name="test-database-1",
+        resource_change={
+            "before": {
+                "availability_zone": "us-east-1a",
+                "allocated_storage": "100",
+            },
+            "after": {
+                "availability_zone": "us-east-1a",
+                "allocated_storage": "200",
+            },
+        },
+    )
+
+    assert not actual
+    assert [itemgetter(1, 2)(v) for v in caplog.record_tuples] == [
+        (DEBUG, "Resource test-database-1 changes in Terraform: ['allocated_storage']"),
+        (DEBUG, "Resource does not exist: test-database-1"),
+    ]
+
+
+def test__can_skip_rds_modifications_with_exception(aws_api, tf):
+    with pytest.raises(Exception) as error:
+        aws_api.describe_rds_db_instance.side_effect = Exception("a-test-exception")
+
+        tf._can_skip_rds_modifications(
+            account_name="a1",
+            resource_name="test-database-1",
+            resource_change={
+                "before": {
+                    "availability_zone": "us-east-1a",
+                    "allocated_storage": "100",
+                },
+                "after": {
+                    "availability_zone": "us-east-1a",
+                    "allocated_storage": "200",
+                },
+            },
+        )
+
+    assert "a-test-exception" in str(error.value)
