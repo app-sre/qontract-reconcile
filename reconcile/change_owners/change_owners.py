@@ -180,7 +180,7 @@ def write_coverage_report_to_mr(
             for ctctx in d.coverage
         ]
         if not approvers:
-            approvers = ["not self-serviceable"]
+            approvers = ["[- not self-serviceable -]"]
         item = {
             "file": d.file.path,
             "schema": d.file.schema,
@@ -195,14 +195,17 @@ def write_coverage_report_to_mr(
     coverage_report = format_table(
         results, ["file", "change", "status", "approvers"], table_format="github"
     )
-    if self_serviceable:
-        gl.add_comment_to_merge_request(
-            mr_id,
-            f"{change_coverage_report_header}<br/> "
-            "All changes require an `/lgtm` from a listed approver\n"
-            f"{coverage_report}\n\n"
-            f"Supported commands: {' '.join([f'`{d.value}`' for d in DecisionCommand])} ",
-        )
+
+    self_serviceability_hint = "All changes require an `/lgtm` from a listed approver "
+    if not self_serviceable:
+        self_serviceability_hint += "but <b>not all changes are self-serviceable</b>"
+    gl.add_comment_to_merge_request(
+        mr_id,
+        f"{change_coverage_report_header}<br/>"
+        f"{self_serviceability_hint}\n"
+        f"{coverage_report}\n\n"
+        f"Supported commands: {' '.join([f'`{d.value}`' for d in DecisionCommand])} ",
+    )
 
 
 def write_coverage_report_to_stdout(change_decisions: list[ChangeDecision]) -> None:
