@@ -988,7 +988,6 @@ class OCNative(OCDeprecated):
             self.client = self._get_client(server, token)
             self.api_kind_version = self.get_api_resources()
             self.api_resources = self.api_kind_version.keys()
-            self.init_api_resources = True
         else:
             raise Exception("A method relies on client/api_kind_version to be set")
 
