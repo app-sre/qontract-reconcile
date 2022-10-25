@@ -41,6 +41,11 @@ query TerraformCloudflareAccounts {
         }
       }
     }
+    deletionApprovals {
+      expiration
+      name
+      type
+    }
   }
 }
 """
@@ -96,11 +101,24 @@ class AWSAccountV1(BaseModel):
         extra = Extra.forbid
 
 
+class DeletionApprovalV1(BaseModel):
+    expiration: str = Field(..., alias="expiration")
+    name: str = Field(..., alias="name")
+    q_type: str = Field(..., alias="type")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
 class CloudflareAccountV1(BaseModel):
     name: str = Field(..., alias="name")
     provider_version: str = Field(..., alias="providerVersion")
     api_credentials: VaultSecretV1 = Field(..., alias="apiCredentials")
     terraform_state_account: AWSAccountV1 = Field(..., alias="terraformStateAccount")
+    deletion_approvals: Optional[list[DeletionApprovalV1]] = Field(
+        ..., alias="deletionApprovals"
+    )
 
     class Config:
         smart_union = True

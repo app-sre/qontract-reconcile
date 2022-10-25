@@ -149,7 +149,11 @@ def run(
         QONTRACT_INTEGRATION,
         QONTRACT_INTEGRATION_VERSION,
         QONTRACT_TF_PREFIX,
-        [{"name": name} for name in cf_clients.dump()],
+        [
+            acct.dict(by_alias=True)  # convert CloudflareAccountV1 to dict
+            for acct in query_accounts.accounts or []
+            if acct.name in cf_clients.dump()  # use only if it is a registered client
+        ],
         working_dirs,
         thread_pool_size,
     )
