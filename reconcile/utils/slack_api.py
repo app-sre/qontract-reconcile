@@ -360,10 +360,9 @@ class SlackApi:
         if resource in self._results:
             return self._results[resource]
 
-        if self.config:
-            method_config = self.config.get_method_config(f"{api_key}.list")
-            if method_config:
-                additional_kwargs.update(method_config)
+        method_config = self.config.get_method_config(f"{api_key}.list")
+        if method_config:
+            additional_kwargs.update(method_config)
 
         while True:
             result = self._sc.api_call(

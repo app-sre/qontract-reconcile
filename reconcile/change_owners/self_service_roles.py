@@ -64,13 +64,12 @@ def change_type_contexts_for_self_service_roles(
                     approvers = [
                         Approver(u.org_username, u.tag_on_merge_requests)
                         for u in role.users or []
-                        if u
                     ]
                     approvers.extend(
                         [
                             Approver(b.org_username, False)
                             for b in role.bots or []
-                            if b and b.org_username
+                            if b.org_username
                         ]
                     )
                     change_type_contexts.append(

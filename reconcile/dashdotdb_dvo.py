@@ -206,7 +206,7 @@ class DashdotdbDVO(DashdotdbBase):
         validation_metrics_by_cluster: dict[str, list[str]] = {}
         if validation_list:
             validation_metrics_by_cluster = {
-                v.cluster_name: v.metrics for v in validation_list if v
+                v.cluster_name: v.metrics for v in validation_list
             }
         self._get_token()
         for cluster in clusters:

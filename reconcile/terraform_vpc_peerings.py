@@ -541,7 +541,7 @@ def run(
         awsapi,
     )
 
-    if tf is None or any(errors):
+    if any(errors):
         sys.exit(1)
 
     defer(tf.cleanup)
