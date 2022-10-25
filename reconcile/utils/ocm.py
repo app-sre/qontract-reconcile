@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import functools
-import logging
 import random
 import re
 from abc import abstractmethod
@@ -9,7 +8,6 @@ import string
 from typing import Any, Mapping, Optional, Tuple, Union
 
 import reconcile.utils.aws_helper as awsh
-import requests
 from reconcile.ocm.types import (
     OCMClusterAutoscale,
     OCMClusterNetwork,
@@ -19,6 +17,7 @@ from reconcile.ocm.types import (
     OSDClusterSpec,
     ROSAClusterSpec,
 )
+from reconcile.utils.ocm_base_client import OCMBaseClient
 from reconcile.utils.secret_reader import SecretReader
 from sretoolbox.utils import retry
 
@@ -497,17 +496,19 @@ class OCM:  # pylint: disable=too-many-public-methods
         init_addons=False,
         init_version_gates=False,
         blocked_versions=None,
+        ocm_client: Optional[OCMBaseClient] = None,
     ):
         """Initiates access token and gets clusters information."""
         self.name = name
-        self.url = url
-        self.access_token = ""
-        self.access_token_client_id = access_token_client_id
-        self.access_token_url = access_token_url
-        self.offline_token = offline_token
-        self._session = requests.Session()
-        self._init_access_token()
-        self._init_request_headers()
+        if not ocm_client:
+            self._init_ocm_client(
+                url=url,
+                offline_token=offline_token,
+                access_token_client_id=access_token_client_id,
+                access_token_url=access_token_url,
+            )
+        else:
+            self._ocm_client = ocm_client
         self._init_clusters(init_provision_shards=init_provision_shards)
 
         if init_addons:
@@ -516,7 +517,7 @@ class OCM:  # pylint: disable=too-many-public-methods
         self._init_blocked_versions(blocked_versions)
 
         self.init_version_gates = init_version_gates
-        self.version_gates = []
+        self.version_gates: list[Any] = []
         if init_version_gates:
             self._init_version_gates()
 
@@ -524,29 +525,22 @@ class OCM:  # pylint: disable=too-many-public-methods
         # https://stackoverflow.com/questions/33672412/python-functools-lru-cache-with-class-methods-release-object
         # using @lru_cache decorators on methods would lek AWSApi instances
         # since the cache keeps a reference to self.
-        self.get_aws_infrastructure_access_role_grants = functools.lru_cache()(
+        self.get_aws_infrastructure_access_role_grants = functools.lru_cache()(  # type: ignore
             self.get_aws_infrastructure_access_role_grants
         )
 
-    @retry()
-    def _init_access_token(self):
-        data = {
-            "grant_type": "refresh_token",
-            "client_id": self.access_token_client_id,
-            "refresh_token": self.offline_token,
-        }
-        r = self._session.post(
-            self.access_token_url, data=data, timeout=REQUEST_TIMEOUT_SEC
-        )
-        r.raise_for_status()
-        self.access_token = r.json().get("access_token")
-
-    def _init_request_headers(self):
-        self._session.headers.update(
-            {
-                "Authorization": f"Bearer {self.access_token}",
-                "accept": "application/json",
-            }
+    def _init_ocm_client(
+        self,
+        url: str,
+        offline_token: str,
+        access_token_url: str,
+        access_token_client_id: str,
+    ):
+        self._ocm_client = OCMBaseClient(
+            url=url,
+            offline_token=offline_token,
+            access_token_url=access_token_url,
+            access_token_client_id=access_token_client_id,
         )
 
     @staticmethod
@@ -1251,13 +1245,10 @@ class OCM:  # pylint: disable=too-many-public-methods
 
     @retry(max_attempts=10)
     def _do_get_request(self, api: str, params: Mapping[str, str]) -> dict[str, Any]:
-        r = self._session.get(
-            f"{self.url}{api}",
+        return self._ocm_client.get(
+            api_path=api,
             params=params,
-            timeout=REQUEST_TIMEOUT_SEC,
         )
-        r.raise_for_status()
-        return r.json()
 
     @staticmethod
     def _response_is_list(rs: Mapping[str, Any]) -> bool:
@@ -1293,31 +1284,23 @@ class OCM:  # pylint: disable=too-many-public-methods
         return responses[0]
 
     def _post(self, api, data=None, params=None):
-        r = self._session.post(
-            f"{self.url}{api}", json=data, params=params, timeout=REQUEST_TIMEOUT_SEC
+        return self._ocm_client.post(
+            api_path=api,
+            data=data,
+            params=params,
         )
-        try:
-            r.raise_for_status()
-        except Exception as e:
-            logging.error(r.text)
-            raise e
-        if r.status_code == requests.codes.no_content:
-            return None
-        return r.json()
 
     def _patch(self, api, data, params=None):
-        r = self._session.patch(
-            f"{self.url}{api}", json=data, params=params, timeout=REQUEST_TIMEOUT_SEC
+        return self._ocm_client.patch(
+            api_path=api,
+            data=data,
+            params=params,
         )
-        try:
-            r.raise_for_status()
-        except Exception as e:
-            logging.error(r.text)
-            raise e
 
     def _delete(self, api):
-        r = self._session.delete(f"{self.url}{api}", timeout=REQUEST_TIMEOUT_SEC)
-        r.raise_for_status()
+        return self._ocm_client.delete(
+            api_path=api,
+        )
 
 
 class OCMMap:  # pylint: disable=too-many-public-methods
