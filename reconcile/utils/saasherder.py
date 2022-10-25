@@ -14,6 +14,7 @@ from typing import (
     Any,
     MutableMapping,
     Optional,
+    Sequence,
     Set,
     Tuple,
     Union,
@@ -221,8 +222,8 @@ class SaasHerder:
     def _validate_allowed_secret_parameter_paths(
         self,
         saas_file_name: str,
-        secret_parameters: Iterable[Mapping[str, Any]],
-        allowed_secret_parameter_paths: Iterable[str],
+        secret_parameters: Sequence[Mapping[str, Any]],
+        allowed_secret_parameter_paths: Sequence[str],
     ) -> None:
         if not secret_parameters:
             return
