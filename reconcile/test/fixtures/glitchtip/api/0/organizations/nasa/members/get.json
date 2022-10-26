@@ -1,0 +1,86 @@
+[
+    {
+        "role": "member",
+        "id": 23,
+        "user": {
+            "username": "MichaelCollins@nasa.com",
+            "lastLogin": "2022-10-06T13:01:35.044295Z",
+            "isSuperuser": false,
+            "emails": [],
+            "identities": [],
+            "id": "6",
+            "isActive": true,
+            "name": "",
+            "dateJoined": "2022-10-06T13:01:35.015971Z",
+            "hasPasswordAuth": true,
+            "email": "MichaelCollins@nasa.com",
+            "options": {}
+        },
+        "roleName": "Member",
+        "dateCreated": "2022-10-06T13:00:00.317600Z",
+        "email": "MichaelCollins@nasa.com",
+        "pending": false
+    },
+    {
+        "role": "owner",
+        "id": 22,
+        "user": null,
+        "roleName": "Owner",
+        "dateCreated": "2022-10-06T12:59:00.789632Z",
+        "email": "GlobalFlightDirector@nasa.com",
+        "pending": true
+    },
+    {
+        "role": "member",
+        "id": 21,
+        "user": null,
+        "roleName": "Member",
+        "dateCreated": "2022-10-06T12:48:19.024377Z",
+        "email": "BuzzAldrin@nasa.com",
+        "pending": true
+    },
+    {
+        "role": "member",
+        "id": 20,
+        "user": {
+            "username": "NeilArmstrong@nasa.com",
+            "lastLogin": "2022-10-06T12:50:49.096608Z",
+            "isSuperuser": false,
+            "emails": [],
+            "identities": [],
+            "id": "4",
+            "isActive": true,
+            "name": "",
+            "dateJoined": "2022-10-06T12:50:49.011349Z",
+            "hasPasswordAuth": true,
+            "email": "NeilArmstrong@nasa.com",
+            "options": {}
+        },
+        "roleName": "Member",
+        "dateCreated": "2022-10-06T12:48:04.108931Z",
+        "email": "NeilArmstrong@nasa.com",
+        "pending": false
+    },
+    {
+        "role": "owner",
+        "id": 5,
+        "user": {
+            "username": "sd-app-sre+glitchtip@nasa.com",
+            "lastLogin": "2022-10-06T12:42:41.361955Z",
+            "isSuperuser": false,
+            "emails": [],
+            "identities": [],
+            "id": "3",
+            "isActive": true,
+            "name": "",
+            "dateJoined": "2022-09-13T10:58:07.053773Z",
+            "hasPasswordAuth": true,
+            "email": "sd-app-sre+glitchtip@nasa.com",
+            "options": "{}"
+        },
+        "roleName": "Owner",
+        "dateCreated": "2022-09-13T11:23:23.313535Z",
+        "email": "sd-app-sre+glitchtip@nasa.com",
+        "pending": false
+    }
+]

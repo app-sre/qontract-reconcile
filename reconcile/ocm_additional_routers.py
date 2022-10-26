@@ -1,11 +1,13 @@
 import sys
 import logging
 import json
+from typing import Any, Mapping
 
 from reconcile import queries
 
 from reconcile.status import ExitCodes
 from reconcile.utils.ocm import OCM_PRODUCT_OSD, OCMMap
+from reconcile.ocm.utils import cluster_disabled_integrations
 
 QONTRACT_INTEGRATION = "ocm-additional-routers"
 
@@ -84,13 +86,22 @@ def act(dry_run, diffs, ocm_map):
                 ocm.delete_additional_router(cluster, diff)
 
 
+def _cluster_is_compatible(cluster: Mapping[str, Any]) -> bool:
+
+    return (
+        cluster.get("ocm") is not None
+        and cluster["spec"]["product"] in SUPPORTED_OCM_PRODUCTS
+        and cluster.get("additionalRouters") is not None
+    )
+
+
 def run(dry_run):
     clusters = queries.get_clusters()
     clusters = [
         c
         for c in clusters
-        if c.get("additionalRouters") is not None
-        and c["spec"]["product"] in SUPPORTED_OCM_PRODUCTS
+        if QONTRACT_INTEGRATION not in cluster_disabled_integrations(c)
+        and _cluster_is_compatible(c)
     ]
     if not clusters:
         logging.debug("No additionalRouters definitions found in app-interface")

@@ -26,7 +26,7 @@ fragment VaultSecret on VaultSecret_v1 {
     format
 }
 
-query AppInterfaceSettings {
+query AppInterfaceSmtpSettings {
    settings: app_interface_settings_v1 {
      smtp {
        mailAddress
@@ -58,7 +58,7 @@ class AppInterfaceSettingsV1(BaseModel):
         extra = Extra.forbid
 
 
-class AppInterfaceSettingsQueryData(BaseModel):
+class AppInterfaceSmtpSettingsQueryData(BaseModel):
     settings: Optional[list[AppInterfaceSettingsV1]] = Field(..., alias="settings")
 
     class Config:
@@ -66,7 +66,7 @@ class AppInterfaceSettingsQueryData(BaseModel):
         extra = Extra.forbid
 
 
-def query(query_func: Callable, **kwargs) -> AppInterfaceSettingsQueryData:
+def query(query_func: Callable, **kwargs) -> AppInterfaceSmtpSettingsQueryData:
     """
     This is a convenience function which queries and parses the data into
     concrete types. It should be compatible with most GQL clients.
@@ -79,7 +79,7 @@ def query(query_func: Callable, **kwargs) -> AppInterfaceSettingsQueryData:
         kwargs: optional arguments that will be passed to the query function
 
     Returns:
-        AppInterfaceSettingsQueryData: queried data parsed into generated classes
+        AppInterfaceSmtpSettingsQueryData: queried data parsed into generated classes
     """
     raw_data: dict[Any, Any] = query_func(DEFINITION, **kwargs)
-    return AppInterfaceSettingsQueryData(**raw_data)
+    return AppInterfaceSmtpSettingsQueryData(**raw_data)

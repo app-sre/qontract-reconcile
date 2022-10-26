@@ -2,13 +2,17 @@ import pytest
 
 from reconcile.gql_definitions.vpc_peerings_validator.vpc_peerings_validator import (
     ClusterPeeringConnectionClusterAccepterV1,
-    ClusterV1__3,
-    ClusterSpecV1__3,
     ClusterPeeringV1,
     ClusterSpecV1,
     ClusterV1,
     VpcPeeringsValidatorQueryData,
 )
+
+from reconcile.gql_definitions.vpc_peerings_validator.vpc_peerings_validator_peered_cluster_fragment import (
+    VpcPeeringsValidatorPeeredCluster,
+    ClusterSpecV1 as PeeredClusterSpec,
+)
+
 from reconcile.vpc_peerings_validator import (
     validate_no_internal_to_public_peerings,
     validate_no_public_to_public_peerings,
@@ -27,9 +31,9 @@ def query_data_i2p() -> VpcPeeringsValidatorQueryData:
                     connections=[
                         ClusterPeeringConnectionClusterAccepterV1(
                             provider="cluster-vpc-accepter",
-                            cluster=ClusterV1__3(
+                            cluster=VpcPeeringsValidatorPeeredCluster(
                                 name="cluster2",
-                                spec=ClusterSpecV1__3(private=False),
+                                spec=PeeredClusterSpec(private=False),
                                 internal=False,
                             ),
                         ),
@@ -73,9 +77,9 @@ def query_data_p2p() -> VpcPeeringsValidatorQueryData:
                     connections=[
                         ClusterPeeringConnectionClusterAccepterV1(
                             provider="cluster-vpc-accepter",
-                            cluster=ClusterV1__3(
+                            cluster=VpcPeeringsValidatorPeeredCluster(
                                 name="cluster2",
-                                spec=ClusterSpecV1__3(private=False),
+                                spec=PeeredClusterSpec(private=False),
                                 internal=False,
                             ),
                         ),

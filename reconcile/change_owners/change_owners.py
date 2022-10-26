@@ -22,7 +22,7 @@ from reconcile.change_owners.change_types import (
     BundleFileType,
     ChangeTypeProcessor,
     create_bundle_file_change,
-    build_change_type_processor,
+    init_change_type_processors,
 )
 from reconcile.change_owners.self_service_roles import (
     cover_changes_with_self_service_roles,
@@ -75,7 +75,7 @@ def fetch_self_service_roles(gql_api: gql.GqlApi) -> list[RoleV1]:
 
 def fetch_change_type_processors(gql_api: gql.GqlApi) -> list[ChangeTypeProcessor]:
     change_type_list = change_types.query(gql_api.query).change_types or []
-    return [build_change_type_processor(ct) for ct in change_type_list]
+    return list(init_change_type_processors(change_type_list).values())
 
 
 def fetch_bundle_changes(comparison_sha: str) -> list[BundleFileChange]:
@@ -163,10 +163,11 @@ def write_coverage_report_to_mr(
     a new one.
     """
     change_coverage_report_header = "Change coverage report"
-    comments = gl.get_merge_request_comments(mr_id, include_description=True)
+    comments = gl.get_merge_request_comments(mr_id)
     # delete previous report comment
     for c in sorted(comments, key=lambda k: k["created_at"]):
-        if c["username"] == gl.user.username and c["body"].startswith(
+        body = c["body"] or ""
+        if c["username"] == gl.user.username and body.startswith(
             change_coverage_report_header
         ):
             gl.delete_gitlab_comment(mr_id, c["id"])
@@ -179,7 +180,7 @@ def write_coverage_report_to_mr(
             for ctctx in d.coverage
         ]
         if not approvers:
-            approvers = ["not self-serviceable"]
+            approvers = ["[- not self-serviceable -]"]
         item = {
             "file": d.file.path,
             "schema": d.file.schema,
@@ -194,46 +195,42 @@ def write_coverage_report_to_mr(
     coverage_report = format_table(
         results, ["file", "change", "status", "approvers"], table_format="github"
     )
-    if self_serviceable:
-        gl.add_comment_to_merge_request(
-            mr_id,
-            f"{change_coverage_report_header}<br/> "
-            "All changes require an `/lgtm` from a listed approver\n"
-            f"{coverage_report}\n\n"
-            f"Supported commands: {' '.join([f'`{d.value}`' for d in DecisionCommand])} ",
-        )
+
+    self_serviceability_hint = "All changes require an `/lgtm` from a listed approver "
+    if not self_serviceable:
+        self_serviceability_hint += "but <b>not all changes are self-serviceable</b>"
+    gl.add_comment_to_merge_request(
+        mr_id,
+        f"{change_coverage_report_header}<br/>"
+        f"{self_serviceability_hint}\n"
+        f"{coverage_report}\n\n"
+        f"Supported commands: {' '.join([f'`{d.value}`' for d in DecisionCommand])} ",
+    )
 
 
 def write_coverage_report_to_stdout(change_decisions: list[ChangeDecision]) -> None:
     results = []
     for d in change_decisions:
-        item = {
-            "file": d.file.path,
-            "schema": d.file.schema,
-            "changed path": d.diff.path,
-        }
-        if str(d.diff.path) != "$":
-            item.update(
-                {
-                    "old value": d.diff.old_value_repr(),
-                    "new value": d.diff.new_value_repr(),
-                }
-            )
-        if d.decision.hold:
-            item["status"] = "hold"
-        elif d.decision.approve:
-            item["status"] = "approved"
         if d.coverage:
-            item.update(
+            for ctx in d.coverage:
+                results.append(
+                    {
+                        "file": d.file.path,
+                        "schema": d.file.schema,
+                        "changed path": d.diff.path,
+                        "change type": ctx.change_type_processor.name,
+                        "context": ctx.context,
+                        "disabled": str(ctx.disabled),
+                    }
+                )
+        else:
+            results.append(
                 {
-                    "change type": d.coverage[0].change_type_processor.change_type.name,
-                    "context": d.coverage[0].context,
-                    "approvers": ", ".join(
-                        [a.org_username for a in d.coverage[0].approvers]
-                    )[:20],
+                    "file": d.file.path,
+                    "schema": d.file.schema,
+                    "changed path": d.diff.path,
                 }
             )
-        results.append(item)
 
     print(
         format_table(
@@ -241,12 +238,9 @@ def write_coverage_report_to_stdout(change_decisions: list[ChangeDecision]) -> N
             [
                 "file",
                 "changed path",
-                "old value",
-                "new value",
                 "change type",
+                "disabled",
                 "context",
-                "approvers",
-                "status",
             ],
         )
     )

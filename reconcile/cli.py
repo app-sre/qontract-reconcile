@@ -1,6 +1,8 @@
+import faulthandler
 import json
 import logging
 import os
+from signal import SIGUSR1
 import sys
 import re
 
@@ -308,6 +310,22 @@ def account_name(function):
     return function
 
 
+def workspace_name(function):
+    function = click.option(
+        "--workspace-name", help="slack workspace name to act on.", default=None
+    )(function)
+
+    return function
+
+
+def usergroup_name(function):
+    function = click.option(
+        "--usergroup-name", help="slack usergroup name to act on.", default=None
+    )(function)
+
+    return function
+
+
 def gitlab_project_id(function):
     function = click.option(
         "--gitlab-project-id",
@@ -375,7 +393,26 @@ def include_trigger_trace(function):
     return function
 
 
+def register_faulthandler(fileobj=sys.__stderr__):
+    if fileobj:
+        if not faulthandler.is_enabled():
+            try:
+                faulthandler.enable(file=fileobj)
+                logging.debug("faulthandler enabled.")
+                faulthandler.register(SIGUSR1, file=fileobj, all_threads=True)
+                logging.debug("SIGUSR1 registered with faulthandler.")
+            except RunnerException:
+                logging.warning("Failed to register USR1 or enable faulthandler.")
+        else:
+            logging.debug("Skipping, faulthandler already enabled")
+    else:
+        logging.warning(
+            "None referenced as file descriptor, skipping faulthandler enablement."
+        )
+
+
 def run_integration(func_container, ctx, *args, **kwargs):
+    register_faulthandler()
     try:
         int_name = func_container.QONTRACT_INTEGRATION.replace("_", "-")
         running_state = RunningState()
@@ -810,11 +847,18 @@ def openshift_upgrade_watcher(ctx, thread_pool_size, internal, use_jump_host):
 
 
 @integration.command(short_help="Manage Slack User Groups (channels and users).")
+@workspace_name
+@usergroup_name
 @click.pass_context
-def slack_usergroups(ctx):
+def slack_usergroups(ctx, workspace_name, usergroup_name):
     import reconcile.slack_usergroups
 
-    run_integration(reconcile.slack_usergroups, ctx.obj)
+    run_integration(
+        reconcile.slack_usergroups,
+        ctx.obj,
+        workspace_name,
+        usergroup_name,
+    )
 
 
 @integration.command(
@@ -1601,12 +1645,14 @@ def terraform_resources(
 @threaded(default=20)
 @binary(["terraform"])
 @binary_version("terraform", ["version"], TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
+@account_name
 @click.pass_context
 def terraform_cloudflare_resources(
     ctx,
     print_to_file,
     enable_deletion,
     thread_pool_size,
+    account_name,
 ):
     import reconcile.terraform_cloudflare_resources
 
@@ -1616,6 +1662,7 @@ def terraform_cloudflare_resources(
         print_to_file,
         enable_deletion,
         thread_pool_size,
+        account_name,
     )
 
 
@@ -2258,6 +2305,17 @@ def change_owners(
         change_type_processing_mode,
         mr_management,
     )
+
+
+@integration.command(
+    short_help="Configure and enforce glitchtip instance configuration."
+)
+@click.option("--instance", help="Reconcile just this instance.", default=None)
+@click.pass_context
+def glitchtip(ctx, instance):
+    import reconcile.glitchtip.integration
+
+    run_integration(reconcile.glitchtip.integration, ctx.obj, instance)
 
 
 def get_integration_cli_meta() -> dict[str, IntegrationMeta]:

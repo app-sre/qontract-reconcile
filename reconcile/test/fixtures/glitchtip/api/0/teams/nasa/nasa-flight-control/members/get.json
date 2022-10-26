@@ -1,0 +1,33 @@
+[
+    {
+        "role": "member",
+        "id": 23,
+        "user": {
+            "username": "MichaelCollins@nasa.com",
+            "lastLogin": "2022-10-06T13:01:35.044295Z",
+            "isSuperuser": false,
+            "emails": [],
+            "identities": [],
+            "id": "6",
+            "isActive": true,
+            "name": "",
+            "dateJoined": "2022-10-06T13:01:35.015971Z",
+            "hasPasswordAuth": true,
+            "email": "MichaelCollins@nasa.com",
+            "options": {}
+        },
+        "roleName": "Member",
+        "dateCreated": "2022-10-06T13:00:00.317600Z",
+        "email": "MichaelCollins@nasa.com",
+        "pending": false
+    },
+    {
+        "role": "owner",
+        "id": 22,
+        "user": null,
+        "roleName": "Owner",
+        "dateCreated": "2022-10-06T12:59:00.789632Z",
+        "email": "GlobalFlightDirector@nasa.com",
+        "pending": true
+    }
+]

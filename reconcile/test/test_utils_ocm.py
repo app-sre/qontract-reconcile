@@ -8,8 +8,8 @@ from reconcile.utils.ocm import OCM
 
 @pytest.fixture
 def ocm(mocker):
-    mocker.patch("reconcile.utils.ocm.OCM._init_access_token")
-    mocker.patch("reconcile.utils.ocm.OCM._init_request_headers")
+    mocker.patch("reconcile.utils.ocm_base_client.OCMBaseClient._init_access_token")
+    mocker.patch("reconcile.utils.ocm_base_client.OCMBaseClient._init_request_headers")
     mocker.patch("reconcile.utils.ocm.OCM._init_clusters")
     mocker.patch("reconcile.utils.ocm.OCM._init_blocked_versions")
     mocker.patch("reconcile.utils.ocm.OCM._init_version_gates")
@@ -92,7 +92,7 @@ def test_get_version_gate(ocm):
 
 
 def test__get_json_pagination(ocm):
-    ocm.url = "http://ocm.test"
+    ocm._ocm_client._url = "http://ocm.test"
     call_cnt = 0
 
     def paginated_response(request: HTTPrettyRequest, url, response_headers):
@@ -132,7 +132,7 @@ def test__get_json_pagination(ocm):
 
 
 def test__get_json_empty_list(ocm: OCM):
-    ocm.url = "http://ocm.test"
+    ocm._ocm_client._url = "http://ocm.test"
     httpretty.enable()
     httpretty.register_uri(
         httpretty.GET,
@@ -147,7 +147,7 @@ def test__get_json_empty_list(ocm: OCM):
 
 
 def test__get_json_simple_list(ocm: OCM):
-    ocm.url = "http://ocm.test"
+    ocm._ocm_client._url = "http://ocm.test"
     httpretty.enable()
     httpretty.register_uri(
         httpretty.GET,
@@ -161,7 +161,7 @@ def test__get_json_simple_list(ocm: OCM):
 
 
 def test__get_json(ocm):
-    ocm.url = "http://ocm.test"
+    ocm._ocm_client._url = "http://ocm.test"
 
     httpretty.enable()
     httpretty.register_uri(

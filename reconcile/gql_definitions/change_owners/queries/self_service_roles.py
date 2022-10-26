@@ -17,8 +17,8 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
 
 
 DEFINITION = """
-query SelfServiceRolesQuery {
-  roles: roles_v1 {
+query SelfServiceRolesQuery($name: String) {
+  roles: roles_v1(name: $name) {
     name
     path
     self_service {

@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from typing import Any, Optional
+import yaml
 from reconcile.change_owners.diff import (
     SHA256SUM_FIELD_NAME,
     Diff,
@@ -25,8 +26,10 @@ from reconcile.change_owners.change_types import (
     Approver,
     FileRef,
     DiffCoverage,
+    PathExpression,
     build_change_type_processor,
     create_bundle_file_change,
+    parse_resource_file_content,
 )
 from reconcile.gql_definitions.change_owners.queries.change_types import (
     ChangeTypeChangeDetectorV1,
@@ -182,7 +185,9 @@ def test_extract_context_file_refs_from_bundle_change(
     bundle_change = saas_file.create_bundle_change(
         {"resourceTemplates[0].targets[0].ref": "new-ref"}
     )
-    file_refs = bundle_change.extract_context_file_refs(saas_file_changetype)
+    file_refs = bundle_change.extract_context_file_refs(
+        build_change_type_processor(saas_file_changetype)
+    )
     assert file_refs == [saas_file.file_ref()]
 
 
@@ -197,7 +202,9 @@ def test_extract_context_file_refs_from_bundle_change_schema_mismatch(
     bundle_change = saas_file.create_bundle_change(
         {"resourceTemplates[0].targets[0].ref": "new-ref"}
     )
-    file_refs = bundle_change.extract_context_file_refs(saas_file_changetype)
+    file_refs = bundle_change.extract_context_file_refs(
+        build_change_type_processor(saas_file_changetype)
+    )
     assert not file_refs
 
 
@@ -226,7 +233,9 @@ def test_extract_context_file_refs_selector(
         },
     )
     assert namespace_change
-    file_refs = namespace_change.extract_context_file_refs(cluster_owner_change_type)
+    file_refs = namespace_change.extract_context_file_refs(
+        build_change_type_processor(cluster_owner_change_type)
+    )
     assert file_refs == [
         FileRef(
             file_type=BundleFileType.DATAFILE,
@@ -260,7 +269,9 @@ def test_extract_context_file_refs_in_list_added_selector(
         },
     )
     assert user_change
-    file_refs = user_change.extract_context_file_refs(role_member_change_type)
+    file_refs = user_change.extract_context_file_refs(
+        build_change_type_processor(role_member_change_type)
+    )
     assert file_refs == [
         FileRef(
             file_type=BundleFileType.DATAFILE,
@@ -292,7 +303,9 @@ def test_extract_context_file_refs_in_list_removed_selector(
         },
     )
     assert user_change
-    file_refs = user_change.extract_context_file_refs(role_member_change_type)
+    file_refs = user_change.extract_context_file_refs(
+        build_change_type_processor(role_member_change_type)
+    )
     assert file_refs == [
         FileRef(
             file_type=BundleFileType.DATAFILE,
@@ -317,7 +330,9 @@ def test_extract_context_file_refs_in_list_selector_change_schema_mismatch(
         new_file_content={"field": "new-value"},
     )
     assert datafile_change
-    file_refs = datafile_change.extract_context_file_refs(role_member_change_type)
+    file_refs = datafile_change.extract_context_file_refs(
+        build_change_type_processor(role_member_change_type)
+    )
     assert not file_refs
 
 
@@ -344,6 +359,13 @@ def test_deepdiff_path_to_jsonpath(deep_diff_path, expected_json_path):
 def test_deepdiff_invalid():
     with pytest.raises(ValueError):
         deepdiff_path_to_jsonpath("something_invalid")
+
+
+def test_deepdiff_path_element_with_dot():
+    assert (
+        str(deepdiff_path_to_jsonpath("root['data']['main.yaml']"))
+        == "data.'main.yaml'"
+    )
 
 
 #
@@ -384,7 +406,14 @@ def test_change_type_processor_allowed_paths_simple(
     )
     processor = build_change_type_processor(role_member_change_type)
     paths = processor.allowed_changed_paths(
-        changed_user_file.fileref, changed_user_file.new
+        file_ref=changed_user_file.fileref,
+        file_content=changed_user_file.new,
+        ctx=ChangeTypeContext(
+            change_type_processor=processor,
+            context="RoleV1 - some role",
+            approvers=[],
+            context_file=user_file.file_ref(),
+        ),
     )
 
     assert paths == ["roles"]
@@ -398,7 +427,14 @@ def test_change_type_processor_allowed_paths_conditions(
     )
     processor = build_change_type_processor(secret_promoter_change_type)
     paths = processor.allowed_changed_paths(
-        changed_namespace_file.fileref, changed_namespace_file.new
+        file_ref=changed_namespace_file.fileref,
+        file_content=changed_namespace_file.new,
+        ctx=ChangeTypeContext(
+            change_type_processor=processor,
+            context="RoleV1 - some role",
+            approvers=[],
+            context_file=namespace_file.file_ref(),
+        ),
     )
 
     assert paths == ["openshiftResources.[1].version"]
@@ -917,7 +953,24 @@ def test_bundle_change_diff_item_reorder():
     assert not bundle_change
 
 
-def test_bundle_change_diff_resourcefile_without_schema():
+def test_bundle_change_diff_resourcefile_without_schema_unparsable():
+    bundle_change = create_bundle_file_change(
+        path="path",
+        schema=None,
+        file_type=BundleFileType.RESOURCEFILE,
+        old_file_content="something_old",
+        new_file_content="something_new",
+    )
+
+    assert bundle_change
+    assert len(bundle_change.diff_coverage) == 1
+    assert str(bundle_change.diff_coverage[0].diff.path) == "$"
+    assert bundle_change.diff_coverage[0].diff.diff_type == DiffType.CHANGED
+    assert bundle_change.diff_coverage[0].diff.old == "something_old"
+    assert bundle_change.diff_coverage[0].diff.new == "something_new"
+
+
+def test_bundle_change_diff_resourcefile_without_schema_parsable():
     bundle_change = create_bundle_file_change(
         path="path",
         schema=None,
@@ -928,10 +981,12 @@ def test_bundle_change_diff_resourcefile_without_schema():
 
     assert bundle_change
     assert len(bundle_change.diff_coverage) == 1
-    assert str(bundle_change.diff_coverage[0].diff.path) == "$"
+    assert bundle_change.old == {"field": "old_value"}
+    assert bundle_change.new == {"field": "new_value"}
+    assert str(bundle_change.diff_coverage[0].diff.path) == "field"
     assert bundle_change.diff_coverage[0].diff.diff_type == DiffType.CHANGED
-    assert bundle_change.diff_coverage[0].diff.old == "field: old_value"
-    assert bundle_change.diff_coverage[0].diff.new == "field: new_value"
+    assert bundle_change.diff_coverage[0].diff.old == "old_value"
+    assert bundle_change.diff_coverage[0].diff.new == "new_value"
 
 
 def test_bundle_change_diff_resourcefile_with_schema():
@@ -1078,10 +1133,35 @@ def test_cover_changes_one_file(
         change_type_processor=build_change_type_processor(saas_file_changetype),
         context="RoleV1 - some-role",
         approvers=[Approver(org_username="user", tag_on_merge_requests=False)],
+        context_file=saas_file.file_ref(),
     )
-    covered_diffs = saas_file_change.cover_changes(ctx)
-    assert covered_diffs == [dc.diff for dc in saas_file_change.diff_coverage]
+    saas_file_change.cover_changes(ctx)
+
+    assert not list(saas_file_change.uncovered_changes())
+    assert saas_file_change.all_changes_covered()
+    assert saas_file_change.diff_coverage[0].is_covered()
     assert saas_file_change.diff_coverage[0].coverage == [ctx]
+
+
+def test_uncovered_change_because_change_type_is_disabled(
+    saas_file_changetype: ChangeTypeV1, saas_file: TestFile
+):
+    saas_file_changetype.disabled = True
+    saas_file_change = saas_file.create_bundle_change(
+        {"resourceTemplates[0].targets[0].ref": "new-ref"}
+    )
+    ctx = ChangeTypeContext(
+        change_type_processor=build_change_type_processor(saas_file_changetype),
+        context="RoleV1 - some-role",
+        approvers=[Approver(org_username="user", tag_on_merge_requests=False)],
+        context_file=saas_file.file_ref(),
+    )
+    saas_file_change.cover_changes(ctx)
+    uncoverd_changes = list(saas_file_change.uncovered_changes())
+    assert uncoverd_changes
+    assert not saas_file_change.all_changes_covered()
+    assert not uncoverd_changes[0].is_covered()
+    assert uncoverd_changes[0].coverage[0].disabled
 
 
 def test_uncovered_change_one_file(
@@ -1092,11 +1172,10 @@ def test_uncovered_change_one_file(
         change_type_processor=build_change_type_processor(saas_file_changetype),
         context="RoleV1 - some-role",
         approvers=[Approver(org_username="user", tag_on_merge_requests=False)],
+        context_file=saas_file.file_ref(),
     )
     saas_file_change.cover_changes(ctx)
-
-    for dc in saas_file_change.diff_coverage:
-        assert dc.coverage == []
+    assert all(not dc.is_covered() for dc in saas_file_change.diff_coverage)
 
 
 def test_partially_covered_change_one_file(
@@ -1113,6 +1192,7 @@ def test_partially_covered_change_one_file(
         change_type_processor=build_change_type_processor(saas_file_changetype),
         context="RoleV1 - some-role",
         approvers=[Approver(org_username="user", tag_on_merge_requests=False)],
+        context_file=saas_file.file_ref(),
     )
 
     covered_diffs = saas_file_change.cover_changes(ctx)
@@ -1147,6 +1227,7 @@ def test_root_change_type(cluster_owner_change_type: ChangeTypeV1, saas_file: Te
         change_type_processor=build_change_type_processor(cluster_owner_change_type),
         context="RoleV1 - some-role",
         approvers=[Approver(org_username="user", tag_on_merge_requests=False)],
+        context_file=saas_file.file_ref(),
     )
 
     covered_diffs = namespace_change.cover_changes(ctx)
@@ -1318,7 +1399,21 @@ def test_approval_comments_none_body():
 #
 
 
-def test_change_decision():
+@pytest.mark.parametrize(
+    "disable_change_type,expected_approve,expected_hold",
+    [
+        (True, False, False),
+        (False, True, True),
+    ],
+)
+def test_change_decision(
+    saas_file_changetype: ChangeTypeV1,
+    disable_change_type: bool,
+    expected_approve: bool,
+    expected_hold: bool,
+):
+    saas_file_changetype.disabled = disable_change_type
+
     yea_user = "yea-sayer"
     nay_sayer = "nay-sayer"
     change = create_bundle_file_change(
@@ -1328,15 +1423,16 @@ def test_change_decision():
         old_file_content={"foo": "bar"},
         new_file_content={"foo": "baz"},
     )
-    assert change and len(change.diff_coverage) == 1 and change.diff_coverage[0]
+    assert change and len(change.diff_coverage) == 1
     change.diff_coverage[0].coverage = [
         ChangeTypeContext(
-            change_type_processor=None,  # type: ignore
+            change_type_processor=build_change_type_processor(saas_file_changetype),
             context="something-something",
             approvers=[
                 Approver(org_username=yea_user, tag_on_merge_requests=False),
                 Approver(org_username=nay_sayer, tag_on_merge_requests=False),
             ],
+            context_file=change.fileref,
         )
     ]
 
@@ -1348,8 +1444,8 @@ def test_change_decision():
         changes=[change],
     )
 
-    assert change_decision[0].decision.approve
-    assert change_decision[0].decision.hold
+    assert change_decision[0].decision.approve == expected_approve
+    assert change_decision[0].decision.hold == expected_hold
     assert change_decision[0].diff == change.diff_coverage[0].diff
     assert change_decision[0].file == change.fileref
 
@@ -1429,3 +1525,189 @@ def test_label_management_false_to_true():
         false_label="false-label",
         dry_run=True,
     )
+
+
+#
+# DiffCoverage tests
+#
+
+
+def test_diff_no_coverage():
+    dc = DiffCoverage(diff=None, coverage=[])  # type: ignore
+    assert not dc.is_covered()
+
+
+def test_diff_covered(saas_file_changetype: ChangeTypeV1):
+    dc = DiffCoverage(
+        diff=None,  # type: ignore
+        coverage=[
+            ChangeTypeContext(
+                change_type_processor=build_change_type_processor(saas_file_changetype),
+                context="RoleV1 - some-role",
+                approvers=[],
+                context_file=None,  # type: ignore
+            ),
+        ],
+    )
+    assert dc.is_covered()
+
+
+def test_diff_covered_many(
+    saas_file_changetype: ChangeTypeV1, role_member_change_type: ChangeTypeV1
+):
+    dc = DiffCoverage(
+        diff=None,  # type: ignore
+        coverage=[
+            ChangeTypeContext(
+                change_type_processor=build_change_type_processor(saas_file_changetype),
+                context="RoleV1 - some-role",
+                approvers=[],
+                context_file=None,  # type: ignore
+            ),
+            ChangeTypeContext(
+                change_type_processor=build_change_type_processor(
+                    role_member_change_type
+                ),
+                context="RoleV1 - some-role",
+                approvers=[],
+                context_file=None,  # type: ignore
+            ),
+        ],
+    )
+    assert dc.is_covered()
+
+
+def test_diff_covered_partially_disabled(
+    saas_file_changetype: ChangeTypeV1, role_member_change_type: ChangeTypeV1
+):
+    role_member_change_type.disabled = True
+    dc = DiffCoverage(
+        diff=None,  # type: ignore
+        coverage=[
+            ChangeTypeContext(
+                change_type_processor=build_change_type_processor(saas_file_changetype),
+                context="RoleV1 - some-role",
+                approvers=[],
+                context_file=None,  # type: ignore
+            ),
+            ChangeTypeContext(
+                change_type_processor=build_change_type_processor(
+                    role_member_change_type
+                ),
+                context="RoleV1 - some-role",
+                approvers=[],
+                context_file=None,  # type: ignore
+            ),
+        ],
+    )
+    assert dc.is_covered()
+
+
+def test_diff_no_coverage_all_disabled(
+    saas_file_changetype: ChangeTypeV1, role_member_change_type: ChangeTypeV1
+):
+    role_member_change_type.disabled = True
+    saas_file_changetype.disabled = True
+    dc = DiffCoverage(
+        diff=None,  # type: ignore
+        coverage=[
+            ChangeTypeContext(
+                change_type_processor=build_change_type_processor(saas_file_changetype),
+                context="RoleV1 - some-role",
+                approvers=[],
+                context_file=None,  # type: ignore
+            ),
+            ChangeTypeContext(
+                change_type_processor=build_change_type_processor(
+                    role_member_change_type
+                ),
+                context="RoleV1 - some-role",
+                approvers=[],
+                context_file=None,  # type: ignore
+            ),
+        ],
+    )
+    assert not dc.is_covered()
+
+
+#
+# PathExpression tests
+#
+
+
+def test_normal_path_expression():
+    jsonpath_expression = "path.to.some.value"
+    pe = PathExpression(
+        jsonpath_expression=jsonpath_expression,
+    )
+    jsonpath = pe.jsonpath_for_context(
+        ChangeTypeContext(
+            change_type_processor=None,  # type: ignore
+            context="RoleV1 - some-role",
+            approvers=[],
+            context_file=FileRef(
+                BundleFileType.DATAFILE, "some-file.yaml", "schema-1.yml"
+            ),
+        )
+    )
+    assert jsonpath_expression == str(jsonpath)
+
+
+def test_templated_path_expression():
+    jsonpath_expression = "path.to.some.value[?(@.name == '{{ ctx_file_path }}')]"
+    pe = PathExpression(
+        jsonpath_expression=jsonpath_expression,
+    )
+    jsonpath = pe.jsonpath_for_context(
+        ChangeTypeContext(
+            change_type_processor=None,  # type: ignore
+            context="RoleV1 - some-role",
+            approvers=[],
+            context_file=FileRef(
+                BundleFileType.DATAFILE, "some-file.yaml", "schema-1.yml"
+            ),
+        )
+    )
+    assert (
+        "path.to.some.value.[?[Expression(Child(This(), Fields('name')) == 'some-file.yaml')]]"
+        == str(jsonpath)
+    )
+
+
+def test_template_path_expression_unsupported_variable():
+    with pytest.raises(ValueError):
+        PathExpression(
+            jsonpath_expression="path[?(@.name == '{{ unsupported_variable }}')]"
+        )
+
+
+#
+# Test resource file parsing
+#
+
+
+def test_parse_resource_file_content_structured_with_schema():
+    expected_content = {"$schema": "schema-1.yml", "some_field": "some_value"}
+    content, schema = parse_resource_file_content(yaml.dump(expected_content))
+    assert schema == expected_content["$schema"]
+    assert content == expected_content
+
+
+def test_parse_resource_file_content_structured_no_schema():
+    expected_content = {"some_field": "some_value"}
+    content, schema = parse_resource_file_content(yaml.dump(expected_content))
+    assert schema is None
+    assert content == expected_content
+
+
+def test_parse_resource_file_content_unstructured():
+    expected_content = "something something"
+    content, schema = parse_resource_file_content(expected_content)
+    assert schema is None
+    assert content == expected_content
+
+
+def test_parse_resource_file_content_none():
+    content, schema = parse_resource_file_content(None)
+    assert schema is None
+    assert content is None

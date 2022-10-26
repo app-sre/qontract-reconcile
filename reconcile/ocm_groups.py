@@ -1,11 +1,15 @@
 import logging
 import itertools
+import sys
+from typing import Any, Mapping
 
 from sretoolbox.utils import threaded
 
+from reconcile.status import ExitCodes
 from reconcile import queries
 from reconcile import openshift_groups
 from reconcile.utils.ocm import OCMMap
+from reconcile.ocm.utils import cluster_disabled_integrations
 
 QONTRACT_INTEGRATION = "ocm-groups"
 
@@ -23,9 +27,7 @@ def get_cluster_state(group_items, ocm_map):
     return results
 
 
-def fetch_current_state(thread_pool_size):
-    clusters = queries.get_clusters()
-    clusters = [c for c in clusters if c.get("ocm") is not None]
+def fetch_current_state(clusters, thread_pool_size):
     current_state = []
     settings = queries.get_app_interface_settings()
     ocm_map = OCMMap(
@@ -53,8 +55,23 @@ def act(diff, ocm_map):
         ocm.del_user_from_group(cluster, group, user)
 
 
+def _cluster_is_compatible(cluster: Mapping[str, Any]) -> bool:
+    return cluster.get("ocm") is not None
+
+
 def run(dry_run, thread_pool_size=10):
-    ocm_map, current_state = fetch_current_state(thread_pool_size)
+    clusters = queries.get_clusters()
+    clusters = [
+        c
+        for c in clusters
+        if QONTRACT_INTEGRATION not in cluster_disabled_integrations(c)
+        and _cluster_is_compatible(c)
+    ]
+    if not clusters:
+        logging.debug("No Groups definitions found in app-interface")
+        sys.exit(ExitCodes.SUCCESS)
+
+    ocm_map, current_state = fetch_current_state(clusters, thread_pool_size)
     desired_state = openshift_groups.fetch_desired_state(oc_map=ocm_map)
 
     # we only manage dedicated-admins via OCM

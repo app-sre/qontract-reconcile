@@ -3,7 +3,7 @@ import logging
 import copy
 
 from datetime import datetime
-from typing import Mapping, Optional
+from typing import Any, Mapping, Optional
 from dateutil import parser
 from croniter import croniter
 
@@ -13,6 +13,7 @@ from reconcile.utils.ocm import OCM, OCM_PRODUCT_OSD, OCMMap
 from reconcile.utils.state import State
 from reconcile.utils.data_structures import get_or_init
 from reconcile.utils.semver_helper import parse_semver, sort_versions
+from reconcile.ocm.utils import cluster_disabled_integrations
 
 QONTRACT_INTEGRATION = "ocm-upgrade-scheduler"
 
@@ -358,6 +359,14 @@ def act(dry_run, diffs, ocm_map):
                 ocm.delete_upgrade_policy(cluster, diff)
 
 
+def _cluster_is_compatible(cluster: Mapping[str, Any]) -> bool:
+    return (
+        cluster.get("ocm") is not None
+        and cluster.get("upgradePolicy") is not None
+        and cluster["spec"]["product"] in SUPPORTED_OCM_PRODUCTS
+    )
+
+
 def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
     clusters = queries.get_clusters()
     settings = queries.get_app_interface_settings()
@@ -365,8 +374,8 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
     clusters = [
         c
         for c in clusters
-        if c.get("upgradePolicy") is not None
-        and c["spec"]["product"] in SUPPORTED_OCM_PRODUCTS
+        if QONTRACT_INTEGRATION not in cluster_disabled_integrations(c)
+        and _cluster_is_compatible(c)
     ]
 
     if not clusters:
