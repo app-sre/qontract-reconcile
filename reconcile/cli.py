@@ -1645,12 +1645,14 @@ def terraform_resources(
 @threaded(default=20)
 @binary(["terraform"])
 @binary_version("terraform", ["version"], TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
+@account_name
 @click.pass_context
 def terraform_cloudflare_resources(
     ctx,
     print_to_file,
     enable_deletion,
     thread_pool_size,
+    account_name,
 ):
     import reconcile.terraform_cloudflare_resources
 
@@ -1660,6 +1662,7 @@ def terraform_cloudflare_resources(
         print_to_file,
         enable_deletion,
         thread_pool_size,
+        account_name,
     )
 
 
