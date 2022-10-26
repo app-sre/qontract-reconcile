@@ -957,7 +957,7 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
         if "." in kind:
             # self.api_resources contains only the short kind names
             kind = kind.split(".", 1)[0]
-        return self.get_api_resources() and kind in self.get_api_resources()
+        return kind in self.get_api_resources()
 
 
 class OCNative(OCDeprecated):
