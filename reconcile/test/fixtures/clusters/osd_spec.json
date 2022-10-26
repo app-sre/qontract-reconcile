@@ -145,5 +145,8 @@
   "disable_user_workload_monitoring": true,
   "managed_service": {
     "enabled": false
+  },
+  "hypershift": {
+    "enabled": false
   }
 }

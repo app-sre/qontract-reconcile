@@ -9,7 +9,7 @@ kibanaUrl: ""
 prometheusUrl: ""
 alertmanagerUrl: ""
 serverUrl: "https://api-url"
-elbFQDN: "elb.apps.an-osd-test-cluster.k3s7.p1.openshiftapps.com"
+elbFQDN: "elb.apps.tst-jpr-rosa.wrr0.p1.openshiftapps.com"
 ocm:
   name: non-existent-ocm
   url: non-existent-ocm-url

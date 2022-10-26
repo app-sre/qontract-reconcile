@@ -98,10 +98,13 @@ def get_app_interface_spec_updates(
         logging.error(cve)
         error = True
 
-    if not desired_spec.spec.id:
+    if current_spec.spec.id and desired_spec.spec.id != current_spec.spec.id:
         ocm_spec_updates[ocmmod.SPEC_ATTR_ID] = current_spec.spec.id
 
-    if not desired_spec.spec.external_id:
+    if (
+        current_spec.spec.external_id
+        and desired_spec.spec.external_id != current_spec.spec.external_id
+    ):
         ocm_spec_updates[ocmmod.SPEC_ATTR_EXTERNAL_ID] = current_spec.spec.external_id
 
     if (
@@ -112,18 +115,27 @@ def get_app_interface_spec_updates(
             ocmmod.SPEC_ATTR_DISABLE_UWM
         ] = current_spec.spec.disable_user_workload_monitoring
 
-    if desired_spec.spec.provision_shard_id != current_spec.spec.provision_shard_id:
+    if (
+        current_spec.spec.provision_shard_id is not None
+        and desired_spec.spec.provision_shard_id != current_spec.spec.provision_shard_id
+    ):
         ocm_spec_updates[
             ocmmod.SPEC_ATTR_PROVISION_SHARD_ID
         ] = current_spec.spec.provision_shard_id
 
-    if not desired_spec.console_url:
+    if (
+        current_spec.console_url
+        and desired_spec.console_url != current_spec.console_url
+    ):
         root_updates[ocmmod.SPEC_ATTR_CONSOLE_URL] = current_spec.console_url
 
-    if not desired_spec.server_url:
+    if current_spec.server_url and desired_spec.server_url != current_spec.server_url:
         root_updates[ocmmod.SPEC_ATTR_SERVER_URL] = current_spec.server_url
 
-    if not desired_spec.elb_fqdn:
+    if (
+        current_spec.domain
+        and desired_spec.elb_fqdn != f"elb.apps.{cluster}.{current_spec.domain}"
+    ):
         root_updates[
             ocmmod.SPEC_ATTR_ELBFQDN
         ] = f"elb.apps.{cluster}.{current_spec.domain}"

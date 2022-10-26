@@ -639,11 +639,14 @@ CLUSTERS_QUERY = """
     %s
     spec {
       product
+      hypershift
       ... on ClusterSpecOSD_v1 {
         storage
         load_balancers
       }
       ... on ClusterSpecROSA_v1 {
+        subnet_ids
+        availability_zones
         account {
           uid
           rosa {

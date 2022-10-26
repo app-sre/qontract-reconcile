@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, Extra, validator
+from pydantic import BaseModel, Field, Extra
 from typing import Optional, Union
 
 
@@ -30,6 +30,7 @@ class OCMClusterSpec(BaseModel):
     region: str
     initial_version: Optional[str]
     version: str
+    hypershift: Optional[bool]
 
     class Config:
         extra = Extra.forbid
@@ -45,10 +46,10 @@ class OSDClusterSpec(OCMClusterSpec):
 
 class ROSAAWSAttrs(BaseModel):
     creator_role_arn: str
-    installer_role_arn: Optional[str]
-    support_role_arn: Optional[str]
-    controlplane_role_arn: Optional[str]
-    worker_role_arn: Optional[str]
+    installer_role_arn: str
+    support_role_arn: str
+    controlplane_role_arn: str
+    worker_role_arn: str
 
     class Config:
         extra = Extra.forbid
@@ -58,37 +59,14 @@ class ROSAClusterAWSAccount(BaseModel):
     uid: str
     rosa: ROSAAWSAttrs
 
-    @validator("rosa", always=True)
-    @classmethod
-    def set_rosa(cls, rosa: ROSAAWSAttrs, values):
-        if not rosa.installer_role_arn:
-            rosa.installer_role_arn = (
-                f"arn:aws:iam::{values['uid']}:role/ManagedOpenShift-Installer-Role"
-            )
-
-        if not rosa.support_role_arn:
-            rosa.support_role_arn = (
-                f"arn:aws:iam::{values['uid']}:role/ManagedOpenShift-Support-Role"
-            )
-
-        if not rosa.controlplane_role_arn:
-            rosa.controlplane_role_arn = (
-                f"arn:aws:iam::{values['uid']}:role/ManagedOpenShift-ControlPlane-Role"
-            )
-
-        if not rosa.worker_role_arn:
-            rosa.worker_role_arn = (
-                f"arn:aws:iam::{values['uid']}:role/ManagedOpenShift-Worker-Role"
-            )
-
-        return rosa
-
     class Config:
         extra = Extra.forbid
 
 
 class ROSAClusterSpec(OCMClusterSpec):
     account: ROSAClusterAWSAccount
+    subnet_ids: Optional[list[str]]
+    availability_zones: Optional[list[str]]
 
     class Config:
         extra = Extra.forbid
