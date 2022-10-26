@@ -361,6 +361,13 @@ def test_deepdiff_invalid():
         deepdiff_path_to_jsonpath("something_invalid")
 
 
+def test_deepdiff_path_element_with_dot():
+    assert (
+        str(deepdiff_path_to_jsonpath("root['data']['main.yaml']"))
+        == "data.'main.yaml'"
+    )
+
+
 #
 # change type processor validations
 #
@@ -946,7 +953,24 @@ def test_bundle_change_diff_item_reorder():
     assert not bundle_change
 
 
-def test_bundle_change_diff_resourcefile_without_schema():
+def test_bundle_change_diff_resourcefile_without_schema_unparsable():
+    bundle_change = create_bundle_file_change(
+        path="path",
+        schema=None,
+        file_type=BundleFileType.RESOURCEFILE,
+        old_file_content="something_old",
+        new_file_content="something_new",
+    )
+
+    assert bundle_change
+    assert len(bundle_change.diff_coverage) == 1
+    assert str(bundle_change.diff_coverage[0].diff.path) == "$"
+    assert bundle_change.diff_coverage[0].diff.diff_type == DiffType.CHANGED
+    assert bundle_change.diff_coverage[0].diff.old == "something_old"
+    assert bundle_change.diff_coverage[0].diff.new == "something_new"
+
+
+def test_bundle_change_diff_resourcefile_without_schema_parsable():
     bundle_change = create_bundle_file_change(
         path="path",
         schema=None,
@@ -957,10 +981,12 @@ def test_bundle_change_diff_resourcefile_without_schema():
 
     assert bundle_change
     assert len(bundle_change.diff_coverage) == 1
-    assert str(bundle_change.diff_coverage[0].diff.path) == "$"
+    assert bundle_change.old == {"field": "old_value"}
+    assert bundle_change.new == {"field": "new_value"}
+    assert str(bundle_change.diff_coverage[0].diff.path) == "field"
     assert bundle_change.diff_coverage[0].diff.diff_type == DiffType.CHANGED
-    assert bundle_change.diff_coverage[0].diff.old == "field: old_value"
-    assert bundle_change.diff_coverage[0].diff.new == "field: new_value"
+    assert bundle_change.diff_coverage[0].diff.old == "old_value"
+    assert bundle_change.diff_coverage[0].diff.new == "new_value"
 
 
 def test_bundle_change_diff_resourcefile_with_schema():
