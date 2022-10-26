@@ -94,7 +94,7 @@ class JenkinsConfigV1_JenkinsConfigV1(JenkinsConfigV1):
 
 class JenkinsConfigsQueryData(BaseModel):
     jenkins_configs: Optional[
-        list[Optional[Union[JenkinsConfigV1_JenkinsConfigV1, JenkinsConfigV1]]]
+        list[Union[JenkinsConfigV1_JenkinsConfigV1, JenkinsConfigV1]]
     ] = Field(..., alias="jenkins_configs")
 
     class Config:

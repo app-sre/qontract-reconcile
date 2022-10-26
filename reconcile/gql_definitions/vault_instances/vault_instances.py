@@ -171,7 +171,7 @@ class VaultReplicationConfigV1_VaultInstanceV1(BaseModel):
         extra = Extra.forbid
 
 
-class VaultReplicationV1(BaseModel):
+class VaultReplicationPathsV1(BaseModel):
     provider: str = Field(..., alias="provider")
 
     class Config:
@@ -206,7 +206,7 @@ class VaultPolicyV1(BaseModel):
         extra = Extra.forbid
 
 
-class VaultReplicationJenkinsV1(VaultReplicationV1):
+class VaultReplicationJenkinsV1(VaultReplicationPathsV1):
     jenkins_instance: JenkinsInstanceV1 = Field(..., alias="jenkinsInstance")
     policy: Optional[VaultPolicyV1] = Field(..., alias="policy")
 
@@ -220,7 +220,7 @@ class VaultReplicationConfigV1(BaseModel):
         ..., alias="vaultInstance"
     )
     paths: Optional[
-        list[Optional[Union[VaultReplicationJenkinsV1, VaultReplicationV1]]]
+        list[Union[VaultReplicationJenkinsV1, VaultReplicationPathsV1]]
     ] = Field(..., alias="paths")
 
     class Config:
@@ -234,7 +234,7 @@ class VaultInstanceV1(BaseModel):
     auth: Union[VaultInstanceAuthApproleV1, VaultInstanceAuthV1] = Field(
         ..., alias="auth"
     )
-    replication: Optional[list[Optional[VaultReplicationConfigV1]]] = Field(
+    replication: Optional[list[VaultReplicationConfigV1]] = Field(
         ..., alias="replication"
     )
 
@@ -244,7 +244,7 @@ class VaultInstanceV1(BaseModel):
 
 
 class VaultInstancesQueryData(BaseModel):
-    vault_instances: Optional[list[Optional[VaultInstanceV1]]] = Field(
+    vault_instances: Optional[list[VaultInstanceV1]] = Field(
         ..., alias="vault_instances"
     )
 

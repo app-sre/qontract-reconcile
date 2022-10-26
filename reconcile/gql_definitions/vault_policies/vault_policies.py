@@ -48,7 +48,7 @@ class VaultPolicyV1(BaseModel):
 
 
 class VaultPoliciesQueryData(BaseModel):
-    policy: Optional[list[Optional[VaultPolicyV1]]] = Field(..., alias="policy")
+    policy: Optional[list[VaultPolicyV1]] = Field(..., alias="policy")
 
     class Config:
         smart_union = True
