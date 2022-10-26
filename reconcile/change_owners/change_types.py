@@ -250,12 +250,13 @@ def create_bundle_file_change(
     """
     fileref = FileRef(path=path, schema=schema, file_type=file_type)
 
-    # try to parse the content if a resourcefile has a schema
-    if file_type == BundleFileType.RESOURCEFILE and schema:
+    # try to parse the content of a resourcefile
+    # it falls back to the plain file content if parsing does not work
+    if file_type == BundleFileType.RESOURCEFILE:
         old_file_content, _ = parse_resource_file_content(old_file_content)
         new_file_content, _ = parse_resource_file_content(new_file_content)
+
     diffs = extract_diffs(
-        schema=schema,
         old_file_content=old_file_content,
         new_file_content=new_file_content,
     )
@@ -361,13 +362,12 @@ class ChangeTypeProcessor:
         self._changes.append(change)
         if isinstance(change, ChangeTypeChangeDetectorJsonPathProviderV1):
             change_schema = change.change_schema or self.context_schema
-            if change_schema:
-                for jsonpath_expression in change.json_path_selectors + [
-                    f"'{SHA256SUM_FIELD_NAME}'"
-                ]:
-                    self._expressions_by_file_type_schema[
-                        (self.context_type, change_schema)
-                    ].append(PathExpression(jsonpath_expression))
+            for jsonpath_expression in change.json_path_selectors + [
+                f"'{SHA256SUM_FIELD_NAME}'"
+            ]:
+                self._expressions_by_file_type_schema[
+                    (self.context_type, change_schema)
+                ].append(PathExpression(jsonpath_expression))
         else:
             raise ValueError(
                 f"{change.provider} is not a supported change detection provider within ChangeTypes"
