@@ -249,8 +249,9 @@ def populate_current_state(
                 openshift_resource.name,
                 openshift_resource,
             )
-    except StatusCodeError:
+    except StatusCodeError as e:
         ri.register_error(cluster=spec.cluster)
+        logging.error(f"[{spec.cluster}/{spec.namespace}] {str(e)}")
 
 
 def fetch_current_state(
