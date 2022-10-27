@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import Any, Iterable, Mapping, Optional
-from reconcile.cna.assets import Asset, AssetStatus, AssetType, NullAsset
+from reconcile.cna.assets.asset import Asset, AssetStatus, AssetType
+from reconcile.cna.assets.null import NullAsset
 
 
 class CNAStateError(Exception):
@@ -80,7 +81,7 @@ class State:
                 if asset == other_asset:
                     # There is no diff - no need to update
                     continue
-                ans.add_asset(asset=other_asset)
+                ans.add_asset(asset=asset.update_from(other_asset))
         return ans
 
     def __sub__(self, other: State) -> State:

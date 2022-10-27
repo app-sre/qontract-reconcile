@@ -1,33 +1,9 @@
 from __future__ import annotations
-from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from enum import Enum
 from typing import Any, Mapping, Optional
 
+from reconcile.cna.assets.asset import Asset, AssetError, AssetStatus, AssetType
 from reconcile.gql_definitions.cna.queries.cna_resources import CNANullAssetV1
-
-
-class AssetType(Enum):
-    NULL = "null"
-
-
-class AssetStatus(Enum):
-    TERMINATED = "Terminated"
-    PENDING = "Pending"
-    RUNNING = "Running"
-
-
-@dataclass
-class Asset(ABC):
-    uuid: Optional[str]
-    href: Optional[str]
-    status: Optional[AssetStatus]
-    name: str
-    kind: AssetType
-
-    @abstractmethod
-    def api_payload(self) -> dict[str, Any]:
-        raise NotImplementedError()
 
 
 @dataclass
@@ -58,6 +34,18 @@ class NullAsset(Asset):
             + self.name
             + str(self.kind)
             + str(self.addr_block)
+        )
+
+    def update_from(self, asset: Asset) -> Asset:
+        if not isinstance(asset, NullAsset):
+            raise AssetError(f"Cannot create NullAsset from {asset}")
+        return NullAsset(
+            uuid=self.uuid,
+            href=self.href,
+            status=self.status,
+            name=self.name,
+            kind=self.kind,
+            addr_block=asset.addr_block,
         )
 
     @staticmethod

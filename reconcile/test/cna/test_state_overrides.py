@@ -1,7 +1,8 @@
 from typing import Optional
 import pytest
 
-from reconcile.cna.assets import AssetStatus, AssetType, NullAsset
+from reconcile.cna.assets.asset import AssetStatus, AssetType
+from reconcile.cna.assets.null import NullAsset
 from reconcile.cna.state import State
 
 

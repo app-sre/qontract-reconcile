@@ -1,6 +1,6 @@
 from collections import defaultdict
-from typing import Iterable, Mapping
-from reconcile.cna.assets import NullAsset
+from typing import Iterable, Mapping, Optional
+from reconcile.cna.assets.null import NullAsset
 from reconcile.cna.client import CNAClient
 from reconcile.cna.state import State
 
@@ -32,6 +32,59 @@ class CNAConfigException(Exception):
     pass
 
 
+class CNAIntegration:
+    def __init__(
+        self,
+        cna_clients: Mapping[str, CNAClient],
+        namespaces: Iterable[NamespaceV1],
+        desired_states: Optional[Mapping[str, State]] = None,
+        actual_states: Optional[Mapping[str, State]] = None,
+    ):
+        self._cna_clients = cna_clients
+        self._namespaces = namespaces
+        self._desired_states = desired_states if desired_states else defaultdict(State)
+        self._actual_states = actual_states if actual_states else defaultdict(State)
+
+    def assemble_desired_states(self):
+        self._desired_states = defaultdict(State)
+        for namespace in self._namespaces:
+            for provider in namespace.external_resources or []:
+                # TODO: this should probably be filtered within the query already
+                if not isinstance(provider, NamespaceCNAssetV1):
+                    continue
+                for resource in provider.resources or []:
+                    if isinstance(resource, CNANullAssetV1):
+                        null_asset = NullAsset.from_query_class(resource)
+                        self._desired_states[provider.provisioner.name].add_asset(
+                            null_asset
+                        )
+
+    def assemble_actual_states(self):
+        self._actual_states = defaultdict(State)
+        for name, client in self._cna_clients.items():
+            cnas = client.list_assets()
+            state = State()
+            state.add_raw_data(cnas)
+            self._actual_states[name] = state
+
+    def provision(self, dry_run: bool = False):
+        for provisioner_name, cna_client in self._cna_clients.items():
+            desired_state = self._desired_states[provisioner_name]
+            actual_state = self._actual_states[provisioner_name]
+
+            additions = desired_state - actual_state
+            for asset in additions:
+                cna_client.create(asset=asset, dry_run=dry_run)
+
+            deletions = actual_state - desired_state
+            for asset in deletions:
+                cna_client.delete(asset=asset, dry_run=dry_run)
+
+            updates = actual_state.required_updates_to_reach(desired_state)
+            for assets in updates:
+                cna_client.update(asset=assets, dry_run=dry_run)
+
+
 def build_cna_clients(
     secret_reader: SecretReaderBase, cna_provisioners: list[CNAProvisionerV1]
 ) -> dict[str, CNAClient]:
@@ -54,51 +107,9 @@ def build_cna_clients(
     return clients
 
 
-def assemble_desired_states_by_provisioner(
-    namespaces: Iterable[NamespaceV1],
-) -> dict[str, State]:
-    ans: dict[str, State] = defaultdict(State)
-    for namespace in namespaces:
-        for provider in namespace.external_resources or []:
-            # TODO: this should probably be filtered within the query already
-            if not isinstance(provider, NamespaceCNAssetV1):
-                continue
-            for resource in provider.resources or []:
-                if isinstance(resource, CNANullAssetV1):
-                    null_asset = NullAsset.from_query_class(resource)
-                    ans[provider.provisioner.name].add_asset(null_asset)
-    return ans
-
-
-def assemble_actual_states_by_provisioner(
-    cna_clients: Mapping[str, CNAClient]
-) -> dict[str, State]:
-    ans = {}
-    for name, client in cna_clients.items():
-        cnas = client.list_assets()
-        state = State()
-        state.add_raw_data(cnas)
-        ans[name] = state
-    return ans
-
-
-def create(cna_client: CNAClient, additions: State):
-    for resource in additions:
-        cna_client.create(resource)
-
-
-def delete(cna_client: CNAClient, deletions: State):
-    for resource in deletions:
-        cna_client.delete(resource)
-
-
-def update(cna_client: CNAClient, updates: State):
-    for resource in updates:
-        cna_client.update(resource)
-
-
 def run(
     dry_run: bool,
+    # TODO: Threadpool not used yet - will be used once we understand scopes in more detail
     thread_pool_size: int,
     defer=None,
 ) -> None:
@@ -113,18 +124,8 @@ def run(
     cna_clients = build_cna_clients(
         secret_reader=secret_reader, cna_provisioners=cna_provisioners
     )
-    desired_states = assemble_desired_states_by_provisioner(namespaces=namespaces)
-    actual_states = assemble_actual_states_by_provisioner(cna_clients=cna_clients)
 
-    for provisioner_name, cna_client in cna_clients.items():
-        desired_state = desired_states[provisioner_name]
-        actual_state = actual_states[provisioner_name]
-
-        additions = desired_state - actual_state
-        create(additions=additions, cna_client=cna_client)
-
-        deletions = actual_state - desired_state
-        delete(deletions=deletions, cna_client=cna_client)
-
-        updates = actual_state.required_updates_to_reach(desired_state)
-        update(updates=updates, cna_client=cna_client)
+    integration = CNAIntegration(cna_clients=cna_clients, namespaces=namespaces)
+    integration.assemble_actual_states()
+    integration.assemble_desired_states()
+    integration.provision(dry_run=dry_run)

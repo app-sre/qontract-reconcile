@@ -1,5 +1,6 @@
+import logging
 from typing import Any
-from reconcile.cna.assets import Asset
+from reconcile.cna.assets.asset import Asset
 from reconcile.utils.ocm_base_client import OCMBaseClient
 
 
@@ -20,19 +21,28 @@ class CNAClient:
         cnas = self._ocm_client.get(api_path="/api/cna-management/v1/cnas")
         return cnas.get("items", [])
 
-    def create(self, asset: Asset):
+    def create(self, asset: Asset, dry_run: bool = False):
+        if dry_run:
+            logging.info("CREATE %s", asset)
+            return
         self._ocm_client.post(
             api_path="/api/cna-management/v1/cnas",
             data=asset.api_payload(),
         )
 
-    def delete(self, asset: Asset):
+    def delete(self, asset: Asset, dry_run: bool = False):
+        if dry_run:
+            logging.info("DELETE %s", asset)
+            return
         if asset.href:
             self._ocm_client.delete(
                 api_path=asset.href,
             )
 
-    def update(self, asset: Asset):
+    def update(self, asset: Asset, dry_run: bool = False):
+        if dry_run:
+            logging.info("UPDATE %s", asset)
+            return
         if asset.href:
             self._ocm_client.patch(
                 api_path=asset.href,

@@ -1,15 +1,19 @@
 from typing import Optional
 import pytest
-from reconcile.cna.assets import AssetStatus, AssetType, NullAsset
+from reconcile.cna.assets.asset import AssetStatus, AssetType
+from reconcile.cna.assets.null import NullAsset
 
 from reconcile.cna.state import CNAStateError, State
 
 
 def null_asset(
-    name: str, status: Optional[AssetStatus] = None, addr_block: Optional[str] = None
+    name: str,
+    status: Optional[AssetStatus] = None,
+    addr_block: Optional[str] = None,
+    uuid: Optional[str] = None,
 ) -> NullAsset:
     return NullAsset(
-        uuid=None,
+        uuid=uuid,
         href=None,
         status=status,
         kind=AssetType.NULL,
@@ -164,6 +168,7 @@ def null_asset(
                         ),
                         "test1": null_asset(
                             name="test1",
+                            uuid="123",
                         ),
                     }
                 }
@@ -192,6 +197,7 @@ def null_asset(
                         "test1": null_asset(
                             name="test1",
                             addr_block="123",
+                            uuid="123",
                         )
                     }
                 }
@@ -251,6 +257,14 @@ def test_state_create_delete_update(
     assert additions == expected_additions
     assert deletions == expected_deletions
     assert updates == expected_updates
+
+    for update, expected_update in zip(updates, expected_updates):
+        """
+        The update should contain the uuid of the actual asset.
+        Currently CNA does not support addressing w/o use of
+        internal uuid.
+        """
+        assert update.uuid == expected_update.uuid
 
 
 def test_state_create_update_terminated():
