@@ -1,6 +1,6 @@
 # qenerate: plugin=pydantic_v1
 
-query CNAResources {
+query CNAssets {
   namespaces: namespaces_v1 {
     name
     externalResources {
@@ -8,10 +8,10 @@ query CNAResources {
       provisioner {
         name
       }
-      ... on NamespaceCNAResource_v1 {
+      ... on NamespaceCNAsset_v1 {
         resources {
           provider
-          ... on CNANullResource_v1 {
+          ... on CNANullAsset_v1 {
             name: identifier
             addr_block
           }

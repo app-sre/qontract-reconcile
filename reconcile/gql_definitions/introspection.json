@@ -16578,7 +16578,7 @@
                     "possibleTypes": [
                         {
                             "kind": "OBJECT",
-                            "name": "NamespaceCNAResource_v1",
+                            "name": "NamespaceCNAsset_v1",
                             "ofType": null
                         },
                         {
@@ -26423,7 +26423,7 @@
                 },
                 {
                     "kind": "OBJECT",
-                    "name": "NamespaceCNAResource_v1",
+                    "name": "NamespaceCNAsset_v1",
                     "description": null,
                     "fields": [
                         {
@@ -26473,7 +26473,7 @@
                                         "name": null,
                                         "ofType": {
                                             "kind": "INTERFACE",
-                                            "name": "CNAResource_v1",
+                                            "name": "CNAsset_v1",
                                             "ofType": null
                                         }
                                     }
@@ -26496,7 +26496,7 @@
                 },
                 {
                     "kind": "INTERFACE",
-                    "name": "CNAResource_v1",
+                    "name": "CNAsset_v1",
                     "description": null,
                     "fields": [
                         {
@@ -26522,14 +26522,14 @@
                     "possibleTypes": [
                         {
                             "kind": "OBJECT",
-                            "name": "CNANullResource_v1",
+                            "name": "CNANullAsset_v1",
                             "ofType": null
                         }
                     ]
                 },
                 {
                     "kind": "OBJECT",
-                    "name": "CNANullResource_v1",
+                    "name": "CNANullAsset_v1",
                     "description": null,
                     "fields": [
                         {
@@ -26593,7 +26593,7 @@
                     "interfaces": [
                         {
                             "kind": "INTERFACE",
-                            "name": "CNAResource_v1",
+                            "name": "CNAsset_v1",
                             "ofType": null
                         }
                     ],

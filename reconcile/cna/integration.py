@@ -11,8 +11,8 @@ from reconcile.gql_definitions.cna.queries.cna_provisioners import (
     query as cna_provisioners_query,
 )
 from reconcile.gql_definitions.cna.queries.cna_resources import (
-    CNANullResourceV1,
-    NamespaceCNAResourceV1,
+    CNANullAssetV1,
+    NamespaceCNAssetV1,
     NamespaceV1,
     query as namespaces_query,
 )
@@ -61,10 +61,10 @@ def assemble_desired_states_by_provisioner(
     for namespace in namespaces:
         for provider in namespace.external_resources or []:
             # TODO: this should probably be filtered within the query already
-            if not isinstance(provider, NamespaceCNAResourceV1):
+            if not isinstance(provider, NamespaceCNAssetV1):
                 continue
             for resource in provider.resources or []:
-                if isinstance(resource, CNANullResourceV1):
+                if isinstance(resource, CNANullAssetV1):
                     null_asset = NullAsset.from_query_class(resource)
                     ans[provider.provisioner.name].add_asset(null_asset)
     return ans

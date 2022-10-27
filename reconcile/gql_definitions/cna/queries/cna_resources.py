@@ -17,7 +17,7 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
 
 
 DEFINITION = """
-query CNAResources {
+query CNAssets {
   namespaces: namespaces_v1 {
     name
     externalResources {
@@ -25,10 +25,10 @@ query CNAResources {
       provisioner {
         name
       }
-      ... on NamespaceCNAResource_v1 {
+      ... on NamespaceCNAsset_v1 {
         resources {
           provider
-          ... on CNANullResource_v1 {
+          ... on CNANullAsset_v1 {
             name: identifier
             addr_block
           }
@@ -57,7 +57,7 @@ class NamespaceExternalResourceV1(BaseModel):
         extra = Extra.forbid
 
 
-class CNAResourceV1(BaseModel):
+class CNAssetV1(BaseModel):
     provider: str = Field(..., alias="provider")
 
     class Config:
@@ -65,7 +65,7 @@ class CNAResourceV1(BaseModel):
         extra = Extra.forbid
 
 
-class CNANullResourceV1(CNAResourceV1):
+class CNANullAssetV1(CNAssetV1):
     name: str = Field(..., alias="name")
     addr_block: Optional[str] = Field(..., alias="addr_block")
 
@@ -74,10 +74,8 @@ class CNANullResourceV1(CNAResourceV1):
         extra = Extra.forbid
 
 
-class NamespaceCNAResourceV1(NamespaceExternalResourceV1):
-    resources: list[Union[CNANullResourceV1, CNAResourceV1]] = Field(
-        ..., alias="resources"
-    )
+class NamespaceCNAssetV1(NamespaceExternalResourceV1):
+    resources: list[Union[CNANullAssetV1, CNAssetV1]] = Field(..., alias="resources")
 
     class Config:
         smart_union = True
@@ -87,7 +85,7 @@ class NamespaceCNAResourceV1(NamespaceExternalResourceV1):
 class NamespaceV1(BaseModel):
     name: str = Field(..., alias="name")
     external_resources: Optional[
-        list[Union[NamespaceCNAResourceV1, NamespaceExternalResourceV1]]
+        list[Union[NamespaceCNAssetV1, NamespaceExternalResourceV1]]
     ] = Field(..., alias="externalResources")
 
     class Config:
@@ -95,7 +93,7 @@ class NamespaceV1(BaseModel):
         extra = Extra.forbid
 
 
-class CNAResourcesQueryData(BaseModel):
+class CNAssetsQueryData(BaseModel):
     namespaces: Optional[list[NamespaceV1]] = Field(..., alias="namespaces")
 
     class Config:
@@ -103,7 +101,7 @@ class CNAResourcesQueryData(BaseModel):
         extra = Extra.forbid
 
 
-def query(query_func: Callable, **kwargs) -> CNAResourcesQueryData:
+def query(query_func: Callable, **kwargs) -> CNAssetsQueryData:
     """
     This is a convenience function which queries and parses the data into
     concrete types. It should be compatible with most GQL clients.
@@ -116,7 +114,7 @@ def query(query_func: Callable, **kwargs) -> CNAResourcesQueryData:
         kwargs: optional arguments that will be passed to the query function
 
     Returns:
-        CNAResourcesQueryData: queried data parsed into generated classes
+        CNAssetsQueryData: queried data parsed into generated classes
     """
     raw_data: dict[Any, Any] = query_func(DEFINITION, **kwargs)
-    return CNAResourcesQueryData(**raw_data)
+    return CNAssetsQueryData(**raw_data)

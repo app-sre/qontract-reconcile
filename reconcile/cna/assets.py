@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Mapping, Optional
 
-from reconcile.gql_definitions.cna.queries.cna_resources import CNANullResourceV1
+from reconcile.gql_definitions.cna.queries.cna_resources import CNANullAssetV1
 
 
 class AssetType(Enum):
@@ -61,7 +61,7 @@ class NullAsset(Asset):
         )
 
     @staticmethod
-    def from_query_class(asset: CNANullResourceV1) -> NullAsset:
+    def from_query_class(asset: CNANullAssetV1) -> NullAsset:
         return NullAsset(
             uuid=None,
             href=None,

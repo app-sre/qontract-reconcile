@@ -11,7 +11,8 @@ class State:
     """
     State object is a collection of assets.
     It can be used to describe actual or desired state.
-    Main task is to calculate diffs between 2 states.
+    Main objective is to calculate required additions,
+    deletions and updates to reach another state.
     """
 
     def __init__(self, assets: Optional[dict[AssetType, dict[str, Asset]]] = None):

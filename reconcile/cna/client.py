@@ -33,4 +33,8 @@ class CNAClient:
             )
 
     def update(self, asset: Asset):
-        pass
+        if asset.href:
+            self._ocm_client.patch(
+                api_path=asset.href,
+                data=asset.api_payload(),
+            )
