@@ -31,3 +31,6 @@ class CNAClient:
             self._ocm_client.delete(
                 api_path=asset.href,
             )
+
+    def update(self, asset: Asset):
+        pass

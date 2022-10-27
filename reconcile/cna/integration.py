@@ -66,7 +66,7 @@ def assemble_desired_states_by_provisioner(
             for resource in provider.resources or []:
                 if isinstance(resource, CNANullResourceV1):
                     null_asset = NullAsset.from_query_class(resource)
-                    ans[provider.provisioner.name].add_null_asset(null_asset)
+                    ans[provider.provisioner.name].add_asset(null_asset)
     return ans
 
 
@@ -90,6 +90,11 @@ def create(cna_client: CNAClient, additions: State):
 def delete(cna_client: CNAClient, deletions: State):
     for resource in deletions:
         cna_client.delete(resource)
+
+
+def update(cna_client: CNAClient, updates: State):
+    for resource in updates:
+        cna_client.update(resource)
 
 
 def run(
@@ -120,3 +125,6 @@ def run(
 
         deletions = actual_state - desired_state
         delete(deletions=deletions, cna_client=cna_client)
+
+        updates = actual_state.required_updates_to_reach(desired_state)
+        update(updates=updates, cna_client=cna_client)
