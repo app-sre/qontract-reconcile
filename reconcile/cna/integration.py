@@ -25,7 +25,6 @@ from reconcile.utils.semver_helper import make_semver
 
 QONTRACT_INTEGRATION = "cna_resources"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
-QONTRACT_TF_PREFIX = "qrtfcf"
 
 
 class CNAConfigException(Exception):
@@ -90,14 +89,16 @@ def build_cna_clients(
 ) -> dict[str, CNAClient]:
     clients: dict[str, CNAClient] = {}
     for provisioner in cna_provisioners:
-        if not provisioner.ocm.offline_token:
+        if not provisioner.ocm.access_token_client_secret:
             raise CNAConfigException(
-                f"No offline_token for provisioner {provisioner.name}"
+                f"No access_token_client_secret for provisioner {provisioner.name}"
             )
-        secret_data = secret_reader.read_all_secret(provisioner.ocm.offline_token)
+        secret_data = secret_reader.read_all_secret(
+            provisioner.ocm.access_token_client_secret
+        )
         ocm_client = OCMBaseClient(
             url=provisioner.ocm.url,
-            offline_token=secret_data["offline_token"],
+            access_token_client_secret=secret_data["client_secret"],
             access_token_url=provisioner.ocm.access_token_url,
             access_token_client_id=provisioner.ocm.access_token_client_id,
         )

@@ -8,10 +8,10 @@ query CNAProvisioners {
       name
       accessTokenUrl
       accessTokenClientId
-      url
-      offlineToken {
+      accessTokenClientSecret {
         ... VaultSecret
       }
+      url
     }
   }
 }

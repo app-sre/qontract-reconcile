@@ -18,6 +18,7 @@ class CNAClient:
         We use this to fetch the current real-world state
         of our assets
         """
+        # TODO: properly handle paging
         cnas = self._ocm_client.get(api_path="/api/cna-management/v1/cnas")
         return cnas.get("items", [])
 
