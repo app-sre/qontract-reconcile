@@ -607,6 +607,12 @@ CLUSTERS_QUERY = """
       url
       accessTokenClientId
       accessTokenUrl
+      accessTokenClientSecret {
+        path
+        field
+        format
+        version
+      }
       offlineToken {
         path
         field
@@ -914,6 +920,12 @@ CLUSTER_PEERING_QUERY = """
       url
       accessTokenClientId
       accessTokenUrl
+      accessTokenClientSecret {
+        path
+        field
+        format
+        version
+      }
       offlineToken {
         path
         field
@@ -1092,6 +1104,12 @@ KAFKA_CLUSTERS_QUERY = """
       url
       accessTokenClientId
       accessTokenUrl
+      accessTokenClientSecret {
+        path
+        field
+        format
+        version
+      }
       offlineToken {
         path
         field
@@ -2539,6 +2557,12 @@ OCP_RELEASE_ECR_MIRROR_QUERY = """
         url
         accessTokenClientId
         accessTokenUrl
+        accessTokenClientSecret {
+          path
+          field
+          format
+          version
+        }
         offlineToken {
           path
           field

@@ -471,14 +471,14 @@ class OCM:  # pylint: disable=too-many-public-methods
     :param url: OCM instance URL
     :param access_token_client_id: client-id to get access token
     :param access_token_url: URL to get access token from
-    :param offline_token: Long lived offline token used to get access token
+    :param access_token_client_secret: client-secret to get access token
     :param init_provision_shards: should initiate provision shards
     :param init_addons: should initiate addons
     :param blocked_versions: versions to block upgrades for
     :type url: string
     :type access_token_client_id: string
     :type access_token_url: string
-    :type offline_token: string
+    :type access_token_client_secret: string
     :type init_provision_shards: bool
     :type init_addons: bool
     :type init_version_gates: bool
@@ -491,7 +491,7 @@ class OCM:  # pylint: disable=too-many-public-methods
         url,
         access_token_client_id,
         access_token_url,
-        offline_token,
+        access_token_client_secret,
         init_provision_shards=False,
         init_addons=False,
         init_version_gates=False,
@@ -503,7 +503,7 @@ class OCM:  # pylint: disable=too-many-public-methods
         if not ocm_client:
             self._init_ocm_client(
                 url=url,
-                offline_token=offline_token,
+                access_token_client_secret=access_token_client_secret,
                 access_token_client_id=access_token_client_id,
                 access_token_url=access_token_url,
             )
@@ -532,13 +532,13 @@ class OCM:  # pylint: disable=too-many-public-methods
     def _init_ocm_client(
         self,
         url: str,
-        offline_token: str,
+        access_token_client_secret: str,
         access_token_url: str,
         access_token_client_id: str,
     ):
         self._ocm_client = OCMBaseClient(
             url=url,
-            offline_token=offline_token,
+            access_token_client_secret=access_token_client_secret,
             access_token_url=access_token_url,
             access_token_client_id=access_token_client_id,
         )
@@ -1394,14 +1394,14 @@ class OCMMap:  # pylint: disable=too-many-public-methods
 
         access_token_client_id = ocm_info.get("accessTokenClientId")
         access_token_url = ocm_info.get("accessTokenUrl")
-        ocm_offline_token = ocm_info.get("offlineToken")
-        if ocm_offline_token is None:
+        access_token_client_secret = ocm_info.get("accessTokenClientSecret")
+        if access_token_client_secret is None:
             self.ocm_map[ocm_name] = False
         else:
             url = ocm_info["url"]
             name = ocm_info["name"]
             secret_reader = SecretReader(settings=self.settings)
-            token = secret_reader.read(ocm_offline_token)
+            token = secret_reader.read(access_token_client_secret)
             self.ocm_map[ocm_name] = OCM(
                 name,
                 url,
