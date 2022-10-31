@@ -145,6 +145,7 @@ from reconcile.utils.external_resource_spec import (
     ExternalResourceSpecInventory,
 )
 from reconcile.utils.external_resources import PROVIDER_AWS, get_external_resource_specs
+from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.jenkins_api import JenkinsApi
 from reconcile.utils.ocm import OCMMap
 from reconcile.utils.password_validator import PasswordPolicy, PasswordValidator
@@ -385,6 +386,10 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         self.lambda_lock = Lock()
         self.github: Optional[Github] = None
         self.github_lock = Lock()
+        self.gitlab: Optional[GitLabApi] = None
+        self.gitlab_lock = Lock()
+        self.jenkins_map: Dict[str, JenkinsApi] = {}
+        self.jenkins_lock = Lock()
 
     @staticmethod
     def state_bucket_for_account(
@@ -516,10 +521,26 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     self.github = Github(token, base_url=GH_BASE_URL)
         return self.github
 
+    def init_gitlab(self) -> GitLabApi:
+        if not self.gitlab:
+            with self.gitlab_lock:
+                if not self.gitlab:
+                    instance = queries.get_gitlab_instance()
+                    self.gitlab = GitLabApi(instance, settings=self.settings)
+        return self.gitlab
+
     def init_jenkins(self, instance: dict) -> JenkinsApi:
-        return JenkinsApi.init_jenkins_from_secret(
-            SecretReader(self.settings), instance["token"]
-        )
+        instance_name = instance["name"]
+        if not self.jenkins_map.get(instance_name):
+            with self.jenkins_lock:
+                # this may have already happened, so we check again
+                if not self.jenkins_map.get(instance_name):
+                    self.jenkins_map[
+                        instance_name
+                    ] = JenkinsApi.init_jenkins_from_secret(
+                        SecretReader(self.settings), instance["token"]
+                    )
+        return self.jenkins_map[instance_name]
 
     def filter_disabled_accounts(
         self, accounts: Iterable[dict[str, Any]]
@@ -4830,7 +4851,10 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             commit = repo.get_commit(sha=ref)
             return commit.sha
         elif "gitlab" in url:
-            raise NotImplementedError("dose not support gitlab repo for now")
+            gitlab = self.init_gitlab()
+            project = gitlab.get_project(url)
+            commits = project.commits.list(ref_name=ref)
+            return commits[0].id
 
         return ""
 
