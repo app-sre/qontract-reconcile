@@ -168,7 +168,9 @@ class OCMProductOsd(OCMProduct):
 
         if not cluster["ccs"]["enabled"]:
             cluster_spec_data = spec.dict()
-            cluster_spec_data["storage"] = cluster["storage_quota"]["value"] // BYTES_IN_GIGABYTE
+            cluster_spec_data["storage"] = (
+                cluster["storage_quota"]["value"] // BYTES_IN_GIGABYTE
+            )
             cluster_spec_data["load_balancers"] = cluster["load_balancer_quota"]
             spec = OSDClusterSpec(**cluster_spec_data)
 
