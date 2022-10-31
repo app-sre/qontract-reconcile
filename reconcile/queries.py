@@ -1083,6 +1083,28 @@ def get_clusters_by(filter: ClusterFilter, minimal: bool = False) -> list[dict]:
     return gqlapi.query(query)["clusters"]
 
 
+OCM_QUERY = """
+{
+  instances: ocm_instances_v1 {
+    name
+    url
+    accessTokenClientId
+    accessTokenUrl
+    accessTokenClientSecret {
+      path
+      field
+      format
+      version
+    }
+  }
+}
+"""
+
+
+def get_openshift_cluster_managers() -> list[dict[str, Any]]:
+    return gql.get_api().query(OCM_QUERY)["instances"]
+
+
 KAFKA_CLUSTERS_QUERY = """
 {
   clusters: kafka_clusters_v1 {

@@ -632,6 +632,26 @@ def bot_login(ctx, cluster_name):
     print(f"oc login --server {server} --token {token}")
 
 
+@get.command()
+@click.argument("org_name")
+@click.pass_context
+def ocm_login(ctx, org_name):
+    settings = queries.get_app_interface_settings()
+    secret_reader = SecretReader(settings=settings)
+    ocms = [
+        o for o in queries.get_openshift_cluster_managers() if o["name"] == org_name
+    ]
+    try:
+        ocm = ocms[0]
+    except IndexError:
+        print(f"{org_name} not found.")
+        sys.exit(1)
+
+    client_secret = secret_reader.read(ocm["accessTokenClientSecret"])
+    access_token_command = f'curl -s -X POST {ocm["accessTokenUrl"]} -d "grant_type=client_credentials" -d "client_id={ocm["accessTokenClientId"]}" -d "client_secret={client_secret}" | jq -r .access_token'
+    print(f'ocm login --url {ocm["url"]} --token $({access_token_command})')
+
+
 @get.command(
     short_help="obtain automation credentials for "
     "aws account by name. executing this "
