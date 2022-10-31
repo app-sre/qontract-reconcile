@@ -1,28 +1,23 @@
 import logging
 import re
-import sys
 
 from reconcile.utils.vault import VaultClient, _VaultClient, SecretNotFound
 from reconcile.gql_definitions.jenkins_configs import jenkins_configs
 from reconcile.gql_definitions.jenkins_configs.jenkins_configs import (
-    JenkinsConfigV1,
+    JenkinsConfigV1_JenkinsConfigV1,
 )
 
 from reconcile.gql_definitions.vault_policies import vault_policies
 from reconcile.gql_definitions.vault_instances import vault_instances
-from reconcile.gql_definitions.vault_instances.vault_instances import (
-    VaultReplicationV1,
-    VaultInstanceV1,
-)
-from reconcile.gql_definitions.vault_policies.vault_policies import (
-    VaultPolicyV1,
-)
 
 from reconcile.utils import gql
-
 from typing import List, cast, Optional
 
 QONTRACT_INTEGRATION = "vault-replication"
+
+
+class VaultInvalidPaths(Exception):
+    pass
 
 
 def deep_copy_versions(
@@ -35,27 +30,11 @@ def deep_copy_versions(
 ):
     for version in range(current_dest_version + 1, current_source_version + 1):
         secret_dict = {"path": path, "version": version}
-        copy_secret(
-            dry_run=dry_run,
-            source_vault=source_vault,
-            dest_vault=dest_vault,
-            path=path,
-            secret_dict=secret_dict,
-        )
-
-
-def copy_secret(
-    dry_run: bool,
-    source_vault: _VaultClient,
-    dest_vault: _VaultClient,
-    path: str,
-    secret_dict: dict,
-) -> None:
-    secret, src_version = source_vault.read_all_with_version(secret_dict)
-    write_dict = {"path": path, "data": secret}
-    logging.info(["replicate_vault_secret", src_version, path])
-    if not dry_run:
-        dest_vault.write(write_dict)
+        secret, src_version = source_vault.read_all_with_version(secret_dict)
+        write_dict = {"path": path, "data": secret}
+        logging.info(["replicate_vault_secret", src_version, path])
+        if not dry_run:
+            dest_vault.write(write_dict)
 
 
 def copy_vault_secret(
@@ -69,13 +48,11 @@ def copy_vault_secret(
         _, dest_version = dest_vault.read_all_with_version(secret_dict)
         if dest_version is None and version is None:
             # v1 secrets don't have version
-            copy_secret(
-                dry_run=dry_run,
-                source_vault=source_vault,
-                dest_vault=dest_vault,
-                path=path,
-                secret_dict=secret_dict,
-            )
+            secret, src_version = source_vault.read_all_with_version(secret_dict)
+            write_dict = {"path": path, "data": secret}
+            logging.info(["replicate_vault_secret", src_version, path])
+            if not dry_run:
+                dest_vault.write(write_dict)
         elif dest_version < version:
             deep_copy_versions(
                 dry_run=dry_run,
@@ -107,9 +84,9 @@ def check_invalid_paths(
     invalid_paths = []
     if policy_paths is not None:
         invalid_paths = list_invalid_paths(path_list, policy_paths)
-    if invalid_paths:
-        logging.error(["replicate_vault_secret", "Invalid paths", invalid_paths])
-        sys.exit(1)
+        if invalid_paths:
+            logging.error(["replicate_vault_secret", "Invalid paths", invalid_paths])
+            raise VaultInvalidPaths
 
 
 def copy_vault_secrets(
@@ -124,8 +101,6 @@ def copy_vault_secrets(
 
 def list_invalid_paths(path_list: List[str], policy_paths: List[str]) -> List[str]:
     invalid_paths = []
-    if policy_paths is None:
-        return invalid_paths
 
     for path in path_list:
         if not policy_contais_path(path, policy_paths):
@@ -142,17 +117,14 @@ def get_policy_paths(policy_name, instance_name) -> List[str]:
     query_data = vault_policies.query(query_func=gql.get_api().query)
     policy_paths = []
 
-    for policy in query_data.policy:
-        if (
-            isinstance(policy, VaultPolicyV1)
-            and policy.name == policy_name
-            and policy.instance.name == instance_name
-        ):
-            for line in policy.rules.split("\n"):
-                res = re.search(r"path \s*[\'\"](.+)[\'\"]", line)
+    if query_data.policy:
+        for policy in query_data.policy:
+            if policy.name == policy_name and policy.instance.name == instance_name:
+                for line in policy.rules.split("\n"):
+                    res = re.search(r"path \s*[\'\"](.+)[\'\"]", line)
 
-                if res is not None:
-                    policy_paths.append(res.group(1))
+                    if res is not None:
+                        policy_paths.append(res.group(1))
 
     return policy_paths
 
@@ -161,38 +133,39 @@ def get_jenkins_secret_list(jenkins_instance: str) -> List[str]:
     secret_list = []
     query_data = jenkins_configs.query(query_func=gql.get_api().query)
 
-    for p in query_data.jenkins_configs:
-        if (
-            isinstance(p, JenkinsConfigV1)
-            and p.instance.name == jenkins_instance
-            and p.config_path
-        ):
-            secret_paths = [
-                line
-                for line in p.config_path.content.split("\n")
-                if "secret-path" in line
-            ]
-            for line in secret_paths:
-                res = re.search(r"secret-path:\s*[\'\"](.+)[\'\"]", line).group(1)
-                secret_list.append(res)
+    if query_data.jenkins_configs:
+        for p in query_data.jenkins_configs:
+            if (
+                isinstance(p, JenkinsConfigV1_JenkinsConfigV1)
+                and p.instance.name == jenkins_instance
+                and p.config_path
+            ):
+                secret_paths = [
+                    line
+                    for line in p.config_path.content.split("\n")
+                    if "secret-path" in line
+                ]
+                for line in secret_paths:
+                    res = re.search(r"secret-path:\s*[\'\"](.+)[\'\"]", line)
+                    if res is not None:
+                        secret_list.append(res.group(1))
 
     return secret_list
 
 
-def get_vault_credentials(vault_instance: vault_instances.VaultInstanceV1):
+def get_vault_credentials(vault_instance):
     vault_creds = {"server": "", "role_id": None, "secret_id": None}
     vault = cast(_VaultClient, VaultClient())
 
-    if isinstance(vault_instance, VaultReplicationV1):
-        vault_instance = vault_instance.instance
+    vault_instance_auth = vault_instance.auth
 
     role_id = {
-        "path": vault_instance.auth.role_id.path,
-        "field": vault_instance.auth.role_id.field,
+        "path": vault_instance_auth.role_id.path,
+        "field": vault_instance_auth.role_id.field,
     }
     secret_id = {
-        "path": vault_instance.auth.secret_id.path,
-        "field": vault_instance.auth.secret_id.field,
+        "path": vault_instance_auth.secret_id.path,
+        "field": vault_instance_auth.secret_id.field,
     }
 
     vault_creds["role_id"] = vault.read(role_id)
@@ -227,32 +200,33 @@ def run(dry_run: bool) -> None:
 
     query_data = vault_instances.query(query_func=gql.get_api().query)
 
-    for instance in query_data.vault_instances:
-        if isinstance(instance, VaultInstanceV1) and instance.replication:
-            for replication in instance.replication:
-                source_creds = get_vault_credentials(instance)
-                dest_creds = get_vault_credentials(replication.vault_instance)
+    if query_data.vault_instances:
+        for instance in query_data.vault_instances:
+            if instance.replication:
+                for replication in instance.replication:
+                    source_creds = get_vault_credentials(instance)
+                    dest_creds = get_vault_credentials(replication.vault_instance)
 
-                source_vault = cast(
-                    _VaultClient,
-                    VaultClient(
-                        server=source_creds["server"],
-                        role_id=source_creds["role_id"],
-                        secret_id=source_creds["secret_id"],
-                    ),
-                )
-                dest_vault = cast(
-                    _VaultClient,
-                    VaultClient(
-                        server=dest_creds["server"],
-                        role_id=dest_creds["role_id"],
-                        secret_id=dest_creds["secret_id"],
-                    ),
-                )
+                    source_vault = cast(
+                        _VaultClient,
+                        VaultClient(
+                            server=source_creds["server"],
+                            role_id=source_creds["role_id"],
+                            secret_id=source_creds["secret_id"],
+                        ),
+                    )
+                    dest_vault = cast(
+                        _VaultClient,
+                        VaultClient(
+                            server=dest_creds["server"],
+                            role_id=dest_creds["role_id"],
+                            secret_id=dest_creds["secret_id"],
+                        ),
+                    )
 
-            replicate_paths(
-                dry_run=dry_run,
-                source_vault=source_vault,
-                dest_vault=dest_vault,
-                replications=replication,
-            )
+                    replicate_paths(
+                        dry_run=dry_run,
+                        source_vault=source_vault,
+                        dest_vault=dest_vault,
+                        replications=replication,
+                    )
