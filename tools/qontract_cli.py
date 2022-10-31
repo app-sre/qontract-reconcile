@@ -632,7 +632,9 @@ def bot_login(ctx, cluster_name):
     print(f"oc login --server {server} --token {token}")
 
 
-@get.command()
+@get.command(
+    short_help="obtain automation credentials for ocm organization by org name"
+)
 @click.argument("org_name")
 @click.pass_context
 def ocm_login(ctx, org_name):
