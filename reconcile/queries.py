@@ -1096,6 +1096,23 @@ OCM_QUERY = """
       format
       version
     }
+    upgradePolicyClusters {
+      name
+      spec {
+        id
+        product
+        version
+        channel
+      }
+      upgradePolicy {
+        workloads
+        schedule
+        conditions {
+          soakDays
+          mutexes
+        }
+      }
+    }
   }
 }
 """
