@@ -1843,6 +1843,15 @@ def ocm_upgrade_scheduler(ctx):
     run_integration(reconcile.ocm_upgrade_scheduler, ctx.obj)
 
 
+@integration.command(short_help="Manage Upgrade Policy schedules in OCM organizations.")
+@environ(["APP_INTERFACE_STATE_BUCKET", "APP_INTERFACE_STATE_BUCKET_ACCOUNT"])
+@click.pass_context
+def ocm_upgrade_scheduler_org(ctx):
+    import reconcile.ocm_upgrade_scheduler_org
+
+    run_integration(reconcile.ocm_upgrade_scheduler_org, ctx.obj)
+
+
 @integration.command(short_help="Manages cluster Addons in OCM.")
 @threaded()
 @click.pass_context
