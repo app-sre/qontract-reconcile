@@ -2457,7 +2457,6 @@ DNS_ZONES_QUERY = """
       vpc_id
       region
     }
-    unmanaged_record_names
     records {
       name
       type
