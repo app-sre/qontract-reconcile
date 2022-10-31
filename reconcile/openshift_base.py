@@ -233,7 +233,7 @@ def populate_current_state(
 ):
     # if spec.oc is None: - oc can't be none because init_namespace_specs_to_fetch does not create specs if oc is none
     #    return
-    if spec.oc.init_api_resources and not spec.oc.is_kind_supported(spec.kind):
+    if not spec.oc.is_kind_supported(spec.kind):
         msg = f"[{spec.cluster}] cluster has no API resource {spec.kind}."
         logging.warning(msg)
         return
@@ -249,8 +249,9 @@ def populate_current_state(
                 openshift_resource.name,
                 openshift_resource,
             )
-    except StatusCodeError:
+    except StatusCodeError as e:
         ri.register_error(cluster=spec.cluster)
+        logging.error(f"[{spec.cluster}/{spec.namespace}] {str(e)}")
 
 
 def fetch_current_state(
