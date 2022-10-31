@@ -60,30 +60,9 @@ def build_desired_state(
         if vpc:
             zone_values["vpc"] = {"vpc_id": vpc["vpc_id"], "vpc_region": vpc["region"]}
 
-        # Check if we have unmanaged_record_names (urn) and compile them
-        # all as regular expressions
-        urn_compiled = []
-        for urn in zone.get("unmanaged_record_names", []):
-            urn_compiled.append(re.compile(urn))
-
         for record in zone["records"]:
             record_name = record["name"]
             record_type = record["type"]
-
-            # Check if this record should be ignored
-            # as per 'unmanaged_record_names'
-            ignored = False
-            for regex in urn_compiled:
-                if regex.fullmatch(record["name"]):
-                    logging.debug(
-                        f"{zone_name}: excluding unmanaged "
-                        f"record {record_name} because it matched "
-                        f"unmanaged_record_names pattern "
-                        f"'{regex.pattern}'"
-                    )
-                    ignored = True
-            if ignored:
-                continue
 
             # We use the record object as-is from the list as the terraform
             # data to apply. This makes things simpler and map 1-to-1 with
