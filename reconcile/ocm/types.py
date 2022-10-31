@@ -96,7 +96,7 @@ class ROSAClusterSpec(OCMClusterSpec):
 
 class OCMSpec(BaseModel):
     path: Optional[str]
-    spec: Union[OSDClusterSpec, ROSAClusterSpec]
+    spec: Union[OSDClusterSpec, ROSAClusterSpec, OCMClusterSpec]
     network: OCMClusterNetwork
     domain: Optional[str]
     server_url: str = Field(None, alias="serverUrl")
