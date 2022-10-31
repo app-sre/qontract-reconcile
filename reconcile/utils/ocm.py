@@ -14,6 +14,7 @@ from reconcile.ocm.types import (
     ROSAClusterAWSAccount,
     ROSAAWSAttrs,
     OCMSpec,
+    OCMClusterSpec,
     OSDClusterSpec,
     ROSAClusterSpec,
 )
@@ -146,7 +147,7 @@ class OCMProductOsd(OCMProduct):
             else None
         )
 
-        spec = OSDClusterSpec(
+        spec = OCMClusterSpec(
             product=cluster["product"]["id"],
             id=cluster["id"],
             external_id=cluster["external_id"],
@@ -156,8 +157,6 @@ class OCMProductOsd(OCMProduct):
             version=cluster["version"]["raw_id"],
             multi_az=cluster["multi_az"],
             instance_type=cluster["nodes"]["compute_machine_type"]["id"],
-            storage=cluster["storage_quota"]["value"] // BYTES_IN_GIGABYTE,
-            load_balancers=cluster["load_balancer_quota"],
             private=cluster["api"]["listening"] == "internal",
             disable_user_workload_monitoring=cluster[
                 "disable_user_workload_monitoring"
@@ -166,6 +165,12 @@ class OCMProductOsd(OCMProduct):
             nodes=cluster["nodes"].get("compute"),
             autoscale=autoscale_spec,
         )
+
+        if not cluster["ccs"]["enabled"]:
+            cluster_spec_data = spec.dict()
+            cluster_spec_data["storage"] = cluster["storage_quota"]["value"] // BYTES_IN_GIGABYTE
+            cluster_spec_data["load_balancers"] = cluster["load_balancer_quota"]
+            spec = OSDClusterSpec(**cluster_spec_data)
 
         network = OCMClusterNetwork(
             type=cluster["network"].get("type") or "OVNKubernetes",
