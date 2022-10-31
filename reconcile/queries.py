@@ -613,12 +613,6 @@ CLUSTERS_QUERY = """
         format
         version
       }
-      offlineToken {
-        path
-        field
-        format
-        version
-      }
       blockedVersions
     }
     awsInfrastructureAccess {
@@ -926,12 +920,6 @@ CLUSTER_PEERING_QUERY = """
         format
         version
       }
-      offlineToken {
-        path
-        field
-        format
-        version
-      }
       blockedVersions
     }
     awsInfrastructureManagementAccounts {
@@ -1105,12 +1093,6 @@ KAFKA_CLUSTERS_QUERY = """
       accessTokenClientId
       accessTokenUrl
       accessTokenClientSecret {
-        path
-        field
-        format
-        version
-      }
-      offlineToken {
         path
         field
         format
@@ -2558,12 +2540,6 @@ OCP_RELEASE_ECR_MIRROR_QUERY = """
         accessTokenClientId
         accessTokenUrl
         accessTokenClientSecret {
-          path
-          field
-          format
-          version
-        }
-        offlineToken {
           path
           field
           format
