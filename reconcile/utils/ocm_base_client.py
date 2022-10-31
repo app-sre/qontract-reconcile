@@ -17,12 +17,12 @@ class OCMBaseClient:
     def __init__(
         self,
         url: str,
-        offline_token: str,
+        access_token_client_secret: str,
         access_token_url: str,
         access_token_client_id: str,
         session: Optional[Session] = None,
     ):
-        self._offline_token = offline_token
+        self._access_token_client_secret = access_token_client_secret
         self._access_token_client_id = access_token_client_id
         self._access_token_url = access_token_url
         self._url = url
@@ -33,9 +33,9 @@ class OCMBaseClient:
     @retry()
     def _init_access_token(self):
         data = {
-            "grant_type": "refresh_token",
+            "grant_type": "client_credentials",
             "client_id": self._access_token_client_id,
-            "refresh_token": self._offline_token,
+            "client_secret": self._access_token_client_secret,
         }
         r = self._session.post(
             self._access_token_url, data=data, timeout=REQUEST_TIMEOUT_SEC

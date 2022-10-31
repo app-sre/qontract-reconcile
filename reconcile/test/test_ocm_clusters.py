@@ -110,9 +110,9 @@ def osd_cluster_fxt():
             "url": "https://api.non-existent-ocm.com",
             "accessTokenClientId": "cloud-services",
             "accessTokenUrl": "https://sso.blah.com/token",
-            "offlineToken": {
+            "accessTokenClientSecret": {
                 "path": "a-secret-path",
-                "field": "offline_token",
+                "field": "client_secret",
                 "format": None,
                 "version": None,
             },
@@ -169,9 +169,9 @@ def rosa_cluster_fxt():
             "url": "https://api.non-existent-ocm.com",
             "accessTokenClientId": "cloud-services",
             "accessTokenUrl": "https://sso.blah.com/token",
-            "offlineToken": {
+            "accessTokenClientSecret": {
                 "path": "a-secret-path",
-                "field": "offline_token",
+                "field": "client_secret",
                 "format": None,
                 "version": None,
             },

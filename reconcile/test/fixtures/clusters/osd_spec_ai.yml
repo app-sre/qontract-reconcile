@@ -14,9 +14,9 @@ ocm:
   name: non-existent-ocm
   url: non-existent-ocm-url
   accessTokenClientId: cloud-services
-  offlineToken:
-    path: "offline-token-secret-path"
-    field: "offline-token"
+  accessTokenClientSecret:
+    path: "client-secret-path"
+    field: "client_secret"
 spec:
   product: osd
   id: "osd-cluster-id"

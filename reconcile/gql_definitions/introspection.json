@@ -16812,6 +16812,18 @@
                             "deprecationReason": null
                         },
                         {
+                            "name": "accessTokenClientSecret",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "OBJECT",
+                                "name": "VaultSecret_v1",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
                             "name": "blockedVersions",
                             "description": null,
                             "args": [],
