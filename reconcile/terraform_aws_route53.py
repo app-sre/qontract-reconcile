@@ -1,5 +1,4 @@
 import logging
-import re
 import sys
 from typing import Any, Iterable, Mapping
 
