@@ -4,7 +4,6 @@ import logging
 import os
 import re
 import tempfile
-import threading
 import time
 from contextlib import suppress
 from datetime import datetime
@@ -261,21 +260,17 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
         # calling get_version to check if cluster is reachable
         if not local:
             self.get_version()
-
-        self.api_resources_lock = threading.RLock()
+        self.init_projects = init_projects
+        if self.init_projects:
+            self.projects = [
+                p["metadata"]["name"]
+                for p in self.get_all("Project.project.openshift.io")["items"]
+            ]
         self.init_api_resources = init_api_resources
         if self.init_api_resources:
             self.api_resources = self.get_api_resources()
         else:
             self.api_resources = None
-
-        self.init_projects = init_projects
-        if self.init_projects:
-            if self.is_kind_supported("Project"):
-                kind = "Project.project.openshift.io"
-            else:
-                kind = "Namespace"
-            self.projects = [p["metadata"]["name"] for p in self.get_all(kind)["items"]]
 
         self.slow_oc_reconcile_threshold = float(
             os.environ.get("SLOW_OC_RECONCILE_THRESHOLD", 600)
@@ -459,10 +454,7 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
             return name in self.projects
 
         try:
-            if self.is_kind_supported("Project"):
-                self.get(None, "Project.project.openshift.io", name)
-            else:
-                self.get(None, "Namespace", name)
+            self.get(None, "Project.project.openshift.io", name)
         except StatusCodeError as e:
             if "NotFound" in str(e):
                 return False
@@ -472,10 +464,7 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
 
     @OCDecorators.process_reconcile_time
     def new_project(self, namespace):
-        if self.is_kind_supported("Project"):
-            cmd = ["new-project", namespace]
-        else:
-            cmd = ["create", "namespace", namespace]
+        cmd = ["new-project", namespace]
         try:
             self._run(cmd)
         except StatusCodeError as e:
@@ -488,10 +477,7 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
 
     @OCDecorators.process_reconcile_time
     def delete_project(self, namespace):
-        if self.is_kind_supported("Project"):
-            cmd = ["delete", "project", namespace]
-        else:
-            cmd = ["delete", "namespace", namespace]
+        cmd = ["delete", "project", namespace]
         self._run(cmd)
 
         # This return will be removed by the last decorator
@@ -543,12 +529,9 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
     def get_api_resources(self):
         # oc api-resources only has name or wide output
         # and we need to get the KIND, which is the last column
-        with self.api_resources_lock:
-            if not self.api_resources:
-                cmd = ["api-resources", "--no-headers"]
-                results = self._run(cmd).decode("utf-8").split("\n")
-                self.api_resources = [r.split()[-1] for r in results]
-        return self.api_resources
+        cmd = ["api-resources", "--no-headers"]
+        results = self._run(cmd).decode("utf-8").split("\n")
+        return [r.split()[-1] for r in results]
 
     def get_version(self):
         # this is actually a 10 second timeout, because: oc reasons
@@ -957,7 +940,7 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
         if "." in kind:
             # self.api_resources contains only the short kind names
             kind = kind.split(".", 1)[0]
-        return kind in self.get_api_resources()
+        return self.api_resources and kind in self.api_resources
 
 
 class OCNative(OCDeprecated):
@@ -969,6 +952,7 @@ class OCNative(OCDeprecated):
         jh=None,
         settings=None,
         init_projects=False,
+        init_api_resources=False,
         local=False,
         insecure_skip_tls_verify=False,
     ):
@@ -987,19 +971,21 @@ class OCNative(OCDeprecated):
         if server:
             self.client = self._get_client(server, token)
             self.api_kind_version = self.get_api_resources()
-            self.api_resources = self.api_kind_version.keys()
         else:
             raise Exception("A method relies on client/api_kind_version to be set")
 
         self.object_clients = {}
-
         self.init_projects = init_projects
         if self.init_projects:
-            if self.is_kind_supported("Project"):
-                kind = "Project.project.openshift.io"
-            else:
-                kind = "Namespace"
-            self.projects = [p["metadata"]["name"] for p in self.get_all(kind)["items"]]
+            self.projects = [
+                p["metadata"]["name"]
+                for p in self.get_all("Project.project.openshift.io")["items"]
+            ]
+        self.init_api_resources = init_api_resources
+        if self.init_api_resources:
+            self.api_resources = self.api_kind_version.keys()
+        else:
+            self.api_resources = None
 
     @retry(exceptions=(ServerTimeoutError, InternalServerError, ForbiddenError))
     def _get_client(self, server, token):
@@ -1266,6 +1252,7 @@ class OC:
                 jh,
                 settings,
                 init_projects,
+                init_api_resources,
                 local,
                 insecure_skip_tls_verify,
             )
