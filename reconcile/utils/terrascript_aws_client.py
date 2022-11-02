@@ -799,7 +799,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     assume_role={"role_arn": assume_role},
                 )
 
-    def populate_route53_record(self, zone, record, counts, default_ttl, zone_resource):
+    def populate_route53_record(
+        self, zone, record, counts, zone_resource, default_ttl=300
+    ):
         acct_name = zone["account_name"]
         record_fqdn = f"{record['name']}.{zone['name']}"
         record_id = safe_resource_id(f"{record_fqdn}_{record['type'].upper()}")
@@ -851,7 +853,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             counts = {}
             for record in zone["records"]:
                 self.populate_route53_record(
-                    zone, record, counts, default_ttl, zone_resource
+                    zone, record, counts, zone_resource, default_ttl
                 )
 
     def populate_vpc_peerings(self, desired_state):
