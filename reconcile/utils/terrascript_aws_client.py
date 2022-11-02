@@ -800,9 +800,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 )
 
     def populate_route53_record(
-        self, zone, record, counts, zone_resource, default_ttl=300
+        self, account_name, zone, record, counts, zone_resource, default_ttl=300
     ):
-        acct_name = zone["account_name"]
         record_fqdn = f"{record['name']}.{zone['name']}"
         record_id = safe_resource_id(f"{record_fqdn}_{record['type'].upper()}")
 
@@ -829,17 +828,17 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             healthcheck_resource = aws_route53_health_check(
                 healthcheck_id, **healthcheck_values
             )
-            self.add_resource(acct_name, healthcheck_resource)
+            self.add_resource(account_name, healthcheck_resource)
             # Assign the healthcheck resource ID to the record
             record["health_check_id"] = f"${{{healthcheck_resource.id}}}"
 
         record_values = {"zone_id": f"${{{zone_resource.id}}}", **record}
         record_resource = aws_route53_record(record_id, **record_values)
-        self.add_resource(acct_name, record_resource)
+        self.add_resource(account_name, record_resource)
 
     def populate_route53(self, desired_state, default_ttl=300):
         for zone in desired_state:
-            acct_name = zone["account_name"]
+            account_name = zone["account_name"]
 
             zone_res_name = safe_resource_id(f"{zone['resource_name']}")
             zone_values = {
@@ -848,12 +847,12 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 "comment": "Managed by Terraform",
             }
             zone_resource = aws_route53_zone(zone_res_name, **zone_values)
-            self.add_resource(acct_name, zone_resource)
+            self.add_resource(account_name, zone_resource)
 
             counts = {}
             for record in zone["records"]:
                 self.populate_route53_record(
-                    zone, record, counts, zone_resource, default_ttl
+                    account_name, zone, record, counts, zone_resource, default_ttl
                 )
 
     def populate_vpc_peerings(self, desired_state):
