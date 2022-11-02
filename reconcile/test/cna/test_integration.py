@@ -1,4 +1,4 @@
-from typing import Any, Iterable, Mapping
+from typing import Any, Iterable, Mapping, Optional
 from unittest.mock import create_autospec
 from pytest import fixture
 import pytest
@@ -7,6 +7,12 @@ from reconcile.cna.integration import CNAIntegration
 from reconcile.cna.assets.asset import AssetStatus, AssetType
 from reconcile.cna.assets.null import NullAsset
 from reconcile.cna.state import State
+from reconcile.gql_definitions.cna.queries.cna_resources import (
+    CNANullAssetV1,
+    ExternalResourcesProvisionerV1,
+    NamespaceCNAssetV1,
+    NamespaceV1,
+)
 
 
 @fixture
@@ -15,6 +21,32 @@ def cna_clients() -> dict[str, CNAClient]:
     return {
         "test": cna_client,
     }
+
+
+def namespace(assets: list[CNANullAssetV1]) -> NamespaceV1:
+    return NamespaceV1(
+        name="test",
+        externalResources=[
+            NamespaceCNAssetV1(
+                provider="null-asset",
+                provisioner=ExternalResourcesProvisionerV1(
+                    name="test",
+                ),
+                resources=assets,
+            )
+        ],
+    )
+
+
+def null_asset(name: str, addr_block: Optional[str]) -> NullAsset:
+    return NullAsset(
+        uuid=None,
+        href=None,
+        status=None,
+        name=name,
+        kind=AssetType.NULL,
+        addr_block=addr_block,
+    )
 
 
 @pytest.mark.parametrize(
@@ -110,5 +142,64 @@ def test_integration_assemble_current_states(
     assert integration._current_states == {"test": expected_state}
 
 
-def test_integration_assemble_desired_states():
-    pass
+@pytest.mark.parametrize(
+    "namespaces, expected_state",
+    [
+        (
+            # Single asset
+            [
+                namespace(
+                    assets=[
+                        CNANullAssetV1(
+                            provider="null-asset",
+                            name="test",
+                            addr_block="123",
+                        )
+                    ]
+                )
+            ],
+            State(
+                assets={
+                    AssetType.NULL: {"test": null_asset(name="test", addr_block="123")}
+                }
+            ),
+        ),
+        (
+            # Multiple assets
+            [
+                namespace(
+                    assets=[
+                        CNANullAssetV1(
+                            provider="null-asset",
+                            name="test",
+                            addr_block="123",
+                        ),
+                        CNANullAssetV1(
+                            provider="null-asset",
+                            name="test2",
+                            addr_block=None,
+                        ),
+                    ]
+                )
+            ],
+            State(
+                assets={
+                    AssetType.NULL: {
+                        "test": null_asset(name="test", addr_block="123"),
+                        "test2": null_asset(name="test2", addr_block=None),
+                    }
+                }
+            ),
+        ),
+    ],
+    ids=[
+        "Single asset",
+        "Multiple assets",
+    ],
+)
+def test_integration_assemble_desired_states(
+    namespaces: list[NamespaceV1], expected_state: State
+):
+    integration = CNAIntegration(cna_clients={}, namespaces=namespaces)
+    integration.assemble_desired_states()
+    assert integration._desired_states == {"test": expected_state}
