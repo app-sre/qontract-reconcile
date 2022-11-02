@@ -264,10 +264,9 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
 
         self.api_resources_lock = threading.RLock()
         self.init_api_resources = init_api_resources
+        self.api_resources = None
         if self.init_api_resources:
             self.api_resources = self.get_api_resources()
-        else:
-            self.api_resources = None
 
         self.init_projects = init_projects
         if self.init_projects:
