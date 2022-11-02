@@ -2440,6 +2440,57 @@ def get_unleash_instances():
     return gqlapi.query(UNLEASH_INSTANCES_QUERY)["unleash_instances"]
 
 
+DNS_RECORD = """
+name
+type
+ttl
+alias {
+  name
+  zone_id
+  evaluate_target_health
+}
+weighted_routing_policy {
+  weight
+}
+set_identifier
+records
+_healthcheck {
+  fqdn
+  port
+  type
+  resource_path
+  failure_threshold
+  request_interval
+  search_string
+}
+_target_cluster {
+  name
+  elbFQDN
+}
+_target_namespace_zone {
+  namespace {
+    managedExternalResources
+    externalResources {
+      provider
+      provisioner {
+        name
+      }
+      ... on NamespaceTerraformProviderResourceAWS_v1 {
+        resources {
+          provider
+          ... on NamespaceTerraformResourceRoute53Zone_v1 {
+            region
+            name
+          }
+        }
+      }
+    }
+  }
+  name
+}
+"""
+
+
 DNS_ZONES_QUERY = """
 {
   zones: dns_zone_v1 {
@@ -2461,57 +2512,13 @@ DNS_ZONES_QUERY = """
       region
     }
     records {
-      name
-      type
-      ttl
-      alias {
-        name
-        zone_id
-        evaluate_target_health
-      }
-      weighted_routing_policy {
-        weight
-      }
-      set_identifier
-      records
-      _healthcheck {
-        fqdn
-        port
-        type
-        resource_path
-        failure_threshold
-        request_interval
-        search_string
-      }
-      _target_cluster {
-        name
-        elbFQDN
-      }
-      _target_namespace_zone {
-        namespace {
-          managedExternalResources
-          externalResources {
-            provider
-            provisioner {
-              name
-            }
-            ... on NamespaceTerraformProviderResourceAWS_v1 {
-              resources {
-                provider
-                ... on NamespaceTerraformResourceRoute53Zone_v1 {
-                  region
-                  name
-                }
-              }
-            }
-          }
-        }
-        name
-      }
+      %s
     }
   }
 }
-"""
+""" % (
+    indent(DNS_RECORD, 6 * " "),
+)
 
 
 def get_dns_zones(account_name=None):
