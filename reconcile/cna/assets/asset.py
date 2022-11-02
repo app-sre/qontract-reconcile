@@ -1,6 +1,6 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Optional
 
@@ -19,11 +19,11 @@ class AssetStatus(Enum):
     RUNNING = "Running"
 
 
-@dataclass
+@dataclass(frozen=True)
 class Asset(ABC):
-    uuid: Optional[str]
-    href: Optional[str]
-    status: Optional[AssetStatus]
+    uuid: Optional[str] = field(compare=False, hash=True)
+    href: Optional[str] = field(compare=False, hash=True)
+    status: Optional[AssetStatus] = field(compare=False, hash=True)
     name: str
     kind: AssetType
 

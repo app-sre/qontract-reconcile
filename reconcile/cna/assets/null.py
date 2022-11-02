@@ -6,7 +6,7 @@ from reconcile.cna.assets.asset import Asset, AssetError, AssetStatus, AssetType
 from reconcile.gql_definitions.cna.queries.cna_resources import CNANullAssetV1
 
 
-@dataclass
+@dataclass(frozen=True)
 class NullAsset(Asset):
     addr_block: Optional[str]
 
@@ -18,23 +18,6 @@ class NullAsset(Asset):
                 "addr_block": self.addr_block,
             },
         }
-
-    def __eq__(self, other: object) -> bool:
-        if not isinstance(other, NullAsset):
-            return False
-        return other.addr_block == self.addr_block and other.name == self.name
-
-    def __ne__(self, other: object) -> bool:
-        return not self.__eq__(other)
-
-    def __hash__(self) -> int:
-        return hash(
-            str(self.uuid)
-            + str(self.href)
-            + self.name
-            + str(self.kind)
-            + str(self.addr_block)
-        )
 
     def update_from(self, asset: Asset) -> Asset:
         if not isinstance(asset, NullAsset):
