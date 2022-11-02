@@ -219,6 +219,7 @@ VARIABLE_KEYS = [
     "vpce_id",
     "fifo_topic",
     "subscriptions",
+    "records",
 ]
 
 EMAIL_REGEX = re.compile(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$")
@@ -798,6 +799,42 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     assume_role={"role_arn": assume_role},
                 )
 
+    def populate_route53_record(self, zone, record, counts, default_ttl, zone_resource):
+        acct_name = zone["account_name"]
+        record_fqdn = f"{record['name']}.{zone['name']}"
+        record_id = safe_resource_id(f"{record_fqdn}_{record['type'].upper()}")
+
+        # Count record names so we can generate unique IDs
+        if record_id not in counts:
+            counts[record_id] = 0
+        counts[record_id] += 1
+
+        # If more than one record with a given name, append _{count}
+        if counts[record_id] > 1:
+            record_id = f"{record_id}_{counts[record_id]}"
+
+        # Use default TTL if none is specified
+        # or if this record is an alias
+        # None/zero is accepted but not a good default
+        if not record.get("alias") and record.get("ttl") is None:
+            record["ttl"] = default_ttl
+
+        # Define healthcheck if needed
+        healthcheck = record.pop("healthcheck", None)
+        if healthcheck:
+            healthcheck_id = record_id
+            healthcheck_values = {**healthcheck}
+            healthcheck_resource = aws_route53_health_check(
+                healthcheck_id, **healthcheck_values
+            )
+            self.add_resource(acct_name, healthcheck_resource)
+            # Assign the healthcheck resource ID to the record
+            record["health_check_id"] = f"${{{healthcheck_resource.id}}}"
+
+        record_values = {"zone_id": f"${{{zone_resource.id}}}", **record}
+        record_resource = aws_route53_record(record_id, **record_values)
+        self.add_resource(acct_name, record_resource)
+
     def populate_route53(self, desired_state, default_ttl=300):
         for zone in desired_state:
             acct_name = zone["account_name"]
@@ -813,39 +850,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
             counts = {}
             for record in zone["records"]:
-                record_fqdn = f"{record['name']}.{zone['name']}"
-                record_id = safe_resource_id(f"{record_fqdn}_{record['type'].upper()}")
-
-                # Count record names so we can generate unique IDs
-                if record_id not in counts:
-                    counts[record_id] = 0
-                counts[record_id] += 1
-
-                # If more than one record with a given name, append _{count}
-                if counts[record_id] > 1:
-                    record_id = f"{record_id}_{counts[record_id]}"
-
-                # Use default TTL if none is specified
-                # or if this record is an alias
-                # None/zero is accepted but not a good default
-                if not record.get("alias") and record.get("ttl") is None:
-                    record["ttl"] = default_ttl
-
-                # Define healthcheck if needed
-                healthcheck = record.pop("healthcheck", None)
-                if healthcheck:
-                    healthcheck_id = record_id
-                    healthcheck_values = {**healthcheck}
-                    healthcheck_resource = aws_route53_health_check(
-                        healthcheck_id, **healthcheck_values
-                    )
-                    self.add_resource(acct_name, healthcheck_resource)
-                    # Assign the healthcheck resource ID to the record
-                    record["health_check_id"] = f"${{{healthcheck_resource.id}}}"
-
-                record_values = {"zone_id": f"${{{zone_resource.id}}}", **record}
-                record_resource = aws_route53_record(record_id, **record_values)
-                self.add_resource(acct_name, record_resource)
+                self.populate_route53_record(
+                    zone, record, counts, default_ttl, zone_resource
+                )
 
     def populate_vpc_peerings(self, desired_state):
         for item in desired_state:
