@@ -37,12 +37,12 @@ class CNAIntegration:
         cna_clients: Mapping[str, CNAClient],
         namespaces: Iterable[NamespaceV1],
         desired_states: Optional[Mapping[str, State]] = None,
-        actual_states: Optional[Mapping[str, State]] = None,
+        current_states: Optional[Mapping[str, State]] = None,
     ):
         self._cna_clients = cna_clients
         self._namespaces = namespaces
         self._desired_states = desired_states if desired_states else defaultdict(State)
-        self._actual_states = actual_states if actual_states else defaultdict(State)
+        self._current_states = current_states if current_states else defaultdict(State)
 
     def assemble_desired_states(self):
         self._desired_states = defaultdict(State)
@@ -58,28 +58,28 @@ class CNAIntegration:
                             null_asset
                         )
 
-    def assemble_actual_states(self):
-        self._actual_states = defaultdict(State)
+    def assemble_current_states(self):
+        self._current_states = defaultdict(State)
         for name, client in self._cna_clients.items():
             cnas = client.list_assets()
             state = State()
             state.add_raw_data(cnas)
-            self._actual_states[name] = state
+            self._current_states[name] = state
 
     def provision(self, dry_run: bool = False):
         for provisioner_name, cna_client in self._cna_clients.items():
             desired_state = self._desired_states[provisioner_name]
-            actual_state = self._actual_states[provisioner_name]
+            current_state = self._current_states[provisioner_name]
 
-            additions = desired_state - actual_state
+            additions = desired_state - current_state
             for asset in additions:
                 cna_client.create(asset=asset, dry_run=dry_run)
 
-            deletions = actual_state - desired_state
+            deletions = current_state - desired_state
             for asset in deletions:
                 cna_client.delete(asset=asset, dry_run=dry_run)
 
-            updates = actual_state.required_updates_to_reach(desired_state)
+            updates = current_state.required_updates_to_reach(desired_state)
             for assets in updates:
                 cna_client.update(asset=assets, dry_run=dry_run)
 
@@ -127,6 +127,6 @@ def run(
     )
 
     integration = CNAIntegration(cna_clients=cna_clients, namespaces=namespaces)
-    integration.assemble_actual_states()
+    integration.assemble_current_states()
     integration.assemble_desired_states()
     integration.provision(dry_run=dry_run)

@@ -99,15 +99,15 @@ def cna_clients() -> dict[str, CNAClient]:
         "Multiple assets",
     ],
 )
-def test_integration_assemble_actual_states(
+def test_integration_assemble_current_states(
     cna_clients: Mapping[str, CNAClient],
     listed_assets: Iterable[Mapping[str, Any]],
     expected_state: State,
 ):
     cna_clients["test"].list_assets.side_effect = [listed_assets]  # type: ignore
     integration = CNAIntegration(cna_clients=cna_clients, namespaces=[])
-    integration.assemble_actual_states()
-    assert integration._actual_states == {"test": expected_state}
+    integration.assemble_current_states()
+    assert integration._current_states == {"test": expected_state}
 
 
 def test_integration_assemble_desired_states():
