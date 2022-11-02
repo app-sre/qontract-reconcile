@@ -86,6 +86,8 @@ def build_desired_state(
                 if record_type == "A":
                     record_values = dnsutils.get_a_records(target_cluster_elb)
                 elif record_type == "CNAME":
+                    # just call get_a_record for validation
+                    dnsutils.get_a_records(target_cluster_elb)
                     record_values = [target_cluster_elb]
                 else:
                     msg = (
