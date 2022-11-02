@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 import functools
+import logging
 import random
 import re
 from abc import abstractmethod
 import string
 from typing import Any, Mapping, Optional, Tuple, Union
 
+from reconcile.utils.secret_reader import SecretReader
 import reconcile.utils.aws_helper as awsh
+
 from reconcile.ocm.types import (
     OCMClusterAutoscale,
     OCMClusterNetwork,
@@ -19,8 +22,10 @@ from reconcile.ocm.types import (
     ROSAClusterSpec,
 )
 from reconcile.utils.ocm_base_client import OCMBaseClient
-from reconcile.utils.secret_reader import SecretReader
+
+
 from sretoolbox.utils import retry
+
 
 STATUS_READY = "ready"
 STATUS_FAILED = "failed"
@@ -56,6 +61,9 @@ SPEC_ATTR_PROVISION_SHARD_ID = "provision_shard_id"
 SPEC_ATTR_VERSION = "version"
 SPEC_ATTR_INITIAL_VERSION = "initial_version"
 SPEC_ATTR_MULTI_AZ = "multi_az"
+SPEC_ATTR_HYPERSHIFT = "hypershift"
+SPEC_ATTR_SUBNET_IDS = "subnet_ids"
+SPEC_ATTR_AVAILABILITY_ZONES = "availability_zones"
 
 SPEC_ATTR_NETWORK = "network"
 
@@ -65,7 +73,7 @@ SPEC_ATTR_ELBFQDN = "elbFQDN"
 SPEC_ATTR_PATH = "path"
 
 OCM_PRODUCT_OSD = "osd"
-OCM_PRODCUT_ROSA = "rosa"
+OCM_PRODUCT_ROSA = "rosa"
 
 
 class OCMProduct:
@@ -108,6 +116,7 @@ class OCMProductOsd(OCMProduct):
         SPEC_ATTR_PROVISION_SHARD_ID,
         SPEC_ATTR_VERSION,
         SPEC_ATTR_INITIAL_VERSION,
+        SPEC_ATTR_HYPERSHIFT,
     }
 
     @staticmethod
@@ -164,6 +173,7 @@ class OCMProductOsd(OCMProduct):
             provision_shard_id=provision_shard_id,
             nodes=cluster["nodes"].get("compute"),
             autoscale=autoscale_spec,
+            hypershift=cluster["hypershift"]["enabled"],
         )
 
         if not cluster["ccs"]["enabled"]:
@@ -287,6 +297,9 @@ class OCMProductRosa(OCMProduct):
         SPEC_ATTR_VERSION,
         SPEC_ATTR_INITIAL_VERSION,
         SPEC_ATTR_ACCOUNT,
+        SPEC_ATTR_HYPERSHIFT,
+        SPEC_ATTR_SUBNET_IDS,
+        SPEC_ATTR_AVAILABILITY_ZONES,
     }
 
     @staticmethod
@@ -296,7 +309,12 @@ class OCMProductRosa(OCMProduct):
         params = {}
         if dry_run:
             params["dryRun"] = "true"
-
+            if cluster.spec.hypershift:
+                logging.info(
+                    "Dry-Run is not yet implemented for Hosted clusters. Here is the payload:"
+                )
+                logging.info(ocm_spec)
+                return
         ocm._post(api, ocm_spec, params)
 
     @staticmethod
@@ -311,7 +329,12 @@ class OCMProductRosa(OCMProduct):
     def get_ocm_spec(
         ocm: OCM, cluster: Mapping[str, Any], init_provision_shards: bool
     ) -> OCMSpec:
-        if init_provision_shards:
+
+        is_hosted_cp = cluster["hypershift"]["enabled"]
+
+        # Hypershift does not allow set the provision_shard
+        # This might change in the future
+        if init_provision_shards and not is_hosted_cp:
             provision_shard_id = ocm.get_provision_shard(cluster["id"])["id"]
         else:
             provision_shard_id = None
@@ -345,7 +368,7 @@ class OCMProductRosa(OCMProduct):
             product=cluster["product"]["id"],
             account=account,
             id=cluster["id"],
-            external_id=cluster["external_id"],
+            external_id=cluster.get("external_id"),
             provider=cluster["cloud_provider"]["id"],
             region=cluster["region"]["id"],
             channel=cluster["version"]["channel_group"],
@@ -359,6 +382,9 @@ class OCMProductRosa(OCMProduct):
             provision_shard_id=provision_shard_id,
             nodes=cluster["nodes"].get("compute"),
             autoscale=autoscale_spec,
+            hypershift=cluster["hypershift"]["enabled"],
+            subnet_ids=cluster["aws"].get("subnet_ids"),
+            availability_zones=cluster["nodes"].get("availability_zones"),
         )
 
         network = OCMClusterNetwork(
@@ -393,6 +419,7 @@ class OCMProductRosa(OCMProduct):
                 "id": f"openshift-v{cluster.spec.initial_version}",
                 "channel_group": cluster.spec.channel,
             },
+            "hypershift": {"enabled": cluster.spec.hypershift},
             "multi_az": cluster.spec.multi_az,
             "nodes": {"compute_machine_type": {"id": cluster.spec.instance_type}},
             "network": {
@@ -404,6 +431,7 @@ class OCMProductRosa(OCMProduct):
             "disable_user_workload_monitoring": cluster.spec.disable_user_workload_monitoring
             or True,
         }
+
         provision_shard_id = cluster.spec.provision_shard_id
         if provision_shard_id:
             ocm_spec.setdefault("properties", {})
@@ -438,6 +466,12 @@ class OCMProductRosa(OCMProduct):
                 },
             }
 
+            if cluster.spec.hypershift:
+                ocm_spec["nodes"][
+                    "availability_zones"
+                ] = cluster.spec.availability_zones
+                rosa_spec["aws"]["subnet_ids"] = cluster.spec.subnet_ids
+
         ocm_spec.update(rosa_spec)
         return ocm_spec
 
@@ -445,19 +479,19 @@ class OCMProductRosa(OCMProduct):
     def _get_update_cluster_spec(update_spec: Mapping[str, Any]) -> dict[str, Any]:
         ocm_spec: dict[str, Any] = {}
 
-        channel = update_spec.get("channel")
+        channel = update_spec.get(SPEC_ATTR_CHANNEL)
         if channel is not None:
             ocm_spec["version"] = {"channel_group": channel}
 
-        autoscale = update_spec.get("autoscale")
+        autoscale = update_spec.get(SPEC_ATTR_AUTOSCALE)
         if autoscale is not None:
             ocm_spec["nodes"] = {"autoscale_compute": autoscale}
 
-        nodes = update_spec.get("nodes")
+        nodes = update_spec.get(SPEC_ATTR_NODES)
         if nodes:
             ocm_spec["nodes"] = {"compute": update_spec["nodes"]}
 
-        disable_uwm = update_spec.get("disable_user_workload_monitoring")
+        disable_uwm = update_spec.get(SPEC_ATTR_DISABLE_UWM)
         if disable_uwm is not None:
             ocm_spec["disable_user_workload_monitoring"] = disable_uwm
 
@@ -466,7 +500,7 @@ class OCMProductRosa(OCMProduct):
 
 OCM_PRODUCTS_IMPL = {
     OCM_PRODUCT_OSD: OCMProductOsd,
-    OCM_PRODCUT_ROSA: OCMProductRosa,
+    OCM_PRODUCT_ROSA: OCMProductRosa,
 }
 
 
@@ -560,7 +594,7 @@ class OCM:  # pylint: disable=too-many-public-methods
 
     def _init_clusters(self, init_provision_shards):
         api = f"{CS_API_BASE}/v1/clusters"
-        clusters = self._get_json(api)["items"]
+        clusters = self._get_json(api).get("items", [])
         self.cluster_ids = {c["name"]: c["id"] for c in clusters}
 
         self.clusters: dict[str, OCMSpec] = {}
@@ -574,24 +608,26 @@ class OCM:  # pylint: disable=too-many-public-methods
             else:
                 self.not_ready_clusters.add(cluster_name)
 
+    def _get_ocm_impl(self, product: str):
+        return OCM_PRODUCTS_IMPL[product]
+
     def _get_cluster_ocm_spec(
         self, cluster: Mapping[str, Any], init_provision_shards: bool
     ) -> OCMSpec:
 
-        product = cluster["product"]["id"]
-        impl = OCM_PRODUCTS_IMPL[product]
+        impl = self._get_ocm_impl(cluster["product"]["id"])
         spec = impl.get_ocm_spec(self, cluster, init_provision_shards)
         return spec
 
     def create_cluster(self, name: str, cluster: OCMSpec, dry_run: bool):
-        impl = OCM_PRODUCTS_IMPL[cluster.spec.product]
+        impl = self._get_ocm_impl(cluster.spec.product)
         impl.create_cluster(self, name, cluster, dry_run)
 
     def update_cluster(
         self, cluster_name: str, update_spec: Mapping[str, Any], dry_run=False
     ):
         cluster = self.clusters[cluster_name]
-        impl = OCM_PRODUCTS_IMPL[cluster.spec.product]
+        impl = self._get_ocm_impl(cluster.spec.product)
         impl.update_cluster(self, cluster_name, update_spec)
 
     def get_group_if_exists(self, cluster, group_id):
