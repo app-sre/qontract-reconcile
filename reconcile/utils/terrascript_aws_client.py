@@ -5048,6 +5048,12 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         zone_tf_resource = aws_route53_zone(zone_id, **values)
         tf_resources.append(zone_tf_resource)
 
+        counts = {}
+        for record in common_values.get("records") or []:
+            self.populate_route53_record(
+                account, values, record, counts, zone_tf_resource
+            )
+
         policy = {
             "Version": "2012-10-17",
             "Statement": [
