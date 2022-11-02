@@ -30,6 +30,8 @@ from reconcile.change_owners.change_types import (
     build_change_type_processor,
     create_bundle_file_change,
     parse_resource_file_content,
+    get_priority_for_changes,
+    ChangeTypePriority,
 )
 from reconcile.gql_definitions.change_owners.queries.change_types import (
     ChangeTypeChangeDetectorV1,
@@ -1425,80 +1427,99 @@ def test_change_decision(
 
 
 #
-# test label management
+# label management tests
 #
 
 
-def test_label_management_condition_true():
-    assert ["existing-label", "true-label"] == manage_conditional_label(
-        labels=["existing-label"],
-        condition=True,
-        true_label="true-label",
-        false_label="false-label",
+def test_label_management_add():
+    assert [
+        "existing-label",
+        "true-label",
+        "another-true-label",
+    ] == manage_conditional_label(
+        current_labels=["existing-label"],
+        conditional_labels={
+            "true-label": True,
+            "another-true-label": True,
+            "false-label": False,
+        },
         dry_run=False,
     )
 
+    # dry-run
     assert ["existing-label"] == manage_conditional_label(
-        labels=["existing-label"],
-        condition=True,
-        true_label="true-label",
-        false_label="false-label",
+        current_labels=["existing-label"],
+        conditional_labels={
+            "true-label": True,
+            "another-true-label": True,
+            "false-label": False,
+        },
         dry_run=True,
     )
 
 
-def test_label_management_condition_false():
-    assert ["existing-label", "false-label"] == manage_conditional_label(
-        labels=["existing-label"],
-        condition=False,
-        true_label="true-label",
-        false_label="false-label",
-        dry_run=False,
-    )
-
+def test_label_management_remove():
     assert ["existing-label"] == manage_conditional_label(
-        labels=["existing-label"],
-        condition=False,
-        true_label="true-label",
-        false_label="false-label",
-        dry_run=True,
-    )
-
-
-def test_label_management_true_to_false():
-    assert ["existing-label", "false-label"] == manage_conditional_label(
-        labels=["existing-label", "true-label"],
-        condition=False,
-        true_label="true-label",
-        false_label="false-label",
+        current_labels=["existing-label", "false-label"],
+        conditional_labels={
+            "false-label": False,
+        },
         dry_run=False,
     )
 
-    assert ["existing-label", "true-label"] == manage_conditional_label(
-        labels=["existing-label", "true-label"],
-        condition=False,
-        true_label="true-label",
-        false_label="false-label",
+    # dry-run
+    assert ["existing-label", "false-label"] == manage_conditional_label(
+        current_labels=["existing-label", "false-label"],
+        conditional_labels={
+            "false-label": False,
+        },
         dry_run=True,
     )
 
 
-def test_label_management_false_to_true():
+def test_label_management_add_and_remove():
     assert ["existing-label", "true-label"] == manage_conditional_label(
-        labels=["existing-label", "false-label"],
-        condition=True,
-        true_label="true-label",
-        false_label="false-label",
+        current_labels=["existing-label", "false-label"],
+        conditional_labels={
+            "true-label": True,
+            "false-label": False,
+        },
         dry_run=False,
     )
 
-    assert ["existing-label", "false-label"] == manage_conditional_label(
-        labels=["existing-label", "false-label"],
-        condition=True,
-        true_label="true-label",
-        false_label="false-label",
-        dry_run=True,
-    )
+
+#
+# priority tests
+#
+
+
+def test_priority_for_changes(
+    saas_file_changetype: ChangeTypeV1, secret_promoter_change_type: ChangeTypeV1
+):
+    saas_file_changetype.priority = ChangeTypePriority.HIGH.value
+    secret_promoter_change_type.priority = ChangeTypePriority.MEDIUM.value
+    changes = [
+        BundleFileChange(
+            fileref=None,  # type: ignore
+            old=None,
+            new=None,
+            diff_coverage=[
+                DiffCoverage(
+                    diff=None,  # type: ignore
+                    coverage=[
+                        ChangeTypeContext(
+                            change_type_processor=build_change_type_processor(ct),
+                            context="RoleV1 - some-role",
+                            approvers=[],
+                            context_file=None,  # type: ignore
+                        ),
+                    ],
+                )
+            ],
+        )
+        for ct in [saas_file_changetype, secret_promoter_change_type]
+    ]
+    assert ChangeTypePriority.MEDIUM == get_priority_for_changes(changes)
 
 
 #

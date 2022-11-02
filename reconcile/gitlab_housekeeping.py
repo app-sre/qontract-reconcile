@@ -24,10 +24,13 @@ from reconcile.utils.mr.labels import (
     LGTM,
     SAAS_FILE_UPDATE,
     SELF_SERVICEABLE,
+    prioritized_approval_label,
 )
 from reconcile.change_owners.change_types import ChangeTypePriority
 
-MERGE_LABELS_PRIORITY = [f"{APPROVED}: {p.value}" for p in ChangeTypePriority] + [
+MERGE_LABELS_PRIORITY = [
+    prioritized_approval_label(p.value) for p in ChangeTypePriority
+] + [
     APPROVED,
     AUTO_MERGE,
     LGTM,

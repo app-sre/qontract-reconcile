@@ -12,6 +12,7 @@ from reconcile.gql_definitions.change_owners.queries.change_types import (
 
 from reconcile.change_owners.change_types import (
     BundleFileType,
+    ChangeTypePriority,
     init_change_type_processors,
     ChangeTypeInheritanceCycleError,
     ChangeTypeIncompatibleInheritanceError,
@@ -46,6 +47,7 @@ def build_def_change_type(
         contextType=BundleFileType.DATAFILE.value,
         contextSchema="context-schema",
         disabled=False,
+        priority=ChangeTypePriority.HIGH.value,
         changes=[
             build_jsonpath_change(
                 schema=f"/schema/change-schema-{name}",
