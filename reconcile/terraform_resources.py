@@ -335,6 +335,9 @@ provider
   region
   identifier
   name
+  records {
+    %s
+  }
   output_resource_name
   annotations
 }
@@ -363,7 +366,9 @@ provider
   annotations
   defaults
 }
-"""
+""" % (
+    indent(queries.DNS_RECORD, 4 * " "),
+)
 
 
 TF_NAMESPACES_QUERY = """
