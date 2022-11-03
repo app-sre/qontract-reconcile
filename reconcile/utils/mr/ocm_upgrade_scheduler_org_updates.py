@@ -23,43 +23,66 @@ class CreateOCMUpgradeSchedulerOrgUpdates(MergeRequestBase):
 
     def process(self, gitlab_cli):
         changes = False
-        # for cluster_name, cluster_updates in self.clusters_updates.items():
-        #     if not cluster_updates:
-        #         continue
+        ocm_path = self.updates_info["path"]
+        ocm_name = self.updates_info["name"]
 
-        #     cluster_path = cluster_updates.pop("path")
-        #     raw_file = gitlab_cli.project.files.get(
-        #         file_path=cluster_path, ref=self.main_branch
-        #     )
-        #     content = yaml.load(raw_file.decode(), Loader=yaml.RoundTripLoader)
-        #     if "spec" not in content:
-        #         self.cancel("Spec missing. Nothing to do.")
+        raw_file = gitlab_cli.project.files.get(
+            file_path=ocm_path, ref=self.main_branch
+        )
+        content = yaml.load(raw_file.decode(), Loader=yaml.RoundTripLoader)
+        upgrade_policy_defaults = content["upgradePolicyDefaults"]
+        upgrade_policy_clusters = content["upgradePolicyClusters"]
 
-        #     # check that there are updates to be made
-        #     if (
-        #         cluster_updates["spec"].items() <= content["spec"].items()
-        #         and cluster_updates["root"].items() <= content.items()
-        #     ):
-        #         continue
-        #     changes = True
+        for update in self.updates_info["updates"]:
+            action = update["action"]
+            cluster_name = update["cluster"]
+            default_upgrade_policy_name = update.get("policy")
 
-        #     content["spec"].update(cluster_updates["spec"])
-        #     # Since spec is a dictionary we can't simply do
-        #     # content.update(cluster_updates) :(
-        #     content.update(cluster_updates["root"])
+            if action == "add":
+                found = [
+                    c for c in upgrade_policy_clusters if c["name"] == cluster_name
+                ]
+                if found:
+                    continue
+                upgrade_policy = [
+                    p["upgradePolicy"]
+                    for p in upgrade_policy_defaults
+                    if p["name"] == default_upgrade_policy_name
+                ]
+                if not upgrade_policy:
+                    continue
+                [upgrade_policy] = upgrade_policy
+                item = {
+                    "name": cluster_name,
+                    "upgradePolicy": upgrade_policy,
+                }
+                upgrade_policy_clusters.append(item)
+                changes = True
+            elif action == "delete":
+                found = [
+                    c for c in upgrade_policy_clusters if c["name"] == cluster_name
+                ]
+                if not found:
+                    continue
+                upgrade_policy_clusters = [
+                    c for c in upgrade_policy_clusters if c["name"] != cluster_name
+                ]
+                changes = True
+            else:
+                raise NotImplementedError(action)
 
-        #     yaml.explicit_start = True
-        #     new_content = yaml.dump(
-        #         content, Dumper=yaml.RoundTripDumper, explicit_start=True
-        #     )
+        yaml.explicit_start = True
+        new_content = yaml.dump(
+            content, Dumper=yaml.RoundTripDumper, explicit_start=True
+        )
 
-        #     msg = f"update cluster {cluster_name} spec fields"
-        #     gitlab_cli.update_file(
-        #         branch_name=self.branch,
-        #         file_path=cluster_path,
-        #         commit_message=msg,
-        #         content=new_content,
-        #     )
+        msg = f"update {ocm_name} upgrade policy clusters"
+        gitlab_cli.update_file(
+            branch_name=self.branch,
+            file_path=ocm_path,
+            commit_message=msg,
+            content=new_content,
+        )
 
         if not changes:
             self.cancel("OCM Upgrade schedules are up to date. Nothing to do.")
