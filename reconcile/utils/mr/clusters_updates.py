@@ -2,7 +2,6 @@ from ruamel import yaml
 
 from reconcile.utils.mr.base import MergeRequestBase
 from reconcile.utils.mr.labels import AUTO_MERGE
-from reconcile.utils.mr.labels import SKIP_CI
 
 
 class CreateClustersUpdates(MergeRequestBase):
@@ -14,7 +13,7 @@ class CreateClustersUpdates(MergeRequestBase):
 
         super().__init__()
 
-        self.labels = [AUTO_MERGE, SKIP_CI]
+        self.labels = [AUTO_MERGE]
 
     @property
     def title(self):
