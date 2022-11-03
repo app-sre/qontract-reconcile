@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import Any, Iterable, Mapping, Optional
 from reconcile.cna.assets.asset import Asset, AssetStatus, AssetType
-from reconcile.cna.assets.null import NullAsset
+from reconcile.cna.assets.asset_factory import asset_factory_from_raw_data
 
 
 class CNAStateError(Exception):
@@ -54,13 +54,9 @@ class State:
 
     def add_raw_data(self, data: Iterable[Mapping[str, Any]]):
         for cna in data:
-            asset_type = cna.get("asset_type")
-            if asset_type == "null":
-                asset = NullAsset.from_api_mapping(cna)
-                self._validate_addition(asset=asset)
-                self._assets[asset.kind][asset.name] = asset
-            else:
-                raise CNAStateError(f"Unknown asset_type {asset_type} from asset {cna}")
+            asset = asset_factory_from_raw_data(cna)
+            self._validate_addition(asset=asset)
+            self._assets[asset.kind][asset.name] = asset
 
     def required_updates_to_reach(self, other: State) -> State:
         """
