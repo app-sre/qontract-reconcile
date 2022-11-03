@@ -69,6 +69,10 @@ def run(dry_run, gitlab_project_id):
 
         if create_update_mr and not dry_run:
             mr_cli = mr_client_gateway.init(gitlab_project_id=gitlab_project_id)
-            updates_info = {"path": ocm_path, "name": ocm_name, "updates": updates}
+            updates_info = {
+                "path": "data" + ocm_path,
+                "name": ocm_name,
+                "updates": updates,
+            }
             mr = ousou.CreateOCMUpgradeSchedulerOrgUpdates(updates_info)
             mr.submit(cli=mr_cli)
