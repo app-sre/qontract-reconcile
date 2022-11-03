@@ -1,7 +1,6 @@
+import logging
+
 from reconcile import queries
-
-import reconcile.ocm_upgrade_scheduler as ous
-
 from reconcile.utils.ocm import OCMMap
 
 
@@ -27,4 +26,16 @@ def run(dry_run):
         )
         ocm_name = ocm["name"]
         ocm = ocm_map[ocm_name]
-        print(ocm.name)
+
+        for ocm_cluster_name in ocm.clusters:
+            found = [
+                c for c in upgrade_policy_clusters if c["name"] == ocm_cluster_name
+            ]
+            if not found:
+                logging.info(["add_cluster", ocm_cluster_name])
+
+        for up_cluster in upgrade_policy_clusters:
+            up_cluster_name = up_cluster["name"]
+            found = [c for c in ocm.clusters if c == up_cluster_name]
+            if not found:
+                logging.info(["delete_cluster", up_cluster_name])
