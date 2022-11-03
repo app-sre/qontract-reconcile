@@ -1389,7 +1389,8 @@ class OCMMap:  # pylint: disable=too-many-public-methods
         self.calling_integration = integration
         self.settings = settings
 
-        if len([clusters, namespaces, ocm]) > 1:
+        inputs = [i for i in [clusters, namespaces, ocm] if i]
+        if len(inputs) > 1:
             raise KeyError("expected only one of clusters, namespaces or ocm.")
         elif clusters:
             for cluster_info in clusters:
