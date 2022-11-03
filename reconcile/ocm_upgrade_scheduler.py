@@ -267,7 +267,7 @@ def calculate_diff(current_state, desired_state, ocm_map, version_history):
                     )
                     continue
                 logging.debug(
-                    f"[{cluster}] found planned upgrade policy "
+                    f"[{ocm.name}/{cluster}] found planned upgrade policy "
                     + f"with blocked version {version}"
                 )
                 item = {
@@ -279,7 +279,7 @@ def calculate_diff(current_state, desired_state, ocm_map, version_history):
                 diffs.append(item)
             else:
                 logging.debug(
-                    f"[{cluster}] skipping cluster with existing upgrade policy"
+                    f"[{ocm.name}/{cluster}] skipping cluster with existing upgrade policy"
                 )
                 continue
 
@@ -290,14 +290,18 @@ def calculate_diff(current_state, desired_state, ocm_map, version_history):
             next_schedule - now
         ).total_seconds() / 3600  # seconds in hour
         if next_schedule_in_hours > 2:
-            logging.debug(f"[{cluster}] skipping cluster with no upcoming upgrade")
+            logging.debug(
+                f"[{ocm.name}/{cluster}] skipping cluster with no upcoming upgrade"
+            )
             continue
 
         if any(lock in locked for lock in cluster_mutexes(d)):
             locking = {
                 lock: locked[lock] for lock in cluster_mutexes(d) if lock in locked
             }
-            logging.debug(f"[{cluster}] skipping cluster: locked out by {locking}")
+            logging.debug(
+                f"[{ocm.name}/{cluster}] skipping cluster: locked out by {locking}"
+            )
             continue
 
         # choose version that meets the conditions and add it to the diffs
