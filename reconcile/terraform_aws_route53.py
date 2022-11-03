@@ -73,6 +73,9 @@ def build_desired_state(
             if target_cluster:
                 target_cluster_elb = target_cluster["elbFQDN"]
 
+                # get_a_record is used here to validate the record and reused later
+                target_cluster_elb_value = dnsutils.get_a_records(target_cluster_elb)
+
                 if target_cluster_elb is None or target_cluster_elb == "":
                     msg = (
                         f"{zone_name}: field `_target_cluster` for record "
@@ -84,7 +87,7 @@ def build_desired_state(
 
                 record_values = []
                 if record_type == "A":
-                    record_values = dnsutils.get_a_records(target_cluster_elb)
+                    record_values = target_cluster_elb_value
                 elif record_type == "CNAME":
                     record_values = [target_cluster_elb]
                 else:
