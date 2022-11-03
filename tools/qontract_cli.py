@@ -277,7 +277,7 @@ def cluster_upgrade_policies(
         init_version_gates=True,
     )
     current_state = ous.fetch_current_state(clusters, ocm_map)
-    desired_state = ous.fetch_desired_state(clusters)
+    desired_state = ous.fetch_desired_state(clusters, ocm_map)
 
     history = ous.get_version_history(
         dry_run=True, upgrade_policies=[], ocm_map=ocm_map

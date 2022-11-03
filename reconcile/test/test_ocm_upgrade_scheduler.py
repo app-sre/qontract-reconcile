@@ -282,22 +282,7 @@ class TestVersionGateAgreement:
         assert len(gta) == 0
 
 
-class TestDesiredState(TestCase):
-    @staticmethod
-    def cluster(name, version, soakDays):
-        return {
-            "name": name,
-            "spec": {
-                "version": version,
-                "channel": None,
-            },
-            "upgradePolicy": {
-                "conditions": {
-                    "soakDays": soakDays,
-                },
-            },
-        }
-
+class TestUpgradePriority(TestCase):
     @staticmethod
     def policy(name, version, soakDays):
         return {
@@ -311,32 +296,32 @@ class TestDesiredState(TestCase):
 
     # cluster upgrades are prioritized according to their current versions
     def test_sorted_version(self):
-        clusters = [
-            self.cluster("cluster2", "4.2.0", 0),
-            self.cluster("cluster1", "4.1.0", 0),
-            self.cluster("cluster3", "4.3.0", 0),
+        actual = [
+            self.policy("cluster2", "4.2.0", 0),
+            self.policy("cluster1", "4.1.0", 0),
+            self.policy("cluster3", "4.3.0", 0),
         ]
         expected = [
             self.policy("cluster1", "4.1.0", 0),
             self.policy("cluster2", "4.2.0", 0),
             self.policy("cluster3", "4.3.0", 0),
         ]
-        state = ous.fetch_desired_state(clusters)
+        state = sorted(actual, key=ous.sort_key)
         self.assertEqual(state, expected)
 
     # cluster upgrades are prioritized according to their soakdays
     def test_sorted_soakDays(self):
-        clusters = [
-            self.cluster("cluster2", "4.1.0", 2),
-            self.cluster("cluster1", "4.1.0", 1),
-            self.cluster("cluster3", "4.1.0", 3),
+        actual = [
+            self.policy("cluster2", "4.1.0", 2),
+            self.policy("cluster1", "4.1.0", 1),
+            self.policy("cluster3", "4.1.0", 3),
         ]
         expected = [
             self.policy("cluster1", "4.1.0", 1),
             self.policy("cluster2", "4.1.0", 2),
             self.policy("cluster3", "4.1.0", 3),
         ]
-        state = ous.fetch_desired_state(clusters)
+        state = sorted(actual, key=ous.sort_key)
         self.assertEqual(state, expected)
 
     # cluster upgrades are prioritized according to their curent version and soakdays
@@ -344,11 +329,11 @@ class TestDesiredState(TestCase):
     # The test TestUpgradeLock.test_calculate_diff_inter_lock above ensures that
     # only the first cluster with a given mutex will get upgraded.
     def test_sorted_version_soakDays(self):
-        clusters = [
-            self.cluster("cluster22", "4.2.0", 2),
-            self.cluster("cluster12", "4.1.0", 2),
-            self.cluster("cluster11", "4.1.0", 1),
-            self.cluster("cluster21", "4.2.0", 1),
+        actual = [
+            self.policy("cluster22", "4.2.0", 2),
+            self.policy("cluster12", "4.1.0", 2),
+            self.policy("cluster11", "4.1.0", 1),
+            self.policy("cluster21", "4.2.0", 1),
         ]
         expected = [
             self.policy("cluster11", "4.1.0", 1),
@@ -356,7 +341,7 @@ class TestDesiredState(TestCase):
             self.policy("cluster21", "4.2.0", 1),
             self.policy("cluster22", "4.2.0", 2),
         ]
-        state = ous.fetch_desired_state(clusters)
+        state = sorted(actual, key=ous.sort_key)
         self.assertEqual(state, expected)
 
 
