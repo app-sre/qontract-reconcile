@@ -15,9 +15,7 @@ def run(dry_run):
         if not upgrade_policy_defaults:
             continue
 
-        upgrade_policy_clusters = upgrade_policy_defaults = (
-            ocm.get("upgradePolicyClusters") or []
-        )
+        upgrade_policy_clusters = ocm.get("upgradePolicyClusters") or []
         ocm_map = OCMMap(
             ocms=[ocm],
             integration=QONTRACT_INTEGRATION,
