@@ -1376,7 +1376,7 @@ class OCMMap:  # pylint: disable=too-many-public-methods
         self,
         clusters=None,
         namespaces=None,
-        ocm=None,
+        ocms=None,
         integration="",
         settings=None,
         init_provision_shards=False,
@@ -1389,7 +1389,7 @@ class OCMMap:  # pylint: disable=too-many-public-methods
         self.calling_integration = integration
         self.settings = settings
 
-        inputs = [i for i in [clusters, namespaces, ocm] if i]
+        inputs = [i for i in [clusters, namespaces, ocms] if i]
         if len(inputs) > 1:
             raise KeyError("expected only one of clusters, namespaces or ocm.")
         elif clusters:
@@ -1409,13 +1409,14 @@ class OCMMap:  # pylint: disable=too-many-public-methods
                     init_addons,
                     init_version_gates=init_version_gates,
                 )
-        elif ocm:
-            self.init_ocm_client(
-                ocm,
-                init_provision_shards,
-                init_addons,
-                init_version_gates=init_version_gates,
-            )
+        elif ocms:
+            for ocm in ocms:
+                self.init_ocm_client(
+                    ocm,
+                    init_provision_shards,
+                    init_addons,
+                    init_version_gates=init_version_gates,
+                )
         else:
             raise KeyError("expected one of clusters, namespaces or ocm.")
 

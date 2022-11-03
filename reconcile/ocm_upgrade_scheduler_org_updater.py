@@ -20,7 +20,7 @@ def run(dry_run):
             ocm.get("upgradePolicyClusters") or []
         )
         ocm_map = OCMMap(
-            ocm=ocm,
+            ocms=[ocm],
             integration=QONTRACT_INTEGRATION,
             settings=settings,
             init_version_gates=True,
