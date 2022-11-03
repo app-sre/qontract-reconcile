@@ -1,0 +1,129 @@
+---
+- name: rosetta-spacecraft
+  platform: python
+  teams:
+    - name: esa-pilots
+      roles:
+        - glitchtip_roles:
+            - organization:
+                name: ESA
+              role: member
+          users:
+            - org_username: SamanthaCristoforetti
+              github_username: SamanthaCristoforetti
+    - name: esa-flight-control
+      roles:
+        - glitchtip_roles:
+            - organization:
+                name: ESA
+              role: owner
+            - organization:
+                name: NASA
+              role: owner
+          users:
+            - org_username: GlobalFlightDirector
+              github_username: GlobalFlightDirector
+        - glitchtip_roles:
+            - organization:
+                name: ESA
+              role: member
+          users:
+            - org_username: MatthiasMaurer
+              github_username: MatthiasMaurer
+            - org_username: TimPeake
+              github_username: TimPeake
+  organization:
+    name: ESA
+    instance:
+      name: glitchtip-dev
+- name: rosetta-flight-control
+  platform: python
+  teams:
+    - name: esa-flight-control
+      roles:
+        - glitchtip_roles:
+            - organization:
+                name: ESA
+              role: owner
+            - organization:
+                name: NASA
+              role: owner
+          users:
+            - org_username: GlobalFlightDirector
+              github_username: GlobalFlightDirector
+        - glitchtip_roles:
+            - organization:
+                name: ESA
+              role: member
+          users:
+            - org_username: MatthiasMaurer
+              github_username: MatthiasMaurer
+            - org_username: TimPeake
+              github_username: TimPeake
+  organization:
+    name: ESA
+    instance:
+      name: glitchtip-dev
+- name: apollo-11-spacecraft
+  platform: python
+  teams:
+    - name: nasa-pilots
+      roles:
+        - glitchtip_roles:
+            - organization:
+                name: NASA
+              role: member
+          users:
+            - org_username: NeilArmstrong
+              github_username: NeilArmstrong
+            - org_username: BuzzAldrin
+              github_username: BuzzAldrin
+    - name: nasa-flight-control
+      roles:
+        - glitchtip_roles:
+            - organization:
+                name: ESA
+              role: owner
+            - organization:
+                name: NASA
+              role: owner
+          users:
+            - org_username: GlobalFlightDirector
+              github_username: GlobalFlightDirector
+        - glitchtip_roles:
+            - organization:
+                name: NASA
+              role: member
+          users:
+            - org_username: MichaelCollins
+              github_username: MichaelCollins
+  organization:
+    name: NASA
+    instance:
+      name: glitchtip-dev
+- name: apollo-11-flight-control
+  platform: python
+  teams:
+    - name: nasa-flight-control
+      roles:
+        - glitchtip_roles:
+            - organization:
+                name: ESA
+              role: owner
+            - organization:
+                name: NASA
+              role: owner
+          users:
+            - org_username: GlobalFlightDirector
+              github_username: GlobalFlightDirector
+        - glitchtip_roles:
+            - organization:
+                name: NASA
+              role: member
+          users:
+            - org_username: MichaelCollins
+              github_username: MichaelCollins
+  organization:
+    name: NASA
+    instance:
+      name: glitchtip-dev

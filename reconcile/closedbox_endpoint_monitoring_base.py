@@ -114,7 +114,7 @@ def fill_desired_state(
     probe: OpenshiftResource,
     ri: ResourceInventory,
 ) -> None:
-    if probe and provider.namespace:
+    if provider.namespace:
         ri.add_desired(
             cluster=provider.namespace["cluster"]["name"],
             namespace=provider.namespace["name"],

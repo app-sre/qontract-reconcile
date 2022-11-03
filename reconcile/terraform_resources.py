@@ -312,6 +312,7 @@ provider
       ref
       upstream {
         instance {
+          name
           token {
           path
           field

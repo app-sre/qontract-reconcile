@@ -1,5 +1,4 @@
 import logging
-import re
 import sys
 from typing import Any, Iterable, Mapping
 
@@ -60,30 +59,9 @@ def build_desired_state(
         if vpc:
             zone_values["vpc"] = {"vpc_id": vpc["vpc_id"], "vpc_region": vpc["region"]}
 
-        # Check if we have unmanaged_record_names (urn) and compile them
-        # all as regular expressions
-        urn_compiled = []
-        for urn in zone.get("unmanaged_record_names", []):
-            urn_compiled.append(re.compile(urn))
-
         for record in zone["records"]:
             record_name = record["name"]
             record_type = record["type"]
-
-            # Check if this record should be ignored
-            # as per 'unmanaged_record_names'
-            ignored = False
-            for regex in urn_compiled:
-                if regex.fullmatch(record["name"]):
-                    logging.debug(
-                        f"{zone_name}: excluding unmanaged "
-                        f"record {record_name} because it matched "
-                        f"unmanaged_record_names pattern "
-                        f"'{regex.pattern}'"
-                    )
-                    ignored = True
-            if ignored:
-                continue
 
             # We use the record object as-is from the list as the terraform
             # data to apply. This makes things simpler and map 1-to-1 with
@@ -94,6 +72,9 @@ def build_desired_state(
             target_cluster = record.pop("_target_cluster", None)
             if target_cluster:
                 target_cluster_elb = target_cluster["elbFQDN"]
+
+                # get_a_record is used here to validate the record and reused later
+                target_cluster_elb_value = dnsutils.get_a_records(target_cluster_elb)
 
                 if target_cluster_elb is None or target_cluster_elb == "":
                     msg = (
@@ -106,7 +87,7 @@ def build_desired_state(
 
                 record_values = []
                 if record_type == "A":
-                    record_values = dnsutils.get_a_records(target_cluster_elb)
+                    record_values = target_cluster_elb_value
                 elif record_type == "CNAME":
                     record_values = [target_cluster_elb]
                 else:

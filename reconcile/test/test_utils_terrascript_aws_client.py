@@ -103,15 +103,19 @@ def test_get_asg_image_id(mocker, ts: tsclient.TerrascriptClient):
     )
 
 
+class MockProjectCommit:
+    def __init__(self, id):
+        setattr(self, "id", id)
+
+
 @pytest.mark.parametrize(
     "repo_info, expected",
     [
         ({"url": "http://fake", "ref": 40 * "1"}, 40 * "1"),
         ({"url": "http://github.com/foo/bar", "ref": "main"}, "sha-12345"),
-        pytest.param(
-            {"url": "http://gitlab.com/foo/bar", "ref": "main"},
-            "",
-            marks=pytest.mark.xfail(raises=NotImplementedError, strict=True),
+        (
+            {"url": "http://gitlab.com/foo/bar", "ref": "master"},
+            "sha-67890",
         ),
     ],
 )
@@ -122,6 +126,12 @@ def test_get_commit_sha(mocker, ts: tsclient.TerrascriptClient, repo_info, expec
     init_github.return_value.get_repo.return_value.get_commit.return_value.sha = (
         expected
     )
+    init_gitlab = mocker.patch(
+        "reconcile.utils.terrascript_aws_client.TerrascriptClient.init_gitlab"
+    )
+    init_gitlab.return_value.get_project.return_value.commits.list.return_value = [
+        MockProjectCommit(expected)
+    ]
     assert ts.get_commit_sha(repo_info) == expected
 
 

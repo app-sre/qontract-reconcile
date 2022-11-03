@@ -1,0 +1,17 @@
+# qenerate: plugin=pydantic_v1
+
+query CNAProvisioners {
+  cna_provisioners: cna_provisioners_v1 {
+    name
+    description
+    ocm {
+      name
+      accessTokenUrl
+      accessTokenClientId
+      accessTokenClientSecret {
+        ... VaultSecret
+      }
+      url
+    }
+  }
+}

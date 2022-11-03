@@ -98,7 +98,7 @@ class TestSupportFunctions(TestCase):
                 "managed_usergroups": ["app-sre-team", "app-sre-ic"],
             }
         }
-        result = integ.get_slack_map(SecretReader())
+        result = integ.get_slack_map(SecretReader(), None)
         mock_slack_api.assert_called_once()
         self.assertEqual(
             result["coreos"]["managed_usergroups"],

@@ -1,0 +1,43 @@
+{
+    "avatar": {
+        "avatarType": "",
+        "avatarUuid": null
+    },
+    "color": "",
+    "features": [],
+    "firstEvent": null,
+    "hasAccess": true,
+    "id": "13",
+    "isBookmarked": false,
+    "isInternal": false,
+    "isMember": false,
+    "isPublic": false,
+    "name": "science-tools",
+    "organization": {
+        "id": 4,
+        "name": "NASA",
+        "slug": "nasa",
+        "dateCreated": "2022-09-13T11:23:23.306148Z",
+        "status": {
+            "id": "active",
+            "name": "active"
+        },
+        "avatar": {
+            "avatarType": "",
+            "avatarUuid": null
+        },
+        "isEarlyAdopter": false,
+        "require2FA": false,
+        "isAcceptingEvents": true
+    },
+    "teams": [
+        {
+            "id": "2",
+            "slug": "nasa-pilots"
+        }
+    ],
+    "scrubIPAddresses": true,
+    "slug": "science-tools",
+    "dateCreated": "2022-10-10T13:41:12.725475Z",
+    "platform": null
+}

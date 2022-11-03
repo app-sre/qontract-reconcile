@@ -110,9 +110,9 @@ def osd_cluster_fxt():
             "url": "https://api.non-existent-ocm.com",
             "accessTokenClientId": "cloud-services",
             "accessTokenUrl": "https://sso.blah.com/token",
-            "offlineToken": {
+            "accessTokenClientSecret": {
                 "path": "a-secret-path",
-                "field": "offline_token",
+                "field": "client_secret",
                 "format": None,
                 "version": None,
             },
@@ -120,7 +120,7 @@ def osd_cluster_fxt():
         },
         "consoleUrl": "the-cluster-console_url",
         "serverUrl": "the-cluster-server_url",
-        "elbFQDN": "the-cluster-elbFQDN",
+        "elbFQDN": "elb.apps.cluster1.devshift.net",
         "path": "the-cluster-path",
         "name": "cluster1",
         "id": "anid",
@@ -157,6 +157,66 @@ def rosa_cluster_fxt():
             "private": False,
             "provision_shard_id": "the-cluster-provision_shard_id",
             "disable_user_workload_monitoring": True,
+        },
+        "network": {
+            "type": None,
+            "vpc": "10.112.0.0/16",
+            "service": "10.120.0.0/16",
+            "pod": "10.128.0.0/14",
+        },
+        "ocm": {
+            "name": "non-existent-ocm",
+            "url": "https://api.non-existent-ocm.com",
+            "accessTokenClientId": "cloud-services",
+            "accessTokenUrl": "https://sso.blah.com/token",
+            "accessTokenClientSecret": {
+                "path": "a-secret-path",
+                "field": "client_secret",
+                "format": None,
+                "version": None,
+            },
+            "blockedVersions": ["^.*-fc\\..*$"],
+        },
+        "consoleUrl": "the-cluster-console_url",
+        "serverUrl": "the-cluster-server_url",
+        "elbFQDN": "the-cluster-elbFQDN",
+        "path": "the-cluster-path",
+        "name": "cluster1",
+        "id": "anid",
+        "managed": True,
+        "state": "ready",
+    }
+
+
+@pytest.fixture
+def rosa_hosted_cp_cluster_fxt():
+    return {
+        "spec": {
+            "product": "rosa",
+            "account": {
+                "uid": "123123123",
+                "rosa": {
+                    "creator_role_arn": "creator_role",
+                    "installer_role_arn": "installer_role",
+                    "support_role_arn": " support_role",
+                    "controlplane_role_arn": "controlplane_role",
+                    "worker_role_arn": "worker_role",
+                },
+            },
+            "id": "the-cluster-id",
+            "external_id": "the-cluster-external_id",
+            "provider": "aws",
+            "region": "us-east-1",
+            "channel": "stable",
+            "version": "4.10.0",
+            "initial_version": "4.9.0-candidate",
+            "multi_az": False,
+            "nodes": 5,
+            "instance_type": "m5.xlarge",
+            "private": False,
+            "provision_shard_id": "the-cluster-provision_shard_id",
+            "disable_user_workload_monitoring": True,
+            "hypershift": True,
         },
         "network": {
             "type": None,
@@ -217,7 +277,7 @@ def ocm_secrets_reader():
 def ocm_mock(ocm_secrets_reader):
     with patch.object(OCM, "_post", autospec=True) as _post:
         with patch.object(OCM, "_patch", autospec=True) as _patch:
-            with patch.object(OCM, "_init_access_token", autospec=True):
+            with patch.object(OCM, "_init_ocm_client", autospec=True):
                 with patch.object(OCM, "get_provision_shard", autospec=True) as gps:
                     gps.return_value = {"id": "provision_shard_id"}
                     yield _post, _patch
@@ -239,32 +299,6 @@ def get_json_mock():
 def test_ocm_spec_population_rosa(rosa_cluster_fxt):
     n = OCMSpec(**rosa_cluster_fxt)
     assert isinstance(n.spec, ROSAClusterSpec)
-
-
-def test_ocm_spec_population_rosa_default_roles(rosa_cluster_fxt):
-    rosa = rosa_cluster_fxt["spec"]["account"]["rosa"]
-    rosa["installer_role_arn"] = None
-    rosa["support_role_arn"] = None
-    rosa["controlplane_role_arn"] = None
-    rosa["worker_role_arn"] = None
-    n = OCMSpec(**rosa_cluster_fxt)
-    assert isinstance(n.spec, ROSAClusterSpec)
-    assert (
-        n.spec.account.rosa.installer_role_arn
-        == "arn:aws:iam::123123123:role/ManagedOpenShift-Installer-Role"
-    )
-    assert (
-        n.spec.account.rosa.support_role_arn
-        == "arn:aws:iam::123123123:role/ManagedOpenShift-Support-Role"
-    )
-    assert (
-        n.spec.account.rosa.controlplane_role_arn
-        == "arn:aws:iam::123123123:role/ManagedOpenShift-ControlPlane-Role"
-    )
-    assert (
-        n.spec.account.rosa.worker_role_arn
-        == "arn:aws:iam::123123123:role/ManagedOpenShift-Worker-Role"
-    )
 
 
 def test_ocm_spec_population_osd(osd_cluster_fxt):
@@ -500,5 +534,28 @@ def test_changed_ocm_spec_disable_uwm(
 
     _post, _patch = ocm_mock
     assert _patch.call_count == 1
+    assert _post.call_count == 0
+    assert cluster_updates_mr_mock.call_count == 0
+
+
+def test_console_url_changes_ai(
+    get_json_mock,
+    queries_mock,
+    ocm_mock,
+    ocm_osd_cluster_raw_spec,
+    ocm_osd_cluster_ai_spec,
+    cluster_updates_mr_mock,
+):
+
+    ocm_osd_cluster_ai_spec["consoleUrl"] = "old-console-url"
+
+    get_json_mock.return_value = {"items": [ocm_osd_cluster_raw_spec]}
+    queries_mock[1].return_value = [ocm_osd_cluster_ai_spec]
+
+    with pytest.raises(SystemExit):
+        occ.run(dry_run=False)
+
+    _post, _patch = ocm_mock
+    assert _patch.call_count == 0
     assert _post.call_count == 0
     assert cluster_updates_mr_mock.call_count == 0

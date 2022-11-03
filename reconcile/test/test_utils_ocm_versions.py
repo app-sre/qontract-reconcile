@@ -4,8 +4,8 @@ from reconcile.utils.ocm import OCM
 
 @pytest.fixture
 def ocm(mocker):
-    mocker.patch("reconcile.utils.ocm.OCM._init_access_token")
-    mocker.patch("reconcile.utils.ocm.OCM._init_request_headers")
+    mocker.patch("reconcile.utils.ocm_base_client.OCMBaseClient._init_access_token")
+    mocker.patch("reconcile.utils.ocm_base_client.OCMBaseClient._init_request_headers")
     mocker.patch("reconcile.utils.ocm.OCM._init_clusters")
     mocker.patch("reconcile.utils.ocm.OCM._init_version_gates")
     return OCM("name", "url", "tid", "turl", "ot")

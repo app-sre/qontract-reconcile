@@ -1,0 +1,7 @@
+# qenerate: plugin=pydantic_v1
+
+query AppInterfaceVaultSettings {
+  vault_settings: app_interface_settings_v1 {
+    vault
+  }
+}

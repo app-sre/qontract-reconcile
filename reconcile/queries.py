@@ -607,7 +607,7 @@ CLUSTERS_QUERY = """
       url
       accessTokenClientId
       accessTokenUrl
-      offlineToken {
+      accessTokenClientSecret {
         path
         field
         format
@@ -639,11 +639,14 @@ CLUSTERS_QUERY = """
     %s
     spec {
       product
+      hypershift
       ... on ClusterSpecOSD_v1 {
         storage
         load_balancers
       }
       ... on ClusterSpecROSA_v1 {
+        subnet_ids
+        availability_zones
         account {
           uid
           rosa {
@@ -914,7 +917,7 @@ CLUSTER_PEERING_QUERY = """
       url
       accessTokenClientId
       accessTokenUrl
-      offlineToken {
+      accessTokenClientSecret {
         path
         field
         format
@@ -1083,6 +1086,45 @@ def get_clusters_by(filter: ClusterFilter, minimal: bool = False) -> list[dict]:
     return gqlapi.query(query)["clusters"]
 
 
+OCM_QUERY = """
+{
+  instances: ocm_instances_v1 {
+    name
+    url
+    accessTokenClientId
+    accessTokenUrl
+    accessTokenClientSecret {
+      path
+      field
+      format
+      version
+    }
+    upgradePolicyClusters {
+      name
+      spec {
+        id
+        product
+        version
+        channel
+      }
+      upgradePolicy {
+        workloads
+        schedule
+        conditions {
+          soakDays
+          mutexes
+        }
+      }
+    }
+  }
+}
+"""
+
+
+def get_openshift_cluster_managers() -> list[dict[str, Any]]:
+    return gql.get_api().query(OCM_QUERY)["instances"]
+
+
 KAFKA_CLUSTERS_QUERY = """
 {
   clusters: kafka_clusters_v1 {
@@ -1092,7 +1134,7 @@ KAFKA_CLUSTERS_QUERY = """
       url
       accessTokenClientId
       accessTokenUrl
-      offlineToken {
+      accessTokenClientSecret {
         path
         field
         format
@@ -1434,8 +1476,10 @@ APPS_QUERY = """
       name
     }
     codeComponents {
+      name
       url
       resource
+      showInReviewQueue
       gitlabRepoOwners {
         enabled
       }
@@ -1490,6 +1534,16 @@ def get_code_components():
     ]
     code_components = list(itertools.chain.from_iterable(code_components_lists))
     return code_components
+
+
+def get_review_repos():
+    """Returns name and url of code components marked for review"""
+    code_components = get_code_components()
+    return [
+        {"url": c["url"], "name": c["name"]}
+        for c in code_components
+        if c is not None and c["showInReviewQueue"] is not None
+    ]
 
 
 def get_repos(server="") -> list[str]:
@@ -2406,7 +2460,6 @@ DNS_ZONES_QUERY = """
       vpc_id
       region
     }
-    unmanaged_record_names
     records {
       name
       type
@@ -2527,7 +2580,7 @@ OCP_RELEASE_ECR_MIRROR_QUERY = """
         url
         accessTokenClientId
         accessTokenUrl
-        offlineToken {
+        accessTokenClientSecret {
           path
           field
           format
@@ -2669,49 +2722,6 @@ QUAY_REPOS_QUERY = """
 def get_quay_repos():
     gqlapi = gql.get_api()
     return gqlapi.query(QUAY_REPOS_QUERY)["apps"]
-
-
-SLO_DOCUMENTS_QUERY = """
-{
-  slo_documents: slo_document_v1 {
-    name
-    namespaces {
-      name
-      app {
-        name
-      }
-      cluster {
-        name
-        automationToken {
-          path
-          field
-          version
-          format
-        }
-        prometheusUrl
-        spec {
-          private
-        }
-      }
-    }
-    slos {
-      name
-      expr
-      SLIType
-      SLOParameters {
-        window
-      }
-      SLOTarget
-      SLOTargetUnit
-    }
-  }
-}
-"""
-
-
-def get_slo_documents():
-    gqlapi = gql.get_api()
-    return gqlapi.query(SLO_DOCUMENTS_QUERY)["slo_documents"]
 
 
 SRE_CHECKPOINTS_QUERY = """

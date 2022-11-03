@@ -14,9 +14,9 @@ ocm:
   name: non-existent-ocm
   url: non-existent-ocm-url
   accessTokenClientId: cloud-services
-  offlineToken:
-    path: "offline-token-secret-path"
-    field: "offline-token"
+  accessTokenClientSecret:
+    path: "client-secret-path"
+    field: "client_secret"
 spec:
   product: osd
   id: "osd-cluster-id"
@@ -24,7 +24,7 @@ spec:
   provider: aws
   region: us-east-1
   channel: candidate
-  version: 4.10.16
+  version: 4.10.6
   initial_version: 4.8.10
   multi_az: true
   instance_type: m5.2xlarge
@@ -36,6 +36,7 @@ spec:
     min_replicas: 21
     max_replicas: 30
   disable_user_workload_monitoring: true
+  hypershift: null
 network:
   type: OpenShiftSDN
   vpc: 10.112.0.0/16

@@ -78,9 +78,12 @@ def create_backend_config(
 def build_clients(
     secret_reader: SecretReader,
     query_accounts: TerraformCloudflareAccountsQueryData,
+    selected_account: Optional[str] = None,
 ) -> list[tuple[str, TerrascriptCloudflareClient]]:
     clients = []
     for cf_acct in query_accounts.accounts or []:
+        if selected_account and cf_acct.name != selected_account:
+            continue
         cf_acct_creds = secret_reader.read_all({"path": cf_acct.api_credentials.path})
         cf_acct_config = CloudflareAccountConfig(
             cf_acct.name,
@@ -108,6 +111,7 @@ def run(
     print_to_file: Optional[str],
     enable_deletion: bool,
     thread_pool_size: int,
+    selected_account=None,
     defer=None,
 ) -> None:
 
@@ -117,7 +121,7 @@ def run(
     # Build Cloudflare clients
     query_accounts = terraform_cloudflare_accounts.query(query_func=gql.get_api().query)
     cf_clients = TerraformConfigClientCollection()
-    for client in build_clients(secret_reader, query_accounts):
+    for client in build_clients(secret_reader, query_accounts, selected_account):
         cf_clients.register_client(*client)
 
     # Register Cloudflare resources
@@ -130,6 +134,7 @@ def run(
         for spec in get_external_resource_specs(
             namespace.dict(by_alias=True), PROVIDER_CLOUDFLARE
         )
+        if not selected_account or spec.provisioner_name == selected_account
     ]
     cf_clients.add_specs(cf_specs)
 
@@ -144,7 +149,11 @@ def run(
         QONTRACT_INTEGRATION,
         QONTRACT_INTEGRATION_VERSION,
         QONTRACT_TF_PREFIX,
-        [{"name": name} for name in cf_clients.dump()],
+        [
+            acct.dict(by_alias=True)  # convert CloudflareAccountV1 to dict
+            for acct in query_accounts.accounts or []
+            if acct.name in cf_clients.dump()  # use only if it is a registered client
+        ],
         working_dirs,
         thread_pool_size,
     )

@@ -3,7 +3,7 @@
   "id": "rosa-cluster-id",
   "href": "/api/clusters_mgmt/v1/clusters/rosa-cluster-id",
   "name": "tst-jpr-rosa",
-  "external_id": "53c15df9-92e3-4ed6-9945-b37025d0b63d",
+  "external_id": "external-id",
   "infra_id": "tst-jpr-rosa-hzwts",
   "display_name": "tst-jpr-rosa",
   "creation_timestamp": "2022-04-01T09:46:33.71918Z",
@@ -202,6 +202,9 @@
   "billing_model": "standard",
   "disable_user_workload_monitoring": false,
   "managed_service": {
+    "enabled": false
+  },
+  "hypershift": {
     "enabled": false
   }
 }

@@ -1,0 +1,16 @@
+[
+    {
+        "dateCreated": "2022-10-06T13:02:57.860732Z",
+        "id": "7",
+        "isMember": true,
+        "memberCount": 4,
+        "slug": "esa-flight-control"
+    },
+    {
+        "dateCreated": "2022-10-06T13:02:13.471134Z",
+        "id": "6",
+        "isMember": true,
+        "memberCount": 2,
+        "slug": "esa-pilots"
+    }
+]

@@ -126,12 +126,7 @@ def handle_stale_items(dry_run, gl, days_interval, enable_closing, item_type):
                 item = gl.get_merge_request(item_iid)
             if item.merge_status == MRStatus.CANNOT_BE_MERGED:
                 close_item(dry_run, gl, enable_closing, item_type, item)
-        notes = item.notes.list()
-        note_dates = [
-            datetime.strptime(note.attributes.get("updated_at"), DATE_FORMAT)
-            for note in notes
-        ]
-        update_date = max(d for d in note_dates) if note_dates else now
+        update_date = datetime.strptime(item.attributes.get("updated_at"), DATE_FORMAT)
 
         # if item is over days_interval
         current_interval = now.date() - update_date.date()
@@ -152,7 +147,7 @@ def handle_stale_items(dry_run, gl, days_interval, enable_closing, item_type):
             # if item has 'stale' label - check the notes
             cancel_notes = [
                 n
-                for n in notes
+                for n in item.notes.list()
                 if n.attributes.get("body") == "/{} cancel".format(LABEL)
             ]
             if not cancel_notes:

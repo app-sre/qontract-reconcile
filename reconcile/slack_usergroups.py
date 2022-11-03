@@ -1,7 +1,7 @@
 import logging
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Optional
 from urllib.parse import urlparse
 from sretoolbox.utils import retry
 from github.GithubException import UnknownObjectException
@@ -40,11 +40,19 @@ class GitApi:
         raise ValueError(f"Unable to handle URL: {url}")
 
 
-def get_slack_map(secret_reader: SecretReader) -> dict[str, dict[str, Any]]:
+SlackState = dict[str, dict[str, dict[str, Any]]]
+SlackMap = dict[str, dict[str, Any]]
+
+
+def get_slack_map(
+    secret_reader: SecretReader, desired_workspace_name: Optional[str]
+) -> SlackMap:
     permissions = queries.get_permissions_for_slack_usergroup()
     slack_map = {}
     for sp in permissions:
         workspace = sp["workspace"]
+        if desired_workspace_name and desired_workspace_name != workspace["name"]:
+            continue
         workspace_name = workspace["name"]
         if workspace_name in slack_map:
             continue
@@ -57,13 +65,17 @@ def get_slack_map(secret_reader: SecretReader) -> dict[str, dict[str, Any]]:
     return slack_map
 
 
-def get_pagerduty_map():
+def get_pagerduty_map(init_users: bool = True):
     instances = queries.get_pagerduty_instances()
     settings = queries.get_app_interface_settings()
-    return PagerDutyMap(instances, settings)
+    return PagerDutyMap(instances, init_users=init_users, settings=settings)
 
 
-def get_current_state(slack_map):
+def get_current_state(
+    slack_map: SlackMap,
+    desired_workspace_name: Optional[str],
+    desired_usergroup_name: Optional[str],
+) -> SlackState:
     """
     Get the current state of Slack usergroups.
 
@@ -74,12 +86,16 @@ def get_current_state(slack_map):
                 (ex. state['coreos']['app-sre-ic']
     :rtype: dict
     """
-    current_state = {}
+    current_state: SlackState = {}
 
     for workspace, spec in slack_map.items():
+        if desired_workspace_name and desired_workspace_name != workspace:
+            continue
         slack: SlackApi = spec["slack"]
         managed_usergroups = spec["managed_usergroups"]
         for ug in managed_usergroups:
+            if desired_usergroup_name and desired_usergroup_name != ug:
+                continue
             try:
                 users, channels, description = slack.describe_usergroup(ug)
             except UsergroupNotFoundException:
@@ -226,7 +242,12 @@ def get_slack_usernames_from_schedule(schedule):
     return all_slack_usernames
 
 
-def get_desired_state(slack_map, pagerduty_map):
+def get_desired_state(
+    slack_map: SlackMap,
+    pagerduty_map: PagerDutyMap,
+    desired_workspace_name: Optional[str],
+    desired_usergroup_name: Optional[str],
+) -> SlackState:
     """
     Get the desired state of Slack usergroups.
 
@@ -243,7 +264,7 @@ def get_desired_state(slack_map, pagerduty_map):
     permissions = queries.get_permissions_for_slack_usergroup()
     all_users = queries.get_users()
 
-    desired_state = {}
+    desired_state: SlackState = {}
     for p in permissions:
         if p["service"] != "slack-usergroup":
             continue
@@ -256,7 +277,11 @@ def get_desired_state(slack_map, pagerduty_map):
             continue
 
         workspace_name = workspace["name"]
+        if desired_workspace_name and desired_workspace_name != workspace_name:
+            continue
         usergroup = p["handle"]
+        if desired_usergroup_name and desired_usergroup_name != usergroup:
+            continue
         description = p["description"]
         if usergroup not in managed_usergroups:
             raise KeyError(
@@ -484,12 +509,17 @@ def act(current_state, desired_state, slack_map, dry_run=True):
             )
 
 
-def run(dry_run):
+def run(
+    dry_run, workspace_name: Optional[str] = None, usergroup_name: Optional[str] = None
+):
     secret_reader = SecretReader(queries.get_secret_reader_settings())
-    slack_map = get_slack_map(secret_reader)
-    pagerduty_map = get_pagerduty_map()
-    desired_state = get_desired_state(slack_map, pagerduty_map)
-    current_state = get_current_state(slack_map)
+    slack_map = get_slack_map(secret_reader, workspace_name)
+    init_users = False if usergroup_name else True
+    pagerduty_map = get_pagerduty_map(init_users=init_users)
+    desired_state = get_desired_state(
+        slack_map, pagerduty_map, workspace_name, usergroup_name
+    )
+    current_state = get_current_state(slack_map, workspace_name, usergroup_name)
 
     act(current_state, desired_state, slack_map, dry_run)
 

@@ -10,6 +10,8 @@ from reconcile import mr_client_gateway
 import reconcile.utils.mr.clusters_updates as cu
 
 import reconcile.utils.ocm as ocmmod
+from reconcile.ocm.utils import cluster_disabled_integrations
+from reconcile.status import ExitCodes
 
 from reconcile.ocm.types import OCMSpec
 
@@ -122,6 +124,9 @@ def get_app_interface_spec_updates(
         root_updates[ocmmod.SPEC_ATTR_SERVER_URL] = current_spec.server_url
 
     if not desired_spec.elb_fqdn:
+        # There is Bug Here. elb.apps.{cluster} might be longer than the allowed lenght.
+        # In those cases OCM truncates the string in front of {current_spec.domain}
+        # Check app-sre-stage-01 as an example.
         root_updates[
             ocmmod.SPEC_ATTR_ELBFQDN
         ] = f"elb.apps.{cluster}.{current_spec.domain}"
@@ -222,10 +227,23 @@ def _app_interface_updates_mr(
         mr.submit(cli=mr_cli)
 
 
+def _cluster_is_compatible(cluster: Mapping[str, Any]) -> bool:
+    return cluster.get("ocm") is not None
+
+
 def run(dry_run: bool, gitlab_project_id=None, thread_pool_size=10):
     settings = queries.get_app_interface_settings()
     clusters = queries.get_clusters()
-    clusters = [c for c in clusters if c.get("ocm") is not None]
+    clusters = [
+        c
+        for c in clusters
+        if QONTRACT_INTEGRATION not in cluster_disabled_integrations(c)
+        and _cluster_is_compatible(c)
+    ]
+    if not clusters:
+        logging.debug("No OCM cluster definitions found in app-interface")
+        sys.exit(ExitCodes.SUCCESS)
+
     ocm_map = ocmmod.OCMMap(
         clusters=clusters,
         integration=QONTRACT_INTEGRATION,

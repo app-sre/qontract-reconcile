@@ -8,19 +8,24 @@ from abc import abstractmethod
 import string
 from typing import Any, Mapping, Optional, Tuple, Union
 
+from reconcile.utils.secret_reader import SecretReader
 import reconcile.utils.aws_helper as awsh
-import requests
+
 from reconcile.ocm.types import (
     OCMClusterAutoscale,
     OCMClusterNetwork,
     ROSAClusterAWSAccount,
     ROSAAWSAttrs,
     OCMSpec,
+    OCMClusterSpec,
     OSDClusterSpec,
     ROSAClusterSpec,
 )
-from reconcile.utils.secret_reader import SecretReader
+from reconcile.utils.ocm_base_client import OCMBaseClient
+
+
 from sretoolbox.utils import retry
+
 
 STATUS_READY = "ready"
 STATUS_FAILED = "failed"
@@ -56,6 +61,9 @@ SPEC_ATTR_PROVISION_SHARD_ID = "provision_shard_id"
 SPEC_ATTR_VERSION = "version"
 SPEC_ATTR_INITIAL_VERSION = "initial_version"
 SPEC_ATTR_MULTI_AZ = "multi_az"
+SPEC_ATTR_HYPERSHIFT = "hypershift"
+SPEC_ATTR_SUBNET_IDS = "subnet_ids"
+SPEC_ATTR_AVAILABILITY_ZONES = "availability_zones"
 
 SPEC_ATTR_NETWORK = "network"
 
@@ -65,7 +73,7 @@ SPEC_ATTR_ELBFQDN = "elbFQDN"
 SPEC_ATTR_PATH = "path"
 
 OCM_PRODUCT_OSD = "osd"
-OCM_PRODCUT_ROSA = "rosa"
+OCM_PRODUCT_ROSA = "rosa"
 
 
 class OCMProduct:
@@ -108,6 +116,7 @@ class OCMProductOsd(OCMProduct):
         SPEC_ATTR_PROVISION_SHARD_ID,
         SPEC_ATTR_VERSION,
         SPEC_ATTR_INITIAL_VERSION,
+        SPEC_ATTR_HYPERSHIFT,
     }
 
     @staticmethod
@@ -147,7 +156,7 @@ class OCMProductOsd(OCMProduct):
             else None
         )
 
-        spec = OSDClusterSpec(
+        spec = OCMClusterSpec(
             product=cluster["product"]["id"],
             id=cluster["id"],
             external_id=cluster["external_id"],
@@ -157,8 +166,6 @@ class OCMProductOsd(OCMProduct):
             version=cluster["version"]["raw_id"],
             multi_az=cluster["multi_az"],
             instance_type=cluster["nodes"]["compute_machine_type"]["id"],
-            storage=cluster["storage_quota"]["value"] // BYTES_IN_GIGABYTE,
-            load_balancers=cluster["load_balancer_quota"],
             private=cluster["api"]["listening"] == "internal",
             disable_user_workload_monitoring=cluster[
                 "disable_user_workload_monitoring"
@@ -166,7 +173,16 @@ class OCMProductOsd(OCMProduct):
             provision_shard_id=provision_shard_id,
             nodes=cluster["nodes"].get("compute"),
             autoscale=autoscale_spec,
+            hypershift=cluster["hypershift"]["enabled"],
         )
+
+        if not cluster["ccs"]["enabled"]:
+            cluster_spec_data = spec.dict()
+            cluster_spec_data["storage"] = (
+                cluster["storage_quota"]["value"] // BYTES_IN_GIGABYTE
+            )
+            cluster_spec_data["load_balancers"] = cluster["load_balancer_quota"]
+            spec = OSDClusterSpec(**cluster_spec_data)
 
         network = OCMClusterNetwork(
             type=cluster["network"].get("type") or "OVNKubernetes",
@@ -281,6 +297,9 @@ class OCMProductRosa(OCMProduct):
         SPEC_ATTR_VERSION,
         SPEC_ATTR_INITIAL_VERSION,
         SPEC_ATTR_ACCOUNT,
+        SPEC_ATTR_HYPERSHIFT,
+        SPEC_ATTR_SUBNET_IDS,
+        SPEC_ATTR_AVAILABILITY_ZONES,
     }
 
     @staticmethod
@@ -290,7 +309,12 @@ class OCMProductRosa(OCMProduct):
         params = {}
         if dry_run:
             params["dryRun"] = "true"
-
+            if cluster.spec.hypershift:
+                logging.info(
+                    "Dry-Run is not yet implemented for Hosted clusters. Here is the payload:"
+                )
+                logging.info(ocm_spec)
+                return
         ocm._post(api, ocm_spec, params)
 
     @staticmethod
@@ -305,7 +329,12 @@ class OCMProductRosa(OCMProduct):
     def get_ocm_spec(
         ocm: OCM, cluster: Mapping[str, Any], init_provision_shards: bool
     ) -> OCMSpec:
-        if init_provision_shards:
+
+        is_hosted_cp = cluster["hypershift"]["enabled"]
+
+        # Hypershift does not allow set the provision_shard
+        # This might change in the future
+        if init_provision_shards and not is_hosted_cp:
             provision_shard_id = ocm.get_provision_shard(cluster["id"])["id"]
         else:
             provision_shard_id = None
@@ -339,7 +368,7 @@ class OCMProductRosa(OCMProduct):
             product=cluster["product"]["id"],
             account=account,
             id=cluster["id"],
-            external_id=cluster["external_id"],
+            external_id=cluster.get("external_id"),
             provider=cluster["cloud_provider"]["id"],
             region=cluster["region"]["id"],
             channel=cluster["version"]["channel_group"],
@@ -353,6 +382,9 @@ class OCMProductRosa(OCMProduct):
             provision_shard_id=provision_shard_id,
             nodes=cluster["nodes"].get("compute"),
             autoscale=autoscale_spec,
+            hypershift=cluster["hypershift"]["enabled"],
+            subnet_ids=cluster["aws"].get("subnet_ids"),
+            availability_zones=cluster["nodes"].get("availability_zones"),
         )
 
         network = OCMClusterNetwork(
@@ -387,6 +419,7 @@ class OCMProductRosa(OCMProduct):
                 "id": f"openshift-v{cluster.spec.initial_version}",
                 "channel_group": cluster.spec.channel,
             },
+            "hypershift": {"enabled": cluster.spec.hypershift},
             "multi_az": cluster.spec.multi_az,
             "nodes": {"compute_machine_type": {"id": cluster.spec.instance_type}},
             "network": {
@@ -398,6 +431,7 @@ class OCMProductRosa(OCMProduct):
             "disable_user_workload_monitoring": cluster.spec.disable_user_workload_monitoring
             or True,
         }
+
         provision_shard_id = cluster.spec.provision_shard_id
         if provision_shard_id:
             ocm_spec.setdefault("properties", {})
@@ -432,6 +466,12 @@ class OCMProductRosa(OCMProduct):
                 },
             }
 
+            if cluster.spec.hypershift:
+                ocm_spec["nodes"][
+                    "availability_zones"
+                ] = cluster.spec.availability_zones
+                rosa_spec["aws"]["subnet_ids"] = cluster.spec.subnet_ids
+
         ocm_spec.update(rosa_spec)
         return ocm_spec
 
@@ -439,19 +479,19 @@ class OCMProductRosa(OCMProduct):
     def _get_update_cluster_spec(update_spec: Mapping[str, Any]) -> dict[str, Any]:
         ocm_spec: dict[str, Any] = {}
 
-        channel = update_spec.get("channel")
+        channel = update_spec.get(SPEC_ATTR_CHANNEL)
         if channel is not None:
             ocm_spec["version"] = {"channel_group": channel}
 
-        autoscale = update_spec.get("autoscale")
+        autoscale = update_spec.get(SPEC_ATTR_AUTOSCALE)
         if autoscale is not None:
             ocm_spec["nodes"] = {"autoscale_compute": autoscale}
 
-        nodes = update_spec.get("nodes")
+        nodes = update_spec.get(SPEC_ATTR_NODES)
         if nodes:
             ocm_spec["nodes"] = {"compute": update_spec["nodes"]}
 
-        disable_uwm = update_spec.get("disable_user_workload_monitoring")
+        disable_uwm = update_spec.get(SPEC_ATTR_DISABLE_UWM)
         if disable_uwm is not None:
             ocm_spec["disable_user_workload_monitoring"] = disable_uwm
 
@@ -460,7 +500,7 @@ class OCMProductRosa(OCMProduct):
 
 OCM_PRODUCTS_IMPL = {
     OCM_PRODUCT_OSD: OCMProductOsd,
-    OCM_PRODCUT_ROSA: OCMProductRosa,
+    OCM_PRODUCT_ROSA: OCMProductRosa,
 }
 
 
@@ -472,14 +512,14 @@ class OCM:  # pylint: disable=too-many-public-methods
     :param url: OCM instance URL
     :param access_token_client_id: client-id to get access token
     :param access_token_url: URL to get access token from
-    :param offline_token: Long lived offline token used to get access token
+    :param access_token_client_secret: client-secret to get access token
     :param init_provision_shards: should initiate provision shards
     :param init_addons: should initiate addons
     :param blocked_versions: versions to block upgrades for
     :type url: string
     :type access_token_client_id: string
     :type access_token_url: string
-    :type offline_token: string
+    :type access_token_client_secret: string
     :type init_provision_shards: bool
     :type init_addons: bool
     :type init_version_gates: bool
@@ -492,22 +532,24 @@ class OCM:  # pylint: disable=too-many-public-methods
         url,
         access_token_client_id,
         access_token_url,
-        offline_token,
+        access_token_client_secret,
         init_provision_shards=False,
         init_addons=False,
         init_version_gates=False,
         blocked_versions=None,
+        ocm_client: Optional[OCMBaseClient] = None,
     ):
         """Initiates access token and gets clusters information."""
         self.name = name
-        self.url = url
-        self.access_token = ""
-        self.access_token_client_id = access_token_client_id
-        self.access_token_url = access_token_url
-        self.offline_token = offline_token
-        self._session = requests.Session()
-        self._init_access_token()
-        self._init_request_headers()
+        if not ocm_client:
+            self._init_ocm_client(
+                url=url,
+                access_token_client_secret=access_token_client_secret,
+                access_token_client_id=access_token_client_id,
+                access_token_url=access_token_url,
+            )
+        else:
+            self._ocm_client = ocm_client
         self._init_clusters(init_provision_shards=init_provision_shards)
 
         if init_addons:
@@ -516,7 +558,7 @@ class OCM:  # pylint: disable=too-many-public-methods
         self._init_blocked_versions(blocked_versions)
 
         self.init_version_gates = init_version_gates
-        self.version_gates = []
+        self.version_gates: list[Any] = []
         if init_version_gates:
             self._init_version_gates()
 
@@ -524,29 +566,22 @@ class OCM:  # pylint: disable=too-many-public-methods
         # https://stackoverflow.com/questions/33672412/python-functools-lru-cache-with-class-methods-release-object
         # using @lru_cache decorators on methods would lek AWSApi instances
         # since the cache keeps a reference to self.
-        self.get_aws_infrastructure_access_role_grants = functools.lru_cache()(
+        self.get_aws_infrastructure_access_role_grants = functools.lru_cache()(  # type: ignore
             self.get_aws_infrastructure_access_role_grants
         )
 
-    @retry()
-    def _init_access_token(self):
-        data = {
-            "grant_type": "refresh_token",
-            "client_id": self.access_token_client_id,
-            "refresh_token": self.offline_token,
-        }
-        r = self._session.post(
-            self.access_token_url, data=data, timeout=REQUEST_TIMEOUT_SEC
-        )
-        r.raise_for_status()
-        self.access_token = r.json().get("access_token")
-
-    def _init_request_headers(self):
-        self._session.headers.update(
-            {
-                "Authorization": f"Bearer {self.access_token}",
-                "accept": "application/json",
-            }
+    def _init_ocm_client(
+        self,
+        url: str,
+        access_token_client_secret: str,
+        access_token_url: str,
+        access_token_client_id: str,
+    ):
+        self._ocm_client = OCMBaseClient(
+            url=url,
+            access_token_client_secret=access_token_client_secret,
+            access_token_url=access_token_url,
+            access_token_client_id=access_token_client_id,
         )
 
     @staticmethod
@@ -559,7 +594,7 @@ class OCM:  # pylint: disable=too-many-public-methods
 
     def _init_clusters(self, init_provision_shards):
         api = f"{CS_API_BASE}/v1/clusters"
-        clusters = self._get_json(api)["items"]
+        clusters = self._get_json(api).get("items", [])
         self.cluster_ids = {c["name"]: c["id"] for c in clusters}
 
         self.clusters: dict[str, OCMSpec] = {}
@@ -573,24 +608,26 @@ class OCM:  # pylint: disable=too-many-public-methods
             else:
                 self.not_ready_clusters.add(cluster_name)
 
+    def _get_ocm_impl(self, product: str):
+        return OCM_PRODUCTS_IMPL[product]
+
     def _get_cluster_ocm_spec(
         self, cluster: Mapping[str, Any], init_provision_shards: bool
     ) -> OCMSpec:
 
-        product = cluster["product"]["id"]
-        impl = OCM_PRODUCTS_IMPL[product]
+        impl = self._get_ocm_impl(cluster["product"]["id"])
         spec = impl.get_ocm_spec(self, cluster, init_provision_shards)
         return spec
 
     def create_cluster(self, name: str, cluster: OCMSpec, dry_run: bool):
-        impl = OCM_PRODUCTS_IMPL[cluster.spec.product]
+        impl = self._get_ocm_impl(cluster.spec.product)
         impl.create_cluster(self, name, cluster, dry_run)
 
     def update_cluster(
         self, cluster_name: str, update_spec: Mapping[str, Any], dry_run=False
     ):
         cluster = self.clusters[cluster_name]
-        impl = OCM_PRODUCTS_IMPL[cluster.spec.product]
+        impl = self._get_ocm_impl(cluster.spec.product)
         impl.update_cluster(self, cluster_name, update_spec)
 
     def get_group_if_exists(self, cluster, group_id):
@@ -1251,13 +1288,10 @@ class OCM:  # pylint: disable=too-many-public-methods
 
     @retry(max_attempts=10)
     def _do_get_request(self, api: str, params: Mapping[str, str]) -> dict[str, Any]:
-        r = self._session.get(
-            f"{self.url}{api}",
+        return self._ocm_client.get(
+            api_path=api,
             params=params,
-            timeout=REQUEST_TIMEOUT_SEC,
         )
-        r.raise_for_status()
-        return r.json()
 
     @staticmethod
     def _response_is_list(rs: Mapping[str, Any]) -> bool:
@@ -1293,31 +1327,23 @@ class OCM:  # pylint: disable=too-many-public-methods
         return responses[0]
 
     def _post(self, api, data=None, params=None):
-        r = self._session.post(
-            f"{self.url}{api}", json=data, params=params, timeout=REQUEST_TIMEOUT_SEC
+        return self._ocm_client.post(
+            api_path=api,
+            data=data,
+            params=params,
         )
-        try:
-            r.raise_for_status()
-        except Exception as e:
-            logging.error(r.text)
-            raise e
-        if r.status_code == requests.codes.no_content:
-            return None
-        return r.json()
 
     def _patch(self, api, data, params=None):
-        r = self._session.patch(
-            f"{self.url}{api}", json=data, params=params, timeout=REQUEST_TIMEOUT_SEC
+        return self._ocm_client.patch(
+            api_path=api,
+            data=data,
+            params=params,
         )
-        try:
-            r.raise_for_status()
-        except Exception as e:
-            logging.error(r.text)
-            raise e
 
     def _delete(self, api):
-        r = self._session.delete(f"{self.url}{api}", timeout=REQUEST_TIMEOUT_SEC)
-        r.raise_for_status()
+        return self._ocm_client.delete(
+            api_path=api,
+        )
 
 
 class OCMMap:  # pylint: disable=too-many-public-methods
@@ -1411,14 +1437,14 @@ class OCMMap:  # pylint: disable=too-many-public-methods
 
         access_token_client_id = ocm_info.get("accessTokenClientId")
         access_token_url = ocm_info.get("accessTokenUrl")
-        ocm_offline_token = ocm_info.get("offlineToken")
-        if ocm_offline_token is None:
+        access_token_client_secret = ocm_info.get("accessTokenClientSecret")
+        if access_token_client_secret is None:
             self.ocm_map[ocm_name] = False
         else:
             url = ocm_info["url"]
             name = ocm_info["name"]
             secret_reader = SecretReader(settings=self.settings)
-            token = secret_reader.read(ocm_offline_token)
+            token = secret_reader.read(access_token_client_secret)
             self.ocm_map[ocm_name] = OCM(
                 name,
                 url,

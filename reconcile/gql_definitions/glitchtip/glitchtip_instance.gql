@@ -1,0 +1,23 @@
+# qenerate: plugin=pydantic_v1
+
+query GlitchtipInstance {
+  instances: glitchtip_instances_v1 {
+    name
+    consoleUrl
+    automationUserEmail
+    automationToken{
+      ... VaultSecret
+    }
+    organizations {
+      name
+      roles{
+        glitchtip_roles {
+          role
+        }
+        users {
+          github_username
+        }
+      }
+    }
+  }
+}

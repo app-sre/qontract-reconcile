@@ -100,9 +100,7 @@ def compare_object_ctx_identifier(
 SHA256SUM_FIELD_NAME = "$file_sha256sum"
 
 
-def extract_diffs(
-    schema: Optional[str], old_file_content: Any, new_file_content: Any
-) -> list[Diff]:
+def extract_diffs(old_file_content: Any, new_file_content: Any) -> list[Diff]:
     diffs: list[Diff] = []
     if old_file_content and new_file_content:
         deep_diff = DeepDiff(
@@ -224,7 +222,10 @@ def deepdiff_path_to_jsonpath(deep_diff_path: str) -> jsonpath_ng.JSONPath:
         if element.isdigit():
             return jsonpath_ng.Index(int(element))
         else:
-            return jsonpath_ng.Fields(element)
+            if "." in element:
+                return jsonpath_ng.Fields(f"'{element}'")
+            else:
+                return jsonpath_ng.Fields(element)
 
     path_parts = [
         build_jsonpath_part(p) for p in DEEP_DIFF_RE.findall(deep_diff_path[4:])

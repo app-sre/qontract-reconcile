@@ -146,6 +146,7 @@ NAMESPACES_QUERY = """
       }
       spec {
         version
+        region
       }
       network {
         pod
