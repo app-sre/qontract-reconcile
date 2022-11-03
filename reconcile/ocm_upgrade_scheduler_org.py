@@ -29,7 +29,7 @@ def run(dry_run):
         )
 
         current_state = ous.fetch_current_state(upgrade_policy_clusters, ocm_map)
-        desired_state = ous.fetch_desired_state(upgrade_policy_clusters)
+        desired_state = ous.fetch_desired_state(upgrade_policy_clusters, ocm_map)
         version_history = ous.get_version_history(dry_run, desired_state, ocm_map)
         diffs = ous.calculate_diff(
             current_state, desired_state, ocm_map, version_history

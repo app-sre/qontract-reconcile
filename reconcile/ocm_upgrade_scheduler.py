@@ -44,15 +44,17 @@ def fetch_current_state(
 
 
 def fetch_desired_state(
-    clusters: list[dict[str, Any]]
+    clusters: list[dict[str, Any]], ocm_map: OCMMap
 ) -> list[dict[str, Any]]:
     desired_state = []
     for cluster in clusters:
         cluster_name = cluster["name"]
         upgrade_policy = cluster["upgradePolicy"]
         upgrade_policy["cluster"] = cluster_name
-        upgrade_policy["current_version"] = cluster["spec"]["version"]
-        upgrade_policy["channel"] = cluster["spec"]["channel"]
+        ocm: OCM = ocm_map.get(cluster_name)
+        spec = ocm.clusters[cluster_name].spec
+        upgrade_policy["current_version"] = spec.version
+        upgrade_policy["channel"] = spec.channel
         desired_state.append(upgrade_policy)
 
     sorted_desired_state = sorted(desired_state, key=sort_key)
@@ -398,7 +400,7 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
         init_version_gates=True,
     )
     current_state = fetch_current_state(clusters, ocm_map)
-    desired_state = fetch_desired_state(clusters)
+    desired_state = fetch_desired_state(clusters, ocm_map)
     version_history = get_version_history(dry_run, desired_state, ocm_map)
     diffs = calculate_diff(current_state, desired_state, ocm_map, version_history)
     act(dry_run, diffs, ocm_map)
