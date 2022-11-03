@@ -30,13 +30,12 @@ class CreateOCMUpgradeSchedulerOrgUpdates(MergeRequestBase):
             file_path=ocm_path, ref=self.main_branch
         )
         content = yaml.load(raw_file.decode(), Loader=yaml.RoundTripLoader)
-        upgrade_policy_defaults = content["upgradePolicyDefaults"]
         upgrade_policy_clusters = content["upgradePolicyClusters"]
 
         for update in self.updates_info["updates"]:
             action = update["action"]
             cluster_name = update["cluster"]
-            default_upgrade_policy_name = update.get("policy")
+            upgrade_policy = update.get("policy")
 
             if action == "add":
                 found = [
@@ -44,14 +43,6 @@ class CreateOCMUpgradeSchedulerOrgUpdates(MergeRequestBase):
                 ]
                 if found:
                     continue
-                upgrade_policy = [
-                    p["upgradePolicy"]
-                    for p in upgrade_policy_defaults
-                    if p["name"] == default_upgrade_policy_name
-                ]
-                if not upgrade_policy:
-                    continue
-                [upgrade_policy] = upgrade_policy
                 item = {
                     "name": cluster_name,
                     "upgradePolicy": upgrade_policy,

@@ -51,7 +51,7 @@ def run(dry_run, gitlab_project_id):
                         item = {
                             "action": "add",
                             "cluster": ocm_cluster_name,
-                            "policy": default_name,
+                            "policy": default["upgradePolicy"],
                         }
                         updates.append(item)
 
