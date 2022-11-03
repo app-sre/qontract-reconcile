@@ -15,7 +15,7 @@ def run(dry_run, gitlab_project_id):
     settings = queries.get_app_interface_settings()
     ocms = queries.get_openshift_cluster_managers()
     for ocm_info in ocms:
-        updates = {}
+        updates = []
         create_update_mr = False
         upgrade_policy_defaults = ocm_info.get("upgradePolicyDefaults")
         if not upgrade_policy_defaults:
@@ -29,6 +29,7 @@ def run(dry_run, gitlab_project_id):
             init_version_gates=True,
         )
         ocm_name = ocm_info["name"]
+        ocm_path = ocm_info["path"]
         ocm = ocm_map[ocm_name]
 
         for ocm_cluster_name in ocm.clusters:
@@ -47,6 +48,13 @@ def run(dry_run, gitlab_project_id):
                         logging.info(
                             ["add_cluster", ocm_name, ocm_cluster_name, default_name]
                         )
+                        item = {
+                            "action": "add",
+                            "path": ocm_path,
+                            "cluster": ocm_cluster_name,
+                            "policy": default_name,
+                        }
+                        updates.append(item)
 
         for up_cluster in upgrade_policy_clusters:
             up_cluster_name = up_cluster["name"]
@@ -54,6 +62,12 @@ def run(dry_run, gitlab_project_id):
             if not found:
                 create_update_mr = True
                 logging.info(["delete_cluster", ocm_name, up_cluster_name])
+                item = {
+                    "action": "delete",
+                    "path": ocm_path,
+                    "cluster": up_cluster_name,
+                }
+                updates.append(item)
 
         if create_update_mr and not dry_run:
             mr_cli = mr_client_gateway.init(gitlab_project_id=gitlab_project_id)

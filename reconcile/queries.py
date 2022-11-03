@@ -1089,6 +1089,7 @@ def get_clusters_by(filter: ClusterFilter, minimal: bool = False) -> list[dict]:
 OCM_QUERY = """
 {
   instances: ocm_instances_v1 {
+    path
     name
     url
     accessTokenClientId
