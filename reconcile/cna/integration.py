@@ -1,6 +1,5 @@
 from collections import defaultdict
 from typing import Iterable, Mapping, Optional
-from reconcile.cna.assets.null import NullAsset
 from reconcile.cna.client import CNAClient
 from reconcile.cna.state import State
 
@@ -11,7 +10,6 @@ from reconcile.gql_definitions.cna.queries.cna_provisioners import (
     query as cna_provisioners_query,
 )
 from reconcile.gql_definitions.cna.queries.cna_resources import (
-    CNANullAssetV1,
     NamespaceCNAssetV1,
     NamespaceV1,
     query as namespaces_query,
@@ -21,6 +19,7 @@ from reconcile.typed_queries.app_interface_vault_settings import (
 )
 from reconcile.utils.secret_reader import SecretReaderBase, create_secret_reader
 from reconcile.utils.semver_helper import make_semver
+from reconcile.cna.assets.asset_factory import asset_factory_from_schema
 
 
 QONTRACT_INTEGRATION = "cna_resources"
@@ -52,11 +51,9 @@ class CNAIntegration:
                 if not isinstance(provider, NamespaceCNAssetV1):
                     continue
                 for resource in provider.resources or []:
-                    if isinstance(resource, CNANullAssetV1):
-                        null_asset = NullAsset.from_query_class(resource)
-                        self._desired_states[provider.provisioner.name].add_asset(
-                            null_asset
-                        )
+                    self._desired_states[provider.provisioner.name].add_asset(
+                        asset_factory_from_schema(resource)
+                    )
 
     def assemble_current_states(self):
         self._current_states = defaultdict(State)
