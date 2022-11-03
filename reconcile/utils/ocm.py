@@ -1409,7 +1409,12 @@ class OCMMap:  # pylint: disable=too-many-public-methods
                     init_version_gates=init_version_gates,
                 )
         elif ocm:
-            self.init_ocm_client()
+            self.init_ocm_client(
+                ocm,
+                init_provision_shards,
+                init_addons,
+                init_version_gates=init_version_gates,
+            )
         else:
             raise KeyError("expected one of clusters, namespaces or ocm.")
 
