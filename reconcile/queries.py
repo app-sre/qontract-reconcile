@@ -1099,6 +1099,18 @@ OCM_QUERY = """
       format
       version
     }
+    upgradePolicyDefaults {
+      name
+      matchLabels
+      upgradePolicy {
+        workloads
+        schedule
+        conditions {
+          soakDays
+          mutexes
+        }
+      }
+    }
     upgradePolicyClusters {
       name
       upgradePolicy {
