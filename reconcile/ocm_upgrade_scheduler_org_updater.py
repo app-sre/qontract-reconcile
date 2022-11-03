@@ -50,7 +50,6 @@ def run(dry_run, gitlab_project_id):
                         )
                         item = {
                             "action": "add",
-                            "path": ocm_path,
                             "cluster": ocm_cluster_name,
                             "policy": default_name,
                         }
@@ -64,12 +63,12 @@ def run(dry_run, gitlab_project_id):
                 logging.info(["delete_cluster", ocm_name, up_cluster_name])
                 item = {
                     "action": "delete",
-                    "path": ocm_path,
                     "cluster": up_cluster_name,
                 }
                 updates.append(item)
 
         if create_update_mr and not dry_run:
             mr_cli = mr_client_gateway.init(gitlab_project_id=gitlab_project_id)
-            mr = ousou.CreateOCMUpgradeSchedulerOrgUpdates(updates)
+            updates_info = {"path": ocm_path, "name": ocm_name, "updates": updates}
+            mr = ousou.CreateOCMUpgradeSchedulerOrgUpdates(updates_info)
             mr.submit(cli=mr_cli)
