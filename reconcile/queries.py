@@ -1101,12 +1101,6 @@ OCM_QUERY = """
     }
     upgradePolicyClusters {
       name
-      spec {
-        id
-        product
-        version
-        channel
-      }
       upgradePolicy {
         workloads
         schedule
