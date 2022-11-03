@@ -20,6 +20,14 @@ QONTRACT_INTEGRATION = "ocm-upgrade-scheduler"
 SUPPORTED_OCM_PRODUCTS = [OCM_PRODUCT_OSD]
 
 
+# consider first lower versions and lower soakdays (when versions are equal)
+def sort_key(d: dict) -> tuple:
+    return (
+        parse_semver(d["current_version"]),
+        d["conditions"].get("soakDays") or 0,
+    )
+
+
 def fetch_current_state(
     clusters: list[dict[str, Any]], ocm_map: OCMMap
 ) -> list[dict[str, Any]]:
@@ -46,13 +54,6 @@ def fetch_desired_state(
         upgrade_policy["current_version"] = cluster["spec"]["version"]
         upgrade_policy["channel"] = cluster["spec"]["channel"]
         desired_state.append(upgrade_policy)
-
-    # consider first lower versions and lower soakdays (when versions are equal)
-    def sort_key(d: dict) -> tuple:
-        return (
-            parse_semver(d["current_version"]),
-            d["conditions"].get("soakDays") or 0,
-        )
 
     sorted_desired_state = sorted(desired_state, key=sort_key)
 
