@@ -1,8 +1,7 @@
 from ruamel import yaml
 
 from reconcile.utils.mr.base import MergeRequestBase
-
-# from reconcile.utils.mr.labels import AUTO_MERGE
+from reconcile.utils.mr.labels import AUTO_MERGE
 
 
 class CreateOCMUpgradeSchedulerOrgUpdates(MergeRequestBase):
@@ -14,8 +13,7 @@ class CreateOCMUpgradeSchedulerOrgUpdates(MergeRequestBase):
 
         super().__init__()
 
-        # self.labels = [AUTO_MERGE]
-        self.labels = []
+        self.labels = [AUTO_MERGE]
 
     @property
     def title(self):
