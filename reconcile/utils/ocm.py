@@ -845,7 +845,7 @@ class OCM:  # pylint: disable=too-many-public-methods
         }
         self._post(api, payload)
 
-    def get_external_configuration_labels(self, cluster):
+    def get_external_configuration_labels(self, cluster: str) -> dict[str, str]:
         """Returns details of External Configurations
 
         :param cluster: cluster name
