@@ -11,19 +11,19 @@ QONTRACT_INTEGRATION = "ocm-upgrade-scheduler-org-updater"
 def run(dry_run):
     settings = queries.get_app_interface_settings()
     ocms = queries.get_openshift_cluster_managers()
-    for ocm in ocms:
-        upgrade_policy_defaults = ocm.get("upgradePolicyDefaults")
+    for ocm_info in ocms:
+        upgrade_policy_defaults = ocm_info.get("upgradePolicyDefaults")
         if not upgrade_policy_defaults:
             continue
 
-        upgrade_policy_clusters = ocm.get("upgradePolicyClusters") or []
+        upgrade_policy_clusters = ocm_info.get("upgradePolicyClusters") or []
         ocm_map = OCMMap(
-            ocms=[ocm],
+            ocms=[ocm_info],
             integration=QONTRACT_INTEGRATION,
             settings=settings,
             init_version_gates=True,
         )
-        ocm_name = ocm["name"]
+        ocm_name = ocm_info["name"]
         ocm = ocm_map[ocm_name]
 
         for ocm_cluster_name in ocm.clusters:
@@ -36,7 +36,7 @@ def run(dry_run):
                 )
                 for default in upgrade_policy_defaults:
                     default_name = default["name"]
-                    match_labels = json.loads(default["matchLabels"])
+                    match_labels: dict[str, str] = json.loads(default["matchLabels"])
                     if match_labels.items() <= ocm_cluster_labels.items():
                         logging.info(
                             ["add_cluster", ocm_name, ocm_cluster_name, default_name]
