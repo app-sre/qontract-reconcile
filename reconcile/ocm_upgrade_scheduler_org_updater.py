@@ -32,10 +32,10 @@ def run(dry_run):
                 c for c in upgrade_policy_clusters if c["name"] == ocm_cluster_name
             ]
             if not found:
-                logging.info(["add_cluster", ocm_cluster_name])
+                logging.info(["add_cluster", ocm_name, ocm_cluster_name])
 
         for up_cluster in upgrade_policy_clusters:
             up_cluster_name = up_cluster["name"]
             found = [c for c in ocm.clusters if c == up_cluster_name]
             if not found:
-                logging.info(["delete_cluster", up_cluster_name])
+                logging.info(["delete_cluster", ocm_name, up_cluster_name])
