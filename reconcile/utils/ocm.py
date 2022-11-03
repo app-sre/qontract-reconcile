@@ -852,7 +852,7 @@ class OCM:  # pylint: disable=too-many-public-methods
 
         :type cluster: string
         """
-        results = {}
+        results: dict[str, str] = {}
         cluster_id = self.cluster_ids.get(cluster)
         if not cluster_id:
             return results

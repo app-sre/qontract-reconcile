@@ -62,7 +62,7 @@ class CreateOCMUpgradeSchedulerOrgUpdates(MergeRequestBase):
             else:
                 raise NotImplementedError(action)
 
-        yaml.explicit_start = True
+        yaml.explicit_start = True  # type: ignore[attr-defined]
         new_content = yaml.dump(
             content, Dumper=yaml.RoundTripDumper, explicit_start=True
         )
