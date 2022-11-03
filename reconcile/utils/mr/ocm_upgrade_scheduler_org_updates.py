@@ -9,8 +9,8 @@ class CreateOCMUpgradeSchedulerOrgUpdates(MergeRequestBase):
 
     name = "create_ocm_upgrade_scheduler_org_updates_mr"
 
-    def __init__(self, updates):
-        self.updates = updates
+    def __init__(self, updates_info):
+        self.updates_info = updates_info
 
         super().__init__()
 
