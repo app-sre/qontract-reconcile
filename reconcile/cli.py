@@ -1666,6 +1666,27 @@ def terraform_cloudflare_resources(
     )
 
 
+@integration.command(
+    short_help="Manage Cloud Resources using Cloud Native Assets (CNA)."
+)
+@enable_deletion(default=False)
+@threaded(default=20)
+@click.pass_context
+def cna_resources(
+    ctx,
+    enable_deletion,
+    thread_pool_size,
+):
+    import reconcile.cna.integration
+
+    run_integration(
+        reconcile.cna.integration,
+        ctx.obj,
+        enable_deletion,
+        thread_pool_size,
+    )
+
+
 @integration.command(short_help="Manage AWS users using Terraform.")
 @print_to_file
 @threaded(default=20)
