@@ -60,6 +60,9 @@ class CreateOCMUpgradeSchedulerOrgUpdates(MergeRequestBase):
             else:
                 raise NotImplementedError(action)
 
+        if not changes:
+            self.cancel("OCM Upgrade schedules are up to date. Nothing to do.")
+
         yaml.explicit_start = True  # type: ignore[attr-defined]
         new_content = yaml.dump(
             content, Dumper=yaml.RoundTripDumper, explicit_start=True
@@ -72,6 +75,3 @@ class CreateOCMUpgradeSchedulerOrgUpdates(MergeRequestBase):
             commit_message=msg,
             content=new_content,
         )
-
-        if not changes:
-            self.cancel("OCM Upgrade schedules are up to date. Nothing to do.")
