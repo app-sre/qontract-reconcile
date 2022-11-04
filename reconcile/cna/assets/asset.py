@@ -21,9 +21,11 @@ class AssetError(Exception):
 
 class AssetType(Enum):
     NULL = "null"
+    EXAMPLE_AWS_ASSUMEROLE = "example-aws-assumerole"
 
 
 class AssetStatus(Enum):
+    READY = "Ready"
     TERMINATED = "Terminated"
     PENDING = "Pending"
     RUNNING = "Running"

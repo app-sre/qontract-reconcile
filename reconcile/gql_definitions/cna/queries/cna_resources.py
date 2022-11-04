@@ -16,8 +16,23 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
+from reconcile.gql_definitions.cna.queries.aws_account_fragment import (
+    CNAAWSAccountRoleARNs,
+)
+
 
 DEFINITION = """
+fragment CNAAWSAccountRoleARNs on AWSAccount_v1 {
+  name
+  cna {
+    defaultRoleARN
+    moduleRoleARNS {
+      module
+      arn
+    }
+  }
+}
+
 query CNAssets {
   namespaces: namespaces_v1 {
     name
@@ -32,6 +47,15 @@ query CNAssets {
           ... on CNANullAsset_v1 {
             name: identifier
             addr_block
+          }
+          ... on CNAAssumeRoleAsset_v1{
+            name: identifier
+            aws_assume_role {
+              slug
+              account {
+                ... CNAAWSAccountRoleARNs
+              }
+            }
           }
         }
       }
@@ -75,8 +99,28 @@ class CNANullAssetV1(CNAssetV1):
         extra = Extra.forbid
 
 
+class CNAAssumeRoleAssetConfigV1(BaseModel):
+    slug: str = Field(..., alias="slug")
+    account: CNAAWSAccountRoleARNs = Field(..., alias="account")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
+class CNAAssumeRoleAssetV1(CNAssetV1):
+    name: str = Field(..., alias="name")
+    aws_assume_role: CNAAssumeRoleAssetConfigV1 = Field(..., alias="aws_assume_role")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
 class NamespaceCNAssetV1(NamespaceExternalResourceV1):
-    resources: list[Union[CNANullAssetV1, CNAssetV1]] = Field(..., alias="resources")
+    resources: list[Union[CNANullAssetV1, CNAAssumeRoleAssetV1, CNAssetV1]] = Field(
+        ..., alias="resources"
+    )
 
     class Config:
         smart_union = True

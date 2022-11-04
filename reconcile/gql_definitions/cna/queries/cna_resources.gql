@@ -15,6 +15,15 @@ query CNAssets {
             name: identifier
             addr_block
           }
+          ... on CNAAssumeRoleAsset_v1{
+            name: identifier
+            aws_assume_role {
+              slug
+              account {
+                ... CNAAWSAccountRoleARNs
+              }
+            }
+          }
         }
       }
     }
