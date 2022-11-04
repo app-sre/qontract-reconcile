@@ -6,7 +6,7 @@ from reconcile.cna.state import State
 from reconcile.utils import gql
 from reconcile.utils.ocm_base_client import OCMBaseClient
 from reconcile.gql_definitions.cna.queries.cna_provisioners import (
-    CNAProvisionerV1,
+    CNAExperimentalProvisionerV1,
     query as cna_provisioners_query,
 )
 from reconcile.gql_definitions.cna.queries.cna_resources import (
@@ -82,7 +82,8 @@ class CNAIntegration:
 
 
 def build_cna_clients(
-    secret_reader: SecretReaderBase, cna_provisioners: list[CNAProvisionerV1]
+    secret_reader: SecretReaderBase,
+    cna_provisioners: list[CNAExperimentalProvisionerV1],
 ) -> dict[str, CNAClient]:
     clients: dict[str, CNAClient] = {}
     for provisioner in cna_provisioners:

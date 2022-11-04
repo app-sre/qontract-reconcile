@@ -28,7 +28,7 @@ fragment VaultSecret on VaultSecret_v1 {
 }
 
 query CNAProvisioners {
-  cna_provisioners: cna_provisioners_v1 {
+  cna_provisioners: cna_experimental_provisioners_v1 {
     name
     description
     ocm {
@@ -59,7 +59,7 @@ class OpenShiftClusterManagerV1(BaseModel):
         extra = Extra.forbid
 
 
-class CNAProvisionerV1(BaseModel):
+class CNAExperimentalProvisionerV1(BaseModel):
     name: str = Field(..., alias="name")
     description: Optional[str] = Field(..., alias="description")
     ocm: OpenShiftClusterManagerV1 = Field(..., alias="ocm")
@@ -70,7 +70,7 @@ class CNAProvisionerV1(BaseModel):
 
 
 class CNAProvisionersQueryData(BaseModel):
-    cna_provisioners: Optional[list[CNAProvisionerV1]] = Field(
+    cna_provisioners: Optional[list[CNAExperimentalProvisionerV1]] = Field(
         ..., alias="cna_provisioners"
     )
 
