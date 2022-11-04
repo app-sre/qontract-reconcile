@@ -162,7 +162,11 @@ class JenkinsApi:
             url, verify=self.ssl_verify, auth=(self.user, self.password), timeout=60
         )
         res.raise_for_status()
-        return res.json()["allBuilds"]
+        logging.debug(f"Job: {job_name} Builds: {res.json()}")
+        try:
+            return res.json()["allBuilds"]
+        except KeyError:
+            return []
 
     def get_build_history(self, job_name, time_limit):
         return [
