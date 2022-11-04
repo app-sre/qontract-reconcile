@@ -55,8 +55,9 @@ class State:
     def add_raw_data(self, data: Iterable[Mapping[str, Any]]):
         for cna in data:
             asset = asset_factory_from_raw_data(cna)
-            self._validate_addition(asset=asset)
-            self._assets[asset.kind][asset.name] = asset
+            if asset:
+                self._validate_addition(asset=asset)
+                self._assets[asset.kind][asset.name] = asset
 
     def required_updates_to_reach(self, other: State) -> State:
         """
