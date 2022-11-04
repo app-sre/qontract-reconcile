@@ -54,6 +54,7 @@ def run(dry_run, gitlab_project_id):
                             "policy": default["upgradePolicy"],
                         }
                         updates.append(item)
+                        break
 
         for up_cluster in upgrade_policy_clusters:
             up_cluster_name = up_cluster["name"]
