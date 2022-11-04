@@ -22,11 +22,11 @@ class VaultInvalidPaths(Exception):
 
 def deep_copy_versions(
     dry_run: bool,
-    source_vault,
-    dest_vault,
-    current_dest_version,
-    current_source_version,
-    path,
+    source_vault: _VaultClient,
+    dest_vault: _VaultClient,
+    current_dest_version: int,
+    current_source_version: int,
+    path: str,
 ):
     for version in range(current_dest_version + 1, current_source_version + 1):
         secret_dict = {"path": path, "version": version}
@@ -66,6 +66,9 @@ def copy_vault_secret(
             logging.info(["replicate_vault_secret", dest_version, version, path])
     except SecretNotFound:
         logging.info(["replicate_vault_secret", "Secret not found", path])
+        if version is None:
+            if not dry_run:
+                dest_vault.write(write_dict)
         deep_copy_versions(
             dry_run=dry_run,
             source_vault=source_vault,
@@ -81,7 +84,6 @@ def check_invalid_paths(
     policy_paths: Optional[List[str]],
 ) -> None:
 
-    invalid_paths = []
     if policy_paths is not None:
         invalid_paths = list_invalid_paths(path_list, policy_paths)
         if invalid_paths:
@@ -89,27 +91,17 @@ def check_invalid_paths(
             raise VaultInvalidPaths
 
 
-def copy_vault_secrets(
-    dry_run: bool,
-    source_vault: _VaultClient,
-    dest_vault: _VaultClient,
-    path_list: List[str],
-) -> None:
-    for path in path_list:
-        copy_vault_secret(dry_run, source_vault, dest_vault, path)
-
-
 def list_invalid_paths(path_list: List[str], policy_paths: List[str]) -> List[str]:
     invalid_paths = []
 
     for path in path_list:
-        if not policy_contais_path(path, policy_paths):
+        if not policy_contains_path(path, policy_paths):
             invalid_paths.append(path)
 
     return invalid_paths
 
 
-def policy_contais_path(path: str, policy_paths: List[str]) -> bool:
+def policy_contains_path(path: str, policy_paths: List[str]) -> bool:
     return any(path in p_path for p_path in policy_paths)
 
 
@@ -153,8 +145,8 @@ def get_jenkins_secret_list(jenkins_instance: str) -> List[str]:
     return secret_list
 
 
-def get_vault_credentials(vault_instance):
-    vault_creds = {"server": "", "role_id": None, "secret_id": None}
+def get_vault_credentials(vault_instance: VaultInstanceV1) -> dict[str, Optional[str]]:
+    vault_creds = {}
     vault = cast(_VaultClient, VaultClient())
 
     vault_instance_auth = vault_instance.auth
@@ -193,7 +185,8 @@ def replicate_paths(
 
             path_list = get_jenkins_secret_list(path.jenkins_instance.name)
             check_invalid_paths(path_list, policy_paths)
-            copy_vault_secrets(dry_run, source_vault, dest_vault, path_list)
+            for path in path_list:
+                copy_vault_secret(dry_run, source_vault, dest_vault, path)
 
 
 def run(dry_run: bool) -> None:
