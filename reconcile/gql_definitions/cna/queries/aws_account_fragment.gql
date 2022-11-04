@@ -1,0 +1,12 @@
+# qenerate: plugin=pydantic_v1
+
+fragment CNAAWSAccountRoleARNs on AWSAccount_v1 {
+  name
+  cna {
+    defaultRoleARN
+    moduleRoleARNS {
+      module
+      arn
+    }
+  }
+}
