@@ -97,6 +97,8 @@ Additional tools that use the libraries created by the reconciliations are also 
   ocm-machine-pools               Manage Machine Pools in OCM.
   ocm-upgrade-scheduler           Manage Upgrade Policy schedules in OCM.
   ocm-upgrade-scheduler-org       Manage Upgrade Policy schedules in OCM organizations.
+  ocm-upgrade-scheduler-org-updater
+                                  Update Upgrade Policy schedules in OCM organizations.
   ocp-release-mirror              Mirrors OCP release images.
   openshift-clusterrolebindings   Configures ClusterRolebindings in OpenShift
                                   clusters.

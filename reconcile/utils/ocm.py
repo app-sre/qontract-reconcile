@@ -845,14 +845,14 @@ class OCM:  # pylint: disable=too-many-public-methods
         }
         self._post(api, payload)
 
-    def get_external_configuration_labels(self, cluster):
+    def get_external_configuration_labels(self, cluster: str) -> dict[str, str]:
         """Returns details of External Configurations
 
         :param cluster: cluster name
 
         :type cluster: string
         """
-        results = {}
+        results: dict[str, str] = {}
         cluster_id = self.cluster_ids.get(cluster)
         if not cluster_id:
             return results
@@ -1376,6 +1376,7 @@ class OCMMap:  # pylint: disable=too-many-public-methods
         self,
         clusters=None,
         namespaces=None,
+        ocms=None,
         integration="",
         settings=None,
         init_provision_shards=False,
@@ -1388,11 +1389,12 @@ class OCMMap:  # pylint: disable=too-many-public-methods
         self.calling_integration = integration
         self.settings = settings
 
-        if clusters and namespaces:
-            raise KeyError("expected only one of clusters or namespaces.")
+        inputs = [i for i in [clusters, namespaces, ocms] if i]
+        if len(inputs) > 1:
+            raise KeyError("expected only one of clusters, namespaces or ocm.")
         elif clusters:
             for cluster_info in clusters:
-                self.init_ocm_client(
+                self.init_ocm_client_from_cluster(
                     cluster_info,
                     init_provision_shards,
                     init_addons,
@@ -1401,30 +1403,29 @@ class OCMMap:  # pylint: disable=too-many-public-methods
         elif namespaces:
             for namespace_info in namespaces:
                 cluster_info = namespace_info["cluster"]
-                self.init_ocm_client(
+                self.init_ocm_client_from_cluster(
                     cluster_info,
                     init_provision_shards,
                     init_addons,
                     init_version_gates=init_version_gates,
                 )
+        elif ocms:
+            for ocm in ocms:
+                self.init_ocm_client(
+                    ocm,
+                    init_provision_shards,
+                    init_addons,
+                    init_version_gates=init_version_gates,
+                )
         else:
-            raise KeyError("expected one of clusters or namespaces.")
+            raise KeyError("expected one of clusters, namespaces or ocm.")
 
-    def init_ocm_client(
+    def __getitem__(self, ocm_name) -> OCM:
+        return self.ocm_map[ocm_name]
+
+    def init_ocm_client_from_cluster(
         self, cluster_info, init_provision_shards, init_addons, init_version_gates
     ):
-        """
-        Initiate OCM client.
-        Gets the OCM information and initiates an OCM client.
-        Skip initiating OCM if it has already been initialized or if
-        the current integration is disabled on it.
-
-        :param cluster_info: Graphql cluster query result
-        :param init_provision_shards: should initiate provision shards
-        :param init_addons: should initiate addons
-
-        :type cluster_info: dict
-        """
         if self.cluster_disabled(cluster_info):
             return
         cluster_name = cluster_info["name"]
@@ -1435,6 +1436,26 @@ class OCMMap:  # pylint: disable=too-many-public-methods
         if self.ocm_map.get(ocm_name):
             return
 
+        self.init_ocm_client(
+            ocm_info, init_provision_shards, init_addons, init_version_gates
+        )
+
+    def init_ocm_client(
+        self, ocm_info, init_provision_shards, init_addons, init_version_gates
+    ):
+        """
+        Initiate OCM client.
+        Gets the OCM information and initiates an OCM client.
+        Skip initiating OCM if it has already been initialized or if
+        the current integration is disabled on it.
+
+        :param ocm_info: Graphql ocm query result
+        :param init_provision_shards: should initiate provision shards
+        :param init_addons: should initiate addons
+
+        :type cluster_info: dict
+        """
+        ocm_name = ocm_info["name"]
         access_token_client_id = ocm_info.get("accessTokenClientId")
         access_token_url = ocm_info.get("accessTokenUrl")
         access_token_client_secret = ocm_info.get("accessTokenClientSecret")

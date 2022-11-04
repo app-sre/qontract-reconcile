@@ -260,7 +260,7 @@ def queries_mock(osd_cluster_fxt):
 @pytest.fixture
 def ocmmap_mock(ocm_osd_cluster_spec, ocm_mock):
     with patch.object(OCMMap, "get", autospec=True) as get:
-        with patch.object(OCMMap, "init_ocm_client", autospec=True):
+        with patch.object(OCMMap, "init_ocm_client_from_cluster", autospec=True):
             with patch.object(OCMMap, "cluster_specs", autospec=True) as cs:
                 get.return_value = ocm_mock
                 cs.return_value = ({"cluster1": ocm_osd_cluster_spec}, {})

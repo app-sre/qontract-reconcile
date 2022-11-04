@@ -1873,6 +1873,18 @@ def ocm_upgrade_scheduler_org(ctx):
     run_integration(reconcile.ocm_upgrade_scheduler_org, ctx.obj)
 
 
+@integration.command(short_help="Update Upgrade Policy schedules in OCM organizations.")
+@environ(["gitlab_pr_submitter_queue_url"])
+@gitlab_project_id
+@click.pass_context
+def ocm_upgrade_scheduler_org_updater(ctx, gitlab_project_id):
+    import reconcile.ocm_upgrade_scheduler_org_updater
+
+    run_integration(
+        reconcile.ocm_upgrade_scheduler_org_updater, ctx.obj, gitlab_project_id
+    )
+
+
 @integration.command(short_help="Manages cluster Addons in OCM.")
 @threaded()
 @click.pass_context

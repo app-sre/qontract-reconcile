@@ -4,6 +4,9 @@ from reconcile.utils.mr.base import MergeRequestProcessingError
 from reconcile.utils.mr.app_interface_reporter import CreateAppInterfaceReporter
 from reconcile.utils.mr.aws_access import CreateDeleteAwsAccessKey
 from reconcile.utils.mr.clusters_updates import CreateClustersUpdates
+from reconcile.utils.mr.ocm_upgrade_scheduler_org_updates import (
+    CreateOCMUpgradeSchedulerOrgUpdates,
+)
 from reconcile.utils.mr.notificator import CreateAppInterfaceNotificator
 from reconcile.utils.mr.user_maintenance import CreateDeleteUser
 from reconcile.utils.mr.auto_promoter import AutoPromoter
@@ -17,6 +20,7 @@ __all__ = [
     "CreateAppInterfaceReporter",
     "CreateDeleteAwsAccessKey",
     "CreateClustersUpdates",
+    "CreateOCMUpgradeSchedulerOrgUpdates",
     "CreateAppInterfaceNotificator",
     "CreateDeleteUser",
     "AutoPromoter",

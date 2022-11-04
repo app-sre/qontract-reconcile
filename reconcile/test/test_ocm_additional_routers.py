@@ -28,10 +28,14 @@ class TestOCMAdditionalRouters(TestCase):
 
     @patch.object(queries, "get_app_interface_settings")
     @patch.object(queries, "get_clusters")
-    @patch.object(OCMMap, "init_ocm_client")
+    @patch.object(OCMMap, "init_ocm_client_from_cluster")
     @patch.object(OCMMap, "get")
     def test_integ(
-        self, get, init_ocm_client, get_clusters, get_app_interface_settings
+        self,
+        get,
+        init_ocm_client_from_cluster,
+        get_clusters,
+        get_app_interface_settings,
     ):
         fixture = fxt.get_anymarkup("state.yml")
 
@@ -59,9 +63,11 @@ class TestOCMAdditionalRouters(TestCase):
 
     # unit test
     @patch.object(queries, "get_app_interface_settings")
-    @patch.object(OCMMap, "init_ocm_client")
+    @patch.object(OCMMap, "init_ocm_client_from_cluster")
     @patch.object(OCMMap, "get")
-    def test_current_state(self, get, init_ocm_client, get_app_interface_settings):
+    def test_current_state(
+        self, get, init_ocm_client_from_cluster, get_app_interface_settings
+    ):
         fixture = fxt.get_anymarkup("state.yml")
 
         ocm_api = fixture["ocm_api"]
@@ -94,9 +100,9 @@ class TestOCMAdditionalRouters(TestCase):
         expected = fixture["diffs"]
         self.assertEqual(diffs, expected)
 
-    @patch.object(OCMMap, "init_ocm_client")
+    @patch.object(OCMMap, "init_ocm_client_from_cluster")
     @patch.object(OCMMap, "get")
-    def test_act(self, get, init_ocm_client):
+    def test_act(self, get, init_ocm_client_from_cluster):
         fixture = fxt.get_anymarkup("state.yml")
 
         ocm_api = fixture["ocm_api"]
