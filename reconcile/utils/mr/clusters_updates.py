@@ -21,7 +21,7 @@ class CreateClustersUpdates(MergeRequestBase):
 
     @property
     def description(self):
-        return DecisionCommand.APPROVED
+        return DecisionCommand.APPROVED.value
 
     def process(self, gitlab_cli):
         changes = False
