@@ -1,65 +1,52 @@
 from __future__ import annotations
-from dataclasses import dataclass
-from typing import Any, Mapping
+from pydantic.dataclasses import dataclass
+from pydantic import Field
+from typing import Optional
 
-from reconcile.cna.assets.asset import Asset, AssetError, AssetStatus, AssetType
-from reconcile.gql_definitions.cna.queries.cna_resources import CNAAssumeRoleAssetV1
+from reconcile.cna.assets.asset import (
+    Asset,
+    AssetError,
+    AssetType,
+    AssetStatus,
+    AssetModelConfig,
+)
+from reconcile.cna.assets.aws_utils import aws_role_arn_for_module
+from reconcile.gql_definitions.cna.queries.cna_resources import (
+    CNAAssumeRoleAssetV1,
+    CNAssetV1,
+)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, config=AssetModelConfig)
 class AWSAssumeRoleAsset(Asset):
-    slug: str
-    role_arn: str
-
-    def api_payload(self) -> dict[str, Any]:
-        return {
-            "asset_type": AssetType.EXAMPLE_AWS_ASSUMEROLE,
-            "name": self.name,
-            "parameters": {
-                "slug": self.slug,
-                "role_arn": self.role_arn,
-            },
-        }
-
-    def update_from(self, asset: Asset) -> Asset:
-        if not isinstance(asset, AWSAssumeRoleAsset):
-            raise AssetError(f"Cannot create AWSAssumeRoleAsset from {asset}")
-        return AWSAssumeRoleAsset(
-            uuid=self.uuid,
-            href=self.href,
-            status=self.status,
-            name=self.name,
-            kind=self.kind,
-            slug=asset.slug,
-            role_arn=asset.role_arn,
-        )
+    verify_slug: Optional[str] = Field(None, alias="verify-slug")
+    role_arn: str = Field(alias="role_arn")
 
     @staticmethod
-    def from_query_class(asset: CNAAssumeRoleAssetV1) -> AWSAssumeRoleAsset:
-        role_arn = asset.aws_assume_role.account.cna.default_role_arn
-        for module_config in asset.aws_assume_role.account.cna.module_role_arns:
-            if module_config.module == AssetType.EXAMPLE_AWS_ASSUMEROLE:
-                role_arn = module_config.role_arn
-                break
+    def provider() -> str:
+        return "aws-assume-role"
+
+    @staticmethod
+    def asset_type() -> AssetType:
+        return AssetType.EXAMPLE_AWS_ASSUMEROLE
+
+    @staticmethod
+    def from_query_class(asset: CNAssetV1) -> Asset:
+        assert isinstance(asset, CNAAssumeRoleAssetV1)
+        aws_cna_cfg = asset.aws_assume_role.account.cna
+        role_arn = aws_role_arn_for_module(
+            aws_cna_cfg, AssetType.EXAMPLE_AWS_ASSUMEROLE.value
+        )
+        if role_arn is None:
+            raise AssetError(
+                f"No CNA roles configured for AWS account {asset.aws_assume_role.account.name}"
+            )
 
         return AWSAssumeRoleAsset(
-            uuid=None,
+            id=None,
             href=None,
-            status=None,
-            kind=AssetType.EXAMPLE_AWS_ASSUMEROLE,
+            status=AssetStatus.UNKNOWN,
             name=asset.name,
-            slug=asset.aws_assume_role.slug,
+            verify_slug=asset.aws_assume_role.slug,
             role_arn=role_arn,
-        )
-
-    @staticmethod
-    def from_api_mapping(asset: Mapping[str, Any]) -> AWSAssumeRoleAsset:
-        return AWSAssumeRoleAsset(
-            uuid=asset.get("id"),
-            href=asset.get("href"),
-            status=AssetStatus(asset.get("status")),
-            kind=AssetType.NULL,
-            name=asset.get("name", ""),
-            slug=asset.get("slug"),
-            role_arn=asset.get("role_arn"),
         )
