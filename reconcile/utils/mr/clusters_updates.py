@@ -1,7 +1,7 @@
 from ruamel import yaml
 
+from reconcile.change_owners.decision import DecisionCommand
 from reconcile.utils.mr.base import MergeRequestBase
-from reconcile.utils.mr.labels import AUTO_MERGE
 
 
 class CreateClustersUpdates(MergeRequestBase):
@@ -13,11 +13,15 @@ class CreateClustersUpdates(MergeRequestBase):
 
         super().__init__()
 
-        self.labels = [AUTO_MERGE]
+        self.labels = []
 
     @property
-    def title(self):
+    def title(self) -> str:
         return f"[{self.name}] clusters updates"
+
+    @property
+    def description(self) -> str:
+        return DecisionCommand.APPROVED.value
 
     def process(self, gitlab_cli):
         changes = False

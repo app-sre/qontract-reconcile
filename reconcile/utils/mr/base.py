@@ -63,11 +63,20 @@ class MergeRequestBase(metaclass=ABCMeta):
         )
 
     @abstractmethod
-    def title(self):
+    def title(self) -> str:
         """
         Title of the Merge Request.
 
         :return: Merge Request title as seen in the Gitlab Web UI
+        :rtype: str
+        """
+
+    @abstractmethod
+    def description(self) -> str:
+        """
+        Description of the Merge Request.
+
+        :return: Merge Request description as seen in the Gitlab Web UI
         :rtype: str
         """
 
@@ -110,6 +119,7 @@ class MergeRequestBase(metaclass=ABCMeta):
             "source_branch": self.branch,
             "target_branch": self.main_branch,
             "title": self.title,
+            "description": self.description,
             "remove_source_branch": self.remove_source_branch,
             "labels": self.labels,
         }

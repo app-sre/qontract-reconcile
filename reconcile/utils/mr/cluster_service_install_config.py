@@ -31,8 +31,12 @@ class CSInstallConfig(MergeRequestBase):
         self.labels = [AUTO_MERGE, SKIP_CI]
 
     @property
-    def title(self):
+    def title(self) -> str:
         return f"[{self.name}] Clusters Service install-config ConfigMap"
+
+    @property
+    def description(self) -> str:
+        return "Clusters Service install-config ConfigMap"
 
     def process(self, gitlab_cli):
         install_config = {}
