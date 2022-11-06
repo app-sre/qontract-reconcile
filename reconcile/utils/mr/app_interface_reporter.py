@@ -32,6 +32,10 @@ class CreateAppInterfaceReporter(MergeRequestBase):
     def title(self):
         return f"[{self.name}] reports for {self.isodate}"
 
+    @property
+    def description(self):
+        return f"reports for {self.isodate}"
+
     def process(self, gitlab_cli):
         actions = [
             {

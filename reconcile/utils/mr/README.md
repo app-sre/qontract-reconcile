@@ -30,6 +30,7 @@ The minimum methods that have to be defined are:
 * `title`: a property that is used to give the Gitlab Merge Request a title.
   It can also be used for building commit messages or as content to committed
   files.
+* `description`: a description for the Merge Request.
 * `process`: this method is called when submitting the Merge Request to gitlab.
   it's the place for the merge request changes, like creating, updating and
   deleting files. The `process` method is called after the local branch is
@@ -60,6 +61,10 @@ class CreateDeleteUser(MergeRequestBase):
     @property
     def title(self):
         return f'[{self.name}] delete user {self.username}'
+
+    @property
+    def description(self):
+        return f'delete user {self.username}'
 
     def process(self, gitlab_cli):
         for path in self.paths:

@@ -17,6 +17,9 @@ class DummyMergeRequest(MergeRequestBase):
     def title(self):
         return "xxx"
 
+    def description(self):
+        return "xxx"
+
     def process(self, gitlab_cli):
         if self.process_error:
             raise self.process_error

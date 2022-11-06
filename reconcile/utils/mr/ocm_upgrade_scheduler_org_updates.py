@@ -19,6 +19,10 @@ class CreateOCMUpgradeSchedulerOrgUpdates(MergeRequestBase):
     def title(self):
         return f"[{self.name}] ocm upgrade scheduler org updates"
 
+    @property
+    def description(self):
+        return f'ocm upgrade scheduler org updates for {self.updates_info["name"]}'
+
     def process(self, gitlab_cli):
         changes = False
         ocm_path = self.updates_info["path"]

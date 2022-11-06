@@ -43,6 +43,13 @@ class CreateAppInterfaceNotificator(MergeRequestBase):
             f"{self.notification['short_description']}"
         )
 
+    @property
+    def description(self):
+        return (
+            f"{self.notification['notification_type']}: "
+            f"{self.notification['short_description']}"
+        )
+
     def process(self, gitlab_cli):
         now = datetime.now()
         ts = now.strftime("%Y%m%d%H%M%S")

@@ -43,6 +43,10 @@ class AutoPromoter(MergeRequestBase):
         digest = m.hexdigest()[:6]
         return f"[{self.name}] openshift-saas-deploy automated " f"promotion {digest}"
 
+    @property
+    def description(self):
+        return "openshift-saas-deploy automated promotion"
+
     @staticmethod
     def init_promotion_data(
         channel: str, promotion: Mapping[str, Any]

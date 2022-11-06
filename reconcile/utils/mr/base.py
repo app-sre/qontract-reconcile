@@ -72,6 +72,15 @@ class MergeRequestBase(metaclass=ABCMeta):
         """
 
     @abstractmethod
+    def description(self):
+        """
+        Description of the Merge Request.
+
+        :return: Merge Request description as seen in the Gitlab Web UI
+        :rtype: str
+        """
+
+    @abstractmethod
     def process(self, gitlab_cli):
         """
         Called by `submit_to_gitlab`, this method is the place for
@@ -110,6 +119,7 @@ class MergeRequestBase(metaclass=ABCMeta):
             "source_branch": self.branch,
             "target_branch": self.main_branch,
             "title": self.title,
+            "description": self.description,
             "remove_source_branch": self.remove_source_branch,
             "labels": self.labels,
         }

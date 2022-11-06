@@ -27,6 +27,10 @@ class CreateDeleteUser(MergeRequestBase):
     def title(self):
         return f"[{self.name}] delete user {self.username}"
 
+    @property
+    def description(self):
+        return f"delete user {self.username}"
+
     def process(self, gitlab_cli):
         for path_spec in self.paths:
             path_type = path_spec["type"]

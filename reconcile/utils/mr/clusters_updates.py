@@ -19,6 +19,10 @@ class CreateClustersUpdates(MergeRequestBase):
     def title(self):
         return f"[{self.name}] clusters updates"
 
+    @property
+    def description(self):
+        return "clusters updates"
+
     def process(self, gitlab_cli):
         changes = False
         for cluster_name, cluster_updates in self.clusters_updates.items():

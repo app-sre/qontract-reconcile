@@ -31,6 +31,10 @@ class CreateDeleteAwsAccessKey(MergeRequestBase):
     def title(self):
         return f"[{self.name}] delete {self.account} access key {self.key}"
 
+    @property
+    def description(self):
+        return f"delete {self.account} access key {self.key}"
+
     def process(self, gitlab_cli):
         # add key to deleteKeys list to be picked up by aws-iam-keys
         raw_file = gitlab_cli.project.files.get(

@@ -34,6 +34,10 @@ class CSInstallConfig(MergeRequestBase):
     def title(self):
         return f"[{self.name}] Clusters Service install-config ConfigMap"
 
+    @property
+    def description(self):
+        return "Clusters Service install-config ConfigMap"
+
     def process(self, gitlab_cli):
         install_config = {}
         install_config["apiVersion"] = "v1"
