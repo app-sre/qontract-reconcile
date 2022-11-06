@@ -28,11 +28,11 @@ class CreateDeleteAwsAccessKey(MergeRequestBase):
         self.labels = [AUTO_MERGE]
 
     @property
-    def title(self):
+    def title(self) -> str:
         return f"[{self.name}] delete {self.account} access key {self.key}"
 
     @property
-    def description(self):
+    def description(self) -> str:
         return f"delete {self.account} access key {self.key}"
 
     def process(self, gitlab_cli):

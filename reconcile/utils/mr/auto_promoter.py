@@ -32,7 +32,7 @@ class AutoPromoter(MergeRequestBase):
         self.labels = [AUTO_MERGE]
 
     @property
-    def title(self):
+    def title(self) -> str:
         """
         to make the MR title unique, add a sha256sum of the promotions to it
         TODO: while adding a digest ensures uniqueness, this title is
@@ -44,7 +44,7 @@ class AutoPromoter(MergeRequestBase):
         return f"[{self.name}] openshift-saas-deploy automated " f"promotion {digest}"
 
     @property
-    def description(self):
+    def description(self) -> str:
         return "openshift-saas-deploy automated promotion"
 
     @staticmethod

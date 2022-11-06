@@ -29,11 +29,11 @@ class CreateAppInterfaceReporter(MergeRequestBase):
         self.ts = now.strftime("%Y%m%d%H%M%S")
 
     @property
-    def title(self):
+    def title(self) -> str:
         return f"[{self.name}] reports for {self.isodate}"
 
     @property
-    def description(self):
+    def description(self) -> str:
         return f"reports for {self.isodate}"
 
     def process(self, gitlab_cli):

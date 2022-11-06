@@ -63,7 +63,7 @@ class MergeRequestBase(metaclass=ABCMeta):
         )
 
     @abstractmethod
-    def title(self):
+    def title(self) -> str:
         """
         Title of the Merge Request.
 
@@ -72,7 +72,7 @@ class MergeRequestBase(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def description(self):
+    def description(self) -> str:
         """
         Description of the Merge Request.
 

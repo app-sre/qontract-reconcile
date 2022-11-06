@@ -16,11 +16,11 @@ class CreateClustersUpdates(MergeRequestBase):
         self.labels = []
 
     @property
-    def title(self):
+    def title(self) -> str:
         return f"[{self.name}] clusters updates"
 
     @property
-    def description(self):
+    def description(self) -> str:
         return DecisionCommand.APPROVED.value
 
     def process(self, gitlab_cli):

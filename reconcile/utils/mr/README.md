@@ -59,11 +59,11 @@ class CreateDeleteUser(MergeRequestBase):
         super().__init__()
 
     @property
-    def title(self):
+    def title(self) -> str:
         return f'[{self.name}] delete user {self.username}'
 
     @property
-    def description(self):
+    def description(self) -> str:
         return f'delete user {self.username}'
 
     def process(self, gitlab_cli):
