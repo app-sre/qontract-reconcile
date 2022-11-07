@@ -1310,8 +1310,12 @@ class OCM:  # pylint: disable=too-many-public-methods
     def _response_is_list(rs: Mapping[str, Any]) -> bool:
         return rs["kind"].endswith("List")
 
-    def _get_json(self, api: str, params: dict[str, Any] = {}) -> dict[str, Any]:
+    def _get_json(
+        self, api: str, params: Optional[dict[str, Any]] = None
+    ) -> dict[str, Any]:
         responses = []
+        if not params:
+            params = {}
         params["size"] = 100
         while True:
             rs = self._do_get_request(api, params=params)
