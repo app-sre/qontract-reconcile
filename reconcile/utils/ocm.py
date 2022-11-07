@@ -504,6 +504,10 @@ OCM_PRODUCTS_IMPL = {
 }
 
 
+class OCMServiceAccountNotAssociatedToOrg(Exception):
+    pass
+
+
 class OCM:  # pylint: disable=too-many-public-methods
     """
     OCM is an instance of OpenShift Cluster Manager.
@@ -550,6 +554,10 @@ class OCM:  # pylint: disable=too-many-public-methods
             )
         else:
             self._ocm_client = ocm_client
+        try:
+            self.org_id = self.whoami()["organization"]["id"]
+        except KeyError:
+            raise OCMServiceAccountNotAssociatedToOrg(access_token_client_id)
         self._init_clusters(init_provision_shards=init_provision_shards)
 
         if init_addons:
@@ -594,7 +602,8 @@ class OCM:  # pylint: disable=too-many-public-methods
 
     def _init_clusters(self, init_provision_shards):
         api = f"{CS_API_BASE}/v1/clusters"
-        clusters = self._get_json(api).get("items", [])
+        params = {"search": f"organization.id='{self.org_id}'"}
+        clusters = self._get_json(api, params=params).get("items", [])
         self.cluster_ids = {c["name"]: c["id"] for c in clusters}
 
         self.clusters: dict[str, OCMSpec] = {}
@@ -1136,6 +1145,10 @@ class OCM:  # pylint: disable=too-many-public-methods
             return None
         return {k: v for k, v in autoscale.items() if k in AUTOSCALE_DESIRED_KEYS}
 
+    def whoami(self):
+        api = f"{AMS_API_BASE}/v1/current_account"
+        return self._get_json(api)
+
     def get_pull_secrets(
         self,
     ):
@@ -1297,9 +1310,9 @@ class OCM:  # pylint: disable=too-many-public-methods
     def _response_is_list(rs: Mapping[str, Any]) -> bool:
         return rs["kind"].endswith("List")
 
-    def _get_json(self, api: str) -> dict[str, Any]:
+    def _get_json(self, api: str, params: Mapping[str, str] = {}) -> dict[str, Any]:
         responses = []
-        params = {"size": 100}
+        params["size"] = 100
         while True:
             rs = self._do_get_request(api, params=params)
             responses.append(rs)
