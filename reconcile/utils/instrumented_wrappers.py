@@ -50,10 +50,6 @@ class InstrumentedCache:
         self._cache = {}
 
     def __getitem__(self, item):
-        if item in self._cache:
-            self._hits.inc()
-        else:
-            self._misses.inc()
         return self._cache[item]
 
     def __setitem__(self, key, value):
@@ -63,6 +59,14 @@ class InstrumentedCache:
     def __delitem__(self, key):
         del self._cache[key]
         self._size.dec(1)
+
+    def __contains__(self, item):
+        if item in self._cache:
+            self._hits.inc()
+            return True
+        else:
+            self._misses.inc()
+            return False
 
 
 class InstrumentedSkopeo(Skopeo):
