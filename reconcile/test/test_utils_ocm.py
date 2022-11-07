@@ -10,6 +10,7 @@ from reconcile.utils.ocm import OCM
 def ocm(mocker):
     mocker.patch("reconcile.utils.ocm_base_client.OCMBaseClient._init_access_token")
     mocker.patch("reconcile.utils.ocm_base_client.OCMBaseClient._init_request_headers")
+    mocker.patch("reconcile.utils.ocm.OCM.whoami")
     mocker.patch("reconcile.utils.ocm.OCM._init_clusters")
     mocker.patch("reconcile.utils.ocm.OCM._init_blocked_versions")
     mocker.patch("reconcile.utils.ocm.OCM._init_version_gates")
