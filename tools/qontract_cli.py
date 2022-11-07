@@ -1,6 +1,7 @@
 import base64
 import json
 from operator import itemgetter
+import functools
 import re
 import os
 import sys
@@ -284,7 +285,6 @@ def cluster_upgrade_policies(
     )
 
     results = []
-    upgrades_cache = {}
 
     def soaking_str(soaking, upgrade_policy, upgradeable_version):
         upgrade_version = upgrade_policy.get("version")
@@ -327,10 +327,7 @@ def cluster_upgrade_policies(
             results.append(item)
             continue
 
-        upgrades = upgrades_cache.get((version, channel))
-        if not upgrades:
-            upgrades = ocm.get_available_upgrades(version, channel)
-            upgrades_cache[(version, channel)] = upgrades
+        upgrades = get_available_upgrades(ocm, version, channel)
 
         current = [c for c in current_state if c["cluster"] == cluster_name]
         upgrade_policy = {}
@@ -435,6 +432,97 @@ more than 6 hours will be highlighted.
         ]
         ctx.obj["options"]["to_string"] = True
         print_output(ctx.obj["options"], results, columns)
+
+
+@functools.lru_cache
+def get_available_upgrades(ocm, version, channel):
+    return ocm.get_available_upgrades(version, channel)
+
+
+@get.command()
+@click.pass_context
+def ocm_fleet_upgrade_policies(
+    ctx,
+):
+    md_output = ctx.obj["options"]["output"] == "md"
+    settings = queries.get_app_interface_settings()
+    ocm_specs = queries.get_openshift_cluster_managers()
+    output = []
+
+    def link(name, url):
+        return f"[{name}]({url})" if md_output else url
+
+    for ocm_spec in ocm_specs:
+        upgrade_policy_clusters = ocm_spec.get("upgradePolicyClusters")
+        if not upgrade_policy_clusters:
+            continue
+
+        # patch clusters items with their ocm instance
+        for c in upgrade_policy_clusters:
+            c["ocm"] = ocm_spec
+        ocm_map = OCMMap(
+            clusters=upgrade_policy_clusters,
+            settings=settings,
+        )
+
+        # there is a single element since we are in a single ocm org spec
+        ocm_clusters = ocm_map.cluster_specs()[0]
+
+        for c in upgrade_policy_clusters:
+            cluster_name = c.get("name")
+            cluster_specs = ocm_clusters.get(cluster_name)
+            if not cluster_specs:
+                continue
+            upgrade_policy = c.get("upgradePolicy", {})
+            conditions = upgrade_policy.get("conditions", {})
+            version = cluster_specs.spec.version
+            channel = cluster_specs.spec.channel
+            ocm = ocm_map.get(cluster_name)
+            available_upgrades = get_available_upgrades(ocm, version, channel)
+            current_upgrades = ocm.get_upgrade_policies(cluster_name)
+            upgrade = ""
+            if current_upgrades:
+                current_upgrade = current_upgrades[0]
+                upgrade_emoji = "💫"
+                dt = datetime.strptime(
+                    current_upgrade["next_run"], "%Y-%m-%dT%H:%M:%SZ"
+                )
+                now = datetime.utcnow()
+                if dt > now:
+                    upgrade_emoji = "⏰"
+                upgrade = f"{current_upgrade['version']} {upgrade_emoji}"
+            api = link("api", cluster_specs.server_url)
+            console = link("console", cluster_specs.console_url)
+            item = {
+                "ocm": ocm_spec.get("name"),
+                "cluster_name": cluster_name,
+                "api": api,
+                "console": console,
+                "cluster": f"{cluster_name} ({api}, {console})",
+                "version": version,
+                "channel": channel,
+                "schedule": upgrade_policy.get("schedule"),
+                "workloads": ", ".join(upgrade_policy.get("workloads")),
+                "soak_days": conditions.get("soakDays"),
+                "mutexes": ", ".join(conditions.get("mutexes") or []),
+                "available_upgrades": ", ".join(available_upgrades),
+                "upgrade": upgrade,
+            }
+            output.append(item)
+
+    columns = [
+        "ocm",
+        "cluster",
+        "version",
+        "channel",
+        "schedule",
+        "workloads",
+        "soak_days",
+        "mutexes",
+        "upgrade",
+        "available_upgrades",
+    ]
+    print_output(ctx.obj["options"], output, columns)
 
 
 @get.command()
