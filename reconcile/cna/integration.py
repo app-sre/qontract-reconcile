@@ -64,7 +64,9 @@ class CNAIntegration:
         self._current_states = defaultdict(State)
         for name, client in self._cna_clients.items():
             state = State()
-            for raw_asset in client.list_assets():
+            for raw_asset in client.list_assets_for_creator(
+                client.service_account_name()
+            ):
                 try:
                     state.add_asset(
                         asset_factory_from_raw_data(

@@ -17,9 +17,9 @@ class CNAClient:
     https://gitlab.cee.redhat.com/service/cna-management/-/blob/main/openapi/openapi.yaml#/
     """
 
-    def __init__(self, ocm_client: OCMBaseClient):
+    def __init__(self, ocm_client: OCMBaseClient, init_metadata: bool = False):
         self._ocm_client = ocm_client
-        self._metadata = self._init_metadata()
+        self._metadata = self._init_metadata() if init_metadata else None
 
     def _init_metadata(self) -> dict[AssetType, AssetTypeMetadata]:
         asset_types_metadata: dict[AssetType, AssetTypeMetadata] = {}
@@ -47,8 +47,16 @@ class CNAClient:
 
         return asset_types_metadata
 
-    def get_asset_type_metadata(self, asset_type: AssetType) -> AssetTypeMetadata:
-        return self._metadata[asset_type]
+    def service_account_name(self) -> str:
+        account = self._ocm_client.get(api_path="/api/accounts_mgmt/v1/current_account")
+        return account["username"]
+
+    def list_assets_for_creator(self, creator_username: str) -> list[dict[str, Any]]:
+        return [
+            c
+            for c in self.list_assets()
+            if c.get("creator", {}).get("username") == creator_username
+        ]
 
     def list_assets(self) -> list[dict[str, Any]]:
         """

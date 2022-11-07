@@ -69,6 +69,7 @@ def null_asset(name: str, addr_block: Optional[str]) -> NullAsset:
                     "status": "Running",
                     "name": "null-test",
                     "parameters": {},
+                    "creator": {"username": "creator"},
                 }
             ],
             State(
@@ -94,6 +95,7 @@ def null_asset(name: str, addr_block: Optional[str]) -> NullAsset:
                     "href": "url/123",
                     "status": "Running",
                     "name": "null-test",
+                    "creator": {"username": "creator"},
                 },
                 {
                     "asset_type": "null",
@@ -101,6 +103,7 @@ def null_asset(name: str, addr_block: Optional[str]) -> NullAsset:
                     "href": "url/456",
                     "status": "Running",
                     "name": "null-test2",
+                    "creator": {"username": "creator"},
                 },
             ],
             State(
@@ -132,12 +135,17 @@ def null_asset(name: str, addr_block: Optional[str]) -> NullAsset:
     ],
 )
 def test_integration_assemble_current_states(
-    cna_clients: Mapping[str, CNAClient],
+    mocker,
     listed_assets: Iterable[Mapping[str, Any]],
     expected_state: State,
 ):
-    cna_clients["test"].list_assets.side_effect = [listed_assets]  # type: ignore
-    integration = CNAIntegration(cna_clients=cna_clients, namespaces=[])
+    mocker.patch.object(
+        CNAClient, "list_assets", create_autospec=True, return_value=listed_assets
+    )
+    mocker.patch.object(
+        CNAClient, "service_account_name", create_autospec=True, return_value="creator"
+    )
+    integration = CNAIntegration(cna_clients={"test": CNAClient(None)}, namespaces=[])
     integration.assemble_current_states()
     assert integration._current_states == {"test": expected_state}
 
