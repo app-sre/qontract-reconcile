@@ -5,7 +5,10 @@ from pytest import fixture
 import pytest
 from reconcile.cna.client import CNAClient
 from reconcile.cna.integration import CNAIntegration
-from reconcile.cna.assets.asset import AssetStatus, AssetType
+from reconcile.cna.assets.asset import (
+    AssetStatus,
+    AssetType,
+)
 from reconcile.cna.assets.null import NullAsset
 from reconcile.cna.state import State
 from reconcile.gql_definitions.cna.queries.cna_resources import (
@@ -41,11 +44,10 @@ def namespace(assets: list[CNANullAssetV1]) -> NamespaceV1:
 
 def null_asset(name: str, addr_block: Optional[str]) -> NullAsset:
     return NullAsset(
-        uuid=None,
+        id=None,
         href=None,
         status=None,
         name=name,
-        kind=AssetType.NULL,
         addr_block=addr_block,
     )
 
@@ -56,7 +58,7 @@ def null_asset(name: str, addr_block: Optional[str]) -> NullAsset:
         (
             # Empty state
             [],
-            State(assets={AssetType.NULL: {}}),
+            State(),
         ),
         (
             # Single asset
@@ -67,16 +69,17 @@ def null_asset(name: str, addr_block: Optional[str]) -> NullAsset:
                     "href": "url/123",
                     "status": "Running",
                     "name": "null-test",
+                    "parameters": {},
+                    "creator": {"username": "creator"},
                 }
             ],
             State(
                 assets={
                     AssetType.NULL: {
                         "null-test": NullAsset(
-                            uuid="123",
+                            id="123",
                             status=AssetStatus.RUNNING,
                             name="null-test",
-                            kind=AssetType.NULL,
                             href="url/123",
                             addr_block=None,
                         )
@@ -93,6 +96,7 @@ def null_asset(name: str, addr_block: Optional[str]) -> NullAsset:
                     "href": "url/123",
                     "status": "Running",
                     "name": "null-test",
+                    "creator": {"username": "creator"},
                 },
                 {
                     "asset_type": "null",
@@ -100,24 +104,23 @@ def null_asset(name: str, addr_block: Optional[str]) -> NullAsset:
                     "href": "url/456",
                     "status": "Running",
                     "name": "null-test2",
+                    "creator": {"username": "creator"},
                 },
             ],
             State(
                 assets={
                     AssetType.NULL: {
                         "null-test": NullAsset(
-                            uuid="123",
+                            id="123",
                             status=AssetStatus.RUNNING,
                             name="null-test",
-                            kind=AssetType.NULL,
                             href="url/123",
                             addr_block=None,
                         ),
                         "null-test2": NullAsset(
-                            uuid="456",
+                            id="456",
                             status=AssetStatus.RUNNING,
                             name="null-test2",
-                            kind=AssetType.NULL,
                             href="url/456",
                             addr_block=None,
                         ),
@@ -133,12 +136,17 @@ def null_asset(name: str, addr_block: Optional[str]) -> NullAsset:
     ],
 )
 def test_integration_assemble_current_states(
-    cna_clients: Mapping[str, CNAClient],
+    mocker,
     listed_assets: Iterable[Mapping[str, Any]],
     expected_state: State,
 ):
-    cna_clients["test"].list_assets.side_effect = [listed_assets]  # type: ignore
-    integration = CNAIntegration(cna_clients=cna_clients, namespaces=[])
+    mocker.patch.object(
+        CNAClient, "list_assets", create_autospec=True, return_value=listed_assets
+    )
+    mocker.patch.object(
+        CNAClient, "service_account_name", create_autospec=True, return_value="creator"
+    )
+    integration = CNAIntegration(cna_clients={"test": CNAClient(None)}, namespaces=[])
     integration.assemble_current_states()
     assert integration._current_states == {"test": expected_state}
 
@@ -199,8 +207,10 @@ def test_integration_assemble_current_states(
     ],
 )
 def test_integration_assemble_desired_states(
-    namespaces: list[NamespaceV1], expected_state: State
+    cna_clients: Mapping[str, CNAClient],
+    namespaces: list[NamespaceV1],
+    expected_state: State,
 ):
-    integration = CNAIntegration(cna_clients={}, namespaces=namespaces)
+    integration = CNAIntegration(cna_clients=cna_clients, namespaces=namespaces)
     integration.assemble_desired_states()
     assert integration._desired_states == {"test": expected_state}

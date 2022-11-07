@@ -1,6 +1,7 @@
 from typing import Optional
 from collections import defaultdict
 from collections.abc import Iterable, Mapping
+
 from reconcile.cna.client import CNAClient
 from reconcile.cna.state import State
 
@@ -20,7 +21,11 @@ from reconcile.typed_queries.app_interface_vault_settings import (
 )
 from reconcile.utils.secret_reader import SecretReaderBase, create_secret_reader
 from reconcile.utils.semver_helper import make_semver
-from reconcile.cna.assets.asset_factory import asset_factory_from_schema
+from reconcile.cna.assets.asset import UnknownAssetTypeError
+from reconcile.cna.assets.asset_factory import (
+    asset_factory_from_schema,
+    asset_factory_from_raw_data,
+)
 
 
 QONTRACT_INTEGRATION = "cna_resources"
@@ -59,9 +64,18 @@ class CNAIntegration:
     def assemble_current_states(self):
         self._current_states = defaultdict(State)
         for name, client in self._cna_clients.items():
-            cnas = client.list_assets()
             state = State()
-            state.add_raw_data(cnas)
+            for raw_asset in client.list_assets_for_creator(
+                client.service_account_name()
+            ):
+                try:
+                    state.add_asset(
+                        asset_factory_from_raw_data(
+                            raw_asset,
+                        )
+                    )
+                except UnknownAssetTypeError as e:
+                    logging.warning(e)
             self._current_states[name] = state
 
     def provision(self, dry_run: bool = False):
@@ -95,6 +109,7 @@ def build_cna_clients(
         secret_data = secret_reader.read_all_secret(
             provisioner.ocm.access_token_client_secret
         )
+        # todo verify schema compatibility
         ocm_client = OCMBaseClient(
             url=provisioner.ocm.url,
             access_token_client_secret=secret_data["client_secret"],
