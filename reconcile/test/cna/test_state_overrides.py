@@ -13,14 +13,13 @@ from reconcile.cna.state import State
 def null_asset(
     name: str,
     href: Optional[str] = None,
-    uuid: Optional[str] = None,
+    id: Optional[str] = None,
     addr_block: Optional[str] = None,
     status: Optional[AssetStatus] = None,
 ) -> NullAsset:
     return NullAsset(
-        uuid=uuid,
+        id=id,
         href=href,
-        kind=AssetType.NULL,
         status=status,
         name=name,
         addr_block=addr_block,
@@ -65,7 +64,7 @@ def null_asset(
             ),
         ),
         (
-            # uuid and href do not count towards equality
+            # id and href do not count towards equality
             State(
                 assets={
                     AssetType.NULL: {
@@ -87,7 +86,7 @@ def null_asset(
                         ),
                         "test2": null_asset(
                             name="test2",
-                            uuid="123",
+                            id="123",
                             href="/123",
                         ),
                     }
@@ -98,7 +97,7 @@ def null_asset(
     ids=[
         "Empty states are equal",
         "Status does not count towards equality",
-        "uuid and href do not count towards equality",
+        "id and href do not count towards equality",
     ],
 )
 def test_state_eq(a: State, b: State):
@@ -153,7 +152,7 @@ def test_state_eq(a: State, b: State):
                     AssetType.NULL: {
                         "test2": null_asset(
                             name="test2",
-                            uuid="123",
+                            id="123",
                             href="/123",
                         ),
                     }
