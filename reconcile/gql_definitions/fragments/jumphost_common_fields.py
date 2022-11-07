@@ -16,16 +16,7 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
-
-class VaultSecretV1(BaseModel):
-    path: str = Field(..., alias="path")
-    field: str = Field(..., alias="field")
-    version: Optional[int] = Field(..., alias="version")
-    q_format: Optional[str] = Field(..., alias="format")
-
-    class Config:
-        smart_union = True
-        extra = Extra.forbid
+from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
 
 class CommonJumphostFields(BaseModel):
@@ -33,7 +24,7 @@ class CommonJumphostFields(BaseModel):
     known_hosts: str = Field(..., alias="knownHosts")
     user: str = Field(..., alias="user")
     port: Optional[int] = Field(..., alias="port")
-    identity: VaultSecretV1 = Field(..., alias="identity")
+    identity: VaultSecret = Field(..., alias="identity")
 
     class Config:
         smart_union = True

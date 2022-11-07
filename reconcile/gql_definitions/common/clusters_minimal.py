@@ -28,12 +28,8 @@ fragment CommonJumphostFields on ClusterJumpHost_v1 {
   knownHosts
   user
   port
-  # TODO: once qenerate supports nested fragments, we should use the VaultSecret fragment here
   identity {
-    path
-    field
-    version
-    format
+    ... VaultSecret
   }
 }
 
