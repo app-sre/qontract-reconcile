@@ -124,12 +124,10 @@ def get_app_interface_spec_updates(
         root_updates[ocmmod.SPEC_ATTR_SERVER_URL] = current_spec.server_url
 
     if not desired_spec.elb_fqdn:
-        # There is Bug Here. elb.apps.{cluster} might be longer than the allowed lenght.
-        # In those cases OCM truncates the string in front of {current_spec.domain}
-        # Check app-sre-stage-01 as an example.
-        root_updates[
-            ocmmod.SPEC_ATTR_ELBFQDN
-        ] = f"elb.apps.{cluster}.{current_spec.domain}"
+        # https://issues.redhat.com/browse/SDA-7204
+        root_updates[ocmmod.SPEC_ATTR_ELBFQDN] = current_spec.console_url.replace(
+            "https://console-openshift-console", "elb"
+        )
 
     updates: dict[str, Any] = {}
     updates[ocmmod.SPEC_ATTR_PATH] = "data" + str(desired_spec.path)
