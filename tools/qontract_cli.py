@@ -522,6 +522,7 @@ def ocm_fleet_upgrade_policies(
         "upgrade",
         "available_upgrades",
     ]
+    ctx.obj["options"]["to_string"] = True
     print_output(ctx.obj["options"], output, columns)
 
 
