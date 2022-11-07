@@ -501,7 +501,7 @@ def ocm_fleet_upgrade_policies(
             {"key": "workload"},
             {"key": "soaking_upgrades"},
         ]
-        ocm_orgs = {o["ocm"] for o in results}
+        ocm_orgs = sorted({o["ocm"] for o in results})
         ocm_org_section = """
 # {}
 
