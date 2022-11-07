@@ -36,9 +36,16 @@ class CreateAppInterfaceNotificator(MergeRequestBase):
         self.labels = [DO_NOT_MERGE_HOLD]
 
     @property
-    def title(self):
+    def title(self) -> str:
         return (
             f"[{self.name}] "
+            f"{self.notification['notification_type']}: "
+            f"{self.notification['short_description']}"
+        )
+
+    @property
+    def description(self) -> str:
+        return (
             f"{self.notification['notification_type']}: "
             f"{self.notification['short_description']}"
         )

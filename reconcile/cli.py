@@ -1274,18 +1274,6 @@ def saas_file_owners(ctx, gitlab_project_id, gitlab_merge_request_id, io_dir, co
     )
 
 
-@integration.command(short_help="Determines if CI can be skipped.")
-@click.argument("gitlab-project-id")
-@click.argument("gitlab-merge-request-id")
-@click.pass_context
-def gitlab_ci_skipper(ctx, gitlab_project_id, gitlab_merge_request_id):
-    import reconcile.gitlab_ci_skipper
-
-    run_integration(
-        reconcile.gitlab_ci_skipper, ctx.obj, gitlab_project_id, gitlab_merge_request_id
-    )
-
-
 @integration.command(
     short_help="Guesses and adds labels to merge requests "
     "according to changed paths."
@@ -2050,17 +2038,6 @@ def ocp_release_mirror(ctx):
     import reconcile.ocp_release_mirror
 
     run_integration(reconcile.ocp_release_mirror, ctx.obj)
-
-
-@integration.command(
-    short_help="Collects OSD mirror information and " "updates app-interface via MR."
-)
-@gitlab_project_id
-@click.pass_context
-def osd_mirrors_data_updater(ctx, gitlab_project_id):
-    import reconcile.osd_mirrors_data_updater
-
-    run_integration(reconcile.osd_mirrors_data_updater, ctx.obj, gitlab_project_id)
 
 
 @integration.command(short_help="Mirrors external images into AWS ECR.")
