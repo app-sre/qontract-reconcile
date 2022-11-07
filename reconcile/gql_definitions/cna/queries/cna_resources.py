@@ -57,6 +57,27 @@ query CNAssets {
               }
             }
           }
+          ... on CNARDSInstance_v1 {
+            name: identifier
+            aws_rds {
+              vpc {
+                vpc_id
+                region
+                account {
+                  ... CNAAWSAccountRoleARNs
+                }
+              }
+              db_subnet_group_name
+              engine
+              engine_version
+              instance_class
+              allocated_storage
+              max_allocated_storage
+              backup_retention_period
+              backup_window
+              maintenance_window
+            }
+          }
         }
       }
     }
@@ -117,10 +138,46 @@ class CNAAssumeRoleAssetV1(CNAssetV1):
         extra = Extra.forbid
 
 
+class AWSVPCV1(BaseModel):
+    vpc_id: str = Field(..., alias="vpc_id")
+    region: str = Field(..., alias="region")
+    account: CNAAWSAccountRoleARNs = Field(..., alias="account")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
+class CNARDSInstanceConfigV1(BaseModel):
+    vpc: AWSVPCV1 = Field(..., alias="vpc")
+    db_subnet_group_name: str = Field(..., alias="db_subnet_group_name")
+    engine: str = Field(..., alias="engine")
+    engine_version: str = Field(..., alias="engine_version")
+    instance_class: str = Field(..., alias="instance_class")
+    allocated_storage: int = Field(..., alias="allocated_storage")
+    max_allocated_storage: int = Field(..., alias="max_allocated_storage")
+    backup_retention_period: int = Field(..., alias="backup_retention_period")
+    backup_window: str = Field(..., alias="backup_window")
+    maintenance_window: str = Field(..., alias="maintenance_window")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
+class CNARDSInstanceV1(CNAssetV1):
+    name: str = Field(..., alias="name")
+    aws_rds: CNARDSInstanceConfigV1 = Field(..., alias="aws_rds")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
 class NamespaceCNAssetV1(NamespaceExternalResourceV1):
-    resources: list[Union[CNANullAssetV1, CNAAssumeRoleAssetV1, CNAssetV1]] = Field(
-        ..., alias="resources"
-    )
+    resources: list[
+        Union[CNANullAssetV1, CNAAssumeRoleAssetV1, CNARDSInstanceV1, CNAssetV1]
+    ] = Field(..., alias="resources")
 
     class Config:
         smart_union = True

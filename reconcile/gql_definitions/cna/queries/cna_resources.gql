@@ -24,6 +24,27 @@ query CNAssets {
               }
             }
           }
+          ... on CNARDSInstance_v1 {
+            name: identifier
+            aws_rds {
+              vpc {
+                vpc_id
+                region
+                account {
+                  ... CNAAWSAccountRoleARNs
+                }
+              }
+              db_subnet_group_name
+              engine
+              engine_version
+              instance_class
+              allocated_storage
+              max_allocated_storage
+              backup_retention_period
+              backup_window
+              maintenance_window
+            }
+          }
         }
       }
     }

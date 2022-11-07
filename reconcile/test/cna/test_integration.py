@@ -16,6 +16,7 @@ from reconcile.gql_definitions.cna.queries.cna_resources import (
     NamespaceCNAssetV1,
     NamespaceV1,
 )
+from reconcile.utils.ocm_base_client import OCMBaseClient
 
 
 @fixture
@@ -145,7 +146,7 @@ def test_integration_assemble_current_states(
     mocker.patch.object(
         CNAClient, "service_account_name", create_autospec=True, return_value="creator"
     )
-    integration = CNAIntegration(cna_clients={"test": CNAClient(None)}, namespaces=[])
+    integration = CNAIntegration(cna_clients={"test": CNAClient(None)}, namespaces=[])  # type: ignore
     integration.assemble_current_states()
     assert integration._current_states == {"test": expected_state}
 

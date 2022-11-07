@@ -24,6 +24,7 @@ class UnknownAssetTypeError(Exception):
 class AssetType(str, Enum):
     NULL = "null"
     EXAMPLE_AWS_ASSUMEROLE = "example-aws-assumerole"
+    AWS_RDS = "aws-rds"
 
 
 def asset_type_by_id(asset_type_id: str) -> Optional[AssetType]:
