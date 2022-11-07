@@ -9,6 +9,10 @@ from reconcile.gql_definitions.jenkins_configs.jenkins_configs import (
 
 from reconcile.gql_definitions.vault_policies import vault_policies
 from reconcile.gql_definitions.vault_instances import vault_instances
+from reconcile.gql_definitions.vault_instances.vault_instances import (
+    VaultInstanceAuthApproleV1,
+    VaultInstanceV1,
+)
 
 from reconcile.utils import gql
 from typing import List, cast, Optional
@@ -149,7 +153,7 @@ def get_vault_credentials(vault_instance: VaultInstanceV1) -> dict[str, Optional
     vault_creds = {}
     vault = cast(_VaultClient, VaultClient())
 
-    vault_instance_auth = vault_instance.auth
+    vault_instance_auth = cast(VaultInstanceAuthApproleV1, vault_instance.auth)
 
     role_id = {
         "path": vault_instance_auth.role_id.path,
@@ -198,7 +202,9 @@ def run(dry_run: bool) -> None:
             if instance.replication:
                 for replication in instance.replication:
                     source_creds = get_vault_credentials(instance)
-                    dest_creds = get_vault_credentials(replication.vault_instance)
+                    dest_creds = get_vault_credentials(
+                        cast(VaultInstanceV1, replication.vault_instance)
+                    )
 
                     source_vault = cast(
                         _VaultClient,

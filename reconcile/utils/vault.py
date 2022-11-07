@@ -153,7 +153,7 @@ class _VaultClient:
         return version
 
     @functools.lru_cache(maxsize=2048)
-    def _read_all_v2(self, path, version):
+    def _read_all_v2(self, path: str, version: Optional[str]) -> tuple[dict, Optional[str]]:
         path_split = path.split("/")
         mount_point = path_split[0]
         read_path = "/".join(path_split[1:])
