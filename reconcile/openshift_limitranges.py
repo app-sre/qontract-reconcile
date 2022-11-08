@@ -94,8 +94,7 @@ def run(
     namespaces = [
         namespace_info
         for namespace_info in queries.get_namespaces()
-        if namespace_info.get("limitRanges")
-        and not namespace_info.get("delete")
+        if namespace_info.get("limitRanges") and not namespace_info.get("delete")
     ]
 
     namespaces = construct_resources(namespaces)

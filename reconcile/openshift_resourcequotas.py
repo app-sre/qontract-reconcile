@@ -76,8 +76,7 @@ def run(
     namespaces = [
         namespace_info
         for namespace_info in queries.get_namespaces()
-        if namespace_info.get("quota")
-        and not namespace_info.get("delete")
+        if namespace_info.get("quota") and not namespace_info.get("delete")
     ]
 
     if not namespaces:
