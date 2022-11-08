@@ -169,6 +169,7 @@ def run(dry_run, thread_pool_size=10, internal=None, use_jump_host=True, defer=N
         and is_in_shard(
             f"{namespace_info['cluster']['name']}/" + f"{namespace_info['name']}"
         )
+        and not namespace_info.get("delete")
     ]
     ri, oc_map = ob.fetch_current_state(
         namespaces=namespaces,

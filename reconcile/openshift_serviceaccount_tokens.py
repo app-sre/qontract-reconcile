@@ -133,6 +133,8 @@ def write_outputs_to_vault(vault_path, ri):
 def canonicalize_namespaces(namespaces):
     canonicalized_namespaces = []
     for namespace_info in namespaces:
+        if namespace_info.get("delete"):
+            continue
         ob.aggregate_shared_resources(namespace_info, "openshiftServiceAccountTokens")
         openshift_serviceaccount_tokens = namespace_info.get(
             "openshiftServiceAccountTokens"
