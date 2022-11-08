@@ -4,12 +4,12 @@ labels:
   service: ocm-quay
 name: tst-jpr-rosa
 description: A test cluster
-consoleUrl: "https://console-url"
+consoleUrl: "https://console-openshift-console.tst-jpr-rosa.0000.p1.openshiftapps.com"
 kibanaUrl: ""
 prometheusUrl: ""
 alertmanagerUrl: ""
-serverUrl: "https://api-url"
-elbFQDN: "elb.apps.tst-jpr-rosa.wrr0.p1.openshiftapps.com"
+serverUrl: "https://api.tst-jpr-rosa.0000.p1.openshiftapps.com:6443"
+elbFQDN: "elb.tst-jpr-rosa.0000.p1.openshiftapps.com"
 ocm:
   name: ocm-stage
   url: non-existent-ocm-url

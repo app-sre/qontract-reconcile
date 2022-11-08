@@ -2,14 +2,14 @@
 $schema: /openshift/cluster-1.yml
 labels:
   service: ocm-quay
-name: an-osd-test-cluster
+name: test-cluster
 description: A test cluster
-consoleUrl: "https://console-url"
+consoleUrl: "https://console-openshift-console.test-cluster.0000.p1.openshiftapps.com"
 kibanaUrl: ""
 prometheusUrl: ""
 alertmanagerUrl: ""
-serverUrl: "https://api-url"
-elbFQDN: "elb.apps.an-osd-test-cluster.k3s7.p1.openshiftapps.com"
+serverUrl: "https://api.test-cluster.0000.p1.openshiftapps.com:6443"
+elbFQDN: "elb.test-cluster.0000.p1.openshiftapps.com"
 ocm:
   name: non-existent-ocm
   url: non-existent-ocm-url

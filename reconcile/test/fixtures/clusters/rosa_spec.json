@@ -25,10 +25,10 @@
     "href": "/api/clusters_mgmt/v1/cloud_providers/aws/regions/us-east-1"
   },
   "console": {
-    "url": "https://console-url"
+    "url": "https://console-openshift-console.tst-jpr-rosa.0000.p1.openshiftapps.com"
   },
   "api": {
-    "url": "https://api-url",
+    "url": "https://api.tst-jpr-rosa.0000.p1.openshiftapps.com:6443",
     "listening": "external"
   },
   "nodes": {

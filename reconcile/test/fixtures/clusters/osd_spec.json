@@ -2,7 +2,7 @@
   "kind": "Cluster",
   "id": "osd-cluster-id",
   "href": "/api/clusters_mgmt/v1/clusters/osd-cluster-id",
-  "name": "an-osd-test-cluster",
+  "name": "test-cluster",
   "external_id": "external-id",
   "infra_id": "an-osd-test-cluster-infra",
   "display_name": "osd-cluster",
@@ -25,10 +25,10 @@
     "href": "/api/clusters_mgmt/v1/cloud_providers/aws/regions/us-east-1"
   },
   "console": {
-    "url": "https://console-url"
+    "url": "https://console-openshift-console.test-cluster.0000.p1.openshiftapps.com"
   },
   "api": {
-    "url": "https://api-url",
+    "url": "https://api.test-cluster.0000.p1.openshiftapps.com:6443",
     "listening": "external"
   },
   "nodes": {
