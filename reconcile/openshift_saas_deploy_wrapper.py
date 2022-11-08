@@ -29,7 +29,7 @@ def osd_run_wrapper(
             gitlab_project_id=gitlab_project_id,
         )
     except SystemExit as e:
-        exit_code = e.code
+        exit_code = e.code if isinstance(e.code, int) else 1
     return exit_code
 
 
