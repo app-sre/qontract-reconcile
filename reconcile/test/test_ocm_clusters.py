@@ -559,4 +559,4 @@ def test_console_url_changes_ai(
     _post, _patch = ocm_mock
     assert _patch.call_count == 0
     assert _post.call_count == 0
-    assert cluster_updates_mr_mock.call_count == 0
+    assert cluster_updates_mr_mock.call_count == 1
