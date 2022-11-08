@@ -44,7 +44,7 @@ class OSDClusterSpec(OCMClusterSpec):
         extra = Extra.forbid
 
 
-class ROSAAWSAttrs(BaseModel):
+class ROSAOcmAwsAttrs(BaseModel):
     creator_role_arn: str
     installer_role_arn: str
     support_role_arn: str
@@ -57,7 +57,7 @@ class ROSAAWSAttrs(BaseModel):
 
 class ROSAClusterAWSAccount(BaseModel):
     uid: str
-    rosa: ROSAAWSAttrs
+    rosa: ROSAOcmAwsAttrs
 
     class Config:
         extra = Extra.forbid

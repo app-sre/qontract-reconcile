@@ -15,7 +15,7 @@ from reconcile.ocm.types import (
     OCMClusterAutoscale,
     OCMClusterNetwork,
     ROSAClusterAWSAccount,
-    ROSAAWSAttrs,
+    ROSAOcmAwsAttrs,
     OCMSpec,
     OCMClusterSpec,
     OSDClusterSpec,
@@ -351,7 +351,7 @@ class OCMProductRosa(OCMProduct):
 
         account = ROSAClusterAWSAccount(
             uid=cluster["properties"]["rosa_creator_arn"].split(":")[4],
-            rosa=ROSAAWSAttrs(
+            rosa=ROSAOcmAwsAttrs(
                 creator_role_arn=cluster["properties"]["rosa_creator_arn"],
                 installer_role_arn=cluster["aws"]["sts"]["role_arn"],
                 support_role_arn=cluster["aws"]["sts"]["support_role_arn"],
