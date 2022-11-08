@@ -16,7 +16,6 @@ from reconcile.gql_definitions.cna.queries.cna_resources import (
     NamespaceCNAssetV1,
     NamespaceV1,
 )
-from reconcile.utils.ocm_base_client import OCMBaseClient
 
 
 @fixture

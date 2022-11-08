@@ -8,6 +8,7 @@ from reconcile.cna.assets.asset import (
     AssetTypeVariableType,
     AssetError,
     asset_type_metadata_from_asset_dataclass,
+    asset_type_from_raw_asset,
 )
 from reconcile.cna.assets.aws_assume_role import AWSAssumeRoleAsset
 
@@ -82,7 +83,7 @@ def aws_assumerole_asset(
 
 
 def test_asset_type_extraction_from_raw(raw_aws_assumerole_asset: Mapping[str, Any]):
-    assert AssetType.EXAMPLE_AWS_ASSUMEROLE == Asset.asset_type_from_raw_asset(
+    assert AssetType.EXAMPLE_AWS_ASSUMEROLE == asset_type_from_raw_asset(
         raw_aws_assumerole_asset
     )
 

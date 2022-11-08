@@ -9,7 +9,11 @@ from typing import Any, Mapping, Optional, Type
 from reconcile.gql_definitions.cna.queries.cna_resources import CNAssetV1
 
 
+ASSET_ID_FIELD = "id"
 ASSET_TYPE_FIELD = "asset_type"
+ASSET_NAME_FIELD = "name"
+ASSET_HREF_FIELD = "href"
+ASSET_STATUS_FIELD = "status"
 ASSET_PARAMETERS_FIELD = "parameters"
 
 
@@ -34,8 +38,16 @@ def asset_type_by_id(asset_type_id: str) -> Optional[AssetType]:
         return None
 
 
-def asset_type_from_raw_asset(raw_assset: Mapping[str, Any]) -> Optional[AssetType]:
-    return asset_type_by_id(raw_assset.get(ASSET_TYPE_FIELD, ""))
+def asset_type_id_from_raw_asset(raw_asset: Mapping[str, Any]) -> Optional[str]:
+    return raw_asset.get(ASSET_TYPE_FIELD)
+
+
+def asset_type_from_raw_asset(raw_asset: Mapping[str, Any]) -> Optional[AssetType]:
+    asset_type_id = asset_type_id_from_raw_asset(raw_asset)
+    if asset_type_id:
+        return asset_type_by_id(asset_type_id)
+    else:
+        return None
 
 
 class AssetTypeVariableType(Enum):
@@ -70,7 +82,6 @@ class AssetStatus(Enum):
 
 class AssetModelConfig:
     allow_population_by_field_name = True
-    extra = "forbid"
 
 
 @dataclass(frozen=True, config=AssetModelConfig)
@@ -103,24 +114,19 @@ class Asset(ABC):
     def from_query_class(asset: CNAssetV1) -> Asset:
         ...
 
-    @staticmethod
-    def asset_type_from_raw_asset(raw_asset: Mapping[str, Any]) -> Optional[AssetType]:
-        asset_type_value = raw_asset[ASSET_TYPE_FIELD]
-        return asset_type_by_id(asset_type_value)
-
     def asset_metadata(self) -> dict[str, Any]:
         return {
-            "id": self.id,
-            "href": self.href,
-            "status": self.status.value if self.status else None,
-            "name": self.name,
+            ASSET_ID_FIELD: self.id,
+            ASSET_HREF_FIELD: self.href,
+            ASSET_STATUS_FIELD: self.status.value if self.status else None,
+            ASSET_NAME_FIELD: self.name,
             ASSET_TYPE_FIELD: self.asset_type().value,
         }
 
     def api_payload(self) -> dict[str, Any]:
         return {
             ASSET_TYPE_FIELD: self.asset_type().value,
-            "name": self.name,
+            ASSET_NAME_FIELD: self.name,
             ASSET_PARAMETERS_FIELD: self.raw_asset_parameters(omit_empty=False),
         }
 
@@ -172,10 +178,10 @@ class Asset(ABC):
             params[property_name] = var_value
 
         return cna_dataclass(
-            id=raw_asset.get("id"),
-            href=raw_asset.get("href"),
-            status=AssetStatus(raw_asset.get("status")),
-            name=raw_asset.get("name", ""),
+            id=raw_asset.get(ASSET_ID_FIELD),
+            href=raw_asset.get(ASSET_HREF_FIELD),
+            status=AssetStatus(raw_asset.get(ASSET_STATUS_FIELD)),
+            name=raw_asset.get(ASSET_NAME_FIELD, ""),
             **params,
         )
 
