@@ -62,6 +62,7 @@ class MergeRequestBase(metaclass=ABCMeta):
             f"Reason: {message}"
         )
 
+    @property
     @abstractmethod
     def title(self) -> str:
         """
@@ -71,6 +72,7 @@ class MergeRequestBase(metaclass=ABCMeta):
         :rtype: str
         """
 
+    @property
     @abstractmethod
     def description(self) -> str:
         """
