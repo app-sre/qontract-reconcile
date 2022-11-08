@@ -59,23 +59,24 @@ query CNAssets {
           }
           ... on CNARDSInstance_v1 {
             name: identifier
-            aws_rds {
-              vpc {
-                vpc_id
-                region
-                account {
-                  ... CNAAWSAccountRoleARNs
-                }
+            vpc {
+              vpc_id
+              region
+              account {
+                ... CNAAWSAccountRoleARNs
               }
-              db_subnet_group_name
+            }
+            defaults
+            overrides {
+              name
               engine
               engine_version
+              username
               instance_class
               allocated_storage
               max_allocated_storage
               backup_retention_period
-              backup_window
-              maintenance_window
+              db_subnet_group_name
             }
           }
         }
@@ -148,17 +149,16 @@ class AWSVPCV1(BaseModel):
         extra = Extra.forbid
 
 
-class CNARDSInstanceConfigV1(BaseModel):
-    vpc: AWSVPCV1 = Field(..., alias="vpc")
-    db_subnet_group_name: str = Field(..., alias="db_subnet_group_name")
-    engine: str = Field(..., alias="engine")
-    engine_version: str = Field(..., alias="engine_version")
-    instance_class: str = Field(..., alias="instance_class")
-    allocated_storage: int = Field(..., alias="allocated_storage")
-    max_allocated_storage: int = Field(..., alias="max_allocated_storage")
-    backup_retention_period: int = Field(..., alias="backup_retention_period")
-    backup_window: str = Field(..., alias="backup_window")
-    maintenance_window: str = Field(..., alias="maintenance_window")
+class CNARDSInstanceOverridesV1(BaseModel):
+    name: Optional[str] = Field(..., alias="name")
+    engine: Optional[str] = Field(..., alias="engine")
+    engine_version: Optional[str] = Field(..., alias="engine_version")
+    username: Optional[str] = Field(..., alias="username")
+    instance_class: Optional[str] = Field(..., alias="instance_class")
+    allocated_storage: Optional[int] = Field(..., alias="allocated_storage")
+    max_allocated_storage: Optional[int] = Field(..., alias="max_allocated_storage")
+    backup_retention_period: Optional[int] = Field(..., alias="backup_retention_period")
+    db_subnet_group_name: Optional[str] = Field(..., alias="db_subnet_group_name")
 
     class Config:
         smart_union = True
@@ -167,7 +167,9 @@ class CNARDSInstanceConfigV1(BaseModel):
 
 class CNARDSInstanceV1(CNAssetV1):
     name: str = Field(..., alias="name")
-    aws_rds: CNARDSInstanceConfigV1 = Field(..., alias="aws_rds")
+    vpc: AWSVPCV1 = Field(..., alias="vpc")
+    defaults: str = Field(..., alias="defaults")
+    overrides: Optional[CNARDSInstanceOverridesV1] = Field(..., alias="overrides")
 
     class Config:
         smart_union = True
@@ -176,7 +178,7 @@ class CNARDSInstanceV1(CNAssetV1):
 
 class NamespaceCNAssetV1(NamespaceExternalResourceV1):
     resources: list[
-        Union[CNANullAssetV1, CNAAssumeRoleAssetV1, CNARDSInstanceV1, CNAssetV1]
+        Union[CNARDSInstanceV1, CNANullAssetV1, CNAAssumeRoleAssetV1, CNAssetV1]
     ] = Field(..., alias="resources")
 
     class Config:
