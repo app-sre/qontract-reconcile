@@ -8,9 +8,12 @@ import time
 from collections import defaultdict, namedtuple
 from typing import Any, Iterable, Optional
 
+from requests import Response
+
 from sretoolbox.container.image import ImageComparisonError, ImageContainsError
 from sretoolbox.container.skopeo import SkopeoCmdError
 
+from reconcile.utils import metrics
 from reconcile import queries
 from reconcile.status import ExitCodes
 from reconcile.utils import gql, sharding
@@ -18,7 +21,6 @@ from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.instrumented_wrappers import (
     InstrumentedImage as Image,
     InstrumentedSkopeo as Skopeo,
-    InstrumentedCache,
 )
 
 _LOG = logging.getLogger(__name__)
@@ -49,11 +51,7 @@ class QuayMirror:
     }
     """
 
-    response_cache = InstrumentedCache(
-        integration_name=QONTRACT_INTEGRATION,
-        shards=sharding.SHARDS,
-        shard_id=sharding.SHARD_ID,
-    )
+    response_cache: dict[tuple[str, str], Response] = {}
 
     def __init__(
         self,
@@ -72,6 +70,23 @@ class QuayMirror:
         self.compare_tags = compare_tags
         self.compare_tags_interval = compare_tags_interval
         self.images = images
+
+        self.response_cache_hits = metrics.cache_hits.labels(
+            integration=QONTRACT_INTEGRATION,
+            shards=sharding.SHARDS,
+            shard_id=sharding.SHARD_ID,
+        )
+        self.response_cache_misses = metrics.cache_misses.labels(
+            integration=QONTRACT_INTEGRATION,
+            shards=sharding.SHARDS,
+            shard_id=sharding.SHARD_ID,
+        )
+        self.response_cache_size = metrics.cache_size.labels(
+            integration=QONTRACT_INTEGRATION,
+            shards=sharding.SHARDS,
+            shard_id=sharding.SHARD_ID,
+        )
+        self.response_cache_size.set_function(lambda: len(self.response_cache))
 
         if control_file_dir:
             if not os.path.isdir(control_file_dir):
@@ -266,6 +281,15 @@ class QuayMirror:
                         # Upstream and downstream images are different and not part
                         # of each other. We will mirror them.
                         pass
+                    finally:
+                        self.response_cache_hits.inc(
+                            upstream.response_cache_hits
+                            + downstream.response_cache_hits
+                        )
+                        self.response_cache_misses.inc(
+                            upstream.response_cache_misses
+                            + downstream.response_cache_misses
+                        )
 
                     _LOG.debug(
                         "Image %s and mirror %s are out of sync", downstream, upstream
