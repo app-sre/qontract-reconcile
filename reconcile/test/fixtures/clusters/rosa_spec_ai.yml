@@ -11,7 +11,7 @@ alertmanagerUrl: ""
 serverUrl: "https://api-url"
 elbFQDN: "elb.apps.tst-jpr-rosa.wrr0.p1.openshiftapps.com"
 ocm:
-  name: non-existent-ocm
+  name: ocm-stage
   url: non-existent-ocm-url
   accessTokenClientId: cloud-services
   accessTokenClientSecret:
@@ -22,11 +22,21 @@ spec:
   account:
     uid: '249118421612'
     rosa:
-      creator_role_arn: "arn:aws:iam::249118421612:role/ManagedOpenShift-OCM-Role-12147054"
-      installer_role_arn: "arn:aws:iam::249118421612:role/ManagedOpenShift-Installer-Role"
-      support_role_arn: "arn:aws:iam::249118421612:role/ManagedOpenShift-Support-Role"
-      controlplane_role_arn: "arn:aws:iam::249118421612:role/ManagedOpenShift-ControlPlane-Role"
-      worker_role_arn: "arn:aws:iam::249118421612:role/ManagedOpenShift-Worker-Role"
+      ocm_environments:
+      - ocm:
+          name: ocm-stage
+        creator_role_arn: "arn:aws:iam::249118421612:role/ManagedOpenShift-OCM-Role-12147054"
+        installer_role_arn: "arn:aws:iam::249118421612:role/ManagedOpenShift-Installer-Role"
+        support_role_arn: "arn:aws:iam::249118421612:role/ManagedOpenShift-Support-Role"
+        controlplane_role_arn: "arn:aws:iam::249118421612:role/ManagedOpenShift-ControlPlane-Role"
+        worker_role_arn: "arn:aws:iam::249118421612:role/ManagedOpenShift-Worker-Role"
+      - ocm:
+          name: ocm-production
+        creator_role_arn: "arn:aws:iam::249118421612:role/ManagedOpenShift-OCM-Role-12147054"
+        installer_role_arn: "arn:aws:iam::249118421612:role/ManagedOpenShift-Installer-Role"
+        support_role_arn: "arn:aws:iam::249118421612:role/ManagedOpenShift-Support-Role"
+        controlplane_role_arn: "arn:aws:iam::249118421612:role/ManagedOpenShift-ControlPlane-Role"
+        worker_role_arn: "arn:aws:iam::249118421612:role/ManagedOpenShift-Worker-Role"
   id: "rosa-cluster-id"
   external_id: "external-id"
   provider: aws

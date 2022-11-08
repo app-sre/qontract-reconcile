@@ -650,11 +650,16 @@ CLUSTERS_QUERY = """
         account {
           uid
           rosa {
-            creator_role_arn
-            installer_role_arn
-            support_role_arn
-            controlplane_role_arn
-            worker_role_arn
+            ocm_environments {
+              ocm {
+                name
+              }
+              creator_role_arn
+              installer_role_arn
+              support_role_arn
+              controlplane_role_arn
+              worker_role_arn
+            }
           }
         }
       }

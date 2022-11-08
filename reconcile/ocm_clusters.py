@@ -18,17 +18,52 @@ from reconcile.ocm.types import OCMSpec
 QONTRACT_INTEGRATION = "ocm-clusters"
 
 
+def _set_rosa_ocm_attrs(cluster: Mapping[str, Any]):
+    """Cluster account (aws) attribute from app-interface differs from the OCMSpec.
+    app-interface's account includes the details for all the OCM environments
+    but the cluster only needs the target OCM environment where it belongs.
+    This method changes the cluster dictionary to include just those.
+    """
+
+    rosa = cluster["spec"]["account"]["rosa"]
+    ocm_env = [
+        env
+        for env in rosa["ocm_environments"]
+        if env["ocm"]["name"] == cluster["ocm"]["name"]
+    ]
+
+    if len(ocm_env) != 1:
+        logging.error(
+            "The cluster's OCM reference does not exist or it is duplicated in the AWS account manifest. "
+            "Check the cluster's AWS account rosa configuration. "
+            f"OCM:{cluster['ocm']['name']}, AWSAcc:{cluster['spec']['account']['uid']}"
+        )
+        sys.exit(ExitCodes.ERROR)
+
+    rosa["creator_role_arn"] = ocm_env[0]["creator_role_arn"]
+    rosa["installer_role_arn"] = ocm_env[0]["installer_role_arn"]
+    rosa["support_role_arn"] = ocm_env[0]["support_role_arn"]
+    rosa["controlplane_role_arn"] = ocm_env[0]["controlplane_role_arn"]
+    rosa["worker_role_arn"] = ocm_env[0]["worker_role_arn"]
+
+    # Make pydantic happy
+    del rosa["ocm_environments"]
+
+
 def fetch_desired_state(clusters: Iterable[Mapping[str, Any]]) -> dict[str, OCMSpec]:
     """Builds a dictionary with all clusters retrieved from app-interface. Cluster specs
-    are based on OCMSpec implementations depending the ocm product
+    are based on OCMSpec implementations depending on the ocm product
 
     :param clusters: list of clusters retrieved from app-interface
     :return: Collection with all cluster specs with the defined OCM model
     """
     desired_state = {}
     for c in clusters:
+        if c["spec"]["product"] == ocmmod.OCM_PRODUCT_ROSA:
+            _set_rosa_ocm_attrs(c)
         name = c["name"]
         desired_state[name] = OCMSpec(**c)
+
     return desired_state
 
 
