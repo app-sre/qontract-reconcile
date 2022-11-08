@@ -27,6 +27,7 @@ ROLES_QUERY = """
       namespace {
         name
         managedRoles
+        delete
         cluster {
           name
           auth {
@@ -97,6 +98,7 @@ def fetch_desired_state(ri, oc_map):
             for a in role["access"] or []
             if None not in [a["namespace"], a["role"]]
             and a["namespace"].get("managedRoles")
+            and not a["namespace"].get("delete")
         ]
         if not permissions:
             continue
