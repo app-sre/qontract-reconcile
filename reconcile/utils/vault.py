@@ -102,7 +102,8 @@ class _VaultClient:
 
     @retry()
     def read_all_with_version(self, secret: dict) -> Tuple[dict, Optional[str]]:
-        """Returns a dictionary of keys and values in a Vault secret.
+        """Returns a dictionary of keys and values in a Vault secret and the
+        version of the secret, for V1 secrets, version will be None.
 
         The input secret is a dictionary which contains the following fields:
         * path - path to the secret in Vault
@@ -116,15 +117,16 @@ class _VaultClient:
 
         data = None
         if kv_version == 2:
-            data = self._read_all_v2(secret_path, secret_version)
+            data, version = self._read_all_v2(secret_path, secret_version)
         else:
             secret_data = self._read_all_v1(secret_path)
-            data = secret_data, None
+            version = None
+            data = secret_data
 
         if data is None:
             raise SecretNotFound
 
-        return data
+        return data, version
 
     @retry()
     def read_all(self, secret: dict) -> dict:
@@ -153,7 +155,9 @@ class _VaultClient:
         return version
 
     @functools.lru_cache(maxsize=2048)
-    def _read_all_v2(self, path: str, version: Optional[str]) -> tuple[dict, Optional[str]]:
+    def _read_all_v2(
+        self, path: str, version: Optional[str]
+    ) -> tuple[dict, Optional[str]]:
         path_split = path.split("/")
         mount_point = path_split[0]
         read_path = "/".join(path_split[1:])
@@ -226,7 +230,7 @@ class _VaultClient:
         return base64.b64decode(data) if secret_format == "base64" else data
 
     def _read_v2(self, path, field, version):
-        data = self._read_all_v2(path, version)
+        data, _ = self._read_all_v2(path, version)
         try:
             secret_field = data[field]
         except KeyError:
@@ -271,7 +275,7 @@ class _VaultClient:
         write_path = "/".join(path_split[1:])
 
         try:
-            current_data = self._read_all_v2(path, version=SECRET_VERSION_LATEST)
+            current_data, _ = self._read_all_v2(path, version=SECRET_VERSION_LATEST)
             if current_data == data:
                 logging.debug(f"current data is up-to-date, skipping {path}")
                 return
