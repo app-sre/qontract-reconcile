@@ -126,6 +126,12 @@ def get_policy_paths(policy_name, instance_name) -> List[str]:
 
 
 def get_jenkins_secret_list(jenkins_instance: str) -> List[str]:
+    """Returns a list of secrets used in a jenkins instance
+
+    The input secret is the name of a jenkins instance to filter
+    the secrets:
+    * jenkins_instance - Jenkins instance name
+    """
     secret_list = []
     query_data = jenkins_configs.query(query_func=gql.get_api().query)
 
@@ -150,6 +156,14 @@ def get_jenkins_secret_list(jenkins_instance: str) -> List[str]:
 
 
 def get_vault_credentials(vault_instance: VaultInstanceV1) -> dict[str, Optional[str]]:
+    """Returns a dictionary with the credentials used to authenticate with Vault,
+    retrieved from the values present on AppInterface.
+
+    The input is a VaultInstanceV1 object, that contains secret references to be retreived
+    from vault. The output is a dictionary with the credentials used to authenticate with
+    Vault.
+    * vault_instance - VaultInstanceV1 object from AppInterface Data.
+    """
     vault_creds = {}
     vault = cast(_VaultClient, VaultClient())
 
