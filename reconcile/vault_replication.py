@@ -24,6 +24,10 @@ class VaultInvalidPaths(Exception):
     pass
 
 
+class VaultInvalidAuthMethod(Exception):
+    pass
+
+
 def deep_copy_versions(
     dry_run: bool,
     source_vault: _VaultClient,
@@ -167,15 +171,16 @@ def get_vault_credentials(vault_instance: VaultInstanceV1) -> dict[str, Optional
     vault_creds = {}
     vault = cast(_VaultClient, VaultClient())
 
-    vault_instance_auth = cast(VaultInstanceAuthApproleV1, vault_instance.auth)
+    if not isinstance(vault_instance.auth, VaultInstanceAuthApproleV1):
+        raise VaultInvalidAuthMethod
 
     role_id = {
-        "path": vault_instance_auth.role_id.path,
-        "field": vault_instance_auth.role_id.field,
+        "path": vault_instance.auth.role_id.path,
+        "field": vault_instance.auth.role_id.field,
     }
     secret_id = {
-        "path": vault_instance_auth.secret_id.path,
-        "field": vault_instance_auth.secret_id.field,
+        "path": vault_instance.auth.secret_id.path,
+        "field": vault_instance.auth.secret_id.field,
     }
 
     vault_creds["role_id"] = vault.read(role_id)
