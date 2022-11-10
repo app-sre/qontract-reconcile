@@ -1,20 +1,22 @@
 import os
 from abc import ABC, abstractmethod
-from typing import Iterable, Optional
+from typing import Generic, Iterable, Optional, TypeVar
 
 from reconcile.utils.exceptions import PrintToFileInGitRepositoryError
-from reconcile.utils.external_resource_spec import ExternalResourceSpec
+from reconcile.utils.external_resource_spec import IExternalResourceSpec
 from reconcile.utils.git import is_file_in_git_repo
 
+T = TypeVar("T", bound=IExternalResourceSpec)
 
-class TerraformConfigClient(ABC):
+
+class TerraformConfigClient(ABC, Generic[T]):
     """
     Clients that are responsible for collecting external resource specs and returning
     Terraform JSON configuration.
     """
 
     @abstractmethod
-    def add_spec(self, spec: ExternalResourceSpec) -> None:
+    def add_spec(self, spec: T) -> None:
         """
         Add external resource specs that will be used to populate a Terraform JSON
         config.
@@ -36,16 +38,18 @@ class TerraformConfigClient(ABC):
         """Return the Terraform JSON configuration as a string."""
 
 
-class TerraformConfigClientCollection:
+class TerraformConfigClientCollection(Generic[T]):
     """
     Collection of TerraformConfigClient for consolidating logic related collecting the
     clients and iterating through them, optionally concurrency as needed.
     """
 
     def __init__(self) -> None:
-        self._clients: dict[str, TerraformConfigClient] = {}
+        self._clients: dict[str, TerraformConfigClient[T]] = {}
 
-    def register_client(self, account_name: str, client: TerraformConfigClient) -> None:
+    def register_client(
+        self, account_name: str, client: TerraformConfigClient[T]
+    ) -> None:
         if account_name in self._clients:
             raise ClientAlreadyRegisteredError(
                 f"Client already registered with the name: {account_name}"
@@ -55,7 +59,7 @@ class TerraformConfigClientCollection:
 
     def add_specs(
         self,
-        specs: Iterable[ExternalResourceSpec],
+        specs: Iterable[T],
         account_filter: Optional[str] = None,
     ) -> None:
         """
