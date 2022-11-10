@@ -290,12 +290,17 @@ def calculate_diff(current_state, desired_state, ocm_map, version_history):
                 )
                 continue
 
-        # ignore clusters with an upgrade schedule not within the next 2 hours
         schedule = d["schedule"]
-        next_schedule = croniter(schedule).get_next(datetime)
-        next_schedule_in_hours = (
-            next_schedule - now
-        ).total_seconds() / 3600  # seconds in hour
+        next_schedule_in_seconds = 0
+        iter = croniter(schedule)
+        # ClusterService refuses scheduling upgrades less than 5m in advance
+        # Let's find the next schedule that is at least 5m ahead
+        while next_schedule_in_seconds < 5 * 60:
+            next_schedule = iter.get_next(datetime)
+            next_schedule_in_seconds = (next_schedule - now).total_seconds()
+        next_schedule_in_hours = next_schedule_in_seconds / 3600  # seconds in hour
+
+        # ignore clusters with an upgrade schedule not within the next 2 hours
         if next_schedule_in_hours > 2:
             logging.debug(
                 f"[{ocm.name}/{cluster}] skipping cluster with no upcoming upgrade"
