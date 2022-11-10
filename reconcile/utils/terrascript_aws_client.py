@@ -219,6 +219,7 @@ VARIABLE_KEYS = [
     "vpce_id",
     "fifo_topic",
     "subscriptions",
+    "extra_tags",
 ]
 
 EMAIL_REGEX = re.compile(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$")
@@ -4903,6 +4904,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         tags = common_values["tags"]
         tags["Name"] = identifier
+        extra_tags = common_values.get("extra_tags", None)
+        if extra_tags:
+            tags.update(json.loads(extra_tags))
         # common_values is untyped, so casting is necessary
         region = cast(str, common_values.get("region")) or cast(
             str, self.default_regions.get(account)
@@ -4987,6 +4991,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             "vpc_zone_identifier": common_values.get("vpc_zone_identifier"),
             "capacity_rebalance": common_values.get("capacity_rebalance"),
             "max_instance_lifetime": common_values.get("max_instance_lifetime"),
+            "protect_from_scale_in": common_values.get("protect_from_scale_in"),
+            "enabled_metrics": common_values.get("enabled_metrics"),
             "mixed_instances_policy": {
                 "instances_distribution": common_values.get("instances_distribution"),
                 "launch_template": {
