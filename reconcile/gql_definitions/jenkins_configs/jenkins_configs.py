@@ -16,8 +16,17 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
+from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
+
 
 DEFINITION = """
+fragment VaultSecret on VaultSecret_v1 {
+    path
+    field
+    version
+    format
+}
+
 query JenkinsConfigs {
   jenkins_configs: jenkins_configs_v1 {
     name
@@ -26,10 +35,7 @@ query JenkinsConfigs {
         name
         serverUrl
         token {
-          path
-          field
-          version
-          format
+          ... VaultSecret
         }
         deleteMethod
       }
@@ -52,21 +58,10 @@ class JenkinsConfigV1(BaseModel):
         extra = Extra.forbid
 
 
-class VaultSecretV1(BaseModel):
-    path: str = Field(..., alias="path")
-    field: str = Field(..., alias="field")
-    version: Optional[int] = Field(..., alias="version")
-    q_format: Optional[str] = Field(..., alias="format")
-
-    class Config:
-        smart_union = True
-        extra = Extra.forbid
-
-
 class JenkinsInstanceV1(BaseModel):
     name: str = Field(..., alias="name")
     server_url: str = Field(..., alias="serverUrl")
-    token: VaultSecretV1 = Field(..., alias="token")
+    token: VaultSecret = Field(..., alias="token")
     delete_method: Optional[str] = Field(..., alias="deleteMethod")
 
     class Config:

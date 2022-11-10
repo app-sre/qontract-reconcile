@@ -9,12 +9,10 @@ query VaultInstances {
       secretEngine
       ... on VaultInstanceAuthApprole_v1 {
       roleID {
-        path
-        field
+        ... VaultSecret
       }
       secretID {
-        path
-        field
+        ... VaultSecret
       }
     }
     }
@@ -27,12 +25,10 @@ query VaultInstances {
             secretEngine
             ... on VaultInstanceAuthApprole_v1 {
               roleID {
-                path
-                field
+                ... VaultSecret
               }
               secretID {
-                path
-                field
+                ... VaultSecret
               }
             }
           }

@@ -16,8 +16,17 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
+from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
+
 
 DEFINITION = """
+fragment VaultSecret on VaultSecret_v1 {
+    path
+    field
+    version
+    format
+}
+
 query VaultInstances {
   vault_instances: vault_instances_v1 {
     name
@@ -27,12 +36,10 @@ query VaultInstances {
       secretEngine
       ... on VaultInstanceAuthApprole_v1 {
       roleID {
-        path
-        field
+        ... VaultSecret
       }
       secretID {
-        path
-        field
+        ... VaultSecret
       }
     }
     }
@@ -45,12 +52,10 @@ query VaultInstances {
             secretEngine
             ... on VaultInstanceAuthApprole_v1 {
               roleID {
-                path
-                field
+                ... VaultSecret
               }
               secretID {
-                path
-                field
+                ... VaultSecret
               }
             }
           }
@@ -86,27 +91,9 @@ class VaultInstanceAuthV1(BaseModel):
         extra = Extra.forbid
 
 
-class VaultSecretV1(BaseModel):
-    path: str = Field(..., alias="path")
-    field: str = Field(..., alias="field")
-
-    class Config:
-        smart_union = True
-        extra = Extra.forbid
-
-
-class VaultInstanceAuthApproleV1_VaultSecretV1(BaseModel):
-    path: str = Field(..., alias="path")
-    field: str = Field(..., alias="field")
-
-    class Config:
-        smart_union = True
-        extra = Extra.forbid
-
-
 class VaultInstanceAuthApproleV1(VaultInstanceAuthV1):
-    role_id: VaultSecretV1 = Field(..., alias="roleID")
-    secret_id: VaultInstanceAuthApproleV1_VaultSecretV1 = Field(..., alias="secretID")
+    role_id: VaultSecret = Field(..., alias="roleID")
+    secret_id: VaultSecret = Field(..., alias="secretID")
 
     class Config:
         smart_union = True
@@ -122,37 +109,11 @@ class VaultReplicationConfigV1_VaultInstanceV1_VaultInstanceAuthV1(BaseModel):
         extra = Extra.forbid
 
 
-class VaultReplicationConfigV1_VaultInstanceV1_VaultInstanceAuthV1_VaultInstanceAuthApproleV1_VaultSecretV1(
-    BaseModel
-):
-    path: str = Field(..., alias="path")
-    field: str = Field(..., alias="field")
-
-    class Config:
-        smart_union = True
-        extra = Extra.forbid
-
-
-class VaultReplicationConfigV1_VaultInstanceV1_VaultInstanceAuthV1_VaultReplicationConfigV1_VaultInstanceV1_VaultInstanceAuthV1_VaultInstanceAuthApproleV1_VaultSecretV1(
-    BaseModel
-):
-    path: str = Field(..., alias="path")
-    field: str = Field(..., alias="field")
-
-    class Config:
-        smart_union = True
-        extra = Extra.forbid
-
-
 class VaultReplicationConfigV1_VaultInstanceV1_VaultInstanceAuthV1_VaultInstanceAuthApproleV1(
     VaultReplicationConfigV1_VaultInstanceV1_VaultInstanceAuthV1
 ):
-    role_id: VaultReplicationConfigV1_VaultInstanceV1_VaultInstanceAuthV1_VaultInstanceAuthApproleV1_VaultSecretV1 = Field(
-        ..., alias="roleID"
-    )
-    secret_id: VaultReplicationConfigV1_VaultInstanceV1_VaultInstanceAuthV1_VaultReplicationConfigV1_VaultInstanceV1_VaultInstanceAuthV1_VaultInstanceAuthApproleV1_VaultSecretV1 = Field(
-        ..., alias="secretID"
-    )
+    role_id: VaultSecret = Field(..., alias="roleID")
+    secret_id: VaultSecret = Field(..., alias="secretID")
 
     class Config:
         smart_union = True

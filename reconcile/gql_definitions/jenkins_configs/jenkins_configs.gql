@@ -8,10 +8,7 @@ query JenkinsConfigs {
         name
         serverUrl
         token {
-          path
-          field
-          version
-          format
+          ... VaultSecret
         }
         deleteMethod
       }
