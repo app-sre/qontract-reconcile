@@ -25,6 +25,7 @@ from reconcile.utils.external_resource_spec import (
 
 PROVIDER_AWS = "aws"
 PROVIDER_CLOUDFLARE = "cloudflare"
+PROVIDER_CNA_EXPERIMENTAL = "cna-experimental"
 
 T = TypeVar("T", bound=ExternalResource)
 
@@ -34,9 +35,9 @@ def get_external_resource_specs_for_namespace(
     resource_type: Type[T],
     provision_provider: Optional[str] = None,
 ) -> list[TypedExternalResourceSpec[T]]:
-    specs: List[TypedExternalResourceSpec[T]] = []
     if not namespace.managed_external_resources:
-        return specs
+        return []
+    specs: List[TypedExternalResourceSpec[T]] = []
     for e in namespace.external_resources or []:
         if isinstance(e, NamespaceExternalResource):
             for r in e.resources:

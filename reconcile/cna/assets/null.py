@@ -11,12 +11,11 @@ from reconcile.cna.assets.asset import (
 )
 from reconcile.gql_definitions.cna.queries.cna_resources import (
     CNANullAssetV1,
-    CNAssetV1,
 )
 
 
 @dataclass(frozen=True, config=AssetModelConfig)
-class NullAsset(Asset):
+class NullAsset(Asset[CNANullAssetV1]):
     addr_block: Optional[str] = Field(None, alias="AddrBlock")
 
     @staticmethod
@@ -28,12 +27,11 @@ class NullAsset(Asset):
         return AssetType.NULL
 
     @staticmethod
-    def from_query_class(asset: CNAssetV1) -> Asset:
-        assert isinstance(asset, CNANullAssetV1)
+    def from_query_class(asset: CNANullAssetV1) -> Asset:
         return NullAsset(
             id=None,
             href=None,
             status=AssetStatus.UNKNOWN,
-            name=asset.name,
-            addr_block=asset.addr_block,
+            name=asset.identifier,
+            addr_block=asset.overrides.addr_block if asset.overrides else None,
         )

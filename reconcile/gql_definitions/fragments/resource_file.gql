@@ -1,0 +1,6 @@
+# qenerate: plugin=pydantic_v1
+
+fragment ResourceFile on Resource_v1 {
+  resourceFileSchema: schema
+  content
+}

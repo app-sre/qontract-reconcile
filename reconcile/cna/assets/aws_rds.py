@@ -13,12 +13,11 @@ from reconcile.cna.assets.asset import (
 from reconcile.cna.assets.aws_utils import aws_role_arn_for_module
 from reconcile.gql_definitions.cna.queries.cna_resources import (
     CNARDSInstanceV1,
-    CNAssetV1,
 )
 
 
 @dataclass(frozen=True, config=AssetModelConfig)
-class AWSRDSAsset(Asset):
+class AWSRDSAsset(Asset[CNARDSInstanceV1]):
     identifier: str = Field(alias="identifier")
     vpc_id: str = Field(alias="vpc_id")
     role_arn: str = Field(alias="role_arn")
@@ -44,8 +43,7 @@ class AWSRDSAsset(Asset):
         return AssetType.AWS_RDS
 
     @staticmethod
-    def from_query_class(asset: CNAssetV1) -> Asset:
-        assert isinstance(asset, CNARDSInstanceV1)
+    def from_query_class(asset: CNARDSInstanceV1) -> Asset:
         aws_cna_cfg = asset.vpc.account.cna
         role_arn = aws_role_arn_for_module(aws_cna_cfg, AssetType.AWS_RDS.value)
         if role_arn is None:
@@ -57,20 +55,26 @@ class AWSRDSAsset(Asset):
             raise AssetError("No overrides provided for RDS instance")
 
         if not (db_subnet_group_name := asset.overrides.db_subnet_group_name):
-            raise AssetError("No db_subnet_group_name provided for RDS instance")
+            raise AssetError(
+                f"No db_subnet_group_name provided for RDS instance {asset.identifier}"
+            )
         if not (instance_class := asset.overrides.instance_class):
-            raise AssetError("No instance_class provided for RDS instance")
+            raise AssetError(
+                f"No instance_class provided for RDS instance {asset.identifier}"
+            )
         if not (engine := asset.overrides.engine):
-            raise AssetError("No engine provided for RDS instance")
+            raise AssetError(f"No engine provided for RDS instance {asset.identifier}")
         if not (max_allocated_storage := asset.overrides.max_allocated_storage):
-            raise AssetError("No max_allocated_storage provided for RDS instance")
+            raise AssetError(
+                f"No max_allocated_storage provided for RDS instance {asset.identifier}"
+            )
 
         return AWSRDSAsset(
             id=None,
             href=None,
             status=AssetStatus.UNKNOWN,
-            name=asset.name,
-            identifier=asset.name,
+            name=asset.identifier,
+            identifier=asset.identifier,
             vpc_id=asset.vpc.vpc_id,
             role_arn=role_arn,
             db_subnet_group_name=db_subnet_group_name,

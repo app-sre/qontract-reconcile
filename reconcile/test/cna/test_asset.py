@@ -1,4 +1,4 @@
-from typing import Any, Mapping
+from typing import Any, Mapping, MutableMapping
 from reconcile.cna.assets.asset import (
     Asset,
     AssetStatus,
@@ -72,7 +72,7 @@ def raw_aws_assumerole_asset() -> dict[str, Any]:
 
 @pytest.fixture
 def aws_assumerole_asset(
-    raw_aws_assumerole_asset: Mapping[str, Any],
+    raw_aws_assumerole_asset: MutableMapping[str, Any],
 ) -> AWSAssumeRoleAsset:
     asset = Asset.from_api_mapping(
         raw_aws_assumerole_asset,
@@ -89,7 +89,7 @@ def test_asset_type_extraction_from_raw(raw_aws_assumerole_asset: Mapping[str, A
 
 
 def test_from_api_mapping(
-    raw_aws_assumerole_asset: Mapping[str, Any],
+    raw_aws_assumerole_asset: MutableMapping[str, Any],
 ):
     asset = Asset.from_api_mapping(raw_aws_assumerole_asset, AWSAssumeRoleAsset)
     assert isinstance(asset, AWSAssumeRoleAsset)
@@ -102,7 +102,7 @@ def test_from_api_mapping(
 
 
 def test_from_api_mapping_required_parameter_missing(
-    raw_aws_assumerole_asset: Mapping[str, Any],
+    raw_aws_assumerole_asset: MutableMapping[str, Any],
 ):
     raw_aws_assumerole_asset["parameters"].pop("role_arn")
     with pytest.raises(AssetError) as e:
@@ -110,7 +110,7 @@ def test_from_api_mapping_required_parameter_missing(
             raw_aws_assumerole_asset,
             AWSAssumeRoleAsset,
         )
-    assert str(e.value).startswith("Inconsistent asset from CNA API")
+    assert str(e.value).startswith("Inconsistent asset")
 
 
 def test_api_payload(aws_assumerole_asset: AWSAssumeRoleAsset):

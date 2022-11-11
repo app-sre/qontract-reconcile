@@ -1,4 +1,4 @@
-from typing import Any, Mapping, Type
+from typing import Any, MutableMapping, Type
 
 from reconcile.gql_definitions.cna.queries.cna_resources import (
     CNAssetV1,
@@ -12,6 +12,7 @@ from reconcile.cna.assets.asset import (
     ASSET_HREF_FIELD,
     ASSET_NAME_FIELD,
 )
+from reconcile.utils.external_resource_spec import TypedExternalResourceSpec
 
 
 _ASSET_TYPE_SCHEME: dict[AssetType, Type[Asset]] = {}
@@ -37,12 +38,14 @@ def asset_type_for_provider(provider: str) -> AssetType:
     return _dataclass_for_provider(provider).asset_type()
 
 
-def asset_factory_from_schema(schema_asset: CNAssetV1) -> Asset:
-    cna_dataclass = _dataclass_for_provider(schema_asset.provider)
-    return cna_dataclass.from_query_class(schema_asset)
+def asset_factory_from_schema(
+    external_resource_spec: TypedExternalResourceSpec[CNAssetV1],
+) -> Asset:
+    cna_dataclass = _dataclass_for_provider(external_resource_spec.provider)
+    return cna_dataclass.from_external_resources(external_resource_spec)
 
 
-def asset_factory_from_raw_data(raw_asset: Mapping[str, Any]) -> Asset:
+def asset_factory_from_raw_data(raw_asset: MutableMapping[str, Any]) -> Asset:
     asset_type_id = asset_type_id_from_raw_asset(raw_asset)
     if asset_type_id:
         asset_type = asset_type_by_id(asset_type_id)

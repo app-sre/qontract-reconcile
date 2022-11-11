@@ -19,6 +19,7 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
 from reconcile.gql_definitions.cna.queries.aws_account_fragment import (
     CNAAWSAccountRoleARNs,
 )
+from reconcile.gql_definitions.fragments.resource_file import ResourceFile
 
 
 DEFINITION = """
@@ -33,9 +34,15 @@ fragment CNAAWSAccountRoleARNs on AWSAccount_v1 {
   }
 }
 
+fragment ResourceFile on Resource_v1 {
+  resourceFileSchema: schema
+  content
+}
+
 query CNAssets {
   namespaces: namespaces_v1 {
     name
+    managedExternalResources
     externalResources {
       provider
       provisioner {
@@ -44,21 +51,13 @@ query CNAssets {
       ... on NamespaceCNAsset_v1 {
         resources {
           provider
+          identifier
           ... on CNANullAsset_v1 {
-            name: identifier
-            addr_block
-          }
-          ... on CNAAssumeRoleAsset_v1{
-            name: identifier
-            aws_assume_role {
-              slug
-              account {
-                ... CNAAWSAccountRoleARNs
-              }
+            overrides {
+              addr_block
             }
           }
           ... on CNARDSInstance_v1 {
-            name: identifier
             vpc {
               vpc_id
               region
@@ -66,7 +65,9 @@ query CNAssets {
                 ... CNAAWSAccountRoleARNs
               }
             }
-            defaults
+            defaults {
+              ... ResourceFile
+            }
             overrides {
               name
               engine
@@ -77,6 +78,14 @@ query CNAssets {
               max_allocated_storage
               backup_retention_period
               db_subnet_group_name
+            }
+          }
+          ... on CNAAssumeRoleAsset_v1{
+            account {
+              ... CNAAWSAccountRoleARNs
+            }
+            overrides {
+              slug
             }
           }
         }
@@ -106,14 +115,14 @@ class NamespaceExternalResourceV1(BaseModel):
 
 class CNAssetV1(BaseModel):
     provider: str = Field(..., alias="provider")
+    identifier: str = Field(..., alias="identifier")
 
     class Config:
         smart_union = True
         extra = Extra.forbid
 
 
-class CNANullAssetV1(CNAssetV1):
-    name: str = Field(..., alias="name")
+class CNANullAssetOverridesV1(BaseModel):
     addr_block: Optional[str] = Field(..., alias="addr_block")
 
     class Config:
@@ -121,18 +130,8 @@ class CNANullAssetV1(CNAssetV1):
         extra = Extra.forbid
 
 
-class CNAAssumeRoleAssetConfigV1(BaseModel):
-    slug: str = Field(..., alias="slug")
-    account: CNAAWSAccountRoleARNs = Field(..., alias="account")
-
-    class Config:
-        smart_union = True
-        extra = Extra.forbid
-
-
-class CNAAssumeRoleAssetV1(CNAssetV1):
-    name: str = Field(..., alias="name")
-    aws_assume_role: CNAAssumeRoleAssetConfigV1 = Field(..., alias="aws_assume_role")
+class CNANullAssetV1(CNAssetV1):
+    overrides: Optional[CNANullAssetOverridesV1] = Field(..., alias="overrides")
 
     class Config:
         smart_union = True
@@ -166,10 +165,26 @@ class CNARDSInstanceOverridesV1(BaseModel):
 
 
 class CNARDSInstanceV1(CNAssetV1):
-    name: str = Field(..., alias="name")
     vpc: AWSVPCV1 = Field(..., alias="vpc")
-    defaults: str = Field(..., alias="defaults")
+    defaults: Optional[ResourceFile] = Field(..., alias="defaults")
     overrides: Optional[CNARDSInstanceOverridesV1] = Field(..., alias="overrides")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
+class CNAAssumeRoleAssetOverridesV1(BaseModel):
+    slug: str = Field(..., alias="slug")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
+class CNAAssumeRoleAssetV1(CNAssetV1):
+    account: CNAAWSAccountRoleARNs = Field(..., alias="account")
+    overrides: Optional[CNAAssumeRoleAssetOverridesV1] = Field(..., alias="overrides")
 
     class Config:
         smart_union = True
@@ -178,7 +193,7 @@ class CNARDSInstanceV1(CNAssetV1):
 
 class NamespaceCNAssetV1(NamespaceExternalResourceV1):
     resources: list[
-        Union[CNARDSInstanceV1, CNANullAssetV1, CNAAssumeRoleAssetV1, CNAssetV1]
+        Union[CNARDSInstanceV1, CNAAssumeRoleAssetV1, CNANullAssetV1, CNAssetV1]
     ] = Field(..., alias="resources")
 
     class Config:
@@ -188,6 +203,9 @@ class NamespaceCNAssetV1(NamespaceExternalResourceV1):
 
 class NamespaceV1(BaseModel):
     name: str = Field(..., alias="name")
+    managed_external_resources: Optional[bool] = Field(
+        ..., alias="managedExternalResources"
+    )
     external_resources: Optional[
         list[Union[NamespaceCNAssetV1, NamespaceExternalResourceV1]]
     ] = Field(..., alias="externalResources")

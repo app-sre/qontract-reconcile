@@ -25,6 +25,8 @@ from reconcile.utils.openshift_resource import (
 )
 
 from reconcile import openshift_resources_base
+from reconcile.gql_definitions.fragments.resource_file import ResourceFile
+import anymarkup
 
 
 class OutputFormatProcessor:
@@ -332,6 +334,10 @@ class MyConfig:
     arbitrary_types_allowed = True
 
 
+EXTERNAL_RESOURCE_SPEC_DEFAULTS_PROPERTY = "defaults"
+EXTERNAL_RESOURCE_SPEC_OVERRIDES_PROPERTY = "overrides"
+
+
 @dataclass(config=MyConfig)
 class TypedExternalResourceSpec(IExternalResourceSpec, Generic[T]):
 
@@ -409,3 +415,41 @@ class TypedExternalResourceSpec(IExternalResourceSpec, Generic[T]):
 
     def _output_format(self) -> OutputFormat:
         raise Exception("Not implemented")
+
+    def resolve(self) -> "TypedExternalResourceSpec[T]":
+        if overrides_spec := getattr(
+            self.spec, EXTERNAL_RESOURCE_SPEC_OVERRIDES_PROPERTY, None
+        ):
+            override_values = overrides_spec.dict(by_alias=True)
+        else:
+            # todo don't return self. make a copy instead
+            return self
+
+        if hasattr(self.spec, EXTERNAL_RESOURCE_SPEC_DEFAULTS_PROPERTY) and isinstance(
+            defaults := getattr(
+                self.spec, EXTERNAL_RESOURCE_SPEC_DEFAULTS_PROPERTY, None
+            ),
+            ResourceFile,
+        ):
+            try:
+                defaults_values = anymarkup.parse(defaults.content, force_types=None)
+                defaults_values.pop("$schema", None)
+            except anymarkup.AnyMarkupError:
+                # todo error handling
+                raise Exception("Could not parse data. Skipping resource")
+        else:
+            defaults_values = {}
+
+        for property, value in override_values.items():
+            if value is None and property in defaults_values:
+                override_values[property] = defaults_values[property]
+
+        new_spec_attr = self.spec.dict(by_alias=True)
+        new_spec_attr[EXTERNAL_RESOURCE_SPEC_OVERRIDES_PROPERTY] = override_values
+        new_spec = type(self.spec)(**new_spec_attr)
+
+        return TypedExternalResourceSpec(
+            namespace_spec=self.namespace_spec,
+            namespace_external_resource=self.namespace_external_resource,
+            spec=new_spec,
+        )

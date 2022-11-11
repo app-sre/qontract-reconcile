@@ -3,6 +3,7 @@
 query CNAssets {
   namespaces: namespaces_v1 {
     name
+    managedExternalResources
     externalResources {
       provider
       provisioner {
@@ -11,21 +12,13 @@ query CNAssets {
       ... on NamespaceCNAsset_v1 {
         resources {
           provider
+          identifier
           ... on CNANullAsset_v1 {
-            name: identifier
-            addr_block
-          }
-          ... on CNAAssumeRoleAsset_v1{
-            name: identifier
-            aws_assume_role {
-              slug
-              account {
-                ... CNAAWSAccountRoleARNs
-              }
+            overrides {
+              addr_block
             }
           }
           ... on CNARDSInstance_v1 {
-            name: identifier
             vpc {
               vpc_id
               region
@@ -33,7 +26,9 @@ query CNAssets {
                 ... CNAAWSAccountRoleARNs
               }
             }
-            defaults
+            defaults {
+              ... ResourceFile
+            }
             overrides {
               name
               engine
@@ -44,6 +39,14 @@ query CNAssets {
               max_allocated_storage
               backup_retention_period
               db_subnet_group_name
+            }
+          }
+          ... on CNAAssumeRoleAsset_v1{
+            account {
+              ... CNAAWSAccountRoleARNs
+            }
+            overrides {
+              slug
             }
           }
         }

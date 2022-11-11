@@ -4,9 +4,11 @@ from abc import ABC, abstractmethod
 from pydantic.dataclasses import dataclass
 from pydantic.fields import FieldInfo
 from enum import Enum
-from typing import Any, Mapping, Optional, Type
+from typing import Any, Generic, Mapping, MutableMapping, Optional, Type, TypeVar
+import copy
 
 from reconcile.gql_definitions.cna.queries.cna_resources import CNAssetV1
+from reconcile.utils.external_resource_spec import TypedExternalResourceSpec
 
 
 ASSET_ID_FIELD = "id"
@@ -15,6 +17,8 @@ ASSET_NAME_FIELD = "name"
 ASSET_HREF_FIELD = "href"
 ASSET_STATUS_FIELD = "status"
 ASSET_PARAMETERS_FIELD = "parameters"
+ASSET_OUTPUTS_FIELD = "outputs"
+ASSET_CREATOR_FIELD = "creator"
 
 
 class AssetError(Exception):
@@ -84,8 +88,11 @@ class AssetModelConfig:
     allow_population_by_field_name = True
 
 
+AssetQueryClass = TypeVar("AssetQueryClass", bound=CNAssetV1)
+
+
 @dataclass(frozen=True, config=AssetModelConfig)
-class Asset(ABC):
+class Asset(ABC, Generic[AssetQueryClass]):
     name: str
     id: Optional[str]
     href: Optional[str]
@@ -111,8 +118,16 @@ class Asset(ABC):
 
     @staticmethod
     @abstractmethod
-    def from_query_class(asset: CNAssetV1) -> Asset:
+    def from_query_class(asset: AssetQueryClass) -> Asset:
         ...
+
+    @classmethod
+    def from_external_resources(
+        cls,
+        external_resource: TypedExternalResourceSpec[CNAssetV1],
+    ) -> Asset:
+        # todo check generic parameter from cls to match with type of external_resource
+        return cls.from_query_class(external_resource.spec)  # type: ignore[arg-type]
 
     def asset_metadata(self) -> dict[str, Any]:
         return {
@@ -163,19 +178,32 @@ class Asset(ABC):
 
     @staticmethod
     def from_api_mapping(
-        raw_asset: Mapping[str, Any],
+        raw_asset: MutableMapping[str, Any],
         cna_dataclass: Type[Asset],
     ) -> Asset:
         params = {}
+        consistency_errors = []
         raw_asset_params = raw_asset.get(ASSET_PARAMETERS_FIELD) or {}
         for var in cna_dataclass.type_metadata().variables:
             var_value = raw_asset_params.get(var.name)
             if not var.optional and not var_value:
-                raise AssetError(
-                    f"Inconsistent asset from CNA API {raw_asset}: required parameter {var.name} is missing in CNA"
+                consistency_errors.append(
+                    f" - required parameter {var.name} is missing"
                 )
-            property_name = _property_for_asset_parameter_alias(cna_dataclass, var.name)
-            params[property_name] = var_value
+            else:
+                property_name = _property_for_asset_parameter_alias(
+                    cna_dataclass, var.name
+                )
+                params[property_name] = var_value
+
+        if consistency_errors:
+            errors = "\n".join(consistency_errors)
+            redacted_raw_asset = copy.deepcopy(raw_asset)
+            redacted_raw_asset.pop(ASSET_OUTPUTS_FIELD, None)
+            redacted_raw_asset.pop(ASSET_CREATOR_FIELD, None)
+            raise AssetError(
+                f"Inconsistent asset {redacted_raw_asset} found on CNA:\n{errors}"
+            )
 
         return cna_dataclass(
             id=raw_asset.get(ASSET_ID_FIELD),
