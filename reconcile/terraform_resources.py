@@ -304,6 +304,8 @@ provider
     content
   }
   variables
+  overrides
+  extra_tags
   image {
     provider
     ... on ASGImageGit_v1 {
