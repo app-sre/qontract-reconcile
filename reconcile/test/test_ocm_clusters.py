@@ -72,8 +72,8 @@ def ocm_osd_cluster_spec():
         spec=spec,
         network=n,
         domain="devshift.net",
-        server_url="the-cluster-server_url",
-        console_url="the-cluster-console_url",
+        server_url="https://api.test-cluster.0000.p1.openshiftapps.com:6443",
+        console_url="https://console-openshift-console.test-cluster.0000.p1.openshiftapps.com",
     )
     yield obj
 
@@ -118,9 +118,9 @@ def osd_cluster_fxt():
             },
             "blockedVersions": ["^.*-fc\\..*$"],
         },
-        "consoleUrl": "the-cluster-console_url",
-        "serverUrl": "the-cluster-server_url",
-        "elbFQDN": "elb.apps.cluster1.devshift.net",
+        "consoleUrl": "https://console-openshift-console.test-cluster.0000.p1.openshiftapps.com",
+        "serverUrl": "https://api.test-cluster.0000.p1.openshiftapps.com:6443",
+        "elbFQDN": "elb.test-cluster.0000.p1.openshiftapps.com",
         "path": "the-cluster-path",
         "name": "cluster1",
         "id": "anid",
@@ -177,9 +177,9 @@ def rosa_cluster_fxt():
             },
             "blockedVersions": ["^.*-fc\\..*$"],
         },
-        "consoleUrl": "the-cluster-console_url",
-        "serverUrl": "the-cluster-server_url",
-        "elbFQDN": "the-cluster-elbFQDN",
+        "consoleUrl": "https://console-openshift-console.0000.p1.openshiftapps.com",
+        "serverUrl": "https://api.tst-jpr-rosa.0000.p1.openshiftapps.com:6443",
+        "elbFQDN": "elb.tst-jpr-rosa.0000.p1.openshiftapps.com",
         "path": "the-cluster-path",
         "name": "cluster1",
         "id": "anid",
@@ -559,4 +559,4 @@ def test_console_url_changes_ai(
     _post, _patch = ocm_mock
     assert _patch.call_count == 0
     assert _post.call_count == 0
-    assert cluster_updates_mr_mock.call_count == 0
+    assert cluster_updates_mr_mock.call_count == 1

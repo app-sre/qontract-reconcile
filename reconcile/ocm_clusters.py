@@ -133,10 +133,13 @@ def get_app_interface_spec_updates(
         logging.error(cve)
         error = True
 
-    if not desired_spec.spec.id:
+    if current_spec.spec.id and desired_spec.spec.id != current_spec.spec.id:
         ocm_spec_updates[ocmmod.SPEC_ATTR_ID] = current_spec.spec.id
 
-    if not desired_spec.spec.external_id:
+    if (
+        current_spec.spec.external_id
+        and desired_spec.spec.external_id != current_spec.spec.external_id
+    ):
         ocm_spec_updates[ocmmod.SPEC_ATTR_EXTERNAL_ID] = current_spec.spec.external_id
 
     if (
@@ -147,22 +150,27 @@ def get_app_interface_spec_updates(
             ocmmod.SPEC_ATTR_DISABLE_UWM
         ] = current_spec.spec.disable_user_workload_monitoring
 
-    if desired_spec.spec.provision_shard_id != current_spec.spec.provision_shard_id:
+    if (
+        current_spec.spec.provision_shard_id is not None
+        and desired_spec.spec.provision_shard_id != current_spec.spec.provision_shard_id
+    ):
         ocm_spec_updates[
             ocmmod.SPEC_ATTR_PROVISION_SHARD_ID
         ] = current_spec.spec.provision_shard_id
 
-    if not desired_spec.console_url:
-        root_updates[ocmmod.SPEC_ATTR_CONSOLE_URL] = current_spec.console_url
-
-    if not desired_spec.server_url:
+    if current_spec.server_url and desired_spec.server_url != current_spec.server_url:
         root_updates[ocmmod.SPEC_ATTR_SERVER_URL] = current_spec.server_url
 
-    if not desired_spec.elb_fqdn:
+    if current_spec.console_url:
+        if desired_spec.console_url != current_spec.console_url:
+            root_updates[ocmmod.SPEC_ATTR_CONSOLE_URL] = current_spec.console_url
+
         # https://issues.redhat.com/browse/SDA-7204
-        root_updates[ocmmod.SPEC_ATTR_ELBFQDN] = current_spec.console_url.replace(
+        elb_fqdn = current_spec.console_url.replace(
             "https://console-openshift-console", "elb"
         )
+        if desired_spec.elb_fqdn != elb_fqdn:
+            root_updates[ocmmod.SPEC_ATTR_ELBFQDN] = elb_fqdn
 
     updates: dict[str, Any] = {}
     updates[ocmmod.SPEC_ATTR_PATH] = "data" + str(desired_spec.path)
