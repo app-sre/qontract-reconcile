@@ -12,10 +12,12 @@ from reconcile.gql_definitions.vault_instances import vault_instances
 from reconcile.gql_definitions.vault_instances.vault_instances import (
     VaultInstanceAuthApproleV1,
     VaultInstanceV1,
+    VaultReplicationConfigV1_VaultInstanceV1_VaultInstanceAuthV1_VaultInstanceAuthApproleV1,
+    VaultReplicationConfigV1_VaultInstanceV1,
 )
 
 from reconcile.utils import gql
-from typing import List, cast, Optional
+from typing import List, cast, Optional, Union
 
 QONTRACT_INTEGRATION = "vault-replication"
 
@@ -56,9 +58,9 @@ def copy_vault_secret(
         _, dest_version = dest_vault.read_all_with_version(secret_dict)
         if dest_version is None and version is None:
             # v1 secrets don't have version
-            secret, src_version = source_vault.read_all_with_version(secret_dict)
+            secret, _ = source_vault.read_all_with_version(secret_dict)
             write_dict = {"path": path, "data": secret}
-            logging.info(["replicate_vault_secret", src_version, path])
+            logging.info(["replicate_vault_secret", path])
             if not dry_run:
                 dest_vault.write(write_dict)
         elif dest_version < version:
@@ -74,6 +76,7 @@ def copy_vault_secret(
             logging.info(["replicate_vault_secret", dest_version, version, path])
     except SecretNotFound:
         logging.info(["replicate_vault_secret", "Secret not found", path])
+        # Handle v1 secrets where version is None and we don't need to deep sync.
         if version is None:
             if not dry_run:
                 dest_vault.write(write_dict)
@@ -159,7 +162,9 @@ def get_jenkins_secret_list(jenkins_instance: str) -> List[str]:
     return secret_list
 
 
-def get_vault_credentials(vault_instance: VaultInstanceV1) -> dict[str, Optional[str]]:
+def get_vault_credentials(
+    vault_instance: Union[VaultInstanceV1, VaultReplicationConfigV1_VaultInstanceV1]
+) -> dict[str, Optional[str]]:
     """Returns a dictionary with the credentials used to authenticate with Vault,
     retrieved from the values present on AppInterface.
 
@@ -171,7 +176,12 @@ def get_vault_credentials(vault_instance: VaultInstanceV1) -> dict[str, Optional
     vault_creds = {}
     vault = cast(_VaultClient, VaultClient())
 
-    if not isinstance(vault_instance.auth, VaultInstanceAuthApproleV1):
+    if not isinstance(
+        vault_instance.auth, VaultInstanceAuthApproleV1
+    ) and not isinstance(
+        vault_instance.auth,
+        VaultReplicationConfigV1_VaultInstanceV1_VaultInstanceAuthV1_VaultInstanceAuthApproleV1,
+    ):
         raise VaultInvalidAuthMethod
 
     role_id = {
@@ -221,25 +231,17 @@ def run(dry_run: bool) -> None:
             if instance.replication:
                 for replication in instance.replication:
                     source_creds = get_vault_credentials(instance)
-                    dest_creds = get_vault_credentials(
-                        cast(VaultInstanceV1, replication.vault_instance)
-                    )
+                    dest_creds = get_vault_credentials(replication.vault_instance)
 
-                    source_vault = cast(
-                        _VaultClient,
-                        VaultClient(
-                            server=source_creds["server"],
-                            role_id=source_creds["role_id"],
-                            secret_id=source_creds["secret_id"],
-                        ),
+                    source_vault = _VaultClient(
+                        server=source_creds["server"],
+                        role_id=source_creds["role_id"],
+                        secret_id=source_creds["secret_id"],
                     )
-                    dest_vault = cast(
-                        _VaultClient,
-                        VaultClient(
-                            server=dest_creds["server"],
-                            role_id=dest_creds["role_id"],
-                            secret_id=dest_creds["secret_id"],
-                        ),
+                    dest_vault = _VaultClient(
+                        server=dest_creds["server"],
+                        role_id=dest_creds["role_id"],
+                        secret_id=dest_creds["secret_id"],
                     )
 
                     replicate_paths(
