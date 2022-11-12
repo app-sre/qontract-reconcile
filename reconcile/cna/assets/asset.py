@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from pydantic.dataclasses import dataclass
 from pydantic.fields import FieldInfo
 from enum import Enum
-from typing import Any, Generic, Mapping, MutableMapping, Optional, Type, TypeVar
+from typing import Any, Generic, Mapping, Optional, Type, TypeVar, get_args
 import copy
 
 from reconcile.gql_definitions.cna.queries.cna_resources import CNAssetV1
@@ -126,8 +126,14 @@ class Asset(ABC, Generic[AssetQueryClass]):
         cls,
         external_resource: TypedExternalResourceSpec[CNAssetV1],
     ) -> Asset:
-        # todo check generic parameter from cls to match with type of external_resource
-        return cls.from_query_class(external_resource.spec)  # type: ignore[arg-type]
+        cls_arg = get_args(cls.__orig_bases__[0])[0]  # type: ignore[attr-defined]
+        if isinstance(external_resource.spec, cls_arg):
+            return cls.from_query_class(external_resource.spec)
+        else:
+            raise AssetError(
+                f"CNA type {cls_arg} does not match "
+                f"external resource type {type(external_resource)}"
+            )
 
     def asset_metadata(self) -> dict[str, Any]:
         return {
@@ -198,9 +204,7 @@ class Asset(ABC, Generic[AssetQueryClass]):
 
         if inconsistency_errors:
             errors = "\n".join(inconsistency_errors)
-            redacted_raw_asset = dict(
-                copy.deepcopy(raw_asset)
-            )
+            redacted_raw_asset = dict(copy.deepcopy(raw_asset))
             redacted_raw_asset.pop(ASSET_OUTPUTS_FIELD, None)
             redacted_raw_asset.pop(ASSET_CREATOR_FIELD, None)
             raise AssetError(
