@@ -76,7 +76,7 @@ def create_cloudflare_terrascript(
     return terrascript
 
 
-class TerrascriptCloudflareClient(TerraformConfigClient[ExternalResourceSpec]):
+class TerrascriptCloudflareClient(TerraformConfigClient):
     """
     Build the Terrascript configuration, collect resources, and return Terraform JSON
     configuration.

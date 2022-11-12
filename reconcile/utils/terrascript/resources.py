@@ -1,12 +1,12 @@
 from abc import ABC, abstractmethod
-from typing import Generic, Iterable, Union
+from typing import Iterable, Union
 
 from terrascript import Resource, Output
 
-from reconcile.utils.terraform.config_client import T
+from reconcile.utils.external_resource_spec import ExternalResourceSpec
 
 
-class TerrascriptResource(ABC, Generic[T]):
+class TerrascriptResource(ABC):
     """
     Base class for creating Terrascript resources. New resources are added by
     subclassing this class and implementing the logic to return the required Terrascript
@@ -18,8 +18,8 @@ class TerrascriptResource(ABC, Generic[T]):
     implicitly created certain resources.
     """
 
-    def __init__(self, spec: T) -> None:
-        self._spec: T = spec
+    def __init__(self, spec: ExternalResourceSpec) -> None:
+        self._spec = spec
 
     @staticmethod
     def _get_dependencies(tf_resources: Iterable[Resource]) -> list[str]:

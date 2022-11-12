@@ -18,7 +18,6 @@ from reconcile.utils.external_resources import (
     PROVIDER_CLOUDFLARE,
     get_external_resource_specs,
 )
-from reconcile.utils.external_resource_spec import ExternalResourceSpec
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.terraform.config_client import TerraformConfigClientCollection
@@ -121,7 +120,7 @@ def run(
 
     # Build Cloudflare clients
     query_accounts = terraform_cloudflare_accounts.query(query_func=gql.get_api().query)
-    cf_clients = TerraformConfigClientCollection[ExternalResourceSpec]()
+    cf_clients = TerraformConfigClientCollection()
     for client in build_clients(secret_reader, query_accounts, selected_account):
         cf_clients.register_client(*client)
 

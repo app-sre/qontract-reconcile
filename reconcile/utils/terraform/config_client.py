@@ -1,22 +1,20 @@
 import os
 from abc import ABC, abstractmethod
-from typing import Generic, Iterable, Optional, TypeVar
+from typing import Iterable, Optional
 
 from reconcile.utils.exceptions import PrintToFileInGitRepositoryError
 from reconcile.utils.external_resource_spec import ExternalResourceSpec
 from reconcile.utils.git import is_file_in_git_repo
 
-T = TypeVar("T", bound=ExternalResourceSpec)
 
-
-class TerraformConfigClient(ABC, Generic[T]):
+class TerraformConfigClient(ABC):
     """
     Clients that are responsible for collecting external resource specs and returning
     Terraform JSON configuration.
     """
 
     @abstractmethod
-    def add_spec(self, spec: T) -> None:
+    def add_spec(self, spec: ExternalResourceSpec) -> None:
         """
         Add external resource specs that will be used to populate a Terraform JSON
         config.
@@ -38,18 +36,16 @@ class TerraformConfigClient(ABC, Generic[T]):
         """Return the Terraform JSON configuration as a string."""
 
 
-class TerraformConfigClientCollection(Generic[T]):
+class TerraformConfigClientCollection:
     """
     Collection of TerraformConfigClient for consolidating logic related collecting the
     clients and iterating through them, optionally concurrency as needed.
     """
 
     def __init__(self) -> None:
-        self._clients: dict[str, TerraformConfigClient[T]] = {}
+        self._clients: dict[str, TerraformConfigClient] = {}
 
-    def register_client(
-        self, account_name: str, client: TerraformConfigClient[T]
-    ) -> None:
+    def register_client(self, account_name: str, client: TerraformConfigClient) -> None:
         if account_name in self._clients:
             raise ClientAlreadyRegisteredError(
                 f"Client already registered with the name: {account_name}"
@@ -59,7 +55,7 @@ class TerraformConfigClientCollection(Generic[T]):
 
     def add_specs(
         self,
-        specs: Iterable[T],
+        specs: Iterable[ExternalResourceSpec],
         account_filter: Optional[str] = None,
     ) -> None:
         """
