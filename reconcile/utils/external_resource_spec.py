@@ -130,8 +130,13 @@ class NamespaceExternalResource(Protocol):
 
 
 class Namespace(Protocol):
-    name: str
-    managed_external_resources: Optional[bool]
+    @property
+    def name(self) -> str:
+        ...
+
+    @property
+    def managed_external_resources(self) -> Optional[bool]:
+        ...
 
     @property
     def external_resources(

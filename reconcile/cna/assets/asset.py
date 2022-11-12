@@ -178,16 +178,16 @@ class Asset(ABC, Generic[AssetQueryClass]):
 
     @staticmethod
     def from_api_mapping(
-        raw_asset: MutableMapping[str, Any],
+        raw_asset: Mapping[str, Any],
         cna_dataclass: Type[Asset],
     ) -> Asset:
         params = {}
-        consistency_errors = []
+        inconsistency_errors = []
         raw_asset_params = raw_asset.get(ASSET_PARAMETERS_FIELD) or {}
         for var in cna_dataclass.type_metadata().variables:
             var_value = raw_asset_params.get(var.name)
             if not var.optional and not var_value:
-                consistency_errors.append(
+                inconsistency_errors.append(
                     f" - required parameter {var.name} is missing"
                 )
             else:
@@ -196,9 +196,11 @@ class Asset(ABC, Generic[AssetQueryClass]):
                 )
                 params[property_name] = var_value
 
-        if consistency_errors:
-            errors = "\n".join(consistency_errors)
-            redacted_raw_asset = copy.deepcopy(raw_asset)
+        if inconsistency_errors:
+            errors = "\n".join(inconsistency_errors)
+            redacted_raw_asset = dict(
+                copy.deepcopy(raw_asset)
+            )
             redacted_raw_asset.pop(ASSET_OUTPUTS_FIELD, None)
             redacted_raw_asset.pop(ASSET_CREATOR_FIELD, None)
             raise AssetError(
