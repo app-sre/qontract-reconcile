@@ -3,10 +3,10 @@ from abc import ABC, abstractmethod
 from typing import Generic, Iterable, Optional, TypeVar
 
 from reconcile.utils.exceptions import PrintToFileInGitRepositoryError
-from reconcile.utils.external_resource_spec import IExternalResourceSpec
+from reconcile.utils.external_resource_spec import ExternalResourceSpec
 from reconcile.utils.git import is_file_in_git_repo
 
-T = TypeVar("T", bound=IExternalResourceSpec)
+T = TypeVar("T", bound=ExternalResourceSpec)
 
 
 class TerraformConfigClient(ABC, Generic[T]):
