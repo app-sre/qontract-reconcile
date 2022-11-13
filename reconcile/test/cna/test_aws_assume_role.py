@@ -19,6 +19,7 @@ def test_from_query_class():
         overrides=CNAAssumeRoleAssetOverridesV1(
             slug=slug,
         ),
+        defaults=None,
         account=CNAAWSAccountRoleARNs(
             name="acc",
             cna=CNAAWSSpecV1(defaultRoleARN=arn, moduleRoleARNS=None),

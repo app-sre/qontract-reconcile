@@ -87,6 +87,9 @@ query CNAssets {
             overrides {
               slug
             }
+            defaults {
+              ... ResourceFile
+            }
           }
         }
       }
@@ -175,7 +178,7 @@ class CNARDSInstanceV1(CNAssetV1):
 
 
 class CNAAssumeRoleAssetOverridesV1(BaseModel):
-    slug: str = Field(..., alias="slug")
+    slug: Optional[str] = Field(..., alias="slug")
 
     class Config:
         smart_union = True
@@ -185,6 +188,7 @@ class CNAAssumeRoleAssetOverridesV1(BaseModel):
 class CNAAssumeRoleAssetV1(CNAssetV1):
     account: CNAAWSAccountRoleARNs = Field(..., alias="account")
     overrides: Optional[CNAAssumeRoleAssetOverridesV1] = Field(..., alias="overrides")
+    defaults: Optional[ResourceFile] = Field(..., alias="defaults")
 
     class Config:
         smart_union = True

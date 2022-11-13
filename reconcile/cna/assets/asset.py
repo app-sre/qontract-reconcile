@@ -127,8 +127,9 @@ class Asset(ABC, Generic[AssetQueryClass]):
         external_resource: TypedExternalResourceSpec[CNAssetV1],
     ) -> Asset:
         cls_arg = get_args(cls.__orig_bases__[0])[0]  # type: ignore[attr-defined]
-        if isinstance(external_resource.spec, cls_arg):
-            return cls.from_query_class(external_resource.spec)
+        resolved = external_resource.resolve()
+        if isinstance(resolved.spec, cls_arg):
+            return cls.from_query_class(resolved.spec)
         else:
             raise AssetError(
                 f"CNA type {cls_arg} does not match "

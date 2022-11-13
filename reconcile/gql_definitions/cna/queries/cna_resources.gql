@@ -48,6 +48,9 @@ query CNAssets {
             overrides {
               slug
             }
+            defaults {
+              ... ResourceFile
+            }
           }
         }
       }

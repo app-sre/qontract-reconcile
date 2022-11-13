@@ -58,8 +58,7 @@ class CNAIntegration:
             for spec in get_external_resource_specs_for_namespace(
                 namespace, CNAssetV1, PROVIDER_CNA_EXPERIMENTAL
             ):
-                resolved_spec = spec.resolve()
-                asset = asset_factory_from_schema(resolved_spec)
+                asset = asset_factory_from_schema(spec)
                 self._desired_states[spec.provisioner_name].add_asset(asset)
 
     def assemble_current_states(self):

@@ -14,6 +14,8 @@ from typing import (
     Union,
     Sequence,
     cast,
+    get_args,
+    get_origin,
 )
 
 import yaml
@@ -100,6 +102,7 @@ class ExternalResourceProvisioner(Protocol):
         ...
 
 
+@runtime_checkable
 class ExternalResource(Protocol):
     @property
     def provider(self) -> str:
@@ -107,6 +110,28 @@ class ExternalResource(Protocol):
 
     @property
     def identifier(self) -> str:
+        ...
+
+    @abstractmethod
+    def dict(self, *args, **kwargs) -> dict[str, Any]:
+        ...
+
+
+@runtime_checkable
+class OverridableExternalResource(ExternalResource, Protocol):
+    @property
+    def overrides(self) -> Optional[Any]:
+        ...
+
+    @abstractmethod
+    def dict(self, *args, **kwargs) -> dict[str, Any]:
+        ...
+
+
+@runtime_checkable
+class DefaultableExternalResource(ExternalResource, Protocol):
+    @property
+    def defaults(self) -> Optional[ResourceFile]:
         ...
 
     @abstractmethod
@@ -294,38 +319,57 @@ class TypedExternalResourceSpec(ExternalResourceSpec, Generic[T]):
             namespace=self.namespace_spec.dict(by_alias=True),
         )
 
-    def resolve(self) -> "TypedExternalResourceSpec[T]":
-        if overrides_spec := getattr(
-            self.spec, EXTERNAL_RESOURCE_SPEC_OVERRIDES_PROPERTY, None
-        ):
-            override_values = overrides_spec.dict(by_alias=True)
-        else:
-            # todo don't return self. make a copy instead
-            return self
-
-        if hasattr(self.spec, EXTERNAL_RESOURCE_SPEC_DEFAULTS_PROPERTY) and isinstance(
-            defaults := getattr(
-                self.spec, EXTERNAL_RESOURCE_SPEC_DEFAULTS_PROPERTY, None
-            ),
-            ResourceFile,
-        ):
+    def get_defaults_data(self) -> dict[str, Any]:
+        if isinstance(self.spec, DefaultableExternalResource) and self.spec.defaults:
             try:
-                defaults_values = anymarkup.parse(defaults.content, force_types=None)
+                defaults_values = anymarkup.parse(
+                    self.spec.defaults.content, force_types=None
+                )
                 defaults_values.pop("$schema", None)
+                return defaults_values
             except anymarkup.AnyMarkupError:
                 # todo error handling
                 raise Exception("Could not parse data. Skipping resource")
-        else:
-            defaults_values = {}
+        return {}
 
-        for property, value in override_values.items():
-            if value is None and property in defaults_values:
-                override_values[property] = defaults_values[property]
+    def get_overrides_data(self) -> dict[str, Any]:
+        if not isinstance(self.spec, OverridableExternalResource):
+            return {}
+        if self.spec.overrides is None:
+            return {}
+        return self.spec.overrides.dict(by_alias=True)
+
+    def is_overridable(self) -> bool:
+        return isinstance(self.spec, OverridableExternalResource)
+
+    def get_overridable_fields(self) -> Sequence[str]:
+        if isinstance(self.spec, OverridableExternalResource):
+            overrides_class = self.spec.__annotations__[
+                EXTERNAL_RESOURCE_SPEC_OVERRIDES_PROPERTY
+            ]
+            is_optional = get_origin(overrides_class) is Union and type(
+                None
+            ) in get_args(overrides_class)
+            if is_optional:
+                overrides_class = get_args(overrides_class)[0]
+            return overrides_class.__annotations__.keys()
+        else:
+            raise ValueError("resource is not overridable")
+
+    def resolve(self) -> "TypedExternalResourceSpec[T]":
+        if self.is_overridable():
+            overrides_data = self.get_overrides_data()
+            defaults_data = self.get_defaults_data()
+
+            for field_name in self.get_overridable_fields():
+                if overrides_data.get(field_name) is None:
+                    overrides_data[field_name] = defaults_data.get(field_name)
+        else:
+            overrides_data = {}
 
         new_spec_attr = self.spec.dict(by_alias=True)
-        new_spec_attr[EXTERNAL_RESOURCE_SPEC_OVERRIDES_PROPERTY] = override_values
+        new_spec_attr[EXTERNAL_RESOURCE_SPEC_OVERRIDES_PROPERTY] = overrides_data
         new_spec = type(self.spec)(**new_spec_attr)
-
         return TypedExternalResourceSpec(
             namespace_spec=self.namespace_spec,
             namespace_external_resource=self.namespace_external_resource,
