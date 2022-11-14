@@ -1,4 +1,4 @@
-from typing import Any, Mapping
+from typing import Any, Mapping, MutableMapping, Optional
 from reconcile.cna.assets.asset import (
     Asset,
     AssetStatus,
@@ -8,8 +8,21 @@ from reconcile.cna.assets.asset import (
     AssetTypeVariableType,
     AssetError,
     asset_type_metadata_from_asset_dataclass,
+    asset_type_from_raw_asset,
 )
 from reconcile.cna.assets.aws_assume_role import AWSAssumeRoleAsset
+from reconcile.cna.assets.null import NullAsset
+
+from reconcile.gql_definitions.cna.queries.cna_resources import (
+    CNAAssumeRoleAssetV1,
+    CNAssetV1,
+    NamespaceV1,
+    NamespaceCNAssetV1,
+)
+from reconcile.utils.external_resource_spec import (
+    TypedExternalResourceSpec,
+)
+from reconcile.utils.external_resources import PROVIDER_CNA_EXPERIMENTAL
 
 import pytest
 
@@ -71,7 +84,7 @@ def raw_aws_assumerole_asset() -> dict[str, Any]:
 
 @pytest.fixture
 def aws_assumerole_asset(
-    raw_aws_assumerole_asset: Mapping[str, Any],
+    raw_aws_assumerole_asset: MutableMapping[str, Any],
 ) -> AWSAssumeRoleAsset:
     asset = Asset.from_api_mapping(
         raw_aws_assumerole_asset,
@@ -82,13 +95,13 @@ def aws_assumerole_asset(
 
 
 def test_asset_type_extraction_from_raw(raw_aws_assumerole_asset: Mapping[str, Any]):
-    assert AssetType.EXAMPLE_AWS_ASSUMEROLE == Asset.asset_type_from_raw_asset(
+    assert AssetType.EXAMPLE_AWS_ASSUMEROLE == asset_type_from_raw_asset(
         raw_aws_assumerole_asset
     )
 
 
 def test_from_api_mapping(
-    raw_aws_assumerole_asset: Mapping[str, Any],
+    raw_aws_assumerole_asset: MutableMapping[str, Any],
 ):
     asset = Asset.from_api_mapping(raw_aws_assumerole_asset, AWSAssumeRoleAsset)
     assert isinstance(asset, AWSAssumeRoleAsset)
@@ -101,7 +114,7 @@ def test_from_api_mapping(
 
 
 def test_from_api_mapping_required_parameter_missing(
-    raw_aws_assumerole_asset: Mapping[str, Any],
+    raw_aws_assumerole_asset: MutableMapping[str, Any],
 ):
     raw_aws_assumerole_asset["parameters"].pop("role_arn")
     with pytest.raises(AssetError) as e:
@@ -109,7 +122,7 @@ def test_from_api_mapping_required_parameter_missing(
             raw_aws_assumerole_asset,
             AWSAssumeRoleAsset,
         )
-    assert str(e.value).startswith("Inconsistent asset from CNA API")
+    assert str(e.value).startswith("Inconsistent asset")
 
 
 def test_api_payload(aws_assumerole_asset: AWSAssumeRoleAsset):
@@ -200,7 +213,7 @@ def test_asset_comparion_ignorable_fields():
     assert asset_1.asset_properties() == asset_2.asset_properties()
 
 
-def test_asset_properties_extration():
+def test_asset_properties_extraction():
     AWSAssumeRoleAsset(
         id=None,
         href=None,
@@ -212,3 +225,90 @@ def test_asset_properties_extration():
         "role_arn": "arn",
         "verify_slug": "slug",
     }
+
+
+def build_assume_role_typed_external_resource(
+    identifier: str,
+    role_arn: str,
+    verify_slug_override: Optional[str],
+    verify_slug_default: Optional[str],
+) -> TypedExternalResourceSpec[CNAssetV1]:
+    resource = {
+        "provider": AWSAssumeRoleAsset.provider(),
+        "identifier": identifier,
+        "account": {
+            "name": "acc",
+            "cna": {"defaultRoleARN": role_arn, "moduleRoleARNS": None},
+        },
+        "overrides": {
+            "slug": verify_slug_override,
+        },
+        "defaults": {
+            "resourceFileSchema": "schema",
+            "content": f"slug: {verify_slug_default}" if verify_slug_default else "",
+        },
+    }
+    namespace_resource = {
+        "provider": PROVIDER_CNA_EXPERIMENTAL,
+        "provisioner": {"name": "some-ocm-org"},
+        "resources": [resource],
+    }
+    namespace = {
+        "name": "ns-name",
+        "managedExternalResources": True,
+        "externalResources": [namespace_resource],
+    }
+    return TypedExternalResourceSpec[CNAssetV1](
+        namespace_spec=NamespaceV1(**namespace),
+        namespace_external_resource=NamespaceCNAssetV1(**namespace_resource),
+        spec=CNAAssumeRoleAssetV1(**resource),
+    )
+
+
+def test_from_external_resources_with_default():
+    identifier = "my_id"
+    role_arn = "arn"
+    verify_slug_default = "slug-default"
+    spec = build_assume_role_typed_external_resource(
+        identifier, role_arn, None, verify_slug_default
+    )
+    asset = AWSAssumeRoleAsset.from_external_resources(spec)
+
+    assert isinstance(asset, AWSAssumeRoleAsset)
+    assert asset.name == identifier
+    assert asset.role_arn == role_arn
+    assert asset.verify_slug == verify_slug_default
+
+
+def test_from_external_resources_with_no_override_and_no_default():
+    identifier = "my_id"
+    role_arn = "arn"
+    spec = build_assume_role_typed_external_resource(identifier, role_arn, None, None)
+    asset = AWSAssumeRoleAsset.from_external_resources(spec)
+
+    assert isinstance(asset, AWSAssumeRoleAsset)
+    assert asset.name == identifier
+    assert asset.role_arn == role_arn
+    assert asset.verify_slug is None
+
+
+def test_from_external_resources_with_override():
+    identifier = "my_id"
+    role_arn = "arn"
+    verify_slug_override = "slug-override"
+    verify_slug_default = "slug-default"
+    spec = build_assume_role_typed_external_resource(
+        identifier, role_arn, verify_slug_override, verify_slug_default
+    )
+    asset = AWSAssumeRoleAsset.from_external_resources(spec)
+
+    assert isinstance(asset, AWSAssumeRoleAsset)
+    assert asset.name == identifier
+    assert asset.role_arn == role_arn
+    assert asset.verify_slug == verify_slug_override
+
+
+def test_from_external_resource_wrong_class():
+    spec = build_assume_role_typed_external_resource("id", "arn", "slug", "def")
+    with pytest.raises(AssetError):
+        NullAsset.from_external_resources(spec)

@@ -5,13 +5,17 @@ from reconcile.cna.client import CNAClient
 from reconcile.cna.state import State
 
 from reconcile.utils import gql
+from reconcile.utils.external_resources import (
+    get_external_resource_specs_for_namespace,
+    PROVIDER_CNA_EXPERIMENTAL,
+)
 from reconcile.utils.ocm_base_client import OCMBaseClient
 from reconcile.gql_definitions.cna.queries.cna_provisioners import (
     CNAExperimentalProvisionerV1,
     query as cna_provisioners_query,
 )
 from reconcile.gql_definitions.cna.queries.cna_resources import (
-    NamespaceCNAssetV1,
+    CNAssetV1,
     NamespaceV1,
     query as namespaces_query,
 )
@@ -20,7 +24,7 @@ from reconcile.typed_queries.app_interface_vault_settings import (
 )
 from reconcile.utils.secret_reader import SecretReaderBase, create_secret_reader
 from reconcile.utils.semver_helper import make_semver
-from reconcile.cna.assets.asset import UnknownAssetTypeError
+from reconcile.cna.assets.asset import UnknownAssetTypeError, AssetError
 from reconcile.cna.assets.asset_factory import (
     asset_factory_from_schema,
     asset_factory_from_raw_data,
@@ -51,14 +55,11 @@ class CNAIntegration:
     def assemble_desired_states(self):
         self._desired_states = defaultdict(State)
         for namespace in self._namespaces:
-            for provider in namespace.external_resources or []:
-                # TODO: this should probably be filtered within the query already
-                if not isinstance(provider, NamespaceCNAssetV1):
-                    continue
-                for resource in provider.resources or []:
-                    self._desired_states[provider.provisioner.name].add_asset(
-                        asset_factory_from_schema(resource)
-                    )
+            for spec in get_external_resource_specs_for_namespace(
+                namespace, CNAssetV1, PROVIDER_CNA_EXPERIMENTAL
+            ):
+                asset = asset_factory_from_schema(spec)
+                self._desired_states[spec.provisioner_name].add_asset(asset)
 
     def assemble_current_states(self):
         self._current_states = defaultdict(State)
@@ -75,6 +76,9 @@ class CNAIntegration:
                     )
                 except UnknownAssetTypeError as e:
                     logging.warning(e)
+                except AssetError as e:
+                    # TODO: remember this somehow in the state so we don't try to update/create this asset but skip it instead
+                    logging.error(e)
             self._current_states[name] = state
 
     def provision(self, dry_run: bool = False):
