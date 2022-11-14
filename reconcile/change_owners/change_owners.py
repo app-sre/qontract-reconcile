@@ -338,25 +338,25 @@ def run(
 
         labels = gl.get_merge_request_labels(gitlab_merge_request_id)
 
-        if mr_management_enabled:
-            mr_priority = get_priority_for_changes(changes)
-            conditional_labels = {
-                SELF_SERVICEABLE: self_serviceable,
-                NOT_SELF_SERVICEABLE: not self_serviceable,
-                HOLD: self_serviceable and hold,
+        mr_priority = get_priority_for_changes(changes)
+        conditional_labels = {
+            SELF_SERVICEABLE: self_serviceable,
+            NOT_SELF_SERVICEABLE: not self_serviceable,
+            HOLD: self_serviceable and hold,
+        }
+        conditional_labels.update(
+            {
+                prioritized_approval_label(p.value): self_serviceable
+                and approved
+                and p == mr_priority
+                for p in ChangeTypePriority
             }
-            conditional_labels.update(
-                {
-                    prioritized_approval_label(p.value): self_serviceable
-                    and approved
-                    and p == mr_priority
-                    for p in ChangeTypePriority
-                }
-            )
-            labels = manage_conditional_label(
-                current_labels=labels,
-                conditional_labels=conditional_labels,
-            )
+        )
+        labels = manage_conditional_label(
+            current_labels=labels,
+            conditional_labels=conditional_labels,
+        )
+        if mr_management_enabled:
             gl.set_labels_on_merge_request(gitlab_merge_request_id, labels)
         else:
             # if MR management is disabled, we need to make sure the self-serviceable
