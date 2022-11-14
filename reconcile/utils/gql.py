@@ -189,6 +189,7 @@ class GqlApi:
         return resources[0]
 
     def get_resources_by_schema(self, schema: str) -> list[dict[str, str]]:
+        """Return all resources (resources_v1) filtered by given schema."""
         query = """
         query Resource($schema: String) {
             resources: resources_v1 (schema: $schema) {
