@@ -233,6 +233,9 @@ def run(dry_run: bool) -> None:
                     source_creds = get_vault_credentials(instance)
                     dest_creds = get_vault_credentials(replication.vault_instance)
 
+                    # Private class _VaultClient is used because the public class is
+                    # defined as a singleton, and we need to create multiple instances
+                    # as the source vault is different than the replication.
                     source_vault = _VaultClient(
                         server=source_creds["server"],
                         role_id=source_creds["role_id"],
