@@ -1,4 +1,3 @@
-from __future__ import annotations
 from abc import ABC, abstractmethod
 
 from pydantic.dataclasses import dataclass
@@ -91,12 +90,19 @@ class AssetModelConfig:
 AssetQueryClass = TypeVar("AssetQueryClass", bound=CNAssetV1)
 
 
+@dataclass(frozen=True)
+class Binding:
+    cluster_id: str
+    namespace: str
+
+
 @dataclass(frozen=True, config=AssetModelConfig)
 class Asset(ABC, Generic[AssetQueryClass]):
     name: str
     id: Optional[str]
     href: Optional[str]
     status: Optional[AssetStatus]
+    bindings: list[Binding]
 
     @staticmethod
     def bindable() -> bool:
@@ -118,14 +124,14 @@ class Asset(ABC, Generic[AssetQueryClass]):
 
     @staticmethod
     @abstractmethod
-    def from_query_class(asset: AssetQueryClass) -> Asset:
+    def from_query_class(asset: AssetQueryClass) -> "Asset":
         ...
 
     @classmethod
     def from_external_resources(
         cls,
         external_resource: TypedExternalResourceSpec[CNAssetV1],
-    ) -> Asset:
+    ) -> "Asset":
         cls_arg = get_args(cls.__orig_bases__[0])[0]  # type: ignore[attr-defined]
         resolved = external_resource.resolve()
         if isinstance(resolved.spec, cls_arg):
@@ -169,14 +175,15 @@ class Asset(ABC, Generic[AssetQueryClass]):
 
     def update_from(
         self,
-        asset: Asset,
-    ) -> Asset:
+        asset: "Asset",
+    ) -> "Asset":
         assert isinstance(asset, type(self))
         return type(asset)(
             id=self.id,
             href=self.href,
             status=self.status,
             name=self.name,
+            bindings=asset.bindings,
             **asset.asset_properties(),
         )
 
@@ -186,8 +193,8 @@ class Asset(ABC, Generic[AssetQueryClass]):
     @staticmethod
     def from_api_mapping(
         raw_asset: Mapping[str, Any],
-        cna_dataclass: Type[Asset],
-    ) -> Asset:
+        cna_dataclass: "Type[Asset]",
+    ) -> "Asset":
         params = {}
         inconsistency_errors = []
         raw_asset_params = raw_asset.get(ASSET_PARAMETERS_FIELD) or {}

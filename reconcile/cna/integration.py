@@ -62,7 +62,7 @@ class CNAIntegration:
                 self._desired_states[spec.provisioner_name].add_asset(asset)
 
     def assemble_current_states(self):
-        self._current_states = defaultdict(State)
+        states_without_bindings = defaultdict(State)
         for name, client in self._cna_clients.items():
             state = State()
             for raw_asset in client.list_assets_for_creator(
@@ -79,7 +79,11 @@ class CNAIntegration:
                 except AssetError as e:
                     # TODO: remember this somehow in the state so we don't try to update/create this asset but skip it instead
                     logging.error(e)
-            self._current_states[name] = state
+            states_without_bindings[name] = state
+        states_with_bindings: dict[State] = {}
+        for client_name, state in states_without_bindings:
+            states_with_bindings[client_name] = client.fetch_bindings_for_state(state)
+        self._current_states = states_with_bindings
 
     def provision(self, dry_run: bool = False):
         for provisioner_name, cna_client in self._cna_clients.items():
