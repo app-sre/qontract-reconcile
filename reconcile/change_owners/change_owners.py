@@ -1,4 +1,3 @@
-from typing import Optional
 import logging
 import traceback
 
@@ -20,14 +19,15 @@ from reconcile.utils.semver_helper import make_semver
 from reconcile.change_owners.change_types import (
     BundleFileChange,
     BundleFileType,
+    ChangeTypePriority,
     ChangeTypeProcessor,
     create_bundle_file_change,
     init_change_type_processors,
+    get_priority_for_changes,
 )
 from reconcile.change_owners.self_service_roles import (
     cover_changes_with_self_service_roles,
 )
-
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile import queries
 
@@ -35,7 +35,7 @@ from reconcile.utils.mr.labels import (
     SELF_SERVICEABLE,
     NOT_SELF_SERVICEABLE,
     HOLD,
-    APPROVED,
+    prioritized_approval_label,
 )
 
 
@@ -123,31 +123,20 @@ CHANGE_TYPE_PROCESSING_MODE_AUTHORITATIVE = "authoritative"
 
 
 def manage_conditional_label(
-    labels: list[str],
-    condition: bool,
-    true_label: Optional[str] = None,
-    false_label: Optional[str] = None,
+    current_labels: list[str],
+    conditional_labels: dict[str, bool],
     dry_run: bool = True,
 ) -> list[str]:
-    new_labels = labels.copy()
-    if condition:
-        if true_label and true_label not in labels:
+    new_labels = current_labels.copy()
+    for label, condition in conditional_labels.items():
+        if condition and label not in new_labels:
+            logging.info(f"adding label {label}")
             if not dry_run:
-                new_labels.append(true_label)
-            logging.info(f"adding label {true_label}")
-        if false_label and false_label in labels:
+                new_labels.append(label)
+        elif not condition and label in new_labels:
+            logging.info(f"removing label {label}")
             if not dry_run:
-                new_labels.remove(false_label)
-            logging.info(f"removing label {false_label}")
-    else:
-        if true_label and true_label in labels:
-            if not dry_run:
-                new_labels.remove(true_label)
-            logging.info(f"removing label {true_label}")
-        if false_label and false_label not in labels:
-            if not dry_run:
-                new_labels.append(false_label)
-            logging.info(f"adding label {false_label}")
+                new_labels.remove(label)
     return new_labels
 
 
@@ -349,35 +338,35 @@ def run(
 
         labels = gl.get_merge_request_labels(gitlab_merge_request_id)
 
+        mr_priority = get_priority_for_changes(changes)
+        conditional_labels = {
+            SELF_SERVICEABLE: self_serviceable,
+            NOT_SELF_SERVICEABLE: not self_serviceable,
+            HOLD: self_serviceable and hold,
+        }
+        conditional_labels.update(
+            {
+                prioritized_approval_label(p.value): self_serviceable
+                and approved
+                and p == mr_priority
+                for p in ChangeTypePriority
+            }
+        )
+        labels = manage_conditional_label(
+            current_labels=labels,
+            conditional_labels=conditional_labels,
+        )
         if mr_management_enabled:
-            labels = manage_conditional_label(
-                labels=labels,
-                condition=self_serviceable,
-                true_label=SELF_SERVICEABLE,
-                false_label=NOT_SELF_SERVICEABLE,
-                dry_run=False,
-            )
+            gl.set_labels_on_merge_request(gitlab_merge_request_id, labels)
         else:
             # if MR management is disabled, we need to make sure the self-serviceable
             # labels is not present, because other integration react to them
             # e.g. gitlab-housekeeper rejects direct lgtm labels and the review-queue
             # skips MRs with this label
             if SELF_SERVICEABLE in labels:
-                labels.remove(SELF_SERVICEABLE)
-
-        labels = manage_conditional_label(
-            labels=labels,
-            condition=self_serviceable and hold,
-            true_label=HOLD,
-            dry_run=not mr_management_enabled,
-        )
-        labels = manage_conditional_label(
-            labels=labels,
-            condition=self_serviceable and approved,
-            true_label=APPROVED,
-            dry_run=not mr_management_enabled,
-        )
-        gl.set_labels_on_merge_request(gitlab_merge_request_id, labels)
+                gl.remove_label_from_merge_request(
+                    gitlab_merge_request_id, SELF_SERVICEABLE
+                )
 
     except BaseException:
         logging.error(traceback.format_exc())

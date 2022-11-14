@@ -8,6 +8,8 @@ disabled: false
 
 inherit: null
 
+priority: high
+
 changes:
 # this changetype covers changes on roles within a user-1 but since it can only
 # be used in the context of role-1 datafiles, we need to declare how to find the

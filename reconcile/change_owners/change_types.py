@@ -29,6 +29,18 @@ class BundleFileType(Enum):
     RESOURCEFILE = "resourcefile"
 
 
+class ChangeTypePriority(Enum):
+    """
+    The order of the priorities is important. They are listed in decreasing priority.
+    """
+
+    CRITICAL = "critical"
+    URGENT = "urgent"
+    HIGH = "high"
+    MEDIUM = "medium"
+    LOW = "low"
+
+
 @dataclass(frozen=True)
 class FileRef:
     file_type: BundleFileType
@@ -318,6 +330,7 @@ class ChangeTypeProcessor:
     """
 
     name: str
+    priority: ChangeTypePriority
     context_type: BundleFileType
     context_schema: Optional[str]
     disabled: bool
@@ -380,6 +393,7 @@ def build_change_type_processor(change_type: ChangeTypeV1) -> ChangeTypeProcesso
     """
     ctp = ChangeTypeProcessor(
         name=change_type.name,
+        priority=ChangeTypePriority(change_type.priority),
         context_type=BundleFileType[change_type.context_type.upper()],
         context_schema=change_type.context_schema,
         disabled=bool(change_type.disabled),
@@ -476,3 +490,25 @@ JSON_PATH_ROOT = "$"
 
 def change_path_covered_by_allowed_path(changed_path: str, allowed_path: str) -> bool:
     return changed_path.startswith(allowed_path) or allowed_path == JSON_PATH_ROOT
+
+
+def get_priority_for_changes(
+    bundle_file_changes: list[BundleFileChange],
+) -> ChangeTypePriority:
+    """
+    Finds the lowest priority of all change types involved in the provided bundle file changes.
+    """
+    prorities: set[ChangeTypePriority] = set()
+    for bfc in bundle_file_changes:
+        for dc in bfc.diff_coverage:
+            for c in dc.coverage:
+                prorities.add(c.change_type_processor.priority)
+    # get the lowest priority
+    for p in reversed(ChangeTypePriority):
+        if p in prorities:
+            return p
+    raise ValueError(
+        "The priorities of the involved change types are not compatible with the supported priorities \n"
+        f"change-type priorities: {[p.value for p in prorities]} \n"
+        f"supported priorities: {[p.value for p in ChangeTypePriority]}"
+    )
