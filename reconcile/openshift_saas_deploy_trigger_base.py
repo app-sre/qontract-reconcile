@@ -25,6 +25,10 @@ from reconcile.openshift_tekton_resources import build_one_per_saas_file_tkn_obj
 _trigger_lock = Lock()
 
 
+class TektonTimeoutBadValueError(Exception):
+    pass
+
+
 @defer
 def run(
     dry_run,
@@ -215,6 +219,7 @@ def _trigger_tekton(
 ):
     saas_file_name = spec.saas_file_name
     env_name = spec.env_name
+    timeout = spec.timeout
     pipelines_provider = cast(dict, spec.pipelines_provider)
 
     pipeline_template_name = pipelines_provider["defaults"]["pipelineTemplates"][
@@ -253,6 +258,7 @@ def _trigger_tekton(
         saas_file_name,
         env_name,
         tkn_pipeline_name,
+        timeout,
         tkn_cluster_console_url,
         tkn_namespace_name,
         integration,
@@ -298,6 +304,7 @@ def _construct_tekton_trigger_resource(
     saas_file_name,
     env_name,
     tkn_pipeline_name,
+    timeout,
     tkn_cluster_console_url,
     tkn_namespace_name,
     integration,
@@ -313,6 +320,7 @@ def _construct_tekton_trigger_resource(
         tkn_cluster_console_url (string): Cluster console URL of the cluster
                                           where the pipeline runs
         tkn_namespace_name (string): namespace where the pipeline runs
+        timeout (int): Timeout in minutes before the PipelineRun fails (must be > 60)
         integration (string): Name of calling integration
         integration_version (string): Version of calling integration
         include_trigger_trace (bool): Should include traces of the triggering integration and reason
@@ -351,6 +359,16 @@ def _construct_tekton_trigger_resource(
             "params": parameters,
         },
     }
+
+    if timeout:
+        if timeout < 60:
+            raise TektonTimeoutBadValueError(
+                f"timeout {timeout} is smaller than 60 minutes"
+            )
+
+        # conforming to Go’s ParseDuration format
+        body["spec"]["timeout"] = f"{timeout}m"
+
     return OR(body, integration, integration_version, error_details=name), long_name
 
 
