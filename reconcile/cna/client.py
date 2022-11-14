@@ -85,8 +85,10 @@ class CNAClient:
                 # If an asset is not bindable, then we can skip the GET call
                 continue
             bindings = self._ocm_client.get(api_path=f"{asset.href}/bind")
-            print(bindings)
-        # return state_with_bindings
+            for item in bindings.get("items", []):
+                # TODO
+                print(item)
+        # TODO: return state_with_bindings
         return state
 
     def create(self, asset: Asset, dry_run: bool = False):
@@ -104,15 +106,15 @@ class CNAClient:
         )
 
     def bind(self, asset: Asset, dry_run: bool = False):
-        if dry_run:
-            logging.info(
-                "BIND %s %s %s",
-                asset.asset_type().value,
-                asset.name,
-                asset.bindings,
-            )
-            return
         for binding in asset.bindings:
+            if dry_run:
+                logging.info(
+                    "BIND %s %s %s",
+                    asset.asset_type().value,
+                    asset.name,
+                    binding,
+                )
+                continue
             self._ocm_client.post(
                 api_path=f"{asset.href}/bind",
                 data=asdict(binding),

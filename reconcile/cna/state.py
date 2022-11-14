@@ -54,17 +54,21 @@ class State:
                 f"Duplicate asset name found in state: asset_type={asset_type}, name={asset.name}"
             )
 
+    def contains(self, asset: Asset) -> bool:
+        return asset.name in self._assets[asset.asset_type()]
+
     def add_asset(self, asset: Asset):
         self._validate_addition(asset=asset)
         self._assets[asset.asset_type()][asset.name] = asset
 
-    def required_updates_to_reach(self, other: State) -> State:
+    def _diff(self, other: State, compare_bindings: bool) -> State:
         """
         This operation is NOT commutative, i.e.,:
-        a.required_updates_to_reach(b) != b.required_updates_to_reach(a)
+        a._diff(b) != b._diff(a)
 
-        This is supposed to be called on actual state (self).
-        I.e., actual.required_updates_to_reach(desired)
+        This is supposed to be used on actual state (self).
+        I.e., actual._diff(desired) is supposed to show diff
+        from actual to reach desired.
         """
         ans = State()
         for asset_type in AssetType:
@@ -74,11 +78,23 @@ class State:
                 asset = self._assets[asset_type][asset_name]
                 if asset.status in (AssetStatus.TERMINATED, AssetStatus.PENDING):
                     continue
-                if asset.asset_properties() == other_asset.asset_properties():
-                    # There is no diff - no need to update
-                    continue
+                if compare_bindings:
+                    if set(asset.bindings) == set(other_asset.bindings):
+                        # Bindings are the same - no need to bind
+                        continue
+                else: 
+                    if asset.asset_properties() == other_asset.asset_properties():
+                        # There is no diff - no need to update
+                        continue
+                # TODO: this does not help to DELETE bindings
                 ans.add_asset(asset=asset.update_from(other_asset))
         return ans
+
+    def required_updates_to_reach(self, other: State) -> State:
+        return self._diff(other=other, compare_bindings=False)
+
+    def required_bindings_to_reach(self, other: State) -> State:
+        return self._diff(other=other, compare_bindings=True)
 
     def __sub__(self, other: State) -> State:
         """

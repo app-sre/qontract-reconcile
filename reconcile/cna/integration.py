@@ -24,7 +24,7 @@ from reconcile.typed_queries.app_interface_vault_settings import (
 )
 from reconcile.utils.secret_reader import SecretReaderBase, create_secret_reader
 from reconcile.utils.semver_helper import make_semver
-from reconcile.cna.assets.asset import UnknownAssetTypeError, AssetError
+from reconcile.cna.assets.asset import UnknownAssetTypeError, AssetError, Binding
 from reconcile.cna.assets.asset_factory import (
     asset_factory_from_schema,
     asset_factory_from_raw_data,
@@ -60,6 +60,20 @@ class CNAIntegration:
             ):
                 asset = asset_factory_from_schema(spec)
                 self._desired_states[spec.provisioner_name].add_asset(asset)
+                
+                # For now we assume that if an asset is bindable, then it
+                # always binds to its defining namespace
+                # TODO: probably this should also be done by passing the required namespace vars
+                #       to the factory method.
+                if not asset.bindable():
+                    continue
+                if not (namespace.cluster.spec and namespace.cluster.spec.q_id):
+                    logging.warning("cannot bind asset %s because namespace %s does not have a cluster spec with a cluster id.", asset, namespace.name)
+                    continue
+                asset.bindings.append(Binding(
+                    cluster_id=namespace.cluster.spec.q_id,
+                    namespace=namespace.name,
+                ))
 
     def assemble_current_states(self):
         states_without_bindings = defaultdict(State)
@@ -81,7 +95,7 @@ class CNAIntegration:
                     logging.error(e)
             states_without_bindings[name] = state
         states_with_bindings: dict[State] = {}
-        for client_name, state in states_without_bindings:
+        for client_name, state in states_without_bindings.items():
             states_with_bindings[client_name] = client.fetch_bindings_for_state(state)
         self._current_states = states_with_bindings
 
@@ -101,6 +115,14 @@ class CNAIntegration:
             updates = current_state.required_updates_to_reach(desired_state)
             for assets in updates:
                 cna_client.update(asset=assets, dry_run=dry_run)
+
+            bindings = current_state.required_bindings_to_reach(desired_state)
+            for asset in bindings:
+                if updates.contains(asset=asset):
+                    # We dont want to bind if there is currently
+                    # an update in progress that changes the asset state
+                    continue
+                cna_client.bind(asset=asset, dry_run=dry_run)
 
 
 def build_cna_clients(
