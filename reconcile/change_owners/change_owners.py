@@ -353,8 +353,7 @@ def run(
             }
         )
         labels = manage_conditional_label(
-            current_labels=labels,
-            conditional_labels=conditional_labels,
+            current_labels=labels, conditional_labels=conditional_labels, dry_run=False
         )
         if mr_management_enabled:
             gl.set_labels_on_merge_request(gitlab_merge_request_id, labels)
