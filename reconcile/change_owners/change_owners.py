@@ -338,12 +338,15 @@ def run(
 
         labels = gl.get_merge_request_labels(gitlab_merge_request_id)
 
-        mr_priority = get_priority_for_changes(changes)
+        # base labels
         conditional_labels = {
             SELF_SERVICEABLE: self_serviceable,
             NOT_SELF_SERVICEABLE: not self_serviceable,
             HOLD: self_serviceable and hold,
         }
+
+        # priority labels
+        mr_priority = get_priority_for_changes(changes)
         conditional_labels.update(
             {
                 prioritized_approval_label(p.value): self_serviceable
