@@ -1,11 +1,7 @@
-from functools import cache
 from typing import Any, Iterable, Optional, Sequence
 
-from github import Github, UnknownObjectException
 from reconcile import queries
 
-# TODO: init_github must be moved into a utils module
-from reconcile.github_users import init_github
 from reconcile.glitchtip.reconciler import GlitchtipReconciler
 from reconcile.gql_definitions.glitchtip.glitchtip_instance import (
     DEFINITION as GLITCHTIP_INSTANCE_DEFINITION,
@@ -45,14 +41,6 @@ def get_user_role(organization: Organization, roles: RoleV1) -> str:
     return "member"
 
 
-@cache
-def github_email(gh: Github, github_username: str) -> Optional[str]:
-    try:
-        return gh.get_user(login=github_username).email
-    except UnknownObjectException:
-        return None
-
-
 class GlitchtipException(Exception):
     pass
 
@@ -79,7 +67,7 @@ def fetch_current_state(
 
 
 def fetch_desired_state(
-    glitchtip_projects: Sequence[GlitchtipProjectsV1], gh: Github, mail_domain: str
+    glitchtip_projects: Sequence[GlitchtipProjectsV1], mail_domain: str
 ) -> list[Organization]:
     organizations: dict[str, Organization] = {}
     for glitchtip_project in glitchtip_projects:
@@ -97,15 +85,9 @@ def fetch_desired_state(
             users: list[User] = []
             for role in glitchtip_team.roles:
                 for role_user in role.users:
-                    if not (
-                        email := github_email(
-                            gh=gh, github_username=role_user.github_username
-                        )
-                    ):
-                        email = role_user.org_username + f"@{mail_domain}"
                     users.append(
                         User(
-                            email=email,
+                            email=f"{role_user.org_username}@{mail_domain}",
                             role=get_user_role(organization, role),
                         )
                     )
@@ -124,7 +106,6 @@ def fetch_desired_state(
 
 def run(dry_run: bool, instance: Optional[str] = None):
     gqlapi = gql.get_api()
-    github = init_github()
     secret_reader = SecretReader(queries.get_secret_reader_settings())
     read_timeout = 30
     max_retries = 3
@@ -171,7 +152,6 @@ def run(dry_run: bool, instance: Optional[str] = None):
                 for p in glitchtip_projects
                 if p.organization.instance.name == glitchtip_instance.name
             ],
-            gh=github,
             mail_domain=mail_domain,
         )
 
