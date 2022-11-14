@@ -1548,6 +1548,18 @@ def test_priority_for_changes(
     assert ChangeTypePriority.MEDIUM == get_priority_for_changes(changes)
 
 
+def test_priorty_for_changes_no_coverage():
+    changes = [
+        BundleFileChange(
+            fileref=None,  # type: ignore
+            old=None,
+            new=None,
+            diff_coverage=[],
+        )
+    ]
+    assert get_priority_for_changes(changes) is None
+
+
 #
 # DiffCoverage tests
 #
