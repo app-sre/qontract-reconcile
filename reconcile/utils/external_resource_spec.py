@@ -2,8 +2,19 @@ from abc import abstractmethod
 from dataclasses import field
 from pydantic.dataclasses import dataclass
 import json
-from typing import Any, Optional, cast
-from collections.abc import Mapping, MutableMapping
+from typing import (
+    Any,
+    Generic,
+    Optional,
+    Protocol,
+    TypeVar,
+    runtime_checkable,
+    Union,
+    cast,
+    get_args,
+    get_origin,
+)
+from collections.abc import Mapping, MutableMapping, Sequence
 
 import yaml
 from reconcile.utils.openshift_resource import (
@@ -13,6 +24,8 @@ from reconcile.utils.openshift_resource import (
 )
 
 from reconcile import openshift_resources_base
+from reconcile.gql_definitions.fragments.resource_file import ResourceFile
+import anymarkup
 
 
 class OutputFormatProcessor:
@@ -75,6 +88,88 @@ class OutputFormat:
 
     def render(self, vars: Mapping[str, str]) -> dict[str, str]:
         return self._formatter.render(vars)
+
+
+class ExternalResourceProvisioner(Protocol):
+    @property
+    def name(self) -> str:
+        ...
+
+    @abstractmethod
+    def dict(self, *args, **kwargs) -> dict[str, Any]:
+        ...
+
+
+@runtime_checkable
+class ExternalResource(Protocol):
+    @property
+    def provider(self) -> str:
+        ...
+
+    @property
+    def identifier(self) -> str:
+        ...
+
+    @abstractmethod
+    def dict(self, *args, **kwargs) -> dict[str, Any]:
+        ...
+
+
+@runtime_checkable
+class OverridableExternalResource(ExternalResource, Protocol):
+    @property
+    def overrides(self) -> Optional[Any]:
+        ...
+
+    @abstractmethod
+    def dict(self, *args, **kwargs) -> dict[str, Any]:
+        ...
+
+
+@runtime_checkable
+class DefaultableExternalResource(ExternalResource, Protocol):
+    @property
+    def defaults(self) -> Optional[ResourceFile]:
+        ...
+
+    @abstractmethod
+    def dict(self, *args, **kwargs) -> dict[str, Any]:
+        ...
+
+
+@runtime_checkable
+class NamespaceExternalResource(Protocol):
+    @property
+    def provider(self) -> str:
+        ...
+
+    @property
+    def provisioner(self) -> ExternalResourceProvisioner:
+        ...
+
+    @property
+    def resources(self) -> Sequence[ExternalResource]:
+        ...
+
+
+class Namespace(Protocol):
+    @property
+    def name(self) -> str:
+        ...
+
+    @property
+    def managed_external_resources(self) -> Optional[bool]:
+        ...
+
+    @property
+    def external_resources(
+        self,
+    ) -> Optional[Sequence[Union[NamespaceExternalResource, Any]]]:
+        ...
+
+    @abstractmethod
+    def dict(self, *args, **kwargs) -> dict[str, Any]:
+        ...
 
 
 @dataclass
@@ -184,3 +279,97 @@ class ExternalResourceUniqueKey:
 ExternalResourceSpecInventory = MutableMapping[
     ExternalResourceUniqueKey, ExternalResourceSpec
 ]
+
+
+T = TypeVar("T", bound=ExternalResource)
+
+
+class MyConfig:
+    arbitrary_types_allowed = True
+
+
+EXTERNAL_RESOURCE_SPEC_DEFAULTS_PROPERTY = "defaults"
+EXTERNAL_RESOURCE_SPEC_OVERRIDES_PROPERTY = "overrides"
+
+
+@dataclass(config=MyConfig)
+class TypedExternalResourceSpec(ExternalResourceSpec, Generic[T]):
+
+    namespace_spec: Namespace
+    namespace_external_resource: NamespaceExternalResource
+    spec: T
+
+    def __init__(
+        self,
+        namespace_spec: Namespace,
+        namespace_external_resource: NamespaceExternalResource,
+        spec: T,
+    ):
+        self.namespace_spec = namespace_spec
+        self.namespace_external_resource = namespace_external_resource
+        self.spec = spec
+        super().__init__(
+            provision_provider=self.namespace_external_resource.provider,
+            provisioner=self.namespace_external_resource.provisioner.dict(
+                by_alias=True
+            ),
+            resource=self.spec.dict(by_alias=True),
+            namespace=self.namespace_spec.dict(by_alias=True),
+        )
+
+    def get_defaults_data(self) -> dict[str, Any]:
+        if isinstance(self.spec, DefaultableExternalResource) and self.spec.defaults:
+            try:
+                defaults_values = anymarkup.parse(
+                    self.spec.defaults.content, force_types=None
+                )
+                defaults_values.pop("$schema", None)
+                return defaults_values
+            except anymarkup.AnyMarkupError:
+                # todo error handling
+                raise Exception("Could not parse data. Skipping resource")
+        return {}
+
+    def get_overrides_data(self) -> dict[str, Any]:
+        if not isinstance(self.spec, OverridableExternalResource):
+            return {}
+        if self.spec.overrides is None:
+            return {}
+        return self.spec.overrides.dict(by_alias=True)
+
+    def is_overridable(self) -> bool:
+        return isinstance(self.spec, OverridableExternalResource)
+
+    def get_overridable_fields(self) -> Sequence[str]:
+        if isinstance(self.spec, OverridableExternalResource):
+            overrides_class = self.spec.__annotations__[
+                EXTERNAL_RESOURCE_SPEC_OVERRIDES_PROPERTY
+            ]
+            is_optional = get_origin(overrides_class) is Union and type(
+                None
+            ) in get_args(overrides_class)
+            if is_optional:
+                overrides_class = get_args(overrides_class)[0]
+            return overrides_class.__annotations__.keys()
+        else:
+            raise ValueError("resource is not overridable")
+
+    def resolve(self) -> "TypedExternalResourceSpec[T]":
+        if self.is_overridable():
+            overrides_data = self.get_overrides_data()
+            defaults_data = self.get_defaults_data()
+
+            for field_name in self.get_overridable_fields():
+                if overrides_data.get(field_name) is None:
+                    overrides_data[field_name] = defaults_data.get(field_name)
+        else:
+            overrides_data = {}
+
+        new_spec_attr = self.spec.dict(by_alias=True)
+        new_spec_attr[EXTERNAL_RESOURCE_SPEC_OVERRIDES_PROPERTY] = overrides_data
+        new_spec = type(self.spec)(**new_spec_attr)
+        return TypedExternalResourceSpec(
+            namespace_spec=self.namespace_spec,
+            namespace_external_resource=self.namespace_external_resource,
+            spec=new_spec,
+        )

@@ -13,10 +13,12 @@ from reconcile.cna.assets.null import NullAsset
 from reconcile.cna.state import State
 from reconcile.gql_definitions.cna.queries.cna_resources import (
     CNANullAssetV1,
+    CNANullAssetOverridesV1,
     ExternalResourcesProvisionerV1,
     NamespaceCNAssetV1,
     NamespaceV1,
 )
+from reconcile.utils.external_resources import PROVIDER_CNA_EXPERIMENTAL
 
 
 @fixture
@@ -30,9 +32,10 @@ def cna_clients() -> dict[str, CNAClient]:
 def namespace(assets: list[CNANullAssetV1]) -> NamespaceV1:
     return NamespaceV1(
         name="test",
+        managedExternalResources=True,
         externalResources=[
             NamespaceCNAssetV1(
-                provider="null-asset",
+                provider=PROVIDER_CNA_EXPERIMENTAL,
                 provisioner=ExternalResourcesProvisionerV1(
                     name="test",
                 ),
@@ -146,7 +149,7 @@ def test_integration_assemble_current_states(
     mocker.patch.object(
         CNAClient, "service_account_name", create_autospec=True, return_value="creator"
     )
-    integration = CNAIntegration(cna_clients={"test": CNAClient(None)}, namespaces=[])
+    integration = CNAIntegration(cna_clients={"test": CNAClient(None)}, namespaces=[])  # type: ignore
     integration.assemble_current_states()
     assert integration._current_states == {"test": expected_state}
 
@@ -161,8 +164,10 @@ def test_integration_assemble_current_states(
                     assets=[
                         CNANullAssetV1(
                             provider="null-asset",
-                            name="test",
-                            addr_block="123",
+                            identifier="test",
+                            overrides=CNANullAssetOverridesV1(
+                                addr_block="123",
+                            ),
                         )
                     ]
                 )
@@ -180,13 +185,13 @@ def test_integration_assemble_current_states(
                     assets=[
                         CNANullAssetV1(
                             provider="null-asset",
-                            name="test",
-                            addr_block="123",
+                            identifier="test",
+                            overrides=CNANullAssetOverridesV1(
+                                addr_block="123",
+                            ),
                         ),
                         CNANullAssetV1(
-                            provider="null-asset",
-                            name="test2",
-                            addr_block=None,
+                            provider="null-asset", identifier="test2", overrides=None
                         ),
                     ]
                 )
