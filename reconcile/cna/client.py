@@ -7,6 +7,7 @@ from reconcile.cna.assets.asset import (
     AssetTypeVariable,
     AssetTypeVariableType,
     asset_type_by_id,
+    ASSET_CREATOR_FIELD,
 )
 from reconcile.utils.ocm_base_client import OCMBaseClient
 
@@ -55,7 +56,7 @@ class CNAClient:
         return [
             c
             for c in self.list_assets()
-            if c.get("creator", {}).get("username") == creator_username
+            if c.get(ASSET_CREATOR_FIELD, {}).get("username") == creator_username
         ]
 
     def list_assets(self) -> list[dict[str, Any]]:
