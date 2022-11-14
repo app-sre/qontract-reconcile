@@ -13,12 +13,11 @@ from reconcile.cna.assets.asset import (
 from reconcile.cna.assets.aws_utils import aws_role_arn_for_module
 from reconcile.gql_definitions.cna.queries.cna_resources import (
     CNAAssumeRoleAssetV1,
-    CNAssetV1,
 )
 
 
 @dataclass(frozen=True, config=AssetModelConfig)
-class AWSAssumeRoleAsset(Asset):
+class AWSAssumeRoleAsset(Asset[CNAAssumeRoleAssetV1]):
     verify_slug: Optional[str] = Field(None, alias="verify-slug")
     role_arn: str = Field(alias="role_arn")
 
@@ -31,22 +30,21 @@ class AWSAssumeRoleAsset(Asset):
         return AssetType.EXAMPLE_AWS_ASSUMEROLE
 
     @staticmethod
-    def from_query_class(asset: CNAssetV1) -> Asset:
-        assert isinstance(asset, CNAAssumeRoleAssetV1)
-        aws_cna_cfg = asset.aws_assume_role.account.cna
+    def from_query_class(asset: CNAAssumeRoleAssetV1) -> Asset:
+        aws_cna_cfg = asset.account.cna
         role_arn = aws_role_arn_for_module(
             aws_cna_cfg, AssetType.EXAMPLE_AWS_ASSUMEROLE.value
         )
         if role_arn is None:
             raise AssetError(
-                f"No CNA roles configured for AWS account {asset.aws_assume_role.account.name}"
+                f"No CNA roles configured for AWS account {asset.account.name}"
             )
 
         return AWSAssumeRoleAsset(
             id=None,
             href=None,
             status=AssetStatus.UNKNOWN,
-            name=asset.name,
-            verify_slug=asset.aws_assume_role.slug,
+            name=asset.identifier,
+            verify_slug=asset.overrides.slug if asset.overrides else None,
             role_arn=role_arn,
         )
