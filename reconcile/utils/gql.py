@@ -188,6 +188,23 @@ class GqlApi:
 
         return resources[0]
 
+    def get_resources_by_schema(self, schema: str) -> list[dict[str, str]]:
+        """Return all resources (resources_v1) filtered by given schema."""
+        query = """
+        query Resource($schema: String) {
+            resources: resources_v1 (schema: $schema) {
+                path
+                content
+                sha256sum
+            }
+        }
+        """
+
+        # Do not validate schema in resources since schema support in the
+        # resources is not complete.
+        resources = self.query(query, {"schema": schema}, skip_validation=True)
+        return resources["resources"]
+
     def get_queried_schemas(self):
         return list(self._queried_schemas)
 

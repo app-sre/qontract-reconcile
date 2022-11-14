@@ -194,7 +194,12 @@ def collect_queries(
     # as we are not really initiating terraform configuration
     # but only using inner functions.
     terrascript = Terrascript(
-        QONTRACT_INTEGRATION, "", 1, accounts=[], settings=settings
+        QONTRACT_INTEGRATION,
+        "",
+        1,
+        accounts=[],
+        settings=settings,
+        prefetch_resources_by_schemas=["/aws/rds-defaults-1.yml"],
     )
 
     for sql_query in sql_queries:
@@ -564,6 +569,7 @@ def run(dry_run: bool, enable_deletion: bool = False) -> None:
     use_pull_secret = True if pull_secret else False
 
     queries_list = collect_queries(settings=settings, smtp_client=smtp_client)
+    query_states = [s.lstrip("/") for s in state.ls()]
     for query in queries_list:
         openshift_resources: list[OpenshiftResource] = []
         query_name = query["name"]
@@ -572,7 +578,7 @@ def run(dry_run: bool, enable_deletion: bool = False) -> None:
             "integration": QONTRACT_INTEGRATION,
             "query-name": query_name,
         }
-        if state.exists(query_name):
+        if query_name in query_states:
             # Query already executed. Now check current state:
             # - State is a timestamp: executed and up for removal after the JOB_TTL
             # - State is not 'DONE' but 'delete:true' and is a cronjob: up for removal

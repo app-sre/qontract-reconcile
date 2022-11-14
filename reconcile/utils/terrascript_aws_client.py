@@ -310,6 +310,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         thread_pool_size: int,
         accounts: list[dict[str, Any]],
         settings: Optional[Mapping[str, Any]] = None,
+        prefetch_resources_by_schemas: Optional[list[str]] = None,
     ) -> None:
         self.integration = integration
         self.integration_prefix = integration_prefix
@@ -391,6 +392,10 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         self.gitlab_lock = Lock()
         self.jenkins_map: Dict[str, JenkinsApi] = {}
         self.jenkins_lock = Lock()
+        self._resource_cache: dict[str, dict[str, str]] = {}
+        if prefetch_resources_by_schemas:
+            for schema in prefetch_resources_by_schemas:
+                self._resource_cache.update(self.prefetch_resources(schema))
 
     @staticmethod
     def state_bucket_for_account(
@@ -3763,8 +3768,14 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             output_value = base64.b64encode(anno_json).decode()
             tf_resources.append(Output(output_name_0_13, value=output_value))
 
-    @staticmethod
-    def get_raw_values(path):
+    def prefetch_resources(self, schema) -> dict[str, dict[str, str]]:
+        gqlapi = gql.get_api()
+        return {r["path"]: r for r in gqlapi.get_resources_by_schema(schema)}
+
+    def get_raw_values(self, path) -> dict[str, str]:
+        if path in self._resource_cache:
+            return self._resource_cache[path]
+
         gqlapi = gql.get_api()
         try:
             raw_values = gqlapi.get_resource(path)
@@ -3772,9 +3783,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             raise FetchResourceError(str(e))
         return raw_values
 
-    @staticmethod
-    def get_values(path: str) -> dict:
-        raw_values = TerrascriptClient.get_raw_values(path)
+    def get_values(self, path: str) -> dict[str, Any]:
+        raw_values = self.get_raw_values(path)
         try:
             values = anymarkup.parse(raw_values["content"], force_types=None)
             values.pop("$schema", None)
