@@ -2,13 +2,17 @@ from pydantic import BaseModel
 from ruamel import yaml
 
 from reconcile.utils.mr.base import MergeRequestBase
-from reconcile.utils.mr.labels import AUTO_MERGE
+
+
+class WorkloadRecommendedVersion(BaseModel):
+    workload: str
+    recommendedVersion: str
 
 
 class UpdateInfo(BaseModel):
     path: str
     name: str
-    recommended_version: str
+    recommendedVersions: list[WorkloadRecommendedVersion]
 
 
 class CreateOCMUpdateRecommendedVersion(MergeRequestBase):
@@ -36,7 +40,9 @@ class CreateOCMUpdateRecommendedVersion(MergeRequestBase):
         )
         content = yaml.load(raw_file.decode(), Loader=yaml.RoundTripLoader)
 
-        content["recommendedVersion"] = self.update.recommended_version
+        content["recommendedVersions"] = [
+            k.dict() for k in self.update.recommendedVersions
+        ]
 
         yaml.explicit_start = True  # type: ignore[attr-defined]
         new_content = yaml.dump(

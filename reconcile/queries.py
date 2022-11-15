@@ -1108,7 +1108,10 @@ OCM_QUERY = """
     path
     name
     url
-    recommendedVersion
+    recommendedVersions {
+      recommendedVersion
+      workload
+    }
     recommendedVersionWeight {
       highest
       majority
@@ -1130,6 +1133,7 @@ OCM_QUERY = """
         }
       }
     }
+    upgradePolicyAllowedWorkloads
     upgradePolicyDefaults {
       name
       matchLabels
