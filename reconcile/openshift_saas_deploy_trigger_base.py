@@ -21,6 +21,7 @@ from reconcile.utils.saasherder import (
 from reconcile.utils.sharding import is_in_shard
 from reconcile.utils.defer import defer
 from reconcile.openshift_tekton_resources import build_one_per_saas_file_tkn_object_name
+from reconcile.utils.parse_dhms_duration import dhms_to_seconds
 
 _trigger_lock = Lock()
 
@@ -361,13 +362,13 @@ def _construct_tekton_trigger_resource(
     }
 
     if timeout:
-        if timeout < 60:
+        seconds = dhms_to_seconds(timeout)
+        if seconds < 3600:  # 1 hour
             raise TektonTimeoutBadValueError(
                 f"timeout {timeout} is smaller than 60 minutes"
             )
 
-        # conforming to Go’s ParseDuration format
-        body["spec"]["timeout"] = f"{timeout}m"
+        body["spec"]["timeout"] = timeout
 
     return OR(body, integration, integration_version, error_details=name), long_name
 
