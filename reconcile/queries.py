@@ -250,6 +250,7 @@ INTEGRATIONS_QUERY = """
         internalCertificates
         logs {
           slack
+          googleChat
         }
         resources {
           requests {
