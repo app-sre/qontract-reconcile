@@ -60,7 +60,7 @@ class CNAIntegration:
             ):
                 asset = asset_factory_from_schema(spec)
                 self._desired_states[spec.provisioner_name].add_asset(asset)
-                
+
                 # For now we assume that if an asset is bindable, then it
                 # always binds to its defining namespace
                 # TODO: probably this should also be done by passing the required namespace vars
@@ -68,12 +68,18 @@ class CNAIntegration:
                 if not asset.bindable():
                     continue
                 if not (namespace.cluster.spec and namespace.cluster.spec.q_id):
-                    logging.warning("cannot bind asset %s because namespace %s does not have a cluster spec with a cluster id.", asset, namespace.name)
+                    logging.warning(
+                        "cannot bind asset %s because namespace %s does not have a cluster spec with a cluster id.",
+                        asset,
+                        namespace.name,
+                    )
                     continue
-                asset.bindings.append(Binding(
-                    cluster_id=namespace.cluster.spec.q_id,
-                    namespace=namespace.name,
-                ))
+                asset.bindings.add(
+                    Binding(
+                        cluster_id=namespace.cluster.spec.q_id,
+                        namespace=namespace.name,
+                    )
+                )
 
     def assemble_current_states(self):
         states_without_bindings = defaultdict(State)
@@ -103,6 +109,13 @@ class CNAIntegration:
         for provisioner_name, cna_client in self._cna_clients.items():
             desired_state = self._desired_states[provisioner_name]
             current_state = self._current_states[provisioner_name]
+
+            terminated_assets = current_state.get_terminated_assets()
+            for asset in terminated_assets:
+                # We want to purge all terminated assets
+                # A DELETE call to a terminated asset will
+                # purge it from CNA database
+                cna_client.delete(asset=asset)
 
             additions = desired_state - current_state
             for asset in additions:

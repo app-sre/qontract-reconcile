@@ -1,6 +1,6 @@
 from __future__ import annotations
 from typing import Optional
-from reconcile.cna.assets.asset import Asset, AssetStatus, AssetType
+from reconcile.cna.assets.asset import Asset, AssetStatus, AssetType, Binding
 
 
 class CNAStateError(Exception):
@@ -78,16 +78,25 @@ class State:
                 asset = self._assets[asset_type][asset_name]
                 if asset.status in (AssetStatus.TERMINATED, AssetStatus.PENDING):
                     continue
+                required_bindings: set[Binding] = set()
                 if compare_bindings:
-                    if set(asset.bindings) == set(other_asset.bindings):
+                    for binding in other_asset.bindings:
+                        if binding not in asset.bindings:
+                            required_bindings.add(binding)
+                    if not required_bindings:
                         # Bindings are the same - no need to bind
                         continue
                 else: 
                     if asset.asset_properties() == other_asset.asset_properties():
                         # There is no diff - no need to update
                         continue
-                # TODO: this does not help to DELETE bindings
-                ans.add_asset(asset=asset.update_from(other_asset))
+                updated_asset = asset.update_from(other_asset)
+                if compare_bindings:
+                    # We want to make sure the missing bindings are created
+                    updated_asset.bindings.clear()
+                    for binding in required_bindings:
+                        updated_asset.bindings.add(binding)
+                ans.add_asset(asset=updated_asset)
         return ans
 
     def required_updates_to_reach(self, other: State) -> State:
@@ -95,6 +104,13 @@ class State:
 
     def required_bindings_to_reach(self, other: State) -> State:
         return self._diff(other=other, compare_bindings=True)
+
+    def get_terminated_assets(self) -> list[Asset]:
+        """
+        Return a list of assets in terminated state.
+        Those should be deleted again to be purged.
+        """
+        return [asset for asset in self if asset.status == AssetStatus.TERMINATED]
 
     def __sub__(self, other: State) -> State:
         """

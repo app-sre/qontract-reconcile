@@ -102,7 +102,7 @@ class Asset(ABC, Generic[AssetQueryClass]):
     id: Optional[str]
     href: Optional[str]
     status: Optional[AssetStatus]
-    bindings: list[Binding]
+    bindings: set[Binding]
 
     @staticmethod
     def bindable() -> bool:

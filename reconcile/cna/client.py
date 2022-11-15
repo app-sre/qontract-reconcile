@@ -9,6 +9,7 @@ from reconcile.cna.assets.asset import (
     AssetTypeVariableType,
     asset_type_by_id,
     ASSET_CREATOR_FIELD,
+    Binding,
 )
 from reconcile.utils.ocm_base_client import OCMBaseClient
 from reconcile.cna.state import State
@@ -86,10 +87,13 @@ class CNAClient:
                 continue
             bindings = self._ocm_client.get(api_path=f"{asset.href}/bind")
             for item in bindings.get("items", []):
-                # TODO
-                print(item)
-        # TODO: return state_with_bindings
-        return state
+                asset.bindings.add(
+                    Binding(
+                        cluster_id=item.get("cluster_id"),
+                        namespace=item.get("namespace"),
+                    )
+                )
+        return state_with_bindings
 
     def create(self, asset: Asset, dry_run: bool = False):
         if dry_run:
