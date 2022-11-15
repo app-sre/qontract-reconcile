@@ -1108,6 +1108,11 @@ OCM_QUERY = """
     path
     name
     url
+    recommendedVersion
+    recommendedVersionWeight {
+      highest
+      majority
+    }
     accessTokenClientId
     accessTokenUrl
     accessTokenClientSecret {
