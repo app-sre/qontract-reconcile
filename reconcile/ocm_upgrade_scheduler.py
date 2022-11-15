@@ -6,10 +6,11 @@ from datetime import datetime
 from typing import Any, Mapping, Optional
 from dateutil import parser
 from croniter import croniter
+from semver import VersionInfo
 
 from reconcile import queries
 
-from reconcile.utils.ocm import OCM, OCM_PRODUCT_OSD, OCMMap
+from reconcile.utils.ocm import OCM, OCM_PRODUCT_OSD, OCMMap, Sector
 from reconcile.utils.state import State
 from reconcile.utils.data_structures import get_or_init
 from reconcile.utils.semver_helper import parse_semver, sort_versions
@@ -55,6 +56,10 @@ def fetch_desired_state(
         spec = ocm.clusters[cluster_name].spec
         upgrade_policy["current_version"] = spec.version
         upgrade_policy["channel"] = spec.channel
+        # Replace sector names by their related OCM Sector object, including dependencies
+        sector_name = upgrade_policy["conditions"].get("sector")
+        if sector_name:
+            upgrade_policy["conditions"]["sector"] = ocm.sectors[sector_name]
         desired_state.append(upgrade_policy)
 
     sorted_desired_state = sorted(desired_state, key=sort_key)
@@ -155,7 +160,42 @@ def get_version_history(dry_run, upgrade_policies, ocm_map):
     return results
 
 
-def version_conditions_met(version, history, ocm_name, workloads, upgrade_conditions):
+def workload_sector_versions(sector: Sector, workload: str) -> list[VersionInfo]:
+    """
+    get all versions of clusters running the specified workload in that sector
+    """
+    versions = []
+    for cluster_info in sector.cluster_infos:
+        # clusters within a sector always have workloads (mandatory in schema)
+        workloads = cluster_info["upgradePolicy"]["workloads"]
+        if workload in workloads:
+            versions.append(
+                parse_semver(sector.ocmspec(cluster_info["name"]).spec.version)
+            )
+    return versions
+
+
+def workload_sector_dependencies(sector: Sector, workload: str) -> set[Sector]:
+    """
+    get the list of first dependency sectors with non-empty versions for that workload in the
+    sector dependency tree. This goes down recursively through the dependency tree.
+    """
+    deps = set()
+    for dep in sector.dependencies:
+        if workload_sector_versions(dep, workload):
+            deps.add(dep)
+        else:
+            deps.update(workload_sector_dependencies(dep, workload))
+    return deps
+
+
+def version_conditions_met(
+    version: str,
+    history: Mapping[Any, Any],
+    ocm_name: str,
+    workloads: list[str],
+    upgrade_conditions: dict[str, Any],
+):
     """Check that upgrade conditions are met for a version
 
     Args:
@@ -168,7 +208,19 @@ def version_conditions_met(version, history, ocm_name, workloads, upgrade_condit
     Returns:
         bool: are version upgrade conditions met
     """
-    conditions_met = True
+    # check if previous sectors run at least this version for that workload
+    # we will check dependencies recursively until there are versions for the given workload
+    # or no more dependencies to check
+    sector = upgrade_conditions.get("sector")
+    if sector:
+        for w in workloads:
+            for dep in workload_sector_dependencies(sector, w):
+                dep_versions = workload_sector_versions(dep, w)
+                if not dep_versions:
+                    continue
+                if min(dep_versions) < parse_semver(version):
+                    return False
+
     # check soak days condition is met for this version
     soak_days = upgrade_conditions.get("soakDays", None)
     if soak_days is not None:
@@ -177,9 +229,9 @@ def version_conditions_met(version, history, ocm_name, workloads, upgrade_condit
         for w in workloads:
             workload_history = version_history.get("workloads", {}).get(w, {})
             if soak_days > workload_history.get("soak_days", 0.0):
-                conditions_met = False
+                return False
 
-    return conditions_met
+    return True
 
 
 def gates_to_agree(version_prefix: str, cluster: str, ocm: OCM) -> list[str]:
