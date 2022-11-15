@@ -1,6 +1,9 @@
 import functools
+from typing import Any
+
 import semver
 from reconcile import queries, mr_client_gateway
+from reconcile.ocm.types import OCMSpec
 from reconcile.utils.mr.ocm_update_recommended_version import (
     CreateOCMUpdateRecommendedVersion,
     UpdateInfo,
@@ -40,37 +43,30 @@ def recommended_version(
     return highest
 
 
-def get_version_weights(ocm: dict[str, any]) -> tuple[int, int]:
+def get_version_weights(ocm: dict[str, Any]) -> tuple[int, int]:
     rv_weight = ocm.get("recommendedVersionWeight")
     high_weight = 1
     majority_weight = 1
     if rv_weight:
-        if rv_weight["highest"] is not None:
+        if rv_weight.get("highest") is not None:
             high_weight = rv_weight["highest"]
-        if rv_weight["majority"] is not None:
+        if rv_weight.get("majority") is not None:
             majority_weight = rv_weight["majority"]
     return high_weight, majority_weight
 
 
 def get_updated_recommended_versions(
-    ocm_info: dict[str, any], settings: dict[str, any]
+    ocm_info: dict[str, Any], cluster: dict[str, OCMSpec]
 ) -> list[dict[str, str]]:
-    ocm_map = OCMMap(
-        ocms=[ocm_info],
-        integration=QONTRACT_INTEGRATION,
-        settings=settings,
-        init_version_gates=True,
-    )
 
-    current, pending = ocm_map.cluster_specs()
     rv_current = ocm_info.get("recommendedVersions") or []
 
-    if len(current) == 0 or len(rv_current) == 0:
+    if len(rv_current) == 0:
         return []
 
     high_weight, majority_weight = get_version_weights(ocm_info)
 
-    rv_updated = []
+    rv_updated: list[dict[str, str]] = []
     for workload in ocm_info["upgradePolicyAllowedWorkloads"] or []:
         rv_workload = [rv for rv in rv_current if rv["workload"] == workload]
         if len(rv_workload) == 1:
@@ -80,7 +76,7 @@ def get_updated_recommended_versions(
                 if workload in c["upgradePolicy"]["workloads"]
             ]
             versions = [
-                current[k].spec.version for k in current if k in cluster_workload
+                cluster[k].spec.version for k in cluster if k in cluster_workload
             ]
             rv_update = rv_workload[0]
             rv_update["recommendedVersion"] = recommended_version(
@@ -97,7 +93,18 @@ def run(dry_run: bool, gitlab_project_id: int):
     ocm = queries.get_openshift_cluster_managers()
 
     for ocm_info in ocm:
-        rv_updated = get_updated_recommended_versions(ocm_info, settings)
+        ocm_map = OCMMap(
+            ocms=[ocm_info],
+            integration=QONTRACT_INTEGRATION,
+            settings=settings,
+            init_version_gates=True,
+        )
+
+        current, _ = ocm_map.cluster_specs()
+        if current == 0:
+            continue
+
+        rv_updated = get_updated_recommended_versions(ocm_info, current)
 
         if not rv_updated:
             continue
