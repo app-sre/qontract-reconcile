@@ -3,7 +3,13 @@ import pytest
 import httpretty
 from httpretty.core import HTTPrettyRequest
 
-from reconcile.utils.ocm import OCM
+from reconcile.utils.ocm import (
+    OCMMap,
+    OCM,
+    Sector,
+    SectorWeakReference,
+    SectorConfigError,
+)
 
 
 @pytest.fixture
@@ -172,3 +178,122 @@ def test__get_json(ocm):
     httpretty.disable()
 
     assert x["id"] == 1
+
+
+def test_sector_validate_dependencies(ocm):
+    sector1 = Sector(
+        name="sector1", ocm=ocm, cluster_infos=[], dependencies_refs=[], dependencies=[]
+    )
+    sector2 = Sector(
+        name="sector2",
+        ocm=ocm,
+        cluster_infos=[],
+        dependencies_refs=[],
+        dependencies=[sector1],
+    )
+    sector3 = Sector(
+        name="sector3",
+        ocm=ocm,
+        cluster_infos=[],
+        dependencies_refs=[],
+        dependencies=[sector2],
+    )
+    assert sector3.validate_dependencies()
+
+    # zero-level loop sector1 -> sector1
+    sector1 = Sector(
+        name="sector1", ocm=ocm, cluster_infos=[], dependencies_refs=[], dependencies=[]
+    )
+    sector1.dependencies = [sector1]
+    with pytest.raises(SectorConfigError):
+        sector1.validate_dependencies()
+
+    # single-level loop sector2 -> sector1 -> sector2
+    sector1 = Sector(
+        name="sector1", ocm=ocm, cluster_infos=[], dependencies_refs=[], dependencies=[]
+    )
+    sector2 = Sector(
+        name="sector2",
+        ocm=ocm,
+        cluster_infos=[],
+        dependencies_refs=[],
+        dependencies=[sector1],
+    )
+    sector1.dependencies = [sector2]
+    with pytest.raises(SectorConfigError):
+        sector2.validate_dependencies()
+
+    # greater-level loop sector3 -> sector2 -> sector1 -> sector3
+    sector1 = Sector(
+        name="sector1", ocm=ocm, cluster_infos=[], dependencies_refs=[], dependencies=[]
+    )
+    sector2 = Sector(
+        name="sector2",
+        ocm=ocm,
+        cluster_infos=[],
+        dependencies_refs=[],
+        dependencies=[sector1],
+    )
+    sector3 = Sector(
+        name="sector3",
+        ocm=ocm,
+        cluster_infos=[],
+        dependencies_refs=[],
+        dependencies=[sector2],
+    )
+    sector1.dependencies = [sector3]
+    with pytest.raises(SectorConfigError):
+        sector3.validate_dependencies()
+
+
+def test_ocm_map_upgrade_policies(ocm, mocker):
+    mocker.patch("reconcile.utils.ocm.SecretReader")
+    sectors = [
+        {"name": "s1"},
+        {"name": "s2", "dependencies": [{"name": "s1"}]},
+        {"name": "s3", "dependencies": [{"ocm": {"name": "ocm1"}, "name": "s1"}]},
+    ]
+    ocm_info = {
+        "name": "ocm1",
+        "sectors": sectors,
+        "accessTokenClientId": "atci",
+        "accessTokenUrl": "atu",
+        "accessTokenClientSecret": "atcs",
+        "url": "u",
+    }
+    c1 = {"name": "c1", "ocm": ocm_info, "upgradePolicy": {"workload": "w1"}}
+    c2 = {
+        "name": "c2",
+        "ocm": ocm_info,
+        "upgradePolicy": {"workload": "w1", "conditions": {"sector": "s2"}},
+    }
+
+    ocm_map = OCMMap(clusters=[c1, c2])
+    assert "ocm1" in ocm_map.ocm_map
+
+    ocm1 = ocm_map["ocm1"]
+    assert len(ocm1.sectors) == 3
+
+    s1 = Sector(
+        name="s1", ocm=ocm1, dependencies=[], dependencies_refs=[], cluster_infos=[]
+    )
+    assert ocm1.sectors["s1"] == s1
+
+    s1_weak = SectorWeakReference(ocm_org_name="ocm1", sector_name="s1")
+    s2 = Sector(
+        name="s2",
+        ocm=ocm1,
+        dependencies=[s1],
+        dependencies_refs=[s1_weak],
+        cluster_infos=[c2],
+    )
+    assert ocm1.sectors["s2"] == s2
+
+    s3 = Sector(
+        name="s3",
+        ocm=ocm1,
+        dependencies=[s1],
+        dependencies_refs=[s1_weak],
+        cluster_infos=[],
+    )
+    assert ocm1.sectors["s3"] == s3
