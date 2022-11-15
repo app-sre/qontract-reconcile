@@ -1997,6 +1997,7 @@ SAAS_FILES_QUERY_V2 = """
     takeover
     deprecated
     compare
+    timeout
     publishJobLogs
     clusterAdmin
     imagePatterns
