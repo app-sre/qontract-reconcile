@@ -494,7 +494,7 @@ def change_path_covered_by_allowed_path(changed_path: str, allowed_path: str) ->
 
 def get_priority_for_changes(
     bundle_file_changes: list[BundleFileChange],
-) -> ChangeTypePriority:
+) -> Optional[ChangeTypePriority]:
     """
     Finds the lowest priority of all change types involved in the provided bundle file changes.
     """
@@ -507,8 +507,4 @@ def get_priority_for_changes(
     for p in reversed(ChangeTypePriority):
         if p in prorities:
             return p
-    raise ValueError(
-        "The priorities of the involved change types are not compatible with the supported priorities \n"
-        f"change-type priorities: {[p.value for p in prorities]} \n"
-        f"supported priorities: {[p.value for p in ChangeTypePriority]}"
-    )
+    return None
