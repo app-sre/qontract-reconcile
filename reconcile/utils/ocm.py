@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 import functools
 import logging
 import random
 import re
 from abc import abstractmethod
 import string
-from typing import Any, Mapping, Optional, Tuple, Union
+from typing import Any, Mapping, Optional, Tuple, Union, Iterable
 
 from reconcile.utils.secret_reader import SecretReader
 import reconcile.utils.aws_helper as awsh
@@ -508,6 +509,64 @@ class OCMServiceAccountNotAssociatedToOrg(Exception):
     pass
 
 
+class SectorConfigError(Exception):
+    pass
+
+
+# A weak reference to a sector. Used to reference a sector dependency, even if this one is
+# not available yet
+@dataclass
+class SectorWeakReference:
+    ocm_org_name: str
+    sector_name: str
+
+
+@dataclass
+class Sector:
+    name: str
+    ocm: OCM
+    # weak dependency list
+    dependencies_refs: list[SectorWeakReference] = field(default_factory=lambda: [])
+    # dependency list, built once all Sectors from all OCM orgs have been set
+    dependencies: list[Sector] = field(default_factory=lambda: [])
+    cluster_infos: list[dict[Any, Any]] = field(default_factory=lambda: [])
+    _validated_dependencies: Optional[set[Sector]] = None
+
+    def __key(self):
+        return (self.ocm.name, self.name)
+
+    def __hash__(self) -> int:
+        return hash(self.__key())
+
+    def __str__(self) -> str:
+        return f"{self.ocm.name}/{self.name}"
+
+    def ocmspec(self, cluster_name: str) -> OCMSpec:
+        return self.ocm.clusters[cluster_name]
+
+    def _iter_dependencies(self) -> Iterable[Sector]:
+        """
+        iterate reccursively over all the sector dependencies
+        """
+        logging.debug(f"[{self}] checking dependencies")
+        for dep in self.dependencies or []:
+            if self == dep:
+                raise SectorConfigError(
+                    f"[{self}] infinite sector dependency loop detected: depending on itself"
+                )
+            yield dep
+            for d in dep._iter_dependencies():
+                if self == d:
+                    raise SectorConfigError(
+                        f"[{self}] infinite sector dependency loop detected under {dep} dependencies"
+                    )
+                yield d
+
+    def validate_dependencies(self) -> bool:
+        list(self._iter_dependencies())
+        return True
+
+
 class OCM:  # pylint: disable=too-many-public-methods
     """
     OCM is an instance of OpenShift Cluster Manager.
@@ -542,6 +601,7 @@ class OCM:  # pylint: disable=too-many-public-methods
         init_version_gates=False,
         blocked_versions=None,
         ocm_client: Optional[OCMBaseClient] = None,
+        sectors: Optional[list[dict[str, Any]]] = None,
     ):
         """Initiates access token and gets clusters information."""
         self.name = name
@@ -578,6 +638,24 @@ class OCM:  # pylint: disable=too-many-public-methods
             self.get_aws_infrastructure_access_role_grants
         )
 
+        # organization sectors and their dependencies
+        self.sectors: dict[str, Sector] = {}
+        for sector in sectors or []:
+            deps = []
+            for dep in sector.get("dependencies") or []:
+                dep_ocm_org_name = self.name
+                if dep.get("ocm"):
+                    dep_ocm_org_name = dep["ocm"]["name"]
+                ref = SectorWeakReference(
+                    ocm_org_name=dep_ocm_org_name, sector_name=dep["name"]
+                )
+                deps.append(ref)
+            self.sectors[sector["name"]] = Sector(
+                name=sector["name"],
+                ocm=self,
+                dependencies_refs=deps,
+            )
+
     def _init_ocm_client(
         self,
         url: str,
@@ -600,7 +678,7 @@ class OCM:  # pylint: disable=too-many-public-methods
             and cluster["product"]["id"] in OCM_PRODUCTS_IMPL
         )
 
-    def _init_clusters(self, init_provision_shards):
+    def _init_clusters(self, init_provision_shards: bool):
         api = f"{CS_API_BASE}/v1/clusters"
         params = {"search": f"organization.id='{self.org_id}'"}
         clusters = self._get_json(api, params=params).get("items", [])
@@ -1403,6 +1481,7 @@ class OCMMap:  # pylint: disable=too-many-public-methods
         """Initiates OCM instances for each OCM referenced in a cluster."""
         self.clusters_map = {}
         self.ocm_map = {}
+        self.sector_map = {}
         self.calling_integration = integration
         self.settings = settings
 
@@ -1437,6 +1516,19 @@ class OCMMap:  # pylint: disable=too-many-public-methods
         else:
             raise KeyError("expected one of clusters, namespaces or ocm.")
 
+        # link sectors across OCM orgs
+        for ocm in self.ocm_map.values():
+            for sector in ocm.sectors.values():
+                sector.dependencies = []
+                for dep_refs in sector.dependencies_refs:
+                    other_ocm = self.ocm_map[dep_refs.ocm_org_name]
+                    sector.dependencies.append(other_ocm.sectors[dep_refs.sector_name])
+
+        # check sectors dependencies loop
+        for ocm in self.ocm_map.values():
+            for sector in ocm.sectors.values():
+                sector.validate_dependencies()
+
     def __getitem__(self, ocm_name) -> OCM:
         return self.ocm_map[ocm_name]
 
@@ -1450,12 +1542,21 @@ class OCMMap:  # pylint: disable=too-many-public-methods
         ocm_name = ocm_info["name"]
         # pointer from each cluster to its referenced OCM instance
         self.clusters_map[cluster_name] = ocm_name
-        if self.ocm_map.get(ocm_name):
-            return
 
-        self.init_ocm_client(
-            ocm_info, init_provision_shards, init_addons, init_version_gates
-        )
+        if ocm_name not in self.ocm_map:
+            self.init_ocm_client(
+                ocm_info, init_provision_shards, init_addons, init_version_gates
+            )
+
+        if (
+            "upgradePolicy" in cluster_info
+            and "conditions" in cluster_info["upgradePolicy"]
+        ):
+            sector_name = cluster_info["upgradePolicy"]["conditions"].get("sector")
+            if sector_name:
+                ocm = self.ocm_map.get(ocm_name)
+                if ocm:
+                    ocm.sectors[sector_name].cluster_infos.append(cluster_info)
 
     def init_ocm_client(
         self, ocm_info, init_provision_shards, init_addons, init_version_gates
@@ -1493,6 +1594,7 @@ class OCMMap:  # pylint: disable=too-many-public-methods
                 init_addons=init_addons,
                 blocked_versions=ocm_info.get("blockedVersions"),
                 init_version_gates=init_version_gates,
+                sectors=ocm_info.get("sectors"),
             )
 
     def instances(self) -> list[str]:
