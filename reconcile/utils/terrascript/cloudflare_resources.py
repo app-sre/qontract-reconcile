@@ -21,6 +21,15 @@ class UnsupportedCloudflareResourceError(Exception):
     pass
 
 
+class cloudflare_account(Resource):
+    """
+    https://registry.terraform.io/providers/cloudflare/cloudflare/latest/docs/resources/account
+
+    This resource isn't supported directly by Terrascript, which is why it needs to be
+    defined like this as a Resource.
+    """
+
+
 class cloudflare_certificate_pack(Resource):
     """
     https://registry.terraform.io/providers/cloudflare/cloudflare/latest/docs/resources/certificate_pack
