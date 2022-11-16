@@ -1,4 +1,5 @@
 import logging
+from dataclasses import asdict
 from typing import Any
 from reconcile.cna.assets.asset import (
     Asset,
@@ -8,6 +9,7 @@ from reconcile.cna.assets.asset import (
     AssetTypeVariableType,
     asset_type_by_id,
     ASSET_CREATOR_FIELD,
+    Binding,
 )
 from reconcile.utils.ocm_base_client import OCMBaseClient
 
@@ -68,6 +70,15 @@ class CNAClient:
         cnas = self._ocm_client.get(api_path="/api/cna-management/v1/cnas")
         return cnas.get("items", [])
 
+    def fetch_bindings_for_asset(self, asset: Asset) -> list[dict[str, str]]:
+        """
+        Currently bindings can only be retrieved per asset.
+        I.e., we will need one GET call per asset to aquire
+        all bindings.
+        """
+        bindings = self._ocm_client.get(api_path=f"{asset.href}/bind")
+        return bindings.get("items", [])
+
     def create(self, asset: Asset, dry_run: bool = False):
         if dry_run:
             logging.info(
@@ -81,6 +92,21 @@ class CNAClient:
             api_path="/api/cna-management/v1/cnas",
             data=asset.api_payload(),
         )
+
+    def bind(self, asset: Asset, dry_run: bool = False):
+        for binding in asset.bindings:
+            if dry_run:
+                logging.info(
+                    "BIND %s %s %s",
+                    asset.asset_type().value,
+                    asset.name,
+                    binding,
+                )
+                continue
+            self._ocm_client.post(
+                api_path=f"{asset.href}/bind",
+                data=asdict(binding),
+            )
 
     def delete(self, asset: Asset, dry_run: bool = False):
         if dry_run:

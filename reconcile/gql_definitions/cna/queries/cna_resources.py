@@ -42,6 +42,11 @@ fragment ResourceFile on Resource_v1 {
 query CNAssets {
   namespaces: namespaces_v1 {
     name
+    cluster {
+      spec {
+        id
+      }
+    }
     managedExternalResources
     externalResources {
       provider
@@ -81,7 +86,7 @@ query CNAssets {
             }
           }
           ... on CNAAssumeRoleAsset_v1{
-            account {
+            aws_account {
               ... CNAAWSAccountRoleARNs
             }
             overrides {
@@ -97,6 +102,22 @@ query CNAssets {
   }
 }
 """
+
+
+class ClusterSpecV1(BaseModel):
+    q_id: Optional[str] = Field(..., alias="id")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
+class ClusterV1(BaseModel):
+    spec: Optional[ClusterSpecV1] = Field(..., alias="spec")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
 
 
 class ExternalResourcesProvisionerV1(BaseModel):
@@ -186,7 +207,7 @@ class CNAAssumeRoleAssetOverridesV1(BaseModel):
 
 
 class CNAAssumeRoleAssetV1(CNAssetV1):
-    account: CNAAWSAccountRoleARNs = Field(..., alias="account")
+    aws_account: CNAAWSAccountRoleARNs = Field(..., alias="aws_account")
     overrides: Optional[CNAAssumeRoleAssetOverridesV1] = Field(..., alias="overrides")
     defaults: Optional[ResourceFile] = Field(..., alias="defaults")
 
@@ -207,6 +228,7 @@ class NamespaceCNAssetV1(NamespaceExternalResourceV1):
 
 class NamespaceV1(BaseModel):
     name: str = Field(..., alias="name")
+    cluster: ClusterV1 = Field(..., alias="cluster")
     managed_external_resources: Optional[bool] = Field(
         ..., alias="managedExternalResources"
     )
