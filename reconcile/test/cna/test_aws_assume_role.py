@@ -20,7 +20,7 @@ def test_from_query_class():
             slug=slug,
         ),
         defaults=None,
-        account=CNAAWSAccountRoleARNs(
+        aws_account=CNAAWSAccountRoleARNs(
             name="acc",
             cna=CNAAWSSpecV1(defaultRoleARN=arn, moduleRoleARNS=None),
         ),

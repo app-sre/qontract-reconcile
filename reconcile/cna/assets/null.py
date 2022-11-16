@@ -34,6 +34,7 @@ class NullAsset(Asset[CNANullAssetV1]):
             id=None,
             href=None,
             status=AssetStatus.UNKNOWN,
+            bindings=set(),
             name=asset.identifier,
             addr_block=asset.overrides.addr_block if asset.overrides else None,
         )

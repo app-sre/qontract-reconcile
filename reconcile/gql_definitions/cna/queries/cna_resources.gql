@@ -3,6 +3,11 @@
 query CNAssets {
   namespaces: namespaces_v1 {
     name
+    cluster {
+      spec {
+        id
+      }
+    }
     managedExternalResources
     externalResources {
       provider
@@ -42,7 +47,7 @@ query CNAssets {
             }
           }
           ... on CNAAssumeRoleAsset_v1{
-            account {
+            aws_account {
               ... CNAAWSAccountRoleARNs
             }
             overrides {
