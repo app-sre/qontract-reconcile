@@ -3,6 +3,7 @@
 query ChangeTypes($name: String) {
   change_types: change_types_v1(name: $name) {
     name
+    description
     priority
     contextType
     contextSchema
