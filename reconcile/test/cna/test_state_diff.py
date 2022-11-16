@@ -20,6 +20,7 @@ def null_asset(
         href=None,
         status=status,
         addr_block=addr_block,
+        bindings=set(),
         name=name,
     )
 

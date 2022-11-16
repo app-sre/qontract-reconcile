@@ -22,6 +22,7 @@ def null_asset(
         status=status,
         name=name,
         addr_block=addr_block,
+        bindings=set(),
     )
 
 
@@ -180,5 +181,6 @@ def test_state_iter():
     state = State(assets={AssetType.NULL: {asset.name: asset for asset in assets}})
     iterated_assets = [asset for asset in state]
 
-    assert len(assets) == len(iterated_assets)
-    assert set(assets) == set(iterated_assets)
+    assert sorted(assets, key=lambda x: x.name) == sorted(
+        iterated_assets, key=lambda x: x.name
+    )
