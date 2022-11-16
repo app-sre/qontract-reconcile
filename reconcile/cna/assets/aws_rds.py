@@ -73,6 +73,7 @@ class AWSRDSAsset(Asset[CNARDSInstanceV1]):
             id=None,
             href=None,
             status=AssetStatus.UNKNOWN,
+            bindings=set(),
             name=asset.identifier,
             identifier=asset.overrides.name or asset.identifier,
             vpc_id=asset.vpc.vpc_id,

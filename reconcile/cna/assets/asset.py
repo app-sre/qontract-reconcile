@@ -224,7 +224,7 @@ class Asset(ABC, Generic[AssetQueryClass]):
             href=raw_asset.get(ASSET_HREF_FIELD),
             status=AssetStatus(raw_asset.get(ASSET_STATUS_FIELD)),
             name=raw_asset.get(ASSET_NAME_FIELD, ""),
-            bindings=[],
+            bindings=set(),
             **params,
         )
 

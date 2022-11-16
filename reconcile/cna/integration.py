@@ -82,7 +82,9 @@ class CNAIntegration:
                 )
 
     def assemble_current_states(self):
-        states_without_bindings = defaultdict(State)
+        self._current_states = defaultdict(State)
+
+        # We fetch all assets from API
         for name, client in self._cna_clients.items():
             state = State()
             for raw_asset in client.list_assets_for_creator(
@@ -99,11 +101,18 @@ class CNAIntegration:
                 except AssetError as e:
                     # TODO: remember this somehow in the state so we don't try to update/create this asset but skip it instead
                     logging.error(e)
-            states_without_bindings[name] = state
-        states_with_bindings: dict[State] = {}
-        for client_name, state in states_without_bindings.items():
-            states_with_bindings[client_name] = client.fetch_bindings_for_state(state)
-        self._current_states = states_with_bindings
+            self._current_states[name] = state
+
+        # For each asset, we fetch its bindings from API
+        for _, state in self._current_states.items():
+            for asset in state:
+                for binding in client.fetch_bindings_for_asset(asset):
+                    asset.bindings.add(
+                        Binding(
+                            cluster_id=binding.get("cluster_id", ""),
+                            namespace=binding.get("namespace", ""),
+                        )
+                    )
 
     def provision(self, dry_run: bool = False):
         for provisioner_name, cna_client in self._cna_clients.items():

@@ -45,7 +45,7 @@ class AWSAssumeRoleAsset(Asset[CNAAssumeRoleAssetV1]):
             href=None,
             status=AssetStatus.UNKNOWN,
             name=asset.identifier,
-            bindings=[],
+            bindings=set(),
             verify_slug=asset.overrides.slug if asset.overrides else None,
             role_arn=role_arn,
         )

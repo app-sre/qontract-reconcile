@@ -86,7 +86,7 @@ class State:
                     if not required_bindings:
                         # Bindings are the same - no need to bind
                         continue
-                else: 
+                else:
                     if asset.asset_properties() == other_asset.asset_properties():
                         # There is no diff - no need to update
                         continue
