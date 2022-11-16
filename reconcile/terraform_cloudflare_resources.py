@@ -89,7 +89,6 @@ def build_clients(
             cf_acct.name,
             cf_acct_creds.get("api_token"),
             cf_acct_creds.get("account_id"),
-            cf_acct.enforce_twofactor or False,
         )
 
         aws_acct = cf_acct.terraform_state_account
