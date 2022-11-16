@@ -1519,10 +1519,15 @@ class OCMMap:  # pylint: disable=too-many-public-methods
         # link sectors across OCM orgs
         for ocm in self.ocm_map.values():
             for sector in ocm.sectors.values():
-                sector.dependencies = []
                 for dep_refs in sector.dependencies_refs:
                     other_ocm = self.ocm_map[dep_refs.ocm_org_name]
-                    sector.dependencies.append(other_ocm.sectors[dep_refs.sector_name])
+                    other_sector_names = [dep_refs.sector_name]
+                    if dep_refs.sector_name == "*":
+                        other_sector_names = list(other_ocm.sectors.keys())
+                        if ocm.name == other_ocm.name:  # do not depend on ourself
+                            other_sector_names.remove(sector.name)
+                    for name in other_sector_names:
+                        sector.dependencies.append(other_ocm.sectors[name])
 
         # check sectors dependencies loop
         for ocm in self.ocm_map.values():
