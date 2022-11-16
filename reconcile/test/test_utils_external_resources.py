@@ -6,10 +6,8 @@ from pydantic import BaseModel
 
 from reconcile.utils.external_resource_spec import (
     ExternalResourceSpec,
-    TypedExternalResourceSpec,
 )
 import reconcile.utils.external_resources as uer
-from reconcile.gql_definitions.fragments.resource_file import ResourceFile
 
 
 @pytest.fixture
@@ -262,7 +260,7 @@ class MyResource(BaseModel):
     identifier: str
 
 
-class ResourceOverrides(BaseModel):
+class ResourceConfig(BaseModel):
     field_1: Optional[str]
     field_2: Optional[str]
 
@@ -270,8 +268,8 @@ class ResourceOverrides(BaseModel):
 class OverrideableResource(BaseModel):
     provider: str
     identifier: str
-    overrides: Optional[ResourceOverrides]
-    defaults: Optional[ResourceFile]
+    overrides: Optional[ResourceConfig]
+    defaults: Optional[ResourceConfig]
 
 
 class TestNamespaceExternalResource(BaseModel):
@@ -332,79 +330,3 @@ def test_get_external_resource_specs_for_namespace_wrong_type(namespace: TestNam
         uer.get_external_resource_specs_for_namespace(
             namespace, OverrideableResource, None
         )
-
-
-def test_typed_external_resource_resolve_no_defaults(namespace: TestNamespace):
-    """
-    In this scenario, the resource has no defaults, so overrides remain untouched.
-    """
-    assert namespace.external_resources is not None
-    spec = TypedExternalResourceSpec[OverrideableResource](
-        namespace_spec=namespace,
-        namespace_external_resource=namespace.external_resources[0],
-        spec=OverrideableResource(
-            provider="p",
-            identifier="i",
-            overrides=ResourceOverrides(field_1="f1", field_2="f2"),
-            defaults=None,
-        ),
-    )
-    resolved_spec = spec.resolve()
-    assert resolved_spec.spec.overrides == spec.spec.overrides
-
-
-def test_typed_external_resource_resolve_defaults_overrides(
-    namespace: TestNamespace,
-):
-    """
-    This scenario tests defaults overwriting undefined overrides.
-    """
-    overwrite_f2 = "f2_override"
-    default_f1 = "f1_default"
-    default_f2 = "f2_default"
-    assert namespace.external_resources is not None
-    spec = TypedExternalResourceSpec[OverrideableResource](
-        namespace_spec=namespace,
-        namespace_external_resource=namespace.external_resources[0],
-        spec=OverrideableResource(
-            provider="p",
-            identifier="i",
-            overrides=ResourceOverrides(field_1=None, field_2=overwrite_f2),
-            defaults=ResourceFile(
-                resourceFileSchema=None,
-                content=f"field_1: {default_f1}\nfield_2: {default_f2}",
-            ),
-        ),
-    )
-    resolved_spec = spec.resolve()
-    assert resolved_spec.spec.overrides is not None
-    assert resolved_spec.spec.overrides.field_1 == default_f1
-    assert resolved_spec.spec.overrides.field_2 == overwrite_f2
-
-
-def test_typed_external_resource_resolve_override_none(
-    namespace: TestNamespace,
-):
-    """
-    This scenario tests that a missing override is created from defaults.
-    """
-    default_f1 = "f1_default"
-    default_f2 = "f2_default"
-    assert namespace.external_resources is not None
-    spec = TypedExternalResourceSpec[OverrideableResource](
-        namespace_spec=namespace,
-        namespace_external_resource=namespace.external_resources[0],
-        spec=OverrideableResource(
-            provider="p",
-            identifier="i",
-            overrides=None,
-            defaults=ResourceFile(
-                resourceFileSchema=None,
-                content=f"field_1: {default_f1}\nfield_2: {default_f2}",
-            ),
-        ),
-    )
-    resolved_spec = spec.resolve()
-    assert resolved_spec.spec.overrides is not None
-    assert resolved_spec.spec.overrides.field_1 == default_f1
-    assert resolved_spec.spec.overrides.field_2 == default_f2

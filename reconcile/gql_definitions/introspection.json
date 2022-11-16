@@ -27127,24 +27127,24 @@
                             "deprecationReason": null
                         },
                         {
-                            "name": "overrides",
+                            "name": "defaults",
                             "description": null,
                             "args": [],
                             "type": {
                                 "kind": "OBJECT",
-                                "name": "CNAAssumeRoleAssetOverrides_v1",
+                                "name": "CNAAssumeRoleAssetConfig_v1",
                                 "ofType": null
                             },
                             "isDeprecated": false,
                             "deprecationReason": null
                         },
                         {
-                            "name": "defaults",
+                            "name": "overrides",
                             "description": null,
                             "args": [],
                             "type": {
                                 "kind": "OBJECT",
-                                "name": "Resource_v1",
+                                "name": "CNAAssumeRoleAssetConfig_v1",
                                 "ofType": null
                             },
                             "isDeprecated": false,
@@ -27164,7 +27164,7 @@
                 },
                 {
                     "kind": "OBJECT",
-                    "name": "CNAAssumeRoleAssetOverrides_v1",
+                    "name": "CNAAssumeRoleAssetConfig_v1",
                     "description": null,
                     "fields": [
                         {
@@ -27235,12 +27235,24 @@
                             "deprecationReason": null
                         },
                         {
+                            "name": "defaults",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "OBJECT",
+                                "name": "CNANullAssetConfig_v1",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
                             "name": "overrides",
                             "description": null,
                             "args": [],
                             "type": {
                                 "kind": "OBJECT",
-                                "name": "CNANullAssetOverrides_v1",
+                                "name": "CNANullAssetConfig_v1",
                                 "ofType": null
                             },
                             "isDeprecated": false,
@@ -27260,7 +27272,7 @@
                 },
                 {
                     "kind": "OBJECT",
-                    "name": "CNANullAssetOverrides_v1",
+                    "name": "CNANullAssetConfig_v1",
                     "description": null,
                     "fields": [
                         {
@@ -27319,28 +27331,12 @@
                             "deprecationReason": null
                         },
                         {
-                            "name": "vpc",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "NON_NULL",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "OBJECT",
-                                    "name": "AWSVPC_v1",
-                                    "ofType": null
-                                }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
                             "name": "defaults",
                             "description": null,
                             "args": [],
                             "type": {
                                 "kind": "OBJECT",
-                                "name": "Resource_v1",
+                                "name": "CNARDSInstanceConfig_v1",
                                 "ofType": null
                             },
                             "isDeprecated": false,
@@ -27352,7 +27348,7 @@
                             "args": [],
                             "type": {
                                 "kind": "OBJECT",
-                                "name": "CNARDSInstanceOverrides_v1",
+                                "name": "CNARDSInstanceConfig_v1",
                                 "ofType": null
                             },
                             "isDeprecated": false,
@@ -27372,47 +27368,23 @@
                 },
                 {
                     "kind": "OBJECT",
-                    "name": "CNARDSInstanceOverrides_v1",
+                    "name": "CNARDSInstanceConfig_v1",
                     "description": null,
                     "fields": [
                         {
-                            "name": "name",
+                            "name": "vpc",
                             "description": null,
                             "args": [],
                             "type": {
-                                "kind": "SCALAR",
-                                "name": "String",
+                                "kind": "OBJECT",
+                                "name": "AWSVPC_v1",
                                 "ofType": null
                             },
                             "isDeprecated": false,
                             "deprecationReason": null
                         },
                         {
-                            "name": "engine",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "SCALAR",
-                                "name": "String",
-                                "ofType": null
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "engine_version",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "SCALAR",
-                                "name": "String",
-                                "ofType": null
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "username",
+                            "name": "db_subnet_group_name",
                             "description": null,
                             "args": [],
                             "type": {
@@ -27460,6 +27432,66 @@
                             "deprecationReason": null
                         },
                         {
+                            "name": "engine",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "String",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "engine_version",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "String",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "major_engine_version",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "String",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "username",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "String",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "maintenance_window",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "String",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
                             "name": "backup_retention_period",
                             "description": null,
                             "args": [],
@@ -27472,12 +27504,48 @@
                             "deprecationReason": null
                         },
                         {
-                            "name": "db_subnet_group_name",
+                            "name": "backup_window",
                             "description": null,
                             "args": [],
                             "type": {
                                 "kind": "SCALAR",
                                 "name": "String",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "multi_az",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "Boolean",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "deletion_protection",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "Boolean",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "apply_immediately",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "Boolean",
                                 "ofType": null
                             },
                             "isDeprecated": false,

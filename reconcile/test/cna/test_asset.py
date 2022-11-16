@@ -249,8 +249,7 @@ def build_assume_role_typed_external_resource(
             "slug": verify_slug_override,
         },
         "defaults": {
-            "resourceFileSchema": "schema",
-            "content": f"slug: {verify_slug_default}" if verify_slug_default else "",
+            "slug": verify_slug_default,
         },
     }
     namespace_resource = {

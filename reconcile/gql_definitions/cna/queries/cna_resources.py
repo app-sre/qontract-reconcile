@@ -16,10 +16,14 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
-from reconcile.gql_definitions.cna.queries.aws_account_fragment import (
-    CNAAWSAccountRoleARNs,
+from reconcile.gql_definitions.cna.queries.aws_arn import CNAAWSAccountRoleARNs
+from reconcile.gql_definitions.cna.queries.aws_assume_role_config import (
+    CNAAssumeRoleAssetConfig,
 )
-from reconcile.gql_definitions.fragments.resource_file import ResourceFile
+from reconcile.gql_definitions.cna.queries.null_asset_config import CNANullAssetConfig
+from reconcile.gql_definitions.cna.queries.aws_rds_instance_config import (
+    CNARDSInstanceConfig,
+)
 
 
 DEFINITION = """
@@ -34,9 +38,36 @@ fragment CNAAWSAccountRoleARNs on AWSAccount_v1 {
   }
 }
 
-fragment ResourceFile on Resource_v1 {
-  resourceFileSchema: schema
-  content
+fragment CNAAssumeRoleAssetConfig on CNAAssumeRoleAssetConfig_v1 {
+  slug
+}
+
+fragment CNANullAssetConfig on CNANullAssetConfig_v1 {
+  addr_block
+}
+
+fragment CNARDSInstanceConfig on CNARDSInstanceConfig_v1 {
+  vpc {
+    vpc_id
+    region
+    account {
+      ... CNAAWSAccountRoleARNs
+    }
+  }
+  db_subnet_group_name
+  instance_class
+  allocated_storage
+  max_allocated_storage
+  engine
+  engine_version
+  major_engine_version
+  username
+  maintenance_window
+  backup_retention_period
+  backup_window
+  multi_az
+  deletion_protection
+  apply_immediately
 }
 
 query CNAssets {
@@ -58,42 +89,31 @@ query CNAssets {
           provider
           identifier
           ... on CNANullAsset_v1 {
+            defaults {
+              ... CNANullAssetConfig
+            }
             overrides {
-              addr_block
+              ... CNANullAssetConfig
             }
           }
           ... on CNARDSInstance_v1 {
-            vpc {
-              vpc_id
-              region
-              account {
-                ... CNAAWSAccountRoleARNs
-              }
-            }
+            name
             defaults {
-              ... ResourceFile
+              ... CNARDSInstanceConfig
             }
             overrides {
-              name
-              engine
-              engine_version
-              username
-              instance_class
-              allocated_storage
-              max_allocated_storage
-              backup_retention_period
-              db_subnet_group_name
+              ... CNARDSInstanceConfig
             }
           }
           ... on CNAAssumeRoleAsset_v1{
             aws_account {
               ... CNAAWSAccountRoleARNs
             }
-            overrides {
-              slug
-            }
             defaults {
-              ... ResourceFile
+              ... CNAAssumeRoleAssetConfig
+            }
+            overrides {
+              ... CNAAssumeRoleAssetConfig
             }
           }
         }
@@ -146,42 +166,9 @@ class CNAssetV1(BaseModel):
         extra = Extra.forbid
 
 
-class CNANullAssetOverridesV1(BaseModel):
-    addr_block: Optional[str] = Field(..., alias="addr_block")
-
-    class Config:
-        smart_union = True
-        extra = Extra.forbid
-
-
 class CNANullAssetV1(CNAssetV1):
-    overrides: Optional[CNANullAssetOverridesV1] = Field(..., alias="overrides")
-
-    class Config:
-        smart_union = True
-        extra = Extra.forbid
-
-
-class AWSVPCV1(BaseModel):
-    vpc_id: str = Field(..., alias="vpc_id")
-    region: str = Field(..., alias="region")
-    account: CNAAWSAccountRoleARNs = Field(..., alias="account")
-
-    class Config:
-        smart_union = True
-        extra = Extra.forbid
-
-
-class CNARDSInstanceOverridesV1(BaseModel):
-    name: Optional[str] = Field(..., alias="name")
-    engine: Optional[str] = Field(..., alias="engine")
-    engine_version: Optional[str] = Field(..., alias="engine_version")
-    username: Optional[str] = Field(..., alias="username")
-    instance_class: Optional[str] = Field(..., alias="instance_class")
-    allocated_storage: Optional[int] = Field(..., alias="allocated_storage")
-    max_allocated_storage: Optional[int] = Field(..., alias="max_allocated_storage")
-    backup_retention_period: Optional[int] = Field(..., alias="backup_retention_period")
-    db_subnet_group_name: Optional[str] = Field(..., alias="db_subnet_group_name")
+    defaults: Optional[CNANullAssetConfig] = Field(..., alias="defaults")
+    overrides: Optional[CNANullAssetConfig] = Field(..., alias="overrides")
 
     class Config:
         smart_union = True
@@ -189,17 +176,9 @@ class CNARDSInstanceOverridesV1(BaseModel):
 
 
 class CNARDSInstanceV1(CNAssetV1):
-    vpc: AWSVPCV1 = Field(..., alias="vpc")
-    defaults: Optional[ResourceFile] = Field(..., alias="defaults")
-    overrides: Optional[CNARDSInstanceOverridesV1] = Field(..., alias="overrides")
-
-    class Config:
-        smart_union = True
-        extra = Extra.forbid
-
-
-class CNAAssumeRoleAssetOverridesV1(BaseModel):
-    slug: Optional[str] = Field(..., alias="slug")
+    name: Optional[str] = Field(..., alias="name")
+    defaults: Optional[CNARDSInstanceConfig] = Field(..., alias="defaults")
+    overrides: Optional[CNARDSInstanceConfig] = Field(..., alias="overrides")
 
     class Config:
         smart_union = True
@@ -208,8 +187,8 @@ class CNAAssumeRoleAssetOverridesV1(BaseModel):
 
 class CNAAssumeRoleAssetV1(CNAssetV1):
     aws_account: CNAAWSAccountRoleARNs = Field(..., alias="aws_account")
-    overrides: Optional[CNAAssumeRoleAssetOverridesV1] = Field(..., alias="overrides")
-    defaults: Optional[ResourceFile] = Field(..., alias="defaults")
+    defaults: Optional[CNAAssumeRoleAssetConfig] = Field(..., alias="defaults")
+    overrides: Optional[CNAAssumeRoleAssetConfig] = Field(..., alias="overrides")
 
     class Config:
         smart_union = True
