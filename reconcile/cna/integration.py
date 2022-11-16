@@ -140,6 +140,12 @@ class CNAIntegration:
 
             bindings = current_state.required_bindings_to_reach(desired_state)
             for asset in bindings:
+                # TODO: a MR check will not show any bindings in the diff,
+                # because resources are either first created or updated before
+                # any binding happens on a subsequent reconcile iteration.
+                # We keep this for now, as the API might change in how bindings
+                # are created. E.g., an asset creation call might also take
+                # bindings as parameters.
                 if updates.contains(asset=asset):
                     # We dont want to bind if there is currently
                     # an update in progress that changes the asset state
