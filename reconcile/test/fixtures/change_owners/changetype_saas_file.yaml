@@ -1,4 +1,5 @@
 name: saas-file-self-service
+description: saas-file-self-service
 
 contextType: datafile
 contextSchema: /app-sre/saas-file-2.yml

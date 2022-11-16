@@ -45,9 +45,15 @@ from reconcile.utils.semver_helper import parse_semver
 from reconcile.utils.state import State
 from reconcile.utils.terraform_client import TerraformClient as Terraform
 from reconcile.prometheus_rules_tester import get_data_from_jinja_test_template
+from reconcile.change_owners.change_owners import (
+    fetch_change_type_processors,
+    fetch_self_service_roles,
+)
 
 from tools.sre_checkpoints import full_name, get_latest_sre_checkpoints
 from tools.cli_commands.gpg_encrypt import GPGEncryptCommand, GPGEncryptCommandData
+
+from collections import defaultdict
 
 
 def output(function):
@@ -1409,6 +1415,32 @@ def app_interface_open_selfserviceable_mr_queue(ctx):
     queue_data.sort(key=itemgetter("updated_at"))
     ctx.obj["options"]["sort"] = False  # do not sort
     print_output(ctx.obj["options"], queue_data, columns)
+
+
+@get.command()
+@click.pass_context
+def change_types(ctx):
+    """List all change types."""
+    change_types = fetch_change_type_processors(gql.get_api())
+
+    usage_statistics: dict[str, int] = defaultdict(int)
+    roles = fetch_self_service_roles(gql.get_api())
+    for r in roles:
+        for ss in r.self_service:
+            nr_files = len(ss.datafiles or []) + len(ss.resources or [])
+            usage_statistics[ss.change_type.name] += nr_files
+    data = []
+    for ct in change_types:
+        data.append(
+            {
+                "name": ct.name,
+                "description": ct.description,
+                "applicable to": f"{ct.context_type.value} {ct.context_schema or '' }",
+                "# usages": usage_statistics[ct.name],
+            }
+        )
+    columns = ["name", "description", "applicable to", "# usages"]
+    print_output(ctx.obj["options"], data, columns)
 
 
 @get.command()

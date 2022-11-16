@@ -1,4 +1,5 @@
 name: change-role-member
+description: change-role-member
 
 # this change type can be used on owned role-1 datafiles
 contextType: datafile

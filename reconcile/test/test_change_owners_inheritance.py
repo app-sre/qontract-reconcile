@@ -44,6 +44,7 @@ def build_def_change_type(
 ) -> ChangeTypeV1:
     return ChangeTypeV1(
         name=name,
+        description=name,
         contextType=BundleFileType.DATAFILE.value,
         contextSchema="context-schema",
         disabled=False,
