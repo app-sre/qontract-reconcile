@@ -152,6 +152,7 @@ class NamespaceExternalResource(Protocol):
         ...
 
 
+@runtime_checkable
 class Namespace(Protocol):
     @property
     def name(self) -> str:
