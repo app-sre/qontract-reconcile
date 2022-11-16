@@ -84,7 +84,7 @@ def get_updated_recommended_versions(
                     versions, high_weight, majority_weight
                 )
             rv_updated.append(rv_update)
-        else:
+        elif len(rv_workload) > 1:
             raise ValueError("Expecting one recommended Version per workload!")
     return rv_updated
 

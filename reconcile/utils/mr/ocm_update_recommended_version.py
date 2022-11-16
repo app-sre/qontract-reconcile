@@ -50,7 +50,7 @@ class CreateOCMUpdateRecommendedVersion(MergeRequestBase):
             content, Dumper=yaml.RoundTripDumper, explicit_start=True
         )
 
-        msg = f"update {self.update.name} upgrade policy clusters"
+        msg = f"update {self.update.name} recommended version"
         gitlab_cli.update_file(
             branch_name=self.branch,
             file_path=self.update.path,
