@@ -18,6 +18,7 @@ def null_asset(name: str, addr_block: Optional[str] = None) -> NullAsset:
         status=AssetStatus.RUNNING,
         name=name,
         addr_block=addr_block,
+        bindings=set(),
     )
 
 

@@ -15,6 +15,7 @@ from reconcile.gql_definitions.cna.queries.cna_resources import (
     CNANullAssetOverridesV1,
     ExternalResourcesProvisionerV1,
     NamespaceCNAssetV1,
+    ClusterV1,
     NamespaceV1,
 )
 from reconcile.utils.external_resources import PROVIDER_CNA_EXPERIMENTAL
@@ -31,6 +32,7 @@ def cna_clients() -> dict[str, CNAClient]:
 def namespace(assets: list[CNANullAssetV1]) -> NamespaceV1:
     return NamespaceV1(
         name="test",
+        cluster=ClusterV1(spec=None),
         managedExternalResources=True,
         externalResources=[
             NamespaceCNAssetV1(
@@ -49,6 +51,7 @@ def null_asset(name: str, addr_block: Optional[str]) -> NullAsset:
         id=None,
         href=None,
         status=None,
+        bindings=set(),
         name=name,
         addr_block=addr_block,
     )
@@ -83,6 +86,7 @@ def null_asset(name: str, addr_block: Optional[str]) -> NullAsset:
                             status=AssetStatus.RUNNING,
                             name="null-test",
                             href="url/123",
+                            bindings=set(),
                             addr_block=None,
                         )
                     }
@@ -117,6 +121,7 @@ def null_asset(name: str, addr_block: Optional[str]) -> NullAsset:
                             status=AssetStatus.RUNNING,
                             name="null-test",
                             href="url/123",
+                            bindings=set(),
                             addr_block=None,
                         ),
                         "null-test2": NullAsset(
@@ -124,6 +129,7 @@ def null_asset(name: str, addr_block: Optional[str]) -> NullAsset:
                             status=AssetStatus.RUNNING,
                             name="null-test2",
                             href="url/456",
+                            bindings=set(),
                             addr_block=None,
                         ),
                     }
@@ -144,6 +150,12 @@ def test_integration_assemble_current_states(
 ):
     mocker.patch.object(
         CNAClient, "list_assets", create_autospec=True, return_value=listed_assets
+    )
+    mocker.patch.object(
+        CNAClient,
+        "fetch_bindings_for_asset",
+        create_autospec=True,
+        return_value=[],
     )
     mocker.patch.object(
         CNAClient, "service_account_name", create_autospec=True, return_value="creator"

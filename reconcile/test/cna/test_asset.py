@@ -165,6 +165,7 @@ def test_update_from():
         href=None,
         status=None,
         name=name,
+        bindings=set(),
         role_arn="new_arn",
         verify_slug="new_verify_slug",
     )
@@ -174,6 +175,7 @@ def test_update_from():
         href=href,
         name=name,
         status=status,
+        bindings=set(),
         role_arn="old_arn",
         verify_slug="old_verify_slug",
     )
@@ -196,6 +198,7 @@ def test_asset_comparion_ignorable_fields():
         id="id",
         href="href",
         status=AssetStatus.READY,
+        bindings=set(),
         name=name,
         role_arn=arn,
         verify_slug=verify_slug,
@@ -205,6 +208,7 @@ def test_asset_comparion_ignorable_fields():
         id=None,
         href=None,
         status=AssetStatus.TERMINATED,
+        bindings=set(),
         name=name,
         role_arn=arn,
         verify_slug=verify_slug,
@@ -218,6 +222,7 @@ def test_asset_properties_extraction():
         id=None,
         href=None,
         status=AssetStatus.TERMINATED,
+        bindings=set(),
         name="name",
         role_arn="arn",
         verify_slug="slug",
@@ -236,7 +241,7 @@ def build_assume_role_typed_external_resource(
     resource = {
         "provider": AWSAssumeRoleAsset.provider(),
         "identifier": identifier,
-        "account": {
+        "aws_account": {
             "name": "acc",
             "cna": {"defaultRoleARN": role_arn, "moduleRoleARNS": None},
         },
@@ -256,6 +261,9 @@ def build_assume_role_typed_external_resource(
     namespace = {
         "name": "ns-name",
         "managedExternalResources": True,
+        "cluster": {
+            "spec": None,
+        },
         "externalResources": [namespace_resource],
     }
     return TypedExternalResourceSpec[CNAssetV1](
