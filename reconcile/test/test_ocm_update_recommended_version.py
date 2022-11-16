@@ -52,6 +52,22 @@ def test_get_version_weights():
     ) == (4, 2)
 
 
+def add_cluster(clusters: dict[str, OCMSpec], cluster_name: str, version: str):
+    clusters[cluster_name] = OCMSpec(
+        network=OCMClusterNetwork(vpc="", service="", pod=""),
+        spec=OCMClusterSpec(
+            version=version,
+            channel="",
+            instance_type="",
+            multi_az=True,
+            private=True,
+            product="",
+            provider="",
+            region="",
+        ),
+    )
+
+
 def test_get_updated_recommended_versions():
     ocm_info = {
         "recommendedVersions": [
@@ -61,39 +77,25 @@ def test_get_updated_recommended_versions():
         "upgradePolicyAllowedWorkloads": ["foo", "bar"],
         "upgradePolicyClusters": [
             {"name": "a", "upgradePolicy": {"workloads": ["foo"]}},
-            {"name": "b", "upgradePolicy": {"workloads": ["bar"]}},
         ],
     }
-    clusters = {
-        "a": OCMSpec(
-            network=OCMClusterNetwork(vpc="", service="", pod=""),
-            spec=OCMClusterSpec(
-                version="2.0.0",
-                channel="",
-                instance_type="",
-                multi_az=True,
-                private=True,
-                product="",
-                provider="",
-                region="",
-            ),
-        ),
-        "b": OCMSpec(
-            network=OCMClusterNetwork(vpc="", service="", pod=""),
-            spec=OCMClusterSpec(
-                version="2.1.0",
-                channel="",
-                instance_type="",
-                multi_az=True,
-                private=True,
-                product="",
-                provider="",
-                region="",
-            ),
-        ),
-    }
+    clusters: dict[str, OCMSpec] = {}
+    add_cluster(clusters, "a", "2.0.0")
 
     assert get_updated_recommended_versions(ocm_info, clusters) == [
         {"recommendedVersion": "2.0.0", "workload": "foo"},
-        {"recommendedVersion": "2.1.0", "workload": "bar"},
+        {"recommendedVersion": "1.0.0", "workload": "bar"},
     ]
+
+
+def test_get_updated_recommended_versions_value_error():
+    ocm_info = {
+        "recommendedVersions": [
+            {"recommendedVersion": "1.0.0", "workload": "foo"},
+            {"recommendedVersion": "2.0.0", "workload": "foo"},
+        ],
+        "upgradePolicyAllowedWorkloads": ["foo"],
+    }
+
+    with pytest.raises(ValueError):
+        get_updated_recommended_versions(ocm_info, {})

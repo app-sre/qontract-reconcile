@@ -2,6 +2,7 @@ from pydantic import BaseModel
 from ruamel import yaml
 
 from reconcile.utils.mr.base import MergeRequestBase
+from reconcile.utils.mr.labels import AUTO_MERGE
 
 
 class WorkloadRecommendedVersion(BaseModel):
@@ -24,7 +25,7 @@ class CreateOCMUpdateRecommendedVersion(MergeRequestBase):
 
         super().__init__()
 
-        # self.labels = [AUTO_MERGE]
+        self.labels = [AUTO_MERGE]
 
     @property
     def title(self) -> str:

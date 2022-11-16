@@ -79,9 +79,10 @@ def get_updated_recommended_versions(
                 cluster[k].spec.version for k in cluster if k in cluster_workload
             ]
             rv_update = rv_workload[0]
-            rv_update["recommendedVersion"] = recommended_version(
-                versions, high_weight, majority_weight
-            )
+            if len(versions) > 0:
+                rv_update["recommendedVersion"] = recommended_version(
+                    versions, high_weight, majority_weight
+                )
             rv_updated.append(rv_update)
         else:
             raise ValueError("Expecting one recommended Version per workload!")
