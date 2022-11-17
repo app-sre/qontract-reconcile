@@ -145,7 +145,7 @@ class ClusterV1(BaseModel):
     automation_token: Optional[VaultSecret] = Field(..., alias="automationToken")
     internal: Optional[bool] = Field(..., alias="internal")
     disable: Optional[DisableClusterAutomationsV1] = Field(..., alias="disable")
-    auth: Optional[
+    auth: list[
         Union[ClusterAuthGithubOrgTeamV1, ClusterAuthGithubOrgV1, ClusterAuthV1]
     ] = Field(..., alias="auth")
 
