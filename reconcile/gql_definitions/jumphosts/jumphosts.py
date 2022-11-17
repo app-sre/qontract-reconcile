@@ -86,7 +86,7 @@ class JumphostsQueryData(BaseModel):
         extra = Extra.forbid
 
 
-def query(query_func: Callable, **kwargs) -> JumphostsQueryData:
+def query(query_func: Callable, **kwargs: Any) -> JumphostsQueryData:
     """
     This is a convenience function which queries and parses the data into
     concrete types. It should be compatible with most GQL clients.

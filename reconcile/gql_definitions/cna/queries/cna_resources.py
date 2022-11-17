@@ -102,7 +102,7 @@ class CNAssetsQueryData(BaseModel):
         extra = Extra.forbid
 
 
-def query(query_func: Callable, **kwargs) -> CNAssetsQueryData:
+def query(query_func: Callable, **kwargs: Any) -> CNAssetsQueryData:
     """
     This is a convenience function which queries and parses the data into
     concrete types. It should be compatible with most GQL clients.
