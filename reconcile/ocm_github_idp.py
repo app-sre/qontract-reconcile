@@ -33,31 +33,33 @@ def fetch_desired_state(clusters, vault_input_path, settings):
     secret_reader = SecretReader(settings=settings)
     for cluster_info in clusters:
         cluster = cluster_info["name"]
-        for auth in cluster_info["auth"]:
-            if auth["service"] != "github-org-team":
-                continue
-
-            org = auth["org"]
-            team = auth["team"]
-            secret = {
-                "path": f"{vault_input_path}/{QONTRACT_INTEGRATION}/{auth['service']}/{org}/{team}"
-            }
-            try:
-                oauth_data = secret_reader.read_all(secret)
-                client_id = oauth_data["client-id"]
-                client_secret = oauth_data["client-secret"]
-            except Exception:
-                logging.error(f"unable to read secret in path {secret['path']}")
-                error = True
-                continue
-            item = {
-                "cluster": cluster,
-                "name": f"github-{org}",
-                "client_id": client_id,
-                "client_secret": client_secret,
-                "teams": [f"{org}/{team}"],
-            }
-            desired_state.append(item)
+        auth = cluster_info["auth"]
+        service = auth["service"]
+        if service != "github-org-team":
+            # currently not supported
+            continue
+        org = auth["org"]
+        team = auth["team"]
+        secret_path = (
+            f"{vault_input_path}/{QONTRACT_INTEGRATION}/" + f"{service}/{org}/{team}"
+        )
+        secret = {"path": secret_path}
+        try:
+            oauth_data = secret_reader.read_all(secret)
+            client_id = oauth_data["client-id"]
+            client_secret = oauth_data["client-secret"]
+        except Exception:
+            logging.error(f"unable to read secret in path {secret['path']}")
+            error = True
+            continue
+        item = {
+            "cluster": cluster,
+            "name": f"github-{org}",
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "teams": [f"{org}/{team}"],
+        }
+        desired_state.append(item)
 
     return desired_state, error
 
