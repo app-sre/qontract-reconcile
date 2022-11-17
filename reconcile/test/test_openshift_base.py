@@ -607,24 +607,24 @@ def test_populate_current_state_resource_name_filtering(
 
 
 def test_determine_user_key_for_access_github_org():
-    auth = {"service": "github-org"}
-    user_key = sut.determine_user_key_for_access("cluster-name", auth)
+    cluster_info = {"auth": {"service": "github-org"}}
+    user_key = sut.determine_user_key_for_access(cluster_info)
     assert user_key == "github_username"
 
 
 def test_determine_user_key_for_access_github_org_team():
-    auth = {"service": "github-org-team"}
-    user_key = sut.determine_user_key_for_access("cluster-name", auth)
+    cluster_info = {"auth": {"service": "github-org-team"}}
+    user_key = sut.determine_user_key_for_access(cluster_info)
     assert user_key == "github_username"
 
 
 def test_determine_user_key_for_access_oidc():
-    auth = {"service": "oidc"}
-    user_key = sut.determine_user_key_for_access("cluster-name", auth)
+    cluster_info = {"auth": {"service": "oidc"}}
+    user_key = sut.determine_user_key_for_access(cluster_info)
     assert user_key == "org_username"
 
 
 def test_determine_user_key_for_access_not_implemented():
-    auth = {"service": "not-implemented"}
+    cluster_info = {"auth": {"service": "not-implemented"}, "name": "c"}
     with pytest.raises(NotImplementedError):
-        sut.determine_user_key_for_access("cluster-name", auth)
+        sut.determine_user_key_for_access(cluster_info)

@@ -66,12 +66,10 @@ def get_desired_state(slack: SlackApi) -> dict[str, Any]:
         sendgrid=False, saas_files=False, aws=False, permissions=False
     )
     all_clusters = queries.get_clusters(minimal=True)
-    # this needs to be refactored - https://issues.redhat.com/browse/APPSRE-6575
     clusters = [
         c
         for c in all_clusters
-        for auth in c["auth"]
-        if auth.get("team") and c.get("ocm")
+        if c.get("auth") and c["auth"].get("team") and c.get("ocm")
     ]
     openshift_users_desired_state = openshift_users.fetch_desired_state(oc_map=None)
     for cluster in clusters:
@@ -81,16 +79,7 @@ def get_desired_state(slack: SlackApi) -> dict[str, Any]:
             for u in openshift_users_desired_state
             if u["cluster"] == cluster_name
         ]
-        usergroup = None
-        for auth in cluster["auth"]:
-            if not auth.get("team"):
-                continue
-            usergroup = auth["team"]
-        if not usergroup:
-            # this is an edge case and should not happen and will be addressed later
-            # https://issues.redhat.com/browse/APPSRE-6575
-            continue
-
+        usergroup = cluster["auth"]["team"]
         ugid = slack.get_usergroup_id(usergroup)
         user_names = [
             slack_usergroups.get_slack_username(u)
