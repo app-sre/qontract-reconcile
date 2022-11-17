@@ -117,18 +117,19 @@ def fetch_desired_state(ri, oc_map):
                 continue
             if oc_map and not oc_map.get(cluster):
                 continue
-            for auth in cluster_info["auth"]:
-                user_key = ob.determine_user_key_for_access(cluster, auth)
-                for user in role["users"]:
+
+            # get username keys based on used IDPs
+            user_keys = ob.determine_user_keys_for_access(cluster, cluster_info["auth"])
+            # create user rolebindings for user * user_keys
+            for user in role["users"]:
+                for username in set([user[user_key] for user_key in user_keys]):
                     # used by openshift-users and github integrations
                     # this is just to simplify things a bit on the their side
-                    users_desired_state.append(
-                        {"cluster": cluster, "user": user[user_key]}
-                    )
+                    users_desired_state.append({"cluster": cluster, "user": username})
                     if ri is None:
                         continue
                     oc_resource, resource_name = construct_user_oc_resource(
-                        permission["role"], user[user_key]
+                        permission["role"], username
                     )
                     try:
                         ri.add_desired(

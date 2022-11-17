@@ -124,17 +124,19 @@ def fetch_desired_state(oc_map):
             if oc_map and a["cluster"]["name"] not in oc_map.clusters():
                 continue
 
-            for auth in a["cluster"]["auth"]:
-                user_key = ob.determine_user_key_for_access(a["cluster"]["name"], auth)
-                for u in r["users"]:
-                    if u[user_key] is None:
+            user_keys = ob.determine_user_keys_for_access(
+                a["cluster"]["name"], a["cluster"]["auth"]
+            )
+            for u in r["users"]:
+                for username in set([u[user_key] for user_key in user_keys]):
+                    if username is None:
                         continue
 
                     desired_state.append(
                         {
                             "cluster": a["cluster"]["name"],
                             "group": a["group"],
-                            "user": u[user_key],
+                            "user": username,
                         }
                     )
 

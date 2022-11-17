@@ -602,29 +602,46 @@ def test_populate_current_state_resource_name_filtering(
 
 
 #
-# determine_user_key_for_access tests
+# determine_user_keys_for_access tests
 #
 
 
-def test_determine_user_key_for_access_github_org():
+def test_determine_user_keys_for_access_github_org():
     auth = {"service": "github-org"}
-    user_key = sut.determine_user_key_for_access("cluster-name", auth)
-    assert user_key == "github_username"
+    user_key = sut.determine_user_keys_for_access("cluster-name", [auth])
+    assert user_key == ["github_username"]
 
 
-def test_determine_user_key_for_access_github_org_team():
+def test_determine_user_keys_for_access_github_org_team():
     auth = {"service": "github-org-team"}
-    user_key = sut.determine_user_key_for_access("cluster-name", auth)
-    assert user_key == "github_username"
+    user_key = sut.determine_user_keys_for_access("cluster-name", [auth])
+    assert user_key == ["github_username"]
 
 
-def test_determine_user_key_for_access_oidc():
+def test_determine_user_keys_for_access_oidc():
     auth = {"service": "oidc"}
-    user_key = sut.determine_user_key_for_access("cluster-name", auth)
-    assert user_key == "org_username"
+    user_key = sut.determine_user_keys_for_access("cluster-name", [auth])
+    assert user_key == ["org_username"]
 
 
-def test_determine_user_key_for_access_not_implemented():
+def test_determine_user_keys_for_access_multiple_ones():
+    auths = [{"service": "oidc"}, {"service": "github-org-team"}]
+    user_key = sut.determine_user_keys_for_access("cluster-name", auths)
+    assert user_key == ["org_username", "github_username"]
+
+
+def test_determine_user_keys_for_access_no_duplicates():
+    auths = [{"service": "github-org"}, {"service": "github-org-team"}]
+    user_key = sut.determine_user_keys_for_access("cluster-name", auths)
+    assert user_key == ["github_username"]
+
+
+def test_determine_user_keys_for_access_backward_compatibility():
+    user_key = sut.determine_user_keys_for_access("cluster-name", [])
+    assert user_key == ["github_username"]
+
+
+def test_determine_user_keys_for_access_not_implemented():
     auth = {"service": "not-implemented"}
     with pytest.raises(NotImplementedError):
-        sut.determine_user_key_for_access("cluster-name", auth)
+        sut.determine_user_keys_for_access("cluster-name", [auth])
