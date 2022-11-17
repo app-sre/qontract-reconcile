@@ -12,6 +12,7 @@ from reconcile.gql_definitions.terraform_cloudflare_resources.terraform_cloudfla
     CloudflareAccountV1,
     TerraformCloudflareAccountsQueryData,
 )
+from reconcile.status import ExitCodes
 from reconcile.utils import gql
 from reconcile.utils.defer import defer
 from reconcile.utils.external_resources import (
@@ -23,12 +24,13 @@ from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.terraform.config_client import TerraformConfigClientCollection
 from reconcile.utils.terraform_client import TerraformClient
 from reconcile.utils.terrascript.cloudflare_client import (
+    DEFAULT_CLOUDFLARE_ACCOUNT_TYPE,
+    DEFAULT_CLOUDFLARE_ACCOUNT_2FA,
     CloudflareAccountConfig,
     TerraformS3BackendConfig,
     TerrascriptCloudflareClient,
     create_cloudflare_terrascript,
 )
-from reconcile.status import ExitCodes
 
 QONTRACT_INTEGRATION = "terraform_cloudflare_resources"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
@@ -89,6 +91,8 @@ def build_clients(
             cf_acct.name,
             cf_acct_creds.get("api_token"),
             cf_acct_creds.get("account_id"),
+            cf_acct.enforce_twofactor or DEFAULT_CLOUDFLARE_ACCOUNT_2FA,
+            cf_acct.q_type or DEFAULT_CLOUDFLARE_ACCOUNT_TYPE,
         )
 
         aws_acct = cf_acct.terraform_state_account

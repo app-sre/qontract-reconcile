@@ -14,10 +14,14 @@ from reconcile.utils.terraform.config_client import (
     TerraformConfigClient,
 )
 from reconcile.utils.terrascript.cloudflare_resources import (
+    cloudflare_account,
     create_cloudflare_terrascript_resource,
 )
 
 TMP_DIR_PREFIX = "terrascript-cloudflare-"
+
+DEFAULT_CLOUDFLARE_ACCOUNT_TYPE = "standard"
+DEFAULT_CLOUDFLARE_ACCOUNT_2FA = False
 
 
 @dataclass
@@ -27,6 +31,8 @@ class CloudflareAccountConfig:
     name: str
     api_token: str
     account_id: str
+    enforce_twofactor: bool = DEFAULT_CLOUDFLARE_ACCOUNT_2FA
+    type: str = DEFAULT_CLOUDFLARE_ACCOUNT_TYPE
 
 
 def create_cloudflare_terrascript(
@@ -62,6 +68,16 @@ def create_cloudflare_terrascript(
     terrascript += provider.cloudflare(
         api_token=account_config.api_token,
         account_id=account_config.account_id,  # needed for some resources, see note below
+    )
+
+    cloudflare_account_values = {
+        "name": account_config.name,
+        "enforce_twofactor": account_config.enforce_twofactor,
+        "type": account_config.type,
+    }
+    terrascript += cloudflare_account(
+        account_config.name,
+        **cloudflare_account_values,
     )
 
     # Some resources need "account_id" to be set at the resource level
