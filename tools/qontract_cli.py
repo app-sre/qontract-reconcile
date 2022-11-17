@@ -157,9 +157,7 @@ def cluster_upgrades(ctx, name):
 
     clusters = queries.get_clusters()
 
-    clusters_ocm = [
-        c for c in clusters if c.get("ocm") is not None and c.get("auth") is not None
-    ]
+    clusters_ocm = [c for c in clusters if c.get("ocm") is not None and c.get("auth")]
 
     ocm_map = OCMMap(clusters=clusters_ocm, settings=settings)
 
