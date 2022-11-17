@@ -1,9 +1,9 @@
 from reconcile.cna.assets.aws_assume_role import AWSAssumeRoleAsset
 from reconcile.gql_definitions.cna.queries.cna_resources import (
     CNAAssumeRoleAssetV1,
-    CNAAssumeRoleAssetOverridesV1,
+    CNAAssumeRoleAssetConfig,
 )
-from reconcile.gql_definitions.cna.queries.aws_account_fragment import (
+from reconcile.gql_definitions.cna.queries.aws_arn import (
     CNAAWSAccountRoleARNs,
     CNAAWSSpecV1,
 )
@@ -16,7 +16,7 @@ def test_from_query_class():
     query_asset = CNAAssumeRoleAssetV1(
         provider=AWSAssumeRoleAsset.provider(),
         identifier=name,
-        overrides=CNAAssumeRoleAssetOverridesV1(
+        overrides=CNAAssumeRoleAssetConfig(
             slug=slug,
         ),
         defaults=None,

@@ -13,11 +13,12 @@ from reconcile.cna.assets.asset import (
 from reconcile.cna.assets.aws_utils import aws_role_arn_for_module
 from reconcile.gql_definitions.cna.queries.cna_resources import (
     CNAAssumeRoleAssetV1,
+    CNAAssumeRoleAssetConfig,
 )
 
 
 @dataclass(frozen=True, config=AssetModelConfig)
-class AWSAssumeRoleAsset(Asset[CNAAssumeRoleAssetV1]):
+class AWSAssumeRoleAsset(Asset[CNAAssumeRoleAssetV1, CNAAssumeRoleAssetConfig]):
     verify_slug: Optional[str] = Field(None, alias="verify-slug")
     role_arn: str = Field(alias="role_arn")
 
@@ -29,8 +30,9 @@ class AWSAssumeRoleAsset(Asset[CNAAssumeRoleAssetV1]):
     def asset_type() -> AssetType:
         return AssetType.EXAMPLE_AWS_ASSUMEROLE
 
-    @staticmethod
-    def from_query_class(asset: CNAAssumeRoleAssetV1) -> Asset:
+    @classmethod
+    def from_query_class(cls, asset: CNAAssumeRoleAssetV1) -> Asset:
+        config = cls.aggregate_config(asset)
         aws_cna_cfg = asset.aws_account.cna
         role_arn = aws_role_arn_for_module(
             aws_cna_cfg, AssetType.EXAMPLE_AWS_ASSUMEROLE.value
@@ -46,6 +48,6 @@ class AWSAssumeRoleAsset(Asset[CNAAssumeRoleAssetV1]):
             status=AssetStatus.UNKNOWN,
             name=asset.identifier,
             bindings=set(),
-            verify_slug=asset.overrides.slug if asset.overrides else None,
+            verify_slug=config.slug,
             role_arn=role_arn,
         )
