@@ -1,5 +1,5 @@
 from typing import Optional
-from reconcile.gql_definitions.cna.queries.aws_account_fragment import CNAAWSSpecV1
+from reconcile.gql_definitions.cna.queries.aws_arn import CNAAWSSpecV1
 
 
 def aws_role_arn_for_module(

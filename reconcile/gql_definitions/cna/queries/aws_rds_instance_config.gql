@@ -1,0 +1,25 @@
+# qenerate: plugin=pydantic_v1
+
+fragment CNARDSInstanceConfig on CNARDSInstanceConfig_v1 {
+  vpc {
+    vpc_id
+    region
+    account {
+      ... CNAAWSAccountRoleARNs
+    }
+  }
+  db_subnet_group_name
+  instance_class
+  allocated_storage
+  max_allocated_storage
+  engine
+  engine_version
+  major_engine_version
+  username
+  maintenance_window
+  backup_retention_period
+  backup_window
+  multi_az
+  deletion_protection
+  apply_immediately
+}

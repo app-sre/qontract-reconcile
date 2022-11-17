@@ -88,6 +88,7 @@ class AssetModelConfig:
 
 
 AssetQueryClass = TypeVar("AssetQueryClass", bound=CNAssetV1)
+ConfigClass = TypeVar("ConfigClass")
 
 
 @dataclass(frozen=True)
@@ -97,7 +98,7 @@ class Binding:
 
 
 @dataclass(frozen=True, config=AssetModelConfig)
-class Asset(ABC, Generic[AssetQueryClass]):
+class Asset(ABC, Generic[AssetQueryClass, ConfigClass]):
     name: str
     id: Optional[str]
     href: Optional[str]
@@ -122,9 +123,9 @@ class Asset(ABC, Generic[AssetQueryClass]):
     def provider() -> str:
         ...
 
-    @staticmethod
+    @classmethod
     @abstractmethod
-    def from_query_class(asset: AssetQueryClass) -> "Asset":
+    def from_query_class(cls, asset: AssetQueryClass) -> "Asset":
         ...
 
     @classmethod
@@ -132,13 +133,12 @@ class Asset(ABC, Generic[AssetQueryClass]):
         cls,
         external_resource: TypedExternalResourceSpec[CNAssetV1],
     ) -> "Asset":
-        cls_arg = get_args(cls.__orig_bases__[0])[0]  # type: ignore[attr-defined]
-        resolved = external_resource.resolve()
-        if isinstance(resolved.spec, cls_arg):
-            return cls.from_query_class(resolved.spec)
+        query_class = cls._get_query_class_type()
+        if isinstance(external_resource.spec, query_class):
+            return cls.from_query_class(external_resource.spec)
         else:
             raise AssetError(
-                f"CNA type {cls_arg} does not match "
+                f"CNA type {query_class} does not match "
                 f"external resource type {type(external_resource)}"
             )
 
@@ -227,6 +227,40 @@ class Asset(ABC, Generic[AssetQueryClass]):
             bindings=set(),
             **params,
         )
+
+    @classmethod
+    def _get_query_class_type(cls) -> Type[AssetQueryClass]:
+        return get_args(cls.__orig_bases__[0])[0]  # type: ignore[attr-defined]
+
+    @classmethod
+    def _get_config_class_type(cls) -> Type[ConfigClass]:
+        return get_args(cls.__orig_bases__[0])[1]  # type: ignore[attr-defined]
+
+    @classmethod
+    def _get_config(
+        cls, attribute: str, spec: AssetQueryClass
+    ) -> Optional[ConfigClass]:
+        if not (configs := getattr(spec, attribute, None)):
+            return None
+        config_class = cls._get_config_class_type()
+        if isinstance(configs, config_class):
+            return configs
+        else:
+            raise AssetError(
+                f"{attribute} for asset {spec.provider}:{spec.identifier} are not of expected type {config_class}"
+            )
+
+    @classmethod
+    def aggregate_config(cls, spec: AssetQueryClass) -> ConfigClass:
+        defaults = cls._get_config("defaults", spec)
+        overrides = cls._get_config("overrides", spec)
+        config_class = cls._get_config_class_type()
+        data = {
+            property: getattr(overrides, property, None)
+            or getattr(defaults, property, None)
+            for property in config_class.__annotations__.keys()
+        }
+        return config_class(**data)
 
 
 def asset_type_metadata_from_asset_dataclass(
