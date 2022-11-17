@@ -97,6 +97,13 @@ def test_create_cloudflare_resources_terraform_json(account_config, backend_conf
         },
         "variable": {"account_id": {"default": "account_id", "type": "string"}},
         "resource": {
+            "cloudflare_account": {
+                "account-name": {
+                    "name": "account-name",
+                    "enforce_twofactor": False,
+                    "type": "standard",
+                }
+            },
             "cloudflare_zone": {
                 "domain-com": {
                     "account_id": "${var.account_id}",
