@@ -292,6 +292,9 @@ def get_upgrade_policies_data(
         channel, schedule = c["channel"], c.get("schedule")
         soakdays = c.get("conditions", {}).get("soakDays")
         mutexes = c.get("conditions", {}).get("mutexes") or []
+        sector = ""
+        if c.get("conditions", {}).get("sector"):
+            sector = c["condition"]["sector"].name
         ocm_org = ocm_map.get(cluster_name)
         ocm_spec = ocm_org.clusters[cluster_name]
         item = {
@@ -304,6 +307,7 @@ def get_upgrade_policies_data(
             "version": version,
             "channel": channel,
             "schedule": schedule,
+            "sector": sector,
             "soak_days": soakdays,
             "mutexes": ", ".join(mutexes),
         }
@@ -430,6 +434,7 @@ def cluster_upgrade_policies(
             {"key": "version", "sortable": True},
             {"key": "channel", "sortable": True},
             {"key": "schedule"},
+            {"key": "sector", "sortable": True},
             {"key": "mutexes", "sortable": True},
             {"key": "soak_days", "sortable": True},
             {"key": "workload"},
@@ -456,6 +461,7 @@ def cluster_upgrade_policies(
             "version",
             "channel",
             "schedule",
+            "sector",
             "mutexes",
             "soak_days",
             "workload",
@@ -500,6 +506,7 @@ def ocm_fleet_upgrade_policies(
             {"key": "version", "sortable": True},
             {"key": "channel", "sortable": True},
             {"key": "schedule"},
+            {"key": "sector", "sortable": True},
             {"key": "mutexes", "sortable": True},
             {"key": "soak_days", "sortable": True},
             {"key": "workload"},
@@ -528,6 +535,7 @@ def ocm_fleet_upgrade_policies(
             "version",
             "channel",
             "schedule",
+            "sector",
             "mutexes",
             "soak_days",
             "workload",
