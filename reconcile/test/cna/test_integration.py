@@ -13,7 +13,7 @@ from reconcile.cna.assets.null import NullAsset
 from reconcile.cna.state import State
 from reconcile.gql_definitions.cna.queries.cna_resources import (
     CNANullAssetV1,
-    CNANullAssetOverridesV1,
+    CNANullAssetConfig,
     ExternalResourcesProvisionerV1,
     NamespaceCNAssetV1,
     ClusterV1,
@@ -177,9 +177,10 @@ def test_integration_assemble_current_states(
                         CNANullAssetV1(
                             provider="null-asset",
                             identifier="test",
-                            overrides=CNANullAssetOverridesV1(
+                            overrides=CNANullAssetConfig(
                                 addr_block="123",
                             ),
+                            defaults=None,
                         )
                     ]
                 )
@@ -198,12 +199,16 @@ def test_integration_assemble_current_states(
                         CNANullAssetV1(
                             provider="null-asset",
                             identifier="test",
-                            overrides=CNANullAssetOverridesV1(
+                            overrides=CNANullAssetConfig(
                                 addr_block="123",
                             ),
+                            defaults=None,
                         ),
                         CNANullAssetV1(
-                            provider="null-asset", identifier="test2", overrides=None
+                            provider="null-asset",
+                            identifier="test2",
+                            overrides=None,
+                            defaults=None,
                         ),
                     ]
                 )

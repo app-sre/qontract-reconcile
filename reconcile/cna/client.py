@@ -9,7 +9,6 @@ from reconcile.cna.assets.asset import (
     AssetTypeVariableType,
     asset_type_by_id,
     ASSET_CREATOR_FIELD,
-    Binding,
 )
 from reconcile.utils.ocm_base_client import OCMBaseClient
 
