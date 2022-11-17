@@ -107,7 +107,7 @@ class GlitchtipInstanceQueryData(BaseModel):
         extra = Extra.forbid
 
 
-def query(query_func: Callable, **kwargs) -> GlitchtipInstanceQueryData:
+def query(query_func: Callable, **kwargs: Any) -> GlitchtipInstanceQueryData:
     """
     This is a convenience function which queries and parses the data into
     concrete types. It should be compatible with most GQL clients.
