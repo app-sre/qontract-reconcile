@@ -91,28 +91,21 @@ class CNAIntegration:
                 client.service_account_name()
             ):
                 try:
-                    state.add_asset(
-                        asset_factory_from_raw_data(
-                            raw_asset,
+                    asset = asset_factory_from_raw_data(raw_asset)
+                    for binding in client.fetch_bindings_for_asset(asset):
+                        asset.bindings.add(
+                            Binding(
+                                cluster_id=binding.get("cluster_id", ""),
+                                namespace=binding.get("namespace", ""),
+                            )
                         )
-                    )
+                    state.add_asset(asset)
                 except UnknownAssetTypeError as e:
                     logging.warning(e)
                 except AssetError as e:
                     # TODO: remember this somehow in the state so we don't try to update/create this asset but skip it instead
                     logging.error(e)
             self._current_states[name] = state
-
-        # For each asset, we fetch its bindings from API
-        for _, state in self._current_states.items():
-            for asset in state:
-                for binding in client.fetch_bindings_for_asset(asset):
-                    asset.bindings.add(
-                        Binding(
-                            cluster_id=binding.get("cluster_id", ""),
-                            namespace=binding.get("namespace", ""),
-                        )
-                    )
 
     def provision(self, dry_run: bool = False):
         for provisioner_name, cna_client in self._cna_clients.items():
