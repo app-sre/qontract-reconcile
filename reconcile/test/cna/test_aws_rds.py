@@ -1,53 +1,74 @@
+from reconcile.cna.assets.asset import AssetError
 from reconcile.cna.assets.aws_rds import AWSRDSAsset
 from reconcile.gql_definitions.cna.queries.cna_resources import (
     CNARDSInstanceV1,
-    CNARDSInstanceOverridesV1,
-    AWSVPCV1,
+    CNARDSInstanceConfig,
 )
-from reconcile.gql_definitions.cna.queries.aws_account_fragment import (
+from reconcile.gql_definitions.cna.queries.aws_arn import (
     CNAAWSAccountRoleARNs,
     CNAAWSSpecV1,
 )
+from reconcile.gql_definitions.cna.queries.aws_rds_instance_config import AWSVPCV1
+
+import pytest
+
+asset_identifier = "identifier"
+db_name = "instance-name"
+vpc_id = "vpc-id"
+region = "region"
+arn = "arn"
+engine = "engine"
+engine_version = "14.2"
+major_engine_version = "14"
+allocated_storage = 10
+max_allocated_storage = 20
+instance_class = "instance-class"
+db_subnet_group_name = "db-subnet-group-name"
+backup_retention_period = 7
+backup_window = "backup-window"
+maintenance_window = "maintenance_window"
+username = "username"
+apply_immediately = True
+multi_az = True
+deletion_protection = True
 
 
-def test_from_query_class():
-    asset_identifier = "identifier"
-    db_name = "instance-name"
-    vpc_id = "vpc-id"
-    region = "region"
-    arn = "arn"
-    engine = "engine"
-    engine_version = "14.2"
-    allocated_storage = 10
-    max_allocated_storage = 20
-    instance_class = "instance-class"
-    db_subnet_group_name = "db-subnet-group-name"
-    backup_retention_period = 7
-    query_asset = CNARDSInstanceV1(
+@pytest.fixture
+def rds_query_asset() -> CNARDSInstanceV1:
+    return CNARDSInstanceV1(
         provider=AWSRDSAsset.provider(),
         identifier=asset_identifier,
-        vpc=AWSVPCV1(
-            vpc_id=vpc_id,
-            region=region,
-            account=CNAAWSAccountRoleARNs(
-                name="acc",
-                cna=CNAAWSSpecV1(defaultRoleARN=arn, moduleRoleARNS=None),
-            ),
-        ),
+        name=db_name,
         defaults=None,
-        overrides=CNARDSInstanceOverridesV1(
-            name=db_name,
+        overrides=CNARDSInstanceConfig(
+            vpc=AWSVPCV1(
+                vpc_id=vpc_id,
+                region=region,
+                account=CNAAWSAccountRoleARNs(
+                    name="acc",
+                    cna=CNAAWSSpecV1(defaultRoleARN=arn, moduleRoleARNS=None),
+                ),
+            ),
             engine=engine,
             engine_version=engine_version,
+            major_engine_version=major_engine_version,
             allocated_storage=allocated_storage,
             max_allocated_storage=max_allocated_storage,
             instance_class=instance_class,
             db_subnet_group_name=db_subnet_group_name,
-            username=None,
+            username=username,
+            maintenance_window=maintenance_window,
             backup_retention_period=backup_retention_period,
+            backup_window=backup_window,
+            multi_az=multi_az,
+            deletion_protection=deletion_protection,
+            apply_immediately=apply_immediately,
         ),
     )
-    asset = AWSRDSAsset.from_query_class(query_asset)
+
+
+def test_from_query_class(rds_query_asset: CNARDSInstanceV1):
+    asset = AWSRDSAsset.from_query_class(rds_query_asset)
     assert isinstance(asset, AWSRDSAsset)
     assert asset.name == asset_identifier
     assert asset.region == region
@@ -61,34 +82,20 @@ def test_from_query_class():
     assert asset.max_allocated_storage == str(max_allocated_storage)
     assert asset.role_arn == arn
     assert asset.backup_retention_period == backup_retention_period
+    assert asset.apply_immediately == apply_immediately
+    assert asset.multi_az == multi_az
+    assert asset.deletion_protection == deletion_protection
 
 
-def test_from_query_class_db_name_default():
-    asset_identifier = "identifier"
-    query_asset = CNARDSInstanceV1(
-        provider=AWSRDSAsset.provider(),
-        identifier="identifier",
-        vpc=AWSVPCV1(
-            vpc_id="vpc-id",
-            region="region",
-            account=CNAAWSAccountRoleARNs(
-                name="acc",
-                cna=CNAAWSSpecV1(defaultRoleARN="arn", moduleRoleARNS=None),
-            ),
-        ),
-        defaults=None,
-        overrides=CNARDSInstanceOverridesV1(
-            name=None,
-            engine="postgres",
-            engine_version="14.2",
-            allocated_storage=10,
-            max_allocated_storage=20,
-            instance_class="instance-class",
-            db_subnet_group_name="db-subnet-group-name",
-            username=None,
-            backup_retention_period=7,
-        ),
-    )
-    asset = AWSRDSAsset.from_query_class(query_asset)
+def test_from_query_class_db_name_default(rds_query_asset: CNARDSInstanceV1):
+    rds_query_asset.name = None
+    asset = AWSRDSAsset.from_query_class(rds_query_asset)
     assert isinstance(asset, AWSRDSAsset)
     assert asset.identifier == asset_identifier
+
+
+def test_from_query_class_no_overrides_no_defaults(rds_query_asset: CNARDSInstanceV1):
+    rds_query_asset.overrides = None
+    rds_query_asset.defaults = None
+    with pytest.raises(AssetError):
+        AWSRDSAsset.from_query_class(rds_query_asset)

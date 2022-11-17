@@ -19,42 +19,31 @@ query CNAssets {
           provider
           identifier
           ... on CNANullAsset_v1 {
+            defaults {
+              ... CNANullAssetConfig
+            }
             overrides {
-              addr_block
+              ... CNANullAssetConfig
             }
           }
           ... on CNARDSInstance_v1 {
-            vpc {
-              vpc_id
-              region
-              account {
-                ... CNAAWSAccountRoleARNs
-              }
-            }
+            name
             defaults {
-              ... ResourceFile
+              ... CNARDSInstanceConfig
             }
             overrides {
-              name
-              engine
-              engine_version
-              username
-              instance_class
-              allocated_storage
-              max_allocated_storage
-              backup_retention_period
-              db_subnet_group_name
+              ... CNARDSInstanceConfig
             }
           }
           ... on CNAAssumeRoleAsset_v1{
             aws_account {
               ... CNAAWSAccountRoleARNs
             }
-            overrides {
-              slug
-            }
             defaults {
-              ... ResourceFile
+              ... CNAAssumeRoleAssetConfig
+            }
+            overrides {
+              ... CNAAssumeRoleAssetConfig
             }
           }
         }

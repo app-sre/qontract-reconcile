@@ -26,8 +26,6 @@ from reconcile.utils.openshift_resource import (
 )
 
 from reconcile import openshift_resources_base
-from reconcile.gql_definitions.fragments.resource_file import ResourceFile
-import anymarkup
 
 
 class OutputFormatProcessor:
@@ -131,7 +129,7 @@ class OverridableExternalResource(ExternalResource, Protocol):
 @runtime_checkable
 class DefaultableExternalResource(ExternalResource, Protocol):
     @property
-    def defaults(self) -> Optional[ResourceFile]:
+    def defaults(self) -> Optional[Any]:
         ...
 
     @abstractmethod
@@ -321,17 +319,11 @@ class TypedExternalResourceSpec(ExternalResourceSpec, Generic[T]):
         )
 
     def get_defaults_data(self) -> dict[str, Any]:
-        if isinstance(self.spec, DefaultableExternalResource) and self.spec.defaults:
-            try:
-                defaults_values = anymarkup.parse(
-                    self.spec.defaults.content, force_types=None
-                )
-                defaults_values.pop("$schema", None)
-                return defaults_values
-            except anymarkup.AnyMarkupError:
-                # todo error handling
-                raise Exception("Could not parse data. Skipping resource")
-        return {}
+        if not isinstance(self.spec, DefaultableExternalResource):
+            return {}
+        if self.spec.defaults is None:
+            return {}
+        return self.spec.defaults.dict(by_alias=True)
 
     def get_overrides_data(self) -> dict[str, Any]:
         if not isinstance(self.spec, OverridableExternalResource):
@@ -356,23 +348,3 @@ class TypedExternalResourceSpec(ExternalResourceSpec, Generic[T]):
             return overrides_class.__annotations__.keys()
         else:
             raise ValueError("resource is not overridable")
-
-    def resolve(self) -> "TypedExternalResourceSpec[T]":
-        if self.is_overridable():
-            overrides_data = self.get_overrides_data()
-            defaults_data = self.get_defaults_data()
-
-            for field_name in self.get_overridable_fields():
-                if overrides_data.get(field_name) is None:
-                    overrides_data[field_name] = defaults_data.get(field_name)
-        else:
-            overrides_data = {}
-
-        new_spec_attr = self.spec.dict(by_alias=True)
-        new_spec_attr[EXTERNAL_RESOURCE_SPEC_OVERRIDES_PROPERTY] = overrides_data
-        new_spec = type(self.spec)(**new_spec_attr)
-        return TypedExternalResourceSpec(
-            namespace_spec=self.namespace_spec,
-            namespace_external_resource=self.namespace_external_resource,
-            spec=new_spec,
-        )
