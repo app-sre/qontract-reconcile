@@ -29,6 +29,5 @@ query TerraformCloudflareAccounts {
       name
       type
     }
-    enforceTwofactor
   }
 }

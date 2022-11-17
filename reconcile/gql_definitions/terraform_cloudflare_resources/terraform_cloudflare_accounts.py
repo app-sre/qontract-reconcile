@@ -47,7 +47,6 @@ query TerraformCloudflareAccounts {
       name
       type
     }
-    enforceTwofactor
   }
 }
 """
@@ -121,7 +120,6 @@ class CloudflareAccountV1(BaseModel):
     deletion_approvals: Optional[list[DeletionApprovalV1]] = Field(
         ..., alias="deletionApprovals"
     )
-    enforce_twofactor: Optional[bool] = Field(..., alias="enforceTwofactor")
 
     class Config:
         smart_union = True
