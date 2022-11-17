@@ -112,7 +112,7 @@ def fetch_desired_state(ri, oc_map):
             # get username keys based on used IDPs
             user_keys = ob.determine_user_keys_for_access(cluster, cluster_info["auth"])
             for user in role["users"]:
-                for username in set([user[user_key] for user_key in user_keys]):
+                for username in {user[user_key] for user_key in user_keys}:
                     # used by openshift-users and github integrations
                     # this is just to simplify things a bit on the their side
                     users_desired_state.append({"cluster": cluster, "user": username})

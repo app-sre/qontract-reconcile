@@ -128,7 +128,7 @@ def fetch_desired_state(oc_map):
                 a["cluster"]["name"], a["cluster"]["auth"]
             )
             for u in r["users"]:
-                for username in set([u[user_key] for user_key in user_keys]):
+                for username in {u[user_key] for user_key in user_keys}:
                     if username is None:
                         continue
 
