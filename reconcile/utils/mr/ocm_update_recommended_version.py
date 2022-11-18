@@ -1,8 +1,12 @@
+from ctypes import Union
+
 from pydantic import BaseModel
 from ruamel import yaml
 
+from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.mr.base import MergeRequestBase
 from reconcile.utils.mr.labels import AUTO_MERGE
+from reconcile.utils.sqs_gateway import SQSGateway
 
 
 class WorkloadRecommendedVersion(BaseModel):
@@ -35,7 +39,7 @@ class CreateOCMUpdateRecommendedVersion(MergeRequestBase):
     def description(self) -> str:
         return f"ocm update recommended version for {self.update.name}"
 
-    def process(self, gitlab_cli):
+    def process(self, gitlab_cli: Union[GitLabApi, SQSGateway]):
         raw_file = gitlab_cli.project.files.get(
             file_path=self.update.path, ref=self.main_branch
         )

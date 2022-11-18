@@ -94,7 +94,7 @@ def get_updated_recommended_versions(
     return rv_updated
 
 
-def run(dry_run: bool, gitlab_project_id: int):
+def run(dry_run: bool, gitlab_project_id: int) -> None:
     settings = queries.get_app_interface_settings()
     ocm = queries.get_openshift_cluster_managers()
 
