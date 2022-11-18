@@ -61,31 +61,28 @@ def get_updated_recommended_versions(
 
     rv_current = ocm_info.get("recommendedVersions") or []
 
-    if len(rv_current) == 0:
-        return []
-
     high_weight, majority_weight = get_version_weights(ocm_info)
 
     rv_updated: list[dict[str, str]] = []
     for workload in ocm_info["upgradePolicyAllowedWorkloads"] or []:
         rv_workload = [rv for rv in rv_current if rv["workload"] == workload]
-        if len(rv_workload) == 1:
-            cluster_workload = [
-                c["name"]
-                for c in ocm_info["upgradePolicyClusters"]
-                if workload in c["upgradePolicy"]["workloads"]
-            ]
-            versions = [
-                cluster[k].spec.version for k in cluster if k in cluster_workload
-            ]
-            rv_update = rv_workload[0]
-            if len(versions) > 0:
-                rv_update["recommendedVersion"] = recommended_version(
-                    versions, high_weight, majority_weight
-                )
-            rv_updated.append(rv_update)
-        elif len(rv_workload) > 1:
+        if len(rv_workload) > 1:
             raise ValueError("Expecting one recommended Version per workload!")
+
+        cluster_workload = [
+            c["name"]
+            for c in ocm_info["upgradePolicyClusters"]
+            if workload in c["upgradePolicy"]["workloads"]
+        ]
+        versions = [cluster[k].spec.version for k in cluster if k in cluster_workload]
+        if len(versions) > 0:
+            if len(rv_workload) == 0:
+                rv_workload.append({"workload": workload})
+            rv_update = rv_workload[0]
+            rv_update["recommendedVersion"] = recommended_version(
+                versions, high_weight, majority_weight
+            )
+            rv_updated.append(rv_update)
     return rv_updated
 
 

@@ -29,7 +29,7 @@ class CreateOCMUpdateRecommendedVersion(MergeRequestBase):
 
     @property
     def title(self) -> str:
-        return f"[{self.name}] ocm update recommended version"
+        return f"[{self.name}] {self.update.name} ocm update recommended version"
 
     @property
     def description(self) -> str:
