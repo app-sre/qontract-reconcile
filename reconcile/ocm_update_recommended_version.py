@@ -107,7 +107,7 @@ def run(dry_run: bool, gitlab_project_id: int):
         )
 
         current, _ = ocm_map.cluster_specs()
-        if current == 0:
+        if len(current) == 0:
             continue
 
         rv_updated = get_updated_recommended_versions(ocm_info, current)
