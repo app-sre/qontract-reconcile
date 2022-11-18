@@ -95,6 +95,7 @@ ConfigClass = TypeVar("ConfigClass")
 class Binding:
     cluster_id: str
     namespace: str
+    secret_name: str
 
 
 @dataclass(frozen=True, config=AssetModelConfig)
