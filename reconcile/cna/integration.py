@@ -25,7 +25,7 @@ from reconcile.typed_queries.app_interface_vault_settings import (
 )
 from reconcile.utils.secret_reader import SecretReaderBase, create_secret_reader
 from reconcile.utils.semver_helper import make_semver
-from reconcile.cna.assets.asset import UnknownAssetTypeError, AssetError, Binding
+from reconcile.cna.assets.asset import UnknownAssetTypeError, AssetError, Binding, Asset
 from reconcile.cna.assets.asset_factory import (
     asset_factory_from_schema,
     asset_factory_from_raw_data,
@@ -79,6 +79,8 @@ class CNAIntegration:
                     Binding(
                         cluster_id=namespace.cluster.spec.q_id,
                         namespace=namespace.name,
+                        # For now secret_name is implicit.
+                        secret_name=f"{asset.asset_type()}-{asset.name}",
                     )
                 )
 
@@ -98,6 +100,7 @@ class CNAIntegration:
                             Binding(
                                 cluster_id=binding.get("cluster_id", ""),
                                 namespace=binding.get("namespace", ""),
+                                secret_name=binding.get("secret_name", ""),
                             )
                         )
                     state.add_asset(asset)
