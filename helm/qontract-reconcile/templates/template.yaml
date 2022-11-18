@@ -152,7 +152,7 @@ objects:
               {{- if $logs.googleChat }}
               <store>
                 @type teams
-                webhook_url "${GOOGLE_CHAT_WEBHOOK_URL}&threadKey=app-sre"
+                webhook_url "${GOOGLE_CHAT_WEBHOOK_URL}&threadKey=${POD_NAME}"
                 text "<%= Time.at(time) %> [${POD_NAME}] <%= record['message'] %>\n\n"
               </store>
               {{- end }}
