@@ -1,4 +1,4 @@
-from ctypes import Union
+from typing import Union
 
 from pydantic import BaseModel
 from ruamel import yaml
@@ -39,7 +39,7 @@ class CreateOCMUpdateRecommendedVersion(MergeRequestBase):
     def description(self) -> str:
         return f"ocm update recommended version for {self.update.name}"
 
-    def process(self, gitlab_cli: Union[GitLabApi, SQSGateway]):
+    def process(self, gitlab_cli: GitLabApi) -> None:
         raw_file = gitlab_cli.project.files.get(
             file_path=self.update.path, ref=self.main_branch
         )
