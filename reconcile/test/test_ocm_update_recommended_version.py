@@ -70,10 +70,7 @@ def add_cluster(clusters: dict[str, OCMSpec], cluster_name: str, version: str):
 
 def test_get_updated_recommended_versions():
     ocm_info = {
-        "recommendedVersions": [
-            {"recommendedVersion": "1.0.0", "workload": "foo"},
-            {"recommendedVersion": "1.0.0", "workload": "bar"},
-        ],
+        "recommendedVersions": [],
         "upgradePolicyAllowedWorkloads": ["foo", "bar"],
         "upgradePolicyClusters": [
             {"name": "a", "upgradePolicy": {"workloads": ["foo"]}},
@@ -84,7 +81,21 @@ def test_get_updated_recommended_versions():
 
     assert get_updated_recommended_versions(ocm_info, clusters) == [
         {"recommendedVersion": "2.0.0", "workload": "foo"},
-        {"recommendedVersion": "1.0.0", "workload": "bar"},
+    ]
+
+
+def test_get_updated_recommended_versions_a():
+    ocm_info = {
+        "recommendedVersions": [
+            {"recommendedVersion": "1.0.0", "workload": "foo"},
+        ],
+        "upgradePolicyAllowedWorkloads": ["foo", "bar"],
+        "upgradePolicyClusters": [],
+    }
+    clusters: dict[str, OCMSpec] = {}
+
+    assert get_updated_recommended_versions(ocm_info, clusters) == [
+        {"recommendedVersion": "1.0.0", "workload": "foo"},
     ]
 
 

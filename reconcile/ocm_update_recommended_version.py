@@ -59,30 +59,38 @@ def get_updated_recommended_versions(
     ocm_info: dict[str, Any], cluster: dict[str, OCMSpec]
 ) -> list[dict[str, str]]:
 
-    rv_current = ocm_info.get("recommendedVersions") or []
+    recommended_versions = ocm_info.get("recommendedVersions") or []
 
     high_weight, majority_weight = get_version_weights(ocm_info)
 
     rv_updated: list[dict[str, str]] = []
     for workload in ocm_info["upgradePolicyAllowedWorkloads"] or []:
-        rv_workload = [rv for rv in rv_current if rv["workload"] == workload]
-        if len(rv_workload) > 1:
-            raise ValueError("Expecting one recommended Version per workload!")
-
         cluster_workload = [
             c["name"]
-            for c in ocm_info["upgradePolicyClusters"]
+            for c in ocm_info.get("upgradePolicyClusters") or []
             if workload in c["upgradePolicy"]["workloads"]
         ]
         versions = [cluster[k].spec.version for k in cluster if k in cluster_workload]
+
+        rv_workload = [rv for rv in recommended_versions if rv["workload"] == workload]
+        if len(rv_workload) > 1:
+            raise ValueError("Expecting zero or one recommended Version per workload!")
+        elif len(rv_workload) == 0:
+            # Workload was not configured, thus create a new rv for it
+            rv_current = {"workload": workload}
+        else:
+            # Workload exists
+            rv_current = rv_workload[0]
+
         if len(versions) > 0:
-            if len(rv_workload) == 0:
-                rv_workload.append({"workload": workload})
-            rv_update = rv_workload[0]
-            rv_update["recommendedVersion"] = recommended_version(
+            # Managed clusters exist for this workload
+            rv_current["recommendedVersion"] = recommended_version(
                 versions, high_weight, majority_weight
             )
-            rv_updated.append(rv_update)
+            rv_updated.append(rv_current)
+        elif len(rv_workload) == 1 and len(versions) == 0:
+            # No clusters exist, but a rv was added, probably a manual setting
+            rv_updated.append(rv_workload[0])
     return rv_updated
 
 
