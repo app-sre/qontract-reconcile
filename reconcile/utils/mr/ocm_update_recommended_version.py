@@ -1,12 +1,9 @@
-from typing import Union
-
 from pydantic import BaseModel
 from ruamel import yaml
 
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.mr.base import MergeRequestBase
 from reconcile.utils.mr.labels import AUTO_MERGE
-from reconcile.utils.sqs_gateway import SQSGateway
 
 
 class WorkloadRecommendedVersion(BaseModel):
