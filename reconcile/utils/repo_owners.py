@@ -134,7 +134,16 @@ class RepoOwners:
             except yaml.parser.ParserError:
                 owners = None
             if owners is None:
-                _LOG.warning("Non-parsable OWNERS file")
+                _LOG.warning(
+                    "Non-parsable OWNERS file "
+                    f"{self._git_cli.project.web_url}:{owner_file.get('path')}"
+                )
+                continue
+            if not isinstance(owners, dict):
+                _LOG.warning(
+                    f"owner file {self._git_cli.project.web_url}:{owner_file.get('path')} "
+                    "content is not a dictionary"
+                )
                 continue
 
             approvers = owners.get("approvers") or set()
