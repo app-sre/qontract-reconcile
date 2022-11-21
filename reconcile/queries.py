@@ -1151,9 +1151,17 @@ OCM_QUERY = """
         workloads
         schedule
         conditions {
+          sector
           soakDays
           mutexes
         }
+      }
+      upgradePolicyTemplate {
+        path {
+          content
+        }
+        type
+        variables
       }
     }
     upgradePolicyClusters {
@@ -1162,6 +1170,7 @@ OCM_QUERY = """
         workloads
         schedule
         conditions {
+          sector
           soakDays
           mutexes
           sector
