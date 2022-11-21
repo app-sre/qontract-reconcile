@@ -133,7 +133,7 @@ class VaultSecretReader(SecretReaderBase):
         self, path: str, field: str, format: Optional[str], version: Optional[int]
     ) -> dict[str, str]:
         try:
-            data = self.vault_client.read_all(  # type: ignore # mypy doesn't recognize the VaultClient.__new__ method
+            data = self.vault_client.read_all(  # type: ignore[attr-defined] # mypy doesn't recognize the VaultClient.__new__ method
                 self._parameters_to_dict(
                     path=path,
                     field=field,
@@ -154,7 +154,7 @@ class VaultSecretReader(SecretReaderBase):
         self, path: str, field: str, format: Optional[str], version: Optional[int]
     ) -> dict[str, str]:
         try:
-            data = self.vault_client.read(  # type: ignore # mypy doesn't recognize the VaultClient.__new__ method
+            data = self.vault_client.read(  # type: ignore[attr-defined] # mypy doesn't recognize the VaultClient.__new__ method
                 self._parameters_to_dict(
                     path=path,
                     field=field,
@@ -260,7 +260,7 @@ class SecretReader(SecretReaderBase):
 
         if self.settings and self.settings.get("vault"):
             try:
-                data = self.vault_client.read(params)  # type: ignore # mypy doesn't recognize the VaultClient.__new__ method
+                data = self.vault_client.read(params)  # type: ignore[attr-defined] # mypy doesn't recognize the VaultClient.__new__ method
             except vault.SecretNotFound as e:
                 raise SecretNotFound(*e.args) from e
         else:
@@ -295,7 +295,7 @@ class SecretReader(SecretReaderBase):
 
         if self.settings and self.settings.get("vault"):
             try:
-                data = self.vault_client.read_all(params)  # type: ignore # mypy doesn't recognize the VaultClient.__new__ method
+                data = self.vault_client.read_all(params)  # type: ignore[attr-defined] # mypy doesn't recognize the VaultClient.__new__ method
             except Forbidden:
                 raise VaultForbidden(
                     f"permission denied reading vault secret " f"at {path}"
