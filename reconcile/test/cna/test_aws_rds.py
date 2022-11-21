@@ -1,14 +1,15 @@
+import json
 from reconcile.cna.assets.asset import AssetError
 from reconcile.cna.assets.aws_rds import AWSRDSAsset
 from reconcile.gql_definitions.cna.queries.cna_resources import (
     CNARDSInstanceV1,
-    CNARDSInstanceConfig,
+    CNARDSInstanceDefaultsV1,
+    AWSVPCV1,
 )
 from reconcile.gql_definitions.cna.queries.aws_arn import (
     CNAAWSAccountRoleARNs,
     CNAAWSSpecV1,
 )
-from reconcile.gql_definitions.cna.queries.aws_rds_instance_config import AWSVPCV1
 
 import pytest
 
@@ -19,7 +20,6 @@ region = "region"
 arn = "arn"
 engine = "engine"
 engine_version = "14.2"
-major_engine_version = "14"
 allocated_storage = 10
 max_allocated_storage = 20
 instance_class = "instance-class"
@@ -39,8 +39,8 @@ def rds_query_asset() -> CNARDSInstanceV1:
         provider=AWSRDSAsset.provider(),
         identifier=asset_identifier,
         name=db_name,
-        defaults=None,
-        overrides=CNARDSInstanceConfig(
+        overrides=None,
+        defaults=CNARDSInstanceDefaultsV1(
             vpc=AWSVPCV1(
                 vpc_id=vpc_id,
                 region=region,
@@ -51,7 +51,6 @@ def rds_query_asset() -> CNARDSInstanceV1:
             ),
             engine=engine,
             engine_version=engine_version,
-            major_engine_version=major_engine_version,
             allocated_storage=allocated_storage,
             max_allocated_storage=max_allocated_storage,
             instance_class=instance_class,
@@ -73,11 +72,11 @@ def test_from_query_class(rds_query_asset: CNARDSInstanceV1):
     assert asset.name == asset_identifier
     assert asset.region == region
     assert asset.identifier == db_name
-    assert asset.vpc_id == vpc_id
     assert asset.db_subnet_group_name == db_subnet_group_name
     assert asset.instance_class == instance_class
     assert asset.engine == engine
     assert asset.engine_version == engine_version
+    assert asset.major_engine_version == "14"
     assert asset.allocated_storage == str(allocated_storage)
     assert asset.max_allocated_storage == str(max_allocated_storage)
     assert asset.role_arn == arn
@@ -94,8 +93,12 @@ def test_from_query_class_db_name_default(rds_query_asset: CNARDSInstanceV1):
     assert asset.identifier == asset_identifier
 
 
-def test_from_query_class_no_overrides_no_defaults(rds_query_asset: CNARDSInstanceV1):
-    rds_query_asset.overrides = None
-    rds_query_asset.defaults = None
-    with pytest.raises(AssetError):
-        AWSRDSAsset.from_query_class(rds_query_asset)
+def test_from_query_class_engine_version_override(rds_query_asset: CNARDSInstanceV1):
+    engine_version_override = "15.2"
+    rds_query_asset.name = None
+    rds_query_asset.overrides = {
+        "engine_version": engine_version_override
+    }  # type: ignore
+    asset = AWSRDSAsset.from_query_class(rds_query_asset)
+    assert isinstance(asset, AWSRDSAsset)
+    assert asset.engine_version == engine_version_override
