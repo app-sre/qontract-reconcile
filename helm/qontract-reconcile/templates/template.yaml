@@ -86,6 +86,12 @@ objects:
             value: ${SLACK_ICON_EMOJI}
           {{- end }}
           {{- if $logs.googleChat }}
+
+          {{- /*
+          "*-triggers" integrations will be sent to a seperate GChat channel as
+          they are much noisier than other integrations
+          */}}
+
           {{- if $integration.trigger }}
           - name: GOOGLE_CHAT_WEBHOOK_URL
             valueFrom:
