@@ -979,25 +979,28 @@ def aggregate_shared_resources(namespace_info, shared_resources_type):
             namespace_info[shared_resources_type] = namespace_type_resources
 
 
-def determine_user_key_for_access(cluster_info: dict) -> str:
-    DEFAULT = "github_username"
+def determine_user_keys_for_access(
+    cluster_name: str, auth_list: list[dict[str, str]]
+) -> list[str]:
     AUTH_METHOD_USER_KEY = {
         "github-org": "github_username",
         "github-org-team": "github_username",
         "oidc": "org_username",
     }
-    cluster_auth = cluster_info["auth"]
-    if not cluster_auth:
-        # for backwards compatibility
-        logging.debug(
-            f"[{cluster_info['name']}] auth section missing, defaulting to: {DEFAULT}"
-        )
-        return DEFAULT
+    user_keys: list[str] = []
 
-    service = cluster_auth["service"]
-    try:
-        return AUTH_METHOD_USER_KEY[service]
-    except KeyError:
-        raise NotImplementedError(
-            f"[{cluster_info['name']}] auth service not implemented: {service}"
-        )
+    # for backward compatibility. some clusters don't have auth objects
+    if not auth_list:
+        return ["github_username"]
+
+    for auth in auth_list:
+        service = auth["service"]
+        try:
+            if AUTH_METHOD_USER_KEY[service] in user_keys:
+                continue
+            user_keys.append(AUTH_METHOD_USER_KEY[service])
+        except KeyError:
+            raise NotImplementedError(
+                f"[{cluster_name}] auth service not implemented: {service}"
+            )
+    return user_keys

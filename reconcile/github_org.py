@@ -230,32 +230,33 @@ def fetch_desired_state(infer_clusters=True):
     clusters = gqlapi.query(CLUSTERS_QUERY)["clusters"]
     openshift_users_desired_state = openshift_users.fetch_desired_state(oc_map=None)
     for cluster in clusters:
-        if not cluster["auth"]:
-            continue
+        for auth in cluster["auth"]:
+            if auth["service"] not in ["github-org", "github-org-team"]:
+                continue
 
-        cluster_name = cluster["name"]
-        members = [
-            ou["user"].lower()
-            for ou in openshift_users_desired_state
-            if ou["cluster"] == cluster_name
-        ]
+            cluster_name = cluster["name"]
+            members = [
+                ou["user"].lower()
+                for ou in openshift_users_desired_state
+                if ou["cluster"] == cluster_name
+            ]
 
-        state.add(
-            {
-                "service": "github-org",
-                "org": cluster["auth"]["org"],
-            },
-            members,
-        )
-        if cluster["auth"]["service"] == "github-org-team":
             state.add(
                 {
-                    "service": "github-org-team",
-                    "org": cluster["auth"]["org"],
-                    "team": cluster["auth"]["team"],
+                    "service": "github-org",
+                    "org": auth["org"],
                 },
                 members,
             )
+            if auth["service"] == "github-org-team":
+                state.add(
+                    {
+                        "service": "github-org-team",
+                        "org": auth["org"],
+                        "team": auth["team"],
+                    },
+                    members,
+                )
 
     return state
 

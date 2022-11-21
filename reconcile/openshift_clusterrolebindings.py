@@ -87,7 +87,7 @@ def fetch_desired_state(ri, oc_map):
     roles: list[dict] = expiration.filter(gqlapi.query(ROLES_QUERY)["roles"])
     users_desired_state = []
     # set namespace to something indicative
-    namepsace = "cluster"
+    namespace = "cluster"
     for role in roles:
         permissions = [
             {"cluster": a["cluster"], "cluster_role": a["clusterRole"]}
@@ -108,28 +108,31 @@ def fetch_desired_state(ri, oc_map):
             cluster = cluster_info["name"]
             if not oc_map.get(cluster):
                 continue
-            user_key = ob.determine_user_key_for_access(cluster_info)
+
+            # get username keys based on used IDPs
+            user_keys = ob.determine_user_keys_for_access(cluster, cluster_info["auth"])
             for user in role["users"]:
-                # used by openshift-users and github integrations
-                # this is just to simplify things a bit on the their side
-                users_desired_state.append({"cluster": cluster, "user": user[user_key]})
-                if ri is None:
-                    continue
-                oc_resource, resource_name = construct_user_oc_resource(
-                    permission["cluster_role"], user[user_key]
-                )
-                try:
-                    ri.add_desired(
-                        cluster,
-                        namepsace,
-                        "ClusterRoleBinding",
-                        resource_name,
-                        oc_resource,
+                for username in {user[user_key] for user_key in user_keys}:
+                    # used by openshift-users and github integrations
+                    # this is just to simplify things a bit on the their side
+                    users_desired_state.append({"cluster": cluster, "user": username})
+                    if ri is None:
+                        continue
+                    oc_resource, resource_name = construct_user_oc_resource(
+                        permission["cluster_role"], username
                     )
-                except ResourceKeyExistsError:
-                    # a user may have a Role assigned to them
-                    # from multiple app-interface roles
-                    pass
+                    try:
+                        ri.add_desired(
+                            cluster,
+                            namespace,
+                            "ClusterRoleBinding",
+                            resource_name,
+                            oc_resource,
+                        )
+                    except ResourceKeyExistsError:
+                        # a user may have a Role assigned to them
+                        # from multiple app-interface roles
+                        pass
             for sa in service_accounts:
                 if ri is None:
                     continue
@@ -140,7 +143,7 @@ def fetch_desired_state(ri, oc_map):
                 try:
                     ri.add_desired(
                         cluster,
-                        namepsace,
+                        namespace,
                         "ClusterRoleBinding",
                         resource_name,
                         oc_resource,
