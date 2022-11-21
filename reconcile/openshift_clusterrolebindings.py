@@ -87,7 +87,7 @@ def fetch_desired_state(ri, oc_map):
     roles: list[dict] = expiration.filter(gqlapi.query(ROLES_QUERY)["roles"])
     users_desired_state = []
     # set namespace to something indicative
-    namespace = "cluster"
+    namespace_cluster_scope = "cluster"
     for role in roles:
         permissions = [
             {"cluster": a["cluster"], "cluster_role": a["clusterRole"]}
@@ -124,7 +124,7 @@ def fetch_desired_state(ri, oc_map):
                     try:
                         ri.add_desired(
                             cluster,
-                            namespace,
+                            namespace_cluster_scope,
                             "ClusterRoleBinding",
                             resource_name,
                             oc_resource,
@@ -143,7 +143,7 @@ def fetch_desired_state(ri, oc_map):
                 try:
                     ri.add_desired(
                         cluster,
-                        namespace,
+                        namespace_cluster_scope,
                         "ClusterRoleBinding",
                         resource_name,
                         oc_resource,
