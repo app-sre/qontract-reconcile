@@ -14,3 +14,7 @@ class AppInterfaceSettingsError(Exception):
 
 class AppInterfaceSmtpSettingsError(AppInterfaceSettingsError):
     pass
+
+
+class SecretIncompleteError(Exception):
+    pass
