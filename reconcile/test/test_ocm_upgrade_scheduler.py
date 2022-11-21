@@ -6,6 +6,8 @@ from datetime import datetime
 from dateutil import parser
 import pytest
 
+from reconcile.utils.ocm import Sector
+
 import reconcile.ocm_upgrade_scheduler as ous
 
 
@@ -62,7 +64,7 @@ class TestUpdateHistory(TestCase):
         self.assertEqual(expected, history)
 
 
-class TestVersionConditionsMet(TestCase):
+class TestVersionConditionsMetSoakDays(TestCase):
     def setUp(self):
         self.version = "1.2.3"
         self.ocm_name = "ocm"
@@ -343,6 +345,164 @@ class TestUpgradePriority(TestCase):
         ]
         state = sorted(actual, key=ous.sort_key)
         self.assertEqual(state, expected)
+
+
+class TestVersionConditionsMetSector:
+    class OCMSpec:
+        class OCMSpecSpec:
+            version: str
+
+        spec: OCMSpecSpec
+
+        def __init__(self) -> None:
+            self.spec = self.OCMSpecSpec()
+            self.spec.version = "0.0.0"
+
+    def ocmspec(self, version):
+        s = self.OCMSpec()
+        s.spec.version = version
+        return s
+
+    @pytest.fixture
+    def ocm1(self, mocker):
+        o = mocker.patch("reconcile.ocm_upgrade_scheduler.OCM", autospec=True)
+        o.name = "ocm1"
+        return o
+
+    @pytest.fixture
+    def sector1_ocm1(self, ocm1):
+        return Sector(name="sector1", ocm=ocm1)
+
+    @staticmethod
+    @pytest.fixture
+    def sector2_ocm1(ocm1, sector1_ocm1):
+        return Sector(name="sector2", ocm=ocm1, dependencies=[sector1_ocm1])
+
+    @staticmethod
+    @pytest.fixture
+    def sector3_ocm1(ocm1, sector2_ocm1):
+        return Sector(name="sector3", ocm=ocm1, dependencies=[sector2_ocm1])
+
+    @pytest.fixture
+    def cluster_high_version(self):
+        return {
+            "name": "high-version-sector1-ocm1",
+            "upgradePolicy": {"workloads": ["workload1"]},
+            "ocmspec": self.ocmspec("2.0.0"),
+        }
+
+    @pytest.fixture
+    def cluster_low_version(self):
+        return {
+            "name": "low-version-sector1-ocm1",
+            "upgradePolicy": {"workloads": ["workload1"]},
+            "ocmspec": self.ocmspec("1.0.0"),
+        }
+
+    def test_conditions_met_no_deps(self, sector1_ocm1: Sector):
+        upgrade_conditions = {"sector": sector1_ocm1}
+        assert ous.version_conditions_met(
+            "1.2.3", {}, "ocm1", ["workload1"], upgrade_conditions
+        )
+
+    def test_conditions_met_single_deps_no_cluster(self, sector2_ocm1: Sector):
+        upgrade_conditions = {"sector": sector2_ocm1}
+        assert ous.version_conditions_met(
+            "1.2.3", {}, "ocm1", ["workload1"], upgrade_conditions
+        )
+
+    # return the ocmspec of the cluster from its name
+    def side_effect_ocmspec(self, clusters: list[dict]):
+        map = {c["name"]: c["ocmspec"] for c in clusters}
+        return map.get
+
+    def set_clusters(self, mocker, sector: Sector, clusters: list[dict]):
+        sector.cluster_infos = clusters
+        mocker.patch.object(
+            sector,
+            "ocmspec",
+            side_effect=self.side_effect_ocmspec(clusters),
+        )
+
+    def test_conditions_met_single_deps_high_version(
+        self,
+        mocker,
+        sector1_ocm1: Sector,
+        sector2_ocm1: Sector,
+        cluster_high_version,
+    ):
+        upgrade_conditions = {"sector": sector2_ocm1}
+        self.set_clusters(mocker, sector1_ocm1, [cluster_high_version])
+        assert ous.version_conditions_met(
+            "1.2.3", {}, "ocm1", ["workload1"], upgrade_conditions
+        )
+
+    def test_conditions_met_single_deps_low_version(
+        self,
+        mocker,
+        sector1_ocm1: Sector,
+        sector2_ocm1: Sector,
+        cluster_low_version,
+    ):
+        upgrade_conditions = {"sector": sector2_ocm1}
+        self.set_clusters(mocker, sector1_ocm1, [cluster_low_version])
+        assert not ous.version_conditions_met(
+            "1.2.3", {}, "ocm1", ["workload1"], upgrade_conditions
+        )
+
+    def test_conditions_met_single_deps_mix_versions(
+        self,
+        mocker,
+        sector1_ocm1: Sector,
+        sector2_ocm1: Sector,
+        cluster_low_version,
+        cluster_high_version,
+    ):
+        upgrade_conditions = {"sector": sector2_ocm1}
+        self.set_clusters(
+            mocker, sector1_ocm1, [cluster_low_version, cluster_high_version]
+        )
+        assert not ous.version_conditions_met(
+            "1.2.3", {}, "ocm1", ["workload1"], upgrade_conditions
+        )
+
+    # first dependency level (sector2) contains no cluster with the workload,
+    # so we're recursing dependencies down to sector1
+    # sector3 -> sector2 -> sector1
+    def test_conditions_met_deep_deps_mix_versions(
+        self,
+        mocker,
+        sector1_ocm1: Sector,
+        sector3_ocm1: Sector,
+        cluster_low_version,
+        cluster_high_version,
+    ):
+        upgrade_conditions = {"sector": sector3_ocm1}
+
+        # no clusters in deps: upgrade ok
+        assert ous.version_conditions_met(
+            "1.2.3", {}, "ocm1", ["workload1"], upgrade_conditions
+        )
+
+        # all clusters with higher version in deps: upgrade ok
+        self.set_clusters(mocker, sector1_ocm1, [cluster_high_version])
+        assert ous.version_conditions_met(
+            "1.2.3", {}, "ocm1", ["workload1"], upgrade_conditions
+        )
+
+        # no cluster with higher version in deps: upgrade not ok
+        self.set_clusters(mocker, sector1_ocm1, [cluster_low_version])
+        assert not ous.version_conditions_met(
+            "1.2.3", {}, "ocm1", ["workload1"], upgrade_conditions
+        )
+
+        # not all clusters with higher version in deps: upgrade not ok
+        self.set_clusters(
+            mocker, sector1_ocm1, [cluster_low_version, cluster_high_version]
+        )
+        assert not ous.version_conditions_met(
+            "1.2.3", {}, "ocm1", ["workload1"], upgrade_conditions
+        )
 
 
 class TestAct:

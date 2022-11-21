@@ -615,6 +615,15 @@ CLUSTERS_QUERY = """
         version
       }
       blockedVersions
+      sectors {
+        name
+        dependencies {
+          name
+          ocm {
+            name
+          }
+        }
+      }
     }
     awsInfrastructureAccess {
       awsGroup {
@@ -691,6 +700,7 @@ CLUSTERS_QUERY = """
       conditions {
         soakDays
         mutexes
+        sector
       }
     }
     additionalRouters {
@@ -1106,6 +1116,15 @@ OCM_QUERY = """
       format
       version
     }
+    sectors {
+      name
+      dependencies {
+        name
+        ocm {
+          name
+        }
+      }
+    }
     upgradePolicyDefaults {
       name
       matchLabels
@@ -1126,6 +1145,7 @@ OCM_QUERY = """
         conditions {
           soakDays
           mutexes
+          sector
         }
       }
     }
