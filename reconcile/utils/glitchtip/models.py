@@ -1,6 +1,6 @@
 from __future__ import annotations
 import re
-from typing import Any, Optional
+from typing import Any, MutableMapping, Optional
 from pydantic import BaseModel, Field, root_validator
 
 
@@ -39,8 +39,8 @@ class Team(BaseModel):
 
     @root_validator(pre=True)
     def name_xor_slug_must_be_set(  # pylint: disable=no-self-argument
-        cls, values: dict[str, Any]
-    ) -> dict[str, Any]:
+        cls, values: MutableMapping[str, Any]
+    ) -> MutableMapping[str, Any]:
         assert ("name" in values or "slug" in values) and not (
             "name" in values and "slug" in values
         ), "name xor slug must be set!"
@@ -48,8 +48,8 @@ class Team(BaseModel):
 
     @root_validator
     def slugify(  # pylint: disable=no-self-argument
-        cls, values: dict[str, Any]
-    ) -> dict[str, Any]:
+        cls, values: MutableMapping[str, Any]
+    ) -> MutableMapping[str, Any]:
         values["slug"] = values.get("slug") or slugify(values.get("name", ""))
         values["name"] = slugify(values.get("name", "")) or values.get("slug")
         return values
@@ -75,8 +75,8 @@ class Project(BaseModel):
 
     @root_validator
     def slugify(  # pylint: disable=no-self-argument
-        cls, values: dict[str, Any]
-    ) -> dict[str, Any]:
+        cls, values: MutableMapping[str, Any]
+    ) -> MutableMapping[str, Any]:
         values["slug"] = values.get("slug") or slugify(values["name"])
         return values
 
@@ -102,8 +102,8 @@ class Organization(BaseModel):
 
     @root_validator
     def slugify(  # pylint: disable=no-self-argument
-        cls, values: dict[str, Any]
-    ) -> dict[str, Any]:
+        cls, values: MutableMapping[str, Any]
+    ) -> MutableMapping[str, Any]:
         values["slug"] = values.get("slug") or slugify(values["name"])
         return values
 
