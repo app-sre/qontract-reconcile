@@ -1,8 +1,11 @@
+from typing import Optional
+from pydantic import BaseModel
 import pytest
 
 from reconcile.slack_base import (
     slackapi_from_slack_workspace,
     slackapi_from_permissions,
+    get_slackapi,
 )
 from reconcile.utils.secret_reader import SecretReader
 
@@ -147,3 +150,32 @@ def test_permissions_workspace(
 
     assert slack_api.channel is None
     assert slack_api.config.get_method_config("users.list") == {"limit": 123}
+
+
+class ClientGlobalConfig(BaseModel):
+    max_retries: Optional[int]
+    timeout: Optional[int]
+
+
+class ClientMethodConfig(BaseModel):
+    name: str
+    args: str
+
+
+class ClientConfig(BaseModel):
+    q_global: Optional[ClientGlobalConfig]
+    methods: Optional[list[ClientMethodConfig]]
+
+
+def test_get_slackapi():
+    slack_api = get_slackapi(
+        "workspace",
+        "token",
+        client_config=ClientConfig(
+            q_global=ClientGlobalConfig(max_retries=1, timeout=4),
+            methods=[ClientMethodConfig(name="users.list", args='{"limit":1000}')],
+        ),
+        init_usergroups=False,
+    )
+    assert slack_api.channel is None
+    assert slack_api.config.get_method_config("users.list") == {"limit": 1000}

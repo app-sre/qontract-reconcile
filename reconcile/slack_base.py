@@ -2,12 +2,12 @@ from typing import Mapping, Any, Optional
 
 from reconcile import queries
 from reconcile.utils.secret_reader import SecretReader
-
 from reconcile.utils.slack_api import SlackApi, SlackApiConfig
+from reconcile.utils.slack_api import SupportsClientConfig
 
 
 def slackapi_from_queries(
-    integration_name: str, init_usergroups: Optional[bool] = True
+    integration_name: str, init_usergroups: bool = True
 ) -> SlackApi:
     secret_reader = SecretReader(queries.get_secret_reader_settings())
     slack_workspace = {"workspace": queries.get_slack_workspace()}
@@ -20,7 +20,7 @@ def slackapi_from_slack_workspace(
     slack_workspace: Mapping[str, Any],
     secret_reader: SecretReader,
     integration_name: str,
-    init_usergroups: Optional[bool] = True,
+    init_usergroups: bool = True,
     channel: Optional[str] = None,
 ) -> SlackApi:
     if "workspace" not in slack_workspace:
@@ -53,8 +53,7 @@ def slackapi_from_slack_workspace(
 
     api = SlackApi(
         workspace_name,
-        token,
-        secret_reader,
+        token=secret_reader.read(token),
         channel=channel,
         api_config=api_config,
         init_usergroups=init_usergroups,
@@ -68,7 +67,7 @@ def slackapi_from_slack_workspace(
 def slackapi_from_permissions(
     permissions: Mapping[str, Any],
     secret_reader: SecretReader,
-    init_usergroups: Optional[bool] = True,
+    init_usergroups: bool = True,
 ) -> SlackApi:
     if "workspace" not in permissions:
         raise ValueError('Slack workspace not containing keyword "workspace"')
@@ -84,10 +83,29 @@ def slackapi_from_permissions(
 
     api = SlackApi(
         workspace_name,
-        token,
-        secret_reader,
+        token=secret_reader.read(token),
         init_usergroups=init_usergroups,
         api_config=api_config,
     )
 
+    return api
+
+
+def get_slackapi(
+    workspace_name: str,
+    token: str,
+    client_config: Optional[SupportsClientConfig] = None,
+    init_usergroups: bool = True,
+) -> SlackApi:
+    if client_config:
+        api_config = SlackApiConfig.from_client_config(client_config)
+    else:
+        api_config = SlackApiConfig()
+
+    api = SlackApi(
+        workspace_name,
+        token,
+        init_usergroups=init_usergroups,
+        api_config=api_config,
+    )
     return api
