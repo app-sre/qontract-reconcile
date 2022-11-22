@@ -1,5 +1,5 @@
 from __future__ import annotations
-from functools import cache
+from functools import lru_cache
 import json
 import logging
 from typing import Iterable, Protocol, Sequence, Any, Mapping, Optional, Union
@@ -378,7 +378,7 @@ class SlackApi:
     def get_users_by_ids(self, users_ids: Iterable[str]) -> dict[str, str]:
         return {k: v["name"] for k, v in self._get("users").items() if k in users_ids}
 
-    @cache
+    @lru_cache(maxsize=10)
     def _get(self, resource: str) -> dict[str, Any]:
         """
         Get Slack resources by type. This method uses a cache to ensure that
