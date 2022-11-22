@@ -294,7 +294,7 @@ def get_upgrade_policies_data(
         mutexes = c.get("conditions", {}).get("mutexes") or []
         sector = ""
         if c.get("conditions", {}).get("sector"):
-            sector = c["condition"]["sector"].name
+            sector = c["conditions"]["sector"].name
         ocm_org = ocm_map.get(cluster_name)
         ocm_spec = ocm_org.clusters[cluster_name]
         item = {
