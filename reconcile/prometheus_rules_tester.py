@@ -4,7 +4,8 @@ import re
 import sys
 import traceback
 import yaml
-from typing import Any
+from typing import Any, Optional
+from collections.abc import Iterable, Mapping, MutableMapping
 
 from sretoolbox.utils import threaded
 
@@ -44,8 +45,11 @@ PROMETHEUS_RULES_TESTS_QUERY = """
 }
 """
 
+PrometheusTests = dict[str, str]
+PrometheusRules = dict[str, dict[str, dict[str, Any]]]
 
-def get_prometheus_tests():
+
+def get_prometheus_tests() -> PrometheusTests:
     """Returns a path indexed dict with the prometheus tests content"""
     gqlapi = gql.get_api()
     tests = {}
@@ -64,9 +68,11 @@ def get_prometheus_tests():
 #                'rule_spec': spec
 #                'variables: { ... } # openshift resource variables if any
 #    (...)
-def get_prometheus_rules(cluster_name, settings):
+def get_prometheus_rules(
+    cluster_name: Optional[str], settings: Mapping
+) -> PrometheusRules:
     """Returns a dict of dicts indexed by path with rule data"""
-    rules = {}
+    rules: PrometheusRules = {}
     namespaces_with_prom_rules, _ = orb.get_namespaces(
         PROVIDERS, resource_schema_filter="/openshift/prometheus-rule-1.yml"
     )
@@ -138,7 +144,7 @@ def get_prometheus_rules(cluster_name, settings):
 #       labels:
 #         service: serviceName
 #         ...
-def check_valid_services(rule, settings):
+def check_valid_services(rule: Mapping, settings: Mapping) -> CommandExecutionResult:
     """Check that all services in Prometheus rules are known.
     This replaces an enum in the json schema with a list
     in app-interface settings."""
@@ -176,7 +182,7 @@ def check_rule_length(rule_length: int) -> CommandExecutionResult:
     return CommandExecutionResult(True, "")
 
 
-def check_rule(rule, settings):
+def check_rule(rule: MutableMapping, settings: Mapping) -> MutableMapping:
     promtool_check_result = promtool.check_rule(yaml_spec=rule["spec"])
     valid_services_result = check_valid_services(rule, settings)
     rule_length_result = check_rule_length(rule["length"])
@@ -186,7 +192,9 @@ def check_rule(rule, settings):
     return rule
 
 
-def check_prometheus_rules(rules, thread_pool_size, settings):
+def check_prometheus_rules(
+    rules: PrometheusRules, thread_pool_size: int, settings: Mapping
+) -> list[dict[str, str]]:
     """Returns a list of dicts with failed rule checks"""
     # flatten the list of prometheus rules to have a list of dicts
     rules_to_check = []
@@ -214,7 +222,7 @@ def check_prometheus_rules(rules, thread_pool_size, settings):
     return [rule for rule in result if not rule["check_result"]]
 
 
-def run_test(test):
+def run_test(test: MutableMapping[str, Any]) -> MutableMapping[str, Any]:
     test["check_result"] = promtool.run_test(
         test_yaml_spec=test["test"], rule_files=test["rule_files"]
     )
@@ -270,7 +278,13 @@ def get_data_from_jinja_test_template(
     return data
 
 
-def check_prometheus_tests(tests, rules, clusters, thread_pool_size, settings):
+def check_prometheus_tests(
+    tests: PrometheusTests,
+    rules: PrometheusRules,
+    clusters: Iterable[str],
+    thread_pool_size: int,
+    settings: Mapping,
+) -> list[dict[str, Any]]:
     """Returns a list of dicts with failed test runs. To make things (much)
     simpler we will allow only one prometheus rule per test as will need to run
     the tests per every appearance of the rule files in a namespace s rules can
@@ -278,7 +292,7 @@ def check_prometheus_tests(tests, rules, clusters, thread_pool_size, settings):
     the original rule has as rule labels can have different values per
     namespace.
     """
-    failed_tests = []
+    failed_tests: list[dict[str, Any]] = []
 
     # list of dicts containing tests to run
     # {'rule_files': {'path': 'contents'}
@@ -370,7 +384,9 @@ def check_prometheus_tests(tests, rules, clusters, thread_pool_size, settings):
     return failed_tests
 
 
-def run(dry_run, thread_pool_size=10, cluster_name=None):
+def run(
+    dry_run: bool, thread_pool_size: int = 10, cluster_name: Optional[str] = None
+) -> None:
     orb.QONTRACT_INTEGRATION = QONTRACT_INTEGRATION
     orb.QONTRACT_INTEGRATION_VERSION = QONTRACT_INTEGRATION_VERSION
 
@@ -404,7 +420,7 @@ def run(dry_run, thread_pool_size=10, cluster_name=None):
         sys.exit(ExitCodes.ERROR)
 
 
-def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
+def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
     state = orb.early_exit_desired_state(
         PROVIDERS, resource_schema_filter="/openshift/prometheus-rule-1.yml"
     )
