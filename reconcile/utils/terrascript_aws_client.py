@@ -4945,7 +4945,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 )
             else:
                 raise ValueError(
-                    f"[{identifier}] could not find ami specified in image section in account {account}"
+                    f"[{identifier}] could not find ami specified in image section in account {account}, image definition {image}"
                 )
         template_values["image_id"] = image_id
 
