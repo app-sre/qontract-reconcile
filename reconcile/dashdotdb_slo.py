@@ -1,8 +1,9 @@
 from dataclasses import dataclass
 import jinja2
 import requests
-from typing import Any, Iterable
+from typing import Any, Iterable, Optional
 
+from requests import Response
 from sretoolbox.utils import threaded
 
 from reconcile.dashdotdb_base import DashdotdbBase, LOG
@@ -47,10 +48,10 @@ class ServiceSLO:
 
 
 class DashdotdbSLO(DashdotdbBase):
-    def __init__(self, dry_run, thread_pool_size):
+    def __init__(self, dry_run: bool, thread_pool_size: int):
         super().__init__(dry_run, thread_pool_size, "DDDB_SLO:", "serviceslometrics")
 
-    def _post(self, service_slos: Iterable[ServiceSLO]):
+    def _post(self, service_slos: Iterable[ServiceSLO]) -> Optional[Response]:
         for item in service_slos:
             LOG.debug(f"About to POST SLO JSON item to dashdotDB:\n{item}\n")
 
@@ -127,7 +128,7 @@ class DashdotdbSLO(DashdotdbBase):
                 )
         return result
 
-    def run(self):
+    def run(self) -> None:
         slo_documents = get_slo_documents()
 
         service_slos: list[list[ServiceSLO]] = threaded.run(
@@ -145,6 +146,6 @@ class DashdotdbSLO(DashdotdbBase):
         self._close_token()
 
 
-def run(dry_run=False, thread_pool_size=10):
+def run(dry_run: bool = False, thread_pool_size: int = 10) -> None:
     dashdotdb_slo = DashdotdbSLO(dry_run, thread_pool_size)
     dashdotdb_slo.run()
