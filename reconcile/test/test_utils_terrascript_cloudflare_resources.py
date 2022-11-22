@@ -1,6 +1,6 @@
 import pytest
 
-from reconcile.utils.external_resource_spec import ExternalResourceSpec
+from reconcile.utils.external_resource_spec import DictExternalResourceSpec
 from reconcile.utils.terrascript.cloudflare_resources import (
     create_cloudflare_terrascript_resource,
     UnsupportedCloudflareResourceError,
@@ -8,9 +8,9 @@ from reconcile.utils.terrascript.cloudflare_resources import (
 
 
 def create_external_resource_spec(provision_provider):
-    return ExternalResourceSpec(
+    return DictExternalResourceSpec(
         provision_provider,
-        {"name": "dev", "automationToken": {}},
+        "dev",
         {
             "provider": provision_provider,
             "identifier": "test",

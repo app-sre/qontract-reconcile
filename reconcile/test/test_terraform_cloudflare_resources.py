@@ -6,6 +6,7 @@ from reconcile.gql_definitions.terraform_cloudflare_resources.terraform_cloudfla
     NamespaceTerraformProviderResourceCloudflareV1,
     NamespaceTerraformResourceCloudflareZoneV1,
     NamespaceV1,
+    ClusterV1,
     TerraformCloudflareResourcesQueryData,
     CloudflareZoneCertificateV1,
 )
@@ -18,6 +19,7 @@ def query_data(external_resources):
             NamespaceV1(
                 name="namespace1",
                 managedExternalResources=True,
+                cluster=ClusterV1(name="cluster1"),
                 externalResources=[external_resources],
             )
         ],

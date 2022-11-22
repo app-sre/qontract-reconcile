@@ -2,6 +2,9 @@
 query TerraformCloudflareResources {
   namespaces: namespaces_v1 {
     name
+    cluster {
+      name
+    }
     managedExternalResources
     externalResources {
       ... on NamespaceTerraformProviderResourceCloudflare_v1 {
@@ -11,9 +14,9 @@ query TerraformCloudflareResources {
         }
         resources {
           provider
+          identifier
           ... on NamespaceTerraformResourceCloudflareWorkerScript_v1
           {
-            identifier
             name
             content_from_github {
               repo
@@ -27,7 +30,6 @@ query TerraformCloudflareResources {
           }
           ... on NamespaceTerraformResourceCloudflareZone_v1
           {
-            identifier
             zone
             plan
             type

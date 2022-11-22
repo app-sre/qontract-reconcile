@@ -1,4 +1,11 @@
-from typing import Union, Iterable, Any, MutableMapping
+from typing import (
+    Type,
+    Union,
+    Iterable,
+    Any,
+    MutableMapping,
+    get_args,
+)
 
 from terrascript import Resource, Output, Variable
 from terrascript.resource import (
@@ -10,8 +17,15 @@ from terrascript.resource import (
     cloudflare_worker_script,
 )
 from reconcile import queries
-from reconcile.utils.external_resource_spec import ExternalResourceSpec
-from reconcile.utils.external_resources import ResourceValueResolver
+from reconcile.gql_definitions.terraform_cloudflare_resources.terraform_cloudflare_resources import (
+    NamespaceTerraformResourceCloudflareWorkerScriptV1,
+    NamespaceTerraformResourceCloudflareZoneV1,
+    NamespaceTerraformResourceCloudflareV1,
+)
+from reconcile.utils.external_resource_spec import TypedExternalResourceSpec
+from reconcile.utils.external_resources import (
+    ResourceValueResolver,
+)
 from reconcile.utils.github_api import GithubApi
 from reconcile.utils.terrascript.resources import TerrascriptResource
 from reconcile.utils.terraform import safe_resource_id
@@ -39,7 +53,7 @@ class cloudflare_certificate_pack(Resource):
 
 
 def create_cloudflare_terrascript_resource(
-    spec: ExternalResourceSpec,
+    spec: TypedExternalResourceSpec[NamespaceTerraformResourceCloudflareV1],
 ) -> list[Union[Resource, Output]]:
     """
     Create the required Cloudflare Terrascript resources as defined by the external
@@ -47,17 +61,21 @@ def create_cloudflare_terrascript_resource(
     """
     resource_type = spec.provider
 
-    if resource_type == "worker_script":
-        return CloudflareWorkerScriptTerrascriptResource(spec).populate()
-    elif resource_type == "zone":
-        return CloudflareZoneTerrascriptResource(spec).populate()
-    else:
-        raise UnsupportedCloudflareResourceError(
-            f"The resource type {resource_type} is not supported"
-        )
+    for cf_resource_type in _cloudflare_resource_types:
+        (external_resource_type,) = get_args(cf_resource_type.__orig_bases__[0])  # type: ignore
+        (spec_type,) = get_args(external_resource_type)
+        if isinstance(spec.resource, spec_type):
+            return cf_resource_type(spec).populate()
+    raise UnsupportedCloudflareResourceError(
+        f"The resource type {resource_type} is not supported"
+    )
 
 
-class CloudflareWorkerScriptTerrascriptResource(TerrascriptResource):
+class CloudflareWorkerScriptTerrascriptResource(
+    TerrascriptResource[
+        TypedExternalResourceSpec[NamespaceTerraformResourceCloudflareWorkerScriptV1]
+    ]
+):
     """Generate a cloudflare_worker_script resource"""
 
     def populate(self) -> list[Union[Resource, Output]]:
@@ -98,7 +116,11 @@ class CloudflareWorkerScriptTerrascriptResource(TerrascriptResource):
         ]
 
 
-class CloudflareZoneTerrascriptResource(TerrascriptResource):
+class CloudflareZoneTerrascriptResource(
+    TerrascriptResource[
+        TypedExternalResourceSpec[NamespaceTerraformResourceCloudflareZoneV1]
+    ]
+):
     """Generate a cloudflare_zone and related resources."""
 
     def _create_cloudflare_certificate_pack(
@@ -120,7 +142,6 @@ class CloudflareZoneTerrascriptResource(TerrascriptResource):
 
     def populate(self) -> list[Union[Resource, Output]]:
         resources = []
-
         values = ResourceValueResolver(self._spec).resolve()
 
         zone_settings = values.pop("settings", {})
@@ -184,3 +205,9 @@ class CloudflareZoneTerrascriptResource(TerrascriptResource):
         resources.extend(self._create_cloudflare_certificate_pack(zone, zone_certs))
 
         return resources
+
+
+_cloudflare_resource_types: list[Type[TerrascriptResource]] = [
+    CloudflareWorkerScriptTerrascriptResource,
+    CloudflareZoneTerrascriptResource,
+]

@@ -4,11 +4,18 @@ from unittest.mock import create_autospec, mock_open
 import pytest
 from terrascript import Terrascript
 
-from reconcile.utils.external_resource_spec import ExternalResourceSpec
+from reconcile.utils.external_resource_spec import TypedExternalResourceSpec
 from reconcile.utils.terrascript.cloudflare_client import (
     CloudflareAccountConfig,
     TerrascriptCloudflareClient,
     create_cloudflare_terrascript,
+)
+from reconcile.gql_definitions.terraform_cloudflare_resources.terraform_cloudflare_resources import (
+    NamespaceTerraformResourceCloudflareV1,
+    NamespaceTerraformResourceCloudflareZoneV1,
+    CloudflareZoneCertificateV1,
+    NamespaceV1,
+    ClusterV1,
 )
 from reconcile.utils.terraform.config import TerraformS3BackendConfig
 
@@ -44,29 +51,38 @@ def test_create_cloudflare_resources_terraform_json(account_config, backend_conf
 
     cloudflare_client = TerrascriptCloudflareClient(terrascript_client)
 
-    spec = ExternalResourceSpec(
+    spec = TypedExternalResourceSpec[NamespaceTerraformResourceCloudflareV1](
         "cloudflare_zone",
-        {"name": "dev", "automationToken": {}},
-        {
-            "provider": "zone",
-            "identifier": "domain-com",
-            "zone": "domain.com",
-            "plan": "enterprise",
-            "type": "partial",
-            "certificates": [
-                {
-                    "identifier": "some-cert",
-                    "type": "advanced",
-                    "hosts": ["domain.com"],
-                    "validation_method": "txt",
-                    "validity_days": "90",
-                    "certificate_authority": "lets_encrypt",
-                    "cloudflare_branding": "false",
-                    "wait_for_active_status": "false",
-                }
+        "dev",
+        NamespaceTerraformResourceCloudflareZoneV1(
+            provider="zone",
+            identifier="domain-com",
+            zone="domain.com",
+            plan="enterprise",
+            type="partial",
+            argo=None,
+            records=None,
+            workers=None,
+            settings=None,
+            certificates=[
+                CloudflareZoneCertificateV1(
+                    identifier="some-cert",
+                    type="advanced",
+                    hosts=["domain.com"],
+                    validation_method="txt",
+                    validity_days=90,
+                    certificate_authority="lets_encrypt",
+                    cloudflare_branding=False,
+                    wait_for_active_status=False,
+                )
             ],
-        },
-        {},
+        ),
+        NamespaceV1(
+            name="ns",
+            managedExternalResources=True,
+            cluster=ClusterV1(name="cl"),
+            externalResources=[],
+        ),
     )
 
     cloudflare_client.add_spec(spec)

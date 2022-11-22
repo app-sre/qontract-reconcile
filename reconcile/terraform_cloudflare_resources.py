@@ -7,6 +7,9 @@ from reconcile.gql_definitions.terraform_cloudflare_resources import (
     terraform_cloudflare_accounts,
     terraform_cloudflare_resources,
 )
+from reconcile.gql_definitions.terraform_cloudflare_resources.terraform_cloudflare_resources import (
+    NamespaceTerraformResourceCloudflareV1,
+)
 from reconcile.gql_definitions.terraform_cloudflare_resources.terraform_cloudflare_accounts import (
     AWSAccountV1,
     CloudflareAccountV1,
@@ -18,8 +21,9 @@ from reconcile.utils.defer import defer
 from reconcile.utils.exceptions import SecretIncompleteError
 from reconcile.utils.external_resources import (
     PROVIDER_CLOUDFLARE,
-    get_external_resource_specs,
+    get_external_resource_specs_for_namespace,
 )
+from reconcile.utils.external_resource_spec import TypedExternalResourceSpec
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.terraform.config_client import TerraformConfigClientCollection
@@ -129,7 +133,9 @@ def run(
 
     # Build Cloudflare clients
     query_accounts = terraform_cloudflare_accounts.query(query_func=gql.get_api().query)
-    cf_clients = TerraformConfigClientCollection()
+    cf_clients = TerraformConfigClientCollection[
+        TypedExternalResourceSpec[NamespaceTerraformResourceCloudflareV1]
+    ]()
     for client in build_clients(secret_reader, query_accounts, selected_account):
         cf_clients.register_client(*client)
 
@@ -137,11 +143,13 @@ def run(
     query_resources = terraform_cloudflare_resources.query(
         query_func=gql.get_api().query
     )
-    cf_specs = [
+    cf_specs: list[
+        TypedExternalResourceSpec[NamespaceTerraformResourceCloudflareV1]
+    ] = [
         spec
         for namespace in query_resources.namespaces or []
-        for spec in get_external_resource_specs(
-            namespace.dict(by_alias=True), PROVIDER_CLOUDFLARE
+        for spec in get_external_resource_specs_for_namespace(
+            namespace, NamespaceTerraformResourceCloudflareV1, PROVIDER_CLOUDFLARE
         )
         if not selected_account or spec.provisioner_name == selected_account
     ]

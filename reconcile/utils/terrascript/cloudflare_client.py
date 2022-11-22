@@ -1,13 +1,13 @@
 import tempfile
 from dataclasses import dataclass
-from typing import Iterable, Optional, Union
+from typing import Iterable, MutableMapping, Optional, Union
 
 from terrascript import Terrascript, Terraform, Resource, Output, Backend, Variable
 from terrascript import provider
 
 from reconcile.utils.external_resource_spec import (
-    ExternalResourceSpec,
-    ExternalResourceSpecInventory,
+    ExternalResourceUniqueKey,
+    TypedExternalResourceSpec,
 )
 from reconcile.utils.terraform.config import TerraformS3BackendConfig
 from reconcile.utils.terraform.config_client import (
@@ -16,6 +16,9 @@ from reconcile.utils.terraform.config_client import (
 from reconcile.utils.terrascript.cloudflare_resources import (
     cloudflare_account,
     create_cloudflare_terrascript_resource,
+)
+from reconcile.gql_definitions.terraform_cloudflare_resources.terraform_cloudflare_resources import (
+    NamespaceTerraformResourceCloudflareV1,
 )
 
 TMP_DIR_PREFIX = "terrascript-cloudflare-"
@@ -92,7 +95,10 @@ def create_cloudflare_terrascript(
     return terrascript
 
 
-class TerrascriptCloudflareClient(TerraformConfigClient):
+T = TypedExternalResourceSpec[NamespaceTerraformResourceCloudflareV1]
+
+
+class TerrascriptCloudflareClient(TerraformConfigClient[T]):
     """
     Build the Terrascript configuration, collect resources, and return Terraform JSON
     configuration.
@@ -108,9 +114,9 @@ class TerrascriptCloudflareClient(TerraformConfigClient):
         ts_client: Terrascript,
     ) -> None:
         self._terrascript = ts_client
-        self._resource_specs: ExternalResourceSpecInventory = {}
+        self._resource_specs: MutableMapping[ExternalResourceUniqueKey, T] = {}
 
-    def add_spec(self, spec: ExternalResourceSpec) -> None:
+    def add_spec(self, spec: T) -> None:
         self._resource_specs[spec.id_object()] = spec
 
     def populate_resources(self) -> None:

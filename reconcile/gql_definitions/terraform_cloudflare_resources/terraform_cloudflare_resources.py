@@ -21,6 +21,9 @@ DEFINITION = """
 query TerraformCloudflareResources {
   namespaces: namespaces_v1 {
     name
+    cluster {
+      name
+    }
     managedExternalResources
     externalResources {
       ... on NamespaceTerraformProviderResourceCloudflare_v1 {
@@ -30,9 +33,9 @@ query TerraformCloudflareResources {
         }
         resources {
           provider
+          identifier
           ... on NamespaceTerraformResourceCloudflareWorkerScript_v1
           {
-            identifier
             name
             content_from_github {
               repo
@@ -46,7 +49,6 @@ query TerraformCloudflareResources {
           }
           ... on NamespaceTerraformResourceCloudflareZone_v1
           {
-            identifier
             zone
             plan
             type
@@ -86,6 +88,14 @@ query TerraformCloudflareResources {
 """
 
 
+class ClusterV1(BaseModel):
+    name: str = Field(..., alias="name")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
 class NamespaceExternalResourceV1(BaseModel):
     class Config:
         smart_union = True
@@ -102,6 +112,7 @@ class CloudflareAccountV1(BaseModel):
 
 class NamespaceTerraformResourceCloudflareV1(BaseModel):
     provider: str = Field(..., alias="provider")
+    identifier: str = Field(..., alias="identifier")
 
     class Config:
         smart_union = True
@@ -130,7 +141,6 @@ class CloudflareZoneWorkerScriptVarsV1(BaseModel):
 class NamespaceTerraformResourceCloudflareWorkerScriptV1(
     NamespaceTerraformResourceCloudflareV1
 ):
-    identifier: str = Field(..., alias="identifier")
     name: str = Field(..., alias="name")
     content_from_github: Optional[
         CloudflareZoneWorkerScriptContentFromGithubV1
@@ -191,7 +201,6 @@ class CloudflareZoneCertificateV1(BaseModel):
 class NamespaceTerraformResourceCloudflareZoneV1(
     NamespaceTerraformResourceCloudflareV1
 ):
-    identifier: str = Field(..., alias="identifier")
     zone: str = Field(..., alias="zone")
     plan: Optional[str] = Field(..., alias="plan")
     q_type: Optional[str] = Field(..., alias="type")
@@ -226,6 +235,7 @@ class NamespaceTerraformProviderResourceCloudflareV1(NamespaceExternalResourceV1
 
 class NamespaceV1(BaseModel):
     name: str = Field(..., alias="name")
+    cluster: ClusterV1 = Field(..., alias="cluster")
     managed_external_resources: Optional[bool] = Field(
         ..., alias="managedExternalResources"
     )
