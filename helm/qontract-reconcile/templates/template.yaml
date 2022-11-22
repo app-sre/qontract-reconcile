@@ -86,11 +86,25 @@ objects:
             value: ${SLACK_ICON_EMOJI}
           {{- end }}
           {{- if $logs.googleChat }}
+
+          {{- /*
+          "*-triggers" integrations will be sent to a seperate GChat channel as
+          they are much noisier than other integrations
+          */}}
+
+          {{- if $integration.trigger }}
+          - name: GOOGLE_CHAT_WEBHOOK_URL
+            valueFrom:
+              secretKeyRef:
+                key: google_chat.triggers_url
+                name: app-interface
+          {{- else }}
           - name: GOOGLE_CHAT_WEBHOOK_URL
             valueFrom:
               secretKeyRef:
                 key: google_chat.webhook_url
                 name: app-interface
+          {{- end }}
           - name: POD_NAME
             valueFrom:
               fieldRef:
