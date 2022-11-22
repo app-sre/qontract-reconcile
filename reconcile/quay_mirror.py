@@ -114,7 +114,7 @@ class QuayMirror:
                         dest_creds=self.push_creds[org],
                     )
                 except SkopeoCmdError as details:
-                    _LOG.error("[%s]", details)
+                    _LOG.error("skopeo command error message: '%s'", details)
 
         if self.is_compare_tags and not self.dry_run:
             self.record_timestamp(self.control_file_path)
