@@ -39,9 +39,14 @@ def test_get_majority(versions, version_set):
 
 
 def test_recommended_version(versions, version_set):
-    assert recommended_version(versions, 10, 1) == "1.1.1"
-    assert recommended_version(versions, 0, 1) == "1.1.0"
-    assert recommended_version(["1.1.0", "1.1.0", "1.1.1"], 10, 5) == "1.1.1"
+    assert recommended_version(versions, high_weight=10, majority_weight=1) == "1.1.1"
+    assert recommended_version(versions, high_weight=0, majority_weight=1) == "1.1.0"
+    assert (
+        recommended_version(
+            versions=["1.1.0", "1.1.0", "1.1.1"], high_weight=10, majority_weight=5
+        )
+        == "1.1.1"
+    )
 
 
 def test_get_version_weights():
