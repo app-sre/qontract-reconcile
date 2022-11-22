@@ -104,7 +104,7 @@ def fetch_desired_state(
     return list(organizations.values())
 
 
-def run(dry_run: bool, instance: Optional[str] = None):
+def run(dry_run: bool, instance: Optional[str] = None) -> None:
     gqlapi = gql.get_api()
     secret_reader = SecretReader(queries.get_secret_reader_settings())
     read_timeout = 30
@@ -159,7 +159,7 @@ def run(dry_run: bool, instance: Optional[str] = None):
         reconciler.reconcile(current_state, desired_state)
 
 
-def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
+def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
     gqlapi = gql.get_api()
     return {
         "apps": gqlapi.query(GLITCHTIP_PROJECT_DEFINITION)["apps"],
