@@ -212,7 +212,7 @@ objects:
               memory: 30Mi
               cpu: 15m
             limits:
-              memory: 120Mi
+              memory: 130Mi
               cpu: 25m
           volumeMounts:
           - name: logs
