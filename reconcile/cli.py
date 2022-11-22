@@ -1873,6 +1873,18 @@ def ocm_upgrade_scheduler_org_updater(ctx, gitlab_project_id):
     )
 
 
+@integration.command(short_help="Update recommended version for OCM orgs")
+@environ(["gitlab_pr_submitter_queue_url"])
+@gitlab_project_id
+@click.pass_context
+def ocm_update_recommended_version(ctx, gitlab_project_id):
+    import reconcile.ocm_update_recommended_version
+
+    run_integration(
+        reconcile.ocm_update_recommended_version, ctx.obj, gitlab_project_id
+    )
+
+
 @integration.command(short_help="Manages cluster Addons in OCM.")
 @threaded()
 @click.pass_context

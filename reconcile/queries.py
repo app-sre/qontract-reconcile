@@ -1108,6 +1108,14 @@ OCM_QUERY = """
     path
     name
     url
+    recommendedVersions {
+      recommendedVersion
+      workload
+    }
+    recommendedVersionWeight {
+      highest
+      majority
+    }
     accessTokenClientId
     accessTokenUrl
     accessTokenClientSecret {
@@ -1125,6 +1133,7 @@ OCM_QUERY = """
         }
       }
     }
+    upgradePolicyAllowedWorkloads
     upgradePolicyDefaults {
       name
       matchLabels
