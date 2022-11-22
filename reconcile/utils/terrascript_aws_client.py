@@ -142,7 +142,7 @@ from reconcile.utils import gql
 from reconcile.utils.aws_api import AWSApi, AmiTag
 from reconcile.utils.external_resource_spec import (
     ExternalResourceSpec,
-    ExternalResourceSpecInventory,
+    DictExternalResourceSpecInventory,
 )
 from reconcile.utils.external_resources import PROVIDER_AWS, get_external_resource_specs
 from reconcile.utils.gitlab_api import GitLabApi
@@ -1153,7 +1153,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         :param account_name: AWS account name
         """
         self.account_resource_specs: dict[str, list[ExternalResourceSpec]] = {}
-        self.resource_spec_inventory: ExternalResourceSpecInventory = {}
+        self.resource_spec_inventory: DictExternalResourceSpecInventory = {}
 
         for namespace_info in namespaces:
             specs = get_external_resource_specs(

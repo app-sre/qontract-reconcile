@@ -1,8 +1,20 @@
-from abc import abstractmethod
+from abc import abstractmethod, ABC
 from dataclasses import field
 from pydantic.dataclasses import dataclass
 import json
-from typing import Any, Mapping, MutableMapping, Optional, cast
+from typing import (
+    Any,
+    Generic,
+    Mapping,
+    MutableMapping,
+    Optional,
+    Protocol,
+    TypeVar,
+    runtime_checkable,
+    Union,
+    Sequence,
+    cast,
+)
 
 import yaml
 from reconcile.utils.openshift_resource import (
@@ -76,15 +88,170 @@ class OutputFormat:
         return self._formatter.render(vars)
 
 
-@dataclass
-class ExternalResourceSpec:
+@runtime_checkable
+class ExternalResourceProvisioner(Protocol):
+    @property
+    def name(self) -> str:
+        ...
+
+    @abstractmethod
+    def dict(self, *args, **kwargs) -> dict[str, Any]:
+        ...
+
+
+@runtime_checkable
+class ExternalResource(Protocol):
+    @property
+    def provider(self) -> str:
+        ...
+
+    @property
+    def identifier(self) -> str:
+        ...
+
+    @abstractmethod
+    def dict(self, *args, **kwargs) -> dict[str, Any]:
+        ...
+
+
+@runtime_checkable
+class OverridableExternalResource(ExternalResource, Protocol):
+    @property
+    def overrides(self) -> Optional[Any]:
+        ...
+
+    @abstractmethod
+    def dict(self, *args, **kwargs) -> dict[str, Any]:
+        ...
+
+
+@runtime_checkable
+class DefaultableExternalResource(ExternalResource, Protocol):
+    @property
+    def defaults(self) -> Optional[Any]:
+        ...
+
+    @abstractmethod
+    def dict(self, *args, **kwargs) -> dict[str, Any]:
+        ...
+
+
+@runtime_checkable
+class NamespaceExternalResource(Protocol):
+    @property
+    def provider(self) -> str:
+        ...
+
+    @property
+    def provisioner(self) -> ExternalResourceProvisioner:
+        ...
+
+    @property
+    def resources(self) -> Sequence[ExternalResource]:
+        ...
+
+
+@runtime_checkable
+class Cluster(Protocol):
+    @property
+    def name(self) -> str:
+        ...
+
+
+@runtime_checkable
+class Namespace(Protocol):
+    @property
+    def name(self) -> str:
+        ...
+
+    @property
+    def managed_external_resources(self) -> Optional[bool]:
+        ...
+
+    @property
+    def cluster(self) -> Cluster:
+        ...
+
+    @property
+    def external_resources(
+        self,
+    ) -> Optional[Sequence[Union[NamespaceExternalResource, Any]]]:
+        ...
+
+    @abstractmethod
+    def dict(self, *args, **kwargs) -> dict[str, Any]:
+        ...
+
+
+RT = TypeVar("RT")
+NT = TypeVar("NT")
+
+
+class ExternalResourceSpecConfig:
+    arbitrary_types_allowed = True
+
+
+@dataclass(config=ExternalResourceSpecConfig)
+class ExternalResourceSpec(ABC, Generic[RT, NT]):
 
     provision_provider: str
-    provisioner: Mapping[str, Any]
-    resource: MutableMapping[str, Any]
-    namespace: Mapping[str, Any]
+    provisioner_name: str
+    resource: RT
+    namespace: NT
     secret: Mapping[str, str] = field(init=False, default_factory=lambda: {})
 
+    @property
+    @abstractmethod
+    def provider(self) -> str:
+        ...
+
+    @property
+    @abstractmethod
+    def identifier(self) -> str:
+        ...
+
+    @property
+    @abstractmethod
+    def namespace_name(self) -> str:
+        ...
+
+    @property
+    @abstractmethod
+    def cluster_name(self) -> str:
+        ...
+
+    @property
+    def output_prefix(self) -> str:
+        return f"{self.identifier}-{self.provider}"
+
+    def get_secret_field(self, field: str) -> Optional[str]:
+        return self.secret.get(field)
+
+    def id_object(self) -> "ExternalResourceUniqueKey":
+        return ExternalResourceUniqueKey.from_spec(self)
+
+    @abstractmethod
+    def tags(self, integration: str) -> dict[str, str]:
+        ...
+
+    def build_oc_secret(
+        self, integration: str, integration_version: str
+    ) -> OpenshiftResource:
+        raise NotImplementedError()
+
+    @property
+    def output_resource_name(self) -> str:
+        raise NotImplementedError()
+
+    @abstractmethod
+    def annotations(self) -> dict[str, str]:
+        ...
+
+
+@dataclass
+class DictExternalResourceSpec(
+    ExternalResourceSpec[MutableMapping[str, Any], Mapping[str, Any]]
+):
     @property
     def provider(self) -> str:
         return self.resource["provider"]
@@ -94,20 +261,12 @@ class ExternalResourceSpec:
         return self.resource["identifier"]
 
     @property
-    def provisioner_name(self) -> str:
-        return self.provisioner["name"]
-
-    @property
     def namespace_name(self) -> str:
         return self.namespace["name"]
 
     @property
     def cluster_name(self) -> str:
         return self.namespace["cluster"]["name"]
-
-    @property
-    def output_prefix(self) -> str:
-        return f"{self.identifier}-{self.provider}"
 
     @property
     def output_resource_name(self) -> str:
@@ -128,12 +287,6 @@ class ExternalResourceSpec:
             "environment": self.namespace["environment"]["name"],
             "app": self.namespace["app"]["name"],
         }
-
-    def get_secret_field(self, field: str) -> Optional[str]:
-        return self.secret.get(field)
-
-    def id_object(self) -> "ExternalResourceUniqueKey":
-        return ExternalResourceUniqueKey.from_spec(self)
 
     def build_oc_secret(
         self, integration: str, integration_version: str
@@ -180,6 +333,44 @@ class ExternalResourceUniqueKey:
         )
 
 
-ExternalResourceSpecInventory = MutableMapping[
-    ExternalResourceUniqueKey, ExternalResourceSpec
+DictExternalResourceSpecInventory = MutableMapping[
+    ExternalResourceUniqueKey, DictExternalResourceSpec
 ]
+
+
+ER = TypeVar("ER", bound=ExternalResource)
+NS = TypeVar("NS", bound=Namespace)
+
+
+EXTERNAL_RESOURCE_SPEC_DEFAULTS_PROPERTY = "defaults"
+EXTERNAL_RESOURCE_SPEC_OVERRIDES_PROPERTY = "overrides"
+
+
+class TypedExternalResourceSpec(ExternalResourceSpec[ER, Namespace], Generic[ER]):
+    @property
+    def provider(self) -> str:
+        return self.resource.provider
+
+    @property
+    def identifier(self) -> str:
+        return self.resource.identifier
+
+    @property
+    def namespace_name(self) -> str:
+        return self.namespace.name
+
+    @property
+    def cluster_name(self) -> str:
+        return self.namespace.cluster.name
+
+    def tags(self, integration: str) -> dict[str, str]:
+        return {
+            "managed_by_integration": integration,
+            "cluster": self.cluster_name,
+            "namespace": self.namespace_name,
+            # "environment": self.namespace["environment"]["name"],
+            # "app": self.namespace["app"]["name"],
+        }
+
+    def annotations(self) -> dict[str, str]:
+        return {}

@@ -7,15 +7,15 @@ from reconcile.utils.openshift_resource import (
 )
 from reconcile.utils.external_resource_spec import (
     ExternalResourceUniqueKey,
-    ExternalResourceSpec,
+    DictExternalResourceSpec,
 )
 
 
 def test_identifier_creation_from_spec():
     id = ExternalResourceUniqueKey.from_spec(
-        ExternalResourceSpec(
+        DictExternalResourceSpec(
             provision_provider="p",
-            provisioner={"name": "a"},
+            provisioner_name="a",
             resource={
                 "identifier": "i",
                 "provider": "p",
@@ -31,9 +31,9 @@ def test_identifier_creation_from_spec():
 def test_identifier_missing():
     with pytest.raises(ValidationError):
         ExternalResourceUniqueKey.from_spec(
-            ExternalResourceSpec(
+            DictExternalResourceSpec(
                 provision_provider="p",
-                provisioner={"name": "a"},
+                provisioner_name="a",
                 resource={
                     "identifier": None,
                     "provider": "p",
@@ -43,37 +43,10 @@ def test_identifier_missing():
         )
     with pytest.raises(KeyError):
         ExternalResourceUniqueKey.from_spec(
-            ExternalResourceSpec(
+            DictExternalResourceSpec(
                 provision_provider="p",
-                provisioner={"name": "a"},
+                provisioner_name="a",
                 resource={
-                    "provider": "p",
-                },
-                namespace={},
-            )
-        )
-
-
-def test_identifier_account_missing():
-    with pytest.raises(ValidationError):
-        ExternalResourceUniqueKey.from_spec(
-            ExternalResourceSpec(
-                provision_provider="p",
-                provisioner={"name": None},
-                resource={
-                    "identifier": "i",
-                    "provider": "p",
-                },
-                namespace={},
-            )
-        )
-    with pytest.raises(KeyError):
-        ExternalResourceUniqueKey.from_spec(
-            ExternalResourceSpec(
-                provision_provider="p",
-                provisioner={},
-                resource={
-                    "identifier": "i",
                     "provider": "p",
                 },
                 namespace={},
@@ -84,9 +57,9 @@ def test_identifier_account_missing():
 def test_identifier_provider_missing():
     with pytest.raises(ValidationError):
         ExternalResourceUniqueKey.from_spec(
-            ExternalResourceSpec(
+            DictExternalResourceSpec(
                 provision_provider="p",
-                provisioner={"name": "a"},
+                provisioner_name="a",
                 resource={
                     "identifier": "i",
                     "provider": None,
@@ -96,9 +69,9 @@ def test_identifier_provider_missing():
         )
     with pytest.raises(KeyError):
         ExternalResourceUniqueKey.from_spec(
-            ExternalResourceSpec(
+            DictExternalResourceSpec(
                 provision_provider="p",
-                provisioner={"name": "a"},
+                provisioner_name="a",
                 resource={
                     "identifier": "i",
                 },
@@ -108,9 +81,9 @@ def test_identifier_provider_missing():
 
 
 def test_spec_output_prefix():
-    s = ExternalResourceSpec(
+    s = DictExternalResourceSpec(
         provision_provider="aws",
-        provisioner={"name": "a"},
+        provisioner_name="a",
         resource={"identifier": "i", "provider": "p"},
         namespace={},
     )
@@ -118,9 +91,9 @@ def test_spec_output_prefix():
 
 
 def test_spec_implicit_output_resource_name():
-    s = ExternalResourceSpec(
+    s = DictExternalResourceSpec(
         provision_provider="aws",
-        provisioner={"name": "a"},
+        provisioner_name="a",
         resource={"identifier": "i", "provider": "p"},
         namespace={},
     )
@@ -128,9 +101,9 @@ def test_spec_implicit_output_resource_name():
 
 
 def test_spec_explicit_output_resource_name():
-    s = ExternalResourceSpec(
+    s = DictExternalResourceSpec(
         provision_provider="aws",
-        provisioner={"name": "a"},
+        provisioner_name="a",
         resource={
             "identifier": "i",
             "provider": "p",
@@ -142,9 +115,9 @@ def test_spec_explicit_output_resource_name():
 
 
 def test_spec_annotation_parsing():
-    s = ExternalResourceSpec(
+    s = DictExternalResourceSpec(
         provision_provider="aws",
-        provisioner={"name": "a"},
+        provisioner_name="a",
         resource={
             "identifier": "i",
             "provider": "p",
@@ -156,9 +129,9 @@ def test_spec_annotation_parsing():
 
 
 def test_spec_annotation_parsing_none_present():
-    s = ExternalResourceSpec(
+    s = DictExternalResourceSpec(
         provision_provider="aws",
-        provisioner={"name": "a"},
+        provisioner_name="a",
         resource={
             "identifier": "i",
             "provider": "p",
@@ -169,9 +142,9 @@ def test_spec_annotation_parsing_none_present():
 
 
 def test_spec_tags():
-    s = ExternalResourceSpec(
+    s = DictExternalResourceSpec(
         provision_provider="aws",
-        provisioner={"name": "a"},
+        provisioner_name="a",
         resource={
             "identifier": "i",
             "provider": "p",
@@ -205,10 +178,10 @@ def resource_secret() -> dict[str, Any]:
 
 
 @pytest.fixture
-def spec() -> ExternalResourceSpec:
-    return ExternalResourceSpec(
+def spec() -> DictExternalResourceSpec:
+    return DictExternalResourceSpec(
         provision_provider="aws",
-        provisioner={"name": "a"},
+        provisioner_name="a",
         resource={
             "identifier": "i",
             "provider": "p",
@@ -222,13 +195,13 @@ def spec() -> ExternalResourceSpec:
 #
 
 
-def test_terraform_output_with_when_no_secret(spec: ExternalResourceSpec):
+def test_terraform_output_with_when_no_secret(spec: DictExternalResourceSpec):
     output_secret = spec.build_oc_secret("int", "1.0")
     assert output_secret.body["data"] == {}
 
 
 def test_terraform_generic_secret_output_format(
-    spec: ExternalResourceSpec, resource_secret: dict[str, Any]
+    spec: DictExternalResourceSpec, resource_secret: dict[str, Any]
 ):
     spec.resource["output_format"] = {
         "provider": "generic-secret",
@@ -245,7 +218,7 @@ def test_terraform_generic_secret_output_format(
 
 
 def test_terraform_generic_secret_output_format_no_data(
-    spec: ExternalResourceSpec, resource_secret: dict[str, Any]
+    spec: DictExternalResourceSpec, resource_secret: dict[str, Any]
 ):
     """
     this test shows backwards compatibility with the simple dict output when
@@ -263,7 +236,7 @@ def test_terraform_generic_secret_output_format_no_data(
 
 
 def test_terraform_no_output_format_provider(
-    spec: ExternalResourceSpec, resource_secret: dict[str, Any]
+    spec: DictExternalResourceSpec, resource_secret: dict[str, Any]
 ):
     """
     this test shows full backwards compatibility when no provider has been specified
@@ -276,7 +249,7 @@ def test_terraform_no_output_format_provider(
         assert output_secret.body["data"][k] == base64_encode_secret_field_value(v)
 
 
-def test_terraform_unknown_output_format_provider(spec: ExternalResourceSpec):
+def test_terraform_unknown_output_format_provider(spec: DictExternalResourceSpec):
     """
     this test expects the secret generation to fail when an unknown provider is
     given. while the schema usually protects against such cases, additional protection
@@ -288,7 +261,7 @@ def test_terraform_unknown_output_format_provider(spec: ExternalResourceSpec):
 
 
 def test_terraform_generic_secret_output_format_not_a_dict(
-    spec: ExternalResourceSpec, resource_secret: dict[str, Any]
+    spec: DictExternalResourceSpec, resource_secret: dict[str, Any]
 ):
     """
     this test shows how a data template for a generic-secret provider must result
@@ -305,7 +278,7 @@ def test_terraform_generic_secret_output_format_not_a_dict(
 
 
 def test_terraform_generic_secret_output_format_not_str_keys(
-    spec: ExternalResourceSpec, resource_secret: dict[str, Any]
+    spec: DictExternalResourceSpec, resource_secret: dict[str, Any]
 ):
     """
     this test shows how a data template for a generic-secret provider must produce
@@ -322,7 +295,7 @@ def test_terraform_generic_secret_output_format_not_str_keys(
 
 
 def test_terraform_generic_secret_output_format_not_str_val(
-    spec: ExternalResourceSpec, resource_secret: dict[str, Any]
+    spec: DictExternalResourceSpec, resource_secret: dict[str, Any]
 ):
     """
     this test shows how a data template for a generic-secret provider must produce
@@ -339,7 +312,7 @@ def test_terraform_generic_secret_output_format_not_str_val(
 
 
 def test_terraform_generic_secret_output_key_too_long(
-    spec: ExternalResourceSpec, resource_secret: dict[str, Any]
+    spec: DictExternalResourceSpec, resource_secret: dict[str, Any]
 ):
     """
     tests for too long secret keys (max length in kubernetes is 253 characters )

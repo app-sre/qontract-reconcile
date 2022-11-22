@@ -3,7 +3,7 @@ from reconcile.utils.aws_api import AmiTag
 
 import reconcile.utils.terrascript_aws_client as tsclient
 from reconcile.utils.external_resource_spec import (
-    ExternalResourceSpec,
+    DictExternalResourceSpec,
     ExternalResourceUniqueKey,
 )
 
@@ -172,7 +172,7 @@ def test_resource_specs_without_account_filter(ts):
     namespaces = [ns1]
     ts.init_populate_specs(namespaces, None)
     specs = ts.resource_spec_inventory
-    spec = ExternalResourceSpec(p, pa, ra, ns1)
+    spec = DictExternalResourceSpec(p, pa["name"], ra, ns1)
     assert specs == {ExternalResourceUniqueKey.from_spec(spec): spec}
 
 
@@ -198,7 +198,7 @@ def test_resource_specs_with_account_filter(ts):
     namespaces = [ns1]
     ts.init_populate_specs(namespaces, "a")
     specs = ts.resource_spec_inventory
-    spec = ExternalResourceSpec(p, pa, ra, ns1)
+    spec = DictExternalResourceSpec(p, pa["name"], ra, ns1)
     assert specs == {ExternalResourceUniqueKey.from_spec(spec): spec}
 
 

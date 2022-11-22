@@ -1,30 +1,79 @@
 import json
-from typing import Mapping, List, Any, Optional, Set, MutableMapping
+from typing import (
+    Mapping,
+    List,
+    Any,
+    Optional,
+    Set,
+    MutableMapping,
+    Type,
+    TypeVar,
+)
 
 import anymarkup
 
 from reconcile.utils import gql
 from reconcile.utils.exceptions import FetchResourceError
-from reconcile.utils.external_resource_spec import ExternalResourceSpec
+from reconcile.utils.external_resource_spec import (
+    ExternalResourceSpec,
+    DictExternalResourceSpec,
+    TypedExternalResourceSpec,
+    ExternalResource,
+    Namespace,
+    NamespaceExternalResource,
+)
 
 
 PROVIDER_AWS = "aws"
 PROVIDER_CLOUDFLARE = "cloudflare"
 
+T = TypeVar("T", bound=ExternalResource)
+
+
+def get_external_resource_specs_for_namespace(
+    namespace: Namespace,
+    resource_type: Type[T],
+    provision_provider: Optional[str] = None,
+) -> list[TypedExternalResourceSpec[T]]:
+    if not namespace.managed_external_resources:
+        return []
+    specs: List[TypedExternalResourceSpec[T]] = []
+    for e in namespace.external_resources or []:
+        if isinstance(e, NamespaceExternalResource):
+            for r in e.resources:
+                if isinstance(r, resource_type):
+                    specs.append(
+                        TypedExternalResourceSpec[T](
+                            provision_provider=e.provider,
+                            provisioner_name=e.provisioner.name,
+                            resource=r,
+                            namespace=namespace,
+                        )
+                    )
+                else:
+                    raise ValueError(
+                        f"expected resource of type {resource_type}, got {type(r)}"
+                    )
+
+    if provision_provider:
+        specs = [s for s in specs if s.provision_provider == provision_provider]
+
+    return specs
+
 
 def get_external_resource_specs(
     namespace_info: Mapping[str, Any], provision_provider: Optional[str] = None
-) -> List[ExternalResourceSpec]:
-    specs: List[ExternalResourceSpec] = []
+) -> List[DictExternalResourceSpec]:
+    specs: List[DictExternalResourceSpec] = []
     if not managed_external_resources(namespace_info):
         return specs
 
     external_resources = namespace_info.get("externalResources") or []
     for e in external_resources:
         for r in e.get("resources", []):
-            spec = ExternalResourceSpec(
+            spec = DictExternalResourceSpec(
                 provision_provider=e["provider"],
-                provisioner=e["provisioner"],
+                provisioner_name=e["provisioner"]["name"],
                 resource=r,
                 namespace=namespace_info,
             )

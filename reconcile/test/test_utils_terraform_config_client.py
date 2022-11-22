@@ -5,7 +5,7 @@ from unittest.mock import create_autospec, MagicMock, call, mock_open
 import pytest
 
 from reconcile.utils.exceptions import PrintToFileInGitRepositoryError
-from reconcile.utils.external_resource_spec import ExternalResourceSpec
+from reconcile.utils.external_resource_spec import DictExternalResourceSpec
 from reconcile.utils.terraform.config_client import (
     TerraformConfigClientCollection,
     TerraformConfigClient,
@@ -22,9 +22,9 @@ def empty_git_repo(tmp_path_factory) -> Path:
 
 
 def create_external_resource_spec(provisioner_name, identifier):
-    return ExternalResourceSpec(
+    return DictExternalResourceSpec(
         "cloudflare_zone",
-        {"name": provisioner_name, "automationToken": {}},
+        provisioner_name,
         {
             "provider": "cloudflare_zone",
             "identifier": f"{identifier}-com",
@@ -38,11 +38,17 @@ def create_external_resource_spec(provisioner_name, identifier):
 
 def test_terraform_config_client_collection_populate_resources():
     """populate_resources() is called on all registered clients."""
-    client_1: MagicMock = create_autospec(TerraformConfigClient)
-    client_2: MagicMock = create_autospec(TerraformConfigClient)
-    client_3: MagicMock = create_autospec(TerraformConfigClient)
+    client_1: MagicMock = create_autospec(
+        TerraformConfigClient[DictExternalResourceSpec]
+    )
+    client_2: MagicMock = create_autospec(
+        TerraformConfigClient[DictExternalResourceSpec]
+    )
+    client_3: MagicMock = create_autospec(
+        TerraformConfigClient[DictExternalResourceSpec]
+    )
 
-    terraform_configs = TerraformConfigClientCollection()
+    terraform_configs = TerraformConfigClientCollection[DictExternalResourceSpec]()
     terraform_configs.register_client("acct_1", client_1)
     terraform_configs.register_client("acct_2", client_2)
     terraform_configs.register_client("acct_3", client_3)
@@ -56,11 +62,17 @@ def test_terraform_config_client_collection_populate_resources():
 
 def test_terraform_config_client_collection_add_specs():
     """add_specs() is called on the correct client."""
-    client_1: MagicMock = create_autospec(TerraformConfigClient)
-    client_2: MagicMock = create_autospec(TerraformConfigClient)
-    client_3: MagicMock = create_autospec(TerraformConfigClient)
+    client_1: MagicMock = create_autospec(
+        TerraformConfigClient[DictExternalResourceSpec]
+    )
+    client_2: MagicMock = create_autospec(
+        TerraformConfigClient[DictExternalResourceSpec]
+    )
+    client_3: MagicMock = create_autospec(
+        TerraformConfigClient[DictExternalResourceSpec]
+    )
 
-    terraform_configs = TerraformConfigClientCollection()
+    terraform_configs = TerraformConfigClientCollection[DictExternalResourceSpec]()
     terraform_configs.register_client("acct_1", client_1)
     terraform_configs.register_client("acct_2", client_2)
     terraform_configs.register_client("acct_3", client_3)
@@ -80,11 +92,17 @@ def test_terraform_config_client_collection_add_specs():
 
 def test_terraform_config_client_collection_add_specs_with_filter():
     """add_specs() is called on the correct client when a filter is set."""
-    client_1: MagicMock = create_autospec(TerraformConfigClient)
-    client_2: MagicMock = create_autospec(TerraformConfigClient)
-    client_3: MagicMock = create_autospec(TerraformConfigClient)
+    client_1: MagicMock = create_autospec(
+        TerraformConfigClient[DictExternalResourceSpec]
+    )
+    client_2: MagicMock = create_autospec(
+        TerraformConfigClient[DictExternalResourceSpec]
+    )
+    client_3: MagicMock = create_autospec(
+        TerraformConfigClient[DictExternalResourceSpec]
+    )
 
-    terraform_configs = TerraformConfigClientCollection()
+    terraform_configs = TerraformConfigClientCollection[DictExternalResourceSpec]()
     terraform_configs.register_client("acct_1", client_1)
     terraform_configs.register_client("acct_2", client_2)
     terraform_configs.register_client("acct_3", client_3)
@@ -106,14 +124,20 @@ def test_terraform_config_client_collection_add_specs_with_filter():
 
 def test_terraform_config_client_collection_dump():
     """The working directories return by clients are aggregated properly in dump()."""
-    client_1: MagicMock = create_autospec(TerraformConfigClient)
+    client_1: MagicMock = create_autospec(
+        TerraformConfigClient[DictExternalResourceSpec]
+    )
     client_1.dump.return_value = {"acct_1": "/tmp/acct_1"}
-    client_2: MagicMock = create_autospec(TerraformConfigClient)
+    client_2: MagicMock = create_autospec(
+        TerraformConfigClient[DictExternalResourceSpec]
+    )
     client_2.dump.return_value = {"acct_2": "/tmp/acct_2"}
-    client_3: MagicMock = create_autospec(TerraformConfigClient)
+    client_3: MagicMock = create_autospec(
+        TerraformConfigClient[DictExternalResourceSpec]
+    )
     client_3.dump.return_value = {"acct_3": "/tmp/acct_3"}
 
-    terraform_configs = TerraformConfigClientCollection()
+    terraform_configs = TerraformConfigClientCollection[DictExternalResourceSpec]()
     terraform_configs.register_client("acct_1", client_1)
     terraform_configs.register_client("acct_2", client_2)
     terraform_configs.register_client("acct_3", client_3)
@@ -135,14 +159,20 @@ def test_terraform_config_client_collection_print_to_file(mocker):
     mock_builtins_open = mock_open()
     mocker.patch("builtins.open", mock_builtins_open)
 
-    client_1: MagicMock = create_autospec(TerraformConfigClient)
+    client_1: MagicMock = create_autospec(
+        TerraformConfigClient[DictExternalResourceSpec]
+    )
     client_1.dumps.return_value = {"acct_1": "data"}
-    client_2: MagicMock = create_autospec(TerraformConfigClient)
+    client_2: MagicMock = create_autospec(
+        TerraformConfigClient[DictExternalResourceSpec]
+    )
     client_2.dumps.return_value = {"acct_2": "data"}
-    client_3: MagicMock = create_autospec(TerraformConfigClient)
+    client_3: MagicMock = create_autospec(
+        TerraformConfigClient[DictExternalResourceSpec]
+    )
     client_3.dumps.return_value = {"acct_3": "data"}
 
-    terraform_configs = TerraformConfigClientCollection()
+    terraform_configs = TerraformConfigClientCollection[DictExternalResourceSpec]()
     terraform_configs.register_client("acct_1", client_1)
     terraform_configs.register_client("acct_2", client_2)
     terraform_configs.register_client("acct_3", client_3)
@@ -171,10 +201,12 @@ def test_terraform_config_client_collection_print_to_file(mocker):
 
 def test_terraform_config_client_collection_dump_print_file_git(empty_git_repo):
     """Using print_to_file in a git repo should result in an exception."""
-    client_1: MagicMock = create_autospec(TerraformConfigClient)
+    client_1: MagicMock = create_autospec(
+        TerraformConfigClient[DictExternalResourceSpec]
+    )
     client_1.dump.return_value = {"acct_1": "/tmp/acct_1"}
 
-    terraform_configs = TerraformConfigClientCollection()
+    terraform_configs = TerraformConfigClientCollection[DictExternalResourceSpec]()
     terraform_configs.register_client("acct_1", client_1)
 
     with pytest.raises(PrintToFileInGitRepositoryError):
@@ -185,10 +217,14 @@ def test_terraform_config_client_collection_dump_print_file_git(empty_git_repo):
 
 def test_terraform_config_client_collection_raise_on_duplicate():
     """Client names must be unique."""
-    client_1: MagicMock = create_autospec(TerraformConfigClient)
-    client_2: MagicMock = create_autospec(TerraformConfigClient)
+    client_1: MagicMock = create_autospec(
+        TerraformConfigClient[DictExternalResourceSpec]
+    )
+    client_2: MagicMock = create_autospec(
+        TerraformConfigClient[DictExternalResourceSpec]
+    )
 
-    terraform_configs = TerraformConfigClientCollection()
+    terraform_configs = TerraformConfigClientCollection[DictExternalResourceSpec]()
     terraform_configs.register_client("duplicate", client_1)
 
     with pytest.raises(ClientAlreadyRegisteredError):
@@ -197,7 +233,7 @@ def test_terraform_config_client_collection_raise_on_duplicate():
 
 def test_terraform_config_client_collection_raise_on_missing():
     """Specs cannot be added to clients that don't exist."""
-    terraform_configs = TerraformConfigClientCollection()
+    terraform_configs = TerraformConfigClientCollection[DictExternalResourceSpec]()
     spec_1 = create_external_resource_spec("acct_1", "dev-1")
 
     with pytest.raises(ClientNotRegisteredError):

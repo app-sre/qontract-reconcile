@@ -3,7 +3,7 @@ from unittest.mock import create_autospec
 import pytest
 
 from reconcile.utils.external_resource_spec import (
-    ExternalResourceSpec,
+    DictExternalResourceSpec,
     ExternalResourceUniqueKey,
 )
 import reconcile.utils.terraform_client as tfclient
@@ -76,9 +76,9 @@ def test_expiration_value_error(aws_api):
 
 def test_get_replicas_info_via_replica_source():
     resource_specs = [
-        ExternalResourceSpec(
+        DictExternalResourceSpec(
             provision_provider="aws",
-            provisioner={"name": "acc"},
+            provisioner_name="acc",
             resource={
                 "identifier": "replica-id",
                 "provider": "rds",
@@ -98,9 +98,9 @@ def test_build_oc_secret():
     integration_version = "v1"
     account = "account"
 
-    spec = ExternalResourceSpec(
+    spec = DictExternalResourceSpec(
         provision_provider="aws",
-        provisioner={"name": account},
+        provisioner_name=account,
         resource={
             "identifier": "replica-id",
             "provider": "rds",
@@ -145,9 +145,9 @@ def test_populate_terraform_output_secret():
     integration_prefix = "integ_pfx"
     account = "account"
     resource_specs = [
-        ExternalResourceSpec(
+        DictExternalResourceSpec(
             provision_provider="aws",
-            provisioner={"name": account},
+            provisioner_name=account,
             resource={
                 "identifier": "id",
                 "provider": "provider",
@@ -179,18 +179,18 @@ def test_populate_terraform_output_secret():
 def test_populate_terraform_output_secret_with_replica_credentials():
     integration_prefix = "integ_pfx"
     account = "account"
-    replica = ExternalResourceSpec(
+    replica = DictExternalResourceSpec(
         provision_provider="aws",
-        provisioner={"name": account},
+        provisioner_name=account,
         resource={
             "identifier": "replica-db",
             "provider": "rds",
         },
         namespace={},
     )
-    replica_source = ExternalResourceSpec(
+    replica_source = DictExternalResourceSpec(
         provision_provider="aws",
-        provisioner={"name": account},
+        provisioner_name=account,
         resource={
             "identifier": "main-db",
             "provider": "rds",

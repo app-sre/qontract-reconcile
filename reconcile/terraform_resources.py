@@ -16,7 +16,7 @@ from reconcile.utils.external_resources import (
 import reconcile.openshift_base as ob
 
 from reconcile import queries
-from reconcile.utils.external_resource_spec import ExternalResourceSpecInventory
+from reconcile.utils.external_resource_spec import DictExternalResourceSpecInventory
 from reconcile.utils import gql
 from reconcile.aws_iam_keys import run as disable_keys
 from reconcile.utils.aws_api import AWSApi
@@ -532,7 +532,7 @@ def setup(
     internal: str,
     use_jump_host: bool,
     account_name: Optional[str],
-) -> Tuple[ResourceInventory, OC_Map, Terraform, ExternalResourceSpecInventory]:
+) -> Tuple[ResourceInventory, OC_Map, Terraform, DictExternalResourceSpecInventory]:
     accounts = queries.get_aws_accounts(terraform_state=True)
     if account_name:
         accounts = [n for n in accounts if n["name"] == account_name]
@@ -616,7 +616,7 @@ def cleanup_and_exit(tf=None, status=False, working_dirs=None):
 
 
 def write_outputs_to_vault(
-    vault_path: str, resource_specs: ExternalResourceSpecInventory
+    vault_path: str, resource_specs: DictExternalResourceSpecInventory
 ) -> None:
     integration_name = QONTRACT_INTEGRATION.replace("_", "-")
     vault_client = cast(_VaultClient, VaultClient())
@@ -634,7 +634,7 @@ def write_outputs_to_vault(
 
 
 def populate_desired_state(
-    ri: ResourceInventory, resource_specs: ExternalResourceSpecInventory
+    ri: ResourceInventory, resource_specs: DictExternalResourceSpecInventory
 ) -> None:
     for spec in resource_specs.values():
         if ri.is_cluster_present(spec.cluster_name):

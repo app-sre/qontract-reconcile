@@ -1,8 +1,12 @@
 import json
+from typing import Optional, Union
 
 import pytest
-from reconcile.utils.external_resource_spec import ExternalResourceSpec
+from pydantic import BaseModel
 
+from reconcile.utils.external_resource_spec import (
+    DictExternalResourceSpec,
+)
 import reconcile.utils.external_resources as uer
 
 
@@ -51,16 +55,16 @@ def namespace_info():
 @pytest.fixture
 def expected(namespace_info):
     return [
-        ExternalResourceSpec(
+        DictExternalResourceSpec(
             provision_provider=uer.PROVIDER_AWS,
             resource={"provider": "rds"},
-            provisioner={"name": "acc1"},
+            provisioner_name="acc1",
             namespace=namespace_info,
         ),
-        ExternalResourceSpec(
+        DictExternalResourceSpec(
             provision_provider=uer.PROVIDER_AWS,
             resource={"provider": "rds"},
-            provisioner={"name": "acc2"},
+            provisioner_name="acc2",
             namespace=namespace_info,
         ),
     ]
@@ -76,10 +80,10 @@ def test_get_external_resource_specs(namespace_info, expected):
 @pytest.fixture
 def expected_other(namespace_info):
     return [
-        ExternalResourceSpec(
+        DictExternalResourceSpec(
             provision_provider="other",
             resource={"provider": "other"},
-            provisioner={"name": "acc3"},
+            provisioner_name="acc3",
             namespace=namespace_info,
         ),
     ]
@@ -122,9 +126,9 @@ def test_managed_external_resources_none():
 
 def test_resource_value_resolver_no_defaults_or_overrides():
     """Values are resolved properly when defaults and overrides are omitted."""
-    spec = ExternalResourceSpec(
+    spec = DictExternalResourceSpec(
         provision_provider="other",
-        provisioner={"name": "some_account"},
+        provisioner_name="some_account",
         resource={
             "provider": "other",
             "identifier": "some-id",
@@ -147,9 +151,9 @@ def test_resource_value_resolver_identifier_as_value():
     is for compatibility when both our schemas and a Terraform provider both expect
     `identifier` to be present (so it must be in the resolved values).
     """
-    spec = ExternalResourceSpec(
+    spec = DictExternalResourceSpec(
         provision_provider="other",
-        provisioner={"name": "some_account"},
+        provisioner_name="some_account",
         resource={
             "provider": "other",
             "identifier": "some-id",
@@ -173,9 +177,9 @@ def test_resource_value_resolver_identifier_as_value():
 
 def test_resource_value_resolver_tags():
     """`tags` is added to the resolved values if `integration_tag` is set."""
-    spec = ExternalResourceSpec(
+    spec = DictExternalResourceSpec(
         provision_provider="other",
-        provisioner={"name": "some_account"},
+        provisioner_name="some_account",
         resource={
             "provider": "other",
             "identifier": "some-id",
@@ -219,9 +223,9 @@ def test_resource_value_resolver_overrides_and_defaults(mocker):
         "default_3": "default_data3",
     }
 
-    spec = ExternalResourceSpec(
+    spec = DictExternalResourceSpec(
         provision_provider="other",
-        provisioner={"name": "some_account"},
+        provisioner_name="some_account",
         resource={
             "provider": "other",
             "identifier": "some-id",
@@ -245,3 +249,90 @@ def test_resource_value_resolver_overrides_and_defaults(mocker):
         "default_2": "override_data2",
         "default_3": "default_data3",
     }
+
+
+class TestProvisionier(BaseModel):
+    name: str
+
+
+class MyResource(BaseModel):
+    provider: str
+    identifier: str
+
+
+class ResourceConfig(BaseModel):
+    field_1: Optional[str]
+    field_2: Optional[str]
+
+
+class OverrideableResource(BaseModel):
+    provider: str
+    identifier: str
+    overrides: Optional[ResourceConfig]
+    defaults: Optional[ResourceConfig]
+
+
+class TestNamespaceExternalResource(BaseModel):
+    provider: str
+    provisioner: TestProvisionier
+    resources: list[Union[MyResource, OverrideableResource]]
+
+
+class TestCluster(BaseModel):
+    name: str
+
+
+class TestNamespace(BaseModel):
+    name: str
+    managed_external_resources: bool
+    cluster: TestCluster
+    external_resources: Optional[list[TestNamespaceExternalResource]]
+
+
+@pytest.fixture
+def namespace() -> TestNamespace:
+    return TestNamespace(
+        name="ns",
+        managed_external_resources=True,
+        cluster=TestCluster(name="cluster"),
+        external_resources=[
+            TestNamespaceExternalResource(
+                provider="pp",
+                provisioner=TestProvisionier(name="pn"),
+                resources=[
+                    MyResource(provider="rp", identifier="ri"),
+                ],
+            )
+        ],
+    )
+
+
+def test_get_external_resource_specs_for_namespace(
+    namespace: TestNamespace,
+):
+    external_resources = uer.get_external_resource_specs_for_namespace(
+        namespace, MyResource, None
+    )
+    assert len(external_resources) == 1
+
+    assert external_resources[0].provision_provider == "pp"
+    assert external_resources[0].provisioner_name == "pn"
+    assert external_resources[0].namespace_name == "ns"
+    assert external_resources[0].provider == "rp"
+    assert external_resources[0].identifier == "ri"
+
+
+def test_get_external_resource_specs_for_namespace_provisioning_provider_filter(
+    namespace: TestNamespace,
+):
+    external_resources = uer.get_external_resource_specs_for_namespace(
+        namespace, MyResource, "another-provisioning-provider"
+    )
+    assert len(external_resources) == 0
+
+
+def test_get_external_resource_specs_for_namespace_wrong_type(namespace: TestNamespace):
+    with pytest.raises(ValueError):
+        uer.get_external_resource_specs_for_namespace(
+            namespace, OverrideableResource, None
+        )
