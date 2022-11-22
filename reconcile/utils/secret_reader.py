@@ -32,7 +32,7 @@ class SecretReaderBase(ABC):
     @abstractmethod
     def _read(
         self, path: str, field: str, format: Optional[str], version: Optional[int]
-    ) -> dict[str, str]:
+    ) -> str:
         raise NotImplementedError()
 
     @abstractmethod
@@ -41,7 +41,7 @@ class SecretReaderBase(ABC):
     ) -> dict[str, str]:
         raise NotImplementedError()
 
-    def read(self, secret: Mapping[str, Any]):
+    def read(self, secret: Mapping[str, Any]) -> str:
         """
         Kept to stay backwards compatible with to-be deprecated
         SecretReader. Once SecretReader is not used, we can
@@ -54,7 +54,7 @@ class SecretReaderBase(ABC):
             version=secret.get("version"),
         )
 
-    def read_all(self, secret: Mapping[str, Any]):
+    def read_all(self, secret: Mapping[str, Any]) -> dict[str, str]:
         """
         Kept to stay backwards compatible with to-be deprecated
         SecretReader. Once SecretReader is not used, we can
@@ -67,7 +67,7 @@ class SecretReaderBase(ABC):
             version=secret.get("version"),
         )
 
-    def read_secret(self, secret: SupportsSecret) -> dict[str, str]:
+    def read_secret(self, secret: SupportsSecret) -> str:
         return self._read(
             path=secret.path,
             field=secret.field,
@@ -85,7 +85,7 @@ class SecretReaderBase(ABC):
 
     def read_with_parameters(
         self, path: str, field: str, format: Optional[str], version: Optional[int]
-    ) -> dict[str, str]:
+    ) -> str:
         return self._read(
             path=path,
             field=field,
@@ -123,7 +123,7 @@ class VaultSecretReader(SecretReaderBase):
         self._vault_client = vault_client
 
     @property
-    def vault_client(self):
+    def vault_client(self) -> VaultClient:
         if self._vault_client is None:
             self._vault_client = VaultClient()
         return self._vault_client
@@ -133,7 +133,7 @@ class VaultSecretReader(SecretReaderBase):
         self, path: str, field: str, format: Optional[str], version: Optional[int]
     ) -> dict[str, str]:
         try:
-            data = self.vault_client.read_all(
+            data = self.vault_client.read_all(  # type: ignore[attr-defined] # mypy doesn't recognize the VaultClient.__new__ method
                 self._parameters_to_dict(
                     path=path,
                     field=field,
@@ -154,7 +154,7 @@ class VaultSecretReader(SecretReaderBase):
         self, path: str, field: str, format: Optional[str], version: Optional[int]
     ) -> dict[str, str]:
         try:
-            data = self.vault_client.read(
+            data = self.vault_client.read(  # type: ignore[attr-defined] # mypy doesn't recognize the VaultClient.__new__ method
                 self._parameters_to_dict(
                     path=path,
                     field=field,
@@ -174,7 +174,7 @@ class ConfigSecretReader(SecretReaderBase):
 
     def _read(
         self, path: str, field: str, format: Optional[str], version: Optional[int]
-    ) -> dict[str, str]:
+    ) -> str:
         try:
             data = config.read(
                 self._parameters_to_dict(
@@ -230,7 +230,7 @@ class SecretReader(SecretReaderBase):
         self._vault_client: Optional[VaultClient] = None
 
     @property
-    def vault_client(self):
+    def vault_client(self) -> VaultClient:
         if self._vault_client is None:
             self._vault_client = VaultClient()
         return self._vault_client
@@ -238,7 +238,7 @@ class SecretReader(SecretReaderBase):
     @retry()
     def _read(
         self, path: str, field: str, format: Optional[str], version: Optional[int]
-    ):
+    ) -> str:
         """Returns a value of a key from Vault secret or configuration file.
         The input secret is a dictionary which contains the following fields:
         * path - path to the secret in Vault or config
@@ -260,7 +260,7 @@ class SecretReader(SecretReaderBase):
 
         if self.settings and self.settings.get("vault"):
             try:
-                data = self.vault_client.read(params)
+                data = self.vault_client.read(params)  # type: ignore[attr-defined] # mypy doesn't recognize the VaultClient.__new__ method
             except vault.SecretNotFound as e:
                 raise SecretNotFound(*e.args) from e
         else:
@@ -274,7 +274,7 @@ class SecretReader(SecretReaderBase):
     @retry()
     def _read_all(
         self, path: str, field: str, format: Optional[str], version: Optional[int]
-    ):
+    ) -> dict[str, str]:
         """Returns a dictionary of keys and values
         from Vault secret or configuration file.
         The input secret is a dictionary which contains the following fields:
@@ -295,7 +295,7 @@ class SecretReader(SecretReaderBase):
 
         if self.settings and self.settings.get("vault"):
             try:
-                data = self.vault_client.read_all(params)
+                data = self.vault_client.read_all(params)  # type: ignore[attr-defined] # mypy doesn't recognize the VaultClient.__new__ method
             except Forbidden:
                 raise VaultForbidden(
                     f"permission denied reading vault secret " f"at {path}"

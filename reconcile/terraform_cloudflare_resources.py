@@ -15,6 +15,7 @@ from reconcile.gql_definitions.terraform_cloudflare_resources.terraform_cloudfla
 from reconcile.status import ExitCodes
 from reconcile.utils import gql
 from reconcile.utils.defer import defer
+from reconcile.utils.exceptions import SecretIncompleteError
 from reconcile.utils.external_resources import (
     PROVIDER_CLOUDFLARE,
     get_external_resource_specs,
@@ -87,10 +88,14 @@ def build_clients(
         if selected_account and cf_acct.name != selected_account:
             continue
         cf_acct_creds = secret_reader.read_all({"path": cf_acct.api_credentials.path})
+        if not cf_acct_creds.get("api_token") or not cf_acct_creds.get("account_id"):
+            raise SecretIncompleteError(
+                f"secret {cf_acct.api_credentials.path} incomplete: api_token and/or account_id missing"
+            )
         cf_acct_config = CloudflareAccountConfig(
             cf_acct.name,
-            cf_acct_creds.get("api_token"),
-            cf_acct_creds.get("account_id"),
+            cf_acct_creds["api_token"],
+            cf_acct_creds["account_id"],
             cf_acct.enforce_twofactor or DEFAULT_CLOUDFLARE_ACCOUNT_2FA,
             cf_acct.q_type or DEFAULT_CLOUDFLARE_ACCOUNT_TYPE,
         )
