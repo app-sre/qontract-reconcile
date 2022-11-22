@@ -1,0 +1,54 @@
+# qenerate: plugin=pydantic_v1
+
+query Permission {
+  permissions: permissions_v1 {
+    service
+    ... on PermissionSlackUsergroup_v1 {
+      name
+      channels
+      description
+      handle
+      ownersFromRepos
+      skip
+      pagerduty {
+        name
+        instance {
+          name
+        }
+        scheduleID
+        escalationPolicyID
+      }
+      roles {
+        users {
+          ...User
+        }
+      }
+      schedule {
+        schedule {
+          start
+          end
+          users {
+            ...User
+          }
+        }
+      }
+      workspace {
+        name
+        token {
+          ...VaultSecret
+        }
+        api_client {
+          global {
+            max_retries
+            timeout
+          }
+          methods {
+            name
+            args
+          }
+        }
+        managedUsergroups
+      }
+    }
+  }
+}
