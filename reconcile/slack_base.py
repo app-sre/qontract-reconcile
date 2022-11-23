@@ -1,4 +1,5 @@
-from typing import Mapping, Any, Optional
+from typing import Any, Optional
+from collections.abc import Mapping
 
 from reconcile import queries
 from reconcile.utils.secret_reader import SecretReader

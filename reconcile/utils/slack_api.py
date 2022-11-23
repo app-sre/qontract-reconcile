@@ -1,7 +1,8 @@
 from __future__ import annotations
 import json
 import logging
-from typing import Iterable, Protocol, Sequence, Any, Mapping, Optional, Union
+from typing import Any, Optional, Union, Protocol
+from collections.abc import Iterable, Sequence, Mapping
 
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError

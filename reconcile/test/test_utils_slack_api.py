@@ -1,6 +1,6 @@
 import json
 from collections import namedtuple
-from typing import Union, Dict
+from typing import Union
 from unittest.mock import call, patch, MagicMock
 
 import httpretty
@@ -62,7 +62,7 @@ def test_slack_api_config_from_dict():
     assert slack_api_config.timeout == 5
 
 
-def new_slack_response(data: Dict[str, Union[bool, str]]):
+def new_slack_response(data: dict[str, Union[bool, str]]):
     return SlackResponse(
         client="",
         http_verb="",
