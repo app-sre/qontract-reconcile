@@ -115,6 +115,9 @@ def run(dry_run: bool, gitlab_project_id: int) -> None:
         if not rv_updated:
             continue
 
+        if rv_updated == ocm_info["recommendedVersions"]:
+            continue
+
         update = UpdateInfo(
             path=f"data{ocm_info['path']}",
             name=ocm_info["name"],
