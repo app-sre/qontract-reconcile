@@ -276,7 +276,7 @@ def get_upgrade_policies_data(
                 upgrade_emoji = "⏰"
             hours_ago = (now - dt).total_seconds() / 3600
             if hours_ago > 6:  # 6 hours
-                upgrade_emoji = "💫 - started {hours_ago:.1f}h ago❗️"
+                upgrade_emoji = f"💫 - started {hours_ago:.1f}h ago❗️"
         sorted_soaking = sorted(soaking.items(), key=lambda x: parse_semver(x[0]))
         if md_output:
             for i, data in enumerate(sorted_soaking):
@@ -378,6 +378,10 @@ duration of the cluster upgrade.
 running on other clusters with the same workload to be considered for an
 upgrade.
 * `workload` is a list of workload names that are running on the cluster
+* `sector` is the name of the OCM sector the cluster is part of. Sector
+dependencies are defined per OCM organization. A cluster can be upgraded to a
+version only if all clusters running the same workloads in previous sectors
+already run at least that version.
 * `soaking_upgrades` lists all available upgrades available on the OCM channel
 for that cluster. The number in parenthesis shows the number of days this
 version has been running on other clusters with the same workloads. By
