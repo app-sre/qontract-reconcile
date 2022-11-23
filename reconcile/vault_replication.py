@@ -1,10 +1,19 @@
 import logging
 import re
 
-from reconcile.utils.vault import VaultClient, _VaultClient, SecretNotFound
+from reconcile.utils.vault import (
+    VaultClient,
+    _VaultClient,
+    SecretNotFound,
+)
 from reconcile.gql_definitions.jenkins_configs import jenkins_configs
 from reconcile.gql_definitions.jenkins_configs.jenkins_configs import (
     JenkinsConfigV1_JenkinsConfigV1,
+    JenkinsConfigsQueryData,
+)
+
+from reconcile.gql_definitions.vault_policies.vault_policies import (
+    VaultPoliciesQueryData,
 )
 
 from reconcile.gql_definitions.vault_policies import vault_policies
@@ -17,7 +26,7 @@ from reconcile.gql_definitions.vault_instances.vault_instances import (
 )
 
 from reconcile.utils import gql
-from typing import List, cast, Optional, Union
+from typing import cast, Optional, Union, Iterable, Mapping
 
 QONTRACT_INTEGRATION = "vault-replication"
 
@@ -91,8 +100,8 @@ def copy_vault_secret(
 
 
 def check_invalid_paths(
-    path_list: List[str],
-    policy_paths: Optional[List[str]],
+    path_list: Iterable[str],
+    policy_paths: Optional[Iterable[str]],
 ) -> None:
 
     if policy_paths is not None:
@@ -102,7 +111,9 @@ def check_invalid_paths(
             raise VaultInvalidPaths
 
 
-def list_invalid_paths(path_list: List[str], policy_paths: List[str]) -> List[str]:
+def list_invalid_paths(
+    path_list: Iterable[str], policy_paths: Iterable[str]
+) -> Iterable[str]:
     invalid_paths = []
 
     for path in path_list:
@@ -112,16 +123,18 @@ def list_invalid_paths(path_list: List[str], policy_paths: List[str]) -> List[st
     return invalid_paths
 
 
-def policy_contains_path(path: str, policy_paths: List[str]) -> bool:
+def policy_contains_path(path: str, policy_paths: Iterable[str]) -> bool:
     return any(path in p_path for p_path in policy_paths)
 
 
-def get_policy_paths(policy_name, instance_name) -> List[str]:
-    query_data = vault_policies.query(query_func=gql.get_api().query)
+def get_policy_paths(
+    policy_name: str, instance_name: str, policy_query_data: VaultPoliciesQueryData
+) -> Iterable[str]:
+    # query_data = vault_policies.query(query_func=gql.get_api().query)
     policy_paths = []
 
-    if query_data.policy:
-        for policy in query_data.policy:
+    if policy_query_data.policy:
+        for policy in policy_query_data.policy:
             if policy.name == policy_name and policy.instance.name == instance_name:
                 for line in policy.rules.split("\n"):
                     res = re.search(r"path \s*[\'\"](.+)[\'\"]", line)
@@ -132,7 +145,9 @@ def get_policy_paths(policy_name, instance_name) -> List[str]:
     return policy_paths
 
 
-def get_jenkins_secret_list(jenkins_instance: str) -> List[str]:
+def get_jenkins_secret_list(
+    jenkins_instance: str, query_data: JenkinsConfigsQueryData
+) -> Iterable[str]:
     """Returns a list of secrets used in a jenkins instance
 
     The input secret is the name of a jenkins instance to filter
@@ -140,7 +155,6 @@ def get_jenkins_secret_list(jenkins_instance: str) -> List[str]:
     * jenkins_instance - Jenkins instance name
     """
     secret_list = []
-    query_data = jenkins_configs.query(query_func=gql.get_api().query)
 
     if query_data.jenkins_configs:
         for p in query_data.jenkins_configs:
@@ -164,7 +178,7 @@ def get_jenkins_secret_list(jenkins_instance: str) -> List[str]:
 
 def get_vault_credentials(
     vault_instance: Union[VaultInstanceV1, VaultReplicationConfigV1_VaultInstanceV1]
-) -> dict[str, Optional[str]]:
+) -> Mapping[str, Optional[str]]:
     """Returns a dictionary with the credentials used to authenticate with Vault,
     retrieved from the values present on AppInterface.
 
@@ -209,14 +223,19 @@ def replicate_paths(
 
         if provider == "jenkins":
             if path.policy is not None:
+                vault_query_data = vault_policies.query(query_func=gql.get_api().query)
                 policy_paths = get_policy_paths(
                     path.policy.name,
                     path.policy.instance.name,
+                    vault_query_data,
                 )
             else:
                 policy_paths = None
 
-            path_list = get_jenkins_secret_list(path.jenkins_instance.name)
+            jenkins_query_data = jenkins_configs.query(query_func=gql.get_api().query)
+            path_list = get_jenkins_secret_list(
+                path.jenkins_instance.name, jenkins_query_data
+            )
             check_invalid_paths(path_list, policy_paths)
             for path in path_list:
                 copy_vault_secret(dry_run, source_vault, dest_vault, path)
