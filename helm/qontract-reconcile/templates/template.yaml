@@ -357,6 +357,27 @@ objects:
               secretKeyRef:
                 name: ${CLOUDWATCH_SECRET}
                 key: aws_secret_access_key
+          {{- if $integration.fluentdResources }}
+          resources:
+            {{- if $integration.fluentdResources.limits }}
+            limits:
+              {{- if $integration.fluentdResources.limits.cpu }}
+              cpu: {{ "${" }}{{ $integration.name | upper | replace "-" "_" }}FLUENTD_CPU_LIMIT{{ "}" }}
+              {{- end }}
+              {{- if $integration.fluentdResources.limits.memory }}
+              memory: {{ "${" }}{{ $integration.name | upper | replace "-" "_" }}FLUENTD_MEMORY_LIMIT{{ "}" }}
+              {{- end }}
+            {{- end }}
+            {{- if $integration.fluentdResources.requests }}
+            requests:
+              {{- if $integration.fluentdResources.requests.cpu }}
+              cpu: {{ "${" }}{{ $integration.name | upper | replace "-" "_" }}FLUENTD_CPU_REQUEST{{ "}" }}
+              {{- end }}
+              {{- if $integration.fluentdResources.requests.memory }}
+              memory: {{ "${" }}{{ $integration.name | upper | replace "-" "_" }}FLUENTD_MEMORY_REQUEST{{ "}" }}
+              {{- end }}
+            {{- end }}
+          {{- else }}
           resources:
             requests:
               memory: 30Mi
@@ -364,6 +385,7 @@ objects:
             limits:
               memory: 120Mi
               cpu: 25m
+          {{- end }}
           volumeMounts:
           - name: logs
             mountPath: /fluentd/log/
@@ -596,6 +618,28 @@ parameters:
 {{- if $integration.resources.requests.memory }}
 - name: {{ $integration.name | upper | replace "-" "_" }}_MEMORY_REQUEST
   value: {{ $integration.resources.requests.memory }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- if $integration.fluentdResources }}
+{{- if $integration.fluentdResources.limits }}
+{{- if $integration.fluentdResources.limits.cpu }}
+- name: {{ $integration.name | upper | replace "-" "_"}}_FLUENTD_CPU_LIMIT
+  value: {{ $integration.fluentdResources.limits.cpu }}
+{{- end }}
+{{- if $integration.fluentdResources.limits.memory }}
+- name: {{ $integration.name | upper | replace "-" "_" }}_FLUENTD_MEMORY_LIMIT
+  value: {{ $integration.fluentdResources.limits.memory }}
+{{- end }}
+{{- end }}
+{{- if $integration.fluentdResources.requests }}
+{{- if $integration.fluentdResources.requests.cpu }}
+- name: {{ $integration.name | upper | replace "-" "_" }}_FLUENTD_CPU_REQUEST
+  value: {{ $integration.fluentdResources.requests.cpu }}
+{{- end }}
+{{- if $integration.fluentdResources.requests.memory }}
+- name: {{ $integration.name | upper | replace "-" "_" }}_FLUENTD_MEMORY_REQUEST
+  value: {{ $integration.fluentdResources.requests.memory }}
 {{- end }}
 {{- end }}
 {{- end }}
