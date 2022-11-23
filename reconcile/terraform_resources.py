@@ -445,14 +445,16 @@ QONTRACT_INTEGRATION_VERSION = make_semver(0, 5, 2)
 QONTRACT_TF_PREFIX = "qrtf"
 
 
-def get_tf_namespaces(account_name: Optional[str] = None):
+def get_tf_namespaces(account_names: Optional[Iterable[str]] = None):
     gqlapi = gql.get_api()
     namespaces = gqlapi.query(TF_NAMESPACES_QUERY)["namespaces"]
-    return filter_tf_namespaces(namespaces, account_name)
+    return filter_tf_namespaces(namespaces, account_names)
 
 
 def populate_oc_resources(
-    spec: ob.CurrentStateSpec, ri: ResourceInventory, account_name: Optional[str]
+    spec: ob.CurrentStateSpec,
+    ri: ResourceInventory,
+    account_names: Optional[Iterable[str]],
 ):
     if spec.oc is None:
         return
@@ -470,9 +472,9 @@ def populate_oc_resources(
             openshift_resource = OR(
                 item, QONTRACT_INTEGRATION, QONTRACT_INTEGRATION_VERSION
             )
-            if account_name:
+            if account_names:
                 caller = openshift_resource.caller
-                if caller and caller != account_name:
+                if caller and caller not in account_names:
                     continue
 
             ri.add_current(
@@ -493,7 +495,12 @@ def populate_oc_resources(
 
 
 def fetch_current_state(
-    dry_run, namespaces, thread_pool_size, internal, use_jump_host, account_name
+    dry_run: bool,
+    namespaces: Iterable[Mapping[str, Any]],
+    thread_pool_size: int,
+    internal: str,
+    use_jump_host: bool,
+    account_names: Optional[Iterable[str]],
 ):
     ri = ResourceInventory()
     if dry_run:
@@ -518,7 +525,7 @@ def fetch_current_state(
         current_state_specs,
         thread_pool_size,
         ri=ri,
-        account_name=account_name,
+        account_names=account_names,
     )
 
     return ri, oc_map
@@ -546,20 +553,20 @@ def setup(
     thread_pool_size: int,
     internal: str,
     use_jump_host: bool,
-    account_name: Optional[str],
+    account_names: Optional[str],
 ) -> tuple[ResourceInventory, OC_Map, Terraform, ExternalResourceSpecInventory]:
     accounts = queries.get_aws_accounts(terraform_state=True)
-    if account_name:
-        accounts = [n for n in accounts if n["name"] == account_name]
+    if account_names:
+        accounts = [n for n in accounts if n["name"] in account_names]
         if not accounts:
-            raise ValueError(f"aws account {account_name} is not found")
+            raise ValueError(f"aws accounts {account_names} where not found")
     settings = queries.get_app_interface_settings()
 
     # build a resource inventory for all the kube secrets managed by the
     # app-interface managed terraform resources
-    tf_namespaces = get_tf_namespaces(account_name)
+    tf_namespaces = get_tf_namespaces(account_names)
     ri, oc_map = fetch_current_state(
-        dry_run, tf_namespaces, thread_pool_size, internal, use_jump_host, account_name
+        dry_run, tf_namespaces, thread_pool_size, internal, use_jump_host, account_names
     )
 
     # initialize terrascript (scripting engine to generate terraform manifests)
@@ -584,7 +591,7 @@ def setup(
         )
     else:
         ocm_map = None
-    ts.init_populate_specs(tf_namespaces, account_name)
+    ts.init_populate_specs(tf_namespaces, account_names)
     tf.populate_terraform_output_secrets(
         resource_specs=ts.resource_spec_inventory, init_rds_replica_source=True
     )
@@ -595,7 +602,7 @@ def setup(
 
 
 def filter_tf_namespaces(
-    namespaces: Iterable[Mapping[str, Any]], account_name: Optional[str]
+    namespaces: Iterable[Mapping[str, Any]], account_names: Optional[Iterable[str]]
 ) -> list[Mapping[str, Any]]:
     tf_namespaces = []
     for namespace_info in namespaces:
@@ -604,7 +611,7 @@ def filter_tf_namespaces(
         if not managed_external_resources(namespace_info):
             continue
 
-        if not account_name:
+        if not account_names:
             tf_namespaces.append(namespace_info)
             continue
 
@@ -614,7 +621,7 @@ def filter_tf_namespaces(
             continue
 
         for spec in specs:
-            if spec.provisioner_name == account_name:
+            if spec.provisioner_name in account_names:
                 tf_namespaces.append(namespace_info)
                 break
 
@@ -678,16 +685,19 @@ def run(
     use_jump_host=True,
     light=False,
     vault_output_path="",
-    account_name=None,
+    account_names=None,
     defer=None,
 ):
+    if account_names:
+        account_names = account_names.split(",")
+
     ri, oc_map, tf, resource_specs = setup(
         dry_run,
         print_to_file,
         thread_pool_size,
         internal,
         use_jump_host,
-        account_name,
+        account_names,
     )
 
     if not dry_run:
@@ -722,7 +732,7 @@ def run(
     populate_desired_state(ri, resource_specs)
 
     actions = ob.realize_data(
-        dry_run, oc_map, ri, thread_pool_size, caller=account_name
+        dry_run, oc_map, ri, thread_pool_size, caller=account_names
     )
 
     if not light and tf.should_apply:
@@ -730,7 +740,7 @@ def run(
             dry_run,
             thread_pool_size,
             disable_service_account_keys=True,
-            account_name=account_name,
+            account_names=account_names,
         )
 
     if actions and vault_output_path:
