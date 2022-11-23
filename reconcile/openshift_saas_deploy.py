@@ -125,7 +125,6 @@ def run(
         else:
             slack = None
 
-    instance = queries.get_gitlab_instance()
     # instance exists in v1 saas files only
     desired_jenkins_instances = [
         s["instance"]["name"] for s in saas_files if s.get("instance")
@@ -136,6 +135,7 @@ def run(
     settings = queries.get_app_interface_settings()
     accounts = queries.get_aws_accounts()
     try:
+        instance = queries.get_gitlab_instance()
         gl = GitLabApi(instance, settings=settings)
     except Exception:
         # allow execution without access to gitlab
