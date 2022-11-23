@@ -98,7 +98,7 @@ def get_desired_state(slack: SlackApi) -> dict[str, Any]:
             if include_user(u, cluster_name, cluster_users)
         ]
         users = slack.get_users_by_names(user_names)
-        channels = slack.get_channels_by_names([slack.channel])
+        channels = slack.get_channels_by_names([slack.channel])  # type: ignore[list-item] # will be refactored later
         desired_state.setdefault(slack.workspace_name, {})[usergroup] = {
             "workspace": slack.workspace_name,
             "usergroup": usergroup,

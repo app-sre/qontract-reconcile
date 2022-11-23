@@ -1,6 +1,8 @@
+from __future__ import annotations
 import json
 import logging
-from typing import Sequence, Dict, Any, Mapping, Optional, Union
+from typing import Any, Optional, Union, Protocol
+from collections.abc import Iterable, Sequence, Mapping
 
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
@@ -12,7 +14,6 @@ from slack_sdk.http_retry import (
     HttpResponse,
 )
 
-from reconcile.utils.secret_reader import SecretReader
 
 MAX_RETRIES = 5
 TIMEOUT = 30
@@ -40,6 +41,32 @@ class ServerErrorRetryHandler(RetryHandler):
         return response is not None and response.status_code >= 500
 
 
+class SupportsClientGlobalConfig(Protocol):
+    max_retries: Optional[int]
+    timeout: Optional[int]
+
+    def dict(self) -> dict[str, Optional[int]]:
+        ...
+
+
+class SupportsClientMethodConfig(Protocol):
+    name: str
+    args: str  # Json
+
+    def dict(self) -> dict[str, str]:
+        ...
+
+
+class SupportsClientConfig(Protocol):
+    @property
+    def q_global(self) -> Optional[SupportsClientGlobalConfig]:
+        ...
+
+    @property
+    def methods(self) -> Optional[Sequence[SupportsClientMethodConfig]]:
+        ...
+
+
 class SlackApiConfig:
     """
     Aggregates Slack API configuration objects to be used passed to a
@@ -50,7 +77,7 @@ class SlackApiConfig:
 
         self.timeout = timeout
         self.max_retries = max_retries
-        self._methods: Dict[str, Any] = {}
+        self._methods: dict[str, Any] = {}
 
     def set_method_config(
         self, method_name: str, method_config: Mapping[str, Any]
@@ -62,7 +89,7 @@ class SlackApiConfig:
         """
         self._methods[method_name] = method_config
 
-    def get_method_config(self, method_name: str) -> Optional[Dict[str, Any]]:
+    def get_method_config(self, method_name: str) -> Optional[dict[str, Any]]:
         """
         Get Slack method configuration.
         :param method_name: the name of a method (ex. users.list)
@@ -70,7 +97,7 @@ class SlackApiConfig:
         return self._methods.get(method_name)
 
     @classmethod
-    def from_dict(cls, config_data: Mapping[str, Any]) -> "SlackApiConfig":
+    def from_dict(cls, config_data: Mapping[str, Any]) -> SlackApiConfig:
         """
         Build a SlackApiConfig object from a mapping object.
 
@@ -106,6 +133,19 @@ class SlackApiConfig:
 
         return config
 
+    @classmethod
+    def from_client_config(cls, config_data: SupportsClientConfig) -> SlackApiConfig:
+        """Initiate a SlackApiConfig instance via user-defined config class (e.g. GQL class).
+
+        The config class must implement the `SupportsClientConfig` protocol.
+        """
+        config: dict[str, Union[list[dict[str, str]], dict[str, Optional[int]]]] = {}
+        if config_data.q_global:
+            config["global"] = config_data.q_global.dict()
+        if config_data.methods:
+            config["methods"] = [m.dict() for m in config_data.methods]
+        return cls.from_dict(config)
+
 
 class SlackApi:
     """Wrapper around Slack API calls"""
@@ -113,12 +153,11 @@ class SlackApi:
     def __init__(
         self,
         workspace_name: str,
-        token: Mapping[str, str],
-        secret_reader: SecretReader,
+        token: str,
         api_config: Optional[SlackApiConfig] = None,
-        init_usergroups=True,
+        init_usergroups: bool = True,
         channel: Optional[str] = None,
-        **chat_kwargs,
+        **chat_kwargs: Any,
     ) -> None:
         """
         :param workspace_name: Slack workspace name (ex. coreos)
@@ -139,12 +178,10 @@ class SlackApi:
         else:
             self.config = SlackApiConfig()
 
-        slack_token = secret_reader.read(token)
-
-        self._sc = WebClient(token=slack_token, timeout=self.config.timeout)
+        self._sc = WebClient(token=token, timeout=self.config.timeout)
         self._configure_client_retry()
 
-        self._results: Dict[str, Any] = {}
+        self._results: dict[str, Any] = {}
 
         self.channel = channel
         self.chat_kwargs = chat_kwargs
@@ -179,10 +216,10 @@ class SlackApi:
         """
         if not self.channel:
             raise ValueError(
-                "Slack channel name must be provided when " "posting messages."
+                "Slack channel name must be provided when posting messages."
             )
 
-        def do_send(c: str, t: str):
+        def do_send(c: str, t: str) -> None:
             self._sc.chat_postMessage(channel=c, text=t, **self.chat_kwargs)
 
         try:
@@ -194,11 +231,13 @@ class SlackApi:
             else:
                 raise e
 
-    def describe_usergroup(self, handle):
+    def describe_usergroup(
+        self, handle: str
+    ) -> tuple[dict[str, str], dict[str, str], str]:
         usergroup = self.get_usergroup(handle)
         description = usergroup["description"]
 
-        user_ids = usergroup.get("users", [])
+        user_ids: list[str] = usergroup.get("users", [])
         users = self.get_users_by_ids(user_ids)
 
         channel_ids = usergroup["prefs"]["channels"]
@@ -206,7 +245,7 @@ class SlackApi:
 
         return users, channels, description
 
-    def join_channel(self):
+    def join_channel(self) -> None:
         """
         Join a given channel if not already a member, will join self.channel
 
@@ -216,7 +255,7 @@ class SlackApi:
         """
         if not self.channel:
             raise ValueError(
-                "Slack channel name must be provided when " "joining a channel."
+                "Slack channel name must be provided when joining a channel."
             )
 
         channels_found = self.get_channels_by_names(self.channel)
@@ -241,12 +280,11 @@ class SlackApi:
         result = self._sc.usergroups_list(include_users=True)
         self.usergroups = result["usergroups"]
 
-    def get_usergroup(self, handle):
+    def get_usergroup(self, handle: str) -> dict[str, Any]:
         usergroup = [g for g in self.usergroups if g["handle"] == handle]
         if len(usergroup) != 1:
             raise UsergroupNotFoundException(handle)
-        [usergroup] = usergroup
-        return usergroup
+        return usergroup[0]
 
     def create_usergroup(self, handle: str) -> str:
         response = self._sc.usergroups_create(name=handle, handle=handle)
@@ -292,7 +330,7 @@ class SlackApi:
             if e.response["error"] != "invalid_users":
                 raise
 
-    def get_random_deleted_user(self):
+    def get_random_deleted_user(self) -> str:
         for user_id, user_data in self._get("users").items():
             if user_data["deleted"] is True:
                 return user_id
@@ -322,29 +360,29 @@ class SlackApi:
 
         return result["user"]["id"]
 
-    def get_channels_by_names(self, channels_names):
+    def get_channels_by_names(self, channels_names: Iterable[str]) -> dict[str, str]:
         return {
             k: v["name"]
             for k, v in self._get("channels").items()
             if v["name"] in channels_names
         }
 
-    def get_channels_by_ids(self, channels_ids):
+    def get_channels_by_ids(self, channels_ids: Iterable[str]) -> dict[str, str]:
         return {
             k: v["name"] for k, v in self._get("channels").items() if k in channels_ids
         }
 
-    def get_users_by_names(self, user_names):
+    def get_users_by_names(self, user_names: Iterable[str]) -> dict[str, str]:
         return {
             k: v["name"]
             for k, v in self._get("users").items()
             if v["name"] in user_names
         }
 
-    def get_users_by_ids(self, users_ids):
+    def get_users_by_ids(self, users_ids: Iterable[str]) -> dict[str, str]:
         return {k: v["name"] for k, v in self._get("users").items() if k in users_ids}
 
-    def _get(self, resource: str) -> Dict[str, Any]:
+    def _get(self, resource: str) -> dict[str, Any]:
         """
         Get Slack resources by type. This method uses a cache to ensure that
         each resource type is only fetched once.
@@ -355,7 +393,7 @@ class SlackApi:
         result_key = "members" if resource == "users" else resource
         api_key = "conversations" if resource == "channels" else resource
         results = {}
-        additional_kwargs: Dict[str, Union[str, int]] = {"cursor": ""}
+        additional_kwargs: dict[str, Union[str, int]] = {"cursor": ""}
 
         if resource in self._results:
             return self._results[resource]

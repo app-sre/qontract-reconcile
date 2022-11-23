@@ -87,9 +87,15 @@ class TestSupportFunctions(TestCase):
     @patch.object(slackbase, "SlackApi", autospec=True)
     @patch.object(queries, "get_app_interface_settings", autospec=True)
     @patch.object(queries, "get_permissions_for_slack_usergroup", autospec=True)
+    @patch.object(SecretReader, "read", autospec=True)
     def test_get_slack_map_return_expected(
-        self, mock_get_permissions, mock_get_app_interface_settings, mock_slack_api
+        self,
+        mock_secret_reader_read,
+        mock_get_permissions,
+        mock_get_app_interface_settings,
+        mock_slack_api,
     ):
+        mock_secret_reader_read.return_value = "secret"
         mock_get_permissions.return_value = self.get_permissions_fixture()
         slack_api_mock = create_autospec(SlackApi)
         expected_slack_map = {
