@@ -194,12 +194,12 @@ objects:
                 name: ${CLOUDWATCH_SECRET}
                 key: aws_secret_access_key
           resources:
-            requests:
-              memory: 30Mi
-              cpu: 15m
             limits:
-              memory: 120Mi
-              cpu: 25m
+              cpu: ${INTEGRATIONS_MANAGER_FLUENTD_CPU_LIMIT}
+              memory: ${INTEGRATIONS_MANAGER_FLUENTD_MEMORY_LIMIT}
+            requests:
+              cpu: ${INTEGRATIONS_MANAGER_FLUENTD_CPU_REQUEST}
+              memory: ${INTEGRATIONS_MANAGER_FLUENTD_MEMORY_REQUEST}
           volumeMounts:
           - name: logs
             mountPath: /fluentd/log/
@@ -280,3 +280,11 @@ parameters:
   value: 200m
 - name: INTEGRATIONS_MANAGER_MEMORY_REQUEST
   value: 300Mi
+- name: INTEGRATIONS_MANAGER_FLUENTD_CPU_LIMIT
+  value: 25m
+- name: INTEGRATIONS_MANAGER_FLUENTD_MEMORY_LIMIT
+  value: 240Mi
+- name: INTEGRATIONS_MANAGER_FLUENTD_CPU_REQUEST
+  value: 15m
+- name: INTEGRATIONS_MANAGER_FLUENTD_MEMORY_REQUEST
+  value: 60Mi

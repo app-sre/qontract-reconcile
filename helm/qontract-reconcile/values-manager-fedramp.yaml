@@ -8,6 +8,13 @@ integrations:
     limits:
       memory: 600Mi
       cpu: 400m
+  fluentdResources:
+    requests:
+      memory: 60Mi
+      cpu: 15m
+    limits:
+      memory: 240Mi
+      cpu: 25m
   environmentAware: true
   logs:
     slack: false

@@ -362,19 +362,19 @@ objects:
             {{- if $integration.fluentdResources.limits }}
             limits:
               {{- if $integration.fluentdResources.limits.cpu }}
-              cpu: {{ "${" }}{{ $integration.name | upper | replace "-" "_" }}FLUENTD_CPU_LIMIT{{ "}" }}
+              cpu: {{ "${" }}{{ $integration.name | upper | replace "-" "_" }}_FLUENTD_CPU_LIMIT{{ "}" }}
               {{- end }}
               {{- if $integration.fluentdResources.limits.memory }}
-              memory: {{ "${" }}{{ $integration.name | upper | replace "-" "_" }}FLUENTD_MEMORY_LIMIT{{ "}" }}
+              memory: {{ "${" }}{{ $integration.name | upper | replace "-" "_" }}_FLUENTD_MEMORY_LIMIT{{ "}" }}
               {{- end }}
             {{- end }}
             {{- if $integration.fluentdResources.requests }}
             requests:
               {{- if $integration.fluentdResources.requests.cpu }}
-              cpu: {{ "${" }}{{ $integration.name | upper | replace "-" "_" }}FLUENTD_CPU_REQUEST{{ "}" }}
+              cpu: {{ "${" }}{{ $integration.name | upper | replace "-" "_" }}_FLUENTD_CPU_REQUEST{{ "}" }}
               {{- end }}
               {{- if $integration.fluentdResources.requests.memory }}
-              memory: {{ "${" }}{{ $integration.name | upper | replace "-" "_" }}FLUENTD_MEMORY_REQUEST{{ "}" }}
+              memory: {{ "${" }}{{ $integration.name | upper | replace "-" "_" }}_FLUENTD_MEMORY_REQUEST{{ "}" }}
               {{- end }}
             {{- end }}
           {{- else }}
