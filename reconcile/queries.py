@@ -262,6 +262,16 @@ INTEGRATIONS_QUERY = """
             memory
           }
         }
+        fluentdResources {
+          requests {
+            cpu
+            memory
+          }
+          limits {
+            cpu
+            memory
+          }
+        }
         shards
         shardingStrategy
         sleepDurationSecs
