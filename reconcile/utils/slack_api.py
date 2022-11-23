@@ -134,6 +134,10 @@ class SlackApiConfig:
 
     @classmethod
     def from_client_config(cls, config_data: SupportsClientConfig) -> SlackApiConfig:
+        """Initiate a SlackApiConfig instance via user-defined config class (e.g. GQL class).
+
+        The config class must implement the `SupportsClientConfig` protocol.
+        """
         config: dict[str, Union[list[dict[str, str]], dict[str, Optional[int]]]] = {}
         if config_data.q_global:
             config["global"] = config_data.q_global.dict()

@@ -97,6 +97,7 @@ def get_slackapi(
     client_config: Optional[SupportsClientConfig] = None,
     init_usergroups: bool = True,
 ) -> SlackApi:
+    """Initiate a SlackApi instance."""
     if client_config:
         api_config = SlackApiConfig.from_client_config(client_config)
     else:
