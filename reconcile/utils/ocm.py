@@ -52,6 +52,7 @@ AUTOSCALE_DESIRED_KEYS = {"min_replicas", "max_replicas"}
 CLUSTER_ADDON_DESIRED_KEYS = {"id", "parameters"}
 
 DISABLE_UWM_ATTR = "disable_user_workload_monitoring"
+CLUSTER_ADMIN_LABEL_KEY = "capability.cluster.manage_cluster_admin"
 BYTES_IN_GIGABYTE = 1024**3
 REQUEST_TIMEOUT_SEC = 60
 
@@ -1023,10 +1024,7 @@ class OCM:  # pylint: disable=too-many-public-methods
         subcription_labels = self._get_json(api).get("items")
 
         for sl in subcription_labels:
-            if (
-                sl["key"] == "capability.cluster.manage_cluster_admin"
-                and sl["value"] == "true"
-            ):
+            if sl["key"] == CLUSTER_ADMIN_LABEL_KEY and sl["value"] == "true":
                 return True
 
         return False
@@ -1034,7 +1032,7 @@ class OCM:  # pylint: disable=too-many-public-methods
     def enable_cluster_admin(self, cluster: str):
         api = self._get_subscription_labels_api(cluster)
         data = {
-            "key": "capability.cluster.manage_cluster_admin",
+            "key": CLUSTER_ADMIN_LABEL_KEY,
             "value": "true",
             "internal": "true",
         }
