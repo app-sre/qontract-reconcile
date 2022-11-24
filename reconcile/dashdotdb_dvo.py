@@ -1,5 +1,6 @@
 from dataclasses import dataclass
-from typing import Any, Optional, Sequence, Mapping, Generator
+from typing import Any, Optional
+from collections.abc import Generator, Sequence, Mapping
 import requests
 from requests import Response
 
