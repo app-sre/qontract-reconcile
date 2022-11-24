@@ -1,3 +1,7 @@
+from reconcile.utils.mr.ocm_update_recommended_version import (
+    CreateOCMUpdateRecommendedVersion,
+)
+
 from reconcile.utils.mr.base import MergeRequestBase
 from reconcile.utils.mr.base import MergeRequestProcessingError
 
@@ -20,6 +24,7 @@ __all__ = [
     "CreateDeleteAwsAccessKey",
     "CreateClustersUpdates",
     "CreateOCMUpgradeSchedulerOrgUpdates",
+    "CreateOCMUpdateRecommendedVersion",
     "CreateAppInterfaceNotificator",
     "CreateDeleteUser",
     "AutoPromoter",
