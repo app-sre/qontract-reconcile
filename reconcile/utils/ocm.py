@@ -1012,6 +1012,22 @@ class OCM:  # pylint: disable=too-many-public-methods
         )
         self._delete(api)
 
+    def is_cluster_admin_enabled(self, cluster: str) -> bool:
+        cluster_id = self.cluster_ids[cluster]
+        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}"
+        subscription_id = self._get_json(api)["subscription"]["id"]
+        api = f"{AMS_API_BASE}/v1/subscriptions/{subscription_id}/labels"
+        subcription_labels = self._get_json(api).get("items")
+
+        for sl in subcription_labels:
+            if (
+                sl["key"] == "capability.cluster.manage_cluster_admin"
+                and sl["value"] == "true"
+            ):
+                return True
+
+        return False
+
     def get_machine_pools(self, cluster):
         """Returns a list of details of Machine Pools
 

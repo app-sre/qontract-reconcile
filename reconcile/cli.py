@@ -1840,6 +1840,15 @@ def ocm_external_configuration_labels(ctx, thread_pool_size):
     )
 
 
+@integration.command(short_help="Manage Cluster Admin in OCM.")
+@threaded()
+@click.pass_context
+def ocm_cluster_admin(ctx, thread_pool_size):
+    import reconcile.ocm_cluster_admin
+
+    run_integration(reconcile.ocm_cluster_admin, ctx.obj, thread_pool_size)
+
+
 @integration.command(short_help="Manage Machine Pools in OCM.")
 @threaded()
 @click.pass_context
