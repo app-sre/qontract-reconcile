@@ -1015,8 +1015,8 @@ class OCM:  # pylint: disable=too-many-public-methods
     def _get_subscription_labels_api(self, cluster: str) -> str:
         cluster_id = self.cluster_ids[cluster]
         api = f"{CS_API_BASE}/v1/clusters/{cluster_id}"
-        subscription_id = self._get_json(api)["subscription"]["id"]
-        return f"{AMS_API_BASE}/v1/subscriptions/{subscription_id}/labels"
+        subscription_api = self._get_json(api)["subscription"]["href"]
+        return f"{subscription_api}/labels"
 
     def is_cluster_admin_enabled(self, cluster: str) -> bool:
         api = self._get_subscription_labels_api(cluster)
