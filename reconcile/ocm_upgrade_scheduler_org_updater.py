@@ -1,14 +1,35 @@
 import json
 import logging
+import yaml
+from typing import Optional, Any
 
 import reconcile.utils.mr.ocm_upgrade_scheduler_org_updates as ousou
 
 from reconcile import mr_client_gateway
 from reconcile import queries
-from reconcile.utils.ocm import OCMMap
+from reconcile.utils.ocm import OCMMap, OCMSpec
+from reconcile.openshift_resources_base import process_jinja2_template
 
 
 QONTRACT_INTEGRATION = "ocm-upgrade-scheduler-org-updater"
+
+
+def render_policy(
+    template: dict[str, Any],
+    cluster_spec: OCMSpec,
+    labels: dict[str, str],
+    settings: Optional[dict[str, Any]] = None,
+) -> dict[str, Any]:
+    body = template["path"]["content"]
+    type = template.get("type") or "jinja2"
+    extra_curly = type == "extracurlyjinja2"
+    vars = json.loads(template.get("variables") or "{}")
+    vars["cluster"] = cluster_spec
+    vars["labels"] = labels
+    rendered = process_jinja2_template(
+        body, vars, extra_curly=extra_curly, settings=settings
+    )
+    return yaml.safe_load(rendered)
 
 
 def run(dry_run, gitlab_project_id):
@@ -32,7 +53,7 @@ def run(dry_run, gitlab_project_id):
         ocm_path = ocm_info["path"]
         ocm = ocm_map[ocm_name]
 
-        for ocm_cluster_name in ocm.clusters:
+        for ocm_cluster_name, ocm_cluster_spec in ocm.clusters.items():
             found = [
                 c for c in upgrade_policy_clusters if c["name"] == ocm_cluster_name
             ]
@@ -48,10 +69,16 @@ def run(dry_run, gitlab_project_id):
                         logging.info(
                             ["add_cluster", ocm_name, ocm_cluster_name, default_name]
                         )
+                        policy = default["upgradePolicy"]
+                        if not policy:
+                            template = default["upgradePolicyTemplate"]
+                            policy = render_policy(
+                                template, ocm_cluster_spec, ocm_cluster_labels, settings
+                            )
                         item = {
                             "action": "add",
                             "cluster": ocm_cluster_name,
-                            "policy": default["upgradePolicy"],
+                            "policy": policy,
                         }
                         updates.append(item)
                         break
