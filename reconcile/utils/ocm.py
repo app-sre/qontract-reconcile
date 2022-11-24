@@ -1023,7 +1023,7 @@ class OCM:  # pylint: disable=too-many-public-methods
         api = self._get_subscription_labels_api(cluster)
         subcription_labels = self._get_json(api).get("items")
 
-        for sl in subcription_labels:
+        for sl in subcription_labels or []:
             if sl["key"] == CLUSTER_ADMIN_LABEL_KEY and sl["value"] == "true":
                 return True
 
