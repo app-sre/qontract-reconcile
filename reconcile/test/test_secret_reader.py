@@ -24,21 +24,12 @@ def vault_mock():
     return vault_mock
 
 
-def to_dict(secret):
-    return {
-        "path": secret.path,
-        "field": secret.field,
-        "format": secret.q_format,
-        "version": secret.version,
-    }
-
-
 def test_vault_secret_reader_typed_read(vault_mock, vault_secret):
     vault_secret_reader = VaultSecretReader(vault_client=vault_mock)
     result = vault_secret_reader.read_secret(vault_secret)
 
     assert result == VAULT_READ_EXPECTED
-    vault_mock.read.assert_called_once_with(to_dict(vault_secret))
+    vault_mock.read.assert_called_once_with(SecretReader.to_dict(vault_secret))
     vault_mock.read_all.assert_not_called()
 
 
@@ -47,7 +38,7 @@ def test_vault_secret_reader_typed_read_all(vault_mock, vault_secret):
     result = vault_secret_reader.read_all_secret(vault_secret)
 
     assert result == VAULT_READ_ALL_EXPECTED
-    vault_mock.read_all.assert_called_once_with(to_dict(vault_secret))
+    vault_mock.read_all.assert_called_once_with(SecretReader.to_dict(vault_secret))
     vault_mock.read.assert_not_called()
 
 
@@ -61,7 +52,7 @@ def test_vault_secret_reader_parameters_read(vault_mock, vault_secret):
     )
 
     assert result == VAULT_READ_EXPECTED
-    vault_mock.read.assert_called_once_with(to_dict(vault_secret))
+    vault_mock.read.assert_called_once_with(SecretReader.to_dict(vault_secret))
     vault_mock.read_all.assert_not_called()
 
 
@@ -75,7 +66,7 @@ def test_vault_secret_reader_parameters_read_all(vault_mock, vault_secret):
     )
 
     assert result == VAULT_READ_ALL_EXPECTED
-    vault_mock.read_all.assert_called_once_with(to_dict(vault_secret))
+    vault_mock.read_all.assert_called_once_with(SecretReader.to_dict(vault_secret))
     vault_mock.read.assert_not_called()
 
 
@@ -86,7 +77,7 @@ def test_vault_secret_reader_raises(vault_mock, vault_secret, patch_sleep):
     with pytest.raises(SecretNotFound):
         vault_secret_reader.read_secret(vault_secret)
 
-    vault_mock.read.assert_called_with(to_dict(vault_secret))
+    vault_mock.read.assert_called_with(SecretReader.to_dict(vault_secret))
     vault_mock.read_all.assert_not_called()
 
 

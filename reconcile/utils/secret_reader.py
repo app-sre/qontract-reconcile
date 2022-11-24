@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Optional, Protocol
+from typing import Any, Optional, Protocol, Union
 from collections.abc import Mapping
 
 from hvac.exceptions import Forbidden
@@ -112,6 +112,16 @@ class SecretReaderBase(ABC):
             "field": field,
             "format": format,
             "version": version,
+        }
+
+    @staticmethod
+    def to_dict(secret: SupportsSecret) -> dict[str, Union[str, int, None]]:
+        """Convenient method to convert Secret class to dictionary."""
+        return {
+            "path": secret.path,
+            "field": secret.field,
+            "format": secret.q_format,
+            "version": secret.version,
         }
 
 
