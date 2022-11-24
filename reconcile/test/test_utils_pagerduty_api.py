@@ -2,7 +2,6 @@ from datetime import datetime as dt
 from typing import Optional
 from unittest.mock import Mock, create_autospec
 
-import pypd
 from pydantic import BaseModel
 import pytest
 
