@@ -1,28 +1,65 @@
-import datetime
+from datetime import datetime as dt
+import logging
+from typing import Callable
+from typing import Iterable
+from typing import Optional
+from typing import Protocol
 
-import requests
 import pypd
+import requests
+from pydantic import BaseModel
+from sretoolbox.utils import retry
 
 from reconcile.utils.secret_reader import SecretReader
+from reconcile.utils.secret_reader import SupportsSecret
+
+
+class PagerDutyTargetException(Exception):
+    ...
+
+
+class SupportsPagerDutyInstance(Protocol):
+    name: str
+
+    @property
+    def token(self) -> SupportsSecret:
+        ...
+
+
+class SupportsUser(Protocol):
+    org_username: str
+    pagerduty_username: Optional[str]
+
+
+class SupportsPagerDutyTarget(Protocol):
+    name: str
+    instance: SupportsPagerDutyInstance
+    escalation_policy_id: Optional[str]
+    schedule_id: Optional[str]
+
+
+class PagerDutyConfig(BaseModel):
+    name: str
+    token: str
 
 
 class PagerDutyApi:
     """Wrapper around PagerDuty API calls"""
 
-    def __init__(self, token, init_users=True, settings=None):
-        secret_reader = SecretReader(settings=settings)
-        pd_api_key = secret_reader.read(token)
-        pypd.api_key = pd_api_key
+    def __init__(self, token: str, init_users: bool = True) -> None:
+        pypd.api_key = token
         if init_users:
             self.init_users()
         else:
-            self.users = []
+            self.users: list[pypd.User] = []
 
-    def init_users(self):
+    def init_users(self) -> None:
         self.users = pypd.User.find()
 
-    def get_pagerduty_users(self, resource_type, resource_id):
-        now = datetime.datetime.utcnow()
+    def get_pagerduty_users(
+        self, resource_type: str, resource_id: str
+    ) -> list[pypd.User]:
+        now = dt.utcnow()
 
         try:
             if resource_type == "schedule":
@@ -30,11 +67,11 @@ class PagerDutyApi:
             elif resource_type == "escalationPolicy":
                 users = self.get_escalation_policy_users(resource_id, now)
         except requests.exceptions.HTTPError:
-            return None
+            return []
 
         return users
 
-    def get_user(self, user_id):
+    def get_user(self, user_id: str) -> str:
         for user in self.users:
             if user.id == user_id:
                 return user.email.split("@")[0]
@@ -44,7 +81,7 @@ class PagerDutyApi:
         self.users.append(user)
         return user.email.split("@")[0]
 
-    def get_schedule_users(self, schedule_id, now):
+    def get_schedule_users(self, schedule_id: str, now: dt) -> list[pypd.User]:
         s = pypd.Schedule.fetch(id=schedule_id, since=now, until=now, time_zone="UTC")
         entries = s["final_schedule"]["rendered_schedule_entries"]
 
@@ -54,7 +91,9 @@ class PagerDutyApi:
             if not entry["user"].get("deleted_at")
         ]
 
-    def get_escalation_policy_users(self, escalation_policy_id, now):
+    def get_escalation_policy_users(
+        self, escalation_policy_id: str, now: dt
+    ) -> list[pypd.User]:
         ep = pypd.EscalationPolicy.fetch(
             id=escalation_policy_id, since=now, until=now, time_zone="UTC"
         )
@@ -79,15 +118,17 @@ class PagerDutyApi:
 class PagerDutyMap:
     """A collection of PagerDutyApi instances per PagerDuty instance"""
 
-    def __init__(self, instances, init_users: bool = True, settings=None):
-        self.pd_apis = {}
+    def __init__(
+        self,
+        instances: list[PagerDutyConfig],
+        init_users: bool = True,
+        pager_duty_api_class: type[PagerDutyApi] = PagerDutyApi,
+    ) -> None:
+        self.pd_apis: dict[str, PagerDutyApi] = {}
         for i in instances:
-            name = i["name"]
-            token = i["token"]
-            pd_api = PagerDutyApi(token, init_users=init_users, settings=settings)
-            self.pd_apis[name] = pd_api
+            self.pd_apis[i.name] = pager_duty_api_class(i.token, init_users=init_users)
 
-    def get(self, name):
+    def get(self, name: str) -> PagerDutyApi:
         """Get PagerDutyApi by instance name
 
         Args:
@@ -96,4 +137,77 @@ class PagerDutyMap:
         Returns:
             PagerDutyApi: PagerDutyApi instance
         """
-        return self.pd_apis.get(name)
+        return self.pd_apis[name]
+
+
+def get_pagerduty_map(
+    secret_reader: SecretReader,
+    pagerduty_instances: Iterable[SupportsPagerDutyInstance],
+    init_users: bool = True,
+    pager_duty_api_class: type[PagerDutyApi] = PagerDutyApi,
+) -> PagerDutyMap:
+    """Initiate a PagerDutyMap for given PagerDuty instances."""
+    return PagerDutyMap(
+        instances=[
+            PagerDutyConfig(name=i.name, token=secret_reader.read_secret(i.token))
+            for i in pagerduty_instances
+        ],
+        init_users=init_users,
+        pager_duty_api_class=pager_duty_api_class,
+    )
+
+
+def get_pagerduty_name(user: SupportsUser) -> str:
+    return user.pagerduty_username or user.org_username
+
+
+@retry(no_retry_exceptions=PagerDutyTargetException)
+def get_usernames_from_pagerduty(
+    pagerduties: Iterable[SupportsPagerDutyTarget],
+    users: Iterable[SupportsUser],
+    usergroup: str,
+    pagerduty_map: PagerDutyMap,
+    get_username_method: Callable[[SupportsUser], str] = get_pagerduty_name,
+) -> list[str]:
+    """Return usernames from all given PagerDuty targets."""
+    all_output_usernames = []
+    all_pagerduty_names = [get_pagerduty_name(u) for u in users]
+    for pagerduty in pagerduties:
+        if pagerduty.schedule_id is None and pagerduty.escalation_policy_id is None:
+            raise PagerDutyTargetException(
+                f"pagerduty {pagerduty.name}: Either schedule_id or escalation_policy_id must be set!"
+            )
+        if pagerduty.schedule_id is not None:
+            pd_resource_type = "schedule"
+            pd_resource_id = pagerduty.schedule_id
+        if pagerduty.escalation_policy_id is not None:
+            pd_resource_type = "escalationPolicy"
+            pd_resource_id = pagerduty.escalation_policy_id
+
+        pd = pagerduty_map.get(pagerduty.instance.name)
+        pagerduty_names = pd.get_pagerduty_users(pd_resource_type, pd_resource_id)
+        if not pagerduty_names:
+            continue
+        pagerduty_names = [
+            name.split("+", 1)[0] for name in pagerduty_names if "nobody" not in name
+        ]
+        if not pagerduty_names:
+            continue
+        all_output_usernames += [
+            get_username_method(u)
+            for u in users
+            if get_pagerduty_name(u) in pagerduty_names
+        ]
+        not_found_pagerduty_names = [
+            pagerduty_name
+            for pagerduty_name in pagerduty_names
+            if pagerduty_name not in all_pagerduty_names
+        ]
+        if not_found_pagerduty_names:
+            msg = (
+                f"[{usergroup}] PagerDuty username not found in app-interface: {not_found_pagerduty_names}"
+                " (hint: user files should contain pagerduty_username if it is different than org_username)"
+            )
+            logging.warning(msg)
+
+    return all_output_usernames

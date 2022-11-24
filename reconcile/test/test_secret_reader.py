@@ -3,7 +3,6 @@ import pytest
 
 import reconcile.utils.secret_reader
 from reconcile.utils import vault
-from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.utils.secret_reader import (
     ConfigSecretReader,
     SecretReader,
@@ -23,16 +22,6 @@ def vault_mock():
     vault_mock.read.side_effect = [VAULT_READ_EXPECTED] * 100
     vault_mock.read_all.side_effect = [VAULT_READ_ALL_EXPECTED] * 100
     return vault_mock
-
-
-@pytest.fixture
-def vault_secret():
-    return VaultSecret(
-        path="path/test",
-        field="key",
-        format=None,
-        version=None,
-    )
 
 
 def to_dict(secret):
