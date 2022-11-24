@@ -1535,6 +1535,22 @@ def slack_usergroup(ctx, workspace, usergroup, username):
     slack.update_usergroup_users(ugid, users)
 
 
+@set.command()
+@click.argument("org_name")
+@click.argument("cluster_name")
+@click.pass_context
+def cluster_admin(ctx, org_name, cluster_name):
+    settings = queries.get_app_interface_settings()
+    ocms = [
+        o for o in queries.get_openshift_cluster_managers() if o["name"] == org_name
+    ]
+    ocm_map = OCMMap(ocms=ocms, settings=settings)
+    ocm = ocm_map[org_name]
+    enabled = ocm.is_cluster_admin_enabled(cluster_name)
+    if not enabled:
+        ocm.enable_cluster_admin(cluster_name)
+
+
 @root.group()
 @environ(["APP_INTERFACE_STATE_BUCKET", "APP_INTERFACE_STATE_BUCKET_ACCOUNT"])
 @click.pass_context
