@@ -13,12 +13,12 @@ from reconcile.cna.assets.asset import (
 from reconcile.cna.assets.aws_utils import aws_role_arn_for_module
 from reconcile.gql_definitions.cna.queries.cna_resources import (
     CNARDSInstanceV1,
-    CNARDSInstanceConfig,
+    CNARDSInstanceDefaultsV1,
 )
 
 
 @dataclass(frozen=True, config=AssetModelConfig)
-class AWSRDSAsset(Asset[CNARDSInstanceV1, CNARDSInstanceConfig]):
+class AWSRDSAsset(Asset[CNARDSInstanceV1, CNARDSInstanceDefaultsV1]):
     identifier: str = Field(alias="identifier")
     vpc_id: str = Field(alias="vpc_id")
     role_arn: str = Field(alias="role_arn")
@@ -51,29 +51,12 @@ class AWSRDSAsset(Asset[CNARDSInstanceV1, CNARDSInstanceConfig]):
     @classmethod
     def from_query_class(cls, asset: CNARDSInstanceV1) -> Asset:
         config = cls.aggregate_config(asset)
-        if config.vpc is None:
-            raise AssetError("Missing VPC configuration for asset")
 
         aws_cna_cfg = config.vpc.account.cna
         role_arn = aws_role_arn_for_module(aws_cna_cfg, AssetType.AWS_RDS.value)
         if role_arn is None:
             raise AssetError(
                 f"No CNA roles configured for AWS account {config.vpc.account.name}"
-            )
-
-        if not (db_subnet_group_name := config.db_subnet_group_name):
-            raise AssetError(
-                f"No db_subnet_group_name provided for RDS instance {asset.identifier}"
-            )
-        if not (instance_class := config.instance_class):
-            raise AssetError(
-                f"No instance_class provided for RDS instance {asset.identifier}"
-            )
-        if not (engine := config.engine):
-            raise AssetError(f"No engine provided for RDS instance {asset.identifier}")
-        if not (max_allocated_storage := config.max_allocated_storage):
-            raise AssetError(
-                f"No max_allocated_storage provided for RDS instance {asset.identifier}"
             )
 
         return AWSRDSAsset(
@@ -85,12 +68,13 @@ class AWSRDSAsset(Asset[CNARDSInstanceV1, CNARDSInstanceConfig]):
             identifier=asset.name or asset.identifier,
             vpc_id=config.vpc.vpc_id,
             role_arn=role_arn,
-            db_subnet_group_name=db_subnet_group_name,
-            engine=engine,
+            db_subnet_group_name=config.db_subnet_group_name,
+            engine=config.engine,
             engine_version=config.engine_version,
-            instance_class=instance_class,
+            major_engine_version=config.engine_version.split(".")[0],
+            instance_class=config.instance_class,
             allocated_storage=str(config.allocated_storage),
-            max_allocated_storage=str(max_allocated_storage),
+            max_allocated_storage=str(config.max_allocated_storage),
             region=config.vpc.region,
             backup_retention_period=config.backup_retention_period,
             backup_window=None,

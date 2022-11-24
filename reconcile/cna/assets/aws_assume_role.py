@@ -13,12 +13,12 @@ from reconcile.cna.assets.asset import (
 from reconcile.cna.assets.aws_utils import aws_role_arn_for_module
 from reconcile.gql_definitions.cna.queries.cna_resources import (
     CNAAssumeRoleAssetV1,
-    CNAAssumeRoleAssetConfig,
+    CNAAssumeRoleAssetConfigV1,
 )
 
 
 @dataclass(frozen=True, config=AssetModelConfig)
-class AWSAssumeRoleAsset(Asset[CNAAssumeRoleAssetV1, CNAAssumeRoleAssetConfig]):
+class AWSAssumeRoleAsset(Asset[CNAAssumeRoleAssetV1, CNAAssumeRoleAssetConfigV1]):
     verify_slug: Optional[str] = Field(None, alias="verify-slug")
     role_arn: str = Field(alias="role_arn")
 

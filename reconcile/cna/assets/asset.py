@@ -238,27 +238,32 @@ class Asset(ABC, Generic[AssetQueryClass, ConfigClass]):
         return get_args(cls.__orig_bases__[0])[1]  # type: ignore[attr-defined]
 
     @classmethod
-    def _get_config(
-        cls, attribute: str, spec: AssetQueryClass
-    ) -> Optional[ConfigClass]:
-        if not (configs := getattr(spec, attribute, None)):
+    def _get_defaults(cls, spec: AssetQueryClass) -> Optional[ConfigClass]:
+        if not (configs := getattr(spec, "defaults", None)):
             return None
         config_class = cls._get_config_class_type()
         if isinstance(configs, config_class):
             return configs
         else:
             raise AssetError(
-                f"{attribute} for asset {spec.provider}:{spec.identifier} are not of expected type {config_class}"
+                f"defaults for asset {spec.provider}:{spec.identifier} are not of expected type {config_class}"
             )
 
     @classmethod
+    def _get_overrides(cls, spec: AssetQueryClass) -> dict[str, Any]:
+        overrides = getattr(spec, "overrides", None)
+        if overrides and isinstance(overrides, dict):
+            return overrides
+        else:
+            return {}
+
+    @classmethod
     def aggregate_config(cls, spec: AssetQueryClass) -> ConfigClass:
-        defaults = cls._get_config("defaults", spec)
-        overrides = cls._get_config("overrides", spec)
+        defaults = cls._get_defaults(spec)
+        overrides = cls._get_overrides(spec)
         config_class = cls._get_config_class_type()
         data = {
-            property: getattr(overrides, property, None)
-            or getattr(defaults, property, None)
+            property: overrides.get(property) or getattr(defaults, property, None)
             for property in config_class.__annotations__.keys()
         }
         return config_class(**data)

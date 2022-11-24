@@ -1,5 +1,0 @@
-# qenerate: plugin=pydantic_v1
-
-fragment CNAAssumeRoleAssetConfig on CNAAssumeRoleAssetConfig_v1 {
-  slug
-}

@@ -7,7 +7,8 @@ from typing import (
     Optional,
 )
 from unittest.mock import create_autospec
-
+from pytest import fixture
+import json
 import pytest
 from pytest import fixture
 
@@ -26,7 +27,6 @@ from reconcile.cna.assets.null import NullAsset
 from reconcile.cna.state import State
 from reconcile.gql_definitions.cna.queries.cna_resources import (
     CNANullAssetV1,
-    CNANullAssetConfig,
     ExternalResourcesProvisionerV1,
     NamespaceCNAssetV1,
     ClusterV1,
@@ -190,8 +190,10 @@ def test_integration_assemble_current_states(
                         CNANullAssetV1(
                             provider="null-asset",
                             identifier="test",
-                            overrides=CNANullAssetConfig(
-                                addr_block="123",
+                            overrides=json.dumps(
+                                {
+                                    "addr_block": "123",
+                                }
                             ),
                             defaults=None,
                         )
@@ -212,8 +214,10 @@ def test_integration_assemble_current_states(
                         CNANullAssetV1(
                             provider="null-asset",
                             identifier="test",
-                            overrides=CNANullAssetConfig(
-                                addr_block="123",
+                            overrides=json.dumps(
+                                {
+                                    "addr_block": "123",
+                                }
                             ),
                             defaults=None,
                         ),
