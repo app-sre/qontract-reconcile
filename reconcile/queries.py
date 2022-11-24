@@ -1177,6 +1177,19 @@ OCM_QUERY = """
         }
       }
     }
+    inheritVersionHistory {
+      upgradePolicyClusters {
+        name
+        upgradePolicy {
+          workloads
+          schedule
+          conditions {
+            soakDays
+            mutexes
+          }
+        }
+      }
+    }
   }
 }
 """

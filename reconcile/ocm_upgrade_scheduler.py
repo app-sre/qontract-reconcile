@@ -461,3 +461,16 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
     version_history = get_version_history(dry_run, desired_state, ocm_map)
     diffs = calculate_diff(current_state, desired_state, ocm_map, version_history)
     act(dry_run, diffs, ocm_map)
+
+def get_inherit_version_history():
+    ocms = queries.get_openshift_cluster_managers()
+    for ocm_info in ocms:
+
+        inherit_version_history = ocm_info.get("inheritVersionHistory")
+
+        if inherit_version_history:
+            # fancy logic here to then feed into logic that deals with soak days
+            logging.debug("the history is not null it's this")
+            logging.debug(inherit_version_history)
+        else:
+            continue
