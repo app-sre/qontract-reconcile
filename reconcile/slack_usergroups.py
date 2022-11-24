@@ -1,8 +1,13 @@
 import logging
+from collections.abc import (
+    Callable,
+    Iterable,
+)
 from datetime import datetime
 from typing import (
     Any,
     Optional,
+    Union,
 )
 from urllib.parse import urlparse
 
@@ -10,13 +15,29 @@ from github.GithubException import UnknownObjectException
 from pydantic import BaseModel
 from sretoolbox.utils import retry
 
-import reconcile.utils.pagerduty_api
 from reconcile import queries
-from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
-from reconcile.slack_base import slackapi_from_permissions
+from reconcile.gql_definitions.common.pagerduty_instances import (
+    query as pagerduty_instances_query,
+)
+from reconcile.gql_definitions.common.users import User
+from reconcile.gql_definitions.common.users import query as users_query
+from reconcile.gql_definitions.slack_usergroups.permissions import (
+    PagerDutyTargetV1,
+    PermissionSlackUsergroupV1,
+    ScheduleEntryV1,
+)
+from reconcile.gql_definitions.slack_usergroups.permissions import (
+    query as permissions_query,
+)
+from reconcile.slack_base import get_slackapi
+from reconcile.utils import gql
+from reconcile.utils.exceptions import AppInterfaceSettingsError
 from reconcile.utils.github_api import GithubApi
 from reconcile.utils.gitlab_api import GitLabApi
-from reconcile.utils.pagerduty_api import PagerDutyMap
+from reconcile.utils.pagerduty_api import (
+    PagerDutyMap,
+    get_pagerduty_map,
+)
 from reconcile.utils.repo_owners import RepoOwners
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.slack_api import (
@@ -29,64 +50,76 @@ DATE_FORMAT = "%Y-%m-%d %H:%M"
 QONTRACT_INTEGRATION = "slack-usergroups"
 
 
-class GitApi:
-    def __new__(cls, url: str, *args, **kwargs):
-        parsed_url = urlparse(url)
-        settings = queries.get_app_interface_settings()
+def get_git_api(url: str) -> Union[GithubApi, GitLabApi]:
+    parsed_url = urlparse(url)
+    settings = queries.get_app_interface_settings()
 
-        if parsed_url.hostname:
-            if "github" in parsed_url.hostname:
-                instance = queries.get_github_instance()
-                return GithubApi(instance, repo_url=url, settings=settings)
-            if "gitlab" in parsed_url.hostname:
-                instance = queries.get_gitlab_instance()
-                return GitLabApi(instance, project_url=url, settings=settings)
+    if parsed_url.hostname:
+        if "github" in parsed_url.hostname:
+            instance = queries.get_github_instance()
+            return GithubApi(instance, repo_url=url, settings=settings)
+        if "gitlab" in parsed_url.hostname:
+            instance = queries.get_gitlab_instance()
+            return GitLabApi(instance, project_url=url, settings=settings)
 
-        raise ValueError(f"Unable to handle URL: {url}")
+    raise ValueError(f"Unable to handle URL: {url}")
 
 
-SlackState = dict[str, dict[str, dict[str, Any]]]
-SlackMap = dict[str, dict[str, Any]]
+class SlackObject(BaseModel):
+    pk: str
+    name: str
+
+    def __hash__(self) -> int:
+        return hash(self.pk)
+
+
+class State(BaseModel):
+    workspace: str = ""
+    usergroup: str = ""
+    description: str = ""
+    users: set[SlackObject] = set()
+    channels: set[SlackObject] = set()
+    usergroup_id: str = ""
+
+    def __bool__(self) -> bool:
+        return self.workspace != ""
+
+
+SlackState = dict[str, dict[str, State]]
+
+
+class WorkspaceSpec(BaseModel):
+    slack: SlackApi
+    managed_usergroups: list[str] = []
+
+    class Config:
+        arbitrary_types_allowed = True
+
+
+SlackMap = dict[str, WorkspaceSpec]
 
 
 def get_slack_map(
-    secret_reader: SecretReader, desired_workspace_name: Optional[str]
+    secret_reader: SecretReader,
+    permissions: list[PermissionSlackUsergroupV1],
+    desired_workspace_name: Optional[str] = None,
 ) -> SlackMap:
-    permissions = queries.get_permissions_for_slack_usergroup()
     slack_map = {}
     for sp in permissions:
-        workspace = sp["workspace"]
-        if desired_workspace_name and desired_workspace_name != workspace["name"]:
+        if desired_workspace_name and desired_workspace_name != sp.workspace.name:
             continue
-        workspace_name = workspace["name"]
-        if workspace_name in slack_map:
+        if sp.workspace.name in slack_map:
             continue
 
-        workspace_spec = {
-            "slack": slackapi_from_permissions(sp, secret_reader),
-            "managed_usergroups": workspace["managedUsergroups"],
-        }
-        slack_map[workspace_name] = workspace_spec
+        slack_map[sp.workspace.name] = WorkspaceSpec(
+            slack=get_slackapi(
+                workspace_name=sp.workspace.name,
+                token=secret_reader.read_secret(sp.workspace.token),
+                client_config=sp.workspace.api_client,
+            ),
+            managed_usergroups=sp.workspace.managed_usergroups,
+        )
     return slack_map
-
-
-def get_pagerduty_map(init_users: bool = True) -> PagerDutyMap:
-    # This is just an interim implementation and this
-    # method will be deleted later - APPSRE-6592
-    instances = queries.get_pagerduty_instances()
-    secret_reader = SecretReader(queries.get_secret_reader_settings())
-
-    class PagerDutyInstance(BaseModel):
-        name: str
-        token: VaultSecret
-
-    return reconcile.utils.pagerduty_api.get_pagerduty_map(
-        secret_reader=secret_reader,
-        pagerduty_instances=[
-            PagerDutyInstance(name=i["name"], token=i["token"]) for i in instances
-        ],
-        init_users=init_users,
-    )
 
 
 def get_current_state(
@@ -109,51 +142,53 @@ def get_current_state(
     for workspace, spec in slack_map.items():
         if desired_workspace_name and desired_workspace_name != workspace:
             continue
-        slack: SlackApi = spec["slack"]
-        managed_usergroups = spec["managed_usergroups"]
-        for ug in managed_usergroups:
+
+        for ug in spec.managed_usergroups:
             if desired_usergroup_name and desired_usergroup_name != ug:
                 continue
             try:
-                users, channels, description = slack.describe_usergroup(ug)
+                users, channels, description = spec.slack.describe_usergroup(ug)
             except UsergroupNotFoundException:
                 continue
-            current_state.setdefault(workspace, {})[ug] = {
-                "workspace": workspace,
-                "usergroup": ug,
-                "users": users,
-                "channels": channels,
-                "description": description,
-            }
+            current_state.setdefault(workspace, {})[ug] = State(
+                workspace=workspace,
+                usergroup=ug,
+                users={SlackObject(pk=pk, name=name) for pk, name in users.items()},
+                channels={
+                    SlackObject(pk=pk, name=name) for pk, name in channels.items()
+                },
+                description=description,
+            )
 
     return current_state
 
 
-def get_slack_username(user):
-    return user["slack_username"] or user["org_username"]
+def get_slack_username(user: User) -> str:
+    return user.slack_username or user.org_username
 
 
-def get_pagerduty_name(user):
-    return user["pagerduty_username"] or user["org_username"]
+def get_pagerduty_name(user: User) -> str:
+    return user.pagerduty_username or user.org_username
 
 
 @retry()
 def get_usernames_from_pagerduty(
-    pagerduties, users, usergroup, pagerduty_map, get_username_method
-):
+    pagerduties: Iterable[PagerDutyTargetV1],
+    users: Iterable[User],
+    usergroup: str,
+    pagerduty_map: PagerDutyMap,
+) -> list[str]:
     all_output_usernames = []
     all_pagerduty_names = [get_pagerduty_name(u) for u in users]
-    for pagerduty in pagerduties or []:
-        pd_schedule_id = pagerduty["scheduleID"]
-        if pd_schedule_id is not None:
+    for pagerduty in pagerduties:
+        if pagerduty.schedule_id is not None:
             pd_resource_type = "schedule"
-            pd_resource_id = pd_schedule_id
-        pd_escalation_policy_id = pagerduty["escalationPolicyID"]
-        if pd_escalation_policy_id is not None:
+            pd_resource_id = pagerduty.schedule_id
+        if pagerduty.escalation_policy_id is not None:
             pd_resource_type = "escalationPolicy"
-            pd_resource_id = pd_escalation_policy_id
+            pd_resource_id = pagerduty.escalation_policy_id
 
-        pd = pagerduty_map.get(pagerduty["instance"]["name"])
+        pd = pagerduty_map.get(pagerduty.instance.name)
         pagerduty_names = pd.get_pagerduty_users(pd_resource_type, pd_resource_id)
         if not pagerduty_names:
             continue
@@ -163,7 +198,7 @@ def get_usernames_from_pagerduty(
         if not pagerduty_names:
             continue
         output_usernames = [
-            get_username_method(u)
+            get_slack_username(u)
             for u in users
             if get_pagerduty_name(u) in pagerduty_names
         ]
@@ -174,10 +209,9 @@ def get_usernames_from_pagerduty(
         ]
         if not_found_pagerduty_names:
             msg = (
-                "[{}] PagerDuty username not found in app-interface: {} "
-                "(hint: user files should contain "
-                "pagerduty_username if it is different than org_username)"
-            ).format(usergroup, not_found_pagerduty_names)
+                f"[{usergroup}] PagerDuty username not found in app-interface: {not_found_pagerduty_names}"
+                " (hint: user files should contain pagerduty_username if it is different than org_username)"
+            )
             logging.warning(msg)
         all_output_usernames.extend(output_usernames)
 
@@ -185,10 +219,12 @@ def get_usernames_from_pagerduty(
 
 
 @retry(max_attempts=10)
-def get_slack_usernames_from_owners(owners_from_repo, users, usergroup):
-    if owners_from_repo is None:
-        return []
-
+def get_slack_usernames_from_owners(
+    owners_from_repo: Iterable[str],
+    users: Iterable[User],
+    usergroup: str,
+    repo_owner_class: type[RepoOwners] = RepoOwners,
+) -> list[str]:
     all_slack_usernames = []
 
     for url_ref in owners_from_repo:
@@ -199,7 +235,7 @@ def get_slack_usernames_from_owners(owners_from_repo, users, usergroup):
             url = url_ref
             ref = "master"
 
-        repo_cli = GitApi(url)
+        repo_cli = get_git_api(url)
 
         if isinstance(repo_cli, GitLabApi):
             user_key = "org_username"
@@ -210,7 +246,7 @@ def get_slack_usernames_from_owners(owners_from_repo, users, usergroup):
         else:
             raise TypeError(f"{type(repo_cli)} not supported")
 
-        repo_owners = RepoOwners(git_cli=repo_cli, ref=ref)
+        repo_owners = repo_owner_class(git_cli=repo_cli, ref=ref)
 
         try:
             owners = repo_owners.get_root_owners()
@@ -223,12 +259,12 @@ def get_slack_usernames_from_owners(owners_from_repo, users, usergroup):
         if not all_owners:
             continue
 
-        all_username_keys = [u[user_key] for u in users]
+        all_username_keys = [getattr(u, user_key) for u in users]
 
         slack_usernames = [
             get_slack_username(u)
             for u in users
-            if u[user_key].lower() in [o.lower() for o in all_owners]
+            if getattr(u, user_key).lower() in [o.lower() for o in all_owners]
         ]
         not_found_users = [
             owner
@@ -247,179 +283,157 @@ def get_slack_usernames_from_owners(owners_from_repo, users, usergroup):
     return all_slack_usernames
 
 
-def get_slack_usernames_from_schedule(schedule):
-    if schedule is None:
-        return []
+def get_slack_usernames_from_schedule(schedule: Iterable[ScheduleEntryV1]) -> list[str]:
     now = datetime.utcnow()
-    all_slack_usernames = []
-    for entry in schedule["schedule"]:
-        start = datetime.strptime(entry["start"], DATE_FORMAT)
-        end = datetime.strptime(entry["end"], DATE_FORMAT)
+    all_slack_usernames: list[str] = []
+    for entry in schedule:
+        start = datetime.strptime(entry.start, DATE_FORMAT)
+        end = datetime.strptime(entry.end, DATE_FORMAT)
         if start <= now <= end:
-            all_slack_usernames.extend(get_slack_username(u) for u in entry["users"])
+            all_slack_usernames.extend(get_slack_username(u) for u in entry.users)
     return all_slack_usernames
 
 
 def get_desired_state(
     slack_map: SlackMap,
     pagerduty_map: PagerDutyMap,
+    permissions: list[PermissionSlackUsergroupV1],
+    users: Iterable[User],
     desired_workspace_name: Optional[str],
     desired_usergroup_name: Optional[str],
 ) -> SlackState:
-    """
-    Get the desired state of Slack usergroups.
-
-    :param slack_map: Slack data from app-interface
-    :type slack_map: dict
-
-    :param pagerduty_map: PagerDuty instance data
-    :type pagerduty_map: reconcile.utils.pagerduty_api.PagerDutyMap
-
-    :return: current state data, keys are workspace -> usergroup
-                (ex. state['coreos']['app-sre-ic']
-    :rtype: dict
-    """
-    permissions = queries.get_permissions_for_slack_usergroup()
-    all_users = queries.get_users()
-
+    """Get the desired state of Slack usergroups."""
     desired_state: SlackState = {}
     for p in permissions:
-        if p["service"] != "slack-usergroup":
+        if p.skip:
             continue
-        skip_flag = p["skip"]
-        if skip_flag:
-            continue
-        workspace = p["workspace"]
-        managed_usergroups = workspace["managedUsergroups"]
-        if managed_usergroups is None:
+        if not p.workspace.managed_usergroups:
             continue
 
-        workspace_name = workspace["name"]
-        if desired_workspace_name and desired_workspace_name != workspace_name:
+        if desired_workspace_name and desired_workspace_name != p.workspace.name:
             continue
-        usergroup = p["handle"]
+        usergroup = p.handle
         if desired_usergroup_name and desired_usergroup_name != usergroup:
             continue
-        description = p["description"]
-        if usergroup not in managed_usergroups:
+        if usergroup not in p.workspace.managed_usergroups:
             raise KeyError(
-                f"[{workspace_name}] usergroup {usergroup} \
-                    not in managed usergroups {managed_usergroups}"
+                f"[{p.workspace.name}] usergroup {usergroup} \
+                    not in managed usergroups {p.workspace.managed_usergroups}"
             )
 
-        slack: SlackApi = slack_map[workspace_name]["slack"]
+        slack = slack_map[p.workspace.name].slack
         ugid = slack.get_usergroup_id(usergroup)
 
-        all_user_names = [get_slack_username(u) for r in p["roles"] for u in r["users"]]
+        all_user_names = [get_slack_username(u) for r in p.roles or [] for u in r.users]
         slack_usernames_pagerduty = get_usernames_from_pagerduty(
-            p["pagerduty"],
-            all_users,
-            usergroup,
-            pagerduty_map,
-            get_username_method=get_slack_username,
+            pagerduties=p.pagerduty or [],
+            users=users,
+            usergroup=usergroup,
+            pagerduty_map=pagerduty_map,
         )
         all_user_names.extend(slack_usernames_pagerduty)
 
-        slack_usernames_repo = get_slack_usernames_from_owners(
-            p["ownersFromRepos"], all_users, usergroup
-        )
-        all_user_names.extend(slack_usernames_repo)
+        if p.owners_from_repos:
+            slack_usernames_repo = get_slack_usernames_from_owners(
+                p.owners_from_repos, users, usergroup
+            )
+            all_user_names.extend(slack_usernames_repo)
 
-        slack_usernames_schedule = get_slack_usernames_from_schedule(p["schedule"])
-        all_user_names.extend(slack_usernames_schedule)
+        if p.schedule:
+            slack_usernames_schedule = get_slack_usernames_from_schedule(
+                p.schedule.schedule
+            )
+            all_user_names.extend(slack_usernames_schedule)
 
         user_names = list(set(all_user_names))
-        users = slack.get_users_by_names(user_names)
-
-        channel_names = [] if p["channels"] is None else p["channels"]
-        channels = slack.get_channels_by_names(channel_names)
+        slack_users = {
+            SlackObject(pk=pk, name=name)
+            for pk, name in slack.get_users_by_names(sorted(user_names)).items()
+        }
+        slack_channels = {
+            SlackObject(pk=pk, name=name)
+            for pk, name in slack.get_channels_by_names(
+                sorted(p.channels or [])
+            ).items()
+        }
 
         try:
-            desired_state[workspace_name][usergroup]["users"].update(users)
+            desired_state[p.workspace.name][usergroup].users.update(slack_users)
         except KeyError:
-            desired_state.setdefault(workspace_name, {})[usergroup] = {
-                "workspace": workspace_name,
-                "usergroup": usergroup,
-                "usergroup_id": ugid,
-                "users": users,
-                "channels": channels,
-                "description": description,
-            }
+            desired_state.setdefault(p.workspace.name, {})[usergroup] = State(
+                workspace=p.workspace.name,
+                usergroup=usergroup,
+                usergroup_id=ugid,
+                users=slack_users,
+                channels=slack_channels,
+                description=p.description,
+            )
     return desired_state
 
 
 def _create_usergroups(
-    current_ug_state: dict,
-    desired_ug_state: dict,
+    current_ug_state: State,
+    desired_ug_state: State,
     slack_client: SlackApi,
     dry_run: bool = True,
-):
-    """
-    Create Slack usergroups.
-    """
-
-    workspace = desired_ug_state["workspace"]
-    usergroup = desired_ug_state["usergroup"]
-
+) -> None:
+    """Create Slack usergroups."""
     if current_ug_state:
         logging.debug(
-            f"[{workspace}] Usergroup exists and will not be created {usergroup}"
+            f"[{desired_ug_state.workspace}] Usergroup exists and will not be created {desired_ug_state.usergroup}"
         )
         return
 
-    logging.info(["create_usergroup", workspace, usergroup])
+    logging.info(
+        ["create_usergroup", desired_ug_state.workspace, desired_ug_state.usergroup]
+    )
     if not dry_run:
         try:
-            usergroup_id = slack_client.create_usergroup(usergroup)
-            desired_ug_state["usergroup_id"] = usergroup_id
+            usergroup_id = slack_client.create_usergroup(desired_ug_state.usergroup)
+            desired_ug_state.usergroup_id = usergroup_id
         except SlackApiError as error:
             logging.error(error)
 
 
 def _update_usergroup_users_from_state(
-    current_ug_state, desired_ug_state, slack_client, dry_run=True
-):
-    """
-    Update the users in a Slack usergroup.
-
-    :param current_ug_state: current state of usergroup
-    :type current_ug_state: dict
-
-    :param desired_ug_state: desired state of usergroup
-    :type desired_ug_state: dict
-
-    :param slack_client: client for calling Slack API
-    :type slack_client: reconcile.utils.slack_api.SlackApi
-
-    :param dry_run: whether to dryrun or not
-    :type dry_run: bool
-
-    :return: None
-    """
-
-    if current_ug_state.get("users") == desired_ug_state["users"]:
+    current_ug_state: State,
+    desired_ug_state: State,
+    slack_client: SlackApi,
+    dry_run: bool = True,
+) -> None:
+    """Update the users in a Slack usergroup."""
+    if current_ug_state.users == desired_ug_state.users:
         logging.debug(
-            "No usergroup user changes detected for %s", desired_ug_state["usergroup"]
+            f"No usergroup user changes detected for {desired_ug_state.usergroup}"
         )
         return
 
-    workspace = desired_ug_state["workspace"]
-    usergroup = desired_ug_state["usergroup"]
-    ugid = desired_ug_state["usergroup_id"]
-    users = list(desired_ug_state["users"].keys())
+    for user in desired_ug_state.users - current_ug_state.users:
+        logging.info(
+            [
+                "add_user_to_usergroup",
+                desired_ug_state.workspace,
+                desired_ug_state.usergroup,
+                user.name,
+            ]
+        )
 
-    current_users = set(current_ug_state.get("users", {}).values())
-    desired_users = set(desired_ug_state["users"].values())
-
-    for user in desired_users - current_users:
-        logging.info(["add_user_to_usergroup", workspace, usergroup, user])
-
-    for user in current_users - desired_users:
-        logging.info(["del_user_from_usergroup", workspace, usergroup, user])
+    for user in current_ug_state.users - desired_ug_state.users:
+        logging.info(
+            [
+                "del_user_from_usergroup",
+                desired_ug_state.workspace,
+                desired_ug_state.usergroup,
+                user.name,
+            ]
+        )
 
     if not dry_run:
         try:
-            slack_client.update_usergroup_users(ugid, users)
+            slack_client.update_usergroup_users(
+                id=desired_ug_state.usergroup_id,
+                users_list=sorted([user.pk for user in desired_ug_state.users]),
+            )
         except SlackApiError as error:
             # Prior to adding this, we weren't handling failed updates to user
             # groups. Now that we are, it seems like a good idea to start with
@@ -429,120 +443,160 @@ def _update_usergroup_users_from_state(
 
 
 def _update_usergroup_from_state(
-    current_ug_state, desired_ug_state, slack_client, dry_run=True
-):
-    """
-    Update a Slack usergroup.
+    current_ug_state: State,
+    desired_ug_state: State,
+    slack_client: SlackApi,
+    dry_run: bool = True,
+) -> None:
+    """Update a Slack usergroup."""
 
-    :param current_ug_state: current state of usergroup
-    :type current_ug_state: dict
-
-    :param desired_ug_state: desired state of usergroup
-    :type desired_ug_state: dict
-
-    :param slack_client: client for calling Slack API
-    :type slack_client: reconcile.utils.slack_api.SlackApi
-
-    :param dry_run: whether to dryrun or not
-    :type dry_run: bool
-
-    :return: None
-    """
-
-    channels_changed = current_ug_state.get("channels") != desired_ug_state["channels"]
-
-    description_changed = (
-        current_ug_state.get("description") != desired_ug_state["description"]
-    )
-
-    if not channels_changed and not description_changed:
+    if (
+        current_ug_state.channels == desired_ug_state.channels
+        and current_ug_state.description == desired_ug_state.description
+    ):
         logging.debug(
-            "No usergroup channel/description changes detected for %s",
-            desired_ug_state["usergroup"],
+            f"No usergroup channel/description changes detected for {desired_ug_state.usergroup}",
         )
         return
 
-    workspace = desired_ug_state["workspace"]
-    usergroup = desired_ug_state["usergroup"]
-    ugid = desired_ug_state["usergroup_id"]
-    description = desired_ug_state["description"]
-    channels = list(desired_ug_state["channels"].keys())
-
-    current_channels = set(current_ug_state.get("channels", {}).values())
-    desired_channels = set(desired_ug_state["channels"].values())
-
-    for channel in desired_channels - current_channels:
-        logging.info(["add_channel_to_usergroup", workspace, usergroup, channel])
-
-    for channel in current_channels - desired_channels:
-        logging.info(["del_channel_from_usergroup", workspace, usergroup, channel])
-
-    if description_changed:
+    for channel in desired_ug_state.channels - current_ug_state.channels:
         logging.info(
-            ["update_usergroup_description", workspace, usergroup, description]
+            [
+                "add_channel_to_usergroup",
+                desired_ug_state.workspace,
+                desired_ug_state.usergroup,
+                channel.name,
+            ]
+        )
+
+    for channel in current_ug_state.channels - desired_ug_state.channels:
+        logging.info(
+            [
+                "del_channel_from_usergroup",
+                desired_ug_state.workspace,
+                desired_ug_state.usergroup,
+                channel.name,
+            ]
+        )
+
+    if current_ug_state.description != desired_ug_state.description:
+        logging.info(
+            [
+                "update_usergroup_description",
+                desired_ug_state.workspace,
+                desired_ug_state.usergroup,
+                desired_ug_state.description,
+            ]
         )
 
     if not dry_run:
         try:
-            slack_client.update_usergroup(ugid, channels, description)
+            slack_client.update_usergroup(
+                id=desired_ug_state.usergroup_id,
+                channels_list=sorted(
+                    [channel.pk for channel in desired_ug_state.channels]
+                ),
+                description=desired_ug_state.description,
+            )
         except SlackApiError as error:
             logging.error(error)
 
 
-def act(current_state, desired_state, slack_map, dry_run=True):
-    """
-    Reconcile the differences between the desired and current state for
-    Slack usergroups.
-
-    :param current_state: current Slack usergroup state
-    :type current_state: dict
-
-    :param desired_state: desired Slack usergroup state
-    :type desired_state: dict
-
-    :param slack_map: mapping of Slack workspace names to API clients
-    :type slack_map: dict
-
-    :param dry_run: indicates whether to run in dryrun mode or not
-    :type dry_run: bool
-
-    :return: None
-    """
+def act(
+    current_state: SlackState,
+    desired_state: SlackState,
+    slack_map: SlackMap,
+    dry_run: bool = True,
+) -> None:
+    """Reconcile the differences between the desired and current state for
+    Slack usergroups."""
     for workspace, desired_ws_state in desired_state.items():
         for usergroup, desired_ug_state in desired_ws_state.items():
-            current_ug_state = current_state.get(workspace, {}).get(usergroup, {})
-
-            slack_client: SlackApi = slack_map[workspace]["slack"]
+            current_ug_state: State = current_state.get(workspace, {}).get(
+                usergroup, State()
+            )
 
             _create_usergroups(
-                current_ug_state, desired_ug_state, slack_client, dry_run=dry_run
+                current_ug_state,
+                desired_ug_state,
+                slack_client=slack_map[workspace].slack,
+                dry_run=dry_run,
             )
 
             _update_usergroup_users_from_state(
-                current_ug_state, desired_ug_state, slack_client, dry_run=dry_run
+                current_ug_state,
+                desired_ug_state,
+                slack_client=slack_map[workspace].slack,
+                dry_run=dry_run,
             )
 
             _update_usergroup_from_state(
-                current_ug_state, desired_ug_state, slack_client, dry_run=dry_run
+                current_ug_state,
+                desired_ug_state,
+                slack_client=slack_map[workspace].slack,
+                dry_run=dry_run,
             )
 
 
+def query_permissions(query_func: Callable) -> list[PermissionSlackUsergroupV1]:
+    return [
+        p
+        for p in permissions_query(query_func=query_func).permissions
+        if isinstance(p, PermissionSlackUsergroupV1)
+    ]
+
+
 def run(
-    dry_run, workspace_name: Optional[str] = None, usergroup_name: Optional[str] = None
-):
+    dry_run: bool,
+    workspace_name: Optional[str] = None,
+    usergroup_name: Optional[str] = None,
+) -> None:
+    gqlapi = gql.get_api()
     secret_reader = SecretReader(queries.get_secret_reader_settings())
-    slack_map = get_slack_map(secret_reader, workspace_name)
     init_users = False if usergroup_name else True
-    pagerduty_map = get_pagerduty_map(init_users=init_users)
-    desired_state = get_desired_state(
-        slack_map, pagerduty_map, workspace_name, usergroup_name
+
+    # queries
+    permissions = query_permissions(gqlapi.query)
+    pagerduty_instances = pagerduty_instances_query(
+        query_func=gqlapi.query
+    ).pagerduty_instances
+    if not pagerduty_instances:
+        raise AppInterfaceSettingsError("no pagerduty instance(s) configured")
+    users = users_query(query_func=gqlapi.query).users or []
+
+    # APIs
+    slack_map = get_slack_map(
+        secret_reader=secret_reader,
+        permissions=permissions,
+        desired_workspace_name=workspace_name,
     )
-    current_state = get_current_state(slack_map, workspace_name, usergroup_name)
+    pagerduty_map = get_pagerduty_map(
+        secret_reader, pagerduty_instances=pagerduty_instances, init_users=init_users
+    )
 
-    act(current_state, desired_state, slack_map, dry_run)
+    # run
+    desired_state = get_desired_state(
+        slack_map=slack_map,
+        pagerduty_map=pagerduty_map,
+        permissions=permissions,
+        users=users,
+        desired_workspace_name=workspace_name,
+        desired_usergroup_name=usergroup_name,
+    )
+    current_state = get_current_state(
+        slack_map=slack_map,
+        desired_workspace_name=workspace_name,
+        desired_usergroup_name=usergroup_name,
+    )
+    act(
+        current_state=current_state,
+        desired_state=desired_state,
+        slack_map=slack_map,
+        dry_run=dry_run,
+    )
 
 
-def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
+def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
     return {
         "permissions": queries.get_permissions_for_slack_usergroup(),
     }

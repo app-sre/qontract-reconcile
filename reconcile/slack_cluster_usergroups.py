@@ -14,6 +14,10 @@ from reconcile.utils.slack_api import (
 QONTRACT_INTEGRATION = "slack-cluster-usergroups"
 
 
+def get_slack_username(user: dict[str, Any]) -> str:
+    return user["slack_username"] or user["org_username"]
+
+
 def include_user(user, cluster_name, cluster_users):
     # if user does not have access to the cluster
     if user["github_username"] not in cluster_users:
@@ -98,20 +102,26 @@ def get_desired_state(slack: SlackApi) -> dict[str, Any]:
 
         ugid = slack.get_usergroup_id(usergroup)
         user_names = [
-            slack_usergroups.get_slack_username(u)
+            get_slack_username(u)
             for u in all_users
             if include_user(u, cluster_name, cluster_users)
         ]
-        users = slack.get_users_by_names(user_names)
-        channels = slack.get_channels_by_names([slack.channel])  # type: ignore[list-item] # will be refactored later
-        desired_state.setdefault(slack.workspace_name, {})[usergroup] = {
-            "workspace": slack.workspace_name,
-            "usergroup": usergroup,
-            "usergroup_id": ugid,
-            "users": users,
-            "channels": channels,
-            "description": f"Users with access to the {cluster_name} cluster",
+        slack_users = {
+            SlackObject(pk=pk, name=name)
+            for pk, name in slack.get_users_by_names(user_names).items()
         }
+        slack_channels = {
+            SlackObject(pk=pk, name=name)
+            for pk, name in slack.get_channels_by_names([slack.channel]).items()  # type: ignore[list-item] # will be address later in APPSRE-6593
+        }
+        desired_state.setdefault(slack.workspace_name, {})[usergroup] = State(
+            workspace=slack.workspace_name,
+            usergroup=usergroup,
+            usergroup_id=ugid,
+            users=slack_users,
+            channels=slack_channels,
+            description=f"Users with access to the {cluster_name} cluster",
+        )
 
     return desired_state
 
@@ -137,18 +147,18 @@ def get_current_state(slack: SlackApi, usergroups: list[str]) -> dict[str, Any]:
             users, channels, description = slack.describe_usergroup(ug)
         except UsergroupNotFoundException:
             continue
-        current_state.setdefault(slack.workspace_name, {})[ug] = {
-            "workspace": slack.workspace_name,
-            "usergroup": ug,
-            "users": users,
-            "channels": channels,
-            "description": description,
-        }
+        current_state.setdefault(slack.workspace_name, {})[ug] = State(
+            workspace=slack.workspace_name,
+            usergroup=ug,
+            users={SlackObject(pk=pk, name=name) for pk, name in users.items()},
+            channels={SlackObject(pk=pk, name=name) for pk, name in channels.items()},
+            description=description,
+        )
 
     return current_state
 
 
-def run(dry_run):
+def run(dry_run: bool) -> None:
     slack = slackapi_from_queries(QONTRACT_INTEGRATION)
     desired_state = get_desired_state(slack)
     usergroups = []
@@ -158,5 +168,5 @@ def run(dry_run):
     current_state = get_current_state(slack, usergroups)
 
     # just so we can re-use the logic from slack_usergroups
-    slack_map = {slack.workspace_name: {"slack": slack}}
+    slack_map: SlackMap = {slack.workspace_name: WorkspaceSpec(slack=slack)}
     slack_usergroups.act(current_state, desired_state, slack_map, dry_run)

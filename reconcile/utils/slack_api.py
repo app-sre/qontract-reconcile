@@ -14,6 +14,7 @@ from typing import (
     Union,
 )
 
+from pydantic import Json
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 from slack_sdk.http_retry import (
@@ -60,7 +61,7 @@ class SupportsClientGlobalConfig(Protocol):
 
 class SupportsClientMethodConfig(Protocol):
     name: str
-    args: str  # Json
+    args: Json
 
     def dict(self) -> dict[str, str]:
         ...
@@ -148,12 +149,17 @@ class SlackApiConfig:
 
         The config class must implement the `SupportsClientConfig` protocol.
         """
-        config: dict[str, Union[list[dict[str, str]], dict[str, Optional[int]]]] = {}
+        kwargs: dict[str, int] = {}
         if config_data.q_global:
-            config["global"] = config_data.q_global.dict()
+            if config_data.q_global.max_retries:
+                kwargs["max_retries"] = config_data.q_global.max_retries
+            if config_data.q_global.timeout:
+                kwargs["timeout"] = config_data.q_global.timeout
+        config = cls(**kwargs)
         if config_data.methods:
-            config["methods"] = [m.dict() for m in config_data.methods]
-        return cls.from_dict(config)
+            for method in config_data.methods:
+                config.set_method_config(method.name, method.args)
+        return config
 
 
 class SlackApi:
