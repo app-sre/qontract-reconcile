@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from typing import Any, Optional
+from collections.abc import Generator, Sequence, Mapping
 import requests
+from requests import Response
 
 from sretoolbox.utils import threaded
 from reconcile.gql_definitions.common.clusters_minimal import ClusterV1
@@ -31,26 +33,26 @@ class PrometheusInfo:
 
 
 class DashdotdbDVO(DashdotdbBase):
-    def __init__(self, dry_run, thread_pool_size):
+    def __init__(self, dry_run: bool, thread_pool_size: int):
         super().__init__(dry_run, thread_pool_size, "DDDB_DVO:", "deploymentvalidation")
         self.chunksize = self.secret_content.get("chunksize") or "20"
 
     @staticmethod
-    def _chunkify(data, size):
+    def _chunkify(data: Sequence[Mapping[Any, Any]], size: str) -> Generator:
         for i in range(0, len(data), int(size)):
             yield data[i : i + int(size)]
 
-    def _post(self, deploymentvalidation: DVOPayload):
+    def _post(self, deploymentvalidation: DVOPayload) -> Optional[Response]:
         if deploymentvalidation is None:
             return
         cluster_name = deploymentvalidation.cluster_name
         # dvd.data.data.result.[{metric,values}]
         dvdata = deploymentvalidation.payload.get("data", {})
         if not dvdata:
-            return
+            return None
         dvresult = dvdata.get("result")
         if dvresult is None:
-            return
+            return None
         LOG.info(
             "%s Processing (%s) metrics for: %s",
             self.logmarker,
@@ -195,9 +197,9 @@ class DashdotdbDVO(DashdotdbBase):
             c for c in get_clusters_minimal(name=name) if c.ocm and c.prometheus_url
         ]
 
-    def run(self, cname: Optional[str] = None):
+    def run(self, cname: Optional[str] = None) -> None:
         clusters = self._get_clusters(name=cname)
-        validation_list: list[ClusterValidationMetrics] = threaded.run(
+        validation_list: list[Optional[ClusterValidationMetrics]] = threaded.run(
             func=self._get_validation_names,
             iterable=clusters,
             thread_pool_size=self.thread_pool_size,
@@ -206,7 +208,7 @@ class DashdotdbDVO(DashdotdbBase):
         validation_metrics_by_cluster: dict[str, list[str]] = {}
         if validation_list:
             validation_metrics_by_cluster = {
-                v.cluster_name: v.metrics for v in validation_list
+                v.cluster_name: v.metrics for v in validation_list if v
             }
         self._get_token()
         for cluster in clusters:
@@ -228,6 +230,10 @@ class DashdotdbDVO(DashdotdbBase):
         self._close_token()
 
 
-def run(dry_run=False, thread_pool_size=10, cluster_name=None):
+def run(
+    dry_run: bool = False,
+    thread_pool_size: int = 10,
+    cluster_name: Optional[str] = None,
+) -> None:
     dashdotdb_dvo = DashdotdbDVO(dry_run, thread_pool_size)
     dashdotdb_dvo.run(cluster_name)
