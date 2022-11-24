@@ -17,7 +17,7 @@ def _cluster_is_compatible(cluster: Mapping[str, Any]) -> bool:
     )
 
 
-def run(dry_run):
+def run(dry_run: bool) -> None:
     settings = queries.get_app_interface_settings()
     clusters = queries.get_clusters()
     clusters = [
