@@ -1012,11 +1012,14 @@ class OCM:  # pylint: disable=too-many-public-methods
         )
         self._delete(api)
 
-    def is_cluster_admin_enabled(self, cluster: str) -> bool:
+    def _get_subscription_labels_api(self, cluster: str) -> str:
         cluster_id = self.cluster_ids[cluster]
         api = f"{CS_API_BASE}/v1/clusters/{cluster_id}"
         subscription_id = self._get_json(api)["subscription"]["id"]
-        api = f"{AMS_API_BASE}/v1/subscriptions/{subscription_id}/labels"
+        return f"{AMS_API_BASE}/v1/subscriptions/{subscription_id}/labels"
+
+    def is_cluster_admin_enabled(self, cluster: str) -> bool:
+        api = self._get_subscription_labels_api(cluster)
         subcription_labels = self._get_json(api).get("items")
 
         for sl in subcription_labels:
@@ -1029,16 +1032,13 @@ class OCM:  # pylint: disable=too-many-public-methods
         return False
 
     def enable_cluster_admin(self, cluster: str):
-        cluster_id = self.cluster_ids[cluster]
-        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}"
-        subscription_id = self._get_json(api)["subscription"]["id"]
-        api = f"{AMS_API_BASE}/v1/subscriptions/{subscription_id}/labels"
-
+        api = self._get_subscription_labels_api(cluster)
         data = {
             "key": "capability.cluster.manage_cluster_admin",
             "value": "true",
             "internal": "true",
         }
+
         self._post(api, data)
 
     def get_machine_pools(self, cluster):
