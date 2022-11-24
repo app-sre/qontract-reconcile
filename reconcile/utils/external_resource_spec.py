@@ -96,7 +96,7 @@ class ExternalResourceProvisioner(Protocol):
         ...
 
     @abstractmethod
-    def dict(self, *args, **kwargs) -> dict[str, Any]:
+    def dict(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
         ...
 
 
@@ -111,7 +111,7 @@ class ExternalResource(Protocol):
         ...
 
     @abstractmethod
-    def dict(self, *args, **kwargs) -> dict[str, Any]:
+    def dict(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
         ...
 
 
@@ -122,7 +122,7 @@ class OverridableExternalResource(ExternalResource, Protocol):
         ...
 
     @abstractmethod
-    def dict(self, *args, **kwargs) -> dict[str, Any]:
+    def dict(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
         ...
 
 
@@ -133,7 +133,7 @@ class DefaultableExternalResource(ExternalResource, Protocol):
         ...
 
     @abstractmethod
-    def dict(self, *args, **kwargs) -> dict[str, Any]:
+    def dict(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
         ...
 
 
@@ -169,7 +169,7 @@ class Namespace(Protocol):
         ...
 
     @abstractmethod
-    def dict(self, *args, **kwargs) -> dict[str, Any]:
+    def dict(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
         ...
 
 

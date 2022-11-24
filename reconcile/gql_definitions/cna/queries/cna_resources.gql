@@ -20,31 +20,44 @@ query CNAssets {
           identifier
           ... on CNANullAsset_v1 {
             defaults {
-              ... CNANullAssetConfig
+              addr_block
             }
-            overrides {
-              ... CNANullAssetConfig
-            }
+            overrides
           }
           ... on CNARDSInstance_v1 {
             name
             defaults {
-              ... CNARDSInstanceConfig
+              vpc {
+                vpc_id
+                region
+                account {
+                  ... CNAAWSAccountRoleARNs
+                }
+              }
+              db_subnet_group_name
+              instance_class
+              allocated_storage
+              max_allocated_storage
+              engine
+              engine_version
+              username
+              maintenance_window
+              backup_retention_period
+              backup_window
+              multi_az
+              deletion_protection
+              apply_immediately
             }
-            overrides {
-              ... CNARDSInstanceConfig
-            }
+            overrides
           }
           ... on CNAAssumeRoleAsset_v1{
             aws_account {
               ... CNAAWSAccountRoleARNs
             }
             defaults {
-              ... CNAAssumeRoleAssetConfig
+              slug
             }
-            overrides {
-              ... CNAAssumeRoleAssetConfig
-            }
+            overrides
           }
         }
       }

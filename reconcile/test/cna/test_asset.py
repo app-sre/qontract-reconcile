@@ -1,4 +1,5 @@
 from typing import Any, Mapping, MutableMapping, Optional
+import json
 from reconcile.cna.assets.asset import (
     Asset,
     AssetStatus,
@@ -245,9 +246,11 @@ def build_assume_role_typed_external_resource(
             "name": "acc",
             "cna": {"defaultRoleARN": role_arn, "moduleRoleARNS": None},
         },
-        "overrides": {
-            "slug": verify_slug_override,
-        },
+        "overrides": json.dumps(
+            {
+                "slug": verify_slug_override,
+            }
+        ),
         "defaults": {
             "slug": verify_slug_default,
         },

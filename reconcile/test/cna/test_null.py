@@ -1,8 +1,8 @@
 from reconcile.cna.assets.null import NullAsset
 from reconcile.gql_definitions.cna.queries.cna_resources import (
     CNANullAssetV1,
-    CNANullAssetConfig,
 )
+import json
 
 
 def test_from_query_class():
@@ -11,7 +11,11 @@ def test_from_query_class():
     query_asset = CNANullAssetV1(
         provider=NullAsset.provider(),
         identifier=identifier,
-        overrides=CNANullAssetConfig(addr_block=addr_block),
+        overrides=json.dumps(
+            {
+                "addr_block": addr_block,
+            }
+        ),
         defaults=None,
     )
     asset = NullAsset.from_query_class(query_asset)

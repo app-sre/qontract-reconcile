@@ -24,7 +24,7 @@ from reconcile.typed_queries.app_interface_vault_settings import (
 )
 from reconcile.utils.secret_reader import SecretReaderBase, create_secret_reader
 from reconcile.utils.semver_helper import make_semver
-from reconcile.cna.assets.asset import UnknownAssetTypeError, AssetError, Binding, Asset
+from reconcile.cna.assets.asset import UnknownAssetTypeError, AssetError, Binding
 from reconcile.cna.assets.asset_factory import (
     asset_factory_from_schema,
     asset_factory_from_raw_data,

@@ -11,12 +11,12 @@ from reconcile.cna.assets.asset import (
 )
 from reconcile.gql_definitions.cna.queries.cna_resources import (
     CNANullAssetV1,
-    CNANullAssetConfig,
+    CNANullAssetConfigV1,
 )
 
 
 @dataclass(frozen=True, config=AssetModelConfig)
-class NullAsset(Asset[CNANullAssetV1, CNANullAssetConfig]):
+class NullAsset(Asset[CNANullAssetV1, CNANullAssetConfigV1]):
     addr_block: Optional[str] = Field(None, alias="AddrBlock")
 
     @staticmethod
