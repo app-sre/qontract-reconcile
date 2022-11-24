@@ -1875,6 +1875,7 @@ def ocm_upgrade_scheduler_org_updater(ctx, gitlab_project_id):
 
 @integration.command(short_help="Update recommended version for OCM orgs")
 @click.argument("gitlab-project-id")
+@environ(["gitlab_pr_submitter_queue_url"])
 @gitlab_project_id
 @click.pass_context
 def ocm_update_recommended_version(ctx, gitlab_project_id):
