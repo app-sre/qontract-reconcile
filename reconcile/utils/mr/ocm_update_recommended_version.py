@@ -18,7 +18,7 @@ class CreateOCMUpdateRecommendedVersion(MergeRequestBase):
 
         super().__init__()
 
-        # self.labels = [AUTO_MERGE]
+        self.labels = [AUTO_MERGE]
 
     @property
     def title(self) -> str:
