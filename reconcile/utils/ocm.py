@@ -1034,7 +1034,7 @@ class OCM:  # pylint: disable=too-many-public-methods
         data = {
             "key": CLUSTER_ADMIN_LABEL_KEY,
             "value": "true",
-            "internal": "true",
+            "internal": True,
         }
 
         self._post(api, data)
