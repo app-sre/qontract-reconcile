@@ -10,7 +10,6 @@ import pytest
 
 import reconcile.slack_base as slackbase
 import reconcile.slack_usergroups as integ
-import reconcile.utils.repo_owners as repo_owners
 from .fixtures import Fixtures
 from reconcile.gql_definitions.fragments.user import User
 from reconcile.gql_definitions.slack_usergroups.permissions import PagerDutyInstanceV1
@@ -26,6 +25,7 @@ from reconcile.slack_usergroups import SlackObject
 from reconcile.slack_usergroups import SlackState
 from reconcile.slack_usergroups import State
 from reconcile.slack_usergroups import WorkspaceSpec
+from reconcile.utils import repo_owners
 from reconcile.utils.github_api import GithubApi
 from reconcile.utils.pagerduty_api import PagerDutyMap
 from reconcile.utils.slack_api import SlackApi
@@ -98,7 +98,7 @@ def test_query_permissions(permissions: list[PermissionSlackUsergroupV1]) -> Non
 
 def test_get_slack_usernames_from_schedule_none() -> None:
     result = integ.get_slack_usernames_from_schedule([])
-    assert result == []
+    assert not result
 
 
 def test_get_slack_usernames_from_schedule(user: User) -> None:
