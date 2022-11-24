@@ -1,4 +1,5 @@
 import functools
+import logging
 from typing import Any
 
 import semver
@@ -6,8 +7,6 @@ from reconcile import queries, mr_client_gateway
 from reconcile.ocm.types import OCMSpec
 from reconcile.utils.mr.ocm_update_recommended_version import (
     CreateOCMUpdateRecommendedVersion,
-    UpdateInfo,
-    WorkloadRecommendedVersion,
 )
 from reconcile.utils.ocm import OCMMap
 
@@ -115,14 +114,15 @@ def run(dry_run: bool, gitlab_project_id: int) -> None:
         if not rv_updated:
             continue
 
-        update = UpdateInfo(
+        if rv_updated == ocm_info["recommendedVersions"]:
+            continue
+
+        mr = CreateOCMUpdateRecommendedVersion(
+            ocm_name=ocm_info["name"],
             path=f"data{ocm_info['path']}",
-            name=ocm_info["name"],
-            recommendedVersions=[WorkloadRecommendedVersion(**k) for k in rv_updated],
+            recommended_versions=rv_updated,
         )
-        mr = CreateOCMUpdateRecommendedVersion(update)
         if not dry_run:
-            mr_cli = mr_client_gateway.init(
-                gitlab_project_id=gitlab_project_id, sqs_or_gitlab="gitlab"
-            )
+            logging.info(f"Creating MR for {ocm_info['name']}")
+            mr_cli = mr_client_gateway.init(gitlab_project_id=gitlab_project_id)
             mr.submit(cli=mr_cli)
