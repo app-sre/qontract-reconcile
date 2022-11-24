@@ -1,5 +1,0 @@
-# qenerate: plugin=pydantic_v1
-
-fragment CNANullAssetConfig on CNANullAssetConfig_v1 {
-  addr_block
-}
