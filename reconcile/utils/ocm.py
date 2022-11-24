@@ -1028,6 +1028,19 @@ class OCM:  # pylint: disable=too-many-public-methods
 
         return False
 
+    def enable_cluster_admin(self, cluster: str):
+        cluster_id = self.cluster_ids[cluster]
+        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}"
+        subscription_id = self._get_json(api)["subscription"]["id"]
+        api = f"{AMS_API_BASE}/v1/subscriptions/{subscription_id}/labels"
+
+        data = {
+            "key": "capability.cluster.manage_cluster_admin",
+            "value": "true",
+            "internal": "true",
+        }
+        self._post(api, data)
+
     def get_machine_pools(self, cluster):
         """Returns a list of details of Machine Pools
 

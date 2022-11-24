@@ -40,4 +40,4 @@ def run(dry_run, thread_pool_size=10):
         if not ocm.is_cluster_admin_enabled(cluster_name):
             logging.info(["enable_cluster_admin", cluster_name])
             if not dry_run:
-                raise NotImplementedError()
+                ocm.enable_cluster_admin(cluster_name)
