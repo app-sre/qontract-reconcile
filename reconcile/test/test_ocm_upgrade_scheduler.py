@@ -11,6 +11,7 @@ from croniter import croniter
 from dateutil import parser
 
 import reconcile.ocm_upgrade_scheduler as ous
+from reconcile.utils.cluster_version_data import version_data_from_dict
 from reconcile.utils.ocm import Sector
 
 
@@ -49,7 +50,8 @@ class TestUpdateHistory(TestCase):
                 "current_version": "version1",
             },
         ]
-        ous.update_history(history, upgrade_policies)
+        version_data = version_data_from_dict(history)
+        ous.update_history(version_data, upgrade_policies)
         expected = {
             "check_in": "2021-08-30 18:00:00",
             "versions": {
@@ -64,7 +66,7 @@ class TestUpdateHistory(TestCase):
                 }
             },
         }
-        self.assertEqual(expected, history)
+        self.assertEqual(expected, version_data.asdict())
 
 
 class TestVersionConditionsMetSoakDays(TestCase):
@@ -72,20 +74,28 @@ class TestVersionConditionsMetSoakDays(TestCase):
         self.version = "1.2.3"
         self.ocm_name = "ocm"
         self.workload = "workload1"
-        self.history = {
-            self.ocm_name: {
-                "versions": {
-                    self.version: {"workloads": {self.workload: {"soak_days": 2.0}}}
+        version_data_dict = {
+            "check_in": None,
+            "versions": {
+                self.version: {
+                    "workloads": {
+                        self.workload: {
+                            "soak_days": 2.0,
+                            "reporting": ["cluster1", "cluster2"],
+                        }
+                    }
                 }
-            }
+            },
         }
+        version_data = version_data_from_dict(version_data_dict)
+        self.version_data_map = {self.ocm_name: version_data}
 
     def test_conditions_met_larger(self):
         upgrade_conditions = {"soakDays": 1.0}
 
         conditions_met = ous.version_conditions_met(
             self.version,
-            self.history,
+            self.version_data_map,
             self.ocm_name,
             [self.workload],
             upgrade_conditions,
@@ -97,7 +107,7 @@ class TestVersionConditionsMetSoakDays(TestCase):
 
         conditions_met = ous.version_conditions_met(
             self.version,
-            self.history,
+            self.version_data_map,
             self.ocm_name,
             [self.workload],
             upgrade_conditions,
@@ -109,7 +119,7 @@ class TestVersionConditionsMetSoakDays(TestCase):
 
         conditions_met = ous.version_conditions_met(
             self.version,
-            self.history,
+            self.version_data_map,
             self.ocm_name,
             [self.workload],
             upgrade_conditions,
@@ -121,7 +131,7 @@ class TestVersionConditionsMetSoakDays(TestCase):
 
         conditions_met = ous.version_conditions_met(
             "0.0.0",
-            self.history,
+            self.version_data_map,
             self.ocm_name,
             [self.workload],
             upgrade_conditions,
