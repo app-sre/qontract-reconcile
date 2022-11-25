@@ -1,7 +1,7 @@
-from datetime import datetime as dt
 import logging
+from collections.abc import Iterable
+from datetime import datetime as dt
 from typing import Callable
-from typing import Iterable
 from typing import Optional
 from typing import Protocol
 

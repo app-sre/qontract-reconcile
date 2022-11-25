@@ -1,9 +1,10 @@
 from datetime import datetime as dt
 from typing import Optional
-from unittest.mock import Mock, create_autospec
+from unittest.mock import create_autospec
+from unittest.mock import Mock
 
-from pydantic import BaseModel
 import pytest
+from pydantic import BaseModel
 
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.utils import pagerduty_api
