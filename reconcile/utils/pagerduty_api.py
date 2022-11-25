@@ -66,7 +66,8 @@ class PagerDutyApi:
                 users = self.get_schedule_users(resource_id, now)
             elif resource_type == "escalationPolicy":
                 users = self.get_escalation_policy_users(resource_id, now)
-        except requests.exceptions.HTTPError:
+        except requests.exceptions.HTTPError as e:
+            logging.warning(str(e))
             return []
 
         return users
