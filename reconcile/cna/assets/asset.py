@@ -56,8 +56,10 @@ def asset_type_from_raw_asset(raw_asset: Mapping[str, Any]) -> Optional[AssetTyp
 class AssetTypeVariableType(Enum):
     STRING = "${string}"
     NUMBER = "${number}"
+    BOOL = "${bool}"
     LIST_STRING = "${list(string)}"
     LIST_NUMBER = "${list(number)}"
+    LIST_BOOL = "${list(bool)}"
 
 
 @dataclass(frozen=True)
@@ -295,6 +297,8 @@ def _asset_type_metadata_variable_from_type_annotation(
         asset_type = AssetTypeVariableType.STRING
     elif type_hint == "int" or type_hint.endswith("[int]"):
         asset_type = AssetTypeVariableType.NUMBER
+    elif type_hint == "bool" or type_hint.endswith("[bool]"):
+        asset_type = AssetTypeVariableType.BOOL
     else:
         raise AssetError(f"Unsupported type hint {type_hint} for {property_name}")
         # TODO handle list types
