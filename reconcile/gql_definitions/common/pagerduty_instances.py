@@ -27,7 +27,7 @@ fragment VaultSecret on VaultSecret_v1 {
     format
 }
 
-query PD {
+query PagerduytInstances {
   pagerduty_instances: pagerduty_instances_v1 {
     name
     token {
@@ -47,7 +47,7 @@ class PagerDutyInstanceV1(BaseModel):
         extra = Extra.forbid
 
 
-class PDQueryData(BaseModel):
+class PagerduytInstancesQueryData(BaseModel):
     pagerduty_instances: Optional[list[PagerDutyInstanceV1]] = Field(
         ..., alias="pagerduty_instances"
     )
@@ -57,7 +57,7 @@ class PDQueryData(BaseModel):
         extra = Extra.forbid
 
 
-def query(query_func: Callable, **kwargs: Any) -> PDQueryData:
+def query(query_func: Callable, **kwargs: Any) -> PagerduytInstancesQueryData:
     """
     This is a convenience function which queries and parses the data into
     concrete types. It should be compatible with most GQL clients.
@@ -70,7 +70,7 @@ def query(query_func: Callable, **kwargs: Any) -> PDQueryData:
         kwargs: optional arguments that will be passed to the query function
 
     Returns:
-        PDQueryData: queried data parsed into generated classes
+        PagerduytInstancesQueryData: queried data parsed into generated classes
     """
     raw_data: dict[Any, Any] = query_func(DEFINITION, **kwargs)
-    return PDQueryData(**raw_data)
+    return PagerduytInstancesQueryData(**raw_data)

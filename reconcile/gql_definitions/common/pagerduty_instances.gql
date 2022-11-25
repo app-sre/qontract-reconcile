@@ -1,5 +1,5 @@
 # qenerate: plugin=pydantic_v1
-query PD {
+query PagerduytInstances {
   pagerduty_instances: pagerduty_instances_v1 {
     name
     token {
