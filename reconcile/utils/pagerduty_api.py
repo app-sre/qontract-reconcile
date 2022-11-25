@@ -15,23 +15,32 @@ from reconcile.utils.secret_reader import SupportsSecret
 
 
 class PagerDutyTargetException(Exception):
-    ...
+    pass
 
 
 class PagerDutyInstance(Protocol):
+    """This protocol defines mandatory attributes/methods
+    which must be implemented by a class to be compatible."""
+
     name: str
 
     @property
     def token(self) -> SupportsSecret:
-        ...
+        pass
 
 
 class PagerDutyUser(Protocol):
+    """This protocol defines mandatory attributes/methods
+    which must be implemented by a class to be compatible."""
+
     org_username: str
     pagerduty_username: Optional[str]
 
 
 class PagerDutyTarget(Protocol):
+    """This protocol defines mandatory attributes/methods
+    which must be implemented by a class to be compatible."""
+
     name: str
     instance: PagerDutyInstance
     escalation_policy_id: Optional[str]
@@ -39,6 +48,9 @@ class PagerDutyTarget(Protocol):
 
 
 class PagerDutyConfig(BaseModel):
+    """This protocol defines mandatory attributes/methods
+    which must be implemented by a class to be compatible."""
+
     name: str
     token: str
 
