@@ -14,7 +14,6 @@ from threading import Lock
 
 from typing import (
     Any,
-    Dict,
     List,
     Iterable,
     Mapping,
@@ -384,13 +383,13 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         self.logtoes_zip_lock = Lock()
         self.rosa_authenticator_pre_signup_zip = ""
         self.rosa_authenticator_pre_signup_zip_lock = Lock()
-        self.lambda_zip: Dict[str, str] = {}
+        self.lambda_zip: dict[str, str] = {}
         self.lambda_lock = Lock()
         self.github: Optional[Github] = None
         self.github_lock = Lock()
         self.gitlab: Optional[GitLabApi] = None
         self.gitlab_lock = Lock()
-        self.jenkins_map: Dict[str, JenkinsApi] = {}
+        self.jenkins_map: dict[str, JenkinsApi] = {}
         self.jenkins_lock = Lock()
         self._resource_cache: dict[str, dict[str, str]] = {}
         if prefetch_resources_by_schemas:
@@ -569,7 +568,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             self.thread_pool_size,
             secret_reader=self.secret_reader,
         )
-        self.configs: Dict[str, Dict] = {}
+        self.configs: dict[str, dict] = {}
         for account_name, config in results:
             account = awsh.get_account(accounts, account_name)
             config["supportedDeploymentRegions"] = account["supportedDeploymentRegions"]

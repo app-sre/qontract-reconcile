@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 import logging
 import itertools
 
-from typing import Any, Dict, Optional, Iterable, Mapping, Union
+from typing import Any, Optional, Iterable, Mapping, Union
 
 import yaml
 
@@ -717,7 +717,7 @@ def realize_data(
 def _validate_resources_used_exist(
     ri: ResourceInventory,
     oc: OCDeprecated,
-    spec: Dict[str, Any],
+    spec: dict[str, Any],
     cluster: str,
     namespace: str,
     kind: str,
@@ -802,7 +802,7 @@ def validate_planned_data(ri: ResourceInventory, oc_map: OC_Map) -> None:
 
 
 @retry(exceptions=(ValidationError), max_attempts=100)
-def validate_realized_data(actions: Iterable[Dict[str, str]], oc_map: OC_Map):
+def validate_realized_data(actions: Iterable[dict[str, str]], oc_map: OC_Map):
     """
     Validate the realized desired state.
 

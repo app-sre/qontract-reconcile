@@ -3,7 +3,7 @@ import logging
 import sys
 
 from threading import Lock
-from typing import Any, Dict, Generator, List, Optional, Tuple, Union
+from typing import Any, Generator, List, Optional, Tuple, Union
 from kubernetes.client.exceptions import ApiException
 from sretoolbox.utils import threaded
 
@@ -26,12 +26,12 @@ CURRENT = "current"
 CHANGED = "changed"
 UPDATED_MANAGED = "updated-managed"
 
-Labels = Dict[str, Optional[str]]
+Labels = dict[str, Optional[str]]
 LabelKeys = List[str]
 LabelsOrKeys = Union[Labels, LabelKeys]
-Types = Dict[str, LabelsOrKeys]
+Types = dict[str, LabelsOrKeys]
 
-InternalLabelInventory = Dict[str, Dict[str, Types]]
+InternalLabelInventory = dict[str, dict[str, Types]]
 
 
 class LabelInventory:
@@ -52,7 +52,7 @@ class LabelInventory:
     def __init__(self) -> None:
         super().__init__()
         self._inv: InternalLabelInventory = {}
-        self._errors: Dict[str, Dict[str, List[str]]] = {}
+        self._errors: dict[str, dict[str, List[str]]] = {}
         self._lock = Lock()
 
     def errors(self, cluster: str, namespace: str) -> List[str]:
@@ -109,7 +109,7 @@ class LabelInventory:
 
     def __iter__(self) -> Generator[Tuple[str, str, Types], None, None]:
         """Makes the inventory iterable by yielding (cluster, namespace, types)
-        items. Types here is a dict of {type: labelsOrKeys}"""
+        items. Types here is a Dict of {type: labelsOrKeys}"""
         for cluster, namespaces in self._inv.items():
             for namespace, types in namespaces.items():
                 yield cluster, namespace, types
@@ -180,7 +180,7 @@ class LabelInventory:
                     changed[k] = None
 
 
-def get_names_for_namespace(namespace: Dict[str, Any]) -> Tuple[str, str]:
+def get_names_for_namespace(namespace: dict[str, Any]) -> Tuple[str, str]:
     """
     Get the cluster and namespace names from the provided
     namespace qontract info

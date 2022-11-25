@@ -6,7 +6,7 @@ import time
 from datetime import datetime
 from threading import Lock
 from typing import Literal, Union, TYPE_CHECKING
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
+from typing import Any, Iterable, List, Mapping, Optional, Tuple
 
 from boto3 import Session
 from pydantic import BaseModel
@@ -150,8 +150,8 @@ class AWSApi:  # pylint: disable=too-many-public-methods
             self.thread_pool_size,
             secret_reader=self.secret_reader,
         )
-        self.sessions: Dict[str, Session] = {}
-        self.resources: Dict[str, Any] = {}
+        self.sessions: dict[str, Session] = {}
+        self.resources: dict[str, Any] = {}
         for account_name, secret in results:
             account = awsh.get_account(accounts, account_name)
             access_key = secret["aws_access_key_id"]
@@ -928,7 +928,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
     @staticmethod
     def _filter_amis(
         images: Iterable[ImageTypeDef], regex: str
-    ) -> List[Dict[str, Any]]:
+    ) -> List[dict[str, Any]]:
         results = []
         pattern = re.compile(regex)
         for i in images:
@@ -947,7 +947,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         owner_account: Mapping[str, Any],
         regex: str,
         region: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
+    ) -> List[dict[str, Any]]:
         ec2 = self._account_ec2_client(account["name"], region_name=region)
         images = self.get_account_amis(ec2, owner=owner_account["uid"])
         return self._filter_amis(images, regex)

@@ -8,7 +8,6 @@ import hashlib
 import re
 from collections import ChainMap
 from typing import (
-    Dict,
     Iterable,
     Mapping,
     Any,
@@ -1895,13 +1894,13 @@ class SaasHerder:
     @staticmethod
     def _get_subscribe_path_map(
         saas_files: Iterable[Mapping[str, Any]], auto_only: bool = False
-    ) -> Tuple[Dict[str, Set[str]], Dict[str, Set[str]]]:
+    ) -> Tuple[dict[str, Set[str]], dict[str, Set[str]]]:
         """
         Returns dicts with subscribe channels as keys and a
         list of paths of saas files or targets containing these channels.
         """
-        subscribe_saas_file_path_map: Dict[str, Set[str]] = {}
-        subscribe_target_path_map: Dict[str, Set[str]] = {}
+        subscribe_saas_file_path_map: dict[str, Set[str]] = {}
+        subscribe_target_path_map: dict[str, Set[str]] = {}
         for saas_file in saas_files:
             saas_file_path = "data" + saas_file["path"]
             for rt in saas_file["resourceTemplates"]:

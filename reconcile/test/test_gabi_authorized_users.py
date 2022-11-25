@@ -1,6 +1,6 @@
 import os
 import json
-from typing import Dict, List
+from typing import List
 from datetime import date, timedelta
 
 from unittest import TestCase
@@ -57,7 +57,7 @@ def delete_request(
     return RespMock(data)
 
 
-def mock_get_gabi_instances(expirationDate: str) -> List[Dict]:
+def mock_get_gabi_instances(expirationDate: str) -> List[dict]:
     gabi_instances = apply["gql_response"]
     gabi_instances[0]["expirationDate"] = str(expirationDate)
     return gabi_instances
