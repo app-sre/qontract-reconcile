@@ -624,6 +624,12 @@ CLUSTERS_QUERY = """
         version
       }
       blockedVersions
+      inheritVersionData {
+        name
+        publishVersionData {
+          name
+        }
+      }
       sectors {
         name
         dependencies {
@@ -1133,6 +1139,12 @@ OCM_QUERY = """
       field
       format
       version
+    }
+    inheritVersionData {
+      name
+      publishVersionData {
+        name
+      }
     }
     sectors {
       name

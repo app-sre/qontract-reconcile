@@ -13,8 +13,8 @@ from dateutil import parser
 from semver import VersionInfo
 
 from reconcile import queries
+
 from reconcile.ocm.utils import cluster_disabled_integrations
-from reconcile.utils.data_structures import get_or_init
 from reconcile.utils.ocm import (
     OCM,
     OCM_PRODUCT_OSD,
@@ -81,6 +81,23 @@ def fetch_desired_state(
     return sorted_desired_state
 
 
+def default_workload_history():
+    return copy.deepcopy(
+        {
+            "soak_days": 0.0,
+            "reporting": [],
+        }
+    )
+
+
+def get_version_workload(
+    h: dict[str, dict], version: str, workload: str
+) -> dict[str, Any]:
+    v = h.setdefault("versions", {}).setdefault(version, {})
+    w = v.setdefault("workloads", {}).setdefault(workload, default_workload_history())
+    return w
+
+
 def update_history(history, upgrade_policies):
     """Update history with information from clusters
     with upgrade policies.
@@ -111,27 +128,17 @@ def update_history(history, upgrade_policies):
         }
         upgrade_policies (list): query results of clusters upgrade policies
     """
-    default_workload_history = {
-        "soak_days": 0.0,
-        "reporting": [],
-    }
-
     now = datetime.utcnow()
-    check_in = parser.parse(get_or_init(history, "check_in", str(now)))
-    versions = get_or_init(history, "versions", {})
+    check_in = parser.parse(history.setdefault("check_in", str(now)))
 
     # we iterate over clusters upgrade policies and update the version history
     for item in upgrade_policies:
         current_version = item["current_version"]
-        version_history = get_or_init(versions, current_version, {})
-        version_workloads = get_or_init(version_history, "workloads", {})
         cluster = item["cluster"]
         workloads = item["workloads"]
         # we keep the version history per workload
         for w in workloads:
-            workload_history = get_or_init(
-                version_workloads, w, copy.deepcopy(default_workload_history)
-            )
+            workload_history = get_version_workload(history, current_version, w)
 
             reporting = workload_history["reporting"]
             # if the cluster is already reporting - accumulate it.
@@ -146,7 +153,28 @@ def update_history(history, upgrade_policies):
     history["check_in"] = str(now)
 
 
-def get_version_history(dry_run, upgrade_policies, ocm_map):
+def aggregateVersionData(
+    data: dict[str, Any], added: dict[str, Any], added_org_name: str
+):
+    known_workloads = set()
+    for v in data.get("versions", {}).values():
+        known_workloads.update(v.get("workloads", {}).keys())
+    for version, version_data in added.get("versions", {}).items():
+        for workload, workload_data in version_data.get("workloads", {}).items():
+            # skip if our current history data does not contain this remote workload
+            if workload not in known_workloads:
+                continue
+            w = get_version_workload(data, version, workload)
+            w["soak_days"] += workload_data["soak_days"]
+            ocm_clusters = [
+                f"{added_org_name}/{cluster}" for cluster in workload_data["reporting"]
+            ]
+            w["reporting"] += ocm_clusters
+
+
+def get_version_history(
+    dry_run: bool, upgrade_policies: list[dict[str, Any]], ocm_map: OCMMap
+) -> dict:
     """Get a summary of versions history per OCM instance
 
     Args:
@@ -170,6 +198,26 @@ def get_version_history(dry_run, upgrade_policies, ocm_map):
         results[ocm_name] = history
         if not dry_run:
             state.add(ocm_name, history, force=True)
+
+    # inherit data from other ocm orgs
+    for ocm_name in ocm_map.instances():
+        ocm = ocm_map[ocm_name]
+        for other_ocm in ocm.inheritVersionData:
+            other_ocm_name = other_ocm["name"]
+            if ocm_name == other_ocm_name:
+                raise ValueError(
+                    f"[{ocm_name}] OCM organization inherits version data from itself"
+                )
+            if ocm.name not in [
+                o["name"] for o in other_ocm.get("publishVersionData") or []
+            ]:
+                raise ValueError(
+                    f"[{ocm_name}] OCM organization inherits version data from {other_ocm_name}, but this data is not published to it: missing publishVersionData in {other_ocm_name}"
+                )
+            other_ocm_data = results.get(other_ocm_name)
+            if other_ocm_data is None:
+                other_ocm_data = state.get(other_ocm_name, {})
+            aggregateVersionData(results[ocm_name], other_ocm_data, other_ocm_name)
 
     return results
 
