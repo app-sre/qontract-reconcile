@@ -14,7 +14,6 @@ from typing import (
     MutableMapping,
     Optional,
     Sequence,
-    Tuple,
     Union,
     cast,
 )
@@ -407,10 +406,10 @@ class SaasHerder:
 
     def _get_promotion_pubs_and_subs(
         self,
-        rt_ref: Tuple,
+        rt_ref: tuple,
         promotion: dict[str, Any],
-        publications: MutableMapping[str, Tuple],
-        subscriptions: MutableMapping[str, list[Tuple]],
+        publications: MutableMapping[str, tuple],
+        subscriptions: MutableMapping[str, list[tuple]],
     ):
         """
         Function to gather promotion publish and subcribe configurations
@@ -434,8 +433,8 @@ class SaasHerder:
 
     def _check_promotions_have_same_source(
         self,
-        subscriptions: Mapping[str, list[Tuple]],
-        publications: Mapping[str, Tuple],
+        subscriptions: Mapping[str, list[tuple]],
+        publications: Mapping[str, tuple],
     ) -> None:
         """
         Function to check that a promotion has the same repository
@@ -1893,7 +1892,7 @@ class SaasHerder:
     @staticmethod
     def _get_subscribe_path_map(
         saas_files: Iterable[Mapping[str, Any]], auto_only: bool = False
-    ) -> Tuple[dict[str, set[str]], dict[str, set[str]]]:
+    ) -> tuple[dict[str, set[str]], dict[str, set[str]]]:
         """
         Returns dicts with subscribe channels as keys and a
         list of paths of saas files or targets containing these channels.

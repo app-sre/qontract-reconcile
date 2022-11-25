@@ -7,7 +7,7 @@ import random
 import re
 from abc import abstractmethod
 import string
-from typing import Any, Mapping, Optional, Tuple, Union, Iterable
+from typing import Any, Mapping, Optional, Union, Iterable
 
 from reconcile.utils.secret_reader import SecretReader
 import reconcile.utils.aws_helper as awsh
@@ -1638,7 +1638,7 @@ class OCMMap:  # pylint: disable=too-many-public-methods
         """Get list of cluster names initiated in the OCM map."""
         return [k for k, v in self.clusters_map.items() if v]
 
-    def cluster_specs(self) -> Tuple[dict[str, OCMSpec], list]:
+    def cluster_specs(self) -> tuple[dict[str, OCMSpec], list]:
         """Get dictionary of cluster names and specs in the OCM map."""
         cluster_specs = {}
         for v in self.ocm_map.values():

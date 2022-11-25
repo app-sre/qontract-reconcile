@@ -6,7 +6,7 @@ import time
 from datetime import datetime
 from threading import Lock
 from typing import Literal, Union, TYPE_CHECKING
-from typing import Any, Iterable, Mapping, Optional, Tuple
+from typing import Any, Iterable, Mapping, Optional
 
 from boto3 import Session
 from pydantic import BaseModel
@@ -758,7 +758,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         self.auth_tokens = auth_tokens
 
     @staticmethod
-    def _get_account_assume_data(account: awsh.Account) -> Tuple[str, str, str]:
+    def _get_account_assume_data(account: awsh.Account) -> tuple[str, str, str]:
         """
         returns mandatory data to be able to assume a role with this account:
         (account_name, assume_role, assume_region)

@@ -1,6 +1,6 @@
 import logging
 import textwrap
-from typing import Any, Optional, Tuple
+from typing import Any, Optional
 
 from urllib.parse import urlparse
 
@@ -299,7 +299,7 @@ def init_from_config(
 
 def _get_gql_server_and_token(
     autodetect_sha: bool = False, sha: Optional[str] = None
-) -> Tuple[str, str, Optional[str], Optional[str]]:
+) -> tuple[str, str, Optional[str], Optional[str]]:
     config = get_config()
 
     server_url = urlparse(config["graphql"]["server"])

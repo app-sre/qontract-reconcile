@@ -3,7 +3,7 @@ import shutil
 import sys
 
 from textwrap import indent
-from typing import Any, Iterable, Optional, Mapping, Tuple, cast
+from typing import Any, Iterable, Optional, Mapping, cast
 
 from sretoolbox.utils import threaded
 from reconcile.utils.external_resources import (
@@ -533,7 +533,7 @@ def setup(
     internal: str,
     use_jump_host: bool,
     account_name: Optional[str],
-) -> Tuple[ResourceInventory, OC_Map, Terraform, ExternalResourceSpecInventory]:
+) -> tuple[ResourceInventory, OC_Map, Terraform, ExternalResourceSpecInventory]:
     accounts = queries.get_aws_accounts(terraform_state=True)
     if account_name:
         accounts = [n for n in accounts if n["name"] == account_name]

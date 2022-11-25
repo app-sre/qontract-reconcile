@@ -1,5 +1,5 @@
 import sys
-from typing import Any, Optional, Tuple
+from typing import Any, Optional
 import testslide
 import pytest
 
@@ -44,7 +44,7 @@ class MockOCM:
 
 class MockAWSAPI:
     def __init__(self) -> None:
-        self.vpc_details: dict[str, Tuple[str, list[str]]] = {}
+        self.vpc_details: dict[str, tuple[str, list[str]]] = {}
 
     def register(self, vpc: str, vpc_id: str, route_tables: list[str]) -> "MockAWSAPI":
         self.vpc_details[vpc] = (vpc_id, route_tables)
@@ -52,7 +52,7 @@ class MockAWSAPI:
 
     def get_cluster_vpc_details(
         self, account: dict[str, Any], route_tables=False, subnets=False
-    ) -> Tuple:
+    ) -> tuple:
         if account["assume_cidr"] in self.vpc_details:
             vpc_id, rt = self.vpc_details[account["assume_cidr"]]
             if not route_tables:

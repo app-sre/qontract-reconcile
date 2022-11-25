@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from collections import defaultdict
 from enum import Enum
-from typing import Any, Iterable, Optional, Sequence, Tuple
+from typing import Any, Iterable, Optional, Sequence
 
 
 import jsonpath_ng
@@ -234,7 +234,7 @@ class BundleFileChange:
         return not any(self.uncovered_changes())
 
 
-def parse_resource_file_content(content: Optional[Any]) -> Tuple[Any, Optional[str]]:
+def parse_resource_file_content(content: Optional[Any]) -> tuple[Any, Optional[str]]:
     if content:
         try:
             data = anymarkup.parse(content, force_types=None)
@@ -338,7 +338,7 @@ class ChangeTypeProcessor:
 
     def __post_init__(self):
         self._expressions_by_file_type_schema: dict[
-            Tuple[BundleFileType, Optional[str]], list[PathExpression]
+            tuple[BundleFileType, Optional[str]], list[PathExpression]
         ] = defaultdict(list)
         self._changes: list[ChangeTypeChangeDetectorV1] = []
 

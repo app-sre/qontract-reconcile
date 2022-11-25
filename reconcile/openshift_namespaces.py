@@ -1,7 +1,7 @@
 import logging
 import sys
 
-from typing import Optional, Any, Iterable, Mapping, Tuple, cast
+from typing import Optional, Any, Iterable, Mapping, cast
 from sretoolbox.utils import threaded
 
 import reconcile.openshift_base as ob
@@ -46,7 +46,7 @@ def get_desired_state(namespaces: Iterable[Mapping[str, Any]]) -> list[dict[str,
 
 def get_shard_namespaces(
     namespaces: Iterable[Mapping[str, Any]]
-) -> Tuple[list[dict[str, str]], bool]:
+) -> tuple[list[dict[str, str]], bool]:
 
     # Structure holding duplicates by namespace key
     duplicates: dict[str, list[dict[str, str]]] = {}

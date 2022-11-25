@@ -3,7 +3,7 @@ import logging
 import sys
 
 from threading import Lock
-from typing import Any, Generator, Optional, Tuple, Union
+from typing import Any, Generator, Optional, Union
 from kubernetes.client.exceptions import ApiException
 from sretoolbox.utils import threaded
 
@@ -68,7 +68,7 @@ class LabelInventory:
         """Checks if any cluster / namespace has any error registered"""
         return any(e[2] for e in self.iter_errors())
 
-    def iter_errors(self) -> Generator[Tuple[str, str, list[str]], None, None]:
+    def iter_errors(self) -> Generator[tuple[str, str, list[str]], None, None]:
         """yields (cluster, namespace, errors) items"""
         for cluster, namespaces in self._errors.items():
             for namespace, errors in namespaces.items():
@@ -107,7 +107,7 @@ class LabelInventory:
         with self._lock:
             self._inv.get(cluster, {}).pop(namespace, None)
 
-    def __iter__(self) -> Generator[Tuple[str, str, Types], None, None]:
+    def __iter__(self) -> Generator[tuple[str, str, Types], None, None]:
         """Makes the inventory iterable by yielding (cluster, namespace, types)
         items. Types here is a Dict of {type: labelsOrKeys}"""
         for cluster, namespaces in self._inv.items():
@@ -180,7 +180,7 @@ class LabelInventory:
                     changed[k] = None
 
 
-def get_names_for_namespace(namespace: dict[str, Any]) -> Tuple[str, str]:
+def get_names_for_namespace(namespace: dict[str, Any]) -> tuple[str, str]:
     """
     Get the cluster and namespace names from the provided
     namespace qontract info
@@ -345,7 +345,7 @@ def get_current(
 
 
 def label(
-    inv_item: Tuple[str, str, Types],
+    inv_item: tuple[str, str, Types],
     oc_map: OC_Map,
     dry_run: bool,
     inventory: LabelInventory,
