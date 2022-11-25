@@ -3,7 +3,7 @@ import logging
 import sys
 
 from threading import Lock
-from typing import Any, Generator, List, Optional, Tuple, Union
+from typing import Any, Generator, Optional, Tuple, Union
 from kubernetes.client.exceptions import ApiException
 from sretoolbox.utils import threaded
 
@@ -27,7 +27,7 @@ CHANGED = "changed"
 UPDATED_MANAGED = "updated-managed"
 
 Labels = dict[str, Optional[str]]
-LabelKeys = List[str]
+LabelKeys = list[str]
 LabelsOrKeys = Union[Labels, LabelKeys]
 Types = dict[str, LabelsOrKeys]
 
@@ -52,10 +52,10 @@ class LabelInventory:
     def __init__(self) -> None:
         super().__init__()
         self._inv: InternalLabelInventory = {}
-        self._errors: dict[str, dict[str, List[str]]] = {}
+        self._errors: dict[str, dict[str, list[str]]] = {}
         self._lock = Lock()
 
-    def errors(self, cluster: str, namespace: str) -> List[str]:
+    def errors(self, cluster: str, namespace: str) -> list[str]:
         """Get the registered errors for the given cluster / namespace.
         Defaults to []"""
         return self._errors.setdefault(cluster, {}).setdefault(namespace, [])
@@ -68,7 +68,7 @@ class LabelInventory:
         """Checks if any cluster / namespace has any error registered"""
         return any(e[2] for e in self.iter_errors())
 
-    def iter_errors(self) -> Generator[Tuple[str, str, List[str]], None, None]:
+    def iter_errors(self) -> Generator[Tuple[str, str, list[str]], None, None]:
         """yields (cluster, namespace, errors) items"""
         for cluster, namespaces in self._errors.items():
             for namespace, errors in namespaces.items():
@@ -188,7 +188,7 @@ def get_names_for_namespace(namespace: dict[str, Any]) -> Tuple[str, str]:
     return namespace["cluster"]["name"], namespace["name"]
 
 
-def get_gql_namespaces_in_shard() -> List[Any]:
+def get_gql_namespaces_in_shard() -> list[Any]:
     """
     Get all namespaces from qontract-server and filter those which are in
     our shard
@@ -204,7 +204,7 @@ def get_gql_namespaces_in_shard() -> List[Any]:
 
 
 def get_oc_map(
-    namespaces: List[Any],
+    namespaces: list[Any],
     internal: Optional[bool],
     use_jump_host: bool,
     thread_pool_size: int,
@@ -225,7 +225,7 @@ def get_oc_map(
 
 
 def get_desired(
-    inventory: LabelInventory, oc_map: OC_Map, namespaces: List[Any]
+    inventory: LabelInventory, oc_map: OC_Map, namespaces: list[Any]
 ) -> None:
     """
     Fill the provided label inventory with every desired info from the

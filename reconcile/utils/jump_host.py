@@ -3,7 +3,6 @@ import shutil
 import os
 import threading
 import random
-from typing import List
 
 from sshtunnel import SSHTunnelForwarder
 
@@ -47,7 +46,7 @@ class JumpHostBase:
 
 class JumpHostSSH(JumpHostBase):
     bastion_tunnel: dict[int, SSHTunnelForwarder] = {}
-    local_ports: List[int] = []
+    local_ports: list[int] = []
     tunnel_lock = threading.Lock()
 
     def __init__(self, jh, settings=None):

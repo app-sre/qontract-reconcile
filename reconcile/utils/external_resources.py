@@ -1,5 +1,5 @@
 import json
-from typing import Mapping, List, Any, Optional, Set, MutableMapping
+from typing import Mapping, Any, Optional, Set, MutableMapping
 
 import anymarkup
 
@@ -14,8 +14,8 @@ PROVIDER_CLOUDFLARE = "cloudflare"
 
 def get_external_resource_specs(
     namespace_info: Mapping[str, Any], provision_provider: Optional[str] = None
-) -> List[ExternalResourceSpec]:
-    specs: List[ExternalResourceSpec] = []
+) -> list[ExternalResourceSpec]:
+    specs: list[ExternalResourceSpec] = []
     if not managed_external_resources(namespace_info):
         return specs
 

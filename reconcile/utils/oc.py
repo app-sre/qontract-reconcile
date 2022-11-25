@@ -11,7 +11,7 @@ from datetime import datetime
 from functools import wraps
 from subprocess import PIPE, Popen
 from threading import Lock
-from typing import Any, Iterable, List, Set, Union
+from typing import Any, Iterable, Set, Union
 
 import urllib3
 from kubernetes.client import ApiClient, Configuration
@@ -1498,7 +1498,7 @@ class OC_Map:
 
     def clusters(
         self, include_errors: bool = False, privileged: bool = False
-    ) -> List[str]:
+    ) -> list[str]:
         """
         Get the names of the clusters in the map.
         :param include_errors: includes clusters that had errors, meaning

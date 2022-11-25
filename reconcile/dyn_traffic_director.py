@@ -1,5 +1,5 @@
 import logging
-from typing import Any, List, Mapping
+from typing import Any, Mapping
 import warnings
 
 from reconcile import queries
@@ -237,7 +237,7 @@ def _get_dyn_traffic_director_records(
 
 def _update_dyn_traffic_director_records(
     td: TrafficDirector,
-    records: List,
+    records: list,
     ruleset_label: str,
     rpool_label: str,
     chain_label: str,
@@ -282,7 +282,7 @@ def fetch_current_state() -> dict[str, dict]:
             rset_label=td_name,
         )
 
-        records: List[dict[str, Any]] = []
+        records: list[dict[str, Any]] = []
         for record in td_records:
             rdata = record.rdata()
             if "cname_rdata" not in rdata:
@@ -324,10 +324,10 @@ def fetch_desired_state() -> dict[str, dict]:
 
     for td in dyn_tds:
         td_name: str = td["name"]
-        td_records: List[dict] = td.get("records", [])
+        td_records: list[dict] = td.get("records", [])
         td_ttl: int = td.get("ttl", DEFAULT_TD_TTL)
 
-        records: List[dict[str, Any]] = []
+        records: list[dict[str, Any]] = []
         for record in td_records:
             if record["cluster"]:
                 hostname = record["cluster"]["elbFQDN"]
@@ -358,7 +358,7 @@ def fetch_desired_state() -> dict[str, dict]:
     return state
 
 
-def create_td(name: str, ttl: int, records: List[dict[str, Any]], dry_run: bool):
+def create_td(name: str, ttl: int, records: list[dict[str, Any]], dry_run: bool):
     """Create a new Traffic Director service
 
     Returns whether errors have been encountered during processing

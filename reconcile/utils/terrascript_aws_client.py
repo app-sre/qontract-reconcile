@@ -14,7 +14,6 @@ from threading import Lock
 
 from typing import (
     Any,
-    List,
     Iterable,
     Mapping,
     MutableMapping,
@@ -3730,7 +3729,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
     def init_common_outputs(
         self,
-        tf_resources: List[Resource],
+        tf_resources: list[Resource],
         spec: ExternalResourceSpec,
     ):
         output_format_0_13 = "{}__{}_{}"
@@ -3793,7 +3792,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         return values
 
     @staticmethod
-    def get_dependencies(tf_resources: Iterable[Resource]) -> List[str]:
+    def get_dependencies(tf_resources: Iterable[Resource]) -> list[str]:
         return [
             f"{tf_resource.__class__.__name__}.{tf_resource._name}"
             for tf_resource in tf_resources
@@ -4908,7 +4907,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         common_values = self.init_values(spec)
         output_prefix = spec.output_prefix
 
-        tf_resources: List[Any] = []
+        tf_resources: list[Any] = []
         self.init_common_outputs(tf_resources, spec)
 
         tags = common_values["tags"]

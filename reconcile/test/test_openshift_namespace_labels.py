@@ -1,6 +1,6 @@
 import json
 
-from typing import List, Optional
+from typing import Optional
 from unittest import TestCase
 from unittest.mock import Mock, call, patch
 
@@ -22,7 +22,7 @@ class NS:
         cluster: str,
         name: str,
         current: Optional[dict[str, str]],
-        managed: Optional[List[str]],
+        managed: Optional[list[str]],
         desired: dict[str, str],
         exists: bool = True,
     ):

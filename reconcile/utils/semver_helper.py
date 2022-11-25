@@ -1,4 +1,4 @@
-from typing import List, Iterable
+from typing import Iterable
 import semver
 
 
@@ -10,7 +10,7 @@ def parse_semver(version: str) -> semver.VersionInfo:
     return semver.VersionInfo.parse(version)
 
 
-def sort_versions(versions: Iterable[str]) -> List[str]:
+def sort_versions(versions: Iterable[str]) -> list[str]:
     """sort versions by semver
 
     Args:

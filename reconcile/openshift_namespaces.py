@@ -1,7 +1,7 @@
 import logging
 import sys
 
-from typing import List, Optional, Any, Iterable, Mapping, Tuple, cast
+from typing import Optional, Any, Iterable, Mapping, Tuple, cast
 from sretoolbox.utils import threaded
 
 import reconcile.openshift_base as ob
@@ -25,9 +25,9 @@ NS_ACTION_DELETE = "delete"
 DUPLICATES_LOG_MSG = "Found multiple definitions for the namespace {key}"
 
 
-def get_desired_state(namespaces: Iterable[Mapping[str, Any]]) -> List[dict[str, str]]:
+def get_desired_state(namespaces: Iterable[Mapping[str, Any]]) -> list[dict[str, str]]:
 
-    desired_state: List[dict[str, str]] = []
+    desired_state: list[dict[str, str]] = []
     for ns in namespaces:
         state = NS_STATE_PRESENT
         if ob.is_namespace_deleted(ns):
@@ -46,10 +46,10 @@ def get_desired_state(namespaces: Iterable[Mapping[str, Any]]) -> List[dict[str,
 
 def get_shard_namespaces(
     namespaces: Iterable[Mapping[str, Any]]
-) -> Tuple[List[dict[str, str]], bool]:
+) -> Tuple[list[dict[str, str]], bool]:
 
     # Structure holding duplicates by namespace key
-    duplicates: dict[str, List[dict[str, str]]] = {}
+    duplicates: dict[str, list[dict[str, str]]] = {}
     # namespace filtered list without duplicates
     filtered_ns: dict[str, dict[str, Any]] = {}
 
