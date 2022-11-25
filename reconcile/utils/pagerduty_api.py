@@ -18,7 +18,7 @@ class PagerDutyTargetException(Exception):
     ...
 
 
-class SupportsPagerDutyInstance(Protocol):
+class PagerDutyInstance(Protocol):
     name: str
 
     @property
@@ -26,14 +26,14 @@ class SupportsPagerDutyInstance(Protocol):
         ...
 
 
-class SupportsUser(Protocol):
+class PagerDutyUser(Protocol):
     org_username: str
     pagerduty_username: Optional[str]
 
 
-class SupportsPagerDutyTarget(Protocol):
+class PagerDutyTarget(Protocol):
     name: str
-    instance: SupportsPagerDutyInstance
+    instance: PagerDutyInstance
     escalation_policy_id: Optional[str]
     schedule_id: Optional[str]
 
@@ -142,7 +142,7 @@ class PagerDutyMap:
 
 def get_pagerduty_map(
     secret_reader: SecretReader,
-    pagerduty_instances: Iterable[SupportsPagerDutyInstance],
+    pagerduty_instances: Iterable[PagerDutyInstance],
     init_users: bool = True,
     pager_duty_api_class: type[PagerDutyApi] = PagerDutyApi,
 ) -> PagerDutyMap:
@@ -157,17 +157,17 @@ def get_pagerduty_map(
     )
 
 
-def get_pagerduty_name(user: SupportsUser) -> str:
+def get_pagerduty_name(user: PagerDutyUser) -> str:
     return user.pagerduty_username or user.org_username
 
 
 @retry(no_retry_exceptions=PagerDutyTargetException)
 def get_usernames_from_pagerduty(
-    pagerduties: Iterable[SupportsPagerDutyTarget],
-    users: Iterable[SupportsUser],
+    pagerduties: Iterable[PagerDutyTarget],
+    users: Iterable[PagerDutyUser],
     usergroup: str,
     pagerduty_map: PagerDutyMap,
-    get_username_method: Callable[[SupportsUser], str] = get_pagerduty_name,
+    get_username_method: Callable[[PagerDutyUser], str] = get_pagerduty_name,
 ) -> list[str]:
     """Return usernames from all given PagerDuty targets."""
     all_output_usernames = []
