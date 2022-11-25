@@ -1,6 +1,6 @@
 import logging
 import textwrap
-from typing import Set, Any, Optional, Tuple
+from typing import Any, Optional, Tuple
 
 from urllib.parse import urlparse
 
@@ -83,7 +83,7 @@ class GqlGetResourceError(Exception):
 
 class GqlApi:
     _valid_schemas: list[str] = []
-    _queried_schemas: Set[Any] = set()
+    _queried_schemas: set[Any] = set()
 
     def __init__(
         self,

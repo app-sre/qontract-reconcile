@@ -1,7 +1,7 @@
 import os
 import logging
 
-from typing import Optional, Set, Iterable
+from typing import Optional, Iterable
 from reconcile import queries
 
 from reconcile.gitlab_housekeeping import MERGE_LABELS_PRIORITY, HOLD_LABELS
@@ -41,7 +41,7 @@ def get_parents_list() -> set[str]:
 
 
 def guess_onboarding_status(
-    changed_paths: Iterable[str], apps: dict[str, dict], parent_apps: Set[str]
+    changed_paths: Iterable[str], apps: dict[str, dict], parent_apps: set[str]
 ) -> Optional[str]:
     """
     Guess the service name of a given MR from the changed paths of the

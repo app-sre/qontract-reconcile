@@ -11,7 +11,7 @@ from datetime import datetime
 from functools import wraps
 from subprocess import PIPE, Popen
 from threading import Lock
-from typing import Any, Iterable, Set, Union
+from typing import Any, Iterable, Union
 
 import urllib3
 from kubernetes.client import ApiClient, Configuration
@@ -826,7 +826,7 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
         spec: dict[str, Any],
         kind: str,
         include_optional: bool = True,
-    ) -> dict[str, Set[str]]:
+    ) -> dict[str, set[str]]:
         if kind not in ("Secret", "ConfigMap"):
             raise KeyError(f"unsupported resource kind: {kind}")
         optional = "optional"
@@ -847,7 +847,7 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
                 "name",
             )
 
-        resources: dict[str, Set[str]] = {}
+        resources: dict[str, set[str]] = {}
         for v in spec.get("volumes") or []:
             try:
                 volume_ref = v[volume_kind]
