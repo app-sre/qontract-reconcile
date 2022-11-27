@@ -1004,3 +1004,7 @@ def determine_user_keys_for_access(
                 f"[{cluster_name}] auth service not implemented: {service}"
             )
     return user_keys
+
+
+def is_namespace_deleted(namespace_info: dict[str, Any]) -> bool:
+    return bool(namespace_info.get("delete"))
