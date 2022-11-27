@@ -842,7 +842,7 @@ def get_namespaces(
         if is_in_shard(
             f"{namespace_info['cluster']['name']}/" + f"{namespace_info['name']}"
         )
-        and not namespace_info.get("delete")
+        and not ob.is_namespace_deleted(namespace_info)
     ]
     namespaces = filter_namespaces_by_cluster_and_namespace(
         namespaces, cluster_name, namespace_name

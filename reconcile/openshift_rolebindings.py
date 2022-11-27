@@ -98,7 +98,7 @@ def fetch_desired_state(ri, oc_map):
             for a in role["access"] or []
             if None not in [a["namespace"], a["role"]]
             and a["namespace"].get("managedRoles")
-            and not a["namespace"].get("delete")
+            and not ob.is_namespace_deleted(a["namespace"])
         ]
         if not permissions:
             continue
@@ -175,7 +175,7 @@ def run(dry_run, thread_pool_size=10, internal=None, use_jump_host=True, defer=N
         and is_in_shard(
             f"{namespace_info['cluster']['name']}/" + f"{namespace_info['name']}"
         )
-        and not namespace_info.get("delete")
+        and not ob.is_namespace_deleted(namespace_info)
     ]
     ri, oc_map = ob.fetch_current_state(
         namespaces=namespaces,
