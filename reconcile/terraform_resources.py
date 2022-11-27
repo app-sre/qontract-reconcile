@@ -372,6 +372,7 @@ TF_NAMESPACES_QUERY = """
 {
   namespaces: namespaces_v1 {
     name
+    delete
     clusterAdmin
     managedExternalResources
     externalResources {
@@ -584,6 +585,9 @@ def filter_tf_namespaces(
 ) -> list[Mapping[str, Any]]:
     tf_namespaces = []
     for namespace_info in namespaces:
+        # TODO: ob.is_namespace_deleted(namespace_info) [#3010]
+        if namespace_info.get("delete"):
+            continue
         if not managed_external_resources(namespace_info):
             continue
 
