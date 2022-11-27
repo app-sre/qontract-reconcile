@@ -1,7 +1,7 @@
 from dataclasses import dataclass
-from collections import defaultdict
 from enum import Enum
 from typing import Any, Optional
+from collections import defaultdict
 from collections.abc import Iterable, Sequence
 
 

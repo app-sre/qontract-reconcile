@@ -2,8 +2,8 @@ import logging
 import os
 import tempfile
 
-from collections import defaultdict
 from typing import Optional
+from collections import defaultdict
 from collections.abc import Iterable
 
 from sretoolbox.container import Image

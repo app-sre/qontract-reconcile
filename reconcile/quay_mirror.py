@@ -5,8 +5,8 @@ import sys
 import tempfile
 import time
 
-from collections import defaultdict, namedtuple
 from typing import Any, Optional
+from collections import defaultdict, namedtuple
 from collections.abc import Iterable
 
 from requests import Response

@@ -3,10 +3,10 @@ import json
 import shutil
 
 from datetime import datetime, timedelta
-from collections import defaultdict
 from threading import Lock
 from dataclasses import dataclass
 from typing import Any, Optional, cast
+from collections import defaultdict
 from collections.abc import Iterable, Mapping
 
 from python_terraform import Terraform, IsFlagged, TerraformCommandError
