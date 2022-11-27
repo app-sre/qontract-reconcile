@@ -121,3 +121,31 @@ def test_filter_tf_namespaces_no_tf_resources_with_account_filter():
     namespaces = [ns1, ns2]
     filtered = integ.filter_tf_namespaces(namespaces, "b")
     assert filtered == [ns1]
+
+
+def test_filter_tf_namespaces_namespace_deleted():
+    """
+    test that a deleted namespace is not returned
+    """
+    ra = {"identifier": "a", "provider": "p"}
+    rb = {"identifier": "b", "provider": "p"}
+    ns1 = {
+        "name": "ns1",
+        "managedExternalResources": True,
+        "externalResources": [
+            {"provider": "aws", "provisioner": {"name": "a"}, "resources": [ra]}
+        ],
+        "cluster": {"name": "c"},
+        "delete": True,
+    }
+    ns2 = {
+        "name": "ns2",
+        "managedExternalResources": True,
+        "externalResources": [
+            {"provider": "aws", "provisioner": {"name": "b"}, "resources": [rb]}
+        ],
+        "cluster": {"name": "c"},
+    }
+    namespaces = [ns1, ns2]
+    filtered = integ.filter_tf_namespaces(namespaces, None)
+    assert filtered == [ns2]
