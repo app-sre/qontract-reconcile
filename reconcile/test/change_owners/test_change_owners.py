@@ -1,5 +1,4 @@
-from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Optional
 import yaml
 from reconcile.change_owners.diff import (
     SHA256SUM_FIELD_NAME,
@@ -24,18 +23,16 @@ from reconcile.change_owners.change_types import (
     BundleFileType,
     ChangeTypeContext,
     Approver,
-    FileRef,
     DiffCoverage,
-    PathExpression,
     build_change_type_processor,
     create_bundle_file_change,
     parse_resource_file_content,
     get_priority_for_changes,
     ChangeTypePriority,
 )
+
 from reconcile.gql_definitions.change_owners.queries.change_types import (
     ChangeTypeChangeDetectorV1,
-    ChangeTypeV1,
 )
 from reconcile.gql_definitions.change_owners.queries import self_service_roles
 from reconcile.gql_definitions.change_owners.queries.self_service_roles import (
@@ -46,53 +43,23 @@ from reconcile.gql_definitions.change_owners.queries.self_service_roles import (
     BotV1,
 )
 
-from .fixtures import Fixtures
+from reconcile.test.fixtures import Fixtures
 
 import pytest
-import copy
 import jsonpath_ng
 import jsonpath_ng.ext
 from jsonpath_ng.exceptions import JsonPathParserError
 
+from reconcile.test.change_owners.utils import (
+    TestFile,
+    MockQuerier,
+    build_secret_promoter_changetype,
+    build_change_role_member_changetype,
+    build_saas_file_changetype,
+    build_cluster_owner_changetype,
+)
+
 fxt = Fixtures("change_owners")
-
-
-@dataclass
-class TestFile:
-    filepath: str
-    fileschema: str
-    filetype: str
-    content: dict[str, Any]
-
-    def file_ref(self) -> FileRef:
-        return FileRef(
-            path=self.filepath,
-            schema=self.fileschema,
-            file_type=BundleFileType[self.filetype.upper()],
-        )
-
-    def create_bundle_change(
-        self, jsonpath_patches: dict[str, Any]
-    ) -> BundleFileChange:
-        new_content = copy.deepcopy(self.content)
-        if jsonpath_patches:
-            for jp, v in jsonpath_patches.items():
-                e = jsonpath_ng.ext.parse(jp)
-                e.update(new_content, v)
-        bundle_file_change = create_bundle_file_change(
-            path=self.filepath,
-            schema=self.fileschema,
-            file_type=BundleFileType[self.filetype.upper()],
-            old_file_content=self.content,
-            new_file_content=new_content,
-        )
-        assert bundle_file_change
-        return bundle_file_change
-
-
-def load_change_type(path: str) -> ChangeTypeV1:
-    content = fxt.get_anymarkup(path)
-    return ChangeTypeV1(**content)
 
 
 def load_self_service_roles(path: str) -> list[RoleV1]:
@@ -127,31 +94,6 @@ def build_role(
 
 
 @pytest.fixture
-def saas_file_changetype() -> ChangeTypeV1:
-    return load_change_type("changetype_saas_file.yaml")
-
-
-@pytest.fixture
-def role_member_change_type() -> ChangeTypeV1:
-    return load_change_type("changetype_role_member.yaml")
-
-
-@pytest.fixture
-def cluster_owner_change_type() -> ChangeTypeV1:
-    return load_change_type("changetype_cluster_owner.yml")
-
-
-@pytest.fixture
-def secret_promoter_change_type() -> ChangeTypeV1:
-    return load_change_type("changetype_secret_promoter.yaml")
-
-
-@pytest.fixture
-def change_types() -> list[ChangeTypeV1]:
-    return [saas_file_changetype(), role_member_change_type()]
-
-
-@pytest.fixture
 def saas_file() -> TestFile:
     return TestFile(**fxt.get_anymarkup("datafile_saas_file.yaml"))
 
@@ -169,173 +111,6 @@ def namespace_file() -> TestFile:
 @pytest.fixture
 def rds_defaults_file() -> TestFile:
     return TestFile(**fxt.get_anymarkup("resourcefile_rds_defaults.yaml"))
-
-
-#
-# testcases for context file refs extraction from bundle changes
-#
-
-
-def test_extract_context_file_refs_from_bundle_change(
-    saas_file_changetype: ChangeTypeV1, saas_file: TestFile
-):
-    """
-    in this testcase, a changed datafile matches directly the context schema
-    of the change type, so the change type is directly relevant for the changed
-    datafile
-    """
-    bundle_change = saas_file.create_bundle_change(
-        {"resourceTemplates[0].targets[0].ref": "new-ref"}
-    )
-    file_refs = bundle_change.extract_context_file_refs(
-        build_change_type_processor(saas_file_changetype)
-    )
-    assert file_refs == [saas_file.file_ref()]
-
-
-def test_extract_context_file_refs_from_bundle_change_schema_mismatch(
-    saas_file_changetype: ChangeTypeV1, saas_file: TestFile
-):
-    """
-    in this testcase, the schema of the bundle change and the schema of the
-    change types do not match and hence no file context is extracted.
-    """
-    saas_file.fileschema = "/some/other/schema.yml"
-    bundle_change = saas_file.create_bundle_change(
-        {"resourceTemplates[0].targets[0].ref": "new-ref"}
-    )
-    file_refs = bundle_change.extract_context_file_refs(
-        build_change_type_processor(saas_file_changetype)
-    )
-    assert not file_refs
-
-
-def test_extract_context_file_refs_selector(
-    cluster_owner_change_type: ChangeTypeV1,
-):
-    """
-    this testcase extracts the context file based on the change types context
-    selector
-    """
-    cluster = "/my/cluster.yml"
-    namespace_change = create_bundle_file_change(
-        path="/my/namespace.yml",
-        schema="/openshift/namespace-1.yml",
-        file_type=BundleFileType.DATAFILE,
-        old_file_content={
-            "the_change": "does not matter in this test",
-            "cluster": {
-                "$ref": cluster,
-            },
-        },
-        new_file_content={
-            "cluster": {
-                "$ref": cluster,
-            },
-        },
-    )
-    assert namespace_change
-    file_refs = namespace_change.extract_context_file_refs(
-        build_change_type_processor(cluster_owner_change_type)
-    )
-    assert file_refs == [
-        FileRef(
-            file_type=BundleFileType.DATAFILE,
-            schema="/openshift/cluster-1.yml",
-            path=cluster,
-        )
-    ]
-
-
-def test_extract_context_file_refs_in_list_added_selector(
-    role_member_change_type: ChangeTypeV1,
-):
-    """
-    in this testcase, a changed datafile does not directly belong to the change
-    type, because the context schema does not match (change type reacts to roles,
-    while the changed datafile is a user). but the change type defines a context
-    extraction section that feels responsible for user files and extracts the
-    relevant context, the role, from the users role section, looking out for added
-    roles.
-    """
-    new_role = "/role/new.yml"
-    user_change = create_bundle_file_change(
-        path="/somepath.yml",
-        schema="/access/user-1.yml",
-        file_type=BundleFileType.DATAFILE,
-        old_file_content={
-            "roles": [{"$ref": "/role/existing.yml"}],
-        },
-        new_file_content={
-            "roles": [{"$ref": "/role/existing.yml"}, {"$ref": new_role}],
-        },
-    )
-    assert user_change
-    file_refs = user_change.extract_context_file_refs(
-        build_change_type_processor(role_member_change_type)
-    )
-    assert file_refs == [
-        FileRef(
-            file_type=BundleFileType.DATAFILE,
-            schema="/access/roles-1.yml",
-            path=new_role,
-        )
-    ]
-
-
-def test_extract_context_file_refs_in_list_removed_selector(
-    role_member_change_type: ChangeTypeV1,
-):
-    """
-    this testcase is similar to previous one, but detects removed contexts (e.g
-    roles in this example) as the relevant context to extract.
-    """
-    role_member_change_type.changes[0].context.when = "removed"  # type: ignore
-    existing_role = "/role/existing.yml"
-    new_role = "/role/new.yml"
-    user_change = create_bundle_file_change(
-        path="/somepath.yml",
-        schema="/access/user-1.yml",
-        file_type=BundleFileType.DATAFILE,
-        old_file_content={
-            "roles": [{"$ref": existing_role}],
-        },
-        new_file_content={
-            "roles": [{"$ref": new_role}],
-        },
-    )
-    assert user_change
-    file_refs = user_change.extract_context_file_refs(
-        build_change_type_processor(role_member_change_type)
-    )
-    assert file_refs == [
-        FileRef(
-            file_type=BundleFileType.DATAFILE,
-            schema="/access/roles-1.yml",
-            path=existing_role,
-        )
-    ]
-
-
-def test_extract_context_file_refs_in_list_selector_change_schema_mismatch(
-    role_member_change_type: ChangeTypeV1,
-):
-    """
-    in this testcase, the changeSchema section of the change types changes does
-    not match the bundle change.
-    """
-    datafile_change = create_bundle_file_change(
-        path="/somepath.yml",
-        schema="/some/other/schema.yml",
-        file_type=BundleFileType.DATAFILE,
-        old_file_content={"field": "old-value"},
-        new_file_content={"field": "new-value"},
-    )
-    assert datafile_change
-    file_refs = datafile_change.extract_context_file_refs(
-        build_change_type_processor(role_member_change_type)
-    )
-    assert not file_refs
 
 
 #
@@ -375,9 +150,8 @@ def test_deepdiff_path_element_with_dot():
 #
 
 
-def test_change_type_processor_building_unsupported_provider(
-    secret_promoter_change_type: ChangeTypeV1,
-):
+def test_change_type_processor_building_unsupported_provider():
+    secret_promoter_change_type = build_secret_promoter_changetype()
     secret_promoter_change_type.changes[0] = ChangeTypeChangeDetectorV1(
         provider="unsupported-provider", changeSchema=None, context=None
     )
@@ -385,9 +159,8 @@ def test_change_type_processor_building_unsupported_provider(
         build_change_type_processor(secret_promoter_change_type)
 
 
-def test_change_type_processor_building_invalid_jsonpaths(
-    secret_promoter_change_type: ChangeTypeV1,
-):
+def test_change_type_processor_building_invalid_jsonpaths():
+    secret_promoter_change_type = build_secret_promoter_changetype()
     secret_promoter_change_type.changes[0].json_path_selectors[  # type: ignore
         0
     ] = "invalid-jsonpath/selector"
@@ -400,9 +173,8 @@ def test_change_type_processor_building_invalid_jsonpaths(
 #
 
 
-def test_change_type_processor_allowed_paths_simple(
-    role_member_change_type: ChangeTypeV1, user_file: TestFile
-):
+def test_change_type_processor_allowed_paths_simple(user_file: TestFile):
+    role_member_change_type = build_change_role_member_changetype()
     changed_user_file = user_file.create_bundle_change(
         {"roles[0]": {"$ref": "some-role"}}
     )
@@ -416,14 +188,14 @@ def test_change_type_processor_allowed_paths_simple(
             approvers=[],
             context_file=user_file.file_ref(),
         ),
+        querier=MockQuerier(),
     )
 
     assert paths == ["roles"]
 
 
-def test_change_type_processor_allowed_paths_conditions(
-    secret_promoter_change_type: ChangeTypeV1, namespace_file: TestFile
-):
+def test_change_type_processor_allowed_paths_conditions(namespace_file: TestFile):
+    secret_promoter_change_type = build_secret_promoter_changetype()
     changed_namespace_file = namespace_file.create_bundle_change(
         {"openshiftResources[1].version": 2}
     )
@@ -437,6 +209,7 @@ def test_change_type_processor_allowed_paths_conditions(
             approvers=[],
             context_file=namespace_file.file_ref(),
         ),
+        querier=MockQuerier(),
     )
 
     assert paths == ["openshiftResources.[1].version"]
@@ -1125,9 +898,8 @@ def test_checksum_and_content_changed():
 #
 
 
-def test_cover_changes_one_file(
-    saas_file_changetype: ChangeTypeV1, saas_file: TestFile
-):
+def test_cover_changes_one_file(saas_file: TestFile):
+    saas_file_changetype = build_saas_file_changetype()
     saas_file_change = saas_file.create_bundle_change(
         {"resourceTemplates[0].targets[0].ref": "new-ref"}
     )
@@ -1137,7 +909,10 @@ def test_cover_changes_one_file(
         approvers=[Approver(org_username="user", tag_on_merge_requests=False)],
         context_file=saas_file.file_ref(),
     )
-    saas_file_change.cover_changes(ctx)
+    saas_file_change.cover_changes(
+        ctx,
+        MockQuerier(),
+    )
 
     assert not list(saas_file_change.uncovered_changes())
     assert saas_file_change.all_changes_covered()
@@ -1145,9 +920,8 @@ def test_cover_changes_one_file(
     assert saas_file_change.diff_coverage[0].coverage == [ctx]
 
 
-def test_uncovered_change_because_change_type_is_disabled(
-    saas_file_changetype: ChangeTypeV1, saas_file: TestFile
-):
+def test_uncovered_change_because_change_type_is_disabled(saas_file: TestFile):
+    saas_file_changetype = build_saas_file_changetype()
     saas_file_changetype.disabled = True
     saas_file_change = saas_file.create_bundle_change(
         {"resourceTemplates[0].targets[0].ref": "new-ref"}
@@ -1158,7 +932,7 @@ def test_uncovered_change_because_change_type_is_disabled(
         approvers=[Approver(org_username="user", tag_on_merge_requests=False)],
         context_file=saas_file.file_ref(),
     )
-    saas_file_change.cover_changes(ctx)
+    saas_file_change.cover_changes(ctx, MockQuerier())
     uncoverd_changes = list(saas_file_change.uncovered_changes())
     assert uncoverd_changes
     assert not saas_file_change.all_changes_covered()
@@ -1166,9 +940,8 @@ def test_uncovered_change_because_change_type_is_disabled(
     assert uncoverd_changes[0].coverage[0].disabled
 
 
-def test_uncovered_change_one_file(
-    saas_file_changetype: ChangeTypeV1, saas_file: TestFile
-):
+def test_uncovered_change_one_file(saas_file: TestFile):
+    saas_file_changetype = build_saas_file_changetype()
     saas_file_change = saas_file.create_bundle_change({"name": "new-name"})
     ctx = ChangeTypeContext(
         change_type_processor=build_change_type_processor(saas_file_changetype),
@@ -1176,13 +949,12 @@ def test_uncovered_change_one_file(
         approvers=[Approver(org_username="user", tag_on_merge_requests=False)],
         context_file=saas_file.file_ref(),
     )
-    saas_file_change.cover_changes(ctx)
+    saas_file_change.cover_changes(ctx, MockQuerier())
     assert all(not dc.is_covered() for dc in saas_file_change.diff_coverage)
 
 
-def test_partially_covered_change_one_file(
-    saas_file_changetype: ChangeTypeV1, saas_file: TestFile
-):
+def test_partially_covered_change_one_file(saas_file: TestFile):
+    saas_file_changetype = build_saas_file_changetype()
     ref_update_path = "resourceTemplates.[0].targets.[0].ref"
     saas_file_change = saas_file.create_bundle_change(
         {ref_update_path: "new-ref", "name": "new-name"}
@@ -1197,11 +969,12 @@ def test_partially_covered_change_one_file(
         context_file=saas_file.file_ref(),
     )
 
-    covered_diffs = saas_file_change.cover_changes(ctx)
+    covered_diffs = saas_file_change.cover_changes(ctx, MockQuerier())
     assert [ref_update_diff.diff] == covered_diffs
 
 
-def test_root_change_type(cluster_owner_change_type: ChangeTypeV1, saas_file: TestFile):
+def test_root_change_type(saas_file: TestFile):
+    cluster_owner_change_type = build_cluster_owner_changetype()
     namespace_change = create_bundle_file_change(
         path="/my/namespace.yml",
         schema="/openshift/namespace-1.yml",
@@ -1232,7 +1005,7 @@ def test_root_change_type(cluster_owner_change_type: ChangeTypeV1, saas_file: Te
         context_file=saas_file.file_ref(),
     )
 
-    covered_diffs = namespace_change.cover_changes(ctx)
+    covered_diffs = namespace_change.cover_changes(ctx, MockQuerier())
     assert covered_diffs
 
 
@@ -1242,11 +1015,11 @@ def test_root_change_type(cluster_owner_change_type: ChangeTypeV1, saas_file: Te
 
 
 def test_change_coverage(
-    secret_promoter_change_type: ChangeTypeV1,
     namespace_file: TestFile,
-    role_member_change_type: ChangeTypeV1,
     user_file: TestFile,
 ):
+    secret_promoter_change_type = build_secret_promoter_changetype()
+    role_member_change_type = build_change_role_member_changetype()
     role_approver_user = "the-one-that-approves-roles"
     team_role_path = "/team-role.yml"
     role_approval_role = build_role(
@@ -1285,6 +1058,8 @@ def test_change_coverage(
             build_change_type_processor(secret_promoter_change_type),
         ],
         bundle_changes=bundle_changes,
+        comparision_querier=MockQuerier(),
+        querier=MockQuerier(),
     )
 
     for bc in bundle_changes:
@@ -1409,11 +1184,11 @@ def test_approval_comments_none_body():
     ],
 )
 def test_change_decision(
-    saas_file_changetype: ChangeTypeV1,
     disable_change_type: bool,
     expected_approve: bool,
     expected_hold: bool,
 ):
+    saas_file_changetype = build_saas_file_changetype()
     saas_file_changetype.disabled = disable_change_type
 
     yea_user = "yea-sayer"
@@ -1519,9 +1294,10 @@ def test_label_management_add_and_remove():
 #
 
 
-def test_priority_for_changes(
-    saas_file_changetype: ChangeTypeV1, secret_promoter_change_type: ChangeTypeV1
-):
+def test_priority_for_changes():
+    saas_file_changetype = build_saas_file_changetype()
+    secret_promoter_change_type = build_secret_promoter_changetype()
+
     saas_file_changetype.priority = ChangeTypePriority.HIGH.value
     secret_promoter_change_type.priority = ChangeTypePriority.MEDIUM.value
     changes = [
@@ -1570,7 +1346,8 @@ def test_diff_no_coverage():
     assert not dc.is_covered()
 
 
-def test_diff_covered(saas_file_changetype: ChangeTypeV1):
+def test_diff_covered():
+    saas_file_changetype = build_saas_file_changetype()
     dc = DiffCoverage(
         diff=None,  # type: ignore
         coverage=[
@@ -1585,9 +1362,9 @@ def test_diff_covered(saas_file_changetype: ChangeTypeV1):
     assert dc.is_covered()
 
 
-def test_diff_covered_many(
-    saas_file_changetype: ChangeTypeV1, role_member_change_type: ChangeTypeV1
-):
+def test_diff_covered_many():
+    saas_file_changetype = build_saas_file_changetype()
+    role_member_change_type = build_change_role_member_changetype()
     dc = DiffCoverage(
         diff=None,  # type: ignore
         coverage=[
@@ -1610,9 +1387,9 @@ def test_diff_covered_many(
     assert dc.is_covered()
 
 
-def test_diff_covered_partially_disabled(
-    saas_file_changetype: ChangeTypeV1, role_member_change_type: ChangeTypeV1
-):
+def test_diff_covered_partially_disabled():
+    saas_file_changetype = build_saas_file_changetype()
+    role_member_change_type = build_change_role_member_changetype()
     role_member_change_type.disabled = True
     dc = DiffCoverage(
         diff=None,  # type: ignore
@@ -1636,9 +1413,9 @@ def test_diff_covered_partially_disabled(
     assert dc.is_covered()
 
 
-def test_diff_no_coverage_all_disabled(
-    saas_file_changetype: ChangeTypeV1, role_member_change_type: ChangeTypeV1
-):
+def test_diff_no_coverage_all_disabled():
+    saas_file_changetype = build_saas_file_changetype()
+    role_member_change_type = build_change_role_member_changetype()
     role_member_change_type.disabled = True
     saas_file_changetype.disabled = True
     dc = DiffCoverage(
@@ -1661,57 +1438,6 @@ def test_diff_no_coverage_all_disabled(
         ],
     )
     assert not dc.is_covered()
-
-
-#
-# PathExpression tests
-#
-
-
-def test_normal_path_expression():
-    jsonpath_expression = "path.to.some.value"
-    pe = PathExpression(
-        jsonpath_expression=jsonpath_expression,
-    )
-    jsonpath = pe.jsonpath_for_context(
-        ChangeTypeContext(
-            change_type_processor=None,  # type: ignore
-            context="RoleV1 - some-role",
-            approvers=[],
-            context_file=FileRef(
-                BundleFileType.DATAFILE, "some-file.yaml", "schema-1.yml"
-            ),
-        )
-    )
-    assert jsonpath_expression == str(jsonpath)
-
-
-def test_templated_path_expression():
-    jsonpath_expression = "path.to.some.value[?(@.name == '{{ ctx_file_path }}')]"
-    pe = PathExpression(
-        jsonpath_expression=jsonpath_expression,
-    )
-    jsonpath = pe.jsonpath_for_context(
-        ChangeTypeContext(
-            change_type_processor=None,  # type: ignore
-            context="RoleV1 - some-role",
-            approvers=[],
-            context_file=FileRef(
-                BundleFileType.DATAFILE, "some-file.yaml", "schema-1.yml"
-            ),
-        )
-    )
-    assert (
-        "path.to.some.value.[?[Expression(Child(This(), Fields('name')) == 'some-file.yaml')]]"
-        == str(jsonpath)
-    )
-
-
-def test_template_path_expression_unsupported_variable():
-    with pytest.raises(ValueError):
-        PathExpression(
-            jsonpath_expression="path[?(@.name == '{{ unsupported_variable }}')]"
-        )
 
 
 #

@@ -35,6 +35,7 @@ def build_jsonpath_change(
         provider="jsonPath",
         changeSchema=schema,
         jsonPathSelectors=selectors,
+        jsonPathSelectorTemplates=None,
         context=context,
     )
 
