@@ -7,6 +7,8 @@ from typing import Any, Dict, Generator, List, Optional, Tuple, Union
 from kubernetes.client.exceptions import ApiException
 from sretoolbox.utils import threaded
 
+import reconcile.openshift_base as ob
+
 from reconcile import queries
 from reconcile.utils.defer import defer
 from reconcile.utils.oc import OC_Map, OCNative, StatusCodeError
@@ -196,7 +198,8 @@ def get_gql_namespaces_in_shard() -> List[Any]:
     return [
         ns
         for ns in all_namespaces
-        if not ns.get("delete") and is_in_shard(f"{ns['cluster']['name']}/{ns['name']}")
+        if not ob.is_namespace_deleted(ns)
+        and is_in_shard(f"{ns['cluster']['name']}/{ns['name']}")
     ]
 
 

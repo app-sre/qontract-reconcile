@@ -4,6 +4,8 @@ import sys
 from typing import List, Dict, Optional, Any, Iterable, Mapping, Tuple, cast
 from sretoolbox.utils import threaded
 
+import reconcile.openshift_base as ob
+
 from reconcile import queries
 from reconcile.utils.oc import OC_Map
 from reconcile.utils.defer import defer
@@ -28,7 +30,7 @@ def get_desired_state(namespaces: Iterable[Mapping[str, Any]]) -> List[Dict[str,
     desired_state: List[Dict[str, str]] = []
     for ns in namespaces:
         state = NS_STATE_PRESENT
-        if ns.get("delete"):
+        if ob.is_namespace_deleted(ns):
             state = NS_STATE_ABSENT
 
         desired_state.append(

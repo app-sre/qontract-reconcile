@@ -645,3 +645,22 @@ def test_determine_user_keys_for_access_not_implemented():
     auth = {"service": "not-implemented"}
     with pytest.raises(NotImplementedError):
         sut.determine_user_keys_for_access("cluster-name", [auth])
+
+
+def test_is_namespace_deleted_true():
+    ns = {"delete": True}
+    assert sut.is_namespace_deleted(ns) is True
+
+
+def test_is_namespace_deleted_false():
+    ns = {"delete": False}
+    assert sut.is_namespace_deleted(ns) is False
+
+
+def test_is_namespace_deleted_none():
+    ns = {"delete": None}
+    assert sut.is_namespace_deleted(ns) is False
+
+
+def test_is_namespace_deleted_empty():
+    assert sut.is_namespace_deleted({}) is False

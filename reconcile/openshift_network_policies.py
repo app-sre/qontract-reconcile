@@ -111,7 +111,7 @@ def run(dry_run, thread_pool_size=10, internal=None, use_jump_host=True, defer=N
     for namespace_info in gqlapi.query(NAMESPACES_QUERY)["namespaces"]:
         if not namespace_info.get("networkPoliciesAllow"):
             continue
-        if namespace_info.get("delete"):
+        if ob.is_namespace_deleted(namespace_info):
             continue
 
         shard_key = f"{namespace_info['cluster']['name']}/" f"{namespace_info['name']}"
