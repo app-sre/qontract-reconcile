@@ -2,7 +2,8 @@ from abc import abstractmethod
 from dataclasses import field
 from pydantic.dataclasses import dataclass
 import json
-from typing import Any, Mapping, MutableMapping, Optional, cast
+from typing import Any, Optional, cast
+from collections.abc import Mapping, MutableMapping
 
 import yaml
 from reconcile.utils.openshift_resource import (

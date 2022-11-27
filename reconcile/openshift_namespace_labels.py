@@ -3,7 +3,8 @@ import logging
 import sys
 
 from threading import Lock
-from typing import Any, Generator, Optional, Union
+from typing import Any, Optional, Union
+from collections.abc import Generator
 from kubernetes.client.exceptions import ApiException
 from sretoolbox.utils import threaded
 

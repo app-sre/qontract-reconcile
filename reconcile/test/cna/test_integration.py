@@ -1,4 +1,5 @@
-from typing import Any, Iterable, Mapping, Optional
+from typing import Any, Optional
+from collections.abc import Iterable, Mapping
 from unittest.mock import create_autospec
 from pytest import fixture
 import pytest

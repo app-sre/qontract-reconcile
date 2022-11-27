@@ -6,7 +6,8 @@ import time
 from datetime import datetime
 from threading import Lock
 from typing import Literal, Union, TYPE_CHECKING
-from typing import Any, Iterable, Mapping, Optional
+from typing import Any, Optional
+from collections.abc import Iterable, Mapping
 
 from boto3 import Session
 from pydantic import BaseModel

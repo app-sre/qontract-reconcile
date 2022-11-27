@@ -2,7 +2,8 @@ import tempfile
 import json
 import yaml
 
-from typing import Any, Mapping
+from typing import Any
+from collections.abc import Mapping
 from subprocess import run, PIPE, CalledProcessError
 
 

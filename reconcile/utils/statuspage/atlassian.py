@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 import logging
-from typing import Any, Iterable, Optional
+from typing import Any, Optional
+from collections.abc import Iterable
 
 from reconcile.utils.statuspage.models import (
     StatusComponent,

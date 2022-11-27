@@ -2,7 +2,8 @@ import logging
 
 from datetime import datetime, timedelta
 from operator import itemgetter
-from typing import Iterable, Optional, Union
+from typing import Optional, Union
+from collections.abc import Iterable
 
 import gitlab
 

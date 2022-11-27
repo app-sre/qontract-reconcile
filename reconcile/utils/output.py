@@ -1,4 +1,5 @@
-from typing import Iterable, Mapping, Union
+from typing import Union
+from collections.abc import Iterable, Mapping
 from tabulate import tabulate
 import json
 import yaml

@@ -1,7 +1,8 @@
 import os
 import json
 
-from typing import Any, Iterable, Mapping, Optional
+from typing import Any, Optional
+from collections.abc import Iterable, Mapping
 
 from botocore.errorfactory import ClientError
 from jinja2 import Template

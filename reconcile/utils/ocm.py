@@ -7,7 +7,8 @@ import random
 import re
 from abc import abstractmethod
 import string
-from typing import Any, Mapping, Optional, Union, Iterable
+from typing import Any, Optional, Union
+from collections.abc import Iterable, Mapping
 
 from reconcile.utils.secret_reader import SecretReader
 import reconcile.utils.aws_helper as awsh

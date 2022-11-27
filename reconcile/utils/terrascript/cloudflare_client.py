@@ -1,6 +1,7 @@
 import tempfile
 from dataclasses import dataclass
-from typing import Iterable, Optional, Union
+from typing import Optional, Union
+from collections.abc import Iterable
 
 from terrascript import Terrascript, Terraform, Resource, Output, Backend, Variable
 from terrascript import provider

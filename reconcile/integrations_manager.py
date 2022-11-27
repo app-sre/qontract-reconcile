@@ -6,7 +6,8 @@ import json
 import logging
 
 from github import Github
-from typing import Any, Iterable, Mapping, Optional, MutableMapping
+from typing import Any, Optional
+from collections.abc import Iterable, Mapping, MutableMapping
 
 import reconcile.openshift_base as ob
 

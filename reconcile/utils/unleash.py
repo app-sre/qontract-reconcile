@@ -1,7 +1,8 @@
 import logging
 import os
 import threading
-from typing import Mapping, Optional, Any
+from typing import Any, Optional
+from collections.abc import Mapping
 
 from UnleashClient import UnleashClient, BaseCache
 from UnleashClient.strategies import Strategy

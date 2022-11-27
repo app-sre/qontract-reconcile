@@ -5,7 +5,8 @@ import json
 import logging
 import sys
 
-from typing import Iterable, Mapping, Optional, Any
+from typing import Any, Optional
+from collections.abc import Iterable, Mapping
 
 from threading import Lock
 from textwrap import indent

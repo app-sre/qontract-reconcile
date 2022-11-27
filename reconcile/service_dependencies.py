@@ -1,6 +1,7 @@
 import sys
 import logging
-from typing import Any, Mapping
+from typing import Any
+from collections.abc import Mapping
 from reconcile.gql_definitions.service_dependencies import service_dependencies
 from reconcile.gql_definitions.service_dependencies.service_dependencies import (
     AppCodeComponentsV1,

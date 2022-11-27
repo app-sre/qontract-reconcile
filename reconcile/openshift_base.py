@@ -2,7 +2,8 @@ from dataclasses import dataclass, field
 import logging
 import itertools
 
-from typing import Any, Optional, Iterable, Mapping, Union
+from typing import Any, Optional, Union
+from collections.abc import Iterable, Mapping
 
 import yaml
 

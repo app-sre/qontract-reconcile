@@ -1,5 +1,6 @@
 import os
-from typing import Any, Iterable, Mapping
+from typing import Any
+from collections.abc import Iterable, Mapping
 import pytest
 
 import reconcile.integrations_manager as intop

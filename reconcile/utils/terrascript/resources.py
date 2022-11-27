@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import Iterable, Union
+from typing import Union
+from collections.abc import Iterable
 
 from terrascript import Resource, Output
 

@@ -1,7 +1,8 @@
 import logging
 import sys
 
-from typing import Optional, Any, Iterable, Mapping, cast
+from typing import Any, Optional, cast
+from collections.abc import Iterable, Mapping
 from sretoolbox.utils import threaded
 
 import reconcile.openshift_base as ob

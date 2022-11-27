@@ -1,7 +1,8 @@
 from abc import abstractmethod
 from datetime import datetime, timezone
 import logging
-from typing import Callable, Iterable, Optional
+from typing import Optional
+from collections.abc import Callable, Iterable
 from pydantic import Field, BaseModel
 from pydantic.networks import HttpUrl
 from reconcile.utils.state import State

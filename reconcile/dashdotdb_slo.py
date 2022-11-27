@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 import jinja2
 import requests
-from typing import Any, Iterable, Optional
+from typing import Any, Optional
+from collections.abc import Iterable
 
 from requests import Response
 from sretoolbox.utils import threaded

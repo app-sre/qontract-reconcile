@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 from collections import defaultdict
 from enum import Enum
-from typing import Any, Iterable, Optional, Sequence
+from typing import Any, Optional
+from collections.abc import Iterable, Sequence
 
 
 import jsonpath_ng

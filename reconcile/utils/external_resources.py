@@ -1,5 +1,6 @@
 import json
-from typing import Mapping, Any, Optional, MutableMapping
+from typing import Any, Optional
+from collections.abc import Mapping, MutableMapping
 
 import anymarkup
 

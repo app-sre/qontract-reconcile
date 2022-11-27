@@ -3,7 +3,8 @@ import logging
 import copy
 
 from datetime import datetime
-from typing import Any, Mapping, Optional
+from typing import Any, Optional
+from collections.abc import Mapping
 from dateutil import parser
 from croniter import croniter
 from semver import VersionInfo

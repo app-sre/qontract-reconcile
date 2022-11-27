@@ -1,6 +1,7 @@
 import logging
 import sys
-from typing import Any, Mapping
+from typing import Any
+from collections.abc import Mapping
 from reconcile.utils.external_resources import PROVIDER_AWS, get_external_resource_specs
 
 from reconcile.utils import gql

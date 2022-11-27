@@ -3,7 +3,8 @@ import shutil
 import sys
 
 from textwrap import indent
-from typing import Any, Iterable, Optional, Mapping, cast
+from typing import Any, Optional, cast
+from collections.abc import Iterable, Mapping
 
 from sretoolbox.utils import threaded
 from reconcile.utils.external_resources import (

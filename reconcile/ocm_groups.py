@@ -1,7 +1,8 @@
 import logging
 import itertools
 import sys
-from typing import Any, Mapping
+from typing import Any
+from collections.abc import Mapping
 
 from sretoolbox.utils import threaded
 

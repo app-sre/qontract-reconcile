@@ -1,5 +1,6 @@
 import datetime
-from typing import Iterable, Optional, Protocol, TypeVar, Union, cast
+from typing import Optional, Protocol, TypeVar, Union, cast
+from collections.abc import Iterable
 
 DATE_FORMAT = "%Y-%m-%d"
 

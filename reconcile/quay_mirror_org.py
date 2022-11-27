@@ -3,7 +3,8 @@ import os
 import tempfile
 
 from collections import defaultdict
-from typing import Iterable, Optional
+from typing import Optional
+from collections.abc import Iterable
 
 from sretoolbox.container import Image
 from sretoolbox.container.image import ImageComparisonError, ImageContainsError

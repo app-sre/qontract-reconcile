@@ -1,5 +1,6 @@
 import json
-from typing import Any, Callable
+from typing import Any
+from collections.abc import Callable
 from urllib.parse import urljoin
 
 import httpretty as httpretty_module

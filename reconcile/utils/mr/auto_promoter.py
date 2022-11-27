@@ -1,7 +1,8 @@
 import logging
 import json
 import hashlib
-from typing import Any, Mapping, MutableMapping
+from typing import Any
+from collections.abc import Mapping, MutableMapping
 from dataclasses import dataclass
 from dataclasses import asdict
 from ruamel import yaml

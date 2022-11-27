@@ -5,7 +5,8 @@ from jira.client import ResultList
 
 from reconcile.utils.secret_reader import SecretReader
 
-from typing import Any, Iterable, Mapping, Optional
+from typing import Any, Optional
+from collections.abc import Iterable, Mapping
 
 
 class JiraClient:

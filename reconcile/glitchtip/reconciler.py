@@ -1,5 +1,5 @@
 import logging
-from typing import Iterable, Sequence
+from collections.abc import Iterable, Sequence
 
 from reconcile.utils.glitchtip import GlitchtipClient, Organization, Project, Team, User
 

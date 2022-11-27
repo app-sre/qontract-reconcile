@@ -9,7 +9,8 @@ import re
 from functools import partial, lru_cache
 from http import HTTPStatus
 from pathlib import Path
-from typing import Any, Callable, Iterable, Mapping, Union
+from typing import Any, Union
+from collections.abc import Callable, Iterable, Mapping
 
 import requests
 from jinja2 import Template

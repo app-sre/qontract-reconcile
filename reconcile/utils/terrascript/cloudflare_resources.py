@@ -1,4 +1,5 @@
-from typing import Union, Iterable, Any, MutableMapping
+from typing import Any, Union
+from collections.abc import Iterable, MutableMapping
 
 from terrascript import Resource, Output, Variable
 from terrascript.resource import (

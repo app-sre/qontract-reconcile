@@ -4,7 +4,8 @@ import datetime
 import hashlib
 import json
 import re
-from typing import Mapping, Optional, Union
+from typing import Optional, Union
+from collections.abc import Mapping
 
 from threading import Lock
 

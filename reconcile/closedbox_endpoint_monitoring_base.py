@@ -1,7 +1,8 @@
 from collections import defaultdict
 import logging
 from urllib.parse import urlparse
-from typing import Any, Callable, Optional
+from typing import Any, Optional
+from collections.abc import Callable
 import json
 from dataclasses import field
 

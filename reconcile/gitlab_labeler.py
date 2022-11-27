@@ -1,7 +1,8 @@
 import os
 import logging
 
-from typing import Optional, Iterable
+from typing import Optional
+from collections.abc import Iterable
 from reconcile import queries
 
 from reconcile.gitlab_housekeeping import MERGE_LABELS_PRIORITY, HOLD_LABELS

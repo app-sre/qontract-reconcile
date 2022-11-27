@@ -1,5 +1,5 @@
 import tempfile
-from typing import Mapping
+from collections.abc import Mapping
 from subprocess import run, PIPE, CalledProcessError
 
 

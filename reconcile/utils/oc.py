@@ -11,7 +11,8 @@ from datetime import datetime
 from functools import wraps
 from subprocess import PIPE, Popen
 from threading import Lock
-from typing import Any, Iterable, Union
+from typing import Any, Union
+from collections.abc import Iterable
 
 import urllib3
 from kubernetes.client import ApiClient, Configuration

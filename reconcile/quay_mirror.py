@@ -6,7 +6,8 @@ import tempfile
 import time
 
 from collections import defaultdict, namedtuple
-from typing import Any, Iterable, Optional
+from typing import Any, Optional
+from collections.abc import Iterable
 
 from requests import Response
 
