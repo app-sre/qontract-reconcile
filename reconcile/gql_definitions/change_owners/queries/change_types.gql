@@ -17,6 +17,11 @@ query ChangeTypes($name: String) {
       }
       ... on ChangeTypeChangeDetectorJsonPathProvider_v1 {
         jsonPathSelectors
+        jsonPathSelectorTemplates {
+          var
+          items
+          template
+        }
       }
     }
     inherit {

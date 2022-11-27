@@ -25,6 +25,7 @@ from reconcile.change_owners.change_types import (
     init_change_type_processors,
     get_priority_for_changes,
 )
+from reconcile.change_owners.expressions import SupportsGqlQuery
 from reconcile.change_owners.self_service_roles import (
     cover_changes_with_self_service_roles,
 )
@@ -46,7 +47,8 @@ QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 def cover_changes(
     changes: list[BundleFileChange],
     change_type_processors: list[ChangeTypeProcessor],
-    comparision_gql_api: gql.GqlApi,
+    comparision_querier: SupportsGqlQuery,
+    querier: SupportsGqlQuery,
 ) -> None:
     """
     Coordinating function that can reach out to different `cover_*` functions
@@ -54,11 +56,13 @@ def cover_changes(
     """
 
     # self service roles coverage
-    roles = fetch_self_service_roles(comparision_gql_api)
+    roles = fetch_self_service_roles(comparision_querier)
     cover_changes_with_self_service_roles(
         bundle_changes=changes,
         change_type_processors=change_type_processors,
         roles=roles,
+        comparision_querier=comparision_querier,
+        querier=querier,
     )
 
     # ... add more cover_* functions to cover more changes based on dynamic
@@ -68,13 +72,15 @@ def cover_changes(
     # - ...
 
 
-def fetch_self_service_roles(gql_api: gql.GqlApi) -> list[RoleV1]:
-    roles = self_service_roles.query(gql_api.query).roles or []
+def fetch_self_service_roles(querier: SupportsGqlQuery) -> list[RoleV1]:
+    roles = self_service_roles.query(querier.query).roles or []
     return [r for r in roles if r.self_service]
 
 
-def fetch_change_type_processors(gql_api: gql.GqlApi) -> list[ChangeTypeProcessor]:
-    change_type_list = change_types.query(gql_api.query).change_types or []
+def fetch_change_type_processors(
+    querier: SupportsGqlQuery,
+) -> list[ChangeTypeProcessor]:
+    change_type_list = change_types.query(querier.query).change_types or []
     return list(init_change_type_processors(change_type_list).values())
 
 
@@ -296,6 +302,7 @@ def run(
             changes,
             change_type_processors,
             comparison_gql_api,
+            gql.get_api(),
         )
 
         self_serviceable = (

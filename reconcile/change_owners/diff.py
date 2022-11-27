@@ -2,7 +2,6 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Optional
 from functools import reduce
-import json
 import re
 
 
@@ -30,20 +29,6 @@ class Diff:
     diff_type: DiffType
     old: Optional[Any]
     new: Optional[Any]
-
-    def old_value_repr(self) -> Optional[str]:
-        return self._value_repr(self.old)
-
-    def new_value_repr(self) -> Optional[str]:
-        return self._value_repr(self.new)
-
-    def _value_repr(self, value: Optional[Any]) -> Optional[str]:
-        if value:
-            if isinstance(value, (dict, list)):
-                return json.dumps(value, indent=2)
-            else:
-                return str(value)
-        return value
 
 
 IDENTIFIER_FIELD_NAME = "__identifier"

@@ -66,11 +66,13 @@ def test_change_type_in_context(
         roles=[role],
         change_type_processors=[change_type_processor],
         bundle_changes=bundle_files,
+        comparision_querier=gql.get_api(),
+        querier=gql.get_api(),
     )
 
     for file, ctx in change_type_contexts:
         self_serviceable_paths = change_type_processor.allowed_changed_paths(
-            file_ref=file.fileref, file_content=file.new, ctx=ctx
+            file_ref=file.fileref, file_content=file.new, ctx=ctx, querier=gql.get_api()
         )
         if self_serviceable_paths:
             print_annotated_file(file, self_serviceable_paths)

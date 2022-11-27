@@ -9,26 +9,34 @@ from reconcile.change_owners.change_types import (
     Approver,
     ChangeTypeProcessor,
     ChangeTypeContext,
+    find_context_file_refs,
 )
+from reconcile.change_owners.expressions import SupportsGqlQuery
 
 
 def cover_changes_with_self_service_roles(
     roles: list[RoleV1],
     change_type_processors: list[ChangeTypeProcessor],
     bundle_changes: list[BundleFileChange],
+    comparision_querier: SupportsGqlQuery,
+    querier: SupportsGqlQuery,
 ) -> None:
     for bc, ctx in change_type_contexts_for_self_service_roles(
         roles=roles,
         change_type_processors=change_type_processors,
         bundle_changes=bundle_changes,
+        comparision_querier=comparision_querier,
+        querier=querier,
     ):
-        bc.cover_changes(ctx)
+        bc.cover_changes(ctx, querier)
 
 
 def change_type_contexts_for_self_service_roles(
     roles: list[RoleV1],
     change_type_processors: list[ChangeTypeProcessor],
     bundle_changes: list[BundleFileChange],
+    comparision_querier: SupportsGqlQuery,
+    querier: SupportsGqlQuery,
 ) -> list[Tuple[BundleFileChange, ChangeTypeContext]]:
     """
     Cover changes with ChangeTypeV1 associated to datafiles and resources via a
@@ -56,7 +64,12 @@ def change_type_contexts_for_self_service_roles(
     change_type_contexts = []
     for bc in bundle_changes:
         for ctp in change_type_processors:
-            datafile_refs = bc.extract_context_file_refs(ctp)
+            datafile_refs = find_context_file_refs(
+                bundle_change=bc,
+                change_type=ctp,
+                comparision_querier=comparision_querier,
+                querier=querier,
+            )
             for df_ref in datafile_refs:
                 # if the context file is bound with the change type in
                 # a role, build a changetypecontext

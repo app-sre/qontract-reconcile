@@ -35,6 +35,11 @@ query ChangeTypes($name: String) {
       }
       ... on ChangeTypeChangeDetectorJsonPathProvider_v1 {
         jsonPathSelectors
+        jsonPathSelectorTemplates {
+          var
+          items
+          template
+        }
       }
     }
     inherit {
@@ -66,8 +71,21 @@ class ChangeTypeChangeDetectorV1(BaseModel):
         extra = Extra.forbid
 
 
+class ChangeTypeChangeDetectorJsonPathSelectorTemplateV1(BaseModel):
+    var: str = Field(..., alias="var")
+    items: str = Field(..., alias="items")
+    template: str = Field(..., alias="template")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
 class ChangeTypeChangeDetectorJsonPathProviderV1(ChangeTypeChangeDetectorV1):
-    json_path_selectors: list[str] = Field(..., alias="jsonPathSelectors")
+    json_path_selectors: Optional[list[str]] = Field(..., alias="jsonPathSelectors")
+    json_path_selector_templates: Optional[
+        list[ChangeTypeChangeDetectorJsonPathSelectorTemplateV1]
+    ] = Field(..., alias="jsonPathSelectorTemplates")
 
     class Config:
         smart_union = True

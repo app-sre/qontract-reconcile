@@ -62,6 +62,7 @@ setup(
         "deepdiff6==6.2.0",
         "jsonpath-ng~=1.5",
         "networkx~=2.8",
+        "multiset==3.0.1",
     ],
     test_suite="tests",
     classifiers=[

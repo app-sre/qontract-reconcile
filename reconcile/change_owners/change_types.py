@@ -3,19 +3,27 @@ from collections import defaultdict
 from enum import Enum
 from typing import Any, Iterable, Optional, Sequence, Tuple
 
-
 import jsonpath_ng
 import jsonpath_ng.ext
+import jsonpath_ng.ext.filter
 import anymarkup
-import jinja2
-import jinja2.meta
 import networkx
+from multiset import Multiset
 
 from reconcile.change_owners.diff import (
     SHA256SUM_FIELD_NAME,
     Diff,
     DiffType,
     extract_diffs,
+)
+from reconcile.change_owners.expressions import (
+    PathExpression,
+    TemplatedPathExpression,
+    GqlQueryExpression,
+    SupportsGqlQuery,
+    parse_expression_with_protocol,
+    GQL_JSONPATH_PROTOCOL,
+    JSONPATH_PROTOCOL,
 )
 from reconcile.gql_definitions.change_owners.queries.change_types import (
     ChangeTypeV1,
@@ -61,6 +69,131 @@ class DiffCoverage:
         return any(not ctx.disabled for ctx in self.coverage)
 
 
+CHANGED_FILE_EXPRESSION_VAR = "changed_file_path"
+CTX_FILE_PATH_VAR_NAME = "ctx_file_path"
+
+
+def find_context_file_refs(
+    bundle_change: "BundleFileChange",
+    change_type: "ChangeTypeProcessor",
+    comparision_querier: SupportsGqlQuery,
+    querier: SupportsGqlQuery,
+) -> list[FileRef]:
+    """
+    ChangeTypeV1 are attached to bundle files, react to changes within
+    them and use their context to derive who can approve those changes.
+    Extracting this context can be done in two ways depending on the configuration
+    of the ChangeTypeV1.
+
+    direct context extraction
+        If a ChangeTypeV1 defines a `context_schema`, it can be attached to files
+        of that schema. If such a file changes, the ChangeTypeV1 feels responsible
+        for it in subsequent diff coverage calculations and will use the approvers
+        that exist in the context of that changed file. This is the default
+        mode almost all ChangeTypeV1 operate in.
+
+        Example: a ChangeTypeV1 defines `/openshift/namespace-1.yml` as the
+        context_schema and can cover certain changes in it. If this ChangeTypeV1
+        is attached to certain namespace files (potential BundleChanges) and
+        a Role (context), changes in those namespace files can be approved by
+        members of the role.
+
+    context detection
+        If a ChangeTypeV1 additionally defines change_schemas and context selectors,
+        it has the capability to differentiate between reacting to changes
+        (and trying to cover them) and finding the context where approvers are
+        defined.
+
+        Example: Consider the following ChangeTypeV1 granting permissions to
+        approve on new members wanting to join a role.
+        ```
+        $schema: /app-interface/change-type-1.yml
+
+        contextType: datafile
+        contextSchema: /access/roles-1.yml
+
+        changes:
+        - provider: jsonPath
+            changeSchema: /access/user-1.yml
+            jsonPathSelectors:
+            - roles[*]
+            context:
+            selector: roles[*].'$ref'
+            when: added
+        ```
+
+        Users join a role by adding the role to the user. This means that it
+        is a /access/user-1.yml file that changes in this situation. But permissions
+        to approve changes should be attached to the role not the user. This
+        ChangeTypeV1 takes care of that differentiation by defining /access/role-1.yml
+        as the context schema (making the ChangeTypeV1 assignable to a role)
+        but defining change detection on /access/user-1.yml via the `changeSchema`.
+        The actual role can be found within the userfile by looking for `added`
+        entries under `roles[*].$ref` (this is a jsonpath expression) as defined
+        under `context.selector`.
+    """
+    if not change_type.changes:
+        return []
+
+    # direct context extraction
+    # the changed file itself is giving the context for approver extraction
+    # see doc string for more details
+    if change_type.context_schema == bundle_change.fileref.schema:
+        return [bundle_change.fileref]
+
+    # context detection
+    # the context for approver extraction can be found within the changed
+    # file with a `context.selector`
+    # see doc string for more details
+    contexts: list[FileRef] = []
+    for c in change_type.changes:
+        if c.change_schema == bundle_change.fileref.schema and c.context:
+            protocol, selector_expression = parse_expression_with_protocol(
+                c.context.selector, JSONPATH_PROTOCOL
+            )
+            context_selector_jsonpath = PathExpression(
+                selector_expression, {CHANGED_FILE_EXPRESSION_VAR}
+            ).render_to_str({CHANGED_FILE_EXPRESSION_VAR: bundle_change.fileref.path})[
+                0
+            ]
+            if protocol == GQL_JSONPATH_PROTOCOL:
+                gql_query_expression = GqlQueryExpression(context_selector_jsonpath)
+                old_contexts = Multiset(gql_query_expression.data(comparision_querier))
+                new_contexts = Multiset(gql_query_expression.data(querier))
+            elif protocol == JSONPATH_PROTOCOL:
+                jsonpath = jsonpath_ng.ext.parse(context_selector_jsonpath)
+                old_contexts = Multiset(
+                    [e.value for e in jsonpath.find(bundle_change.old)]
+                )
+                new_contexts = Multiset(
+                    [e.value for e in jsonpath.find(bundle_change.new)]
+                )
+            else:
+                raise ValueError(f"unknown expression protocol {protocol}")
+
+            if c.context.when == "added":
+                affected_context_paths = new_contexts - old_contexts
+            elif c.context.when == "removed":
+                affected_context_paths = old_contexts - new_contexts
+            elif c.context.when is None and old_contexts == new_contexts:
+                affected_context_paths = old_contexts
+            else:
+                affected_context_paths = None
+
+            if affected_context_paths:
+                contexts.extend(
+                    [
+                        FileRef(
+                            schema=change_type.context_schema,
+                            path=path,
+                            file_type=BundleFileType.DATAFILE,
+                        )
+                        for path in set(affected_context_paths)
+                    ]
+                )
+    return contexts
+
+
 @dataclass
 class BundleFileChange:
     """
@@ -74,104 +207,9 @@ class BundleFileChange:
     new: Optional[dict[str, Any]]
     diff_coverage: list[DiffCoverage]
 
-    def extract_context_file_refs(
-        self, change_type: "ChangeTypeProcessor"
-    ) -> list[FileRef]:
-        """
-        ChangeTypeV1 are attached to bundle files, react to changes within
-        them and use their context to derive who can approve those changes.
-        Extracting this context can be done in two ways depending on the configuration
-        of the ChangeTypeV1.
-
-        direct context extraction
-          If a ChangeTypeV1 defines a `context_schema`, it can be attached to files
-          of that schema. If such a file changes, the ChangeTypeV1 feels responsible
-          for it in subsequent diff coverage calculations and will use the approvers
-          that exist in the context of that changed file. This is the default
-          mode almost all ChangeTypeV1 operate in.
-
-          Example: a ChangeTypeV1 defines `/openshift/namespace-1.yml` as the
-          context_schema and can cover certain changes in it. If this ChangeTypeV1
-          is attached to certain namespace files (potential BundleChanges) and
-          a Role (context), changes in those namespace files can be approved by
-          members of the role.
-
-        context detection
-          If a ChangeTypeV1 additionally defines change_schemas and context selectors,
-          it has the capability to differentiate between reacting to changes
-          (and trying to cover them) and finding the context where approvers are
-          defined.
-
-          Example: Consider the following ChangeTypeV1 granting permissions to
-          approve on new members wanting to join a role.
-          ```
-            $schema: /app-interface/change-type-1.yml
-
-            contextType: datafile
-            contextSchema: /access/roles-1.yml
-
-            changes:
-            - provider: jsonPath
-              changeSchema: /access/user-1.yml
-              jsonPathSelectors:
-              - roles[*]
-              context:
-                selector: roles[*].'$ref'
-                when: added
-          ```
-
-          Users join a role by adding the role to the user. This means that it
-          is a /access/user-1.yml file that changes in this situation. But permissions
-          to approve changes should be attached to the role not the user. This
-          ChangeTypeV1 takes care of that differentiation by defining /access/role-1.yml
-          as the context schema (making the ChangeTypeV1 assignable to a role)
-          but defining change detection on /access/user-1.yml via the `changeSchema`.
-          The actual role can be found within the userfile by looking for `added`
-          entries under `roles[*].$ref` (this is a jsonpath expression) as defined
-          under `context.selector`.
-        """
-        if not change_type.changes:
-            return []
-
-        # direct context extraction
-        # the changed file itself is giving the context for approver extraction
-        # see doc string for more details
-        if change_type.context_schema == self.fileref.schema:
-            return [self.fileref]
-
-        # context detection
-        # the context for approver extraction can be found within the changed
-        # file with a `context.selector`
-        # see doc string for more details
-        contexts: list[FileRef] = []
-        for c in change_type.changes:
-            if c.change_schema == self.fileref.schema and c.context:
-                context_selector = jsonpath_ng.ext.parse(c.context.selector)
-                old_contexts = {e.value for e in context_selector.find(self.old)}
-                new_contexts = {e.value for e in context_selector.find(self.new)}
-                if c.context.when == "added":
-                    affected_context_paths = new_contexts - old_contexts
-                elif c.context.when == "removed":
-                    affected_context_paths = old_contexts - new_contexts
-                elif c.context.when is None and old_contexts == new_contexts:
-                    affected_context_paths = old_contexts
-                else:
-                    affected_context_paths = None
-
-                if affected_context_paths:
-                    contexts.extend(
-                        [
-                            FileRef(
-                                schema=change_type.context_schema,
-                                path=path,
-                                file_type=BundleFileType.DATAFILE,
-                            )
-                            for path in affected_context_paths
-                        ]
-                    )
-        return contexts
-
-    def cover_changes(self, change_type_context: "ChangeTypeContext") -> list[Diff]:
+    def cover_changes(
+        self, change_type_context: "ChangeTypeContext", querier: SupportsGqlQuery
+    ) -> list[Diff]:
         """
         Figure out if a ChangeTypeV1 covers detected changes within the BundleFile.
         Base idea:
@@ -192,12 +230,16 @@ class BundleFileChange:
                 self._filter_diffs([DiffType.ADDED, DiffType.CHANGED]),
                 self.new,
                 change_type_context,
+                querier,
             )
         )
         # look at the old state for removed fields or list items or object subtrees
         covered_diffs.update(
             self._cover_changes_for_diffs(
-                self._filter_diffs([DiffType.REMOVED]), self.old, change_type_context
+                self._filter_diffs([DiffType.REMOVED]),
+                self.old,
+                change_type_context,
+                querier,
             )
         )
         return list(covered_diffs.values())
@@ -207,6 +249,7 @@ class BundleFileChange:
         diffs: list[DiffCoverage],
         file_content: Any,
         change_type_context: "ChangeTypeContext",
+        querier: SupportsGqlQuery,
     ) -> dict[str, Diff]:
 
         covered_diffs = {}
@@ -214,7 +257,7 @@ class BundleFileChange:
             for (
                 allowed_path
             ) in change_type_context.change_type_processor.allowed_changed_paths(
-                self.fileref, file_content, change_type_context
+                self.fileref, file_content, change_type_context, querier
             ):
                 for dc in diffs:
                     if change_path_covered_by_allowed_path(
@@ -284,43 +327,6 @@ def create_bundle_file_change(
         return None
 
 
-class PathExpression:
-    """
-    PathExpression is a wrapper around a JSONPath expression that can contain
-    Jinja2 template fragments. The template has access to ChangeTypeContext.
-    """
-
-    CTX_FILE_PATH_VAR_NAME = "ctx_file_path"
-    SUPPORTED_VARS = {CTX_FILE_PATH_VAR_NAME}
-
-    def __init__(self, jsonpath_expression: str):
-        self.jsonpath_expression = jsonpath_expression
-        self.parsed_jsonpath = None
-        if "{{" in jsonpath_expression:
-            env = jinja2.Environment()
-            ast = env.parse(self.jsonpath_expression)
-            used_variable = jinja2.meta.find_undeclared_variables(ast)
-            if used_variable - self.SUPPORTED_VARS:
-                raise ValueError(
-                    f"only the variables '{self.SUPPORTED_VARS}' are allowed "
-                    f"in path expressions. found: {used_variable}"
-                )
-            self.template = env.from_string(self.jsonpath_expression)
-        else:
-            self.parsed_jsonpath = jsonpath_ng.ext.parse(jsonpath_expression)
-
-    def jsonpath_for_context(self, ctx: "ChangeTypeContext") -> jsonpath_ng.JSONPath:
-        if self.parsed_jsonpath:
-            return self.parsed_jsonpath
-        else:
-            expr = self.template.render(
-                {
-                    self.CTX_FILE_PATH_VAR_NAME: ctx.context_file.path,
-                }
-            )
-            return jsonpath_ng.ext.parse(expr)
-
-
 @dataclass
 class ChangeTypeProcessor:
     """
@@ -347,7 +353,11 @@ class ChangeTypeProcessor:
         return self._changes
 
     def allowed_changed_paths(
-        self, file_ref: FileRef, file_content: Any, ctx: "ChangeTypeContext"
+        self,
+        file_ref: FileRef,
+        file_content: Any,
+        ctx: "ChangeTypeContext",
+        querier: SupportsGqlQuery,
     ) -> list[str]:
         """
         find all paths within the provide file_content, that are covered by this
@@ -362,26 +372,52 @@ class ChangeTypeProcessor:
             for change_type_path_expression in self._expressions_by_file_type_schema[
                 (file_ref.file_type, file_ref.schema)
             ]:
-                paths.extend(
-                    [
-                        str(p.full_path)
-                        for p in change_type_path_expression.jsonpath_for_context(
-                            ctx
-                        ).find(file_content)
-                    ]
-                )
+                for json_path in change_type_path_expression.render(
+                    {CTX_FILE_PATH_VAR_NAME: ctx.context_file.path}, querier
+                ):
+                    paths.extend(
+                        [str(p.full_path) for p in json_path.find(file_content)]
+                    )
         return paths
 
     def add_change(self, change: ChangeTypeChangeDetectorV1) -> None:
         self._changes.append(change)
         if isinstance(change, ChangeTypeChangeDetectorJsonPathProviderV1):
             change_schema = change.change_schema or self.context_schema
-            for jsonpath_expression in change.json_path_selectors + [
-                f"'{SHA256SUM_FIELD_NAME}'"
-            ]:
+            # add default jsonpath for checksum. this allows the owner of a file
+            # to lgtm on non visible changes like comments
+            self._expressions_by_file_type_schema[
+                (self.context_type, change_schema)
+            ].append(
+                PathExpression(f"'{SHA256SUM_FIELD_NAME}'", {CTX_FILE_PATH_VAR_NAME})
+            )
+            # add jsonpath expressions
+            for jsonpath_expression in change.json_path_selectors or []:
                 self._expressions_by_file_type_schema[
                     (self.context_type, change_schema)
-                ].append(PathExpression(jsonpath_expression))
+                ].append(PathExpression(jsonpath_expression, {CTX_FILE_PATH_VAR_NAME}))
+            # add templated jsonpath expressions
+            for jsonpath_template in change.json_path_selector_templates or []:
+                self._expressions_by_file_type_schema[
+                    (self.context_type, change_schema)
+                ].append(
+                    TemplatedPathExpression(
+                        template=jsonpath_template.template,
+                        items_expr=jsonpath_template.items,
+                        item_name=jsonpath_template.var,
+                    )
+                )
+            # validate context selector
+            if change.context and change.context.selector:
+                _, selector_expression = parse_expression_with_protocol(
+                    change.context.selector,
+                    JSONPATH_PROTOCOL,
+                    accepted_expression_protocols=[
+                        JSONPATH_PROTOCOL,
+                        GQL_JSONPATH_PROTOCOL,
+                    ],
+                )
+                jsonpath_ng.ext.parse(selector_expression)
         else:
             raise ValueError(
                 f"{change.provider} is not a supported change detection provider within ChangeTypes"
