@@ -658,4 +658,9 @@ def test_is_namespace_deleted_false():
 
 
 def test_is_namespace_deleted_none():
+    ns = {"delete": None}
+    assert sut.is_namespace_deleted(ns) is False
+
+
+def test_is_namespace_deleted_empty():
     assert sut.is_namespace_deleted({}) is False
