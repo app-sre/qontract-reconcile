@@ -48,8 +48,7 @@ class PagerDutyTarget(Protocol):
 
 
 class PagerDutyConfig(BaseModel):
-    """This protocol defines mandatory attributes/methods
-    which must be implemented by a class to be compatible."""
+    """PagerDuty Config."""
 
     name: str
     token: str
