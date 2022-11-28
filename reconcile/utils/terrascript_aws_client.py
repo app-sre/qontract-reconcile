@@ -12,14 +12,8 @@ import imghdr
 
 from threading import Lock
 
-from typing import (
-    Any,
-    Iterable,
-    Mapping,
-    MutableMapping,
-    Optional,
-    cast,
-)
+from typing import Any, Optional, cast
+from collections.abc import Iterable, Mapping, MutableMapping
 from ipaddress import ip_network, ip_address
 
 import anymarkup

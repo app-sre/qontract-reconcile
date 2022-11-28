@@ -6,17 +6,9 @@ import os
 import itertools
 import hashlib
 import re
+from typing import Any, Optional, Union, cast
 from collections import ChainMap
-from typing import (
-    Iterable,
-    Mapping,
-    Any,
-    MutableMapping,
-    Optional,
-    Sequence,
-    Union,
-    cast,
-)
+from collections.abc import Iterable, Mapping, MutableMapping, Sequence
 
 from contextlib import suppress
 import yaml
