@@ -16,118 +16,50 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
+from reconcile.gql_definitions.glitchtip.glitchtip_project_fragment import (
+    GlitchtipProject,
+)
+
 
 DEFINITION = """
-query Projects {
-  apps: apps_v1 {
-    glitchtipProjects {
-      name
-      platform
-      teams {
-        name
-        roles {
-          glitchtip_roles {
-            organization {
-              name
-            }
-            role
-          }
-          users {
-            org_username
-            github_username
-          }
-        }
-      }
-      organization {
-        name
-        instance {
+fragment GlitchtipProject on GlitchtipProjects_v1 {
+  name
+  platform
+  teams {
+    name
+    roles {
+      glitchtip_roles {
+        organization {
           name
         }
+        role
       }
+      users {
+        org_username
+        github_username
+      }
+    }
+  }
+  organization {
+    name
+    instance {
+      name
+    }
+  }
+}
+
+query Projects {
+  namespaces: namespaces_v1 {
+    glitchtipProjects {
+      ...GlitchtipProject
     }
   }
 }
 """
 
 
-class GlitchtipOrganizationV1(BaseModel):
-    name: str = Field(..., alias="name")
-
-    class Config:
-        smart_union = True
-        extra = Extra.forbid
-
-
-class GlitchtipRoleV1(BaseModel):
-    organization: GlitchtipOrganizationV1 = Field(..., alias="organization")
-    role: str = Field(..., alias="role")
-
-    class Config:
-        smart_union = True
-        extra = Extra.forbid
-
-
-class UserV1(BaseModel):
-    org_username: str = Field(..., alias="org_username")
-    github_username: str = Field(..., alias="github_username")
-
-    class Config:
-        smart_union = True
-        extra = Extra.forbid
-
-
-class RoleV1(BaseModel):
-    glitchtip_roles: Optional[list[GlitchtipRoleV1]] = Field(
-        ..., alias="glitchtip_roles"
-    )
-    users: list[UserV1] = Field(..., alias="users")
-
-    class Config:
-        smart_union = True
-        extra = Extra.forbid
-
-
-class GlitchtipTeamV1(BaseModel):
-    name: str = Field(..., alias="name")
-    roles: list[RoleV1] = Field(..., alias="roles")
-
-    class Config:
-        smart_union = True
-        extra = Extra.forbid
-
-
-class GlitchtipInstanceV1(BaseModel):
-    name: str = Field(..., alias="name")
-
-    class Config:
-        smart_union = True
-        extra = Extra.forbid
-
-
-class GlitchtipProjectsV1_GlitchtipOrganizationV1(BaseModel):
-    name: str = Field(..., alias="name")
-    instance: GlitchtipInstanceV1 = Field(..., alias="instance")
-
-    class Config:
-        smart_union = True
-        extra = Extra.forbid
-
-
-class GlitchtipProjectsV1(BaseModel):
-    name: str = Field(..., alias="name")
-    platform: str = Field(..., alias="platform")
-    teams: list[GlitchtipTeamV1] = Field(..., alias="teams")
-    organization: GlitchtipProjectsV1_GlitchtipOrganizationV1 = Field(
-        ..., alias="organization"
-    )
-
-    class Config:
-        smart_union = True
-        extra = Extra.forbid
-
-
-class AppV1(BaseModel):
-    glitchtip_projects: Optional[list[GlitchtipProjectsV1]] = Field(
+class NamespaceV1(BaseModel):
+    glitchtip_projects: Optional[list[GlitchtipProject]] = Field(
         ..., alias="glitchtipProjects"
     )
 
@@ -137,7 +69,7 @@ class AppV1(BaseModel):
 
 
 class ProjectsQueryData(BaseModel):
-    apps: Optional[list[AppV1]] = Field(..., alias="apps")
+    namespaces: Optional[list[NamespaceV1]] = Field(..., alias="namespaces")
 
     class Config:
         smart_union = True

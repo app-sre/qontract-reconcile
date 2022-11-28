@@ -1,0 +1,27 @@
+# qenerate: plugin=pydantic_v1
+
+fragment GlitchtipProject on GlitchtipProjects_v1 {
+  name
+  platform
+  teams {
+    name
+    roles {
+      glitchtip_roles {
+        organization {
+          name
+        }
+        role
+      }
+      users {
+        org_username
+        github_username
+      }
+    }
+  }
+  organization {
+    name
+    instance {
+      name
+    }
+  }
+}
