@@ -83,6 +83,7 @@ class AssetStatus(Enum):
     TERMINATED = "Terminated"
     PENDING = "Pending"
     RUNNING = "Running"
+    ERROR = "Error"
 
 
 class AssetModelConfig:
