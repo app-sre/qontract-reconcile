@@ -19,30 +19,28 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
 
 DEFINITION = """
 query Projects {
-  apps: apps_v1 {
-    glitchtipProjects {
+  glitchtip_projects: glitchtip_projects_v1 {
+    name
+    platform
+    teams {
       name
-      platform
-      teams {
-        name
-        roles {
-          glitchtip_roles {
-            organization {
-              name
-            }
-            role
+      roles {
+        glitchtip_roles {
+          organization {
+            name
           }
-          users {
-            org_username
-            github_username
-          }
+          role
+        }
+        users {
+          org_username
+          github_username
         }
       }
-      organization {
+    }
+    organization {
+      name
+      instance {
         name
-        instance {
-          name
-        }
       }
     }
   }
@@ -126,18 +124,10 @@ class GlitchtipProjectsV1(BaseModel):
         extra = Extra.forbid
 
 
-class AppV1(BaseModel):
-    glitchtip_projects: Optional[list[GlitchtipProjectsV1]] = Field(
-        ..., alias="glitchtipProjects"
-    )
-
-    class Config:
-        smart_union = True
-        extra = Extra.forbid
-
-
 class ProjectsQueryData(BaseModel):
-    apps: Optional[list[AppV1]] = Field(..., alias="apps")
+    glitchtip_projects: Optional[list[GlitchtipProjectsV1]] = Field(
+        ..., alias="glitchtip_projects"
+    )
 
     class Config:
         smart_union = True
