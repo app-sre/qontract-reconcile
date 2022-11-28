@@ -17,13 +17,7 @@ from reconcile.cna.assets.null import NullAsset
 from reconcile.gql_definitions.cna.queries.cna_resources import (
     CNAAssumeRoleAssetV1,
     CNAssetV1,
-    NamespaceV1,
-    NamespaceCNAssetV1,
 )
-from reconcile.utils.external_resource_spec import (
-    TypedExternalResourceSpec,
-)
-from reconcile.utils.external_resources import PROVIDER_CNA_EXPERIMENTAL
 
 import pytest
 
@@ -238,7 +232,7 @@ def build_assume_role_typed_external_resource(
     role_arn: str,
     verify_slug_override: Optional[str],
     verify_slug_default: Optional[str],
-) -> TypedExternalResourceSpec[CNAssetV1]:
+) -> CNAssetV1:
     resource = {
         "provider": AWSAssumeRoleAsset.provider(),
         "identifier": identifier,
@@ -255,24 +249,7 @@ def build_assume_role_typed_external_resource(
             "slug": verify_slug_default,
         },
     }
-    namespace_resource = {
-        "provider": PROVIDER_CNA_EXPERIMENTAL,
-        "provisioner": {"name": "some-ocm-org"},
-        "resources": [resource],
-    }
-    namespace = {
-        "name": "ns-name",
-        "managedExternalResources": True,
-        "cluster": {
-            "spec": None,
-        },
-        "externalResources": [namespace_resource],
-    }
-    return TypedExternalResourceSpec[CNAssetV1](
-        namespace_spec=NamespaceV1(**namespace),
-        namespace_external_resource=NamespaceCNAssetV1(**namespace_resource),
-        spec=CNAAssumeRoleAssetV1(**resource),
-    )
+    return CNAAssumeRoleAssetV1(**resource)
 
 
 def test_from_external_resources_with_default():

@@ -12,7 +12,6 @@ from reconcile.cna.assets.asset import (
     ASSET_HREF_FIELD,
     ASSET_NAME_FIELD,
 )
-from reconcile.utils.external_resource_spec import TypedExternalResourceSpec
 
 
 _ASSET_TYPE_SCHEME: dict[AssetType, Type[Asset]] = {}
@@ -39,7 +38,7 @@ def asset_type_for_provider(provider: str) -> AssetType:
 
 
 def asset_factory_from_schema(
-    external_resource_spec: TypedExternalResourceSpec[CNAssetV1],
+    external_resource_spec: CNAssetV1,
 ) -> Asset:
     cna_dataclass = _dataclass_for_provider(external_resource_spec.provider)
     return cna_dataclass.from_external_resources(external_resource_spec)
