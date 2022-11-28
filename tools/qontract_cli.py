@@ -19,7 +19,7 @@ import reconcile.terraform_users as tfu
 import reconcile.terraform_vpc_peerings as tfvpc
 import requests
 import yaml
-from reconcile import queries
+from reconcile import queries, typed_queries
 from reconcile.checkpoint import report_invalid_metadata
 from reconcile.cli import config_file
 from reconcile.slack_base import slackapi_from_queries
@@ -1499,11 +1499,10 @@ def slack_usergroup(ctx, workspace, usergroup, username):
     Use an org_username as the username.
     To empty a slack usergroup, pass '' (empty string) as the username.
     """
-    settings = queries.get_app_interface_settings()
     slack = slackapi_from_queries("qontract-cli")
     ugid = slack.get_usergroup_id(usergroup)
     if username:
-        mail_address = settings["smtp"]["mailAddress"]
+        mail_address = typed_queries.smtp.settings().mail_address
         users = [slack.get_user_id_by_name(username, mail_address)]
     else:
         users = [slack.get_random_deleted_user()]

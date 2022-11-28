@@ -1,6 +1,6 @@
 from typing import Any, Iterable, Optional, Sequence
 
-from reconcile import queries
+from reconcile import queries, typed_queries
 
 from reconcile.glitchtip.reconciler import GlitchtipReconciler
 from reconcile.gql_definitions.glitchtip.glitchtip_instance import (
@@ -107,9 +107,10 @@ def fetch_desired_state(
 def run(dry_run: bool, instance: Optional[str] = None) -> None:
     gqlapi = gql.get_api()
     secret_reader = SecretReader(queries.get_secret_reader_settings())
-    read_timeout = 30
+    smtp_settings = typed_queries.smtp.settings()
+    read_timeout = smtp_settings.timeout
     max_retries = 3
-    mail_domain = "redhat.com"
+    mail_domain = smtp_settings.mail_address
     if _s := glitchtip_settings_query(query_func=gqlapi.query).settings:
         if _gs := _s[0].glitchtip:
             if _gs.read_timeout is not None:
