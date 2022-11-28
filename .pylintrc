@@ -1,3 +1,6 @@
+[MAIN]
+extension-pkg-allow-list=pydantic
+
 [MESSAGES CONTROL]
 disable = attribute-defined-outside-init,
           broad-except,

@@ -8,7 +8,6 @@ from typing import (
 )
 
 from croniter import croniter
-from dateutil import parser
 from semver import VersionInfo
 
 from reconcile import queries
@@ -92,7 +91,7 @@ def update_history(version_data: VersionData, upgrade_policies: list[dict[str, A
         upgrade_policies (list): query results of clusters upgrade policies
     """
     now = datetime.utcnow()
-    check_in = parser.parse(version_data.check_in or str(now))
+    check_in = version_data.check_in or now
 
     # we iterate over clusters upgrade policies and update the version history
     for item in upgrade_policies:
@@ -114,24 +113,7 @@ def update_history(version_data: VersionData, upgrade_policies: list[dict[str, A
             else:
                 workload_history.reporting.append(cluster)
 
-    version_data.check_in = str(now)
-
-
-def aggregateVersionData(data: VersionData, added: VersionData, added_org_name: str):
-    known_workloads: set[str] = set()
-    for v in data.versions.values():
-        known_workloads.update(v.workloads.keys())
-    for version, version_data in added.versions.items():
-        for workload, workload_data in version_data.workloads.items():
-            # skip if our current version data does not contain this remote workload
-            if workload not in known_workloads:
-                continue
-            w = data.workload_history(version, workload)
-            w.soak_days += workload_data.soak_days
-            ocm_clusters = [
-                f"{added_org_name}/{cluster}" for cluster in workload_data.reporting
-            ]
-            w.reporting += ocm_clusters
+    version_data.check_in = now
 
 
 def get_version_data_map(
@@ -161,7 +143,8 @@ def get_version_data_map(
         if not dry_run:
             version_data.save(state, ocm_name)
 
-    # inherit data from other ocm orgs
+    # aggregate data from other ocm orgs
+    # this is done *after* saving the state: we do not store the other orgs data in our state.
     for ocm_name in ocm_map.instances():
         ocm = ocm_map[ocm_name]
         for other_ocm in ocm.inheritVersionData:
@@ -176,10 +159,8 @@ def get_version_data_map(
                 raise ValueError(
                     f"[{ocm_name}] OCM organization inherits version data from {other_ocm_name}, but this data is not published to it: missing publishVersionData in {other_ocm_name}"
                 )
-            other_ocm_data = results.get(other_ocm_name)
-            if other_ocm_data is None:
-                other_ocm_data = state.get(other_ocm_name, {})
-            aggregateVersionData(results[ocm_name], other_ocm_data, other_ocm_name)
+            other_ocm_data = get_version_data(state, other_ocm_name)
+            results[ocm_name].aggregate(other_ocm_data, other_ocm_name)
 
     return results
 

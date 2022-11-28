@@ -5,7 +5,6 @@ import os
 import re
 import sys
 from collections import defaultdict
-from contextlib import suppress
 from datetime import datetime
 from operator import itemgetter
 from typing import Optional

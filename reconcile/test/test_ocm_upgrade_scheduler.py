@@ -11,7 +11,7 @@ from croniter import croniter
 from dateutil import parser
 
 import reconcile.ocm_upgrade_scheduler as ous
-from reconcile.utils.cluster_version_data import version_data_from_dict
+from reconcile.utils.cluster_version_data import VersionData
 from reconcile.utils.ocm import Sector
 
 
@@ -19,7 +19,7 @@ class TestUpdateHistory(TestCase):
     @patch.object(ous, "datetime", Mock(wraps=datetime))
     def test_update_history(self):
         history = {
-            "check_in": "2021-08-29 18:00:00",
+            "check_in": "2021-08-29T18:00:00",
             "versions": {
                 "version1": {
                     "workloads": {
@@ -32,7 +32,7 @@ class TestUpdateHistory(TestCase):
                 }
             },
         }
-        ous.datetime.utcnow.return_value = parser.parse("2021-08-30 18:00:00.00000")
+        ous.datetime.utcnow.return_value = parser.parse("2021-08-30T18:00:00.00000")
         upgrade_policies = [
             {
                 "workloads": ["workload1"],
@@ -50,10 +50,10 @@ class TestUpdateHistory(TestCase):
                 "current_version": "version1",
             },
         ]
-        version_data = version_data_from_dict(history)
+        version_data = VersionData(**history)
         ous.update_history(version_data, upgrade_policies)
         expected = {
-            "check_in": "2021-08-30 18:00:00",
+            "check_in": "2021-08-30T18:00:00",
             "versions": {
                 "version1": {
                     "workloads": {
@@ -66,7 +66,7 @@ class TestUpdateHistory(TestCase):
                 }
             },
         }
-        self.assertEqual(expected, version_data.asdict())
+        self.assertEqual(expected, version_data.jsondict())
 
 
 class TestVersionConditionsMetSoakDays(TestCase):
@@ -87,7 +87,7 @@ class TestVersionConditionsMetSoakDays(TestCase):
                 }
             },
         }
-        version_data = version_data_from_dict(version_data_dict)
+        version_data = VersionData(**version_data_dict)
         self.version_data_map = {self.ocm_name: version_data}
 
     def test_conditions_met_larger(self):
@@ -153,9 +153,9 @@ class TestUpgradeLock:
     @staticmethod
     def set_upgradeable():
         ous.version_conditions_met.return_value = True
-        ous.datetime.utcnow.return_value = parser.parse("2021-08-30 18:00:00.00000")
+        ous.datetime.utcnow.return_value = parser.parse("2021-08-30T18:00:00.00000")
         schedule = ous.croniter.return_value
-        schedule.get_next.return_value = parser.parse("2021-08-30 19:00:00.00000")
+        schedule.get_next.return_value = parser.parse("2021-08-30T19:00:00.00000")
         return True
 
     current_cluster1 = {
