@@ -5,5 +5,10 @@ query Projects {
     glitchtipProjects {
       ...GlitchtipProject
     }
+    sharedResources {
+      glitchtipProjects {
+        ...GlitchtipProject
+      }
+    }
   }
 }

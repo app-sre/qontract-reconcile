@@ -53,14 +53,32 @@ query Projects {
     glitchtipProjects {
       ...GlitchtipProject
     }
+    sharedResources {
+      glitchtipProjects {
+        ...GlitchtipProject
+      }
+    }
   }
 }
 """
 
 
+class SharedResourcesV1(BaseModel):
+    glitchtip_projects: Optional[list[GlitchtipProject]] = Field(
+        ..., alias="glitchtipProjects"
+    )
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
 class NamespaceV1(BaseModel):
     glitchtip_projects: Optional[list[GlitchtipProject]] = Field(
         ..., alias="glitchtipProjects"
+    )
+    shared_resources: Optional[list[SharedResourcesV1]] = Field(
+        ..., alias="sharedResources"
     )
 
     class Config:

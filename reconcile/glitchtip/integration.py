@@ -123,6 +123,8 @@ def run(dry_run: bool, instance: Optional[str] = None) -> None:
     glitchtip_projects: list[GlitchtipProjectsV1] = []
     for ns in glitchtip_project_query(query_func=gqlapi.query).namespaces or []:
         glitchtip_projects += ns.glitchtip_projects if ns.glitchtip_projects else []
+        for sr in ns.shared_resources or []:
+            glitchtip_projects += sr.glitchtip_projects or []
 
     for glitchtip_instance in glitchtip_instances:
         if instance and glitchtip_instance.name != instance:
