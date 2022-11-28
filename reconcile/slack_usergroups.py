@@ -3,13 +3,16 @@ import logging
 from datetime import datetime
 from typing import Any, Optional
 from urllib.parse import urlparse
+from pydantic import BaseModel
 from sretoolbox.utils import retry
 from github.GithubException import UnknownObjectException
 
+import reconcile.utils.pagerduty_api
+from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.slack_base import slackapi_from_permissions
+from reconcile.utils.pagerduty_api import PagerDutyMap
 from reconcile.utils.github_api import GithubApi
 from reconcile.utils.gitlab_api import GitLabApi
-from reconcile.utils.pagerduty_api import PagerDutyMap
 from reconcile.utils.repo_owners import RepoOwners
 from reconcile.utils.slack_api import (
     SlackApi,
@@ -65,10 +68,23 @@ def get_slack_map(
     return slack_map
 
 
-def get_pagerduty_map(init_users: bool = True):
+def get_pagerduty_map(init_users: bool = True) -> PagerDutyMap:
+    # This is just an interim implementation and this
+    # method will be deleted later - APPSRE-6592
     instances = queries.get_pagerduty_instances()
-    settings = queries.get_app_interface_settings()
-    return PagerDutyMap(instances, init_users=init_users, settings=settings)
+    secret_reader = SecretReader(queries.get_secret_reader_settings())
+
+    class PagerDutyInstance(BaseModel):
+        name: str
+        token: VaultSecret
+
+    return reconcile.utils.pagerduty_api.get_pagerduty_map(
+        secret_reader=secret_reader,
+        pagerduty_instances=[
+            PagerDutyInstance(name=i["name"], token=i["token"]) for i in instances
+        ],
+        init_users=init_users,
+    )
 
 
 def get_current_state(
