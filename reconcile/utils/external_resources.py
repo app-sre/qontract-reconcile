@@ -5,7 +5,7 @@ from typing import (
     Type,
     TypeVar,
 )
-from collections.abc import Mapping, MutableMapping, Set, List
+from collections.abc import Mapping, MutableMapping
 
 import anymarkup
 
@@ -34,7 +34,7 @@ def get_external_resource_specs_for_namespace(
 ) -> list[TypedExternalResourceSpec[T]]:
     if not namespace.managed_external_resources:
         return []
-    specs: List[TypedExternalResourceSpec[T]] = []
+    specs: list[TypedExternalResourceSpec[T]] = []
     for e in namespace.external_resources or []:
         if isinstance(e, NamespaceExternalResource):
             for r in e.resources:

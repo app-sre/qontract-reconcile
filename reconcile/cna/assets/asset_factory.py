@@ -1,4 +1,4 @@
-from typing import Any, Optional, Type
+from typing import Any, Type
 from collections.abc import Mapping
 from reconcile.gql_definitions.cna.queries.cna_resources import (
     CNAssetV1,

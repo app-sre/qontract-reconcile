@@ -1,7 +1,5 @@
 from __future__ import annotations
-from dataclasses import dataclass
-from typing import Any, Optional
-from collections.abc import Mapping
+from typing import Optional
 from pydantic.dataclasses import dataclass
 from pydantic import Field
 
