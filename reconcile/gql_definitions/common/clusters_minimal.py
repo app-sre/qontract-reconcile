@@ -74,8 +74,16 @@ query ClustersMinimal($name: String) {
         org
         team
       }
-      # ... on ClusterAuthOIDC_v1 {
-      # }
+      ... on ClusterAuthOIDC_v1 {
+        name
+        issuer
+        claims {
+          email
+          name
+          username
+          groups
+        }
+      }
     }
   }
 }
@@ -131,6 +139,27 @@ class ClusterAuthGithubOrgTeamV1(ClusterAuthV1):
         extra = Extra.forbid
 
 
+class ClusterAuthOIDCClaimsV1(BaseModel):
+    email: Optional[list[str]] = Field(..., alias="email")
+    name: Optional[list[str]] = Field(..., alias="name")
+    username: Optional[list[str]] = Field(..., alias="username")
+    groups: Optional[list[str]] = Field(..., alias="groups")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
+class ClusterAuthOIDCV1(ClusterAuthV1):
+    name: str = Field(..., alias="name")
+    issuer: str = Field(..., alias="issuer")
+    claims: Optional[ClusterAuthOIDCClaimsV1] = Field(..., alias="claims")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
 class ClusterV1(BaseModel):
     name: str = Field(..., alias="name")
     server_url: str = Field(..., alias="serverUrl")
@@ -146,7 +175,12 @@ class ClusterV1(BaseModel):
     internal: Optional[bool] = Field(..., alias="internal")
     disable: Optional[DisableClusterAutomationsV1] = Field(..., alias="disable")
     auth: list[
-        Union[ClusterAuthGithubOrgTeamV1, ClusterAuthGithubOrgV1, ClusterAuthV1]
+        Union[
+            ClusterAuthOIDCV1,
+            ClusterAuthGithubOrgTeamV1,
+            ClusterAuthGithubOrgV1,
+            ClusterAuthV1,
+        ]
     ] = Field(..., alias="auth")
 
     class Config:
