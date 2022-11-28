@@ -1,30 +1,28 @@
 # qenerate: plugin=pydantic_v1
 
 query Projects {
-  apps: apps_v1 {
-    glitchtipProjects {
+  glitchtip_projects: glitchtip_projects_v1 {
+    name
+    platform
+    teams {
       name
-      platform
-      teams {
-        name
-        roles {
-          glitchtip_roles {
-            organization {
-              name
-            }
-            role
+      roles {
+        glitchtip_roles {
+          organization {
+            name
           }
-          users {
-            org_username
-            github_username
-          }
+          role
+        }
+        users {
+          org_username
+          github_username
         }
       }
-      organization {
+    }
+    organization {
+      name
+      instance {
         name
-        instance {
-          name
-        }
       }
     }
   }
