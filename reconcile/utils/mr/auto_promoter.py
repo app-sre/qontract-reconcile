@@ -1,7 +1,8 @@
 import logging
 import json
 import hashlib
-from typing import Any, Dict, Mapping, MutableMapping
+from typing import Any
+from collections.abc import Mapping, MutableMapping
 from dataclasses import dataclass
 from dataclasses import asdict
 from ruamel import yaml
@@ -50,7 +51,7 @@ class AutoPromoter(MergeRequestBase):
     @staticmethod
     def init_promotion_data(
         channel: str, promotion: Mapping[str, Any]
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         psc = ParentSaasConfigPromotion(
             parent_saas=promotion["saas_file"],
             target_config_hash=promotion[TARGET_CONFIG_HASH],

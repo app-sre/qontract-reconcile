@@ -5,7 +5,8 @@ import json
 import logging
 import sys
 
-from typing import Iterable, Mapping, Tuple, Optional, Any
+from typing import Any, Optional
+from collections.abc import Iterable, Mapping
 
 from threading import Lock
 from textwrap import indent
@@ -797,7 +798,7 @@ def canonicalize_namespaces(
     namespaces: Iterable[dict[str, Any]],
     providers: list[str],
     resource_schema_filter: Optional[str] = None,
-) -> Tuple[list[dict[str, Any]], Optional[list[str]]]:
+) -> tuple[list[dict[str, Any]], Optional[list[str]]]:
     canonicalized_namespaces = []
     override = None
     logging.debug(f"Received providers {providers}")
@@ -832,7 +833,7 @@ def get_namespaces(
     cluster_name: Optional[str] = None,
     namespace_name: Optional[str] = None,
     resource_schema_filter: Optional[str] = None,
-) -> Tuple[list[dict[str, Any]], Optional[list[str]]]:
+) -> tuple[list[dict[str, Any]], Optional[list[str]]]:
     if providers is None:
         providers = []
     gqlapi = gql.get_api()

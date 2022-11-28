@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import Any, Mapping, Optional, Protocol
+from typing import Any, Optional, Protocol
+from collections.abc import Mapping
 
 from hvac.exceptions import Forbidden
 from sretoolbox.utils import retry

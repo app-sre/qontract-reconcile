@@ -1,6 +1,7 @@
 from __future__ import annotations
 import re
-from typing import Any, MutableMapping, Optional
+from typing import Any, Optional
+from collections.abc import MutableMapping
 from pydantic import BaseModel, Field, root_validator
 
 

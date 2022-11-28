@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock
 from reconcile import github_repo_invites
-from typing import Any, Iterable, Mapping
+from typing import Any
+from collections.abc import Iterable, Mapping
 
 from reconcile.utils.raw_github_api import RawGithubApi
 

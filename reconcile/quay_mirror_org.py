@@ -2,8 +2,9 @@ import logging
 import os
 import tempfile
 
+from typing import Optional
 from collections import defaultdict
-from typing import Iterable, Optional
+from collections.abc import Iterable
 
 from sretoolbox.container import Image
 from sretoolbox.container.image import ImageComparisonError, ImageContainsError

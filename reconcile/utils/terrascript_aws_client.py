@@ -12,16 +12,8 @@ import imghdr
 
 from threading import Lock
 
-from typing import (
-    Any,
-    Dict,
-    List,
-    Iterable,
-    Mapping,
-    MutableMapping,
-    Optional,
-    cast,
-)
+from typing import Any, Optional, cast
+from collections.abc import Iterable, Mapping, MutableMapping
 from ipaddress import ip_network, ip_address
 
 import anymarkup
@@ -384,13 +376,13 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         self.logtoes_zip_lock = Lock()
         self.rosa_authenticator_pre_signup_zip = ""
         self.rosa_authenticator_pre_signup_zip_lock = Lock()
-        self.lambda_zip: Dict[str, str] = {}
+        self.lambda_zip: dict[str, str] = {}
         self.lambda_lock = Lock()
         self.github: Optional[Github] = None
         self.github_lock = Lock()
         self.gitlab: Optional[GitLabApi] = None
         self.gitlab_lock = Lock()
-        self.jenkins_map: Dict[str, JenkinsApi] = {}
+        self.jenkins_map: dict[str, JenkinsApi] = {}
         self.jenkins_lock = Lock()
         self._resource_cache: dict[str, dict[str, str]] = {}
         if prefetch_resources_by_schemas:
@@ -569,7 +561,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             self.thread_pool_size,
             secret_reader=self.secret_reader,
         )
-        self.configs: Dict[str, Dict] = {}
+        self.configs: dict[str, dict] = {}
         for account_name, config in results:
             account = awsh.get_account(accounts, account_name)
             config["supportedDeploymentRegions"] = account["supportedDeploymentRegions"]
@@ -3731,7 +3723,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
     def init_common_outputs(
         self,
-        tf_resources: List[Resource],
+        tf_resources: list[Resource],
         spec: ExternalResourceSpec,
     ):
         output_format_0_13 = "{}__{}_{}"
@@ -3794,7 +3786,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         return values
 
     @staticmethod
-    def get_dependencies(tf_resources: Iterable[Resource]) -> List[str]:
+    def get_dependencies(tf_resources: Iterable[Resource]) -> list[str]:
         return [
             f"{tf_resource.__class__.__name__}.{tf_resource._name}"
             for tf_resource in tf_resources
@@ -4909,7 +4901,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         common_values = self.init_values(spec)
         output_prefix = spec.output_prefix
 
-        tf_resources: List[Any] = []
+        tf_resources: list[Any] = []
         self.init_common_outputs(tf_resources, spec)
 
         tags = common_values["tags"]

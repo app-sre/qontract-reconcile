@@ -1,6 +1,6 @@
 import logging
 import textwrap
-from typing import Set, Any, Optional, Tuple
+from typing import Any, Optional
 
 from urllib.parse import urlparse
 
@@ -83,7 +83,7 @@ class GqlGetResourceError(Exception):
 
 class GqlApi:
     _valid_schemas: list[str] = []
-    _queried_schemas: Set[Any] = set()
+    _queried_schemas: set[Any] = set()
 
     def __init__(
         self,
@@ -299,7 +299,7 @@ def init_from_config(
 
 def _get_gql_server_and_token(
     autodetect_sha: bool = False, sha: Optional[str] = None
-) -> Tuple[str, str, Optional[str], Optional[str]]:
+) -> tuple[str, str, Optional[str], Optional[str]]:
     config = get_config()
 
     server_url = urlparse(config["graphql"]["server"])

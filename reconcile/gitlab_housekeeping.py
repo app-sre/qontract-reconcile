@@ -2,7 +2,8 @@ import logging
 
 from datetime import datetime, timedelta
 from operator import itemgetter
-from typing import Dict, Iterable, List, Optional, Union
+from typing import Optional, Union
+from collections.abc import Iterable
 
 import gitlab
 
@@ -49,8 +50,8 @@ DATE_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
 
 
 def get_timed_out_pipelines(
-    pipelines: List[Dict], pipeline_timeout: int = 60
-) -> List[Dict]:
+    pipelines: list[dict], pipeline_timeout: int = 60
+) -> list[dict]:
     now = datetime.utcnow()
 
     pending_pipelines = [p for p in pipelines if p["status"] in ["pending", "running"]]
@@ -77,7 +78,7 @@ def clean_pipelines(
     gl_instance: str,
     gl_project_id: int,
     gl_settings: str,
-    pipelines: List[Dict],
+    pipelines: list[dict],
 ) -> None:
     if not dry_run:
         gl_piplelines = GitLabApi(

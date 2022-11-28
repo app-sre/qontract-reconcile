@@ -1,7 +1,7 @@
 import logging
 import sys
 import json
-from typing import Any, Optional, Tuple
+from typing import Any, Optional
 
 from reconcile import queries
 from reconcile.utils import aws_api
@@ -80,7 +80,7 @@ def aws_assume_roles_for_cluster_vpc_peering(
     accepter_connection: dict[str, Any],
     accepter_cluster: dict[str, Any],
     ocm: OCM,
-) -> Tuple[dict[str, Any], dict[str, Any]]:
+) -> tuple[dict[str, Any], dict[str, Any]]:
     # check if dedicated infra accounts have been declared on the
     # accepters peering connection or on the accepters cluster
     allowed_accounts = {

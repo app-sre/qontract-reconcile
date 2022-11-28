@@ -1,5 +1,6 @@
 import logging
-from typing import Any, Dict, List, Mapping
+from typing import Any
+from collections.abc import Mapping
 import warnings
 
 from reconcile import queries
@@ -237,7 +238,7 @@ def _get_dyn_traffic_director_records(
 
 def _update_dyn_traffic_director_records(
     td: TrafficDirector,
-    records: List,
+    records: list,
     ruleset_label: str,
     rpool_label: str,
     chain_label: str,
@@ -264,8 +265,8 @@ def _update_dyn_traffic_director_records(
     current_recordset.delete()
 
 
-def fetch_current_state() -> Dict[str, Dict]:
-    state: Dict = {
+def fetch_current_state() -> dict[str, dict]:
+    state: dict = {
         "tds": {},
     }
 
@@ -282,7 +283,7 @@ def fetch_current_state() -> Dict[str, Dict]:
             rset_label=td_name,
         )
 
-        records: List[Dict[str, Any]] = []
+        records: list[dict[str, Any]] = []
         for record in td_records:
             rdata = record.rdata()
             if "cname_rdata" not in rdata:
@@ -315,19 +316,19 @@ def fetch_current_state() -> Dict[str, Dict]:
     return state
 
 
-def fetch_desired_state() -> Dict[str, Dict]:
+def fetch_desired_state() -> dict[str, dict]:
     dyn_tds = queries.get_dyn_traffic_directors()
 
-    state: Dict = {
+    state: dict = {
         "tds": {},
     }
 
     for td in dyn_tds:
         td_name: str = td["name"]
-        td_records: List[Dict] = td.get("records", [])
+        td_records: list[dict] = td.get("records", [])
         td_ttl: int = td.get("ttl", DEFAULT_TD_TTL)
 
-        records: List[Dict[str, Any]] = []
+        records: list[dict[str, Any]] = []
         for record in td_records:
             if record["cluster"]:
                 hostname = record["cluster"]["elbFQDN"]
@@ -358,7 +359,7 @@ def fetch_desired_state() -> Dict[str, Dict]:
     return state
 
 
-def create_td(name: str, ttl: int, records: List[Dict[str, Any]], dry_run: bool):
+def create_td(name: str, ttl: int, records: list[dict[str, Any]], dry_run: bool):
     """Create a new Traffic Director service
 
     Returns whether errors have been encountered during processing

@@ -1,6 +1,7 @@
 import logging
 import sys
-from typing import Any, Mapping, Iterable, Optional
+from typing import Any, Optional
+from collections.abc import Iterable, Mapping
 
 from reconcile import queries
 

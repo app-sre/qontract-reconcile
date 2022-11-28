@@ -3,7 +3,8 @@ import logging
 import sys
 
 from threading import Lock
-from typing import Any, Dict, Generator, List, Optional, Tuple, Union
+from typing import Any, Optional, Union
+from collections.abc import Generator
 from kubernetes.client.exceptions import ApiException
 from sretoolbox.utils import threaded
 
@@ -26,12 +27,12 @@ CURRENT = "current"
 CHANGED = "changed"
 UPDATED_MANAGED = "updated-managed"
 
-Labels = Dict[str, Optional[str]]
-LabelKeys = List[str]
+Labels = dict[str, Optional[str]]
+LabelKeys = list[str]
 LabelsOrKeys = Union[Labels, LabelKeys]
-Types = Dict[str, LabelsOrKeys]
+Types = dict[str, LabelsOrKeys]
 
-InternalLabelInventory = Dict[str, Dict[str, Types]]
+InternalLabelInventory = dict[str, dict[str, Types]]
 
 
 class LabelInventory:
@@ -52,10 +53,10 @@ class LabelInventory:
     def __init__(self) -> None:
         super().__init__()
         self._inv: InternalLabelInventory = {}
-        self._errors: Dict[str, Dict[str, List[str]]] = {}
+        self._errors: dict[str, dict[str, list[str]]] = {}
         self._lock = Lock()
 
-    def errors(self, cluster: str, namespace: str) -> List[str]:
+    def errors(self, cluster: str, namespace: str) -> list[str]:
         """Get the registered errors for the given cluster / namespace.
         Defaults to []"""
         return self._errors.setdefault(cluster, {}).setdefault(namespace, [])
@@ -68,7 +69,7 @@ class LabelInventory:
         """Checks if any cluster / namespace has any error registered"""
         return any(e[2] for e in self.iter_errors())
 
-    def iter_errors(self) -> Generator[Tuple[str, str, List[str]], None, None]:
+    def iter_errors(self) -> Generator[tuple[str, str, list[str]], None, None]:
         """yields (cluster, namespace, errors) items"""
         for cluster, namespaces in self._errors.items():
             for namespace, errors in namespaces.items():
@@ -107,9 +108,9 @@ class LabelInventory:
         with self._lock:
             self._inv.get(cluster, {}).pop(namespace, None)
 
-    def __iter__(self) -> Generator[Tuple[str, str, Types], None, None]:
+    def __iter__(self) -> Generator[tuple[str, str, Types], None, None]:
         """Makes the inventory iterable by yielding (cluster, namespace, types)
-        items. Types here is a dict of {type: labelsOrKeys}"""
+        items. Types here is a Dict of {type: labelsOrKeys}"""
         for cluster, namespaces in self._inv.items():
             for namespace, types in namespaces.items():
                 yield cluster, namespace, types
@@ -180,7 +181,7 @@ class LabelInventory:
                     changed[k] = None
 
 
-def get_names_for_namespace(namespace: Dict[str, Any]) -> Tuple[str, str]:
+def get_names_for_namespace(namespace: dict[str, Any]) -> tuple[str, str]:
     """
     Get the cluster and namespace names from the provided
     namespace qontract info
@@ -188,7 +189,7 @@ def get_names_for_namespace(namespace: Dict[str, Any]) -> Tuple[str, str]:
     return namespace["cluster"]["name"], namespace["name"]
 
 
-def get_gql_namespaces_in_shard() -> List[Any]:
+def get_gql_namespaces_in_shard() -> list[Any]:
     """
     Get all namespaces from qontract-server and filter those which are in
     our shard
@@ -204,7 +205,7 @@ def get_gql_namespaces_in_shard() -> List[Any]:
 
 
 def get_oc_map(
-    namespaces: List[Any],
+    namespaces: list[Any],
     internal: Optional[bool],
     use_jump_host: bool,
     thread_pool_size: int,
@@ -225,7 +226,7 @@ def get_oc_map(
 
 
 def get_desired(
-    inventory: LabelInventory, oc_map: OC_Map, namespaces: List[Any]
+    inventory: LabelInventory, oc_map: OC_Map, namespaces: list[Any]
 ) -> None:
     """
     Fill the provided label inventory with every desired info from the
@@ -345,7 +346,7 @@ def get_current(
 
 
 def label(
-    inv_item: Tuple[str, str, Types],
+    inv_item: tuple[str, str, Types],
     oc_map: OC_Map,
     dry_run: bool,
     inventory: LabelInventory,

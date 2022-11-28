@@ -1,6 +1,7 @@
 import sys
 import logging
-from typing import Any, Iterable, Tuple, Mapping
+from typing import Any
+from collections.abc import Iterable, Mapping
 from reconcile.utils.semver_helper import parse_semver
 
 from reconcile import queries
@@ -111,7 +112,7 @@ def _cluster_version_needs_update(
 
 def get_app_interface_spec_updates(
     cluster: str, current_spec: OCMSpec, desired_spec: OCMSpec
-) -> Tuple[dict[str, Any], bool]:
+) -> tuple[dict[str, Any], bool]:
     """Get required changes to apply to app-interface clusters manifest
 
     :param cluster: cluster name
@@ -182,7 +183,7 @@ def get_app_interface_spec_updates(
 
 def get_cluster_ocm_update_spec(
     ocm: ocmmod.OCM, cluster: str, current_spec: OCMSpec, desired_spec: OCMSpec
-) -> Tuple[dict[str, Any], bool]:
+) -> tuple[dict[str, Any], bool]:
     """Get cluster updates to request to OCM api
 
     :param ocm: ocm implementation for an ocm product (osd, rosa)

@@ -3,7 +3,8 @@ from email.header import Header
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import formataddr
-from typing import Iterable, Optional
+from typing import Optional
+from collections.abc import Iterable
 from pydantic import BaseModel, Field
 
 from sretoolbox.utils import retry

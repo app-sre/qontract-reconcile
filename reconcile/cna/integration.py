@@ -1,5 +1,6 @@
+from typing import Optional
 from collections import defaultdict
-from typing import Iterable, Mapping, Optional
+from collections.abc import Iterable, Mapping
 from reconcile.cna.client import CNAClient
 from reconcile.cna.state import State
 

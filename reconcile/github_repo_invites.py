@@ -2,7 +2,8 @@ import logging
 import os
 
 from dataclasses import dataclass
-from typing import Any, Iterable, Mapping, Optional
+from typing import Any, Optional
+from collections.abc import Iterable, Mapping
 
 from reconcile.utils import gql
 from reconcile.utils import raw_github_api

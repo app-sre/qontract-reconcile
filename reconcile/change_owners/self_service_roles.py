@@ -1,5 +1,4 @@
 from collections import defaultdict
-from typing import Tuple
 
 from reconcile.gql_definitions.change_owners.queries.self_service_roles import RoleV1
 
@@ -29,14 +28,14 @@ def change_type_contexts_for_self_service_roles(
     roles: list[RoleV1],
     change_type_processors: list[ChangeTypeProcessor],
     bundle_changes: list[BundleFileChange],
-) -> list[Tuple[BundleFileChange, ChangeTypeContext]]:
+) -> list[tuple[BundleFileChange, ChangeTypeContext]]:
     """
     Cover changes with ChangeTypeV1 associated to datafiles and resources via a
     RoleV1 saas_file_owners and self_service configuration.
     """
 
     # role lookup enables fast lookup roles for (filetype, filepath, changetype-name)
-    role_lookup: dict[Tuple[BundleFileType, str, str], list[RoleV1]] = defaultdict(list)
+    role_lookup: dict[tuple[BundleFileType, str, str], list[RoleV1]] = defaultdict(list)
     for r in roles:
         # build role lookup for self_service section of a role
         if r.self_service:

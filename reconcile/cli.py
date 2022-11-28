@@ -6,7 +6,7 @@ from signal import SIGUSR1
 import sys
 import re
 
-from typing import Dict, Optional
+from typing import Optional
 
 import click
 import sentry_sdk
@@ -2243,7 +2243,7 @@ def signalfx_prometheus_endpoint_monitoring(
     )
 
 
-def parse_image_tag_from_ref(ctx, param, value) -> Optional[Dict[str, str]]:
+def parse_image_tag_from_ref(ctx, param, value) -> Optional[dict[str, str]]:
     if value:
         result = {}
         for v in value:

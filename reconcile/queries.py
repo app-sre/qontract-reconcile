@@ -5,7 +5,8 @@ import itertools
 import shlex
 
 from textwrap import indent
-from typing import Any, Mapping, Optional
+from typing import Any, Optional
+from collections.abc import Mapping
 
 from jinja2 import Template
 

@@ -1,4 +1,5 @@
-from typing import Any, Dict, Iterable, Tuple
+from typing import Any
+from collections.abc import Iterable
 from reconcile.utils.secret_reader import SecretReader
 
 
@@ -6,7 +7,7 @@ class AccountNotFoundError(Exception):
     pass
 
 
-Account = Dict[str, Any]
+Account = dict[str, Any]
 
 
 def get_user_id_from_arn(arn):
@@ -42,7 +43,7 @@ def get_account_uid_from_role_link(role_link):
     return uid
 
 
-def get_tf_secrets(account: Account, secret_reader: SecretReader) -> Tuple[str, Dict]:
+def get_tf_secrets(account: Account, secret_reader: SecretReader) -> tuple[str, dict]:
     account_name = account["name"]
     automation_token = account["automationToken"]
     secret = secret_reader.read_all(automation_token)

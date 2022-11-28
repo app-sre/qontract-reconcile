@@ -1,7 +1,8 @@
 import logging
 import sys
 from datetime import datetime, date
-from typing import Iterable, Mapping, Optional
+from typing import Optional
+from collections.abc import Iterable, Mapping
 from reconcile.utils.external_resources import get_external_resource_specs
 from reconcile.status import ExitCodes
 

@@ -1,4 +1,4 @@
-from typing import Dict, Any
+from typing import Any
 
 
 class ExitCodes:
@@ -10,7 +10,7 @@ class ExitCodes:
 
 class _RunningState:
 
-    _state: Dict[Any, Any] = {}
+    _state: dict[Any, Any] = {}
 
     def __init__(self):
         self.__dict__ = self._state

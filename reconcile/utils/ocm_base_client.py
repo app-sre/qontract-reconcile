@@ -1,5 +1,6 @@
 import logging
-from typing import Any, Mapping, Optional
+from typing import Any, Optional
+from collections.abc import Mapping
 from requests import Session, codes
 
 from sretoolbox.utils import retry

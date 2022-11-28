@@ -9,7 +9,8 @@ import re
 from functools import partial, lru_cache
 from http import HTTPStatus
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterable, Mapping, Union
+from typing import Any, Union
+from collections.abc import Callable, Iterable, Mapping
 
 import requests
 from jinja2 import Template
@@ -63,7 +64,7 @@ def valid_owners(owners: Iterable[Mapping[str, str]]) -> bool:
     )
 
 
-VALIDATORS: Dict[str, Callable] = {
+VALIDATORS: dict[str, Callable] = {
     "sopsUrl": url_makes_sense,
     "architectureDocument": url_makes_sense,
     "grafanaUrls": lambda x: all(url_makes_sense(y["url"]) for y in x),

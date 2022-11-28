@@ -3,7 +3,8 @@ import sys
 import time
 
 from textwrap import indent
-from typing import Any, Iterable, Mapping, Optional, Union
+from typing import Any, Optional, Union
+from collections.abc import Iterable, Mapping
 
 import jinja2
 from ruamel import yaml

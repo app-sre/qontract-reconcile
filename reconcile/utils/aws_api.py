@@ -6,7 +6,8 @@ import time
 from datetime import datetime
 from threading import Lock
 from typing import Literal, Union, TYPE_CHECKING
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
+from typing import Any, Optional
+from collections.abc import Iterable, Mapping
 
 from boto3 import Session
 from pydantic import BaseModel
@@ -150,8 +151,8 @@ class AWSApi:  # pylint: disable=too-many-public-methods
             self.thread_pool_size,
             secret_reader=self.secret_reader,
         )
-        self.sessions: Dict[str, Session] = {}
-        self.resources: Dict[str, Any] = {}
+        self.sessions: dict[str, Session] = {}
+        self.resources: dict[str, Any] = {}
         for account_name, secret in results:
             account = awsh.get_account(accounts, account_name)
             access_key = secret["aws_access_key_id"]
@@ -675,7 +676,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
             iam.delete_virtual_mfa_device(SerialNumber=serial_number)
 
     @staticmethod
-    def _get_user_key_list(iam: IAMClient, user: str) -> List[AccessKeyMetadataTypeDef]:
+    def _get_user_key_list(iam: IAMClient, user: str) -> list[AccessKeyMetadataTypeDef]:
         try:
             return iam.list_access_keys(UserName=user)["AccessKeyMetadata"]
         except iam.exceptions.NoSuchEntityException:
@@ -758,7 +759,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         self.auth_tokens = auth_tokens
 
     @staticmethod
-    def _get_account_assume_data(account: awsh.Account) -> Tuple[str, str, str]:
+    def _get_account_assume_data(account: awsh.Account) -> tuple[str, str, str]:
         """
         returns mandatory data to be able to assume a role with this account:
         (account_name, assume_role, assume_region)
@@ -813,13 +814,13 @@ class AWSApi:  # pylint: disable=too-many-public-methods
 
     @staticmethod
     # pylint: disable=method-hidden
-    def get_account_vpcs(ec2: EC2Client) -> List[VpcTypeDef]:
+    def get_account_vpcs(ec2: EC2Client) -> list[VpcTypeDef]:
         vpcs = ec2.describe_vpcs()
         return vpcs.get("Vpcs", [])
 
     @staticmethod
     # pylint: disable=method-hidden
-    def get_account_amis(ec2: EC2Client, owner: str) -> List[ImageTypeDef]:
+    def get_account_amis(ec2: EC2Client, owner: str) -> list[ImageTypeDef]:
         amis = ec2.describe_images(Owners=[owner])
         return amis.get("Images", [])
 
@@ -827,7 +828,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
     @staticmethod
     def filter_on_tags(
         items: Iterable[Any], tags: Optional[Mapping[str, str]] = None
-    ) -> List[Any]:
+    ) -> list[Any]:
         if tags is None:
             tags = {}
         res = []
@@ -839,7 +840,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
 
     @staticmethod
     # pylint: disable=method-hidden
-    def get_vpc_route_tables(vpc_id: str, ec2: EC2Client) -> List[RouteTableTypeDef]:
+    def get_vpc_route_tables(vpc_id: str, ec2: EC2Client) -> list[RouteTableTypeDef]:
         rts = ec2.describe_route_tables(
             Filters=[{"Name": "vpc-id", "Values": [vpc_id]}]
         )
@@ -847,7 +848,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
 
     @staticmethod
     # pylint: disable=method-hidden
-    def get_vpc_subnets(vpc_id: str, ec2: EC2Client) -> List[SubnetTypeDef]:
+    def get_vpc_subnets(vpc_id: str, ec2: EC2Client) -> list[SubnetTypeDef]:
         subnets = ec2.describe_subnets(Filters=[{"Name": "vpc-id", "Values": [vpc_id]}])
         return subnets.get("Subnets", [])
 
@@ -928,7 +929,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
     @staticmethod
     def _filter_amis(
         images: Iterable[ImageTypeDef], regex: str
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         results = []
         pattern = re.compile(regex)
         for i in images:
@@ -947,7 +948,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         owner_account: Mapping[str, Any],
         regex: str,
         region: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         ec2 = self._account_ec2_client(account["name"], region_name=region)
         images = self.get_account_amis(ec2, owner=owner_account["uid"])
         return self._filter_amis(images, regex)
@@ -1020,7 +1021,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
 
     @staticmethod
     # pylint: disable=method-hidden
-    def get_transit_gateways(ec2: EC2Client) -> List[TransitGatewayTypeDef]:
+    def get_transit_gateways(ec2: EC2Client) -> list[TransitGatewayTypeDef]:
         tgws = ec2.describe_transit_gateways()
         return tgws.get("TransitGateways", [])
 
@@ -1045,7 +1046,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
     # pylint: disable=method-hidden
     def get_transit_gateway_vpc_attachments(
         tgw_id: str, ec2: EC2Client
-    ) -> List[TransitGatewayVpcAttachmentTypeDef]:
+    ) -> list[TransitGatewayVpcAttachmentTypeDef]:
         atts = ec2.describe_transit_gateway_vpc_attachments(
             Filters=[{"Name": "transit-gateway-id", "Values": [tgw_id]}]
         )
@@ -1192,7 +1193,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
 
     def _get_hosted_zone_record_sets(
         self, route53: Route53Client, zone_name: str
-    ) -> List[ResourceRecordSetTypeDef]:
+    ) -> list[ResourceRecordSetTypeDef]:
         zones = route53.list_hosted_zones_by_name(DNSName=zone_name)["HostedZones"]
         if not zones:
             return []
@@ -1203,8 +1204,8 @@ class AWSApi:  # pylint: disable=too-many-public-methods
 
     @staticmethod
     def _filter_record_sets(
-        record_sets: List[ResourceRecordSetTypeDef], zone_name: str, zone_type: str
-    ) -> List[ResourceRecordSetTypeDef]:
+        record_sets: list[ResourceRecordSetTypeDef], zone_name: str, zone_type: str
+    ) -> list[ResourceRecordSetTypeDef]:
         return [
             r
             for r in record_sets
@@ -1212,7 +1213,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         ]
 
     @staticmethod
-    def _extract_records(resource_records: List[ResourceRecordTypeDef]) -> list[str]:
+    def _extract_records(resource_records: list[ResourceRecordTypeDef]) -> list[str]:
         # [{'Value': 'ns.example.com.'}, ...]
         return [r["Value"].rstrip(".") for r in resource_records]
 

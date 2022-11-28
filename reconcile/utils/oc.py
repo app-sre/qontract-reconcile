@@ -11,7 +11,8 @@ from datetime import datetime
 from functools import wraps
 from subprocess import PIPE, Popen
 from threading import Lock
-from typing import Any, Dict, Iterable, List, Set, Union
+from typing import Any, Union
+from collections.abc import Iterable
 
 import urllib3
 from kubernetes.client import ApiClient, Configuration
@@ -823,10 +824,10 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
 
     @staticmethod
     def get_resources_used_in_pod_spec(
-        spec: Dict[str, Any],
+        spec: dict[str, Any],
         kind: str,
         include_optional: bool = True,
-    ) -> Dict[str, Set[str]]:
+    ) -> dict[str, set[str]]:
         if kind not in ("Secret", "ConfigMap"):
             raise KeyError(f"unsupported resource kind: {kind}")
         optional = "optional"
@@ -847,7 +848,7 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
                 "name",
             )
 
-        resources: Dict[str, Set[str]] = {}
+        resources: dict[str, set[str]] = {}
         for v in spec.get("volumes") or []:
             try:
                 volume_ref = v[volume_kind]
@@ -1498,7 +1499,7 @@ class OC_Map:
 
     def clusters(
         self, include_errors: bool = False, privileged: bool = False
-    ) -> List[str]:
+    ) -> list[str]:
         """
         Get the names of the clusters in the map.
         :param include_errors: includes clusters that had errors, meaning
@@ -1543,7 +1544,7 @@ LABEL_MAX_KEY_NAME_LENGTH = 63
 LABEL_MAX_KEY_PREFIX_LENGTH = 253
 
 
-def validate_labels(labels: Dict[str, str]) -> Iterable[str]:
+def validate_labels(labels: dict[str, str]) -> Iterable[str]:
     """
     Validate a label key/value against some rules from
     https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#syntax-and-character-set

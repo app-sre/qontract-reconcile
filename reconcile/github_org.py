@@ -1,6 +1,6 @@
 import logging
 import os
-from typing import Dict, Any
+from typing import Any
 
 from github import Github
 from github.GithubObject import NotSet  # type: ignore
@@ -262,7 +262,7 @@ def fetch_desired_state(infer_clusters=True):
 
 
 class GHApiStore:
-    _orgs: Dict[str, Any] = {}
+    _orgs: dict[str, Any] = {}
 
     def __init__(self, config):
         for org_name, org_config in config["github"].items():

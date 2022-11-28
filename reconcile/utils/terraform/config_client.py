@@ -1,6 +1,7 @@
 import os
 from abc import ABC, abstractmethod
-from typing import Iterable, Optional
+from typing import Optional
+from collections.abc import Iterable
 
 from reconcile.utils.exceptions import PrintToFileInGitRepositoryError
 from reconcile.utils.external_resource_spec import ExternalResourceSpec

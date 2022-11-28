@@ -1,4 +1,5 @@
-from typing import Any, Iterable, Optional, Sequence
+from typing import Any, Optional
+from collections.abc import Iterable, Sequence
 
 from reconcile import queries
 
