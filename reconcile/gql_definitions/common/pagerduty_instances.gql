@@ -1,0 +1,9 @@
+# qenerate: plugin=pydantic_v1
+query PagerduytInstances {
+  pagerduty_instances: pagerduty_instances_v1 {
+    name
+    token {
+      ...VaultSecret
+    }
+  }
+}
