@@ -120,7 +120,7 @@ def test_gitlab_members_subtract_states_no_changes_add(state: State) -> None:
 
 
 def test_gitlab_members_subtract_states_no_changes_remove(state: State) -> None:
-    # pylint: disable-next=use-implicit-booleaness-not-comparison # for better readybility
+    # pylint: disable=use-implicit-booleaness-not-comparison # for better readybility
     assert (
         gitlab_members.subtract_states(state, state, Action.remove_user_from_group)
         == []
