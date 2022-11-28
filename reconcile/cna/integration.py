@@ -1,6 +1,8 @@
 from collections import defaultdict
 from collections.abc import Iterable, Mapping
 
+import logging
+
 from reconcile.cna.client import CNAClient
 from reconcile.cna.state import State
 

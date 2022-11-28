@@ -1,5 +1,3 @@
-import json
-from reconcile.cna.assets.asset import AssetError
 from reconcile.cna.assets.aws_rds import AWSRDSAsset
 from reconcile.gql_definitions.cna.queries.cna_resources import (
     CNARDSInstanceV1,
