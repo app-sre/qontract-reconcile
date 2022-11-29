@@ -51,6 +51,7 @@ QONTRACT_INTEGRATION = "slack-usergroups"
 
 
 def get_git_api(url: str) -> Union[GithubApi, GitLabApi]:
+    """Return GitHub/GitLab API based on url."""
     parsed_url = urlparse(url)
     settings = queries.get_app_interface_settings()
 
@@ -66,6 +67,8 @@ def get_git_api(url: str) -> Union[GithubApi, GitLabApi]:
 
 
 class SlackObject(BaseModel):
+    """Generic Slack object."""
+
     pk: str
     name: str
 
@@ -74,6 +77,8 @@ class SlackObject(BaseModel):
 
 
 class State(BaseModel):
+    """State representation."""
+
     workspace: str = ""
     usergroup: str = ""
     description: str = ""
@@ -89,6 +94,8 @@ SlackState = dict[str, dict[str, State]]
 
 
 class WorkspaceSpec(BaseModel):
+    """Slack workspace spec."""
+
     slack: SlackApi
     managed_usergroups: list[str] = []
 
@@ -104,6 +111,7 @@ def get_slack_map(
     permissions: list[PermissionSlackUsergroupV1],
     desired_workspace_name: Optional[str] = None,
 ) -> SlackMap:
+    """Return SlackMap (API) per workspaces."""
     slack_map = {}
     for sp in permissions:
         if desired_workspace_name and desired_workspace_name != sp.workspace.name:
@@ -164,10 +172,12 @@ def get_current_state(
 
 
 def get_slack_username(user: User) -> str:
+    """Return slack username"""
     return user.slack_username or user.org_username
 
 
 def get_pagerduty_name(user: User) -> str:
+    """Return pagerduty username"""
     return user.pagerduty_username or user.org_username
 
 
@@ -178,6 +188,7 @@ def get_usernames_from_pagerduty(
     usergroup: str,
     pagerduty_map: PagerDutyMap,
 ) -> list[str]:
+    """Return list of usernames from all pagerduties."""
     all_output_usernames = []
     all_pagerduty_names = [get_pagerduty_name(u) for u in users]
     for pagerduty in pagerduties:
@@ -225,6 +236,7 @@ def get_slack_usernames_from_owners(
     usergroup: str,
     repo_owner_class: type[RepoOwners] = RepoOwners,
 ) -> list[str]:
+    """Return list of usernames from all repo owners."""
     all_slack_usernames = []
 
     for url_ref in owners_from_repo:
@@ -284,6 +296,7 @@ def get_slack_usernames_from_owners(
 
 
 def get_slack_usernames_from_schedule(schedule: Iterable[ScheduleEntryV1]) -> list[str]:
+    """Return list of usernames from all schedules."""
     now = datetime.utcnow()
     all_slack_usernames: list[str] = []
     for entry in schedule:
@@ -539,6 +552,7 @@ def act(
 
 
 def query_permissions(query_func: Callable) -> list[PermissionSlackUsergroupV1]:
+    """Return list of slack usergroup permissions from app-interface."""
     return [
         p
         for p in permissions_query(query_func=query_func).permissions
