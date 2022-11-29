@@ -1555,8 +1555,8 @@ class OCMMap:  # pylint: disable=too-many-public-methods
             )
 
         if (
-            "upgradePolicy" in cluster_info
-            and "conditions" in cluster_info["upgradePolicy"]
+            cluster_info.get("upgradePolicy") is not None
+            and cluster_info["upgradePolicy"].get("conditions") is not None
         ):
             sector_name = cluster_info["upgradePolicy"]["conditions"].get("sector")
             if sector_name:
