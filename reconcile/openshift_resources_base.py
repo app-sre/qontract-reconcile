@@ -108,6 +108,7 @@ NAMESPACES_QUERY = """
 {
   namespaces: namespaces_v1 {
     name
+    delete
     clusterAdmin
     managedResourceTypes
     managedResourceTypeOverrides {
