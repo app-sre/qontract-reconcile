@@ -1,0 +1,12 @@
+# qenerate: plugin=pydantic_v1
+
+query GitlabInstance {
+  instances: gitlabinstance_v1 {
+    url
+    token {
+      ...VaultSecret
+    }
+    sslVerify
+    managedGroups
+  }
+}

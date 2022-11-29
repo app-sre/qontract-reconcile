@@ -1,0 +1,38 @@
+permissions:
+  - name: ic-member
+    group: group1
+    access: owner
+    pagerduty:
+      - name: pagerduty-fts
+        instance:
+          name: redhat
+          token:
+            path: path/to/api_key
+            field: pd_api_key
+            version: null
+            format: null
+        scheduleID: YXZ1234
+        escalationPolicyID: null
+    roles:
+      - users: []
+        bots:
+          - org_username: devtools-bot
+  - name: member
+    group: group2
+    access: owner
+    pagerduty: null
+    roles:
+      - users: []
+        bots:
+          - org_username: devtools-bot
+      - users: []
+        bots: []
+      - users:
+          - org_username: user1
+          - org_username: user2
+        bots: []
+      - users:
+          - org_username: user3
+          - org_username: user4
+        bots:
+          - org_username: another-bot
