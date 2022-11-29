@@ -7,7 +7,6 @@ from typing import Any, Generic, Mapping, Optional, Type, TypeVar, get_args
 import copy
 
 from reconcile.gql_definitions.cna.queries.cna_resources import CNAssetV1
-from reconcile.utils.external_resource_spec import TypedExternalResourceSpec
 
 
 ASSET_ID_FIELD = "id"
@@ -135,11 +134,11 @@ class Asset(ABC, Generic[AssetQueryClass, ConfigClass]):
     @classmethod
     def from_external_resources(
         cls,
-        external_resource: TypedExternalResourceSpec[CNAssetV1],
+        external_resource: CNAssetV1,
     ) -> "Asset":
         query_class = cls._get_query_class_type()
-        if isinstance(external_resource.spec, query_class):
-            return cls.from_query_class(external_resource.spec)
+        if isinstance(external_resource, query_class):
+            return cls.from_query_class(external_resource)
         else:
             raise AssetError(
                 f"CNA type {query_class} does not match "

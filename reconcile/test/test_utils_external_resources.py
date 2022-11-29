@@ -1,12 +1,8 @@
 import json
-from typing import Optional, Union
 
 import pytest
-from pydantic import BaseModel
+from reconcile.utils.external_resource_spec import ExternalResourceSpec
 
-from reconcile.utils.external_resource_spec import (
-    ExternalResourceSpec,
-)
 import reconcile.utils.external_resources as uer
 
 
@@ -249,84 +245,3 @@ def test_resource_value_resolver_overrides_and_defaults(mocker):
         "default_2": "override_data2",
         "default_3": "default_data3",
     }
-
-
-class TestProvisionier(BaseModel):
-    name: str
-
-
-class MyResource(BaseModel):
-    provider: str
-    identifier: str
-
-
-class ResourceConfig(BaseModel):
-    field_1: Optional[str]
-    field_2: Optional[str]
-
-
-class OverrideableResource(BaseModel):
-    provider: str
-    identifier: str
-    overrides: Optional[ResourceConfig]
-    defaults: Optional[ResourceConfig]
-
-
-class TestNamespaceExternalResource(BaseModel):
-    provider: str
-    provisioner: TestProvisionier
-    resources: list[Union[MyResource, OverrideableResource]]
-
-
-class TestNamespace(BaseModel):
-    name: str
-    managed_external_resources: bool
-    external_resources: Optional[list[TestNamespaceExternalResource]]
-
-
-@pytest.fixture
-def namespace() -> TestNamespace:
-    return TestNamespace(
-        name="ns",
-        managed_external_resources=True,
-        external_resources=[
-            TestNamespaceExternalResource(
-                provider="pp",
-                provisioner=TestProvisionier(name="pn"),
-                resources=[
-                    MyResource(provider="rp", identifier="ri"),
-                ],
-            )
-        ],
-    )
-
-
-def test_get_external_resource_specs_for_namespace(
-    namespace: TestNamespace,
-):
-    external_resources = uer.get_external_resource_specs_for_namespace(
-        namespace, MyResource, None
-    )
-    assert len(external_resources) == 1
-
-    assert external_resources[0].provision_provider == "pp"
-    assert external_resources[0].provisioner_name == "pn"
-    assert external_resources[0].namespace_name == "ns"
-    assert external_resources[0].provider == "rp"
-    assert external_resources[0].identifier == "ri"
-
-
-def test_get_external_resource_specs_for_namespace_provisioning_provider_filter(
-    namespace: TestNamespace,
-):
-    external_resources = uer.get_external_resource_specs_for_namespace(
-        namespace, MyResource, "another-provisioning-provider"
-    )
-    assert len(external_resources) == 0
-
-
-def test_get_external_resource_specs_for_namespace_wrong_type(namespace: TestNamespace):
-    with pytest.raises(ValueError):
-        uer.get_external_resource_specs_for_namespace(
-            namespace, OverrideableResource, None
-        )
