@@ -163,6 +163,6 @@ def run(dry_run: bool, instance: Optional[str] = None) -> None:
 def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
     gqlapi = gql.get_api()
     return {
-        "apps": gqlapi.query(GLITCHTIP_PROJECT_DEFINITION)["apps"],
+        "projects": gqlapi.query(GLITCHTIP_PROJECT_DEFINITION)["glitchtip_projects"],
         "instances": gqlapi.query(GLITCHTIP_INSTANCE_DEFINITION)["instances"],
     }
