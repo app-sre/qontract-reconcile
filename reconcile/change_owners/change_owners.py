@@ -316,7 +316,9 @@ def run(
                 gitlab_merge_request_id, include_description=True
             )
         )
-        change_decisions = apply_decisions_to_changes(changes, approver_decisions)
+        change_decisions = apply_decisions_to_changes(
+            changes, approver_decisions, gl.user.username
+        )
         hold = any(d.decision.hold for d in change_decisions)
         approved = all(
             d.decision.approve and not d.decision.hold for d in change_decisions

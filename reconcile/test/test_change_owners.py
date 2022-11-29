@@ -1418,6 +1418,7 @@ def test_change_decision(
 
     yea_user = "yea-sayer"
     nay_sayer = "nay-sayer"
+    bot_user = "i-am-a-bot"
     change = create_bundle_file_change(
         file_type=BundleFileType.DATAFILE,
         path="/my/file.yml",
@@ -1444,12 +1445,43 @@ def test_change_decision(
             nay_sayer: Decision(approve=False, hold=True),
         },
         changes=[change],
+        auto_approver_bot_username=bot_user,
     )
 
     assert change_decision[0].decision.approve == expected_approve
     assert change_decision[0].decision.hold == expected_hold
     assert change_decision[0].diff == change.diff_coverage[0].diff
     assert change_decision[0].file == change.fileref
+
+
+def test_change_decision_auto_approve(saas_file_changetype: ChangeTypeV1):
+    bot_user = "i-am-a-bot"
+    change = create_bundle_file_change(
+        file_type=BundleFileType.DATAFILE,
+        path="/my/file.yml",
+        schema="/my/schema.yml",
+        old_file_content={"foo": "bar"},
+        new_file_content={"foo": "baz"},
+    )
+    assert change and len(change.diff_coverage) == 1
+    change.diff_coverage[0].coverage = [
+        ChangeTypeContext(
+            change_type_processor=build_change_type_processor(saas_file_changetype),
+            context="something-something",
+            approvers=[
+                Approver(org_username=bot_user, tag_on_merge_requests=False),
+            ],
+            context_file=change.fileref,
+        )
+    ]
+
+    change_decision = apply_decisions_to_changes(
+        approver_decisions={},
+        changes=[change],
+        auto_approver_bot_username=bot_user,
+    )
+
+    assert change_decision[0].decision.approve == True
 
 
 #
