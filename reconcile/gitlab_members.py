@@ -1,7 +1,7 @@
 import enum
 import logging
-from typing import Any
 from collections.abc import Callable
+from typing import Any
 
 from pydantic import BaseModel
 
@@ -24,9 +24,11 @@ from reconcile.gql_definitions.gitlab_members.permissions import (
 from reconcile.utils import gql
 from reconcile.utils.exceptions import AppInterfaceSettingsError
 from reconcile.utils.gitlab_api import GitLabApi
-from reconcile.utils.pagerduty_api import PagerDutyMap
-from reconcile.utils.pagerduty_api import get_pagerduty_map
-from reconcile.utils.pagerduty_api import get_usernames_from_pagerduty
+from reconcile.utils.pagerduty_api import (
+    PagerDutyMap,
+    get_pagerduty_map,
+    get_usernames_from_pagerduty,
+)
 from reconcile.utils.secret_reader import SecretReader
 
 QONTRACT_INTEGRATION = "gitlab-members"
@@ -54,6 +56,7 @@ class Diff(BaseModel):
 
 
 def get_current_state(instance: GitlabInstanceV1, gl: GitLabApi) -> State:
+    """Get current gitlab group members for all managed groups."""
     return {
         g: [
             GitlabUser(user=u["user"], access_level=u["access_level"])
@@ -69,6 +72,7 @@ def get_desired_state(
     permissions: list[PermissionGitlabGroupMembershipV1],
     all_users: list[User],
 ) -> State:
+    """Fetch all desired gitlab users from app-interface."""
     desired_group_members: State = {g: [] for g in instance.managed_groups}
     for g in desired_group_members:
         for p in permissions:
@@ -95,6 +99,7 @@ def get_desired_state(
 
 
 def calculate_diff(current_state: State, desired_state: State) -> list[Diff]:
+    """Compare current and desired state and return all differences."""
     diff: list[Diff] = []
     diff += subtract_states(desired_state, current_state, Action.add_user_to_group)
     diff += subtract_states(current_state, desired_state, Action.remove_user_from_group)
@@ -105,6 +110,7 @@ def calculate_diff(current_state: State, desired_state: State) -> list[Diff]:
 def subtract_states(
     from_state: State, subtract_state: State, action: Action
 ) -> list[Diff]:
+    """Return diff objects for items in from_state but not in subtract_state."""
     result = []
     for f_group, f_users in from_state.items():
         s_group = subtract_state[f_group]
@@ -128,6 +134,7 @@ def subtract_states(
 
 
 def check_access(current_state: State, desired_state: State) -> list[Diff]:
+    """Return diff objects for item where access level is different."""
     result = []
     for d_group, d_users in desired_state.items():
         c_group = current_state[d_group]
@@ -148,6 +155,7 @@ def check_access(current_state: State, desired_state: State) -> list[Diff]:
 
 
 def act(diff: Diff, gl: GitLabApi) -> None:
+    """Apply a diff object."""
     if diff.action == Action.remove_user_from_group:
         gl.remove_group_member(diff.group, diff.user)
     if diff.action == Action.add_user_to_group:
@@ -157,6 +165,7 @@ def act(diff: Diff, gl: GitLabApi) -> None:
 
 
 def get_permissions(query_func: Callable) -> list[PermissionGitlabGroupMembershipV1]:
+    """Get all permissions from app-interface."""
     return [
         p
         for p in permissions_query(query_func=query_func).permissions
@@ -165,6 +174,7 @@ def get_permissions(query_func: Callable) -> list[PermissionGitlabGroupMembershi
 
 
 def get_gitlab_instance(query_func: Callable) -> GitlabInstanceV1:
+    """Get a GitLab instance."""
     if instances := gitlab_instances_query(query_func=query_func).instances:
         if len(instances) != 1:
             raise AppInterfaceSettingsError("More than one gitlab instance found!")
