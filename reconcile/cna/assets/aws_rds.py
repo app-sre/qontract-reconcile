@@ -29,7 +29,7 @@ class AWSRDSAsset(Asset[CNARDSInstanceV1, CNARDSInstanceDefaultsV1]):
     engine: Optional[str] = Field(None, alias="engine")
     engine_version: Optional[str] = Field(None, alias="engine_version")
     major_engine_version: Optional[str] = Field(None, alias="major_engine_version")
-    username: Optional[str] = Field(None, alias="username")
+    username: str = Field(None, alias="username")
     region: Optional[str] = Field(None, alias="region")
     backup_retention_period: Optional[int] = Field(
         None, alias="backup_retention_period"
@@ -39,6 +39,10 @@ class AWSRDSAsset(Asset[CNARDSInstanceV1, CNARDSInstanceDefaultsV1]):
     multi_az: Optional[bool] = Field(None, alias="multi_az")
     deletion_protection: Optional[bool] = Field(None, alias="deletion_protection")
     apply_immediately: Optional[bool] = Field(None, alias="apply_immediately")
+    
+    # Those values are implicit and not set in app-interface
+    is_production: bool = Field(None, alias="is_production")
+    family: Optional[str] = Field(None, alias="family")
 
     @staticmethod
     def provider() -> str:
@@ -47,6 +51,14 @@ class AWSRDSAsset(Asset[CNARDSInstanceV1, CNARDSInstanceDefaultsV1]):
     @staticmethod
     def asset_type() -> AssetType:
         return AssetType.AWS_RDS
+
+    @staticmethod
+    def determine_family(config: CNARDSInstanceDefaultsV1) -> str:
+        """
+        The engine family for the parameter group is implicitly
+        determined based on the engine_version
+        """
+        return f"postgres{config.engine_version.split('.')[0]}"
 
     @classmethod
     def from_query_class(cls, asset: CNARDSInstanceV1) -> Asset:
@@ -82,4 +94,7 @@ class AWSRDSAsset(Asset[CNARDSInstanceV1, CNARDSInstanceDefaultsV1]):
             apply_immediately=config.apply_immediately,
             deletion_protection=config.deletion_protection,
             multi_az=config.multi_az,
+            username=config.username,
+            is_production=True,
+            family=AWSRDSAsset.determine_family(config=config),
         )

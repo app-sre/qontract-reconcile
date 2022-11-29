@@ -76,7 +76,7 @@ class State:
                 if asset_name not in self._assets[asset_type]:
                     continue
                 asset = self._assets[asset_type][asset_name]
-                if asset.status in (AssetStatus.TERMINATED, AssetStatus.PENDING):
+                if asset.status in (AssetStatus.TERMINATED, AssetStatus.PENDING, AssetStatus.ERROR):
                     continue
                 required_bindings: set[Binding] = set()
                 if compare_bindings:
