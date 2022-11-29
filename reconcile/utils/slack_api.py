@@ -61,7 +61,7 @@ class SupportsClientGlobalConfig(Protocol):
 
 class SupportsClientMethodConfig(Protocol):
     name: str
-    args: Json
+    args: dict[str, Any]
 
     def dict(self) -> dict[str, str]:
         ...
