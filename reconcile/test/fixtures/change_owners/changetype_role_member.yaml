@@ -3,7 +3,7 @@ description: change-role-member
 
 # this change type can be used on owned role-1 datafiles
 contextType: datafile
-contextSchema: /access/roles-1.yml
+contextSchema: /access/role-1.yml
 
 disabled: false
 

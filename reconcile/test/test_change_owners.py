@@ -277,7 +277,7 @@ def test_extract_context_file_refs_in_list_added_selector(
     assert file_refs == [
         FileRef(
             file_type=BundleFileType.DATAFILE,
-            schema="/access/roles-1.yml",
+            schema="/access/role-1.yml",
             path=new_role,
         )
     ]
@@ -311,7 +311,7 @@ def test_extract_context_file_refs_in_list_removed_selector(
     assert file_refs == [
         FileRef(
             file_type=BundleFileType.DATAFILE,
-            schema="/access/roles-1.yml",
+            schema="/access/role-1.yml",
             path=existing_role,
         )
     ]
