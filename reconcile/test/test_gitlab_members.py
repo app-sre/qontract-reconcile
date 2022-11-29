@@ -110,17 +110,17 @@ def test_gitlab_members_get_desired_state(
 
 
 def test_gitlab_members_calculate_diff_no_changes(state: State) -> None:
-    # pylint: disable-next=use-implicit-booleaness-not-comparison # for better readybility
+    # pylint: disable-next=use-implicit-booleaness-not-comparison # for better readability
     assert gitlab_members.calculate_diff(state, state) == []
 
 
 def test_gitlab_members_subtract_states_no_changes_add(state: State) -> None:
-    # pylint: disable-next=use-implicit-booleaness-not-comparison # for better readybility
+    # pylint: disable-next=use-implicit-booleaness-not-comparison # for better readability
     assert gitlab_members.subtract_states(state, state, Action.add_user_to_group) == []
 
 
 def test_gitlab_members_subtract_states_no_changes_remove(state: State) -> None:
-    # pylint: disable=use-implicit-booleaness-not-comparison # for better readybility
+    # pylint: disable=use-implicit-booleaness-not-comparison # for better readability
     assert (
         gitlab_members.subtract_states(state, state, Action.remove_user_from_group)
         == []
@@ -177,7 +177,7 @@ def test_gitlab_members_subtract_states_remove(state: State) -> None:
 
 
 def test_gitlab_members_check_access_no_changes(state: State) -> None:
-    # pylint: disable-next=use-implicit-booleaness-not-comparison # for better readybility
+    # pylint: disable-next=use-implicit-booleaness-not-comparison # for better readability
     assert gitlab_members.check_access(state, state) == []
 
 
