@@ -1481,7 +1481,7 @@ def test_change_decision_auto_approve(saas_file_changetype: ChangeTypeV1):
         auto_approver_bot_username=bot_user,
     )
 
-    assert change_decision[0].decision.approve == True
+    assert change_decision[0].decision.approve is True
 
 
 #
