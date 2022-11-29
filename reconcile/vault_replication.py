@@ -4,6 +4,8 @@ import re
 from reconcile.utils.vault import (
     VaultClient,
     _VaultClient,
+    SecretAccessForbidden,
+    SecretVersionNotFound,
     SecretNotFound,
 )
 from reconcile.gql_definitions.jenkins_configs import jenkins_configs
@@ -53,7 +55,7 @@ def deep_copy_versions(
         write_dict = {"path": path, "data": secret}
         logging.info(["replicate_vault_secret", src_version, path])
         if not dry_run:
-            dest_vault.write(write_dict)
+            dest_vault.write(secret=write_dict, decode_base64=False)
 
 
 def copy_vault_secret(
@@ -71,7 +73,7 @@ def copy_vault_secret(
             write_dict = {"path": path, "data": secret}
             logging.info(["replicate_vault_secret", path])
             if not dry_run:
-                dest_vault.write(write_dict)
+                dest_vault.write(secret=write_dict, decode_base64=False)
         elif dest_version < version:
             deep_copy_versions(
                 dry_run=dry_run,
@@ -83,20 +85,23 @@ def copy_vault_secret(
             )
         else:
             logging.info(["replicate_vault_secret", dest_version, version, path])
-    except SecretNotFound:
+    except (SecretVersionNotFound, SecretNotFound):
         logging.info(["replicate_vault_secret", "Secret not found", path])
         # Handle v1 secrets where version is None and we don't need to deep sync.
         if version is None:
             if not dry_run:
-                dest_vault.write(write_dict)
-        deep_copy_versions(
-            dry_run=dry_run,
-            source_vault=source_vault,
-            dest_vault=dest_vault,
-            current_dest_version=0,
-            current_source_version=version,
-            path=path,
-        )
+                secret, _ = source_vault.read_all_with_version(secret_dict)
+                write_dict = {"path": path, "data": secret}
+                dest_vault.write(secret=write_dict, decode_base64=False)
+        else:
+            deep_copy_versions(
+                dry_run=dry_run,
+                source_vault=source_vault,
+                dest_vault=dest_vault,
+                current_dest_version=0,
+                current_source_version=version,
+                path=path,
+            )
 
 
 def check_invalid_paths(
@@ -146,7 +151,9 @@ def get_policy_paths(
 
 
 def get_jenkins_secret_list(
-    jenkins_instance: str, query_data: JenkinsConfigsQueryData
+    vault_instance: _VaultClient,
+    jenkins_instance: str,
+    query_data: JenkinsConfigsQueryData,
 ) -> Iterable[str]:
     """Returns a list of secrets used in a jenkins instance
 
@@ -171,7 +178,14 @@ def get_jenkins_secret_list(
                 for line in secret_paths:
                     res = re.search(r"secret-path:\s*[\'\"](.+)[\'\"]", line)
                     if res is not None:
-                        secret_list.append(res.group(1))
+                        secret_path = res.group(1)
+                        if "{" in secret_path:
+                            wildcard_list = process_wildcard_paths_with_text(
+                                vault_instance, secret_path
+                            )
+                            secret_list.extend(wildcard_list)
+                        else:
+                            secret_list.append(secret_path)
 
     return secret_list
 
@@ -234,11 +248,55 @@ def replicate_paths(
 
             jenkins_query_data = jenkins_configs.query(query_func=gql.get_api().query)
             path_list = get_jenkins_secret_list(
-                path.jenkins_instance.name, jenkins_query_data
+                source_vault, path.jenkins_instance.name, jenkins_query_data
             )
             check_invalid_paths(path_list, policy_paths)
             for path in path_list:
                 copy_vault_secret(dry_run, source_vault, dest_vault, path)
+
+
+def get_start_end_secret(path: str) -> tuple[str, str]:
+
+    start = path[0 : path.index("{")]
+    if start[-1] != "/":
+        start = start.rsplit("/", 1)[0] + "/"
+    try:
+        end = path[path[path.index("}") : :].index("/") + path.index("}") : :]
+    except ValueError:
+        end = ""
+
+    return start, end
+
+
+def process_wildcard_paths_with_text(
+    vault_instance: _VaultClient, path: str
+) -> list[str]:
+    """Returns a list of secrets that match a wildcard path
+
+    The input secret is the name of a jenkins instance to filter
+    the secrets:
+    * path - Vault path
+    """
+
+    secret_list = []
+    path_slices = path.split("/")
+    for s in path_slices:
+        if "{" in s and "}" in s:
+            wildcard = s
+
+    cap_groups = re.search(r"(.*)(\{.*\})(.*)", wildcard)
+    prefix = cap_groups.group(1)
+    suffix = cap_groups.group(3)
+
+    start, end = get_start_end_secret(path)
+    vault_list = vault_instance.list(start)
+
+    for secret in vault_list:
+        if prefix in secret and suffix in secret:
+            final = start + secret + end[1::]
+            secret_list.append(final)
+
+    return secret_list
 
 
 def run(dry_run: bool) -> None:

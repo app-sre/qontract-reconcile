@@ -19,6 +19,10 @@ LOG = logging.getLogger(__name__)
 VAULT_AUTO_REFRESH_INTERVAL = int(os.getenv("VAULT_AUTO_REFRESH_INTERVAL") or 600)
 
 
+class PathAccessForbidden(Exception):
+    pass
+
+
 class SecretNotFound(Exception):
     pass
 
@@ -149,7 +153,7 @@ class _VaultClient:
         try:
             self._client.secrets.kv.v2.read_configuration(mount_point)
             version = 2
-        except Exception as e:
+        except Exception:
             version = 1
 
         return version
@@ -280,6 +284,8 @@ class _VaultClient:
                 logging.debug(f"current data is up-to-date, skipping {path}")
                 return
         except SecretVersionNotFound:
+            pass
+        except SecretAccessForbidden:
             # if the secret is not found we need to write it
             logging.debug(f"secret not found in {path}, will create it")
 
@@ -300,6 +306,22 @@ class _VaultClient:
         except hvac.exceptions.Forbidden:
             msg = f"permission denied accessing secret '{path}'"
             raise SecretAccessForbidden(msg)
+
+    def _list(self, path: str) -> dict:
+        try:
+            return self._client.list(path)
+        except hvac.exceptions.Forbidden:
+            msg = f"permission denied accessing path '{path}'"
+            raise PathAccessForbidden(msg)
+
+    def list(self, path: str) -> list[str]:
+        """Returns a list of secrets in a given path.
+
+        The input path is a dictionary which contains the following fields:
+        * path - path to the secret in Vault
+        """
+        path_list = self._list(path)
+        return path_list["data"]["keys"]
 
 
 class VaultClient:

@@ -82,7 +82,7 @@ def test_get_jenkins_secret_list_w_content(
     jenkins_config_query_data: JenkinsConfigsQueryData,
 ):
     assert integ.get_jenkins_secret_list(
-        "jenkins-instance", jenkins_config_query_data
+        None, "jenkins-instance", jenkins_config_query_data
     ) == [
         "this/is/a/path",
     ]
