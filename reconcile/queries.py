@@ -2997,7 +2997,7 @@ STATUS_PAGE_QUERY = """
       description
       path
       groupName
-      apps {
+      app {
         name
       }
       status {
