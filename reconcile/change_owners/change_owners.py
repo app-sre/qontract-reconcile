@@ -1,5 +1,6 @@
 import logging
 import traceback
+import sys
 
 from reconcile.change_owners.decision import (
     DecisionCommand,
@@ -68,9 +69,31 @@ def cover_changes(
     # - ...
 
 
+def validate_self_service_role(role: RoleV1) -> None:
+    for ssc in role.self_service or []:
+        if ssc.change_type.context_schema:
+            # check that all referenced datafiles have a schema that
+            # is compatible with the change-type
+            incompatible_datafiles = [
+                df.path
+                for df in ssc.datafiles or []
+                if df.datafile_schema != ssc.change_type.context_schema
+            ]
+            if incompatible_datafiles:
+                raise ValueError(
+                    f"The datafiles {incompatible_datafiles} are not compatible with the "
+                    f"{ssc.change_type.name} change-types contextSchema {ssc.change_type.context_schema}"
+                )
+
+
 def fetch_self_service_roles(gql_api: gql.GqlApi) -> list[RoleV1]:
-    roles = self_service_roles.query(gql_api.query).roles or []
-    return [r for r in roles if r.self_service]
+    roles: list[RoleV1] = []
+    for r in self_service_roles.query(gql_api.query).roles or []:
+        if not r.self_service:
+            continue
+        validate_self_service_role(r)
+        roles.append(r)
+    return roles
 
 
 def fetch_change_type_processors(gql_api: gql.GqlApi) -> list[ChangeTypeProcessor]:
@@ -272,10 +295,17 @@ def run(
         )
         return
 
-    # fetch change-types from current bundle to verify they are syntactically correct.
-    # this is a cheap way to figure out if a newly introduced change-type works.
-    # needs a lot of improvements!
-    fetch_change_type_processors(gql.get_api())
+    try:
+        # fetch change-types from current bundle to verify they are syntactically correct.
+        # this is a cheap way to figure out if a newly introduced change-type works.
+        # needs a lot of improvements!
+        fetch_change_type_processors(gql.get_api())
+        # also verify that self service roles are configured correctly, e.g. if change-types
+        # are brought together only with compatible schema files
+        fetch_self_service_roles(gql.get_api())
+    except Exception as e:
+        logging.error(e)
+        sys.exit(1)
 
     # get change types from the comparison bundle to prevent privilege escalation
     logging.info(
