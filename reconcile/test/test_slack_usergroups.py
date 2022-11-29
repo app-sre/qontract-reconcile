@@ -1,34 +1,41 @@
 import copy
-from datetime import datetime
-from datetime import timedelta
+from datetime import (
+    datetime,
+    timedelta,
+)
 from typing import Any
-from unittest.mock import call
-from unittest.mock import create_autospec
-from unittest.mock import Mock
+from unittest.mock import (
+    Mock,
+    call,
+    create_autospec,
+)
 
 import pytest
 
 import reconcile.slack_base as slackbase
 import reconcile.slack_usergroups as integ
-from .fixtures import Fixtures
 from reconcile.gql_definitions.fragments.user import User
-from reconcile.gql_definitions.slack_usergroups.permissions import PagerDutyInstanceV1
-from reconcile.gql_definitions.slack_usergroups.permissions import PagerDutyTargetV1
 from reconcile.gql_definitions.slack_usergroups.permissions import (
+    PagerDutyInstanceV1,
+    PagerDutyTargetV1,
     PermissionSlackUsergroupV1,
+    ScheduleEntryV1,
 )
-from reconcile.gql_definitions.slack_usergroups.permissions import ScheduleEntryV1
-from reconcile.slack_usergroups import act
-from reconcile.slack_usergroups import query_permissions
-from reconcile.slack_usergroups import SlackMap
-from reconcile.slack_usergroups import SlackObject
-from reconcile.slack_usergroups import SlackState
-from reconcile.slack_usergroups import State
-from reconcile.slack_usergroups import WorkspaceSpec
+from reconcile.slack_usergroups import (
+    SlackMap,
+    SlackObject,
+    SlackState,
+    State,
+    WorkspaceSpec,
+    act,
+    query_permissions,
+)
 from reconcile.utils import repo_owners
 from reconcile.utils.github_api import GithubApi
 from reconcile.utils.pagerduty_api import PagerDutyMap
 from reconcile.utils.slack_api import SlackApi
+
+from .fixtures import Fixtures
 
 
 @pytest.fixture
