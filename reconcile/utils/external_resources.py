@@ -1,63 +1,16 @@
 import json
-from typing import (
-    Any,
-    Optional,
-    Type,
-    TypeVar,
-)
+from typing import Any, Optional
 from collections.abc import Mapping, MutableMapping
 
 import anymarkup
 
 from reconcile.utils import gql
 from reconcile.utils.exceptions import FetchResourceError
-from reconcile.utils.external_resource_spec import (
-    ExternalResourceSpec,
-    TypedExternalResourceSpec,
-    ExternalResource,
-    Namespace,
-    NamespaceExternalResource,
-)
+from reconcile.utils.external_resource_spec import ExternalResourceSpec
 
 PROVIDER_AWS = "aws"
 PROVIDER_CLOUDFLARE = "cloudflare"
 PROVIDER_CNA_EXPERIMENTAL = "cna-experimental"
-
-T = TypeVar("T", bound=ExternalResource)
-
-
-def get_external_resource_specs_for_namespace(
-    namespace: Namespace,
-    resource_type: Type[T],
-    provision_provider: Optional[str] = None,
-) -> list[TypedExternalResourceSpec[T]]:
-    if not namespace.managed_external_resources:
-        return []
-    specs: list[TypedExternalResourceSpec[T]] = []
-    for e in namespace.external_resources or []:
-        if isinstance(e, NamespaceExternalResource):
-            for r in e.resources:
-                if isinstance(r, resource_type):
-                    specs.append(
-                        TypedExternalResourceSpec[T](
-                            namespace_spec=namespace,
-                            namespace_external_resource=e,
-                            spec=r,
-                        )
-                    )
-                else:
-                    raise ValueError(
-                        f"expected resource of type {resource_type}, got {type(r)}"
-                    )
-
-    if provision_provider:
-        specs = [
-            s
-            for s in specs
-            if s.namespace_external_resource.provider == provision_provider
-        ]
-
-    return specs
 
 
 def get_external_resource_specs(

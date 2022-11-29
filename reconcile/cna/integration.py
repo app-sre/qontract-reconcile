@@ -8,7 +8,6 @@ from reconcile.cna.state import State
 
 from reconcile.utils import gql
 from reconcile.utils.external_resources import (
-    get_external_resource_specs_for_namespace,
     PROVIDER_CNA_EXPERIMENTAL,
 )
 from reconcile.utils.ocm_base_client import OCMBaseClient
@@ -19,10 +18,8 @@ from reconcile.gql_definitions.cna.queries.cna_provisioners import (
     query as cna_provisioners_query,
 )
 from reconcile.gql_definitions.cna.queries.cna_resources import (
-    CNAssetV1,
     NamespaceV1,
-)
-from reconcile.gql_definitions.cna.queries.cna_resources import (
+    NamespaceCNAssetV1,
     query as namespaces_query,
 )
 from reconcile.typed_queries.app_interface_vault_settings import (
@@ -66,33 +63,36 @@ class CNAIntegration:
     def assemble_desired_states(self):
         self._desired_states = defaultdict(State)
         for namespace in self._namespaces:
-            for spec in get_external_resource_specs_for_namespace(
-                namespace, CNAssetV1, PROVIDER_CNA_EXPERIMENTAL
-            ):
-                asset = asset_factory_from_schema(spec)
-                self._desired_states[spec.provisioner_name].add_asset(asset)
+            for provider in namespace.external_resources or []:
+                if provider.provider != PROVIDER_CNA_EXPERIMENTAL:
+                    continue
+                if not isinstance(provider, NamespaceCNAssetV1):
+                    continue
+                for resource in provider.resources or []:
+                    asset = asset_factory_from_schema(resource)
+                    self._desired_states[provider.provisioner.name].add_asset(asset)
 
-                # For now we assume that if an asset is bindable, then it
-                # always binds to its defining namespace
-                # TODO: probably this should also be done by passing the required namespace vars
-                #       to the factory method.
-                if not asset.bindable():
-                    continue
-                if not (namespace.cluster.spec and namespace.cluster.spec.q_id):
-                    logging.warning(
-                        "cannot bind asset %s because namespace %s does not have a cluster spec with a cluster id.",
-                        asset,
-                        namespace.name,
+                    # For now we assume that if an asset is bindable, then it
+                    # always binds to its defining namespace
+                    # TODO: probably this should also be done by passing the required namespace vars
+                    #       to the factory method.
+                    if not asset.bindable():
+                        continue
+                    if not (namespace.cluster.spec and namespace.cluster.spec.q_id):
+                        logging.warning(
+                            "cannot bind asset %s because namespace %s does not have a cluster spec with a cluster id.",
+                            asset,
+                            namespace.name,
+                        )
+                        continue
+                    asset.bindings.add(
+                        Binding(
+                            cluster_id=namespace.cluster.spec.q_id,
+                            namespace=namespace.name,
+                            # For now secret_name is implicit.
+                            secret_name=f"{asset.asset_type()}-{asset.name}",
+                        )
                     )
-                    continue
-                asset.bindings.add(
-                    Binding(
-                        cluster_id=namespace.cluster.spec.q_id,
-                        namespace=namespace.name,
-                        # For now secret_name is implicit.
-                        secret_name=f"{asset.asset_type()}-{asset.name}",
-                    )
-                )
 
     def assemble_current_states(self):
         self._current_states = defaultdict(State)
