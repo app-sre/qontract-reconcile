@@ -85,12 +85,11 @@ def copy_vault_secret(
                 current_source_version=version,
                 path=path,
             )
-        else:
-            logging.info(["replicate_vault_secret", dest_version, version, path])
     except (SecretVersionNotFound, SecretNotFound):
         logging.info(["replicate_vault_secret", "Secret not found", path])
         # Handle v1 secrets where version is None and we don't need to deep sync.
         if version is None:
+            logging.info(["replicate_vault_secret", path])
             if not dry_run:
                 secret, _ = source_vault.read_all_with_version(secret_dict)
                 write_dict = {"path": path, "data": secret}
