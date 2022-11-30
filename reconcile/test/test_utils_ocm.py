@@ -5,7 +5,6 @@ from typing import Any
 from urllib.parse import urljoin
 
 import httpretty
-import httpretty as httpretty_module
 import pytest
 from httpretty.core import HTTPrettyRequest
 from pydantic import BaseModel
@@ -31,7 +30,7 @@ class OcmUrl(BaseModel):
 
 
 @pytest.fixture
-def configure_httpretty(httpretty: httpretty_module, ocm_url: str) -> Callable:
+def configure_httpretty(httpretty: httpretty, ocm_url: str) -> Callable:
     def f(urls: list[OcmUrl]) -> int:
         i = 0
         for url in urls:
@@ -413,7 +412,7 @@ def test_ocm_map_upgrade_policies_sector(ocm, mocker):
 @pytest.mark.parametrize("fixture_name", ["full", "minimal"])
 def test_ocm_get_oidc_idps(
     fixture_name: str,
-    httpretty: httpretty_module,
+    httpretty: httpretty,
     configure_httpretty: Callable,
     fx: Fixtures,
     ocm: OCM,
@@ -445,7 +444,7 @@ def test_ocm_create_oidc_idp_must_raise_an_error(
 
 
 def test_ocm_create_oidc_idp(
-    httpretty: httpretty_module,
+    httpretty: httpretty,
     ocm: OCM,
     ocm_url: str,
     oidc_idp: OCMOidcIdp,
@@ -497,7 +496,7 @@ def test_ocm_update_oidc_idp_must_raise_an_error(
 
 
 def test_ocm_update_oidc_idp(
-    httpretty: httpretty_module,
+    httpretty: httpretty,
     ocm: OCM,
     ocm_url: str,
     oidc_idp: OCMOidcIdp,
