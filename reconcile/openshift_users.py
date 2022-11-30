@@ -43,11 +43,9 @@ def get_cluster_users(cluster, oc_map, clusters):
             # ignore admins
             continue
         if any(
-            [
-                identity.startswith(identity_prefix)
-                for identity in u.get("identities", [])
-                for identity_prefix in identity_prefixes
-            ]
+            identity.startswith(identity_prefix)
+            for identity in u.get("identities", [])
+            for identity_prefix in identity_prefixes
         ):
             # the user has at least one identitiy which is managed by app-interface
             users.append(u["metadata"]["name"])
