@@ -6,6 +6,7 @@ from reconcile.utils.vault import (
     _VaultClient,
     SecretVersionNotFound,
     SecretNotFound,
+    SecretAccessForbidden,
 )
 from reconcile.gql_definitions.jenkins_configs import jenkins_configs
 from reconcile.gql_definitions.jenkins_configs.jenkins_configs import (
@@ -65,7 +66,11 @@ def copy_vault_secret(
 ) -> None:
 
     secret_dict = {"path": path, "version": "LATEST"}
-    _, version = source_vault.read_all_with_version(secret_dict)
+
+    try:
+        _, version = source_vault.read_all_with_version(secret_dict)
+    except SecretAccessForbidden:
+        raise SecretAccessForbidden("Cannot read secret from source vault")
 
     try:
         _, dest_version = dest_vault.read_all_with_version(secret_dict)
