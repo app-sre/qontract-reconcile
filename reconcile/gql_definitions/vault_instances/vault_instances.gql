@@ -33,6 +33,30 @@ query VaultInstances {
             }
           }
       }
+    sourceAuth {
+      provider
+      secretEngine
+      ... on VaultInstanceAuthApprole_v1 {
+      roleID {
+        ... VaultSecret
+      }
+      secretID {
+        ... VaultSecret
+      }
+    }
+    }
+    destAuth {
+      provider
+      secretEngine
+      ... on VaultInstanceAuthApprole_v1 {
+      roleID {
+        ... VaultSecret
+      }
+      secretID {
+        ... VaultSecret
+      }
+    }
+    }
       paths {
         provider
         ...on VaultReplicationJenkins_v1 {

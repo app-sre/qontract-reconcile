@@ -9,9 +9,8 @@ from reconcile.gql_definitions.jenkins_configs.jenkins_configs import (
 )
 
 from reconcile.gql_definitions.vault_instances.vault_instances import (
-    VaultInstanceV1,
-    VaultInstanceAuthApproleV1,
-    VaultInstanceAuthV1,
+    VaultReplicationConfigV1_VaultInstanceAuthV1_VaultInstanceAuthApproleV1,
+    VaultReplicationConfigV1_VaultInstanceAuthV1,
 )
 
 from reconcile.gql_definitions.vault_policies import vault_policies
@@ -96,40 +95,30 @@ def test_get_jenkins_secret_list_w_content(
 
 
 @pytest.fixture
-def vault_instance_data() -> VaultInstanceV1:
-    return VaultInstanceV1(
-        name="vault-instance",
-        address="https://vault-instance.com",
-        auth=VaultInstanceAuthApproleV1(
-            provider="approle",
-            secretEngine="kv_v1",
-            roleID=VaultSecret(
-                path="secret/path/vault",
-                field="id",
-                version=None,
-                format=None,
-            ),
-            secretID=VaultSecret(
-                path="secret/path/vault",
-                field="secret",
-                version=None,
-                format=None,
-            ),
+def vault_instance_data() -> VaultReplicationConfigV1_VaultInstanceAuthV1_VaultInstanceAuthApproleV1:
+    return VaultReplicationConfigV1_VaultInstanceAuthV1_VaultInstanceAuthApproleV1(
+        provider="approle",
+        secretEngine="kv_v1",
+        roleID=VaultSecret(
+            path="secret/path/role_id",
+            field="role_id",
+            version=None,
+            format=None,
         ),
-        replication=None,
+        secretID=VaultSecret(
+            path="secret/path/secret_id",
+            field="secret_id",
+            version=None,
+            format=None,
+        ),
     )
 
 
 @pytest.fixture
-def vault_instance_data_invalid_auth() -> VaultInstanceV1:
-    return VaultInstanceV1(
-        name="vault-instance",
-        address="https://vault-instance.com",
-        auth=VaultInstanceAuthV1(
-            provider="approle",
-            secretEngine="kv_v1",
-        ),
-        replication=None,
+def vault_instance_data_invalid_auth() -> VaultReplicationConfigV1_VaultInstanceAuthV1:
+    return VaultReplicationConfigV1_VaultInstanceAuthV1(
+        provider="test",
+        secretEngine="kv_v1",
     )
 
 
@@ -139,7 +128,8 @@ def reset_singletons():
 
 
 def test_get_vault_credentials_invalid_auth_method(
-    vault_instance_data_invalid_auth: VaultInstanceV1, mocker
+    vault_instance_data_invalid_auth: VaultReplicationConfigV1_VaultInstanceAuthV1,
+    mocker,
 ):
 
     mock_vault_client = mocker.patch(
@@ -148,17 +138,24 @@ def test_get_vault_credentials_invalid_auth_method(
     mock_vault_client.return_value.read.side_effect = ["a", "b"]
 
     with pytest.raises(integ.VaultInvalidAuthMethod):
-        integ.get_vault_credentials(vault_instance_data_invalid_auth)
+        integ.get_vault_credentials(
+            vault_instance_data_invalid_auth, "http://vault.com"
+        )
 
 
-def test_get_vault_credentials_app_role(vault_instance_data: VaultInstanceV1, mocker):
+def test_get_vault_credentials_app_role(
+    vault_instance_data: VaultReplicationConfigV1_VaultInstanceAuthV1_VaultInstanceAuthApproleV1,
+    mocker,
+):
 
     mock_vault_client = mocker.patch(
         "reconcile.utils.vault._VaultClient", autospec=True
     )
     mock_vault_client.return_value.read.side_effect = ["a", "b"]
 
-    assert integ.get_vault_credentials(vault_instance_data) == {
+    assert integ.get_vault_credentials(
+        vault_instance_data, "https://vault-instance.com"
+    ) == {
         "role_id": "a",
         "secret_id": "b",
         "server": "https://vault-instance.com",

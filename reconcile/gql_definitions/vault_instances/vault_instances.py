@@ -60,6 +60,30 @@ query VaultInstances {
             }
           }
       }
+    sourceAuth {
+      provider
+      secretEngine
+      ... on VaultInstanceAuthApprole_v1 {
+      roleID {
+        ... VaultSecret
+      }
+      secretID {
+        ... VaultSecret
+      }
+    }
+    }
+    destAuth {
+      provider
+      secretEngine
+      ... on VaultInstanceAuthApprole_v1 {
+      roleID {
+        ... VaultSecret
+      }
+      secretID {
+        ... VaultSecret
+      }
+    }
+    }
       paths {
         provider
         ...on VaultReplicationJenkins_v1 {
@@ -133,6 +157,46 @@ class VaultReplicationConfigV1_VaultInstanceV1(BaseModel):
         extra = Extra.forbid
 
 
+class VaultReplicationConfigV1_VaultInstanceAuthV1(BaseModel):
+    provider: str = Field(..., alias="provider")
+    secret_engine: str = Field(..., alias="secretEngine")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
+class VaultReplicationConfigV1_VaultInstanceAuthV1_VaultInstanceAuthApproleV1(
+    VaultReplicationConfigV1_VaultInstanceAuthV1
+):
+    role_id: VaultSecret = Field(..., alias="roleID")
+    secret_id: VaultSecret = Field(..., alias="secretID")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
+class VaultInstanceV1_VaultReplicationConfigV1_VaultInstanceAuthV1(BaseModel):
+    provider: str = Field(..., alias="provider")
+    secret_engine: str = Field(..., alias="secretEngine")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
+class VaultInstanceV1_VaultReplicationConfigV1_VaultInstanceAuthV1_VaultInstanceAuthApproleV1(
+    VaultInstanceV1_VaultReplicationConfigV1_VaultInstanceAuthV1
+):
+    role_id: VaultSecret = Field(..., alias="roleID")
+    secret_id: VaultSecret = Field(..., alias="secretID")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
 class VaultReplicationPathsV1(BaseModel):
     provider: str = Field(..., alias="provider")
 
@@ -181,6 +245,14 @@ class VaultReplicationConfigV1(BaseModel):
     vault_instance: VaultReplicationConfigV1_VaultInstanceV1 = Field(
         ..., alias="vaultInstance"
     )
+    source_auth: Union[
+        VaultReplicationConfigV1_VaultInstanceAuthV1_VaultInstanceAuthApproleV1,
+        VaultReplicationConfigV1_VaultInstanceAuthV1,
+    ] = Field(..., alias="sourceAuth")
+    dest_auth: Union[
+        VaultInstanceV1_VaultReplicationConfigV1_VaultInstanceAuthV1_VaultInstanceAuthApproleV1,
+        VaultInstanceV1_VaultReplicationConfigV1_VaultInstanceAuthV1,
+    ] = Field(..., alias="destAuth")
     paths: Optional[
         list[Union[VaultReplicationJenkinsV1, VaultReplicationPathsV1]]
     ] = Field(..., alias="paths")

@@ -21,12 +21,12 @@ from reconcile.gql_definitions.vault_policies.vault_policies import (
 from reconcile.gql_definitions.vault_policies import vault_policies
 from reconcile.gql_definitions.vault_instances import vault_instances
 from reconcile.gql_definitions.vault_instances.vault_instances import (
-    VaultInstanceAuthApproleV1,
-    VaultInstanceV1,
     VaultReplicationConfigV1,
     VaultReplicationJenkinsV1,
-    VaultReplicationConfigV1_VaultInstanceV1_VaultInstanceAuthV1_VaultInstanceAuthApproleV1,
-    VaultReplicationConfigV1_VaultInstanceV1,
+    VaultReplicationConfigV1_VaultInstanceAuthV1,
+    VaultInstanceV1_VaultReplicationConfigV1_VaultInstanceAuthV1,
+    VaultReplicationConfigV1_VaultInstanceAuthV1_VaultInstanceAuthApproleV1,
+    VaultInstanceV1_VaultReplicationConfigV1_VaultInstanceAuthV1_VaultInstanceAuthApproleV1,
 )
 
 from reconcile.utils import gql
@@ -197,7 +197,11 @@ def get_jenkins_secret_list(
 
 
 def get_vault_credentials(
-    vault_instance: Union[VaultInstanceV1, VaultReplicationConfigV1_VaultInstanceV1]
+    vault_auth: Union[
+        VaultReplicationConfigV1_VaultInstanceAuthV1,
+        VaultInstanceV1_VaultReplicationConfigV1_VaultInstanceAuthV1,
+    ],
+    vault_address: str,
 ) -> dict[str, Optional[str]]:
     """Returns a dictionary with the credentials used to authenticate with Vault,
     retrieved from the values present on AppInterface.
@@ -211,25 +215,26 @@ def get_vault_credentials(
     vault = cast(_VaultClient, VaultClient())
 
     if not isinstance(
-        vault_instance.auth, VaultInstanceAuthApproleV1
+        vault_auth,
+        VaultReplicationConfigV1_VaultInstanceAuthV1_VaultInstanceAuthApproleV1,
     ) and not isinstance(
-        vault_instance.auth,
-        VaultReplicationConfigV1_VaultInstanceV1_VaultInstanceAuthV1_VaultInstanceAuthApproleV1,
+        vault_auth,
+        VaultInstanceV1_VaultReplicationConfigV1_VaultInstanceAuthV1_VaultInstanceAuthApproleV1,
     ):
         raise VaultInvalidAuthMethod
 
     role_id = {
-        "path": vault_instance.auth.role_id.path,
-        "field": vault_instance.auth.role_id.field,
+        "path": vault_auth.role_id.path,
+        "field": vault_auth.role_id.field,
     }
     secret_id = {
-        "path": vault_instance.auth.secret_id.path,
-        "field": vault_instance.auth.secret_id.field,
+        "path": vault_auth.secret_id.path,
+        "field": vault_auth.secret_id.field,
     }
 
     vault_creds["role_id"] = vault.read(role_id)
     vault_creds["secret_id"] = vault.read(secret_id)
-    vault_creds["server"] = vault_instance.address
+    vault_creds["server"] = vault_address
 
     return vault_creds
 
@@ -321,8 +326,12 @@ def run(dry_run: bool) -> None:
         for instance in query_data.vault_instances:
             if instance.replication:
                 for replication in instance.replication:
-                    source_creds = get_vault_credentials(instance)
-                    dest_creds = get_vault_credentials(replication.vault_instance)
+                    source_creds = get_vault_credentials(
+                        replication.source_auth, instance.address
+                    )
+                    dest_creds = get_vault_credentials(
+                        replication.dest_auth, replication.vault_instance.address
+                    )
 
                     # Private class _VaultClient is used because the public class is
                     # defined as a singleton, and we need to create multiple instances
