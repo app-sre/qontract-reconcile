@@ -1,5 +1,6 @@
 import itertools
 import logging
+import sys
 
 from sretoolbox.utils import threaded
 
@@ -14,21 +15,44 @@ from reconcile.utils.oc import OC_Map
 QONTRACT_INTEGRATION = "openshift-users"
 
 
-def get_cluster_users(cluster, oc_map):
+def get_cluster_users(cluster, oc_map, clusters):
     oc = oc_map.get(cluster)
     if not oc:
         logging.log(level=oc.log_level, msg=oc.message)
         return []
-    users = [
-        u["metadata"]["name"]
-        for u in oc.get_users()
-        if u.get("identities", None) is not None
-        and len(u["identities"]) == 1
-        and u["identities"][0].startswith("github")
-        and not u["metadata"].get("labels", {}).get("admin", "")
-    ]
+    users: list[str] = []
 
-    return [{"cluster": cluster, "user": user} for user in users or []]
+    cluster_info = None
+    for cl in clusters:
+        if cl["name"] == cluster:
+            cluster_info = cl
+
+    if not cluster_info:
+        logging.error("This should never ever be reached! Something is wrong!")
+        sys.exit(1)
+
+    # backwarts compatibiltiy for clusters w/o auth
+    identity_prefixes = ["github"]
+
+    for auth in cluster_info["auth"]:
+        if auth["service"] == "oidc":
+            identity_prefixes.append(auth["name"])
+
+    for u in oc.get_users():
+        if u["metadata"].get("labels", {}).get("admin", ""):
+            # ignore admins
+            continue
+        if any(
+            [
+                identity.startswith(identity_prefix)
+                for identity in u.get("identities", [])
+                for identity_prefix in identity_prefixes
+            ]
+        ):
+            # the user has at least one identitiy which is managed by app-interface
+            users.append(u["metadata"]["name"])
+
+    return [{"cluster": cluster, "user": user} for user in users]
 
 
 def fetch_current_state(thread_pool_size, internal, use_jump_host):
@@ -47,6 +71,7 @@ def fetch_current_state(thread_pool_size, internal, use_jump_host):
         oc_map.clusters(include_errors=True),
         thread_pool_size,
         oc_map=oc_map,
+        clusters=clusters,
     )
     current_state = list(itertools.chain.from_iterable(results))
     return oc_map, current_state
