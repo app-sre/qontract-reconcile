@@ -8,7 +8,8 @@ import time
 import hvac
 import requests
 
-from typing import Tuple, Optional, Mapping
+from typing import Optional
+from collections.abc import Mapping
 from hvac.exceptions import InvalidPath
 from requests.adapters import HTTPAdapter
 from sretoolbox.utils import retry
@@ -105,7 +106,7 @@ class _VaultClient:
         self._client.auth_approle(self.role_id, self.secret_id)
 
     @retry()
-    def read_all_with_version(self, secret: Mapping) -> Tuple[Mapping, Optional[str]]:
+    def read_all_with_version(self, secret: Mapping) -> tuple[Mapping, Optional[str]]:
         """Returns a dictionary of keys and values in a Vault secret and the
         version of the secret, for V1 secrets, version will be None.
 
@@ -133,7 +134,7 @@ class _VaultClient:
         return data, version
 
     @retry()
-    def read_all(self, secret: Mapping) -> Mapping:
+    def read_all(self, secret: Mapping) -> dict:
         """Returns a dictionary of keys and values in a Vault secret.
 
         The input secret is a dictionary which contains the following fields:

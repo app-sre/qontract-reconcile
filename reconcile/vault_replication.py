@@ -4,7 +4,6 @@ import re
 from reconcile.utils.vault import (
     VaultClient,
     _VaultClient,
-    SecretAccessForbidden,
     SecretVersionNotFound,
     SecretNotFound,
 )
@@ -28,7 +27,8 @@ from reconcile.gql_definitions.vault_instances.vault_instances import (
 )
 
 from reconcile.utils import gql
-from typing import cast, Optional, Union, Iterable, Mapping
+from typing import cast, Optional, Union
+from collections.abc import Iterable
 
 QONTRACT_INTEGRATION = "vault-replication"
 
@@ -118,7 +118,7 @@ def check_invalid_paths(
 
 def list_invalid_paths(
     path_list: Iterable[str], policy_paths: Iterable[str]
-) -> Iterable[str]:
+) -> list[str]:
     invalid_paths = []
 
     for path in path_list:
@@ -134,7 +134,7 @@ def policy_contains_path(path: str, policy_paths: Iterable[str]) -> bool:
 
 def get_policy_paths(
     policy_name: str, instance_name: str, policy_query_data: VaultPoliciesQueryData
-) -> Iterable[str]:
+) -> list[str]:
     # query_data = vault_policies.query(query_func=gql.get_api().query)
     policy_paths = []
 
@@ -154,7 +154,7 @@ def get_jenkins_secret_list(
     vault_instance: _VaultClient,
     jenkins_instance: str,
     query_data: JenkinsConfigsQueryData,
-) -> Iterable[str]:
+) -> list[str]:
     """Returns a list of secrets used in a jenkins instance
 
     The input secret is the name of a jenkins instance to filter
@@ -192,7 +192,7 @@ def get_jenkins_secret_list(
 
 def get_vault_credentials(
     vault_instance: Union[VaultInstanceV1, VaultReplicationConfigV1_VaultInstanceV1]
-) -> Mapping[str, Optional[str]]:
+) -> dict[str, Optional[str]]:
     """Returns a dictionary with the credentials used to authenticate with Vault,
     retrieved from the values present on AppInterface.
 
