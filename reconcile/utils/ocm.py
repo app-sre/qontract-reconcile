@@ -27,12 +27,14 @@ from reconcile.ocm.types import (
     OCMClusterAutoscale,
     OCMClusterNetwork,
     OCMClusterSpec,
+    OCMOidcIdp,
     OCMSpec,
     OSDClusterSpec,
     ROSAClusterAWSAccount,
     ROSAClusterSpec,
     ROSAOcmAwsAttrs,
 )
+from reconcile.utils.exceptions import ParameterError
 from reconcile.utils.ocm_base_client import OCMBaseClient
 from reconcile.utils.secret_reader import SecretReader
 
@@ -948,6 +950,99 @@ class OCM:  # pylint: disable=too-many-public-methods
             },
         }
         self._post(api, payload)
+
+    def _check_oidc_idp_params(self, oidc_idp: OCMOidcIdp, attrs: list[str]):
+        for attr in attrs:
+            if not getattr(oidc_idp, attr):
+                raise ParameterError(
+                    f"{attrs} are mandatory parameters cannot be empty."
+                )
+
+    def get_oidc_idps(self, cluster: str) -> list[OCMOidcIdp]:
+        """Returns a list of details of OpenID connect IDP providers."""
+        cluster_id = self.cluster_ids.get(cluster)
+        if not cluster_id:
+            return []
+        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/identity_providers"
+        idps = self._get_json(api).get("items")
+        if not idps:
+            return []
+
+        results = []
+        for idp in idps:
+            if idp["type"] != "OpenIDIdentityProvider":
+                continue
+            claims = idp["open_id"].get("claims", {})
+            results.append(
+                OCMOidcIdp(
+                    cluster=cluster,
+                    id=idp["id"],
+                    name=idp["name"],
+                    client_id=idp["open_id"]["client_id"],
+                    issuer=idp["open_id"]["issuer"],
+                    email_claims=claims.get("email", []),
+                    name_claims=claims.get("name", []),
+                    username_claims=claims.get("preferred_username", []),
+                    groups_claims=claims.get("groups", []),
+                )
+            )
+        return results
+
+    def create_oidc_idp(self, oidc_idp: OCMOidcIdp) -> None:
+        """Creates a new OpenID Connect IDP."""
+        cluster_id = self.cluster_ids[oidc_idp.cluster]
+        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/identity_providers"
+        self._check_oidc_idp_params(
+            oidc_idp,
+            attrs=["email_claims", "name_claims", "username_claims", "client_secret"],
+        )
+        payload = {
+            "type": "OpenIDIdentityProvider",
+            "name": oidc_idp.name,
+            "mapping_method": "claim",
+            "open_id": {
+                "claims": {
+                    "email": oidc_idp.email_claims,
+                    "name": oidc_idp.name_claims,
+                    "preferred_username": oidc_idp.username_claims,
+                    "groups": oidc_idp.groups_claims,
+                },
+                "client_id": oidc_idp.client_id,
+                "client_secret": oidc_idp.client_secret,
+                "issuer": oidc_idp.issuer,
+            },
+        }
+        self._post(api, payload)
+
+    def update_oidc_idp(self, id: str, oidc_idp: OCMOidcIdp) -> None:
+        """Update an existing OpenID Connect IDP."""
+        cluster_id = self.cluster_ids[oidc_idp.cluster]
+        self._check_oidc_idp_params(
+            oidc_idp,
+            attrs=["email_claims", "name_claims", "username_claims", "client_secret"],
+        )
+        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/identity_providers/{id}"
+        payload = {
+            "type": "OpenIDIdentityProvider",
+            "open_id": {
+                "claims": {
+                    "email": oidc_idp.email_claims,
+                    "name": oidc_idp.name_claims,
+                    "preferred_username": oidc_idp.username_claims,
+                    "groups": oidc_idp.groups_claims,
+                },
+                "client_id": oidc_idp.client_id,
+                "client_secret": oidc_idp.client_secret,
+                "issuer": oidc_idp.issuer,
+            },
+        }
+        self._patch(api, payload)
+
+    def delete_oidc_idp(self, cluster: str, idp_id: str) -> None:
+        """Delete an OpenID Connect IDP."""
+        cluster_id = self.cluster_ids[cluster]
+        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/identity_providers/{idp_id}"
+        self._delete(api)
 
     def get_external_configuration_labels(self, cluster: str) -> dict[str, str]:
         """Returns details of External Configurations

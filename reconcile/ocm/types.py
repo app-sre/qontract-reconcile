@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import (
     Optional,
     Union,
@@ -93,3 +95,37 @@ class OCMSpec(BaseModel):
         smart_union = True
         # This is need to populate by either console_url or consoleUrl, for instance
         allow_population_by_field_name = True
+
+
+class OCMOidcIdp(BaseModel):
+    id: Optional[str] = None
+    cluster: str
+    name: str
+    client_id: str
+    client_secret: Optional[str] = None
+    issuer: str
+    email_claims: list[str]
+    name_claims: list[str]
+    username_claims: list[str]
+    groups_claims: list[str]
+
+    def __lt__(self, other: OCMOidcIdp) -> bool:
+        return self.cluster < other.cluster
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, OCMOidcIdp):
+            raise NotImplementedError("Cannot compare to non OCMOidcIdp objects.")
+        return self.cluster == other.cluster and self.name == other.name
+
+    def __hash__(self) -> int:
+        return hash(self.cluster + self.name + self.client_id)
+
+    def differ(self, other: OCMOidcIdp) -> bool:
+        return (
+            self.client_id != other.client_id
+            or self.issuer != other.issuer
+            or self.email_claims != other.email_claims
+            or self.username_claims != other.username_claims
+            or self.name_claims != other.name_claims
+            or self.groups_claims != other.groups_claims
+        )
