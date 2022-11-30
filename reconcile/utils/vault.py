@@ -59,7 +59,13 @@ class _VaultClient:
     and a version (no invalidation required).
     """
 
-    def __init__(self, server=None, role_id=None, secret_id=None, auto_refresh=True):
+    def __init__(
+        self,
+        server: Optional[str] = None,
+        role_id: Optional[str] = None,
+        secret_id: Optional[str] = None,
+        auto_refresh: bool = True,
+    ):
         config = get_config()
 
         server = config["vault"]["server"] if server is None else server

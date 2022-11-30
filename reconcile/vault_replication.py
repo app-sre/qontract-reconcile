@@ -22,6 +22,8 @@ from reconcile.gql_definitions.vault_instances import vault_instances
 from reconcile.gql_definitions.vault_instances.vault_instances import (
     VaultInstanceAuthApproleV1,
     VaultInstanceV1,
+    VaultReplicationConfigV1,
+    VaultReplicationJenkinsV1,
     VaultReplicationConfigV1_VaultInstanceV1_VaultInstanceAuthV1_VaultInstanceAuthApproleV1,
     VaultReplicationConfigV1_VaultInstanceV1,
 )
@@ -48,7 +50,7 @@ def deep_copy_versions(
     current_dest_version: int,
     current_source_version: int,
     path: str,
-):
+) -> None:
     for version in range(current_dest_version + 1, current_source_version + 1):
         secret_dict = {"path": path, "version": version}
         secret, src_version = source_vault.read_all_with_version(secret_dict)
@@ -229,13 +231,18 @@ def get_vault_credentials(
 
 
 def replicate_paths(
-    dry_run: bool, source_vault: _VaultClient, dest_vault: _VaultClient, replications
+    dry_run: bool,
+    source_vault: _VaultClient,
+    dest_vault: _VaultClient,
+    replications: VaultReplicationConfigV1,
 ) -> None:
+
+    if replications.paths is None:
+        return
+
     for path in replications.paths:
 
-        provider = path.provider
-
-        if provider == "jenkins":
+        if isinstance(path, VaultReplicationJenkinsV1):
             if path.policy is not None:
                 vault_query_data = vault_policies.query(query_func=gql.get_api().query)
                 policy_paths = get_policy_paths(
@@ -251,8 +258,8 @@ def replicate_paths(
                 source_vault, path.jenkins_instance.name, jenkins_query_data
             )
             check_invalid_paths(path_list, policy_paths)
-            for path in path_list:
-                copy_vault_secret(dry_run, source_vault, dest_vault, path)
+            for vault_path in path_list:
+                copy_vault_secret(dry_run, source_vault, dest_vault, vault_path)
 
 
 def get_start_end_secret(path: str) -> tuple[str, str]:
@@ -285,8 +292,11 @@ def process_wildcard_paths_with_text(
             wildcard = s
 
     cap_groups = re.search(r"(.*)(\{.*\})(.*)", wildcard)
-    prefix = cap_groups.group(1)
-    suffix = cap_groups.group(3)
+    if cap_groups is not None:
+        prefix = cap_groups.group(1)
+        suffix = cap_groups.group(3)
+    else:
+        raise VaultInvalidPaths
 
     start, end = get_start_end_secret(path)
     vault_list = vault_instance.list(start)

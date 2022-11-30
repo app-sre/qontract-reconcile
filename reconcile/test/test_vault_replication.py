@@ -14,10 +14,11 @@ from reconcile.gql_definitions.vault_instances.vault_instances import (
     VaultInstanceAuthV1,
 )
 
-import reconcile.gql_definitions.vault_policies.vault_policies as vault_policies
+from reconcile.gql_definitions.vault_policies import vault_policies
 
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
-from reconcile.utils.vault import VaultClient
+from reconcile.utils.vault import VaultClient, _VaultClient
+from typing import cast
 
 
 def test_policy_contais_path():
@@ -78,11 +79,17 @@ def jenkins_config_query_data() -> JenkinsConfigsQueryData:
     )
 
 
+@pytest.fixture
+def vault_client_test() -> _VaultClient:
+    return cast(_VaultClient, None)
+
+
 def test_get_jenkins_secret_list_w_content(
     jenkins_config_query_data: JenkinsConfigsQueryData,
+    vault_client_test: _VaultClient,
 ):
     assert integ.get_jenkins_secret_list(
-        None, "jenkins-instance", jenkins_config_query_data
+        vault_client_test, "jenkins-instance", jenkins_config_query_data
     ) == [
         "this/is/a/path",
     ]
