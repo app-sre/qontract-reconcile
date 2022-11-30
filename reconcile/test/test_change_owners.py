@@ -9,6 +9,7 @@ from reconcile.change_owners.diff import (
 )
 from reconcile.change_owners.change_owners import (
     manage_conditional_label,
+    validate_self_service_role,
 )
 from reconcile.change_owners.self_service_roles import (
     cover_changes_with_self_service_roles,
@@ -113,7 +114,7 @@ def build_role(
         self_service=[
             SelfServiceConfigV1(
                 change_type=self_service_roles.ChangeTypeV1(
-                    name=change_type_name,
+                    name=change_type_name, contextSchema=None
                 ),
                 datafiles=datafiles,
                 resources=None,
@@ -277,7 +278,7 @@ def test_extract_context_file_refs_in_list_added_selector(
     assert file_refs == [
         FileRef(
             file_type=BundleFileType.DATAFILE,
-            schema="/access/roles-1.yml",
+            schema="/access/role-1.yml",
             path=new_role,
         )
     ]
@@ -311,7 +312,7 @@ def test_extract_context_file_refs_in_list_removed_selector(
     assert file_refs == [
         FileRef(
             file_type=BundleFileType.DATAFILE,
-            schema="/access/roles-1.yml",
+            schema="/access/role-1.yml",
             path=existing_role,
         )
     ]
@@ -1846,3 +1847,59 @@ def test_parse_resource_file_content_none():
     content, schema = parse_resource_file_content(None)
     assert schema is None
     assert content is None
+
+
+#
+# test self-service role validation
+#
+
+
+def test_valid_self_service_role():
+    role = RoleV1(
+        name="role",
+        path="/role.yaml",
+        self_service=[
+            SelfServiceConfigV1(
+                change_type=self_service_roles.ChangeTypeV1(
+                    name="change-type",
+                    contextSchema="schema-1.yml",
+                ),
+                datafiles=[
+                    DatafileObjectV1(
+                        datafileSchema="schema-1.yml",
+                        path="datafile.yaml",
+                    )
+                ],
+                resources=None,
+            )
+        ],
+        users=[],
+        bots=[],
+    )
+    validate_self_service_role(role)
+
+
+def test_invalid_self_service_role():
+    role = RoleV1(
+        name="role",
+        path="/role.yaml",
+        self_service=[
+            SelfServiceConfigV1(
+                change_type=self_service_roles.ChangeTypeV1(
+                    name="change-type",
+                    contextSchema="schema-1.yml",
+                ),
+                datafiles=[
+                    DatafileObjectV1(
+                        datafileSchema="another-schema-1.yml",
+                        path="datafile.yaml",
+                    )
+                ],
+                resources=None,
+            )
+        ],
+        users=[],
+        bots=[],
+    )
+    with pytest.raises(ValueError):
+        validate_self_service_role(role)

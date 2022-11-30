@@ -109,7 +109,7 @@ class BundleFileChange:
             $schema: /app-interface/change-type-1.yml
 
             contextType: datafile
-            contextSchema: /access/roles-1.yml
+            contextSchema: /access/role-1.yml
 
             changes:
             - provider: jsonPath

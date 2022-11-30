@@ -25,6 +25,7 @@ query SelfServiceRolesQuery($name: String) {
     self_service {
       change_type {
         name
+        contextSchema
       }
       datafiles {
         datafileSchema: schema
@@ -46,6 +47,7 @@ query SelfServiceRolesQuery($name: String) {
 
 class ChangeTypeV1(BaseModel):
     name: str = Field(..., alias="name")
+    context_schema: Optional[str] = Field(..., alias="contextSchema")
 
     class Config:
         smart_union = True
