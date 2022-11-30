@@ -1,0 +1,26 @@
+---
+- - id: idp-id-cluster-1
+    cluster: cluster-1
+    name: oidc-auth
+    client_id: client-id-cluster-1
+    issuer: "https://issuer.com"
+    email_claims:
+      - email
+    name_claims:
+      - name
+    username_claims:
+      - username
+    groups_claims: []
+- - id: idp-id-cluster-2
+    cluster: cluster-2
+    name: oidc-auth
+    client_id: client-id-cluster-2
+    issuer: "https://issuer.com"
+    email_claims:
+      - email
+    name_claims:
+      - name
+    username_claims:
+      - username
+    groups_claims: []
+- []
