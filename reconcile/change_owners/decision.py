@@ -54,7 +54,9 @@ class ChangeDecision:
 
 
 def apply_decisions_to_changes(
-    changes: list[BundleFileChange], approver_decisions: dict[str, Decision]
+    changes: list[BundleFileChange],
+    approver_decisions: dict[str, Decision],
+    auto_approver_bot_username: str,
 ) -> list[ChangeDecision]:
     """
     Apply and aggregate approver decisions to changes. Each diff of a
@@ -73,6 +75,13 @@ def apply_decisions_to_changes(
             for change_type_context in change_decision.coverage:
                 if change_type_context.disabled:
                     # approvers of a disabled change-type are ignored
+                    continue
+                if (
+                    len(change_type_context.approvers) == 1
+                    and change_type_context.approvers[0].org_username
+                    == auto_approver_bot_username
+                ):
+                    change_decision.decision.approve |= True
                     continue
                 for approver in change_type_context.approvers:
                     if approver.org_username in approver_decisions:
