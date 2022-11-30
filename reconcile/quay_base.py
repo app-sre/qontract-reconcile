@@ -1,9 +1,8 @@
 from collections import namedtuple
 
-from reconcile.utils.secret_reader import SecretReader
 from reconcile import queries
-
 from reconcile.utils.quay_api import QuayApi
+from reconcile.utils.secret_reader import SecretReader
 
 OrgKey = namedtuple("OrgKey", ["instance", "org_name"])
 

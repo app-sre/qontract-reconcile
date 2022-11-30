@@ -1,18 +1,21 @@
 from typing import Any
 from unittest import TestCase
-from unittest.mock import patch, MagicMock
+from unittest.mock import (
+    MagicMock,
+    patch,
+)
 
 import yaml
-
 from github import GithubException
+
+from reconcile.utils.jjb_client import JJB
 from reconcile.utils.openshift_resource import ResourceInventory
 from reconcile.utils.saasherder import (
+    TARGET_CONFIG_HASH,
     SaasHerder,
     TriggerSpecConfig,
     TriggerSpecMovingCommit,
 )
-from reconcile.utils.jjb_client import JJB
-from reconcile.utils.saasherder import TARGET_CONFIG_HASH
 
 from .fixtures import Fixtures
 

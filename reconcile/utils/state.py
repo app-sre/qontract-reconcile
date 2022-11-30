@@ -1,13 +1,18 @@
-import os
 import json
-
-from typing import Any, Optional
-from collections.abc import Iterable, Mapping
+import os
+from collections.abc import (
+    Iterable,
+    Mapping,
+)
+from typing import (
+    Any,
+    Optional,
+)
 
 from botocore.errorfactory import ClientError
 from jinja2 import Template
-from reconcile.utils import gql
 
+from reconcile.utils import gql
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.secret_reader import SecretReader
 

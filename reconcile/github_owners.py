@@ -1,15 +1,15 @@
-import os
 import logging
+import os
 
 from github import Github
 from sretoolbox.utils import retry
 
-from reconcile.utils import gql
-from reconcile.utils import expiration
-
 from reconcile.github_org import get_config
+from reconcile.utils import (
+    expiration,
+    gql,
+)
 from reconcile.utils.raw_github_api import RawGithubApi
-
 
 ROLES_QUERY = """
 {

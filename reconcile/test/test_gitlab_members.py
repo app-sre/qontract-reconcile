@@ -5,11 +5,13 @@ import pytest
 from pytest_mock import MockerFixture
 
 from reconcile import gitlab_members
-from reconcile.gitlab_members import Action
-from reconcile.gitlab_members import Diff
-from reconcile.gitlab_members import GitlabUser
-from reconcile.gitlab_members import State
-from reconcile.gitlab_members import get_permissions
+from reconcile.gitlab_members import (
+    Action,
+    Diff,
+    GitlabUser,
+    State,
+    get_permissions,
+)
 from reconcile.gql_definitions.fragments.user import User
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.gql_definitions.gitlab_members.gitlab_instances import GitlabInstanceV1

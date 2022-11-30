@@ -1,16 +1,16 @@
 from unittest.mock import create_autospec
+
 import pytest
 
 import reconcile.utils.secret_reader
 from reconcile.utils import vault
 from reconcile.utils.secret_reader import (
     ConfigSecretReader,
-    SecretReader,
     SecretNotFound,
+    SecretReader,
     VaultSecretReader,
 )
 from reconcile.utils.vault import _VaultClient
-
 
 VAULT_READ_EXPECTED = {"key": "value"}
 VAULT_READ_ALL_EXPECTED = {"key2": "value2"}

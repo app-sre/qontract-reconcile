@@ -1,8 +1,8 @@
 import functools
 import json
+
 import parse
 import requests
-
 from sretoolbox.utils import retry
 
 

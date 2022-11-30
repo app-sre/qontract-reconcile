@@ -1,5 +1,8 @@
-from prometheus_client import Gauge, Counter, Histogram
-
+from prometheus_client import (
+    Counter,
+    Gauge,
+    Histogram,
+)
 
 run_time = Gauge(
     name="qontract_reconcile_last_run_seconds",

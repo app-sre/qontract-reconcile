@@ -2,17 +2,16 @@ import logging
 from typing import Any
 
 import requests
-
 from github.GithubException import UnknownObjectException
 
 from reconcile import queries
-from reconcile.utils import gql
-from reconcile.utils import expiration
-
 from reconcile.github_users import init_github
+from reconcile.utils import (
+    expiration,
+    gql,
+)
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.sentry_client import SentryClient
-
 
 SENTRY_PROJECTS_QUERY = """
 {

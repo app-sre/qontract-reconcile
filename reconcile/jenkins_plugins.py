@@ -1,13 +1,11 @@
 import logging
-from typing import Any
 from collections.abc import Mapping
+from typing import Any
 
-from reconcile.utils import gql
 from reconcile import queries
-
+from reconcile.utils import gql
 from reconcile.utils.jenkins_api import JenkinsApi
 from reconcile.utils.secret_reader import SecretReader
-
 
 INSTANCES_QUERY = """
 {

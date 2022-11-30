@@ -1,7 +1,9 @@
-import sys
 import logging
-from typing import Any
+import sys
 from collections.abc import Mapping
+from typing import Any
+
+from reconcile import queries
 from reconcile.gql_definitions.service_dependencies import service_dependencies
 from reconcile.gql_definitions.service_dependencies.service_dependencies import (
     AppCodeComponentsV1,
@@ -13,10 +15,7 @@ from reconcile.gql_definitions.service_dependencies.service_dependencies import 
     SaasResourceTemplateTargetV2,
     SaasResourceTemplateV2,
 )
-
 from reconcile.utils import gql
-from reconcile import queries
-
 
 QONTRACT_INTEGRATION = "service-dependencies"
 

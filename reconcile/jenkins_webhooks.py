@@ -1,11 +1,13 @@
 import copy
 import logging
-
 from typing import Any
 
 from reconcile import queries
+from reconcile.jenkins_job_builder import (
+    get_jenkins_configs,
+    init_jjb,
+)
 from reconcile.utils.gitlab_api import GitLabApi
-from reconcile.jenkins_job_builder import init_jjb, get_jenkins_configs
 from reconcile.utils.jjb_client import JJB
 from reconcile.utils.secret_reader import SecretReader
 

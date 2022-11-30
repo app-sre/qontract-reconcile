@@ -1,8 +1,11 @@
 import base64
-import tempfile
 import re
-
-from subprocess import PIPE, STDOUT, run
+import tempfile
+from subprocess import (
+    PIPE,
+    STDOUT,
+    run,
+)
 
 
 def gpg_encrypt(content, public_gpg_key):

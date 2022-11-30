@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 
 import os
-import sys
-from typing import Optional
 import re
 import subprocess
+import sys
 from subprocess import PIPE
+from typing import Optional
 
 GIT_VERSION_FILE = "GIT_VERSION"
 

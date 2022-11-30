@@ -1,5 +1,4 @@
 import pytest
-
 from click.testing import CliRunner
 
 import reconcile.cli as reconcile_cli

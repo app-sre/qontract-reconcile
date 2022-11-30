@@ -1,10 +1,11 @@
-from typing import Any
-import pytest
 import copy
+from typing import Any
+
+import pytest
 
 from reconcile.openshift_saas_deploy_change_tester import (
-    collect_state,
     collect_compare_diffs,
+    collect_state,
 )
 
 

@@ -1,10 +1,16 @@
-import logging
-import json
 import hashlib
+import json
+import logging
+from collections.abc import (
+    Mapping,
+    MutableMapping,
+)
+from dataclasses import (
+    asdict,
+    dataclass,
+)
 from typing import Any
-from collections.abc import Mapping, MutableMapping
-from dataclasses import dataclass
-from dataclasses import asdict
+
 from ruamel import yaml
 
 from reconcile.utils.mr.base import MergeRequestBase

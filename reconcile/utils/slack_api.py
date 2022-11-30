@@ -1,19 +1,28 @@
 from __future__ import annotations
+
 import json
 import logging
-from typing import Any, Optional, Union, Protocol
-from collections.abc import Iterable, Sequence, Mapping
+from collections.abc import (
+    Iterable,
+    Mapping,
+    Sequence,
+)
+from typing import (
+    Any,
+    Optional,
+    Protocol,
+    Union,
+)
 
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 from slack_sdk.http_retry import (
+    HttpRequest,
+    HttpResponse,
     RateLimitErrorRetryHandler,
     RetryHandler,
     RetryState,
-    HttpRequest,
-    HttpResponse,
 )
-
 
 MAX_RETRIES = 5
 TIMEOUT = 30

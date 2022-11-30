@@ -1,5 +1,4 @@
 from reconcile import queries
-
 from reconcile.utils.aws_api import AWSApi
 
 QONTRACT_INTEGRATION = "aws-garbage-collector"

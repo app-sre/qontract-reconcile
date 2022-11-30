@@ -3,7 +3,6 @@ import re
 import time
 
 from reconcile import queries
-
 from reconcile.utils.jenkins_api import JenkinsApi
 from reconcile.utils.secret_reader import SecretReader
 

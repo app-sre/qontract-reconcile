@@ -1,12 +1,17 @@
 import logging
 import os
 import threading
-from typing import Any, Optional
 from collections.abc import Mapping
+from typing import (
+    Any,
+    Optional,
+)
 
-from UnleashClient import UnleashClient, BaseCache
+from UnleashClient import (
+    BaseCache,
+    UnleashClient,
+)
 from UnleashClient.strategies import Strategy
-
 
 client: Optional[UnleashClient] = None
 client_lock = threading.Lock()

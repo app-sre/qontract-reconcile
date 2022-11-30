@@ -1,7 +1,6 @@
 import logging
 
 from reconcile import queries
-
 from reconcile.jenkins_job_builder import init_jjb
 from reconcile.utils.jenkins_api import JenkinsApi
 from reconcile.utils.secret_reader import SecretReader

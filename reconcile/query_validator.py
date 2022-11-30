@@ -1,17 +1,15 @@
 import logging
 import sys
-
 from textwrap import indent
 
 from reconcile import queries
+from reconcile.openshift_resources_base import (
+    OPENSHIFT_RESOURCE,
+    fetch_openshift_resource,
+)
 from reconcile.status import ExitCodes
 from reconcile.utils import gql
 from reconcile.utils.semver_helper import make_semver
-from reconcile.openshift_resources_base import (
-    fetch_openshift_resource,
-    OPENSHIFT_RESOURCE,
-)
-
 
 QONTRACT_INTEGRATION = "query-validator"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)

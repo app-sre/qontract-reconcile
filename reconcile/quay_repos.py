@@ -1,13 +1,13 @@
 import logging
 import sys
-
 from collections import namedtuple
 
-from reconcile.utils import gql
-
-from reconcile.quay_base import get_quay_api_store, OrgKey
+from reconcile.quay_base import (
+    OrgKey,
+    get_quay_api_store,
+)
 from reconcile.status import ExitCodes
-
+from reconcile.utils import gql
 
 QUAY_REPOS_QUERY = """
 {

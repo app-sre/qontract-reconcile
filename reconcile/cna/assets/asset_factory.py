@@ -1,11 +1,15 @@
-from typing import Any
 from collections.abc import Mapping
+from typing import Any
+
+from reconcile.cna.assets.asset import (
+    Asset,
+    AssetError,
+)
+from reconcile.cna.assets.null import NullAsset
 from reconcile.gql_definitions.cna.queries.cna_resources import (
     CNANullAssetV1,
     CNAssetV1,
 )
-from reconcile.cna.assets.null import NullAsset
-from reconcile.cna.assets.asset import Asset, AssetError
 
 
 def asset_factory_from_schema(schema_asset: CNAssetV1) -> Asset:

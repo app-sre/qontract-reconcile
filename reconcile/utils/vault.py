@@ -1,13 +1,12 @@
-import os
 import base64
-import time
 import functools
-import threading
 import logging
+import os
+import threading
+import time
 
 import hvac
 import requests
-
 from hvac.exceptions import InvalidPath
 from requests.adapters import HTTPAdapter
 from sretoolbox.utils import retry

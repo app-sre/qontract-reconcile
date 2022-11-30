@@ -1,12 +1,14 @@
-import os
 import json
-
+import os
 from unittest import TestCase
 from unittest.mock import patch
 
 from reconcile.test.fixtures import Fixtures
-from reconcile.utils.oc import OC, ApiClient, StatusCodeError
-
+from reconcile.utils.oc import (
+    OC,
+    ApiClient,
+    StatusCodeError,
+)
 
 fixture = Fixtures("oc_native").get_anymarkup("api.yml")
 

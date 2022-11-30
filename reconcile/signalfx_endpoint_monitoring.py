@@ -1,10 +1,13 @@
 import logging
 import sys
-from typing import Any, Optional
+from typing import (
+    Any,
+    Optional,
+)
 
 from reconcile.closedbox_endpoint_monitoring_base import (
-    EndpointMonitoringProvider,
     Endpoint,
+    EndpointMonitoringProvider,
     parse_prober_url,
     run_for_provider,
 )

@@ -1,7 +1,19 @@
 from __future__ import annotations
-from typing import Any, Optional
-from collections.abc import Iterable, Mapping
-from reconcile.cna.assets.asset import Asset, AssetStatus, AssetType
+
+from collections.abc import (
+    Iterable,
+    Mapping,
+)
+from typing import (
+    Any,
+    Optional,
+)
+
+from reconcile.cna.assets.asset import (
+    Asset,
+    AssetStatus,
+    AssetType,
+)
 from reconcile.cna.assets.asset_factory import asset_factory_from_raw_data
 
 

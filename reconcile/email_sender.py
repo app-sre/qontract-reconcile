@@ -1,13 +1,16 @@
-import sys
 import logging
+import sys
 
+from reconcile import (
+    queries,
+    typed_queries,
+)
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.smtp_client import (
     DEFAULT_SMTP_TIMEOUT,
     SmtpClient,
     get_smtp_server_connection,
 )
-from reconcile import queries, typed_queries
 from reconcile.utils.state import State
 
 QONTRACT_INTEGRATION = "email-sender"

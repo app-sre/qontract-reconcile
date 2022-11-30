@@ -1,7 +1,11 @@
 import logging
+
 import pytest
 
-from reconcile.utils.helpers import DEFAULT_TOGGLE_LEVEL, toggle_logger
+from reconcile.utils.helpers import (
+    DEFAULT_TOGGLE_LEVEL,
+    toggle_logger,
+)
 
 
 @pytest.fixture

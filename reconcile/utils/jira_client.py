@@ -1,12 +1,20 @@
 import logging
+from collections.abc import (
+    Iterable,
+    Mapping,
+)
+from typing import (
+    Any,
+    Optional,
+)
 
-from jira import JIRA, Issue
+from jira import (
+    JIRA,
+    Issue,
+)
 from jira.client import ResultList
 
 from reconcile.utils.secret_reader import SecretReader
-
-from typing import Any, Optional
-from collections.abc import Iterable, Mapping
 
 
 class JiraClient:

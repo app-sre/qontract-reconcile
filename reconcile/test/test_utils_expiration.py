@@ -1,11 +1,13 @@
-from datetime import timedelta, datetime
+from datetime import (
+    datetime,
+    timedelta,
+)
 from typing import Optional
-from pydantic import BaseModel
 
 import pytest
+from pydantic import BaseModel
 
 from reconcile.utils import expiration
-
 
 TODAY = datetime.utcnow().date()
 YESTERDAY = TODAY - timedelta(days=1)

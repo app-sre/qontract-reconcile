@@ -1,16 +1,16 @@
 import pytest
 
 from reconcile.ocm.types import (
-    OCMSpec,
-    OCMClusterSpec,
     OCMClusterNetwork,
+    OCMClusterSpec,
+    OCMSpec,
 )
 from reconcile.ocm_update_recommended_version import (
     get_highest,
     get_majority,
-    recommended_version,
-    get_version_weights,
     get_updated_recommended_versions,
+    get_version_weights,
+    recommended_version,
 )
 
 

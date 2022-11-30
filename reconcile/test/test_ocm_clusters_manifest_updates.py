@@ -1,10 +1,10 @@
 import pytest
+
 from reconcile.ocm.types import (
     OCMClusterNetwork,
     OCMSpec,
     OSDClusterSpec,
 )
-
 from reconcile.ocm_clusters import get_app_interface_spec_updates
 
 

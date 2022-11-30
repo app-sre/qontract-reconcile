@@ -1,15 +1,16 @@
 import json
-import pytest
-import httpretty
-from httpretty.core import HTTPrettyRequest
 from copy import deepcopy
 
+import httpretty
+import pytest
+from httpretty.core import HTTPrettyRequest
+
 from reconcile.utils.ocm import (
-    OCMMap,
     OCM,
+    OCMMap,
     Sector,
-    SectorWeakReference,
     SectorConfigError,
+    SectorWeakReference,
 )
 
 

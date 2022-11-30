@@ -1,11 +1,14 @@
-from unittest.mock import MagicMock
-from reconcile import github_repo_invites
+from collections.abc import (
+    Iterable,
+    Mapping,
+)
 from typing import Any
-from collections.abc import Iterable, Mapping
-
-from reconcile.utils.raw_github_api import RawGithubApi
+from unittest.mock import MagicMock
 
 import pytest
+
+from reconcile import github_repo_invites
+from reconcile.utils.raw_github_api import RawGithubApi
 
 
 def test_parse_null_code_components():

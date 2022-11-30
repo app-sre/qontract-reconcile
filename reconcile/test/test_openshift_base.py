@@ -1,8 +1,9 @@
 import logging
 from typing import Any
+from unittest.mock import patch
+
 import pytest
 import yaml
-from unittest.mock import patch
 
 import reconcile.openshift_base as sut
 import reconcile.utils.openshift_resource as resource

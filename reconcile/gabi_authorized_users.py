@@ -1,17 +1,26 @@
 import logging
 import sys
-from datetime import datetime, date
+from collections.abc import (
+    Iterable,
+    Mapping,
+)
+from datetime import (
+    date,
+    datetime,
+)
 from typing import Optional
-from collections.abc import Iterable, Mapping
-from reconcile.utils.external_resources import get_external_resource_specs
-from reconcile.status import ExitCodes
 
-from reconcile.utils.aggregated_list import RunnerException
-from reconcile import queries
 import reconcile.openshift_base as ob
-from reconcile.utils.semver_helper import make_semver
-from reconcile.utils.openshift_resource import OpenshiftResource, ResourceInventory
+from reconcile import queries
+from reconcile.status import ExitCodes
+from reconcile.utils.aggregated_list import RunnerException
 from reconcile.utils.defer import defer
+from reconcile.utils.external_resources import get_external_resource_specs
+from reconcile.utils.openshift_resource import (
+    OpenshiftResource,
+    ResourceInventory,
+)
+from reconcile.utils.semver_helper import make_semver
 
 QONTRACT_INTEGRATION = "gabi-authorized-users"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)

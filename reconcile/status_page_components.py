@@ -2,11 +2,13 @@ import logging
 import sys
 
 from reconcile import queries
-from reconcile.utils.statuspage import atlassian
-from reconcile.utils.statuspage.models import StatusPage, register_provider
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.state import State
-
+from reconcile.utils.statuspage import atlassian
+from reconcile.utils.statuspage.models import (
+    StatusPage,
+    register_provider,
+)
 
 QONTRACT_INTEGRATION = "status-page-components"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)

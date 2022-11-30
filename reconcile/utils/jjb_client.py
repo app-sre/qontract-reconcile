@@ -1,29 +1,33 @@
 import difflib
+import filecmp
+import json
 import logging
 import os
+import re
 import shutil
 import subprocess
 import tempfile
-from typing import Any, Optional
 import xml.etree.ElementTree as et
-import json
-import re
-
 from os import path
-from subprocess import PIPE, STDOUT, CalledProcessError
+from subprocess import (
+    PIPE,
+    STDOUT,
+    CalledProcessError,
+)
+from typing import (
+    Any,
+    Optional,
+)
 
-import filecmp
 import yaml
-
 from jenkins_jobs.builder import JenkinsManager
+from jenkins_jobs.errors import JenkinsJobsException
 from jenkins_jobs.parser import YamlParser
 from jenkins_jobs.registry import ModuleRegistry
-from jenkins_jobs.errors import JenkinsJobsException
 from sretoolbox.utils import retry
 
 from reconcile.utils import throughput
 from reconcile.utils.helpers import toggle_logger
-
 
 JJB_INI = "[jenkins]\nurl = https://JENKINS_URL"
 

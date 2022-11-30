@@ -3,9 +3,9 @@ from pathlib import Path
 
 from jinja2 import Template
 
+from reconcile.utils.constants import PROJ_ROOT
 from reconcile.utils.mr.base import MergeRequestBase
 from reconcile.utils.mr.labels import DO_NOT_MERGE_HOLD
-from reconcile.utils.constants import PROJ_ROOT
 
 EMAIL_TEMPLATE = PROJ_ROOT / "templates" / "email.yml.j2"
 

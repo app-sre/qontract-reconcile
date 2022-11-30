@@ -1,13 +1,15 @@
 from typing import Any
-from pydantic import ValidationError
+
 import pytest
+from pydantic import ValidationError
+
+from reconcile.utils.external_resource_spec import (
+    ExternalResourceSpec,
+    ExternalResourceUniqueKey,
+)
 from reconcile.utils.openshift_resource import (
     SECRET_MAX_KEY_LENGTH,
     base64_encode_secret_field_value,
-)
-from reconcile.utils.external_resource_spec import (
-    ExternalResourceUniqueKey,
-    ExternalResourceSpec,
 )
 
 

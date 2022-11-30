@@ -1,16 +1,23 @@
 import logging
 import sys
-from typing import Any
 from collections.abc import Mapping
-from reconcile.utils.external_resources import PROVIDER_AWS, get_external_resource_specs
+from typing import Any
 
-from reconcile.utils import gql
 from reconcile import queries
-from reconcile.status import ExitCodes
-
-from reconcile.utils.ocm import OCM_PRODUCT_OSD, STATUS_DELETING, STATUS_FAILED, OCMMap
 from reconcile.ocm.utils import cluster_disabled_integrations
+from reconcile.status import ExitCodes
 from reconcile.terraform_resources import TF_NAMESPACES_QUERY
+from reconcile.utils import gql
+from reconcile.utils.external_resources import (
+    PROVIDER_AWS,
+    get_external_resource_specs,
+)
+from reconcile.utils.ocm import (
+    OCM_PRODUCT_OSD,
+    STATUS_DELETING,
+    STATUS_FAILED,
+    OCMMap,
+)
 
 QONTRACT_INTEGRATION = "ocm-aws-infrastructure-access"
 SUPPORTED_OCM_PRODUCTS = [OCM_PRODUCT_OSD]

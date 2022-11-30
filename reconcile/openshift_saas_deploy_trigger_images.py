@@ -1,11 +1,9 @@
 import sys
 
 import reconcile.openshift_saas_deploy_trigger_base as osdt_base
-
 from reconcile.status import ExitCodes
 from reconcile.utils.saasherder import TriggerTypes
 from reconcile.utils.semver_helper import make_semver
-
 
 QONTRACT_INTEGRATION = "openshift-saas-deploy-trigger-images"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)

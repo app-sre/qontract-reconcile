@@ -1,18 +1,19 @@
 import logging
 import sys
-from typing import Any, Optional
-
-from reconcile import queries
-from reconcile.utils.openshift_resource import OpenshiftResource
-from reconcile.utils.semver_helper import make_semver
-
-from reconcile.closedbox_endpoint_monitoring_base import (
-    run_for_provider,
-    EndpointMonitoringProvider,
-    Endpoint,
-    parse_prober_url,
+from typing import (
+    Any,
+    Optional,
 )
 
+from reconcile import queries
+from reconcile.closedbox_endpoint_monitoring_base import (
+    Endpoint,
+    EndpointMonitoringProvider,
+    parse_prober_url,
+    run_for_provider,
+)
+from reconcile.utils.openshift_resource import OpenshiftResource
+from reconcile.utils.semver_helper import make_semver
 
 QONTRACT_INTEGRATION = "blackbox-exporter-endpoint-monitoring"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)

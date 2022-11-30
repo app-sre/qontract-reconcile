@@ -1,7 +1,15 @@
-import pytest
 import boto3
-from moto import mock_iam, mock_route53, mock_ec2
-from reconcile.utils.aws_api import AWSApi, AmiTag
+import pytest
+from moto import (
+    mock_ec2,
+    mock_iam,
+    mock_route53,
+)
+
+from reconcile.utils.aws_api import (
+    AmiTag,
+    AWSApi,
+)
 
 
 @pytest.fixture

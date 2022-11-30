@@ -1,11 +1,10 @@
-import sys
-import shutil
 import logging
+import shutil
+import sys
 
 from reconcile import queries
-
-from reconcile.utils.defer import defer
 from reconcile.utils.aws_api import AWSApi
+from reconcile.utils.defer import defer
 from reconcile.utils.state import State
 from reconcile.utils.terrascript_aws_client import TerrascriptClient as Terrascript
 

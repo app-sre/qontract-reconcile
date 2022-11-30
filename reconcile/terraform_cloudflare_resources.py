@@ -25,8 +25,8 @@ from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.terraform.config_client import TerraformConfigClientCollection
 from reconcile.utils.terraform_client import TerraformClient
 from reconcile.utils.terrascript.cloudflare_client import (
-    DEFAULT_CLOUDFLARE_ACCOUNT_TYPE,
     DEFAULT_CLOUDFLARE_ACCOUNT_2FA,
+    DEFAULT_CLOUDFLARE_ACCOUNT_TYPE,
     CloudflareAccountConfig,
     TerraformS3BackendConfig,
     TerrascriptCloudflareClient,

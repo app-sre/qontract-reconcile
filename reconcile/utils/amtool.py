@@ -1,6 +1,10 @@
 import tempfile
 from collections.abc import Mapping
-from subprocess import run, PIPE, CalledProcessError
+from subprocess import (
+    PIPE,
+    CalledProcessError,
+    run,
+)
 
 
 class AmtoolResult:

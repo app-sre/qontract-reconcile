@@ -1,6 +1,9 @@
 import pytest
 
-from reconcile.utils.smtp_client import SmtpClient, SmtpServerConnectionInfo
+from reconcile.utils.smtp_client import (
+    SmtpClient,
+    SmtpServerConnectionInfo,
+)
 
 
 @pytest.fixture

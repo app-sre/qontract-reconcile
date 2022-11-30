@@ -1,14 +1,13 @@
-import sys
 import logging
-
+import sys
 from textwrap import indent
+
+import reconcile.openshift_base as ob
 from reconcile import queries
 from reconcile.utils import gql
-import reconcile.openshift_base as ob
-
-from reconcile.utils.semver_helper import make_semver
-from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.defer import defer
+from reconcile.utils.openshift_resource import OpenshiftResource as OR
+from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.sharding import is_in_shard
 
 NAMESPACES_QUERY = """

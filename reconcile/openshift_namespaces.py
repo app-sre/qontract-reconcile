@@ -1,18 +1,23 @@
 import logging
 import sys
+from collections.abc import (
+    Iterable,
+    Mapping,
+)
+from typing import (
+    Any,
+    Optional,
+    cast,
+)
 
-from typing import Any, Optional, cast
-from collections.abc import Iterable, Mapping
 from sretoolbox.utils import threaded
 
 import reconcile.openshift_base as ob
-
 from reconcile import queries
-from reconcile.utils.oc import OC_Map
-from reconcile.utils.defer import defer
-from reconcile.utils.sharding import is_in_shard
 from reconcile.status import ExitCodes
-
+from reconcile.utils.defer import defer
+from reconcile.utils.oc import OC_Map
+from reconcile.utils.sharding import is_in_shard
 
 QONTRACT_INTEGRATION = "openshift-namespaces"
 

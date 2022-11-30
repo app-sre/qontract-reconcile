@@ -1,8 +1,7 @@
 import logging
-import toml
 
 import requests
-
+import toml
 from sretoolbox.utils import retry
 
 from reconcile.utils.secret_reader import SecretReader

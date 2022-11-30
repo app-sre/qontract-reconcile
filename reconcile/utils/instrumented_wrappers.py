@@ -1,7 +1,9 @@
 import os
 
-from sretoolbox.container import Image
-from sretoolbox.container import Skopeo
+from sretoolbox.container import (
+    Image,
+    Skopeo,
+)
 
 from reconcile.utils import metrics
 

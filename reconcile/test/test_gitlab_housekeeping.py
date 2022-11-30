@@ -1,11 +1,14 @@
+from datetime import (
+    datetime,
+    timedelta,
+)
 from unittest.mock import patch
-from datetime import datetime, timedelta
+
 from gitlab import Gitlab
 
-from reconcile.utils.secret_reader import SecretReader
 import reconcile.gitlab_housekeeping as gl_h
-
 from reconcile.test.fixtures import Fixtures
+from reconcile.utils.secret_reader import SecretReader
 
 DATE_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
 

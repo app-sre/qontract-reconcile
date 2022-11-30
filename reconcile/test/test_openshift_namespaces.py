@@ -1,10 +1,13 @@
 import contextlib
 import io
 from unittest import TestCase
-from unittest.mock import Mock, patch
+from unittest.mock import (
+    Mock,
+    patch,
+)
+
 from reconcile import openshift_namespaces
 from reconcile.utils.oc import StatusCodeError
-
 
 c1, c2 = "cluster1", "cluster2"
 n1, n2 = "ns1", "ns2"

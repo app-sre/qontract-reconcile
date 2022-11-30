@@ -1,14 +1,13 @@
 from collections import defaultdict
 
-from reconcile.gql_definitions.change_owners.queries.self_service_roles import RoleV1
-
 from reconcile.change_owners.change_types import (
+    Approver,
     BundleFileChange,
     BundleFileType,
-    Approver,
-    ChangeTypeProcessor,
     ChangeTypeContext,
+    ChangeTypeProcessor,
 )
+from reconcile.gql_definitions.change_owners.queries.self_service_roles import RoleV1
 
 
 def cover_changes_with_self_service_roles(

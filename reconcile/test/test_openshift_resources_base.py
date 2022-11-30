@@ -1,15 +1,20 @@
 from typing import Any
-from unittest.mock import Mock
-from unittest.mock import patch
+from unittest.mock import (
+    Mock,
+    patch,
+)
+
 import pytest
-from reconcile.openshift_base import CurrentStateSpec
-from reconcile.test.fixtures import Fixtures
 
 from reconcile import openshift_resources_base as orb
-from reconcile.openshift_resources_base import canonicalize_namespaces, ob
+from reconcile.openshift_base import CurrentStateSpec
+from reconcile.openshift_resources_base import (
+    canonicalize_namespaces,
+    ob,
+)
+from reconcile.test.fixtures import Fixtures
 from reconcile.utils import oc
 from reconcile.utils.openshift_resource import ResourceInventory
-
 
 fxt = Fixtures("namespaces")
 

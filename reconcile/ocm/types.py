@@ -1,5 +1,13 @@
-from pydantic import BaseModel, Field, Extra
-from typing import Optional, Union
+from typing import (
+    Optional,
+    Union,
+)
+
+from pydantic import (
+    BaseModel,
+    Extra,
+    Field,
+)
 
 
 class OCMClusterAutoscale(BaseModel):

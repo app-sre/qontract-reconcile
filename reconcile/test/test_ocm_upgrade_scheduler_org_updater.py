@@ -1,11 +1,14 @@
 import json
+
 import pytest
 
-from reconcile.openshift_resources_base import Jinja2TemplateError
-
-from reconcile.utils.ocm import OCMClusterNetwork, OSDClusterSpec, OCMSpec
-
 from reconcile.ocm_upgrade_scheduler_org_updater import render_policy
+from reconcile.openshift_resources_base import Jinja2TemplateError
+from reconcile.utils.ocm import (
+    OCMClusterNetwork,
+    OCMSpec,
+    OSDClusterSpec,
+)
 
 
 @pytest.fixture

@@ -1,5 +1,6 @@
 import ldap3
 import pytest
+
 from reconcile.utils.ldap_client import LdapClient
 
 

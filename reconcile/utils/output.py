@@ -1,8 +1,12 @@
-from typing import Union
-from collections.abc import Iterable, Mapping
-from tabulate import tabulate
 import json
+from collections.abc import (
+    Iterable,
+    Mapping,
+)
+from typing import Union
+
 import yaml
+from tabulate import tabulate
 
 
 def print_output(

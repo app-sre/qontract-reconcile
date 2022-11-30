@@ -1,14 +1,16 @@
-import sys
-import logging
 import json
-from typing import Any
+import logging
+import sys
 from collections.abc import Mapping
+from typing import Any
 
 from reconcile import queries
-
-from reconcile.status import ExitCodes
-from reconcile.utils.ocm import OCM_PRODUCT_OSD, OCMMap
 from reconcile.ocm.utils import cluster_disabled_integrations
+from reconcile.status import ExitCodes
+from reconcile.utils.ocm import (
+    OCM_PRODUCT_OSD,
+    OCMMap,
+)
 
 QONTRACT_INTEGRATION = "ocm-additional-routers"
 

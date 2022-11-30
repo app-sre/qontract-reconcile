@@ -1,6 +1,12 @@
-from reconcile.glitchtip.integration import fetch_current_state, fetch_desired_state
-from reconcile.utils.glitchtip import GlitchtipClient, Organization
+from reconcile.glitchtip.integration import (
+    fetch_current_state,
+    fetch_desired_state,
+)
 from reconcile.gql_definitions.glitchtip.glitchtip_project import GlitchtipProjectsV1
+from reconcile.utils.glitchtip import (
+    GlitchtipClient,
+    Organization,
+)
 
 
 def sort_all(orgs: list[Organization]) -> list[Organization]:

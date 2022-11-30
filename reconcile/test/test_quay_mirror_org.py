@@ -4,7 +4,10 @@ from unittest.mock import patch
 
 import pytest
 
-from reconcile.quay_mirror_org import QuayMirrorOrg, CONTROL_FILE_NAME
+from reconcile.quay_mirror_org import (
+    CONTROL_FILE_NAME,
+    QuayMirrorOrg,
+)
 
 NOW = 1662124612.995397
 

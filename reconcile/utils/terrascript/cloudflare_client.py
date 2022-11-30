@@ -1,19 +1,27 @@
 import tempfile
-from dataclasses import dataclass
-from typing import Optional, Union
 from collections.abc import Iterable
+from dataclasses import dataclass
+from typing import (
+    Optional,
+    Union,
+)
 
-from terrascript import Terrascript, Terraform, Resource, Output, Backend, Variable
-from terrascript import provider
+from terrascript import (
+    Backend,
+    Output,
+    Resource,
+    Terraform,
+    Terrascript,
+    Variable,
+    provider,
+)
 
 from reconcile.utils.external_resource_spec import (
     ExternalResourceSpec,
     ExternalResourceSpecInventory,
 )
 from reconcile.utils.terraform.config import TerraformS3BackendConfig
-from reconcile.utils.terraform.config_client import (
-    TerraformConfigClient,
-)
+from reconcile.utils.terraform.config_client import TerraformConfigClient
 from reconcile.utils.terrascript.cloudflare_resources import (
     cloudflare_account,
     create_cloudflare_terrascript_resource,

@@ -1,12 +1,15 @@
 import requests
-
 from sretoolbox.utils import threaded
 
 from reconcile import queries
-from reconcile.utils.oc import OC_Map
-from reconcile.utils.oc import StatusCodeError
-from reconcile.dashdotdb_base import DashdotdbBase, LOG
-
+from reconcile.dashdotdb_base import (
+    LOG,
+    DashdotdbBase,
+)
+from reconcile.utils.oc import (
+    OC_Map,
+    StatusCodeError,
+)
 
 QONTRACT_INTEGRATION = "dashdotdb-cso"
 LOGMARKER = "DDDB_CSO:"

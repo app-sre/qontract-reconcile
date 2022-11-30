@@ -1,15 +1,19 @@
 import base64
-import json
-from operator import itemgetter
 import functools
-import re
+import json
 import os
+import re
 import sys
+from collections import defaultdict
 from contextlib import suppress
 from datetime import datetime
+from operator import itemgetter
 from typing import Optional
 
 import click
+import requests
+import yaml
+
 import reconcile.gitlab_housekeeping as glhk
 import reconcile.ocm_upgrade_scheduler as ous
 import reconcile.openshift_base as ob
@@ -17,26 +21,40 @@ import reconcile.openshift_resources_base as orb
 import reconcile.terraform_resources as tfr
 import reconcile.terraform_users as tfu
 import reconcile.terraform_vpc_peerings as tfvpc
-import requests
-import yaml
 from reconcile import queries
+from reconcile.change_owners.change_owners import (
+    fetch_change_type_processors,
+    fetch_self_service_roles,
+)
 from reconcile.checkpoint import report_invalid_metadata
 from reconcile.cli import config_file
+from reconcile.jenkins_job_builder import init_jjb
+from reconcile.prometheus_rules_tester import get_data_from_jinja_test_template
 from reconcile.slack_base import slackapi_from_queries
-from reconcile.utils import amtool
-from reconcile.utils import promtool
-from reconcile.utils import config, dnsutils, gql
+from reconcile.utils import (
+    amtool,
+    config,
+    dnsutils,
+    gql,
+    promtool,
+)
+from reconcile.utils.aws_api import AWSApi
+from reconcile.utils.environ import environ
 from reconcile.utils.external_resources import (
     PROVIDER_AWS,
     get_external_resource_specs,
     managed_external_resources,
 )
-from reconcile.utils.aws_api import AWSApi
-from reconcile.utils.environ import environ
-from reconcile.jenkins_job_builder import init_jjb
-from reconcile.utils.gitlab_api import GitLabApi, MRState, MRStatus
+from reconcile.utils.gitlab_api import (
+    GitLabApi,
+    MRState,
+    MRStatus,
+)
 from reconcile.utils.jjb_client import JJB
-from reconcile.utils.mr.labels import SAAS_FILE_UPDATE, SELF_SERVICEABLE
+from reconcile.utils.mr.labels import (
+    SAAS_FILE_UPDATE,
+    SELF_SERVICEABLE,
+)
 from reconcile.utils.oc import OC_Map
 from reconcile.utils.ocm import OCMMap
 from reconcile.utils.output import print_output
@@ -44,16 +62,14 @@ from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.semver_helper import parse_semver
 from reconcile.utils.state import State
 from reconcile.utils.terraform_client import TerraformClient as Terraform
-from reconcile.prometheus_rules_tester import get_data_from_jinja_test_template
-from reconcile.change_owners.change_owners import (
-    fetch_change_type_processors,
-    fetch_self_service_roles,
+from tools.cli_commands.gpg_encrypt import (
+    GPGEncryptCommand,
+    GPGEncryptCommandData,
 )
-
-from tools.sre_checkpoints import full_name, get_latest_sre_checkpoints
-from tools.cli_commands.gpg_encrypt import GPGEncryptCommand, GPGEncryptCommandData
-
-from collections import defaultdict
+from tools.sre_checkpoints import (
+    full_name,
+    get_latest_sre_checkpoints,
+)
 
 
 def output(function):

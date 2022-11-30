@@ -3,7 +3,11 @@ import logging
 from typing import Any
 
 import semver
-from reconcile import queries, mr_client_gateway
+
+from reconcile import (
+    mr_client_gateway,
+    queries,
+)
 from reconcile.ocm.types import OCMSpec
 from reconcile.utils.mr.ocm_update_recommended_version import (
     CreateOCMUpdateRecommendedVersion,

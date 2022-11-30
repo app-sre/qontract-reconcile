@@ -1,29 +1,41 @@
-import logging
 import json
+import logging
 import shutil
-
-from datetime import datetime, timedelta
-from threading import Lock
-from dataclasses import dataclass
-from typing import Any, Optional, cast
 from collections import defaultdict
-from collections.abc import Iterable, Mapping
+from collections.abc import (
+    Iterable,
+    Mapping,
+)
+from dataclasses import dataclass
+from datetime import (
+    datetime,
+    timedelta,
+)
+from threading import Lock
+from typing import (
+    Any,
+    Optional,
+    cast,
+)
 
-from python_terraform import Terraform, IsFlagged, TerraformCommandError
-from sretoolbox.utils import retry
-from sretoolbox.utils import threaded
+from botocore.errorfactory import ClientError
+from python_terraform import (
+    IsFlagged,
+    Terraform,
+    TerraformCommandError,
+)
+from sretoolbox.utils import (
+    retry,
+    threaded,
+)
 
+import reconcile.utils.lean_terraform_client as lean_tf
+from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.aws_helper import get_region_from_availability_zone
 from reconcile.utils.external_resource_spec import (
     ExternalResourceSpec,
     ExternalResourceSpecInventory,
 )
-
-import reconcile.utils.lean_terraform_client as lean_tf
-
-from reconcile.utils.aws_api import AWSApi
-
-from botocore.errorfactory import ClientError
 
 ALLOWED_TF_SHOW_FORMAT_VERSION = "0.1"
 DATE_FORMAT = "%Y-%m-%d"

@@ -1,7 +1,6 @@
 from typing import Any
 
 import reconcile.openshift_resources_base as orb
-
 from reconcile.utils.semver_helper import make_semver
 
 QONTRACT_INTEGRATION = "openshift-vault-secrets"

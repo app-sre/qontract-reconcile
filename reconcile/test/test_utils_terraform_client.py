@@ -1,19 +1,17 @@
 import base64
+from logging import DEBUG
+from operator import itemgetter
 from unittest.mock import create_autospec
-import pytest
 
+import pytest
+from botocore.errorfactory import ClientError
+
+import reconcile.utils.terraform_client as tfclient
+from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.external_resource_spec import (
     ExternalResourceSpec,
     ExternalResourceUniqueKey,
 )
-import reconcile.utils.terraform_client as tfclient
-from reconcile.utils.aws_api import AWSApi
-
-from botocore.errorfactory import ClientError
-
-from logging import DEBUG
-
-from operator import itemgetter
 
 
 @pytest.fixture

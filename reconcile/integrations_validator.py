@@ -1,5 +1,6 @@
-import sys
 import logging
+import sys
+
 from reconcile import queries
 
 QONTRACT_INTEGRATION = "integrations-validator"

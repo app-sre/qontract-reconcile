@@ -1,7 +1,7 @@
-import logging
 import itertools
-
+import logging
 from typing import Any
+
 from sretoolbox.utils import threaded
 
 from reconcile import queries

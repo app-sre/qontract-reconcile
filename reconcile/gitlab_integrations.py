@@ -2,10 +2,9 @@ import logging
 
 from sretoolbox.utils import retry
 
-from reconcile.utils.secret_reader import SecretReader
 from reconcile import queries
-
 from reconcile.utils.gitlab_api import GitLabApi
+from reconcile.utils.secret_reader import SecretReader
 
 QONTRACT_INTEGRATION = "gitlab-integrations"
 

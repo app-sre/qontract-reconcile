@@ -1,15 +1,13 @@
-import sys
 import logging
+import sys
 from typing import Optional
 
-from reconcile.utils import gql
 from reconcile import queries
-
+from reconcile.utils import gql
 from reconcile.utils.defer import defer
 from reconcile.utils.jjb_client import JJB
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.state import init_state
-
 
 QUERY = """
 {

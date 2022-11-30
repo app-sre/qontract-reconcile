@@ -1,21 +1,32 @@
-from typing import Any, Union
-from collections.abc import Iterable, MutableMapping
+from collections.abc import (
+    Iterable,
+    MutableMapping,
+)
+from typing import (
+    Any,
+    Union,
+)
 
-from terrascript import Resource, Output, Variable
+from terrascript import (
+    Output,
+    Resource,
+    Variable,
+)
 from terrascript.resource import (
     cloudflare_argo,
-    cloudflare_zone,
-    cloudflare_zone_settings_override,
     cloudflare_record,
     cloudflare_worker_route,
     cloudflare_worker_script,
+    cloudflare_zone,
+    cloudflare_zone_settings_override,
 )
+
 from reconcile import queries
 from reconcile.utils.external_resource_spec import ExternalResourceSpec
 from reconcile.utils.external_resources import ResourceValueResolver
 from reconcile.utils.github_api import GithubApi
-from reconcile.utils.terrascript.resources import TerrascriptResource
 from reconcile.utils.terraform import safe_resource_id
+from reconcile.utils.terrascript.resources import TerrascriptResource
 
 
 class UnsupportedCloudflareResourceError(Exception):

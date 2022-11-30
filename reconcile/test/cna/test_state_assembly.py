@@ -1,9 +1,20 @@
-from typing import Optional, cast
+from typing import (
+    Optional,
+    cast,
+)
+
 import pytest
 
-from reconcile.cna.assets.asset import Asset, AssetStatus, AssetType
+from reconcile.cna.assets.asset import (
+    Asset,
+    AssetStatus,
+    AssetType,
+)
 from reconcile.cna.assets.null import NullAsset
-from reconcile.cna.state import CNAStateError, State
+from reconcile.cna.state import (
+    CNAStateError,
+    State,
+)
 
 
 def null_asset(name: str, addr_block: Optional[str] = None) -> NullAsset:

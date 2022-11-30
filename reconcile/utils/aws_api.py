@@ -2,46 +2,55 @@ import functools
 import logging
 import re
 import time
-
+from collections.abc import (
+    Iterable,
+    Mapping,
+)
 from datetime import datetime
 from threading import Lock
-from typing import Literal, Union, TYPE_CHECKING
-from typing import Any, Optional
-from collections.abc import Iterable, Mapping
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Literal,
+    Optional,
+    Union,
+)
 
+import botocore
 from boto3 import Session
 from pydantic import BaseModel
 from sretoolbox.utils import threaded
-import botocore
 
 import reconcile.utils.aws_helper as awsh
 import reconcile.utils.lean_terraform_client as terraform
-
 from reconcile.utils.secret_reader import SecretReader
 
 if TYPE_CHECKING:
-    from mypy_boto3_ec2 import EC2Client, EC2ServiceResource
+    from mypy_boto3_ec2 import (
+        EC2Client,
+        EC2ServiceResource,
+    )
     from mypy_boto3_ec2.type_defs import (
+        FilterTypeDef,
+        ImageTypeDef,
+        LaunchPermissionModificationsTypeDef,
         RouteTableTypeDef,
         SubnetTypeDef,
+        TagTypeDef,
         TransitGatewayTypeDef,
         TransitGatewayVpcAttachmentTypeDef,
         VpcTypeDef,
-        ImageTypeDef,
-        LaunchPermissionModificationsTypeDef,
-        TagTypeDef,
-        FilterTypeDef,
     )
     from mypy_boto3_iam import IAMClient
     from mypy_boto3_iam.type_defs import AccessKeyMetadataTypeDef
-    from mypy_boto3_route53 import Route53Client
-    from mypy_boto3_route53.type_defs import (
-        ResourceRecordSetTypeDef,
-        ResourceRecordTypeDef,
-        HostedZoneTypeDef,
-    )
     from mypy_boto3_rds import RDSClient
     from mypy_boto3_rds.type_defs import DBInstanceMessageTypeDef
+    from mypy_boto3_route53 import Route53Client
+    from mypy_boto3_route53.type_defs import (
+        HostedZoneTypeDef,
+        ResourceRecordSetTypeDef,
+        ResourceRecordTypeDef,
+    )
 else:
     EC2Client = (
         EC2ServiceResource

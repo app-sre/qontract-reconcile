@@ -1,18 +1,15 @@
+import json
 import logging
 import sys
-import json
 from typing import Any
 
-
 from reconcile import queries
-
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.defer import defer
 from reconcile.utils.ocm import OCMMap
+from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.terraform_client import TerraformClient as Terraform
 from reconcile.utils.terrascript_aws_client import TerrascriptClient as Terrascript
-from reconcile.utils.semver_helper import make_semver
-
 
 QONTRACT_INTEGRATION = "terraform_tgw_attachments"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)

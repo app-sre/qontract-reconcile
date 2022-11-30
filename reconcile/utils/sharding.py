@@ -2,7 +2,6 @@ import hashlib
 import logging
 import os
 
-
 LOG = logging.getLogger(__name__)
 
 SHARDS = int(os.environ.get("SHARDS", 1))

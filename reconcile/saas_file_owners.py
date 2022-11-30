@@ -1,18 +1,20 @@
-import os
-import json
 import copy
+import json
 import logging
+import os
 
 from reconcile import queries
 from reconcile.openshift_saas_deploy_change_tester import (
-    collect_state,
     collect_compare_diffs,
+    collect_state,
 )
 from reconcile.utils import throughput
-
 from reconcile.utils.gitlab_api import GitLabApi
-from reconcile.utils.mr.labels import APPROVED, HOLD, SAAS_FILE_UPDATE
-
+from reconcile.utils.mr.labels import (
+    APPROVED,
+    HOLD,
+    SAAS_FILE_UPDATE,
+)
 
 QONTRACT_INTEGRATION = "saas-file-owners"
 

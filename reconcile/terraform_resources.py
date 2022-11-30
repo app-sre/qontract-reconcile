@@ -1,37 +1,45 @@
 import logging
 import shutil
 import sys
-
+from collections.abc import (
+    Iterable,
+    Mapping,
+)
 from textwrap import indent
-from typing import Any, Optional, cast
-from collections.abc import Iterable, Mapping
+from typing import (
+    Any,
+    Optional,
+    cast,
+)
 
 from sretoolbox.utils import threaded
+
+import reconcile.openshift_base as ob
+from reconcile import queries
+from reconcile.aws_iam_keys import run as disable_keys
+from reconcile.utils import gql
+from reconcile.utils.aws_api import AWSApi
+from reconcile.utils.defer import defer
+from reconcile.utils.external_resource_spec import ExternalResourceSpecInventory
 from reconcile.utils.external_resources import (
     PROVIDER_AWS,
     get_external_resource_specs,
     managed_external_resources,
 )
-
-
-import reconcile.openshift_base as ob
-
-from reconcile import queries
-from reconcile.utils.external_resource_spec import ExternalResourceSpecInventory
-from reconcile.utils import gql
-from reconcile.aws_iam_keys import run as disable_keys
-from reconcile.utils.aws_api import AWSApi
-from reconcile.utils.semver_helper import make_semver
-from reconcile.utils.defer import defer
-from reconcile.utils.oc import OC_Map
+from reconcile.utils.oc import (
+    OC_Map,
+    StatusCodeError,
+)
 from reconcile.utils.ocm import OCMMap
-from reconcile.utils.oc import StatusCodeError
-from reconcile.utils.openshift_resource import ResourceInventory
-from reconcile.utils.terrascript_aws_client import TerrascriptClient as Terrascript
-from reconcile.utils.terraform_client import TerraformClient as Terraform
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
-from reconcile.utils.vault import _VaultClient, VaultClient
-
+from reconcile.utils.openshift_resource import ResourceInventory
+from reconcile.utils.semver_helper import make_semver
+from reconcile.utils.terraform_client import TerraformClient as Terraform
+from reconcile.utils.terrascript_aws_client import TerrascriptClient as Terrascript
+from reconcile.utils.vault import (
+    VaultClient,
+    _VaultClient,
+)
 
 TF_RESOURCE_AWS = """
 output_format {

@@ -1,15 +1,22 @@
 import json
 import logging
+from typing import (
+    Any,
+    Optional,
+)
+
 import yaml
-from typing import Optional, Any
 
 import reconcile.utils.mr.ocm_upgrade_scheduler_org_updates as ousou
-
-from reconcile import mr_client_gateway
-from reconcile import queries
-from reconcile.utils.ocm import OCMMap, OCMSpec
+from reconcile import (
+    mr_client_gateway,
+    queries,
+)
 from reconcile.openshift_resources_base import process_jinja2_template
-
+from reconcile.utils.ocm import (
+    OCMMap,
+    OCMSpec,
+)
 
 QONTRACT_INTEGRATION = "ocm-upgrade-scheduler-org-updater"
 

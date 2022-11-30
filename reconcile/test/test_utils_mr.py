@@ -1,12 +1,14 @@
 from typing import Optional
-
 from unittest import TestCase
 from unittest.mock import MagicMock
+
 from gitlab.exceptions import GitlabError
 
 from reconcile.utils.gitlab_api import GitLabApi
-from reconcile.utils.mr.base import MergeRequestBase
-from reconcile.utils.mr.base import MergeRequestProcessingError
+from reconcile.utils.mr.base import (
+    MergeRequestBase,
+    MergeRequestProcessingError,
+)
 
 
 class DummyMergeRequest(MergeRequestBase):

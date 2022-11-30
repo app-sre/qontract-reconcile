@@ -1,8 +1,13 @@
-from typing import Optional, cast
-
 from dataclasses import dataclass
+from typing import (
+    Optional,
+    cast,
+)
 
-from reconcile.utils.vault import VaultClient, _VaultClient
+from reconcile.utils.vault import (
+    VaultClient,
+    _VaultClient,
+)
 
 
 @dataclass

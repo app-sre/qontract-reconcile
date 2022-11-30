@@ -1,10 +1,15 @@
 import logging
 import sys
-from typing import Any, Optional
-from collections.abc import Iterable, Mapping
+from collections.abc import (
+    Iterable,
+    Mapping,
+)
+from typing import (
+    Any,
+    Optional,
+)
 
 from reconcile import queries
-
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.state import State
 

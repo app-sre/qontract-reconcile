@@ -1,26 +1,40 @@
-from abc import ABC, abstractmethod
-from dataclasses import dataclass
-import os
-import sys
 import json
 import logging
+import os
+import sys
+from abc import (
+    ABC,
+    abstractmethod,
+)
+from collections.abc import (
+    Iterable,
+    Mapping,
+    MutableMapping,
+)
+from dataclasses import dataclass
+from typing import (
+    Any,
+    Optional,
+)
 
 from github import Github
-from typing import Any, Optional
-from collections.abc import Iterable, Mapping, MutableMapping
 
 import reconcile.openshift_base as ob
-
-from reconcile.utils import helm
 from reconcile import queries
+from reconcile.github_org import (
+    GH_BASE_URL,
+    get_default_config,
+)
 from reconcile.status import ExitCodes
+from reconcile.utils import helm
+from reconcile.utils.defer import defer
 from reconcile.utils.oc import oc_process
+from reconcile.utils.openshift_resource import (
+    OpenshiftResource,
+    ResourceInventory,
+)
 from reconcile.utils.runtime.meta import IntegrationMeta
 from reconcile.utils.semver_helper import make_semver
-from reconcile.github_org import GH_BASE_URL, get_default_config
-from reconcile.utils.openshift_resource import OpenshiftResource, ResourceInventory
-from reconcile.utils.defer import defer
-
 
 QONTRACT_INTEGRATION = "integrations-manager"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)

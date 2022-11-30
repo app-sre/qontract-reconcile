@@ -1,14 +1,17 @@
+from datetime import datetime
 from typing import Any
 from unittest import TestCase
-from unittest.mock import patch, Mock
-from croniter import croniter
-from datetime import datetime
-from dateutil import parser
-import pytest
+from unittest.mock import (
+    Mock,
+    patch,
+)
 
-from reconcile.utils.ocm import Sector
+import pytest
+from croniter import croniter
+from dateutil import parser
 
 import reconcile.ocm_upgrade_scheduler as ous
+from reconcile.utils.ocm import Sector
 
 
 class TestUpdateHistory(TestCase):

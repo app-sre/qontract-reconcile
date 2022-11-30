@@ -1,19 +1,26 @@
 import json
 import logging
 import sys
-
-from threading import Lock
-from typing import Any, Optional, Union
 from collections.abc import Generator
+from threading import Lock
+from typing import (
+    Any,
+    Optional,
+    Union,
+)
+
 from kubernetes.client.exceptions import ApiException
 from sretoolbox.utils import threaded
 
 import reconcile.openshift_base as ob
-
 from reconcile import queries
 from reconcile.utils.defer import defer
-from reconcile.utils.oc import OC_Map, OCNative, StatusCodeError
-from reconcile.utils.oc import validate_labels
+from reconcile.utils.oc import (
+    OC_Map,
+    OCNative,
+    StatusCodeError,
+    validate_labels,
+)
 from reconcile.utils.sharding import is_in_shard
 from reconcile.utils.state import State
 

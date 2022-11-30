@@ -1,10 +1,15 @@
 from typing import Any
-from reconcile import queries
-from reconcile import openshift_users
-from reconcile import slack_usergroups
 
+from reconcile import (
+    openshift_users,
+    queries,
+    slack_usergroups,
+)
 from reconcile.slack_base import slackapi_from_queries
-from reconcile.utils.slack_api import SlackApi, UsergroupNotFoundException
+from reconcile.utils.slack_api import (
+    SlackApi,
+    UsergroupNotFoundException,
+)
 
 QONTRACT_INTEGRATION = "slack-cluster-usergroups"
 

@@ -1,9 +1,8 @@
-import sys
 import logging
+import sys
 from typing import Any
 
 from reconcile import queries
-
 from reconcile.utils.gitlab_api import GitLabApi
 
 QONTRACT_INTEGRATION = "gitlab-projects"

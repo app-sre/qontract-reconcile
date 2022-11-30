@@ -1,18 +1,16 @@
-import sys
-import json
 import copy
+import json
 import logging
+import sys
 from typing import Any
 
 from sretoolbox.utils import threaded
 
-from reconcile import queries
-from reconcile.utils.gitlab_api import GitLabApi
-from reconcile.utils import gql
 import reconcile.openshift_saas_deploy as osd
-
+from reconcile import queries
+from reconcile.utils import gql
+from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.semver_helper import make_semver
-
 
 QONTRACT_INTEGRATION = "openshift-saas-deploy-change-tester"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)

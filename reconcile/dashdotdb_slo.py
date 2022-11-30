@@ -1,19 +1,24 @@
+from collections.abc import Iterable
 from dataclasses import dataclass
+from typing import (
+    Any,
+    Optional,
+)
+
 import jinja2
 import requests
-from typing import Any, Optional
-from collections.abc import Iterable
-
 from requests import Response
 from sretoolbox.utils import threaded
 
-from reconcile.dashdotdb_base import DashdotdbBase, LOG
-from reconcile.utils import gql
+from reconcile.dashdotdb_base import (
+    LOG,
+    DashdotdbBase,
+)
 from reconcile.gql_definitions.dashdotdb_slo.slo_documents_query import (
     SLODocumentV1,
     query,
 )
-
+from reconcile.utils import gql
 
 QONTRACT_INTEGRATION = "dashdotdb-slo"
 

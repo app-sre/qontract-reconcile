@@ -1,12 +1,11 @@
-import time
 import logging
+import time
 
 from sretoolbox.utils import threaded
 
-import e2e_tests.test_base as tb
 import e2e_tests.dedicated_admin_test_base as dat
 import e2e_tests.network_policy_test_base as npt
-
+import e2e_tests.test_base as tb
 from reconcile.utils.defer import defer
 
 QONTRACT_E2E_TEST = "create-namespace"

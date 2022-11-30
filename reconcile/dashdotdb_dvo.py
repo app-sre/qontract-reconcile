@@ -1,14 +1,24 @@
+from collections.abc import (
+    Generator,
+    Mapping,
+    Sequence,
+)
 from dataclasses import dataclass
-from typing import Any, Optional
-from collections.abc import Generator, Sequence, Mapping
+from typing import (
+    Any,
+    Optional,
+)
+
 import requests
 from requests import Response
-
 from sretoolbox.utils import threaded
-from reconcile.gql_definitions.common.clusters_minimal import ClusterV1
 
+from reconcile.dashdotdb_base import (
+    LOG,
+    DashdotdbBase,
+)
+from reconcile.gql_definitions.common.clusters_minimal import ClusterV1
 from reconcile.typed_queries.clusters_minimal import get_clusters_minimal
-from reconcile.dashdotdb_base import DashdotdbBase, LOG
 
 QONTRACT_INTEGRATION = "dashdotdb-dvo"
 

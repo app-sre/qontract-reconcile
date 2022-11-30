@@ -2,8 +2,8 @@ import base64
 import textwrap
 
 from jinja2 import nodes
-from jinja2.ext import Extension
 from jinja2.exceptions import TemplateRuntimeError
+from jinja2.ext import Extension
 
 
 class B64EncodeExtension(Extension):

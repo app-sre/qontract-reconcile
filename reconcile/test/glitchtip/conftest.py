@@ -1,6 +1,8 @@
 from pathlib import Path
+
 import httpretty as httpretty_module
 import pytest
+
 from reconcile.test.fixtures import Fixtures
 from reconcile.utils.glitchtip import GlitchtipClient
 

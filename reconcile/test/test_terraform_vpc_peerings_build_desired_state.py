@@ -1,15 +1,17 @@
 import pytest
 import testslide
 
-from reconcile.utils import aws_api
 import reconcile.terraform_vpc_peerings as sut
-from reconcile.utils import ocm
 from reconcile.test.test_terraform_vpc_peerings import (
-    MockOCM,
     MockAWSAPI,
-    build_cluster,
+    MockOCM,
     build_accepter_connection,
+    build_cluster,
     build_requester_connection,
+)
+from reconcile.utils import (
+    aws_api,
+    ocm,
 )
 
 

@@ -1,5 +1,11 @@
-from ldap3 import Server, Connection, ALL, SAFE_SYNC
 from collections.abc import Iterable
+
+from ldap3 import (
+    ALL,
+    SAFE_SYNC,
+    Connection,
+    Server,
+)
 
 
 class LdapClient:

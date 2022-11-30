@@ -1,19 +1,14 @@
 import logging
 import sys
 
-
-from reconcile import queries
 import reconcile.openshift_base as ob
-from reconcile.utils.oc import OC_Map
-
-from reconcile.utils.semver_helper import make_semver
+from reconcile import queries
 from reconcile.utils.defer import defer
-from reconcile.utils.openshift_resource import (
-    OpenshiftResource as OR,
-    ResourceInventory,
-)
+from reconcile.utils.oc import OC_Map
+from reconcile.utils.openshift_resource import OpenshiftResource as OR
+from reconcile.utils.openshift_resource import ResourceInventory
+from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.vault import VaultClient
-
 
 QONTRACT_INTEGRATION = "openshift-serviceaccount-tokens"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)

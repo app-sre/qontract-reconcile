@@ -1,6 +1,9 @@
-from typing import Any
-from unittest.mock import create_autospec, patch
 from copy import deepcopy
+from typing import Any
+from unittest.mock import (
+    create_autospec,
+    patch,
+)
 
 from reconcile import queries
 from reconcile.utils import gql

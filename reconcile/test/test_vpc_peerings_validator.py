@@ -7,12 +7,12 @@ from reconcile.gql_definitions.vpc_peerings_validator.vpc_peerings_validator imp
     ClusterV1,
     VpcPeeringsValidatorQueryData,
 )
-
 from reconcile.gql_definitions.vpc_peerings_validator.vpc_peerings_validator_peered_cluster_fragment import (
-    VpcPeeringsValidatorPeeredCluster,
     ClusterSpecV1 as PeeredClusterSpec,
 )
-
+from reconcile.gql_definitions.vpc_peerings_validator.vpc_peerings_validator_peered_cluster_fragment import (
+    VpcPeeringsValidatorPeeredCluster,
+)
 from reconcile.vpc_peerings_validator import (
     validate_no_internal_to_public_peerings,
     validate_no_public_to_public_peerings,

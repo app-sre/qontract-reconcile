@@ -1,6 +1,9 @@
 import logging
 import sys
-from typing import Union, cast
+from typing import (
+    Union,
+    cast,
+)
 
 from reconcile.gql_definitions.vpc_peerings_validator import vpc_peerings_validator
 from reconcile.gql_definitions.vpc_peerings_validator.vpc_peerings_validator import (
@@ -11,7 +14,6 @@ from reconcile.gql_definitions.vpc_peerings_validator.vpc_peerings_validator imp
 )
 from reconcile.status import ExitCodes
 from reconcile.utils import gql
-
 
 QONTRACT_INTEGRATION = "vpc-peerings-validator"
 

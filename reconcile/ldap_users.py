@@ -1,15 +1,14 @@
 import logging
-
 from collections import defaultdict
 
-from reconcile import queries
+from reconcile import (
+    mr_client_gateway,
+    queries,
+)
 from reconcile.utils import gql
 from reconcile.utils.ldap_client import LdapClient
-
-from reconcile import mr_client_gateway
 from reconcile.utils.mr import CreateDeleteUser
 from reconcile.utils.mr.user_maintenance import PathTypes
-
 
 QONTRACT_INTEGRATION = "ldap-users"
 

@@ -1,14 +1,12 @@
-import sys
-import logging
 import json
-from typing import Any
+import logging
+import sys
 from collections.abc import Mapping
+from typing import Any
 
 from reconcile import queries
-
-from reconcile.utils.ocm import OCMMap
 from reconcile.ocm.utils import cluster_disabled_integrations
-
+from reconcile.utils.ocm import OCMMap
 
 QONTRACT_INTEGRATION = "ocm-machine-pools"
 

@@ -1,11 +1,12 @@
 from typing import Optional
-from pydantic import BaseModel
+
 import pytest
+from pydantic import BaseModel
 
 from reconcile.slack_base import (
-    slackapi_from_slack_workspace,
-    slackapi_from_permissions,
     get_slackapi,
+    slackapi_from_permissions,
+    slackapi_from_slack_workspace,
 )
 from reconcile.utils.secret_reader import SecretReader
 

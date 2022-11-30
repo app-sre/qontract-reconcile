@@ -1,16 +1,19 @@
 import json
-from unittest.mock import create_autospec, mock_open
+from unittest.mock import (
+    create_autospec,
+    mock_open,
+)
 
 import pytest
 from terrascript import Terrascript
 
 from reconcile.utils.external_resource_spec import ExternalResourceSpec
+from reconcile.utils.terraform.config import TerraformS3BackendConfig
 from reconcile.utils.terrascript.cloudflare_client import (
     CloudflareAccountConfig,
     TerrascriptCloudflareClient,
     create_cloudflare_terrascript,
 )
-from reconcile.utils.terraform.config import TerraformS3BackendConfig
 
 
 @pytest.fixture

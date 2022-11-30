@@ -1,33 +1,43 @@
-from dataclasses import dataclass, field
-import logging
 import itertools
-
-from typing import Any, Optional, Union
-from collections.abc import Iterable, Mapping
+import logging
+from collections.abc import (
+    Iterable,
+    Mapping,
+)
+from dataclasses import (
+    dataclass,
+    field,
+)
+from typing import (
+    Any,
+    Optional,
+    Union,
+)
 
 import yaml
-
-from sretoolbox.utils import retry
-from sretoolbox.utils import threaded
+from sretoolbox.utils import (
+    retry,
+    threaded,
+)
 
 from reconcile import queries
 from reconcile.utils.oc import (
     DeploymentFieldIsImmutableError,
     FieldIsImmutableError,
+    InvalidValueApplyError,
+    MayNotChangeOnceSetError,
+    MetaDataAnnotationsTooLongApplyError,
+    OC_Map,
     OCClient,
+    OCDeprecated,
     OCLogMsg,
+    PrimaryClusterIPCanNotBeUnsetError,
+    StatefulSetUpdateForbidden,
+    StatusCodeError,
+    UnsupportedMediaTypeError,
 )
-from reconcile.utils.oc import MayNotChangeOnceSetError
-from reconcile.utils.oc import PrimaryClusterIPCanNotBeUnsetError
-from reconcile.utils.oc import InvalidValueApplyError
-from reconcile.utils.oc import MetaDataAnnotationsTooLongApplyError
-from reconcile.utils.oc import StatefulSetUpdateForbidden
-from reconcile.utils.oc import OCDeprecated, OC_Map
-from reconcile.utils.oc import StatusCodeError
-from reconcile.utils.oc import UnsupportedMediaTypeError
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.openshift_resource import ResourceInventory
-
 
 ACTION_APPLIED = "applied"
 ACTION_DELETED = "deleted"

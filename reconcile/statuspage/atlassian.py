@@ -1,14 +1,18 @@
-from pydantic import BaseModel
 import logging
-from typing import Any, Optional
 from collections.abc import Iterable
+from typing import (
+    Any,
+    Optional,
+)
+
+import statuspageio  # type: ignore
+from pydantic import BaseModel
 
 from reconcile.utils.statuspage.models import (
     StatusComponent,
     StatusPage,
     StatusPageProvider,
 )
-import statuspageio  # type: ignore
 
 LOG = logging.getLogger(__name__)
 

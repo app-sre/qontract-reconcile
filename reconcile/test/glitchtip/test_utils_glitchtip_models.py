@@ -1,6 +1,10 @@
 import pytest
 
-from reconcile.utils.glitchtip import Organization, Project, Team
+from reconcile.utils.glitchtip import (
+    Organization,
+    Project,
+    Team,
+)
 from reconcile.utils.glitchtip.models import slugify
 
 

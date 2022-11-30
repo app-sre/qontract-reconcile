@@ -1,16 +1,21 @@
 import subprocess
 from pathlib import Path
-from unittest.mock import create_autospec, MagicMock, call, mock_open
+from unittest.mock import (
+    MagicMock,
+    call,
+    create_autospec,
+    mock_open,
+)
 
 import pytest
 
 from reconcile.utils.exceptions import PrintToFileInGitRepositoryError
 from reconcile.utils.external_resource_spec import ExternalResourceSpec
 from reconcile.utils.terraform.config_client import (
-    TerraformConfigClientCollection,
-    TerraformConfigClient,
     ClientAlreadyRegisteredError,
     ClientNotRegisteredError,
+    TerraformConfigClient,
+    TerraformConfigClientCollection,
 )
 
 

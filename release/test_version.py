@@ -1,7 +1,6 @@
 import packaging.version as pep440
 
 from reconcile.utils.semver_helper import parse_semver
-
 from release import version
 
 

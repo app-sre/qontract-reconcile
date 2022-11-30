@@ -1,13 +1,18 @@
 import json
-from typing import Any, Optional
-from collections.abc import Mapping, MutableMapping
+from collections.abc import (
+    Mapping,
+    MutableMapping,
+)
+from typing import (
+    Any,
+    Optional,
+)
 
 import anymarkup
 
 from reconcile.utils import gql
 from reconcile.utils.exceptions import FetchResourceError
 from reconcile.utils.external_resource_spec import ExternalResourceSpec
-
 
 PROVIDER_AWS = "aws"
 PROVIDER_CLOUDFLARE = "cloudflare"

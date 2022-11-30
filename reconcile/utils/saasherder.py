@@ -1,38 +1,55 @@
 import base64
-from dataclasses import dataclass
+import hashlib
+import itertools
 import json
 import logging
 import os
-import itertools
-import hashlib
 import re
-from typing import Any, Optional, Union, cast
 from collections import ChainMap
-from collections.abc import Iterable, Mapping, MutableMapping, Sequence
-
+from collections.abc import (
+    Iterable,
+    Mapping,
+    MutableMapping,
+    Sequence,
+)
 from contextlib import suppress
-import yaml
+from dataclasses import dataclass
+from typing import (
+    Any,
+    Optional,
+    Union,
+    cast,
+)
 
+import yaml
+from github import (
+    Github,
+    GithubException,
+)
 from gitlab.exceptions import GitlabError
-from github import Github, GithubException
 from requests import exceptions as rqexc
 from sretoolbox.container import Image
-from sretoolbox.utils import retry
-from sretoolbox.utils import threaded
+from sretoolbox.utils import (
+    retry,
+    threaded,
+)
 
 from reconcile.github_org import get_default_config
 from reconcile.status import RunningState
+from reconcile.utils.jjb_client import JJB
 from reconcile.utils.mr.auto_promoter import AutoPromoter
-from reconcile.utils.oc import OCLocal, StatusCodeError
+from reconcile.utils.oc import (
+    OCLocal,
+    StatusCodeError,
+)
+from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.openshift_resource import (
-    OpenshiftResource as OR,
     ResourceInventory,
-    fully_qualified_kind,
     ResourceKeyExistsError,
+    fully_qualified_kind,
 )
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.state import State
-from reconcile.utils.jjb_client import JJB
 
 TARGET_CONFIG_HASH = "target_config_hash"
 

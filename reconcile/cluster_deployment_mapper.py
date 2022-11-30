@@ -1,12 +1,10 @@
-import sys
 import logging
+import sys
 
 from reconcile import queries
-
 from reconcile.status import ExitCodes
 from reconcile.utils.oc import OC_Map
 from reconcile.utils.vault import VaultClient
-
 
 QONTRACT_INTEGRATION = "cluster-deployment-mapper"
 

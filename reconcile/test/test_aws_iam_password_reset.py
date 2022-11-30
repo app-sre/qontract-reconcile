@@ -1,7 +1,11 @@
 from typing import Any
 
 import pytest
-from reconcile.aws_iam_password_reset import get_roles, account_in_roles
+
+from reconcile.aws_iam_password_reset import (
+    account_in_roles,
+    get_roles,
+)
 
 
 @pytest.fixture

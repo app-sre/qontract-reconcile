@@ -6,19 +6,31 @@ import re
 import tempfile
 import threading
 import time
+from collections.abc import Iterable
 from contextlib import suppress
 from datetime import datetime
 from functools import wraps
-from subprocess import PIPE, Popen
+from subprocess import (
+    PIPE,
+    Popen,
+)
 from threading import Lock
-from typing import Any, Union
-from collections.abc import Iterable
+from typing import (
+    Any,
+    Union,
+)
 
 import urllib3
-from kubernetes.client import ApiClient, Configuration
+from kubernetes.client import (
+    ApiClient,
+    Configuration,
+)
 from kubernetes.client.exceptions import ApiException
 from kubernetes.dynamic.client import DynamicClient
-from kubernetes.dynamic.discovery import LazyDiscoverer, ResourceGroup
+from kubernetes.dynamic.discovery import (
+    LazyDiscoverer,
+    ResourceGroup,
+)
 from kubernetes.dynamic.exceptions import (
     ForbiddenError,
     InternalServerError,
@@ -29,12 +41,19 @@ from kubernetes.dynamic.exceptions import (
 )
 from kubernetes.dynamic.resource import ResourceList
 from prometheus_client import Counter
+from sretoolbox.utils import (
+    retry,
+    threaded,
+)
+
 from reconcile.status import RunningState
 from reconcile.utils.jump_host import JumpHostSSH
 from reconcile.utils.metrics import reconcile_time
-from reconcile.utils.secret_reader import SecretNotFound, SecretReader
+from reconcile.utils.secret_reader import (
+    SecretNotFound,
+    SecretReader,
+)
 from reconcile.utils.unleash import get_feature_toggle_state
-from sretoolbox.utils import retry, threaded
 
 urllib3.disable_warnings()
 

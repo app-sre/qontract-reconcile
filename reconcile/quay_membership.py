@@ -1,7 +1,7 @@
 import logging
 import sys
-from typing import Union
 from collections.abc import Sequence
+from typing import Union
 
 from reconcile.gql_definitions.quay_membership import quay_membership
 from reconcile.gql_definitions.quay_membership.quay_membership import (
@@ -11,7 +11,10 @@ from reconcile.gql_definitions.quay_membership.quay_membership import (
 )
 from reconcile.quay_base import get_quay_api_store
 from reconcile.status import ExitCodes
-from reconcile.utils import expiration, gql
+from reconcile.utils import (
+    expiration,
+    gql,
+)
 from reconcile.utils.aggregated_list import (
     AggregatedDiffRunner,
     AggregatedList,

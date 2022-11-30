@@ -1,10 +1,15 @@
 import logging
-from typing import Any, Optional
 from collections.abc import Mapping
-from requests import Session, codes
+from typing import (
+    Any,
+    Optional,
+)
 
+from requests import (
+    Session,
+    codes,
+)
 from sretoolbox.utils import retry
-
 
 REQUEST_TIMEOUT_SEC = 60
 

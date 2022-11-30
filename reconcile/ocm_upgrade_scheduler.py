@@ -1,21 +1,31 @@
-import sys
-import logging
 import copy
-
-from datetime import datetime
-from typing import Any, Optional
+import logging
+import sys
 from collections.abc import Mapping
-from dateutil import parser
+from datetime import datetime
+from typing import (
+    Any,
+    Optional,
+)
+
 from croniter import croniter
+from dateutil import parser
 from semver import VersionInfo
 
 from reconcile import queries
-
-from reconcile.utils.ocm import OCM, OCM_PRODUCT_OSD, OCMMap, Sector
-from reconcile.utils.state import State
-from reconcile.utils.data_structures import get_or_init
-from reconcile.utils.semver_helper import parse_semver, sort_versions
 from reconcile.ocm.utils import cluster_disabled_integrations
+from reconcile.utils.data_structures import get_or_init
+from reconcile.utils.ocm import (
+    OCM,
+    OCM_PRODUCT_OSD,
+    OCMMap,
+    Sector,
+)
+from reconcile.utils.semver_helper import (
+    parse_semver,
+    sort_versions,
+)
+from reconcile.utils.state import State
 
 QONTRACT_INTEGRATION = "ocm-upgrade-scheduler"
 

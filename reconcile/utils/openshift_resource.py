@@ -4,13 +4,14 @@ import datetime
 import hashlib
 import json
 import re
-from typing import Optional, Union
 from collections.abc import Mapping
-
 from threading import Lock
+from typing import (
+    Optional,
+    Union,
+)
 
 import semver
-
 
 SECRET_MAX_KEY_LENGTH = 253
 

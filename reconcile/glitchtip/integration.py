@@ -1,8 +1,13 @@
-from typing import Any, Optional
-from collections.abc import Iterable, Sequence
+from collections.abc import (
+    Iterable,
+    Sequence,
+)
+from typing import (
+    Any,
+    Optional,
+)
 
 from reconcile import queries
-
 from reconcile.glitchtip.reconciler import GlitchtipReconciler
 from reconcile.gql_definitions.glitchtip.glitchtip_instance import (
     DEFINITION as GLITCHTIP_INSTANCE_DEFINITION,
@@ -24,7 +29,13 @@ from reconcile.gql_definitions.glitchtip.glitchtip_settings import (
     query as glitchtip_settings_query,
 )
 from reconcile.utils import gql
-from reconcile.utils.glitchtip import GlitchtipClient, Organization, Project, Team, User
+from reconcile.utils.glitchtip import (
+    GlitchtipClient,
+    Organization,
+    Project,
+    Team,
+    User,
+)
 from reconcile.utils.secret_reader import SecretReader
 
 QONTRACT_INTEGRATION = "glitchtip"

@@ -6,11 +6,21 @@ https://gitlab.cee.redhat.com/app-sre/contract/-/blob/master/content/process/sre
 """
 import logging
 import re
-from functools import partial, lru_cache
+from collections.abc import (
+    Callable,
+    Iterable,
+    Mapping,
+)
+from functools import (
+    lru_cache,
+    partial,
+)
 from http import HTTPStatus
 from pathlib import Path
-from typing import Any, Union
-from collections.abc import Callable, Iterable, Mapping
+from typing import (
+    Any,
+    Union,
+)
 
 import requests
 from jinja2 import Template

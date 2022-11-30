@@ -3,7 +3,6 @@ import pathlib
 
 from ruamel import yaml
 
-
 _LOG = logging.getLogger(__name__)
 
 

@@ -2,30 +2,36 @@ import faulthandler
 import json
 import logging
 import os
-from signal import SIGUSR1
-import sys
 import re
-
+import sys
+from signal import SIGUSR1
 from typing import Optional
 
 import click
 import sentry_sdk
 
-from reconcile.utils import config
-from reconcile.utils import gql
-
-from reconcile.status import ExitCodes
-from reconcile.status import RunningState
-
-from reconcile.utils.gql import GqlApiErrorForbiddenSchema, GqlApiIntegrationNotFound
+from reconcile.status import (
+    ExitCodes,
+    RunningState,
+)
+from reconcile.utils import (
+    config,
+    gql,
+)
 from reconcile.utils.aggregated_list import RunnerException
-from reconcile.utils.binary import binary, binary_version
+from reconcile.utils.binary import (
+    binary,
+    binary_version,
+)
 from reconcile.utils.environ import environ
-from reconcile.utils.runtime.meta import IntegrationMeta
-from reconcile.utils.unleash import get_feature_toggle_state
 from reconcile.utils.exceptions import PrintToFileInGitRepositoryError
 from reconcile.utils.git import is_file_in_git_repo
-
+from reconcile.utils.gql import (
+    GqlApiErrorForbiddenSchema,
+    GqlApiIntegrationNotFound,
+)
+from reconcile.utils.runtime.meta import IntegrationMeta
+from reconcile.utils.unleash import get_feature_toggle_state
 
 TERRAFORM_VERSION = "0.13.7"
 TERRAFORM_VERSION_REGEX = r"^Terraform\sv([\d]+\.[\d]+\.[\d]+)$"
