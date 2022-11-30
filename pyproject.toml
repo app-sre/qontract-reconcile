@@ -2,3 +2,10 @@
 line-length = 88
 target-version = ['py39']
 include = '^.*\.py$'
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+force_grid_wrap = 2
+float_to_top = true
+skip_glob = ["reconcile/gql_definitions/*"]
