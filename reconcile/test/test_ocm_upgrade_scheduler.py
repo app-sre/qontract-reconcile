@@ -11,6 +11,7 @@ from croniter import croniter
 from dateutil import parser
 
 import reconcile.ocm_upgrade_scheduler as ous
+from reconcile.utils.cluster_version_data import VersionData
 from reconcile.utils.ocm import Sector
 
 
@@ -18,7 +19,7 @@ class TestUpdateHistory(TestCase):
     @patch.object(ous, "datetime", Mock(wraps=datetime))
     def test_update_history(self):
         history = {
-            "check_in": "2021-08-29 18:00:00",
+            "check_in": "2021-08-29T18:00:00",
             "versions": {
                 "version1": {
                     "workloads": {
@@ -31,7 +32,7 @@ class TestUpdateHistory(TestCase):
                 }
             },
         }
-        ous.datetime.utcnow.return_value = parser.parse("2021-08-30 18:00:00.00000")
+        ous.datetime.utcnow.return_value = parser.parse("2021-08-30T18:00:00.00000")
         upgrade_policies = [
             {
                 "workloads": ["workload1"],
@@ -49,9 +50,10 @@ class TestUpdateHistory(TestCase):
                 "current_version": "version1",
             },
         ]
-        ous.update_history(history, upgrade_policies)
+        version_data = VersionData(**history)
+        ous.update_history(version_data, upgrade_policies)
         expected = {
-            "check_in": "2021-08-30 18:00:00",
+            "check_in": "2021-08-30T18:00:00",
             "versions": {
                 "version1": {
                     "workloads": {
@@ -64,7 +66,7 @@ class TestUpdateHistory(TestCase):
                 }
             },
         }
-        self.assertEqual(expected, history)
+        self.assertEqual(expected, version_data.jsondict())
 
 
 class TestVersionConditionsMetSoakDays(TestCase):
@@ -72,20 +74,28 @@ class TestVersionConditionsMetSoakDays(TestCase):
         self.version = "1.2.3"
         self.ocm_name = "ocm"
         self.workload = "workload1"
-        self.history = {
-            self.ocm_name: {
-                "versions": {
-                    self.version: {"workloads": {self.workload: {"soak_days": 2.0}}}
+        version_data_dict = {
+            "check_in": None,
+            "versions": {
+                self.version: {
+                    "workloads": {
+                        self.workload: {
+                            "soak_days": 2.0,
+                            "reporting": ["cluster1", "cluster2"],
+                        }
+                    }
                 }
-            }
+            },
         }
+        version_data = VersionData(**version_data_dict)
+        self.version_data_map = {self.ocm_name: version_data}
 
     def test_conditions_met_larger(self):
         upgrade_conditions = {"soakDays": 1.0}
 
         conditions_met = ous.version_conditions_met(
             self.version,
-            self.history,
+            self.version_data_map,
             self.ocm_name,
             [self.workload],
             upgrade_conditions,
@@ -97,7 +107,7 @@ class TestVersionConditionsMetSoakDays(TestCase):
 
         conditions_met = ous.version_conditions_met(
             self.version,
-            self.history,
+            self.version_data_map,
             self.ocm_name,
             [self.workload],
             upgrade_conditions,
@@ -109,7 +119,7 @@ class TestVersionConditionsMetSoakDays(TestCase):
 
         conditions_met = ous.version_conditions_met(
             self.version,
-            self.history,
+            self.version_data_map,
             self.ocm_name,
             [self.workload],
             upgrade_conditions,
@@ -121,7 +131,7 @@ class TestVersionConditionsMetSoakDays(TestCase):
 
         conditions_met = ous.version_conditions_met(
             "0.0.0",
-            self.history,
+            self.version_data_map,
             self.ocm_name,
             [self.workload],
             upgrade_conditions,
@@ -143,9 +153,9 @@ class TestUpgradeLock:
     @staticmethod
     def set_upgradeable():
         ous.version_conditions_met.return_value = True
-        ous.datetime.utcnow.return_value = parser.parse("2021-08-30 18:00:00.00000")
+        ous.datetime.utcnow.return_value = parser.parse("2021-08-30T18:00:00.00000")
         schedule = ous.croniter.return_value
-        schedule.get_next.return_value = parser.parse("2021-08-30 19:00:00.00000")
+        schedule.get_next.return_value = parser.parse("2021-08-30T19:00:00.00000")
         return True
 
     current_cluster1 = {

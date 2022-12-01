@@ -610,6 +610,8 @@ class OCM:  # pylint: disable=too-many-public-methods
         blocked_versions=None,
         ocm_client: Optional[OCMBaseClient] = None,
         sectors: Optional[list[dict[str, Any]]] = None,
+        inheritVersionData: Optional[list[dict[str, Any]]] = None,
+        publishVersionData: Optional[list[dict[str, Any]]] = None,
     ):
         """Initiates access token and gets clusters information."""
         self.name = name
@@ -632,6 +634,9 @@ class OCM:  # pylint: disable=too-many-public-methods
             self._init_addons()
 
         self._init_blocked_versions(blocked_versions)
+
+        self.inheritVersionData = inheritVersionData or []
+        self.publishVersionData = publishVersionData or []
 
         self.init_version_gates = init_version_gates
         self.version_gates: list[Any] = []
@@ -1612,6 +1617,8 @@ class OCMMap:  # pylint: disable=too-many-public-methods
                 blocked_versions=ocm_info.get("blockedVersions"),
                 init_version_gates=init_version_gates,
                 sectors=ocm_info.get("sectors"),
+                inheritVersionData=ocm_info.get("inheritVersionData"),
+                publishVersionData=ocm_info.get("publishVersionData"),
             )
 
     def instances(self) -> list[str]:

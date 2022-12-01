@@ -1,4 +1,3 @@
-import copy
 import logging
 import sys
 from collections.abc import Mapping
@@ -9,12 +8,15 @@ from typing import (
 )
 
 from croniter import croniter
-from dateutil import parser
 from semver import VersionInfo
 
 from reconcile import queries
 from reconcile.ocm.utils import cluster_disabled_integrations
-from reconcile.utils.data_structures import get_or_init
+from reconcile.utils.cluster_version_data import (
+    VersionData,
+    WorkloadHistory,
+    get_version_data,
+)
 from reconcile.utils.ocm import (
     OCM,
     OCM_PRODUCT_OSD,
@@ -81,72 +83,42 @@ def fetch_desired_state(
     return sorted_desired_state
 
 
-def update_history(history, upgrade_policies):
-    """Update history with information from clusters
-    with upgrade policies.
+def update_history(version_data: VersionData, upgrade_policies: list[dict[str, Any]]):
+    """Update history with information from clusters with upgrade policies.
 
     Args:
-        history (dict): history in the following format:
-        {
-          "check_in": "2021-08-29 18:01:27.730441",
-          "versions": {
-            "version1": {
-                "workloads": {
-                    "workload1": {
-                        "soak_days": 21,
-                        "reporting": [
-                            "cluster1",
-                            "cluster2"
-                        ]
-                    },
-                        "workload2": {
-                        "soak_days": 6,
-                        "reporting": [
-                            "cluster3"
-                        ]
-                    }
-                }
-            }
-          }
-        }
+        history (VersionData): version data, including history of soakdays
         upgrade_policies (list): query results of clusters upgrade policies
     """
-    default_workload_history = {
-        "soak_days": 0.0,
-        "reporting": [],
-    }
-
     now = datetime.utcnow()
-    check_in = parser.parse(get_or_init(history, "check_in", str(now)))
-    versions = get_or_init(history, "versions", {})
+    check_in = version_data.check_in or now
 
     # we iterate over clusters upgrade policies and update the version history
     for item in upgrade_policies:
         current_version = item["current_version"]
-        version_history = get_or_init(versions, current_version, {})
-        version_workloads = get_or_init(version_history, "workloads", {})
         cluster = item["cluster"]
         workloads = item["workloads"]
         # we keep the version history per workload
         for w in workloads:
-            workload_history = get_or_init(
-                version_workloads, w, copy.deepcopy(default_workload_history)
+            workload_history = version_data.workload_history(
+                current_version, w, WorkloadHistory()
             )
 
-            reporting = workload_history["reporting"]
             # if the cluster is already reporting - accumulate it.
             # if not - add it to the reporting list (first report)
-            if cluster in reporting:
-                workload_history["soak_days"] += (
+            if cluster in workload_history.reporting:
+                workload_history.soak_days += (
                     now - check_in
                 ).total_seconds() / 86400  # seconds in day
             else:
-                workload_history["reporting"].append(cluster)
+                workload_history.reporting.append(cluster)
 
-    history["check_in"] = str(now)
+    version_data.check_in = now
 
 
-def get_version_history(dry_run, upgrade_policies, ocm_map):
+def get_version_data_map(
+    dry_run: bool, upgrade_policies: list[dict[str, Any]], ocm_map: OCMMap
+) -> dict[str, VersionData]:
     """Get a summary of versions history per OCM instance
 
     Args:
@@ -155,21 +127,40 @@ def get_version_history(dry_run, upgrade_policies, ocm_map):
         ocm_map (OCMMap): OCM clients per OCM instance
 
     Returns:
-        dict: version history per OCM instance
+        dict: version data per OCM instance
     """
     settings = queries.get_app_interface_settings()
     accounts = queries.get_state_aws_accounts()
     state = State(
         integration=QONTRACT_INTEGRATION, accounts=accounts, settings=settings
     )
-    results = {}
+    results: dict[str, VersionData] = {}
     # we keep a remote state per OCM instance
     for ocm_name in ocm_map.instances():
-        history = state.get(ocm_name, {})
-        update_history(history, upgrade_policies)
-        results[ocm_name] = history
+        version_data = get_version_data(state, ocm_name)
+        update_history(version_data, upgrade_policies)
+        results[ocm_name] = version_data
         if not dry_run:
-            state.add(ocm_name, history, force=True)
+            version_data.save(state, ocm_name)
+
+    # aggregate data from other ocm orgs
+    # this is done *after* saving the state: we do not store the other orgs data in our state.
+    for ocm_name in ocm_map.instances():
+        ocm = ocm_map[ocm_name]
+        for other_ocm in ocm.inheritVersionData:
+            other_ocm_name = other_ocm["name"]
+            if ocm_name == other_ocm_name:
+                raise ValueError(
+                    f"[{ocm_name}] OCM organization inherits version data from itself"
+                )
+            if ocm.name not in [
+                o["name"] for o in other_ocm.get("publishVersionData") or []
+            ]:
+                raise ValueError(
+                    f"[{ocm_name}] OCM organization inherits version data from {other_ocm_name}, but this data is not published to it: missing publishVersionData in {other_ocm_name}"
+                )
+            other_ocm_data = get_version_data(state, other_ocm_name)
+            results[ocm_name].aggregate(other_ocm_data, other_ocm_name)
 
     return results
 
@@ -205,7 +196,7 @@ def workload_sector_dependencies(sector: Sector, workload: str) -> set[Sector]:
 
 def version_conditions_met(
     version: str,
-    history: Mapping[Any, Any],
+    version_data_map: dict[str, VersionData],
     ocm_name: str,
     workloads: list[str],
     upgrade_conditions: dict[str, Any],
@@ -238,11 +229,10 @@ def version_conditions_met(
     # check soak days condition is met for this version
     soak_days = upgrade_conditions.get("soakDays", None)
     if soak_days is not None:
-        ocm_history = history[ocm_name]
-        version_history = ocm_history["versions"].get(version, {})
+        version_data = version_data_map[ocm_name]
         for w in workloads:
-            workload_history = version_history.get("workloads", {}).get(w, {})
-            if soak_days > workload_history.get("soak_days", 0.0):
+            workload_history = version_data.workload_history(version, w)
+            if soak_days > workload_history.soak_days:
                 return False
 
     return True
@@ -276,7 +266,9 @@ def get_version_prefix(version: str) -> str:
     return f"{semver.major}.{semver.minor}"
 
 
-def upgradeable_version(policy: Mapping, history: Mapping, ocm: OCM) -> Optional[str]:
+def upgradeable_version(
+    policy: Mapping, version_data_map: dict[str, VersionData], ocm: OCM
+) -> Optional[str]:
     """Get the highest next version we can upgrade to, fulfilling all conditions"""
     upgrades = ocm.get_available_upgrades(policy["current_version"], policy["channel"])
     for version in reversed(sort_versions(upgrades)):
@@ -284,7 +276,7 @@ def upgradeable_version(policy: Mapping, history: Mapping, ocm: OCM) -> Optional
             continue
         if version_conditions_met(
             version,
-            history,
+            version_data_map,
             ocm.name,
             policy["workloads"],
             policy["conditions"],
@@ -298,7 +290,12 @@ def cluster_mutexes(policy: dict) -> list[str]:
     return (policy.get("conditions") or {}).get("mutexes") or []
 
 
-def calculate_diff(current_state, desired_state, ocm_map, version_history):
+def calculate_diff(
+    current_state: list[dict[str, Any]],
+    desired_state: list[dict[str, Any]],
+    ocm_map: OCMMap,
+    version_data_map: dict[str, VersionData],
+) -> list[Any]:
     """Check available upgrades for each cluster in the desired state
     according to upgrade conditions
 
@@ -306,7 +303,7 @@ def calculate_diff(current_state, desired_state, ocm_map, version_history):
         current_state (list): current state of upgrade policies
         desired_state (list): desired state of upgrade policies
         ocm_map (OCMMap): OCM clients per OCM instance
-        version_history (dict): version history per OCM instance
+        version_data_map (dict): version data history per OCM instance
 
     Returns:
         list: upgrade policies to be applied
@@ -330,10 +327,10 @@ def calculate_diff(current_state, desired_state, ocm_map, version_history):
             # there can only be one upgrade policy per cluster
             if len(c) != 1:
                 raise ValueError(f"[{cluster}] expected only one upgrade policy")
-            [c] = c
-            version = c.get("version")  # may not exist in automatic upgrades
+            current = c[0]
+            version = current.get("version")  # may not exist in automatic upgrades
             if version and ocm.version_blocked(version):
-                next_run = c.get("next_run")
+                next_run = current.get("next_run")
                 if next_run and datetime.strptime(next_run, "%Y-%m-%dT%H:%M:%SZ") < now:
                     logging.warning(
                         f"[{cluster}] currently upgrading to blocked version '{version}'"
@@ -347,7 +344,7 @@ def calculate_diff(current_state, desired_state, ocm_map, version_history):
                     "action": "delete",
                     "cluster": cluster,
                     "version": version,
-                    "id": c["id"],
+                    "id": current["id"],
                 }
                 diffs.append(item)
             else:
@@ -383,7 +380,7 @@ def calculate_diff(current_state, desired_state, ocm_map, version_history):
             continue
 
         # choose version that meets the conditions and add it to the diffs
-        version = upgradeable_version(d, version_history, ocm)
+        version = upgradeable_version(d, version_data_map, ocm)
         if version:
             item = {
                 "action": "create",
@@ -472,6 +469,6 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
     )
     current_state = fetch_current_state(clusters, ocm_map)
     desired_state = fetch_desired_state(clusters, ocm_map)
-    version_history = get_version_history(dry_run, desired_state, ocm_map)
-    diffs = calculate_diff(current_state, desired_state, ocm_map, version_history)
+    version_data_map = get_version_data_map(dry_run, desired_state, ocm_map)
+    diffs = calculate_diff(current_state, desired_state, ocm_map, version_data_map)
     act(dry_run, diffs, ocm_map)

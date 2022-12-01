@@ -5,7 +5,6 @@ import os
 import re
 import sys
 from collections import defaultdict
-from contextlib import suppress
 from datetime import datetime
 from operator import itemgetter
 from typing import Optional
@@ -39,6 +38,7 @@ from reconcile.utils import (
     promtool,
 )
 from reconcile.utils.aws_api import AWSApi
+from reconcile.utils.cluster_version_data import VersionData
 from reconcile.utils.environ import environ
 from reconcile.utils.external_resources import (
     PROVIDER_AWS,
@@ -224,22 +224,22 @@ def version_history(ctx):
     clusters = [c for c in clusters if c.get("upgradePolicy") is not None]
     ocm_map = OCMMap(clusters=clusters, settings=settings)
 
-    history = ous.get_version_history(
+    version_data_map = ous.get_version_data_map(
         dry_run=True, upgrade_policies=[], ocm_map=ocm_map
     )
 
     results = []
-    for ocm_name, history_data in history.items():
-        for version, version_data in history_data["versions"].items():
+    for ocm_name, version_data in version_data_map.items():
+        for version, version_history in version_data.versions.items():
             if not version:
                 continue
-            for workload, workload_data in version_data["workloads"].items():
+            for workload, workload_data in version_history.workloads.items():
                 item = {
                     "ocm": ocm_name,
                     "version": parse_semver(version),
                     "workload": workload,
-                    "soak_days": round(workload_data["soak_days"], 2),
-                    "clusters": ", ".join(workload_data["reporting"]),
+                    "soak_days": round(workload_data.soak_days, 2),
+                    "clusters": ", ".join(workload_data.reporting),
                 }
                 results.append(item)
     columns = ["ocm", "version", "workload", "soak_days", "clusters"]
@@ -247,13 +247,17 @@ def version_history(ctx):
     print_output(ctx.obj["options"], results, columns)
 
 
-def soaking_days(history, upgrades, workload, only_soaking):
+def soaking_days(
+    version_data_map: dict[str, VersionData],
+    upgrades: list[str],
+    workload: str,
+    only_soaking: bool,
+) -> dict[str, float]:
     soaking = {}
     for version in upgrades:
-        for h in history.values():
-            with suppress(KeyError):
-                workload_data = h["versions"][version]["workloads"][workload]
-                soaking[version] = round(workload_data["soak_days"], 2)
+        for h in version_data_map.values():
+            workload_history = h.workload_history(version, workload)
+            soaking[version] = round(workload_history.soak_days, 2)
         if not only_soaking and version not in soaking:
             soaking[version] = 0
     return soaking
@@ -275,7 +279,7 @@ def get_upgrade_policies_data(
     current_state = ous.fetch_current_state(clusters, ocm_map)
     desired_state = ous.fetch_desired_state(clusters, ocm_map)
 
-    history = ous.get_version_history(
+    version_data_map = ous.get_version_data_map(
         dry_run=True, upgrade_policies=[], ocm_map=ocm_map
     )
 
@@ -339,12 +343,14 @@ def get_upgrade_policies_data(
         if current and current[0]["schedule_type"] == "manual":
             upgrade_policy = current[0]
 
-        upgradeable_version = ous.upgradeable_version(c, history, ocm_org)
+        upgradeable_version = ous.upgradeable_version(c, version_data_map, ocm_org)
 
         workload_soaking_upgrades = {}
         for w in c.get("workloads", []):
             if not workload or workload == w:
-                s = soaking_days(history, upgrades, w, show_only_soaking_upgrades)
+                s = soaking_days(
+                    version_data_map, upgrades, w, show_only_soaking_upgrades
+                )
                 workload_soaking_upgrades[w] = s
 
         if by_workload:
