@@ -35,44 +35,9 @@ query GlitchtipInstance {
     automationToken {
       ...VaultSecret
     }
-    organizations {
-      name
-      roles {
-        glitchtip_roles {
-          role
-        }
-      }
-    }
   }
 }
 """
-
-
-class GlitchtipRoleV1(BaseModel):
-    role: str = Field(..., alias="role")
-
-    class Config:
-        smart_union = True
-        extra = Extra.forbid
-
-
-class RoleV1(BaseModel):
-    glitchtip_roles: Optional[list[GlitchtipRoleV1]] = Field(
-        ..., alias="glitchtip_roles"
-    )
-
-    class Config:
-        smart_union = True
-        extra = Extra.forbid
-
-
-class GlitchtipOrganizationV1(BaseModel):
-    name: str = Field(..., alias="name")
-    roles: list[RoleV1] = Field(..., alias="roles")
-
-    class Config:
-        smart_union = True
-        extra = Extra.forbid
 
 
 class GlitchtipInstanceV1(BaseModel):
@@ -80,7 +45,6 @@ class GlitchtipInstanceV1(BaseModel):
     console_url: str = Field(..., alias="consoleUrl")
     automation_user_email: str = Field(..., alias="automationUserEmail")
     automation_token: VaultSecret = Field(..., alias="automationToken")
-    organizations: list[GlitchtipOrganizationV1] = Field(..., alias="organizations")
 
     class Config:
         smart_union = True

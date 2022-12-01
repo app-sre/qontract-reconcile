@@ -8,13 +8,5 @@ query GlitchtipInstance {
     automationToken {
       ...VaultSecret
     }
-    organizations {
-      name
-      roles {
-        glitchtip_roles {
-          role
-        }
-      }
-    }
   }
 }
