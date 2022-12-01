@@ -1568,7 +1568,8 @@ class OCMMap:  # pylint: disable=too-many-public-methods
             sector_name = cluster_info["upgradePolicy"]["conditions"].get("sector")
             if sector_name:
                 ocm = self.ocm_map.get(ocm_name)
-                if ocm:
+                # ensure our cluster actually runs in an OCM org we have access to
+                if ocm and cluster_name in ocm.clusters:
                     ocm.sectors[sector_name].cluster_infos.append(cluster_info)
 
     def init_ocm_client(
