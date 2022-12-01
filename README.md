@@ -396,6 +396,18 @@ query_data: JenkinsInstanceQueryData = jenkins.query(
 
 `faulthandler` is enabled for this project and SIGUSR1 is registered to dump the traceback. To do so, you can use `kill -USR1 pid` where pid is the ID of the qontract-reconcile process.
 
+## Code style guide
+
+Qontract-reconcile uses [PEP8](https://peps.python.org/pep-0008/) as the code style guide.
+The style is enforced via [PR checks](#ci-tooling) with the help of the following utilities:
+
+* [Black - The uncompromising code formatter](https://black.readthedocs.io/en/stable/)
+* [Isort - sort your imports](https://pycqa.github.io/isort/)
+* [Flake8: Your Tool For Style Guide Enforcement](https://flake8.pycqa.org/en/latest/)
+* [Pylint - a static code analyser](https://pylint.pycqa.org/en/latest/)
+
+Run `make format` before you commit your changes to keep the code compliant.
+
 ## Release
 
 Release version are calculated from git tags of the form X.Y.Z.
