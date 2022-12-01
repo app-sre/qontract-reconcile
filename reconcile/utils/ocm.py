@@ -703,6 +703,9 @@ class OCM:  # pylint: disable=too-many-public-methods
             else:
                 self.not_ready_clusters.add(cluster_name)
 
+    def is_ready(self, cluster):
+        return cluster in self.clusters
+
     def _get_ocm_impl(self, product: str):
         return OCM_PRODUCTS_IMPL[product]
 
@@ -1569,7 +1572,7 @@ class OCMMap:  # pylint: disable=too-many-public-methods
             if sector_name:
                 ocm = self.ocm_map.get(ocm_name)
                 # ensure our cluster actually runs in an OCM org we have access to
-                if ocm and cluster_name in ocm.clusters:
+                if ocm and ocm.is_ready(cluster_name):
                     ocm.sectors[sector_name].cluster_infos.append(cluster_info)
 
     def init_ocm_client(
