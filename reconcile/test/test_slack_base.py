@@ -1,7 +1,10 @@
 from typing import Optional
 
 import pytest
-from pydantic import BaseModel
+from pydantic import (
+    BaseModel,
+    Json,
+)
 
 from reconcile.slack_base import (
     get_slackapi,
@@ -160,7 +163,7 @@ class ClientGlobalConfig(BaseModel):
 
 class ClientMethodConfig(BaseModel):
     name: str
-    args: str
+    args: Json
 
 
 class ClientConfig(BaseModel):

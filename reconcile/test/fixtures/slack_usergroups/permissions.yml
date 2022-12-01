@@ -1,6 +1,7 @@
 permissions:
   - service: github-org-team
   - service: slack-usergroup
+    name: permission-1
     channels:
       - sd-sre-platform
       - sd-ims-backplane
@@ -12,52 +13,70 @@ permissions:
     roles:
       - users: []
     schedule: null
+    skip: null
     workspace:
       name: coreos
       token:
         path: app-sre/creds/slack-app-sre-groups
         field: bot_token
-        api_client:
-          global:
-            max_retries: 5
-            timeout: 30
-          methods:
-            - name: userslist
-              args: limit
-            - name:  conversationslist
-              args: limit
+        version: null
+        format: null
+      api_client:
+        global:
+          max_retries: 5
+          timeout: 30
+        methods:
+          - name: userslist
+            args: '{"limit": 123}'
       managedUsergroups:
         - app-sre-team
         - app-sre-ic
+        - backplane-team
   - service: slack-usergroup
+    name: permission-2
     channels:
       - sd-sre-platform
       - sre-operators
     description: SREP managed-cluster-config owners (managed via app-interface)
     handle: saas-osd-operators
     ownersFromRepos:
-      - null 
+      - someotherurl
     pagerduty: null
     roles:
-      - name: Rafael
-        org_username: razevedo
-        slack_username: null
-        pagerduty_username: null
-    schedule: null
+      - users:
+        - name: Rafael
+          org_username: org_username
+          slack_username: slack_username
+          pagerduty_username: pagerduty_username
+          github_username: github_username
+    schedule:
+      schedule:
+        - start: '2022-12-23 09:00'
+          end: '2022-12-23 11:00'
+          users:
+            - name: "Name"
+              org_username: org_username
+              slack_username: slack_username
+              pagerduty_username: pagerduty_username
+              github_username: github_username
+    skip: null
     workspace:
       name: coreos
       token:
         path: app-sre/creds/slack-app-sre-groups
         field: bot_token
-        api_client:
-          global:
-            max_retries: 5
-            timeout: 30
-          methods:
-            - name: userslist
-              args: limit
-            - name:  conversationslist
-              args: limit
+        version: null
+        format: null
+      api_client:
+        global:
+          max_retries: 5
+          timeout: 30
+        methods:
+          - name: userslist
+            args: '{"limit": 123}'
+          - name: conversationslist
+            args: '{"limit": 123}'
       managedUsergroups:
         - app-sre-team
         - app-sre-ic
+        - saas-osd-operators
