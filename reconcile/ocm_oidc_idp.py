@@ -1,11 +1,11 @@
 import logging
 import sys
-from collections.abc import Callable
-from typing import (
-    Any,
+from collections.abc import (
+    Callable,
     Iterable,
     Sequence,
 )
+from typing import Any
 
 from reconcile import queries
 from reconcile.gql_definitions.ocm_oidc_idp.clusters import (

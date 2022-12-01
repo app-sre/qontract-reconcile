@@ -1,8 +1,8 @@
-from typing import (
-    Any,
+from collections.abc import (
     Iterable,
     Sequence,
 )
+from typing import Any
 from unittest.mock import Mock
 
 import pytest
