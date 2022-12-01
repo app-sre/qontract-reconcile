@@ -1303,7 +1303,7 @@ def app_interface_review_queue(ctx):
         try:
             job = jjb.get_job_by_repo_url(url, job_type="gl-pr-check")
             trigger_phrases_regex = jjb.get_trigger_phrases_regex(job)
-        except Exception:
+        except ValueError:
             trigger_phrases_regex = None
 
         queue_data = []
