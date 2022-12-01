@@ -3954,7 +3954,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             log_type_identifier = TerrascriptClient.elasticsearch_log_group_identifier(
                 domain_identifier=identifier,
                 log_type=t,
-            ).replace("/", "-")
+            )
             log_group_values = {
                 "name": log_type_identifier,
                 "tags": values["tags"],
@@ -3964,7 +3964,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             if self._multiregion_account(account):
                 log_group_values["provider"] = f"aws.{region}"
             log_group_tf_resource = aws_cloudwatch_log_group(
-                log_type_identifier, **log_group_values
+                log_type_identifier.replace("/", "-"), **log_group_values
             )
             tf_resources.append(log_group_tf_resource)
             arn = f"${{{log_group_tf_resource.arn}}}"
