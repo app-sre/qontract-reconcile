@@ -1,15 +1,21 @@
 import logging
 import os
-
+from collections.abc import (
+    Iterable,
+    Mapping,
+)
 from dataclasses import dataclass
-from typing import Any, Optional
-from collections.abc import Iterable, Mapping
+from typing import (
+    Any,
+    Optional,
+)
 
-from reconcile.utils import gql
-from reconcile.utils import raw_github_api
-from reconcile.utils.secret_reader import SecretReader
 from reconcile import queries
-
+from reconcile.utils import (
+    gql,
+    raw_github_api,
+)
+from reconcile.utils.secret_reader import SecretReader
 
 QONTRACT_INTEGRATION = "github-repo-invites"
 

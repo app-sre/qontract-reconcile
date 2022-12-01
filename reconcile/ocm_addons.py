@@ -1,16 +1,13 @@
-import sys
 import logging
-
+import sys
+from collections.abc import Mapping
 from operator import itemgetter
 from typing import Any
-from collections.abc import Mapping
 
 from reconcile import queries
-
+from reconcile.ocm.utils import cluster_disabled_integrations
 from reconcile.status import ExitCodes
 from reconcile.utils.ocm import OCMMap
-from reconcile.ocm.utils import cluster_disabled_integrations
-
 
 QONTRACT_INTEGRATION = "ocm-addons"
 

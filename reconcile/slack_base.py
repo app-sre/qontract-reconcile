@@ -1,10 +1,16 @@
-from typing import Any, Optional
 from collections.abc import Mapping
+from typing import (
+    Any,
+    Optional,
+)
 
 from reconcile import queries
 from reconcile.utils.secret_reader import SecretReader
-from reconcile.utils.slack_api import SlackApi, SlackApiConfig
-from reconcile.utils.slack_api import SupportsClientConfig
+from reconcile.utils.slack_api import (
+    SlackApi,
+    SlackApiConfig,
+    SupportsClientConfig,
+)
 
 
 def slackapi_from_queries(

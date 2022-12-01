@@ -1,19 +1,25 @@
+import json
 import logging
 import sys
-import json
-from typing import Any, Optional
+from typing import (
+    Any,
+    Optional,
+)
 
-from reconcile import queries
-from reconcile.utils import aws_api
-from reconcile.utils import ocm
-from reconcile.utils.aws_api import AWSApi
-from reconcile.utils.ocm import OCM, OCMMap
 import reconcile.utils.terraform_client as terraform
 import reconcile.utils.terrascript_aws_client as terrascript
-
+from reconcile import queries
+from reconcile.utils import (
+    aws_api,
+    ocm,
+)
+from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.defer import defer
+from reconcile.utils.ocm import (
+    OCM,
+    OCMMap,
+)
 from reconcile.utils.semver_helper import make_semver
-
 
 QONTRACT_INTEGRATION = "terraform_vpc_peerings"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)

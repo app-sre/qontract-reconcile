@@ -1,16 +1,23 @@
 import copy
-from datetime import datetime, timedelta
+from datetime import (
+    datetime,
+    timedelta,
+)
 from unittest import TestCase
-from unittest.mock import create_autospec, call, patch
+from unittest.mock import (
+    call,
+    create_autospec,
+    patch,
+)
 
 import pytest
 
-import reconcile.slack_usergroups as integ
 import reconcile.slack_base as slackbase
+import reconcile.slack_usergroups as integ
+from reconcile import queries
 from reconcile.slack_usergroups import act
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.slack_api import SlackApi
-from reconcile import queries
 
 from .fixtures import Fixtures
 

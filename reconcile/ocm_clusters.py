@@ -1,20 +1,21 @@
-import sys
 import logging
+import sys
+from collections.abc import (
+    Iterable,
+    Mapping,
+)
 from typing import Any
-from collections.abc import Iterable, Mapping
-from reconcile.utils.semver_helper import parse_semver
-
-from reconcile import queries
-
-from reconcile import mr_client_gateway
 
 import reconcile.utils.mr.clusters_updates as cu
-
 import reconcile.utils.ocm as ocmmod
+from reconcile import (
+    mr_client_gateway,
+    queries,
+)
+from reconcile.ocm.types import OCMSpec
 from reconcile.ocm.utils import cluster_disabled_integrations
 from reconcile.status import ExitCodes
-
-from reconcile.ocm.types import OCMSpec
+from reconcile.utils.semver_helper import parse_semver
 
 QONTRACT_INTEGRATION = "ocm-clusters"
 

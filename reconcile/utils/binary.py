@@ -1,8 +1,7 @@
 import re
 import subprocess
-
-from functools import wraps
 from distutils.spawn import find_executable  # pylint: disable=deprecated-module
+from functools import wraps
 
 
 def binary(binaries=None):

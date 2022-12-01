@@ -4,18 +4,18 @@ import os
 import re
 import tempfile
 import time
-
 from collections import defaultdict
 
-from sretoolbox.container import Image
+from sretoolbox.container import (
+    Image,
+    Skopeo,
+)
 from sretoolbox.container.image import ImageComparisonError
-from sretoolbox.container import Skopeo
 from sretoolbox.container.skopeo import SkopeoCmdError
 
 from reconcile import queries
 from reconcile.utils import gql
 from reconcile.utils.secret_reader import SecretReader
-
 
 _LOG = logging.getLogger(__name__)
 

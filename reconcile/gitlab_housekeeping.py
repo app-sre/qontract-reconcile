@@ -1,18 +1,29 @@
 import logging
-
-from datetime import datetime, timedelta
-from operator import itemgetter
-from typing import Optional, Union
 from collections.abc import Iterable
+from datetime import (
+    datetime,
+    timedelta,
+)
+from operator import itemgetter
+from typing import (
+    Optional,
+    Union,
+)
 
 import gitlab
-
-from gitlab.v4.objects import ProjectMergeRequest, ProjectIssue
+from gitlab.v4.objects import (
+    ProjectIssue,
+    ProjectMergeRequest,
+)
 from sretoolbox.utils import retry
 
 from reconcile import queries
-
-from reconcile.utils.gitlab_api import GitLabApi, MRState, MRStatus
+from reconcile.change_owners.change_types import ChangeTypePriority
+from reconcile.utils.gitlab_api import (
+    GitLabApi,
+    MRState,
+    MRStatus,
+)
 from reconcile.utils.mr.labels import (
     APPROVED,
     AUTO_MERGE,
@@ -27,7 +38,6 @@ from reconcile.utils.mr.labels import (
     SELF_SERVICEABLE,
     prioritized_approval_label,
 )
-from reconcile.change_owners.change_types import ChangeTypePriority
 
 MERGE_LABELS_PRIORITY = [
     prioritized_approval_label(p.value) for p in ChangeTypePriority

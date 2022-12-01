@@ -1,11 +1,14 @@
-from subprocess import CalledProcessError
 import os
 import sys
-
+from subprocess import CalledProcessError
 from unittest import TestCase
 from unittest.mock import patch
-from reconcile import queries, typed_queries
+
 import reconcile.requests_sender as integ
+from reconcile import (
+    queries,
+    typed_queries,
+)
 
 
 class TestRunInteg(TestCase):

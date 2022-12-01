@@ -1,11 +1,13 @@
-import os
 import logging
-
-from typing import Optional
+import os
 from collections.abc import Iterable
-from reconcile import queries
+from typing import Optional
 
-from reconcile.gitlab_housekeeping import MERGE_LABELS_PRIORITY, HOLD_LABELS
+from reconcile import queries
+from reconcile.gitlab_housekeeping import (
+    HOLD_LABELS,
+    MERGE_LABELS_PRIORITY,
+)
 from reconcile.utils.gitlab_api import GitLabApi
 
 LABEL_COLOR = "#0000FF"  # Color blue in hex for labels

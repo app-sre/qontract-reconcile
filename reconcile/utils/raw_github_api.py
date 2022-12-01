@@ -1,6 +1,6 @@
 import os
-import requests
 
+import requests
 from sretoolbox.utils import retry
 
 

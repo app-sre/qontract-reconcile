@@ -1,5 +1,6 @@
 import pytest
 from requests.exceptions import ConnectTimeout
+
 from reconcile.utils.gitlab_api import GitLabApi
 
 

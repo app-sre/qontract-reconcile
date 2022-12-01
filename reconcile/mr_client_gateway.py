@@ -1,11 +1,11 @@
-from typing import Any
 from collections.abc import Mapping
-from reconcile import queries
-from reconcile.utils.secret_reader import SecretReader
+from typing import Any
 
-from reconcile.utils.sqs_gateway import SQSGateway
-from reconcile.utils.gitlab_api import GitLabApi
+from reconcile import queries
 from reconcile.utils import gql
+from reconcile.utils.gitlab_api import GitLabApi
+from reconcile.utils.secret_reader import SecretReader
+from reconcile.utils.sqs_gateway import SQSGateway
 
 
 class MRClientGatewayError(Exception):

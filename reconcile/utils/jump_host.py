@@ -1,16 +1,15 @@
-import tempfile
-import shutil
 import os
-import threading
 import random
+import shutil
+import tempfile
+import threading
 
 from sshtunnel import SSHTunnelForwarder
 
 from reconcile.utils import gql
+from reconcile.utils.exceptions import FetchResourceError
 from reconcile.utils.helpers import toggle_logger
 from reconcile.utils.secret_reader import SecretReader
-
-from reconcile.utils.exceptions import FetchResourceError
 
 # https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml
 DYNAMIC_PORT_MIN = 49152

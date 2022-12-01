@@ -1,16 +1,13 @@
 import logging
-
 from datetime import datetime
 from typing import Optional
 
 from reconcile import queries
-
 from reconcile.slack_base import slackapi_from_queries
+from reconcile.utils.defer import defer
 from reconcile.utils.oc import OC_Map
 from reconcile.utils.slack_api import SlackApi
 from reconcile.utils.state import State
-from reconcile.utils.defer import defer
-
 
 QONTRACT_INTEGRATION = "openshift-upgrade-watcher"
 

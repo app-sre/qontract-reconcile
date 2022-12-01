@@ -6,8 +6,8 @@ from reconcile.utils.password_validator import (
     NOT_ENOUGH_SPECIAL_CHARS_MSG,
     NOT_ENOUGH_UPPER_CASE_CHARS_MSG,
     PasswordPolicy,
-    PasswordValidator,
     PasswordValidationError,
+    PasswordValidator,
 )
 
 

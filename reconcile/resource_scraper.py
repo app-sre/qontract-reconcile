@@ -1,13 +1,14 @@
-import sys
 import logging
+import sys
 from typing import cast
 
 from reconcile import queries
-
 from reconcile.status import ExitCodes
 from reconcile.utils.oc import OC_Map
-from reconcile.utils.vault import _VaultClient, VaultClient
-
+from reconcile.utils.vault import (
+    VaultClient,
+    _VaultClient,
+)
 
 QONTRACT_INTEGRATION = "resource-scraper"
 

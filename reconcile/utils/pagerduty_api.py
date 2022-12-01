@@ -1,17 +1,23 @@
 import logging
-from collections.abc import Iterable
-from collections.abc import Callable
+from collections.abc import (
+    Callable,
+    Iterable,
+)
 from datetime import datetime as dt
-from typing import Optional
-from typing import Protocol
+from typing import (
+    Optional,
+    Protocol,
+)
 
 import pypd
 import requests
 from pydantic import BaseModel
 from sretoolbox.utils import retry
 
-from reconcile.utils.secret_reader import SecretReader
-from reconcile.utils.secret_reader import SupportsSecret
+from reconcile.utils.secret_reader import (
+    SecretReader,
+    SupportsSecret,
+)
 
 
 class PagerDutyTargetException(Exception):

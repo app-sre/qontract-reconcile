@@ -1,8 +1,14 @@
-from abc import ABC, abstractmethod
-from typing import Union
+from abc import (
+    ABC,
+    abstractmethod,
+)
 from collections.abc import Iterable
+from typing import Union
 
-from terrascript import Resource, Output
+from terrascript import (
+    Output,
+    Resource,
+)
 
 from reconcile.utils.external_resource_spec import ExternalResourceSpec
 

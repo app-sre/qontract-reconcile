@@ -1,6 +1,6 @@
 import base64
-from dataclasses import dataclass
 import enum
+import imghdr
 import json
 import logging
 import os
@@ -8,155 +8,169 @@ import random
 import re
 import string
 import tempfile
-import imghdr
-
+from collections.abc import (
+    Iterable,
+    Mapping,
+    MutableMapping,
+)
+from dataclasses import dataclass
+from ipaddress import (
+    ip_address,
+    ip_network,
+)
 from threading import Lock
-
-from typing import Any, Optional, cast
-from collections.abc import Iterable, Mapping, MutableMapping
-from ipaddress import ip_network, ip_address
+from typing import (
+    Any,
+    Optional,
+    cast,
+)
 
 import anymarkup
 import requests
-from github import Github
-
-
 from botocore.errorfactory import ClientError
+from github import Github
+from sretoolbox.utils import threaded
 
+# temporary to create aws_ecrpublic_repository
 from terrascript import (
-    Terrascript,
-    provider,
-    Provider,
-    Terraform,
     Backend,
+    Data,
     Output,
+    Provider,
+    Resource,
+    Terraform,
+    Terrascript,
     data,
+    provider,
 )
 from terrascript.resource import (
-    aws_api_gateway_domain_name,
+    aws_acm_certificate,
+    aws_api_gateway_account,
+    aws_api_gateway_authorizer,
     aws_api_gateway_base_path_mapping,
+    aws_api_gateway_deployment,
+    aws_api_gateway_domain_name,
+    aws_api_gateway_integration,
+    aws_api_gateway_integration_response,
+    aws_api_gateway_method,
+    aws_api_gateway_method_response,
+    aws_api_gateway_method_settings,
+    aws_api_gateway_resource,
+    aws_api_gateway_rest_api,
+    aws_api_gateway_stage,
+    aws_api_gateway_vpc_link,
+    aws_autoscaling_group,
+    aws_cloudfront_distribution,
+    aws_cloudfront_origin_access_identity,
+    aws_cloudfront_public_key,
+    aws_cloudwatch_log_group,
+    aws_cloudwatch_log_resource_policy,
+    aws_cloudwatch_log_subscription_filter,
+    aws_cognito_resource_server,
+    aws_cognito_user_pool,
+    aws_cognito_user_pool_client,
+    aws_cognito_user_pool_domain,
+    aws_db_event_subscription,
     aws_db_instance,
     aws_db_parameter_group,
-    aws_db_event_subscription,
-    aws_s3_bucket,
-    aws_iam_user,
-    aws_s3_bucket_notification,
+    aws_dynamodb_table,
+    aws_ec2_transit_gateway_route,
+    aws_ec2_transit_gateway_vpc_attachment,
+    aws_ec2_transit_gateway_vpc_attachment_accepter,
+    aws_ecr_repository,
+    aws_elasticache_parameter_group,
+    aws_elasticache_replication_group,
+    aws_elasticsearch_domain,
     aws_iam_access_key,
-    aws_iam_user_policy,
     aws_iam_group,
     aws_iam_group_policy_attachment,
-    aws_iam_user_group_membership,
-    aws_iam_user_login_profile,
+    aws_iam_instance_profile,
     aws_iam_policy,
     aws_iam_role,
     aws_iam_role_policy,
     aws_iam_role_policy_attachment,
-    aws_elasticache_replication_group,
-    aws_elasticache_parameter_group,
-    aws_iam_user_policy_attachment,
-    aws_sqs_queue,
-    aws_sns_topic,
-    aws_sns_topic_subscription,
-    aws_dynamodb_table,
-    aws_ecr_repository,
-    aws_s3_bucket_policy,
-    aws_cloudfront_origin_access_identity,
-    aws_cloudfront_distribution,
-    aws_vpc_peering_connection,
-    aws_vpc_peering_connection_accepter,
-    aws_ram_resource_share,
-    aws_ram_principal_association,
-    aws_ram_resource_association,
-    aws_ram_resource_share_accepter,
-    aws_ec2_transit_gateway_vpc_attachment,
-    aws_ec2_transit_gateway_vpc_attachment_accepter,
-    aws_ec2_transit_gateway_route,
-    aws_security_group,
-    aws_security_group_rule,
-    aws_route,
-    aws_cloudwatch_log_group,
-    aws_cloudwatch_log_resource_policy,
-    aws_kms_key,
-    aws_kms_alias,
-    aws_elasticsearch_domain,
     aws_iam_service_linked_role,
+    aws_iam_user,
+    aws_iam_user_group_membership,
+    aws_iam_user_login_profile,
+    aws_iam_user_policy,
+    aws_iam_user_policy_attachment,
+    aws_kinesis_stream,
+    aws_kms_alias,
+    aws_kms_key,
+    aws_lambda_event_source_mapping,
     aws_lambda_function,
     aws_lambda_permission,
-    aws_lambda_event_source_mapping,
-    aws_cloudwatch_log_subscription_filter,
-    aws_acm_certificate,
-    aws_kinesis_stream,
-    aws_route53_zone,
-    aws_route53_record,
-    aws_route53_health_check,
-    aws_cloudfront_public_key,
+    aws_launch_template,
     aws_lb,
-    aws_lb_target_group,
-    aws_lb_target_group_attachment,
     aws_lb_listener,
     aws_lb_listener_rule,
+    aws_lb_target_group,
+    aws_lb_target_group_attachment,
+    aws_ram_principal_association,
+    aws_ram_resource_association,
+    aws_ram_resource_share,
+    aws_ram_resource_share_accepter,
+    aws_route,
+    aws_route53_health_check,
+    aws_route53_record,
+    aws_route53_zone,
+    aws_s3_bucket,
+    aws_s3_bucket_notification,
+    aws_s3_bucket_policy,
     aws_secretsmanager_secret,
     aws_secretsmanager_secret_version,
-    aws_iam_instance_profile,
-    aws_launch_template,
-    aws_autoscaling_group,
-    aws_cognito_user_pool,
-    aws_cognito_user_pool_client,
-    aws_cognito_user_pool_domain,
-    aws_cognito_resource_server,
-    aws_api_gateway_rest_api,
-    aws_api_gateway_resource,
-    aws_api_gateway_method,
-    aws_api_gateway_authorizer,
-    aws_api_gateway_deployment,
-    aws_api_gateway_stage,
-    aws_api_gateway_integration,
-    aws_api_gateway_vpc_link,
-    aws_api_gateway_method_response,
-    aws_api_gateway_integration_response,
+    aws_security_group,
+    aws_security_group_rule,
+    aws_sns_topic,
+    aws_sns_topic_subscription,
+    aws_sqs_queue,
+    aws_vpc_endpoint,
+    aws_vpc_endpoint_subnet_association,
+    aws_vpc_peering_connection,
+    aws_vpc_peering_connection_accepter,
     aws_wafv2_web_acl,
     aws_wafv2_web_acl_association,
     aws_wafv2_web_acl_logging_configuration,
-    aws_vpc_endpoint,
-    aws_vpc_endpoint_subnet_association,
-    aws_api_gateway_account,
-    aws_api_gateway_method_settings,
     random_id,
 )
 
-# temporary to create aws_ecrpublic_repository
-from terrascript import Resource, Data
-from sretoolbox.utils import threaded
-
+import reconcile.openshift_resources_base as orb
+import reconcile.utils.aws_helper as awsh
 from reconcile import queries
-
-from reconcile.utils import gql
-from reconcile.utils.aws_api import AWSApi, AmiTag
-from reconcile.utils.external_resource_spec import (
-    ExternalResourceSpec,
-    ExternalResourceSpecInventory,
-)
-from reconcile.utils.external_resources import PROVIDER_AWS, get_external_resource_specs
-from reconcile.utils.gitlab_api import GitLabApi
-from reconcile.utils.jenkins_api import JenkinsApi
-from reconcile.utils.ocm import OCMMap
-from reconcile.utils.password_validator import PasswordPolicy, PasswordValidator
-from reconcile.utils.secret_reader import SecretReader
-from reconcile.utils.git import is_file_in_git_repo
 from reconcile.github_org import get_default_config
+from reconcile.utils import gql
+from reconcile.utils.aws_api import (
+    AmiTag,
+    AWSApi,
+)
+from reconcile.utils.elasticsearch_exceptions import (
+    ElasticSearchResourceMissingSubnetIdError,
+    ElasticSearchResourceNameInvalidError,
+    ElasticSearchResourceZoneAwareSubnetInvalidError,
+)
 from reconcile.utils.exceptions import (
     FetchResourceError,
     PrintToFileInGitRepositoryError,
 )
-from reconcile.utils.elasticsearch_exceptions import (
-    ElasticSearchResourceNameInvalidError,
-    ElasticSearchResourceMissingSubnetIdError,
-    ElasticSearchResourceZoneAwareSubnetInvalidError,
+from reconcile.utils.external_resource_spec import (
+    ExternalResourceSpec,
+    ExternalResourceSpecInventory,
 )
-import reconcile.openshift_resources_base as orb
-import reconcile.utils.aws_helper as awsh
+from reconcile.utils.external_resources import (
+    PROVIDER_AWS,
+    get_external_resource_specs,
+)
+from reconcile.utils.git import is_file_in_git_repo
+from reconcile.utils.gitlab_api import GitLabApi
+from reconcile.utils.jenkins_api import JenkinsApi
+from reconcile.utils.ocm import OCMMap
+from reconcile.utils.password_validator import (
+    PasswordPolicy,
+    PasswordValidator,
+)
+from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.terraform import safe_resource_id
-
 
 GH_BASE_URL = os.environ.get("GITHUB_API", "https://api.github.com")
 LOGTOES_RELEASE = "repos/app-sre/logs-to-elasticsearch-lambda/releases/latest"

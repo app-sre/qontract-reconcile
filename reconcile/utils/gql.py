@@ -1,24 +1,28 @@
 import logging
 import textwrap
-from typing import Any, Optional
-
+from datetime import (
+    datetime,
+    timezone,
+)
+from typing import (
+    Any,
+    Optional,
+)
 from urllib.parse import urlparse
 
-from datetime import datetime, timezone
-
 import requests
-
+from gql import (
+    Client,
+    gql,
+)
+from gql.transport.exceptions import TransportQueryError
+from gql.transport.requests import RequestsHTTPTransport
+from gql.transport.requests import log as requests_logger
+from sentry_sdk import capture_exception
 from sretoolbox.utils import retry
 
-from sentry_sdk import capture_exception
-
-from reconcile.utils.config import get_config
 from reconcile.status import RunningState
-
-from gql import gql, Client
-from gql.transport.requests import RequestsHTTPTransport
-from gql.transport.exceptions import TransportQueryError
-from gql.transport.requests import log as requests_logger
+from reconcile.utils.config import get_config
 
 _gqlapi = None
 

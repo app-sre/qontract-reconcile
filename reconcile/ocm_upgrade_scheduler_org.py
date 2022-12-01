@@ -1,9 +1,6 @@
-from reconcile import queries
-
 import reconcile.ocm_upgrade_scheduler as ous
-
+from reconcile import queries
 from reconcile.utils.ocm import OCMMap
-
 
 QONTRACT_INTEGRATION = "ocm-upgrade-scheduler-org"
 

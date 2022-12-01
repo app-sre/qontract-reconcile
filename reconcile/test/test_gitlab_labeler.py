@@ -1,10 +1,16 @@
-from unittest.mock import patch, create_autospec
+from typing import (
+    Any,
+    Optional,
+)
+from unittest.mock import (
+    create_autospec,
+    patch,
+)
 
-from typing import Any, Optional
-
-from reconcile.queries import APPS_QUERY
 import reconcile.gitlab_labeler as gl
+from reconcile.queries import APPS_QUERY
 from reconcile.utils import gql
+
 from .fixtures import Fixtures
 
 

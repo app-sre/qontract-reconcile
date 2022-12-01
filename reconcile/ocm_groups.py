@@ -1,16 +1,18 @@
-import logging
 import itertools
+import logging
 import sys
-from typing import Any
 from collections.abc import Mapping
+from typing import Any
 
 from sretoolbox.utils import threaded
 
-from reconcile.status import ExitCodes
-from reconcile import queries
-from reconcile import openshift_groups
-from reconcile.utils.ocm import OCMMap
+from reconcile import (
+    openshift_groups,
+    queries,
+)
 from reconcile.ocm.utils import cluster_disabled_integrations
+from reconcile.status import ExitCodes
+from reconcile.utils.ocm import OCMMap
 
 QONTRACT_INTEGRATION = "ocm-groups"
 

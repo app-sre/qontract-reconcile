@@ -1,7 +1,5 @@
 import logging
-
 from contextlib import contextmanager
-
 
 DEFAULT_TOGGLE_LEVEL = logging.ERROR
 

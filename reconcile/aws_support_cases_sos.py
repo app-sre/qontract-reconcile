@@ -1,12 +1,12 @@
 import itertools
 import logging
 
-from reconcile import queries
-
-from reconcile import mr_client_gateway
-from reconcile.utils.mr import CreateDeleteAwsAccessKey
+from reconcile import (
+    mr_client_gateway,
+    queries,
+)
 from reconcile.utils.aws_api import AWSApi
-
+from reconcile.utils.mr import CreateDeleteAwsAccessKey
 
 QONTRACT_INTEGRATION = "aws-support-cases-sos"
 

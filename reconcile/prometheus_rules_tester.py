@@ -3,19 +3,27 @@ import logging
 import re
 import sys
 import traceback
-import yaml
-from typing import Any, Optional
-from collections.abc import Iterable, Mapping, MutableMapping
+from collections.abc import (
+    Iterable,
+    Mapping,
+    MutableMapping,
+)
+from typing import (
+    Any,
+    Optional,
+)
 
+import yaml
 from sretoolbox.utils import threaded
 
-from reconcile import queries
-from reconcile.utils import gql
-from reconcile.utils import promtool
 import reconcile.openshift_resources_base as orb
-
-from reconcile.utils.semver_helper import make_semver
+from reconcile import queries
 from reconcile.status import ExitCodes
+from reconcile.utils import (
+    gql,
+    promtool,
+)
+from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.structs import CommandExecutionResult
 
 # This comes from prometheus-operator. It is the largest configmap that they will

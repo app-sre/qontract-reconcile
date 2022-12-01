@@ -1,22 +1,21 @@
 import logging
 import sys
 
-
 import reconcile.jenkins_plugins as jenkins_base
 import reconcile.openshift_base as ob
-from reconcile import queries
-
-from reconcile import mr_client_gateway
+from reconcile import (
+    mr_client_gateway,
+    queries,
+)
+from reconcile.openshift_tekton_resources import build_one_per_saas_file_tkn_object_name
 from reconcile.slack_base import slackapi_from_slack_workspace
 from reconcile.status import ExitCodes
-from reconcile.utils.secret_reader import SecretReader
-from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.defer import defer
 from reconcile.utils.gitlab_api import GitLabApi
-from reconcile.utils.saasherder import SaasHerder
 from reconcile.utils.openshift_resource import ResourceInventory
-from reconcile.openshift_tekton_resources import build_one_per_saas_file_tkn_object_name
-
+from reconcile.utils.saasherder import SaasHerder
+from reconcile.utils.secret_reader import SecretReader
+from reconcile.utils.semver_helper import make_semver
 
 QONTRACT_INTEGRATION = "openshift-saas-deploy"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)

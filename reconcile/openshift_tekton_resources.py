@@ -1,19 +1,23 @@
-import sys
-import logging
 import json
-from typing import Any, Optional, Union
+import logging
+import sys
+from typing import (
+    Any,
+    Optional,
+    Union,
+)
 
-import yaml
 import jinja2
+import yaml
 
-from reconcile import queries
 from reconcile import openshift_base as ob
+from reconcile import queries
 from reconcile.status import ExitCodes
 from reconcile.utils import gql
 from reconcile.utils.defer import defer
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
-from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.saasherder import Providers
+from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.sharding import is_in_shard
 
 LOG = logging.getLogger(__name__)

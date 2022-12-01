@@ -1,9 +1,9 @@
 import os
-import requests
-import pkg_resources
-import pytest
 
 import packaging.version as pep440
+import pkg_resources
+import pytest
+import requests
 
 
 @pytest.mark.skipif(

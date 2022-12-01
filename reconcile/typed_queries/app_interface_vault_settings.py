@@ -1,10 +1,10 @@
 from typing import Optional
 
-from reconcile.utils import gql
 from reconcile.gql_definitions.common.app_interface_vault_settings import (
-    query,
     AppInterfaceSettingsV1,
+    query,
 )
+from reconcile.utils import gql
 
 
 def get_app_interface_vault_settings() -> Optional[AppInterfaceSettingsV1]:

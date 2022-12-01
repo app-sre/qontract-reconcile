@@ -6,15 +6,20 @@ from github import Github
 from github.GithubObject import NotSet  # type: ignore
 from sretoolbox.utils import retry
 
-from reconcile.utils import gql
-from reconcile.utils import expiration
-from reconcile.utils.secret_reader import SecretReader
-from reconcile import openshift_users
-from reconcile import queries
-
-from reconcile.utils.aggregated_list import AggregatedList, AggregatedDiffRunner
+from reconcile import (
+    openshift_users,
+    queries,
+)
+from reconcile.utils import (
+    expiration,
+    gql,
+)
+from reconcile.utils.aggregated_list import (
+    AggregatedDiffRunner,
+    AggregatedList,
+)
 from reconcile.utils.raw_github_api import RawGithubApi
-
+from reconcile.utils.secret_reader import SecretReader
 
 GH_BASE_URL = os.environ.get("GITHUB_API", "https://api.github.com")
 

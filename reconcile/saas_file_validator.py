@@ -1,14 +1,13 @@
-import sys
 import logging
+import sys
 
 from reconcile import queries
+from reconcile.jenkins_job_builder import init_jjb
 from reconcile.status import ExitCodes
 from reconcile.utils.jjb_client import JJB
-from reconcile.utils.secret_reader import SecretReader
-
-from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.saasherder import SaasHerder
-from reconcile.jenkins_job_builder import init_jjb
+from reconcile.utils.secret_reader import SecretReader
+from reconcile.utils.semver_helper import make_semver
 
 QONTRACT_INTEGRATION = "saas-file-validator"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)

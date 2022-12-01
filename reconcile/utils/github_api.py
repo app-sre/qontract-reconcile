@@ -1,12 +1,11 @@
 import os
 from pathlib import Path
 from urllib.parse import urlparse
-from sretoolbox.utils import retry
 
 import github
+from sretoolbox.utils import retry
 
 from reconcile.utils.secret_reader import SecretReader
-
 
 GH_BASE_URL = os.environ.get("GITHUB_API", "https://api.github.com")
 

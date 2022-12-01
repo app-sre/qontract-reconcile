@@ -1,4 +1,7 @@
-from reconcile.gql_definitions.common.smtp_client_settings import SmtpSettingsV1, query
+from reconcile.gql_definitions.common.smtp_client_settings import (
+    SmtpSettingsV1,
+    query,
+)
 from reconcile.utils import gql
 from reconcile.utils.exceptions import (
     AppInterfaceSettingsError,

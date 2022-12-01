@@ -2,17 +2,15 @@ import logging
 import os
 import sys
 
-
 from github import Github
-from reconcile import queries
 
+from reconcile import queries
+from reconcile.github_org import get_default_config
 from reconcile.github_repo_invites import run as get_invitations
 from reconcile.jenkins_job_builder import init_jjb
-from reconcile.github_org import get_default_config
 from reconcile.utils.jjb_client import JJB
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.semver_helper import make_semver
-
 
 QONTRACT_INTEGRATION = "github-repo-permissions-validator"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)

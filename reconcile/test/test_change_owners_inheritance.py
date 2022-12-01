@@ -1,22 +1,21 @@
-from typing import Optional
 from collections.abc import Sequence
+from typing import Optional
 
 import pytest
 
+from reconcile.change_owners.change_types import (
+    BundleFileType,
+    ChangeTypeIncompatibleInheritanceError,
+    ChangeTypeInheritanceCycleError,
+    ChangeTypePriority,
+    init_change_type_processors,
+)
 from reconcile.gql_definitions.change_owners.queries.change_types import (
     ChangeTypeChangeDetectorContextSelectorV1,
     ChangeTypeChangeDetectorJsonPathProviderV1,
     ChangeTypeChangeDetectorV1,
     ChangeTypeV1,
     ChangeTypeV1_ChangeTypeV1,
-)
-
-from reconcile.change_owners.change_types import (
-    BundleFileType,
-    ChangeTypePriority,
-    init_change_type_processors,
-    ChangeTypeInheritanceCycleError,
-    ChangeTypeIncompatibleInheritanceError,
 )
 
 

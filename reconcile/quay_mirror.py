@@ -4,25 +4,33 @@ import re
 import sys
 import tempfile
 import time
-
-from typing import Any, Optional
-from collections import defaultdict, namedtuple
+from collections import (
+    defaultdict,
+    namedtuple,
+)
 from collections.abc import Iterable
+from typing import (
+    Any,
+    Optional,
+)
 
 from requests import Response
-
-from sretoolbox.container.image import ImageComparisonError, ImageContainsError
+from sretoolbox.container.image import (
+    ImageComparisonError,
+    ImageContainsError,
+)
 from sretoolbox.container.skopeo import SkopeoCmdError
 
-from reconcile.utils import metrics
 from reconcile import queries
 from reconcile.status import ExitCodes
-from reconcile.utils import gql, sharding
-from reconcile.utils.secret_reader import SecretReader
-from reconcile.utils.instrumented_wrappers import (
-    InstrumentedImage as Image,
-    InstrumentedSkopeo as Skopeo,
+from reconcile.utils import (
+    gql,
+    metrics,
+    sharding,
 )
+from reconcile.utils.instrumented_wrappers import InstrumentedImage as Image
+from reconcile.utils.instrumented_wrappers import InstrumentedSkopeo as Skopeo
+from reconcile.utils.secret_reader import SecretReader
 
 _LOG = logging.getLogger(__name__)
 

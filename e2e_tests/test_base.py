@@ -1,10 +1,8 @@
 import datetime
-
 from textwrap import indent
 
-from reconcile.utils import gql
 from reconcile import queries
-
+from reconcile.utils import gql
 from reconcile.utils.oc import OC_Map
 
 CLUSTERS_QUERY = """

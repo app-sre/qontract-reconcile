@@ -1,7 +1,7 @@
 import pytest
-from reconcile.utils.aws_api import AmiTag
 
 import reconcile.utils.terrascript_aws_client as tsclient
+from reconcile.utils.aws_api import AmiTag
 from reconcile.utils.external_resource_spec import (
     ExternalResourceSpec,
     ExternalResourceUniqueKey,

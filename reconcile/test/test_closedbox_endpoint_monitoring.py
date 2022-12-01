@@ -1,23 +1,24 @@
 from unittest.mock import ANY
+
 import pytest
 
-from reconcile.closedbox_endpoint_monitoring_base import (
-    queries,
-    get_endpoints,
-    parse_prober_url,
-    fill_desired_state,
+from reconcile.blackbox_exporter_endpoint_monitoring import (
+    PROVIDER as BLACKBOX_EXPORTER_PROVIDER,
 )
 from reconcile.blackbox_exporter_endpoint_monitoring import (
     build_probe as blackbox_exporter_probe_builder,
-    PROVIDER as BLACKBOX_EXPORTER_PROVIDER,
 )
-from reconcile.signalfx_endpoint_monitoring import (
-    build_probe as signalfx_probe_builder,
-    PROVIDER as SIGNALFX_PROVIDER,
+from reconcile.closedbox_endpoint_monitoring_base import (
+    fill_desired_state,
+    get_endpoints,
+    parse_prober_url,
+    queries,
 )
+from reconcile.signalfx_endpoint_monitoring import PROVIDER as SIGNALFX_PROVIDER
+from reconcile.signalfx_endpoint_monitoring import build_probe as signalfx_probe_builder
 from reconcile.utils.openshift_resource import ResourceInventory
-from .fixtures import Fixtures
 
+from .fixtures import Fixtures
 
 fxt = Fixtures("closedbox_exporter_endpoint_monitoring")
 

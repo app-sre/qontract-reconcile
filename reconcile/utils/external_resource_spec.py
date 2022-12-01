@@ -1,18 +1,25 @@
-from abc import abstractmethod
-from dataclasses import field
-from pydantic.dataclasses import dataclass
 import json
-from typing import Any, Optional, cast
-from collections.abc import Mapping, MutableMapping
-
-import yaml
-from reconcile.utils.openshift_resource import (
-    OpenshiftResource,
-    build_secret,
-    SECRET_MAX_KEY_LENGTH,
+from abc import abstractmethod
+from collections.abc import (
+    Mapping,
+    MutableMapping,
+)
+from dataclasses import field
+from typing import (
+    Any,
+    Optional,
+    cast,
 )
 
+import yaml
+from pydantic.dataclasses import dataclass
+
 from reconcile import openshift_resources_base
+from reconcile.utils.openshift_resource import (
+    SECRET_MAX_KEY_LENGTH,
+    OpenshiftResource,
+    build_secret,
+)
 
 
 class OutputFormatProcessor:

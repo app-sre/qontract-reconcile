@@ -1,6 +1,8 @@
 from unittest import TestCase
 from unittest.mock import patch
+
 from requests.exceptions import ConnectTimeout
+
 from reconcile.utils.github_api import GithubApi
 
 

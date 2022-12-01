@@ -1,5 +1,5 @@
-from reconcile.utils import amtool
 from reconcile.test.fixtures import Fixtures
+from reconcile.utils import amtool
 
 
 def test_check_good_config():

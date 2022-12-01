@@ -1,5 +1,10 @@
-from datetime import datetime, timedelta
+from datetime import (
+    datetime,
+    timedelta,
+)
+
 import pytest
+
 from reconcile import openshift_upgrade_watcher as ouw
 
 

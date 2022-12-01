@@ -1,10 +1,10 @@
 from typing import Optional
 
-from reconcile.utils import gql
 from reconcile.gql_definitions.common.clusters_minimal import (
-    query,
     ClusterV1,
+    query,
 )
+from reconcile.utils import gql
 
 
 def get_clusters_minimal(name: Optional[str]) -> list[ClusterV1]:

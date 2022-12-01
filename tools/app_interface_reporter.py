@@ -1,36 +1,42 @@
 import logging
 import os
 import textwrap
-
-from datetime import datetime, timezone
+from datetime import (
+    datetime,
+    timezone,
+)
 
 import click
 import requests
 import yaml
-
-from sretoolbox.utils.threaded import run
-from prometheus_client.parser import text_string_to_metric_families
 from dateutil.relativedelta import relativedelta
+from prometheus_client.parser import text_string_to_metric_families
+from sretoolbox.utils.threaded import run
 
-from reconcile.utils import gql
-from reconcile.utils import config
-from reconcile.cli import threaded
-from reconcile.utils.jjb_client import JJB
-from reconcile.utils.secret_reader import SecretReader
-from reconcile import queries
 import reconcile.jenkins_plugins as jenkins_base
-
-from reconcile.utils.mr import CreateAppInterfaceReporter
-from reconcile import mr_client_gateway
-from reconcile.jenkins_job_builder import init_jjb
-from reconcile.jenkins_job_builder import get_openshift_saas_deploy_job_name
+from reconcile import (
+    mr_client_gateway,
+    queries,
+)
 from reconcile.cli import (
     config_file,
-    log_level,
     dry_run,
-    init_log_level,
     gitlab_project_id,
+    init_log_level,
+    log_level,
+    threaded,
 )
+from reconcile.jenkins_job_builder import (
+    get_openshift_saas_deploy_job_name,
+    init_jjb,
+)
+from reconcile.utils import (
+    config,
+    gql,
+)
+from reconcile.utils.jjb_client import JJB
+from reconcile.utils.mr import CreateAppInterfaceReporter
+from reconcile.utils.secret_reader import SecretReader
 
 CONTENT_FORMAT_VERSION = "1.0.0"
 DASHDOTDB_SECRET = os.environ.get(

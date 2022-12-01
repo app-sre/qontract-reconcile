@@ -1,27 +1,29 @@
 import logging
-
 from datetime import datetime
-from typing import Any, Optional
+from typing import (
+    Any,
+    Optional,
+)
 from urllib.parse import urlparse
+
+from github.GithubException import UnknownObjectException
 from pydantic import BaseModel
 from sretoolbox.utils import retry
-from github.GithubException import UnknownObjectException
 
 import reconcile.utils.pagerduty_api
+from reconcile import queries
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.slack_base import slackapi_from_permissions
-from reconcile.utils.pagerduty_api import PagerDutyMap
 from reconcile.utils.github_api import GithubApi
 from reconcile.utils.gitlab_api import GitLabApi
+from reconcile.utils.pagerduty_api import PagerDutyMap
 from reconcile.utils.repo_owners import RepoOwners
+from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.slack_api import (
     SlackApi,
     SlackApiError,
     UsergroupNotFoundException,
 )
-from reconcile.utils.secret_reader import SecretReader
-from reconcile import queries
-
 
 DATE_FORMAT = "%Y-%m-%d %H:%M"
 QONTRACT_INTEGRATION = "slack-usergroups"

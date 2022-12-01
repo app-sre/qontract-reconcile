@@ -1,17 +1,23 @@
-import logging
-from urllib.parse import urlparse
-from typing import Any, Optional
-from collections.abc import Callable
-from collections import defaultdict
 import json
+import logging
+from collections import defaultdict
+from collections.abc import Callable
 from dataclasses import field
+from typing import (
+    Any,
+    Optional,
+)
+from urllib.parse import urlparse
 
 from pydantic.dataclasses import dataclass
 
-from reconcile import queries
-from reconcile.utils.openshift_resource import OpenshiftResource, ResourceInventory
-from reconcile.utils.defer import defer
 import reconcile.openshift_base as ob
+from reconcile import queries
+from reconcile.utils.defer import defer
+from reconcile.utils.openshift_resource import (
+    OpenshiftResource,
+    ResourceInventory,
+)
 
 LOG = logging.getLogger(__name__)
 

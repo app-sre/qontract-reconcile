@@ -1,19 +1,23 @@
-import os
 import json
-from datetime import date, timedelta
-
+import os
+from datetime import (
+    date,
+    timedelta,
+)
 from unittest import TestCase
 from unittest.mock import patch
 
-from reconcile.utils.aggregated_list import RunnerException
-from reconcile import queries
-from reconcile.utils.secret_reader import SecretReader
-from reconcile.utils.openshift_resource import OpenshiftResource as OR
-import reconcile.openshift_base as ob
-
-from reconcile.test.fixtures import Fixtures
-from reconcile.utils.oc import ApiClient, OCDeprecated
 import reconcile.gabi_authorized_users as gabi_u
+import reconcile.openshift_base as ob
+from reconcile import queries
+from reconcile.test.fixtures import Fixtures
+from reconcile.utils.aggregated_list import RunnerException
+from reconcile.utils.oc import (
+    ApiClient,
+    OCDeprecated,
+)
+from reconcile.utils.openshift_resource import OpenshiftResource as OR
+from reconcile.utils.secret_reader import SecretReader
 
 apply = Fixtures("gabi_authorized_users").get_anymarkup("apply.yml")
 delete = Fixtures("gabi_authorized_users").get_anymarkup("delete.yml")

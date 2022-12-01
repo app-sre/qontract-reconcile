@@ -1,27 +1,26 @@
-import logging
 import datetime
-
+import logging
 from threading import Lock
 from typing import cast
+
 from sretoolbox.utils import threaded
 
-import reconcile.openshift_base as osb
 import reconcile.jenkins_plugins as jenkins_base
-
+import reconcile.openshift_base as osb
 from reconcile import queries
-from reconcile.utils.openshift_resource import OpenshiftResource as OR
-from reconcile.utils.oc import OC_Map
+from reconcile.openshift_tekton_resources import build_one_per_saas_file_tkn_object_name
+from reconcile.utils.defer import defer
 from reconcile.utils.gitlab_api import GitLabApi
+from reconcile.utils.oc import OC_Map
+from reconcile.utils.openshift_resource import OpenshiftResource as OR
+from reconcile.utils.parse_dhms_duration import dhms_to_seconds
 from reconcile.utils.saasherder import (
-    SaasHerder,
-    Providers,
     UNIQUE_SAAS_FILE_ENV_COMBO_LEN,
+    Providers,
+    SaasHerder,
     TriggerSpecUnion,
 )
 from reconcile.utils.sharding import is_in_shard
-from reconcile.utils.defer import defer
-from reconcile.openshift_tekton_resources import build_one_per_saas_file_tkn_object_name
-from reconcile.utils.parse_dhms_duration import dhms_to_seconds
 
 _trigger_lock = Lock()
 

@@ -5,9 +5,7 @@ import sys
 from github import Github
 
 from reconcile import queries
-
 from reconcile.utils.secret_reader import SecretReader
-
 
 QONTRACT_INTEGRATION = "github-validator"
 

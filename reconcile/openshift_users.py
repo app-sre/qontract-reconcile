@@ -1,15 +1,15 @@
-import logging
 import itertools
+import logging
 
 from sretoolbox.utils import threaded
 
-from reconcile import openshift_groups
-from reconcile import openshift_rolebindings
-from reconcile import queries
-
-from reconcile.utils.oc import OC_Map
+from reconcile import (
+    openshift_groups,
+    openshift_rolebindings,
+    queries,
+)
 from reconcile.utils.defer import defer
-
+from reconcile.utils.oc import OC_Map
 
 QONTRACT_INTEGRATION = "openshift-users"
 

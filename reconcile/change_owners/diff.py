@@ -1,17 +1,18 @@
-from dataclasses import dataclass
-from enum import Enum
-from typing import Any, Optional
-from functools import reduce
 import json
 import re
-
-
-from deepdiff import DeepDiff
-from deepdiff.helper import CannotCompare
-from deepdiff.model import DiffLevel
+from dataclasses import dataclass
+from enum import Enum
+from functools import reduce
+from typing import (
+    Any,
+    Optional,
+)
 
 import jsonpath_ng
 import jsonpath_ng.ext
+from deepdiff import DeepDiff
+from deepdiff.helper import CannotCompare
+from deepdiff.model import DiffLevel
 
 
 class DiffType(Enum):

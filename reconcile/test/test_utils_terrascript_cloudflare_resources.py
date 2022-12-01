@@ -2,8 +2,8 @@ import pytest
 
 from reconcile.utils.external_resource_spec import ExternalResourceSpec
 from reconcile.utils.terrascript.cloudflare_resources import (
-    create_cloudflare_terrascript_resource,
     UnsupportedCloudflareResourceError,
+    create_cloudflare_terrascript_resource,
 )
 
 

@@ -1,18 +1,25 @@
 import logging
 import os
-from typing import Any, Optional
-
-from operator import itemgetter, attrgetter
+from operator import (
+    attrgetter,
+    itemgetter,
+)
+from typing import (
+    Any,
+    Optional,
+)
 from urllib.parse import urlparse
-from sretoolbox.utils import retry
 
 import gitlab
-from gitlab.v4.objects import ProjectMergeRequest, CurrentUser
 import urllib3
+from gitlab.v4.objects import (
+    CurrentUser,
+    ProjectMergeRequest,
+)
+from sretoolbox.utils import retry
 
-
-from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.metrics import gitlab_request
+from reconcile.utils.secret_reader import SecretReader
 
 # The following line will suppress
 # `InsecureRequestWarning: Unverified HTTPS request is being made`

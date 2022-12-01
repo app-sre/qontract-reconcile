@@ -1,8 +1,17 @@
 from __future__ import annotations
+
 import re
-from typing import Any, Optional
 from collections.abc import MutableMapping
-from pydantic import BaseModel, Field, root_validator
+from typing import (
+    Any,
+    Optional,
+)
+
+from pydantic import (
+    BaseModel,
+    Field,
+    root_validator,
+)
 
 
 def slugify(value: str) -> str:

@@ -4,16 +4,22 @@ import logging
 import os
 import sys
 import time
+from importlib import metadata
 from typing import Optional
 
-from prometheus_client import start_http_server
-from importlib import metadata
 import click
+from prometheus_client import start_http_server
 
+from reconcile.cli import (
+    LOG_DATEFMT,
+    LOG_FMT,
+)
 from reconcile.status import ExitCodes
-from reconcile.cli import LOG_FMT, LOG_DATEFMT
-from reconcile.utils.metrics import run_time, run_status, execution_counter
-
+from reconcile.utils.metrics import (
+    execution_counter,
+    run_status,
+    run_time,
+)
 
 SHARDS = int(os.environ.get("SHARDS", 1))
 SHARD_ID = int(os.environ.get("SHARD_ID", 0))

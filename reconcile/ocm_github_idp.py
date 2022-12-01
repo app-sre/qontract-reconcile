@@ -1,14 +1,13 @@
-import sys
 import logging
-from typing import Any
+import sys
 from collections.abc import Mapping
+from typing import Any
 
 from reconcile import queries
-
+from reconcile.ocm.utils import cluster_disabled_integrations
+from reconcile.status import ExitCodes
 from reconcile.utils.ocm import OCMMap
 from reconcile.utils.secret_reader import SecretReader
-from reconcile.status import ExitCodes
-from reconcile.ocm.utils import cluster_disabled_integrations
 
 QONTRACT_INTEGRATION = "ocm-github-idp"
 

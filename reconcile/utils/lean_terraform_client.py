@@ -1,7 +1,9 @@
 import json
 import logging
-
-from subprocess import PIPE, Popen
+from subprocess import (
+    PIPE,
+    Popen,
+)
 
 
 def state_rm_access_key(working_dirs, account, user):

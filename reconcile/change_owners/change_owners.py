@@ -1,44 +1,41 @@
 import logging
-import traceback
 import sys
+import traceback
 
-from reconcile.change_owners.decision import (
-    DecisionCommand,
-    ChangeDecision,
-    get_approver_decisions_from_mr_comments,
-    apply_decisions_to_changes,
-)
-from reconcile.utils.output import format_table
-from reconcile.utils import gql
-from reconcile.gql_definitions.change_owners.queries.self_service_roles import RoleV1
-from reconcile.gql_definitions.change_owners.queries import (
-    self_service_roles,
-    change_types,
-)
-from reconcile.utils.semver_helper import make_semver
-
+from reconcile import queries
 from reconcile.change_owners.change_types import (
     BundleFileChange,
     BundleFileType,
     ChangeTypePriority,
     ChangeTypeProcessor,
     create_bundle_file_change,
-    init_change_type_processors,
     get_priority_for_changes,
+    init_change_type_processors,
+)
+from reconcile.change_owners.decision import (
+    ChangeDecision,
+    DecisionCommand,
+    apply_decisions_to_changes,
+    get_approver_decisions_from_mr_comments,
 )
 from reconcile.change_owners.self_service_roles import (
     cover_changes_with_self_service_roles,
 )
+from reconcile.gql_definitions.change_owners.queries import (
+    change_types,
+    self_service_roles,
+)
+from reconcile.gql_definitions.change_owners.queries.self_service_roles import RoleV1
+from reconcile.utils import gql
 from reconcile.utils.gitlab_api import GitLabApi
-from reconcile import queries
-
 from reconcile.utils.mr.labels import (
-    SELF_SERVICEABLE,
-    NOT_SELF_SERVICEABLE,
     HOLD,
+    NOT_SELF_SERVICEABLE,
+    SELF_SERVICEABLE,
     prioritized_approval_label,
 )
-
+from reconcile.utils.output import format_table
+from reconcile.utils.semver_helper import make_semver
 
 QONTRACT_INTEGRATION = "change-owners"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)

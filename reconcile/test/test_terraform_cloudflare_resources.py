@@ -1,13 +1,14 @@
 import pytest
+
 from reconcile.gql_definitions.terraform_cloudflare_resources.terraform_cloudflare_resources import (
     CloudflareAccountV1,
+    CloudflareZoneCertificateV1,
     CloudflareZoneRecordV1,
     CloudflareZoneWorkerV1,
     NamespaceTerraformProviderResourceCloudflareV1,
     NamespaceTerraformResourceCloudflareZoneV1,
     NamespaceV1,
     TerraformCloudflareResourcesQueryData,
-    CloudflareZoneCertificateV1,
 )
 
 

@@ -1,4 +1,5 @@
 import pytest
+
 from reconcile.utils.jjb_client import JJB
 
 

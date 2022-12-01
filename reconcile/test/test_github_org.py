@@ -1,13 +1,13 @@
 from unittest.mock import patch
 
-from reconcile.utils import config
-from reconcile.utils import gql
 from reconcile import github_org
-
+from reconcile.utils import (
+    config,
+    gql,
+)
 from reconcile.utils.aggregated_list import AggregatedList
 
 from .fixtures import Fixtures
-
 
 fxt = Fixtures("github_org")
 

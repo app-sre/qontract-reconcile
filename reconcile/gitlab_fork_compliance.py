@@ -8,7 +8,6 @@ from reconcile import queries
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.mr.labels import BLOCKED_BOT_ACCESS
 
-
 LOG = logging.getLogger(__name__)
 
 QONTRACT_INTEGRATION = "gitlab-fork-compliance"

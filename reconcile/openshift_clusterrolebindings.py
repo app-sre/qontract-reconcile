@@ -1,17 +1,15 @@
 import sys
 
-from reconcile.utils import gql
 import reconcile.openshift_base as ob
 from reconcile import queries
-
-from reconcile.utils.semver_helper import make_semver
-from reconcile.utils.openshift_resource import (
-    OpenshiftResource as OR,
-    ResourceKeyExistsError,
+from reconcile.utils import (
+    expiration,
+    gql,
 )
 from reconcile.utils.defer import defer
-from reconcile.utils import expiration
-
+from reconcile.utils.openshift_resource import OpenshiftResource as OR
+from reconcile.utils.openshift_resource import ResourceKeyExistsError
+from reconcile.utils.semver_helper import make_semver
 
 ROLES_QUERY = """
 {

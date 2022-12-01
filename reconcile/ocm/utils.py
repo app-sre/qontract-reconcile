@@ -1,5 +1,5 @@
-from typing import Any
 from collections.abc import Mapping
+from typing import Any
 
 
 def cluster_disabled_integrations(cluster: Mapping[str, Any]) -> list[str]:

@@ -1,23 +1,30 @@
-from pydantic import ValidationError
-import pytest
+import typing
+from unittest.mock import patch
 
+import pytest
+from pydantic import ValidationError
+
+import reconcile.ocm_clusters as occ
+import reconcile.utils.ocm as ocmmod
+from reconcile import (
+    mr_client_gateway,
+    queries,
+)
 from reconcile.ocm.types import (
     OCMClusterNetwork,
     OCMSpec,
     OSDClusterSpec,
     ROSAClusterSpec,
 )
-from unittest.mock import patch
-from reconcile.utils.ocm import SPEC_ATTR_CONSOLE_URL, SPEC_ATTR_SERVER_URL, OCMMap, OCM
-from reconcile import mr_client_gateway
 from reconcile.utils.mr.clusters_updates import CreateClustersUpdates
-from reconcile import queries
-import reconcile.ocm_clusters as occ
-import reconcile.utils.ocm as ocmmod
-import typing
+from reconcile.utils.ocm import (
+    OCM,
+    SPEC_ATTR_CONSOLE_URL,
+    SPEC_ATTR_SERVER_URL,
+    OCMMap,
+)
 
 from .fixtures import Fixtures
-
 
 fxt = Fixtures("clusters")
 

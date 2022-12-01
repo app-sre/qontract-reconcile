@@ -1,34 +1,29 @@
-from dataclasses import dataclass
-from typing import Optional
 import os
 import sys
+from dataclasses import dataclass
+from typing import Optional
 
-import yaml
+import jsonpath_ng
 import pygments
 import pygments.lexers
-from pygments.token import Name
+import yaml
 from pygments.filter import Filter
-from pygments.formatters.terminal256 import (
-    TerminalTrueColorFormatter,
-)
-import jsonpath_ng
+from pygments.formatters.terminal256 import TerminalTrueColorFormatter
+from pygments.token import Name
 
 from reconcile.change_owners.change_owners import fetch_change_type_processors
 from reconcile.change_owners.change_types import (
     BundleFileChange,
-    ChangeTypeProcessor,
-    parse_resource_file_content,
-    FileRef,
     BundleFileType,
+    ChangeTypeProcessor,
+    FileRef,
+    parse_resource_file_content,
 )
 from reconcile.change_owners.self_service_roles import (
     change_type_contexts_for_self_service_roles,
 )
+from reconcile.gql_definitions.change_owners.queries import self_service_roles
 from reconcile.gql_definitions.change_owners.queries.self_service_roles import RoleV1
-from reconcile.gql_definitions.change_owners.queries import (
-    self_service_roles,
-)
-
 from reconcile.utils import gql
 
 

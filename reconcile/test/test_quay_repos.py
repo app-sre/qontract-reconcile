@@ -1,10 +1,12 @@
 from unittest.mock import patch
 
-from reconcile.quay_repos import RepoInfo, act
 from reconcile.quay_base import OrgKey
+from reconcile.quay_repos import (
+    RepoInfo,
+    act,
+)
 
 from .fixtures import Fixtures
-
 
 fxt = Fixtures("quay_repos")
 

@@ -2,8 +2,8 @@ from unittest import TestCase
 from unittest.mock import patch
 
 from prometheus_client import Counter
-
 from sretoolbox.container import Image
+
 import reconcile.utils.instrumented_wrappers as instrumented
 
 

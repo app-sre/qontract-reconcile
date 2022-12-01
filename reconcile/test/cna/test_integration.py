@@ -1,12 +1,23 @@
-from typing import Any, Optional
-from collections.abc import Iterable, Mapping
+from collections.abc import (
+    Iterable,
+    Mapping,
+)
+from typing import (
+    Any,
+    Optional,
+)
 from unittest.mock import create_autospec
-from pytest import fixture
+
 import pytest
+from pytest import fixture
+
+from reconcile.cna.assets.asset import (
+    AssetStatus,
+    AssetType,
+)
+from reconcile.cna.assets.null import NullAsset
 from reconcile.cna.client import CNAClient
 from reconcile.cna.integration import CNAIntegration
-from reconcile.cna.assets.asset import AssetStatus, AssetType
-from reconcile.cna.assets.null import NullAsset
 from reconcile.cna.state import State
 from reconcile.gql_definitions.cna.queries.cna_resources import (
     CNANullAssetV1,

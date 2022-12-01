@@ -1,9 +1,14 @@
 import json
 from typing import Mapping
-import pytest
-from unittest.mock import MagicMock, mock_open, patch
-from reconcile.queries import UserFilter
+from unittest.mock import (
+    MagicMock,
+    mock_open,
+    patch,
+)
 
+import pytest
+
+from reconcile.queries import UserFilter
 from reconcile.utils.secret_reader import SecretReader
 from tools.cli_commands.gpg_encrypt import (
     ArgumentException,

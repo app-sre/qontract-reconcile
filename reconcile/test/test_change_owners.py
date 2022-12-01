@@ -1,59 +1,63 @@
+import copy
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import (
+    Any,
+    Optional,
+)
+
+import jsonpath_ng
+import jsonpath_ng.ext
+import pytest
 import yaml
+from jsonpath_ng.exceptions import JsonPathParserError
+
+from reconcile.change_owners.change_owners import (
+    manage_conditional_label,
+    validate_self_service_role,
+)
+from reconcile.change_owners.change_types import (
+    Approver,
+    BundleFileChange,
+    BundleFileType,
+    ChangeTypeContext,
+    ChangeTypePriority,
+    DiffCoverage,
+    FileRef,
+    PathExpression,
+    build_change_type_processor,
+    create_bundle_file_change,
+    get_priority_for_changes,
+    parse_resource_file_content,
+)
+from reconcile.change_owners.decision import (
+    Decision,
+    DecisionCommand,
+    apply_decisions_to_changes,
+    get_approver_decisions_from_mr_comments,
+)
 from reconcile.change_owners.diff import (
     SHA256SUM_FIELD_NAME,
     Diff,
     DiffType,
     deepdiff_path_to_jsonpath,
 )
-from reconcile.change_owners.change_owners import (
-    manage_conditional_label,
-    validate_self_service_role,
-)
 from reconcile.change_owners.self_service_roles import (
     cover_changes_with_self_service_roles,
 )
-from reconcile.change_owners.decision import (
-    get_approver_decisions_from_mr_comments,
-    apply_decisions_to_changes,
-    DecisionCommand,
-    Decision,
-)
-from reconcile.change_owners.change_types import (
-    BundleFileChange,
-    BundleFileType,
-    ChangeTypeContext,
-    Approver,
-    FileRef,
-    DiffCoverage,
-    PathExpression,
-    build_change_type_processor,
-    create_bundle_file_change,
-    parse_resource_file_content,
-    get_priority_for_changes,
-    ChangeTypePriority,
-)
+from reconcile.gql_definitions.change_owners.queries import self_service_roles
 from reconcile.gql_definitions.change_owners.queries.change_types import (
     ChangeTypeChangeDetectorV1,
     ChangeTypeV1,
 )
-from reconcile.gql_definitions.change_owners.queries import self_service_roles
 from reconcile.gql_definitions.change_owners.queries.self_service_roles import (
+    BotV1,
     DatafileObjectV1,
     RoleV1,
     SelfServiceConfigV1,
     UserV1,
-    BotV1,
 )
 
 from .fixtures import Fixtures
-
-import pytest
-import copy
-import jsonpath_ng
-import jsonpath_ng.ext
-from jsonpath_ng.exceptions import JsonPathParserError
 
 fxt = Fixtures("change_owners")
 

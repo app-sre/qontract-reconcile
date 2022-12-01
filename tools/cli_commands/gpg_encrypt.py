@@ -1,14 +1,19 @@
 from __future__ import annotations
-from dataclasses import dataclass
-from typing import Mapping, Optional
-from reconcile.utils.oc import OC_Map
-
-from reconcile.utils.secret_reader import SecretReader
-from reconcile.utils import config
-from reconcile import queries
-from reconcile.utils import gpg
 
 import json
+from dataclasses import dataclass
+from typing import (
+    Mapping,
+    Optional,
+)
+
+from reconcile import queries
+from reconcile.utils import (
+    config,
+    gpg,
+)
+from reconcile.utils.oc import OC_Map
+from reconcile.utils.secret_reader import SecretReader
 
 
 @dataclass

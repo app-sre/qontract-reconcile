@@ -1,9 +1,18 @@
 import threading
-from typing import Any, Optional
+from typing import (
+    Any,
+    Optional,
+)
 from urllib.parse import urljoin
 
 import requests
-from reconcile.utils.glitchtip.models import Organization, Project, Team, User
+
+from reconcile.utils.glitchtip.models import (
+    Organization,
+    Project,
+    Team,
+    User,
+)
 
 
 def get_next_url(links: dict[str, dict[str, str]]) -> Optional[str]:

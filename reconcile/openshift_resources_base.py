@@ -1,46 +1,60 @@
 import base64
-from contextlib import contextmanager
-from functools import cache
 import json
 import logging
 import sys
-
-from typing import Any, Optional
-from collections.abc import Iterable, Mapping
-
-from threading import Lock
+from collections.abc import (
+    Iterable,
+    Mapping,
+)
+from contextlib import contextmanager
+from functools import cache
 from textwrap import indent
-from sretoolbox.utils import retry
-from sretoolbox.utils import threaded
+from threading import Lock
+from typing import (
+    Any,
+    Optional,
+)
 
 import anymarkup
 import jinja2
-from reconcile.checkpoint import url_makes_sense
+from sretoolbox.utils import (
+    retry,
+    threaded,
+)
 
 import reconcile.openshift_base as ob
 from reconcile import queries
-from reconcile.utils import amtool
-from reconcile.utils import gql
-from reconcile.utils import openssl
-
-from reconcile.utils.exceptions import FetchResourceError
-from reconcile.utils.semver_helper import make_semver
+from reconcile.checkpoint import url_makes_sense
+from reconcile.github_users import init_github
+from reconcile.utils import (
+    amtool,
+    gql,
+    openssl,
+)
 from reconcile.utils.defer import defer
-from reconcile.utils.jinja2_ext import B64EncodeExtension
-from reconcile.utils.jinja2_ext import RaiseErrorExtension
-from reconcile.utils.oc import OC_Map, OCClient
-from reconcile.utils.oc import StatusCodeError
-from reconcile.utils.sharding import is_in_shard
+from reconcile.utils.exceptions import FetchResourceError
+from reconcile.utils.jinja2_ext import (
+    B64EncodeExtension,
+    RaiseErrorExtension,
+)
+from reconcile.utils.oc import (
+    OC_Map,
+    OCClient,
+    StatusCodeError,
+)
+from reconcile.utils.openshift_resource import ConstructResourceError
+from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.openshift_resource import (
-    OpenshiftResource as OR,
-    ConstructResourceError,
     ResourceInventory,
     ResourceKeyExistsError,
 )
-from reconcile.utils.vault import SecretVersionNotFound, SecretVersionIsNone
 from reconcile.utils.secret_reader import SecretReader
-from reconcile.github_users import init_github
-
+from reconcile.utils.semver_helper import make_semver
+from reconcile.utils.sharding import is_in_shard
+from reconcile.utils.vault import (
+    SecretVersionIsNone,
+    SecretVersionNotFound,
+)
 
 """
 +-----------------------+-------------------------+-------------+

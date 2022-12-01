@@ -4,10 +4,12 @@ from dateutil import parser as dateparser
 from sretoolbox.utils import threaded
 
 from reconcile import queries
-from reconcile.utils.gitlab_api import GitLabApi
-from reconcile.utils.gitlab_api import MRState
-from reconcile.utils.repo_owners import RepoOwners
+from reconcile.utils.gitlab_api import (
+    GitLabApi,
+    MRState,
+)
 from reconcile.utils.mr.labels import APPROVED
+from reconcile.utils.repo_owners import RepoOwners
 
 QONTRACT_INTEGRATION = "gitlab-owners"
 

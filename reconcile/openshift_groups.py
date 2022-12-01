@@ -1,18 +1,18 @@
-import sys
-import logging
 import itertools
+import logging
+import sys
 
 from sretoolbox.utils import threaded
 
 import reconcile.openshift_base as ob
-
-from reconcile.utils import gql
 from reconcile import queries
-from reconcile.utils import expiration
-from reconcile.utils.oc import OC_Map
+from reconcile.utils import (
+    expiration,
+    gql,
+)
 from reconcile.utils.defer import defer
+from reconcile.utils.oc import OC_Map
 from reconcile.utils.sharding import is_in_shard
-
 
 ROLES_QUERY = """
 {

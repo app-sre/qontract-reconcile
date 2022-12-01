@@ -1,12 +1,14 @@
 import logging
 import os
-
 from urllib.parse import urljoin
 
 import requests
 
 from reconcile import queries
-from reconcile.utils.secret_reader import SecretReader, SupportsSecret
+from reconcile.utils.secret_reader import (
+    SecretReader,
+    SupportsSecret,
+)
 
 LOG = logging.getLogger(__name__)
 

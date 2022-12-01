@@ -1,17 +1,19 @@
-import logging
-from typing import Any
-from collections.abc import Mapping
-import warnings
-
-from reconcile import queries
-from reconcile.utils.config import ConfigNotFound, get_config
-from reconcile.utils.helpers import toggle_logger
-from reconcile.utils.secret_reader import SecretReader
-
 # Dirty hack for Python 3.10 to overcome
 # ImportError: cannot import name 'Iterable' from 'collections'
 # when importing from dyn.tm
 import collections.abc
+import logging
+import warnings
+from collections.abc import Mapping
+from typing import Any
+
+from reconcile import queries
+from reconcile.utils.config import (
+    ConfigNotFound,
+    get_config,
+)
+from reconcile.utils.helpers import toggle_logger
+from reconcile.utils.secret_reader import SecretReader
 
 collections.Iterable = collections.abc.Iterable  # type: ignore[misc]
 
@@ -21,15 +23,17 @@ collections.Iterable = collections.abc.Iterable  # type: ignore[misc]
 # This is unlikely to be ever fixed as this repo has not been updated in 4 yrs
 with warnings.catch_warnings():
     warnings.simplefilter("ignore")
-    from dyn.tm import session as dyn_session
     from dyn.tm import services as dyn_services
+    from dyn.tm import session as dyn_session
     from dyn.tm import zones as dyn_zones
-    from dyn.tm.services.dsf import DSFCNAMERecord
-    from dyn.tm.services.dsf import DSFFailoverChain
-    from dyn.tm.services.dsf import DSFRecordSet
-    from dyn.tm.services.dsf import DSFResponsePool
-    from dyn.tm.services.dsf import DSFRuleset
-    from dyn.tm.services.dsf import TrafficDirector
+    from dyn.tm.services.dsf import (
+        DSFCNAMERecord,
+        DSFFailoverChain,
+        DSFRecordSet,
+        DSFResponsePool,
+        DSFRuleset,
+        TrafficDirector,
+    )
     from dyn.tm.zones import Node
 
 QONTRACT_INTEGRATION = "dyn-traffic-director"

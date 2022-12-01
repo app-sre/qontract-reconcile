@@ -1,5 +1,9 @@
 import pytest
-from reconcile.utils.parse_dhms_duration import dhms_to_seconds, BadHDMSDurationError
+
+from reconcile.utils.parse_dhms_duration import (
+    BadHDMSDurationError,
+    dhms_to_seconds,
+)
 
 
 @pytest.mark.parametrize(

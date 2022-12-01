@@ -1,11 +1,22 @@
-from abc import ABC, abstractmethod
-from typing import Any, Optional, Protocol, Union
+from abc import (
+    ABC,
+    abstractmethod,
+)
 from collections.abc import Mapping
+from typing import (
+    Any,
+    Optional,
+    Protocol,
+    Union,
+)
 
 from hvac.exceptions import Forbidden
 from sretoolbox.utils import retry
 
-from reconcile.utils import config, vault
+from reconcile.utils import (
+    config,
+    vault,
+)
 from reconcile.utils.vault import VaultClient
 
 

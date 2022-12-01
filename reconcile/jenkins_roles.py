@@ -1,12 +1,12 @@
 import logging
 
-from reconcile.utils import gql
-from reconcile.utils import expiration
 from reconcile import queries
-
+from reconcile.utils import (
+    expiration,
+    gql,
+)
 from reconcile.utils.jenkins_api import JenkinsApi
 from reconcile.utils.secret_reader import SecretReader
-
 
 PERMISSIONS_QUERY = """
 {

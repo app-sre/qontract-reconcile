@@ -7,12 +7,10 @@ import logging
 import sys
 
 from reconcile import queries
-
 from reconcile.utils import mr
-from reconcile.utils.sqs_gateway import SQSGateway
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.secret_reader import SecretReader
-
+from reconcile.utils.sqs_gateway import SQSGateway
 
 QONTRACT_INTEGRATION = "gitlab-mr-sqs-consumer"
 

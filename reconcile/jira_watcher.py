@@ -2,7 +2,6 @@ import logging
 
 from reconcile import queries
 from reconcile.slack_base import slackapi_from_slack_workspace
-
 from reconcile.utils.jira_client import JiraClient
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.sharding import is_in_shard_round_robin

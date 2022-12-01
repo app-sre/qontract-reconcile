@@ -1,22 +1,24 @@
 import base64
 import logging
 import sys
-
-from urllib.parse import urlparse
 from collections import namedtuple
+from urllib.parse import urlparse
 
 from sretoolbox.container import Image
-from reconcile.utils.external_resources import get_external_resource_specs
-
-from reconcile.utils.oc import OCLocal
-from reconcile.utils.oc import OC_Map
-from reconcile.utils.ocm import OCMMap
 
 from reconcile import queries
-from reconcile.utils.aws_api import AWSApi
+from reconcile.quay_base import (
+    OrgKey,
+    get_quay_api_store,
+)
 from reconcile.status import ExitCodes
-from reconcile.quay_base import get_quay_api_store, OrgKey
-
+from reconcile.utils.aws_api import AWSApi
+from reconcile.utils.external_resources import get_external_resource_specs
+from reconcile.utils.oc import (
+    OC_Map,
+    OCLocal,
+)
+from reconcile.utils.ocm import OCMMap
 
 QONTRACT_INTEGRATION = "ocp-release-mirror"
 

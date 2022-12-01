@@ -1,32 +1,42 @@
 import logging
 import sys
 import time
-
+from collections.abc import (
+    Iterable,
+    Mapping,
+)
 from textwrap import indent
-from typing import Any, Optional, Union
-from collections.abc import Iterable, Mapping
+from typing import (
+    Any,
+    Optional,
+    Union,
+)
 
 import jinja2
 from ruamel import yaml
 
-from reconcile import openshift_base, typed_queries
+from reconcile import openshift_base
 from reconcile import openshift_resources_base as orb
-from reconcile import queries
+from reconcile import (
+    queries,
+    typed_queries,
+)
+from reconcile.status import ExitCodes
 from reconcile.utils.external_resources import get_external_resource_specs
+from reconcile.utils.oc import (
+    OC_Map,
+    StatusCodeError,
+)
+from reconcile.utils.openshift_resource import OpenshiftResource
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.semver_helper import make_semver
-from reconcile.utils.oc import OC_Map
-from reconcile.utils.oc import StatusCodeError
-from reconcile.utils.openshift_resource import OpenshiftResource
 from reconcile.utils.smtp_client import (
     DEFAULT_SMTP_TIMEOUT,
     SmtpClient,
     get_smtp_server_connection,
 )
 from reconcile.utils.state import State
-from reconcile.status import ExitCodes
 from reconcile.utils.terrascript_aws_client import TerrascriptClient as Terrascript
-
 
 QONTRACT_INTEGRATION = "sql-query"
 QONTRACT_INTEGRATION_VERSION = make_semver(1, 1, 0)

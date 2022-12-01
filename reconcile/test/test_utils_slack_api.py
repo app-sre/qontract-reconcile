@@ -1,7 +1,11 @@
 import json
 from collections import namedtuple
 from typing import Union
-from unittest.mock import call, patch, MagicMock
+from unittest.mock import (
+    MagicMock,
+    call,
+    patch,
+)
 
 import httpretty
 import pytest
@@ -10,11 +14,11 @@ from slack_sdk.web import SlackResponse
 
 import reconcile
 from reconcile.utils.slack_api import (
-    SlackApi,
     MAX_RETRIES,
-    UserNotFoundException,
-    SlackApiConfig,
     TIMEOUT,
+    SlackApi,
+    SlackApiConfig,
+    UserNotFoundException,
 )
 
 

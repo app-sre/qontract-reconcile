@@ -1,8 +1,11 @@
 import json
-
 from typing import Optional
 from unittest import TestCase
-from unittest.mock import Mock, call, patch
+from unittest.mock import (
+    Mock,
+    call,
+    patch,
+)
 
 from reconcile import openshift_namespace_labels
 from reconcile.openshift_namespace_labels import state_key

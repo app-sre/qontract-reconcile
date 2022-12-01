@@ -1,12 +1,13 @@
-import os
-import tempfile
-import shutil
 import logging
-
-from subprocess import PIPE, Popen
+import os
+import shutil
+import tempfile
+from subprocess import (
+    PIPE,
+    Popen,
+)
 
 import requests
-
 from sretoolbox.utils import retry
 
 from reconcile.utils import git

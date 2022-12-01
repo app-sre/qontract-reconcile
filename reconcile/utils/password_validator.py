@@ -1,6 +1,5 @@
-from enum import IntFlag
 import string
-
+from enum import IntFlag
 
 NOT_ENOUGH_DIGITS_MSG = "Your password does not have at least one digit."
 NOT_ENOUGH_SPECIAL_CHARS_MSG = (

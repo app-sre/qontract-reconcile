@@ -1,17 +1,16 @@
-import logging
-
-from abc import abstractmethod
-from abc import ABCMeta
-from uuid import uuid4
 import json
+import logging
+from abc import (
+    ABCMeta,
+    abstractmethod,
+)
+from uuid import uuid4
 
 from gitlab.exceptions import GitlabError
 
 from reconcile.utils.gitlab_api import GitLabApi
-from reconcile.utils.sqs_gateway import SQSGateway
-
 from reconcile.utils.mr.labels import DO_NOT_MERGE_HOLD
-
+from reconcile.utils.sqs_gateway import SQSGateway
 
 LOG = logging.getLogger(__name__)
 

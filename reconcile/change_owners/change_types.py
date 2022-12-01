@@ -1,15 +1,20 @@
+from collections import defaultdict
+from collections.abc import (
+    Iterable,
+    Sequence,
+)
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Optional
-from collections import defaultdict
-from collections.abc import Iterable, Sequence
+from typing import (
+    Any,
+    Optional,
+)
 
-
-import jsonpath_ng
-import jsonpath_ng.ext
 import anymarkup
 import jinja2
 import jinja2.meta
+import jsonpath_ng
+import jsonpath_ng.ext
 import networkx
 
 from reconcile.change_owners.diff import (
@@ -19,9 +24,9 @@ from reconcile.change_owners.diff import (
     extract_diffs,
 )
 from reconcile.gql_definitions.change_owners.queries.change_types import (
-    ChangeTypeV1,
     ChangeTypeChangeDetectorJsonPathProviderV1,
     ChangeTypeChangeDetectorV1,
+    ChangeTypeV1,
 )
 
 

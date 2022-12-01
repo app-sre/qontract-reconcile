@@ -1,8 +1,9 @@
 from http import HTTPStatus
 
 import pytest
-import reconcile.checkpoint as sut
 import requests
+
+import reconcile.checkpoint as sut
 
 
 @pytest.fixture

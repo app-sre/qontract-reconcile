@@ -1,19 +1,22 @@
 import logging
 import os
 import tempfile
-
-from typing import Optional
 from collections import defaultdict
 from collections.abc import Iterable
+from typing import Optional
 
-from sretoolbox.container import Image
-from sretoolbox.container.image import ImageComparisonError, ImageContainsError
-from sretoolbox.container import Skopeo
+from sretoolbox.container import (
+    Image,
+    Skopeo,
+)
+from sretoolbox.container.image import (
+    ImageComparisonError,
+    ImageContainsError,
+)
 from sretoolbox.container.skopeo import SkopeoCmdError
 
 from reconcile.quay_base import get_quay_api_store
 from reconcile.quay_mirror import QuayMirror
-
 
 _LOG = logging.getLogger(__name__)
 

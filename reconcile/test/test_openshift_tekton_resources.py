@@ -3,14 +3,18 @@
 # Made this a complete ignore because there are even more errors here that need
 # to be addressed, but it was blocking other changes.
 # type: ignore
-from typing import Any
-from unittest.mock import patch, create_autospec
+
 from copy import deepcopy
+from typing import Any
+from unittest.mock import (
+    create_autospec,
+    patch,
+)
 
 import pytest
 
-from reconcile.queries import PIPELINES_PROVIDERS_QUERY
 from reconcile import openshift_tekton_resources as otr
+from reconcile.queries import PIPELINES_PROVIDERS_QUERY
 from reconcile.utils import gql
 
 from .fixtures import Fixtures

@@ -1,22 +1,28 @@
 import sys
-
 from textwrap import indent
-from typing import Any, Optional
+from typing import (
+    Any,
+    Optional,
+)
 
-from reconcile.utils import expiration
-from reconcile.utils import gql
+from reconcile import (
+    queries,
+    typed_queries,
+)
+from reconcile.utils import (
+    expiration,
+    gql,
+)
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.secret_reader import SecretReader
+from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.smtp_client import (
     DEFAULT_SMTP_TIMEOUT,
     SmtpClient,
     get_smtp_server_connection,
 )
-from reconcile import queries, typed_queries
-
-from reconcile.utils.semver_helper import make_semver
-from reconcile.utils.terrascript_aws_client import TerrascriptClient as Terrascript
 from reconcile.utils.terraform_client import TerraformClient as Terraform
+from reconcile.utils.terrascript_aws_client import TerrascriptClient as Terrascript
 
 TF_POLICY = """
 name

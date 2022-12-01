@@ -1,15 +1,15 @@
 import difflib
 import logging
 import sys
+
 import yaml
+
 import reconcile.openshift_base as ob
 import reconcile.openshift_resources_base as orb
-
 from reconcile import queries
 from reconcile.status import ExitCodes
 from reconcile.utils import gql
 from reconcile.utils.semver_helper import make_semver
-
 
 QONTRACT_INTEGRATION = "template-tester"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)

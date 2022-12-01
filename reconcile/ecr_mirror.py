@@ -1,20 +1,21 @@
 import base64
 import logging
 
-from sretoolbox.container import Image
-from sretoolbox.container import Skopeo
+from sretoolbox.container import (
+    Image,
+    Skopeo,
+)
 from sretoolbox.container.skopeo import SkopeoCmdError
 from sretoolbox.utils import threaded
 
 from reconcile import queries
+from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.external_resource_spec import ExternalResourceSpec
 from reconcile.utils.external_resources import (
     get_external_resource_specs,
     managed_external_resources,
 )
-from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.secret_reader import SecretReader
-
 
 QONTRACT_INTEGRATION = "ecr-mirror"
 LOG = logging.getLogger(__name__)

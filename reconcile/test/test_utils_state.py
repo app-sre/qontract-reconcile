@@ -1,8 +1,12 @@
-import pytest
 import boto3
+import pytest
 from botocore.errorfactory import ClientError
 from moto import mock_s3
-from reconcile.utils.state import State, StateInaccessibleException
+
+from reconcile.utils.state import (
+    State,
+    StateInaccessibleException,
+)
 
 
 @pytest.fixture

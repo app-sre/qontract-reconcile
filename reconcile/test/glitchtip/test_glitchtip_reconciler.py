@@ -1,14 +1,20 @@
 import json
-from typing import Any
 from collections.abc import Callable
+from typing import Any
 from urllib.parse import urljoin
 
 import httpretty as httpretty_module
 import pytest
 from pydantic import BaseModel
+
 from reconcile.glitchtip.reconciler import GlitchtipReconciler
 from reconcile.test.fixtures import Fixtures
-from reconcile.utils.glitchtip import GlitchtipClient, Project, Team, User
+from reconcile.utils.glitchtip import (
+    GlitchtipClient,
+    Project,
+    Team,
+    User,
+)
 from reconcile.utils.glitchtip.models import Organization
 
 

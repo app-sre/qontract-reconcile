@@ -4,13 +4,15 @@ from unittest import TestCase
 from unittest.mock import patch
 
 import pytest
+from kubernetes.dynamic.exceptions import ResourceNotFoundError
+
 import reconcile.utils.oc
 from reconcile.utils.oc import (
+    GET_REPLICASET_MAX_ATTEMPTS,
     LABEL_MAX_KEY_NAME_LENGTH,
     LABEL_MAX_KEY_PREFIX_LENGTH,
     LABEL_MAX_VALUE_LENGTH,
     OC,
-    GET_REPLICASET_MAX_ATTEMPTS,
     OC_Map,
     OCDeprecated,
     OCLogMsg,
@@ -21,8 +23,10 @@ from reconcile.utils.oc import (
     validate_labels,
 )
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
-from reconcile.utils.secret_reader import SecretNotFound, SecretReader
-from kubernetes.dynamic.exceptions import ResourceNotFoundError
+from reconcile.utils.secret_reader import (
+    SecretNotFound,
+    SecretReader,
+)
 
 
 @patch.dict(os.environ, {"USE_NATIVE_CLIENT": "False"}, clear=True)

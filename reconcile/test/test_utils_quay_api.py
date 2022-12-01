@@ -1,9 +1,13 @@
 import json
-from requests import HTTPError
+
 import pytest
 import responses
+from requests import HTTPError
 
-from reconcile.utils.quay_api import QuayApi, QuayTeamNotFoundException
+from reconcile.utils.quay_api import (
+    QuayApi,
+    QuayTeamNotFoundException,
+)
 
 ORG = "some-org"
 BASE_URL = "some.quay.io"

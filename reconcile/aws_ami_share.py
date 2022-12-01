@@ -1,9 +1,11 @@
 import logging
+from collections.abc import (
+    Iterable,
+    Mapping,
+)
 from typing import Any
-from collections.abc import Iterable, Mapping
 
 from reconcile import queries
-
 from reconcile.utils.aws_api import AWSApi
 
 QONTRACT_INTEGRATION = "aws-ami-share"

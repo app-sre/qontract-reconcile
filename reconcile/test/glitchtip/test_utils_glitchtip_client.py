@@ -3,6 +3,7 @@ from typing import Optional
 
 import httpretty as httpretty_module
 import pytest
+
 from reconcile.utils.glitchtip import (
     GlitchtipClient,
     Organization,

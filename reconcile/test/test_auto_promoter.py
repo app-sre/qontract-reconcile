@@ -1,10 +1,13 @@
 from unittest import TestCase
 
+from reconcile.utils.mr.auto_promoter import (
+    TARGET_CONFIG_HASH,
+    AutoPromoter,
+    ParentSaasConfigPromotion,
+)
+
 # from unittest.mock import MagicMock
 
-from reconcile.utils.mr.auto_promoter import AutoPromoter
-from reconcile.utils.mr.auto_promoter import ParentSaasConfigPromotion
-from reconcile.utils.mr.auto_promoter import TARGET_CONFIG_HASH
 
 # from .fixtures import Fixtures
 

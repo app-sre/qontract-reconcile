@@ -1,5 +1,8 @@
 import imaplib
-from typing import Any, Union
+from typing import (
+    Any,
+    Union,
+)
 
 from reconcile.utils.secret_reader import SecretReader
 

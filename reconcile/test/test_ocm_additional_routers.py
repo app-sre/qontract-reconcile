@@ -1,12 +1,14 @@
-from unittest.mock import patch, call
 from unittest import TestCase
+from unittest.mock import (
+    call,
+    patch,
+)
 
-from reconcile.utils.ocm import OCMMap
-from reconcile import queries
 import reconcile.ocm_additional_routers as integ
+from reconcile import queries
+from reconcile.utils.ocm import OCMMap
 
 from .fixtures import Fixtures
-
 
 fxt = Fixtures("ocm_additional_routers")
 

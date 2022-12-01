@@ -1,11 +1,9 @@
-import sys
 import logging
+import sys
 
-from reconcile.utils import gql
-
-from reconcile.status import ExitCodes
 from reconcile.quay_base import get_quay_api_store
-
+from reconcile.status import ExitCodes
+from reconcile.utils import gql
 
 QUAY_REPOS_QUERY = """
 {
