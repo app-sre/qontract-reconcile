@@ -4,8 +4,8 @@ from collections.abc import Mapping
 from typing import Any
 
 from reconcile import queries
-from reconcile.ocm.utils import cluster_disabled_integrations
 from reconcile.status import ExitCodes
+from reconcile.utils.disabled_integrations import disabled_integrations
 from reconcile.utils.ocm import OCMMap
 from reconcile.utils.secret_reader import SecretReader
 
@@ -91,7 +91,7 @@ def run(dry_run, vault_input_path=""):
     clusters = [
         c
         for c in queries.get_clusters()
-        if QONTRACT_INTEGRATION not in cluster_disabled_integrations(c)
+        if QONTRACT_INTEGRATION not in disabled_integrations(c)
         and _cluster_is_compatible(c)
     ]
     if not clusters:

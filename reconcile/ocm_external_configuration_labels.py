@@ -5,8 +5,8 @@ from collections.abc import Mapping
 from typing import Any
 
 from reconcile import queries
-from reconcile.ocm.utils import cluster_disabled_integrations
 from reconcile.status import ExitCodes
+from reconcile.utils.disabled_integrations import disabled_integrations
 from reconcile.utils.ocm import OCMMap
 
 QONTRACT_INTEGRATION = "ocm-external-configuration-labels"
@@ -95,7 +95,7 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
     clusters = [
         c
         for c in clusters
-        if QONTRACT_INTEGRATION not in cluster_disabled_integrations(c)
+        if QONTRACT_INTEGRATION not in disabled_integrations(c)
         and _cluster_is_compatible(c)
     ]
 

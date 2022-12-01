@@ -14,9 +14,9 @@ from reconcile.gql_definitions.ocm_oidc_idp.clusters import (
 )
 from reconcile.gql_definitions.ocm_oidc_idp.clusters import query as cluster_query
 from reconcile.ocm.types import OCMOidcIdp
-from reconcile.ocm.utils import cluster_disabled_integrations
 from reconcile.status import ExitCodes
 from reconcile.utils import gql
+from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.ocm import OCMMap
 from reconcile.utils.secret_reader import SecretReader
 
@@ -156,8 +156,7 @@ def get_clusters(query_func: Callable) -> list[ClusterV1]:
     return [
         c
         for c in data.clusters or []
-        if QONTRACT_INTEGRATION not in cluster_disabled_integrations(c)
-        and c.ocm is not None
+        if integration_is_enabled(QONTRACT_INTEGRATION, c) and c.ocm is not None
     ]
 
 

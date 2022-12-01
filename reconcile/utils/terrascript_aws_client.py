@@ -144,6 +144,7 @@ from reconcile.utils.aws_api import (
     AmiTag,
     AWSApi,
 )
+from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.elasticsearch_exceptions import (
     ElasticSearchResourceMissingSubnetIdError,
     ElasticSearchResourceNameInvalidError,
@@ -559,12 +560,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
     ) -> list[dict[str, Any]]:
         filtered_accounts = []
         for account in accounts:
-            try:
-                disabled_integrations = account["disable"]["integrations"]
-            except (KeyError, TypeError):
-                disabled_integrations = []
             integration = self.integration.replace("_", "-")
-            if integration not in disabled_integrations:
+            if integration_is_enabled(integration, account):
                 filtered_accounts.append(account)
         return filtered_accounts
 
