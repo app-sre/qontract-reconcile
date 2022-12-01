@@ -108,7 +108,7 @@ SlackMap = dict[str, WorkspaceSpec]
 
 def get_slack_map(
     secret_reader: SecretReader,
-    permissions: list[PermissionSlackUsergroupV1],
+    permissions: Iterable[PermissionSlackUsergroupV1],
     desired_workspace_name: Optional[str] = None,
 ) -> SlackMap:
     """Return SlackMap (API) per workspaces."""
@@ -310,7 +310,7 @@ def get_slack_usernames_from_schedule(schedule: Iterable[ScheduleEntryV1]) -> li
 def get_desired_state(
     slack_map: SlackMap,
     pagerduty_map: PagerDutyMap,
-    permissions: list[PermissionSlackUsergroupV1],
+    permissions: Iterable[PermissionSlackUsergroupV1],
     users: Iterable[User],
     desired_workspace_name: Optional[str],
     desired_usergroup_name: Optional[str],

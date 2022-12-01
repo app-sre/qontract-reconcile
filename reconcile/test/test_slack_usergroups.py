@@ -3,7 +3,11 @@ from datetime import (
     datetime,
     timedelta,
 )
-from typing import Any
+from typing import (
+    Any,
+    Iterable,
+    Sequence,
+)
 from unittest.mock import (
     Mock,
     call,
@@ -93,7 +97,7 @@ def slack_map(slack_client_mock: Mock) -> SlackMap:
     }
 
 
-def test_query_permissions(permissions: list[PermissionSlackUsergroupV1]) -> None:
+def test_query_permissions(permissions: Sequence[PermissionSlackUsergroupV1]) -> None:
     assert len(permissions) == 2
     p = permissions[0]
     assert p.channels and len(p.channels) == 2
@@ -185,7 +189,7 @@ def test_get_slack_usernames_from_owners(mocker: Mock, user: User) -> None:
 
 def test_get_desired_state(
     mocker: Mock,
-    permissions: list[PermissionSlackUsergroupV1],
+    permissions: Sequence[PermissionSlackUsergroupV1],
     slack_map: SlackMap,
     slack_client_mock: Mock,
     user: User,
@@ -228,7 +232,7 @@ def test_get_desired_state(
 
 
 def test_get_slack_map_return_expected(
-    mocker: Mock, permissions: list[PermissionSlackUsergroupV1]
+    mocker: Mock, permissions: Iterable[PermissionSlackUsergroupV1]
 ) -> None:
     mock_slack_api = mocker.patch.object(slackbase, "SlackApi", autospec=True)
     mock_secretreader = mocker.patch(
