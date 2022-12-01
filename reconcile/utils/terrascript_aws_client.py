@@ -659,7 +659,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 ok = False
         return ok
 
-    def populate_iam_users(self, roles):
+    def populate_iam_users(
+        self, roles, skip_reencrypt_accounts: list[str], appsre_pgp_key: str
+    ):
         error = False
         for role in roles:
             users = role["users"]
@@ -717,6 +719,10 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                         logging.error(msg)
                         error = True
                         continue
+
+                    if account not in skip_reencrypt_accounts:
+                        user_public_gpg_key = appsre_pgp_key
+
                     # Ref: terraform aws iam_user_login_profile
                     tf_iam_user_login_profile = aws_iam_user_login_profile(
                         user_name,
@@ -779,9 +785,11 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         return error
 
-    def populate_users(self, roles):
+    def populate_users(
+        self, roles, skip_reencrypt_accounts: list[str], appsre_pgp_key: str
+    ):
         self.populate_iam_groups(roles)
-        err = self.populate_iam_users(roles)
+        err = self.populate_iam_users(roles, skip_reencrypt_accounts, appsre_pgp_key)
         return err
 
     @staticmethod

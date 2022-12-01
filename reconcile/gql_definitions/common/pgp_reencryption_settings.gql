@@ -1,0 +1,11 @@
+# qenerate: plugin=pydantic_v1
+
+query PgpReencryptionSettings {
+  pgp_reencryption_settings: pgp_reencrypt_settings_v1{
+    public_gpg_key
+    reencrypt_vault_path
+    skip_aws_accounts {
+      name
+    }
+  }
+}
