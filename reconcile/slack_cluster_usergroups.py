@@ -6,6 +6,12 @@ from reconcile import (
     slack_usergroups,
 )
 from reconcile.slack_base import slackapi_from_queries
+from reconcile.slack_usergroups import (
+    SlackMap,
+    SlackObject,
+    State,
+    WorkspaceSpec,
+)
 from reconcile.utils.slack_api import (
     SlackApi,
     UsergroupNotFoundException,
