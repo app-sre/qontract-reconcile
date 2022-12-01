@@ -14,7 +14,6 @@ from typing import (
     Union,
 )
 
-from pydantic import Json
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 from slack_sdk.http_retry import (
