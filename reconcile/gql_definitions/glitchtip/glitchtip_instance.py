@@ -32,17 +32,14 @@ query GlitchtipInstance {
     name
     consoleUrl
     automationUserEmail
-    automationToken{
-      ... VaultSecret
+    automationToken {
+      ...VaultSecret
     }
     organizations {
       name
-      roles{
+      roles {
         glitchtip_roles {
           role
-        }
-        users {
-          github_username
         }
       }
     }
@@ -59,19 +56,10 @@ class GlitchtipRoleV1(BaseModel):
         extra = Extra.forbid
 
 
-class UserV1(BaseModel):
-    github_username: str = Field(..., alias="github_username")
-
-    class Config:
-        smart_union = True
-        extra = Extra.forbid
-
-
 class RoleV1(BaseModel):
     glitchtip_roles: Optional[list[GlitchtipRoleV1]] = Field(
         ..., alias="glitchtip_roles"
     )
-    users: list[UserV1] = Field(..., alias="users")
 
     class Config:
         smart_union = True

@@ -5,17 +5,14 @@ query GlitchtipInstance {
     name
     consoleUrl
     automationUserEmail
-    automationToken{
-      ... VaultSecret
+    automationToken {
+      ...VaultSecret
     }
     organizations {
       name
-      roles{
+      roles {
         glitchtip_roles {
           role
-        }
-        users {
-          github_username
         }
       }
     }

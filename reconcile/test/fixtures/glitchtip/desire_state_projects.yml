@@ -10,7 +10,6 @@
               role: member
           users:
             - org_username: SamanthaCristoforetti
-              github_username: SamanthaCristoforetti
     - name: esa-flight-control
       roles:
         - glitchtip_roles:
@@ -22,16 +21,13 @@
               role: owner
           users:
             - org_username: GlobalFlightDirector
-              github_username: GlobalFlightDirector
         - glitchtip_roles:
             - organization:
                 name: ESA
               role: member
           users:
             - org_username: MatthiasMaurer
-              github_username: MatthiasMaurer
             - org_username: TimPeake
-              github_username: TimPeake
   organization:
     name: ESA
     instance:
@@ -50,16 +46,13 @@
               role: owner
           users:
             - org_username: GlobalFlightDirector
-              github_username: GlobalFlightDirector
         - glitchtip_roles:
             - organization:
                 name: ESA
               role: member
           users:
             - org_username: MatthiasMaurer
-              github_username: MatthiasMaurer
             - org_username: TimPeake
-              github_username: TimPeake
   organization:
     name: ESA
     instance:
@@ -75,9 +68,7 @@
               role: member
           users:
             - org_username: NeilArmstrong
-              github_username: NeilArmstrong
             - org_username: BuzzAldrin
-              github_username: BuzzAldrin
     - name: nasa-flight-control
       roles:
         - glitchtip_roles:
@@ -89,14 +80,12 @@
               role: owner
           users:
             - org_username: GlobalFlightDirector
-              github_username: GlobalFlightDirector
         - glitchtip_roles:
             - organization:
                 name: NASA
               role: member
           users:
             - org_username: MichaelCollins
-              github_username: MichaelCollins
   organization:
     name: NASA
     instance:
@@ -115,14 +104,12 @@
               role: owner
           users:
             - org_username: GlobalFlightDirector
-              github_username: GlobalFlightDirector
         - glitchtip_roles:
             - organization:
                 name: NASA
               role: member
           users:
             - org_username: MichaelCollins
-              github_username: MichaelCollins
   organization:
     name: NASA
     instance:
