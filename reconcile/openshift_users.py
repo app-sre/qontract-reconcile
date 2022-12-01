@@ -22,11 +22,7 @@ def get_cluster_users(cluster, oc_map, clusters):
         return []
     users: list[str] = []
 
-    cluster_info = None
-    for cl in clusters:
-        if cl["name"] == cluster:
-            cluster_info = cl
-
+    cluster_info = next((cl for cl in clusters if cl["name"] == cluster), None)
     if not cluster_info:
         logging.error("This should never ever be reached! Something is wrong!")
         sys.exit(1)
