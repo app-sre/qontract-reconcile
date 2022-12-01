@@ -1300,8 +1300,11 @@ def app_interface_review_queue(ctx):
     def get_mrs(repo, url) -> list[dict[str, str]]:
         gl = GitLabApi(instance, project_url=url, settings=settings)
         merge_requests = gl.get_merge_requests(state=MRState.OPENED)
-        job = jjb.get_job_by_repo_url(url, job_type="gl-pr-check")
-        trigger_phrases_regex = jjb.get_trigger_phrases_regex(job)
+        try:
+            job = jjb.get_job_by_repo_url(url, job_type="gl-pr-check")
+            trigger_phrases_regex = jjb.get_trigger_phrases_regex(job)
+        except ValueError:
+            trigger_phrases_regex = None
 
         queue_data = []
         for mr in merge_requests:
