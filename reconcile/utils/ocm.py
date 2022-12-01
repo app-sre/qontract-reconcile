@@ -951,7 +951,7 @@ class OCM:  # pylint: disable=too-many-public-methods
         }
         self._post(api, payload)
 
-    def _check_oidc_idp_params(self, oidc_idp: OCMOidcIdp, attrs: list[str]):
+    def _check_oidc_idp_params(self, oidc_idp: OCMOidcIdp, attrs: Iterable[str]):
         for attr in attrs:
             if not getattr(oidc_idp, attr):
                 raise ParameterError(

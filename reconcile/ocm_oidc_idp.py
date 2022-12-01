@@ -1,7 +1,11 @@
 import logging
 import sys
 from collections.abc import Callable
-from typing import Any
+from typing import (
+    Any,
+    Iterable,
+    Sequence,
+)
 
 from reconcile import queries
 from reconcile.gql_definitions.ocm_oidc_idp.clusters import (
@@ -24,7 +28,9 @@ DEFAULT_USERNAME_CLAIMS: list[str] = ["username"]
 DEFAULT_GROUPS_CLAIMS: list[str] = []
 
 
-def fetch_current_state(ocm_map: OCMMap, clusters: list[ClusterV1]) -> list[OCMOidcIdp]:
+def fetch_current_state(
+    ocm_map: OCMMap, clusters: Iterable[ClusterV1]
+) -> list[OCMOidcIdp]:
     """Fetch all current configured OIDC identity providers."""
     current_state = []
 
@@ -37,7 +43,7 @@ def fetch_current_state(ocm_map: OCMMap, clusters: list[ClusterV1]) -> list[OCMO
 
 def fetch_desired_state(
     secret_reader: SecretReader,
-    clusters: list[ClusterV1],
+    clusters: Iterable[ClusterV1],
     vault_input_path: str,
 ) -> list[OCMOidcIdp]:
     """Compile a list of desired OIDC identity providers from app-interface."""
@@ -102,8 +108,8 @@ def fetch_desired_state(
 def act(
     dry_run: bool,
     ocm_map: OCMMap,
-    current_state: list[OCMOidcIdp],
-    desired_state: list[OCMOidcIdp],
+    current_state: Sequence[OCMOidcIdp],
+    desired_state: Sequence[OCMOidcIdp],
 ) -> None:
     """Compare current and desired OIDC identity providers and add, remove, or update them."""
     to_add = set(desired_state) - set(current_state)

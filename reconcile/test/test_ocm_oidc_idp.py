@@ -1,4 +1,8 @@
-from typing import Any
+from typing import (
+    Any,
+    Iterable,
+    Sequence,
+)
 from unittest.mock import Mock
 
 import pytest
@@ -40,7 +44,7 @@ def ocm_map(mocker: MockerFixture, fx: Fixtures) -> Mock:
     return ocm_map_mock
 
 
-def test_ocm_oidc_idp_get_clusters(clusters: list[ClusterV1]):
+def test_ocm_oidc_idp_get_clusters(clusters: Sequence[ClusterV1]):
     assert len(clusters) == 3
     assert clusters == [
         ClusterV1(
@@ -116,7 +120,7 @@ def test_ocm_oidc_idp_get_clusters(clusters: list[ClusterV1]):
     ]
 
 
-def test_ocm_oidc_idp_fetch_current_state(ocm_map: Mock, clusters: list[ClusterV1]):
+def test_ocm_oidc_idp_fetch_current_state(ocm_map: Mock, clusters: Iterable[ClusterV1]):
     current_state = ocm_oidc_idp.fetch_current_state(ocm_map, clusters)
     assert current_state == [
         OCMOidcIdp(
@@ -147,7 +151,7 @@ def test_ocm_oidc_idp_fetch_current_state(ocm_map: Mock, clusters: list[ClusterV
 
 
 def test_ocm_oidc_idp_fetch_desired_state(
-    secret_reader: Mock, clusters: list[ClusterV1]
+    secret_reader: Mock, clusters: Iterable[ClusterV1]
 ):
     secret_reader.read_all.return_value = {
         "client_id": "client-id",
