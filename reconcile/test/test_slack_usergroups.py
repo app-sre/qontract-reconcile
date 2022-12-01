@@ -1,13 +1,13 @@
 import copy
+from collections.abc import (
+    Iterable,
+    Sequence,
+)
 from datetime import (
     datetime,
     timedelta,
 )
-from typing import (
-    Any,
-    Iterable,
-    Sequence,
-)
+from typing import Any
 from unittest.mock import (
     Mock,
     call,
