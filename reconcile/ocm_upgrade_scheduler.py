@@ -64,6 +64,9 @@ def fetch_desired_state(
         upgrade_policy = cluster["upgradePolicy"]
         upgrade_policy["cluster"] = cluster_name
         ocm: OCM = ocm_map.get(cluster_name)
+        if not ocm.is_ready(cluster_name):
+            # cluster has been deleted in OCM or is not ready yet
+            continue
         spec = ocm.clusters[cluster_name].spec
         upgrade_policy["current_version"] = spec.version
         upgrade_policy["channel"] = spec.channel

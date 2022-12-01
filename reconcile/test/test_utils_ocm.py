@@ -284,6 +284,7 @@ def test_ocm_map_upgrade_policies_sector(ocm, mocker):
         "upgradePolicy": {"workload": "w1", "conditions": {"sector": "s3"}},
     }
 
+    mocker.patch("reconcile.utils.ocm.OCM.is_ready").return_value = True
     ocm_map = OCMMap(clusters=[c1, c2, c3])
     assert "ocm1" in ocm_map.ocm_map
     assert "ocm2" in ocm_map.ocm_map
