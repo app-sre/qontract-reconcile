@@ -1,37 +1,38 @@
 import logging
 import re
-
-from reconcile.utils.vault import (
-    VaultClient,
-    _VaultClient,
-    SecretVersionNotFound,
-    SecretNotFound,
-    SecretAccessForbidden,
+from collections.abc import Iterable
+from typing import (
+    Optional,
+    Union,
+    cast,
 )
+
 from reconcile.gql_definitions.jenkins_configs import jenkins_configs
 from reconcile.gql_definitions.jenkins_configs.jenkins_configs import (
-    JenkinsConfigV1_JenkinsConfigV1,
     JenkinsConfigsQueryData,
+    JenkinsConfigV1_JenkinsConfigV1,
 )
-
+from reconcile.gql_definitions.vault_instances import vault_instances
+from reconcile.gql_definitions.vault_instances.vault_instances import (
+    VaultInstanceV1_VaultReplicationConfigV1_VaultInstanceAuthV1,
+    VaultInstanceV1_VaultReplicationConfigV1_VaultInstanceAuthV1_VaultInstanceAuthApproleV1,
+    VaultReplicationConfigV1,
+    VaultReplicationConfigV1_VaultInstanceAuthV1,
+    VaultReplicationConfigV1_VaultInstanceAuthV1_VaultInstanceAuthApproleV1,
+    VaultReplicationJenkinsV1,
+)
+from reconcile.gql_definitions.vault_policies import vault_policies
 from reconcile.gql_definitions.vault_policies.vault_policies import (
     VaultPoliciesQueryData,
 )
-
-from reconcile.gql_definitions.vault_policies import vault_policies
-from reconcile.gql_definitions.vault_instances import vault_instances
-from reconcile.gql_definitions.vault_instances.vault_instances import (
-    VaultReplicationConfigV1,
-    VaultReplicationJenkinsV1,
-    VaultReplicationConfigV1_VaultInstanceAuthV1,
-    VaultInstanceV1_VaultReplicationConfigV1_VaultInstanceAuthV1,
-    VaultReplicationConfigV1_VaultInstanceAuthV1_VaultInstanceAuthApproleV1,
-    VaultInstanceV1_VaultReplicationConfigV1_VaultInstanceAuthV1_VaultInstanceAuthApproleV1,
-)
-
 from reconcile.utils import gql
-from typing import cast, Optional, Union
-from collections.abc import Iterable
+from reconcile.utils.vault import (
+    SecretAccessForbidden,
+    SecretNotFound,
+    SecretVersionNotFound,
+    VaultClient,
+    _VaultClient,
+)
 
 QONTRACT_INTEGRATION = "vault-replication"
 

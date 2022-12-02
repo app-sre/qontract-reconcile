@@ -1,23 +1,24 @@
+from typing import cast
+
 import pytest
 
 import reconcile.vault_replication as integ
+from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.gql_definitions.jenkins_configs.jenkins_configs import (
     JenkinsConfigsQueryData,
     JenkinsConfigV1_JenkinsConfigV1,
     JenkinsInstanceV1,
     ResourceV1,
 )
-
 from reconcile.gql_definitions.vault_instances.vault_instances import (
-    VaultReplicationConfigV1_VaultInstanceAuthV1_VaultInstanceAuthApproleV1,
     VaultReplicationConfigV1_VaultInstanceAuthV1,
+    VaultReplicationConfigV1_VaultInstanceAuthV1_VaultInstanceAuthApproleV1,
 )
-
 from reconcile.gql_definitions.vault_policies import vault_policies
-
-from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
-from reconcile.utils.vault import VaultClient, _VaultClient
-from typing import cast
+from reconcile.utils.vault import (
+    VaultClient,
+    _VaultClient,
+)
 
 
 def test_policy_contais_path():

@@ -4,12 +4,11 @@ import logging
 import os
 import threading
 import time
+from collections.abc import Mapping
+from typing import Optional
 
 import hvac
 import requests
-
-from typing import Optional
-from collections.abc import Mapping
 from hvac.exceptions import InvalidPath
 from requests.adapters import HTTPAdapter
 from sretoolbox.utils import retry
