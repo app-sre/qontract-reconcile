@@ -4,10 +4,10 @@ from reconcile.change_owners.change_types import build_change_type_processor
 from reconcile.change_owners.self_service_roles import (
     cover_changes_with_self_service_roles,
 )
+from reconcile.gql_definitions.change_owners.queries.change_types import ChangeTypeV1
 from reconcile.gql_definitions.change_owners.queries.self_service_roles import (
     DatafileObjectV1,
 )
-from reconcile.gql_definitions.change_owners.queries.change_types import ChangeTypeV1
 from reconcile.test.change_owners.fixtures import (
     TestFile,
     build_role,
