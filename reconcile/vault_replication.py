@@ -58,8 +58,7 @@ def deep_copy_versions(
         write_dict = {"path": path, "data": secret}
         logging.info(["replicate_vault_secret", src_version, path])
         if not dry_run:
-            dest_vault.write(secret=write_dict, decode_base64=False)
-
+            dest_vault.write(secret=write_dict, decode_base64=False, force_write=True)
 
 def copy_vault_secret(
     dry_run: bool, source_vault: _VaultClient, dest_vault: _VaultClient, path: str
@@ -80,7 +79,9 @@ def copy_vault_secret(
             write_dict = {"path": path, "data": secret}
             logging.info(["replicate_vault_secret", path])
             if not dry_run:
-                dest_vault.write(secret=write_dict, decode_base64=False)
+                dest_vault.write(
+                    secret=write_dict, decode_base64=False, force_write=True
+                )
         elif dest_version < version:
             deep_copy_versions(
                 dry_run=dry_run,
@@ -98,7 +99,9 @@ def copy_vault_secret(
             if not dry_run:
                 secret, _ = source_vault.read_all_with_version(secret_dict)
                 write_dict = {"path": path, "data": secret}
-                dest_vault.write(secret=write_dict, decode_base64=False)
+                dest_vault.write(
+                    secret=write_dict, decode_base64=False, force_write=True
+                )
         else:
             deep_copy_versions(
                 dry_run=dry_run,
