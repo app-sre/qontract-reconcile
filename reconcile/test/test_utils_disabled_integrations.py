@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from pytest_mock import MockerFixture
 
 from reconcile.utils.disabled_integrations import (
-    Disable,
+    HasDisableIntegrations,
     disabled_integrations,
     integration_is_enabled,
 )
@@ -69,7 +69,8 @@ INT_LIST = ["int1", "int2"]
     ],
 )
 def test_utils_disabled_integrations(
-    disable_obj: Optional[Union[Mapping[str, Any], Disable]], expected: list[str]
+    disable_obj: Optional[Union[Mapping[str, Any], HasDisableIntegrations]],
+    expected: list[str],
 ) -> None:
     assert disabled_integrations(disable_obj) == expected
 

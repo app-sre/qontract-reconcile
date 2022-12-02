@@ -8,25 +8,25 @@ from typing import (
 )
 
 
-class IntegrationDisable(Protocol):
+class HasIntegrations(Protocol):
     integrations: Optional[list[str]]
 
 
 @runtime_checkable
-class Disable(Protocol):
+class HasDisableIntegrations(Protocol):
     @property
-    def disable(self) -> Optional[IntegrationDisable]:
+    def disable(self) -> Optional[HasIntegrations]:
         pass
 
 
 def disabled_integrations(
-    disable_obj: Optional[Union[Mapping[str, Any], Disable]]
+    disable_obj: Optional[Union[Mapping[str, Any], HasDisableIntegrations]]
 ) -> list[str]:
     """Returns all disabled integrations"""
     if not disable_obj:
         return []
 
-    if isinstance(disable_obj, Disable):
+    if isinstance(disable_obj, HasDisableIntegrations):
         if disable_obj.disable:
             return disable_obj.disable.integrations or []
     else:
@@ -37,7 +37,8 @@ def disabled_integrations(
 
 
 def integration_is_enabled(
-    integration: str, disable_obj: Optional[Union[Mapping[str, Any], Disable]]
+    integration: str,
+    disable_obj: Optional[Union[Mapping[str, Any], HasDisableIntegrations]],
 ) -> bool:
     """A convenient method to check whether an integration is enabled or not."""
     return integration not in disabled_integrations(disable_obj)
