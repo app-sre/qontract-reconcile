@@ -60,6 +60,23 @@ def deep_copy_versions(
         if not dry_run:
             dest_vault.write(secret=write_dict, decode_base64=False, force_write=True)
 
+
+def write_dummy_versions(
+    dry_run: bool,
+    dest_vault: _VaultClient,
+    version_needed: int,
+    path: str,
+) -> None:
+
+    for version in range(0, version_needed):
+        write_dict = {"path": path, "data": {"dummy": "data"}}
+        logging.info(
+            ["replicate_vault_secret", "generate_dummy_data", version + 1, path]
+        )
+        if not dry_run:
+            dest_vault.write(secret=write_dict, decode_base64=False, force_write=True)
+
+
 def copy_vault_secret(
     dry_run: bool, source_vault: _VaultClient, dest_vault: _VaultClient, path: str
 ) -> None:
@@ -103,11 +120,21 @@ def copy_vault_secret(
                     secret=write_dict, decode_base64=False, force_write=True
                 )
         else:
+            current_dest_version = 0
+            if version >= 10:
+                current_dest_version = version - 10
+                write_dummy_versions(
+                    dry_run=dry_run,
+                    dest_vault=dest_vault,
+                    version_needed=current_dest_version,
+                    path=path,
+                )
+
             deep_copy_versions(
                 dry_run=dry_run,
                 source_vault=source_vault,
                 dest_vault=dest_vault,
-                current_dest_version=0,
+                current_dest_version=current_dest_version,
                 current_source_version=version,
                 path=path,
             )
