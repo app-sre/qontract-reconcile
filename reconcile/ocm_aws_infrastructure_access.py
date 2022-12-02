@@ -7,7 +7,7 @@ from reconcile import queries
 from reconcile.status import ExitCodes
 from reconcile.terraform_resources import TF_NAMESPACES_QUERY
 from reconcile.utils import gql
-from reconcile.utils.disabled_integrations import disabled_integrations
+from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.external_resources import (
     PROVIDER_AWS,
     get_external_resource_specs,
@@ -189,8 +189,7 @@ def run(dry_run):
     clusters = [
         c
         for c in queries.get_clusters()
-        if QONTRACT_INTEGRATION not in disabled_integrations(c)
-        and _cluster_is_compatible(c)
+        if integration_is_enabled(QONTRACT_INTEGRATION, c) and _cluster_is_compatible(c)
     ]
     if not clusters:
         logging.debug(

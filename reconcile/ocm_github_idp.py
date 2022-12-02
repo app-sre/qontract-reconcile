@@ -5,7 +5,7 @@ from typing import Any
 
 from reconcile import queries
 from reconcile.status import ExitCodes
-from reconcile.utils.disabled_integrations import disabled_integrations
+from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.ocm import OCMMap
 from reconcile.utils.secret_reader import SecretReader
 
@@ -91,8 +91,7 @@ def run(dry_run, vault_input_path=""):
     clusters = [
         c
         for c in queries.get_clusters()
-        if QONTRACT_INTEGRATION not in disabled_integrations(c)
-        and _cluster_is_compatible(c)
+        if integration_is_enabled(QONTRACT_INTEGRATION, c) and _cluster_is_compatible(c)
     ]
     if not clusters:
         logging.debug("No github-idp definitions found in app-interface")
