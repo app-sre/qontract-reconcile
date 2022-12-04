@@ -97,7 +97,9 @@ class TestSaasFileValid(TestCase):
                     }
                 ],
                 "roles": [{"users": [{"org_username": "myname"}]}],
-                "selfServiceRoles": [{"users": [{"org_username": "theirname"}]}],
+                "selfServiceRoles": [
+                    {"users": [{"org_username": "theirname"}], "bots": []}
+                ],
             }
         ]
         jjb_mock_data = {
