@@ -1,11 +1,14 @@
-import sys
 import logging
-from typing import Any, Mapping
+import sys
+from typing import (
+    Any,
+    Mapping,
+)
 
 from reconcile import queries
+from reconcile.ocm.utils import cluster_disabled_integrations
 from reconcile.status import ExitCodes
 from reconcile.utils.ocm import OCMMap
-from reconcile.ocm.utils import cluster_disabled_integrations
 
 QONTRACT_INTEGRATION = "ocm-cluster-admin"
 
