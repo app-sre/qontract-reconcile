@@ -11,7 +11,7 @@ from subprocess import (
 class AmtoolResult:
     """This class represents a amtool command execution result"""
 
-    def __init__(self, is_ok, message):
+    def __init__(self, is_ok: bool, message: str) -> None:
         self.is_ok = is_ok
         self.message = message
 
