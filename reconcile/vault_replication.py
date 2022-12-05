@@ -55,11 +55,26 @@ def deep_copy_versions(
 ) -> None:
     for version in range(current_dest_version + 1, current_source_version + 1):
         secret_dict = {"path": path, "version": version}
-        secret, src_version = source_vault.read_all_with_version(secret_dict)
-        write_dict = {"path": path, "data": secret}
-        logging.info(["replicate_vault_secret", src_version, path])
-        if not dry_run:
-            dest_vault.write(secret=write_dict, decode_base64=False, force_write=True)
+
+        try:
+            secret, src_version = source_vault.read_all_with_version(secret_dict)
+            write_dict = {"path": path, "data": secret}
+            logging.info(["replicate_vault_secret", src_version, path])
+            if not dry_run:
+                dest_vault.write(
+                    secret=write_dict, decode_base64=False, force_write=True
+                )
+
+        except SecretNotFound:
+            # Handle the case where the version is already deleted from source, and
+            # we need to write a dummy version to the destination to keep the sync
+            # with versions in the source.
+            write_dummy_versions(
+                dry_run=dry_run,
+                dest_vault=dest_vault,
+                version_needed=version,
+                path=path,
+            )
 
 
 def write_dummy_versions(
@@ -121,21 +136,11 @@ def copy_vault_secret(
                     secret=write_dict, decode_base64=False, force_write=True
                 )
         else:
-            current_dest_version = 0
-            if version >= 10:
-                current_dest_version = version - 10
-                write_dummy_versions(
-                    dry_run=dry_run,
-                    dest_vault=dest_vault,
-                    version_needed=current_dest_version,
-                    path=path,
-                )
-
             deep_copy_versions(
                 dry_run=dry_run,
                 source_vault=source_vault,
                 dest_vault=dest_vault,
-                current_dest_version=current_dest_version,
+                current_dest_version=0,
                 current_source_version=version,
                 path=path,
             )
