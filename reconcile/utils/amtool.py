@@ -1,3 +1,4 @@
+import re
 import tempfile
 from collections.abc import Mapping
 from subprocess import (
@@ -10,7 +11,7 @@ from subprocess import (
 class AmtoolResult:
     """This class represents a amtool command execution result"""
 
-    def __init__(self, is_ok, message):
+    def __init__(self, is_ok: bool, message: str) -> None:
         self.is_ok = is_ok
         self.message = message
 
@@ -45,6 +46,17 @@ def config_routes_test(yaml_config: str, labels: Mapping[str, str]) -> AmtoolRes
     return result
 
 
+def version() -> AmtoolResult:
+    """Returns the version parsed from amtool --version"""
+    result = _run_cmd(["amtool", "--version"])
+
+    pattern = re.compile("^amtool, version (?P<version>[^ ]+) .+")
+    if m := pattern.match(result.message):
+        return AmtoolResult(True, m.group("version"))
+
+    return AmtoolResult(False, f"Unexpected amtool --version output {result.message}")
+
+
 def _run_cmd(cmd: list[str]) -> AmtoolResult:
     try:
         result = run(cmd, stdout=PIPE, stderr=PIPE, check=True)
@@ -57,4 +69,7 @@ def _run_cmd(cmd: list[str]) -> AmtoolResult:
 
         return AmtoolResult(False, msg)
 
-    return AmtoolResult(True, result.stdout.decode())
+    # some amtool commands return also in stderr even in non-error
+    output = result.stdout.decode() + result.stderr.decode()
+
+    return AmtoolResult(True, output)
