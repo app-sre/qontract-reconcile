@@ -4,6 +4,8 @@ from unittest.mock import patch
 
 import pytest
 import yaml
+from pydantic import BaseModel
+from pytest_mock import MockerFixture
 
 import reconcile.openshift_base as sut
 import reconcile.utils.openshift_resource as resource
@@ -607,39 +609,59 @@ def test_populate_current_state_resource_name_filtering(
 #
 
 
-def test_determine_user_keys_for_access_github_org():
-    auth = {"service": "github-org"}
-    user_key = sut.determine_user_keys_for_access("cluster-name", [auth])
-    assert user_key == ["github_username"]
+class OpenshiftBaseAuthService(BaseModel):
+    service: str
 
 
-def test_determine_user_keys_for_access_github_org_team():
-    auth = {"service": "github-org-team"}
-    user_key = sut.determine_user_keys_for_access("cluster-name", [auth])
-    assert user_key == ["github_username"]
+class OpenshiftBaseCluster(BaseModel):
+    name: str
+    auth: list[OpenshiftBaseAuthService]
 
 
-def test_determine_user_keys_for_access_oidc():
-    auth = {"service": "oidc"}
-    user_key = sut.determine_user_keys_for_access("cluster-name", [auth])
-    assert user_key == ["org_username"]
+class OpenshiftBaseUser(BaseModel):
+    org_username: str
+    github_username: str
 
 
-def test_determine_user_keys_for_access_multiple_ones():
-    auths = [{"service": "oidc"}, {"service": "github-org-team"}]
-    user_key = sut.determine_user_keys_for_access("cluster-name", auths)
-    assert user_key == ["org_username", "github_username"]
-
-
-def test_determine_user_keys_for_access_no_duplicates():
-    auths = [{"service": "github-org"}, {"service": "github-org-team"}]
-    user_key = sut.determine_user_keys_for_access("cluster-name", auths)
-    assert user_key == ["github_username"]
-
-
-def test_determine_user_keys_for_access_backward_compatibility():
-    user_key = sut.determine_user_keys_for_access("cluster-name", [])
-    assert user_key == ["github_username"]
+@pytest.mark.parametrize(
+    "auth, expected",
+    [
+        # dicts
+        ([{"service": "github-org"}], ["github_username"]),
+        ([{"service": "github-org-team"}], ["github_username"]),
+        ([{"service": "oidc"}], ["org_username"]),
+        (
+            [{"service": "oidc"}, {"service": "github-org-team"}],
+            ["org_username", "github_username"],
+        ),
+        (
+            [{"service": "github-org"}, {"service": "github-org-team"}],
+            ["github_username"],
+        ),
+        # class
+        ([OpenshiftBaseAuthService(service="github-org")], ["github_username"]),
+        ([OpenshiftBaseAuthService(service="github-org-team")], ["github_username"]),
+        ([OpenshiftBaseAuthService(service="oidc")], ["org_username"]),
+        (
+            [
+                OpenshiftBaseAuthService(service="oidc"),
+                OpenshiftBaseAuthService(service="github-org-team"),
+            ],
+            ["org_username", "github_username"],
+        ),
+        (
+            [
+                OpenshiftBaseAuthService(service="github-org"),
+                OpenshiftBaseAuthService(service="github-org-team"),
+            ],
+            ["github_username"],
+        ),
+        # backward_compatibility
+        ([], ["github_username"]),
+    ],
+)
+def test_determine_user_keys_for_access(auth, expected):
+    assert sut.determine_user_keys_for_access("cluster-name", auth) == expected
 
 
 def test_determine_user_keys_for_access_not_implemented():
@@ -665,3 +687,15 @@ def test_is_namespace_deleted_none():
 
 def test_is_namespace_deleted_empty():
     assert sut.is_namespace_deleted({}) is False
+
+
+def test_user_has_cluster_access(mocker: MockerFixture):
+    mocker.patch.object(
+        sut, "determine_user_keys_for_access", return_value=["org_username"]
+    )
+    user = OpenshiftBaseUser(org_username="user_org", github_username="user_github")
+    cluster = OpenshiftBaseCluster(
+        name="cluster", auth=[OpenshiftBaseAuthService(service="oidc")]
+    )
+    assert sut.user_has_cluster_access(user, cluster, ["user_org"])
+    assert not sut.user_has_cluster_access(user, cluster, ["another_user"])
