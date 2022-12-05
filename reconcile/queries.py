@@ -862,6 +862,7 @@ CLUSTERS_QUERY = """
       version
       format
     }
+    clusterAdmin
     internal
     disable {
       integrations

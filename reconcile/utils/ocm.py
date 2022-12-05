@@ -52,6 +52,7 @@ AUTOSCALE_DESIRED_KEYS = {"min_replicas", "max_replicas"}
 CLUSTER_ADDON_DESIRED_KEYS = {"id", "parameters"}
 
 DISABLE_UWM_ATTR = "disable_user_workload_monitoring"
+CLUSTER_ADMIN_LABEL_KEY = "capability.cluster.manage_cluster_admin"
 BYTES_IN_GIGABYTE = 1024**3
 REQUEST_TIMEOUT_SEC = 60
 
@@ -1011,6 +1012,32 @@ class OCM:  # pylint: disable=too-many-public-methods
             + f"/external_configuration/labels/{label_id}"
         )
         self._delete(api)
+
+    def _get_subscription_labels_api(self, cluster: str) -> str:
+        cluster_id = self.cluster_ids[cluster]
+        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}"
+        subscription_api = self._get_json(api)["subscription"]["href"]
+        return f"{subscription_api}/labels"
+
+    def is_cluster_admin_enabled(self, cluster: str) -> bool:
+        api = self._get_subscription_labels_api(cluster)
+        subcription_labels = self._get_json(api).get("items")
+
+        for sl in subcription_labels or []:
+            if sl["key"] == CLUSTER_ADMIN_LABEL_KEY and sl["value"] == "true":
+                return True
+
+        return False
+
+    def enable_cluster_admin(self, cluster: str):
+        api = self._get_subscription_labels_api(cluster)
+        data = {
+            "key": CLUSTER_ADMIN_LABEL_KEY,
+            "value": "true",
+            "internal": True,
+        }
+
+        self._post(api, data)
 
     def get_machine_pools(self, cluster):
         """Returns a list of details of Machine Pools
