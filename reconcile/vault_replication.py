@@ -222,10 +222,10 @@ def get_jenkins_secret_list(
                     if res is not None:
                         secret_path = res.group(1)
                         if "{" in secret_path:
-                            wildcard_list = process_wildcard_paths_with_text(
+                            template_expasion_list = get_secrets_from_templated_path(
                                 vault_instance, secret_path
                             )
-                            secret_list.extend(wildcard_list)
+                            secret_list.extend(template_expasion_list)
                         else:
                             secret_list.append(secret_path)
 
@@ -320,10 +320,11 @@ def get_start_end_secret(path: str) -> tuple[str, str]:
     return start, end
 
 
-def process_wildcard_paths_with_text(
+def get_secrets_from_templated_path(
     vault_instance: _VaultClient, path: str
 ) -> list[str]:
-    """Returns a list of secrets that match a wildcard path
+    """Returns a list of secrets that result from a templated path
+    expansion.
 
     The input secret is the name of a jenkins instance to filter
     the secrets:
@@ -334,9 +335,9 @@ def process_wildcard_paths_with_text(
     path_slices = path.split("/")
     for s in path_slices:
         if "{" in s and "}" in s:
-            wildcard = s
+            template = s
 
-    cap_groups = re.search(r"(.*)(\{.*\})(.*)", wildcard)
+    cap_groups = re.search(r"(.*)(\{.*\})(.*)", template)
     if cap_groups is not None:
         prefix = cap_groups.group(1)
         suffix = cap_groups.group(3)
