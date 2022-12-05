@@ -11,10 +11,7 @@ QONTRACT_INTEGRATION = "ocm-cluster-admin"
 
 
 def _cluster_is_compatible(cluster: Mapping[str, Any]) -> bool:
-    return (
-        cluster.get("ocm") is not None
-        and cluster.get("clusterAdminAutomationToken") is not None
-    )
+    return cluster.get("ocm") is not None and cluster.get("clusterAdmin")
 
 
 def run(dry_run: bool) -> None:
