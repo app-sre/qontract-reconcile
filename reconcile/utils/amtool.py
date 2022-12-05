@@ -53,10 +53,8 @@ def version() -> AmtoolResult:
     pattern = re.compile("^amtool, version (?P<version>[^ ]+) .+")
     if m := pattern.match(result.message):
         return AmtoolResult(True, m.group("version"))
-    else:
-        return AmtoolResult(
-            False, f"Unexpected amtool --version output {result.message}"
-        )
+
+    return AmtoolResult(False, f"Unexpected amtool --version output {result.message}")
 
 
 def _run_cmd(cmd: list[str]) -> AmtoolResult:
