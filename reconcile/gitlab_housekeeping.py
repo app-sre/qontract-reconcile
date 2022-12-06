@@ -4,6 +4,7 @@ from datetime import (
     datetime,
     timedelta,
 )
+from functools import cache
 from operator import itemgetter
 from typing import (
     Optional,
@@ -202,11 +203,33 @@ def is_rebased(mr, gl: GitLabApi) -> bool:
 
 
 def get_labels(mr: ProjectMergeRequest, gl: GitLabApi) -> list[str]:
-    labels = mr.attributes.get("labels")
-    if not labels:
-        # Sometimes the label attribute is empty but shouldn't. Try it again by fetching this MR separately
-        labels = gl.get_merge_request_labels(mr.iid)
-    return labels
+    """
+    This function used to contain logic for checking if labels were empty and calling
+    gl.get_merge_request_labels() if they were missing because it was suggested that the
+    label attribute is empty sometimes when it shouldn't be. This was an expensive
+    approach to what doesn't appear like it's a consistent problem. We can revisit in
+    the future if we find that this is problematic.
+    """
+    return mr.attributes.get("labels")
+
+# The cache methods below are a quick solution to a problem that probably would
+# otherwise result in more refactoring. We're calling the GitLab API multiple times
+# for the same data over the course of a single integration run.
+
+
+@cache
+def _get_merge_requests(gl: GitLabApi):
+    return gl.get_merge_requests(state=MRState.OPENED)
+
+
+@cache
+def _get_merge_request_commits(mr):
+    return mr.commits()
+
+
+@cache
+def _get_merge_requst_label_events(gl, mr):
+    return gl.get_merge_request_label_events(mr)
 
 
 def get_merge_requests(
@@ -214,7 +237,7 @@ def get_merge_requests(
     gl: GitLabApi,
     users_allowed_to_label: Optional[Iterable[str]] = None,
 ) -> list:
-    mrs = gl.get_merge_requests(state=MRState.OPENED)
+    mrs = _get_merge_requests(gl)
     results = []
     for mr in mrs:
         if mr.merge_status in [
@@ -224,7 +247,7 @@ def get_merge_requests(
             continue
         if mr.work_in_progress:
             continue
-        if len(mr.commits()) == 0:
+        if len(_get_merge_request_commits(mr)) == 0:
             continue
 
         labels = get_labels(mr, gl)
@@ -242,7 +265,7 @@ def get_merge_requests(
                 gl.remove_label_from_merge_request(mr.iid, LGTM)
             continue
 
-        label_events = gl.get_merge_request_label_events(mr)
+        label_events = _get_merge_requst_label_events(gl, mr)
         approval_found = False
         labels_by_unauthorized_users = set()
         labels_by_authorized_users = set()
