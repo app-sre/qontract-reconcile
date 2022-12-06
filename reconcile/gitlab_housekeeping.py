@@ -134,7 +134,7 @@ def handle_stale_items(dry_run, gl, days_interval, enable_closing, item_type):
     if item_type == "issue":
         items = gl.get_issues(state=MRState.OPENED)
     elif item_type == "merge-request":
-        items = gl.get_merge_requests(state=MRState.OPENED)
+        items = _get_merge_requests(gl)
 
     now = datetime.utcnow()
     for item in items:
@@ -223,12 +223,12 @@ def _get_merge_requests(gl: GitLabApi):
 
 
 @cache
-def _get_merge_request_commits(mr):
+def _get_merge_request_commits(mr: ProjectMergeRequest):
     return mr.commits()
 
 
 @cache
-def _get_merge_requst_label_events(gl, mr):
+def _get_merge_requst_label_events(gl: GitLabApi, mr: ProjectMergeRequest):
     return gl.get_merge_request_label_events(mr)
 
 
