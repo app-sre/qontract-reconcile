@@ -1,0 +1,14 @@
+# qenerate: plugin=pydantic_v1
+
+query SlackUsergroupCluster {
+  clusters: clusters_v1 {
+    name
+    slack {
+      userGroup
+      channels
+    }
+    auth {
+      service
+    }
+  }
+}
