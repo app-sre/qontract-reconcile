@@ -935,6 +935,13 @@ class AWSApi:  # pylint: disable=too-many-public-methods
 
         return results
 
+    def get_vpc_route_table_ids(
+        self, account: dict[str, Any], vpc_id: str, region_name: str
+    ) -> list[str]:
+        ec2 = self._account_ec2_client(account["name"], region_name)
+        vpc_route_tables = self.get_vpc_route_tables(vpc_id, ec2)
+        return [rt["RouteTableId"] for rt in vpc_route_tables]
+
     @staticmethod
     def _filter_amis(
         images: Iterable[ImageTypeDef], regex: str
