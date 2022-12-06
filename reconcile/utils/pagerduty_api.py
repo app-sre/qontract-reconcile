@@ -15,8 +15,8 @@ from pydantic import BaseModel
 from sretoolbox.utils import retry
 
 from reconcile.utils.secret_reader import (
+    HasSecret,
     SecretReader,
-    SupportsSecret,
 )
 
 
@@ -31,7 +31,7 @@ class PagerDutyInstance(Protocol):
     name: str
 
     @property
-    def token(self) -> SupportsSecret:
+    def token(self) -> HasSecret:
         pass
 
 
