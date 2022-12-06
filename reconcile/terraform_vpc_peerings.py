@@ -390,6 +390,10 @@ def build_desired_state_vpc_single_cluster(
             "cidr_block": peer_vpc["cidr_block"],
             "region": peer_vpc["region"],
         }
+        if peer_connection.get("manageAccountRoutes"):
+            accepter["route_table_ids"] = awsapi.get_vpc_route_table_ids(
+                account, peer_vpc["vpc_id"], peer_vpc["region"]
+            )
 
         # assume_role is the role to assume to provision the peering
         # connection request, through the accepter AWS account.

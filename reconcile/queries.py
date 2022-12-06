@@ -1005,6 +1005,7 @@ CLUSTER_PEERING_QUERY = """
             region
           }
           assumeRole
+          manageAccountRoutes
         }
         ... on ClusterPeeringConnectionAccountVPCMesh_v1 {
           account {
