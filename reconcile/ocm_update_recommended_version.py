@@ -61,39 +61,33 @@ def get_version_weights(ocm: dict[str, Any]) -> tuple[int, int]:
 def get_updated_recommended_versions(
     ocm_info: dict[str, Any], cluster: dict[str, OCMSpec]
 ) -> list[dict[str, str]]:
-
-    recommended_versions = ocm_info.get("recommendedVersions") or []
-
     high_weight, majority_weight = get_version_weights(ocm_info)
 
     rv_updated: list[dict[str, str]] = []
-    for workload in ocm_info["upgradePolicyAllowedWorkloads"] or []:
-        cluster_workload = [
-            c["name"]
-            for c in ocm_info.get("upgradePolicyClusters") or []
-            if workload in c["upgradePolicy"]["workloads"]
-        ]
-        versions = [cluster[k].spec.version for k in cluster if k in cluster_workload]
 
-        rv_workload = [rv for rv in recommended_versions if rv["workload"] == workload]
-        if len(rv_workload) > 1:
-            raise ValueError("Expecting zero or one recommended Version per workload!")
-        elif len(rv_workload) == 0:
-            # Workload was not configured, thus create a new rv for it
-            rv_current = {"workload": workload}
-        else:
-            # Workload exists
-            rv_current = rv_workload[0]
+    channel_workload_versions = {}
 
-        if len(versions) > 0:
-            # Managed clusters exist for this workload
-            rv_current["recommendedVersion"] = recommended_version(
-                versions, high_weight, majority_weight
+    for uc in ocm_info["upgradePolicyClusters"] or []:
+        cluster_name = uc["name"]
+        for workload in uc["upgradePolicy"]["workloads"]:
+            channel_workload = f"{workload}/{cluster[cluster_name].spec.channel}"
+            if channel_workload not in channel_workload_versions:
+                channel_workload_versions[channel_workload] = []
+            channel_workload_versions[channel_workload].append(
+                cluster[cluster_name].spec.version
             )
-            rv_updated.append(rv_current)
-        elif len(rv_workload) == 1 and len(versions) == 0:
-            # No clusters exist, but a rv was added, probably a manual setting
-            rv_updated.append(rv_workload[0])
+
+    for cwv in channel_workload_versions:
+        if len(cwv.split("/")) != 2:
+            raise ValueError("Expecting workload/channel format!, got: {}".format(cwv))
+        workload, channel = cwv.split("/")
+        versions = channel_workload_versions[cwv]
+        rv_current = {"workload": workload, "channel": channel}
+        rv_current["recommendedVersion"] = recommended_version(
+            versions, high_weight, majority_weight
+        )
+        rv_updated.append(rv_current)
+
     return rv_updated
 
 
