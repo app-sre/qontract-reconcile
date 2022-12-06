@@ -64,6 +64,11 @@ def cluster() -> str:
 
 
 @pytest.fixture
+def cluster_id(cluster: str) -> str:
+    return f"{cluster}-id"
+
+
+@pytest.fixture
 def oidc_idp(cluster: str) -> OCMOidcIdp:
     return OCMOidcIdp(
         id="idp-id",
@@ -80,7 +85,7 @@ def oidc_idp(cluster: str) -> OCMOidcIdp:
 
 
 @pytest.fixture
-def ocm(mocker: MockerFixture, ocm_url: str, cluster: str) -> OCM:
+def ocm(mocker: MockerFixture, ocm_url: str, cluster: str, cluster_id: str) -> OCM:
     mocker.patch("reconcile.utils.ocm_base_client.OCMBaseClient._init_access_token")
     mocker.patch("reconcile.utils.ocm_base_client.OCMBaseClient._init_request_headers")
     mocker.patch("reconcile.utils.ocm.OCM.whoami")
@@ -89,7 +94,7 @@ def ocm(mocker: MockerFixture, ocm_url: str, cluster: str) -> OCM:
     mocker.patch("reconcile.utils.ocm.OCM._init_version_gates")
     ocm = OCM("name", "url", "tid", "turl", "ot")
     ocm._ocm_client._url = ocm_url
-    ocm.cluster_ids = {cluster: cluster + "-id"}
+    ocm.cluster_ids = {cluster: cluster_id}
     return ocm
 
 
@@ -448,8 +453,9 @@ def test_ocm_create_oidc_idp(
     ocm: OCM,
     ocm_url: str,
     oidc_idp: OCMOidcIdp,
+    cluster_id: str,
 ) -> None:
-    url = f"{ocm_url}/api/clusters_mgmt/v1/clusters/cluster-1-id/identity_providers"
+    url = f"{ocm_url}/api/clusters_mgmt/v1/clusters/{cluster_id}/identity_providers"
     request_data = {
         "type": "OpenIDIdentityProvider",
         "name": oidc_idp.name,
@@ -500,8 +506,9 @@ def test_ocm_update_oidc_idp(
     ocm: OCM,
     ocm_url: str,
     oidc_idp: OCMOidcIdp,
+    cluster_id: str,
 ) -> None:
-    url = f"{ocm_url}/api/clusters_mgmt/v1/clusters/cluster-1-id/identity_providers/idp-id-1"
+    url = f"{ocm_url}/api/clusters_mgmt/v1/clusters/{cluster_id}/identity_providers/idp-id-1"
     request_data = {
         "type": "OpenIDIdentityProvider",
         "open_id": {
@@ -526,3 +533,19 @@ def test_ocm_update_oidc_idp(
         httpretty.PATCH, url, content_type="text/json", body=request_callback
     )
     ocm.update_oidc_idp("idp-id-1", oidc_idp)
+
+
+def test_ocm_delete_idp(
+    httpretty: httpretty,
+    ocm: OCM,
+    ocm_url: str,
+    cluster: str,
+    cluster_id: str,
+) -> None:
+    url = f"{ocm_url}/api/clusters_mgmt/v1/clusters/{cluster_id}/identity_providers/idp-id-1"
+
+    def request_callback(request, uri, response_headers):
+        return [201, response_headers, json.dumps({})]
+
+    httpretty.register_uri(httpretty.DELETE, url, body=request_callback)
+    ocm.delete_idp(cluster, "idp-id-1")

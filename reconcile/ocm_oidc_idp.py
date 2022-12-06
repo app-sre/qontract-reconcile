@@ -130,7 +130,7 @@ def act(
             sys.exit(1)
         if not dry_run:
             ocm = ocm_map.get(idp.cluster)
-            ocm.delete_oidc_idp(idp.cluster, idp.id)
+            ocm.delete_idp(idp.cluster, idp.id)
 
     for idp in to_compare:
         current_idp = current_state[current_state.index(idp)]

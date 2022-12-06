@@ -1038,8 +1038,8 @@ class OCM:  # pylint: disable=too-many-public-methods
         }
         self._patch(api, payload)
 
-    def delete_oidc_idp(self, cluster: str, idp_id: str) -> None:
-        """Delete an OpenID Connect IDP."""
+    def delete_idp(self, cluster: str, idp_id: str) -> None:
+        """Delete an IDP."""
         cluster_id = self.cluster_ids[cluster]
         api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/identity_providers/{idp_id}"
         self._delete(api)

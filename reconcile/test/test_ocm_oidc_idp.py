@@ -252,7 +252,7 @@ def test_ocm_oidc_idp_act(ocm_map: Mock):
     ocm_map.get.assert_not_called()
     ocm = ocm_map.get.return_value
     ocm.create_oidc_idp.assert_not_called()
-    ocm.delete_oidc_idp.assert_not_called()
+    ocm.delete_idp.assert_not_called()
     ocm.update_oidc_idp.assert_not_called()
 
     # non dry-run
@@ -264,7 +264,7 @@ def test_ocm_oidc_idp_act(ocm_map: Mock):
     )
     ocm = ocm_map.get.return_value
     ocm.create_oidc_idp.assert_called_once_with(cluster_to_be_added)
-    ocm.delete_oidc_idp.assert_called_once_with(
+    ocm.delete_idp.assert_called_once_with(
         cluster_to_be_removed.cluster, cluster_to_be_removed.id
     )
     ocm.update_oidc_idp.assert_called_once_with(
