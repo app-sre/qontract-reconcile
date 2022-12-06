@@ -91,8 +91,8 @@ def get_tf_roles() -> list[dict[str, Any]]:
 def setup(
     print_to_file,
     thread_pool_size: int,
-    skip_reencrypt_accounts: list[str],
-    appsre_pgp_key: str,
+    skip_reencrypt_accounts: Optional[list[str]] = None,
+    appsre_pgp_key: Optional[str] = None,
     account_name: Optional[str] = None,
 ) -> tuple[list[dict[str, Any]], dict[str, str], bool, AWSApi]:
     accounts = queries.get_aws_accounts(terraform_state=True)
@@ -108,7 +108,11 @@ def setup(
         accounts,
         settings=settings,
     )
-    err = ts.populate_users(get_tf_roles(), skip_reencrypt_accounts, appsre_pgp_key)
+    err = ts.populate_users(
+        get_tf_roles(),
+        skip_reencrypt_accounts=skip_reencrypt_accounts,
+        appsre_pgp_key=appsre_pgp_key,
+    )
     working_dirs = ts.dump(print_to_file)
     aws_api = AWSApi(1, accounts, settings=settings, init_users=False)
 
@@ -149,15 +153,17 @@ Encrypted password: {}
         subject = "Invitation to join the {} AWS account".format(account)
         body = msg_template.format(account, console_url, user_name, enc_password)
         mails.append((to, subject, body))
-    smtp_client.send_mails(mails)
+
+    if len(mails) > 0:
+        smtp_client.send_mails(mails)
 
 
 def write_user_to_vault(
+    vault_client: _VaultClient,
     vault_path: str,
     new_users: list[tuple[str, str, str, str]],
     skip_reencrypt_accounts: list[str],
 ):
-    vault_client = cast(_VaultClient, VaultClient())
     for account, console_url, user_name, enc_password in new_users:
         if account in skip_reencrypt_accounts:
             continue
@@ -165,6 +171,7 @@ def write_user_to_vault(
         desired_secret = {
             "path": secret_path,
             "data": {
+                "account": account,
                 "user_name": user_name,
                 "console_url": console_url,
                 "encrypted_password": enc_password,
@@ -187,15 +194,14 @@ def run(
     send_mails: bool = True,
     account_name: Optional[str] = None,
 ):
-    all_reencrypt_settings = query(
-        query_func=gql.get_api().query
-    ).pgp_reencryption_settings
+    all_reencrypt_settings = (
+        query(query_func=gql.get_api().query).pgp_reencryption_settings or []
+    )
 
     if len(all_reencrypt_settings) > 1:
         raise ValueError("Expecting only a single reencrypt settings entry")
 
     reencrypt_settings = all_reencrypt_settings[0]
-
     skip_accounts: list[str] = []
     if reencrypt_settings.skip_aws_accounts:
         skip_accounts = [s.name for s in reencrypt_settings.skip_aws_accounts]
@@ -245,6 +251,14 @@ def run(
         cleanup_and_exit(tf, err)
 
     new_users = tf.get_new_users()
+
+    cleanup_and_exit(tf, setup_err)
+
+    vc = cast(_VaultClient, VaultClient())
+    write_user_to_vault(
+        vc, reencrypt_settings.reencrypt_vault_path, new_users, skip_accounts
+    )
+
     if send_mails:
         smtp_settings = typed_queries.smtp.settings()
         smtp_client = SmtpClient(
@@ -258,12 +272,6 @@ def run(
             timeout=smtp_settings.timeout or DEFAULT_SMTP_TIMEOUT,
         )
         send_email_invites(new_users, smtp_client, skip_accounts)
-
-    write_user_to_vault(
-        reencrypt_settings.reencrypt_vault_path, new_users, skip_accounts
-    )
-
-    cleanup_and_exit(tf, setup_err)
 
 
 def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:

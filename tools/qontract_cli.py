@@ -856,7 +856,9 @@ def clusters_aws_account_ids(ctx):
 @get.command()
 @click.pass_context
 def terraform_users_credentials(ctx) -> None:
-    accounts, working_dirs, _, aws_api = tfu.setup(False, 1)
+    accounts, working_dirs, _, aws_api = tfu.setup(
+        False, 1, skip_reencrypt_accounts=None, account_name=None
+    )
     tf = Terraform(
         tfu.QONTRACT_INTEGRATION,
         tfu.QONTRACT_INTEGRATION_VERSION,
