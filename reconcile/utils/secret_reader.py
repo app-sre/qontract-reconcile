@@ -28,8 +28,8 @@ class SecretNotFound(Exception):
     pass
 
 
-class SupportsSecret(Protocol):
-    """SupportsSecret defines all attributes needed to fetch a secret from Vault or config.
+class HasSecret(Protocol):
+    """HasSecret defines all attributes needed to fetch a secret from Vault or config.
 
     This is the protocol/interface for app-interface's VaultSecretV1.
     """
@@ -79,7 +79,7 @@ class SecretReaderBase(ABC):
             version=secret.get("version"),
         )
 
-    def read_secret(self, secret: SupportsSecret) -> str:
+    def read_secret(self, secret: HasSecret) -> str:
         return self._read(
             path=secret.path,
             field=secret.field,
@@ -87,7 +87,7 @@ class SecretReaderBase(ABC):
             version=secret.version,
         )
 
-    def read_all_secret(self, secret: SupportsSecret) -> dict[str, str]:
+    def read_all_secret(self, secret: HasSecret) -> dict[str, str]:
         return self._read_all(
             path=secret.path,
             field=secret.field,
@@ -126,7 +126,7 @@ class SecretReaderBase(ABC):
         }
 
     @staticmethod
-    def to_dict(secret: SupportsSecret) -> dict[str, Union[str, int, None]]:
+    def to_dict(secret: HasSecret) -> dict[str, Union[str, int, None]]:
         """Convenient method to convert Secret class to dictionary."""
         return {
             "path": secret.path,

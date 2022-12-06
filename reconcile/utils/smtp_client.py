@@ -13,8 +13,8 @@ from pydantic import (
 from sretoolbox.utils import retry
 
 from reconcile.utils.secret_reader import (
+    HasSecret,
     SecretReaderBase,
-    SupportsSecret,
 )
 
 DEFAULT_SMTP_TIMEOUT = 30
@@ -29,13 +29,13 @@ class SmtpServerConnectionInfo(BaseModel):
 
 
 def get_smtp_server_connection(
-    secret_reader: SecretReaderBase, secret: SupportsSecret
+    secret_reader: SecretReaderBase, secret: HasSecret
 ) -> SmtpServerConnectionInfo:
     """Retrieve SMTP credentials from config or vault.
 
     Args:
     - secret_reader: a SecretReader instance
-    - secret: a 'secret' class instance which implements the SupportsSecret protocol. E.g. VaultSecret (reconcile.gql_definitions.common.smtp_client_settings.SmtpSettingsV1.credentials)
+    - secret: a 'secret' class instance which implements the HasSecret protocol. E.g. VaultSecret (reconcile.gql_definitions.common.smtp_client_settings.SmtpSettingsV1.credentials)
     """
     data = secret_reader.read_all_secret(secret)
     return SmtpServerConnectionInfo(**data)
