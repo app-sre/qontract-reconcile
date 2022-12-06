@@ -16,8 +16,6 @@ from pydantic import BaseModel
 from sretoolbox.utils import retry
 
 from reconcile import queries
-from reconcile.gql_definitions.common.pagerduty_instances import (
-    query as pagerduty_instances_query,
 )
 from reconcile.gql_definitions.common.users import User
 from reconcile.gql_definitions.common.users import query as users_query
@@ -30,6 +28,7 @@ from reconcile.gql_definitions.slack_usergroups.permissions import (
     query as permissions_query,
 )
 from reconcile.slack_base import get_slackapi
+from reconcile.typed_queries.pagerduty_instances import get_pagerduty_instances
 from reconcile.utils import gql
 from reconcile.utils.exceptions import AppInterfaceSettingsError
 from reconcile.utils.github_api import GithubApi
@@ -581,12 +580,7 @@ def run(
 
     # queries
     permissions = query_permissions(gqlapi.query)
-    pagerduty_instances = pagerduty_instances_query(
-        query_func=gqlapi.query
-    ).pagerduty_instances
-    if not pagerduty_instances:
-        raise AppInterfaceSettingsError("no pagerduty instance(s) configured")
-    users = users_query(query_func=gqlapi.query).users or []
+    pagerduty_instances = get_pagerduty_instances(query_func=gqlapi.query)
 
     # APIs
     slack_map = get_slack_map(
