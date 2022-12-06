@@ -449,6 +449,13 @@ def merge_merge_requests(
 
 
 def run(dry_run, wait_for_pipeline):
+    # Invalidate the cache each time the integration starts to run. We only wish to
+    # cache data within each integration run, not to the next integration run. There is
+    # probably a better way to do this.
+    _get_merge_requests.cache_clear()
+    _get_merge_request_commits.cache_clear()
+    _get_merge_requst_label_events.cache_clear()
+
     default_days_interval = 15
     default_limit = 8
     default_enable_closing = False
