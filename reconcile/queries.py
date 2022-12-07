@@ -2883,9 +2883,6 @@ GABI_INSTANCES_QUERY = """
           disable {
             integrations
           }
-          auth {
-            service
-          }
         }
       }
     }
