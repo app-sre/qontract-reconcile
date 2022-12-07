@@ -1927,6 +1927,15 @@ def ocm_github_idp(ctx, vault_input_path):
     run_integration(reconcile.ocm_github_idp, ctx.obj, vault_input_path)
 
 
+@integration.command(short_help="Manage OIDC Identity Providers in OCM.")
+@vault_input_path
+@click.pass_context
+def ocm_oidc_idp(ctx, vault_input_path):
+    import reconcile.ocm_oidc_idp
+
+    run_integration(reconcile.ocm_oidc_idp, ctx.obj, vault_input_path)
+
+
 @integration.command(short_help="Manage additional routers in OCM.")
 @click.pass_context
 def ocm_additional_routers(ctx):

@@ -3806,6 +3806,18 @@
                             "deprecationReason": null
                         },
                         {
+                            "name": "clusterAdmin",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "Boolean",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
                             "name": "clusterAdminAutomationToken",
                             "description": null,
                             "args": [],
@@ -3984,6 +3996,11 @@
                         },
                         {
                             "kind": "OBJECT",
+                            "name": "QuayOrg_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "OBJECT",
                             "name": "Role_v1",
                             "ofType": null
                         },
@@ -4009,12 +4026,22 @@
                         },
                         {
                             "kind": "OBJECT",
+                            "name": "Schedule_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "OBJECT",
                             "name": "JiraBoard_v1",
                             "ofType": null
                         },
                         {
                             "kind": "OBJECT",
                             "name": "StatusPageComponent_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "OBJECT",
+                            "name": "JenkinsConfig_v1",
                             "ofType": null
                         },
                         {
@@ -4029,6 +4056,11 @@
                         },
                         {
                             "kind": "OBJECT",
+                            "name": "SLODocument_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "OBJECT",
                             "name": "GlitchtipProjects_v1",
                             "ofType": null
                         },
@@ -4039,12 +4071,27 @@
                         },
                         {
                             "kind": "OBJECT",
+                            "name": "Environment_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "OBJECT",
+                            "name": "Product_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "OBJECT",
                             "name": "Integration_v1",
                             "ofType": null
                         },
                         {
                             "kind": "OBJECT",
                             "name": "Report_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "OBJECT",
+                            "name": "UnleashInstance_v1",
                             "ofType": null
                         },
                         {
@@ -5820,7 +5867,13 @@
                         }
                     ],
                     "inputFields": null,
-                    "interfaces": [],
+                    "interfaces": [
+                        {
+                            "kind": "INTERFACE",
+                            "name": "DatafileObject_v1",
+                            "ofType": null
+                        }
+                    ],
                     "enumValues": null,
                     "possibleTypes": null
                 },
@@ -9096,6 +9149,46 @@
                                     "ofType": {
                                         "kind": "OBJECT",
                                         "name": "OpenShiftClusterManagerUpgradePolicyCluster_v1",
+                                        "ofType": null
+                                    }
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "inheritVersionData",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "LIST",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "NON_NULL",
+                                    "name": null,
+                                    "ofType": {
+                                        "kind": "OBJECT",
+                                        "name": "OpenShiftClusterManager_v1",
+                                        "ofType": null
+                                    }
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "publishVersionData",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "LIST",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "NON_NULL",
+                                    "name": null,
+                                    "ofType": {
+                                        "kind": "OBJECT",
+                                        "name": "OpenShiftClusterManager_v1",
                                         "ofType": null
                                     }
                                 }
@@ -12424,6 +12517,38 @@
                     "description": null,
                     "fields": [
                         {
+                            "name": "schema",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "path",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
                             "name": "name",
                             "description": null,
                             "args": [],
@@ -12477,7 +12602,13 @@
                         }
                     ],
                     "inputFields": null,
-                    "interfaces": [],
+                    "interfaces": [
+                        {
+                            "kind": "INTERFACE",
+                            "name": "DatafileObject_v1",
+                            "ofType": null
+                        }
+                    ],
                     "enumValues": null,
                     "possibleTypes": null
                 },
@@ -14595,7 +14726,13 @@
                         }
                     ],
                     "inputFields": null,
-                    "interfaces": [],
+                    "interfaces": [
+                        {
+                            "kind": "INTERFACE",
+                            "name": "DatafileObject_v1",
+                            "ofType": null
+                        }
+                    ],
                     "enumValues": null,
                     "possibleTypes": null
                 },
@@ -16189,6 +16326,22 @@
                             "deprecationReason": null
                         },
                         {
+                            "name": "path",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
                             "name": "labels",
                             "description": null,
                             "args": [],
@@ -16278,7 +16431,13 @@
                         }
                     ],
                     "inputFields": null,
-                    "interfaces": [],
+                    "interfaces": [
+                        {
+                            "kind": "INTERFACE",
+                            "name": "DatafileObject_v1",
+                            "ofType": null
+                        }
+                    ],
                     "enumValues": null,
                     "possibleTypes": null
                 },
@@ -17092,7 +17251,13 @@
                         }
                     ],
                     "inputFields": null,
-                    "interfaces": [],
+                    "interfaces": [
+                        {
+                            "kind": "INTERFACE",
+                            "name": "DatafileObject_v1",
+                            "ofType": null
+                        }
+                    ],
                     "enumValues": null,
                     "possibleTypes": null
                 },
@@ -17223,7 +17388,13 @@
                         }
                     ],
                     "inputFields": null,
-                    "interfaces": [],
+                    "interfaces": [
+                        {
+                            "kind": "INTERFACE",
+                            "name": "DatafileObject_v1",
+                            "ofType": null
+                        }
+                    ],
                     "enumValues": null,
                     "possibleTypes": null
                 },
@@ -22730,7 +22901,13 @@
                         }
                     ],
                     "inputFields": null,
-                    "interfaces": [],
+                    "interfaces": [
+                        {
+                            "kind": "INTERFACE",
+                            "name": "DatafileObject_v1",
+                            "ofType": null
+                        }
+                    ],
                     "enumValues": null,
                     "possibleTypes": null
                 },
@@ -26173,6 +26350,46 @@
                             },
                             "isDeprecated": false,
                             "deprecationReason": null
+                        },
+                        {
+                            "name": "name",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "issuer",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "String",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "claims",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "OBJECT",
+                                "name": "ClusterAuthOIDCClaims_v1",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
                         }
                     ],
                     "inputFields": null,
@@ -26183,6 +26400,97 @@
                             "ofType": null
                         }
                     ],
+                    "enumValues": null,
+                    "possibleTypes": null
+                },
+                {
+                    "kind": "OBJECT",
+                    "name": "ClusterAuthOIDCClaims_v1",
+                    "description": null,
+                    "fields": [
+                        {
+                            "name": "email",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "LIST",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "NON_NULL",
+                                    "name": null,
+                                    "ofType": {
+                                        "kind": "SCALAR",
+                                        "name": "String",
+                                        "ofType": null
+                                    }
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "username",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "LIST",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "NON_NULL",
+                                    "name": null,
+                                    "ofType": {
+                                        "kind": "SCALAR",
+                                        "name": "String",
+                                        "ofType": null
+                                    }
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "name",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "LIST",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "NON_NULL",
+                                    "name": null,
+                                    "ofType": {
+                                        "kind": "SCALAR",
+                                        "name": "String",
+                                        "ofType": null
+                                    }
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "groups",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "LIST",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "NON_NULL",
+                                    "name": null,
+                                    "ofType": {
+                                        "kind": "SCALAR",
+                                        "name": "String",
+                                        "ofType": null
+                                    }
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        }
+                    ],
+                    "inputFields": null,
+                    "interfaces": [],
                     "enumValues": null,
                     "possibleTypes": null
                 },
@@ -26827,6 +27135,18 @@
                         },
                         {
                             "name": "manageRoutes",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "Boolean",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "manageAccountRoutes",
                             "description": null,
                             "args": [],
                             "type": {
