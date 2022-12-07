@@ -14,6 +14,7 @@ from typing import (
     Any,
     Optional,
 )
+from urllib import parse
 
 import anymarkup
 import jinja2
@@ -275,6 +276,54 @@ def json_to_dict(input):
     return data
 
 
+def urlescape(
+    string: str,
+    quote_plus: bool = False,
+    safe: str = "/",
+    encoding: Optional[str] = None,
+) -> str:
+    """Jinja2 filter that is a simple wrapper around urllib's URL quoting
+    functions that takes a string value and makes it safe for use as URL
+    components escaping any reserved characters using URL encoding. See:
+    urllib.parse.quote() and urllib.parse.quote_plus() for reference.
+
+    :param str string: String value to escape.
+    :param bool quote_plus: Replace spaces with plus signs.
+    :param str safe: Optional characters that should not be escaped.
+    :param encoding: Encoding to apply to the string to be escaped. Defaults
+        to UTF-8. Unsupported characters raise a UnicodeEncodeError error.
+    :type encoding: typing.Optional[str]
+    :returns: A string with reserved characters escaped.
+    :rtype: str
+    """
+    if quote_plus:
+        return parse.quote_plus(string, safe="", encoding=encoding)
+    return parse.quote(string, safe=safe, encoding=encoding)
+
+
+def urlunescape(
+    string: str, unquote_plus: bool = False, encoding: Optional[str] = None
+) -> str:
+    """Jinja2 filter that is a simple wrapper around urllib's URL unquoting
+    functions that takes an URL-encoded string value and unescapes it
+    replacing any URL-encoded values with their character equivalent. See:
+    urllib.parse.unquote() and urllib.parse.unquote_plus() for reference.
+
+    :param str string: String value to unescape.
+    :param bool quote_plus: Replace plus signs with spaces.
+    :param encoding: Encoding to apply to the string to be unescaped. Defaults
+        to UTF-8. Unsupported characters are replaced by placeholder values.
+    :type encoding: typing.Optional[str]
+    :returns: A string with URL-encoded sequences unescaped.
+    :rtype: str
+    """
+    if encoding is None:
+        encoding = "utf-8"
+    if unquote_plus:
+        return parse.unquote_plus(string, encoding=encoding)
+    return parse.unquote(string, encoding=encoding)
+
+
 @cache
 def compile_jinja2_template(body, extra_curly: bool = False):
     env: dict = {}
@@ -293,8 +342,13 @@ def compile_jinja2_template(body, extra_curly: bool = False):
         undefined=jinja2.StrictUndefined,
         **env,
     )
-    # Register Custom filters
-    jinja_env.filters["json_to_dict"] = json_to_dict
+    jinja_env.filters.update(
+        {
+            "json_to_dict": json_to_dict,
+            "urlescape": urlescape,
+            "urlunescape": urlunescape,
+        }
+    )
 
     return jinja_env.from_string(body)
 
@@ -306,18 +360,20 @@ def process_jinja2_template(body, vars=None, extra_curly: bool = False, settings
         {
             "vault": lambda p, k, v=None: lookup_secret(
                 path=p, key=k, version=v, tvars=vars, settings=settings
-            )
-        }
-    )
-    vars.update(
-        {
+            ),
             "github": lambda u, p, r, v=None: lookup_github_file_content(
                 repo=u, path=p, ref=r, tvars=vars, settings=settings
-            )
+            ),
+            "urlescape": lambda u, p=False, s="/", e=None: urlescape(
+                string=u, quote_plus=p, safe=s, encoding=e
+            ),
+            "urlunescape": lambda u, p=False, e=None: urlunescape(
+                string=u, unquote_plus=p, encoding=e
+            ),
+            "query": lookup_graphql_query_results,
+            "url": url_makes_sense,
         }
     )
-    vars.update({"query": lookup_graphql_query_results})
-    vars.update({"url": url_makes_sense})
     try:
         template = compile_jinja2_template(body, extra_curly)
         r = template.render(vars)
