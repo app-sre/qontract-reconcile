@@ -54,6 +54,12 @@ def fetch_desired_state(
             if not isinstance(auth, ClusterAuthOIDCV1):
                 continue
 
+            if not auth.issuer:
+                logging.error(
+                    f"{cluster.name} auth={auth.name} doesn't have an issuer url set."
+                )
+                sys.exit(1)
+
             secret = {
                 "path": f"{vault_input_path.rstrip('/')}/{QONTRACT_INTEGRATION}/{auth.name}/{cluster.name}"
             }

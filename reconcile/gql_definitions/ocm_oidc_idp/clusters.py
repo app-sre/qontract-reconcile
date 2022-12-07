@@ -172,7 +172,7 @@ class ClusterAuthOIDCClaimsV1(BaseModel):
 
 class ClusterAuthOIDCV1(ClusterAuthV1):
     name: str = Field(..., alias="name")
-    issuer: str = Field(..., alias="issuer")
+    issuer: Optional[str] = Field(..., alias="issuer")
     claims: Optional[ClusterAuthOIDCClaimsV1] = Field(..., alias="claims")
 
     class Config:
