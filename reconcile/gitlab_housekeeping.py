@@ -206,6 +206,13 @@ def get_labels(mr: ProjectMergeRequest, gl: GitLabApi) -> list[str]:
     if not labels:
         # Sometimes the label attribute is empty but shouldn't. Try it again by fetching this MR separately
         labels = gl.get_merge_request_labels(mr.iid)
+        # This log is being added to get more data about how often GitLab doesn't return
+        # labels to see if we can remove the extra GitLab API call above.
+        if labels:
+            logging.info(
+                "Found a MR with missing labels, but successfully obtained labels on second call - %s",
+                mr.attributes["web_url"],
+            )
     return labels
 
 
