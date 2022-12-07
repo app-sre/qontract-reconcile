@@ -86,7 +86,7 @@ def get_updated_recommended_versions(
     for cwv_items in channel_workload_versions.items():
         cwv, versions = cwv_items
         if len(cwv.split("/")) != 2:
-            raise ValueError("Expecting workload/channel format!, got: {}".format(cwv))
+            raise ValueError(f"Expecting workload/channel format!, got: {cwv}")
         workload, channel = cwv.split("/")
         rv = recommended_version(versions, high_weight, majority_weight)
         rv_current = {
