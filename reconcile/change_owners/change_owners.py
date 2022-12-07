@@ -336,7 +336,7 @@ def run(
         #
         changes = fetch_bundle_changes(comparison_sha)
         logging.info(
-            f"detected {len(changes)} changed bundle files with {sum(len(c.diff_coverage) for c in changes)} differences"
+            f"detected {len(changes)} changed files with {sum(len(c.diff_coverage) for c in changes)} differences"
         )
         cover_changes(
             changes,
