@@ -6,11 +6,12 @@ from reconcile.ocm.types import (
     OCMSpec,
 )
 from reconcile.ocm_update_recommended_version import (
+    format_initial_version,
     get_highest,
     get_majority,
     get_updated_recommended_versions,
     get_version_weights,
-    recommended_version, format_initial_version,
+    recommended_version,
 )
 
 
