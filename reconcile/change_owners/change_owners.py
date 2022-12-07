@@ -112,30 +112,46 @@ def _parse_bundle_changes(bundle_changes) -> list[BundleFileChange]:
     """
     parses the output of the qontract-server /diff endpoint
     """
-    change_list = [
-        create_bundle_file_change(
+
+    # todo - add some logging to remove BundleFileChange file with no changes
+    datafiles = bundle_changes["datafiles"].values()
+    resourcefiles = bundle_changes["resources"].values()
+    logging.debug(
+        f"bundle contains {len(datafiles)} changed datafiles and {len(resourcefiles)} changed resourcefiles"
+    )
+
+    change_list = []
+    for c in datafiles:
+        bc = create_bundle_file_change(
             path=c.get("datafilepath"),
             schema=c.get("datafileschema"),
             file_type=BundleFileType.DATAFILE,
             old_file_content=c.get("old"),
             new_file_content=c.get("new"),
         )
-        for c in bundle_changes["datafiles"].values()
-    ]
-    change_list.extend(
-        [
-            create_bundle_file_change(
-                path=c.get("resourcepath"),
-                schema=c.get("new", {}).get("$schema", c.get("old", {}).get("$schema")),
-                file_type=BundleFileType.RESOURCEFILE,
-                old_file_content=c.get("old", {}).get("content"),
-                new_file_content=c.get("new", {}).get("content"),
+        if bc is not None:
+            change_list.append(bc)
+        else:
+            logging.debug(
+                f"skipping datafile {c.get('datafilepath')} - no changes detected"
             )
-            for c in bundle_changes["resources"].values()
-        ]
-    )
-    # get rid of Nones - create_bundle_file_change returns None if no real change has been detected
-    return [c for c in change_list if c]
+
+    for c in resourcefiles:
+        bc = create_bundle_file_change(
+            path=c.get("resourcepath"),
+            schema=c.get("new", {}).get("$schema", c.get("old", {}).get("$schema")),
+            file_type=BundleFileType.RESOURCEFILE,
+            old_file_content=c.get("old", {}).get("content"),
+            new_file_content=c.get("new", {}).get("content"),
+        )
+        if bc is not None:
+            change_list.append(bc)
+        else:
+            logging.debug(
+                f"skipping resourcefile {c.get('resourcepath')} - no changes detected"
+            )
+
+    return change_list
 
 
 CHANGE_TYPE_PROCESSING_MODE_LIMITED = "limited"
@@ -319,19 +335,22 @@ def run(
         #   C H A N G E   C O V E R A G E
         #
         changes = fetch_bundle_changes(comparison_sha)
+        logging.info(
+            f"detected {len(changes)} changed bundle files with {sum(len(c.diff_coverage) for c in changes)} differences"
+        )
         cover_changes(
             changes,
             change_type_processors,
             comparison_gql_api,
         )
-
+        logging.debug(
+            f"bundle files with changes uncovered by change-types: {', '.join([str(c.fileref) for c in changes if not c.all_changes_covered()])}"
+        )
         self_serviceable = (
-            all(c.all_changes_covered() for c in changes)
+            len(changes) > 0
+            and all(c.all_changes_covered() for c in changes)
             and change_type_processing_mode == CHANGE_TYPE_PROCESSING_MODE_AUTHORITATIVE
         )
-
-        # todo(goberlec) - what do we do if there are no changes?
-        # do we want to add the bot/approved label and be done with it?
 
         #
         #   D E C I S I O N S
