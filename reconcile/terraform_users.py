@@ -120,7 +120,9 @@ def setup(
 
 
 def send_email_invites(
-    new_users, smtp_client: SmtpClient, skip_reencrypt_accounts: list[str]
+    new_users,
+    smtp_client: SmtpClient,
+    skip_reencrypt_accounts: Optional[list[str]] = None,
 ):
     msg_template = """
 You have been invited to join the {} AWS account!
@@ -147,7 +149,10 @@ Encrypted password: {}
 """
     mails = []
     for account, console_url, user_name, enc_password in new_users:
-        if account not in skip_reencrypt_accounts:
+        if (
+            skip_reencrypt_accounts is not None
+            and account not in skip_reencrypt_accounts
+        ):
             continue
         to = user_name
         subject = "Invitation to join the {} AWS account".format(account)
@@ -162,10 +167,10 @@ def write_user_to_vault(
     vault_client: _VaultClient,
     vault_path: str,
     new_users: list[tuple[str, str, str, str]],
-    skip_reencrypt_accounts: list[str],
+    skip_reencrypt_accounts: Optional[list[str]],
 ):
     for account, console_url, user_name, enc_password in new_users:
-        if account in skip_reencrypt_accounts:
+        if skip_reencrypt_accounts is not None and account in skip_reencrypt_accounts:
             continue
         secret_path = f"{vault_path}/{account}_{user_name}"
         desired_secret = {
@@ -201,20 +206,30 @@ def run(
     if len(all_reencrypt_settings) > 1:
         raise ValueError("Expecting only a single reencrypt settings entry")
 
-    reencrypt_settings = all_reencrypt_settings[0]
-    skip_accounts: list[str] = []
-    if reencrypt_settings.skip_aws_accounts:
-        skip_accounts = [s.name for s in reencrypt_settings.skip_aws_accounts]
+    skip_accounts: Optional[list[str]] = None
+    if len(all_reencrypt_settings) == 0:
+        reencrypt_settings = None
+    else:
+        reencrypt_settings = all_reencrypt_settings[0]
+        if reencrypt_settings.skip_aws_accounts:
+            skip_accounts = [s.name for s in reencrypt_settings.skip_aws_accounts]
 
     # setup errors should skip resources that will lead
     # to terraform errors. we should still do our best
     # to reconcile all valid resources for all accounts.
+    additional_setup_args = {
+        "skip_reencrypt_accounts": None,
+        "appsre_pgp_key": None,
+    }
+    if reencrypt_settings is not None:
+        additional_setup_args["skip_reencrypt_accounts"] = skip_accounts
+        additional_setup_args["appsre_pgp_key"] = reencrypt_settings.public_gpg_key
+
     accounts, working_dirs, setup_err, aws_api = setup(
         print_to_file,
         thread_pool_size,
-        skip_accounts,
-        reencrypt_settings.public_gpg_key,
-        account_name,
+        account_name=account_name,
+        **additional_setup_args,
     )
 
     if print_to_file:
@@ -254,10 +269,11 @@ def run(
 
     cleanup_and_exit(tf, setup_err)
 
-    vc = cast(_VaultClient, VaultClient())
-    write_user_to_vault(
-        vc, reencrypt_settings.reencrypt_vault_path, new_users, skip_accounts
-    )
+    if reencrypt_settings:
+        vc = cast(_VaultClient, VaultClient())
+        write_user_to_vault(
+            vc, reencrypt_settings.reencrypt_vault_path, new_users, skip_accounts
+        )
 
     if send_mails:
         smtp_settings = typed_queries.smtp.settings()

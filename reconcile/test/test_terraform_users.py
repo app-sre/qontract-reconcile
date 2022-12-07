@@ -25,7 +25,7 @@ def test_write_user_to_vault(mocker, new_users):
                 "account": "aws1",
                 "user_name": "user1",
                 "console_url": "https://console.aws.amazon.com",
-                "encrypted_password": "enc_password1", # gitleaks:allow
+                "encrypted_password": "enc_password1",  # gitleaks:allow
             },
         },
         decode_base64=False,
