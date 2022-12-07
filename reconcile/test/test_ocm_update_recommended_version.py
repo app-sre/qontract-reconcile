@@ -10,7 +10,7 @@ from reconcile.ocm_update_recommended_version import (
     get_majority,
     get_updated_recommended_versions,
     get_version_weights,
-    recommended_version,
+    recommended_version, format_initial_version,
 )
 
 
@@ -87,7 +87,12 @@ def test_get_updated_recommended_versions():
     add_cluster(clusters, "a", "2.0.0", "stable")
 
     assert get_updated_recommended_versions(ocm_info, clusters) == [
-        {"channel": "stable", "recommendedVersion": "2.0.0", "workload": "foo"},
+        {
+            "channel": "stable",
+            "recommendedVersion": "2.0.0",
+            "workload": "foo",
+            "initialVersion": "openshift-v2.0.0",
+        },
     ]
 
 
@@ -113,7 +118,27 @@ def test_get_updated_recommended_versions_multiple_channel():
     add_cluster(clusters, "b3", "2.0.0", "fast")
 
     assert get_updated_recommended_versions(ocm_info, clusters) == [
-        {"channel": "stable", "recommendedVersion": "2.1.0", "workload": "foo"},
-        {"channel": "stable", "recommendedVersion": "2.0.0", "workload": "bar"},
-        {"channel": "fast", "recommendedVersion": "3.0.0", "workload": "bar"},
+        {
+            "channel": "stable",
+            "recommendedVersion": "2.1.0",
+            "workload": "foo",
+            "initialVersion": "openshift-v2.1.0",
+        },
+        {
+            "channel": "stable",
+            "recommendedVersion": "2.0.0",
+            "workload": "bar",
+            "initialVersion": "openshift-v2.0.0",
+        },
+        {
+            "channel": "fast",
+            "recommendedVersion": "3.0.0",
+            "workload": "bar",
+            "initialVersion": "openshift-v3.0.0-fast",
+        },
     ]
+
+
+def test_format_initial_version():
+    assert format_initial_version("2.0.0", "stable") == "openshift-v2.0.0"
+    assert format_initial_version("2.0.0", "fast") == "openshift-v2.0.0-fast"

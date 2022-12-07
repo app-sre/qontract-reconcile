@@ -58,6 +58,12 @@ def get_version_weights(ocm: dict[str, Any]) -> tuple[int, int]:
     return high_weight, majority_weight
 
 
+def format_initial_version(version: str, channel: str) -> str:
+    if channel == "stable":
+        return f"openshift-v{version}"
+    return f"openshift-v{version}-{channel}"
+
+
 def get_updated_recommended_versions(
     ocm_info: dict[str, Any], cluster: dict[str, OCMSpec]
 ) -> list[dict[str, str]]:
@@ -65,7 +71,7 @@ def get_updated_recommended_versions(
 
     rv_updated: list[dict[str, str]] = []
 
-    channel_workload_versions = {}
+    channel_workload_versions: dict[str, list[str]] = {}
 
     for uc in ocm_info["upgradePolicyClusters"] or []:
         cluster_name = uc["name"]
@@ -77,15 +83,18 @@ def get_updated_recommended_versions(
                 cluster[cluster_name].spec.version
             )
 
-    for cwv in channel_workload_versions:
+    for cwv_items in channel_workload_versions.items():
+        cwv, versions = cwv_items
         if len(cwv.split("/")) != 2:
             raise ValueError("Expecting workload/channel format!, got: {}".format(cwv))
         workload, channel = cwv.split("/")
-        versions = channel_workload_versions[cwv]
-        rv_current = {"workload": workload, "channel": channel}
-        rv_current["recommendedVersion"] = recommended_version(
-            versions, high_weight, majority_weight
-        )
+        rv = recommended_version(versions, high_weight, majority_weight)
+        rv_current = {
+            "workload": workload,
+            "channel": channel,
+            "recommendedVersion": rv,
+            "initialVersion": format_initial_version(rv, channel),
+        }
         rv_updated.append(rv_current)
 
     return rv_updated
