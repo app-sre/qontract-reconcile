@@ -22,8 +22,6 @@ gql_response:
           automationToken:
             path: token
             field: token
-          auth:
-            - service: github-org-team
 
 server:
   version:
