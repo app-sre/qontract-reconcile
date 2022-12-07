@@ -917,9 +917,8 @@ CLUSTERS_MINIMAL_QUERY = """
         org
         team
       }
-      ... on ClusterAuthOIDC_v1 {
-        name
-      }
+      # ... on ClusterAuthOIDC_v1 {
+      # }
     }
   }
 }
