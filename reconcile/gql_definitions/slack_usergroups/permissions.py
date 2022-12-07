@@ -70,9 +70,6 @@ query SlackUsergroupPermission {
       }
       workspace {
         name
-        token {
-          ...VaultSecret
-        }
         api_client {
           global {
             max_retries
@@ -82,6 +79,13 @@ query SlackUsergroupPermission {
             name
             args
           }
+        }
+        integrations {
+          name
+          token {
+            ...VaultSecret
+          }
+          channel
         }
         managedUsergroups
       }
@@ -175,10 +179,22 @@ class SlackWorkspaceApiClientV1(BaseModel):
         extra = Extra.forbid
 
 
-class SlackWorkspaceV1(BaseModel):
+class SlackWorkspaceIntegrationV1(BaseModel):
     name: str = Field(..., alias="name")
     token: VaultSecret = Field(..., alias="token")
+    channel: str = Field(..., alias="channel")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
+class SlackWorkspaceV1(BaseModel):
+    name: str = Field(..., alias="name")
     api_client: Optional[SlackWorkspaceApiClientV1] = Field(..., alias="api_client")
+    integrations: Optional[list[SlackWorkspaceIntegrationV1]] = Field(
+        ..., alias="integrations"
+    )
     managed_usergroups: list[str] = Field(..., alias="managedUsergroups")
 
     class Config:

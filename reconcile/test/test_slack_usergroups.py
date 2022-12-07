@@ -19,10 +19,7 @@ from pytest_mock import MockerFixture
 
 import reconcile.slack_base as slackbase
 import reconcile.slack_usergroups as integ
-from reconcile.gql_definitions.slack_usergroups.clusters import (
-    ClusterSlackV1,
-    ClusterV1,
-)
+from reconcile.gql_definitions.slack_usergroups.clusters import ClusterV1
 from reconcile.gql_definitions.slack_usergroups.permissions import (
     PagerDutyInstanceV1,
     PagerDutyTargetV1,
@@ -104,7 +101,9 @@ def permissions(fxt: Fixtures) -> list[PermissionSlackUsergroupV1]:
 
 @pytest.fixture
 def slack_client_mock() -> SlackApi:
-    return create_autospec(SlackApi)
+    api = create_autospec(SlackApi)
+    api.channel = "channel"
+    return api
 
 
 @pytest.fixture
@@ -149,9 +148,7 @@ def test_get_clusters(fxt: Fixtures) -> None:
     clusters = get_clusters(q)
     assert len(clusters) == 2
     assert clusters[0].name == "cluster-1"
-    assert clusters[0].slack
-    assert clusters[0].slack.user_group == "cluster-1-cluster"
-    assert clusters[0].slack.channels == ["channel1"]
+    assert clusters[0].disable
 
 
 def test_get_slack_usernames_from_schedule_none() -> None:
@@ -242,7 +239,7 @@ def test_include_user_to_cluster_usergroup_user_has_cluster_access(
         autospec=True,
         return_value=False,
     )
-    cluster = ClusterV1(name="cluster", slack=None, auth=[])
+    cluster = ClusterV1(name="cluster", auth=[], disable={"integrations": []})
     # user_has_cluster_access -> False
     assert not integ.include_user_to_cluster_usergroup(user, cluster, ["user1"])
 
@@ -254,7 +251,7 @@ def test_include_user_to_cluster_usergroup(mocker: MockerFixture, user: UserV1) 
         autospec=True,
         return_value=True,
     )
-    cluster = ClusterV1(name="cluster", slack=None, auth=[])
+    cluster = ClusterV1(name="cluster", auth=[], disable={"integrations": []})
 
     # user.tag_on_cluster_updates
     user.tag_on_cluster_updates = False
@@ -445,13 +442,7 @@ def test_get_desired_state_cluster_usergroups(
     ).return_value = True
     slack_client_mock.get_usergroup_id.return_value = "ugid"
 
-    cluster = ClusterV1(
-        name="cluster1",
-        slack=ClusterSlackV1(
-            userGroup="cluster1-cluster", channels=["cluster1-channel"]
-        ),
-        auth=[],
-    )
+    cluster = ClusterV1(name="cluster1", auth=[], disable={"integrations": []})
     result = integ.get_desired_state_cluster_usergroups(
         slack_map, [cluster], [user], None, None
     )
@@ -460,8 +451,8 @@ def test_get_desired_state_cluster_usergroups(
         call(["slack"]),
     ]
     assert slack_client_mock.get_channels_by_names.call_args_list == [
-        call(["cluster1-channel"]),
-        call(["cluster1-channel"]),
+        call(["channel"]),
+        call(["channel"]),
     ]
     assert result == {
         "coreos": {

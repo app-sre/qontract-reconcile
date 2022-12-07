@@ -21,25 +21,15 @@ DEFINITION = """
 query SlackUsergroupCluster {
   clusters: clusters_v1 {
     name
-    slack {
-      userGroup
-      channels
-    }
     auth {
       service
+    }
+    disable {
+      integrations
     }
   }
 }
 """
-
-
-class ClusterSlackV1(BaseModel):
-    user_group: str = Field(..., alias="userGroup")
-    channels: list[str] = Field(..., alias="channels")
-
-    class Config:
-        smart_union = True
-        extra = Extra.forbid
 
 
 class ClusterAuthV1(BaseModel):
@@ -50,10 +40,18 @@ class ClusterAuthV1(BaseModel):
         extra = Extra.forbid
 
 
+class DisableClusterAutomationsV1(BaseModel):
+    integrations: Optional[list[str]] = Field(..., alias="integrations")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
 class ClusterV1(BaseModel):
     name: str = Field(..., alias="name")
-    slack: Optional[ClusterSlackV1] = Field(..., alias="slack")
     auth: list[ClusterAuthV1] = Field(..., alias="auth")
+    disable: Optional[DisableClusterAutomationsV1] = Field(..., alias="disable")
 
     class Config:
         smart_union = True

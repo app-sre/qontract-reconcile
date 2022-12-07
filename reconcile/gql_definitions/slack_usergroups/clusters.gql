@@ -3,12 +3,11 @@
 query SlackUsergroupCluster {
   clusters: clusters_v1 {
     name
-    slack {
-      userGroup
-      channels
-    }
     auth {
       service
+    }
+    disable {
+      integrations
     }
   }
 }

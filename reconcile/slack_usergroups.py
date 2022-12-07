@@ -37,6 +37,11 @@ from reconcile.openshift_base import user_has_cluster_access
 from reconcile.slack_base import get_slackapi
 from reconcile.typed_queries.pagerduty_instances import get_pagerduty_instances
 from reconcile.utils import gql
+from reconcile.utils.disabled_integrations import integration_is_enabled
+from reconcile.utils.exceptions import (
+    AppInterfaceSettingsError,
+    UnknownError,
+)
 from reconcile.utils.github_api import GithubApi
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.pagerduty_api import (
@@ -111,6 +116,11 @@ class WorkspaceSpec(BaseModel):
 SlackMap = dict[str, WorkspaceSpec]
 
 
+def compute_cluster_user_group(name: str) -> str:
+    """Compute the cluster user group name."""
+    return f"{name}-cluster"
+
+
 def get_slack_map(
     secret_reader: SecretReader,
     permissions: Iterable[PermissionSlackUsergroupV1],
@@ -124,11 +134,24 @@ def get_slack_map(
         if sp.workspace.name in slack_map:
             continue
 
+        token = None
+        channel = None
+        for int in sp.workspace.integrations or []:
+            if int.name != QONTRACT_INTEGRATION:
+                continue
+            token = int.token
+            channel = int.channel
+        if not token or not channel:
+            raise AppInterfaceSettingsError(
+                f"Missing integration {QONTRACT_INTEGRATION} settings for "
+                f"workspace {sp.workspace.name}"
+            )
         slack_map[sp.workspace.name] = WorkspaceSpec(
             slack=get_slackapi(
                 workspace_name=sp.workspace.name,
-                token=secret_reader.read_secret(sp.workspace.token),
+                token=secret_reader.read_secret(token),
                 client_config=sp.workspace.api_client,
+                channel=channel,
             ),
             managed_usergroups=sp.workspace.managed_usergroups,
         )
@@ -433,14 +456,12 @@ def get_desired_state_cluster_usergroups(
         dict[str, str]
     ] = openshift_users.fetch_desired_state(oc_map=None)
     for cluster in clusters:
-        if not cluster.slack:
+        if not integration_is_enabled(QONTRACT_INTEGRATION, cluster):
+            logging.warning(
+                f"For cluster {cluster.name} the integration {QONTRACT_INTEGRATION} is not enabled. Skipping."
+            )
             continue
 
-        if (
-            desired_usergroup_name
-            and desired_usergroup_name != cluster.slack.user_group
-        ):
-            continue
         desired_cluster_users = [
             u["user"]
             for u in openshift_users_desired_state
@@ -453,12 +474,19 @@ def get_desired_state_cluster_usergroups(
                 if include_user_to_cluster_usergroup(u, cluster, desired_cluster_users)
             }
         )
-
+        cluster_user_group = compute_cluster_user_group(cluster.name)
         for workspace, spec in slack_map.items():
+            if not spec.slack.channel:
+                # spec.slack.channel is None when the integration not properly configured in slack-workspace
+                # but then we should not be here
+                # so at this point we make just mypy happy
+                raise UnknownError("This should never happen.")
+            if desired_usergroup_name and desired_usergroup_name != spec.slack.channel:
+                continue
             if desired_workspace_name and desired_workspace_name != workspace:
                 continue
 
-            ugid = spec.slack.get_usergroup_id(cluster.slack.user_group)
+            ugid = spec.slack.get_usergroup_id(cluster_user_group)
             slack_users = {
                 SlackObject(pk=pk, name=name)
                 for pk, name in spec.slack.get_users_by_names(
@@ -468,20 +496,16 @@ def get_desired_state_cluster_usergroups(
             slack_channels = {
                 SlackObject(pk=pk, name=name)
                 for pk, name in spec.slack.get_channels_by_names(
-                    sorted(cluster.slack.channels)
+                    [spec.slack.channel]
                 ).items()
             }
 
             try:
-                desired_state[workspace][cluster.slack.user_group].users.update(
-                    slack_users
-                )
+                desired_state[workspace][cluster_user_group].users.update(slack_users)
             except KeyError:
-                desired_state.setdefault(workspace, {})[
-                    cluster.slack.user_group
-                ] = State(
+                desired_state.setdefault(workspace, {})[cluster_user_group] = State(
                     workspace=workspace,
-                    usergroup=cluster.slack.user_group,
+                    usergroup=cluster_user_group,
                     usergroup_id=ugid,
                     users=slack_users,
                     channels=slack_channels,
@@ -733,7 +757,9 @@ def run(
         desired_workspace_name=workspace_name,
         desired_usergroup_name=usergroup_name,
         cluster_usergroups=[
-            cluster.slack.user_group for cluster in clusters if cluster.slack
+            compute_cluster_user_group(cluster.name)
+            for cluster in clusters
+            if integration_is_enabled(QONTRACT_INTEGRATION, cluster)
         ],
     )
     act(

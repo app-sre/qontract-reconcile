@@ -3,14 +3,10 @@ clusters:
   - name: cluster-1
     auth:
       - service: github-org-team
-    slack:
-      userGroup: cluster-1-cluster
-      channels:
-        - channel1
+    disable:
+      integrations: []
   - name: cluster-2
     auth:
       - service: github-org-team
-    slack:
-      userGroup: cluster-2-cluster
-      channels:
-        - channel1
+    disable:
+      integrations: []
