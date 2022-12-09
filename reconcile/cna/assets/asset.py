@@ -1,13 +1,23 @@
-from abc import ABC, abstractmethod
+import copy
+from abc import (
+    ABC,
+    abstractmethod,
+)
+from enum import Enum
+from typing import (
+    Any,
+    Generic,
+    Mapping,
+    Optional,
+    Type,
+    TypeVar,
+    get_args,
+)
 
 from pydantic.dataclasses import dataclass
 from pydantic.fields import FieldInfo
-from enum import Enum
-from typing import Any, Generic, Mapping, Optional, Type, TypeVar, get_args
-import copy
 
 from reconcile.gql_definitions.cna.queries.cna_resources import CNAssetV1
-
 
 ASSET_ID_FIELD = "id"
 ASSET_TYPE_FIELD = "asset_type"

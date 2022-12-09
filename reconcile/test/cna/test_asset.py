@@ -1,25 +1,30 @@
-from typing import Any, Mapping, MutableMapping, Optional
 import json
+from typing import (
+    Any,
+    Mapping,
+    MutableMapping,
+    Optional,
+)
+
+import pytest
+
 from reconcile.cna.assets.asset import (
     Asset,
+    AssetError,
     AssetStatus,
     AssetType,
     AssetTypeMetadata,
     AssetTypeVariable,
     AssetTypeVariableType,
-    AssetError,
-    asset_type_metadata_from_asset_dataclass,
     asset_type_from_raw_asset,
+    asset_type_metadata_from_asset_dataclass,
 )
 from reconcile.cna.assets.aws_assume_role import AWSAssumeRoleAsset
 from reconcile.cna.assets.null import NullAsset
-
 from reconcile.gql_definitions.cna.queries.cna_resources import (
     CNAAssumeRoleAssetV1,
     CNAssetV1,
 )
-
-import pytest
 
 
 @pytest.fixture

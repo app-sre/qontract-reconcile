@@ -1,25 +1,19 @@
-from typing import Any, Type
 from collections.abc import Mapping
-from typing import Any
+from typing import (
+    Any,
+    Type,
+)
 
 from reconcile.cna.assets.asset import (
-    Asset,
-    AssetError,
-)
-from reconcile.cna.assets.null import NullAsset
-from reconcile.gql_definitions.cna.queries.cna_resources import (
-    CNAssetV1,
-)
-from reconcile.cna.assets.asset import (
+    ASSET_HREF_FIELD,
+    ASSET_NAME_FIELD,
     Asset,
     AssetType,
     UnknownAssetTypeError,
-    asset_type_id_from_raw_asset,
     asset_type_by_id,
-    ASSET_HREF_FIELD,
-    ASSET_NAME_FIELD,
+    asset_type_id_from_raw_asset,
 )
-
+from reconcile.gql_definitions.cna.queries.cna_resources import CNAssetV1
 
 _ASSET_TYPE_SCHEME: dict[AssetType, Type[Asset]] = {}
 _PROVIDER_SCHEME: dict[str, Type[Asset]] = {}

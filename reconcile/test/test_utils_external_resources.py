@@ -1,9 +1,9 @@
 import json
 
 import pytest
-from reconcile.utils.external_resource_spec import ExternalResourceSpec
 
 import reconcile.utils.external_resources as uer
+from reconcile.utils.external_resource_spec import ExternalResourceSpec
 
 
 @pytest.fixture

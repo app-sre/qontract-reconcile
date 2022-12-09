@@ -1,17 +1,19 @@
 from __future__ import annotations
+
 from typing import Optional
-from pydantic.dataclasses import dataclass
+
 from pydantic import Field
+from pydantic.dataclasses import dataclass
 
 from reconcile.cna.assets.asset import (
     Asset,
-    AssetType,
-    AssetStatus,
     AssetModelConfig,
+    AssetStatus,
+    AssetType,
 )
 from reconcile.gql_definitions.cna.queries.cna_resources import (
-    CNANullAssetV1,
     CNANullAssetConfigV1,
+    CNANullAssetV1,
 )
 
 

@@ -1,15 +1,15 @@
+import pytest
+
 from reconcile.cna.assets.aws_rds import AWSRDSAsset
-from reconcile.gql_definitions.cna.queries.cna_resources import (
-    CNARDSInstanceV1,
-    CNARDSInstanceDefaultsV1,
-    AWSVPCV1,
-)
 from reconcile.gql_definitions.cna.queries.aws_arn import (
     CNAAWSAccountRoleARNs,
     CNAAWSSpecV1,
 )
-
-import pytest
+from reconcile.gql_definitions.cna.queries.cna_resources import (
+    AWSVPCV1,
+    CNARDSInstanceDefaultsV1,
+    CNARDSInstanceV1,
+)
 
 asset_identifier = "identifier"
 db_name = "instance-name"

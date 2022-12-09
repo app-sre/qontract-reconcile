@@ -175,7 +175,7 @@ class CNARDSInstanceDefaultsV1(BaseModel):
     max_allocated_storage: int = Field(..., alias="max_allocated_storage")
     engine: str = Field(..., alias="engine")
     engine_version: str = Field(..., alias="engine_version")
-    username: Optional[str] = Field(..., alias="username")
+    username: str = Field(..., alias="username")
     maintenance_window: Optional[str] = Field(..., alias="maintenance_window")
     backup_retention_period: Optional[int] = Field(..., alias="backup_retention_period")
     backup_window: Optional[str] = Field(..., alias="backup_window")

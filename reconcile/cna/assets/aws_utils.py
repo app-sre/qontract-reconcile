@@ -1,4 +1,5 @@
 from typing import Optional
+
 from reconcile.gql_definitions.cna.queries.aws_arn import CNAAWSSpecV1
 
 

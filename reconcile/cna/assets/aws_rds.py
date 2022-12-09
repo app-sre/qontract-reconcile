@@ -1,19 +1,21 @@
 from __future__ import annotations
+
 from typing import Optional
-from pydantic.dataclasses import dataclass
+
 from pydantic import Field
+from pydantic.dataclasses import dataclass
 
 from reconcile.cna.assets.asset import (
     Asset,
     AssetError,
-    AssetType,
     AssetModelConfig,
     AssetStatus,
+    AssetType,
 )
 from reconcile.cna.assets.aws_utils import aws_role_arn_for_module
 from reconcile.gql_definitions.cna.queries.cna_resources import (
-    CNARDSInstanceV1,
     CNARDSInstanceDefaultsV1,
+    CNARDSInstanceV1,
 )
 
 
@@ -39,7 +41,7 @@ class AWSRDSAsset(Asset[CNARDSInstanceV1, CNARDSInstanceDefaultsV1]):
     multi_az: Optional[bool] = Field(None, alias="multi_az")
     deletion_protection: Optional[bool] = Field(None, alias="deletion_protection")
     apply_immediately: Optional[bool] = Field(None, alias="apply_immediately")
-    
+
     # Those values are implicit and not set in app-interface
     is_production: bool = Field(None, alias="is_production")
     family: Optional[str] = Field(None, alias="family")

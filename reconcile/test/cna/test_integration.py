@@ -1,3 +1,4 @@
+import json
 from collections.abc import (
     Iterable,
     Mapping,
@@ -7,8 +8,7 @@ from typing import (
     Optional,
 )
 from unittest.mock import create_autospec
-from pytest import fixture
-import json
+
 import pytest
 from pytest import fixture
 
@@ -19,17 +19,12 @@ from reconcile.cna.assets.asset import (
 from reconcile.cna.assets.null import NullAsset
 from reconcile.cna.client import CNAClient
 from reconcile.cna.integration import CNAIntegration
-from reconcile.cna.assets.asset import (
-    AssetStatus,
-    AssetType,
-)
-from reconcile.cna.assets.null import NullAsset
 from reconcile.cna.state import State
 from reconcile.gql_definitions.cna.queries.cna_resources import (
+    ClusterV1,
     CNANullAssetV1,
     ExternalResourcesProvisionerV1,
     NamespaceCNAssetV1,
-    ClusterV1,
     NamespaceV1,
 )
 from reconcile.utils.external_resources import PROVIDER_CNA_EXPERIMENTAL

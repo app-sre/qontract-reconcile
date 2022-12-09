@@ -1,19 +1,21 @@
 from __future__ import annotations
-from pydantic.dataclasses import dataclass
-from pydantic import Field
+
 from typing import Optional
+
+from pydantic import Field
+from pydantic.dataclasses import dataclass
 
 from reconcile.cna.assets.asset import (
     Asset,
     AssetError,
-    AssetType,
-    AssetStatus,
     AssetModelConfig,
+    AssetStatus,
+    AssetType,
 )
 from reconcile.cna.assets.aws_utils import aws_role_arn_for_module
 from reconcile.gql_definitions.cna.queries.cna_resources import (
-    CNAAssumeRoleAssetV1,
     CNAAssumeRoleAssetConfigV1,
+    CNAAssumeRoleAssetV1,
 )
 
 

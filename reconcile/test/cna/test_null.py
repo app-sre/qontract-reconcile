@@ -1,8 +1,7 @@
-from reconcile.cna.assets.null import NullAsset
-from reconcile.gql_definitions.cna.queries.cna_resources import (
-    CNANullAssetV1,
-)
 import json
+
+from reconcile.cna.assets.null import NullAsset
+from reconcile.gql_definitions.cna.queries.cna_resources import CNANullAssetV1
 
 
 def test_from_query_class():

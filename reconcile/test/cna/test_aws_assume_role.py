@@ -1,12 +1,11 @@
 import json
+
 from reconcile.cna.assets.aws_assume_role import AWSAssumeRoleAsset
-from reconcile.gql_definitions.cna.queries.cna_resources import (
-    CNAAssumeRoleAssetV1,
-)
 from reconcile.gql_definitions.cna.queries.aws_arn import (
     CNAAWSAccountRoleARNs,
     CNAAWSSpecV1,
 )
+from reconcile.gql_definitions.cna.queries.cna_resources import CNAAssumeRoleAssetV1
 
 
 def test_from_query_class():

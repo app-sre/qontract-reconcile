@@ -1,14 +1,15 @@
 import logging
 from dataclasses import asdict
 from typing import Any
+
 from reconcile.cna.assets.asset import (
+    ASSET_CREATOR_FIELD,
     Asset,
     AssetType,
     AssetTypeMetadata,
     AssetTypeVariable,
     AssetTypeVariableType,
     asset_type_by_id,
-    ASSET_CREATOR_FIELD,
 )
 from reconcile.utils.ocm_base_client import OCMBaseClient
 
