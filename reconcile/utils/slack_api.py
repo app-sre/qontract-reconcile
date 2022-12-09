@@ -50,7 +50,7 @@ class ServerErrorRetryHandler(RetryHandler):
         return response is not None and response.status_code >= 500
 
 
-class SupportsClientGlobalConfig(Protocol):
+class HasClientGlobalConfig(Protocol):
     max_retries: Optional[int]
     timeout: Optional[int]
 
@@ -58,7 +58,7 @@ class SupportsClientGlobalConfig(Protocol):
         ...
 
 
-class SupportsClientMethodConfig(Protocol):
+class HasClientMethodConfig(Protocol):
     name: str
     args: Any
 
@@ -66,13 +66,13 @@ class SupportsClientMethodConfig(Protocol):
         ...
 
 
-class SupportsClientConfig(Protocol):
+class HasClientConfig(Protocol):
     @property
-    def q_global(self) -> Optional[SupportsClientGlobalConfig]:
+    def q_global(self) -> Optional[HasClientGlobalConfig]:
         ...
 
     @property
-    def methods(self) -> Optional[Sequence[SupportsClientMethodConfig]]:
+    def methods(self) -> Optional[Sequence[HasClientMethodConfig]]:
         ...
 
 
@@ -143,10 +143,10 @@ class SlackApiConfig:
         return config
 
     @classmethod
-    def from_client_config(cls, config_data: SupportsClientConfig) -> SlackApiConfig:
+    def from_client_config(cls, config_data: HasClientConfig) -> SlackApiConfig:
         """Initiate a SlackApiConfig instance via user-defined config class (e.g. GQL class).
 
-        The config class must implement the `SupportsClientConfig` protocol.
+        The config class must implement the `HasClientConfig` protocol.
         """
         kwargs: dict[str, int] = {}
         if config_data.q_global:

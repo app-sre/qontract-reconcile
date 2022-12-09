@@ -7,9 +7,9 @@ from typing import (
 from reconcile import queries
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.slack_api import (
+    HasClientConfig,
     SlackApi,
     SlackApiConfig,
-    SupportsClientConfig,
 )
 
 
@@ -101,7 +101,7 @@ def slackapi_from_permissions(
 def get_slackapi(
     workspace_name: str,
     token: str,
-    client_config: Optional[SupportsClientConfig] = None,
+    client_config: Optional[HasClientConfig] = None,
     init_usergroups: bool = True,
 ) -> SlackApi:
     """Initiate a SlackApi instance."""

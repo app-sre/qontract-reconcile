@@ -6,8 +6,8 @@ from typing import (
 )
 
 from reconcile import queries
-from reconcile.ocm.utils import cluster_disabled_integrations
 from reconcile.status import ExitCodes
+from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.ocm import OCMMap
 
 QONTRACT_INTEGRATION = "ocm-cluster-admin"
@@ -23,8 +23,7 @@ def run(dry_run: bool) -> None:
     clusters = [
         c
         for c in clusters
-        if QONTRACT_INTEGRATION not in cluster_disabled_integrations(c)
-        and _cluster_is_compatible(c)
+        if integration_is_enabled(QONTRACT_INTEGRATION, c) and _cluster_is_compatible(c)
     ]
 
     if not clusters:

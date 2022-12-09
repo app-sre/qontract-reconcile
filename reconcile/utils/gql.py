@@ -356,6 +356,7 @@ def get_diff(old_sha: str):
     server_url = urlparse(config["graphql"]["server"])
     token = config["graphql"].get("token")
     current_sha = get_sha(server_url, token)
+    logging.debug(f"get bundle diffs between {old_sha} and {current_sha}...")
     diff_endpoint = server_url._replace(path=f"/diff/{old_sha}/{current_sha}")
     headers = {"Authorization": token} if token else None
     response = requests.get(diff_endpoint.geturl(), headers=headers, timeout=30)

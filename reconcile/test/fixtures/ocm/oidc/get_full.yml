@@ -1,0 +1,52 @@
+---
+expected_return_value:
+  cluster: cluster-1
+  name: oidc-auth
+  id: idp-id-2
+  client_id: another-client-id
+  issuer: "https://issuer-url.com/foobar"
+  email_claims:
+    - email
+  name_claims:
+    - name
+  username_claims:
+    - username
+  groups_claims: []
+
+urls:
+  - name: list idps
+    uri: /api/clusters_mgmt/v1/clusters/cluster-1-id/identity_providers
+    method: get
+    responses:
+      - kind: IdentityProviderList
+        href: /api/clusters_mgmt/v1/clusters/cluster-1-id/identity_providers
+        page: 1
+        size: 2
+        total: 2
+        items:
+          - kind: IdentityProvider
+            type: GithubIdentityProvider
+            href: /api/clusters_mgmt/v1/clusters/cluster-1-id/identity_providers/idp-id-1
+            id: idp-id-1
+            name: github-auth
+            mapping_method: claim
+            github:
+              client_id: client-id
+              teams:
+                - just-a-team-name
+          - kind: IdentityProvider
+            type: OpenIDIdentityProvider
+            href: /api/clusters_mgmt/v1/clusters/cluster-1-id/identity_providers/idp-id-2
+            id: idp-id-2
+            name: oidc-auth
+            mapping_method: claim
+            open_id:
+              claims:
+                email:
+                  - email
+                name:
+                  - name
+                preferred_username:
+                  - username
+              client_id: another-client-id
+              issuer: "https://issuer-url.com/foobar"

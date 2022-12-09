@@ -6,8 +6,8 @@ import requests
 
 from reconcile import queries
 from reconcile.utils.secret_reader import (
+    HasSecret,
     SecretReader,
-    SupportsSecret,
 )
 
 LOG = logging.getLogger(__name__)
@@ -108,10 +108,10 @@ class DashdotdbBase:
         token = autotoken_reader.read(tokenpath)
         return token
 
-    def _get_automation_token(self, secret: SupportsSecret) -> str:
+    def _get_automation_token(self, secret: HasSecret) -> str:
         secret_reader = SecretReader(settings=self.settings)
 
-        # This will change later when SecretReader fully supports 'SupportsSecret'
+        # This will change later when SecretReader fully supports 'HasSecret'
         return secret_reader.read(
             {
                 "path": secret.path,

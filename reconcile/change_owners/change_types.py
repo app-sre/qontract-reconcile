@@ -53,6 +53,9 @@ class FileRef:
     path: str
     schema: Optional[str]
 
+    def __str__(self) -> str:
+        return f"{self.file_type.value}:{self.path}"
+
 
 @dataclass
 class DiffCoverage:
