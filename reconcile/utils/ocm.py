@@ -524,21 +524,10 @@ class SectorConfigError(Exception):
     pass
 
 
-# A weak reference to a sector. Used to reference a sector dependency, even if this one is
-# not available yet
-@dataclass
-class SectorWeakReference:
-    ocm_org_name: str
-    sector_name: str
-
-
 @dataclass
 class Sector:
     name: str
     ocm: OCM
-    # weak dependency list
-    dependencies_refs: list[SectorWeakReference] = field(default_factory=lambda: [])
-    # dependency list, built once all Sectors from all OCM orgs have been set
     dependencies: list[Sector] = field(default_factory=lambda: [])
     cluster_infos: list[dict[Any, Any]] = field(default_factory=lambda: [])
     _validated_dependencies: Optional[set[Sector]] = None
@@ -655,20 +644,12 @@ class OCM:  # pylint: disable=too-many-public-methods
         # organization sectors and their dependencies
         self.sectors: dict[str, Sector] = {}
         for sector in sectors or []:
-            deps = []
+            sector_name = sector["name"]
+            self.sectors[sector_name] = Sector(name=sector_name, ocm=self)
+        for sector in sectors or []:
+            s = self.sectors[sector["name"]]
             for dep in sector.get("dependencies") or []:
-                dep_ocm_org_name = self.name
-                if dep.get("ocm"):
-                    dep_ocm_org_name = dep["ocm"]["name"]
-                ref = SectorWeakReference(
-                    ocm_org_name=dep_ocm_org_name, sector_name=dep["name"]
-                )
-                deps.append(ref)
-            self.sectors[sector["name"]] = Sector(
-                name=sector["name"],
-                ocm=self,
-                dependencies_refs=deps,
-            )
+                s.dependencies.append(self.sectors[dep["name"]])
 
     def _init_ocm_client(
         self,
@@ -1656,19 +1637,6 @@ class OCMMap:  # pylint: disable=too-many-public-methods
                 )
         else:
             raise KeyError("expected one of clusters, namespaces or ocm.")
-
-        # link sectors across OCM orgs
-        for ocm in self.ocm_map.values():
-            for sector in ocm.sectors.values():
-                for dep_refs in sector.dependencies_refs:
-                    other_ocm = self.ocm_map[dep_refs.ocm_org_name]
-                    other_sector_names = [dep_refs.sector_name]
-                    if dep_refs.sector_name == "*":
-                        other_sector_names = list(other_ocm.sectors.keys())
-                        if ocm.name == other_ocm.name:  # do not depend on ourself
-                            other_sector_names.remove(sector.name)
-                    for name in other_sector_names:
-                        sector.dependencies.append(other_ocm.sectors[name])
 
         # check sectors dependencies loop
         for ocm in self.ocm_map.values():
