@@ -71,23 +71,20 @@ def get_updated_recommended_versions(
 
     rv_updated: list[dict[str, str]] = []
 
-    channel_workload_versions: dict[str, list[str]] = {}
+    channel_workload_versions: dict[tuple[str, str], list[str]] = {}
 
     for uc in ocm_info["upgradePolicyClusters"] or []:
         cluster_name = uc["name"]
         for workload in uc["upgradePolicy"]["workloads"]:
-            channel_workload = f"{workload}/{cluster[cluster_name].spec.channel}"
-            if channel_workload not in channel_workload_versions:
-                channel_workload_versions[channel_workload] = []
+            channel_workload = (workload, cluster[cluster_name].spec.channel)
+            channel_workload_versions.setdefault(channel_workload, [])
             channel_workload_versions[channel_workload].append(
                 cluster[cluster_name].spec.version
             )
 
     for cwv_items in channel_workload_versions.items():
         cwv, versions = cwv_items
-        if len(cwv.split("/")) != 2:
-            raise ValueError(f"Expecting workload/channel format!, got: {cwv}")
-        workload, channel = cwv.split("/")
+        workload, channel = cwv
         rv = recommended_version(versions, high_weight, majority_weight)
         rv_current = {
             "workload": workload,
