@@ -267,8 +267,6 @@ def run(
 
     new_users = tf.get_new_users()
 
-    cleanup_and_exit(tf, setup_err)
-
     if reencrypt_settings:
         vc = cast(_VaultClient, VaultClient())
         write_user_to_vault(
@@ -288,6 +286,8 @@ def run(
             timeout=smtp_settings.timeout or DEFAULT_SMTP_TIMEOUT,
         )
         send_email_invites(new_users, smtp_client, skip_accounts)
+
+    cleanup_and_exit(tf, setup_err)
 
 
 def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
