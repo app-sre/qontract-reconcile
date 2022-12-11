@@ -1,3 +1,5 @@
+import jsonpath_ng
+
 from reconcile.change_owners.change_types import (
     Approver,
     BundleFileType,
@@ -5,6 +7,10 @@ from reconcile.change_owners.change_types import (
     DiffCoverage,
     build_change_type_processor,
     create_bundle_file_change,
+)
+from reconcile.change_owners.diff import (
+    Diff,
+    DiffType,
 )
 from reconcile.gql_definitions.change_owners.queries.change_types import ChangeTypeV1
 from reconcile.test.change_owners.fixtures import TestFile
@@ -32,7 +38,6 @@ def test_cover_changes_one_file(
     )
     saas_file_change.cover_changes(ctx)
 
-    assert not list(saas_file_change.uncovered_changes())
     assert saas_file_change.all_changes_covered()
     assert saas_file_change.diff_coverage[0].is_covered()
     assert saas_file_change.diff_coverage[0].coverage == [ctx]
@@ -52,11 +57,10 @@ def test_uncovered_change_because_change_type_is_disabled(
         context_file=saas_file.file_ref(),
     )
     saas_file_change.cover_changes(ctx)
-    uncoverd_changes = list(saas_file_change.uncovered_changes())
-    assert uncoverd_changes
     assert not saas_file_change.all_changes_covered()
-    assert not uncoverd_changes[0].is_covered()
-    assert uncoverd_changes[0].coverage[0].disabled
+    for dc in saas_file_change.diff_coverage:
+        if not dc.is_covered():
+            assert dc.coverage[0].disabled
 
 
 def test_uncovered_change_one_file(
@@ -130,13 +134,20 @@ def test_root_change_type(cluster_owner_change_type: ChangeTypeV1, saas_file: Te
 
 
 def test_diff_no_coverage():
-    dc = DiffCoverage(diff=None, coverage=[])  # type: ignore
+    dc = DiffCoverage(
+        diff=Diff(
+            diff_type=DiffType.ADDED, path=jsonpath_ng.parse("$"), new=None, old=None
+        ),
+        coverage=[],
+    )
     assert not dc.is_covered()
 
 
 def test_diff_covered(saas_file_changetype: ChangeTypeV1):
     dc = DiffCoverage(
-        diff=None,  # type: ignore
+        diff=Diff(
+            diff_type=DiffType.ADDED, path=jsonpath_ng.parse("$"), new=None, old=None
+        ),
         coverage=[
             ChangeTypeContext(
                 change_type_processor=build_change_type_processor(saas_file_changetype),
@@ -153,7 +164,9 @@ def test_diff_covered_many(
     saas_file_changetype: ChangeTypeV1, role_member_change_type: ChangeTypeV1
 ):
     dc = DiffCoverage(
-        diff=None,  # type: ignore
+        diff=Diff(
+            diff_type=DiffType.ADDED, path=jsonpath_ng.parse("$"), new=None, old=None
+        ),
         coverage=[
             ChangeTypeContext(
                 change_type_processor=build_change_type_processor(saas_file_changetype),
@@ -179,7 +192,9 @@ def test_diff_covered_partially_disabled(
 ):
     role_member_change_type.disabled = True
     dc = DiffCoverage(
-        diff=None,  # type: ignore
+        diff=Diff(
+            diff_type=DiffType.ADDED, path=jsonpath_ng.parse("$"), new=None, old=None
+        ),
         coverage=[
             ChangeTypeContext(
                 change_type_processor=build_change_type_processor(saas_file_changetype),
@@ -206,7 +221,9 @@ def test_diff_no_coverage_all_disabled(
     role_member_change_type.disabled = True
     saas_file_changetype.disabled = True
     dc = DiffCoverage(
-        diff=None,  # type: ignore
+        diff=Diff(
+            diff_type=DiffType.ADDED, path=jsonpath_ng.parse("$"), new=None, old=None
+        ),
         coverage=[
             ChangeTypeContext(
                 change_type_processor=build_change_type_processor(saas_file_changetype),

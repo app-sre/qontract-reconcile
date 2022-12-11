@@ -1,9 +1,12 @@
 from collections import defaultdict
 from collections.abc import (
-    Iterable,
+    MutableMapping,
     Sequence,
 )
-from dataclasses import dataclass
+from dataclasses import (
+    dataclass,
+    field,
+)
 from enum import Enum
 from typing import (
     Any,
@@ -19,6 +22,7 @@ import networkx
 
 from reconcile.change_owners.diff import (
     SHA256SUM_FIELD_NAME,
+    SHA256SUM_PATH,
     Diff,
     DiffType,
     extract_diffs,
@@ -62,12 +66,95 @@ class DiffCoverage:
     diff: Diff
     coverage: list["ChangeTypeContext"]
 
+    # if a diff is split into smaller diffs, they are stored here
+    # please notice that the splits are DiffCoverages objects themselves which
+    # can have splits on their own. DiffCoverage objects form a tree-like structure
+    _split_into: list["DiffCoverage"] = field(default_factory=list)
+
     def is_covered(self) -> bool:
         """
-        a diff is considered covered, if there is at least one change-type
-        assosciated that is not disabled
+        a diff is considered covered,
+        * if there is at least one change-type that covers the diff entirely
+        * if there the diff is split into smaller diffs which are covered.
+          the smaller diffs must cover the entire original diff in sum
         """
+        return self.is_directly_covered() or self.is_covered_by_splits()
+
+    def is_directly_covered(self) -> bool:
         return any(not ctx.disabled for ctx in self.coverage)
+
+    def is_covered_by_splits(self) -> bool:
+        """
+        determine if the splits of this DiffCoverage would cover it entirely
+        """
+        # remove the parts of this diffs data that are covered by the splits
+        # if nothing remains, the splits cover the entire diff
+        uncovered_data = self.diff.get_context_data_copy()
+        if uncovered_data and isinstance(uncovered_data, MutableMapping):
+            for s in self._split_into:
+                if s.is_covered():
+                    # this removes the data that matches the path
+                    s.diff.path.filter(lambda x: True, uncovered_data)
+        return uncovered_data == {}
+
+    def changed_path_covered_by_path(self, path: jsonpath_ng.JSONPath) -> bool:
+        return str(self.diff.path).startswith(str(path)) or path == jsonpath_ng.Root()
+
+    def path_under_changed_path(self, path: jsonpath_ng.JSONPath) -> bool:
+        return (
+            str(path).startswith(str(self.diff.path))
+            or str(self.diff.path) == JSON_PATH_ROOT
+        ) and path != str(self.diff.path)
+
+    def split(
+        self, path: jsonpath_ng.JSONPath, ctx: "ChangeTypeContext"
+    ) -> Optional["DiffCoverage"]:
+        """
+        create a new DiffCoverage object that coveres the given path
+        this function also manages the split tree structure in _split_into
+        so that finer diffs are always lower in the tree that higher diffs.
+        """
+        if self.path_under_changed_path(path):
+            # find out if the path fits unter an existing split
+            for s in self._split_into:
+                if sub_cov := s.split(path, ctx):
+                    return sub_cov
+
+            # no suitable existing split found, create a new one
+            split_sub_coverage = DiffCoverage(self.diff.create_subdiff(path), [ctx])
+
+            # consolidate existing splits. maybe they should go under the newly created one?
+            consolidated_splits = [split_sub_coverage]
+            for s in self._split_into:
+                if split_sub_coverage.path_under_changed_path(s.diff.path_str()):
+                    split_sub_coverage._split_into.append(s)
+                else:
+                    consolidated_splits.append(s)
+
+            self._split_into = consolidated_splits
+            return split_sub_coverage
+        if self.diff.path == path:
+            return self
+        else:
+            return None
+
+    def fine_grained_diff_coverages(self) -> dict[str, "DiffCoverage"]:
+        coverages = {}
+        for s in self._split_into:
+            coverages.update(s.fine_grained_diff_coverages())
+
+        # if this diff is not directly covered by a change-type, but is covered
+        # by the splits, this DiffCoverage is discarded because it bears no value
+        # in the coverage process, e.g. for a newly introduced file, the high
+        # level diff is usually '$', which is very rough and might not be covered
+        # by any change-type. the splits of that diff, however, are more fine
+        # and are covered by change-types. so it makes sense to just keep the splits
+        # and discard the high level '$' diff. it would even prevent a change
+        # from being self-serviceable.
+        if not (not self.is_directly_covered() and self.is_covered_by_splits()):
+            coverages[self.diff.path_str()] = self
+
+        return coverages
 
 
 @dataclass
@@ -81,7 +168,11 @@ class BundleFileChange:
     fileref: FileRef
     old: Optional[dict[str, Any]]
     new: Optional[dict[str, Any]]
-    diff_coverage: list[DiffCoverage]
+    diffs: list[Diff]
+    _diff_coverage: dict[str, DiffCoverage] = field(init=False, default_factory=dict)
+
+    def __post_init__(self) -> None:
+        self._diff_coverage = {d.path_str(): DiffCoverage(d, []) for d in self.diffs}
 
     def extract_context_file_refs(
         self, change_type: "ChangeTypeProcessor"
@@ -226,21 +317,58 @@ class BundleFileChange:
                 self.fileref, file_content, change_type_context
             ):
                 for dc in diffs:
-                    if change_path_covered_by_allowed_path(
-                        str(dc.diff.path), allowed_path
-                    ):
-                        covered_diffs[str(dc.diff.path)] = dc.diff
+                    if dc.changed_path_covered_by_path(allowed_path):
+                        covered_diffs[dc.diff.path_str()] = dc.diff
                         dc.coverage.append(change_type_context)
+                    elif SHA256SUM_PATH != allowed_path and dc.path_under_changed_path(
+                        allowed_path
+                    ):
+                        # the self-service path allowed by the change-type is covering
+                        # only parts of the diff. we will split the diff into a
+                        # smaller part, that can be covered by the change-type.
+                        # but the rest of the diff needs to be covered by another
+                        # change-type, either in full or again as a split.
+                        sub_dc = dc.split(allowed_path, change_type_context)
+                        if not sub_dc:
+                            raise Exception(
+                                f"unable to create a subdiff for path {allowed_path} on diff {dc.diff.path_str()}"
+                            )
+                        covered_diffs[str(allowed_path)] = sub_dc.diff
+
         return covered_diffs
 
     def _filter_diffs(self, diff_types: list[DiffType]) -> list[DiffCoverage]:
-        return [d for d in self.diff_coverage if d.diff.diff_type in diff_types]
-
-    def uncovered_changes(self) -> Iterable[DiffCoverage]:
-        return (d for d in self.diff_coverage if not d.is_covered())
+        return [
+            d for d in self._diff_coverage.values() if d.diff.diff_type in diff_types
+        ]
 
     def all_changes_covered(self) -> bool:
-        return not any(self.uncovered_changes())
+        return all(d.is_covered() for d in self.diff_coverage)
+
+    def raw_diff_count(self) -> int:
+        return len(self._diff_coverage)
+
+    @property
+    def diff_coverage(self) -> Sequence[DiffCoverage]:
+        """
+        returns the meaningful set of diffs, potentially more fine grained than
+        what was originally detected for to the BundleFileChange.
+        """
+        coverages: list[DiffCoverage] = []
+        for dc in self._diff_coverage.values():
+            coverages.extend(dc.fine_grained_diff_coverages().values())
+        return coverages
+
+    def involved_change_types(self) -> list["ChangeTypeProcessor"]:
+        """
+        returns all the change-types that are involved in the coverage
+        of all changes
+        """
+        change_types = []
+        for dc in self.diff_coverage:
+            for ctx in dc.coverage:
+                change_types.append(ctx.change_type_processor)
+        return change_types
 
 
 def parse_resource_file_content(content: Optional[Any]) -> tuple[Any, Optional[str]]:
@@ -287,7 +415,7 @@ def create_bundle_file_change(
             fileref=fileref,
             old=old_file_content,
             new=new_file_content,
-            diff_coverage=[DiffCoverage(d, []) for d in diffs],
+            diffs=diffs,
         )
     else:
         return None
@@ -357,7 +485,7 @@ class ChangeTypeProcessor:
 
     def allowed_changed_paths(
         self, file_ref: FileRef, file_content: Any, ctx: "ChangeTypeContext"
-    ) -> list[str]:
+    ) -> list[jsonpath_ng.JSONPath]:
         """
         find all paths within the provide file_content, that are covered by this
         ChangeTypeV1. the paths are represented as jsonpath expressions pinpointing
@@ -373,7 +501,7 @@ class ChangeTypeProcessor:
             ]:
                 paths.extend(
                     [
-                        str(p.full_path)
+                        p.full_path
                         for p in change_type_path_expression.jsonpath_for_context(
                             ctx
                         ).find(file_content)
@@ -509,13 +637,12 @@ def get_priority_for_changes(
     """
     Finds the lowest priority of all change types involved in the provided bundle file changes.
     """
-    prorities: set[ChangeTypePriority] = set()
+    priorities: set[ChangeTypePriority] = set()
     for bfc in bundle_file_changes:
-        for dc in bfc.diff_coverage:
-            for c in dc.coverage:
-                prorities.add(c.change_type_processor.priority)
+        for ct in bfc.involved_change_types():
+            priorities.add(ct.priority)
     # get the lowest priority
     for p in reversed(ChangeTypePriority):
-        if p in prorities:
+        if p in priorities:
             return p
     return None

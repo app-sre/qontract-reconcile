@@ -1,5 +1,7 @@
+import copy
 import json
 import re
+from collections.abc import MutableMapping
 from dataclasses import dataclass
 from enum import Enum
 from functools import reduce
@@ -31,6 +33,56 @@ class Diff:
     diff_type: DiffType
     old: Optional[Any]
     new: Optional[Any]
+
+    def create_subdiff(self, sub_path: jsonpath_ng.JSONPath) -> "Diff":
+        if sub_path == self.path:
+            # no need to subdiff ... this is the same path
+            return self
+        else:
+            sub_path_str = str(sub_path)
+            if self.path == jsonpath_ng.Root():
+                absolute_sub_path = sub_path
+            elif sub_path_str.startswith(self.path_str()):
+                absolute_sub_path = jsonpath_ng.ext.parse(
+                    f"${sub_path_str[len(self.path_str()):]}"
+                )
+            else:
+                raise Exception(
+                    f"sub_path {sub_path_str} is not prefixed by {self.path_str()}"
+                )
+            sub_old = absolute_sub_path.find(self.old)
+            sub_new = absolute_sub_path.find(self.new)
+            return Diff(
+                path=sub_path,
+                diff_type=self.diff_type,
+                old=sub_old[0].value if len(sub_old) > 0 else None,
+                new=sub_new[0].value if len(sub_new) > 0 else None,
+            )
+
+    def get_context_data_copy(self) -> Optional[Any]:
+        if self.diff_type in [DiffType.ADDED, DiffType.CHANGED]:
+            data_copy = copy.deepcopy(self.new)
+        elif self.diff_type == DiffType.REMOVED:
+            data_copy = copy.deepcopy(self.old)
+        else:
+            raise Exception(f"Unknown diff type {self.diff_type}")
+
+        # remove file metadata
+        if (
+            data_copy
+            and isinstance(data_copy, MutableMapping)
+            and self.path == jsonpath_ng.Root()
+        ):
+            if SCHEMA_FIELD in data_copy:
+                del data_copy[SCHEMA_FIELD]
+            if PATH_FIELD in data_copy:
+                del data_copy[PATH_FIELD]
+            if SHA256SUM_FIELD_NAME in data_copy:
+                del data_copy[SHA256SUM_FIELD_NAME]
+        return data_copy
+
+    def path_str(self) -> str:
+        return str(self.path)
 
     def old_value_repr(self) -> Optional[str]:
         return self._value_repr(self.old)
@@ -98,7 +150,10 @@ def compare_object_ctx_identifier(
     raise CannotCompare() from None
 
 
+SCHEMA_FIELD = "$schema"
+PATH_FIELD = "path"
 SHA256SUM_FIELD_NAME = "$file_sha256sum"
+SHA256SUM_PATH = jsonpath_ng.parse(f"'{SHA256SUM_FIELD_NAME}'")
 
 
 def extract_diffs(old_file_content: Any, new_file_content: Any) -> list[Diff]:

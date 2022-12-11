@@ -168,7 +168,7 @@ class AppInterfaceRepo:
                     ),
                     old=parsed_yaml,
                     new=parsed_yaml,
-                    diff_coverage=[],
+                    diffs=[],
                 )
         elif file_type == BundleFileType.RESOURCEFILE:
             with open(f"{self.resource_dir()}{path}", "r") as f:
@@ -182,7 +182,7 @@ class AppInterfaceRepo:
                     ),
                     old=parsed_content,
                     new=parsed_content,
-                    diff_coverage=[],
+                    diffs=[],
                 )
         else:
             raise ValueError(f"Unknown file type {file_type}")

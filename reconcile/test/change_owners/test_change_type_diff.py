@@ -52,6 +52,9 @@ def test_deepdiff_path_element_with_dot():
 
 
 def test_bundle_change_diff_value_changed():
+    """
+    detect a change on a top level field
+    """
     bundle_change = create_bundle_file_change(
         path="path",
         schema="schema",
@@ -69,6 +72,9 @@ def test_bundle_change_diff_value_changed():
 
 
 def test_bundle_change_diff_value_changed_deep():
+    """
+    detect a change deeper in the object tree
+    """
     bundle_change = create_bundle_file_change(
         path="path",
         schema="schema",
@@ -87,7 +93,7 @@ def test_bundle_change_diff_value_changed_deep():
 
 def test_bundle_change_diff_value_changed_multiple_in_iterable():
     """
-    this testscenario searches shows how changes can be detected in a list,
+    this testscenario shows how changes can be detected in a list,
     when objects with identifiers and objects without are mixed and shuffled
     """
     bundle_change = create_bundle_file_change(
@@ -184,6 +190,10 @@ def test_bundle_change_diff_value_changed_multiple_in_iterable():
 
 
 def test_bundle_change_diff_property_added():
+    """
+    this test scenario show how a newly added property is correctly
+    detected if the containing object has a clear identity.
+    """
     bundle_change = create_bundle_file_change(
         path="path",
         schema="/openshift/namespace-1.yml",
@@ -229,6 +239,10 @@ def test_bundle_change_diff_property_added():
 
 
 def test_bundle_change_diff_property_removed():
+    """
+    this test scenario show how a removed property is correctly
+    detected if the containing object has a clear identity.
+    """
     bundle_change = create_bundle_file_change(
         path="path",
         schema="/openshift/namespace-1.yml",

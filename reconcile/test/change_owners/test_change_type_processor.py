@@ -64,7 +64,7 @@ def test_change_type_processor_allowed_paths_simple(
         ),
     )
 
-    assert paths == ["roles"]
+    assert [str(p) for p in paths] == ["roles"]
 
 
 def test_change_type_processor_allowed_paths_conditions(
@@ -85,4 +85,4 @@ def test_change_type_processor_allowed_paths_conditions(
         ),
     )
 
-    assert paths == ["openshiftResources.[1].version"]
+    assert [str(p) for p in paths] == ["openshiftResources.[1].version"]
