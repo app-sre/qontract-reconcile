@@ -112,8 +112,6 @@ def _parse_bundle_changes(bundle_changes) -> list[BundleFileChange]:
     """
     parses the output of the qontract-server /diff endpoint
     """
-
-    # todo - add some logging to remove BundleFileChange file with no changes
     datafiles = bundle_changes["datafiles"].values()
     resourcefiles = bundle_changes["resources"].values()
     logging.debug(
@@ -336,15 +334,12 @@ def run(
         #
         changes = fetch_bundle_changes(comparison_sha)
         logging.info(
-            f"detected {len(changes)} changed files with {sum(len(c.diff_coverage) for c in changes)} differences"
+            f"detected {len(changes)} changed files with {sum(c.raw_diff_count() for c in changes)} differences"
         )
         cover_changes(
             changes,
             change_type_processors,
             comparison_gql_api,
-        )
-        logging.debug(
-            f"bundle files with changes uncovered by change-types: {', '.join([str(c.fileref) for c in changes if not c.all_changes_covered()])}"
         )
         self_serviceable = (
             len(changes) > 0

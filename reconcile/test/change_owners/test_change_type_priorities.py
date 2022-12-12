@@ -1,8 +1,8 @@
+from unittest.mock import MagicMock
+
 from reconcile.change_owners.change_types import (
     BundleFileChange,
-    ChangeTypeContext,
     ChangeTypePriority,
-    DiffCoverage,
     build_change_type_processor,
     get_priority_for_changes,
 )
@@ -22,28 +22,26 @@ def test_priority_for_changes(
 ):
     saas_file_changetype.priority = ChangeTypePriority.HIGH.value
     secret_promoter_change_type.priority = ChangeTypePriority.MEDIUM.value
-    changes = [
-        BundleFileChange(
-            fileref=None,  # type: ignore
-            old=None,
-            new=None,
-            diff_coverage=[
-                DiffCoverage(
-                    diff=None,  # type: ignore
-                    coverage=[
-                        ChangeTypeContext(
-                            change_type_processor=build_change_type_processor(ct),
-                            context="RoleV1 - some-role",
-                            approvers=[],
-                            context_file=None,  # type: ignore
-                        ),
-                    ],
-                )
-            ],
-        )
-        for ct in [saas_file_changetype, secret_promoter_change_type]
-    ]
-    assert ChangeTypePriority.MEDIUM == get_priority_for_changes(changes)
+    c1 = BundleFileChange(
+        fileref=None,  # type: ignore
+        old=None,
+        new=None,
+        diffs=[],
+    )
+    c1.involved_change_types = MagicMock(  # type: ignore
+        return_value=[build_change_type_processor(saas_file_changetype)]
+    )
+    c2 = BundleFileChange(
+        fileref=None,  # type: ignore
+        old=None,
+        new=None,
+        diffs=[],
+    )
+    c2.involved_change_types = MagicMock(  # type: ignore
+        return_value=[build_change_type_processor(secret_promoter_change_type)]
+    )
+
+    assert ChangeTypePriority.MEDIUM == get_priority_for_changes([c1, c2])
 
 
 def test_priorty_for_changes_no_coverage():
@@ -52,7 +50,7 @@ def test_priorty_for_changes_no_coverage():
             fileref=None,  # type: ignore
             old=None,
             new=None,
-            diff_coverage=[],
+            diffs=[],
         )
     ]
     assert get_priority_for_changes(changes) is None
