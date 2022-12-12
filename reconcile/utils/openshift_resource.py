@@ -501,6 +501,10 @@ class OpenshiftResource:
             if spec.get("type") == "ClusterIP":
                 spec.pop("clusterIP", None)
 
+        if body["kind"] == "CronJob":
+            if body["apiVersion"] == "batch/v1beta1":
+                body["apiVersion"] = "batch/v1"
+
         # remove qontract specific params
         annotations.pop("qontract.integration", None)
         annotations.pop("qontract.integration_version", None)
