@@ -121,7 +121,9 @@ class DiffCoverage:
                     return sub_cov
 
             # no suitable existing split found, create a new one
-            split_sub_coverage = DiffCoverage(self.diff.create_subdiff(path), [ctx])
+            split_sub_coverage = DiffCoverage(
+                self.diff.create_subdiff(path), self.coverage + [ctx]
+            )
 
             # consolidate existing splits. maybe they should go under the newly created one?
             consolidated_splits = [split_sub_coverage]
