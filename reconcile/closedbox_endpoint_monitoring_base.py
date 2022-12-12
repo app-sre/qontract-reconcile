@@ -147,13 +147,11 @@ def run_for_provider(
 ) -> None:
     # prepare
     desired_endpoints = get_endpoints(provider)
-    namespaces = {
-        p.namespace.get("name"): p.namespace for p in desired_endpoints if p.namespace
-    }
+    namespaces = [p.namespace for p in desired_endpoints if p.namespace]
 
     if namespaces:
         ri, oc_map = ob.fetch_current_state(
-            namespaces.values(),
+            namespaces,
             thread_pool_size=thread_pool_size,
             internal=internal,
             use_jump_host=use_jump_host,
