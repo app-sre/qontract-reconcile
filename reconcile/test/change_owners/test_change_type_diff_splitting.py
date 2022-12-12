@@ -219,8 +219,34 @@ def test_nested_splits():
 
     diffs = {d.diff.path_str(): d for d in bundle_change.diff_coverage}
 
+    # check that the `top` field has a split for `top.sub` and is covered
+    # by the `top` change-type
     assert ["top.sub"] == [s.diff.path_str() for s in diffs["top"]._split_into]
+    assert diffs["top"].is_directly_covered()
+    assert {ctx.change_type_processor.name for ctx in diffs["top"].coverage} == {
+        top.change_type_processor.name
+    }
+
+    # check that the `top.sub` field has a split for `top.sub.sub-sub` and is covered
+    # by the `sub` and `top` change-types
     assert ["top.sub.sub-sub"] == [
         s.diff.path_str() for s in diffs["top.sub"]._split_into
     ]
+    assert diffs["top.sub"].is_directly_covered()
+    assert {ctx.change_type_processor.name for ctx in diffs["top.sub"].coverage} == {
+        top.change_type_processor.name,
+        sub.change_type_processor.name,
+    }
+
+    # check that the `top.sub.sub-sub` field is not split and is covered
+    # by the `sub-sub`, `sub` and `top` change-types
     assert [] == [s.diff.path_str() for s in diffs["top.sub.sub-sub"]._split_into]
+    assert diffs["top.sub.sub-sub"].is_directly_covered()
+    assert not diffs["top.sub.sub-sub"].is_covered_by_splits()
+    assert {
+        ctx.change_type_processor.name for ctx in diffs["top.sub.sub-sub"].coverage
+    } == {
+        top.change_type_processor.name,
+        sub.change_type_processor.name,
+        sub_sub.change_type_processor.name,
+    }

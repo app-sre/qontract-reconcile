@@ -122,7 +122,7 @@ class DiffCoverage:
 
             # no suitable existing split found, create a new one
             split_sub_coverage = DiffCoverage(
-                self.diff.create_subdiff(path), self.coverage + [ctx]
+                self.diff.create_subdiff(path), self.coverage.copy()
             )
 
             # consolidate existing splits. maybe they should go under the newly created one?
@@ -133,12 +133,20 @@ class DiffCoverage:
                 else:
                     consolidated_splits.append(s)
 
+            # add the covering context to the new split and all its child splits
+            split_sub_coverage.add_covering_context(ctx)
+
             self._split_into = consolidated_splits
             return split_sub_coverage
         if self.diff.path == path:
             return self
         else:
             return None
+
+    def add_covering_context(self, ctx: "ChangeTypeContext"):
+        self.coverage.append(ctx)
+        for s in self._split_into:
+            s.add_covering_context(ctx)
 
     def fine_grained_diff_coverages(self) -> dict[str, "DiffCoverage"]:
         coverages = {}
