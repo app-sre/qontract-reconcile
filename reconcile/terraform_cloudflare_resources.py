@@ -199,6 +199,6 @@ def _get_cloudflare_desired_state() -> Tuple[
 
 
 def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
-    query_accounts, query_resources = _get_cloudflare_desired_state()
+    desired_state = _get_cloudflare_desired_state()
 
-    return {"accounts": query_accounts.dict(), "resources": query_resources.dict()}
+    return {state.__repr_name__(): state.dict() for state in desired_state}
