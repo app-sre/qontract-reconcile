@@ -1,9 +1,9 @@
 from collections import defaultdict
 
+from reconcile.change_owners.bundle import BundleFileType
 from reconcile.change_owners.change_types import (
     Approver,
     BundleFileChange,
-    BundleFileType,
     ChangeTypeContext,
     ChangeTypeProcessor,
 )

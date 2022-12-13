@@ -3,9 +3,11 @@ import sys
 import traceback
 
 from reconcile import queries
+from reconcile.change_owners.bundle import (
+    BundleFileType,
+)
 from reconcile.change_owners.change_types import (
     BundleFileChange,
-    BundleFileType,
     ChangeTypePriority,
     ChangeTypeProcessor,
     create_bundle_file_change,

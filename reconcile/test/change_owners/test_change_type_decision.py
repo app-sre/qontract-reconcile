@@ -1,8 +1,8 @@
 import pytest
 
+from reconcile.change_owners.bundle import BundleFileType
 from reconcile.change_owners.change_types import (
     Approver,
-    BundleFileType,
     ChangeTypeContext,
     build_change_type_processor,
     create_bundle_file_change,

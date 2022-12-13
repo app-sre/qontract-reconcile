@@ -3,8 +3,8 @@ from typing import Optional
 
 import pytest
 
+from reconcile.change_owners.bundle import BundleFileType
 from reconcile.change_owners.change_types import (
-    BundleFileType,
     ChangeTypeIncompatibleInheritanceError,
     ChangeTypeInheritanceCycleError,
     ChangeTypePriority,
@@ -35,6 +35,7 @@ def build_def_change_type(
             )
         ],
         inherit=[ChangeTypeV1_ChangeTypeV1(name=i) for i in inherit or []],
+        implicitOwnership=[],
     )
 
 

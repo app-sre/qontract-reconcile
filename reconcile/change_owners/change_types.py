@@ -20,6 +20,10 @@ import jsonpath_ng
 import jsonpath_ng.ext
 import networkx
 
+from reconcile.change_owners.bundle import (
+    BundleFileType,
+    FileRef,
+)
 from reconcile.change_owners.diff import (
     SHA256SUM_FIELD_NAME,
     SHA256SUM_PATH,
@@ -34,11 +38,6 @@ from reconcile.gql_definitions.change_owners.queries.change_types import (
 )
 
 
-class BundleFileType(Enum):
-    DATAFILE = "datafile"
-    RESOURCEFILE = "resourcefile"
-
-
 class ChangeTypePriority(Enum):
     """
     The order of the priorities is important. They are listed in decreasing priority.
@@ -49,17 +48,6 @@ class ChangeTypePriority(Enum):
     HIGH = "high"
     MEDIUM = "medium"
     LOW = "low"
-
-
-@dataclass(frozen=True)
-class FileRef:
-    file_type: BundleFileType
-    path: str
-    schema: Optional[str]
-
-    def __str__(self) -> str:
-        return f"{self.file_type.value}:{self.path}"
-
 
 @dataclass
 class DiffCoverage:
