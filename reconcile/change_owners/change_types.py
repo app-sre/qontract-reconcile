@@ -34,6 +34,7 @@ from reconcile.change_owners.diff import (
 from reconcile.gql_definitions.change_owners.queries.change_types import (
     ChangeTypeChangeDetectorJsonPathProviderV1,
     ChangeTypeChangeDetectorV1,
+    ChangeTypeImplicitOwnershipV1,
     ChangeTypeV1,
 )
 
@@ -486,6 +487,7 @@ class ChangeTypeProcessor:
     context_type: BundleFileType
     context_schema: Optional[str]
     disabled: bool
+    implicit_ownership: list[ChangeTypeImplicitOwnershipV1]
 
     def __post_init__(self):
         self._expressions_by_file_type_schema: dict[
@@ -550,6 +552,7 @@ def build_change_type_processor(change_type: ChangeTypeV1) -> ChangeTypeProcesso
         context_type=BundleFileType[change_type.context_type.upper()],
         context_schema=change_type.context_schema,
         disabled=bool(change_type.disabled),
+        implicit_ownership=change_type.implicit_ownership or [],
     )
     for change in change_type.changes:
         ctp.add_change(change)

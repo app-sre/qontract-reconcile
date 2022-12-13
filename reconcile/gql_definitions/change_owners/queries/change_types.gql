@@ -19,6 +19,12 @@ query ChangeTypes($name: String) {
         jsonPathSelectors
       }
     }
+    implicitOwnership {
+      provider
+      ... on ChangeTypeImplicitOwnershipJsonPathProvider_v1 {
+        jsonPathSelector
+      }
+    }
     inherit {
       name
     }

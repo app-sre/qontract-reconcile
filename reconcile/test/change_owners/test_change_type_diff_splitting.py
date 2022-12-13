@@ -29,6 +29,7 @@ def build_change_type(name: str, change_selectors: list[str]) -> ChangeTypeProce
             disabled=False,
             priority="urgent",
             inherit=[],
+            implicitOwnership=[],
         )
     )
 
