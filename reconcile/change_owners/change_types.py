@@ -49,6 +49,16 @@ class ChangeTypePriority(Enum):
     MEDIUM = "medium"
     LOW = "low"
 
+
+def parent_of_jsonpath(path: jsonpath_ng.JSONPath) -> Optional[jsonpath_ng.JSONPath]:
+    # todo - figure out if this is enough of if we have other
+    # structures where a parent can be extracted
+    if isinstance(path, jsonpath_ng.Child):
+        return path.left
+    else:
+        return None
+
+
 @dataclass
 class DiffCoverage:
     diff: Diff
@@ -83,6 +93,12 @@ class DiffCoverage:
                 if s.is_covered():
                     # this removes the data that matches the path
                     s.diff.path.filter(lambda x: True, uncovered_data)
+                    # remove empty parents recursively
+                    parent_path = s.diff.path
+                    while parent_path := parent_of_jsonpath(parent_path):
+                        for parent_data in parent_path.find(uncovered_data):
+                            if not parent_data.value:
+                                parent_path.filter(lambda x: True, uncovered_data)
         return uncovered_data == {}
 
     def changed_path_covered_by_path(self, path: jsonpath_ng.JSONPath) -> bool:
