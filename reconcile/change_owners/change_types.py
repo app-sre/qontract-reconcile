@@ -20,6 +20,7 @@ import jsonpath_ng
 import jsonpath_ng.ext
 import networkx
 
+from reconcile.change_owners.approver import Approver
 from reconcile.change_owners.bundle import (
     BundleFileType,
     FileRef,
@@ -601,19 +602,6 @@ class ChangeTypeIncompatibleInheritanceError(ValueError):
 
 class ChangeTypeInheritanceCycleError(ValueError):
     pass
-
-
-@dataclass
-class Approver:
-    """
-    Minimalistic wrapper for approver sources to be used in ChangeTypeContexts.
-    Since we might load different approver contexts via GraphQL query classes,
-    a wrapper enables us to deal with different dataclasses representing an
-    approver.
-    """
-
-    org_username: str
-    tag_on_merge_requests: Optional[bool] = False
 
 
 @dataclass

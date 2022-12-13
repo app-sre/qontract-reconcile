@@ -1,16 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
-from typing import (
-    Optional,
-)
-
-COMPARISON_BUNDLE = "comparison_bundle"
-TARGET_BUNDLE = "target_bundle"
-
-
-class Bundle(Enum):
-    COMPARISON = "comparison"
-    TARGET = "target"
+from typing import Optional
 
 
 class BundleFileType(Enum):
