@@ -1,6 +1,10 @@
 import logging
 import sys
-from typing import Optional
+from typing import (
+    Any,
+    Optional,
+    Tuple,
+)
 
 from reconcile import queries
 from reconcile.gql_definitions.terraform_cloudflare_resources import (
@@ -11,6 +15,9 @@ from reconcile.gql_definitions.terraform_cloudflare_resources.terraform_cloudfla
     AWSAccountV1,
     CloudflareAccountV1,
     TerraformCloudflareAccountsQueryData,
+)
+from reconcile.gql_definitions.terraform_cloudflare_resources.terraform_cloudflare_resources import (
+    TerraformCloudflareResourcesQueryData,
 )
 from reconcile.status import ExitCodes
 from reconcile.utils import gql
@@ -123,20 +130,17 @@ def run(
     selected_account=None,
     defer=None,
 ) -> None:
-
     settings = queries.get_app_interface_settings()
     secret_reader = SecretReader(settings=settings)
 
+    query_accounts, query_resources = _get_cloudflare_desired_state()
+
     # Build Cloudflare clients
-    query_accounts = terraform_cloudflare_accounts.query(query_func=gql.get_api().query)
     cf_clients = TerraformConfigClientCollection()
     for client in build_clients(secret_reader, query_accounts, selected_account):
         cf_clients.register_client(*client)
 
     # Register Cloudflare resources
-    query_resources = terraform_cloudflare_resources.query(
-        query_func=gql.get_api().query
-    )
     cf_specs = [
         spec
         for namespace in query_resources.namespaces or []
@@ -181,3 +185,20 @@ def run(
     err = tf.apply()
     if err:
         sys.exit(ExitCodes.ERROR)
+
+
+def _get_cloudflare_desired_state() -> Tuple[
+    TerraformCloudflareAccountsQueryData, TerraformCloudflareResourcesQueryData
+]:
+    query_accounts = terraform_cloudflare_accounts.query(query_func=gql.get_api().query)
+    query_resources = terraform_cloudflare_resources.query(
+        query_func=gql.get_api().query
+    )
+
+    return query_accounts, query_resources
+
+
+def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
+    query_accounts, query_resources = _get_cloudflare_desired_state()
+
+    return {"accounts": query_accounts.dict(), "resources": query_resources.dict()}
