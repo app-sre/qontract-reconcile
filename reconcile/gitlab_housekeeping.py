@@ -396,7 +396,7 @@ def rebase_merge_requests(
                 if not dry_run:
                     mr.rebase()
                     rebases += 1
-                    rebased_merge_requests.labels(mr.source_project_id).inc()
+                    rebased_merge_requests.labels(mr.target_project_id).inc()
             except gitlab.exceptions.GitlabMRRebaseError as e:
                 logging.error("unable to rebase {}: {}".format(mr.iid, e))
         else:
@@ -468,8 +468,8 @@ def merge_merge_requests(
         if not dry_run and merges < merge_limit:
             try:
                 mr.merge()
-                merged_merge_requests.labels(mr.source_project_id).inc()
-                time_to_merge.labels(mr.source_project_id).observe(
+                merged_merge_requests.labels(mr.target_project_id).inc()
+                time_to_merge.labels(mr.target_project_id).observe(
                     calculate_time_since_approval(mr)
                 )
                 if rebase:
