@@ -77,7 +77,7 @@ rebased_merge_requests = Counter(
 )
 
 time_to_merge = Histogram(
-    name="qontract_reconcile_time_to_merge_merge_request",
+    name="qontract_reconcile_time_to_merge_merge_request_minutes",
     documentation="The number of minutes it takes from when a merge request is mergeable until it is actually merged. This is an indicator of how busy the merge queue is.",
     labelnames=["project_id"],
     buckets=(5.0, 10.0, 20.0, 40.0, 60.0, float("inf")),
