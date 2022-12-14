@@ -469,9 +469,6 @@ def merge_merge_requests(
             try:
                 mr.merge()
                 merged_merge_requests.labels(mr.target_project_id).inc()
-                time_to_merge.labels(mr.target_project_id).observe(
-                    calculate_time_since_approval(mr)
-                )
                 if rebase:
                     return
                 merges += 1
