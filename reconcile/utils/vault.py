@@ -292,8 +292,6 @@ class _VaultClient:
                 logging.debug(f"current data is up-to-date, skipping {path}")
                 return
         except SecretVersionNotFound:
-            pass
-        except SecretAccessForbidden:
             # if the secret is not found we need to write it
             logging.debug(f"secret not found in {path}, will create it")
 
