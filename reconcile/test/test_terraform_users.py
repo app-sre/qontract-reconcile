@@ -9,7 +9,12 @@ from reconcile.terraform_users import (
 @pytest.fixture
 def new_users() -> list[tuple[str, str, str, str]]:
     return [
-        ("aws1", "https://console.aws.amazon.com", "user1", "enc_password1"),
+        (
+            "aws1",
+            "https://console.aws.amazon.com",
+            "user1",
+            "enc_password1",
+        ),  # gitleaks:allow
     ]
 
 
