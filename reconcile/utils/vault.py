@@ -257,7 +257,7 @@ class _VaultClient:
 
     @retry()
     def write(
-        self, secret: Mapping, decode_base64: bool = True, force_write: bool = False
+        self, secret: Mapping, decode_base64: bool = True, force: bool = False
     ) -> None:
         """Writes a dictionary of keys and values to a Vault secret.
 
@@ -277,18 +277,18 @@ class _VaultClient:
 
         kv_version = self._get_mount_version_by_secret_path(secret_path)
         if kv_version == 2:
-            self._write_v2(secret_path, data, force_write)
+            self._write_v2(secret_path, data, force)
         else:
             self._write_v1(secret_path, data)
 
-    def _write_v2(self, path: str, data: Mapping, force_write: bool = False) -> None:
+    def _write_v2(self, path: str, data: Mapping, force: bool = False) -> None:
         path_split = path.split("/")
         mount_point = path_split[0]
         write_path = "/".join(path_split[1:])
 
         try:
             current_data, _ = self._read_all_v2(path, version=SECRET_VERSION_LATEST)
-            if current_data == data and not force_write:
+            if current_data == data and not force:
                 logging.debug(f"current data is up-to-date, skipping {path}")
                 return
         except SecretVersionNotFound:
