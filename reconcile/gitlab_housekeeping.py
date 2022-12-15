@@ -241,18 +241,18 @@ def is_rebased(mr, gl: GitLabApi) -> bool:
 
 
 def get_labels(mr: ProjectMergeRequest, gl: GitLabApi) -> list[str]:
-    labels = mr.attributes.get("labels")
-    if not labels:
-        # Sometimes the label attribute is empty but shouldn't. Try it again by fetching this MR separately
-        labels = gl.get_merge_request_labels(mr.iid)
-        # This log is being added to get more data about how often GitLab doesn't return
-        # labels to see if we can remove the extra GitLab API call above.
-        if labels:
-            logging.info(
-                "Found a MR with missing labels, but successfully obtained labels on second call - %s",
-                mr.attributes["web_url"],
-            )
-    return labels
+    """
+    This function used to contain logic for checking if labels were empty and calling
+    gl.get_merge_request_labels() if they were missing because there were reports of the
+    label attribute being empty sometimes when it shouldn't be. This was an expensive
+    approach, increasing the runtime of the integration by something around 20-30%.
+    Through investigation in APPSRE-6653 it was determined this no longer appears to be
+    an issue.
+
+    This is being left to continue to abstract the way that labels are pulled in case
+    this becomes an issue again in the future.
+    """
+    return mr.attributes.get("labels")
 
 
 def get_merge_requests(
