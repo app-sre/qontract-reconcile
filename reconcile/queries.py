@@ -1129,6 +1129,8 @@ OCM_QUERY = """
     recommendedVersions {
       recommendedVersion
       workload
+      channel
+      initialVersion
     }
     recommendedVersionWeight {
       highest
