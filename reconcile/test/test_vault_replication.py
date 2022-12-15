@@ -21,6 +21,59 @@ from reconcile.utils.vault import (
 )
 
 
+@pytest.fixture
+def jenkins_config_query_data() -> JenkinsConfigsQueryData:
+    return JenkinsConfigsQueryData(
+        jenkins_configs=[
+            JenkinsConfigV1_JenkinsConfigV1(
+                name="jenkins-secrets-config",
+                instance=JenkinsInstanceV1(
+                    name="jenkins-instance",
+                    serverUrl="https://test.net",
+                    token=VaultSecret(
+                        path="secret_path",
+                        field="secret_field",
+                        version=None,
+                        format=None,
+                    ),
+                    deleteMethod=None,
+                ),
+                type="secrets",
+                config=None,
+                config_path=ResourceV1(
+                    content="name: 'test_data_name'\n    secret-path: 'this/is/a/path'"
+                ),
+            ),
+        ]
+    )
+
+
+@pytest.fixture
+def vault_instance_data_invalid_auth() -> VaultReplicationConfigV1_VaultInstanceAuthV1:
+    return VaultReplicationConfigV1_VaultInstanceAuthV1(
+        provider="test",
+        secretEngine="kv_v1",
+    )
+
+
+@pytest.fixture(autouse=True)
+def reset_singletons():
+    VaultClient._instance = None
+
+
+@pytest.fixture
+def policy_query_data() -> vault_policies.VaultPoliciesQueryData:
+    return vault_policies.VaultPoliciesQueryData(
+        policy=[
+            vault_policies.VaultPolicyV1(
+                name="test-policy",
+                instance=vault_policies.VaultInstanceV1(name="vault-instance"),
+                rules='path "this/is/a/path/*" {\n  capabilities = ["create", "read", "update"]\n}\n',
+            )
+        ]
+    )
+
+
 def test_policy_contais_path():
     policy_paths = ["path1", "path2"]
     path = "path1"
@@ -50,33 +103,6 @@ def test_list_invalid_paths():
     path_list = ["path1", "path3"]
     policy_paths = ["path1", "path2"]
     assert integ.list_invalid_paths(path_list, policy_paths) == ["path3"]
-
-
-@pytest.fixture
-def jenkins_config_query_data() -> JenkinsConfigsQueryData:
-    return JenkinsConfigsQueryData(
-        jenkins_configs=[
-            JenkinsConfigV1_JenkinsConfigV1(
-                name="jenkins-secrets-config",
-                instance=JenkinsInstanceV1(
-                    name="jenkins-instance",
-                    serverUrl="https://test.net",
-                    token=VaultSecret(
-                        path="secret_path",
-                        field="secret_field",
-                        version=None,
-                        format=None,
-                    ),
-                    deleteMethod=None,
-                ),
-                type="secrets",
-                config=None,
-                config_path=ResourceV1(
-                    content="name: 'test_data_name'\n    secret-path: 'this/is/a/path'"
-                ),
-            ),
-        ]
-    )
 
 
 @pytest.fixture
@@ -115,19 +141,6 @@ def vault_instance_data() -> VaultReplicationConfigV1_VaultInstanceAuthV1_VaultI
     )
 
 
-@pytest.fixture
-def vault_instance_data_invalid_auth() -> VaultReplicationConfigV1_VaultInstanceAuthV1:
-    return VaultReplicationConfigV1_VaultInstanceAuthV1(
-        provider="test",
-        secretEngine="kv_v1",
-    )
-
-
-@pytest.fixture(autouse=True)
-def reset_singletons():
-    VaultClient._instance = None
-
-
 def test_get_vault_credentials_invalid_auth_method(
     vault_instance_data_invalid_auth: VaultReplicationConfigV1_VaultInstanceAuthV1,
     mocker,
@@ -161,19 +174,6 @@ def test_get_vault_credentials_app_role(
         "secret_id": "b",
         "server": "https://vault-instance.com",
     }
-
-
-@pytest.fixture
-def policy_query_data() -> vault_policies.VaultPoliciesQueryData:
-    return vault_policies.VaultPoliciesQueryData(
-        policy=[
-            vault_policies.VaultPolicyV1(
-                name="test-policy",
-                instance=vault_policies.VaultInstanceV1(name="vault-instance"),
-                rules='path "this/is/a/path/*" {\n  capabilities = ["create", "read", "update"]\n}\n',
-            )
-        ]
-    )
 
 
 def test_get_policy_paths(policy_query_data: vault_policies.VaultPoliciesQueryData):
