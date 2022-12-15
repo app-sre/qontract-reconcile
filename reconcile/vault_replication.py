@@ -61,9 +61,7 @@ def deep_copy_versions(
             write_dict = {"path": path, "data": secret}
             logging.info(["replicate_vault_secret", src_version, path])
             if not dry_run:
-                dest_vault.write(
-                    secret=write_dict, decode_base64=False, force_write=True
-                )
+                dest_vault.write(secret=write_dict, decode_base64=False, force=True)
 
         except SecretNotFound:
             # Handle the case where the version is already deleted from source, and
@@ -72,7 +70,7 @@ def deep_copy_versions(
             write_dummy_versions(
                 dry_run=dry_run,
                 dest_vault=dest_vault,
-                version_needed=version,
+                secret_version=version,
                 path=path,
             )
 
@@ -80,17 +78,18 @@ def deep_copy_versions(
 def write_dummy_versions(
     dry_run: bool,
     dest_vault: _VaultClient,
-    version_needed: int,
+    secret_version: int,
     path: str,
 ) -> None:
 
-    for version in range(0, version_needed):
-        write_dict = {"path": path, "data": {"dummy": "data"}}
-        logging.info(
-            ["replicate_vault_secret", "generate_dummy_data", version + 1, path]
-        )
-        if not dry_run:
-            dest_vault.write(secret=write_dict, decode_base64=False, force_write=True)
+    write_dict = {"path": path, "data": {"dummy": "data"}}
+    logging.info(
+        ["replicate_vault_secret", "generate_dummy_data", secret_version, path]
+    )
+    if not dry_run:
+        # Using force=True to write the dummy data to force the vault client
+        # to write the version even if the data is the same as the previous version.
+        dest_vault.write(secret=write_dict, decode_base64=False, force=True)
 
 
 def copy_vault_secret(
@@ -102,6 +101,8 @@ def copy_vault_secret(
     try:
         _, version = source_vault.read_all_with_version(secret_dict)
     except SecretAccessForbidden:
+        # Raise exception if we can't read the secret from the source vault.
+        # This is likely to be related to the approle permissions.
         raise SecretAccessForbidden("Cannot read secret from source vault")
 
     try:
@@ -112,9 +113,7 @@ def copy_vault_secret(
             write_dict = {"path": path, "data": secret}
             logging.info(["replicate_vault_secret", path])
             if not dry_run:
-                dest_vault.write(
-                    secret=write_dict, decode_base64=False, force_write=True
-                )
+                dest_vault.write(secret=write_dict, decode_base64=False, force=True)
         elif dest_version < version:
             deep_copy_versions(
                 dry_run=dry_run,
@@ -132,9 +131,7 @@ def copy_vault_secret(
             if not dry_run:
                 secret, _ = source_vault.read_all_with_version(secret_dict)
                 write_dict = {"path": path, "data": secret}
-                dest_vault.write(
-                    secret=write_dict, decode_base64=False, force_write=True
-                )
+                dest_vault.write(secret=write_dict, decode_base64=False, force=True)
         else:
             deep_copy_versions(
                 dry_run=dry_run,
@@ -154,6 +151,8 @@ def check_invalid_paths(
     if policy_paths is not None:
         invalid_paths = list_invalid_paths(path_list, policy_paths)
         if invalid_paths:
+            # Exit if we have paths not present in the policy that needs to be replicated
+            # this is to prevent to replicate secrets that are not allowed.
             logging.error(["replicate_vault_secret", "Invalid paths", invalid_paths])
             raise VaultInvalidPaths
 
@@ -257,6 +256,7 @@ def get_vault_credentials(
         vault_auth,
         VaultInstanceV1_VaultReplicationConfigV1_VaultInstanceAuthV1_VaultInstanceAuthApproleV1,
     ):
+        # Exit if the auth method is not approle as is the only one supported
         raise VaultInvalidAuthMethod
 
     role_id = {
@@ -323,8 +323,8 @@ def get_start_end_secret(path: str) -> tuple[str, str]:
 def get_secrets_from_templated_path(
     vault_instance: _VaultClient, path: str
 ) -> list[str]:
-    """Returns a list of secrets that result from a templated path
-    expansion.
+    """Connects to the given Vault instance and returns a list of secrets
+    that match with the templated path expansion.
 
     The input secret is the name of a jenkins instance to filter
     the secrets:
@@ -342,6 +342,7 @@ def get_secrets_from_templated_path(
         prefix = cap_groups.group(1)
         suffix = cap_groups.group(3)
     else:
+        # Exit if the path is not a valid formatted template on the secret path
         raise VaultInvalidPaths
 
     start, end = get_start_end_secret(path)
