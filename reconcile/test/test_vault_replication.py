@@ -77,13 +77,13 @@ def policy_query_data() -> vault_policies.VaultPoliciesQueryData:
 def test_policy_contais_path():
     policy_paths = ["path1", "path2"]
     path = "path1"
-    assert integ.policy_contains_path(path, policy_paths) is True
+    assert integ._policy_contains_path(path, policy_paths) is True
 
 
 def test_policy_contais_path_false():
     policy_paths = ["path2", "path3"]
     path = "path1"
-    assert integ.policy_contains_path(path, policy_paths) is False
+    assert integ._policy_contains_path(path, policy_paths) is False
 
 
 def test_check_invalid_paths_ko():
