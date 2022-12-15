@@ -917,8 +917,9 @@ CLUSTERS_MINIMAL_QUERY = """
         org
         team
       }
-      # ... on ClusterAuthOIDC_v1 {
-      # }
+      ... on ClusterAuthOIDC_v1 {
+        name
+      }
     }
   }
 }
@@ -2882,6 +2883,9 @@ GABI_INSTANCES_QUERY = """
           internal
           disable {
             integrations
+          }
+          auth {
+            service
           }
         }
       }

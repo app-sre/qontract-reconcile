@@ -16,7 +16,11 @@ from reconcile.change_owners.change_types import (
     create_bundle_file_change,
 )
 from reconcile.gql_definitions.change_owners.queries import self_service_roles
-from reconcile.gql_definitions.change_owners.queries.change_types import ChangeTypeV1
+from reconcile.gql_definitions.change_owners.queries.change_types import (
+    ChangeTypeChangeDetectorContextSelectorV1,
+    ChangeTypeChangeDetectorJsonPathProviderV1,
+    ChangeTypeV1,
+)
 from reconcile.gql_definitions.change_owners.queries.self_service_roles import (
     BotV1,
     DatafileObjectV1,
@@ -141,3 +145,23 @@ def namespace_file() -> TestFile:
 @pytest.fixture
 def rds_defaults_file() -> TestFile:
     return TestFile(**fxt.get_anymarkup("resourcefile_rds_defaults.yaml"))
+
+
+def build_jsonpath_change(
+    selectors: list[str],
+    schema: Optional[str] = None,
+    context_selector: Optional[str] = None,
+    context_when: Optional[str] = None,
+) -> ChangeTypeChangeDetectorJsonPathProviderV1:
+    if context_selector:
+        context = ChangeTypeChangeDetectorContextSelectorV1(
+            selector=context_selector, when=context_when
+        )
+    else:
+        context = None
+    return ChangeTypeChangeDetectorJsonPathProviderV1(
+        provider="jsonPath",
+        changeSchema=schema,
+        jsonPathSelectors=selectors,
+        context=context,
+    )

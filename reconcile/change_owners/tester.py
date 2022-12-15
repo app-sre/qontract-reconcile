@@ -74,9 +74,11 @@ def test_change_type_in_context(
 SELF_SERVICABLE_MARKER = "self-serviceable"
 
 
-def print_annotated_file(file: BundleFileChange, self_serviceable_paths: list[str]):
+def print_annotated_file(
+    file: BundleFileChange, self_serviceable_paths: list[jsonpath_ng.JSONPath]
+):
     # add a markers to the data to indicate which parts are self serviceable
-    for path_expression in [jsonpath_ng.parse(p) for p in self_serviceable_paths]:
+    for path_expression in self_serviceable_paths:
         for self_serviceable_data in path_expression.find(file.new):
             self_serviceable_data.full_path.update(
                 file.new, {SELF_SERVICABLE_MARKER: self_serviceable_data.value}
@@ -168,7 +170,7 @@ class AppInterfaceRepo:
                     ),
                     old=parsed_yaml,
                     new=parsed_yaml,
-                    diff_coverage=[],
+                    diffs=[],
                 )
         elif file_type == BundleFileType.RESOURCEFILE:
             with open(f"{self.resource_dir()}{path}", "r") as f:
@@ -182,7 +184,7 @@ class AppInterfaceRepo:
                     ),
                     old=parsed_content,
                     new=parsed_content,
-                    diff_coverage=[],
+                    diffs=[],
                 )
         else:
             raise ValueError(f"Unknown file type {file_type}")

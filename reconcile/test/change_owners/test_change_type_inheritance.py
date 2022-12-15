@@ -11,32 +11,11 @@ from reconcile.change_owners.change_types import (
     init_change_type_processors,
 )
 from reconcile.gql_definitions.change_owners.queries.change_types import (
-    ChangeTypeChangeDetectorContextSelectorV1,
-    ChangeTypeChangeDetectorJsonPathProviderV1,
     ChangeTypeChangeDetectorV1,
     ChangeTypeV1,
     ChangeTypeV1_ChangeTypeV1,
 )
-
-
-def build_jsonpath_change(
-    selectors: list[str],
-    schema: Optional[str] = None,
-    context_selector: Optional[str] = None,
-    context_when: Optional[str] = None,
-) -> ChangeTypeChangeDetectorJsonPathProviderV1:
-    if context_selector:
-        context = ChangeTypeChangeDetectorContextSelectorV1(
-            selector=context_selector, when=context_when
-        )
-    else:
-        context = None
-    return ChangeTypeChangeDetectorJsonPathProviderV1(
-        provider="jsonPath",
-        changeSchema=schema,
-        jsonPathSelectors=selectors,
-        context=context,
-    )
+from reconcile.test.change_owners.fixtures import build_jsonpath_change
 
 
 def build_def_change_type(

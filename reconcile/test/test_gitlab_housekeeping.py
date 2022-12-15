@@ -2,9 +2,13 @@ from datetime import (
     datetime,
     timedelta,
 )
-from unittest.mock import patch
+from unittest.mock import (
+    create_autospec,
+    patch,
+)
 
 from gitlab import Gitlab
+from gitlab.v4.objects import ProjectMergeRequest
 
 import reconcile.gitlab_housekeeping as gl_h
 from reconcile.test.fixtures import Fixtures
@@ -78,3 +82,13 @@ class TestGitLabHousekeeping:
 
         # Test if mock have this exact calls
         http_post.assert_called_once_with("/projects/1/pipelines/47/cancel")
+
+
+def test_calculate_time_since_approval():
+    mock_merge_request = create_autospec(ProjectMergeRequest)
+    one_hour_ago = datetime.utcnow() - timedelta(minutes=60)
+    mock_merge_request.attributes = {"approved_at": one_hour_ago.strftime(DATE_FORMAT)}
+
+    time_since_merge = gl_h.calculate_time_since_approval(mock_merge_request)
+
+    assert round(time_since_merge) == 60
