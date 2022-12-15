@@ -15,6 +15,11 @@ from gitlab.v4.objects import (
     ProjectIssue,
     ProjectMergeRequest,
 )
+from prometheus_client import (
+    Counter,
+    Gauge,
+    Histogram,
+)
 from sretoolbox.utils import retry
 
 from reconcile import queries
@@ -57,6 +62,40 @@ HOLD_LABELS = [
 
 QONTRACT_INTEGRATION = "gitlab-housekeeping"
 DATE_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
+
+
+merged_merge_requests = Counter(
+    name="qontract_reconcile_merged_merge_requests",
+    documentation="Number of merge requests that have been successfully merged in a repository",
+    labelnames=["project_id"],
+)
+
+rebased_merge_requests = Counter(
+    name="qontract_reconcile_rebased_merge_requests",
+    documentation="Number of merge requests that have been successfully rebased in a repository",
+    labelnames=["project_id"],
+)
+
+time_to_merge = Histogram(
+    name="qontract_reconcile_time_to_merge_merge_request_minutes",
+    documentation="The number of minutes it takes from when a merge request is mergeable until it is actually merged. This is an indicator of how busy the merge queue is.",
+    labelnames=["project_id"],
+    buckets=(5.0, 10.0, 20.0, 40.0, 60.0, float("inf")),
+)
+
+merge_requests_waiting = Gauge(
+    name="qontract_reconcile_merge_requests_waiting",
+    documentation="Number of merge requests that are in the queue waiting to be merged.",
+    labelnames=["project_id"],
+)
+
+
+def calculate_time_since_approval(mr: ProjectMergeRequest) -> float:
+    """Returns the number of minutes since a MR has been approved."""
+    time_since_approval = datetime.utcnow() - datetime.strptime(
+        mr.attributes["approved_at"], DATE_FORMAT
+    )
+    return time_since_approval.total_seconds() / 60
 
 
 def get_timed_out_pipelines(
@@ -357,6 +396,7 @@ def rebase_merge_requests(
                 if not dry_run:
                     mr.rebase()
                     rebases += 1
+                    rebased_merge_requests.labels(mr.target_project_id).inc()
             except gitlab.exceptions.GitlabMRRebaseError as e:
                 logging.error("unable to rebase {}: {}".format(mr.iid, e))
         else:
@@ -387,6 +427,9 @@ def merge_merge_requests(
     merge_requests = [
         item["mr"] for item in get_merge_requests(dry_run, gl, users_allowed_to_label)
     ]
+
+    merge_requests_waiting.labels(gl.project.id).set(len(merge_requests))
+
     for mr in merge_requests:
         if rebase and not is_rebased(mr, gl):
             continue
@@ -425,6 +468,7 @@ def merge_merge_requests(
         if not dry_run and merges < merge_limit:
             try:
                 mr.merge()
+                merged_merge_requests.labels(mr.target_project_id).inc()
                 if rebase:
                     return
                 merges += 1
