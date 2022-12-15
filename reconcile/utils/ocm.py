@@ -919,7 +919,6 @@ class OCM:  # pylint: disable=too-many-public-methods
             idp_github = idp["github"]
 
             item = {
-                "id": idp["id"],
                 "cluster": cluster,
                 "name": idp_name,
                 "client_id": idp_github["client_id"],
