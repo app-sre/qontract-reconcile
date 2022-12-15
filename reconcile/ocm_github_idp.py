@@ -63,11 +63,13 @@ def fetch_desired_state(clusters, vault_input_path, settings):
 
 
 def sanitize(state):
-    return {k: v for k, v in state.items() if k != "client_secret"}
+    return {k: v for k, v in state.items() if k not in ["client_secret", "id"]}
 
 
 def act(dry_run, ocm_map, current_state, desired_state):
-    to_add = [d for d in desired_state if sanitize(d) not in current_state]
+    sanitized_current_state = [sanitize(d) for d in current_state]
+    sanitized_desired_state = [sanitize(d) for d in desired_state]
+    to_add = [d for d in desired_state if sanitize(d) not in sanitized_current_state]
     for item in to_add:
         cluster = item["cluster"]
         idp_name = item["name"]
@@ -77,6 +79,17 @@ def act(dry_run, ocm_map, current_state, desired_state):
         if not dry_run:
             ocm = ocm_map.get(cluster)
             ocm.create_github_idp_teams(item)
+
+    to_remove = [d for d in current_state if sanitize(d) not in sanitized_desired_state]
+    for item in to_remove:
+        cluster = item["cluster"]
+        idp_name = item["name"]
+        team = item["teams"][0]
+        logging.info(["remove_github_idp", cluster, idp_name, team])
+
+        if not dry_run:
+            ocm = ocm_map.get(cluster)
+            ocm.delete_idp(cluster, item["id"])
 
 
 def _cluster_is_compatible(cluster: Mapping[str, Any]) -> bool:
