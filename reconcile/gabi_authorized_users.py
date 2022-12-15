@@ -8,7 +8,10 @@ from datetime import (
     date,
     datetime,
 )
-from typing import Optional
+from typing import (
+    Any,
+    Optional,
+)
 
 import reconcile.openshift_base as ob
 from reconcile import queries
@@ -39,20 +42,24 @@ def construct_gabi_oc_resource(name: str, users: Iterable[str]) -> OpenshiftReso
     )
 
 
+def get_usernames(
+    users: Iterable[Mapping[str, Any]], cluster: Mapping[str, Any]
+) -> list[str]:
+    """Extract usernames from objects based on used cluster authentication methods."""
+    user_keys = ob.determine_user_keys_for_access(cluster["name"], cluster["auth"])
+    return [u[key] for u in users for key in user_keys]
+
+
 def fetch_desired_state(
     gabi_instances: Iterable[Mapping], ri: ResourceInventory
 ) -> None:
     for g in gabi_instances:
         exp_date = datetime.strptime(g["expirationDate"], "%Y-%m-%d").date()
-        users = [u["github_username"] for u in g["users"]]
-        if exp_date < date.today():
-            users = []
-        elif (exp_date - date.today()).days > EXPIRATION_MAX:
+        if (exp_date - date.today()).days > EXPIRATION_MAX:
             raise RunnerException(
                 f'The maximum expiration date of {g["name"]} '
                 f"shall not exceed {EXPIRATION_MAX} days form today"
             )
-        resource = construct_gabi_oc_resource(g["name"], users)
         for i in g["instances"]:
             namespace = i["namespace"]
             account = i["account"]
@@ -71,6 +78,12 @@ def fetch_desired_state(
                     f'for account {account} in namespace {namespace["name"]}'
                 )
             cluster = namespace["cluster"]["name"]
+            users = (
+                get_usernames(g["users"], namespace["cluster"])
+                if exp_date >= date.today()
+                else []
+            )
+            resource = construct_gabi_oc_resource(g["name"], users)
             ri.add_desired(cluster, namespace["name"], "ConfigMap", g["name"], resource)
 
 
