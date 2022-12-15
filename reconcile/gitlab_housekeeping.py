@@ -424,6 +424,7 @@ def rebase_merge_requests(
 # we can change this to retry on a small set of exceptions including
 # InsistOnPipelineException.
 
+
 @retry(max_attempts=10, hook=_log_exception)
 def merge_merge_requests(
     dry_run,
@@ -540,7 +541,9 @@ def run(dry_run, wait_for_pipeline):
                 users_allowed_to_label=users_allowed_to_label,
             )
         except Exception:
-            logging.error("All retries failed, trying to rerun merge_merge_requests() again.")
+            logging.error(
+                "All retries failed, trying to rerun merge_merge_requests() again."
+            )
             merge_merge_requests(
                 dry_run,
                 gl,
