@@ -78,6 +78,17 @@ def act(dry_run, ocm_map, current_state, desired_state):
             ocm = ocm_map.get(cluster)
             ocm.create_github_idp_teams(item)
 
+    to_remove = [d for d in current_state if sanitize(d) not in desired_state]
+    for item in to_remove:
+        cluster = item["cluster"]
+        idp_name = item["name"]
+        team = item["teams"][0]
+        logging.info(["remove_github_idp", cluster, idp_name, team])
+
+        if not dry_run:
+            ocm = ocm_map.get(cluster)
+            ocm.delete_idp(cluster, item["id"])
+
 
 def _cluster_is_compatible(cluster: Mapping[str, Any]) -> bool:
     return cluster.get("ocm") is not None and cluster.get("auth") is not None
