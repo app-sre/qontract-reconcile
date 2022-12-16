@@ -74,9 +74,11 @@ def test_change_type_in_context(
 SELF_SERVICABLE_MARKER = "self-serviceable"
 
 
-def print_annotated_file(file: BundleFileChange, self_serviceable_paths: list[str]):
+def print_annotated_file(
+    file: BundleFileChange, self_serviceable_paths: list[jsonpath_ng.JSONPath]
+):
     # add a markers to the data to indicate which parts are self serviceable
-    for path_expression in [jsonpath_ng.parse(p) for p in self_serviceable_paths]:
+    for path_expression in self_serviceable_paths:
         for self_serviceable_data in path_expression.find(file.new):
             self_serviceable_data.full_path.update(
                 file.new, {SELF_SERVICABLE_MARKER: self_serviceable_data.value}
