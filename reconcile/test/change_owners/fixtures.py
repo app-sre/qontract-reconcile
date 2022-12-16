@@ -15,6 +15,8 @@ from reconcile.change_owners.bundle import (
 )
 from reconcile.change_owners.change_types import (
     BundleFileChange,
+    ChangeTypeProcessor,
+    build_change_type_processor,
     create_bundle_file_change,
 )
 from reconcile.gql_definitions.change_owners.queries import self_service_roles
@@ -66,6 +68,19 @@ class TestFile:
         )
         assert bundle_file_change
         return bundle_file_change
+
+
+def build_test_datafile(
+    content: dict[str, Any],
+    filepath: Optional[str] = None,
+    schema: Optional[str] = None,
+) -> TestFile:
+    return TestFile(
+        filepath=filepath or "datafile.yaml",
+        fileschema=schema or "schema-1.yml",
+        filetype=BundleFileType.DATAFILE.value,
+        content=content,
+    )
 
 
 def build_role(
@@ -166,4 +181,30 @@ def build_jsonpath_change(
         changeSchema=schema,
         jsonPathSelectors=selectors,
         context=context,
+    )
+
+
+def build_change_type(
+    name: str,
+    change_selectors: list[str],
+    change_schema: Optional[str] = None,
+    context_schema: Optional[str] = None,
+) -> ChangeTypeProcessor:
+    return build_change_type_processor(
+        ChangeTypeV1(
+            name=name,
+            description=name,
+            contextType=BundleFileType.DATAFILE.value,
+            contextSchema=context_schema,
+            changes=[
+                build_jsonpath_change(
+                    schema=change_schema,
+                    selectors=change_selectors,
+                )
+            ],
+            disabled=False,
+            priority="urgent",
+            inherit=[],
+            implicitOwnership=[],
+        )
     )
