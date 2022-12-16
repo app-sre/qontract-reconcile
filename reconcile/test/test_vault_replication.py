@@ -209,6 +209,7 @@ def test_get_policy_paths(policy_query_data: vault_policies.VaultPoliciesQueryDa
                 "app-sre/test/path/test-1",
                 "app-sre/test/path/test-2",
                 "app-sre/example/path/test-1",
+                "app-sre/example/path2/test-1",
             ],
             [
                 "app-sre/test/path/test-1",

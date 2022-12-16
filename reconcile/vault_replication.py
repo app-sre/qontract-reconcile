@@ -343,10 +343,13 @@ def get_secrets_from_templated_path(path: str, vault_list: Iterable[str]) -> lis
     """Returns a list of secrets that match with the templated path expansion."""
 
     secret_list = []
+    non_template_slices = []
     path_slices = path.split("/")
     for s in path_slices:
         if "{" in s and "}" in s:
             template = s
+        else:
+            non_template_slices.append(s)
 
     cap_groups = re.search(r"(.*)(\{.*\})(.*)", template)
     if cap_groups is not None:
@@ -359,6 +362,10 @@ def get_secrets_from_templated_path(path: str, vault_list: Iterable[str]) -> lis
     secret_start, secret_end = _get_start_end_secret(path)
 
     for secret in vault_list:
+        if any(item for item in non_template_slices if item not in secret.split("/")):
+            # If there are any part of the orignal templated path is not present
+            # in the secret from vault, we don't want to copy it
+            continue
         if not secret.startswith(secret_start) or not secret.endswith(secret_end):
             continue
         if prefix not in secret or suffix not in secret:
