@@ -180,3 +180,58 @@ def test_get_policy_paths(policy_query_data: vault_policies.VaultPoliciesQueryDa
     assert integ.get_policy_paths(
         "test-policy", "vault-instance", policy_query_data
     ) == ["this/is/a/path/*"]
+
+
+@pytest.mark.parametrize(
+    "path, vault_list, return_value",
+    [
+        (
+            "app-sre/test/path/{template}-1",
+            [
+                "app-sre/test/path/test-1",
+                "app-sre/test/path/test-2",
+                "app-sre/example/path/test-1",
+            ],
+            ["app-sre/test/path/test-1"],
+        ),
+        (
+            "app-sre/test/path/{template}",
+            [
+                "app-sre/test/path/test-1",
+                "app-sre/test/path/test-2",
+                "app-sre/example/path/test-1",
+            ],
+            ["app-sre/test/path/test-1", "app-sre/test/path/test-2"],
+        ),
+        (
+            "app-sre/{template}/path/{template}",
+            [
+                "app-sre/test/path/test-1",
+                "app-sre/test/path/test-2",
+                "app-sre/example/path/test-1",
+            ],
+            [
+                "app-sre/test/path/test-1",
+                "app-sre/test/path/test-2",
+                "app-sre/example/path/test-1",
+            ],
+        ),
+        (
+            "app-sre/{template}/path/{template}-1",
+            ["app-sre/test/path/test-1", "app-sre/test/path/test-2"],
+            ["app-sre/test/path/test-1"],
+        ),
+        (
+            "app-sre/{template}/path/test-1",
+            ["app-sre/test/path/test-1", "app-sre/test/path/test-2"],
+            ["app-sre/test/path/test-1"],
+        ),
+        (
+            "app-sre/test/pa{th}/test-1",
+            ["app-sre/test/path/test-1", "app-sre/test/path/test-2"],
+            ["app-sre/test/path/test-1"],
+        ),
+    ],
+)
+def test_get_secrets_from_templated_path(path, vault_list, return_value):
+    assert integ.get_secrets_from_templated_path(path, vault_list) == return_value

@@ -236,8 +236,11 @@ def get_jenkins_secret_list(
                     if res is not None:
                         secret_path = res.group(1)
                         if "{" in secret_path:
+                            start, _ = _get_start_end_secret(secret_path)
+                            vault_list = vault_instance.list_all(start)
                             template_expasion_list = get_secrets_from_templated_path(
-                                vault_instance, secret_path
+                                path=secret_path,
+                                vault_list=vault_list,
                             )
                             secret_list.extend(template_expasion_list)
                         else:
@@ -331,12 +334,8 @@ def _get_start_end_secret(path: str) -> tuple[str, str]:
     return start, end
 
 
-def get_secrets_from_templated_path(
-    vault_instance: _VaultClient, path: str
-) -> list[str]:
-    """Connects to the given Vault instance and returns a list of secrets
-    that match with the templated path expansion.
-    """
+def get_secrets_from_templated_path(path: str, vault_list: Iterable[str]) -> list[str]:
+    """Returns a list of secrets that match with the templated path expansion."""
 
     secret_list = []
     path_slices = path.split("/")
@@ -352,11 +351,10 @@ def get_secrets_from_templated_path(
         # Exit if the path is not a valid formatted template on the secret path
         raise VaultInvalidPaths
 
-    start, end = _get_start_end_secret(path)
-    vault_list = vault_instance.list_all(start)
+    secret_start, secret_end = _get_start_end_secret(path)
 
     for secret in vault_list:
-        if start not in secret or end not in secret:
+        if not secret.startswith(secret_start) or not secret.endswith(secret_end):
             continue
         if prefix not in secret or suffix not in secret:
             continue
