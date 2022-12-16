@@ -90,6 +90,14 @@ merge_requests_waiting = Gauge(
 )
 
 
+class InsistOnPipelineError(Exception):
+    """Exception used to retry a merge when the pipeline isn't yet complete."""
+
+
+def _log_exception(ex: Exception) -> None:
+    logging.info("Retrying - %s: %s", type(ex).__name__, ex)
+
+
 def calculate_time_since_approval(mr: ProjectMergeRequest) -> float:
     """Returns the number of minutes since a MR has been approved."""
     time_since_approval = datetime.utcnow() - datetime.strptime(
@@ -410,7 +418,14 @@ def rebase_merge_requests(
             )
 
 
-@retry(max_attempts=10)
+# TODO: this retry is catching all exceptions, which isn't good. _log_exceptions is
+# being added so we can track whether it's catching anything other than what appears to
+# be the intended case of retrying with "insist". Once we have some additional data,
+# we can change this to retry on a small set of exceptions including
+# InsistOnPipelineException.
+
+
+@retry(max_attempts=10, hook=_log_exception)
 def merge_merge_requests(
     dry_run,
     gl,
@@ -456,7 +471,15 @@ def merge_merge_requests(
             running_pipelines = [p for p in pipelines if p["status"] == "running"]
             if running_pipelines:
                 if insist:
-                    raise Exception(f"insisting on {mr.iid}")
+                    # This raise causes the method to restart due to the usage of
+                    # retry(). The purpose of this is to wait for the pipeline to
+                    # finish. This will cause merge requests to be queried again, which
+                    # for now is being considered a feature because a higher priority
+                    # merge request could have become available since we've been waiting
+                    # for this pipeline to complete.
+                    raise InsistOnPipelineError(
+                        f"Pipelines for merge request have not completed yet: {mr.iid}"
+                    )
                 else:
                     continue
 
@@ -518,6 +541,9 @@ def run(dry_run, wait_for_pipeline):
                 users_allowed_to_label=users_allowed_to_label,
             )
         except Exception:
+            logging.error(
+                "All retries failed, trying to rerun merge_merge_requests() again."
+            )
             merge_merge_requests(
                 dry_run,
                 gl,
