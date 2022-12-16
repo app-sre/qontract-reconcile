@@ -321,13 +321,21 @@ class _VaultClient:
             raise PathAccessForbidden(msg)
 
     def list(self, path: str) -> list[str]:
-        """Returns a list of secrets in a given path.
-
-        The input path is a dictionary which contains the following fields:
-        * path - path to the secret in Vault
-        """
+        """Returns a list of secrets in a given path."""
         path_list = self._list(path)
         return path_list["data"]["keys"]
+
+    def list_all(self, path):
+        """Returns a list of secrets in a given path and
+        all its subpaths."""
+        secrets = []
+        for secret in self.list(path):
+            secret_path = f"{path}{secret}"
+            if secret.endswith("/"):
+                secrets.extend(self.list_all(secret_path))
+            else:
+                secrets.append(secret_path)
+        return secrets
 
 
 class VaultClient:

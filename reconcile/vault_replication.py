@@ -324,7 +324,7 @@ def _get_start_end_secret(path: str) -> tuple[str, str]:
     if start[-1] != "/":
         start = start.rsplit("/", 1)[0] + "/"
     try:
-        end = path[path[path.index("}") : :].index("/") + path.index("}") : :]
+        end = path[path[path.rindex("}") : :].index("/") + path.rindex("}") : :]
     except ValueError:
         end = ""
 
@@ -353,12 +353,15 @@ def get_secrets_from_templated_path(
         raise VaultInvalidPaths
 
     start, end = _get_start_end_secret(path)
-    vault_list = vault_instance.list(start)
+    vault_list = vault_instance.list_all(start)
 
     for secret in vault_list:
-        if prefix in secret and suffix in secret:
-            final = start + secret + end[1::]
-            secret_list.append(final)
+        if start not in secret or end not in secret:
+            continue
+        if prefix not in secret or suffix not in secret:
+            continue
+
+        secret_list.append(secret)
 
     return secret_list
 
