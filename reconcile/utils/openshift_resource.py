@@ -190,6 +190,14 @@ class OpenshiftResource:
         return val1 == val2
 
     @property
+    def last_applied_configuration(self):
+        try:
+            lac = self.body["metadata"]["annotations"][LAC_ANNOTATION]
+            return lac
+        except KeyError:
+            return None
+
+    @property
     def name(self):
         return self.body["metadata"]["name"]
 
@@ -270,6 +278,17 @@ class OpenshiftResource:
         except KeyError:
             pass
 
+    def remove_qontract_annotations(self):
+        try:
+            annotations = self.body["metadata"]["annotations"]
+            annotations.pop("qontract.integration", None)
+            annotations.pop("qontract.integration_version", None)
+            annotations.pop("qontract.sha256sum", None)
+            annotations.pop("qontract.update", None)
+            annotations.pop("qontract.caller_name", None)
+        except KeyError:
+            pass
+
     @staticmethod
     def is_controller_managed_label(kind, label) -> bool:
         for il in CONTROLLER_MANAGED_LABELS.get(kind, []):
@@ -314,7 +333,7 @@ class OpenshiftResource:
         except KeyError:
             return False
 
-    def annotate(self):
+    def annotate(self, cannonicalize=True):
         """
         Creates a OpenshiftResource with the qontract annotations, and removes
         unneeded Openshift fields.
@@ -324,9 +343,12 @@ class OpenshiftResource:
                 annotations.
         """
 
-        # calculate sha256sum of canonical body
-        canonical_body = self.canonicalize(self.body)
-        sha256sum = self.calculate_sha256sum(self.serialize(canonical_body))
+        if cannonicalize:
+            body = self.canonicalize(self.body)
+        else:
+            body = self.body
+
+        sha256sum = self.calculate_sha256sum(self.serialize(body))
 
         # create new body object
         body = copy.deepcopy(self.body)
