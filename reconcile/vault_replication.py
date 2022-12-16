@@ -111,16 +111,21 @@ def copy_vault_secret(
     secret_dict = {"path": path, "version": "LATEST"}
 
     try:
-        _, version = source_vault.read_all_with_version(secret_dict)
+        source_data, version = source_vault.read_all_with_version(secret_dict)
     except SecretAccessForbidden:
         # Raise exception if we can't read the secret from the source vault.
         # This is likely to be related to the approle permissions.
         raise SecretAccessForbidden("Cannot read secret from source vault")
 
     try:
-        _, dest_version = dest_vault.read_all_with_version(secret_dict)
+        dest_data, dest_version = dest_vault.read_all_with_version(secret_dict)
         if dest_version is None and version is None:
             # v1 secrets don't have version
+            if source_data == dest_data:
+                # If the secret is the same in both vaults, we don't need
+                # to copy it again
+                return
+
             secret, _ = source_vault.read_all_with_version(secret_dict)
             write_dict = {"path": path, "data": secret}
             logging.info(["replicate_vault_secret", path])
