@@ -2281,6 +2281,14 @@ def parse_image_tag_from_ref(ctx, param, value) -> Optional[dict[str, str]]:
     return None
 
 
+@integration.command(short_help="Allow vault to replicate secrets to other instances.")
+@click.pass_context
+def vault_replication(ctx):
+    import reconcile.vault_replication
+
+    run_integration(reconcile.vault_replication, ctx.obj)
+
+
 @integration.command(short_help="Manages Qontract Reconcile integrations.")
 @environment_name
 @threaded()

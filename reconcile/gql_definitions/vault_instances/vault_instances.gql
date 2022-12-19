@@ -1,0 +1,78 @@
+# qenerate: plugin=pydantic_v1
+
+query VaultInstances {
+  vault_instances: vault_instances_v1 {
+    name
+    address
+    auth {
+      provider
+      secretEngine
+      ... on VaultInstanceAuthApprole_v1 {
+      roleID {
+        ... VaultSecret
+      }
+      secretID {
+        ... VaultSecret
+      }
+    }
+    }
+    replication {
+      vaultInstance {
+        name
+        address
+        auth {
+            provider
+            secretEngine
+            ... on VaultInstanceAuthApprole_v1 {
+              roleID {
+                ... VaultSecret
+              }
+              secretID {
+                ... VaultSecret
+              }
+            }
+          }
+      }
+    sourceAuth {
+      provider
+      secretEngine
+      ... on VaultInstanceAuthApprole_v1 {
+      roleID {
+        ... VaultSecret
+      }
+      secretID {
+        ... VaultSecret
+      }
+    }
+    }
+    destAuth {
+      provider
+      secretEngine
+      ... on VaultInstanceAuthApprole_v1 {
+      roleID {
+        ... VaultSecret
+      }
+      secretID {
+        ... VaultSecret
+      }
+    }
+    }
+      paths {
+        provider
+        ...on VaultReplicationJenkins_v1 {
+        jenkinsInstance {
+          name
+          serverUrl
+        }
+        policy {
+          name
+          instance {
+            name
+            address
+          }
+        }
+        }
+      }
+    }
+  }
+}

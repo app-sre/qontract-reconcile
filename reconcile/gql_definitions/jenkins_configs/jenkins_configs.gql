@@ -1,0 +1,22 @@
+# qenerate: plugin=pydantic_v1
+
+query JenkinsConfigs {
+  jenkins_configs: jenkins_configs_v1 {
+    name
+    ...on JenkinsConfig_v1 {
+      instance {
+        name
+        serverUrl
+        token {
+          ... VaultSecret
+        }
+        deleteMethod
+      }
+      type
+      config
+      config_path {
+        content
+      }
+    }
+  }
+}

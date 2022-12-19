@@ -4,6 +4,8 @@ import logging
 import os
 import threading
 import time
+from collections.abc import Mapping
+from typing import Optional
 
 import hvac
 import requests
@@ -15,6 +17,10 @@ from reconcile.utils.config import get_config
 
 LOG = logging.getLogger(__name__)
 VAULT_AUTO_REFRESH_INTERVAL = int(os.getenv("VAULT_AUTO_REFRESH_INTERVAL") or 600)
+
+
+class PathAccessForbidden(Exception):
+    pass
 
 
 class SecretNotFound(Exception):
@@ -52,12 +58,20 @@ class _VaultClient:
     and a version (no invalidation required).
     """
 
-    def __init__(self, auto_refresh=True):
+    def __init__(
+        self,
+        server: Optional[str] = None,
+        role_id: Optional[str] = None,
+        secret_id: Optional[str] = None,
+        auto_refresh: bool = True,
+    ):
         config = get_config()
 
-        server = config["vault"]["server"]
-        self.role_id = config["vault"]["role_id"]
-        self.secret_id = config["vault"]["secret_id"]
+        server = config["vault"]["server"] if server is None else server
+        self.role_id = config["vault"]["role_id"] if role_id is None else role_id
+        self.secret_id = (
+            config["vault"]["secret_id"] if secret_id is None else secret_id
+        )
 
         # This is a threaded world. Let's define a big
         # connections pool to live in that world
@@ -97,8 +111,9 @@ class _VaultClient:
         self._client.auth_approle(self.role_id, self.secret_id)
 
     @retry()
-    def read_all(self, secret):
-        """Returns a dictionary of keys and values in a Vault secret.
+    def read_all_with_version(self, secret: Mapping) -> tuple[Mapping, Optional[str]]:
+        """Returns a dictionary of keys and values in a Vault secret and the
+        version of the secret, for V1 secrets, version will be None.
 
         The input secret is a dictionary which contains the following fields:
         * path - path to the secret in Vault
@@ -112,14 +127,27 @@ class _VaultClient:
 
         data = None
         if kv_version == 2:
-            data = self._read_all_v2(secret_path, secret_version)
+            data, version = self._read_all_v2(secret_path, secret_version)
         else:
-            data = self._read_all_v1(secret_path)
+            secret_data = self._read_all_v1(secret_path)
+            version = None
+            data = secret_data
 
         if data is None:
             raise SecretNotFound
 
-        return data
+        return data, version
+
+    @retry()
+    def read_all(self, secret: Mapping) -> dict:
+        """Returns a dictionary of keys and values in a Vault secret.
+
+        The input secret is a dictionary which contains the following fields:
+        * path - path to the secret in Vault
+        * version (optional) - secret version to read (if this is
+                               a v2 KV engine)
+        """
+        return self.read_all_with_version(secret)[0]
 
     def _get_mount_version_by_secret_path(self, path):
         path_split = path.split("/")
@@ -137,7 +165,9 @@ class _VaultClient:
         return version
 
     @functools.lru_cache(maxsize=2048)
-    def _read_all_v2(self, path, version):
+    def _read_all_v2(
+        self, path: str, version: Optional[str]
+    ) -> tuple[dict, Optional[str]]:
         path_split = path.split("/")
         mount_point = path_split[0]
         read_path = "/".join(path_split[1:])
@@ -165,7 +195,8 @@ class _VaultClient:
             raise SecretNotFound(path)
 
         data = secret["data"]["data"]
-        return data
+        secret_version = secret["data"]["metadata"]["version"]
+        return data, secret_version
 
     def _read_all_v1(self, path):
         try:
@@ -209,7 +240,7 @@ class _VaultClient:
         return base64.b64decode(data) if secret_format == "base64" else data
 
     def _read_v2(self, path, field, version):
-        data = self._read_all_v2(path, version)
+        data, _ = self._read_all_v2(path, version)
         try:
             secret_field = data[field]
         except KeyError:
@@ -225,7 +256,9 @@ class _VaultClient:
         return secret_field
 
     @retry()
-    def write(self, secret, decode_base64=True):
+    def write(
+        self, secret: Mapping, decode_base64: bool = True, force: bool = False
+    ) -> None:
         """Writes a dictionary of keys and values to a Vault secret.
 
         The input secret is a dictionary which contains the following fields:
@@ -244,18 +277,18 @@ class _VaultClient:
 
         kv_version = self._get_mount_version_by_secret_path(secret_path)
         if kv_version == 2:
-            self._write_v2(secret_path, data)
+            self._write_v2(secret_path, data, force)
         else:
             self._write_v1(secret_path, data)
 
-    def _write_v2(self, path, data):
+    def _write_v2(self, path: str, data: Mapping, force: bool = False) -> None:
         path_split = path.split("/")
         mount_point = path_split[0]
         write_path = "/".join(path_split[1:])
 
         try:
-            current_data = self._read_all_v2(path, version=SECRET_VERSION_LATEST)
-            if current_data == data:
+            current_data, _ = self._read_all_v2(path, version=SECRET_VERSION_LATEST)
+            if current_data == data and not force:
                 logging.debug(f"current data is up-to-date, skipping {path}")
                 return
         except SecretVersionNotFound:
@@ -279,6 +312,30 @@ class _VaultClient:
         except hvac.exceptions.Forbidden:
             msg = f"permission denied accessing secret '{path}'"
             raise SecretAccessForbidden(msg)
+
+    def _list(self, path: str) -> dict:
+        try:
+            return self._client.list(path)
+        except hvac.exceptions.Forbidden:
+            msg = f"permission denied accessing path '{path}'"
+            raise PathAccessForbidden(msg)
+
+    def list(self, path: str) -> list[str]:
+        """Returns a list of secrets in a given path."""
+        path_list = self._list(path)
+        return path_list["data"]["keys"]
+
+    def list_all(self, path):
+        """Returns a list of secrets in a given path and
+        all its subpaths."""
+        secrets = []
+        for secret in self.list(path):
+            secret_path = f"{path}{secret}"
+            if secret.endswith("/"):
+                secrets.extend(self.list_all(secret_path))
+            else:
+                secrets.append(secret_path)
+        return secrets
 
 
 class VaultClient:
