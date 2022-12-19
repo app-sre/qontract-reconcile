@@ -184,6 +184,11 @@ def test_create_cloudflare_resources_terraform_json(account_config, backend_conf
                 }
             },
         },
+        "output": {
+            "domain-com-zone__validation_records": {
+                "value": "${{ for value in cloudflare_certificate_pack.some-cert.validation_records: value.txt_name => value.txt_value }}"
+            }
+        },
     }
 
     assert json.loads(cloudflare_client.dumps()) == expected_dict
