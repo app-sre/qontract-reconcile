@@ -1126,6 +1126,7 @@ OCM_QUERY = """
     path
     name
     url
+    blockedVersions
     recommendedVersions {
       recommendedVersion
       workload
