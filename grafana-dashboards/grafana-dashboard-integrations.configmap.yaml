@@ -933,8 +933,8 @@ data:
           {
             "current": {
               "selected": true,
-              "text": "app-sre-prod-01-prometheus",
-              "value": "app-sre-prod-01-prometheus"
+              "text": "appsrep05ue1-prometheus-skupper",
+              "value": "appsrep05ue1-prometheus-skupper"
             },
             "hide": 0,
             "includeAll": false,
@@ -944,7 +944,7 @@ data:
             "query": "prometheus",
             "queryValue": "",
             "refresh": 1,
-            "regex": "/app-sre-prod-01-prometheus/",
+            "regex": "/appsrep05ue1-prometheus/",
             "skipUrlSync": false,
             "type": "datasource"
           }
