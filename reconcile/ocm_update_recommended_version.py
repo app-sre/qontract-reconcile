@@ -75,12 +75,13 @@ def get_updated_recommended_versions(
 
     for uc in ocm_info["upgradePolicyClusters"] or []:
         cluster_name = uc["name"]
-        for workload in uc["upgradePolicy"]["workloads"]:
-            channel_workload = (workload, cluster[cluster_name].spec.channel)
-            channel_workload_versions.setdefault(channel_workload, [])
-            channel_workload_versions[channel_workload].append(
-                cluster[cluster_name].spec.version
-            )
+        if cluster_name in cluster:
+            for workload in uc["upgradePolicy"]["workloads"]:
+                channel_workload = (workload, cluster[cluster_name].spec.channel)
+                channel_workload_versions.setdefault(channel_workload, [])
+                channel_workload_versions[channel_workload].append(
+                    cluster[cluster_name].spec.version
+                )
 
     for cwv_items in channel_workload_versions.items():
         cwv, versions = cwv_items
