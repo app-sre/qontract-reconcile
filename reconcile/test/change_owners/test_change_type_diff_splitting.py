@@ -1,34 +1,13 @@
-from reconcile.change_owners.change_types import (
+from reconcile.change_owners.bundle import (
     BundleFileType,
-    ChangeTypeContext,
-    ChangeTypeProcessor,
     FileRef,
-    build_change_type_processor,
+)
+from reconcile.change_owners.change_types import (
+    ChangeTypeContext,
     create_bundle_file_change,
 )
 from reconcile.change_owners.diff import DiffType
-from reconcile.gql_definitions.change_owners.queries.change_types import ChangeTypeV1
-from reconcile.test.change_owners.fixtures import build_jsonpath_change
-
-
-def build_change_type(name: str, change_selectors: list[str]) -> ChangeTypeProcessor:
-    return build_change_type_processor(
-        ChangeTypeV1(
-            name=name,
-            description=name,
-            contextType=BundleFileType.DATAFILE.value,
-            contextSchema=None,
-            changes=[
-                build_jsonpath_change(
-                    schema=None,
-                    selectors=change_selectors,
-                )
-            ],
-            disabled=False,
-            priority="urgent",
-            inherit=[],
-        )
-    )
+from reconcile.test.change_owners.fixtures import build_change_type
 
 
 def test_root_diff_fully_covered_by_splits():
@@ -250,3 +229,39 @@ def test_nested_splits():
         sub.change_type_processor.name,
         sub_sub.change_type_processor.name,
     }
+
+
+def test_diff_splitting_empty_parent_coverage():
+    """
+    If splits cover all fields or list elements of a parent diff, the parent diff
+    is considered covered, even if there is not explicit coverage on the parent element
+    ifself.
+    """
+
+    bundle_change = create_bundle_file_change(
+        path="path",
+        schema=None,
+        file_type=BundleFileType.DATAFILE,
+        old_file_content=None,
+        new_file_content={"roles": ["role1", "role2"]},
+    )
+
+    assert bundle_change
+    # only the root diff is present
+    assert len(bundle_change.diff_coverage) == 1
+
+    # this change-type only coveres entries of the `roles` list but not the list itself
+    role_change_type = ChangeTypeContext(
+        change_type_processor=build_change_type("roles", ["roles[*]"]),
+        context="context",
+        context_file=FileRef(
+            path="context_file.yml", file_type=BundleFileType.DATAFILE, schema=None
+        ),
+        approvers=[],
+    )
+    bundle_change.cover_changes(role_change_type)
+
+    diffs = {d.diff.path_str(): d for d in bundle_change.diff_coverage}
+    assert len(diffs) == 2
+    assert diffs["roles.[0]"].is_directly_covered()
+    assert diffs["roles.[0]"].is_directly_covered()

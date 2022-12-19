@@ -1,11 +1,13 @@
 import pytest
 import yaml
 
+from reconcile.change_owners.bundle import (
+    BundleFileType,
+    FileRef,
+)
 from reconcile.change_owners.change_owners import manage_conditional_label
 from reconcile.change_owners.change_types import (
-    BundleFileType,
     ChangeTypeContext,
-    FileRef,
     PathExpression,
     parse_resource_file_content,
 )

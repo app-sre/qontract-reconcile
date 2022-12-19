@@ -1,8 +1,8 @@
 import jsonpath_ng
 
+from reconcile.change_owners.bundle import BundleFileType
 from reconcile.change_owners.change_types import (
     Approver,
-    BundleFileType,
     ChangeTypeContext,
     DiffCoverage,
     build_change_type_processor,

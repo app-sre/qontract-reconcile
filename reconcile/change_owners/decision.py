@@ -3,10 +3,10 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
+from reconcile.change_owners.bundle import FileRef
 from reconcile.change_owners.change_types import (
     BundleFileChange,
     ChangeTypeContext,
-    FileRef,
 )
 from reconcile.change_owners.diff import Diff
 

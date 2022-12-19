@@ -8,6 +8,7 @@ contextSchema: /access/role-1.yml
 disabled: false
 
 inherit: null
+implicitOwnership: null
 
 priority: high
 
