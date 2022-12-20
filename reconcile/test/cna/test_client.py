@@ -37,7 +37,9 @@ def test_client_list_assets_for_creator(mocker):
         },
     ]
 
-    mocker.patch.object(CNAClient, "list_assets", return_value=listed_assets)
+    mocker.patch.object(
+        CNAClient, "list_assets", return_value=listed_assets, autospec=True
+    )
     cna_client = CNAClient(None)  # type: ignore
 
     creator_assets = cna_client.list_assets_for_creator(creator)
