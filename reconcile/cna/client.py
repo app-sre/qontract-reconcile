@@ -99,12 +99,6 @@ class CNAClient:
     def bind(self, asset: Asset, dry_run: bool = False):
         for binding in asset.bindings:
             if dry_run:
-                logging.info(
-                    "BIND %s %s %s",
-                    asset.asset_type().value,
-                    asset.name,
-                    binding,
-                )
                 continue
             self._ocm_client.post(
                 api_path=f"{asset.href}/bind",
