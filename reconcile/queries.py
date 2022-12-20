@@ -1260,6 +1260,7 @@ NAMESPACES_QUERY = """
     name
     delete
     labels
+    clusterAdmin
     managedRoles
     app {
       name
