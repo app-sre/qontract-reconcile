@@ -18,6 +18,9 @@ class CNAClient:
     """
     Client used to interact with CNA. CNA API doc can be found here:
     https://gitlab.cee.redhat.com/service/cna-management/-/blob/main/openapi/openapi.yaml#/
+
+    All HTTP errors while communicating with the CNA API are raised
+    as a `requests.exceptions.HTTPError`.
     """
 
     def __init__(self, ocm_client: OCMBaseClient, init_metadata: bool = False):
