@@ -27,7 +27,7 @@ class CNAClient:
     def _init_metadata(self) -> dict[AssetType, AssetTypeMetadata]:
         asset_types_metadata: dict[AssetType, AssetTypeMetadata] = {}
         for asset_type_ref in self._ocm_client.get(
-            api_path="/api/cna-management/v1/asset_types"
+            api_path=self._cna_api_v1_endpoint("/asset_types")
         )["items"]:
             raw_asset_type_metadata = self._ocm_client.get(
                 api_path=asset_type_ref["href"]
@@ -67,7 +67,7 @@ class CNAClient:
         of our assets
         """
         # TODO: properly handle paging
-        cnas = self._ocm_client.get(api_path="/api/cna-management/v1/cnas")
+        cnas = self._ocm_client.get(api_path=self._cna_api_v1_endpoint("/cnas"))
         return cnas.get("items", [])
 
     def fetch_bindings_for_asset(self, asset: Asset) -> list[dict[str, str]]:
@@ -89,7 +89,7 @@ class CNAClient:
             )
             return
         self._ocm_client.post(
-            api_path="/api/cna-management/v1/cnas",
+            api_path=self._cna_api_v1_endpoint("/cnas"),
             data=asset.api_payload(),
         )
 
@@ -126,3 +126,6 @@ class CNAClient:
                 api_path=asset.href,
                 data=asset.api_payload(),
             )
+
+    def _cna_api_v1_endpoint(self, path: str) -> str:
+        return f"/api/cna-management/v1{path}"
