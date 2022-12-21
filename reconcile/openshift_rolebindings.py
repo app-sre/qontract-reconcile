@@ -150,9 +150,9 @@ def fetch_desired_state(ri, oc_map):
             for sa in service_accounts:
                 if ri is None:
                     continue
-                namespace, sa_name = sa.split("/")
+                sa_namespace, sa_name = sa.split("/")
                 oc_resource, resource_name = construct_sa_oc_resource(
-                    permission["role"], namespace, sa_name
+                    permission["role"], sa_namespace, sa_name
                 )
                 try:
                     ri.add_desired(
