@@ -29,6 +29,12 @@ NAMESPACES_QUERY = """
         version
         format
       }
+      clusterAdminAutomationToken {
+        path
+        field
+        version
+        format
+      }
       internal
       disable {
         integrations
