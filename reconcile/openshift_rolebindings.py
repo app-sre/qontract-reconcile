@@ -26,6 +26,7 @@ ROLES_QUERY = """
     access {
       namespace {
         name
+        clusterAdmin
         managedRoles
         delete
         cluster {
@@ -114,6 +115,7 @@ def fetch_desired_state(ri, oc_map):
             cluster = cluster_info["name"]
             namespace_info = permission["namespace"]
             namespace = namespace_info["name"]
+            privileged = namespace_info.get("clusterAdmin") or False
             if not is_in_shard(f"{cluster}/{namespace}"):
                 continue
             if oc_map and not oc_map.get(cluster):
@@ -139,6 +141,7 @@ def fetch_desired_state(ri, oc_map):
                             "RoleBinding.authorization.openshift.io",
                             resource_name,
                             oc_resource,
+                            privileged=privileged,
                         )
                     except ResourceKeyExistsError:
                         # a user may have a Role assigned to them
@@ -158,6 +161,7 @@ def fetch_desired_state(ri, oc_map):
                         "RoleBinding.authorization.openshift.io",
                         resource_name,
                         oc_resource,
+                        privileged=privileged,
                     )
                 except ResourceKeyExistsError:
                     # a ServiceAccount may have a Role assigned to it
