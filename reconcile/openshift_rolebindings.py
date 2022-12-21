@@ -92,7 +92,7 @@ def fetch_desired_state(ri, oc_map):
         permissions = [
             {
                 "cluster": a["namespace"]["cluster"],
-                "namespace": a["namespace"]["name"],
+                "namespace": a["namespace"],
                 "role": a["role"],
             }
             for a in role["access"] or []
@@ -112,7 +112,8 @@ def fetch_desired_state(ri, oc_map):
         for permission in permissions:
             cluster_info = permission["cluster"]
             cluster = cluster_info["name"]
-            namespace = permission["namespace"]
+            namespace_info = permission["namespace"]
+            namespace = namespace_info["name"]
             if not is_in_shard(f"{cluster}/{namespace}"):
                 continue
             if oc_map and not oc_map.get(cluster):
@@ -134,7 +135,7 @@ def fetch_desired_state(ri, oc_map):
                     try:
                         ri.add_desired(
                             cluster,
-                            permission["namespace"],
+                            namespace,
                             "RoleBinding.authorization.openshift.io",
                             resource_name,
                             oc_resource,
@@ -153,7 +154,7 @@ def fetch_desired_state(ri, oc_map):
                 try:
                     ri.add_desired(
                         cluster,
-                        permission["namespace"],
+                        namespace,
                         "RoleBinding.authorization.openshift.io",
                         resource_name,
                         oc_resource,
