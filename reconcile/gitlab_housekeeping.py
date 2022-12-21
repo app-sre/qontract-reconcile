@@ -6,6 +6,7 @@ from datetime import (
 )
 from operator import itemgetter
 from typing import (
+    Any,
     Optional,
     Union,
 )
@@ -98,10 +99,13 @@ def _log_exception(ex: Exception) -> None:
     logging.info("Retrying - %s: %s", type(ex).__name__, ex)
 
 
-def calculate_time_since_approval(mr: ProjectMergeRequest) -> float:
-    """Returns the number of minutes since a MR has been approved."""
+def _calculate_time_since_approval(approved_at: str) -> float:
+    """
+    Returns the number of minutes since a MR has been approved.
+    :param approved_at: the datetime the MR was approved in format %Y-%m-%dT%H:%M:%S.%fZ
+    """
     time_since_approval = datetime.utcnow() - datetime.strptime(
-        mr.attributes["approved_at"], DATE_FORMAT
+        approved_at, DATE_FORMAT
     )
     return time_since_approval.total_seconds() / 60
 
@@ -267,7 +271,7 @@ def get_merge_requests(
     dry_run: bool,
     gl: GitLabApi,
     users_allowed_to_label: Optional[Iterable[str]] = None,
-) -> list:
+) -> list[dict[str, Any]]:
     mrs = gl.get_merge_requests(state=MRState.OPENED)
     results = []
     for mr in mrs:
@@ -439,9 +443,11 @@ def merge_merge_requests(
     users_allowed_to_label=None,
 ):
     merges = 0
-    merge_requests = [
-        item["mr"] for item in get_merge_requests(dry_run, gl, users_allowed_to_label)
-    ]
+    mrs = get_merge_requests(dry_run, gl, users_allowed_to_label)
+    merge_requests: list[ProjectMergeRequest] = [item["mr"] for item in mrs]
+    merge_request_approved_at: dict[ProjectMergeRequest, str] = {
+        item["mr"]: item["approved_at"] for item in mrs
+    }
 
     merge_requests_waiting.labels(gl.project.id).set(len(merge_requests))
 
@@ -492,6 +498,9 @@ def merge_merge_requests(
             try:
                 mr.merge()
                 merged_merge_requests.labels(mr.target_project_id).inc()
+                time_to_merge.labels(mr.target_project_id).observe(
+                    _calculate_time_since_approval(merge_request_approved_at[mr])
+                )
                 if rebase:
                     return
                 merges += 1
