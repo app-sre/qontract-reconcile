@@ -1778,7 +1778,7 @@ def run_prometheus_test(ctx, path, cluster, namespace, secret_reader):
         test_yaml_spec=test_yaml_spec, rule_files={rule_file_path: rule_spec}
     )
 
-    print(result.message, end="")
+    print(result)
 
     if not result:
         sys.exit(1)
