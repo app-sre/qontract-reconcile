@@ -1659,7 +1659,7 @@ def template(ctx, cluster, namespace, kind, name, path, secret_reader):
     settings = queries.get_app_interface_settings()
     settings["vault"] = secret_reader == "vault"
 
-    if path.startswith("resources"):
+    if path and path.startswith("resources"):
         path = path.replace("resources", "", 1)
 
     [namespace_info] = namespace_info
