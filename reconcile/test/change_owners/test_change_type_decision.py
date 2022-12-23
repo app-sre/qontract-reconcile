@@ -4,7 +4,6 @@ from reconcile.change_owners.bundle import BundleFileType
 from reconcile.change_owners.change_types import (
     Approver,
     ChangeTypeContext,
-    build_change_type_processor,
     create_bundle_file_change,
 )
 from reconcile.change_owners.decision import (
@@ -14,6 +13,9 @@ from reconcile.change_owners.decision import (
     get_approver_decisions_from_mr_comments,
 )
 from reconcile.gql_definitions.change_owners.queries.change_types import ChangeTypeV1
+from reconcile.test.change_owners.fixtures import (
+    change_type_to_processor,
+)
 
 pytest_plugins = [
     "reconcile.test.change_owners.fixtures",
@@ -148,8 +150,9 @@ def test_change_decision(
     assert change and len(change.diff_coverage) == 1
     change.diff_coverage[0].coverage = [
         ChangeTypeContext(
-            change_type_processor=build_change_type_processor(saas_file_changetype),
+            change_type_processor=change_type_to_processor(saas_file_changetype),
             context="something-something",
+            origin="",
             approvers=[
                 Approver(org_username=yea_user, tag_on_merge_requests=False),
                 Approver(org_username=nay_sayer, tag_on_merge_requests=False),
@@ -185,8 +188,9 @@ def test_change_decision_auto_approve_only_approver(saas_file_changetype: Change
     assert change and len(change.diff_coverage) == 1
     change.diff_coverage[0].coverage = [
         ChangeTypeContext(
-            change_type_processor=build_change_type_processor(saas_file_changetype),
+            change_type_processor=change_type_to_processor(saas_file_changetype),
             context="something-something",
+            origin="",
             approvers=[
                 Approver(org_username=bot_user, tag_on_merge_requests=False),
             ],
@@ -218,8 +222,9 @@ def test_change_decision_auto_approve_not_only_approver(
     assert change and len(change.diff_coverage) == 1
     change.diff_coverage[0].coverage = [
         ChangeTypeContext(
-            change_type_processor=build_change_type_processor(saas_file_changetype),
+            change_type_processor=change_type_to_processor(saas_file_changetype),
             context="something-something",
+            origin="",
             approvers=[
                 Approver(org_username=nothing_sayer, tag_on_merge_requests=False),
                 Approver(org_username=bot_user, tag_on_merge_requests=False),
@@ -252,8 +257,9 @@ def test_change_decision_auto_approve_with_approval(
     assert change and len(change.diff_coverage) == 1
     change.diff_coverage[0].coverage = [
         ChangeTypeContext(
-            change_type_processor=build_change_type_processor(saas_file_changetype),
+            change_type_processor=change_type_to_processor(saas_file_changetype),
             context="something-something",
+            origin="",
             approvers=[
                 Approver(org_username=nothing_sayer, tag_on_merge_requests=False),
                 Approver(org_username=bot_user, tag_on_merge_requests=False),

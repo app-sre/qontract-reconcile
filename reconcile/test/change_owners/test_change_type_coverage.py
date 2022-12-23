@@ -5,7 +5,6 @@ from reconcile.change_owners.change_types import (
     Approver,
     ChangeTypeContext,
     DiffCoverage,
-    build_change_type_processor,
     create_bundle_file_change,
 )
 from reconcile.change_owners.diff import (
@@ -13,7 +12,10 @@ from reconcile.change_owners.diff import (
     DiffType,
 )
 from reconcile.gql_definitions.change_owners.queries.change_types import ChangeTypeV1
-from reconcile.test.change_owners.fixtures import TestFile
+from reconcile.test.change_owners.fixtures import (
+    TestFile,
+    change_type_to_processor,
+)
 
 pytest_plugins = [
     "reconcile.test.change_owners.fixtures",
@@ -31,8 +33,9 @@ def test_cover_changes_one_file(
         {"resourceTemplates[0].targets[0].ref": "new-ref"}
     )
     ctx = ChangeTypeContext(
-        change_type_processor=build_change_type_processor(saas_file_changetype),
+        change_type_processor=change_type_to_processor(saas_file_changetype),
         context="RoleV1 - some-role",
+        origin="",
         approvers=[Approver(org_username="user", tag_on_merge_requests=False)],
         context_file=saas_file.file_ref(),
     )
@@ -51,8 +54,9 @@ def test_uncovered_change_because_change_type_is_disabled(
         {"resourceTemplates[0].targets[0].ref": "new-ref"}
     )
     ctx = ChangeTypeContext(
-        change_type_processor=build_change_type_processor(saas_file_changetype),
+        change_type_processor=change_type_to_processor(saas_file_changetype),
         context="RoleV1 - some-role",
+        origin="",
         approvers=[Approver(org_username="user", tag_on_merge_requests=False)],
         context_file=saas_file.file_ref(),
     )
@@ -68,8 +72,9 @@ def test_uncovered_change_one_file(
 ):
     saas_file_change = saas_file.create_bundle_change({"name": "new-name"})
     ctx = ChangeTypeContext(
-        change_type_processor=build_change_type_processor(saas_file_changetype),
+        change_type_processor=change_type_to_processor(saas_file_changetype),
         context="RoleV1 - some-role",
+        origin="",
         approvers=[Approver(org_username="user", tag_on_merge_requests=False)],
         context_file=saas_file.file_ref(),
     )
@@ -88,8 +93,9 @@ def test_partially_covered_change_one_file(
         d for d in saas_file_change.diff_coverage if str(d.diff.path) == ref_update_path
     )
     ctx = ChangeTypeContext(
-        change_type_processor=build_change_type_processor(saas_file_changetype),
+        change_type_processor=change_type_to_processor(saas_file_changetype),
         context="RoleV1 - some-role",
+        origin="",
         approvers=[Approver(org_username="user", tag_on_merge_requests=False)],
         context_file=saas_file.file_ref(),
     )
@@ -123,8 +129,9 @@ def test_root_change_type(cluster_owner_change_type: ChangeTypeV1, saas_file: Te
     )
     assert namespace_change
     ctx = ChangeTypeContext(
-        change_type_processor=build_change_type_processor(cluster_owner_change_type),
+        change_type_processor=change_type_to_processor(cluster_owner_change_type),
         context="RoleV1 - some-role",
+        origin="",
         approvers=[Approver(org_username="user", tag_on_merge_requests=False)],
         context_file=saas_file.file_ref(),
     )
@@ -150,8 +157,9 @@ def test_diff_covered(saas_file_changetype: ChangeTypeV1):
         ),
         coverage=[
             ChangeTypeContext(
-                change_type_processor=build_change_type_processor(saas_file_changetype),
+                change_type_processor=change_type_to_processor(saas_file_changetype),
                 context="RoleV1 - some-role",
+                origin="",
                 approvers=[],
                 context_file=None,  # type: ignore
             ),
@@ -169,16 +177,16 @@ def test_diff_covered_many(
         ),
         coverage=[
             ChangeTypeContext(
-                change_type_processor=build_change_type_processor(saas_file_changetype),
+                change_type_processor=change_type_to_processor(saas_file_changetype),
                 context="RoleV1 - some-role",
+                origin="",
                 approvers=[],
                 context_file=None,  # type: ignore
             ),
             ChangeTypeContext(
-                change_type_processor=build_change_type_processor(
-                    role_member_change_type
-                ),
+                change_type_processor=change_type_to_processor(role_member_change_type),
                 context="RoleV1 - some-role",
+                origin="",
                 approvers=[],
                 context_file=None,  # type: ignore
             ),
@@ -197,16 +205,16 @@ def test_diff_covered_partially_disabled(
         ),
         coverage=[
             ChangeTypeContext(
-                change_type_processor=build_change_type_processor(saas_file_changetype),
+                change_type_processor=change_type_to_processor(saas_file_changetype),
                 context="RoleV1 - some-role",
+                origin="",
                 approvers=[],
                 context_file=None,  # type: ignore
             ),
             ChangeTypeContext(
-                change_type_processor=build_change_type_processor(
-                    role_member_change_type
-                ),
+                change_type_processor=change_type_to_processor(role_member_change_type),
                 context="RoleV1 - some-role",
+                origin="",
                 approvers=[],
                 context_file=None,  # type: ignore
             ),
@@ -226,16 +234,16 @@ def test_diff_no_coverage_all_disabled(
         ),
         coverage=[
             ChangeTypeContext(
-                change_type_processor=build_change_type_processor(saas_file_changetype),
+                change_type_processor=change_type_to_processor(saas_file_changetype),
                 context="RoleV1 - some-role",
+                origin="",
                 approvers=[],
                 context_file=None,  # type: ignore
             ),
             ChangeTypeContext(
-                change_type_processor=build_change_type_processor(
-                    role_member_change_type
-                ),
+                change_type_processor=change_type_to_processor(role_member_change_type),
                 context="RoleV1 - some-role",
+                origin="",
                 approvers=[],
                 context_file=None,  # type: ignore
             ),

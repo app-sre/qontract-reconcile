@@ -93,6 +93,7 @@ def test_normal_path_expression():
         ChangeTypeContext(
             change_type_processor=None,  # type: ignore
             context="RoleV1 - some-role",
+            origin="",
             approvers=[],
             context_file=FileRef(
                 BundleFileType.DATAFILE, "some-file.yaml", "schema-1.yml"
@@ -111,6 +112,7 @@ def test_templated_path_expression():
         ChangeTypeContext(
             change_type_processor=None,  # type: ignore
             context="RoleV1 - some-role",
+            origin="",
             approvers=[],
             context_file=FileRef(
                 BundleFileType.DATAFILE, "some-file.yaml", "schema-1.yml"

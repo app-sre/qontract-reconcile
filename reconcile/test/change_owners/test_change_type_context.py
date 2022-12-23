@@ -2,12 +2,12 @@ from reconcile.change_owners.bundle import (
     BundleFileType,
     FileRef,
 )
-from reconcile.change_owners.change_types import (
-    build_change_type_processor,
-    create_bundle_file_change,
-)
+from reconcile.change_owners.change_types import create_bundle_file_change
 from reconcile.gql_definitions.change_owners.queries.change_types import ChangeTypeV1
-from reconcile.test.change_owners.fixtures import TestFile
+from reconcile.test.change_owners.fixtures import (
+    TestFile,
+    change_type_to_processor,
+)
 
 pytest_plugins = [
     "reconcile.test.change_owners.fixtures",
@@ -29,10 +29,11 @@ def test_extract_context_file_refs_from_bundle_change(
     bundle_change = saas_file.create_bundle_change(
         {"resourceTemplates[0].targets[0].ref": "new-ref"}
     )
-    file_refs = bundle_change.extract_context_file_refs(
-        build_change_type_processor(saas_file_changetype)
+    ctp = change_type_to_processor(saas_file_changetype)
+    file_refs = ctp.find_context_file_refs(
+        bundle_change.fileref, bundle_change.old, bundle_change.new
     )
-    assert file_refs == [saas_file.file_ref()]
+    assert [o.context_file_ref for o in file_refs] == [saas_file.file_ref()]
 
 
 def test_extract_context_file_refs_from_bundle_change_schema_mismatch(
@@ -46,8 +47,9 @@ def test_extract_context_file_refs_from_bundle_change_schema_mismatch(
     bundle_change = saas_file.create_bundle_change(
         {"resourceTemplates[0].targets[0].ref": "new-ref"}
     )
-    file_refs = bundle_change.extract_context_file_refs(
-        build_change_type_processor(saas_file_changetype)
+    ctp = change_type_to_processor(saas_file_changetype)
+    file_refs = ctp.find_context_file_refs(
+        bundle_change.fileref, bundle_change.old, bundle_change.new
     )
     assert not file_refs
 
@@ -77,10 +79,11 @@ def test_extract_context_file_refs_selector(
         },
     )
     assert namespace_change
-    file_refs = namespace_change.extract_context_file_refs(
-        build_change_type_processor(cluster_owner_change_type)
+    ctp = change_type_to_processor(cluster_owner_change_type)
+    file_refs = ctp.find_context_file_refs(
+        namespace_change.fileref, namespace_change.old, namespace_change.new
     )
-    assert file_refs == [
+    assert [o.context_file_ref for o in file_refs] == [
         FileRef(
             file_type=BundleFileType.DATAFILE,
             schema="/openshift/cluster-1.yml",
@@ -113,10 +116,11 @@ def test_extract_context_file_refs_in_list_added_selector(
         },
     )
     assert user_change
-    file_refs = user_change.extract_context_file_refs(
-        build_change_type_processor(role_member_change_type)
+    ctp = change_type_to_processor(role_member_change_type)
+    file_refs = ctp.find_context_file_refs(
+        user_change.fileref, user_change.old, user_change.new
     )
-    assert file_refs == [
+    assert [o.context_file_ref for o in file_refs] == [
         FileRef(
             file_type=BundleFileType.DATAFILE,
             schema="/access/role-1.yml",
@@ -147,10 +151,11 @@ def test_extract_context_file_refs_in_list_removed_selector(
         },
     )
     assert user_change
-    file_refs = user_change.extract_context_file_refs(
-        build_change_type_processor(role_member_change_type)
+    ctp = change_type_to_processor(role_member_change_type)
+    file_refs = ctp.find_context_file_refs(
+        user_change.fileref, user_change.old, user_change.new
     )
-    assert file_refs == [
+    assert [o.context_file_ref for o in file_refs] == [
         FileRef(
             file_type=BundleFileType.DATAFILE,
             schema="/access/role-1.yml",
@@ -174,7 +179,8 @@ def test_extract_context_file_refs_in_list_selector_change_schema_mismatch(
         new_file_content={"field": "new-value"},
     )
     assert datafile_change
-    file_refs = datafile_change.extract_context_file_refs(
-        build_change_type_processor(role_member_change_type)
+    ctp = change_type_to_processor(role_member_change_type)
+    file_refs = ctp.find_context_file_refs(
+        datafile_change.fileref, datafile_change.old, datafile_change.new
     )
     assert not file_refs

@@ -1,7 +1,7 @@
 import os
 import sys
 from dataclasses import dataclass
-from typing import Optional
+from typing import Any, Optional, Tuple
 
 import jsonpath_ng
 import pygments
@@ -114,7 +114,7 @@ class AppInterfaceRepo:
     ) -> list[BundleFileChange]:
         bundle_files = []
         processed_schemas = set()
-        for c in ctp.changes:
+        for c in ctp.change_detectors:
             if (
                 c.change_schema
                 and c.change_schema != ctp.context_schema
@@ -207,10 +207,19 @@ class SelfServiceableHighlighter(Filter):
             yield ttype, value
 
 
+class FilesystemFileDiffResolver:
+    def lookup_file_diff(
+        self, file_ref: FileRef
+    ) -> Tuple[Optional[dict[str, Any]], Optional[dict[str, Any]]]:
+        return None, None
+
+
 def get_changetype_processor_by_name(
     change_type_name: str,
 ) -> Optional[ChangeTypeProcessor]:
-    processors = fetch_change_type_processors(gql.get_api())
+    processors = fetch_change_type_processors(
+        gql.get_api(), FilesystemFileDiffResolver()
+    )
     return next((p for p in processors if p.name == change_type_name), None)
 
 

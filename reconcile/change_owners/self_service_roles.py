@@ -54,11 +54,16 @@ def change_type_contexts_for_self_service_roles(
     change_type_contexts = []
     for bc in bundle_changes:
         for ctp in change_type_processors:
-            datafile_refs = bc.extract_context_file_refs(ctp)
-            for df_ref in datafile_refs:
+            for ownership in ctp.find_context_file_refs(bc.fileref, bc.old, bc.new):
                 # if the context file is bound with the change type in
                 # a role, build a changetypecontext
-                for role in role_lookup[(df_ref.file_type, df_ref.path, ctp.name)]:
+                for role in role_lookup[
+                    (
+                        ownership.owned_file_ref.file_type,
+                        ownership.owned_file_ref.path,
+                        ownership.change_type.name,
+                    )
+                ]:
                     approvers = [
                         Approver(u.org_username, u.tag_on_merge_requests)
                         for u in role.users or []
@@ -76,8 +81,9 @@ def change_type_contexts_for_self_service_roles(
                             ChangeTypeContext(
                                 change_type_processor=ctp,
                                 context=f"RoleV1 - {role.name}",
+                                origin=ownership.change_type.name,
                                 approvers=approvers,
-                                context_file=df_ref,
+                                context_file=ownership.context_file_ref,
                             ),
                         )
                     )

@@ -12,6 +12,7 @@ from typing import Optional
 import click
 import requests
 import yaml
+from reconcile.change_owners.bundle import NoOpFileDiffResolver
 
 import reconcile.gitlab_housekeeping as glhk
 import reconcile.ocm_upgrade_scheduler as ous
@@ -1456,7 +1457,7 @@ def app_interface_open_selfserviceable_mr_queue(ctx):
 @click.pass_context
 def change_types(ctx):
     """List all change types."""
-    change_types = fetch_change_type_processors(gql.get_api())
+    change_types = fetch_change_type_processors(gql.get_api(), NoOpFileDiffResolver())
 
     usage_statistics: dict[str, int] = defaultdict(int)
     roles = fetch_self_service_roles(gql.get_api())
