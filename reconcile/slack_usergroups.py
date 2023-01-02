@@ -84,7 +84,7 @@ class State(BaseModel):
     description: str = ""
     users: set[SlackObject] = set()
     channels: set[SlackObject] = set()
-    usergroup_id: str = ""
+    usergroup_id: Optional[str] = None
 
     def __bool__(self) -> bool:
         return self.workspace != ""
@@ -443,6 +443,11 @@ def _update_usergroup_users_from_state(
 
     if not dry_run:
         try:
+            if not desired_ug_state.usergroup_id:
+                logging.info(
+                    f"Usergroup {desired_ug_state.usergroup} does not exist yet. Skipping for now."
+                )
+                return
             slack_client.update_usergroup_users(
                 id=desired_ug_state.usergroup_id,
                 users_list=sorted([user.pk for user in desired_ug_state.users]),
@@ -504,6 +509,11 @@ def _update_usergroup_from_state(
 
     if not dry_run:
         try:
+            if not desired_ug_state.usergroup_id:
+                logging.info(
+                    f"Usergroup {desired_ug_state.usergroup} does not exist yet. Skipping for now."
+                )
+                return
             slack_client.update_usergroup(
                 id=desired_ug_state.usergroup_id,
                 channels_list=sorted(

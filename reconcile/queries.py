@@ -1260,6 +1260,7 @@ NAMESPACES_QUERY = """
     name
     delete
     labels
+    clusterAdmin
     managedRoles
     app {
       name
@@ -1312,6 +1313,12 @@ NAMESPACES_QUERY = """
         %s
       }
       automationToken {
+        path
+        field
+        version
+        format
+      }
+      clusterAdminAutomationToken {
         path
         field
         version

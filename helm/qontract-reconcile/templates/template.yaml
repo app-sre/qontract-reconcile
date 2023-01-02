@@ -168,6 +168,19 @@ objects:
                 @type teams
                 webhook_url "${GOOGLE_CHAT_WEBHOOK_URL}&threadKey=${POD_NAME}"
                 text "<%= Time.at(time) %> [${POD_NAME}] <%= record['message'] %>\n\n"
+                buffered true
+                <buffer>
+                  @type file
+                  path /fluentd/buffer
+
+                  flush_mode interval
+                  flush_interval 15s
+                  flush_at_shutdown true
+
+                  retry_max_times 3
+
+                  disable_chunk_backup true
+                </buffer>
               </store>
               {{- end }}
               <store>
@@ -391,6 +404,10 @@ objects:
             mountPath: /fluentd/log/
           - name: fluentd-config
             mountPath: /fluentd/etc/
+          {{- if $logs.googleChat }}
+          - name: buffer
+            mountPath: /fluentd/buffer
+          {{- end }}
         volumes:
         - name: qontract-reconcile-toml
           secret:
@@ -399,6 +416,10 @@ objects:
           emptyDir: {}
         - name: fluentd-config
           emptyDir: {}
+        {{- if $logs.googleChat }}
+        - name: buffer
+          emptyDir: {}
+        {{- end }}
         {{- if $integration.internalCertificates }}
         - name: internal-certificates
           emptyDir: {}

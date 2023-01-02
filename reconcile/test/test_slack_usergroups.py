@@ -231,6 +231,51 @@ def test_get_desired_state(
     }
 
 
+def test_get_desired_state_non_existing_usergroup(
+    mocker: Mock,
+    permissions: Sequence[PermissionSlackUsergroupV1],
+    slack_map: SlackMap,
+    slack_client_mock: Mock,
+    user: User,
+) -> None:
+    # address https://issues.redhat.com/browse/APPSRE-6744
+    mocker.patch(
+        "reconcile.slack_usergroups.get_usernames_from_pagerduty"
+    ).return_value = ["user1"]
+    mocker.patch(
+        "reconcile.slack_usergroups.get_slack_usernames_from_owners"
+    ).return_value = ["repo-user"]
+    mock_pagerduty_map = create_autospec(PagerDutyMap)
+    slack_client_mock.get_usergroup_id.return_value = None
+    result = integ.get_desired_state(
+        slack_map,
+        mock_pagerduty_map,
+        permissions[1:],
+        [user],
+        desired_workspace_name=None,
+        desired_usergroup_name=None,
+    )
+    assert slack_client_mock.get_users_by_names.call_args_list == [
+        call(["repo-user", "slack_username", "user1"]),
+    ]
+    assert slack_client_mock.get_channels_by_names.call_args_list == [
+        call(["sd-sre-platform", "sre-operators"])
+    ]
+
+    assert result == {
+        "coreos": {
+            "saas-osd-operators": State(
+                workspace="coreos",
+                usergroup="saas-osd-operators",
+                description="SREP managed-cluster-config owners (managed via app-interface)",
+                users=set(),
+                channels=set(),
+                usergroup_id=None,
+            )
+        }
+    }
+
+
 def test_get_slack_map_return_expected(
     mocker: Mock, permissions: Iterable[PermissionSlackUsergroupV1]
 ) -> None:

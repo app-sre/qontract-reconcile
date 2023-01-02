@@ -15,6 +15,7 @@ NAMESPACES_QUERY = """
   namespaces: namespaces_v1 {
     name
     delete
+    clusterAdmin
     cluster {
       name
       serverUrl
@@ -23,6 +24,12 @@ NAMESPACES_QUERY = """
         %s
       }
       automationToken {
+        path
+        field
+        version
+        format
+      }
+      clusterAdminAutomationToken {
         path
         field
         version
@@ -97,7 +104,12 @@ def fetch_desired_state(namespaces, ri, oc_map):
             resource_name = "allow-from-{}-namespace".format(source_namespace)
             oc_resource = construct_oc_resource(resource_name, source_namespace)
             ri.add_desired(
-                cluster, namespace, "NetworkPolicy", resource_name, oc_resource
+                cluster,
+                namespace,
+                "NetworkPolicy",
+                resource_name,
+                oc_resource,
+                privileged=namespace_info.get("clusterAdmin") or False,
             )
 
 
