@@ -1663,6 +1663,7 @@ def template(ctx, cluster, namespace, kind, name, path, secret_reader):
         path = path.replace("resources", "", 1)
 
     [namespace_info] = namespace_info
+    ob.aggregate_shared_resources(namespace_info, "openshiftResources")
     openshift_resources = namespace_info.get("openshiftResources")
     for r in openshift_resources:
         resource_path = r.get("resource", {}).get("path")
