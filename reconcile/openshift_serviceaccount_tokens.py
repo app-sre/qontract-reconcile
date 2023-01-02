@@ -89,13 +89,13 @@ def fetch_desired_state(namespaces: list[dict], ri: ResourceInventory, oc_map: O
             except KeyError:
                 logging.log(
                     level=logging.ERROR,
-                    msg=f"Token not found for service account: {sa_name}",
+                    msg=f"[{sa_cluster_name}/{sa_namespace_name}] Token not found for service account: {sa_name}",
                 )
                 raise
             except IndexError:
                 logging.log(
                     level=logging.ERROR,
-                    msg=f"0 Secret found for service account: {sa_name}",
+                    msg=f"[{sa_cluster_name}/{sa_namespace_name}] 0 Secret found for service account: {sa_name}",
                 )
                 raise
 
