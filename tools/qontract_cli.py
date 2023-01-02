@@ -665,7 +665,7 @@ def clusters_egress_ips(ctx):
         if not account:
             continue
         account["resourcesDefaultRegion"] = management_account["resourcesDefaultRegion"]
-        aws_api = AWSApi(1, [account], settings=settings)
+        aws_api = AWSApi(1, [account], settings=settings, init_users=False)
         egress_ips = aws_api.get_cluster_nat_gateways_egress_ips(account)
         item = {"cluster": cluster_name, "egress_ips": ", ".join(sorted(egress_ips))}
         results.append(item)
@@ -1663,6 +1663,7 @@ def template(ctx, cluster, namespace, kind, name, path, secret_reader):
         path = path.replace("resources", "", 1)
 
     [namespace_info] = namespace_info
+    ob.aggregate_shared_resources(namespace_info, "openshiftResources")
     openshift_resources = namespace_info.get("openshiftResources")
     for r in openshift_resources:
         resource_path = r.get("resource", {}).get("path")
