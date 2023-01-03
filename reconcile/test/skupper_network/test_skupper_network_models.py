@@ -269,6 +269,7 @@ def test_skupper_network_model_skupper_site_properties(
     assert public01.name == "cluster-public01-public01"
     assert public01.cluster.name == "cluster-public01"
     assert public01.is_edge_site is False
+    assert public01.token_labels
 
     private01 = skupper_site_factory(
         namespace_factory("private01", private=True, internal=False), edge=False

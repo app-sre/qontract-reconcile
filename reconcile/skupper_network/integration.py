@@ -11,12 +11,12 @@ from typing import (
 
 from sretoolbox.utils import threaded
 
-import reconcile.openshift_base as ob
 from reconcile import queries
 from reconcile.gql_definitions.skupper_network.skupper_networks import SkupperNetworkV1
 from reconcile.gql_definitions.skupper_network.skupper_networks import (
     query as skupper_networks_query,
 )
+from reconcile.skupper_network import reconciler
 from reconcile.skupper_network.models import (
     SkupperConfig,
     SkupperSite,
@@ -24,13 +24,11 @@ from reconcile.skupper_network.models import (
 from reconcile.skupper_network.site_controller import CONFIG_NAME
 from reconcile.skupper_network.site_controller import LABELS as SITE_CONTROLLER_LABELS
 from reconcile.skupper_network.site_controller import (
-    is_usable_connection_token,
     site_config,
     site_controller_deployment,
     site_controller_role,
     site_controller_role_binding,
     site_controller_service_account,
-    site_token,
 )
 from reconcile.utils import gql
 from reconcile.utils.defer import defer
@@ -195,151 +193,6 @@ def skupper_site_config_changes(ri: ResourceInventory) -> bool:
     return changes
 
 
-def delete_skupper_resources(
-    site: SkupperSite,
-    oc_map: OC_Map,
-    dry_run: bool,
-    integration_managed_kinds: Iterable[str],
-) -> None:
-    """Delete all skupper resources starting with 'skupper-' in a namespace."""
-    logging.info(f"{site}: Deleting all other Skupper openshift resources")
-    oc = oc_map.get_cluster(site.cluster.name)
-    to_delete: dict[str, dict[str, Any]] = {}
-
-    for kind in integration_managed_kinds:
-        # delete everything labeled by us
-        to_delete.update(
-            {
-                f'{item["kind"]}-{item["metadata"]["name"]}': item
-                for item in oc.get_items(
-                    kind=kind,
-                    namespace=site.namespace.name,
-                    labels=SITE_CONTROLLER_LABELS,
-                )
-            }
-        )
-        # delete everything else that starts with 'skupper-'
-        to_delete.update(
-            {
-                f'{item["kind"]}-{item["metadata"]["name"]}': item
-                for item in oc.get_items(kind=kind, namespace=site.namespace.name)
-                if item["metadata"]["name"].startswith("skupper-")
-            }
-        )
-
-    for item in to_delete.values():
-        logging.info(
-            [
-                "delete",
-                site.cluster.name,
-                site.namespace.name,
-                item["kind"],
-                item["metadata"]["name"],
-            ]
-        )
-        if not dry_run:
-            oc.delete(site.namespace.name, item["kind"], item["metadata"]["name"])
-
-
-def connect_sites(site: SkupperSite, oc_map: OC_Map, dry_run: bool) -> None:
-    """Connect skupper sites together."""
-    oc = oc_map.get_cluster(site.cluster.name)
-    if not oc.project_exists(site.namespace.name):
-        logging.info(
-            f"{site}: Namespace does not exist yet. Skipping this skupper site for now!"
-        )
-        return
-
-    token_labels = {"token-receiver": site.name}
-
-    for connected_site in site.connected_sites:
-        # An existing connection token means we are already connected to this site
-        if not oc.get(
-            site.namespace.name,
-            "Secret",
-            site.token_name(connected_site),
-            allow_not_found=True,
-        ):
-            # no connection token found. get the token from the connected site and import it
-            connected_site_oc = oc_map.get_cluster(connected_site.cluster.name)
-            if not connected_site_oc.project_exists(connected_site.namespace.name):
-                logging.info(
-                    f"{connected_site}: Namespace does not exist yet."
-                    " Skipping this skupper site for now!"
-                )
-                continue
-
-            if token := connected_site_oc.get(
-                connected_site.namespace.name,
-                "Secret",
-                connected_site.unique_token_name(site),
-                allow_not_found=True,
-            ):
-                if not is_usable_connection_token(token):
-                    # token connection request secret not yet processed by site controller. skip it for now and try again later
-                    logging.info(
-                        f"{connected_site}: Site controller has not processed connection token request yet. Skipping"
-                    )
-                    continue
-
-                logging.info(f"{site}: Connect to {connected_site}")
-                # remove the token, it is not needed anymore on the receiver site
-                connected_site_oc.delete(
-                    connected_site.namespace.name,
-                    "Secret",
-                    connected_site.unique_token_name(site),
-                )
-                # change the token name to match the remote site name for easier identification, e.g. for `skupper link status`
-                token["metadata"]["name"] = site.token_name(connected_site)
-                token = OR(
-                    # remove the namespace and other unneeded Openshift fields from the token secret
-                    body=OR.canonicalize(token),
-                    integration=QONTRACT_INTEGRATION,
-                    integration_version=QONTRACT_INTEGRATION_VERSION,
-                ).annotate()
-                if not dry_run:
-                    logging.info(
-                        [
-                            "apply",
-                            site.cluster.name,
-                            site.namespace.name,
-                            "Secret",
-                            token.name,
-                        ]
-                    )
-                    oc.apply(site.namespace.name, token)
-            else:
-                # no token found - create a new connection token to be used by this site
-                logging.info(
-                    f"{connected_site}: Creating new connection token for {site}"
-                )
-                if not dry_run:
-                    oc.apply(
-                        connected_site.namespace.name,
-                        resource=OR(
-                            body=site_token(
-                                connected_site.unique_token_name(site), token_labels
-                            ),
-                            integration=QONTRACT_INTEGRATION,
-                            integration_version=QONTRACT_INTEGRATION_VERSION,
-                        ),
-                    )
-
-    # finally delete any connection tokens that are no longer needed
-    for item in oc.get_items(
-        kind="Secret",
-        namespace=site.namespace.name,
-        labels=token_labels,
-    ):
-        if item["metadata"]["name"] not in [
-            site.token_name(connected_site) for connected_site in site.connected_sites
-        ]:
-            logging.info(
-                f"{site}: Delete unused/obsolete skupper site connection {item['metadata']['name']}"
-            )
-            oc.delete(site.namespace.name, item["kind"], item["metadata"]["name"])
-
-
 def act(
     oc_map: OC_Map,
     ri: ResourceInventory,
@@ -358,23 +211,16 @@ def act(
         )
         sys.exit(1)
 
-    ob.realize_data(dry_run, oc_map, ri, thread_pool_size)
-
-    # delete all other skupper related resources create by the skupper site controller
-    threaded.run(
-        delete_skupper_resources,
-        [site for site in skupper_sites if site.delete],
-        thread_pool_size,
+    # create/update/delete skupper resources
+    reconciler.reconcile(
         oc_map=oc_map,
+        ri=ri,
         dry_run=dry_run,
-        integration_managed_kinds=list(integration_managed_kinds) + ["Secret"],
-    )
-    threaded.run(
-        connect_sites,
-        [site for site in skupper_sites if not site.delete],
-        thread_pool_size,
-        oc_map=oc_map,
-        dry_run=dry_run,
+        thread_pool_size=thread_pool_size,
+        skupper_sites=skupper_sites,
+        integration_managed_kinds=integration_managed_kinds,
+        integration=QONTRACT_INTEGRATION,
+        integration_version=QONTRACT_INTEGRATION_VERSION,
     )
 
 

@@ -279,3 +279,8 @@ class SkupperSite(BaseModel):
     def token_name(self, other: SkupperSite) -> str:
         """Get the token name for a site connection."""
         return other.name
+
+    @property
+    def token_labels(self) -> dict[str, str]:
+        """Get the token labels."""
+        return {"token-receiver": self.name}
