@@ -47,7 +47,6 @@ query SkupperNetworks {
           controllerServiceAnnotations
           edge
           ingress
-          name
           routerConsole
           routerCpuLimit
           routerCpu

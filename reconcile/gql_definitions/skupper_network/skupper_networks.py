@@ -87,7 +87,6 @@ query SkupperNetworks {
           controllerServiceAnnotations
           edge
           ingress
-          name
           routerConsole
           routerCpuLimit
           routerCpu
@@ -194,7 +193,6 @@ class SkupperSiteConfigV1(BaseModel):
     )
     edge: Optional[bool] = Field(..., alias="edge")
     ingress: Optional[str] = Field(..., alias="ingress")
-    name: Optional[str] = Field(..., alias="name")
     router_console: Optional[bool] = Field(..., alias="routerConsole")
     router_cpu_limit: Optional[str] = Field(..., alias="routerCpuLimit")
     router_cpu: Optional[str] = Field(..., alias="routerCpu")

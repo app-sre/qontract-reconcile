@@ -110,6 +110,9 @@ class SkupperConfig(BaseModel):
     )
     service_sync: bool = Field(Defaults.DEFAULT_SERVICE_SYNC, alias="service-sync")
 
+    class Config:
+        allow_population_by_field_name = True
+
     @classmethod
     def init(
         cls,
@@ -233,7 +236,7 @@ class SkupperSite(BaseModel):
         connected_sites: list[SkupperSite] = []
 
         # Connect to all other public clusters
-        if self.on_public_cluster:
+        if self.on_public_cluster and not self.delete:
             connected_sites = [
                 other
                 for other in sites
@@ -245,7 +248,7 @@ class SkupperSite(BaseModel):
             ]
 
         # Connect to all public clusters + all other peered & private/not-internal
-        if self.on_private_cluster:
+        if self.on_private_cluster and not self.delete:
             connected_sites = [
                 other
                 for other in sites

@@ -106,18 +106,18 @@ def compile_skupper_sites(
 
 
 def fetch_current_state(
-    skupper_site: SkupperSite,
+    site: SkupperSite,
     oc_map: OC_Map,
     ri: ResourceInventory,
     integration_managed_kinds: Iterable[str],
 ) -> None:
     """Populate current openshift site state in resource inventory"""
-    oc = oc_map.get_cluster(skupper_site.cluster.name)
+    oc = oc_map.get_cluster(site.cluster.name)
 
     for kind in integration_managed_kinds:
         for item in oc.get_items(
             kind=kind,
-            namespace=skupper_site.namespace.name,
+            namespace=site.namespace.name,
             labels=SITE_CONTROLLER_LABELS,
         ):
             openshift_resource = OR(
@@ -125,9 +125,14 @@ def fetch_current_state(
                 integration=QONTRACT_INTEGRATION,
                 integration_version=QONTRACT_INTEGRATION_VERSION,
             )
+            ri.initialize_resource_type(
+                cluster=site.cluster.name,
+                namespace=site.namespace.name,
+                resource_type=openshift_resource.kind,
+            )
             ri.add_current(
-                cluster=skupper_site.cluster.name,
-                namespace=skupper_site.namespace.name,
+                cluster=site.cluster.name,
+                namespace=site.namespace.name,
                 resource_type=kind,
                 name=openshift_resource.name,
                 value=openshift_resource,
@@ -153,14 +158,13 @@ def fetch_desired_state(
                 integration_version=QONTRACT_INTEGRATION_VERSION,
             )
             integration_managed_kinds.add(openshift_resource.kind)
-            ri.initialize_resource_type(
-                cluster=site.cluster.name,
-                namespace=site.namespace.name,
-                resource_type=openshift_resource.kind,
-            )
             # only add desired state if not deleting
-            # but we need to handle it to initialize the resource inventory
             if not site.delete:
+                ri.initialize_resource_type(
+                    cluster=site.cluster.name,
+                    namespace=site.namespace.name,
+                    resource_type=openshift_resource.kind,
+                )
                 ri.add_desired(
                     cluster=site.cluster.name,
                     namespace=site.namespace.name,
@@ -192,14 +196,14 @@ def skupper_site_config_changes(ri: ResourceInventory) -> bool:
 
 
 def delete_skupper_resources(
-    skupper_site: SkupperSite,
+    site: SkupperSite,
     oc_map: OC_Map,
     dry_run: bool,
     integration_managed_kinds: Iterable[str],
 ) -> None:
     """Delete all skupper resources starting with 'skupper-' in a namespace."""
-    logging.info(f"{skupper_site}: Deleting all other Skupper openshift resources")
-    oc = oc_map.get_cluster(skupper_site.cluster.name)
+    logging.info(f"{site}: Deleting all other Skupper openshift resources")
+    oc = oc_map.get_cluster(site.cluster.name)
     to_delete: dict[str, dict[str, Any]] = {}
 
     for kind in integration_managed_kinds:
@@ -209,7 +213,7 @@ def delete_skupper_resources(
                 f'{item["kind"]}-{item["metadata"]["name"]}': item
                 for item in oc.get_items(
                     kind=kind,
-                    namespace=skupper_site.namespace.name,
+                    namespace=site.namespace.name,
                     labels=SITE_CONTROLLER_LABELS,
                 )
             }
@@ -218,9 +222,7 @@ def delete_skupper_resources(
         to_delete.update(
             {
                 f'{item["kind"]}-{item["metadata"]["name"]}': item
-                for item in oc.get_items(
-                    kind=kind, namespace=skupper_site.namespace.name
-                )
+                for item in oc.get_items(kind=kind, namespace=site.namespace.name)
                 if item["metadata"]["name"].startswith("skupper-")
             }
         )
@@ -229,16 +231,14 @@ def delete_skupper_resources(
         logging.info(
             [
                 "delete",
-                skupper_site.cluster.name,
-                skupper_site.namespace.name,
+                site.cluster.name,
+                site.namespace.name,
                 item["kind"],
                 item["metadata"]["name"],
             ]
         )
         if not dry_run:
-            oc.delete(
-                skupper_site.namespace.name, item["kind"], item["metadata"]["name"]
-            )
+            oc.delete(site.namespace.name, item["kind"], item["metadata"]["name"])
 
 
 def connect_sites(site: SkupperSite, oc_map: OC_Map, dry_run: bool) -> None:
