@@ -48,9 +48,7 @@ class SecretReaderBase(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    def _read_all(
-        self, path: str, field: str, format: Optional[str], version: Optional[int]
-    ) -> dict[str, str]:
+    def _read_all(self, path: str, version: Optional[int]) -> dict[str, str]:
         raise NotImplementedError()
 
     def read(self, secret: Mapping[str, Any]) -> str:
@@ -74,8 +72,6 @@ class SecretReaderBase(ABC):
         """
         return self._read_all(
             path=secret.get("path", ""),
-            field=secret.get("field", ""),
-            format=secret.get("format"),
             version=secret.get("version"),
         )
 
@@ -90,8 +86,6 @@ class SecretReaderBase(ABC):
     def read_all_secret(self, secret: HasSecret) -> dict[str, str]:
         return self._read_all(
             path=secret.path,
-            field=secret.field,
-            format=secret.q_format,
             version=secret.version,
         )
 
@@ -106,17 +100,19 @@ class SecretReaderBase(ABC):
         )
 
     def read_all_with_parameters(
-        self, path: str, field: str, format: Optional[str], version: Optional[int]
+        self, path: str, version: Optional[int]
     ) -> dict[str, str]:
         return self._read_all(
             path=path,
-            field=field,
-            format=format,
             version=version,
         )
 
     def _parameters_to_dict(
-        self, path: str, field: str, format: Optional[str], version: Optional[int]
+        self,
+        path: str,
+        field: Optional[str] = None,
+        format: Optional[str] = None,
+        version: Optional[int] = None,
     ) -> dict[str, Any]:
         return {
             "path": path,
@@ -151,15 +147,11 @@ class VaultSecretReader(SecretReaderBase):
         return self._vault_client
 
     @retry()
-    def _read_all(
-        self, path: str, field: str, format: Optional[str], version: Optional[int]
-    ) -> dict[str, str]:
+    def _read_all(self, path: str, version: Optional[int]) -> dict[str, str]:
         try:
             data = self.vault_client.read_all(  # type: ignore[attr-defined] # mypy doesn't recognize the VaultClient.__new__ method
                 self._parameters_to_dict(
                     path=path,
-                    field=field,
-                    format=format,
                     version=version,
                 )
             )
@@ -210,15 +202,11 @@ class ConfigSecretReader(SecretReaderBase):
             raise SecretNotFound(*e.args) from e
         return data
 
-    def _read_all(
-        self, path: str, field: str, format: Optional[str], version: Optional[int]
-    ) -> dict[str, str]:
+    def _read_all(self, path: str, version: Optional[int]) -> dict[str, str]:
         try:
             data = config.read_all(
                 self._parameters_to_dict(
                     path=path,
-                    field=field,
-                    format=format,
                     version=version,
                 )
             )
@@ -294,9 +282,7 @@ class SecretReader(SecretReaderBase):
         return data
 
     @retry()
-    def _read_all(
-        self, path: str, field: str, format: Optional[str], version: Optional[int]
-    ) -> dict[str, str]:
+    def _read_all(self, path: str, version: Optional[int]) -> dict[str, str]:
         """Returns a dictionary of keys and values
         from Vault secret or configuration file.
         The input secret is a dictionary which contains the following fields:
@@ -310,8 +296,6 @@ class SecretReader(SecretReaderBase):
 
         params = self._parameters_to_dict(
             path=path,
-            field=field,
-            format=format,
             version=version,
         )
 

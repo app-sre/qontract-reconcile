@@ -38,7 +38,10 @@ def test_vault_secret_reader_typed_read_all(vault_mock, vault_secret):
     result = vault_secret_reader.read_all_secret(vault_secret)
 
     assert result == VAULT_READ_ALL_EXPECTED
-    vault_mock.read_all.assert_called_once_with(SecretReader.to_dict(vault_secret))
+    expected_arg = SecretReader.to_dict(vault_secret)
+    # field is not used by read_all
+    expected_arg["field"] = None
+    vault_mock.read_all.assert_called_once_with(expected_arg)
     vault_mock.read.assert_not_called()
 
 
@@ -60,13 +63,14 @@ def test_vault_secret_reader_parameters_read_all(vault_mock, vault_secret):
     vault_secret_reader = VaultSecretReader(vault_client=vault_mock)
     result = vault_secret_reader.read_all_with_parameters(
         path=vault_secret.path,
-        field=vault_secret.field,
-        format=vault_secret.q_format,
         version=vault_secret.version,
     )
 
     assert result == VAULT_READ_ALL_EXPECTED
-    vault_mock.read_all.assert_called_once_with(SecretReader.to_dict(vault_secret))
+    expected_arg = SecretReader.to_dict(vault_secret)
+    # field is not used by read_all
+    expected_arg["field"] = None
+    vault_mock.read_all.assert_called_once_with(expected_arg)
     vault_mock.read.assert_not_called()
 
 
