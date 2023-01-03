@@ -6,9 +6,16 @@ from reconcile.dashdotdb_base import (
     LOG,
     DashdotdbBase,
 )
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
 from reconcile.utils.oc import (
     OC_Map,
     StatusCodeError,
+)
+from reconcile.utils.secret_reader import (
+    SecretReaderBase,
+    create_secret_reader,
 )
 
 QONTRACT_INTEGRATION = "dashdotdb-cso"
@@ -16,8 +23,17 @@ LOGMARKER = "DDDB_CSO:"
 
 
 class DashdotdbCSO(DashdotdbBase):
-    def __init__(self, dry_run, thread_pool_size):
-        super().__init__(dry_run, thread_pool_size, LOGMARKER, "imagemanifestvuln")
+    def __init__(
+        self, dry_run: bool, thread_pool_size: int, secret_reader: SecretReaderBase
+    ):
+        super().__init__(
+            dry_run=dry_run,
+            thread_pool_size=thread_pool_size,
+            marker=LOGMARKER,
+            scope="imagemanifestvuln",
+            secret_reader=secret_reader,
+        )
+        self.settings = queries.get_app_interface_settings()
 
     def _post(self, manifest):
         if manifest is None:
@@ -89,5 +105,11 @@ class DashdotdbCSO(DashdotdbBase):
 
 
 def run(dry_run=False, thread_pool_size=10):
-    dashdotdb_cso = DashdotdbCSO(dry_run, thread_pool_size)
+    vault_settings = get_app_interface_vault_settings()
+    if not vault_settings:
+        raise Exception("Missing app-interface vault_settings")
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
+    dashdotdb_cso = DashdotdbCSO(
+        dry_run=dry_run, thread_pool_size=thread_pool_size, secret_reader=secret_reader
+    )
     dashdotdb_cso.run()
