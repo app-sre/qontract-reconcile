@@ -68,17 +68,17 @@ def test_skupper_network_intg_compile_skupper_sites(
 ) -> None:
     assert len(skupper_sites) == 10
 
-    internal_1 = skupper_sites[0]
+    edge_1 = skupper_sites[0]
     private_1 = skupper_sites[2]
     delete_1 = skupper_sites[4]
     public_1 = skupper_sites[6]
     small_1 = skupper_sites[8]
 
-    assert internal_1.delete is False
-    assert internal_1.config.edge is True
-    assert internal_1.config.router_memory_limit == "1Gi"
-    assert internal_1.config.ingress == Defaults.DEFAULT_INGRESS
-    assert internal_1.is_connected_to(public_1) is True
+    assert edge_1.delete is False
+    assert edge_1.config.edge is True
+    assert edge_1.config.router_memory_limit == "1Gi"
+    assert edge_1.config.ingress == Defaults.DEFAULT_INGRESS
+    assert edge_1.is_connected_to(public_1) is True
 
     assert private_1.delete is False
     assert private_1.config.edge is False
@@ -135,9 +135,9 @@ def test_skupper_network_intg_fetch_current_state(
     fake_site_configmap: dict[str, Any],
 ) -> None:
     ri = ResourceInventory()
-    internal_1 = skupper_sites[0]
+    edge_1 = skupper_sites[0]
     intg.fetch_current_state(
-        site=internal_1,
+        site=edge_1,
         oc_map=oc_map,
         ri=ri,
         integration_managed_kinds=["ConfigMap"],

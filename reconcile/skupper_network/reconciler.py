@@ -191,7 +191,10 @@ def connect_sites(
                     integration_version,
                 )
 
-    # finally delete any other connection tokens that are no longer needed
+
+def delete_unused_tokens(site: SkupperSite, oc_map: OC_Map, dry_run: bool) -> None:
+    """Delete any other connection tokens that are no longer needed."""
+    oc = oc_map.get_cluster(site.cluster.name)
     for item in oc.get_items(
         kind="Secret",
         namespace=site.namespace.name,
@@ -231,6 +234,15 @@ def reconcile(
         dry_run=dry_run,
         integration=integration,
         integration_version=integration_version,
+    )
+
+    # delete unused skupper site connection tokens
+    threaded.run(
+        delete_unused_tokens,
+        [site for site in skupper_sites if not site.delete],
+        thread_pool_size,
+        oc_map=oc_map,
+        dry_run=dry_run,
     )
 
     # delete all other skupper related resources create by the skupper site controller
