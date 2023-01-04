@@ -52,7 +52,7 @@ class PrometheusInfo:
 class DashdotdbDVO(DashdotdbBase):
     def __init__(
         self, dry_run: bool, thread_pool_size: int, secret_reader: SecretReaderBase
-    ):
+    ) -> None:
         super().__init__(
             dry_run=dry_run,
             thread_pool_size=thread_pool_size,
