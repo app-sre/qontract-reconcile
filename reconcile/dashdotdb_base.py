@@ -5,7 +5,6 @@ from dataclasses import dataclass
 from typing import (
     Any,
     Optional,
-    Tuple,
 )
 from urllib.parse import urljoin
 
@@ -43,7 +42,7 @@ class DashdotdbBase:
         marker: str,
         scope: str,
         secret_reader: SecretReaderBase,
-    ):
+    ) -> None:
         self.dry_run = dry_run
         self.thread_pool_size = thread_pool_size
         self.secret_reader = secret_reader
@@ -104,7 +103,7 @@ class DashdotdbBase:
         self,
         endpoint: str,
         data: Mapping[Any, Any],
-        timeout: Tuple[int, int] = (5, 120),
+        timeout: tuple[int, int] = (5, 120),
     ) -> requests.Response:
         return requests.post(
             url=endpoint,
@@ -138,10 +137,6 @@ class DashdotdbBase:
         # TODO ensure len response == 1
         # return ans['data']['result']
         return data
-
-    # def _get_automationtoken(self, tokenpath):
-    #     token = self.secret_reader.read(tokenpath)
-    #     return token
 
     def _get_automation_token(self, secret: HasSecret) -> str:
         return self.secret_reader.read_secret(secret=secret)
