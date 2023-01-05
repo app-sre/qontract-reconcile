@@ -87,7 +87,7 @@ def run(
     )
     errors.append(diff_err)
 
-    return any(errors)
+    return saasherder.has_error_registered or any(errors)
 
 
 def setup(

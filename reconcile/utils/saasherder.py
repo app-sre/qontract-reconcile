@@ -178,6 +178,7 @@ class SaasHerder:
         validate=False,
         include_trigger_trace=False,
     ):
+        self.error_registered = False
         self.saas_files = saas_files
         self.repo_urls = self._collect_repo_urls()
         if validate:
@@ -207,6 +208,13 @@ class SaasHerder:
         self.cluster_admin = self._get_saas_file_feature_enabled("clusterAdmin")
         if accounts:
             self._initiate_state(accounts)
+
+    def _register_error(self):
+        self.error_registered = True
+
+    @property
+    def has_error_registered(self):
+        return self.error_registered
 
     def __iter__(self):
         for saas_file in self.saas_files:
@@ -1161,7 +1169,7 @@ class SaasHerder:
 
     def populate_desired_state(self, ri):
         results = threaded.run(
-            self.init_populate_desired_state_specs,
+            self._init_populate_desired_state_specs,
             self.saas_files,
             self.thread_pool_size,
         )
@@ -1174,7 +1182,7 @@ class SaasHerder:
         )
         self.promotions = promotions
 
-    def init_populate_desired_state_specs(self, saas_file):
+    def _init_populate_desired_state_specs(self, saas_file):
         specs = []
         saas_file_name = saas_file["name"]
         github = self._initiate_github(saas_file)
@@ -1434,7 +1442,7 @@ class SaasHerder:
                         f"Skipping target {saas_file_name}:{rt_name}"
                         f" - repo: {url} - ref: {ref}"
                     )
-
+                    self._register_error()
         return trigger_specs
 
     def get_upstream_jobs_diff(
