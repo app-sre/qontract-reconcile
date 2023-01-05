@@ -1145,6 +1145,7 @@ OCM_QUERY = """
       format
       version
     }
+    
     inheritVersionData {
       name
       publishVersionData {
