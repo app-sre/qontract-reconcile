@@ -1,5 +1,6 @@
 import logging
 from typing import Optional
+
 from reconcile import queries
 from reconcile.utils.jenkins_api import JenkinsApi
 from reconcile.utils.ocm import OCMMap
