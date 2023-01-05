@@ -1849,6 +1849,7 @@ def ocm_cluster_admin(ctx):
 
 
 @integration.command(short_help="Trigger jenkins jobs following Addon upgrades.")
+@environ(["APP_INTERFACE_STATE_BUCKET", "APP_INTERFACE_STATE_BUCKET_ACCOUNT"])
 @click.pass_context
 def ocm_addons_upgrade_tests_trigger(ctx):
     import reconcile.ocm_addons_upgrade_tests_trigger
