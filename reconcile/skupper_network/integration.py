@@ -45,8 +45,6 @@ QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 class SkupperNetworkExcpetion(Exception):
     """Base exception for Skupper Network integration."""
 
-    pass
-
 
 def compile_skupper_sites(
     skupper_networks: Iterable[SkupperNetworkV1],

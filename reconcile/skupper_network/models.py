@@ -124,7 +124,7 @@ class SkupperConfig(BaseModel):
         """Create a SkupperConfig instance by merging skupper network defaults, site configs and integration defaults."""
         c: dict[str, Any] = {}
 
-        for field in cls.__fields__.keys():
+        for field in cls.__fields__:
             if field in ["name", "edge"]:
                 continue
 
@@ -203,8 +203,13 @@ class SkupperSite(BaseModel):
 
         for c in self.cluster.peering.connections:
             if (
-                isinstance(c, ClusterPeeringConnectionClusterRequesterV1)
-                or isinstance(c, ClusterPeeringConnectionClusterAccepterV1)
+                isinstance(
+                    c,
+                    (
+                        ClusterPeeringConnectionClusterRequesterV1,
+                        ClusterPeeringConnectionClusterAccepterV1,
+                    ),
+                )
             ) and c.cluster.name == other.cluster.name:
                 return True
         return False
@@ -220,7 +225,7 @@ class SkupperSite(BaseModel):
 
     def has_incoming_connections(self, sites: Iterable[SkupperSite]) -> bool:
         """Return True if the site has at least one incoming connection."""
-        return any([other.is_connected_to(self) for other in sites])
+        return any(other.is_connected_to(self) for other in sites)
 
     def is_island(self, sites: Iterable[SkupperSite]) -> bool:
         """Return True if the site is not connected to any other skupper site."""
