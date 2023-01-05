@@ -1848,6 +1848,14 @@ def ocm_cluster_admin(ctx):
     run_integration(reconcile.ocm_cluster_admin, ctx.obj)
 
 
+@integration.command(short_help="Trigger jenkins jobs following Addon upgrades.")
+@click.pass_context
+def ocm_addons_upgrade_tests_trigger(ctx):
+    import reconcile.ocm_addons_upgrade_tests_trigger
+
+    run_integration(reconcile.ocm_addons_upgrade_tests_trigger, ctx.obj)
+
+
 @integration.command(short_help="Manage Machine Pools in OCM.")
 @threaded()
 @click.pass_context

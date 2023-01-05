@@ -1145,7 +1145,21 @@ OCM_QUERY = """
       format
       version
     }
-    
+    addonUpgradeTests {
+      addon {
+        name
+      }
+      instance {
+        name
+        token {
+          path
+          field
+          version
+          format
+        }
+      }
+      name
+    }
     inheritVersionData {
       name
       publishVersionData {
