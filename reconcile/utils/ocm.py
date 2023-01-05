@@ -1461,14 +1461,16 @@ class OCM:  # pylint: disable=too-many-public-methods
         api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/gate_agreements"
         return self._post(api, {"version_gate": {"id": gate_id}})
 
-    def get_cluster_addons(self, cluster, with_version: bool = False):
+    def get_cluster_addons(
+        self, cluster: str, with_version: bool = False
+    ) -> list[dict[str, str]]:
         """Returns a list of Addons installed on a cluster
 
         :param cluster: cluster name
 
         :type cluster: string
         """
-        results = []
+        results: list[dict[str, str]] = []
         cluster_id = self.cluster_ids.get(cluster)
         if not cluster_id:
             return results
