@@ -5418,6 +5418,17 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         )
         tf_resources.append(backplane_api_service_account_pool_client_resource)
 
+        # INSIGHTS
+        insights_service_account_pool_client_resource = aws_cognito_user_pool_client(
+            "ocm_ams_service_account",
+            name=f"ocm-{identifier}-insights-service-account",
+            user_pool_id=f"${{{cognito_user_pool_resource.id}}}",
+            allowed_oauth_scopes=["ocm/InsightsServiceAccount"],
+            depends_on=["aws_cognito_resource_server.userpool_service_resource_server"],
+            **pool_client_service_account_common_args,
+        )
+        tf_resources.append(ams_service_account_pool_client_resource)
+
         # USER POOL COMPLETE
 
         # rosa-authenticator-vpce provider OR pre-created vpce resources are required for this
