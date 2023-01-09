@@ -27,6 +27,7 @@ import networkx
 from reconcile.change_owners.approver import Approver
 from reconcile.change_owners.bundle import (
     BundleFileType,
+    FileDiffResolver,
     FileRef,
 )
 from reconcile.change_owners.diff import (
@@ -37,6 +38,7 @@ from reconcile.change_owners.diff import (
     extract_diffs,
 )
 from reconcile.gql_definitions.change_owners.queries.change_types import (
+    ChangeTypeChangeDetectorChangeTypeProviderV1,
     ChangeTypeChangeDetectorJsonPathProviderV1,
     ChangeTypeImplicitOwnershipV1,
     ChangeTypeV1,
@@ -422,7 +424,50 @@ class OwnershipContext:
 
 
 @dataclass
+class ContextExpansion:
+    """
+    Represents a context expansion configuration, capable of hopping from one
+    context of a change-type to another context of another change-type.
+    """
+
+    context: OwnershipContext
+    change_type: "ChangeTypeProcessor"
+    file_diff_resolver: FileDiffResolver
+
+    def expand(
+        self,
+        old_data: Optional[dict[str, Any]] = None,
+        new_data: Optional[dict[str, Any]] = None,
+    ) -> list["ResolvedContext"]:
+        """
+        Find context based on the `self.context`, lookup the file diff for
+        that new context and expose everything as a new `ResolvedContext` with
+        `self.change_type` as the change type.
+        """
+        context_file_refs = self.context.find_ownership_context(
+            context_schema=self.change_type.context_schema,
+            old_data=old_data,
+            new_data=new_data,
+        )
+        expaned_context_file_refs: list["ResolvedContext"] = []
+        for ref in context_file_refs:
+            ref_old_data, ref_new_data = self.file_diff_resolver.lookup_file_diff(ref)
+            expaned_context_file_refs.extend(
+                self.change_type.find_context_file_refs(
+                    ref,
+                    old_data=ref_old_data,
+                    new_data=ref_new_data,
+                )
+            )
+        return expaned_context_file_refs
+
+
+@dataclass
 class ResolvedContext:
+    """
+    The result of a context resolution. It is used for all kinds of context
+    and ownership resolution processes, including the context expansion process.
+    """
 
     owned_file_ref: FileRef
     context_file_ref: FileRef
@@ -431,6 +476,10 @@ class ResolvedContext:
 
 @dataclass
 class ChangeDetector(ABC):
+    """
+    Represents an item from a change-types `change` list.
+    """
+
     context_schema: Optional[str]
     change_schema: Optional[str]
     context: Optional[OwnershipContext]
@@ -493,6 +542,7 @@ class ChangeTypeProcessor:
             tuple[BundleFileType, Optional[str]], list[PathExpression]
         ] = defaultdict(list)
         self._change_detectors: list[ChangeDetector] = []
+        self._context_expansions: list[ContextExpansion] = []
 
     @property
     def change_detectors(self) -> Sequence[ChangeDetector]:
@@ -559,6 +609,11 @@ class ChangeTypeProcessor:
         """
         contexts: list[ResolvedContext] = []
 
+        # expand context based on change-type composition
+        expanded_context: list[ResolvedContext] = []
+        for ce in self._context_expansions:
+            expanded_context.extend(ce.expand(old_data, new_data))
+
         # direct context extraction
         # the changed file itself is giving the context for approver extraction
         # see doc string for more details
@@ -570,6 +625,16 @@ class ChangeTypeProcessor:
                     change_type=self,
                 )
             )
+
+            for ec in expanded_context:
+                # add expanded contexts (derived owned files)
+                contexts.append(
+                    ResolvedContext(
+                        owned_file_ref=ec.owned_file_ref,
+                        context_file_ref=file_ref,
+                        change_type=ec.change_type,
+                    )
+                )
 
         # context detection
         # the context for approver extraction can be found within the changed
@@ -585,6 +650,16 @@ class ChangeTypeProcessor:
                             change_type=self,
                         )
                     )
+
+                    for ec in expanded_context:
+                        # add expanded contexts (derived owned files)
+                        contexts.append(
+                            ResolvedContext(
+                                owned_file_ref=ec.owned_file_ref,
+                                context_file_ref=ctx_file_ref,
+                                change_type=ec.change_type,
+                            )
+                        )
 
         return contexts
 
@@ -630,13 +705,17 @@ class ChangeTypeProcessor:
                 f"{type(detector)} is not a supported change detection provider within ChangeTypes"
             )
 
+    def add_context_expansion(self, context_expansion: ContextExpansion):
+        self._context_expansions.append(context_expansion)
+
 
 def init_change_type_processors(
-    change_types: Sequence[ChangeTypeV1],
+    change_types: Sequence[ChangeTypeV1], file_diff_resolver: FileDiffResolver
 ) -> dict[str, ChangeTypeProcessor]:
     processors: dict[str, ChangeTypeProcessor] = {}
 
     change_type_inheritance_graph = networkx.DiGraph()
+    change_type_composition_graph = networkx.DiGraph()
 
     for change_type in change_types:
         # build raw change-type-processor
@@ -649,7 +728,7 @@ def init_change_type_processors(
             disabled=bool(change_type.disabled),
             implicit_ownership=change_type.implicit_ownership or [],
         )
-        # register inheritance edges
+        # register inheritance edges for cycle detection
         change_type_inheritance_graph.add_node(change_type.name)
         for i in change_type.inherit or []:
             change_type_inheritance_graph.add_edge(change_type.name, i.name)
@@ -676,6 +755,30 @@ def init_change_type_processors(
                         context=ownership_context,
                     )
                 )
+            elif isinstance(
+                change_detector, ChangeTypeChangeDetectorChangeTypeProviderV1
+            ):
+                # change type composition is defined on the higher level change-type,
+                # e.g. the app-owner change-type. in code, this composition relationship
+                # is tracked on the reused change-type, e.g. the namespace-owner change-type.
+                #
+                # this makes it easier to trace a change back from it's original context
+                # to the higher level change-type
+                for ct in change_detector.change_types:
+                    processors[ct.name].add_context_expansion(
+                        ContextExpansion(
+                            change_type=processor,
+                            context=OwnershipContext(
+                                selector=jsonpath_ng.ext.parse(
+                                    change_detector.ownership_context.selector
+                                ),
+                                when=change_detector.ownership_context.when,
+                            ),
+                            file_diff_resolver=file_diff_resolver,
+                        )
+                    )
+                    # register dependency in graph for cycle detection
+                    change_type_composition_graph.add_edge(change_type.name, ct.name)
 
     #
     # V A L I D A T E
@@ -684,6 +787,10 @@ def init_change_type_processors(
     # detect inheritance cycles
     if cycles := list(networkx.simple_cycles(change_type_inheritance_graph)):
         raise ChangeTypeCycleError("Cycles detected in change-type inheritance", cycles)
+
+    # detect composition cycles
+    if cycles := list(networkx.simple_cycles(change_type_composition_graph)):
+        raise ChangeTypeCycleError("Cycles detected in change-type composition", cycles)
 
     #
     # A G G R E G A T I O N

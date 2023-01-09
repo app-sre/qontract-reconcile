@@ -350,14 +350,23 @@ def get_api_for_sha(
 
 
 @retry(exceptions=requests.exceptions.HTTPError, max_attempts=5)
-def get_diff(old_sha: str):
+def get_diff(
+    old_sha: str, file_type: Optional[str] = None, file_path: Optional[str] = None
+):
     config = get_config()
 
     server_url = urlparse(config["graphql"]["server"])
     token = config["graphql"].get("token")
     current_sha = get_sha(server_url, token)
     logging.debug(f"get bundle diffs between {old_sha} and {current_sha}...")
-    diff_endpoint = server_url._replace(path=f"/diff/{old_sha}/{current_sha}")
+    if file_type and file_path:
+        if not file_path.startswith("/"):
+            file_path = f"/{file_path}"
+        diff_endpoint = server_url._replace(
+            path=f"/diff/{old_sha}/{current_sha}/{file_type}{file_path}"
+        )
+    else:
+        diff_endpoint = server_url._replace(path=f"/diff/{old_sha}/{current_sha}")
     headers = {"Authorization": token} if token else None
     response = requests.get(diff_endpoint.geturl(), headers=headers, timeout=30)
     response.raise_for_status()

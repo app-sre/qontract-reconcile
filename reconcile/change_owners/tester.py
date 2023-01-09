@@ -1,7 +1,11 @@
 import os
 import sys
 from dataclasses import dataclass
-from typing import Optional
+from typing import (
+    Any,
+    Optional,
+    Tuple,
+)
 
 import jsonpath_ng
 import pygments
@@ -31,10 +35,6 @@ def test_change_type_in_context(
     change_type_name: str, role_name: str, app_interface_path: str
 ):
     print(f"Sections marked with '{SELF_SERVICABLE_MARKER}' are self serviceable\n\n")
-    change_type_processor = get_changetype_processor_by_name(change_type_name)
-    if change_type_processor is None:
-        print(f"Change type {change_type_name} not found")
-        sys.exit(1)
 
     role = get_self_service_role_by_name(role_name)
     if role is None:
@@ -52,6 +52,11 @@ def test_change_type_in_context(
         )
         sys.exit(1)
     ai_repo = AppInterfaceRepo(app_interface_path)
+
+    change_type_processor = get_changetype_processor_by_name(change_type_name, ai_repo)
+    if change_type_processor is None:
+        print(f"Change type {change_type_name} not found")
+        sys.exit(1)
 
     bundle_files = ai_repo.relevant_bundle_files_for_change_type(
         role, change_type_processor
@@ -114,7 +119,7 @@ class AppInterfaceRepo:
     ) -> list[BundleFileChange]:
         bundle_files = []
         processed_schemas = set()
-        for c in ctp.changes:
+        for c in ctp.change_detectors:
             if (
                 c.change_schema
                 and c.change_schema != ctp.context_schema
@@ -207,10 +212,25 @@ class SelfServiceableHighlighter(Filter):
             yield ttype, value
 
 
+class FilesystemFileDiffResolver:
+    def __init__(self, app_interface_repo: AppInterfaceRepo):
+        self.app_interface_repo = app_interface_repo
+
+    def lookup_file_diff(
+        self, file_ref: FileRef
+    ) -> Tuple[Optional[dict[str, Any]], Optional[dict[str, Any]]]:
+        file = self.app_interface_repo.bundle_file_for_path(
+            file_type=file_ref.file_type, path=file_ref.path
+        )
+        return file.old, file.new
+
+
 def get_changetype_processor_by_name(
-    change_type_name: str,
+    change_type_name: str, app_interface_repo: AppInterfaceRepo
 ) -> Optional[ChangeTypeProcessor]:
-    processors = fetch_change_type_processors(gql.get_api())
+    processors = fetch_change_type_processors(
+        gql.get_api(), FilesystemFileDiffResolver(app_interface_repo)
+    )
     return next((p for p in processors if p.name == change_type_name), None)
 
 

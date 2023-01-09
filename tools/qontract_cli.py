@@ -21,6 +21,7 @@ import reconcile.terraform_resources as tfr
 import reconcile.terraform_users as tfu
 import reconcile.terraform_vpc_peerings as tfvpc
 from reconcile import queries
+from reconcile.change_owners.bundle import NoOpFileDiffResolver
 from reconcile.change_owners.change_owners import (
     fetch_change_type_processors,
     fetch_self_service_roles,
@@ -1456,7 +1457,7 @@ def app_interface_open_selfserviceable_mr_queue(ctx):
 @click.pass_context
 def change_types(ctx):
     """List all change types."""
-    change_types = fetch_change_type_processors(gql.get_api())
+    change_types = fetch_change_type_processors(gql.get_api(), NoOpFileDiffResolver())
 
     usage_statistics: dict[str, int] = defaultdict(int)
     roles = fetch_self_service_roles(gql.get_api())
