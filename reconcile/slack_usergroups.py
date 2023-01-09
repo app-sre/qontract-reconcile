@@ -7,20 +7,23 @@ from datetime import datetime
 from typing import (
     Any,
     Optional,
+    Sequence,
     Union,
 )
 from urllib.parse import urlparse
 
 from github.GithubException import UnknownObjectException
 from pydantic import BaseModel
+from pydantic.utils import deep_update
 from sretoolbox.utils import retry
 
-from reconcile import queries
-from reconcile.gql_definitions.common.pagerduty_instances import (
-    query as pagerduty_instances_query,
+from reconcile import (
+    openshift_users,
+    queries,
 )
 from reconcile.gql_definitions.common.users import User
-from reconcile.gql_definitions.common.users import query as users_query
+from reconcile.gql_definitions.slack_usergroups.clusters import ClusterV1
+from reconcile.gql_definitions.slack_usergroups.clusters import query as clusters_query
 from reconcile.gql_definitions.slack_usergroups.permissions import (
     PagerDutyTargetV1,
     PermissionSlackUsergroupV1,
@@ -29,9 +32,17 @@ from reconcile.gql_definitions.slack_usergroups.permissions import (
 from reconcile.gql_definitions.slack_usergroups.permissions import (
     query as permissions_query,
 )
+from reconcile.gql_definitions.slack_usergroups.users import UserV1
+from reconcile.gql_definitions.slack_usergroups.users import query as users_query
+from reconcile.openshift_base import user_has_cluster_access
 from reconcile.slack_base import get_slackapi
+from reconcile.typed_queries.pagerduty_instances import get_pagerduty_instances
 from reconcile.utils import gql
-from reconcile.utils.exceptions import AppInterfaceSettingsError
+from reconcile.utils.disabled_integrations import integration_is_enabled
+from reconcile.utils.exceptions import (
+    AppInterfaceSettingsError,
+    UnknownError,
+)
 from reconcile.utils.github_api import GithubApi
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.pagerduty_api import (
@@ -106,6 +117,11 @@ class WorkspaceSpec(BaseModel):
 SlackMap = dict[str, WorkspaceSpec]
 
 
+def compute_cluster_user_group(name: str) -> str:
+    """Compute the cluster user group name."""
+    return f"{name}-cluster"
+
+
 def get_slack_map(
     secret_reader: SecretReader,
     permissions: Iterable[PermissionSlackUsergroupV1],
@@ -119,11 +135,24 @@ def get_slack_map(
         if sp.workspace.name in slack_map:
             continue
 
+        token = None
+        channel = None
+        for int in sp.workspace.integrations or []:
+            if int.name != QONTRACT_INTEGRATION:
+                continue
+            token = int.token
+            channel = int.channel
+        if not token or not channel:
+            raise AppInterfaceSettingsError(
+                f"Missing integration {QONTRACT_INTEGRATION} settings for "
+                f"workspace {sp.workspace.name}"
+            )
         slack_map[sp.workspace.name] = WorkspaceSpec(
             slack=get_slackapi(
                 workspace_name=sp.workspace.name,
-                token=secret_reader.read_secret(sp.workspace.token),
+                token=secret_reader.read_secret(token),
                 client_config=sp.workspace.api_client,
+                channel=channel,
             ),
             managed_usergroups=sp.workspace.managed_usergroups,
         )
@@ -134,6 +163,7 @@ def get_current_state(
     slack_map: SlackMap,
     desired_workspace_name: Optional[str],
     desired_usergroup_name: Optional[str],
+    cluster_usergroups: list[str],
 ) -> SlackState:
     """
     Get the current state of Slack usergroups.
@@ -151,7 +181,7 @@ def get_current_state(
         if desired_workspace_name and desired_workspace_name != workspace:
             continue
 
-        for ug in spec.managed_usergroups:
+        for ug in spec.managed_usergroups + cluster_usergroups:
             if desired_usergroup_name and desired_usergroup_name != ug:
                 continue
             try:
@@ -307,6 +337,36 @@ def get_slack_usernames_from_schedule(schedule: Iterable[ScheduleEntryV1]) -> li
     return all_slack_usernames
 
 
+def include_user_to_cluster_usergroup(
+    user: UserV1, cluster: ClusterV1, cluster_users: Sequence[str]
+) -> bool:
+    """Check user has cluster access and should be notified (tag_on_cluster_updates)."""
+
+    if not user_has_cluster_access(user, cluster, cluster_users):
+        return False
+
+    if user.tag_on_cluster_updates is not None:
+        # if tag_on_cluster_updates is defined
+        return user.tag_on_cluster_updates
+
+    # if a user has access via a role
+    # check if that role grants access to the current cluster
+    # if all roles that grant access to the current cluster also
+    # have 'tag_on_cluster_updates: false' - remove the user
+    for role in user.roles or []:
+        for access in role.access or []:
+            if (access.cluster and cluster.name == access.cluster.name) or (
+                access.namespace and cluster.name == access.namespace.cluster.name
+            ):
+                if (
+                    role.tag_on_cluster_updates is None
+                    or role.tag_on_cluster_updates is True
+                ):
+                    # found at least one 'tag_on_cluster_updates != false'
+                    return True
+    return False
+
+
 def get_desired_state(
     slack_map: SlackMap,
     pagerduty_map: PagerDutyMap,
@@ -381,6 +441,77 @@ def get_desired_state(
                 channels=slack_channels,
                 description=p.description,
             )
+    return desired_state
+
+
+def get_desired_state_cluster_usergroups(
+    slack_map: SlackMap,
+    clusters: Iterable[ClusterV1],
+    users: Iterable[UserV1],
+    desired_workspace_name: Optional[str],
+    desired_usergroup_name: Optional[str],
+) -> SlackState:
+    """Get the desired state of Slack usergroups."""
+    desired_state: SlackState = {}
+    openshift_users_desired_state: list[
+        dict[str, str]
+    ] = openshift_users.fetch_desired_state(oc_map=None)
+    for cluster in clusters:
+        if not integration_is_enabled(QONTRACT_INTEGRATION, cluster):
+            logging.warning(
+                f"For cluster {cluster.name} the integration {QONTRACT_INTEGRATION} is not enabled. Skipping."
+            )
+            continue
+
+        desired_cluster_users = [
+            u["user"]
+            for u in openshift_users_desired_state
+            if u["cluster"] == cluster.name
+        ]
+        cluster_usernames = list(
+            {
+                get_slack_username(u)
+                for u in users
+                if include_user_to_cluster_usergroup(u, cluster, desired_cluster_users)
+            }
+        )
+        cluster_user_group = compute_cluster_user_group(cluster.name)
+        for workspace, spec in slack_map.items():
+            if not spec.slack.channel:
+                # spec.slack.channel is None when the integration not properly configured in slack-workspace
+                # but then we should not be here
+                # so at this point we make just mypy happy
+                raise UnknownError("This should never happen.")
+            if desired_usergroup_name and desired_usergroup_name != spec.slack.channel:
+                continue
+            if desired_workspace_name and desired_workspace_name != workspace:
+                continue
+
+            ugid = spec.slack.get_usergroup_id(cluster_user_group)
+            slack_users = {
+                SlackObject(pk=pk, name=name)
+                for pk, name in spec.slack.get_users_by_names(
+                    sorted(cluster_usernames)
+                ).items()
+            }
+            slack_channels = {
+                SlackObject(pk=pk, name=name)
+                for pk, name in spec.slack.get_channels_by_names(
+                    [spec.slack.channel]
+                ).items()
+            }
+
+            try:
+                desired_state[workspace][cluster_user_group].users.update(slack_users)
+            except KeyError:
+                desired_state.setdefault(workspace, {})[cluster_user_group] = State(
+                    workspace=workspace,
+                    usergroup=cluster_user_group,
+                    usergroup_id=ugid,
+                    users=slack_users,
+                    channels=slack_channels,
+                    description=f"Users with access to the {cluster.name} cluster",
+                )
     return desired_state
 
 
@@ -561,13 +692,23 @@ def act(
             )
 
 
-def query_permissions(query_func: Callable) -> list[PermissionSlackUsergroupV1]:
+def get_permissions(query_func: Callable) -> list[PermissionSlackUsergroupV1]:
     """Return list of slack usergroup permissions from app-interface."""
     return [
         p
         for p in permissions_query(query_func=query_func).permissions
         if isinstance(p, PermissionSlackUsergroupV1)
     ]
+
+
+def get_users(query_func: Callable) -> list[UserV1]:
+    """Return all users from app-interface."""
+    return users_query(query_func=query_func).users or []
+
+
+def get_clusters(query_func: Callable) -> list[ClusterV1]:
+    """Return all clusters from app-interface."""
+    return clusters_query(query_func=query_func).clusters or []
 
 
 def run(
@@ -580,13 +721,10 @@ def run(
     init_users = False if usergroup_name else True
 
     # queries
-    permissions = query_permissions(gqlapi.query)
-    pagerduty_instances = pagerduty_instances_query(
-        query_func=gqlapi.query
-    ).pagerduty_instances
-    if not pagerduty_instances:
-        raise AppInterfaceSettingsError("no pagerduty instance(s) configured")
-    users = users_query(query_func=gqlapi.query).users or []
+    permissions = get_permissions(query_func=gqlapi.query)
+    pagerduty_instances = get_pagerduty_instances(query_func=gqlapi.query)
+    users = get_users(query_func=gqlapi.query)
+    clusters = get_clusters(query_func=gqlapi.query)
 
     # APIs
     slack_map = get_slack_map(
@@ -607,10 +745,24 @@ def run(
         desired_workspace_name=workspace_name,
         desired_usergroup_name=usergroup_name,
     )
+    desired_state_cluster_usergroups = get_desired_state_cluster_usergroups(
+        slack_map=slack_map,
+        clusters=clusters,
+        users=users,
+        desired_workspace_name=workspace_name,
+        desired_usergroup_name=usergroup_name,
+    )
+    # merge the two desired states recursively
+    desired_state = deep_update(desired_state, desired_state_cluster_usergroups)
     current_state = get_current_state(
         slack_map=slack_map,
         desired_workspace_name=workspace_name,
         desired_usergroup_name=usergroup_name,
+        cluster_usergroups=[
+            compute_cluster_user_group(cluster.name)
+            for cluster in clusters
+            if integration_is_enabled(QONTRACT_INTEGRATION, cluster)
+        ],
     )
     act(
         current_state=current_state,
@@ -621,6 +773,12 @@ def run(
 
 
 def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
+    gqlapi = gql.get_api()
     return {
-        "permissions": queries.get_permissions_for_slack_usergroup(),
+        "permissions": [p.dict() for p in get_permissions(gqlapi.query)],
+        "pagerduty_instances": [
+            p.dict() for p in get_pagerduty_instances(gqlapi.query)
+        ],
+        "users": [u.dict() for u in get_users(gqlapi.query)],
+        "clusters": [c.dict() for c in get_clusters(gqlapi.query)],
     }

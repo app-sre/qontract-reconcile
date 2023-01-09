@@ -18,7 +18,14 @@ from reconcile.dashdotdb_base import (
     DashdotdbBase,
 )
 from reconcile.gql_definitions.common.clusters_minimal import ClusterV1
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
 from reconcile.typed_queries.clusters_minimal import get_clusters_minimal
+from reconcile.utils.secret_reader import (
+    SecretReaderBase,
+    create_secret_reader,
+)
 
 QONTRACT_INTEGRATION = "dashdotdb-dvo"
 
@@ -43,8 +50,16 @@ class PrometheusInfo:
 
 
 class DashdotdbDVO(DashdotdbBase):
-    def __init__(self, dry_run: bool, thread_pool_size: int):
-        super().__init__(dry_run, thread_pool_size, "DDDB_DVO:", "deploymentvalidation")
+    def __init__(
+        self, dry_run: bool, thread_pool_size: int, secret_reader: SecretReaderBase
+    ) -> None:
+        super().__init__(
+            dry_run=dry_run,
+            thread_pool_size=thread_pool_size,
+            marker="DDDB_DVO:",
+            scope="deploymentvalidation",
+            secret_reader=secret_reader,
+        )
         self.chunksize = self.secret_content.get("chunksize") or "20"
 
     @staticmethod
@@ -245,5 +260,11 @@ def run(
     thread_pool_size: int = 10,
     cluster_name: Optional[str] = None,
 ) -> None:
-    dashdotdb_dvo = DashdotdbDVO(dry_run, thread_pool_size)
+    vault_settings = get_app_interface_vault_settings()
+    if not vault_settings:
+        raise Exception("Missing app-interface vault_settings")
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
+    dashdotdb_dvo = DashdotdbDVO(
+        dry_run=dry_run, thread_pool_size=thread_pool_size, secret_reader=secret_reader
+    )
     dashdotdb_dvo.run(cluster_name)

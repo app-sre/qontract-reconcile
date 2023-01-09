@@ -103,6 +103,7 @@ def get_slackapi(
     token: str,
     client_config: Optional[HasClientConfig] = None,
     init_usergroups: bool = True,
+    channel: Optional[str] = None,
 ) -> SlackApi:
     """Initiate a SlackApi instance."""
     if client_config:
@@ -112,7 +113,8 @@ def get_slackapi(
 
     api = SlackApi(
         workspace_name,
-        token,
+        token=token,
+        channel=channel,
         init_usergroups=init_usergroups,
         api_config=api_config,
     )

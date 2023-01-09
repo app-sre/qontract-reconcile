@@ -4184,7 +4184,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 f" resource {values['identifier']}"
             )
 
-        if availability_zone_count != len(subnet_ids):
+        if zone_awareness_enabled and availability_zone_count != len(subnet_ids):
             raise ElasticSearchResourceZoneAwareSubnetInvalidError(
                 f"[{account}] Subnet ids count does not match "
                 + f" availability_zone_count for"

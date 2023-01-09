@@ -34,9 +34,6 @@ query SlackUsergroupPermission {
       }
       workspace {
         name
-        token {
-          ...VaultSecret
-        }
         api_client {
           global {
             max_retries
@@ -46,6 +43,13 @@ query SlackUsergroupPermission {
             name
             args
           }
+        }
+        integrations {
+          name
+          token {
+            ...VaultSecret
+          }
+          channel
         }
         managedUsergroups
       }

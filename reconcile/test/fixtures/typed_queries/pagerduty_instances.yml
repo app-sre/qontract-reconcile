@@ -1,0 +1,14 @@
+---
+pagerduty_instances:
+  - name: instance-1
+    token:
+      path: vault-path
+      field: token
+      version: null
+      format: null
+  - name: instance-2
+    token:
+      path: vault-path2
+      field: token2
+      version: 2
+      format: format
