@@ -1,7 +1,11 @@
 import os
 import sys
 from dataclasses import dataclass
-from typing import Any, Optional, Tuple
+from typing import (
+    Any,
+    Optional,
+    Tuple,
+)
 
 import jsonpath_ng
 import pygments

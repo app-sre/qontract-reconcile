@@ -13,9 +13,7 @@ from reconcile.change_owners.decision import (
     get_approver_decisions_from_mr_comments,
 )
 from reconcile.gql_definitions.change_owners.queries.change_types import ChangeTypeV1
-from reconcile.test.change_owners.fixtures import (
-    change_type_to_processor,
-)
+from reconcile.test.change_owners.fixtures import change_type_to_processor
 
 pytest_plugins = [
     "reconcile.test.change_owners.fixtures",

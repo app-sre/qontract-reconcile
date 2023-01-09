@@ -12,7 +12,6 @@ from typing import Optional
 import click
 import requests
 import yaml
-from reconcile.change_owners.bundle import NoOpFileDiffResolver
 
 import reconcile.gitlab_housekeeping as glhk
 import reconcile.ocm_upgrade_scheduler as ous
@@ -22,6 +21,7 @@ import reconcile.terraform_resources as tfr
 import reconcile.terraform_users as tfu
 import reconcile.terraform_vpc_peerings as tfvpc
 from reconcile import queries
+from reconcile.change_owners.bundle import NoOpFileDiffResolver
 from reconcile.change_owners.change_owners import (
     fetch_change_type_processors,
     fetch_self_service_roles,
