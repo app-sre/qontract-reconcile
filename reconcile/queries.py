@@ -1145,6 +1145,21 @@ OCM_QUERY = """
       format
       version
     }
+    addonUpgradeTests {
+      addon {
+        name
+      }
+      instance {
+        name
+        token {
+          path
+          field
+          version
+          format
+        }
+      }
+      name
+    }
     inheritVersionData {
       name
       publishVersionData {
@@ -1260,6 +1275,7 @@ NAMESPACES_QUERY = """
     name
     delete
     labels
+    clusterAdmin
     managedRoles
     app {
       name
@@ -1312,6 +1328,12 @@ NAMESPACES_QUERY = """
         %s
       }
       automationToken {
+        path
+        field
+        version
+        format
+      }
+      clusterAdminAutomationToken {
         path
         field
         version

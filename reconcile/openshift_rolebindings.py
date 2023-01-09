@@ -26,6 +26,7 @@ ROLES_QUERY = """
     access {
       namespace {
         name
+        clusterAdmin
         managedRoles
         delete
         cluster {
@@ -92,7 +93,7 @@ def fetch_desired_state(ri, oc_map):
         permissions = [
             {
                 "cluster": a["namespace"]["cluster"],
-                "namespace": a["namespace"]["name"],
+                "namespace": a["namespace"],
                 "role": a["role"],
             }
             for a in role["access"] or []
@@ -112,8 +113,10 @@ def fetch_desired_state(ri, oc_map):
         for permission in permissions:
             cluster_info = permission["cluster"]
             cluster = cluster_info["name"]
-            namespace = permission["namespace"]
-            if not is_in_shard(f"{cluster}/{namespace}"):
+            namespace_info = permission["namespace"]
+            perm_namespace_name = namespace_info["name"]
+            privileged = namespace_info.get("clusterAdmin") or False
+            if not is_in_shard(f"{cluster}/{perm_namespace_name}"):
                 continue
             if oc_map and not oc_map.get(cluster):
                 continue
@@ -134,10 +137,11 @@ def fetch_desired_state(ri, oc_map):
                     try:
                         ri.add_desired(
                             cluster,
-                            permission["namespace"],
+                            perm_namespace_name,
                             "RoleBinding.authorization.openshift.io",
                             resource_name,
                             oc_resource,
+                            privileged=privileged,
                         )
                     except ResourceKeyExistsError:
                         # a user may have a Role assigned to them
@@ -146,17 +150,18 @@ def fetch_desired_state(ri, oc_map):
             for sa in service_accounts:
                 if ri is None:
                     continue
-                namespace, sa_name = sa.split("/")
+                sa_namespace_name, sa_name = sa.split("/")
                 oc_resource, resource_name = construct_sa_oc_resource(
-                    permission["role"], namespace, sa_name
+                    permission["role"], sa_namespace_name, sa_name
                 )
                 try:
                     ri.add_desired(
                         cluster,
-                        permission["namespace"],
+                        perm_namespace_name,
                         "RoleBinding.authorization.openshift.io",
                         resource_name,
                         oc_resource,
+                        privileged=privileged,
                     )
                 except ResourceKeyExistsError:
                     # a ServiceAccount may have a Role assigned to it
