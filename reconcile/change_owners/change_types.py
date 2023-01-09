@@ -195,103 +195,6 @@ class BundleFileChange:
     def __post_init__(self) -> None:
         self._diff_coverage = {d.path_str(): DiffCoverage(d, []) for d in self.diffs}
 
-    def extract_context_file_refs(
-        self, change_type: "ChangeTypeProcessor"
-    ) -> list[FileRef]:
-        """
-        ChangeTypeV1 are attached to bundle files, react to changes within
-        them and use their context to derive who can approve those changes.
-        Extracting this context can be done in two ways depending on the configuration
-        of the ChangeTypeV1.
-
-        direct context extraction
-          If a ChangeTypeV1 defines a `context_schema`, it can be attached to files
-          of that schema. If such a file changes, the ChangeTypeV1 feels responsible
-          for it in subsequent diff coverage calculations and will use the approvers
-          that exist in the context of that changed file. This is the default
-          mode almost all ChangeTypeV1 operate in.
-
-          Example: a ChangeTypeV1 defines `/openshift/namespace-1.yml` as the
-          context_schema and can cover certain changes in it. If this ChangeTypeV1
-          is attached to certain namespace files (potential BundleChanges) and
-          a Role (context), changes in those namespace files can be approved by
-          members of the role.
-
-        context detection
-          If a ChangeTypeV1 additionally defines change_schemas and context selectors,
-          it has the capability to differentiate between reacting to changes
-          (and trying to cover them) and finding the context where approvers are
-          defined.
-
-          Example: Consider the following ChangeTypeV1 granting permissions to
-          approve on new members wanting to join a role.
-          ```
-            $schema: /app-interface/change-type-1.yml
-
-            contextType: datafile
-            contextSchema: /access/role-1.yml
-
-            changes:
-            - provider: jsonPath
-              changeSchema: /access/user-1.yml
-              jsonPathSelectors:
-              - roles[*]
-              context:
-                selector: roles[*].'$ref'
-                when: added
-          ```
-
-          Users join a role by adding the role to the user. This means that it
-          is a /access/user-1.yml file that changes in this situation. But permissions
-          to approve changes should be attached to the role not the user. This
-          ChangeTypeV1 takes care of that differentiation by defining /access/role-1.yml
-          as the context schema (making the ChangeTypeV1 assignable to a role)
-          but defining change detection on /access/user-1.yml via the `changeSchema`.
-          The actual role can be found within the userfile by looking for `added`
-          entries under `roles[*].$ref` (this is a jsonpath expression) as defined
-          under `context.selector`.
-        """
-        if not change_type.changes:
-            return []
-
-        # direct context extraction
-        # the changed file itself is giving the context for approver extraction
-        # see doc string for more details
-        if change_type.context_schema == self.fileref.schema:
-            return [self.fileref]
-
-        # context detection
-        # the context for approver extraction can be found within the changed
-        # file with a `context.selector`
-        # see doc string for more details
-        contexts: list[FileRef] = []
-        for c in change_type.changes:
-            if c.change_schema == self.fileref.schema and c.context:
-                context_selector = jsonpath_ng.ext.parse(c.context.selector)
-                old_contexts = {e.value for e in context_selector.find(self.old)}
-                new_contexts = {e.value for e in context_selector.find(self.new)}
-                if c.context.when == "added":
-                    affected_context_paths = new_contexts - old_contexts
-                elif c.context.when == "removed":
-                    affected_context_paths = old_contexts - new_contexts
-                elif c.context.when is None and old_contexts == new_contexts:
-                    affected_context_paths = old_contexts
-                else:
-                    affected_context_paths = None
-
-                if affected_context_paths:
-                    contexts.extend(
-                        [
-                            FileRef(
-                                schema=change_type.context_schema,
-                                path=path,
-                                file_type=BundleFileType.DATAFILE,
-                            )
-                            for path in affected_context_paths
-                        ]
-                    )
-        return contexts
-
     def cover_changes(self, change_type_context: "ChangeTypeContext") -> list[Diff]:
         """
         Figure out if a ChangeTypeV1 covers detected changes within the BundleFile.
@@ -504,6 +407,104 @@ class ChangeTypeProcessor:
     @property
     def changes(self) -> Sequence[ChangeTypeChangeDetectorV1]:
         return self._changes
+
+    def find_context_file_refs(
+        self,
+        file_ref: FileRef,
+        old_data: Optional[dict[str, Any]],
+        new_data: Optional[dict[str, Any]],
+    ) -> list[FileRef]:
+        """
+        ChangeTypeV1 are attached to bundle files, react to changes within
+        them and use their context to derive who can approve those changes.
+        Extracting this context can be done in two ways depending on the configuration
+        of the ChangeTypeV1.
+
+        direct context extraction
+          If a ChangeTypeV1 defines a `context_schema`, it can be attached to files
+          of that schema. If such a file changes, the ChangeTypeV1 feels responsible
+          for it in subsequent diff coverage calculations and will use the approvers
+          that exist in the context of that changed file. This is the default
+          mode almost all ChangeTypeV1 operate in.
+
+          Example: a ChangeTypeV1 defines `/openshift/namespace-1.yml` as the
+          context_schema and can cover certain changes in it. If this ChangeTypeV1
+          is attached to certain namespace files (potential BundleChanges) and
+          a Role (context), changes in those namespace files can be approved by
+          members of the role.
+
+        context detection
+          If a ChangeTypeV1 additionally defines change_schemas and context selectors,
+          it has the capability to differentiate between reacting to changes
+          (and trying to cover them) and finding the context where approvers are
+          defined.
+
+          Example: Consider the following ChangeTypeV1 granting permissions to
+          approve on new members wanting to join a role.
+          ```
+            $schema: /app-interface/change-type-1.yml
+
+            contextType: datafile
+            contextSchema: /access/role-1.yml
+
+            changes:
+            - provider: jsonPath
+              changeSchema: /access/user-1.yml
+              jsonPathSelectors:
+              - roles[*]
+              context:
+                selector: roles[*].'$ref'
+                when: added
+          ```
+
+          Users join a role by adding the role to the user. This means that it
+          is a /access/user-1.yml file that changes in this situation. But permissions
+          to approve changes should be attached to the role not the user. This
+          ChangeTypeV1 takes care of that differentiation by defining /access/role-1.yml
+          as the context schema (making the ChangeTypeV1 assignable to a role)
+          but defining change detection on /access/user-1.yml via the `changeSchema`.
+          The actual role can be found within the userfile by looking for `added`
+          entries under `roles[*].$ref` (this is a jsonpath expression) as defined
+          under `context.selector`.
+        """
+
+        # direct context extraction
+        # the changed file itself is giving the context for approver extraction
+        # see doc string for more details
+        if self.context_schema == file_ref.schema:
+            return [self.fileref]
+
+        # context detection
+        # the context for approver extraction can be found within the changed
+        # file with a `context.selector`
+        # see doc string for more details
+        contexts: list[FileRef] = []
+        for c in self.changes:
+            if c.change_schema == file_ref.schema and c.context:
+                context_selector = jsonpath_ng.ext.parse(c.context.selector)
+                old_contexts = {e.value for e in context_selector.find(old_data)}
+                new_contexts = {e.value for e in context_selector.find(new_data)}
+                if c.context.when == "added":
+                    affected_context_paths = new_contexts - old_contexts
+                elif c.context.when == "removed":
+                    affected_context_paths = old_contexts - new_contexts
+                elif c.context.when is None and old_contexts == new_contexts:
+                    affected_context_paths = old_contexts
+                else:
+                    affected_context_paths = None
+
+                if affected_context_paths:
+                    contexts.extend(
+                        [
+                            FileRef(
+                                schema=self.context_schema,
+                                path=path,
+                                file_type=BundleFileType.DATAFILE,
+                            )
+                            for path in affected_context_paths
+                        ]
+                    )
+        return contexts
 
     def allowed_changed_paths(
         self, file_ref: FileRef, file_content: Any, ctx: "ChangeTypeContext"
