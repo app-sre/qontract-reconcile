@@ -16,11 +16,6 @@ permissions:
     skip: null
     workspace:
       name: coreos
-      token:
-        path: app-sre/creds/slack-app-sre-groups
-        field: bot_token
-        version: null
-        format: null
       api_client:
         global:
           max_retries: 5
@@ -28,6 +23,14 @@ permissions:
         methods:
           - name: userslist
             args: '{"limit": 123}'
+      integrations:
+        - name: slack-usergroups
+          channel: channel
+          token:
+            path: app-sre/creds/slack-app-sre-groups
+            field: bot_token
+            version: null
+            format: null
       managedUsergroups:
         - app-sre-team
         - app-sre-ic
@@ -62,11 +65,6 @@ permissions:
     skip: null
     workspace:
       name: coreos
-      token:
-        path: app-sre/creds/slack-app-sre-groups
-        field: bot_token
-        version: null
-        format: null
       api_client:
         global:
           max_retries: 5
@@ -76,6 +74,14 @@ permissions:
             args: '{"limit": 123}'
           - name: conversationslist
             args: '{"limit": 123}'
+      integrations:
+        - name: slack-usergroups
+          channel: channel
+          token:
+            path: app-sre/creds/slack-app-sre-groups
+            field: bot_token
+            version: null
+            format: null
       managedUsergroups:
         - app-sre-team
         - app-sre-ic

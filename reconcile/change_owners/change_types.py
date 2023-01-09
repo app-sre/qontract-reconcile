@@ -20,6 +20,11 @@ import jsonpath_ng
 import jsonpath_ng.ext
 import networkx
 
+from reconcile.change_owners.approver import Approver
+from reconcile.change_owners.bundle import (
+    BundleFileType,
+    FileRef,
+)
 from reconcile.change_owners.diff import (
     SHA256SUM_FIELD_NAME,
     SHA256SUM_PATH,
@@ -30,13 +35,9 @@ from reconcile.change_owners.diff import (
 from reconcile.gql_definitions.change_owners.queries.change_types import (
     ChangeTypeChangeDetectorJsonPathProviderV1,
     ChangeTypeChangeDetectorV1,
+    ChangeTypeImplicitOwnershipV1,
     ChangeTypeV1,
 )
-
-
-class BundleFileType(Enum):
-    DATAFILE = "datafile"
-    RESOURCEFILE = "resourcefile"
 
 
 class ChangeTypePriority(Enum):
@@ -51,14 +52,13 @@ class ChangeTypePriority(Enum):
     LOW = "low"
 
 
-@dataclass(frozen=True)
-class FileRef:
-    file_type: BundleFileType
-    path: str
-    schema: Optional[str]
-
-    def __str__(self) -> str:
-        return f"{self.file_type.value}:{self.path}"
+def parent_of_jsonpath(path: jsonpath_ng.JSONPath) -> Optional[jsonpath_ng.JSONPath]:
+    # todo - figure out if this is enough of if we have other
+    # structures where a parent can be extracted
+    if isinstance(path, jsonpath_ng.Child):
+        return path.left
+    else:
+        return None
 
 
 @dataclass
@@ -95,6 +95,12 @@ class DiffCoverage:
                 if s.is_covered():
                     # this removes the data that matches the path
                     s.diff.path.filter(lambda x: True, uncovered_data)
+                    # remove empty parents recursively
+                    parent_path = s.diff.path
+                    while parent_path := parent_of_jsonpath(parent_path):
+                        for parent_data in parent_path.find(uncovered_data):
+                            if not parent_data.value:
+                                parent_path.filter(lambda x: True, uncovered_data)
         return uncovered_data == {}
 
     def changed_path_covered_by_path(self, path: jsonpath_ng.JSONPath) -> bool:
@@ -482,6 +488,7 @@ class ChangeTypeProcessor:
     context_type: BundleFileType
     context_schema: Optional[str]
     disabled: bool
+    implicit_ownership: list[ChangeTypeImplicitOwnershipV1]
 
     def __post_init__(self):
         self._expressions_by_file_type_schema: dict[
@@ -546,6 +553,7 @@ def build_change_type_processor(change_type: ChangeTypeV1) -> ChangeTypeProcesso
         context_type=BundleFileType[change_type.context_type.upper()],
         context_schema=change_type.context_schema,
         disabled=bool(change_type.disabled),
+        implicit_ownership=change_type.implicit_ownership or [],
     )
     for change in change_type.changes:
         ctp.add_change(change)
@@ -594,19 +602,6 @@ class ChangeTypeIncompatibleInheritanceError(ValueError):
 
 class ChangeTypeInheritanceCycleError(ValueError):
     pass
-
-
-@dataclass
-class Approver:
-    """
-    Minimalistic wrapper for approver sources to be used in ChangeTypeContexts.
-    Since we might load different approver contexts via GraphQL query classes,
-    a wrapper enables us to deal with different dataclasses representing an
-    approver.
-    """
-
-    org_username: str
-    tag_on_merge_requests: Optional[bool] = False
 
 
 @dataclass

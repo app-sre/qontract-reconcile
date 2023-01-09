@@ -3,6 +3,7 @@ import logging
 from collections.abc import (
     Iterable,
     Mapping,
+    Sequence,
 )
 from dataclasses import (
     dataclass,
@@ -11,7 +12,9 @@ from dataclasses import (
 from typing import (
     Any,
     Optional,
+    Protocol,
     Union,
+    runtime_checkable,
 )
 
 import yaml
@@ -75,6 +78,30 @@ class DesiredStateSpec(BaseStateSpec):
 
 
 StateSpec = Union[CurrentStateSpec, DesiredStateSpec]
+
+
+@runtime_checkable
+class HasService(Protocol):
+    """A service protocol."""
+
+    service: str
+
+
+class HasNameAndAuthService(Protocol):
+    """A cluster name & auth protocol."""
+
+    name: str
+
+    @property
+    def auth(self) -> Sequence[HasService]:
+        pass
+
+
+class HasOrgAndGithubUsername(Protocol):
+    """An org and github username protocol."""
+
+    org_username: str
+    github_username: str
 
 
 def init_specs_to_fetch(
@@ -991,8 +1018,9 @@ def aggregate_shared_resources(namespace_info, shared_resources_type):
 
 
 def determine_user_keys_for_access(
-    cluster_name: str, auth_list: list[dict[str, str]]
+    cluster_name: str, auth_list: Sequence[Union[dict[str, str], HasService]]
 ) -> list[str]:
+    """Return user keys based on enabled cluster authentication methods."""
     AUTH_METHOD_USER_KEY = {
         "github-org": "github_username",
         "github-org-team": "github_username",
@@ -1005,7 +1033,10 @@ def determine_user_keys_for_access(
         return ["github_username"]
 
     for auth in auth_list:
-        service = auth["service"]
+        if isinstance(auth, HasService):
+            service = auth.service
+        else:
+            service = auth["service"]
         try:
             if AUTH_METHOD_USER_KEY[service] in user_keys:
                 continue
@@ -1019,3 +1050,13 @@ def determine_user_keys_for_access(
 
 def is_namespace_deleted(namespace_info: Mapping) -> bool:
     return bool(namespace_info.get("delete"))
+
+
+def user_has_cluster_access(
+    user: HasOrgAndGithubUsername,
+    cluster: HasNameAndAuthService,
+    cluster_users: Sequence[str],
+) -> bool:
+    """Check user has access to cluster."""
+    userkeys = determine_user_keys_for_access(cluster.name, cluster.auth)
+    return any((getattr(user, userkey) in cluster_users for userkey in userkeys))

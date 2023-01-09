@@ -57,9 +57,10 @@ class CreateOCMUpgradeSchedulerOrgUpdates(MergeRequestBase):
                 ]
                 if not found:
                     continue
-                upgrade_policy_clusters = [
+                content["upgradePolicyClusters"] = [
                     c for c in upgrade_policy_clusters if c["name"] != cluster_name
                 ]
+                upgrade_policy_clusters = content["upgradePolicyClusters"]
                 changes = True
             else:
                 raise NotImplementedError(action)

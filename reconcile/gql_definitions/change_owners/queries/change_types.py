@@ -37,6 +37,12 @@ query ChangeTypes($name: String) {
         jsonPathSelectors
       }
     }
+    implicitOwnership {
+      provider
+      ... on ChangeTypeImplicitOwnershipJsonPathProvider_v1 {
+        jsonPathSelector
+      }
+    }
     inherit {
       name
     }
@@ -74,6 +80,22 @@ class ChangeTypeChangeDetectorJsonPathProviderV1(ChangeTypeChangeDetectorV1):
         extra = Extra.forbid
 
 
+class ChangeTypeImplicitOwnershipV1(BaseModel):
+    provider: str = Field(..., alias="provider")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
+class ChangeTypeImplicitOwnershipJsonPathProviderV1(ChangeTypeImplicitOwnershipV1):
+    json_path_selector: str = Field(..., alias="jsonPathSelector")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
 class ChangeTypeV1_ChangeTypeV1(BaseModel):
     name: str = Field(..., alias="name")
 
@@ -92,6 +114,14 @@ class ChangeTypeV1(BaseModel):
     changes: list[
         Union[ChangeTypeChangeDetectorJsonPathProviderV1, ChangeTypeChangeDetectorV1]
     ] = Field(..., alias="changes")
+    implicit_ownership: Optional[
+        list[
+            Union[
+                ChangeTypeImplicitOwnershipJsonPathProviderV1,
+                ChangeTypeImplicitOwnershipV1,
+            ]
+        ]
+    ] = Field(..., alias="implicitOwnership")
     inherit: Optional[list[ChangeTypeV1_ChangeTypeV1]] = Field(..., alias="inherit")
 
     class Config:

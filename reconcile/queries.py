@@ -1126,6 +1126,7 @@ OCM_QUERY = """
     path
     name
     url
+    blockedVersions
     recommendedVersions {
       recommendedVersion
       workload
@@ -1143,6 +1144,21 @@ OCM_QUERY = """
       field
       format
       version
+    }
+    addonUpgradeTests {
+      addon {
+        name
+      }
+      instance {
+        name
+        token {
+          path
+          field
+          version
+          format
+        }
+      }
+      name
     }
     inheritVersionData {
       name
@@ -1259,6 +1275,7 @@ NAMESPACES_QUERY = """
     name
     delete
     labels
+    clusterAdmin
     managedRoles
     app {
       name
@@ -1311,6 +1328,12 @@ NAMESPACES_QUERY = """
         %s
       }
       automationToken {
+        path
+        field
+        version
+        format
+      }
+      clusterAdminAutomationToken {
         path
         field
         version

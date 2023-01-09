@@ -6,7 +6,7 @@ class CommandExecutionResult:
         self.message = message
 
     def __str__(self):
-        return str(self.message).replace("\n", "")
+        return str(self.message)
 
     def __bool__(self):
         return self.is_ok

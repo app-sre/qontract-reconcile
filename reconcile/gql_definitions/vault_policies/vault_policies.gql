@@ -1,0 +1,11 @@
+# qenerate: plugin=pydantic_v1
+
+query VaultPolicies {
+    policy: vault_policies_v1 {
+        name
+        instance {
+            name
+        }
+        rules
+    }
+}

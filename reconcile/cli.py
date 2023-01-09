@@ -867,17 +867,6 @@ def slack_usergroups(ctx, workspace_name, usergroup_name):
     )
 
 
-@integration.command(
-    short_help="Manage Slack User Groups (channels and users) "
-    "for OpenShift users notifications."
-)
-@click.pass_context
-def slack_cluster_usergroups(ctx):
-    import reconcile.slack_cluster_usergroups
-
-    run_integration(reconcile.slack_cluster_usergroups, ctx.obj)
-
-
 @integration.command(short_help="Manage integrations on GitLab projects.")
 @click.pass_context
 def gitlab_integrations(ctx):
@@ -1848,6 +1837,15 @@ def ocm_cluster_admin(ctx):
     run_integration(reconcile.ocm_cluster_admin, ctx.obj)
 
 
+@integration.command(short_help="Trigger jenkins jobs following Addon upgrades.")
+@environ(["APP_INTERFACE_STATE_BUCKET", "APP_INTERFACE_STATE_BUCKET_ACCOUNT"])
+@click.pass_context
+def ocm_addons_upgrade_tests_trigger(ctx):
+    import reconcile.ocm_addons_upgrade_tests_trigger
+
+    run_integration(reconcile.ocm_addons_upgrade_tests_trigger, ctx.obj)
+
+
 @integration.command(short_help="Manage Machine Pools in OCM.")
 @threaded()
 @click.pass_context
@@ -2279,6 +2277,14 @@ def parse_image_tag_from_ref(ctx, param, value) -> Optional[dict[str, str]]:
             result[k] = v
         return result
     return None
+
+
+@integration.command(short_help="Allow vault to replicate secrets to other instances.")
+@click.pass_context
+def vault_replication(ctx):
+    import reconcile.vault_replication
+
+    run_integration(reconcile.vault_replication, ctx.obj)
 
 
 @integration.command(short_help="Manages Qontract Reconcile integrations.")

@@ -3,9 +3,10 @@ import sys
 import traceback
 
 from reconcile import queries
+from reconcile.change_owners.approver import GqlApproverResolver
+from reconcile.change_owners.bundle import BundleFileType
 from reconcile.change_owners.change_types import (
     BundleFileChange,
-    BundleFileType,
     ChangeTypePriority,
     ChangeTypeProcessor,
     create_bundle_file_change,
@@ -17,6 +18,9 @@ from reconcile.change_owners.decision import (
     DecisionCommand,
     apply_decisions_to_changes,
     get_approver_decisions_from_mr_comments,
+)
+from reconcile.change_owners.implicit_ownership import (
+    cover_changes_with_implicit_ownership,
 )
 from reconcile.change_owners.self_service_roles import (
     cover_changes_with_self_service_roles,
@@ -59,11 +63,14 @@ def cover_changes(
         roles=roles,
     )
 
-    # ... add more cover_* functions to cover more changes based on dynamic
-    # or static contexts. some ideas:
-    # - users should be able to change certain things in their user file without
-    #   explicit configuration in app-interface
-    # - ...
+    # implicit ownership coverage
+    cover_changes_with_implicit_ownership(
+        bundle_changes=changes,
+        change_type_processors=[
+            ct for ct in change_type_processors if ct.implicit_ownership
+        ],
+        approver_resolver=GqlApproverResolver([comparision_gql_api, gql.get_api()]),
+    )
 
 
 def validate_self_service_role(role: RoleV1) -> None:

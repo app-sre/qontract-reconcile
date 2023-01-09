@@ -1,6 +1,8 @@
-from reconcile.change_owners.change_types import (
+from reconcile.change_owners.bundle import (
     BundleFileType,
     FileRef,
+)
+from reconcile.change_owners.change_types import (
     build_change_type_processor,
     create_bundle_file_change,
 )

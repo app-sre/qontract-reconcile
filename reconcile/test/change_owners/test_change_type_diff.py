@@ -2,8 +2,8 @@ import jsonpath_ng
 import jsonpath_ng.ext
 import pytest
 
+from reconcile.change_owners.bundle import BundleFileType
 from reconcile.change_owners.change_types import (
-    BundleFileType,
     DiffCoverage,
     create_bundle_file_change,
 )
