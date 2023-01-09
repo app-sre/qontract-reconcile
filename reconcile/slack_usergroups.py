@@ -14,6 +14,7 @@ from urllib.parse import urlparse
 
 from github.GithubException import UnknownObjectException
 from pydantic import BaseModel
+from pydantic.utils import deep_update
 from sretoolbox.utils import retry
 
 from reconcile import (
@@ -751,7 +752,8 @@ def run(
         desired_workspace_name=workspace_name,
         desired_usergroup_name=usergroup_name,
     )
-    desired_state.update(desired_state_cluster_usergroups)
+    # merge the two desired states recursively
+    desired_state = deep_update(desired_state, desired_state_cluster_usergroups)
     current_state = get_current_state(
         slack_map=slack_map,
         desired_workspace_name=workspace_name,
