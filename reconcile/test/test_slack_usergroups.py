@@ -15,15 +15,24 @@ from unittest.mock import (
 )
 
 import pytest
+from pytest_mock import MockerFixture
 
 import reconcile.slack_base as slackbase
 import reconcile.slack_usergroups as integ
-from reconcile.gql_definitions.fragments.user import User
+from reconcile.gql_definitions.slack_usergroups.clusters import ClusterV1
 from reconcile.gql_definitions.slack_usergroups.permissions import (
     PagerDutyInstanceV1,
     PagerDutyTargetV1,
     PermissionSlackUsergroupV1,
     ScheduleEntryV1,
+)
+from reconcile.gql_definitions.slack_usergroups.users import AccessV1
+from reconcile.gql_definitions.slack_usergroups.users import ClusterV1 as AccessCluster
+from reconcile.gql_definitions.slack_usergroups.users import (
+    NamespaceV1,
+    NamespaceV1_ClusterV1,
+    RoleV1,
+    UserV1,
 )
 from reconcile.slack_usergroups import (
     SlackMap,
@@ -32,7 +41,9 @@ from reconcile.slack_usergroups import (
     State,
     WorkspaceSpec,
     act,
-    query_permissions,
+    get_clusters,
+    get_permissions,
+    get_users,
 )
 from reconcile.utils import repo_owners
 from reconcile.utils.github_api import GithubApi
@@ -63,28 +74,36 @@ def base_state():
 
 
 @pytest.fixture
-def user() -> User:
-    return User(
+def user() -> UserV1:
+    return UserV1(
         org_username="org",
         slack_username="slack",
         github_username="github",
         name="name",
         pagerduty_username="pagerduty",
+        tag_on_cluster_updates=None,
+        roles=None,
     )
 
 
 @pytest.fixture
-def permissions() -> list[PermissionSlackUsergroupV1]:
+def fxt() -> Fixtures:
+    return Fixtures("slack_usergroups")
+
+
+@pytest.fixture
+def permissions(fxt: Fixtures) -> list[PermissionSlackUsergroupV1]:
     def q(*args: Any, **kwargs: Any) -> dict[Any, Any]:
         return fxt.get_anymarkup("permissions.yml")
 
-    fxt = Fixtures("slack_usergroups")
-    return query_permissions(q)
+    return get_permissions(q)
 
 
 @pytest.fixture
 def slack_client_mock() -> SlackApi:
-    return create_autospec(SlackApi)
+    api = create_autospec(SlackApi)
+    api.channel = "channel"
+    return api
 
 
 @pytest.fixture
@@ -97,7 +116,7 @@ def slack_map(slack_client_mock: Mock) -> SlackMap:
     }
 
 
-def test_query_permissions(permissions: Sequence[PermissionSlackUsergroupV1]) -> None:
+def test_get_permissions(permissions: Sequence[PermissionSlackUsergroupV1]) -> None:
     assert len(permissions) == 2
     p = permissions[0]
     assert p.channels and len(p.channels) == 2
@@ -107,12 +126,37 @@ def test_query_permissions(permissions: Sequence[PermissionSlackUsergroupV1]) ->
     assert p.roles and p.roles[0].users and p.roles[0].users[0].name == "Rafael"
 
 
+def test_get_users(fxt: Fixtures) -> None:
+    def q(*args: Any, **kwargs: Any) -> dict[Any, Any]:
+        return fxt.get_anymarkup("users.yml")
+
+    users = get_users(q)
+    assert len(users) == 2
+    assert users[0].org_username == "user1-org-username"
+    assert (
+        users[1].roles
+        and users[1].roles[0].access
+        and users[1].roles[0].access[0].namespace
+        and users[1].roles[0].access[0].namespace.cluster.name == "cluster-1"
+    )
+
+
+def test_get_clusters(fxt: Fixtures) -> None:
+    def q(*args: Any, **kwargs: Any) -> dict[Any, Any]:
+        return fxt.get_anymarkup("clusters.yml")
+
+    clusters = get_clusters(q)
+    assert len(clusters) == 2
+    assert clusters[0].name == "cluster-1"
+    assert clusters[0].disable
+
+
 def test_get_slack_usernames_from_schedule_none() -> None:
     result = integ.get_slack_usernames_from_schedule([])
     assert not result
 
 
-def test_get_slack_usernames_from_schedule(user: User) -> None:
+def test_get_slack_usernames_from_schedule(user: UserV1) -> None:
     now = datetime.utcnow()
     schedule = ScheduleEntryV1(
         start=(now - timedelta(hours=1)).strftime(integ.DATE_FORMAT),
@@ -123,29 +167,29 @@ def test_get_slack_usernames_from_schedule(user: User) -> None:
     assert result == [user.slack_username]
 
 
-def test_get_slack_username_org_username(user: User) -> None:
+def test_get_slack_username_org_username(user: UserV1) -> None:
     user.slack_username = None
     result = integ.get_slack_username(user)
     assert result == user.org_username
 
 
-def test_get_slack_username_slack_username(user: User) -> None:
+def test_get_slack_username_slack_username(user: UserV1) -> None:
     result = integ.get_slack_username(user)
     assert result == user.slack_username
 
 
-def test_get_pagerduty_username_org_username(user: User) -> None:
+def test_get_pagerduty_username_org_username(user: UserV1) -> None:
     user.pagerduty_username = None
     result = integ.get_pagerduty_name(user)
     assert result == user.org_username
 
 
-def test_get_pagerduty_username_slack_username(user: User) -> None:
+def test_get_pagerduty_username_slack_username(user: UserV1) -> None:
     result = integ.get_pagerduty_name(user)
     assert result == user.pagerduty_username
 
 
-def test_get_usernames_from_pagerduty(user: User) -> None:
+def test_get_usernames_from_pagerduty(user: UserV1) -> None:
     pagerduties = [
         PagerDutyTargetV1(
             name="app-sre-pagerduty-primary-oncall",
@@ -169,7 +213,7 @@ def test_get_usernames_from_pagerduty(user: User) -> None:
     assert result == [user.slack_username]
 
 
-def test_get_slack_usernames_from_owners(mocker: Mock, user: User) -> None:
+def test_get_slack_usernames_from_owners(mocker: MockerFixture, user: UserV1) -> None:
     mocker.patch(
         "reconcile.slack_usergroups.get_git_api"
     ).return_value = create_autospec(GithubApi)
@@ -187,12 +231,170 @@ def test_get_slack_usernames_from_owners(mocker: Mock, user: User) -> None:
     assert result == [user.slack_username]
 
 
+def test_include_user_to_cluster_usergroup_user_has_cluster_access(
+    mocker: MockerFixture, user: UserV1
+) -> None:
+    mocker.patch(
+        "reconcile.openshift_base.user_has_cluster_access",
+        autospec=True,
+        return_value=False,
+    )
+    cluster = ClusterV1(name="cluster", auth=[], disable={"integrations": []})
+    # user_has_cluster_access -> False
+    assert not integ.include_user_to_cluster_usergroup(user, cluster, ["user1"])
+
+
+def test_include_user_to_cluster_usergroup(mocker: MockerFixture, user: UserV1) -> None:
+    mocker.patch.object(
+        integ,
+        "user_has_cluster_access",
+        autospec=True,
+        return_value=True,
+    )
+    cluster = ClusterV1(name="cluster", auth=[], disable={"integrations": []})
+
+    # user.tag_on_cluster_updates
+    user.tag_on_cluster_updates = False
+    assert not integ.include_user_to_cluster_usergroup(user, cluster, ["user1"])
+    user.tag_on_cluster_updates = True
+    assert integ.include_user_to_cluster_usergroup(user, cluster, ["user1"])
+
+    # no roles
+    user.tag_on_cluster_updates = None
+    user.roles = []
+    assert not integ.include_user_to_cluster_usergroup(user, cluster, ["user1"])
+
+    # role: cluster and tag_on_cluster_updates = True & False
+    user.roles = [
+        RoleV1(
+            tag_on_cluster_updates=True,
+            access=[AccessV1(cluster=AccessCluster(name=cluster.name), namespace=None)],
+        ),
+        RoleV1(
+            tag_on_cluster_updates=False,
+            access=[AccessV1(cluster=AccessCluster(name=cluster.name), namespace=None)],
+        ),
+    ]
+    assert integ.include_user_to_cluster_usergroup(user, cluster, ["user1"])
+    # role: cluster and tag_on_cluster_updates = None & False
+    user.roles = [
+        RoleV1(
+            tag_on_cluster_updates=None,
+            access=[AccessV1(cluster=AccessCluster(name=cluster.name), namespace=None)],
+        ),
+        RoleV1(
+            tag_on_cluster_updates=False,
+            access=[AccessV1(cluster=AccessCluster(name=cluster.name), namespace=None)],
+        ),
+    ]
+    assert integ.include_user_to_cluster_usergroup(user, cluster, ["user1"])
+
+    # role: cluster and tag_on_cluster_updates = False & False
+    user.roles = [
+        RoleV1(
+            tag_on_cluster_updates=False,
+            access=[AccessV1(cluster=AccessCluster(name=cluster.name), namespace=None)],
+        ),
+        RoleV1(
+            tag_on_cluster_updates=False,
+            access=[AccessV1(cluster=AccessCluster(name=cluster.name), namespace=None)],
+        ),
+    ]
+    assert not integ.include_user_to_cluster_usergroup(user, cluster, ["user1"])
+
+    # role: namespace and tag_on_cluster_updates = True & False
+    user.roles = [
+        RoleV1(
+            tag_on_cluster_updates=True,
+            access=[
+                AccessV1(
+                    cluster=None,
+                    namespace=NamespaceV1(
+                        name="namespace",
+                        cluster=NamespaceV1_ClusterV1(name=cluster.name),
+                    ),
+                )
+            ],
+        ),
+        RoleV1(
+            tag_on_cluster_updates=False,
+            access=[
+                AccessV1(
+                    cluster=None,
+                    namespace=NamespaceV1(
+                        name="namespace",
+                        cluster=NamespaceV1_ClusterV1(name=cluster.name),
+                    ),
+                )
+            ],
+        ),
+    ]
+    assert integ.include_user_to_cluster_usergroup(user, cluster, ["user1"])
+    # role: namespace and tag_on_cluster_updates = None & False
+    user.roles = [
+        RoleV1(
+            tag_on_cluster_updates=None,
+            access=[
+                AccessV1(
+                    cluster=None,
+                    namespace=NamespaceV1(
+                        name="namespace",
+                        cluster=NamespaceV1_ClusterV1(name=cluster.name),
+                    ),
+                )
+            ],
+        ),
+        RoleV1(
+            tag_on_cluster_updates=False,
+            access=[
+                AccessV1(
+                    cluster=None,
+                    namespace=NamespaceV1(
+                        name="namespace",
+                        cluster=NamespaceV1_ClusterV1(name=cluster.name),
+                    ),
+                )
+            ],
+        ),
+    ]
+    assert integ.include_user_to_cluster_usergroup(user, cluster, ["user1"])
+
+    # role: namespace and tag_on_cluster_updates = False & False
+    user.roles = [
+        RoleV1(
+            tag_on_cluster_updates=False,
+            access=[
+                AccessV1(
+                    cluster=None,
+                    namespace=NamespaceV1(
+                        name="namespace",
+                        cluster=NamespaceV1_ClusterV1(name=cluster.name),
+                    ),
+                )
+            ],
+        ),
+        RoleV1(
+            tag_on_cluster_updates=False,
+            access=[
+                AccessV1(
+                    cluster=None,
+                    namespace=NamespaceV1(
+                        name="namespace",
+                        cluster=NamespaceV1_ClusterV1(name=cluster.name),
+                    ),
+                )
+            ],
+        ),
+    ]
+    assert not integ.include_user_to_cluster_usergroup(user, cluster, ["user1"])
+
+
 def test_get_desired_state(
-    mocker: Mock,
+    mocker: MockerFixture,
     permissions: Sequence[PermissionSlackUsergroupV1],
     slack_map: SlackMap,
     slack_client_mock: Mock,
-    user: User,
+    user: UserV1,
 ) -> None:
     mocker.patch(
         "reconcile.slack_usergroups.get_usernames_from_pagerduty"
@@ -231,53 +433,98 @@ def test_get_desired_state(
     }
 
 
-def test_get_desired_state_non_existing_usergroup(
-    mocker: Mock,
-    permissions: Sequence[PermissionSlackUsergroupV1],
-    slack_map: SlackMap,
-    slack_client_mock: Mock,
-    user: User,
+def test_get_desired_state_cluster_usergroups(
+    mocker: MockerFixture, slack_map: SlackMap, slack_client_mock: Mock, user: UserV1
 ) -> None:
-    # address https://issues.redhat.com/browse/APPSRE-6744
+    mocker.patch("reconcile.openshift_users.fetch_desired_state", autospec=True)
     mocker.patch(
-        "reconcile.slack_usergroups.get_usernames_from_pagerduty"
-    ).return_value = ["user1"]
-    mocker.patch(
-        "reconcile.slack_usergroups.get_slack_usernames_from_owners"
-    ).return_value = ["repo-user"]
-    mock_pagerduty_map = create_autospec(PagerDutyMap)
-    slack_client_mock.get_usergroup_id.return_value = None
-    result = integ.get_desired_state(
-        slack_map,
-        mock_pagerduty_map,
-        permissions[1:],
-        [user],
-        desired_workspace_name=None,
-        desired_usergroup_name=None,
+        "reconcile.slack_usergroups.include_user_to_cluster_usergroup"
+    ).return_value = True
+    slack_client_mock.get_usergroup_id.return_value = "ugid"
+
+    cluster = ClusterV1(name="cluster1", auth=[], disable={"integrations": []})
+    result = integ.get_desired_state_cluster_usergroups(
+        slack_map, [cluster], [user], None, None
     )
     assert slack_client_mock.get_users_by_names.call_args_list == [
-        call(["repo-user", "slack_username", "user1"]),
+        call(["slack"]),
+        call(["slack"]),
     ]
     assert slack_client_mock.get_channels_by_names.call_args_list == [
-        call(["sd-sre-platform", "sre-operators"])
+        call(["channel"]),
+        call(["channel"]),
     ]
-
     assert result == {
         "coreos": {
-            "saas-osd-operators": State(
+            "cluster1-cluster": State(
                 workspace="coreos",
-                usergroup="saas-osd-operators",
-                description="SREP managed-cluster-config owners (managed via app-interface)",
+                usergroup="cluster1-cluster",
+                description="Users with access to the cluster1 cluster",
+                users=set(),
+                channels=set(),
+                usergroup_id="ugid",
+            )
+        },
+        "slack-workspace": {
+            "cluster1-cluster": State(
+                workspace="slack-workspace",
+                usergroup="cluster1-cluster",
+                description="Users with access to the cluster1 cluster",
+                users=set(),
+                channels=set(),
+                usergroup_id="ugid",
+            )
+        },
+    }
+
+
+def test_get_desired_state_non_existing_usergroup(
+    mocker: MockerFixture, slack_map: SlackMap, slack_client_mock: Mock, user: UserV1
+) -> None:
+    mocker.patch("reconcile.openshift_users.fetch_desired_state", autospec=True)
+    mocker.patch(
+        "reconcile.slack_usergroups.include_user_to_cluster_usergroup"
+    ).return_value = True
+    slack_client_mock.get_usergroup_id.return_value = None
+
+    cluster = ClusterV1(name="cluster1", auth=[], disable={"integrations": []})
+    result = integ.get_desired_state_cluster_usergroups(
+        slack_map, [cluster], [user], None, None
+    )
+    assert slack_client_mock.get_users_by_names.call_args_list == [
+        call(["slack"]),
+        call(["slack"]),
+    ]
+    assert slack_client_mock.get_channels_by_names.call_args_list == [
+        call(["channel"]),
+        call(["channel"]),
+    ]
+    assert result == {
+        "coreos": {
+            "cluster1-cluster": State(
+                workspace="coreos",
+                usergroup="cluster1-cluster",
+                description="Users with access to the cluster1 cluster",
                 users=set(),
                 channels=set(),
                 usergroup_id=None,
             )
-        }
+        },
+        "slack-workspace": {
+            "cluster1-cluster": State(
+                workspace="slack-workspace",
+                usergroup="cluster1-cluster",
+                description="Users with access to the cluster1 cluster",
+                users=set(),
+                channels=set(),
+                usergroup_id=None,
+            )
+        },
     }
 
 
 def test_get_slack_map_return_expected(
-    mocker: Mock, permissions: Iterable[PermissionSlackUsergroupV1]
+    mocker: MockerFixture, permissions: Iterable[PermissionSlackUsergroupV1]
 ) -> None:
     mock_slack_api = mocker.patch.object(slackbase, "SlackApi", autospec=True)
     mock_secretreader = mocker.patch(

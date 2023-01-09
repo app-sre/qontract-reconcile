@@ -109,18 +109,6 @@
                 "username": "OpenShift"
               },
               {
-                "name": "slack-cluster-usergroups",
-                "token": {
-                  "path": "app-sre/creds/slack-app-sre-groups",
-                  "field": "bot_token",
-                  "version": null,
-                  "format": null
-                },
-                "channel": "sd-app-sre",
-                "icon_emoji": "openshift",
-                "username": "OpenShift"
-              },
-              {
                 "name": "qontract-cli",
                 "token": {
                   "path": "app-sre/creds/slack-app-sre-groups",

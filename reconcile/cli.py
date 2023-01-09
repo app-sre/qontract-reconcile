@@ -867,17 +867,6 @@ def slack_usergroups(ctx, workspace_name, usergroup_name):
     )
 
 
-@integration.command(
-    short_help="Manage Slack User Groups (channels and users) "
-    "for OpenShift users notifications."
-)
-@click.pass_context
-def slack_cluster_usergroups(ctx):
-    import reconcile.slack_cluster_usergroups
-
-    run_integration(reconcile.slack_cluster_usergroups, ctx.obj)
-
-
 @integration.command(short_help="Manage integrations on GitLab projects.")
 @click.pass_context
 def gitlab_integrations(ctx):
