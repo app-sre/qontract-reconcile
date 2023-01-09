@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 from collections import defaultdict
 from collections.abc import (
     MutableMapping,
@@ -34,7 +35,6 @@ from reconcile.change_owners.diff import (
 )
 from reconcile.gql_definitions.change_owners.queries.change_types import (
     ChangeTypeChangeDetectorJsonPathProviderV1,
-    ChangeTypeChangeDetectorV1,
     ChangeTypeImplicitOwnershipV1,
     ChangeTypeV1,
 )
@@ -383,6 +383,85 @@ class PathExpression:
 
 
 @dataclass
+class OwnershipContext:
+    selector: jsonpath_ng.JSONPath
+    when: Optional[str]
+
+    def find_ownership_context(
+        self,
+        context_schema: Optional[str],
+        old_data: Optional[dict[str, Any]] = None,
+        new_data: Optional[dict[str, Any]] = None,
+    ) -> list[FileRef]:
+
+        # extract contexts
+        old_contexts = {e.value for e in self.selector.find(old_data)}
+        new_contexts = {e.value for e in self.selector.find(new_data)}
+
+        # apply conditions
+        if self.when == "added":
+            affected_context_paths = new_contexts - old_contexts
+        elif self.when == "removed":
+            affected_context_paths = old_contexts - new_contexts
+        elif self.when is None and old_contexts == new_contexts:
+            affected_context_paths = old_contexts
+        else:
+            affected_context_paths = set()
+
+        return [
+            FileRef(
+                schema=context_schema,
+                path=path,
+                file_type=BundleFileType.DATAFILE,
+            )
+            for path in affected_context_paths
+        ]
+
+
+@dataclass
+class ChangeDetector(ABC):
+    context_schema: Optional[str]
+    change_schema: Optional[str]
+    context: Optional[OwnershipContext]
+
+    @abstractmethod
+    def find_context_file_refs(
+        self,
+        old_data: Optional[dict[str, Any]] = None,
+        new_data: Optional[dict[str, Any]] = None,
+    ) -> list[FileRef]:
+        ...
+
+
+@dataclass
+class JsonPathChangeDetector(ChangeDetector):
+    json_path_selectors: list[str]
+
+    def __post_init__(self):
+        self._json_path_expressions = [
+            PathExpression(jsonpath_expression)
+            for jsonpath_expression in self.json_path_selectors
+            + [f"'{SHA256SUM_FIELD_NAME}'"]
+        ]
+
+    @property
+    def json_path_expressions(self) -> list[PathExpression]:
+        return self._json_path_expressions
+
+    def find_context_file_refs(
+        self,
+        old_data: Optional[dict[str, Any]] = None,
+        new_data: Optional[dict[str, Any]] = None,
+    ) -> list[FileRef]:
+        if self.context:
+            return self.context.find_ownership_context(
+                self.context_schema, old_data, new_data
+            )
+        else:
+            return []
+
+
+@dataclass
 class ChangeTypeProcessor:
     """
     ChangeTypeProcessor wraps the generated GQL class ChangeTypeV1 and adds
@@ -402,11 +481,11 @@ class ChangeTypeProcessor:
         self._expressions_by_file_type_schema: dict[
             tuple[BundleFileType, Optional[str]], list[PathExpression]
         ] = defaultdict(list)
-        self._changes: list[ChangeTypeChangeDetectorV1] = []
+        self._change_detectors: list[ChangeDetector] = []
 
     @property
-    def changes(self) -> Sequence[ChangeTypeChangeDetectorV1]:
-        return self._changes
+    def change_detectors(self) -> Sequence[ChangeDetector]:
+        return self._change_detectors
 
     def find_context_file_refs(
         self,
@@ -472,38 +551,17 @@ class ChangeTypeProcessor:
         # the changed file itself is giving the context for approver extraction
         # see doc string for more details
         if self.context_schema == file_ref.schema:
-            return [self.fileref]
+            return [file_ref]
 
         # context detection
         # the context for approver extraction can be found within the changed
         # file with a `context.selector`
         # see doc string for more details
         contexts: list[FileRef] = []
-        for c in self.changes:
-            if c.change_schema == file_ref.schema and c.context:
-                context_selector = jsonpath_ng.ext.parse(c.context.selector)
-                old_contexts = {e.value for e in context_selector.find(old_data)}
-                new_contexts = {e.value for e in context_selector.find(new_data)}
-                if c.context.when == "added":
-                    affected_context_paths = new_contexts - old_contexts
-                elif c.context.when == "removed":
-                    affected_context_paths = old_contexts - new_contexts
-                elif c.context.when is None and old_contexts == new_contexts:
-                    affected_context_paths = old_contexts
-                else:
-                    affected_context_paths = None
-
-                if affected_context_paths:
-                    contexts.extend(
-                        [
-                            FileRef(
-                                schema=self.context_schema,
-                                path=path,
-                                file_type=BundleFileType.DATAFILE,
-                            )
-                            for path in affected_context_paths
-                        ]
-                    )
+        for c in self.change_detectors:
+            if c.change_schema == file_ref.schema:
+                for ctx_file_ref in c.find_context_file_refs(old_data, new_data):
+                    contexts.append(ctx_file_ref)
         return contexts
 
     def allowed_changed_paths(
@@ -532,19 +590,20 @@ class ChangeTypeProcessor:
                 )
         return paths
 
-    def add_change(self, change: ChangeTypeChangeDetectorV1) -> None:
-        self._changes.append(change)
-        if isinstance(change, ChangeTypeChangeDetectorJsonPathProviderV1):
-            change_schema = change.change_schema or self.context_schema
-            for jsonpath_expression in change.json_path_selectors + [
-                f"'{SHA256SUM_FIELD_NAME}'"
-            ]:
+    def add_change_detector(
+        self,
+        detector: ChangeDetector,
+    ) -> None:
+        if isinstance(detector, JsonPathChangeDetector):
+            self._change_detectors.append(detector)
+            change_schema = detector.change_schema or self.context_schema
+            for path_expression in detector.json_path_expressions:
                 self._expressions_by_file_type_schema[
                     (self.context_type, change_schema)
-                ].append(PathExpression(jsonpath_expression))
+                ].append(path_expression)
         else:
             raise ValueError(
-                f"{change.provider} is not a supported change detection provider within ChangeTypes"
+                f"{type(detector)} is not a supported change detection provider within ChangeTypes"
             )
 
 
@@ -569,23 +628,65 @@ def build_change_type_processor(change_type: ChangeTypeV1) -> ChangeTypeProcesso
 def init_change_type_processors(
     change_types: Sequence[ChangeTypeV1],
 ) -> dict[str, ChangeTypeProcessor]:
-    processors = {}
-    change_type_graph = networkx.DiGraph()
+    processors: dict[str, ChangeTypeProcessor] = {}
+    change_type_inheritance_graph = networkx.DiGraph()
+
     for change_type in change_types:
-        change_type_graph.add_node(change_type.name)
+        # build raw change-type-processor
+        processors[change_type.name] = ChangeTypeProcessor(
+            name=change_type.name,
+            description=change_type.description,
+            priority=ChangeTypePriority(change_type.priority),
+            context_type=BundleFileType[change_type.context_type.upper()],
+            context_schema=change_type.context_schema,
+            disabled=bool(change_type.disabled),
+            implicit_ownership=change_type.implicit_ownership or [],
+        )
+        # register inheritance edges
+        change_type_inheritance_graph.add_node(change_type.name)
         for i in change_type.inherit or []:
-            change_type_graph.add_edge(change_type.name, i.name)
-        processors[change_type.name] = build_change_type_processor(change_type)
+            change_type_inheritance_graph.add_edge(change_type.name, i.name)
+
+    # register change detectors
+    for change_type in change_types:
+        processor = processors[change_type.name]
+        for change_detector in change_type.changes or []:
+            if isinstance(change_detector, ChangeTypeChangeDetectorJsonPathProviderV1):
+                ownership_context = None
+                if change_detector.context:
+                    ownership_context = OwnershipContext(
+                        selector=jsonpath_ng.ext.parse(
+                            change_detector.context.selector
+                        ),
+                        when=change_detector.context.when,
+                    )
+                processor.add_change_detector(
+                    JsonPathChangeDetector(
+                        context_schema=processor.context_schema,
+                        change_schema=change_detector.change_schema
+                        or processor.context_schema,
+                        json_path_selectors=change_detector.json_path_selectors,
+                        context=ownership_context,
+                    )
+                )
+
+    #
+    # V A L I D A T E
+    #
 
     # detect cycles
-    if cycles := list(networkx.simple_cycles(change_type_graph)):
+    if cycles := list(networkx.simple_cycles(change_type_inheritance_graph)):
         raise ChangeTypeInheritanceCycleError(
             "Cycles detected in change-type inheritance", cycles
         )
 
+    #
+    # A G G R E G A T I O N
+    #
+
     # aggregate inherited changes
     for ctp in processors.values():
-        for d in networkx.descendants(change_type_graph, ctp.name):
+        for d in networkx.descendants(change_type_inheritance_graph, ctp.name):
             if ctp.context_type != processors[d].context_type:
                 raise ChangeTypeIncompatibleInheritanceError(
                     f"change-type '{ctp.name}' inherits from '{d}' "
@@ -596,8 +697,8 @@ def init_change_type_processors(
                     f"change-type '{ctp.name}' inherits from '{d}' "
                     "but has a different context_schema"
                 )
-            for change in processors[d].changes:
-                ctp.add_change(change)
+            for change in processors[d].change_detectors:
+                ctp.add_change_detector(change)
 
     return processors
 
@@ -606,7 +707,7 @@ class ChangeTypeIncompatibleInheritanceError(ValueError):
     pass
 
 
-class ChangeTypeInheritanceCycleError(ValueError):
+class ChangeTypeCycleError(ValueError):
     pass
 
 
