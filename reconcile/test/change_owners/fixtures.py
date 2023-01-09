@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from typing import (
     Any,
     Optional,
+    Tuple,
 )
 
 import jsonpath_ng
@@ -11,16 +12,20 @@ import pytest
 
 from reconcile.change_owners.bundle import (
     BundleFileType,
+    FileDiffResolver,
     FileRef,
 )
 from reconcile.change_owners.change_types import (
     BundleFileChange,
     ChangeTypeProcessor,
-    build_change_type_processor,
     create_bundle_file_change,
+    init_change_type_processors,
 )
 from reconcile.gql_definitions.change_owners.queries import self_service_roles
 from reconcile.gql_definitions.change_owners.queries.change_types import (
+    ChangeTypeChangeDetectorChangeTypeProviderV1,
+    ChangeTypeChangeDetectorChangeTypeProviderV1_ChangeTypeChangeDetectorContextSelectorV1,
+    ChangeTypeChangeDetectorChangeTypeProviderV1_ChangeTypeV1,
     ChangeTypeChangeDetectorContextSelectorV1,
     ChangeTypeChangeDetectorJsonPathProviderV1,
     ChangeTypeV1,
@@ -184,13 +189,36 @@ def build_jsonpath_change(
     )
 
 
+def build_change_type_change(
+    schema: str,
+    change_type_names: list[str],
+    context_selector: str,
+    context_when: Optional[str],
+) -> ChangeTypeChangeDetectorChangeTypeProviderV1:
+    return ChangeTypeChangeDetectorChangeTypeProviderV1(
+        provider="changeType",
+        changeSchema=schema,
+        changeTypes=[
+            ChangeTypeChangeDetectorChangeTypeProviderV1_ChangeTypeV1(
+                contextSchema=None,
+                name=name,
+            )
+            for name in change_type_names
+        ],
+        ownership_context=ChangeTypeChangeDetectorChangeTypeProviderV1_ChangeTypeChangeDetectorContextSelectorV1(
+            selector=context_selector,
+            when=context_when,
+        ),
+    )
+
+
 def build_change_type(
     name: str,
     change_selectors: list[str],
     change_schema: Optional[str] = None,
     context_schema: Optional[str] = None,
 ) -> ChangeTypeProcessor:
-    return build_change_type_processor(
+    return change_type_to_processor(
         ChangeTypeV1(
             name=name,
             description=name,
@@ -206,5 +234,47 @@ def build_change_type(
             priority="urgent",
             inherit=[],
             implicitOwnership=[],
-        )
+        ),
     )
+
+
+class MockFileDiffResolver:
+    def __init__(
+        self,
+        fail_on_unknown_path: Optional[bool] = True,
+        file_diffs: Optional[
+            dict[str, Tuple[Optional[dict[str, Any]], Optional[dict[str, Any]]]]
+        ] = None,
+    ):
+        self.file_diffs = file_diffs or {}
+        self.fail_on_unknown_path = fail_on_unknown_path
+
+    def register_raw_diff(
+        self, path: str, old: Optional[dict[str, Any]], new: Optional[dict[str, Any]]
+    ) -> "MockFileDiffResolver":
+        self.file_diffs[path] = (old, new)
+        return self
+
+    def register_bundle_change(
+        self,
+        bundle_change: BundleFileChange,
+    ) -> "MockFileDiffResolver":
+        return self.register_raw_diff(
+            bundle_change.fileref.path, bundle_change.old, bundle_change.new
+        )
+
+    def lookup_file_diff(
+        self, file_ref: FileRef
+    ) -> Tuple[Optional[dict[str, Any]], Optional[dict[str, Any]]]:
+        if file_ref.path not in self.file_diffs and self.fail_on_unknown_path:
+            raise Exception(f"no diff registered for {file_ref.path}")
+        return self.file_diffs.get(file_ref.path, (None, None))
+
+
+def change_type_to_processor(
+    change_type: ChangeTypeV1, file_diff_resolver: Optional[FileDiffResolver] = None
+) -> ChangeTypeProcessor:
+    return init_change_type_processors(
+        [change_type],
+        file_diff_resolver or MockFileDiffResolver(fail_on_unknown_path=False),
+    )[change_type.name]

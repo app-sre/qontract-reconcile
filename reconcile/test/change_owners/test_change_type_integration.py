@@ -1,6 +1,5 @@
 import pytest
 
-from reconcile.change_owners.change_types import build_change_type_processor
 from reconcile.change_owners.self_service_roles import (
     cover_changes_with_self_service_roles,
 )
@@ -11,6 +10,7 @@ from reconcile.gql_definitions.change_owners.queries.self_service_roles import (
 from reconcile.test.change_owners.fixtures import (
     TestFile,
     build_role,
+    change_type_to_processor,
 )
 
 pytest_plugins = [
@@ -58,8 +58,8 @@ def test_change_coverage(
     cover_changes_with_self_service_roles(
         roles=[role_approval_role, secret_promoter_role],
         change_type_processors=[
-            build_change_type_processor(role_member_change_type),
-            build_change_type_processor(secret_promoter_change_type),
+            change_type_to_processor(role_member_change_type),
+            change_type_to_processor(secret_promoter_change_type),
         ],
         bundle_changes=bundle_changes,
     )

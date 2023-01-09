@@ -3,10 +3,10 @@ from unittest.mock import MagicMock
 from reconcile.change_owners.change_types import (
     BundleFileChange,
     ChangeTypePriority,
-    build_change_type_processor,
     get_priority_for_changes,
 )
 from reconcile.gql_definitions.change_owners.queries.change_types import ChangeTypeV1
+from reconcile.test.change_owners.fixtures import change_type_to_processor
 
 pytest_plugins = [
     "reconcile.test.change_owners.fixtures",
@@ -29,7 +29,7 @@ def test_priority_for_changes(
         diffs=[],
     )
     c1.involved_change_types = MagicMock(  # type: ignore
-        return_value=[build_change_type_processor(saas_file_changetype)]
+        return_value=[change_type_to_processor(saas_file_changetype)]
     )
     c2 = BundleFileChange(
         fileref=None,  # type: ignore
@@ -38,7 +38,7 @@ def test_priority_for_changes(
         diffs=[],
     )
     c2.involved_change_types = MagicMock(  # type: ignore
-        return_value=[build_change_type_processor(secret_promoter_change_type)]
+        return_value=[change_type_to_processor(secret_promoter_change_type)]
     )
 
     assert ChangeTypePriority.MEDIUM == get_priority_for_changes([c1, c2])
