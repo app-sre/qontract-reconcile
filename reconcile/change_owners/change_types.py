@@ -1,4 +1,7 @@
-from abc import ABC, abstractmethod
+from abc import (
+    ABC,
+    abstractmethod,
+)
 from collections import defaultdict
 from collections.abc import (
     MutableMapping,
@@ -419,6 +422,14 @@ class OwnershipContext:
 
 
 @dataclass
+class ResolvedContext:
+
+    owned_file_ref: FileRef
+    context_file_ref: FileRef
+    change_type: "ChangeTypeProcessor"
+
+
+@dataclass
 class ChangeDetector(ABC):
     context_schema: Optional[str]
     change_schema: Optional[str]
@@ -492,7 +503,7 @@ class ChangeTypeProcessor:
         file_ref: FileRef,
         old_data: Optional[dict[str, Any]],
         new_data: Optional[dict[str, Any]],
-    ) -> list[FileRef]:
+    ) -> list[ResolvedContext]:
         """
         ChangeTypeV1 are attached to bundle files, react to changes within
         them and use their context to derive who can approve those changes.
@@ -546,22 +557,35 @@ class ChangeTypeProcessor:
           entries under `roles[*].$ref` (this is a jsonpath expression) as defined
           under `context.selector`.
         """
+        contexts: list[ResolvedContext] = []
 
         # direct context extraction
         # the changed file itself is giving the context for approver extraction
         # see doc string for more details
         if self.context_schema == file_ref.schema:
-            return [file_ref]
+            contexts.append(
+                ResolvedContext(
+                    owned_file_ref=file_ref,
+                    context_file_ref=file_ref,
+                    change_type=self,
+                )
+            )
 
         # context detection
         # the context for approver extraction can be found within the changed
         # file with a `context.selector`
         # see doc string for more details
-        contexts: list[FileRef] = []
         for c in self.change_detectors:
             if c.change_schema == file_ref.schema:
                 for ctx_file_ref in c.find_context_file_refs(old_data, new_data):
-                    contexts.append(ctx_file_ref)
+                    contexts.append(
+                        ResolvedContext(
+                            owned_file_ref=ctx_file_ref,
+                            context_file_ref=ctx_file_ref,
+                            change_type=self,
+                        )
+                    )
+
         return contexts
 
     def allowed_changed_paths(
@@ -607,28 +631,11 @@ class ChangeTypeProcessor:
             )
 
 
-def build_change_type_processor(change_type: ChangeTypeV1) -> ChangeTypeProcessor:
-    """
-    Build a ChangeTypeProcessor from a ChangeTypeV1 and pre-initializing jsonpaths.
-    """
-    ctp = ChangeTypeProcessor(
-        name=change_type.name,
-        description=change_type.description,
-        priority=ChangeTypePriority(change_type.priority),
-        context_type=BundleFileType[change_type.context_type.upper()],
-        context_schema=change_type.context_schema,
-        disabled=bool(change_type.disabled),
-        implicit_ownership=change_type.implicit_ownership or [],
-    )
-    for change in change_type.changes:
-        ctp.add_change(change)
-    return ctp
-
-
 def init_change_type_processors(
     change_types: Sequence[ChangeTypeV1],
 ) -> dict[str, ChangeTypeProcessor]:
     processors: dict[str, ChangeTypeProcessor] = {}
+
     change_type_inheritance_graph = networkx.DiGraph()
 
     for change_type in change_types:
@@ -674,11 +681,9 @@ def init_change_type_processors(
     # V A L I D A T E
     #
 
-    # detect cycles
+    # detect inheritance cycles
     if cycles := list(networkx.simple_cycles(change_type_inheritance_graph)):
-        raise ChangeTypeInheritanceCycleError(
-            "Cycles detected in change-type inheritance", cycles
-        )
+        raise ChangeTypeCycleError("Cycles detected in change-type inheritance", cycles)
 
     #
     # A G G R E G A T I O N
@@ -697,8 +702,8 @@ def init_change_type_processors(
                     f"change-type '{ctp.name}' inherits from '{d}' "
                     "but has a different context_schema"
                 )
-            for change in processors[d].change_detectors:
-                ctp.add_change_detector(change)
+            for detector in processors[d].change_detectors:
+                ctp.add_change_detector(detector)
 
     return processors
 
@@ -728,6 +733,7 @@ class ChangeTypeContext:
 
     change_type_processor: ChangeTypeProcessor
     context: str
+    origin: str
     approvers: list[Approver]
     context_file: FileRef
 

@@ -37,12 +37,10 @@ def change_type_contexts_for_implicit_ownership(
     ]
     for ctp in processors_with_implicit_ownership:
         for bc in bundle_changes:
-            for context_file_ref in ctp.find_context_file_refs(
-                bc.fileref, bc.old, bc.new
-            ):
+            for ownership in ctp.find_context_file_refs(bc.fileref, bc.old, bc.new):
                 for io in ctp.implicit_ownership:
                     if isinstance(io, ChangeTypeImplicitOwnershipJsonPathProviderV1):
-                        if context_file_ref != bc.fileref:
+                        if ownership.context_file_ref != bc.fileref:
                             logging.warning(
                                 f"{io.provider} provider based implicit ownership is not supported for ownership context files that are not the changed file."
                             )
@@ -72,9 +70,10 @@ def change_type_contexts_for_implicit_ownership(
                                 bc,
                                 ChangeTypeContext(
                                     change_type_processor=ctp,
-                                    context=f"implicit ownership - { ','.join(a.org_username for a in implicit_approvers ) }",
+                                    context=f"implicit ownership - (via {ownership.change_type.name}))",
+                                    origin=ownership.change_type.name,
                                     approvers=implicit_approvers,
-                                    context_file=context_file_ref,
+                                    context_file=ownership.context_file_ref,
                                 ),
                             )
                         )
