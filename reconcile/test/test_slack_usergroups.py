@@ -487,13 +487,7 @@ def test_get_desired_state_non_existing_usergroup(
     ).return_value = True
     slack_client_mock.get_usergroup_id.return_value = None
 
-    cluster = ClusterV1(
-        name="cluster1",
-        slack=ClusterSlackV1(
-            userGroup="cluster1-cluster", channels=["cluster1-channel"]
-        ),
-        auth=[],
-    )
+    cluster = ClusterV1(name="cluster1", auth=[], disable={"integrations": []})
     result = integ.get_desired_state_cluster_usergroups(
         slack_map, [cluster], [user], None, None
     )
@@ -502,8 +496,8 @@ def test_get_desired_state_non_existing_usergroup(
         call(["slack"]),
     ]
     assert slack_client_mock.get_channels_by_names.call_args_list == [
-        call(["cluster1-channel"]),
-        call(["cluster1-channel"]),
+        call(["channel"]),
+        call(["channel"]),
     ]
     assert result == {
         "coreos": {
