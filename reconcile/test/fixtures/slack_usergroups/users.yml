@@ -1,0 +1,30 @@
+---
+users:
+  - name: "user1-name"
+    org_username: user1-org-username
+    github_username: user1-github-username
+    slack_username: user1-slack-username
+    pagerduty_username: user1-pagerduty-username
+    tag_on_cluster_updates: null
+    roles:
+      - tag_on_cluster_updates: null
+        access:
+          - cluster:
+              name: cluster-1
+            namespace: null
+  - name: "user2-name"
+    org_username: user2-org-username
+    github_username: user2-github-username
+    slack_username: user2-slack-username
+    pagerduty_username: user2-pagerduty-username
+    tag_on_cluster_updates: null
+    roles:
+      - tag_on_cluster_updates: null
+        access:
+          - cluster: null
+            namespace:
+              name: ns-1
+              cluster:
+                name: cluster-1
+
+

@@ -1,3 +1,8 @@
+from typing import (
+    Any,
+    Optional,
+)
+
 import requests
 from sretoolbox.utils import threaded
 
@@ -6,9 +11,16 @@ from reconcile.dashdotdb_base import (
     LOG,
     DashdotdbBase,
 )
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
 from reconcile.utils.oc import (
     OC_Map,
     StatusCodeError,
+)
+from reconcile.utils.secret_reader import (
+    SecretReaderBase,
+    create_secret_reader,
 )
 
 QONTRACT_INTEGRATION = "dashdotdb-cso"
@@ -16,10 +28,19 @@ LOGMARKER = "DDDB_CSO:"
 
 
 class DashdotdbCSO(DashdotdbBase):
-    def __init__(self, dry_run, thread_pool_size):
-        super().__init__(dry_run, thread_pool_size, LOGMARKER, "imagemanifestvuln")
+    def __init__(
+        self, dry_run: bool, thread_pool_size: int, secret_reader: SecretReaderBase
+    ) -> None:
+        super().__init__(
+            dry_run=dry_run,
+            thread_pool_size=thread_pool_size,
+            marker=LOGMARKER,
+            scope="imagemanifestvuln",
+            secret_reader=secret_reader,
+        )
+        self.settings = queries.get_app_interface_settings()
 
-    def _post(self, manifest):
+    def _post(self, manifest: dict[Any, Any]) -> Optional[requests.Response]:
         if manifest is None:
             return None
 
@@ -45,7 +66,9 @@ class DashdotdbCSO(DashdotdbBase):
         return response
 
     @staticmethod
-    def _get_imagemanifestvuln(cluster, oc_map):
+    def _get_imagemanifestvuln(
+        cluster: str, oc_map: OC_Map
+    ) -> Optional[dict[str, Any]]:
         LOG.info("%s processing %s", LOGMARKER, cluster)
         oc = oc_map.get(cluster)
         if not oc:
@@ -63,7 +86,7 @@ class DashdotdbCSO(DashdotdbBase):
 
         return {"cluster": cluster, "data": imagemanifestvuln}
 
-    def run(self):
+    def run(self) -> None:
         clusters = queries.get_clusters()
 
         oc_map = OC_Map(
@@ -88,6 +111,12 @@ class DashdotdbCSO(DashdotdbBase):
         self._close_token()
 
 
-def run(dry_run=False, thread_pool_size=10):
-    dashdotdb_cso = DashdotdbCSO(dry_run, thread_pool_size)
+def run(dry_run: bool = False, thread_pool_size: int = 10) -> None:
+    vault_settings = get_app_interface_vault_settings()
+    if not vault_settings:
+        raise Exception("Missing app-interface vault_settings")
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
+    dashdotdb_cso = DashdotdbCSO(
+        dry_run=dry_run, thread_pool_size=thread_pool_size, secret_reader=secret_reader
+    )
     dashdotdb_cso.run()

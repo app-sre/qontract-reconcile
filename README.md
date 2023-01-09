@@ -157,10 +157,9 @@ Additional tools that use the libraries created by the reconciliations are also 
   signalfx-prometheus-endpoint-monitoring
                                   Manages Prometheus Probe resources for
                                   signalfx exporter
-  slack-cluster-usergroups        Manage Slack User Groups (channels and
-                                  users) for OpenShift users notifications.
   slack-usergroups                Manage Slack User Groups (channels and
-                                  users).
+                                  users) and Slack Cluster User Groups
+                                  for OpenShift users notifications.
   sql-query                       Runs SQL Queries against app-interface RDS
                                   resources.
   status-page-components          Manages components on statuspage.io hosted

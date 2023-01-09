@@ -22,3 +22,7 @@ class SecretIncompleteError(Exception):
 
 class ParameterError(Exception):
     pass
+
+
+class UnknownError(Exception):
+    pass

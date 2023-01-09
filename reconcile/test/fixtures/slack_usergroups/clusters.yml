@@ -1,0 +1,12 @@
+---
+clusters:
+  - name: cluster-1
+    auth:
+      - service: github-org-team
+    disable:
+      integrations: []
+  - name: cluster-2
+    auth:
+      - service: github-org-team
+    disable:
+      integrations: []

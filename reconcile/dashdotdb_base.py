@@ -1,36 +1,59 @@
 import logging
 import os
+from collections.abc import Mapping
+from dataclasses import dataclass
+from typing import (
+    Any,
+    Optional,
+)
 from urllib.parse import urljoin
 
 import requests
 
-from reconcile import queries
 from reconcile.utils.secret_reader import (
     HasSecret,
-    SecretReader,
+    SecretReaderBase,
 )
 
 LOG = logging.getLogger(__name__)
 
-DASHDOTDB_SECRET = os.environ.get(
-    "DASHDOTDB_SECRET", "app-sre/dashdot/auth-proxy-production"
+
+@dataclass
+class DashdotDBSecret:
+    path: str
+    field: str
+    q_format: Optional[str]
+    version: Optional[int]
+
+
+DASHDOTDB_SECRET = DashdotDBSecret(
+    field="",
+    path=os.environ.get("DASHDOTDB_SECRET", "app-sre/dashdot/auth-proxy-production"),
+    q_format=None,
+    version=None,
 )
 
 
 class DashdotdbBase:
-    def __init__(self, dry_run, thread_pool_size, marker, scope):
+    def __init__(
+        self,
+        dry_run: bool,
+        thread_pool_size: int,
+        marker: str,
+        scope: str,
+        secret_reader: SecretReaderBase,
+    ) -> None:
         self.dry_run = dry_run
         self.thread_pool_size = thread_pool_size
-        self.settings = queries.get_app_interface_settings()
-        self.secret_reader = SecretReader(settings=self.settings)
-        self.secret_content = self.secret_reader.read_all({"path": DASHDOTDB_SECRET})
+        self.secret_reader = secret_reader
+        self.secret_content = self.secret_reader.read_all_secret(DASHDOTDB_SECRET)
         self.dashdotdb_url = self.secret_content["url"]
         self.dashdotdb_user = self.secret_content["username"]
         self.dashdotdb_pass = self.secret_content["password"]
         self.logmarker = marker
         self.scope = scope
 
-    def _get_token(self):
+    def _get_token(self) -> None:
         if self.dry_run:
             return None
 
@@ -54,7 +77,7 @@ class DashdotdbBase:
             return None
         self.dashdotdb_token = response.text.replace('"', "").strip()
 
-    def _close_token(self):
+    def _close_token(self) -> None:
         if self.dry_run:
             return None
 
@@ -76,7 +99,12 @@ class DashdotdbBase:
                 details,
             )
 
-    def _do_post(self, endpoint, data, timeout=(5, 120)):
+    def _do_post(
+        self,
+        endpoint: str,
+        data: Mapping[Any, Any],
+        timeout: tuple[int, int] = (5, 120),
+    ) -> requests.Response:
         return requests.post(
             url=endpoint,
             json=data,
@@ -85,7 +113,14 @@ class DashdotdbBase:
             timeout=timeout,
         )
 
-    def _promget(self, url, params, token=None, ssl_verify=True, uri="api/v1/query"):
+    def _promget(
+        self,
+        url: str,
+        params: Optional[Mapping[Any, Any]],
+        token: Optional[str] = None,
+        ssl_verify: bool = True,
+        uri: str = "api/v1/query",
+    ) -> dict[Any, Any]:
         url = urljoin((f"{url}"), uri)
         LOG.debug("%s Fetching prom payload from %s?%s", self.logmarker, url, params)
         headers = {
@@ -98,25 +133,10 @@ class DashdotdbBase:
         )
         response.raise_for_status()
 
-        response = response.json()
+        data = response.json()
         # TODO ensure len response == 1
-        # return response['data']['result']
-        return response
-
-    def _get_automationtoken(self, tokenpath):
-        autotoken_reader = SecretReader(settings=self.settings)
-        token = autotoken_reader.read(tokenpath)
-        return token
+        # return ans['data']['result']
+        return data
 
     def _get_automation_token(self, secret: HasSecret) -> str:
-        secret_reader = SecretReader(settings=self.settings)
-
-        # This will change later when SecretReader fully supports 'HasSecret'
-        return secret_reader.read(
-            {
-                "path": secret.path,
-                "field": secret.field,
-                "format": secret.q_format,
-                "version": secret.version,
-            }
-        )
+        return self.secret_reader.read_secret(secret=secret)
