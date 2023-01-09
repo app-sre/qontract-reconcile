@@ -18,7 +18,14 @@ from reconcile.gql_definitions.dashdotdb_slo.slo_documents_query import (
     SLODocumentV1,
     query,
 )
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
 from reconcile.utils import gql
+from reconcile.utils.secret_reader import (
+    SecretReaderBase,
+    create_secret_reader,
+)
 
 QONTRACT_INTEGRATION = "dashdotdb-slo"
 
@@ -54,8 +61,16 @@ class ServiceSLO:
 
 
 class DashdotdbSLO(DashdotdbBase):
-    def __init__(self, dry_run: bool, thread_pool_size: int):
-        super().__init__(dry_run, thread_pool_size, "DDDB_SLO:", "serviceslometrics")
+    def __init__(
+        self, dry_run: bool, thread_pool_size: int, secret_reader: SecretReaderBase
+    ) -> None:
+        super().__init__(
+            dry_run=dry_run,
+            thread_pool_size=thread_pool_size,
+            marker="DDDB_SLO:",
+            scope="serviceslometrics",
+            secret_reader=secret_reader,
+        )
 
     def _post(self, service_slos: Iterable[ServiceSLO]) -> Optional[Response]:
         for item in service_slos:
@@ -153,5 +168,11 @@ class DashdotdbSLO(DashdotdbBase):
 
 
 def run(dry_run: bool = False, thread_pool_size: int = 10) -> None:
-    dashdotdb_slo = DashdotdbSLO(dry_run, thread_pool_size)
+    vault_settings = get_app_interface_vault_settings()
+    if not vault_settings:
+        raise Exception("Missing app-interface vault_settings")
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
+    dashdotdb_slo = DashdotdbSLO(
+        dry_run=dry_run, thread_pool_size=thread_pool_size, secret_reader=secret_reader
+    )
     dashdotdb_slo.run()
