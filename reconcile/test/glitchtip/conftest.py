@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Optional
 
 import httpretty as httpretty_module
 import pytest
@@ -18,26 +19,29 @@ def glitchtip_token() -> str:
 
 
 @pytest.fixture
-def glitchtip_client_minimal(glitchtip_url, glitchtip_token) -> GlitchtipClient:
+def glitchtip_client_minimal(
+    glitchtip_url: str, glitchtip_token: str
+) -> GlitchtipClient:
     return GlitchtipClient(host=glitchtip_url, token=glitchtip_token)
 
 
 @pytest.fixture
 def glitchtip_client(
-    glitchtip_client_minimal, glitchtip_server_full_api_response
+    glitchtip_client_minimal: GlitchtipClient,
+    glitchtip_server_full_api_response: Optional[None],
 ) -> GlitchtipClient:
     return glitchtip_client_minimal
 
 
 @pytest.fixture
-def fx():
+def fx() -> Fixtures:
     return Fixtures("glitchtip")
 
 
 @pytest.fixture
 def glitchtip_server_full_api_response(
     httpretty: httpretty_module, glitchtip_url: str, fx: Fixtures
-):
+) -> None:
     """Text fixture.
 
     See reconcile/glitchtip/README.md for more details.

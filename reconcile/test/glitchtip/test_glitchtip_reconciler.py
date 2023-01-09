@@ -6,6 +6,7 @@ from urllib.parse import urljoin
 import httpretty as httpretty_module
 import pytest
 from pydantic import BaseModel
+from pytest_mock import MockerFixture
 
 from reconcile.glitchtip.reconciler import GlitchtipReconciler
 from reconcile.test.fixtures import Fixtures
@@ -26,7 +27,9 @@ class GlitchtipUrl(BaseModel):
 
 
 @pytest.fixture
-def configure_httpretty(httpretty: httpretty_module, glitchtip_url: str):
+def configure_httpretty(
+    httpretty: httpretty_module, glitchtip_url: str
+) -> Callable[[list[GlitchtipUrl]], int]:
     httpretty.Response
 
     def f(glitchtip_urls: list[GlitchtipUrl]) -> int:
@@ -49,7 +52,7 @@ def configure_httpretty(httpretty: httpretty_module, glitchtip_url: str):
 @pytest.mark.parametrize("dry_run", [True, False])
 def test_glitchtip_reconciler_init(
     glitchtip_client_minimal: GlitchtipClient, dry_run: bool
-):
+) -> None:
     gtr = GlitchtipReconciler(client=glitchtip_client_minimal, dry_run=dry_run)
     assert gtr.client == glitchtip_client_minimal
     assert gtr.dry_run == dry_run
@@ -64,8 +67,8 @@ def test_glitchtip_reconciler_reconcile_users(
     httpretty: httpretty_module,
     glitchtip_client_minimal: GlitchtipClient,
     fx: Fixtures,
-    configure_httpretty: Callable,
-):
+    configure_httpretty: Callable[[list[GlitchtipUrl]], int],
+) -> None:
     fixture = fx.get_anymarkup(f"reconciler/users/{fixture_name}.yml")
     current_users = [User(**i) for i in fixture["current_users"]]
     desired_users = [User(**i) for i in fixture["desired_users"]]
@@ -99,8 +102,8 @@ def test_glitchtip_reconciler_reconcile_teams(
     httpretty: httpretty_module,
     glitchtip_client_minimal: GlitchtipClient,
     fx: Fixtures,
-    configure_httpretty: Callable,
-):
+    configure_httpretty: Callable[[list[GlitchtipUrl]], int],
+) -> None:
     fixture = fx.get_anymarkup(f"reconciler/teams/{fixture_name}.yml")
     organization_users = [User(**i) for i in fixture["organization_users"]]
     current_teams = [Team(**i) for i in fixture["current_teams"]]
@@ -136,8 +139,8 @@ def test_glitchtip_reconciler_reconcile_projects(
     httpretty: httpretty_module,
     glitchtip_client_minimal: GlitchtipClient,
     fx: Fixtures,
-    configure_httpretty: Callable,
-):
+    configure_httpretty: Callable[[list[GlitchtipUrl]], int],
+) -> None:
     fixture = fx.get_anymarkup(f"reconciler/projects/{fixture_name}.yml")
     organization_teams = [Team(**i) for i in fixture["organization_teams"]]
     current_projects = [Project(**i) for i in fixture["current_projects"]]
@@ -173,9 +176,9 @@ def test_glitchtip_reconciler_reconcile_organization(
     httpretty: httpretty_module,
     glitchtip_client_minimal: GlitchtipClient,
     fx: Fixtures,
-    configure_httpretty: Callable,
-    mocker,
-):
+    configure_httpretty: Callable[[list[GlitchtipUrl]], int],
+    mocker: MockerFixture,
+) -> None:
     fixture = fx.get_anymarkup(f"reconciler/organizations/{fixture_name}.yml")
     current_organizations = [
         Organization(**i) for i in fixture["current_organizations"]
