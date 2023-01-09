@@ -68,14 +68,16 @@ def fetch_current_state(thread_pool_size, internal, use_jump_host):
     return oc_map, current_state
 
 
-def fetch_desired_state(oc_map):
+def fetch_desired_state(oc_map, enforced_user_keys=None):
     desired_state = []
     flat_rolebindings_desired_state = openshift_rolebindings.fetch_desired_state(
-        ri=None, oc_map=oc_map
+        ri=None, oc_map=oc_map, enforced_user_keys=enforced_user_keys
     )
     desired_state.extend(flat_rolebindings_desired_state)
 
-    groups_desired_state = openshift_groups.fetch_desired_state(oc_map)
+    groups_desired_state = openshift_groups.fetch_desired_state(
+        oc_map, enforced_user_keys=enforced_user_keys
+    )
     flat_groups_desired_state = [
         {"cluster": s["cluster"], "user": s["user"]} for s in groups_desired_state
     ]
