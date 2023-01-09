@@ -29,12 +29,22 @@ query ChangeTypes($name: String) {
     changes {
       provider
       changeSchema
-      context {
-        selector
-        when
-      }
       ... on ChangeTypeChangeDetectorJsonPathProvider_v1 {
         jsonPathSelectors
+        context {
+          selector
+          when
+        }
+      }
+      ... on ChangeTypeChangeDetectorChangeTypeProvider_v1 {
+        changeTypes {
+          name
+          contextSchema
+        }
+        ownership_context: context {
+          selector
+          when
+        }
       }
     }
     implicitOwnership {
@@ -51,6 +61,15 @@ query ChangeTypes($name: String) {
 """
 
 
+class ChangeTypeChangeDetectorV1(BaseModel):
+    provider: str = Field(..., alias="provider")
+    change_schema: Optional[str] = Field(..., alias="changeSchema")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
 class ChangeTypeChangeDetectorContextSelectorV1(BaseModel):
     selector: str = Field(..., alias="selector")
     when: Optional[str] = Field(..., alias="when")
@@ -60,9 +79,8 @@ class ChangeTypeChangeDetectorContextSelectorV1(BaseModel):
         extra = Extra.forbid
 
 
-class ChangeTypeChangeDetectorV1(BaseModel):
-    provider: str = Field(..., alias="provider")
-    change_schema: Optional[str] = Field(..., alias="changeSchema")
+class ChangeTypeChangeDetectorJsonPathProviderV1(ChangeTypeChangeDetectorV1):
+    json_path_selectors: list[str] = Field(..., alias="jsonPathSelectors")
     context: Optional[ChangeTypeChangeDetectorContextSelectorV1] = Field(
         ..., alias="context"
     )
@@ -72,8 +90,33 @@ class ChangeTypeChangeDetectorV1(BaseModel):
         extra = Extra.forbid
 
 
-class ChangeTypeChangeDetectorJsonPathProviderV1(ChangeTypeChangeDetectorV1):
-    json_path_selectors: list[str] = Field(..., alias="jsonPathSelectors")
+class ChangeTypeChangeDetectorChangeTypeProviderV1_ChangeTypeV1(BaseModel):
+    name: str = Field(..., alias="name")
+    context_schema: Optional[str] = Field(..., alias="contextSchema")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
+class ChangeTypeChangeDetectorChangeTypeProviderV1_ChangeTypeChangeDetectorContextSelectorV1(
+    BaseModel
+):
+    selector: str = Field(..., alias="selector")
+    when: Optional[str] = Field(..., alias="when")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
+class ChangeTypeChangeDetectorChangeTypeProviderV1(ChangeTypeChangeDetectorV1):
+    change_types: list[
+        ChangeTypeChangeDetectorChangeTypeProviderV1_ChangeTypeV1
+    ] = Field(..., alias="changeTypes")
+    ownership_context: ChangeTypeChangeDetectorChangeTypeProviderV1_ChangeTypeChangeDetectorContextSelectorV1 = Field(
+        ..., alias="ownership_context"
+    )
 
     class Config:
         smart_union = True
@@ -112,7 +155,11 @@ class ChangeTypeV1(BaseModel):
     context_schema: Optional[str] = Field(..., alias="contextSchema")
     disabled: Optional[bool] = Field(..., alias="disabled")
     changes: list[
-        Union[ChangeTypeChangeDetectorJsonPathProviderV1, ChangeTypeChangeDetectorV1]
+        Union[
+            ChangeTypeChangeDetectorJsonPathProviderV1,
+            ChangeTypeChangeDetectorChangeTypeProviderV1,
+            ChangeTypeChangeDetectorV1,
+        ]
     ] = Field(..., alias="changes")
     implicit_ownership: Optional[
         list[
