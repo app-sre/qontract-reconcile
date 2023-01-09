@@ -5345,6 +5345,10 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     "scope_name": "BackplaneService",
                     "scope_description": "Backplane API service account",
                 },
+                {
+                    "scope_name": "InsightsServiceAccount",
+                    "scope_description": "Insights service account",
+                },                
             ],
             **cognito_resource_server_args,
         )
