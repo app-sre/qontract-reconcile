@@ -1733,6 +1733,8 @@ class OCMMap:  # pylint: disable=too-many-public-methods
             name = ocm_info["name"]
             secret_reader = SecretReader(settings=self.settings)
             token = secret_reader.read(access_token_client_secret)
+            inherit_version_data = ocm_info.get("inheritVersionData")
+            publish_version_data = inherit_version_data.get("publishVersionData")
             self.ocm_map[ocm_name] = OCM(
                 name,
                 url,
@@ -1744,8 +1746,8 @@ class OCMMap:  # pylint: disable=too-many-public-methods
                 blocked_versions=ocm_info.get("blockedVersions"),
                 init_version_gates=init_version_gates,
                 sectors=ocm_info.get("sectors"),
-                inheritVersionData=ocm_info.get("inheritVersionData"),
-                publishVersionData=ocm_info.get("publishVersionData"),
+                inheritVersionData=inherit_version_data,
+                publishVersionData=publish_version_data,
             )
 
     def instances(self) -> list[str]:
