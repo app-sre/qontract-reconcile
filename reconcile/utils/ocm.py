@@ -614,7 +614,6 @@ class OCM:  # pylint: disable=too-many-public-methods
         ocm_client: Optional[OCMBaseClient] = None,
         sectors: Optional[list[dict[str, Any]]] = None,
         inheritVersionData: Optional[list[dict[str, Any]]] = None,
-        publishVersionData: Optional[list[dict[str, Any]]] = None,
     ):
         """Initiates access token and gets clusters information."""
         self.name = name
@@ -639,7 +638,6 @@ class OCM:  # pylint: disable=too-many-public-methods
         self._init_blocked_versions(blocked_versions)
 
         self.inheritVersionData = inheritVersionData or []
-        self.publishVersionData = publishVersionData or []
 
         self.init_version_gates = init_version_gates
         self.version_gates: list[Any] = []
@@ -1733,12 +1731,6 @@ class OCMMap:  # pylint: disable=too-many-public-methods
             name = ocm_info["name"]
             secret_reader = SecretReader(settings=self.settings)
             token = secret_reader.read(access_token_client_secret)
-            inherit_version_data = ocm_info.get("inheritVersionData")
-            publish_version_data = (
-                inherit_version_data.get("publishVersionData")
-                if inherit_version_data
-                else None
-            )
             self.ocm_map[ocm_name] = OCM(
                 name,
                 url,
@@ -1750,8 +1742,7 @@ class OCMMap:  # pylint: disable=too-many-public-methods
                 blocked_versions=ocm_info.get("blockedVersions"),
                 init_version_gates=init_version_gates,
                 sectors=ocm_info.get("sectors"),
-                inheritVersionData=inherit_version_data,
-                publishVersionData=publish_version_data,
+                inheritVersionData=ocm_info.get("inheritVersionData"),
             )
 
     def instances(self) -> list[str]:
