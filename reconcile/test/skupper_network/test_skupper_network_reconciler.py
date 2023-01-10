@@ -125,7 +125,7 @@ def test_skupper_network_reconciler_transfer_token(
     fake_token: dict[str, Any],
 ) -> None:
     mocker.patch(
-        "reconcile.skupper_network.reconciler.is_usable_connection_token",
+        "reconcile.skupper_network.site_controller.SiteController.is_usable_connection_token",
         return_value=is_usable_connection_token,
     )
     site = skupper_sites[0]

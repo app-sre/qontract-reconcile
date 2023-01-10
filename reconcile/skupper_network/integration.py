@@ -23,13 +23,7 @@ from reconcile.skupper_network.models import (
 )
 from reconcile.skupper_network.site_controller import CONFIG_NAME
 from reconcile.skupper_network.site_controller import LABELS as SITE_CONTROLLER_LABELS
-from reconcile.skupper_network.site_controller import (
-    site_config,
-    site_controller_deployment,
-    site_controller_role,
-    site_controller_role_binding,
-    site_controller_service_account,
-)
+from reconcile.skupper_network.site_controller import get_site_controller
 from reconcile.utils import gql
 from reconcile.utils.defer import defer
 from reconcile.utils.disabled_integrations import integration_is_enabled
@@ -141,13 +135,8 @@ def fetch_desired_state(
     """Fetch desired state of skupper resources in ResourceInventory"""
     integration_managed_kinds = set()
     for site in skupper_sites:
-        for resource in [
-            site_controller_deployment(site),
-            site_controller_service_account(),
-            site_controller_role(),
-            site_controller_role_binding(),
-            site_config(site),
-        ]:
+        sc = get_site_controller(site)
+        for resource in sc.resources:
             openshift_resource = OR(
                 body=resource,
                 integration=QONTRACT_INTEGRATION,

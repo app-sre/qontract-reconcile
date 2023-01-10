@@ -7,10 +7,7 @@ from sretoolbox.utils import threaded
 import reconcile.openshift_base as ob
 from reconcile.skupper_network.models import SkupperSite
 from reconcile.skupper_network.site_controller import LABELS as SITE_CONTROLLER_LABELS
-from reconcile.skupper_network.site_controller import (
-    is_usable_connection_token,
-    site_token,
-)
+from reconcile.skupper_network.site_controller import get_site_controller
 from reconcile.utils.oc import OC_Map
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.openshift_resource import ResourceInventory
@@ -78,11 +75,12 @@ def _create_token(
     """Create a connection token secret in the site's namespace."""
     oc = oc_map.get_cluster(site.cluster.name)
     logging.info(f"{connected_site}: Creating new connection token for {site}")
+    sc = get_site_controller(connected_site)
     if not dry_run:
         oc.apply(
             connected_site.namespace.name,
             resource=OR(
-                body=site_token(
+                body=sc.site_token(
                     connected_site.unique_token_name(site), site.token_labels
                 ),
                 integration=integration,
@@ -101,7 +99,8 @@ def _transfer_token(
     token: dict[str, Any],
 ) -> None:
     """Move a connection token secret from one site to another."""
-    if not is_usable_connection_token(token):
+    sc = get_site_controller(site)
+    if not sc.is_usable_connection_token(token):
         # token connection request secret not yet processed by site controller. skip it for now and try it again later
         logging.info(
             f"{connected_site}: Site controller has not processed connection token request yet. Skipping"
