@@ -5348,7 +5348,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 {
                     "scope_name": "InsightsServiceAccount",
                     "scope_description": "Insights service account",
-                },                
+                },
             ],
             **cognito_resource_server_args,
         )
@@ -5420,14 +5420,14 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         # INSIGHTS
         insights_service_account_pool_client_resource = aws_cognito_user_pool_client(
-            "ocm_ams_service_account",
+            "ocm_insights_service_account",
             name=f"ocm-{identifier}-insights-service-account",
             user_pool_id=f"${{{cognito_user_pool_resource.id}}}",
             allowed_oauth_scopes=["ocm/InsightsServiceAccount"],
             depends_on=["aws_cognito_resource_server.userpool_service_resource_server"],
             **pool_client_service_account_common_args,
         )
-        tf_resources.append(ams_service_account_pool_client_resource)
+        tf_resources.append(insights_service_account_pool_client_resource)
 
         # USER POOL COMPLETE
 
