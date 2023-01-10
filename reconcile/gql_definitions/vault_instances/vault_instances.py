@@ -99,6 +99,15 @@ query VaultInstances {
           }
         }
         }
+        ...on VaultReplicationPolicy_v1 {
+          policy {
+              name
+              instance {
+                name
+                address
+              }
+          }
+        }
       }
     }
   }
@@ -241,6 +250,36 @@ class VaultReplicationJenkinsV1(VaultReplicationPathsV1):
         extra = Extra.forbid
 
 
+class VaultReplicationPolicyV1_VaultPolicyV1_VaultInstanceV1(BaseModel):
+    name: str = Field(..., alias="name")
+    address: str = Field(..., alias="address")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
+class VaultReplicationPolicyV1_VaultPolicyV1(BaseModel):
+    name: str = Field(..., alias="name")
+    instance: VaultReplicationPolicyV1_VaultPolicyV1_VaultInstanceV1 = Field(
+        ..., alias="instance"
+    )
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
+class VaultReplicationPolicyV1(VaultReplicationPathsV1):
+    policy: Optional[VaultReplicationPolicyV1_VaultPolicyV1] = Field(
+        ..., alias="policy"
+    )
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
 class VaultReplicationConfigV1(BaseModel):
     vault_instance: VaultReplicationConfigV1_VaultInstanceV1 = Field(
         ..., alias="vaultInstance"
@@ -254,7 +293,13 @@ class VaultReplicationConfigV1(BaseModel):
         VaultInstanceV1_VaultReplicationConfigV1_VaultInstanceAuthV1,
     ] = Field(..., alias="destAuth")
     paths: Optional[
-        list[Union[VaultReplicationJenkinsV1, VaultReplicationPathsV1]]
+        list[
+            Union[
+                VaultReplicationJenkinsV1,
+                VaultReplicationPolicyV1,
+                VaultReplicationPathsV1,
+            ]
+        ]
     ] = Field(..., alias="paths")
 
     class Config:
