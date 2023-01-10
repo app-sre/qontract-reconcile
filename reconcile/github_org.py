@@ -233,7 +233,9 @@ def fetch_desired_state(infer_clusters=True):
         return state
 
     clusters = gqlapi.query(CLUSTERS_QUERY)["clusters"]
-    openshift_users_desired_state = openshift_users.fetch_desired_state(oc_map=None)
+    openshift_users_desired_state = openshift_users.fetch_desired_state(
+        oc_map=None, enforced_user_keys=["github_username"]
+    )
     for cluster in clusters:
         for auth in cluster["auth"]:
             if auth["service"] not in ["github-org", "github-org-team"]:

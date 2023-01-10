@@ -1,8 +1,11 @@
+from pytest_mock import MockerFixture
+
 from reconcile.glitchtip.integration import (
     fetch_current_state,
     fetch_desired_state,
 )
 from reconcile.gql_definitions.glitchtip.glitchtip_project import GlitchtipProjectsV1
+from reconcile.test.fixtures import Fixtures
 from reconcile.utils.glitchtip import (
     GlitchtipClient,
     Organization,
@@ -26,8 +29,10 @@ def sort_all(orgs: list[Organization]) -> list[Organization]:
 
 
 def test_fetch_current_state(
-    glitchtip_client: GlitchtipClient, glitchtip_server_full_api_response, fx
-):
+    glitchtip_client: GlitchtipClient,
+    glitchtip_server_full_api_response: None,
+    fx: Fixtures,
+) -> None:
     current_state = fetch_current_state(
         glitchtip_client, ignore_users=["sd-app-sre+glitchtip@nasa.com"]
     )
@@ -38,7 +43,7 @@ def test_fetch_current_state(
     assert sort_all(current_state) == sort_all(expected_current_state)
 
 
-def test_desire_state(mocker, fx):
+def test_desire_state(mocker: MockerFixture, fx: Fixtures) -> None:
     projects = [
         GlitchtipProjectsV1(**i) for i in fx.get_anymarkup("desire_state_projects.yml")
     ]

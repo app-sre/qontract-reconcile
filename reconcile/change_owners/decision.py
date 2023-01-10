@@ -33,6 +33,7 @@ def get_approver_decisions_from_mr_comments(
         commenter = c["username"]
         comment_body = c.get("body")
         for line in comment_body.split("\n") if comment_body else []:
+            line = line.strip()
             if line == DecisionCommand.APPROVED.value:
                 decisions_by_users[commenter].approve = True
             if line == DecisionCommand.CANCEL_APPROVED.value:
