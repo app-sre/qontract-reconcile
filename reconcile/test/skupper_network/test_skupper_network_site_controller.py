@@ -51,7 +51,7 @@ def test_skupper_network_site_controller_site_controller_deployment(
 def test_skupper_network_site_controller_site_controller_service_account(
     site: SkupperSite,
 ) -> None:
-    resource = site_controller.site_controller_service_account(site)
+    resource = site_controller.site_controller_service_account()
     assert resource["metadata"]["name"] == "skupper-site-controller"
     assert resource["metadata"]["labels"] == site_controller.LABELS
 
@@ -59,7 +59,7 @@ def test_skupper_network_site_controller_site_controller_service_account(
 def test_skupper_network_site_controller_site_controller_role(
     site: SkupperSite,
 ) -> None:
-    resource = site_controller.site_controller_role(site)
+    resource = site_controller.site_controller_role()
     assert resource["metadata"]["name"] == "skupper-site-controller"
     assert resource["metadata"]["labels"] == site_controller.LABELS
     # it doesn't matter what the rules are, just that there are some
@@ -69,7 +69,7 @@ def test_skupper_network_site_controller_site_controller_role(
 def test_skupper_network_site_controller_site_controller_role_binding(
     site: SkupperSite,
 ) -> None:
-    resource = site_controller.site_controller_role_binding(site)
+    resource = site_controller.site_controller_role_binding()
     assert resource["metadata"]["name"] == "skupper-site-controller"
     assert resource["metadata"]["labels"] == site_controller.LABELS
     assert resource["roleRef"]["name"] == "skupper-site-controller"

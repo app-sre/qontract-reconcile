@@ -143,9 +143,9 @@ def fetch_desired_state(
     for site in skupper_sites:
         for resource in [
             site_controller_deployment(site),
-            site_controller_service_account(site),
-            site_controller_role(site),
-            site_controller_role_binding(site),
+            site_controller_service_account(),
+            site_controller_role(),
+            site_controller_role_binding(),
             site_config(site),
         ]:
             openshift_resource = OR(

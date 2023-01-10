@@ -82,9 +82,7 @@ def site_controller_deployment(site: SkupperSite) -> dict[str, Any]:
     )
 
 
-def site_controller_service_account(
-    site: SkupperSite,
-) -> dict[str, Any]:
+def site_controller_service_account() -> dict[str, Any]:
     """Skupper site controller service account."""
     return dict(
         apiVersion="v1",
@@ -96,7 +94,7 @@ def site_controller_service_account(
     )
 
 
-def site_controller_role(site: SkupperSite) -> dict[str, Any]:
+def site_controller_role() -> dict[str, Any]:
     """Skupper site controller role."""
     return dict(
         apiVersion="rbac.authorization.k8s.io/v1",
@@ -147,7 +145,7 @@ def site_controller_role(site: SkupperSite) -> dict[str, Any]:
     )
 
 
-def site_controller_role_binding(site: SkupperSite) -> dict[str, Any]:
+def site_controller_role_binding() -> dict[str, Any]:
     """Skupper site controller role binding."""
     return dict(
         apiVersion="rbac.authorization.k8s.io/v1",
