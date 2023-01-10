@@ -1,5 +1,3 @@
-from typing import Optional
-
 from pytest_mock import MockerFixture
 
 from reconcile.glitchtip.integration import (
@@ -32,7 +30,7 @@ def sort_all(orgs: list[Organization]) -> list[Organization]:
 
 def test_fetch_current_state(
     glitchtip_client: GlitchtipClient,
-    glitchtip_server_full_api_response: Optional[None],
+    glitchtip_server_full_api_response: None,
     fx: Fixtures,
 ) -> None:
     current_state = fetch_current_state(

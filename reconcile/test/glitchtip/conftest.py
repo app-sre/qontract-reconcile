@@ -1,5 +1,4 @@
 from pathlib import Path
-from typing import Optional
 
 import httpretty as httpretty_module
 import pytest
@@ -28,7 +27,7 @@ def glitchtip_client_minimal(
 @pytest.fixture
 def glitchtip_client(
     glitchtip_client_minimal: GlitchtipClient,
-    glitchtip_server_full_api_response: Optional[None],
+    glitchtip_server_full_api_response: None,
 ) -> GlitchtipClient:
     return glitchtip_client_minimal
 
