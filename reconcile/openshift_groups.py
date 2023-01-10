@@ -112,7 +112,7 @@ def fetch_current_state(thread_pool_size, internal, use_jump_host):
     return oc_map, current_state, ocm_clusters
 
 
-def fetch_desired_state(oc_map):
+def fetch_desired_state(oc_map, enforced_user_keys=None):
     gqlapi = gql.get_api()
     roles = expiration.filter(gqlapi.query(ROLES_QUERY)["roles"])
     desired_state = []
@@ -125,7 +125,9 @@ def fetch_desired_state(oc_map):
                 continue
 
             user_keys = ob.determine_user_keys_for_access(
-                a["cluster"]["name"], a["cluster"]["auth"]
+                a["cluster"]["name"],
+                a["cluster"]["auth"],
+                enforced_user_keys=enforced_user_keys,
             )
             for u in r["users"]:
                 for username in {u[user_key] for user_key in user_keys}:

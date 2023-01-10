@@ -1018,7 +1018,9 @@ def aggregate_shared_resources(namespace_info, shared_resources_type):
 
 
 def determine_user_keys_for_access(
-    cluster_name: str, auth_list: Sequence[Union[dict[str, str], HasService]]
+    cluster_name: str,
+    auth_list: Sequence[Union[dict[str, str], HasService]],
+    enforced_user_keys: Optional[list[str]] = None,
 ) -> list[str]:
     """Return user keys based on enabled cluster authentication methods."""
     AUTH_METHOD_USER_KEY = {
@@ -1027,6 +1029,10 @@ def determine_user_keys_for_access(
         "oidc": "org_username",
     }
     user_keys: list[str] = []
+
+    if enforced_user_keys:
+        # return enforced user keys if provided
+        return enforced_user_keys
 
     # for backward compatibility. some clusters don't have auth objects
     if not auth_list:
