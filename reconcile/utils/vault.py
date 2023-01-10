@@ -313,25 +313,32 @@ class _VaultClient:
             msg = f"permission denied accessing secret '{path}'"
             raise SecretAccessForbidden(msg)
 
-    def _list(self, path: str) -> dict:
+    def _list_kv2(self, path: str) -> dict:
         try:
-            response = self._client.list(path)
-            if response is not None:
-                return response
-            # If vault path is from a v2 engine hvac.list(path) returns None,
-            # to list secrets from a v2 engine we need to use hvac.secrets.kv.v2.list_secrets
-            secret_path = path.split("/", 1)
+            mount_point, secret_path = path.split("/", 1)
             response = self._client.secrets.kv.v2.list_secrets(
-                mount_point=secret_path[0], path=secret_path[1]
+                mount_point=mount_point, path=secret_path
             )
             return response
         except hvac.exceptions.Forbidden:
             msg = f"permission denied accessing path '{path}'"
             raise PathAccessForbidden(msg)
 
+    def _list(self, path: str) -> dict:
+        try:
+            return self._client.list(path)
+        except hvac.exceptions.Forbidden:
+            msg = f"permission denied accessing path '{path}'"
+            raise PathAccessForbidden(msg)
+
     def list(self, path: str) -> list[str]:
         """Returns a list of secrets in a given path."""
-        path_list = self._list(path)
+        kv_version = self._get_mount_version_by_secret_path(path)
+        if kv_version == 2:
+            path_list = self._list_kv2(path)
+        else:
+            path_list = self._list(path)
+
         return path_list["data"]["keys"]
 
     def list_all(self, path):
