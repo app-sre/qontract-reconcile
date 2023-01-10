@@ -20,6 +20,7 @@ from reconcile.gql_definitions.vault_instances.vault_instances import (
     VaultReplicationConfigV1_VaultInstanceAuthV1,
     VaultReplicationConfigV1_VaultInstanceAuthV1_VaultInstanceAuthApproleV1,
     VaultReplicationJenkinsV1,
+    VaultReplicationPolicyV1,
 )
 from reconcile.gql_definitions.vault_policies import vault_policies
 from reconcile.gql_definitions.vault_policies.vault_policies import (
@@ -45,6 +46,10 @@ class VaultInvalidAuthMethod(Exception):
     pass
 
 
+class VaultInvalidPolicy(Exception):
+    pass
+
+
 def deep_copy_versions(
     dry_run: bool,
     source_vault: _VaultClient,
@@ -60,7 +65,7 @@ def deep_copy_versions(
 
         try:
             secret, src_version = source_vault.read_all_with_version(secret_dict)
-        except SecretNotFound:
+        except (SecretNotFound, SecretVersionNotFound):
             # Handle the case where the difference between the source and destination
             # versions is greater than the number of versions in the source vault.
             # By default the secret engines store up to 10 versions of a secret.
@@ -216,6 +221,20 @@ def get_policy_paths(
     return policy_paths
 
 
+def get_policy_secret_list(
+    vault_instance: _VaultClient, policy_paths: Iterable[str]
+) -> list[str]:
+    """Returns a list of secrets to be copied from the given policy"""
+    secret_list = []
+    for path in policy_paths:
+        # Remove the * at the end of the path because list method expects
+        # a folder path without any secret or wilcard
+        path = path[:-1] if path.endswith("*") else path
+        secret_list.extend(vault_instance.list_all(path))
+
+    return secret_list
+
+
 def get_jenkins_secret_list(
     vault_instance: _VaultClient,
     jenkins_instance: str,
@@ -322,6 +341,19 @@ def replicate_paths(
                 source_vault, path.jenkins_instance.name, jenkins_query_data
             )
             check_invalid_paths(path_list, policy_paths)
+            for vault_path in path_list:
+                copy_vault_secret(dry_run, source_vault, dest_vault, vault_path)
+
+        elif isinstance(path, VaultReplicationPolicyV1):
+            vault_query_data = vault_policies.query(query_func=gql.get_api().query)
+            if path.policy is None:
+                raise VaultInvalidPolicy
+            policy_paths = get_policy_paths(
+                path.policy.name,
+                path.policy.instance.name,
+                vault_query_data,
+            )
+            path_list = get_policy_secret_list(source_vault, policy_paths)
             for vault_path in path_list:
                 copy_vault_secret(dry_run, source_vault, dest_vault, vault_path)
 
