@@ -199,37 +199,33 @@ def run(
     send_mails: bool = True,
     account_name: Optional[str] = None,
 ):
-    all_reencrypt_settings = (
-        query(query_func=gql.get_api().query).pgp_reencryption_settings or []
-    )
-
-    if len(all_reencrypt_settings) > 1:
-        raise ValueError("Expecting only a single reencrypt settings entry")
+    all_reencrypt_settings = query(
+        query_func=gql.get_api().query
+    ).pgp_reencryption_settings
 
     skip_accounts: Optional[list[str]] = None
-    if len(all_reencrypt_settings) == 0:
+    if not all_reencrypt_settings:
         reencrypt_settings = None
+    elif len(all_reencrypt_settings) > 1:
+        raise ValueError("Expecting only a single reencrypt settings entry")
     else:
         reencrypt_settings = all_reencrypt_settings[0]
         if reencrypt_settings.skip_aws_accounts:
             skip_accounts = [s.name for s in reencrypt_settings.skip_aws_accounts]
 
+    appsre_pgp_key: Optional[str] = None
+    if reencrypt_settings is not None:
+        appsre_pgp_key = reencrypt_settings.public_gpg_key
+
     # setup errors should skip resources that will lead
     # to terraform errors. we should still do our best
     # to reconcile all valid resources for all accounts.
-    additional_setup_args = {
-        "skip_reencrypt_accounts": None,
-        "appsre_pgp_key": None,
-    }
-    if reencrypt_settings is not None:
-        additional_setup_args["skip_reencrypt_accounts"] = skip_accounts
-        additional_setup_args["appsre_pgp_key"] = reencrypt_settings.public_gpg_key
-
     accounts, working_dirs, setup_err, aws_api = setup(
         print_to_file,
         thread_pool_size,
         account_name=account_name,
-        **additional_setup_args,
+        skip_reencrypt_accounts=skip_accounts,
+        appsre_pgp_key=appsre_pgp_key,
     )
 
     if print_to_file:
