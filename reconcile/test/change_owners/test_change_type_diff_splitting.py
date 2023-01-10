@@ -1,12 +1,18 @@
+import jsonpath_ng
+
 from reconcile.change_owners.bundle import (
     BundleFileType,
     FileRef,
 )
 from reconcile.change_owners.change_types import (
     ChangeTypeContext,
+    DiffCoverage,
     create_bundle_file_change,
 )
-from reconcile.change_owners.diff import DiffType
+from reconcile.change_owners.diff import (
+    Diff,
+    DiffType,
+)
 from reconcile.test.change_owners.fixtures import build_change_type
 
 
@@ -264,4 +270,98 @@ def test_diff_splitting_empty_parent_coverage():
     diffs = {d.diff.path_str(): d for d in bundle_change.diff_coverage}
     assert len(diffs) == 2
     assert diffs["roles.[0]"].is_directly_covered()
-    assert diffs["roles.[0]"].is_directly_covered()
+    assert diffs["roles.[1]"].is_directly_covered()
+
+
+def test_diff_splitting_two_contexts_on_same_split():
+    """
+    Test that a split can be covered by multiple contexts.
+    """
+
+    bundle_change = create_bundle_file_change(
+        path="path",
+        schema=None,
+        file_type=BundleFileType.DATAFILE,
+        old_file_content=None,
+        new_file_content={"something": "else", "roles": ["role"]},
+    )
+
+    assert bundle_change
+    # only the root diff is present
+    assert len(bundle_change.diff_coverage) == 1
+
+    # this change-type only coveres entries of the `roles` list but not the list itself
+    ctx_1 = ChangeTypeContext(
+        change_type_processor=build_change_type("roles", ["roles[*]"]),
+        context="context-1",
+        context_file=FileRef(
+            path="context_file.yml", file_type=BundleFileType.DATAFILE, schema=None
+        ),
+        approvers=[],
+    )
+    ctx_2 = ChangeTypeContext(
+        change_type_processor=build_change_type("roles", ["roles[*]"]),
+        context="context-2",
+        context_file=FileRef(
+            path="context_file.yml", file_type=BundleFileType.DATAFILE, schema=None
+        ),
+        approvers=[],
+    )
+    bundle_change.cover_changes(ctx_1)
+    bundle_change.cover_changes(ctx_2)
+
+    diffs = {d.diff.path_str(): d for d in bundle_change.diff_coverage}
+    assert "roles.[0]" in diffs
+    assert {c.context for c in diffs["roles.[0]"].coverage} == {
+        ctx_1.context,
+        ctx_2.context,
+    }
+
+
+#
+# D I F F  C O V E R A G E   U T I L I T I E S
+#
+
+
+def test_diff_coverage_path_under_root_changed_path():
+    dc = DiffCoverage(
+        diff=Diff(
+            diff_type=DiffType.ADDED, path=jsonpath_ng.parse("$"), new=None, old=None
+        ),
+        coverage=[],
+    )
+
+    assert dc.path_under_changed_path(jsonpath_ng.parse("some.path"))
+
+
+def test_diff_coverage_path_under_changed_path():
+    dc = DiffCoverage(
+        diff=Diff(
+            diff_type=DiffType.ADDED, path=jsonpath_ng.parse("path"), new=None, old=None
+        ),
+        coverage=[],
+    )
+
+    assert dc.path_under_changed_path(jsonpath_ng.parse("path.subpath"))
+
+
+def test_diff_coverage_path_not_under_changed_path():
+    dc = DiffCoverage(
+        diff=Diff(
+            diff_type=DiffType.ADDED, path=jsonpath_ng.parse("path"), new=None, old=None
+        ),
+        coverage=[],
+    )
+
+    assert not dc.path_under_changed_path(jsonpath_ng.parse("anotherpath"))
+
+
+def test_diff_coverage_path_is_changed_path():
+    dc = DiffCoverage(
+        diff=Diff(
+            diff_type=DiffType.ADDED, path=jsonpath_ng.parse("path"), new=None, old=None
+        ),
+        coverage=[],
+    )
+
+    assert not dc.path_under_changed_path(jsonpath_ng.parse("path"))
