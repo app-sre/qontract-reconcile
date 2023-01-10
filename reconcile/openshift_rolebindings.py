@@ -85,7 +85,7 @@ def construct_sa_oc_resource(role, namespace, sa_name):
     )
 
 
-def fetch_desired_state(ri, oc_map):
+def fetch_desired_state(ri, oc_map, enforced_user_keys=None):
     gqlapi = gql.get_api()
     roles: list[dict] = expiration.filter(gqlapi.query(ROLES_QUERY)["roles"])
     users_desired_state = []
@@ -122,7 +122,9 @@ def fetch_desired_state(ri, oc_map):
                 continue
 
             # get username keys based on used IDPs
-            user_keys = ob.determine_user_keys_for_access(cluster, cluster_info["auth"])
+            user_keys = ob.determine_user_keys_for_access(
+                cluster, cluster_info["auth"], enforced_user_keys=enforced_user_keys
+            )
             # create user rolebindings for user * user_keys
             for user in role["users"]:
                 for username in {user[user_key] for user_key in user_keys}:

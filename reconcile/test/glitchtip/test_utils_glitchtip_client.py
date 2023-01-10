@@ -1,5 +1,9 @@
 import json
-from typing import Optional
+from collections.abc import Mapping
+from typing import (
+    Any,
+    Optional,
+)
 
 import httpretty as httpretty_module
 import pytest
@@ -89,7 +93,7 @@ def test_get_next_url(
 
 def test_glitchtip_client_list(
     httpretty: httpretty_module, glitchtip_client: GlitchtipClient, glitchtip_url: str
-):
+) -> None:
     first_url = f"{glitchtip_url}/data"
     second_url = f"{glitchtip_url}/data2"
 
@@ -113,7 +117,7 @@ def test_glitchtip_client_list(
 
 def test_glitchtip_client_get(
     httpretty: httpretty_module, glitchtip_client: GlitchtipClient, glitchtip_url: str
-):
+) -> None:
     url = f"{glitchtip_url}/data"
     test_obj = {"test": "object"}
     httpretty.register_uri(
@@ -124,15 +128,19 @@ def test_glitchtip_client_get(
 
 def test_glitchtip_client_post(
     httpretty: httpretty_module, glitchtip_client: GlitchtipClient, glitchtip_url: str
-):
+) -> None:
     url = f"{glitchtip_url}/data"
     request_data = {"test": "object"}
     response_data = {"foo": "bar"}
 
-    def request_callback(request, uri, response_headers):
+    def request_callback(
+        request: httpretty_module.core.HTTPrettyRequest,
+        uri: str,
+        response_headers: Mapping[str, Any],
+    ) -> tuple[int, Mapping[str, Any], str]:
         assert request.headers.get("Content-Type") == "application/json"
         assert json.loads(request.body) == request_data
-        return [201, response_headers, json.dumps(response_data)]
+        return (201, response_headers, json.dumps(response_data))
 
     httpretty.register_uri(
         httpretty.POST, url, content_type="text/json", body=request_callback
@@ -142,15 +150,19 @@ def test_glitchtip_client_post(
 
 def test_glitchtip_client_put(
     httpretty: httpretty_module, glitchtip_client: GlitchtipClient, glitchtip_url: str
-):
+) -> None:
     url = f"{glitchtip_url}/data"
     request_data = {"test": "object"}
     response_data = {"foo": "bar"}
 
-    def request_callback(request, uri, response_headers):
+    def request_callback(
+        request: httpretty_module.core.HTTPrettyRequest,
+        uri: str,
+        response_headers: Mapping[str, Any],
+    ) -> tuple[int, Mapping[str, Any], str]:
         assert request.headers.get("Content-Type") == "application/json"
         assert json.loads(request.body) == request_data
-        return [201, response_headers, json.dumps(response_data)]
+        return (201, response_headers, json.dumps(response_data))
 
     httpretty.register_uri(
         httpretty.PUT, url, content_type="text/json", body=request_callback
@@ -158,40 +170,40 @@ def test_glitchtip_client_put(
     assert glitchtip_client._put(url, data=request_data) == response_data
 
 
-def test_glitchtip_organizations(glitchtip_client: GlitchtipClient):
+def test_glitchtip_organizations(glitchtip_client: GlitchtipClient) -> None:
     assert glitchtip_client.organizations() == [
         Organization(id=10, name="ESA", slug="esa", projects=[], teams=[], users=[]),
         Organization(id=4, name="NASA", slug="nasa", projects=[], teams=[], users=[]),
     ]
 
 
-def test_glitchtip_create_organization(glitchtip_client: GlitchtipClient):
+def test_glitchtip_create_organization(glitchtip_client: GlitchtipClient) -> None:
     org = glitchtip_client.create_organization(name="ASA")
     assert org.name == "ASA"
     assert org.slug == "asa"
 
 
-def test_glitchtip_delete_organization(glitchtip_client: GlitchtipClient):
+def test_glitchtip_delete_organization(glitchtip_client: GlitchtipClient) -> None:
     glitchtip_client.delete_organization(slug="esa")
 
 
-def test_glitchtip_teams(glitchtip_client: GlitchtipClient):
+def test_glitchtip_teams(glitchtip_client: GlitchtipClient) -> None:
     assert glitchtip_client.teams(organization_slug="nasa") == [
         Team(id=4, slug="nasa-flight-control", users=[]),
         Team(id=2, slug="nasa-pilots", users=[]),
     ]
 
 
-def test_glitchtip_create_team(glitchtip_client: GlitchtipClient):
+def test_glitchtip_create_team(glitchtip_client: GlitchtipClient) -> None:
     team = glitchtip_client.create_team(organization_slug="esa", slug="launchpad-crew")
     assert team.slug == "launchpad-crew"
 
 
-def test_glitchtip_delete_team(glitchtip_client: GlitchtipClient):
+def test_glitchtip_delete_team(glitchtip_client: GlitchtipClient) -> None:
     glitchtip_client.delete_team(organization_slug="esa", slug="esa-pilots")
 
 
-def test_glitchtip_projects(glitchtip_client: GlitchtipClient):
+def test_glitchtip_projects(glitchtip_client: GlitchtipClient) -> None:
     assert glitchtip_client.projects(organization_slug="nasa") == [
         Project(
             id=8,
@@ -213,7 +225,7 @@ def test_glitchtip_projects(glitchtip_client: GlitchtipClient):
     ]
 
 
-def test_glitchtip_create_project(glitchtip_client: GlitchtipClient):
+def test_glitchtip_create_project(glitchtip_client: GlitchtipClient) -> None:
     project = glitchtip_client.create_project(
         organization_slug="nasa",
         team_slug="nasa-pilots",
@@ -225,26 +237,26 @@ def test_glitchtip_create_project(glitchtip_client: GlitchtipClient):
     assert project.teams[0].pk == 2
 
 
-def test_glitchtip_delete_project(glitchtip_client: GlitchtipClient):
+def test_glitchtip_delete_project(glitchtip_client: GlitchtipClient) -> None:
     glitchtip_client.delete_project(
         organization_slug="nasa", team_slug="nasa-pilots", slug="science-tools"
     )
 
 
-def test_glitchtip_add_project_to_team(glitchtip_client: GlitchtipClient):
+def test_glitchtip_add_project_to_team(glitchtip_client: GlitchtipClient) -> None:
     project = glitchtip_client.add_project_to_team(
         organization_slug="nasa", team_slug="nasa-flight-control", slug="science-tools"
     )
     assert len(project.teams) == 2
 
 
-def test_glitchtip_remove_project_from_team(glitchtip_client: GlitchtipClient):
+def test_glitchtip_remove_project_from_team(glitchtip_client: GlitchtipClient) -> None:
     glitchtip_client.remove_project_from_team(
         organization_slug="nasa", team_slug="nasa-flight-control", slug="science-tools"
     )
 
 
-def test_glitchtip_organization_users(glitchtip_client: GlitchtipClient):
+def test_glitchtip_organization_users(glitchtip_client: GlitchtipClient) -> None:
     assert glitchtip_client.organization_users(organization_slug="nasa") == [
         User(id=23, email="MichaelCollins@nasa.com", role="member", pending=False),
         User(
@@ -259,7 +271,7 @@ def test_glitchtip_organization_users(glitchtip_client: GlitchtipClient):
     ]
 
 
-def test_glitchtip_invite_user(glitchtip_client: GlitchtipClient):
+def test_glitchtip_invite_user(glitchtip_client: GlitchtipClient) -> None:
     user = glitchtip_client.invite_user(
         organization_slug="nasa", email="Gene.Kranz@nasa.com", role="member"
     )
@@ -267,18 +279,18 @@ def test_glitchtip_invite_user(glitchtip_client: GlitchtipClient):
     assert user.pending
 
 
-def test_glitchtip_delete_user(glitchtip_client: GlitchtipClient):
+def test_glitchtip_delete_user(glitchtip_client: GlitchtipClient) -> None:
     glitchtip_client.delete_user(organization_slug="nasa", pk=29)
 
 
-def test_glitchtip_update_user_role(glitchtip_client: GlitchtipClient):
+def test_glitchtip_update_user_role(glitchtip_client: GlitchtipClient) -> None:
     user = glitchtip_client.update_user_role(
         organization_slug="nasa", role="manager", pk=29
     )
     assert user.role == "manager"
 
 
-def test_glitchtip_team_users(glitchtip_client: GlitchtipClient):
+def test_glitchtip_team_users(glitchtip_client: GlitchtipClient) -> None:
     assert glitchtip_client.team_users(
         organization_slug="nasa", team_slug="nasa-flight-control"
     ) == [
@@ -292,14 +304,14 @@ def test_glitchtip_team_users(glitchtip_client: GlitchtipClient):
     ]
 
 
-def test_glitchtip_add_user_to_team(glitchtip_client: GlitchtipClient):
+def test_glitchtip_add_user_to_team(glitchtip_client: GlitchtipClient) -> None:
     team = glitchtip_client.add_user_to_team(
         organization_slug="nasa", team_slug="nasa-pilots", user_pk=29
     )
     assert len(team.users) > 0
 
 
-def test_glitchtip_remove_user_from_team(glitchtip_client: GlitchtipClient):
+def test_glitchtip_remove_user_from_team(glitchtip_client: GlitchtipClient) -> None:
     glitchtip_client.remove_user_from_team(
         organization_slug="nasa", team_slug="nasa-pilots", user_pk=29
     )

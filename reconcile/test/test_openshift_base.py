@@ -664,6 +664,14 @@ def test_determine_user_keys_for_access(auth, expected):
     assert sut.determine_user_keys_for_access("cluster-name", auth) == expected
 
 
+def test_determine_user_keys_enforced_user_keys():
+    assert sut.determine_user_keys_for_access(
+        "cluster-name",
+        [{"service": "github-org"}],
+        enforced_user_keys=["my-enforced-key"],
+    ) == ["my-enforced-key"]
+
+
 def test_determine_user_keys_for_access_not_implemented():
     auth = {"service": "not-implemented"}
     with pytest.raises(NotImplementedError):
