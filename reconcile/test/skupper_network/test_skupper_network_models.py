@@ -96,7 +96,7 @@ def skupper_site_factory(
     ) -> SkupperSite:
         return SkupperSite(
             namespace=ns,
-            skupper_site_controller="just-a-image",
+            skupper_site_controller="just-an-image",
             delete=delete,
             config=SkupperConfig.init(
                 name=f"{ns.cluster.name}-{ns.name}",

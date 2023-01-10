@@ -278,7 +278,7 @@ class SkupperSite(BaseModel):
         logging.debug(f"{self} connected sites: {self.connected_sites}")
 
     def unique_token_name(self, other: SkupperSite) -> str:
-        """Generate a unique tokan name for a site connection."""
+        """Generate a unique token name for a site connection."""
         return hashlib.sha256(f"{other}-{self}".encode("UTF-8")).hexdigest()
 
     def token_name(self, other: SkupperSite) -> str:
