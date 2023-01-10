@@ -315,7 +315,16 @@ class _VaultClient:
 
     def _list(self, path: str) -> dict:
         try:
-            return self._client.list(path)
+            response = self._client.list(path)
+            if response is not None:
+                return response
+            # If vault path is from a v2 engine hvac.list(path) returns None,
+            # to list secrets from a v2 engine we need to use hvac.secrets.kv.v2.list_secrets
+            secret_path = path.split("/", 1)
+            response = self._client.secrets.kv.v2.list_secrets(
+                mount_point=secret_path[0], path=secret_path[1]
+            )
+            return response
         except hvac.exceptions.Forbidden:
             msg = f"permission denied accessing path '{path}'"
             raise PathAccessForbidden(msg)
