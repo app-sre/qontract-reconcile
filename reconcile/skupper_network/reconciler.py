@@ -100,6 +100,7 @@ def _transfer_token(
     integration_version: str,
     token: dict[str, Any],
 ) -> None:
+    """Move a connection token secret from one site to another."""
     if not is_usable_connection_token(token):
         # token connection request secret not yet processed by site controller. skip it for now and try it again later
         logging.info(
@@ -146,7 +147,19 @@ def connect_sites(
     integration: str,
     integration_version: str,
 ) -> None:
-    """Connect skupper sites together."""
+    """Connect skupper sites together.
+
+    Connection sites together algorithm:
+    1. Check if all related sites (namespaces) are available
+    2. Iterate over all "to be connected sites" (connected_sites) and
+    2.1. if we are already connected (connection-token exists) -> done
+    2.2. if not connected (connection-token doesn't exist) -> token exchange alghorithm
+
+    Token exchange alghorithm:
+    1. Create a connection-token-request (secret with a unique token name) in the connected site's namespace
+    2. Wait for the site controller to process the connection-token-request
+    3. Move the connection-token (the processed connection-token-request secret) from the connected site's namespace into the site's namespace
+    """
     oc = oc_map.get_cluster(site.cluster.name)
     if not oc.project_exists(site.namespace.name):
         logging.info(
@@ -171,6 +184,7 @@ def connect_sites(
                 connected_site,
                 connected_site.unique_token_name(site),
             ):
+                # token found - move it to this site
                 _transfer_token(
                     oc_map,
                     site,
