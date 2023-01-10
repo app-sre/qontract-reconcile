@@ -3079,7 +3079,11 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                         ],
                         "Resource": "*",
                     },
-                    {"Effect": "Allow", "Action": "es:*", "Resource": "arn:aws:es:*"},
+                    {
+                        "Effect": "Allow",
+                        "Action": "es:*",
+                        "Resource": f"arn:{self._get_partition(account)}:es:*",
+                    },
                 ],
             }
 
