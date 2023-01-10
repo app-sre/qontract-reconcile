@@ -718,3 +718,9 @@ def run(dry_run: bool, enable_deletion: bool = False) -> None:
 
         if not dry_run:
             state[query_name] = time.time()
+
+
+def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
+    return {
+        "queries": queries.get_app_interface_sql_queries(),
+    }
