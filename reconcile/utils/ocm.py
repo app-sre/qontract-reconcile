@@ -1734,7 +1734,11 @@ class OCMMap:  # pylint: disable=too-many-public-methods
             secret_reader = SecretReader(settings=self.settings)
             token = secret_reader.read(access_token_client_secret)
             inherit_version_data = ocm_info.get("inheritVersionData")
-            publish_version_data = inherit_version_data.get("publishVersionData")
+            publish_version_data = (
+                inherit_version_data.get("publishVersionData")
+                if inherit_version_data
+                else None
+            )
             self.ocm_map[ocm_name] = OCM(
                 name,
                 url,
