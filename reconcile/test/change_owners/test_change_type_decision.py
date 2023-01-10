@@ -115,6 +115,25 @@ def test_approval_comments_none_body():
     assert not get_approver_decisions_from_mr_comments(comments)
 
 
+def test_approver_decision_leading_trailing_spaces():
+    comments = [
+        {
+            "username": "user-1",
+            "body": ("nice\n" f" {DecisionCommand.APPROVED.value}"),
+            "created_at": "2020-01-01T00:00:00Z",
+        },
+        {
+            "username": "user-2",
+            "body": (f"{DecisionCommand.HOLD.value} \n" "oh wait... big problems"),
+            "created_at": "2020-01-02T00:00:00Z",
+        },
+    ]
+    assert get_approver_decisions_from_mr_comments(comments) == {
+        "user-1": Decision(approve=True, hold=False),
+        "user-2": Decision(approve=False, hold=True),
+    }
+
+
 #
 # test decide on changes
 #
