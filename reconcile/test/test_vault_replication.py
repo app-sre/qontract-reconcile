@@ -15,10 +15,13 @@ from reconcile.gql_definitions.vault_instances.vault_instances import (
     VaultReplicationConfigV1_VaultInstanceAuthV1_VaultInstanceAuthApproleV1,
 )
 from reconcile.gql_definitions.vault_policies import vault_policies
+from reconcile.test.fixtures import Fixtures
 from reconcile.utils.vault import (
     VaultClient,
     _VaultClient,
 )
+
+fxt = Fixtures("vault_replication")
 
 
 @pytest.fixture
@@ -236,3 +239,27 @@ def test_get_policy_paths(policy_query_data: vault_policies.VaultPoliciesQueryDa
 )
 def test_get_secrets_from_templated_path(path, vault_list, return_value):
     assert integ.get_secrets_from_templated_path(path, vault_list) == return_value
+
+
+def test_get_jenkins_secret_list_templating(mocker):
+
+    mock_vault_client = mocker.patch(
+        "reconcile.utils.vault._VaultClient", autospec=True
+    )
+    mock_vault_client.list_all.side_effect = [
+        ["path/test-1/secret", "path/test-2/secret"]
+    ]
+
+    test = fxt.get_anymarkup("jenkins_configs/jenkins_config_insta_path.yaml")
+    assert integ.get_jenkins_secret_list(
+        mock_vault_client, "jenkins-instance", JenkinsConfigsQueryData(**test)
+    ) == ["path/test-1/secret", "path/test-2/secret"]
+
+
+def test_get_policy_paths_real_data():
+    test = fxt.get_anymarkup("vault_policies/vault_policies_query_data.yaml")
+    assert integ.get_policy_paths(
+        "vault-test-policy",
+        "vault-instance",
+        vault_policies.VaultPoliciesQueryData(**test),
+    ) == ["path/test-1/*", "path/test-2/*"]

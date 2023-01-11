@@ -1,0 +1,19 @@
+policy:
+- instance:
+    name: vault-instance
+  name: vault-test-policy
+  rules: "path \"path/test-1/*\"\
+    \ {\n  capabilities = [\"read\"]\n}\npath \"path/test-2/*\" {\n  capabilities\
+    \ = [\"read\"]\n}\n"
+- instance:
+    name: vault-instance
+  name: vault-test-policy-2
+  rules: "path \"path/test-3/*\"\
+    \ {\n  capabilities = [\"read\"]\n}\npath \"path/test-4/*\" {\n  capabilities\
+    \ = [\"read\"]\n}\n"
+- instance:
+    name: vault-instance
+  name: vault-test-policy-3
+  rules: "path \"path/test-5/*\"\
+    \ {\n  capabilities = [\"read\"]\n}\npath \"path/test-6/*\" {\n  capabilities\
+    \ = [\"read\"]\n}\n"

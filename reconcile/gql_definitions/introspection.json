@@ -4057,6 +4057,11 @@
                         },
                         {
                             "kind": "OBJECT",
+                            "name": "PermissionSlackUsergroup_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "OBJECT",
                             "name": "Schedule_v1",
                             "ofType": null
                         },
@@ -4112,6 +4117,11 @@
                         },
                         {
                             "kind": "OBJECT",
+                            "name": "PermissionGithubOrgTeam_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "OBJECT",
                             "name": "Integration_v1",
                             "ofType": null
                         },
@@ -4143,6 +4153,21 @@
                         {
                             "kind": "OBJECT",
                             "name": "PipelinesProviderTektonProviderDefaults_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "OBJECT",
+                            "name": "PermissionGithubOrg_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "OBJECT",
+                            "name": "PermissionJenkinsRole_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "OBJECT",
+                            "name": "PermissionGitlabGroupMembership_v1",
                             "ofType": null
                         }
                     ]
@@ -9036,6 +9061,26 @@
                             "deprecationReason": null
                         },
                         {
+                            "name": "addonUpgradeTests",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "LIST",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "NON_NULL",
+                                    "name": null,
+                                    "ofType": {
+                                        "kind": "OBJECT",
+                                        "name": "AddonUpgradeTest_v1",
+                                        "ofType": null
+                                    }
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
                             "name": "recommendedVersions",
                             "description": null,
                             "args": [],
@@ -9256,6 +9301,465 @@
                             "ofType": null
                         }
                     ],
+                    "enumValues": null,
+                    "possibleTypes": null
+                },
+                {
+                    "kind": "OBJECT",
+                    "name": "AddonUpgradeTest_v1",
+                    "description": null,
+                    "fields": [
+                        {
+                            "name": "addon",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "OBJECT",
+                                    "name": "ClusterAddon_v1",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "instance",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "OBJECT",
+                                    "name": "JenkinsInstance_v1",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "name",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        }
+                    ],
+                    "inputFields": null,
+                    "interfaces": [],
+                    "enumValues": null,
+                    "possibleTypes": null
+                },
+                {
+                    "kind": "OBJECT",
+                    "name": "ClusterAddon_v1",
+                    "description": null,
+                    "fields": [
+                        {
+                            "name": "schema",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "path",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "labels",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "JSON",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "name",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "description",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "String",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "parameters",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "LIST",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "NON_NULL",
+                                    "name": null,
+                                    "ofType": {
+                                        "kind": "OBJECT",
+                                        "name": "ClusterAddonParameters_v1",
+                                        "ofType": null
+                                    }
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        }
+                    ],
+                    "inputFields": null,
+                    "interfaces": [],
+                    "enumValues": null,
+                    "possibleTypes": null
+                },
+                {
+                    "kind": "OBJECT",
+                    "name": "ClusterAddonParameters_v1",
+                    "description": null,
+                    "fields": [
+                        {
+                            "name": "id",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "value",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        }
+                    ],
+                    "inputFields": null,
+                    "interfaces": [],
+                    "enumValues": null,
+                    "possibleTypes": null
+                },
+                {
+                    "kind": "OBJECT",
+                    "name": "JenkinsInstance_v1",
+                    "description": null,
+                    "fields": [
+                        {
+                            "name": "schema",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "path",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "labels",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "JSON",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "name",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "description",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "serverUrl",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "token",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "OBJECT",
+                                    "name": "VaultSecret_v1",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "previousUrls",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "LIST",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "NON_NULL",
+                                    "name": null,
+                                    "ofType": {
+                                        "kind": "SCALAR",
+                                        "name": "String",
+                                        "ofType": null
+                                    }
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "plugins",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "LIST",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "NON_NULL",
+                                    "name": null,
+                                    "ofType": {
+                                        "kind": "SCALAR",
+                                        "name": "String",
+                                        "ofType": null
+                                    }
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "deleteMethod",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "String",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "managedProjects",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "LIST",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "NON_NULL",
+                                    "name": null,
+                                    "ofType": {
+                                        "kind": "SCALAR",
+                                        "name": "String",
+                                        "ofType": null
+                                    }
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "buildsCleanupRules",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "LIST",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "NON_NULL",
+                                    "name": null,
+                                    "ofType": {
+                                        "kind": "OBJECT",
+                                        "name": "JenkinsInstanceBuildsCleanupRules_v1",
+                                        "ofType": null
+                                    }
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        }
+                    ],
+                    "inputFields": null,
+                    "interfaces": [],
+                    "enumValues": null,
+                    "possibleTypes": null
+                },
+                {
+                    "kind": "OBJECT",
+                    "name": "JenkinsInstanceBuildsCleanupRules_v1",
+                    "description": null,
+                    "fields": [
+                        {
+                            "name": "name",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "keep_hours",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "Int",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        }
+                    ],
+                    "inputFields": null,
+                    "interfaces": [],
                     "enumValues": null,
                     "possibleTypes": null
                 },
@@ -12016,6 +12520,11 @@
                         {
                             "kind": "INTERFACE",
                             "name": "Permission_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "INTERFACE",
+                            "name": "DatafileObject_v1",
                             "ofType": null
                         }
                     ],
@@ -14845,260 +15354,6 @@
                             "ofType": null
                         }
                     ],
-                    "enumValues": null,
-                    "possibleTypes": null
-                },
-                {
-                    "kind": "OBJECT",
-                    "name": "JenkinsInstance_v1",
-                    "description": null,
-                    "fields": [
-                        {
-                            "name": "schema",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "NON_NULL",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "SCALAR",
-                                    "name": "String",
-                                    "ofType": null
-                                }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "path",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "NON_NULL",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "SCALAR",
-                                    "name": "String",
-                                    "ofType": null
-                                }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "labels",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "SCALAR",
-                                "name": "JSON",
-                                "ofType": null
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "name",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "NON_NULL",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "SCALAR",
-                                    "name": "String",
-                                    "ofType": null
-                                }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "description",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "NON_NULL",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "SCALAR",
-                                    "name": "String",
-                                    "ofType": null
-                                }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "serverUrl",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "NON_NULL",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "SCALAR",
-                                    "name": "String",
-                                    "ofType": null
-                                }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "token",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "NON_NULL",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "OBJECT",
-                                    "name": "VaultSecret_v1",
-                                    "ofType": null
-                                }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "previousUrls",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "LIST",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "NON_NULL",
-                                    "name": null,
-                                    "ofType": {
-                                        "kind": "SCALAR",
-                                        "name": "String",
-                                        "ofType": null
-                                    }
-                                }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "plugins",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "LIST",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "NON_NULL",
-                                    "name": null,
-                                    "ofType": {
-                                        "kind": "SCALAR",
-                                        "name": "String",
-                                        "ofType": null
-                                    }
-                                }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "deleteMethod",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "SCALAR",
-                                "name": "String",
-                                "ofType": null
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "managedProjects",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "LIST",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "NON_NULL",
-                                    "name": null,
-                                    "ofType": {
-                                        "kind": "SCALAR",
-                                        "name": "String",
-                                        "ofType": null
-                                    }
-                                }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "buildsCleanupRules",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "LIST",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "NON_NULL",
-                                    "name": null,
-                                    "ofType": {
-                                        "kind": "OBJECT",
-                                        "name": "JenkinsInstanceBuildsCleanupRules_v1",
-                                        "ofType": null
-                                    }
-                                }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        }
-                    ],
-                    "inputFields": null,
-                    "interfaces": [],
-                    "enumValues": null,
-                    "possibleTypes": null
-                },
-                {
-                    "kind": "OBJECT",
-                    "name": "JenkinsInstanceBuildsCleanupRules_v1",
-                    "description": null,
-                    "fields": [
-                        {
-                            "name": "name",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "NON_NULL",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "SCALAR",
-                                    "name": "String",
-                                    "ofType": null
-                                }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "keep_hours",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "NON_NULL",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "SCALAR",
-                                    "name": "Int",
-                                    "ofType": null
-                                }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        }
-                    ],
-                    "inputFields": null,
-                    "interfaces": [],
                     "enumValues": null,
                     "possibleTypes": null
                 },
@@ -18994,152 +19249,6 @@
                 },
                 {
                     "kind": "OBJECT",
-                    "name": "ClusterAddon_v1",
-                    "description": null,
-                    "fields": [
-                        {
-                            "name": "schema",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "NON_NULL",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "SCALAR",
-                                    "name": "String",
-                                    "ofType": null
-                                }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "path",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "NON_NULL",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "SCALAR",
-                                    "name": "String",
-                                    "ofType": null
-                                }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "labels",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "SCALAR",
-                                "name": "JSON",
-                                "ofType": null
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "name",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "NON_NULL",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "SCALAR",
-                                    "name": "String",
-                                    "ofType": null
-                                }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "description",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "SCALAR",
-                                "name": "String",
-                                "ofType": null
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "parameters",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "LIST",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "NON_NULL",
-                                    "name": null,
-                                    "ofType": {
-                                        "kind": "OBJECT",
-                                        "name": "ClusterAddonParameters_v1",
-                                        "ofType": null
-                                    }
-                                }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        }
-                    ],
-                    "inputFields": null,
-                    "interfaces": [],
-                    "enumValues": null,
-                    "possibleTypes": null
-                },
-                {
-                    "kind": "OBJECT",
-                    "name": "ClusterAddonParameters_v1",
-                    "description": null,
-                    "fields": [
-                        {
-                            "name": "id",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "NON_NULL",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "SCALAR",
-                                    "name": "String",
-                                    "ofType": null
-                                }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "value",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "NON_NULL",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "SCALAR",
-                                    "name": "String",
-                                    "ofType": null
-                                }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        }
-                    ],
-                    "inputFields": null,
-                    "interfaces": [],
-                    "enumValues": null,
-                    "possibleTypes": null
-                },
-                {
-                    "kind": "OBJECT",
                     "name": "ClusterJumpHost_v1",
                     "description": null,
                     "fields": [
@@ -20646,6 +20755,11 @@
                             "kind": "OBJECT",
                             "name": "VaultReplicationJenkins_v1",
                             "ofType": null
+                        },
+                        {
+                            "kind": "OBJECT",
+                            "name": "VaultReplicationPolicy_v1",
+                            "ofType": null
                         }
                     ]
                 },
@@ -21143,6 +21257,11 @@
                         {
                             "kind": "INTERFACE",
                             "name": "Permission_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "INTERFACE",
+                            "name": "DatafileObject_v1",
                             "ofType": null
                         }
                     ],
@@ -35134,6 +35253,51 @@
                 },
                 {
                     "kind": "OBJECT",
+                    "name": "VaultReplicationPolicy_v1",
+                    "description": null,
+                    "fields": [
+                        {
+                            "name": "provider",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "policy",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "OBJECT",
+                                "name": "VaultPolicy_v1",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        }
+                    ],
+                    "inputFields": null,
+                    "interfaces": [
+                        {
+                            "kind": "INTERFACE",
+                            "name": "VaultReplicationPaths_v1",
+                            "ofType": null
+                        }
+                    ],
+                    "enumValues": null,
+                    "possibleTypes": null
+                },
+                {
+                    "kind": "OBJECT",
                     "name": "VaultInstanceAuthApprole_v1",
                     "description": null,
                     "fields": [
@@ -35543,6 +35707,11 @@
                             "kind": "INTERFACE",
                             "name": "Permission_v1",
                             "ofType": null
+                        },
+                        {
+                            "kind": "INTERFACE",
+                            "name": "DatafileObject_v1",
+                            "ofType": null
                         }
                     ],
                     "enumValues": null,
@@ -35699,6 +35868,11 @@
                         {
                             "kind": "INTERFACE",
                             "name": "Permission_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "INTERFACE",
+                            "name": "DatafileObject_v1",
                             "ofType": null
                         }
                     ],
@@ -35880,6 +36054,11 @@
                         {
                             "kind": "INTERFACE",
                             "name": "Permission_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "INTERFACE",
+                            "name": "DatafileObject_v1",
                             "ofType": null
                         }
                     ],
