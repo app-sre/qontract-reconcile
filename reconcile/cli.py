@@ -2391,6 +2391,25 @@ def glitchtip(ctx, instance):
     run_integration(reconcile.glitchtip.integration, ctx.obj, instance)
 
 
+@integration.command(short_help="Manages Skupper Networks.")
+@threaded()
+@binary(["oc", "ssh"])
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
+@internal()
+@use_jump_host()
+@click.pass_context
+def skupper_network(ctx, thread_pool_size, internal, use_jump_host):
+    import reconcile.skupper_network.integration
+
+    run_integration(
+        reconcile.skupper_network.integration,
+        ctx.obj,
+        thread_pool_size,
+        internal,
+        use_jump_host,
+    )
+
+
 def get_integration_cli_meta() -> dict[str, IntegrationMeta]:
     """
     returns all integrations known to cli.py via click introspection
