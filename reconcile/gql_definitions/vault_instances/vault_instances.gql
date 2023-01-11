@@ -72,6 +72,15 @@ query VaultInstances {
           }
         }
         }
+        ...on VaultReplicationPolicy_v1 {
+          policy {
+              name
+              instance {
+                name
+                address
+              }
+          }
+        }
       }
     }
   }

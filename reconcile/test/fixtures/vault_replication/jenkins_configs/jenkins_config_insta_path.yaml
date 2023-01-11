@@ -1,0 +1,15 @@
+jenkins_configs:
+- config: null
+  config_path:
+    content: 'secret-path: ''path/{template}/secret'''
+  instance:
+    deleteMethod: null
+    name: jenkins-instance
+    serverUrl: https://jenkins-instance.net
+    token:
+      field: jenkins-token
+      format: null
+      path: path/to/token
+      version: null
+  name: ci-jenkins-secrets
+  type: secrets
