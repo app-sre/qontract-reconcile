@@ -349,7 +349,9 @@ def replicate_paths(
             if path.policy is None:
                 # Exit if the replication config is empty, this should never happen
                 # as policy is a required field in the schema but makes mypy happy.
-                raise VaultInvalidPolicy
+                raise VaultInvalidPolicy(
+                    "Policy is required when using policy provider"
+                )
             policy_paths = get_policy_paths(
                 path.policy.name,
                 path.policy.instance.name,
