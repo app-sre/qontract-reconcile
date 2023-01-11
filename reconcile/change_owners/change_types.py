@@ -91,7 +91,11 @@ class DiffCoverage:
         # if nothing remains, the splits cover the entire diff
         uncovered_data = self.diff.get_context_data_copy()
         if uncovered_data and isinstance(uncovered_data, MutableMapping):
-            for s in self._split_into:
+            # sort splits so that later indices are always removed before earlier ones
+            sorted_splits = sorted(
+                self._split_into, key=lambda x: str(x.diff.path), reverse=True
+            )
+            for s in sorted_splits:
                 if s.is_covered():
                     # this removes the data that matches the path
                     s.diff.path.filter(lambda x: True, uncovered_data)
@@ -110,7 +114,7 @@ class DiffCoverage:
         return (
             str(path).startswith(str(self.diff.path))
             or str(self.diff.path) == JSON_PATH_ROOT
-        ) and path != str(self.diff.path)
+        ) and str(path) != str(self.diff.path)
 
     def split(
         self, path: jsonpath_ng.JSONPath, ctx: "ChangeTypeContext"
@@ -144,7 +148,8 @@ class DiffCoverage:
 
             self._split_into = consolidated_splits
             return split_sub_coverage
-        if self.diff.path == path:
+        elif self.diff.path == path:
+            self.add_covering_context(ctx)
             return self
         else:
             return None
