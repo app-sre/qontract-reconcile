@@ -57,12 +57,6 @@ def compile_skupper_sites(
                 # integration is disabled for this cluster
                 continue
 
-            edge = ns.cluster.internal if ns.cluster.internal else False
-            if skupper_network.site_config_defaults.edge is not None:
-                edge = skupper_network.site_config_defaults.edge
-            if ns.skupper_site.config and ns.skupper_site.config.edge is not None:
-                edge = ns.skupper_site.config.edge
-
             # create a skupper site with the skupper network defaults overridden by the namespace site config and our own defaults
             network_sites.append(
                 SkupperSite(
@@ -72,7 +66,6 @@ def compile_skupper_sites(
                     delete=bool(ns.skupper_site.delete or ns.delete),
                     config=SkupperConfig.init(
                         name=f"{skupper_network.identifier}-{ns.cluster.name}-{ns.name}",
-                        edge=edge,
                         defaults=skupper_network.site_config_defaults,
                         config=ns.skupper_site.config,
                     ),

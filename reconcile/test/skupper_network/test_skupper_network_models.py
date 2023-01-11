@@ -94,13 +94,13 @@ def skupper_site_factory(
     def _skupper_site_factory(
         ns: NamespaceV1, edge: bool = False, delete: bool = False
     ) -> SkupperSite:
+        site_config.edge = edge
         return SkupperSite(
             namespace=ns,
             skupper_site_controller="just-an-image",
             delete=delete,
             config=SkupperConfig.init(
                 name=f"{ns.cluster.name}-{ns.name}",
-                edge=edge,
                 defaults=network_config,
                 config=site_config,
             ),
@@ -112,7 +112,7 @@ def skupper_site_factory(
 @pytest.fixture
 def namespace_factory() -> NamespaceFactory:
     def _namespace_factory(
-        name: str, private: bool, internal: bool, peered_with: Optional[str] = None
+        name: str, private: bool, peered_with: Optional[str] = None
     ) -> NamespaceV1:
         return NamespaceV1(
             name=name,
@@ -123,7 +123,7 @@ def namespace_factory() -> NamespaceFactory:
                 jumpHost=None,
                 spec=ClusterSpecV1(private=private),
                 automationToken=None,
-                internal=internal,
+                internal=False,
                 disable=None,
                 peering=ClusterPeeringV1(
                     connections=[
@@ -157,10 +157,9 @@ def test_skupper_network_model_skupper_config_init(
     network_config.routers = 1
     site_config.routers = 2
     config = SkupperConfig.init(
-        name="test", edge=True, defaults=network_config, config=site_config
+        name="test", defaults=network_config, config=site_config
     )
     assert config.name == "test"
-    assert config.edge is True
     # from network_config
     assert config.console is False
     # from site_config
@@ -180,12 +179,11 @@ def test_skupper_network_model_skupper_config_as_configmap(
     network_config.console = False
     site_config.router_cpu = "1000m"
     config = SkupperConfig.init(
-        name="test", edge=True, defaults=network_config, config=site_config
+        name="test", defaults=network_config, config=site_config
     )
     data = config.as_configmap_data()
     # test some values and underscored keys are converted to hyphenated)
     assert data["console"] == "false"
-    assert data["edge"] == "true"
     assert data["router-cpu"] == "1000m"
     assert data["name"] == "test"
     assert data["router-logging"] == Defaults.DEFAULT_ROUTER_LOGGING
@@ -195,36 +193,34 @@ def test_skupper_network_model_skupper_site_compute_connected_sites(
     skupper_site_factory: SkupperSiteFactory, namespace_factory: NamespaceFactory
 ) -> None:
     public01 = skupper_site_factory(
-        namespace_factory("public01", private=False, internal=False), edge=False
+        namespace_factory("public01", private=False), edge=False
     )
     public02 = skupper_site_factory(
-        namespace_factory("public02", private=False, internal=False), edge=False
+        namespace_factory("public02", private=False), edge=False
     )
     delete01 = skupper_site_factory(
-        namespace_factory("delete01", private=False, internal=False),
+        namespace_factory("delete01", private=False),
         edge=False,
         delete=True,
     )
     private01 = skupper_site_factory(
-        namespace_factory("private01", private=True, internal=False), edge=False
+        namespace_factory("private01", private=True), edge=False
     )
     private02 = skupper_site_factory(
-        namespace_factory(
-            "private02", private=True, internal=False, peered_with="private01"
-        ),
+        namespace_factory("private02", private=True, peered_with="private01"),
         edge=False,
     )
     private03 = skupper_site_factory(
-        namespace_factory("private03", private=True, internal=False), edge=False
+        namespace_factory("private03", private=True), edge=False
     )
     internal01 = skupper_site_factory(
-        namespace_factory("internal01", private=False, internal=True), edge=True
+        namespace_factory("internal01", private=False), edge=True
     )
     internal02 = skupper_site_factory(
-        namespace_factory("internal02", private=False, internal=True), edge=True
+        namespace_factory("internal02", private=False), edge=True
     )
     island01 = skupper_site_factory(
-        namespace_factory("island01", private=False, internal=False), edge=False
+        namespace_factory("island01", private=False), edge=False
     )
     all_sites = [
         public01,
@@ -262,7 +258,7 @@ def test_skupper_network_model_skupper_site_properties(
     skupper_site_factory: SkupperSiteFactory, namespace_factory: NamespaceFactory
 ) -> None:
     public01 = skupper_site_factory(
-        namespace_factory("public01", private=False, internal=False), edge=False
+        namespace_factory("public01", private=False), edge=False
     )
     assert public01.on_private_cluster is False
     assert public01.on_public_cluster is True
@@ -272,7 +268,7 @@ def test_skupper_network_model_skupper_site_properties(
     assert public01.token_labels
 
     private01 = skupper_site_factory(
-        namespace_factory("private01", private=True, internal=False), edge=False
+        namespace_factory("private01", private=True), edge=False
     )
 
     assert private01.on_private_cluster is True
@@ -284,14 +280,12 @@ def test_skupper_network_model_skupper_site_properties(
     assert private01.token_name(public01) == "cluster-public01-public01"
 
     private02 = skupper_site_factory(
-        namespace_factory(
-            "private02", private=True, internal=False, peered_with="private01"
-        ),
+        namespace_factory("private02", private=True, peered_with="private01"),
         edge=False,
     )
     assert private02.is_peered_with(private01) is True
 
     internal01 = skupper_site_factory(
-        namespace_factory("internal01", private=False, internal=True), edge=True
+        namespace_factory("internal01", private=False), edge=True
     )
     assert internal01.is_edge_site is True

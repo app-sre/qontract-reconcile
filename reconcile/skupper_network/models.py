@@ -36,6 +36,7 @@ class Defaults:
     DEFAULT_CONTROLLER_MEMORY = "128Mi"
     DEFAULT_CONTROLLER_POD_ANTIAFFINITY = "skupper.io/component=controller"
     DEFAULT_CONTROLLER_SERVICE_ANNOTATIONS = "managed-by=qontract-reconcile"
+    DEFAULT_EDGE = False
     DEFAULT_INGRESS = "route"
     DEFAULT_ROUTER_CONSOLE = False
     DEFAULT_ROUTER_CPU_LIMIT = "500m"
@@ -83,7 +84,7 @@ class SkupperConfig(BaseModel):
         Defaults.DEFAULT_CONTROLLER_SERVICE_ANNOTATIONS,
         alias="controller-service-annotations",
     )
-    edge: bool
+    edge: bool = Field(Defaults.DEFAULT_EDGE, alias="edge")
     ingress: str = Field(Defaults.DEFAULT_INGRESS, alias="ingress")
     name: str
     router_console: bool = Field(
@@ -117,7 +118,6 @@ class SkupperConfig(BaseModel):
     def init(
         cls,
         name: str,
-        edge: bool,
         defaults: Optional[SkupperSiteConfigDefaultsV1] = None,
         config: Optional[SkupperSiteConfigV1] = None,
     ) -> SkupperConfig:
@@ -125,7 +125,7 @@ class SkupperConfig(BaseModel):
         c: dict[str, Any] = {}
 
         for field in cls.__fields__:
-            if field in ["name", "edge"]:
+            if field in ["name"]:
                 continue
 
             c[field] = getattr(Defaults, f"DEFAULT_{field.upper()}")
@@ -134,7 +134,7 @@ class SkupperConfig(BaseModel):
             if config and getattr(config, field, None) is not None:
                 c[field] = getattr(config, field)
 
-        return cls(name=name, edge=edge, **c)
+        return cls(name=name, **c)
 
     def as_configmap_data(self) -> dict[str, str]:
         """Return a dict with the configmap data (keys (field alias) and values as strings)."""

@@ -251,7 +251,7 @@ skupper_networks:
             controllerMemory: null
             controllerPodAntiaffinity: null
             controllerServiceAnnotations: null
-            edge: null
+            edge: true
             ingress: null
             routerConsole: null
             routerCpuLimit: null
@@ -297,7 +297,7 @@ skupper_networks:
             controllerMemory: null
             controllerPodAntiaffinity: null
             controllerServiceAnnotations: null
-            edge: null
+            edge: true
             ingress: null
             routerConsole: null
             routerCpuLimit: null
@@ -322,7 +322,7 @@ skupper_networks:
             field: token
             version: null
             format: null
-          internal: false
+          internal: true
           disable: null
           peering:
             connections:
