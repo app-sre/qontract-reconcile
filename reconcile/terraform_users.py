@@ -91,7 +91,7 @@ def get_tf_roles() -> list[dict[str, Any]]:
 def setup(
     print_to_file,
     thread_pool_size: int,
-    skip_reencrypt_accounts: Optional[list[str]] = None,
+    skip_reencrypt_accounts: list[str],
     appsre_pgp_key: Optional[str] = None,
     account_name: Optional[str] = None,
 ) -> tuple[list[dict[str, Any]], dict[str, str], bool, AWSApi]:
@@ -110,7 +110,7 @@ def setup(
     )
     err = ts.populate_users(
         get_tf_roles(),
-        skip_reencrypt_accounts=skip_reencrypt_accounts,
+        skip_reencrypt_accounts,
         appsre_pgp_key=appsre_pgp_key,
     )
     working_dirs = ts.dump(print_to_file)
@@ -122,7 +122,7 @@ def setup(
 def send_email_invites(
     new_users,
     smtp_client: SmtpClient,
-    skip_reencrypt_accounts: Optional[list[str]] = None,
+    skip_reencrypt_accounts: list[str],
 ):
     msg_template = """
 You have been invited to join the {} AWS account!
@@ -149,10 +149,7 @@ Encrypted password: {}
 """
     mails = []
     for account, console_url, user_name, enc_password in new_users:
-        if (
-            skip_reencrypt_accounts is not None
-            and account not in skip_reencrypt_accounts
-        ):
+        if account not in skip_reencrypt_accounts:
             continue
         to = user_name
         subject = "Invitation to join the {} AWS account".format(account)
@@ -167,10 +164,10 @@ def write_user_to_vault(
     vault_client: _VaultClient,
     vault_path: str,
     new_users: list[tuple[str, str, str, str]],
-    skip_reencrypt_accounts: Optional[list[str]],
+    skip_reencrypt_accounts: list[str],
 ):
     for account, console_url, user_name, enc_password in new_users:
-        if skip_reencrypt_accounts is not None and account in skip_reencrypt_accounts:
+        if account in skip_reencrypt_accounts:
             continue
         secret_path = f"{vault_path}/{account}_{user_name}"
         desired_secret = {
@@ -203,7 +200,7 @@ def run(
         query_func=gql.get_api().query
     ).pgp_reencryption_settings
 
-    skip_accounts: Optional[list[str]] = None
+    skip_accounts: list[str] = []
     if not all_reencrypt_settings:
         reencrypt_settings = None
     elif len(all_reencrypt_settings) > 1:
@@ -223,8 +220,8 @@ def run(
     accounts, working_dirs, setup_err, aws_api = setup(
         print_to_file,
         thread_pool_size,
+        skip_accounts,
         account_name=account_name,
-        skip_reencrypt_accounts=skip_accounts,
         appsre_pgp_key=appsre_pgp_key,
     )
 

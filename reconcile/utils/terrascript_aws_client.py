@@ -662,7 +662,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
     def populate_iam_users(
         self,
         roles,
-        skip_reencrypt_accounts: Optional[list[str]],
+        skip_reencrypt_accounts: list[str],
         appsre_pgp_key: Optional[str],
     ):
         error = False
@@ -724,8 +724,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                         continue
 
                     if (
-                        skip_reencrypt_accounts is not None
-                        and appsre_pgp_key is not None
+                        appsre_pgp_key is not None
                         and account not in skip_reencrypt_accounts
                     ):
                         user_public_gpg_key = appsre_pgp_key
@@ -795,7 +794,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
     def populate_users(
         self,
         roles,
-        skip_reencrypt_accounts: Optional[list[str]] = None,
+        skip_reencrypt_accounts: list[str],
         appsre_pgp_key: Optional[str] = None,
     ):
         self.populate_iam_groups(roles)
