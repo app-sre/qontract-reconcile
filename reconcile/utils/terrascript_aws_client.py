@@ -1352,7 +1352,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
             em_values = {
                 "role": role_tf_resource.name,
-                "policy_arn": "arn:aws:iam::aws:policy/service-role/"
+                "policy_arn": f"arn:{self._get_partition(account)}:iam::aws:policy/service-role/"
                 + "AmazonRDSEnhancedMonitoringRole",
                 "depends_on": self.get_dependencies([role_tf_resource]),
             }
