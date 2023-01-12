@@ -49,6 +49,14 @@ KAS_API_BASE = "/api/kafkas_mgmt"
 MACHINE_POOL_DESIRED_KEYS = {"id", "instance_type", "replicas", "labels", "taints"}
 UPGRADE_CHANNELS = {"stable", "fast", "candidate"}
 UPGRADE_POLICY_DESIRED_KEYS = {"id", "schedule_type", "schedule", "next_run", "version"}
+ADDON_UPGRADE_POLICY_DESIRED_KEYS = {
+    "id",
+    "addon_id",
+    "schedule_type",
+    "schedule",
+    "next_run",
+    "version",
+}
 ROUTER_DESIRED_KEYS = {"id", "listening", "dns_name", "route_selectors"}
 AUTOSCALE_DESIRED_KEYS = {"min_replicas", "max_replicas"}
 CLUSTER_ADDON_DESIRED_KEYS = {"id", "parameters"}
@@ -1185,7 +1193,7 @@ class OCM:  # pylint: disable=too-many-public-methods
         )
         self._delete(api)
 
-    def version_blocked(self, version):
+    def version_blocked(self, version: str, addon_id: str = "") -> bool:
         """Check if a version is blocked
 
         Args:
@@ -1194,7 +1202,8 @@ class OCM:  # pylint: disable=too-many-public-methods
         Returns:
             bool: is version blocked
         """
-        return any(re.search(b, version) for b in self.blocked_versions)
+        s = f"{addon_id}/{version}" if addon_id else version
+        return any(re.search(b, s) for b in self.blocked_versions)
 
     def get_available_upgrades(self, version, channel):
         """Get available versions to upgrade from specified version
@@ -1218,14 +1227,14 @@ class OCM:  # pylint: disable=too-many-public-methods
         api = f"{CS_API_BASE}/v1/versions/{version_id}"
         return self._get_json(api).get("available_upgrades", [])
 
-    def get_upgrade_policies(self, cluster, schedule_type=None):
+    def get_upgrade_policies(self, cluster, schedule_type=None) -> list[dict[str, Any]]:
         """Returns a list of details of Upgrade Policies
 
         :param cluster: cluster name
 
         :type cluster: string
         """
-        results = []
+        results: list[dict[str, Any]] = []
         cluster_id = self.cluster_ids.get(cluster)
         if not cluster_id:
             return results
@@ -1409,6 +1418,58 @@ class OCM:  # pylint: disable=too-many-public-methods
                 return addon
         return None
 
+    def get_addon_upgrade_policies(
+        self, cluster_name: str, addon_id: str = ""
+    ) -> list[dict[str, Any]]:
+        results: list[dict[str, Any]] = []
+        cluster_id = self.cluster_ids.get(cluster_name)
+        if not cluster_id:
+            return results
+        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/addon_upgrade_policies"
+        items = self._get_json(api).get("items")
+        if not items:
+            return results
+
+        for item in items:
+            if addon_id and item["addon_id"] != addon_id:
+                continue
+            result = {
+                k: v for k, v in item.items() if k in ADDON_UPGRADE_POLICY_DESIRED_KEYS
+            }
+            results.append(result)
+
+        return results
+
+    def create_addon_upgrade_policy(self, cluster_name: str, spec: dict) -> None:
+        """Creates a new Addon Upgrade Policy
+
+        :param cluster: cluster name
+        :param spec: required information for creation
+
+        :type cluster: string
+        :type spec: dictionary
+        """
+        cluster_id = self.cluster_ids[cluster_name]
+        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/addon_upgrade_policies"
+        self._post(api, spec)
+
+    def delete_addon_upgrade_policy(self, cluster_name: str, spec: dict) -> None:
+        """Deletes an existing Addon Upgrade Policy
+
+        :param cluster: cluster name
+        :param spec: required information for delete
+
+        :type cluster: string
+        :type spec: dictionary
+        """
+        cluster_id = self.cluster_ids[cluster_name]
+        upgrade_policy_id = spec["id"]
+        api = (
+            f"{CS_API_BASE}/v1/clusters/{cluster_id}/"
+            + f"addon_upgrade_policies/{upgrade_policy_id}"
+        )
+        self._delete(api)
+
     def get_version_gates(
         self, version_prefix: str, sts_only: bool = False
     ) -> list[dict[str, Any]]:
@@ -1433,10 +1494,10 @@ class OCM:  # pylint: disable=too-many-public-methods
 
     def create_version_agreement(
         self, gate_id: str, cluster: str
-    ) -> list[dict[str, Union[str, bool]]]:
+    ) -> dict[str, Union[str, bool]]:
         cluster_id = self.cluster_ids.get(cluster)
         if not cluster_id:
-            return []
+            return {}
         api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/gate_agreements"
         return self._post(api, {"version_gate": {"id": gate_id}})
 
