@@ -21,7 +21,11 @@ from reconcile.utils.secret_reader import (
 
 
 class PagerDutyTargetException(Exception):
-    pass
+    """This exception is raised when PagerDutyTarget is not configured correctly."""
+
+
+class PagerDutyApiException(Exception):
+    """This exception is raised when PagerDuty API call fails."""
 
 
 class PagerDutyInstance(Protocol):
@@ -84,8 +88,8 @@ class PagerDutyApi:
             elif resource_type == "escalationPolicy":
                 users = self.get_escalation_policy_users(resource_id, now)
         except requests.exceptions.HTTPError as e:
-            logging.warning(str(e))
-            return []
+            logging.error(str(e))
+            raise PagerDutyApiException(str(e)) from e
 
         return users
 
