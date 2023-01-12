@@ -87,7 +87,7 @@ def update_history(version_data: VersionData, upgrade_policies: list[dict[str, A
     """Update history with information from clusters with upgrade policies.
 
     Args:
-        history (VersionData): version data, including history of soakdays
+        version_data (VersionData): version data, including history of soakdays
         upgrade_policies (list): query results of clusters upgrade policies
     """
     now = datetime.utcnow()
@@ -112,6 +112,8 @@ def update_history(version_data: VersionData, upgrade_policies: list[dict[str, A
                 ).total_seconds() / 86400  # seconds in day
             else:
                 workload_history.reporting.append(cluster)
+
+    version_data.update_stats(upgrade_policies)
 
     version_data.check_in = now
 
@@ -213,11 +215,16 @@ def version_conditions_met(
     Returns:
         bool: are version upgrade conditions met
     """
-    # check if previous sectors run at least this version for that workload
-    # we will check dependencies recursively until there are versions for the given workload
-    # or no more dependencies to check
     sector = upgrade_conditions.get("sector")
     if sector:
+        version_data = version_data_map[ocm_name]
+        # check that inherited orgs run at least that version for our workloads
+        if not version_data.validate_against_inherited(version, workloads):
+            return False
+
+        # check if previous sectors run at least this version for that workload
+        # we will check dependencies recursively until there are versions for the given workload
+        # or no more dependencies to check
         for w in workloads:
             for dep in workload_sector_dependencies(sector, w):
                 dep_versions = workload_sector_versions(dep, w)

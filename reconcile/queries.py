@@ -634,9 +634,6 @@ CLUSTERS_QUERY = """
         name
         dependencies {
           name
-          ocm {
-            name
-          }
         }
       }
     }

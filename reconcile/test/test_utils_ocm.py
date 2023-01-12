@@ -18,7 +18,6 @@ from reconcile.utils.ocm import (
     OCMMap,
     Sector,
     SectorConfigError,
-    SectorWeakReference,
 )
 
 
@@ -256,66 +255,28 @@ def test__get_json(ocm):
 
 
 def test_sector_validate_dependencies(ocm):
-    sector1 = Sector(
-        name="sector1", ocm=ocm, cluster_infos=[], dependencies_refs=[], dependencies=[]
-    )
-    sector2 = Sector(
-        name="sector2",
-        ocm=ocm,
-        cluster_infos=[],
-        dependencies_refs=[],
-        dependencies=[sector1],
-    )
-    sector3 = Sector(
-        name="sector3",
-        ocm=ocm,
-        cluster_infos=[],
-        dependencies_refs=[],
-        dependencies=[sector2],
-    )
+    sector1 = Sector(name="sector1", ocm=ocm)
+    sector2 = Sector(name="sector2", ocm=ocm, dependencies=[sector1])
+    sector3 = Sector(name="sector3", ocm=ocm, dependencies=[sector2])
     assert sector3.validate_dependencies()
 
     # zero-level loop sector1 -> sector1
-    sector1 = Sector(
-        name="sector1", ocm=ocm, cluster_infos=[], dependencies_refs=[], dependencies=[]
-    )
+    sector1 = Sector(name="sector1", ocm=ocm)
     sector1.dependencies = [sector1]
     with pytest.raises(SectorConfigError):
         sector1.validate_dependencies()
 
     # single-level loop sector2 -> sector1 -> sector2
-    sector1 = Sector(
-        name="sector1", ocm=ocm, cluster_infos=[], dependencies_refs=[], dependencies=[]
-    )
-    sector2 = Sector(
-        name="sector2",
-        ocm=ocm,
-        cluster_infos=[],
-        dependencies_refs=[],
-        dependencies=[sector1],
-    )
+    sector1 = Sector(name="sector1", ocm=ocm)
+    sector2 = Sector(name="sector2", ocm=ocm, dependencies=[sector1])
     sector1.dependencies = [sector2]
     with pytest.raises(SectorConfigError):
         sector2.validate_dependencies()
 
     # greater-level loop sector3 -> sector2 -> sector1 -> sector3
-    sector1 = Sector(
-        name="sector1", ocm=ocm, cluster_infos=[], dependencies_refs=[], dependencies=[]
-    )
-    sector2 = Sector(
-        name="sector2",
-        ocm=ocm,
-        cluster_infos=[],
-        dependencies_refs=[],
-        dependencies=[sector1],
-    )
-    sector3 = Sector(
-        name="sector3",
-        ocm=ocm,
-        cluster_infos=[],
-        dependencies_refs=[],
-        dependencies=[sector2],
-    )
+    sector1 = Sector(name="sector1", ocm=ocm)
+    sector2 = Sector(name="sector2", ocm=ocm, dependencies=[sector1])
+    sector3 = Sector(name="sector3", ocm=ocm, dependencies=[sector2])
     sector1.dependencies = [sector3]
     with pytest.raises(SectorConfigError):
         sector3.validate_dependencies()
@@ -327,7 +288,6 @@ def test_ocm_map_upgrade_policies_sector(ocm, mocker):
         {"name": "s1"},
         {"name": "s2", "dependencies": [{"name": "s1"}]},
         {"name": "s3", "dependencies": [{"ocm": {"name": "ocm1"}, "name": "s1"}]},
-        {"name": "s4", "dependencies": [{"ocm": {"name": "ocm1"}, "name": "*"}]},
     ]
     ocm1_info = {
         "name": "ocm1",
@@ -364,54 +324,18 @@ def test_ocm_map_upgrade_policies_sector(ocm, mocker):
 
     # all sectors are reported, even the ones without clusters
     ocm1 = ocm_map["ocm1"]
-    assert len(ocm1.sectors) == 4
+    assert len(ocm1.sectors) == 3
 
     ocm2 = ocm_map["ocm2"]
-    assert len(ocm2.sectors) == 4
+    assert len(ocm2.sectors) == 3
 
     # no dependencies
-    s1 = Sector(
-        name="s1", ocm=ocm1, dependencies=[], dependencies_refs=[], cluster_infos=[]
-    )
+    s1 = Sector(name="s1", ocm=ocm1)
     assert ocm1.sectors["s1"] == s1
 
     # partial dependency definition, without ocm org. defaulting to sector's org
-    s1_weak = SectorWeakReference(ocm_org_name="ocm1", sector_name="s1")
-    s2 = Sector(
-        name="s2",
-        ocm=ocm1,
-        dependencies=[s1],
-        dependencies_refs=[s1_weak],
-        cluster_infos=[c2],
-    )
+    s2 = Sector(name="s2", ocm=ocm1, dependencies=[s1], cluster_infos=[c2])
     assert ocm1.sectors["s2"] == s2
-
-    # full dependency definition, including ocm org
-    s3 = Sector(
-        name="s3",
-        ocm=ocm1,
-        dependencies=[s1],
-        dependencies_refs=[s1_weak],
-        cluster_infos=[],
-    )
-    assert ocm1.sectors["s3"] == s3
-
-    # wildcard dependencies report all other sectors
-    wildcard_dep_ref = SectorWeakReference(ocm_org_name="ocm1", sector_name="*")
-    s4 = Sector(
-        name="s4",
-        ocm=ocm1,
-        dependencies=[s1, s2, s3],
-        dependencies_refs=[wildcard_dep_ref],
-        cluster_infos=[],
-    )
-    assert ocm1.sectors["s4"] == s4
-
-    # cross-orgs dependency
-    assert ocm2.sectors["s3"].dependencies == [s1]
-
-    # cross-orgs wildcard dependencies
-    assert ocm2.sectors["s4"].dependencies == [s1, s2, s3, s4]
 
 
 @pytest.mark.parametrize("fixture_name", ["full", "minimal"])

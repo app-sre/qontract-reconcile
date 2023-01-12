@@ -11,7 +11,10 @@ from croniter import croniter
 from dateutil import parser
 
 import reconcile.ocm_upgrade_scheduler as ous
-from reconcile.utils.cluster_version_data import VersionData
+from reconcile.utils.cluster_version_data import (
+    Stats,
+    VersionData,
+)
 from reconcile.utils.ocm import Sector
 
 
@@ -21,7 +24,7 @@ class TestUpdateHistory(TestCase):
         history = {
             "check_in": "2021-08-29T18:00:00",
             "versions": {
-                "version1": {
+                "4.12.1": {
                     "workloads": {
                         "workload1": {
                             "soak_days": 21.0,
@@ -37,17 +40,17 @@ class TestUpdateHistory(TestCase):
             {
                 "workloads": ["workload1"],
                 "cluster": "cluster1",
-                "current_version": "version1",
+                "current_version": "4.12.1",
             },
             {
                 "workloads": ["workload1"],
                 "cluster": "cluster2",
-                "current_version": "version1",
+                "current_version": "4.12.1",
             },
             {
                 "workloads": ["workload2"],
                 "cluster": "cluster3",
-                "current_version": "version1",
+                "current_version": "4.12.1",
             },
         ]
         version_data = VersionData(**history)
@@ -55,7 +58,7 @@ class TestUpdateHistory(TestCase):
         expected = {
             "check_in": "2021-08-30T18:00:00",
             "versions": {
-                "version1": {
+                "4.12.1": {
                     "workloads": {
                         "workload1": {
                             "soak_days": 23.0,
@@ -64,6 +67,13 @@ class TestUpdateHistory(TestCase):
                         "workload2": {"soak_days": 7.0, "reporting": ["cluster3"]},
                     }
                 }
+            },
+            "stats": {
+                "min_version": "4.12.1",
+                "min_version_per_workload": {
+                    "workload1": "4.12.1",
+                    "workload2": "4.12.1",
+                },
             },
         }
         self.assertEqual(expected, version_data.jsondict())
@@ -397,7 +407,7 @@ class TestVersionConditionsMetSector:
         return Sector(name="sector3", ocm=ocm1, dependencies=[sector2_ocm1])
 
     @pytest.fixture
-    def cluster_high_version(self):
+    def cluster_high_version(self) -> dict[str, Any]:
         return {
             "name": "high-version-sector1-ocm1",
             "upgradePolicy": {"workloads": ["workload1"]},
@@ -412,16 +422,30 @@ class TestVersionConditionsMetSector:
             "ocmspec": self.ocmspec("1.0.0"),
         }
 
-    def test_conditions_met_no_deps(self, sector1_ocm1: Sector):
+    @pytest.fixture
+    def empty_version_data_map(self):
+        return {
+            "ocm1": VersionData(
+                check_in="2021-08-29T18:00:00",
+                versions={},
+                stats=Stats(min_version="1.0.0", min_version_per_workload={}),
+            )
+        }
+
+    def test_conditions_met_no_deps(
+        self, sector1_ocm1: Sector, empty_version_data_map: dict[str, VersionData]
+    ):
         upgrade_conditions = {"sector": sector1_ocm1}
         assert ous.version_conditions_met(
-            "1.2.3", {}, "ocm1", ["workload1"], upgrade_conditions
+            "1.2.3", empty_version_data_map, "ocm1", ["workload1"], upgrade_conditions
         )
 
-    def test_conditions_met_single_deps_no_cluster(self, sector2_ocm1: Sector):
+    def test_conditions_met_single_deps_no_cluster(
+        self, sector2_ocm1: Sector, empty_version_data_map: dict[str, VersionData]
+    ):
         upgrade_conditions = {"sector": sector2_ocm1}
         assert ous.version_conditions_met(
-            "1.2.3", {}, "ocm1", ["workload1"], upgrade_conditions
+            "1.2.3", empty_version_data_map, "ocm1", ["workload1"], upgrade_conditions
         )
 
     # return the ocmspec of the cluster from its name
@@ -442,12 +466,13 @@ class TestVersionConditionsMetSector:
         mocker,
         sector1_ocm1: Sector,
         sector2_ocm1: Sector,
-        cluster_high_version,
+        cluster_high_version: dict[str, Any],
+        empty_version_data_map: dict[str, VersionData],
     ):
         upgrade_conditions = {"sector": sector2_ocm1}
         self.set_clusters(mocker, sector1_ocm1, [cluster_high_version])
         assert ous.version_conditions_met(
-            "1.2.3", {}, "ocm1", ["workload1"], upgrade_conditions
+            "1.2.3", empty_version_data_map, "ocm1", ["workload1"], upgrade_conditions
         )
 
     def test_conditions_met_single_deps_low_version(
@@ -455,12 +480,13 @@ class TestVersionConditionsMetSector:
         mocker,
         sector1_ocm1: Sector,
         sector2_ocm1: Sector,
-        cluster_low_version,
+        cluster_low_version: dict[str, Any],
+        empty_version_data_map: dict[str, VersionData],
     ):
         upgrade_conditions = {"sector": sector2_ocm1}
         self.set_clusters(mocker, sector1_ocm1, [cluster_low_version])
         assert not ous.version_conditions_met(
-            "1.2.3", {}, "ocm1", ["workload1"], upgrade_conditions
+            "1.2.3", empty_version_data_map, "ocm1", ["workload1"], upgrade_conditions
         )
 
     def test_conditions_met_single_deps_mix_versions(
@@ -469,14 +495,15 @@ class TestVersionConditionsMetSector:
         sector1_ocm1: Sector,
         sector2_ocm1: Sector,
         cluster_low_version,
-        cluster_high_version,
+        cluster_high_version: dict[str, Any],
+        empty_version_data_map: dict[str, VersionData],
     ):
         upgrade_conditions = {"sector": sector2_ocm1}
         self.set_clusters(
             mocker, sector1_ocm1, [cluster_low_version, cluster_high_version]
         )
         assert not ous.version_conditions_met(
-            "1.2.3", {}, "ocm1", ["workload1"], upgrade_conditions
+            "1.2.3", empty_version_data_map, "ocm1", ["workload1"], upgrade_conditions
         )
 
     # first dependency level (sector2) contains no cluster with the workload,
@@ -488,25 +515,26 @@ class TestVersionConditionsMetSector:
         sector1_ocm1: Sector,
         sector3_ocm1: Sector,
         cluster_low_version,
-        cluster_high_version,
+        cluster_high_version: dict[str, Any],
+        empty_version_data_map: dict[str, VersionData],
     ):
         upgrade_conditions = {"sector": sector3_ocm1}
 
         # no clusters in deps: upgrade ok
         assert ous.version_conditions_met(
-            "1.2.3", {}, "ocm1", ["workload1"], upgrade_conditions
+            "1.2.3", empty_version_data_map, "ocm1", ["workload1"], upgrade_conditions
         )
 
         # all clusters with higher version in deps: upgrade ok
         self.set_clusters(mocker, sector1_ocm1, [cluster_high_version])
         assert ous.version_conditions_met(
-            "1.2.3", {}, "ocm1", ["workload1"], upgrade_conditions
+            "1.2.3", empty_version_data_map, "ocm1", ["workload1"], upgrade_conditions
         )
 
         # no cluster with higher version in deps: upgrade not ok
         self.set_clusters(mocker, sector1_ocm1, [cluster_low_version])
         assert not ous.version_conditions_met(
-            "1.2.3", {}, "ocm1", ["workload1"], upgrade_conditions
+            "1.2.3", empty_version_data_map, "ocm1", ["workload1"], upgrade_conditions
         )
 
         # not all clusters with higher version in deps: upgrade not ok
@@ -514,7 +542,7 @@ class TestVersionConditionsMetSector:
             mocker, sector1_ocm1, [cluster_low_version, cluster_high_version]
         )
         assert not ous.version_conditions_met(
-            "1.2.3", {}, "ocm1", ["workload1"], upgrade_conditions
+            "1.2.3", empty_version_data_map, "ocm1", ["workload1"], upgrade_conditions
         )
 
 
