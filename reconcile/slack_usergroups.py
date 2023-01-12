@@ -1,4 +1,5 @@
 import logging
+import sys
 from collections.abc import (
     Callable,
     Iterable,
@@ -46,6 +47,7 @@ from reconcile.utils.exceptions import (
 from reconcile.utils.github_api import GithubApi
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.pagerduty_api import (
+    PagerDutyApiException,
     PagerDutyMap,
     get_pagerduty_map,
 )
@@ -59,6 +61,7 @@ from reconcile.utils.slack_api import (
 
 DATE_FORMAT = "%Y-%m-%d %H:%M"
 QONTRACT_INTEGRATION = "slack-usergroups"
+error_occurred = False
 
 
 def get_git_api(url: str) -> Union[GithubApi, GitLabApi]:
@@ -219,6 +222,7 @@ def get_usernames_from_pagerduty(
     pagerduty_map: PagerDutyMap,
 ) -> list[str]:
     """Return list of usernames from all pagerduties."""
+    global error_occurred
     all_output_usernames = []
     all_pagerduty_names = [get_pagerduty_name(u) for u in users]
     for pagerduty in pagerduties:
@@ -230,7 +234,15 @@ def get_usernames_from_pagerduty(
             pd_resource_id = pagerduty.escalation_policy_id
 
         pd = pagerduty_map.get(pagerduty.instance.name)
-        pagerduty_names = pd.get_pagerduty_users(pd_resource_type, pd_resource_id)
+        try:
+            pagerduty_names = pd.get_pagerduty_users(pd_resource_type, pd_resource_id)
+        except PagerDutyApiException as e:
+            logging.error(
+                f"[{usergroup}] PagerDuty API error: {e} "
+                "(hint: check that pagerduty schedule_id/escalation_policy_id is correct)"
+            )
+            error_occurred = True
+            continue
         if not pagerduty_names:
             continue
         pagerduty_names = [
@@ -522,6 +534,7 @@ def _create_usergroups(
     dry_run: bool = True,
 ) -> None:
     """Create Slack usergroups."""
+    global error_occurred
     if current_ug_state:
         logging.debug(
             f"[{desired_ug_state.workspace}] Usergroup exists and will not be created {desired_ug_state.usergroup}"
@@ -537,6 +550,7 @@ def _create_usergroups(
             desired_ug_state.usergroup_id = usergroup_id
         except SlackApiError as error:
             logging.error(error)
+            error_occurred = True
 
 
 def _update_usergroup_users_from_state(
@@ -546,6 +560,7 @@ def _update_usergroup_users_from_state(
     dry_run: bool = True,
 ) -> None:
     """Update the users in a Slack usergroup."""
+    global error_occurred
     if current_ug_state.users == desired_ug_state.users:
         logging.debug(
             f"No usergroup user changes detected for {desired_ug_state.usergroup}"
@@ -589,6 +604,7 @@ def _update_usergroup_users_from_state(
             # logging the errors and proceeding rather than blocking time
             # sensitive updates.
             logging.error(error)
+            error_occurred = True
 
 
 def _update_usergroup_from_state(
@@ -598,7 +614,7 @@ def _update_usergroup_from_state(
     dry_run: bool = True,
 ) -> None:
     """Update a Slack usergroup."""
-
+    global error_occurred
     if (
         current_ug_state.channels == desired_ug_state.channels
         and current_ug_state.description == desired_ug_state.description
@@ -654,6 +670,7 @@ def _update_usergroup_from_state(
             )
         except SlackApiError as error:
             logging.error(error)
+            error_occurred = True
 
 
 def act(
@@ -770,6 +787,9 @@ def run(
         slack_map=slack_map,
         dry_run=dry_run,
     )
+    if error_occurred:
+        logging.error("Error(s) occurred.")
+        sys.exit(1)
 
 
 def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
