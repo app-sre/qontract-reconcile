@@ -25,11 +25,25 @@ class VersionHistory(BaseModel):
 
 
 class Stats(BaseModel):
+    """Stats is a part of VersionData. It provides basic statistics on the OCM
+    organization current cluster versions. Currently only
+    the minimum version, globally in the org and per workload, is being stored.
+    This class also has a `inherited` field which will contain at runtime a
+    computation of the same statistics for `inheritedVersionData` organizations.
+    This field is only computed and set at runtime and not stored in state.
+    It is used to compute version upgradeability according to cross-org
+    inheritance.
+    """
+
     min_version: str
     min_version_per_workload: dict[str, str] = Field(default_factory=dict)
     inherited: Optional["Stats"]
 
     def inherit(self, added: "Stats") -> None:
+        """adds the provided stats to our inherited data
+        If we already have inherited data, we will merge the stats data:
+        compute new minimums and add missing data
+        """
         if not self.inherited:
             self.inherited = added
             return
@@ -43,9 +57,11 @@ class Stats(BaseModel):
             )
 
     def validate_against_inherited(self, version: str, workloads: list[str]) -> bool:
-        """Returns True only if version is less than any of the inherited version for these workloads
-        If one of the worloads is not part of the inherited stats, we will check against the global
-        minimum version
+        """Returns True only if version is less or equal than any of the inherited version
+        for these workloads.
+        If one of the worloads is not part of the inherited stats, we will check against
+        the global minimum version.
+        If there are no inherited stats, we consider the version as valid
         """
         if not self.inherited:
             return True
@@ -70,6 +86,12 @@ class Stats(BaseModel):
 
 
 class VersionData(BaseModel):
+    """VersionData holds information about cluster versions and their history
+    for a given OCM organization. This data is stored in a State and used to
+    decide if a given version can be used for an upgrade according to our
+    upgrade policies.
+    """
+
     check_in: Optional[datetime]
     versions: dict[str, VersionHistory] = Field(default_factory=dict)
     stats: Optional[Stats]
@@ -96,6 +118,7 @@ class VersionData(BaseModel):
         return workloads
 
     def update_stats(self, upgrade_policies: list[dict[str, str]]) -> None:
+        """Update the versiondata stats with the provided upgrade_policies info"""
         min_version_per_workload: dict[str, str] = {}
         for item in upgrade_policies:
             current_version = item["current_version"]
@@ -112,6 +135,9 @@ class VersionData(BaseModel):
             )
 
     def aggregate(self, added: "VersionData", added_org_name: str) -> None:
+        """aggregate an other version data with this one.
+        this adds new value and merges the ones we we already have
+        """
         known_workloads = self.workloads()
         for version, version_data in added.versions.items():
             for workload, workload_data in version_data.workloads.items():
