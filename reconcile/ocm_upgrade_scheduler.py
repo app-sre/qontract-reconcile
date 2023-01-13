@@ -78,18 +78,19 @@ def fetch_desired_state(
         sector_name = upgrade_policy["conditions"].get("sector")
         if sector_name:
             upgrade_policy["conditions"]["sector"] = ocm.sectors[sector_name]
-        if not addons:
+
+        if addons:
+            cluster_addons = ocm.get_cluster_addons(cluster_name, with_version=True)
+            for addon in cluster_addons:
+                policy = copy.deepcopy(upgrade_policy)
+                policy["addon_id"] = addon["id"]
+                policy["current_version"] = addon["version"]
+                desired_state.append(policy)
+        else:
             spec = ocm.clusters[cluster_name].spec
             upgrade_policy["current_version"] = spec.version
             upgrade_policy["channel"] = spec.channel
             desired_state.append(upgrade_policy)
-            continue
-        cluster_addons = ocm.get_cluster_addons(cluster_name, with_version=True)
-        for addon in cluster_addons:
-            policy = copy.deepcopy(upgrade_policy)
-            policy["addon_id"] = addon["id"]
-            policy["current_version"] = addon["version"]
-            desired_state.append(policy)
 
     sorted_desired_state = sorted(desired_state, key=sort_key)
 
