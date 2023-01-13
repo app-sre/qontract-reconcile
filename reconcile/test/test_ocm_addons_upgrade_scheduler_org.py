@@ -57,6 +57,7 @@ def ocm_map(mock_ocm_map, addon_id, cluster, ocm_addon_version):
     ocm = map.get.return_value
     ocm.addons = [{"id": addon_id, "version": {"id": ocm_addon_version}}]
     ocm.version_blocked.return_value = False
+    ocm.addon_version_blocked.return_value = False
     ocm.cluster_ids = {cluster: "clusterid"}
     return map
 
@@ -132,3 +133,17 @@ def test_upgrade_needed(
             "upgrade_type": "ADDON",
         }
     ]
+
+
+def test_blocked_upgrade(
+    desired_state, ocm_map, addon_id, cluster, ocm_addon_version, set_upgradeable
+):
+    ocm_map.get("ocm").addon_version_blocked.return_value = True
+    diffs = oauso.calculate_diff(
+        [],
+        [desired_state],
+        ocm_map,
+        {},
+        addon_id,
+    )
+    assert not diffs

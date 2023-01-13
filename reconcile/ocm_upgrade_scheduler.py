@@ -299,10 +299,13 @@ def upgradeable_version(
     version_data_map: dict[str, VersionData],
     ocm: OCM,
     upgrades: Iterable[str],
+    addon_id: str = "",
 ) -> Optional[str]:
     """Get the highest next version we can upgrade to, fulfilling all conditions"""
     for version in reversed(sort_versions(upgrades)):
-        if ocm.version_blocked(version):
+        if addon_id and ocm.addon_version_blocked(version, addon_id):
+            continue
+        if not addon_id and ocm.version_blocked(version):
             continue
         if version_conditions_met(
             version,
@@ -361,7 +364,7 @@ def calculate_diff(
                 raise ValueError(f"[{cluster}] expected only one upgrade policy")
             current = c[0]
             version = current.get("version")  # may not exist in automatic upgrades
-            if version and ocm.version_blocked(version):
+            if version and not addon_id and ocm.version_blocked(version):
                 next_run = current.get("next_run")
                 if next_run and datetime.strptime(next_run, "%Y-%m-%dT%H:%M:%SZ") < now:
                     logging.warning(
@@ -433,7 +436,7 @@ def calculate_diff(
             ]
         else:
             upgrades = ocm.get_available_upgrades(d["current_version"], d["channel"])
-        version = upgradeable_version(d, version_data_map, ocm, upgrades)
+        version = upgradeable_version(d, version_data_map, ocm, upgrades, addon_id)
 
         if version:
             item = {
