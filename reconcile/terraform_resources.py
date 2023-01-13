@@ -685,11 +685,18 @@ def run(
     use_jump_host=True,
     light=False,
     vault_output_path="",
-    account_names=None,
+    account_name=None,
     defer=None,
 ):
-    if account_names:
-        account_names = account_names.split(",")
+    # If we are not running in dry run we don't want to run with more than one account
+    if account_name and len(account_name) > 1 and not dry_run:
+        logging.error(
+            "You can only pass two account names when running in dry-run mode"
+        )
+        sys.exit(1)
+    elif account_name:
+        account_names = account_name
+        account_name = account_name[0]
 
     ri, oc_map, tf, resource_specs = setup(
         dry_run,
@@ -732,7 +739,7 @@ def run(
     populate_desired_state(ri, resource_specs)
 
     actions = ob.realize_data(
-        dry_run, oc_map, ri, thread_pool_size, caller=account_names
+        dry_run, oc_map, ri, thread_pool_size, caller=account_name
     )
 
     if not light and tf.should_apply:
@@ -740,7 +747,7 @@ def run(
             dry_run,
             thread_pool_size,
             disable_service_account_keys=True,
-            account_names=account_names,
+            account_name=account_name,
         )
 
     if actions and vault_output_path:
