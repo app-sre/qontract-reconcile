@@ -1193,7 +1193,24 @@ class OCM:  # pylint: disable=too-many-public-methods
         )
         self._delete(api)
 
-    def version_blocked(self, version: str, addon_id: str = "") -> bool:
+    def addon_version_blocked(self, version: str, addon_id: str = "") -> bool:
+        """Check if an addon version is blocked
+
+        Args:
+            version (string): version to check
+            addon_id (string): addon_id to check
+
+        Returns:
+            bool: is version blocked
+        """
+        v = f"{addon_id}/{version}"
+        return any(
+            re.search(b, v)
+            for b in self.blocked_versions
+            if b.startswith(f"{addon_id}/") or b.startswith(f"^{addon_id}/")
+        )
+
+    def version_blocked(self, version: str) -> bool:
         """Check if a version is blocked
 
         Args:
@@ -1202,8 +1219,7 @@ class OCM:  # pylint: disable=too-many-public-methods
         Returns:
             bool: is version blocked
         """
-        s = f"{addon_id}/{version}" if addon_id else version
-        return any(re.search(b, s) for b in self.blocked_versions)
+        return any(re.search(b, version) for b in self.blocked_versions)
 
     def get_available_upgrades(self, version, channel):
         """Get available versions to upgrade from specified version

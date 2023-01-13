@@ -30,6 +30,18 @@ def test_version_not_blocked(ocm):
     assert result is False
 
 
+def test_addon_version_blocked(ocm):
+    ocm.blocked_versions = ["myaddon/1.2.3"]
+    result = ocm.addon_version_blocked("1.2.3", "myaddon")
+    assert result is True
+
+
+def test_addon_version_not_blocked(ocm):
+    ocm.blocked_versions = ["1.2.4", "myaddon/1.2.3"]
+    result = ocm.addon_version_blocked("1.2.4", "myaddon")
+    assert result is False
+
+
 def test_version_blocked_multiple(ocm):
     ocm.blocked_versions = ["1.2.3", "1.2.4"]
     result = ocm.version_blocked("1.2.3")
