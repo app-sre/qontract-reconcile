@@ -688,14 +688,18 @@ def run(
     account_name: Optional[tuple[str]] = None,
     defer=None,
 ):
-    # If we are not running in dry run we don't want to run with more than one account
+    # account_name is a tuple of account names for more detail go to
+    # https://click.palletsprojects.com/en/8.1.x/options/#multiple-options
     account_names = account_name
+
+    # acc_name will prevent type error since account_name is not a str
+    acc_name: Optional[str] = account_names[0] if account_names else None
+
+    # If we are not running in dry run we don't want to run with more than one account
     if account_names and len(account_names) > 1 and not dry_run:
         message = "Running with multiple accounts is only supported in dry-run mode"
         logging.error(message)
         raise RuntimeError(message)
-    elif account_names:
-        account_name = account_names[0]
 
     ri, oc_map, tf, resource_specs = setup(
         dry_run,
@@ -737,16 +741,14 @@ def run(
     # populate the resource inventory with latest output data
     populate_desired_state(ri, resource_specs)
 
-    actions = ob.realize_data(
-        dry_run, oc_map, ri, thread_pool_size, caller=account_name
-    )
+    actions = ob.realize_data(dry_run, oc_map, ri, thread_pool_size, caller=acc_name)
 
     if not light and tf.should_apply:
         disable_keys(
             dry_run,
             thread_pool_size,
             disable_service_account_keys=True,
-            account_name=account_name,
+            account_name=acc_name,
         )
 
     if actions and vault_output_path:
