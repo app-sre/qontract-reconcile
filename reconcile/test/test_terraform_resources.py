@@ -1,4 +1,15 @@
+import pytest
+
 import reconcile.terraform_resources as integ
+
+
+def test_cannot_pass_two_aws_account_if_not_dry_run():
+    with pytest.raises(RuntimeError) as excinfo:
+        integ.run(False, account_name=("a", "b"))
+
+    assert "Running with multiple accounts is only supported in dry-run mode" in str(
+        excinfo.value
+    )
 
 
 def test_filter_namespaces_no_managed_tf_resources():
