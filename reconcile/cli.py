@@ -1572,8 +1572,9 @@ def ldap_users(ctx, gitlab_project_id):
 @use_jump_host()
 @enable_deletion(default=False)
 @click.option(
-    "--account-names",
+    "--account-name",
     default=None,
+    multiple=True,
     help="aws account names to act on comma separated i.e.: aws-account-1,aws-account-2",
 )
 @click.option(
@@ -1591,7 +1592,7 @@ def terraform_resources(
     use_jump_host,
     light,
     vault_output_path,
-    account_names,
+    account_name,
 ):
     import reconcile.terraform_resources
 
@@ -1607,7 +1608,7 @@ def terraform_resources(
         use_jump_host,
         light,
         vault_output_path,
-        account_names=account_names,
+        account_name=account_name,
     )
 
 
