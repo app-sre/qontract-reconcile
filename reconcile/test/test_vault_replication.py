@@ -17,6 +17,9 @@ from reconcile.gql_definitions.vault_instances.vault_instances import (
 from reconcile.gql_definitions.vault_policies import vault_policies
 from reconcile.test.fixtures import Fixtures
 from reconcile.utils.vault import (
+    SecretAccessForbidden,
+    SecretNotFound,
+    SecretVersionNotFound,
     VaultClient,
     _VaultClient,
 )
@@ -263,3 +266,250 @@ def test_get_policy_paths_real_data():
         "vault-instance",
         vault_policies.VaultPoliciesQueryData(**test),
     ) == ["path/test-1/*", "path/test-2/*"]
+
+
+@pytest.mark.parametrize(
+    "dry_run, secret_version, path", [[False, 1, "path"], [True, 1, "path"]]
+)
+def test_write_dummy_version(dry_run, secret_version, path, mocker):
+
+    vault_client = mocker.patch("reconcile.utils.vault._VaultClient", autospec=True)
+
+    integ.write_dummy_versions(
+        dry_run=dry_run,
+        dest_vault=vault_client,
+        secret_version=secret_version,
+        path=path,
+    )
+    if not dry_run:
+        vault_client.write.assert_called_once_with(
+            {"path": path, "data": {"dummy": "data"}}, False, True
+        )
+    else:
+        vault_client.write.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "dry_run, current_dest_version, current_source_version, path",
+    [[False, 1, 2, "path"], [True, 1, 2, "path"]],
+)
+def test_deep_copy_versions(
+    dry_run, current_dest_version, current_source_version, path, mocker
+):
+
+    vault_client = mocker.patch("reconcile.utils.vault._VaultClient", autospec=True)
+
+    vault_client.read_all_with_version.return_value = [{"test": "data"}, 2]
+
+    integ.deep_copy_versions(
+        dry_run=dry_run,
+        source_vault=vault_client,
+        dest_vault=vault_client,
+        current_dest_version=current_dest_version,
+        current_source_version=current_source_version,
+        path=path,
+    )
+
+    secret_dict = {"path": path, "version": 2}
+    if dry_run:
+        vault_client.read_all_with_version.assert_called_once_with(secret_dict)
+        vault_client.write.assert_not_called()
+    else:
+        write_dict = {"path": path, "data": {"test": "data"}}
+        vault_client.read_all_with_version.assert_called_once_with(secret_dict)
+        vault_client.write.assert_called_once_with(write_dict, False, True)
+
+
+@pytest.mark.parametrize(
+    "dry_run, current_dest_version, current_source_version, path",
+    [[False, 1, 2, "path"], [True, 1, 2, "path"]],
+)
+def test_deep_copy_versions_exception(
+    dry_run, current_dest_version, current_source_version, path, mocker
+):
+
+    vault_client = mocker.patch("reconcile.utils.vault._VaultClient", autospec=True)
+    write_dummy_versions = mocker.patch(
+        "reconcile.vault_replication.write_dummy_versions", autospec=True
+    )
+
+    vault_client.read_all_with_version.side_effect = SecretVersionNotFound()
+
+    integ.deep_copy_versions(
+        dry_run=dry_run,
+        source_vault=vault_client,
+        dest_vault=vault_client,
+        current_dest_version=current_dest_version,
+        current_source_version=current_source_version,
+        path=path,
+    )
+
+    secret_dict = {"path": path, "version": 2}
+    if dry_run:
+        vault_client.read_all_with_version.assert_called_once_with(secret_dict)
+        write_dummy_versions.assert_called()
+        vault_client.write.assert_not_called()
+    else:
+        vault_client.read_all_with_version.assert_called_once_with(secret_dict)
+        write_dummy_versions.assert_called()
+
+
+def test_copy_vault_secret_forbidden_access(mocker):
+    dry_run = True
+    vault_client = mocker.patch("reconcile.utils.vault._VaultClient", autospec=True)
+    vault_client.read_all_with_version.side_effect = SecretAccessForbidden()
+
+    with pytest.raises(SecretAccessForbidden):
+        integ.copy_vault_secret(
+            dry_run=dry_run,
+            source_vault=vault_client,
+            dest_vault=vault_client,
+            path="path",
+        )
+
+
+def test_copy_vault_secret_not_found_v2(mocker):
+    dry_run = True
+    vault_client = mocker.patch("reconcile.utils.vault._VaultClient", autospec=True)
+
+    vault_client.read_all_with_version.side_effect = [["secret", 2], SecretNotFound()]
+    deep_copy_versions = mocker.patch(
+        "reconcile.vault_replication.deep_copy_versions", autospec=True
+    )
+
+    integ.copy_vault_secret(
+        dry_run=dry_run, source_vault=vault_client, dest_vault=vault_client, path="path"
+    )
+    vault_client.read_all_with_version.assert_called()
+    deep_copy_versions.assert_called()
+
+
+@pytest.mark.parametrize("dry_run, path", [[False, "path"], [True, "path"]])
+def test_copy_vault_secret_not_found_v1(dry_run, path, mocker):
+    vault_client = mocker.patch("reconcile.utils.vault._VaultClient", autospec=True)
+
+    vault_client.read_all_with_version.side_effect = [
+        ["secret", None],
+        SecretNotFound(),
+        ["secret", None],
+    ]
+    deep_copy_versions = mocker.patch(
+        "reconcile.vault_replication.deep_copy_versions", autospec=True
+    )
+
+    integ.copy_vault_secret(
+        dry_run=dry_run, source_vault=vault_client, dest_vault=vault_client, path="path"
+    )
+    if not dry_run:
+        vault_client.read_all_with_version.assert_called()
+        vault_client.write.assert_called_once_with(
+            {"path": path, "data": "secret"}, False, True
+        )
+        deep_copy_versions.assert_not_called()
+    else:
+        vault_client.read_all_with_version.assert_called()
+        vault_client.write.assert_not_called()
+        deep_copy_versions.assert_not_called()
+
+
+def test_copy_vault_secret_found_v2(mocker):
+    dry_run = True
+    vault_client = mocker.patch("reconcile.utils.vault._VaultClient", autospec=True)
+
+    vault_client.read_all_with_version.side_effect = [["secret", 2], ["secret", 1]]
+    deep_copy_versions = mocker.patch(
+        "reconcile.vault_replication.deep_copy_versions", autospec=True
+    )
+
+    integ.copy_vault_secret(
+        dry_run=dry_run, source_vault=vault_client, dest_vault=vault_client, path="path"
+    )
+    vault_client.read_all_with_version.assert_called()
+    deep_copy_versions.assert_called_once_with(
+        dry_run, vault_client, vault_client, 1, 2, "path"
+    )
+
+
+def test_copy_vault_secret_found_same_version_v2(mocker):
+    dry_run = True
+    vault_client = mocker.patch("reconcile.utils.vault._VaultClient", autospec=True)
+
+    vault_client.read_all_with_version.side_effect = [["secret", 2], ["secret", 2]]
+    deep_copy_versions = mocker.patch(
+        "reconcile.vault_replication.deep_copy_versions", autospec=True
+    )
+
+    integ.copy_vault_secret(
+        dry_run=dry_run, source_vault=vault_client, dest_vault=vault_client, path="path"
+    )
+    vault_client.read_all_with_version.assert_called()
+    deep_copy_versions.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "dry_run, path, return_values",
+    [
+        [False, "path", [["secret2", None], ["secret", None], ["secret", None]]],
+        [True, "path", [["secret2", None], ["secret", None], ["secret", None]]],
+    ],
+)
+def test_copy_vault_secret_found_v1(dry_run, path, return_values, mocker):
+    vault_client = mocker.patch("reconcile.utils.vault._VaultClient", autospec=True)
+
+    vault_client.read_all_with_version.side_effect = return_values
+    deep_copy_versions = mocker.patch(
+        "reconcile.vault_replication.deep_copy_versions", autospec=True
+    )
+
+    integ.copy_vault_secret(
+        dry_run=dry_run, source_vault=vault_client, dest_vault=vault_client, path="path"
+    )
+    if not dry_run:
+        vault_client.read_all_with_version.assert_called()
+        vault_client.write.assert_called_once_with(
+            {"path": path, "data": "secret"}, False, True
+        )
+        deep_copy_versions.assert_not_called()
+    else:
+        vault_client.read_all_with_version.assert_called()
+        vault_client.write.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "dry_run, path, return_values",
+    [
+        [False, "path", [["secret", None], ["secret", None], ["secret", None]]],
+        [True, "path", [["secret", None], ["secret", None], ["secret", None]]],
+    ],
+)
+def test_copy_vault_secret_found_v1_same_value(dry_run, path, return_values, mocker):
+    vault_client = mocker.patch("reconcile.utils.vault._VaultClient", autospec=True)
+
+    vault_client.read_all_with_version.side_effect = return_values
+
+    integ.copy_vault_secret(
+        dry_run=dry_run, source_vault=vault_client, dest_vault=vault_client, path="path"
+    )
+    if not dry_run:
+        vault_client.read_all_with_version.assert_called()
+        vault_client.write.assert_not_called()
+    else:
+        vault_client.read_all_with_version.assert_called()
+        vault_client.write.assert_not_called()
+
+
+def test_get_policy_secret_list(mocker):
+    vault_client = mocker.patch("reconcile.utils.vault._VaultClient", autospec=True)
+    vault_client.list_all.side_effect = [
+        ["policy/path/1/secret1", "policy/path/1/secret2"],
+        ["policy/path/2/secret1", "policy/path/2/secret2"],
+    ]
+
+    assert integ.get_policy_secret_list(
+        vault_client, ["policy/path/1/*", "policy/path/2/*"]
+    ) == [
+        "policy/path/1/secret1",
+        "policy/path/1/secret2",
+        "policy/path/2/secret1",
+        "policy/path/2/secret2",
+    ]
