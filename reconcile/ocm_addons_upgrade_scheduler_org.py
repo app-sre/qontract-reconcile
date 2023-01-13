@@ -40,6 +40,7 @@ def run(dry_run: bool) -> None:
     ous.QONTRACT_INTEGRATION = QONTRACT_INTEGRATION
     settings = queries.get_app_interface_settings()
     ocms = queries.get_openshift_cluster_managers()
+    ocms = [o for o in ocms if o.get("addonManagedUpgrades")]
     for ocm in ocms:
         upgrade_policy_clusters = ocm.get("upgradePolicyClusters")
         if not upgrade_policy_clusters:
