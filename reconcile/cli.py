@@ -337,6 +337,16 @@ def account_name(function):
 
     return function
 
+def account_name_multiple(function):
+    """This option can be used when more than one account needs to be passed as argument"""
+    function = click.option(
+        "--account-name",
+        default=None,
+        multiple=True,
+        help="aws account names to act on comma separated i.e.: --account-name aws-account-1 --account-name aws-account-2",
+    )(function)
+
+    return function
 
 def workspace_name(function):
     function = click.option(
@@ -1571,12 +1581,7 @@ def ldap_users(ctx, gitlab_project_id):
 @internal()
 @use_jump_host()
 @enable_deletion(default=False)
-@click.option(
-    "--account-name",
-    default=None,
-    multiple=True,
-    help="aws account names to act on comma separated i.e.: aws-account-1,aws-account-2",
-)
+@account_name_multiple
 @click.option(
     "--light/--full",
     default=False,
