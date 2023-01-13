@@ -337,6 +337,7 @@ def account_name(function):
 
     return function
 
+
 def account_name_multiple(function):
     """This option can be used when more than one account needs to be passed as argument"""
     function = click.option(
@@ -347,6 +348,7 @@ def account_name_multiple(function):
     )(function)
 
     return function
+
 
 def workspace_name(function):
     function = click.option(
