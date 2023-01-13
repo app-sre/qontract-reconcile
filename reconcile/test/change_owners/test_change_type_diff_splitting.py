@@ -34,6 +34,7 @@ def test_root_diff_fully_covered_by_splits():
     split_a = ChangeTypeContext(
         change_type_processor=build_change_type("split-a", ["split-a"]),
         context="context",
+        origin="",
         context_file=FileRef(
             path="context_file.yml", file_type=BundleFileType.DATAFILE, schema=None
         ),
@@ -43,6 +44,7 @@ def test_root_diff_fully_covered_by_splits():
     split_b = ChangeTypeContext(
         change_type_processor=build_change_type("split-b", ["split-b"]),
         context="context",
+        origin="",
         context_file=FileRef(
             path="context_file.yml", file_type=BundleFileType.DATAFILE, schema=None
         ),
@@ -75,6 +77,7 @@ def test_root_diff_uncovered_fully_covered_by_splits():
     split_a = ChangeTypeContext(
         change_type_processor=build_change_type("split-a", ["split-a"]),
         context="context",
+        origin="",
         context_file=FileRef(
             path="context_file.yml", file_type=BundleFileType.DATAFILE, schema=None
         ),
@@ -84,6 +87,7 @@ def test_root_diff_uncovered_fully_covered_by_splits():
     split_b = ChangeTypeContext(
         change_type_processor=build_change_type("split-b", ["split-b"]),
         context="context",
+        origin="",
         context_file=FileRef(
             path="context_file.yml", file_type=BundleFileType.DATAFILE, schema=None
         ),
@@ -117,6 +121,7 @@ def test_root_diff_uncovered():
     split_a = ChangeTypeContext(
         change_type_processor=build_change_type("split-a", ["split-a"]),
         context="context",
+        origin="",
         context_file=FileRef(
             path="context_file.yml", file_type=BundleFileType.DATAFILE, schema=None
         ),
@@ -126,6 +131,7 @@ def test_root_diff_uncovered():
     split_b = ChangeTypeContext(
         change_type_processor=build_change_type("split-b", ["split-b"]),
         context="context",
+        origin="",
         context_file=FileRef(
             path="context_file.yml", file_type=BundleFileType.DATAFILE, schema=None
         ),
@@ -166,6 +172,7 @@ def test_nested_splits():
     top = ChangeTypeContext(
         change_type_processor=build_change_type("top", ["top"]),
         context="context",
+        origin="",
         context_file=FileRef(
             path="context_file.yml", file_type=BundleFileType.DATAFILE, schema=None
         ),
@@ -175,6 +182,7 @@ def test_nested_splits():
     sub = ChangeTypeContext(
         change_type_processor=build_change_type("sub", ["top.sub"]),
         context="context",
+        origin="",
         context_file=FileRef(
             path="context_file.yml", file_type=BundleFileType.DATAFILE, schema=None
         ),
@@ -184,6 +192,7 @@ def test_nested_splits():
     sub_sub = ChangeTypeContext(
         change_type_processor=build_change_type("sub-sub", ["top.sub.sub-sub"]),
         context="context",
+        origin="",
         context_file=FileRef(
             path="context_file.yml", file_type=BundleFileType.DATAFILE, schema=None
         ),
@@ -260,6 +269,7 @@ def test_diff_splitting_empty_parent_coverage():
     role_change_type = ChangeTypeContext(
         change_type_processor=build_change_type("roles", ["roles[*]"]),
         context="context",
+        origin="",
         context_file=FileRef(
             path="context_file.yml", file_type=BundleFileType.DATAFILE, schema=None
         ),
@@ -294,6 +304,7 @@ def test_diff_splitting_two_contexts_on_same_split():
     ctx_1 = ChangeTypeContext(
         change_type_processor=build_change_type("roles", ["roles[*]"]),
         context="context-1",
+        origin="",
         context_file=FileRef(
             path="context_file.yml", file_type=BundleFileType.DATAFILE, schema=None
         ),
@@ -302,6 +313,7 @@ def test_diff_splitting_two_contexts_on_same_split():
     ctx_2 = ChangeTypeContext(
         change_type_processor=build_change_type("roles", ["roles[*]"]),
         context="context-2",
+        origin="",
         context_file=FileRef(
             path="context_file.yml", file_type=BundleFileType.DATAFILE, schema=None
         ),

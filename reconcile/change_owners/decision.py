@@ -53,6 +53,13 @@ class ChangeDecision:
     coverage: list[ChangeTypeContext]
     decision: Decision
 
+    def deduped_coverage(self) -> list[ChangeTypeContext]:
+        unique_coverage = {}
+        for ctx in self.coverage:
+            key = f"{ctx.change_type_processor.name}:{ctx.context}"
+            unique_coverage[key] = ctx
+        return list(unique_coverage.values())
+
 
 def apply_decisions_to_changes(
     changes: list[BundleFileChange],

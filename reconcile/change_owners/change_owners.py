@@ -4,7 +4,11 @@ import traceback
 
 from reconcile import queries
 from reconcile.change_owners.approver import GqlApproverResolver
-from reconcile.change_owners.bundle import BundleFileType
+from reconcile.change_owners.bundle import (
+    BundleFileType,
+    FileDiffResolver,
+    QontractServerFileDiffResolver,
+)
 from reconcile.change_owners.change_types import (
     BundleFileChange,
     ChangeTypePriority,
@@ -100,9 +104,13 @@ def fetch_self_service_roles(gql_api: gql.GqlApi) -> list[RoleV1]:
     return roles
 
 
-def fetch_change_type_processors(gql_api: gql.GqlApi) -> list[ChangeTypeProcessor]:
+def fetch_change_type_processors(
+    gql_api: gql.GqlApi, file_diff_resolver: FileDiffResolver
+) -> list[ChangeTypeProcessor]:
     change_type_list = change_types.query(gql_api.query).change_types or []
-    return list(init_change_type_processors(change_type_list).values())
+    return list(
+        init_change_type_processors(change_type_list, file_diff_resolver).values()
+    )
 
 
 def fetch_bundle_changes(comparison_sha: str) -> list[BundleFileChange]:
@@ -207,7 +215,7 @@ def write_coverage_report_to_mr(
     for d in change_decisions:
         approvers = [
             f"{ctctx.context} - { ' '.join([f'@{a.org_username}' if a.tag_on_merge_requests else a.org_username for a in ctctx.approvers]) }"
-            for ctctx in d.coverage
+            for ctctx in d.deduped_coverage()
         ]
         if not approvers:
             approvers = ["[- not self-serviceable -]"]
@@ -249,6 +257,7 @@ def write_coverage_report_to_stdout(change_decisions: list[ChangeDecision]) -> N
                         "schema": d.file.schema,
                         "changed path": d.diff.path,
                         "change type": ctx.change_type_processor.name,
+                        "origin": ctx.origin,
                         "context": ctx.context,
                         "disabled": str(ctx.disabled),
                     }
@@ -269,6 +278,7 @@ def write_coverage_report_to_stdout(change_decisions: list[ChangeDecision]) -> N
                 "file",
                 "changed path",
                 "change type",
+                "origin",
                 "disabled",
                 "context",
             ],
@@ -313,11 +323,13 @@ def run(
         )
         return
 
+    file_diff_resolver = QontractServerFileDiffResolver(comparison_sha=comparison_sha)
+
     try:
         # fetch change-types from current bundle to verify they are syntactically correct.
         # this is a cheap way to figure out if a newly introduced change-type works.
         # needs a lot of improvements!
-        fetch_change_type_processors(gql.get_api())
+        fetch_change_type_processors(gql.get_api(), file_diff_resolver)
         # also verify that self service roles are configured correctly, e.g. if change-types
         # are brought together only with compatible schema files
         fetch_self_service_roles(gql.get_api())
@@ -331,7 +343,9 @@ def run(
         f"(sha={comparison_sha}, commit_id={comparison_gql_api.commit}, "
         f"build_time {comparison_gql_api.commit_timestamp_utc})"
     )
-    change_type_processors = fetch_change_type_processors(comparison_gql_api)
+    change_type_processors = fetch_change_type_processors(
+        comparison_gql_api, file_diff_resolver
+    )
 
     # an error while trying to cover changes will not fail the integration
     # and the PR check - self service merges will not be available though

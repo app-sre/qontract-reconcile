@@ -1,5 +1,6 @@
 from typing import Optional
 
+import jsonpath_ng.ext
 import pytest
 
 from reconcile.change_owners.approver import Approver
@@ -10,13 +11,13 @@ from reconcile.change_owners.bundle import (
 from reconcile.change_owners.change_types import (
     BundleFileChange,
     ChangeTypeProcessor,
+    OwnershipContext,
 )
 from reconcile.change_owners.implicit_ownership import (
     change_type_contexts_for_implicit_ownership,
     find_approvers_with_implicit_ownership_jsonpath_selector,
 )
 from reconcile.gql_definitions.change_owners.queries.change_types import (
-    ChangeTypeChangeDetectorContextSelectorV1,
     ChangeTypeImplicitOwnershipJsonPathProviderV1,
     ChangeTypeImplicitOwnershipV1,
 )
@@ -174,9 +175,9 @@ def test_find_implict_change_type_context_jsonpath_provider_invalid_context_file
     approver = Approver("approver", False)
     change_schema = "change-schema-1.yml"
 
-    change_type.changes[0].change_schema = change_schema
-    change_type.changes[0].context = ChangeTypeChangeDetectorContextSelectorV1(
-        selector="$.approver", when=None
+    change_type.change_detectors[0].change_schema = change_schema
+    change_type.change_detectors[0].context = OwnershipContext(
+        selector=jsonpath_ng.ext.parse("$.approver"), when=None
     )
 
     bc = build_test_datafile(

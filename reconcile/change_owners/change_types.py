@@ -1,3 +1,7 @@
+from abc import (
+    ABC,
+    abstractmethod,
+)
 from collections import defaultdict
 from collections.abc import (
     MutableMapping,
@@ -23,6 +27,7 @@ import networkx
 from reconcile.change_owners.approver import Approver
 from reconcile.change_owners.bundle import (
     BundleFileType,
+    FileDiffResolver,
     FileRef,
 )
 from reconcile.change_owners.diff import (
@@ -33,8 +38,8 @@ from reconcile.change_owners.diff import (
     extract_diffs,
 )
 from reconcile.gql_definitions.change_owners.queries.change_types import (
+    ChangeTypeChangeDetectorChangeTypeProviderV1,
     ChangeTypeChangeDetectorJsonPathProviderV1,
-    ChangeTypeChangeDetectorV1,
     ChangeTypeImplicitOwnershipV1,
     ChangeTypeV1,
 )
@@ -194,103 +199,6 @@ class BundleFileChange:
 
     def __post_init__(self) -> None:
         self._diff_coverage = {d.path_str(): DiffCoverage(d, []) for d in self.diffs}
-
-    def extract_context_file_refs(
-        self, change_type: "ChangeTypeProcessor"
-    ) -> list[FileRef]:
-        """
-        ChangeTypeV1 are attached to bundle files, react to changes within
-        them and use their context to derive who can approve those changes.
-        Extracting this context can be done in two ways depending on the configuration
-        of the ChangeTypeV1.
-
-        direct context extraction
-          If a ChangeTypeV1 defines a `context_schema`, it can be attached to files
-          of that schema. If such a file changes, the ChangeTypeV1 feels responsible
-          for it in subsequent diff coverage calculations and will use the approvers
-          that exist in the context of that changed file. This is the default
-          mode almost all ChangeTypeV1 operate in.
-
-          Example: a ChangeTypeV1 defines `/openshift/namespace-1.yml` as the
-          context_schema and can cover certain changes in it. If this ChangeTypeV1
-          is attached to certain namespace files (potential BundleChanges) and
-          a Role (context), changes in those namespace files can be approved by
-          members of the role.
-
-        context detection
-          If a ChangeTypeV1 additionally defines change_schemas and context selectors,
-          it has the capability to differentiate between reacting to changes
-          (and trying to cover them) and finding the context where approvers are
-          defined.
-
-          Example: Consider the following ChangeTypeV1 granting permissions to
-          approve on new members wanting to join a role.
-          ```
-            $schema: /app-interface/change-type-1.yml
-
-            contextType: datafile
-            contextSchema: /access/role-1.yml
-
-            changes:
-            - provider: jsonPath
-              changeSchema: /access/user-1.yml
-              jsonPathSelectors:
-              - roles[*]
-              context:
-                selector: roles[*].'$ref'
-                when: added
-          ```
-
-          Users join a role by adding the role to the user. This means that it
-          is a /access/user-1.yml file that changes in this situation. But permissions
-          to approve changes should be attached to the role not the user. This
-          ChangeTypeV1 takes care of that differentiation by defining /access/role-1.yml
-          as the context schema (making the ChangeTypeV1 assignable to a role)
-          but defining change detection on /access/user-1.yml via the `changeSchema`.
-          The actual role can be found within the userfile by looking for `added`
-          entries under `roles[*].$ref` (this is a jsonpath expression) as defined
-          under `context.selector`.
-        """
-        if not change_type.changes:
-            return []
-
-        # direct context extraction
-        # the changed file itself is giving the context for approver extraction
-        # see doc string for more details
-        if change_type.context_schema == self.fileref.schema:
-            return [self.fileref]
-
-        # context detection
-        # the context for approver extraction can be found within the changed
-        # file with a `context.selector`
-        # see doc string for more details
-        contexts: list[FileRef] = []
-        for c in change_type.changes:
-            if c.change_schema == self.fileref.schema and c.context:
-                context_selector = jsonpath_ng.ext.parse(c.context.selector)
-                old_contexts = {e.value for e in context_selector.find(self.old)}
-                new_contexts = {e.value for e in context_selector.find(self.new)}
-                if c.context.when == "added":
-                    affected_context_paths = new_contexts - old_contexts
-                elif c.context.when == "removed":
-                    affected_context_paths = old_contexts - new_contexts
-                elif c.context.when is None and old_contexts == new_contexts:
-                    affected_context_paths = old_contexts
-                else:
-                    affected_context_paths = None
-
-                if affected_context_paths:
-                    contexts.extend(
-                        [
-                            FileRef(
-                                schema=change_type.context_schema,
-                                path=path,
-                                file_type=BundleFileType.DATAFILE,
-                            )
-                            for path in affected_context_paths
-                        ]
-                    )
-        return contexts
 
     def cover_changes(self, change_type_context: "ChangeTypeContext") -> list[Diff]:
         """
@@ -480,6 +388,140 @@ class PathExpression:
 
 
 @dataclass
+class OwnershipContext:
+    selector: jsonpath_ng.JSONPath
+    when: Optional[str]
+
+    def find_ownership_context(
+        self,
+        context_schema: Optional[str],
+        old_data: Optional[dict[str, Any]] = None,
+        new_data: Optional[dict[str, Any]] = None,
+    ) -> list[FileRef]:
+
+        # extract contexts
+        old_contexts = {e.value for e in self.selector.find(old_data)}
+        new_contexts = {e.value for e in self.selector.find(new_data)}
+
+        # apply conditions
+        if self.when == "added":
+            affected_context_paths = new_contexts - old_contexts
+        elif self.when == "removed":
+            affected_context_paths = old_contexts - new_contexts
+        elif self.when is None and old_contexts == new_contexts:
+            affected_context_paths = old_contexts
+        else:
+            affected_context_paths = set()
+
+        return [
+            FileRef(
+                schema=context_schema,
+                path=path,
+                file_type=BundleFileType.DATAFILE,
+            )
+            for path in affected_context_paths
+        ]
+
+
+@dataclass
+class ContextExpansion:
+    """
+    Represents a context expansion configuration, capable of hopping from one
+    context of a change-type to another context of another change-type.
+    """
+
+    context: OwnershipContext
+    change_type: "ChangeTypeProcessor"
+    file_diff_resolver: FileDiffResolver
+
+    def expand(
+        self,
+        old_data: Optional[dict[str, Any]] = None,
+        new_data: Optional[dict[str, Any]] = None,
+    ) -> list["ResolvedContext"]:
+        """
+        Find context based on the `self.context`, lookup the file diff for
+        that new context and expose everything as a new `ResolvedContext` with
+        `self.change_type` as the change type.
+        """
+        context_file_refs = self.context.find_ownership_context(
+            context_schema=self.change_type.context_schema,
+            old_data=old_data,
+            new_data=new_data,
+        )
+        expaned_context_file_refs: list["ResolvedContext"] = []
+        for ref in context_file_refs:
+            ref_old_data, ref_new_data = self.file_diff_resolver.lookup_file_diff(ref)
+            expaned_context_file_refs.extend(
+                self.change_type.find_context_file_refs(
+                    ref,
+                    old_data=ref_old_data,
+                    new_data=ref_new_data,
+                )
+            )
+        return expaned_context_file_refs
+
+
+@dataclass
+class ResolvedContext:
+    """
+    The result of a context resolution. It is used for all kinds of context
+    and ownership resolution processes, including the context expansion process.
+    """
+
+    owned_file_ref: FileRef
+    context_file_ref: FileRef
+    change_type: "ChangeTypeProcessor"
+
+
+@dataclass
+class ChangeDetector(ABC):
+    """
+    Represents an item from a change-types `change` list.
+    """
+
+    context_schema: Optional[str]
+    change_schema: Optional[str]
+    context: Optional[OwnershipContext]
+
+    @abstractmethod
+    def find_context_file_refs(
+        self,
+        old_data: Optional[dict[str, Any]] = None,
+        new_data: Optional[dict[str, Any]] = None,
+    ) -> list[FileRef]:
+        ...
+
+
+@dataclass
+class JsonPathChangeDetector(ChangeDetector):
+    json_path_selectors: list[str]
+
+    def __post_init__(self):
+        self._json_path_expressions = [
+            PathExpression(jsonpath_expression)
+            for jsonpath_expression in self.json_path_selectors
+            + [f"'{SHA256SUM_FIELD_NAME}'"]
+        ]
+
+    @property
+    def json_path_expressions(self) -> list[PathExpression]:
+        return self._json_path_expressions
+
+    def find_context_file_refs(
+        self,
+        old_data: Optional[dict[str, Any]] = None,
+        new_data: Optional[dict[str, Any]] = None,
+    ) -> list[FileRef]:
+        if self.context:
+            return self.context.find_ownership_context(
+                self.context_schema, old_data, new_data
+            )
+        else:
+            return []
+
+
+@dataclass
 class ChangeTypeProcessor:
     """
     ChangeTypeProcessor wraps the generated GQL class ChangeTypeV1 and adds
@@ -499,11 +541,127 @@ class ChangeTypeProcessor:
         self._expressions_by_file_type_schema: dict[
             tuple[BundleFileType, Optional[str]], list[PathExpression]
         ] = defaultdict(list)
-        self._changes: list[ChangeTypeChangeDetectorV1] = []
+        self._change_detectors: list[ChangeDetector] = []
+        self._context_expansions: list[ContextExpansion] = []
 
     @property
-    def changes(self) -> Sequence[ChangeTypeChangeDetectorV1]:
-        return self._changes
+    def change_detectors(self) -> Sequence[ChangeDetector]:
+        return self._change_detectors
+
+    def find_context_file_refs(
+        self,
+        file_ref: FileRef,
+        old_data: Optional[dict[str, Any]],
+        new_data: Optional[dict[str, Any]],
+    ) -> list[ResolvedContext]:
+        """
+        ChangeTypeV1 are attached to bundle files, react to changes within
+        them and use their context to derive who can approve those changes.
+        Extracting this context can be done in two ways depending on the configuration
+        of the ChangeTypeV1.
+
+        direct context extraction
+          If a ChangeTypeV1 defines a `context_schema`, it can be attached to files
+          of that schema. If such a file changes, the ChangeTypeV1 feels responsible
+          for it in subsequent diff coverage calculations and will use the approvers
+          that exist in the context of that changed file. This is the default
+          mode almost all ChangeTypeV1 operate in.
+
+          Example: a ChangeTypeV1 defines `/openshift/namespace-1.yml` as the
+          context_schema and can cover certain changes in it. If this ChangeTypeV1
+          is attached to certain namespace files (potential BundleChanges) and
+          a Role (context), changes in those namespace files can be approved by
+          members of the role.
+
+        context detection
+          If a ChangeTypeV1 additionally defines change_schemas and context selectors,
+          it has the capability to differentiate between reacting to changes
+          (and trying to cover them) and finding the context where approvers are
+          defined.
+
+          Example: Consider the following ChangeTypeV1 granting permissions to
+          approve on new members wanting to join a role.
+          ```
+            $schema: /app-interface/change-type-1.yml
+
+            contextType: datafile
+            contextSchema: /access/role-1.yml
+
+            changes:
+            - provider: jsonPath
+              changeSchema: /access/user-1.yml
+              jsonPathSelectors:
+              - roles[*]
+              context:
+                selector: roles[*].'$ref'
+                when: added
+          ```
+
+          Users join a role by adding the role to the user. This means that it
+          is a /access/user-1.yml file that changes in this situation. But permissions
+          to approve changes should be attached to the role not the user. This
+          ChangeTypeV1 takes care of that differentiation by defining /access/role-1.yml
+          as the context schema (making the ChangeTypeV1 assignable to a role)
+          but defining change detection on /access/user-1.yml via the `changeSchema`.
+          The actual role can be found within the userfile by looking for `added`
+          entries under `roles[*].$ref` (this is a jsonpath expression) as defined
+          under `context.selector`.
+        """
+        contexts: list[ResolvedContext] = []
+
+        # expand context based on change-type composition
+        expanded_context: list[ResolvedContext] = []
+        for ce in self._context_expansions:
+            expanded_context.extend(ce.expand(old_data, new_data))
+
+        # direct context extraction
+        # the changed file itself is giving the context for approver extraction
+        # see doc string for more details
+        if self.context_schema == file_ref.schema:
+            contexts.append(
+                ResolvedContext(
+                    owned_file_ref=file_ref,
+                    context_file_ref=file_ref,
+                    change_type=self,
+                )
+            )
+
+            for ec in expanded_context:
+                # add expanded contexts (derived owned files)
+                contexts.append(
+                    ResolvedContext(
+                        owned_file_ref=ec.owned_file_ref,
+                        context_file_ref=file_ref,
+                        change_type=ec.change_type,
+                    )
+                )
+
+        # context detection
+        # the context for approver extraction can be found within the changed
+        # file with a `context.selector`
+        # see doc string for more details
+        for c in self.change_detectors:
+            if c.change_schema == file_ref.schema:
+                for ctx_file_ref in c.find_context_file_refs(old_data, new_data):
+                    contexts.append(
+                        ResolvedContext(
+                            owned_file_ref=ctx_file_ref,
+                            context_file_ref=ctx_file_ref,
+                            change_type=self,
+                        )
+                    )
+
+                    for ec in expanded_context:
+                        # add expanded contexts (derived owned files)
+                        contexts.append(
+                            ResolvedContext(
+                                owned_file_ref=ec.owned_file_ref,
+                                context_file_ref=ctx_file_ref,
+                                change_type=ec.change_type,
+                            )
+                        )
+
+        return contexts
 
     def allowed_changed_paths(
         self, file_ref: FileRef, file_content: Any, ctx: "ChangeTypeContext"
@@ -531,60 +689,116 @@ class ChangeTypeProcessor:
                 )
         return paths
 
-    def add_change(self, change: ChangeTypeChangeDetectorV1) -> None:
-        self._changes.append(change)
-        if isinstance(change, ChangeTypeChangeDetectorJsonPathProviderV1):
-            change_schema = change.change_schema or self.context_schema
-            for jsonpath_expression in change.json_path_selectors + [
-                f"'{SHA256SUM_FIELD_NAME}'"
-            ]:
+    def add_change_detector(
+        self,
+        detector: ChangeDetector,
+    ) -> None:
+        if isinstance(detector, JsonPathChangeDetector):
+            self._change_detectors.append(detector)
+            change_schema = detector.change_schema or self.context_schema
+            for path_expression in detector.json_path_expressions:
                 self._expressions_by_file_type_schema[
                     (self.context_type, change_schema)
-                ].append(PathExpression(jsonpath_expression))
+                ].append(path_expression)
         else:
             raise ValueError(
-                f"{change.provider} is not a supported change detection provider within ChangeTypes"
+                f"{type(detector)} is not a supported change detection provider within ChangeTypes"
             )
 
-
-def build_change_type_processor(change_type: ChangeTypeV1) -> ChangeTypeProcessor:
-    """
-    Build a ChangeTypeProcessor from a ChangeTypeV1 and pre-initializing jsonpaths.
-    """
-    ctp = ChangeTypeProcessor(
-        name=change_type.name,
-        description=change_type.description,
-        priority=ChangeTypePriority(change_type.priority),
-        context_type=BundleFileType[change_type.context_type.upper()],
-        context_schema=change_type.context_schema,
-        disabled=bool(change_type.disabled),
-        implicit_ownership=change_type.implicit_ownership or [],
-    )
-    for change in change_type.changes:
-        ctp.add_change(change)
-    return ctp
+    def add_context_expansion(self, context_expansion: ContextExpansion):
+        self._context_expansions.append(context_expansion)
 
 
 def init_change_type_processors(
-    change_types: Sequence[ChangeTypeV1],
+    change_types: Sequence[ChangeTypeV1], file_diff_resolver: FileDiffResolver
 ) -> dict[str, ChangeTypeProcessor]:
-    processors = {}
-    change_type_graph = networkx.DiGraph()
-    for change_type in change_types:
-        change_type_graph.add_node(change_type.name)
-        for i in change_type.inherit or []:
-            change_type_graph.add_edge(change_type.name, i.name)
-        processors[change_type.name] = build_change_type_processor(change_type)
+    processors: dict[str, ChangeTypeProcessor] = {}
 
-    # detect cycles
-    if cycles := list(networkx.simple_cycles(change_type_graph)):
-        raise ChangeTypeInheritanceCycleError(
-            "Cycles detected in change-type inheritance", cycles
+    change_type_inheritance_graph = networkx.DiGraph()
+    change_type_composition_graph = networkx.DiGraph()
+
+    for change_type in change_types:
+        # build raw change-type-processor
+        processors[change_type.name] = ChangeTypeProcessor(
+            name=change_type.name,
+            description=change_type.description,
+            priority=ChangeTypePriority(change_type.priority),
+            context_type=BundleFileType[change_type.context_type.upper()],
+            context_schema=change_type.context_schema,
+            disabled=bool(change_type.disabled),
+            implicit_ownership=change_type.implicit_ownership or [],
         )
+        # register inheritance edges for cycle detection
+        change_type_inheritance_graph.add_node(change_type.name)
+        for i in change_type.inherit or []:
+            change_type_inheritance_graph.add_edge(change_type.name, i.name)
+
+    # register change detectors
+    for change_type in change_types:
+        processor = processors[change_type.name]
+        for change_detector in change_type.changes or []:
+            if isinstance(change_detector, ChangeTypeChangeDetectorJsonPathProviderV1):
+                ownership_context = None
+                if change_detector.context:
+                    ownership_context = OwnershipContext(
+                        selector=jsonpath_ng.ext.parse(
+                            change_detector.context.selector
+                        ),
+                        when=change_detector.context.when,
+                    )
+                processor.add_change_detector(
+                    JsonPathChangeDetector(
+                        context_schema=processor.context_schema,
+                        change_schema=change_detector.change_schema
+                        or processor.context_schema,
+                        json_path_selectors=change_detector.json_path_selectors,
+                        context=ownership_context,
+                    )
+                )
+            elif isinstance(
+                change_detector, ChangeTypeChangeDetectorChangeTypeProviderV1
+            ):
+                # change type composition is defined on the higher level change-type,
+                # e.g. the app-owner change-type. in code, this composition relationship
+                # is tracked on the reused change-type, e.g. the namespace-owner change-type.
+                #
+                # this makes it easier to trace a change back from it's original context
+                # to the higher level change-type
+                for ct in change_detector.change_types:
+                    processors[ct.name].add_context_expansion(
+                        ContextExpansion(
+                            change_type=processor,
+                            context=OwnershipContext(
+                                selector=jsonpath_ng.ext.parse(
+                                    change_detector.ownership_context.selector
+                                ),
+                                when=change_detector.ownership_context.when,
+                            ),
+                            file_diff_resolver=file_diff_resolver,
+                        )
+                    )
+                    # register dependency in graph for cycle detection
+                    change_type_composition_graph.add_edge(change_type.name, ct.name)
+
+    #
+    # V A L I D A T E
+    #
+
+    # detect inheritance cycles
+    if cycles := list(networkx.simple_cycles(change_type_inheritance_graph)):
+        raise ChangeTypeCycleError("Cycles detected in change-type inheritance", cycles)
+
+    # detect composition cycles
+    if cycles := list(networkx.simple_cycles(change_type_composition_graph)):
+        raise ChangeTypeCycleError("Cycles detected in change-type composition", cycles)
+
+    #
+    # A G G R E G A T I O N
+    #
 
     # aggregate inherited changes
     for ctp in processors.values():
-        for d in networkx.descendants(change_type_graph, ctp.name):
+        for d in networkx.descendants(change_type_inheritance_graph, ctp.name):
             if ctp.context_type != processors[d].context_type:
                 raise ChangeTypeIncompatibleInheritanceError(
                     f"change-type '{ctp.name}' inherits from '{d}' "
@@ -595,8 +809,8 @@ def init_change_type_processors(
                     f"change-type '{ctp.name}' inherits from '{d}' "
                     "but has a different context_schema"
                 )
-            for change in processors[d].changes:
-                ctp.add_change(change)
+            for detector in processors[d].change_detectors:
+                ctp.add_change_detector(detector)
 
     return processors
 
@@ -605,7 +819,7 @@ class ChangeTypeIncompatibleInheritanceError(ValueError):
     pass
 
 
-class ChangeTypeInheritanceCycleError(ValueError):
+class ChangeTypeCycleError(ValueError):
     pass
 
 
@@ -626,6 +840,7 @@ class ChangeTypeContext:
 
     change_type_processor: ChangeTypeProcessor
     context: str
+    origin: str
     approvers: list[Approver]
     context_file: FileRef
 

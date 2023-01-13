@@ -11,12 +11,22 @@ query ChangeTypes($name: String) {
     changes {
       provider
       changeSchema
-      context {
-        selector
-        when
-      }
       ... on ChangeTypeChangeDetectorJsonPathProvider_v1 {
         jsonPathSelectors
+        context {
+          selector
+          when
+        }
+      }
+      ... on ChangeTypeChangeDetectorChangeTypeProvider_v1 {
+        changeTypes {
+          name
+          contextSchema
+        }
+        ownership_context: context {
+          selector
+          when
+        }
       }
     }
     implicitOwnership {
