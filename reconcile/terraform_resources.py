@@ -689,14 +689,14 @@ def run(
     defer=None,
 ):
     # If we are not running in dry run we don't want to run with more than one account
-    if account_name and len(account_name) > 1 and not dry_run:
+    account_names = account_name
+    if account_names and len(account_names) > 1 and not dry_run:
         logging.error(
             "Running with multiple accounts is only supported in dry-run mode"
         )
         sys.exit(1)
-    elif account_name:
-        account_names = account_name
-        account_name = account_name[0]
+    elif account_names:
+        account_name = account_names[0]
 
     ri, oc_map, tf, resource_specs = setup(
         dry_run,
