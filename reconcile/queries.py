@@ -1142,6 +1142,7 @@ OCM_QUERY = """
       format
       version
     }
+    addonManagedUpgrades
     addonUpgradeTests {
       addon {
         name

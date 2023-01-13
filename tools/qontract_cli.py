@@ -344,7 +344,9 @@ def get_upgrade_policies_data(
         if current and current[0]["schedule_type"] == "manual":
             upgrade_policy = current[0]
 
-        upgradeable_version = ous.upgradeable_version(c, version_data_map, ocm_org)
+        upgradeable_version = ous.upgradeable_version(
+            c, version_data_map, ocm_org, upgrades
+        )
 
         workload_soaking_upgrades = {}
         for w in c.get("workloads", []):

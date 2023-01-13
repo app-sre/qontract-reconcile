@@ -1885,6 +1885,17 @@ def ocm_upgrade_scheduler_org_updater(ctx, gitlab_project_id):
     )
 
 
+@integration.command(
+    short_help="Manage Addons Upgrade Policy schedules in OCM organizations."
+)
+@environ(["APP_INTERFACE_STATE_BUCKET", "APP_INTERFACE_STATE_BUCKET_ACCOUNT"])
+@click.pass_context
+def ocm_addons_upgrade_scheduler_org(ctx):
+    import reconcile.ocm_addons_upgrade_scheduler_org
+
+    run_integration(reconcile.ocm_addons_upgrade_scheduler_org, ctx.obj)
+
+
 @integration.command(short_help="Update recommended version for OCM orgs")
 @environ(["gitlab_pr_submitter_queue_url"])
 @gitlab_project_id

@@ -268,18 +268,21 @@ class TestUpgradeableVersion:
 
     @staticmethod
     def test_upgradeable_version_blocked(upgrade_policy, ocm):
+        upgrades = ocm.get_available_upgrades()
         ocm.version_blocked.return_value = True
-        x = ous.upgradeable_version(upgrade_policy, {}, ocm)
+        x = ous.upgradeable_version(upgrade_policy, {}, ocm, upgrades)
         assert x is None
 
     @staticmethod
     def test_upgradeable_version_no_gate(upgrade_policy, ocm):
-        x = ous.upgradeable_version(upgrade_policy, {}, ocm)
+        upgrades = ocm.get_available_upgrades()
+        x = ous.upgradeable_version(upgrade_policy, {}, ocm, upgrades)
         assert x == "4.4.1"
 
     @staticmethod
     def test_upgradeable_version_requires_agreement(upgrade_policy, ocm_gated):
-        x = ous.upgradeable_version(upgrade_policy, {}, ocm_gated)
+        upgrades = ocm_gated.get_available_upgrades()
+        x = ous.upgradeable_version(upgrade_policy, {}, ocm_gated, upgrades)
         assert x == "4.4.1"
 
 
