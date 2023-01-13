@@ -386,6 +386,12 @@ class PathExpression:
             )
             return jsonpath_ng.ext.parse(expr)
 
+    def __eq__(self, obj):
+        return (
+            isinstance(obj, PathExpression)
+            and obj.jsonpath_expression == self.jsonpath_expression
+        )
+
 
 @dataclass
 class OwnershipContext:
@@ -433,6 +439,10 @@ class ContextExpansion:
     context: OwnershipContext
     change_type: "ChangeTypeProcessor"
     file_diff_resolver: FileDiffResolver
+
+    def expand_from_file_ref(self, file_ref: FileRef) -> list["ResolvedContext"]:
+        old_data, new_data = self.file_diff_resolver.lookup_file_diff(file_ref)
+        return self.expand(old_data, new_data)
 
     def expand(
         self,
@@ -609,11 +619,6 @@ class ChangeTypeProcessor:
         """
         contexts: list[ResolvedContext] = []
 
-        # expand context based on change-type composition
-        expanded_context: list[ResolvedContext] = []
-        for ce in self._context_expansions:
-            expanded_context.extend(ce.expand(old_data, new_data))
-
         # direct context extraction
         # the changed file itself is giving the context for approver extraction
         # see doc string for more details
@@ -626,15 +631,17 @@ class ChangeTypeProcessor:
                 )
             )
 
-            for ec in expanded_context:
-                # add expanded contexts (derived owned files)
-                contexts.append(
-                    ResolvedContext(
-                        owned_file_ref=ec.owned_file_ref,
-                        context_file_ref=file_ref,
-                        change_type=ec.change_type,
+            # expand context based on change-type composition
+            for ce in self._context_expansions:
+                for ec in ce.expand(old_data, new_data):
+                    # add expanded contexts (derived owned files)
+                    contexts.append(
+                        ResolvedContext(
+                            owned_file_ref=ec.owned_file_ref,
+                            context_file_ref=file_ref,
+                            change_type=ec.change_type,
+                        )
                     )
-                )
 
         # context detection
         # the context for approver extraction can be found within the changed
@@ -650,16 +657,16 @@ class ChangeTypeProcessor:
                             change_type=self,
                         )
                     )
-
-                    for ec in expanded_context:
-                        # add expanded contexts (derived owned files)
-                        contexts.append(
-                            ResolvedContext(
-                                owned_file_ref=ec.owned_file_ref,
-                                context_file_ref=ctx_file_ref,
-                                change_type=ec.change_type,
+                    for ce in self._context_expansions:
+                        for ec in ce.expand_from_file_ref(ctx_file_ref):
+                            # add expanded contexts (derived owned files)
+                            contexts.append(
+                                ResolvedContext(
+                                    owned_file_ref=ec.owned_file_ref,
+                                    context_file_ref=ctx_file_ref,
+                                    change_type=ec.change_type,
+                                )
                             )
-                        )
 
         return contexts
 
@@ -696,10 +703,12 @@ class ChangeTypeProcessor:
         if isinstance(detector, JsonPathChangeDetector):
             self._change_detectors.append(detector)
             change_schema = detector.change_schema or self.context_schema
+            expressions = self._expressions_by_file_type_schema[
+                (self.context_type, change_schema)
+            ]
             for path_expression in detector.json_path_expressions:
-                self._expressions_by_file_type_schema[
-                    (self.context_type, change_schema)
-                ].append(path_expression)
+                if path_expression not in expressions:
+                    expressions.append(path_expression)
         else:
             raise ValueError(
                 f"{type(detector)} is not a supported change detection provider within ChangeTypes"

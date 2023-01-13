@@ -132,6 +132,18 @@ def test_template_path_expression_unsupported_variable():
         )
 
 
+def test_path_expression_equals():
+    a = PathExpression(jsonpath_expression="path")
+    b = PathExpression(jsonpath_expression="path")
+    assert a == b
+
+
+def test_path_expression_not_equals():
+    a = PathExpression(jsonpath_expression="path")
+    b = PathExpression(jsonpath_expression="other_path")
+    assert a != b
+
+
 #
 # Test resource file parsing
 #
