@@ -691,10 +691,9 @@ def run(
     # If we are not running in dry run we don't want to run with more than one account
     account_names = account_name
     if account_names and len(account_names) > 1 and not dry_run:
-        logging.error(
-            "Running with multiple accounts is only supported in dry-run mode"
-        )
-        sys.exit(1)
+        message = "Running with multiple accounts is only supported in dry-run mode"
+        logging.error(message)
+        raise RuntimeError(message)
     elif account_names:
         account_name = account_names[0]
 
