@@ -36,6 +36,27 @@ def namespace_change_type() -> ChangeTypeV1:
 
 
 @pytest.fixture
+def saas_file_change_type() -> ChangeTypeV1:
+    return ChangeTypeV1(
+        name="saas-files-of-namespaces",
+        description="namespace",
+        contextType=BundleFileType.DATAFILE.value,
+        contextSchema="namespace-1.yml",
+        disabled=False,
+        priority=ChangeTypePriority.HIGH.value,
+        changes=[
+            build_jsonpath_change(
+                schema="saas-file-1.yml",
+                selectors=["description"],
+                context_selector="namespace",
+            )
+        ],
+        inherit=None,
+        implicitOwnership=[],
+    )
+
+
+@pytest.fixture
 def app_change_type() -> ChangeTypeV1:
     return ChangeTypeV1(
         name="app",
@@ -50,7 +71,13 @@ def app_change_type() -> ChangeTypeV1:
                 change_type_names=["namespace"],
                 context_selector="app",
                 context_when=None,
-            )
+            ),
+            build_change_type_change(
+                schema="app-1.yml",
+                change_type_names=["saas-files-of-namespaces"],
+                context_selector="app",
+                context_when=None,
+            ),
         ],
         inherit=None,
         implicitOwnership=[],
@@ -58,7 +85,9 @@ def app_change_type() -> ChangeTypeV1:
 
 
 def test_change_type_ownership_resolve(
-    namespace_change_type: ChangeTypeV1, app_change_type: ChangeTypeV1
+    namespace_change_type: ChangeTypeV1,
+    app_change_type: ChangeTypeV1,
+    saas_file_change_type: ChangeTypeV1,
 ):
     namespace_change = build_test_datafile(
         filepath="my-namespace.yml",
@@ -67,7 +96,7 @@ def test_change_type_ownership_resolve(
     ).create_bundle_change(jsonpath_patches={"$.description": "updated-description"})
 
     processors = init_change_type_processors(
-        [namespace_change_type, app_change_type],
+        [namespace_change_type, app_change_type, saas_file_change_type],
         MockFileDiffResolver(fail_on_unknown_path=False),
     )
 
@@ -88,14 +117,71 @@ def test_change_type_ownership_resolve(
     assert ownership_dict["my-app.yml"].change_type.name == "app"
 
 
+def test_change_type_ownership_expansion_with_context_selector(
+    namespace_change_type: ChangeTypeV1,
+    app_change_type: ChangeTypeV1,
+    saas_file_change_type: ChangeTypeV1,
+):
+    """
+    test the interaction of a context lookup in one change-type that is used
+    for ownership expansion.
+
+    the saas_file_change_type reacts to a change to a saas-file and maps it to
+    it's namespace. then the ownership expansion kicks in and dervies ownership
+    from the namespace to the app.
+    """
+    saas_file_change = build_test_datafile(
+        filepath="my-saas-file.yml",
+        schema="saas-file-1.yml",
+        content={"namespace": "my-namespace.yml", "description": "my-description"},
+    ).create_bundle_change(jsonpath_patches={"$.description": "updated-description"})
+
+    processors = init_change_type_processors(
+        [namespace_change_type, app_change_type, saas_file_change_type],
+        MockFileDiffResolver()
+        .register_raw_diff(
+            path="my-namespace.yml",
+            old={"app": "my-app.yml", "description": "my-description"},
+            new={"app": "my-app.yml", "description": "my-description"},
+        )
+        .register_raw_diff(
+            path="my-app.yml",
+            old={"name": "my-app"},
+            new={"name": "my-app"},
+        ),
+    )
+
+    saas_file_change_type_processor = processors[saas_file_change_type.name]
+    contexts = saas_file_change_type_processor.find_context_file_refs(
+        saas_file_change.fileref, saas_file_change.old, saas_file_change.new
+    )
+    ownership_dict = {ro.owned_file_ref.path: ro for ro in contexts}
+    assert len(ownership_dict) == 2
+
+    # verify that the regular context has been derived from the saas file
+    # change to the namespace
+    assert "my-namespace.yml" in ownership_dict
+    assert (
+        ownership_dict["my-namespace.yml"].change_type.name
+        == "saas-files-of-namespaces"
+    )
+
+    # then verify that a context for the app of the namespace has been derived
+    # from the ownership expansion
+    assert "my-app.yml" in ownership_dict
+    assert ownership_dict["my-app.yml"].change_type.name == "app"
+
+
 def test_change_type_expansion_cycle(
-    namespace_change_type: ChangeTypeV1, app_change_type: ChangeTypeV1
+    namespace_change_type: ChangeTypeV1,
+    app_change_type: ChangeTypeV1,
+    saas_file_change_type: ChangeTypeV1,
 ):
     namespace_change_type.changes = app_change_type.changes
     namespace_change_type.changes[0].change_types[0].name = "app"  # type: ignore
 
     with pytest.raises(ChangeTypeCycleError):
         init_change_type_processors(
-            [namespace_change_type, app_change_type],
+            [namespace_change_type, app_change_type, saas_file_change_type],
             MockFileDiffResolver(fail_on_unknown_path=False),
         )
