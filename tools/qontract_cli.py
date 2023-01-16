@@ -15,6 +15,7 @@ import yaml
 
 import reconcile.gitlab_housekeeping as glhk
 import reconcile.ocm_upgrade_scheduler as ous
+import reconcile.ocm_upgrade_scheduler_org as ouso
 import reconcile.openshift_base as ob
 import reconcile.openshift_resources_base as orb
 import reconcile.terraform_resources as tfr
@@ -511,6 +512,8 @@ def ocm_fleet_upgrade_policies(
     ctx,
 ):
     md_output = ctx.obj["options"]["output"] == "md"
+    ous.QONTRACT_INTEGRATION = ouso.QONTRACT_INTEGRATION
+
     ocm_specs = queries.get_openshift_cluster_managers()
 
     clusters = []
