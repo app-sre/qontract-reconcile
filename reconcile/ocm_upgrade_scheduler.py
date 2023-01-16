@@ -470,10 +470,11 @@ def sort_diffs(diff):
 
 
 def action_log(action: str, cluster: str, addon_id: str, *others) -> None:
+    o = [o for o in others if o]
     if addon_id:
-        logging.info([action, cluster, addon_id] + list(others))
+        logging.info([action, cluster, addon_id] + o)
     else:
-        logging.info([action, cluster] + list(others))
+        logging.info([action, cluster] + o)
 
 
 def act(dry_run: bool, diffs: list[dict], ocm_map: OCMMap, addon_id: str = "") -> None:
@@ -483,7 +484,9 @@ def act(dry_run: bool, diffs: list[dict], ocm_map: OCMMap, addon_id: str = "") -
         cluster = diff.pop("cluster")
         ocm = ocm_map.get(cluster)
         if action == "create":
-            action_log(action, cluster, addon_id, diff["version"], diff["next_run"])
+            action_log(
+                action, cluster, addon_id, diff["version"], diff.get("next_run", "")
+            )
             if not dry_run:
                 if addon_id:
                     ocm.create_addon_upgrade_policy(cluster, diff)
