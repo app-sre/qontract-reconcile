@@ -578,6 +578,65 @@ def ocm_fleet_upgrade_policies(
 
 
 @get.command()
+@click.pass_context
+def ocm_addon_upgrade_policies(ctx):
+    import reconcile.ocm_addons_upgrade_scheduler_org as oauso
+    md_output = ctx.obj["options"]["output"] == "md"
+    if not md_output:
+        print("We only support md output for now")
+        exit(1)
+    ous.QONTRACT_INTEGRATION = oauso.QONTRACT_INTEGRATION
+
+    settings = queries.get_app_interface_settings()
+    ocms = queries.get_openshift_cluster_managers()
+    results = oauso.compute(settings, ocms, dry_run=True)
+    output = {}
+    for key, res in results.items():
+        ocm_name = key.ocm_name
+        ocm = key.ocm_map[ocm_name]
+        addon_id = key.addon_id
+        next_version = ocm.get_addon_version(addon_id)
+        ocm_output = output.setdefault(ocm_name, [])
+        for d in res.desired_state:
+            sector = ""
+            if d.get("conditions", {}).get("sector"):
+                sector = d["conditions"]["sector"].name
+            version = d["current_version"]
+            ocm_output.append({
+                "cluster": d["cluster"],
+                "addon_id": addon_id,
+                "current_version": version,
+                "schedule": d["schedule"],
+                "sector": sector,
+                "mutexes": ", ".join(d.get("conditions", {}).get("mutexes", [])),
+                "soak_days": d.get("conditions", {}).get("soakDays"),
+                "workloads": ", ".join(d["workloads"]),
+                "next_version": next_version if next_version != version else ""
+            })
+    fields = [
+        {"key": "cluster", "sortable": True},
+        {"key": "addon_id", "sortable": True},
+        {"key": "current_version", "sortable": True},
+        {"key": "schedule"},
+        {"key": "sector", "sortable": True},
+        {"key": "mutexes", "sortable": True},
+        {"key": "soak_days", "sortable": True},
+        {"key": "workloads"},
+        {"key": "next_version", "sortable": True},
+    ]
+    section = """
+# {}
+
+```json:table
+{}
+```
+    """
+    for ocm_name in sorted(output.keys()):
+        json_data = json.dumps({"fields": fields, "items": output[ocm_name], "filter": True, "caption": ""}, indent=1)
+        print(section.format(ocm_name, json_data))
+
+
+@get.command()
 @click.argument("name", default="")
 @click.pass_context
 def clusters_network(ctx, name):

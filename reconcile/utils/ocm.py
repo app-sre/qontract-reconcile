@@ -1434,6 +1434,13 @@ class OCM:  # pylint: disable=too-many-public-methods
                 return addon
         return None
 
+    def get_addon_version(self, id):
+        for addon in self.addons:
+            addon_id = addon["id"]
+            if id == addon_id:
+                return addon["version"]["id"]
+        return None
+
     def get_addon_upgrade_policies(
         self, cluster_name: str, addon_id: str = ""
     ) -> list[dict[str, Any]]:
