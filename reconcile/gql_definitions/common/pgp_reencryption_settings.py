@@ -21,6 +21,7 @@ DEFINITION = """
 query PgpReencryptionSettings {
   pgp_reencryption_settings: pgp_reencrypt_settings_v1{
     public_gpg_key
+    aws_account_output_vault_path
     reencrypt_vault_path
     skip_aws_accounts {
       name
@@ -40,6 +41,9 @@ class AWSAccountV1(BaseModel):
 
 class PgpReencryptSettingsV1(BaseModel):
     public_gpg_key: str = Field(..., alias="public_gpg_key")
+    aws_account_output_vault_path: str = Field(
+        ..., alias="aws_account_output_vault_path"
+    )
     reencrypt_vault_path: str = Field(..., alias="reencrypt_vault_path")
     skip_aws_accounts: Optional[list[AWSAccountV1]] = Field(
         ..., alias="skip_aws_accounts"

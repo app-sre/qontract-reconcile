@@ -188,14 +188,7 @@ def cleanup_and_exit(tf=None, status=False):
     sys.exit(status)
 
 
-def run(
-    dry_run: bool,
-    print_to_file: Optional[str] = None,
-    enable_deletion: bool = False,
-    thread_pool_size: int = 10,
-    send_mails: bool = True,
-    account_name: Optional[str] = None,
-):
+def get_reencrypt_settings():
     all_reencrypt_settings = query(
         query_func=gql.get_api().query
     ).pgp_reencryption_settings
@@ -213,6 +206,19 @@ def run(
     appsre_pgp_key: Optional[str] = None
     if reencrypt_settings is not None:
         appsre_pgp_key = reencrypt_settings.public_gpg_key
+
+    return skip_accounts, appsre_pgp_key, reencrypt_settings
+
+
+def run(
+    dry_run: bool,
+    print_to_file: Optional[str] = None,
+    enable_deletion: bool = False,
+    thread_pool_size: int = 10,
+    send_mails: bool = True,
+    account_name: Optional[str] = None,
+):
+    skip_accounts, appsre_pgp_key, reencrypt_settings = get_reencrypt_settings()
 
     # setup errors should skip resources that will lead
     # to terraform errors. we should still do our best

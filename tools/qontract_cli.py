@@ -7,7 +7,10 @@ import sys
 from collections import defaultdict
 from datetime import datetime
 from operator import itemgetter
-from typing import Optional
+from typing import (
+    Optional,
+    cast,
+)
 
 import click
 import requests
@@ -67,6 +70,10 @@ from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.semver_helper import parse_semver
 from reconcile.utils.state import State
 from reconcile.utils.terraform_client import TerraformClient as Terraform
+from reconcile.utils.vault import (
+    VaultClient,
+    _VaultClient,
+)
 from tools.cli_commands.gpg_encrypt import (
     GPGEncryptCommand,
     GPGEncryptCommandData,
@@ -856,9 +863,18 @@ def clusters_aws_account_ids(ctx):
 @get.command()
 @click.pass_context
 def terraform_users_credentials(ctx) -> None:
+    vc = cast(_VaultClient, VaultClient())
+
+    skip_accounts, appsre_pgp_key, reencrypt_settings = tfu.get_reencrypt_settings()
+
     accounts, working_dirs, _, aws_api = tfu.setup(
-        False, 1, skip_reencrypt_accounts=[], account_name=None
+        False,
+        1,
+        skip_accounts,
+        account_name=None,
+        appsre_pgp_key=appsre_pgp_key,
     )
+
     tf = Terraform(
         tfu.QONTRACT_INTEGRATION,
         tfu.QONTRACT_INTEGRATION_VERSION,
@@ -871,16 +887,23 @@ def terraform_users_credentials(ctx) -> None:
     )
     credentials = []
     for account, output in tf.outputs.items():
-        user_passwords = tf.format_output(output, tf.OUTPUT_TYPE_PASSWORDS)
-        console_urls = tf.format_output(output, tf.OUTPUT_TYPE_CONSOLEURLS)
-        for user_name, enc_password in user_passwords.items():
-            item = {
-                "account": account,
-                "console_url": console_urls[account],
-                "user_name": user_name,
-                "encrypted_password": enc_password,
-            }
-            credentials.append(item)
+        if account in skip_accounts:
+            user_passwords = tf.format_output(output, tf.OUTPUT_TYPE_PASSWORDS)
+            console_urls = tf.format_output(output, tf.OUTPUT_TYPE_CONSOLEURLS)
+            for user_name, enc_password in user_passwords.items():
+                item = {
+                    "account": account,
+                    "console_url": console_urls[account],
+                    "user_name": user_name,
+                    "encrypted_password": enc_password,
+                }
+                credentials.append(item)
+
+    for secret in vc.list(reencrypt_settings.aws_account_output_vault_path):
+        secret_request = {
+            "path": f"{reencrypt_settings.aws_account_output_vault_path}/{secret}"
+        }
+        credentials.append(vc.read_all(secret_request))
 
     columns = ["account", "console_url", "user_name", "encrypted_password"]
     print_output(ctx.obj["options"], credentials, columns)
