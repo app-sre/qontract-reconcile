@@ -5,6 +5,7 @@ import reconcile.ocm_upgrade_scheduler as ous
 from reconcile import queries
 from reconcile.utils.cluster_version_data import VersionData
 from reconcile.utils.ocm import OCMMap
+
 QONTRACT_INTEGRATION = "ocm-addons-upgrade-scheduler-org"
 
 
@@ -36,20 +37,22 @@ def calculate_diff(
 
 
 @dataclasses.dataclass(unsafe_hash=True)
-class ResultKey():
+class ResultKey:
     ocm_map: OCMMap
     ocm_name: str
     addon_id: str
 
 
 @dataclasses.dataclass
-class Result():
+class Result:
     current_state: list[dict[str, Any]]
     desired_state: list[dict[str, Any]]
     diffs: list[dict[str, str]]
 
 
-def compute(settings: dict, ocms: list[dict[str, Any]], dry_run: bool) -> dict[ResultKey, Result]:
+def compute(
+    settings: dict, ocms: list[dict[str, Any]], dry_run: bool
+) -> dict[ResultKey, Result]:
     ocms = [o for o in ocms if o.get("addonManagedUpgrades")]
     results: dict[ResultKey, Result] = {}
     for ocm in ocms:

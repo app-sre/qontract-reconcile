@@ -581,10 +581,11 @@ def ocm_fleet_upgrade_policies(
 @click.pass_context
 def ocm_addon_upgrade_policies(ctx):
     import reconcile.ocm_addons_upgrade_scheduler_org as oauso
+
     md_output = ctx.obj["options"]["output"] == "md"
     if not md_output:
         print("We only support md output for now")
-        exit(1)
+        sys.exit(1)
     ous.QONTRACT_INTEGRATION = oauso.QONTRACT_INTEGRATION
 
     settings = queries.get_app_interface_settings()
@@ -602,17 +603,19 @@ def ocm_addon_upgrade_policies(ctx):
             if d.get("conditions", {}).get("sector"):
                 sector = d["conditions"]["sector"].name
             version = d["current_version"]
-            ocm_output.append({
-                "cluster": d["cluster"],
-                "addon_id": addon_id,
-                "current_version": version,
-                "schedule": d["schedule"],
-                "sector": sector,
-                "mutexes": ", ".join(d.get("conditions", {}).get("mutexes", [])),
-                "soak_days": d.get("conditions", {}).get("soakDays"),
-                "workloads": ", ".join(d["workloads"]),
-                "next_version": next_version if next_version != version else ""
-            })
+            ocm_output.append(
+                {
+                    "cluster": d["cluster"],
+                    "addon_id": addon_id,
+                    "current_version": version,
+                    "schedule": d["schedule"],
+                    "sector": sector,
+                    "mutexes": ", ".join(d.get("conditions", {}).get("mutexes", [])),
+                    "soak_days": d.get("conditions", {}).get("soakDays"),
+                    "workloads": ", ".join(d["workloads"]),
+                    "next_version": next_version if next_version != version else "",
+                }
+            )
     fields = [
         {"key": "cluster", "sortable": True},
         {"key": "addon_id", "sortable": True},
@@ -632,7 +635,15 @@ def ocm_addon_upgrade_policies(ctx):
 ```
     """
     for ocm_name in sorted(output.keys()):
-        json_data = json.dumps({"fields": fields, "items": output[ocm_name], "filter": True, "caption": ""}, indent=1)
+        json_data = json.dumps(
+            {
+                "fields": fields,
+                "items": output[ocm_name],
+                "filter": True,
+                "caption": "",
+            },
+            indent=1,
+        )
         print(section.format(ocm_name, json_data))
 
 
