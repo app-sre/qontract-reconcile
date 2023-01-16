@@ -1193,7 +1193,7 @@ class OCM:  # pylint: disable=too-many-public-methods
         )
         self._delete(api)
 
-    def addon_version_blocked(self, version: str, addon_id: str = "") -> bool:
+    def addon_version_blocked(self, version: str, addon_id: str) -> bool:
         """Check if an addon version is blocked
 
         Args:
