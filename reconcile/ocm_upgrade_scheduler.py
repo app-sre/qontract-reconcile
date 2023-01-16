@@ -469,7 +469,7 @@ def sort_diffs(diff):
         return 2
 
 
-def action_log(action: str, addon_id: str, cluster: str, *others) -> None:
+def action_log(action: str, cluster: str, addon_id: str, *others) -> None:
     if addon_id:
         logging.info([action, cluster, addon_id] + list(others))
     else:
