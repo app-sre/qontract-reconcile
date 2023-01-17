@@ -733,6 +733,9 @@ def run(
     workspace_name: Optional[str] = None,
     usergroup_name: Optional[str] = None,
 ) -> None:
+    global error_occurred
+    error_occurred = False
+
     gqlapi = gql.get_api()
     secret_reader = SecretReader(queries.get_secret_reader_settings())
     init_users = False if usergroup_name else True
