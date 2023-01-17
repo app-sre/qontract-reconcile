@@ -62,6 +62,7 @@ objects:
             <source>
               @type tail
               path /fluentd/log/integration.log
+              read_from_head true
               pos_file /fluentd/log/integration.log.pos
               tag integration
               <parse>
