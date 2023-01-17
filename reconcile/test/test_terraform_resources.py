@@ -12,6 +12,16 @@ def test_cannot_pass_two_aws_account_if_not_dry_run():
     )
 
 
+def test_cannot_pass_invalid_aws_account(mocker):
+    mocker.patch("reconcile.queries.get_aws_accounts", return_value=[{"name": "a"}])
+    with pytest.raises(ValueError) as excinfo:
+        integ.run(True, account_name=("a", "b"))
+
+    assert "Accounts ('b',) where not found in account names, check your input" in str(
+        excinfo.value
+    )
+
+
 def test_filter_namespaces_no_managed_tf_resources():
     ra = {"identifier": "a", "provider": "p"}
     ns1 = {
