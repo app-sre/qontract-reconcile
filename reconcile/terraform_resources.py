@@ -695,7 +695,7 @@ def run(
     vault_output_path="",
     account_name: Optional[tuple[str]] = None,
     defer=None,
-):
+) -> None:
     # account_name is a tuple of account names for more detail go to
     # https://click.palletsprojects.com/en/8.1.x/options/#multiple-options
     account_names = account_name
