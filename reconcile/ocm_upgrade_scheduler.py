@@ -481,7 +481,14 @@ def act(dry_run: bool, diffs: list[dict], ocm_map: OCMMap, addon_id: str = "") -
         cluster = diff.pop("cluster")
         ocm = ocm_map.get(cluster)
         if action == "create":
-            action_log(action, cluster, addon_id, diff["version"], diff.get("next_run"))
+            action_log(
+                action,
+                ocm.name,
+                cluster,
+                addon_id,
+                diff["version"],
+                diff.get("next_run"),
+            )
             if not dry_run:
                 if addon_id:
                     ocm.create_addon_upgrade_policy(cluster, diff)
@@ -490,6 +497,7 @@ def act(dry_run: bool, diffs: list[dict], ocm_map: OCMMap, addon_id: str = "") -
                     for gate in gates_to_agree:
                         action_log(
                             action,
+                            ocm.name,
                             cluster,
                             addon_id,
                             diff["version"],
@@ -503,7 +511,7 @@ def act(dry_run: bool, diffs: list[dict], ocm_map: OCMMap, addon_id: str = "") -
                             )
                     ocm.create_upgrade_policy(cluster, diff)
         elif action == "delete":
-            action_log(action, cluster, addon_id, diff["version"])
+            action_log(action, ocm.name, cluster, addon_id, diff["version"])
             if not dry_run:
                 if addon_id:
                     ocm.delete_addon_upgrade_policy(cluster, diff)
