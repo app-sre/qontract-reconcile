@@ -97,7 +97,7 @@ class VersionData(BaseModel):
     stats: Optional[Stats]
 
     def jsondict(self) -> dict[str, Any]:
-        return json.loads(self.json(exclude_unset=True))
+        return json.loads(self.json(exclude_none=True))
 
     def save(self, state: State, ocm_name: str) -> None:
         state.add(ocm_name, self.jsondict(), force=True)
