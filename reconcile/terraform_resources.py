@@ -558,7 +558,7 @@ def setup(
     accounts = queries.get_aws_accounts(terraform_state=True)
     if account_names:
         accounts = [n for n in accounts if n["name"] in account_names]
-        if len(accounts) < len(account_names):
+        if len(accounts) != len(account_names):
             # Some of the passed account names don't exist in app-interface
             acc_names = tuple(
                 a
