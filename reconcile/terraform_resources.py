@@ -566,7 +566,7 @@ def setup(
                 if a not in tuple(account["name"] for account in accounts)
             )
             raise ValueError(
-                f"Accounts {acc_names} where not found in account names, check your input"
+                f"Accounts {acc_names} were provided as arguments, but not found in app-interface. Check your input for typos or for missing AWS account definitions."
             )
     settings = queries.get_app_interface_settings()
 

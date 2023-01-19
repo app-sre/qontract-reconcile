@@ -17,8 +17,9 @@ def test_cannot_pass_invalid_aws_account(mocker):
     with pytest.raises(ValueError) as excinfo:
         integ.run(True, account_name=("a", "b"))
 
-    assert "Accounts ('b',) where not found in account names, check your input" in str(
-        excinfo.value
+    assert (
+        "Accounts ('b',) were provided as arguments, but not found in app-interface. Check your input for typos or for missing AWS account definitions."
+        in str(excinfo.value)
     )
 
 
