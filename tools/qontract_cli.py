@@ -58,7 +58,10 @@ from reconcile.utils.mr.labels import (
     SELF_SERVICEABLE,
 )
 from reconcile.utils.oc import OC_Map
-from reconcile.utils.ocm import OCMMap
+from reconcile.utils.ocm import (
+    OCM,
+    OCMMap,
+)
 from reconcile.utils.output import print_output
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.semver_helper import parse_semver
@@ -502,8 +505,9 @@ def cluster_upgrade_policies(
 
 
 @functools.lru_cache
-def get_available_upgrades(ocm, version, channel):
-    return ocm.get_available_upgrades(version, channel)
+def get_available_upgrades(ocm: OCM, version: str, channel: str) -> list[str]:
+    upgrades = ocm.get_available_upgrades(version, channel)
+    return [u for u in upgrades if not ocm.version_blocked(u)]
 
 
 @get.command()
