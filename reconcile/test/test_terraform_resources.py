@@ -13,7 +13,11 @@ def test_cannot_pass_two_aws_account_if_not_dry_run():
 
 
 def test_cannot_pass_invalid_aws_account(mocker):
-    mocker.patch("reconcile.queries.get_aws_accounts", return_value=[{"name": "a"}])
+    mocker.patch(
+        "reconcile.queries.get_aws_accounts",
+        return_value=[{"name": "a"}],
+        autospec=True,
+    )
     with pytest.raises(ValueError) as excinfo:
         integ.run(True, account_name=("a", "b"))
 
