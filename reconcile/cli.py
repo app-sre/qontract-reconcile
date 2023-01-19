@@ -344,7 +344,7 @@ def account_name_multiple(function):
         "--account-name",
         default=None,
         multiple=True,
-        help="aws account names to act on comma separated i.e.: --account-name aws-account-1 --account-name aws-account-2",
+        help="aws account names to act on i.e.: --account-name aws-account-1 --account-name aws-account-2",
     )(function)
 
     return function
