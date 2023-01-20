@@ -212,11 +212,16 @@ def write_coverage_report_to_mr(
 
     # add new report comment
     results = []
+    approver_reachability = set()
     for d in change_decisions:
         approvers = [
             f"{ctctx.context} - { ' '.join([f'@{a.org_username}' if a.tag_on_merge_requests else a.org_username for a in ctctx.approvers]) }"
             for ctctx in d.deduped_coverage()
         ]
+        for cctx in d.deduped_coverage():
+            approver_reachability.update(
+                {ar.render_for_mr_report() for ar in cctx.approver_reachability or []}
+            )
         if not approvers:
             approvers = ["[- not self-serviceable -]"]
         item = {
@@ -236,13 +241,19 @@ def write_coverage_report_to_mr(
 
     self_serviceability_hint = "All changes require an `/lgtm` from a listed approver "
     if not self_serviceable:
-        self_serviceability_hint += "but <b>not all changes are self-serviceable</b>"
+        self_serviceability_hint += "but <b>not all changes are self-serviceable and require AppSRE approval</b>"
+    approver_reachability_hint = "Reach out to approvers for reviews"
+    if approver_reachability:
+        approver_reachability_hint += " on\n" + "\n".join(
+            [f"* {ar}" for ar in approver_reachability or []]
+        )
     gl.add_comment_to_merge_request(
         mr_id,
         f"{change_coverage_report_header}<br/>"
         f"{self_serviceability_hint}\n"
         f"{coverage_report}\n\n"
-        f"Supported commands: {' '.join([f'`{d.value}`' for d in DecisionCommand])} ",
+        f"{approver_reachability_hint}\n\n"
+        + f"Supported commands: {' '.join([f'`{d.value}`' for d in DecisionCommand])} ",
     )
 
 
@@ -259,6 +270,12 @@ def write_coverage_report_to_stdout(change_decisions: list[ChangeDecision]) -> N
                         "change type": ctx.change_type_processor.name,
                         "origin": ctx.origin,
                         "context": ctx.context,
+                        "approver_reachability": ", ".join(
+                            [
+                                ar.render_for_mr_report()
+                                for ar in ctx.approver_reachability or []
+                            ]
+                        ),
                         "disabled": str(ctx.disabled),
                     }
                 )
@@ -281,6 +298,7 @@ def write_coverage_report_to_stdout(change_decisions: list[ChangeDecision]) -> N
                 "origin",
                 "disabled",
                 "context",
+                "approver_reachability",
             ],
         )
     )

@@ -24,7 +24,10 @@ import jsonpath_ng
 import jsonpath_ng.ext
 import networkx
 
-from reconcile.change_owners.approver import Approver
+from reconcile.change_owners.approver import (
+    Approver,
+    ApproverReachability,
+)
 from reconcile.change_owners.bundle import (
     BundleFileType,
     FileDiffResolver,
@@ -850,8 +853,9 @@ class ChangeTypeContext:
     change_type_processor: ChangeTypeProcessor
     context: str
     origin: str
-    approvers: list[Approver]
     context_file: FileRef
+    approvers: list[Approver]
+    approver_reachability: Optional[list[ApproverReachability]] = None
 
     @property
     def disabled(self) -> bool:

@@ -40,6 +40,17 @@ query SelfServiceRolesQuery($name: String) {
     bots {
       org_username
     }
+    permissions {
+      ... on PermissionSlackUsergroup_v1 {
+        handle
+        workspace {
+          name
+        }
+      }
+      ... on PermissionGitlabGroupMembership_v1 {
+        group
+      }
+    }
   }
 }
 """
@@ -90,12 +101,52 @@ class BotV1(BaseModel):
         extra = Extra.forbid
 
 
+class PermissionV1(BaseModel):
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
+class SlackWorkspaceV1(BaseModel):
+    name: str = Field(..., alias="name")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
+class PermissionSlackUsergroupV1(PermissionV1):
+    handle: str = Field(..., alias="handle")
+    workspace: SlackWorkspaceV1 = Field(..., alias="workspace")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
+class PermissionGitlabGroupMembershipV1(PermissionV1):
+    group: str = Field(..., alias="group")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
 class RoleV1(BaseModel):
     name: str = Field(..., alias="name")
     path: str = Field(..., alias="path")
     self_service: Optional[list[SelfServiceConfigV1]] = Field(..., alias="self_service")
     users: list[UserV1] = Field(..., alias="users")
     bots: list[BotV1] = Field(..., alias="bots")
+    permissions: Optional[
+        list[
+            Union[
+                PermissionSlackUsergroupV1,
+                PermissionGitlabGroupMembershipV1,
+                PermissionV1,
+            ]
+        ]
+    ] = Field(..., alias="permissions")
 
     class Config:
         smart_union = True
