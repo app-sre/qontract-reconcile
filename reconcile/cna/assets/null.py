@@ -1,64 +1,42 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
-from dataclasses import dataclass
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Optional
+
+from pydantic import Field
+from pydantic.dataclasses import dataclass
 
 from reconcile.cna.assets.asset import (
     Asset,
-    AssetError,
+    AssetModelConfig,
     AssetStatus,
     AssetType,
 )
-from reconcile.gql_definitions.cna.queries.cna_resources import CNANullAssetV1
+from reconcile.gql_definitions.cna.queries.cna_resources import (
+    CNANullAssetConfigV1,
+    CNANullAssetV1,
+)
 
 
-@dataclass(frozen=True)
-class NullAsset(Asset):
-    addr_block: Optional[str]
-
-    def api_payload(self) -> dict[str, Any]:
-        return {
-            "asset_type": "null",
-            "name": self.name,
-            "parameters": {
-                "addr_block": self.addr_block,
-            },
-        }
-
-    def update_from(self, asset: Asset) -> Asset:
-        if not isinstance(asset, NullAsset):
-            raise AssetError(f"Cannot create NullAsset from {asset}")
-        return NullAsset(
-            uuid=self.uuid,
-            href=self.href,
-            status=self.status,
-            name=self.name,
-            kind=self.kind,
-            addr_block=asset.addr_block,
-        )
+@dataclass(frozen=True, config=AssetModelConfig)
+class NullAsset(Asset[CNANullAssetV1, CNANullAssetConfigV1]):
+    addr_block: Optional[str] = Field(None, alias="AddrBlock")
 
     @staticmethod
-    def from_query_class(asset: CNANullAssetV1) -> NullAsset:
+    def provider() -> str:
+        return "null-asset"
+
+    @staticmethod
+    def asset_type() -> AssetType:
+        return AssetType.NULL
+
+    @classmethod
+    def from_query_class(cls, asset: CNANullAssetV1) -> Asset:
+        config = cls.aggregate_config(asset)
         return NullAsset(
-            uuid=None,
+            id=None,
             href=None,
-            status=None,
-            kind=AssetType.NULL,
-            name=asset.name,
-            addr_block=asset.addr_block,
-        )
-
-    @staticmethod
-    def from_api_mapping(asset: Mapping[str, Any]) -> NullAsset:
-        return NullAsset(
-            uuid=asset.get("id"),
-            href=asset.get("href"),
-            status=AssetStatus(asset.get("status")),
-            kind=AssetType.NULL,
-            name=asset.get("name", ""),
-            addr_block=asset.get("addr_block"),
+            status=AssetStatus.UNKNOWN,
+            bindings=set(),
+            name=asset.identifier,
+            addr_block=config.addr_block,
         )

@@ -16,11 +16,30 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
+from reconcile.gql_definitions.cna.queries.aws_arn import CNAAWSAccountRoleARNs
+
 
 DEFINITION = """
+fragment CNAAWSAccountRoleARNs on AWSAccount_v1 {
+  name
+  cna {
+    defaultRoleARN
+    moduleRoleARNS {
+      module
+      arn
+    }
+  }
+}
+
 query CNAssets {
   namespaces: namespaces_v1 {
     name
+    cluster {
+      spec {
+        id
+      }
+    }
+    managedExternalResources
     externalResources {
       provider
       provisioner {
@@ -29,9 +48,47 @@ query CNAssets {
       ... on NamespaceCNAsset_v1 {
         resources {
           provider
+          identifier
           ... on CNANullAsset_v1 {
-            name: identifier
-            addr_block
+            defaults {
+              addr_block
+            }
+            overrides
+          }
+          ... on CNARDSInstance_v1 {
+            name
+            defaults {
+              vpc {
+                vpc_id
+                region
+                account {
+                  ... CNAAWSAccountRoleARNs
+                }
+              }
+              db_subnet_group_name
+              instance_class
+              allocated_storage
+              max_allocated_storage
+              engine
+              engine_version
+              username
+              maintenance_window
+              backup_retention_period
+              backup_window
+              multi_az
+              deletion_protection
+              apply_immediately
+            }
+            overrides
+          }
+          ... on CNAAssumeRoleAsset_v1{
+            aws_account {
+              ... CNAAWSAccountRoleARNs
+            }
+            defaults {
+              slug
+            }
+            overrides
           }
         }
       }
@@ -39,6 +96,22 @@ query CNAssets {
   }
 }
 """
+
+
+class ClusterSpecV1(BaseModel):
+    q_id: Optional[str] = Field(..., alias="id")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
+class ClusterV1(BaseModel):
+    spec: Optional[ClusterSpecV1] = Field(..., alias="spec")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
 
 
 class ExternalResourcesProvisionerV1(BaseModel):
@@ -60,14 +133,14 @@ class NamespaceExternalResourceV1(BaseModel):
 
 class CNAssetV1(BaseModel):
     provider: str = Field(..., alias="provider")
+    identifier: str = Field(..., alias="identifier")
 
     class Config:
         smart_union = True
         extra = Extra.forbid
 
 
-class CNANullAssetV1(CNAssetV1):
-    name: str = Field(..., alias="name")
+class CNANullAssetConfigV1(BaseModel):
     addr_block: Optional[str] = Field(..., alias="addr_block")
 
     class Config:
@@ -75,8 +148,78 @@ class CNANullAssetV1(CNAssetV1):
         extra = Extra.forbid
 
 
+class CNANullAssetV1(CNAssetV1):
+    defaults: Optional[CNANullAssetConfigV1] = Field(..., alias="defaults")
+    overrides: Optional[Json] = Field(..., alias="overrides")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
+class AWSVPCV1(BaseModel):
+    vpc_id: str = Field(..., alias="vpc_id")
+    region: str = Field(..., alias="region")
+    account: CNAAWSAccountRoleARNs = Field(..., alias="account")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
+class CNARDSInstanceDefaultsV1(BaseModel):
+    vpc: AWSVPCV1 = Field(..., alias="vpc")
+    db_subnet_group_name: str = Field(..., alias="db_subnet_group_name")
+    instance_class: str = Field(..., alias="instance_class")
+    allocated_storage: int = Field(..., alias="allocated_storage")
+    max_allocated_storage: int = Field(..., alias="max_allocated_storage")
+    engine: str = Field(..., alias="engine")
+    engine_version: str = Field(..., alias="engine_version")
+    username: str = Field(..., alias="username")
+    maintenance_window: Optional[str] = Field(..., alias="maintenance_window")
+    backup_retention_period: Optional[int] = Field(..., alias="backup_retention_period")
+    backup_window: Optional[str] = Field(..., alias="backup_window")
+    multi_az: Optional[bool] = Field(..., alias="multi_az")
+    deletion_protection: Optional[bool] = Field(..., alias="deletion_protection")
+    apply_immediately: Optional[bool] = Field(..., alias="apply_immediately")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
+class CNARDSInstanceV1(CNAssetV1):
+    name: Optional[str] = Field(..., alias="name")
+    defaults: Optional[CNARDSInstanceDefaultsV1] = Field(..., alias="defaults")
+    overrides: Optional[Json] = Field(..., alias="overrides")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
+class CNAAssumeRoleAssetConfigV1(BaseModel):
+    slug: Optional[str] = Field(..., alias="slug")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
+class CNAAssumeRoleAssetV1(CNAssetV1):
+    aws_account: CNAAWSAccountRoleARNs = Field(..., alias="aws_account")
+    defaults: Optional[CNAAssumeRoleAssetConfigV1] = Field(..., alias="defaults")
+    overrides: Optional[Json] = Field(..., alias="overrides")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
 class NamespaceCNAssetV1(NamespaceExternalResourceV1):
-    resources: list[Union[CNANullAssetV1, CNAssetV1]] = Field(..., alias="resources")
+    resources: list[
+        Union[CNARDSInstanceV1, CNAAssumeRoleAssetV1, CNANullAssetV1, CNAssetV1]
+    ] = Field(..., alias="resources")
 
     class Config:
         smart_union = True
@@ -85,6 +228,10 @@ class NamespaceCNAssetV1(NamespaceExternalResourceV1):
 
 class NamespaceV1(BaseModel):
     name: str = Field(..., alias="name")
+    cluster: ClusterV1 = Field(..., alias="cluster")
+    managed_external_resources: Optional[bool] = Field(
+        ..., alias="managedExternalResources"
+    )
     external_resources: Optional[
         list[Union[NamespaceCNAssetV1, NamespaceExternalResourceV1]]
     ] = Field(..., alias="externalResources")

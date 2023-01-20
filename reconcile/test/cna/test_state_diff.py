@@ -17,20 +17,20 @@ def null_asset(
     name: str,
     status: Optional[AssetStatus] = None,
     addr_block: Optional[str] = None,
-    uuid: Optional[str] = None,
+    id: Optional[str] = None,
 ) -> NullAsset:
     return NullAsset(
-        uuid=uuid,
+        id=id,
         href=None,
         status=status,
-        kind=AssetType.NULL,
         addr_block=addr_block,
+        bindings=set(),
         name=name,
     )
 
 
 @pytest.mark.parametrize(
-    "desired, actual, expected_additions, expected_deletions, expected_updates",
+    "desired, current, expected_additions, expected_deletions, expected_updates",
     [
         (
             # Empty states
@@ -68,20 +68,12 @@ def null_asset(
             # Do not add/update already existing resource
             State(
                 assets={
-                    AssetType.NULL: {
-                        "test": null_asset(
-                            name="test",
-                        )
-                    }
+                    AssetType.NULL: {"test": null_asset(name="test", addr_block="addr")}
                 }
             ),
             State(
                 assets={
-                    AssetType.NULL: {
-                        "test": null_asset(
-                            name="test",
-                        )
-                    }
+                    AssetType.NULL: {"test": null_asset(name="test", addr_block="addr")}
                 }
             ),
             State(assets={}),
@@ -154,7 +146,7 @@ def null_asset(
         ),
         (
             # Delete, create and update resources
-            State(
+            State(  # desired
                 assets={
                     AssetType.NULL: {
                         "test1": null_asset(
@@ -167,20 +159,21 @@ def null_asset(
                     }
                 }
             ),
-            State(
+            State(  # current
                 assets={
                     AssetType.NULL: {
                         "test": null_asset(
                             name="test",
+                            id="test",
                         ),
                         "test1": null_asset(
                             name="test1",
-                            uuid="123",
+                            id="test1",
                         ),
                     }
                 }
             ),
-            State(
+            State(  # expected additions
                 assets={
                     AssetType.NULL: {
                         "test2": null_asset(
@@ -189,22 +182,23 @@ def null_asset(
                     }
                 }
             ),
-            State(
+            State(  # expected deletions
                 assets={
                     AssetType.NULL: {
                         "test": null_asset(
                             name="test",
+                            id="test",
                         )
                     }
                 }
             ),
-            State(
+            State(  # expected updates
                 assets={
                     AssetType.NULL: {
                         "test1": null_asset(
                             name="test1",
                             addr_block="123",
-                            uuid="123",
+                            id="test1",
                         )
                     }
                 }
@@ -253,14 +247,14 @@ def null_asset(
 )
 def test_state_create_delete_update(
     desired: State,
-    actual: State,
+    current: State,
     expected_additions: State,
     expected_deletions: State,
     expected_updates: State,
 ):
-    additions = desired - actual
-    deletions = actual - desired
-    updates = actual.required_updates_to_reach(desired)
+    additions = desired - current
+    deletions = current - desired
+    updates = current.required_updates_to_reach(desired)
     assert additions == expected_additions
     assert deletions == expected_deletions
     assert updates == expected_updates
@@ -271,7 +265,7 @@ def test_state_create_delete_update(
         Currently CNA does not support addressing w/o use of
         internal uuid.
         """
-        assert update.uuid == expected_update.uuid
+        assert update.id == expected_update.id
 
 
 def test_state_create_update_terminated():
@@ -293,6 +287,7 @@ def test_state_create_update_terminated():
             AssetType.NULL: {
                 "test": null_asset(
                     name="test",
+                    id="test",
                     status=AssetStatus.TERMINATED,
                 )
             }

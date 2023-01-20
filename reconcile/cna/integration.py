@@ -1,3 +1,4 @@
+import logging
 from collections import defaultdict
 from collections.abc import (
     Iterable,
@@ -5,7 +6,15 @@ from collections.abc import (
 )
 from typing import Optional
 
-from reconcile.cna.assets.asset_factory import asset_factory_from_schema
+from reconcile.cna.assets.asset import (
+    AssetError,
+    Binding,
+    UnknownAssetTypeError,
+)
+from reconcile.cna.assets.asset_factory import (
+    asset_factory_from_raw_data,
+    asset_factory_from_schema,
+)
 from reconcile.cna.client import CNAClient
 from reconcile.cna.state import State
 from reconcile.gql_definitions.cna.queries.cna_provisioners import (
@@ -25,6 +34,7 @@ from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
 from reconcile.utils import gql
+from reconcile.utils.external_resources import PROVIDER_CNA_EXPERIMENTAL
 from reconcile.utils.ocm_base_client import OCMBaseClient
 from reconcile.utils.secret_reader import (
     SecretReaderBase,
@@ -57,26 +67,74 @@ class CNAIntegration:
         self._desired_states = defaultdict(State)
         for namespace in self._namespaces:
             for provider in namespace.external_resources or []:
-                # TODO: this should probably be filtered within the query already
+                if provider.provider != PROVIDER_CNA_EXPERIMENTAL:
+                    continue
                 if not isinstance(provider, NamespaceCNAssetV1):
                     continue
                 for resource in provider.resources or []:
-                    self._desired_states[provider.provisioner.name].add_asset(
-                        asset_factory_from_schema(resource)
+                    asset = asset_factory_from_schema(resource)
+                    self._desired_states[provider.provisioner.name].add_asset(asset)
+
+                    # For now we assume that if an asset is bindable, then it
+                    # always binds to its defining namespace
+                    # TODO: probably this should also be done by passing the required namespace vars
+                    #       to the factory method.
+                    if not asset.bindable():
+                        continue
+                    if not (namespace.cluster.spec and namespace.cluster.spec.q_id):
+                        logging.warning(
+                            "cannot bind asset %s because namespace %s does not have a cluster spec with a cluster id.",
+                            asset,
+                            namespace.name,
+                        )
+                        continue
+                    asset.bindings.add(
+                        Binding(
+                            cluster_id=namespace.cluster.spec.q_id,
+                            namespace=namespace.name,
+                            # For now secret_name is implicit.
+                            secret_name=f"{asset.asset_type()}-{asset.name}",
+                        )
                     )
 
     def assemble_current_states(self):
         self._current_states = defaultdict(State)
+
+        # We fetch all assets from API
         for name, client in self._cna_clients.items():
-            cnas = client.list_assets()
             state = State()
-            state.add_raw_data(cnas)
+            for raw_asset in client.list_assets_for_creator(
+                client.service_account_name()
+            ):
+                try:
+                    asset = asset_factory_from_raw_data(raw_asset)
+                    for binding in client.fetch_bindings_for_asset(asset):
+                        asset.bindings.add(
+                            Binding(
+                                cluster_id=binding.get("cluster_id", ""),
+                                namespace=binding.get("namespace", ""),
+                                secret_name=binding.get("secret_name", ""),
+                            )
+                        )
+                    state.add_asset(asset)
+                except UnknownAssetTypeError as e:
+                    logging.warning(e)
+                except AssetError as e:
+                    # TODO: remember this somehow in the state so we don't try to update/create this asset but skip it instead
+                    logging.error(e)
             self._current_states[name] = state
 
     def provision(self, dry_run: bool = False):
         for provisioner_name, cna_client in self._cna_clients.items():
             desired_state = self._desired_states[provisioner_name]
             current_state = self._current_states[provisioner_name]
+
+            terminated_assets = current_state.get_terminated_assets()
+            for asset in terminated_assets:
+                # We want to purge all terminated assets
+                # A DELETE call to a terminated asset will
+                # purge it from CNA database
+                cna_client.delete(asset=asset)
 
             additions = desired_state - current_state
             for asset in additions:
@@ -89,6 +147,20 @@ class CNAIntegration:
             updates = current_state.required_updates_to_reach(desired_state)
             for assets in updates:
                 cna_client.update(asset=assets, dry_run=dry_run)
+
+            bindings = current_state.required_bindings_to_reach(desired_state)
+            for asset in bindings:
+                # TODO: a MR check will not show any bindings in the diff,
+                # because resources are either first created or updated before
+                # any binding happens on a subsequent reconcile iteration.
+                # We keep this for now, as the API might change in how bindings
+                # are created. E.g., an asset creation call might also take
+                # bindings as parameters.
+                if updates.contains(asset=asset):
+                    # We dont want to bind if there is currently
+                    # an update in progress that changes the asset state
+                    continue
+                cna_client.bind(asset=asset, dry_run=dry_run)
 
 
 def build_cna_clients(
@@ -104,6 +176,7 @@ def build_cna_clients(
         secret_data = secret_reader.read_all_secret(
             provisioner.ocm.access_token_client_secret
         )
+        # todo verify schema compatibility
         ocm_client = OCMBaseClient(
             url=provisioner.ocm.url,
             access_token_client_secret=secret_data["client_secret"],

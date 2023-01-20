@@ -16,6 +16,7 @@ from reconcile.utils.external_resource_spec import ExternalResourceSpec
 
 PROVIDER_AWS = "aws"
 PROVIDER_CLOUDFLARE = "cloudflare"
+PROVIDER_CNA_EXPERIMENTAL = "cna-experimental"
 
 
 def get_external_resource_specs(

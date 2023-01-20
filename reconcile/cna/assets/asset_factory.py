@@ -1,27 +1,57 @@
 from collections.abc import Mapping
-from typing import Any
+from typing import (
+    Any,
+    Type,
+)
 
 from reconcile.cna.assets.asset import (
+    ASSET_HREF_FIELD,
+    ASSET_NAME_FIELD,
     Asset,
-    AssetError,
+    AssetType,
+    UnknownAssetTypeError,
+    asset_type_by_id,
+    asset_type_id_from_raw_asset,
 )
-from reconcile.cna.assets.null import NullAsset
-from reconcile.gql_definitions.cna.queries.cna_resources import (
-    CNANullAssetV1,
-    CNAssetV1,
-)
+from reconcile.gql_definitions.cna.queries.cna_resources import CNAssetV1
+
+_ASSET_TYPE_SCHEME: dict[AssetType, Type[Asset]] = {}
+_PROVIDER_SCHEME: dict[str, Type[Asset]] = {}
 
 
-def asset_factory_from_schema(schema_asset: CNAssetV1) -> Asset:
-    if isinstance(schema_asset, CNANullAssetV1):
-        return NullAsset.from_query_class(schema_asset)
-    else:
-        raise AssetError(f"Unknown schema asset type {schema_asset}")
+def register_asset_dataclass(asset_dataclass: Type[Asset]) -> None:
+    _ASSET_TYPE_SCHEME[asset_dataclass.asset_type()] = asset_dataclass
+    _PROVIDER_SCHEME[asset_dataclass.provider()] = asset_dataclass
 
 
-def asset_factory_from_raw_data(data_asset: Mapping[str, Any]) -> Asset:
-    asset_type = data_asset.get("asset_type")
-    if asset_type == "null":
-        return NullAsset.from_api_mapping(data_asset)
-    else:
-        raise AssetError(f"Unknown data asset type {data_asset}")
+def _dataclass_for_asset_type(asset_type: AssetType) -> Type[Asset]:
+    if asset_type in _ASSET_TYPE_SCHEME:
+        return _ASSET_TYPE_SCHEME[asset_type]
+    raise UnknownAssetTypeError(f"Unknown asset type {asset_type}")
+
+
+def _dataclass_for_provider(provider: str) -> Type[Asset]:
+    return _PROVIDER_SCHEME[provider]
+
+
+def asset_type_for_provider(provider: str) -> AssetType:
+    return _dataclass_for_provider(provider).asset_type()
+
+
+def asset_factory_from_schema(
+    external_resource_spec: CNAssetV1,
+) -> Asset:
+    cna_dataclass = _dataclass_for_provider(external_resource_spec.provider)
+    return cna_dataclass.from_external_resources(external_resource_spec)
+
+
+def asset_factory_from_raw_data(raw_asset: Mapping[str, Any]) -> Asset:
+    asset_type_id = asset_type_id_from_raw_asset(raw_asset)
+    if asset_type_id:
+        asset_type = asset_type_by_id(asset_type_id)
+        if asset_type:
+            cna_dataclass = _dataclass_for_asset_type(asset_type)
+            return Asset.from_api_mapping(raw_asset, cna_dataclass)
+    raise UnknownAssetTypeError(
+        f"Unknown asset type {asset_type_id} found in {raw_asset.get(ASSET_NAME_FIELD, '<empty-name>')} - {raw_asset.get(ASSET_HREF_FIELD, '')}"
+    )
