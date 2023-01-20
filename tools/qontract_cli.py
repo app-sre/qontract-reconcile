@@ -651,6 +651,83 @@ def ocm_addon_upgrade_policies(ctx):
         print(section.format(ocm_name, json_data))
 
 
+@root.command()
+@click.argument("ocm-org")
+@click.argument("cluster")
+@click.argument("addon")
+@click.option(
+    "--dry-run/--no-dry-run", help="Do not/do create an upgrade policy", default=False
+)
+@click.option(
+    "--force/--no-force",
+    help="Create an upgrade policy even if the cluster is already running the desired version of the addon",
+    default=False,
+)
+def upgrade_cluster_addon(
+    ocm_org: str, cluster: str, addon: str, dry_run: bool, force: bool
+) -> None:
+    import reconcile.ocm_addons_upgrade_scheduler_org as oauso
+
+    settings = queries.get_app_interface_settings()
+    ocms = queries.get_openshift_cluster_managers()
+    ocms = [o for o in ocms if o["name"] == ocm_org]
+    if not ocms:
+        print(f"OCM organization {ocm_org} not found")
+        sys.exit(1)
+    ocm_info = ocms[0]
+    upgrade_policy_clusters = ocm_info.get("upgradePolicyClusters")
+    if not upgrade_policy_clusters:
+        print(f"upgradePolicyClusters not found in {ocm_org}")
+        sys.exit(1)
+    upgrade_policy_clusters = [
+        c for c in upgrade_policy_clusters if c["name"] == cluster
+    ]
+    if not upgrade_policy_clusters:
+        print(f"cluster {cluster} not found in {ocm_org} upgradePolicyClusters")
+        sys.exit(1)
+    upgrade_policy_cluster = upgrade_policy_clusters[0]
+    upgrade_policy_cluster["ocm"] = ocm_info
+    ocm_map = OCMMap(
+        clusters=upgrade_policy_clusters,
+        integration=oauso.QONTRACT_INTEGRATION,
+        settings=settings,
+        init_version_gates=True,
+        init_addons=True,
+    )
+    ocm = ocm_map.get(cluster)
+    ocm_addons = [a for a in ocm.addons if a["id"] == addon]
+    if not ocm_addons:
+        print(f"addon {addon} not found in OCM org {ocm_org}")
+        sys.exit(1)
+    ocm_addon = ocm_addons[0]
+    ocm_addon_version = ocm_addon["version"]["id"]
+    cluster_addons = ocm.get_cluster_addons(cluster, with_version=True)
+    if addon not in [a["id"] for a in cluster_addons]:
+        print(f"addon {addon} not installed on {cluster} in OCM org {ocm_org}")
+        sys.exit(1)
+    current_version = cluster_addons[0]["version"]
+    if current_version == ocm_addon_version:
+        print(
+            f"{ocm_org}/{cluster} is already running addon {addon} version {current_version}"
+        )
+        if not force:
+            sys.exit(0)
+    else:
+        print(
+            f"{ocm_org}/{cluster} is currently running addon {addon} version {current_version}"
+        )
+    print(["create", ocm_org, cluster, addon, ocm_addon_version])
+    if not dry_run:
+        spec = {
+            "version": ocm_addon_version,
+            "schedule_type": "manual",
+            "addon_id": addon,
+            "cluster_id": ocm.cluster_ids[cluster],
+            "upgrade_type": "ADDON",
+        }
+        ocm.create_addon_upgrade_policy(cluster, spec)
+
+
 @get.command()
 @click.argument("name", default="")
 @click.pass_context
