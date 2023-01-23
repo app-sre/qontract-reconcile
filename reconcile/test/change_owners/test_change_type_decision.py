@@ -184,7 +184,7 @@ def test_change_decision(
             nay_sayer: Decision(approve=False, hold=True),
         },
         changes=[change],
-        auto_approver_bot_username=bot_user,
+        auto_approver_usernames={bot_user},
     )
 
     assert change_decision[0].decision.approve == expected_approve
@@ -218,7 +218,7 @@ def test_change_decision_auto_approve_only_approver(saas_file_changetype: Change
     change_decision = apply_decisions_to_changes(
         approver_decisions={},
         changes=[change],
-        auto_approver_bot_username=bot_user,
+        auto_approver_usernames={bot_user},
     )
 
     assert change_decision[0].decision.approve is True
@@ -253,7 +253,7 @@ def test_change_decision_auto_approve_not_only_approver(
     change_decision = apply_decisions_to_changes(
         approver_decisions={},
         changes=[change],
-        auto_approver_bot_username=bot_user,
+        auto_approver_usernames={bot_user},
     )
 
     assert change_decision[0].decision.approve is False
@@ -290,7 +290,7 @@ def test_change_decision_auto_approve_with_approval(
             bot_user: Decision(approve=True, hold=False),
         },
         changes=[change],
-        auto_approver_bot_username=bot_user,
+        auto_approver_usernames={bot_user},
     )
 
     assert change_decision[0].decision.approve is True
