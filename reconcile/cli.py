@@ -106,6 +106,20 @@ def early_exit(function):
     return function
 
 
+def check_only_affected_shards(function):
+    help_msg = (
+        "Execute a dry-run only for those integration shards where the "
+        "desired state changed. Works only when --early-exit-compare-sha is set"
+    )
+    function = click.option(
+        "--check-only-affected-shards",
+        default=False,
+        is_flag=True,
+        help=help_msg,
+    )(function)
+    return function
+
+
 def dry_run(function):
     help_msg = (
         "If `true`, it will only print the planned actions "
@@ -425,6 +439,10 @@ def register_faulthandler(fileobj=sys.__stderr__):
         )
 
 
+class UnknownIntegrationTypeError(Exception):
+    pass
+
+
 def run_integration(
     func_container: Union[ModuleType, QontractReconcileIntegration],
     ctx,
@@ -439,7 +457,9 @@ def run_integration(
         elif isinstance(func_container, ModuleType):
             integration = ModuleBasedQontractReconcileIntegration(func_container)
         else:
-            raise Exception(f"Unknown integration type {type(func_container)}")
+            raise UnknownIntegrationTypeError(
+                f"Unknown integration type {type(func_container)}"
+            )
 
         running_state = RunningState()
         running_state.integration = integration.name  # type: ignore[attr-defined]
@@ -449,12 +469,17 @@ def run_integration(
             logging.info("Integration toggle is disabled, skipping integration.")
             sys.exit(ExitCodes.SUCCESS)
 
+        check_only_affected_shards = (
+            ctx.get("check_only_affected_shards", False)
+            or os.environ.get("CHECK_ONLY_AFFECTED_SHARDS", "false") == "true"
+        )
         run_integration_cfg(
             IntegrationRunConfiguration(
                 integration=integration,
                 valdiate_schemas=ctx["validate_schemas"],
                 dry_run=ctx.get("dry_run", False),
                 early_exit_compare_sha=ctx.get("early_exit_compare_sha"),
+                check_only_affected_shards=check_only_affected_shards,
                 gql_sha_url=ctx["gql_sha_url"],
                 print_url=ctx["gql_url_print"],
                 run_args=args,
@@ -489,6 +514,7 @@ def init_log_level(log_level):
 @config_file
 @dry_run
 @early_exit
+@check_only_affected_shards
 @validate_schemas
 @dump_schemas
 @gql_sha_url
@@ -500,6 +526,7 @@ def integration(
     configfile,
     dry_run,
     early_exit_compare_sha,
+    check_only_affected_shards,
     validate_schemas,
     dump_schemas_file,
     log_level,
@@ -512,6 +539,7 @@ def integration(
     config.init_from_toml(configfile)
     ctx.obj["dry_run"] = dry_run
     ctx.obj["early_exit_compare_sha"] = early_exit_compare_sha
+    ctx.obj["check_only_affected_shards"] = check_only_affected_shards
     ctx.obj["validate_schemas"] = validate_schemas
     ctx.obj["gql_sha_url"] = gql_sha_url
     ctx.obj["gql_url_print"] = gql_url_print
