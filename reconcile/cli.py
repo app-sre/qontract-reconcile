@@ -5,7 +5,11 @@ import os
 import re
 import sys
 from signal import SIGUSR1
-from typing import Optional
+from types import ModuleType
+from typing import (
+    Optional,
+    Union,
+)
 
 import click
 import sentry_sdk
@@ -26,11 +30,15 @@ from reconcile.utils.binary import (
 from reconcile.utils.environ import environ
 from reconcile.utils.exceptions import PrintToFileInGitRepositoryError
 from reconcile.utils.git import is_file_in_git_repo
-from reconcile.utils.gql import (
-    GqlApiErrorForbiddenSchema,
-    GqlApiIntegrationNotFound,
+from reconcile.utils.runtime.integration import (
+    ModuleBasedQontractReconcileIntegration,
+    QontractReconcileIntegration,
 )
 from reconcile.utils.runtime.meta import IntegrationMeta
+from reconcile.utils.runtime.runner import (
+    IntegrationRunConfiguration,
+    run_integration_cfg,
+)
 from reconcile.utils.unleash import get_feature_toggle_state
 
 TERRAFORM_VERSION = "0.13.7"
@@ -417,110 +425,59 @@ def register_faulthandler(fileobj=sys.__stderr__):
         )
 
 
-def run_integration(func_container, ctx, *args, **kwargs):
+def run_integration(
+    func_container: Union[ModuleType, QontractReconcileIntegration],
+    ctx,
+    *args,
+    **kwargs,
+):
     register_faulthandler()
+    dump_schemas_file = ctx.get("dump_schemas_file")
     try:
-        int_name = func_container.QONTRACT_INTEGRATION.replace("_", "-")
+        if isinstance(func_container, QontractReconcileIntegration):
+            integration = func_container
+        elif isinstance(func_container, ModuleType):
+            integration = ModuleBasedQontractReconcileIntegration(func_container)
+        else:
+            raise Exception(f"Unknown integration type {type(func_container)}")
+
         running_state = RunningState()
-        running_state.integration = int_name
-    except AttributeError:
-        sys.stderr.write("Integration missing QONTRACT_INTEGRATION.\n")
-        sys.exit(ExitCodes.ERROR)
+        running_state.integration = integration.name  # type: ignore[attr-defined]
 
-    unleash_feature_state = get_feature_toggle_state(int_name)
-    if not unleash_feature_state:
-        logging.info("Integration toggle is disabled, skipping integration.")
-        sys.exit(ExitCodes.SUCCESS)
+        unleash_feature_state = get_feature_toggle_state(integration.name)
+        if not unleash_feature_state:
+            logging.info("Integration toggle is disabled, skipping integration.")
+            sys.exit(ExitCodes.SUCCESS)
 
-    dry_run = ctx.get("dry_run", False)
-    early_exit_compare_sha = ctx.get("early_exit_compare_sha")
-
-    try:
-        # check if the integration can exit early because there is no difference
-        # in desired state compared to the provided comparison bundle sha
-        # early exit is only supported when the integration is started in
-        # dry-run mode
-        can_exit_early = (
-            dry_run
-            and early_exit_compare_sha
-            and early_exit_integration(
-                int_name, early_exit_compare_sha, func_container, args, kwargs
+        run_integration_cfg(
+            IntegrationRunConfiguration(
+                integration=integration,
+                valdiate_schemas=ctx["validate_schemas"],
+                dry_run=ctx.get("dry_run", False),
+                early_exit_compare_sha=ctx.get("early_exit_compare_sha"),
+                gql_sha_url=ctx["gql_sha_url"],
+                print_url=ctx["gql_url_print"],
+                run_args=args,
+                run_kwargs=kwargs,
             )
         )
-        if can_exit_early:
-            logging.debug("No changes in desired state. Exit PR check early.")
-        else:
-            try:
-                gql.init_from_config(
-                    autodetect_sha=ctx["gql_sha_url"],
-                    integration=int_name,
-                    validate_schemas=ctx["validate_schemas"],
-                    print_url=ctx["gql_url_print"],
-                )
-            except GqlApiIntegrationNotFound as e:
-                sys.stderr.write(str(e) + "\n")
-                sys.exit(ExitCodes.INTEGRATION_NOT_FOUND)
-            func_container.run(dry_run, *args, **kwargs)
+    except gql.GqlApiIntegrationNotFound as e:
+        sys.stderr.write(str(e) + "\n")
+        sys.exit(ExitCodes.INTEGRATION_NOT_FOUND)
     except RunnerException as e:
         sys.stderr.write(str(e) + "\n")
         sys.exit(ExitCodes.ERROR)
-    except GqlApiErrorForbiddenSchema as e:
+    except gql.GqlApiErrorForbiddenSchema as e:
         sys.stderr.write(str(e) + "\n")
         sys.exit(ExitCodes.FORBIDDEN_SCHEMA)
+    except Exception as e:
+        sys.stderr.write(str(e) + "\n")
+        sys.exit(ExitCodes.ERROR)
     finally:
-        if ctx.get("dump_schemas_file"):
+        if dump_schemas_file:
             gqlapi = gql.get_api()
-            with open(ctx.get("dump_schemas_file"), "w") as f:
+            with open(dump_schemas_file, "w") as f:
                 f.write(json.dumps(gqlapi.get_queried_schemas()))
-
-
-def early_exit_integration(
-    int_name: str, compare_sha: str, func_container, *args, **kwargs
-) -> bool:
-    early_exit_desired_state_function = "early_exit_desired_state"
-    # does the integration support early exit?
-    if "early_exit_desired_state" not in dir(func_container):
-        logging.warning(
-            f"{int_name} does not support early exit. it does not offer a "
-            f"function called {early_exit_desired_state_function}"
-        )
-        return False
-
-    # get desired state from comparison bundle
-    try:
-        gql.init_from_config(
-            sha=compare_sha,
-            integration=int_name,
-            validate_schemas=True,
-            print_url=False,
-        )
-        previous_desired_state = func_container.early_exit_desired_state(
-            *args, **kwargs
-        )
-    except Exception:
-        logging.exception(
-            f"Failed to fetch desired state for comparison bundle {compare_sha} failed"
-        )
-        return False
-
-    # get desired state from current bundle
-    try:
-        gql.init_from_config(
-            autodetect_sha=True,
-            integration=int_name,
-            validate_schemas=True,
-            print_url=False,
-        )
-        current_desired_state = func_container.early_exit_desired_state(*args, **kwargs)
-    except Exception:
-        logging.exception("Failed to fetch desired state for current bundle failed")
-        return False
-
-    # compare
-    from deepdiff import DeepDiff
-
-    diff = DeepDiff(previous_desired_state, current_desired_state)
-    return not diff
 
 
 def init_log_level(log_level):
