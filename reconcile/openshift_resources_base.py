@@ -1085,7 +1085,7 @@ def check_cluster_scoped_resources(
 
     checks = [
         CheckClusterScopedResourceNames(oc_map, ri, namespaces),
-        CheckClusterScopedResourceDuplicates(oc_map, all_namespaces, thread_pool_size),
+        CheckClusterScopedResourceDuplicates(oc_map, all_namespaces),
     ]
 
     results = threaded.run(

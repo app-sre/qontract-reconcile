@@ -64,7 +64,6 @@ from reconcile.utils.secret_reader import (
 )
 from reconcile.utils.unleash import get_feature_toggle_state
 
-
 urllib3.disable_warnings()
 
 GET_REPLICASET_MAX_ATTEMPTS = 20
