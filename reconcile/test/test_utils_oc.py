@@ -6,7 +6,6 @@ from unittest.mock import patch
 import pytest
 from kubernetes.dynamic import Resource
 from kubernetes.dynamic.exceptions import ResourceNotFoundError
-from kubernetes.dynamic import Resource
 
 import reconcile.utils.oc
 from reconcile.utils.oc import (
