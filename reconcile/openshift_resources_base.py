@@ -1,5 +1,6 @@
 import base64
 import hashlib
+import itertools
 import json
 import logging
 import sys
@@ -8,12 +9,15 @@ from collections.abc import (
     Mapping,
 )
 from contextlib import contextmanager
+from dataclasses import dataclass
 from functools import cache
 from textwrap import indent
 from threading import Lock
 from typing import (
     Any,
     Optional,
+    Protocol,
+    Tuple,
 )
 from urllib import parse
 
@@ -43,6 +47,7 @@ from reconcile.utils.jinja2_ext import (
 from reconcile.utils.oc import (
     OC_Map,
     OCClient,
+    OCLogMsg,
     StatusCodeError,
 )
 from reconcile.utils.openshift_resource import ConstructResourceError
@@ -896,6 +901,7 @@ def get_namespaces(
     cluster_name: Optional[str] = None,
     namespace_name: Optional[str] = None,
     resource_schema_filter: Optional[str] = None,
+    filter_by_shard: Optional[bool] = True,
 ) -> tuple[list[dict[str, Any]], Optional[list[str]]]:
     if providers is None:
         providers = []
@@ -903,10 +909,13 @@ def get_namespaces(
     namespaces = [
         namespace_info
         for namespace_info in gqlapi.query(NAMESPACES_QUERY)["namespaces"]
-        if is_in_shard(
-            f"{namespace_info['cluster']['name']}/" + f"{namespace_info['name']}"
+        if not ob.is_namespace_deleted(namespace_info)
+        and (
+            not filter_by_shard
+            or is_in_shard(
+                f"{namespace_info['cluster']['name']}/" + f"{namespace_info['name']}"
+            )
         )
-        and not ob.is_namespace_deleted(namespace_info)
     ]
     namespaces = filter_namespaces_by_cluster_and_namespace(
         namespaces, cluster_name, namespace_name
@@ -945,6 +954,12 @@ def run(
         overrides=overrides,
     )
     defer(oc_map.cleanup)
+    if dry_run:
+        error = check_cluster_scoped_resources(
+            oc_map, ri, namespaces, None, thread_pool_size
+        )
+        if error:
+            sys.exit(1)
 
     ob.realize_data(dry_run, oc_map, ri, thread_pool_size)
 
@@ -952,6 +967,211 @@ def run(
         sys.exit(1)
 
     return ri
+
+
+class CheckError(Exception):
+    pass
+
+
+class CheckNamespaceResources(Protocol):
+    def check(self) -> list[Exception]:
+        pass
+
+
+@dataclass
+class CheckClusterScopedResourceNames:
+    oc_map: OC_Map
+    ri: ResourceInventory
+    namespaces: list[Mapping[str, Any]]
+
+    def check(self) -> list[Exception]:
+        errors: list[Exception] = []
+        for ns in self.namespaces:
+            cluster_name = ns["cluster"]["name"]
+            try:
+                oc = self.oc_map.get_cluster(cluster_name)
+            except OCLogMsg as ex:
+                if ex.log_level >= logging.ERROR:
+                    self.ri.register_error()
+                    errors.append(ex)
+                continue
+
+            ns_type_overrides = ob.get_namespace_type_overrides(ns)
+            managed_resource_types = ob.get_namespace_resource_types(
+                ns, ns_type_overrides
+            )
+            cluster_scoped_types = [
+                k for k in managed_resource_types if not oc.is_kind_namespaced(k)
+            ]
+
+            if len(cluster_scoped_types) > 0:
+                # Check that all non namespaced resources are explicitly set in the
+                # ManagedResourceNames attribute.
+                mrn = ob.get_namespace_resource_names(ns, ns_type_overrides)
+                for kind in cluster_scoped_types:
+                    declared_items = mrn.get(kind, [])
+                    desired_items = set(
+                        self.ri.get_desired_by_type(
+                            cluster_name, ns["name"], kind
+                        ).keys()
+                    )
+                    diff = desired_items.difference(declared_items)
+                    if len(diff) > 0:
+                        errors.append(
+                            CheckError(
+                                "Cluster scoped resources not defined in ManagedResourceNames. "
+                                f"cluster: {cluster_name}, namespace: {ns['name']}, "
+                                f"kind:{kind}, names:{diff}",
+                            )
+                        )
+
+        return errors
+
+
+@dataclass
+class CheckClusterScopedResourceDuplicates:
+    oc_map: OC_Map
+    all_namespaces: Optional[list[Mapping]] = None
+    thread_pool_size: int = 10
+
+    def check(self) -> list[Exception]:
+        errors: list[Exception] = []
+        clusters = set(self.oc_map.clusters() + self.oc_map.clusters(privileged=True))
+        cluster_cs_resources = get_cluster_scoped_resources(
+            self.oc_map, clusters, self.all_namespaces
+        )
+        results = threaded.run(
+            self._find_resource_duplicates,
+            list(cluster_cs_resources.items()),
+            self.thread_pool_size,
+            return_exceptions=True,
+        )
+        for r in results:
+            if isinstance(r, Exception):
+                errors.append(r)
+        if errors:
+            return errors
+
+        for cluster, duplicates in dict(results).items():
+            for kind_name, namespaces in duplicates.items():
+                kind, name = kind_name
+                errors.append(
+                    CheckError(
+                        f"Cluster resource defined in multiple namespaces. "
+                        f"cluster: {cluster}, namespaces: {namespaces}, "
+                        f"kind:{kind}, name:{name}"
+                    )
+                )
+        return errors
+
+    def _find_resource_duplicates(
+        self, input: Tuple[str, Mapping]
+    ) -> Tuple[str, dict[Tuple[str, str], list[str]]]:
+        """Finds resource duplicates. Duplicates is a di
+
+        Have: {cluster: {ns: {kind:[names], ns2: {kind:{names]}}}]
+        Want: {cluster: {(kind, name):[ns1,ns2,...], (kind2,name2): [ns3,ns4,...]}
+
+        :param input: (cluster, resources)
+        :return: (cluster, duplicates)
+        """
+        remap: dict[str, dict[str, list[str]]] = {}
+        duplicates: dict[Tuple[str, str], list[str]] = {}
+
+        cluster, cluster_resources = input
+        for ns, resources in cluster_resources.items():
+            if not ns:
+                continue
+            for kind, names in resources.items():
+                k_ref = remap.setdefault(kind, {})
+                for name in names:
+                    n_ref = k_ref.setdefault(name, [])
+                    n_ref.append(ns)
+                    if len(n_ref) > 1:
+                        duplicates[(kind, name)] = n_ref
+        return (cluster, duplicates)
+
+
+def check_cluster_scoped_resources(
+    oc_map: OC_Map,
+    ri: ResourceInventory,
+    namespaces: list[Mapping[str, Any]],
+    all_namespaces: Optional[list[Mapping[str, Any]]] = None,
+    thread_pool_size: int = 10,
+) -> bool:
+
+    checks = [
+        CheckClusterScopedResourceNames(oc_map, ri, namespaces),
+        CheckClusterScopedResourceDuplicates(oc_map, all_namespaces, thread_pool_size),
+    ]
+
+    results = threaded.run(
+        lambda x: x.check(), checks, len(checks), return_exceptions=True
+    )
+    errors = list(itertools.chain.from_iterable(results))
+
+    for e in errors:
+        logging.error(e)
+
+    return len(errors) > 0
+
+
+def get_cluster_scoped_resources(
+    oc_map: OC_Map,
+    clusters: Iterable[str],
+    namespaces: Optional[Iterable[Mapping[str, Any]]] = None,
+    thread_pool_size: int = 10,
+) -> dict[str, dict[str, list[str]]]:
+    """Returns cluster scoped resources for a list of clusters
+
+    :param oc_map: OC_Map
+    :param clusters: Iterable whith the clusters list
+    :param namespaces: Namespaces where to find the clusters
+    :param thread_pool_size: defaults to 10
+    :return: {cluster: {ns: {kind:[names], ns2:...}, cluster2:...}
+    """
+
+    if not namespaces:
+        namespaces, _ = get_namespaces(
+            providers=["resource", "resource-template"], filter_by_shard=False
+        )
+
+    cluster_namespaces = [ns for ns in namespaces if ns["cluster"]["name"] in clusters]
+
+    results = threaded.run(
+        _get_namespace_cluster_scoped_resources,
+        cluster_namespaces,
+        thread_pool_size,
+        False,
+        oc_map=oc_map,
+    )
+    cluster_resources: dict[str, dict[str, list[str]]] = {}
+    for cluster, namespace, resources in results:
+        c_ref = cluster_resources.setdefault(cluster, {})
+        c_ref[namespace] = resources
+
+    return cluster_resources
+
+
+def _get_namespace_cluster_scoped_resources(
+    namespace: Mapping,
+    oc_map: OC_Map,
+) -> Tuple[str, str, dict[str, dict[str, Any]]]:
+    """Returns all non-namespaced resources defined in a namespace manifest.
+
+    :param namespace: the namespace dict
+    :param oc: OC_Map
+    :return: {ns: {kind:[names]} if resources else None
+    """
+    managed_resource_names = ob.get_namespace_resource_names(namespace)
+    resources: dict[str, Any] = {}
+    cluster_name = namespace["cluster"]["name"]
+    oc = oc_map.get_cluster(cluster_name)
+    for kind, names in managed_resource_names.items():
+        if not oc.is_kind_namespaced(kind):
+            resources_kind_list = resources.setdefault(kind, [])
+            resources_kind_list += names
+    return (cluster_name, namespace["name"], resources)
 
 
 def early_exit_desired_state(

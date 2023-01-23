@@ -1,0 +1,26 @@
+---
+name: ns1
+cluster:
+  name: cs1
+managedResourceTypes:
+  - ClusterRole
+  - Project
+  - Deployment
+managedResourceTypeOverrides:
+- resource: Project
+  override: Project.config.openshift.io
+managedResourceNames:
+  - resource: ClusterRole
+    resourceNames:
+      - cr1
+  - resource: Project
+    resourceNames:
+      - pr1
+      - pr2
+  - resource: Deployment
+    resourceNames:
+      - d1
+
+openshiftResources:
+  - provider: resource
+    path: /some/path.yml

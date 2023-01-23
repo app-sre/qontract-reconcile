@@ -11,6 +11,7 @@ from collections.abc import (
     Mapping,
 )
 from contextlib import suppress
+from dataclasses import dataclass
 from datetime import datetime
 from functools import wraps
 from subprocess import (
@@ -62,8 +63,6 @@ from reconcile.utils.secret_reader import (
     SecretReader,
 )
 from reconcile.utils.unleash import get_feature_toggle_state
-
-from dataclasses import dataclass
 
 urllib3.disable_warnings()
 
