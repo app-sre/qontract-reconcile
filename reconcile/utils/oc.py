@@ -64,6 +64,7 @@ from reconcile.utils.secret_reader import (
 )
 from reconcile.utils.unleash import get_feature_toggle_state
 
+
 urllib3.disable_warnings()
 
 GET_REPLICASET_MAX_ATTEMPTS = 20
@@ -362,7 +363,7 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
 
         self.api_resources_lock = threading.RLock()
         self.init_api_resources = init_api_resources
-        self.api_resources = None
+        self.api_resources = {}
         if self.init_api_resources:
             self.api_resources = self.get_api_resources()
 
@@ -1182,7 +1183,7 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
 
         # Same Kinds might exist in different api groups
         kind_resources = self.api_resources.get(kind)
-        if not kind:
+        if not kind_resources:
             raise StatusCodeError(f"Kind {kind} does not exist in the ApiServer")
 
         if len(kg) > 1:
