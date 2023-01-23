@@ -369,3 +369,4 @@ After the PR is merged, a CI job will be triggered that will publish the package
 ## Authors
 
 These tools have been written by the [Red Hat App-SRE Team](mailto:sd-app-sre@redhat.com).
+
