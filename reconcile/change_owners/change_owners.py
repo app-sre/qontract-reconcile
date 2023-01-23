@@ -397,7 +397,7 @@ def run(
             )
         )
         change_decisions = apply_decisions_to_changes(
-            changes, approver_decisions, gl.user.username
+            changes, approver_decisions, {gl.user.username}
         )
         hold = any(d.decision.hold for d in change_decisions)
         approved = all(
