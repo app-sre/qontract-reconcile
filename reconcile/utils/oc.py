@@ -64,6 +64,8 @@ from reconcile.utils.secret_reader import (
 )
 from reconcile.utils.unleash import get_feature_toggle_state
 
+from dataclasses import dataclass
+
 urllib3.disable_warnings()
 
 GET_REPLICASET_MAX_ATTEMPTS = 20
@@ -506,7 +508,7 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
 
         self.api_resources_lock = threading.RLock()
         self.init_api_resources = init_api_resources
-        self.api_resources = None
+        self.api_resources = {}
         if self.init_api_resources:
             self.api_resources = self.get_api_resources()
 
