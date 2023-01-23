@@ -22,5 +22,16 @@ query SelfServiceRolesQuery($name: String) {
     bots {
       org_username
     }
+    permissions {
+      ... on PermissionSlackUsergroup_v1 {
+        handle
+        workspace {
+          name
+        }
+      }
+      ... on PermissionGitlabGroupMembership_v1 {
+        group
+      }
+    }
   }
 }

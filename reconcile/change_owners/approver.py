@@ -60,3 +60,25 @@ class GqlApproverResolver:
             return Approver(approvers["bot"][0]["org_username"], False)
         else:
             return None
+
+
+class ApproverReachability(Protocol):
+    def render_for_mr_report(self) -> str:
+        ...
+
+
+@dataclass
+class SlackGroupApproverReachability:
+    slack_group: str
+    workspace: str
+
+    def render_for_mr_report(self) -> str:
+        return f"Slack group {self.slack_group}/{self.workspace}"
+
+
+@dataclass
+class GitlabGroupApproverReachability:
+    gitlab_group: str
+
+    def render_for_mr_report(self) -> str:
+        return f"GitLab group {self.gitlab_group}"

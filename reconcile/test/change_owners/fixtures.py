@@ -33,8 +33,12 @@ from reconcile.gql_definitions.change_owners.queries.change_types import (
 from reconcile.gql_definitions.change_owners.queries.self_service_roles import (
     BotV1,
     DatafileObjectV1,
+    PermissionGitlabGroupMembershipV1,
+    PermissionSlackUsergroupV1,
+    PermissionV1,
     RoleV1,
     SelfServiceConfigV1,
+    SlackWorkspaceV1,
     UserV1,
 )
 from reconcile.test.fixtures import Fixtures
@@ -94,7 +98,16 @@ def build_role(
     datafiles: Optional[list[DatafileObjectV1]],
     users: Optional[list[str]] = None,
     bots: Optional[list[str]] = None,
+    slack_groups: Optional[list[str]] = None,
+    slack_workspace: Optional[str] = "workspace",
+    gitlab_groups: Optional[list[str]] = None,
 ) -> self_service_roles.RoleV1:
+    permissions: list[PermissionV1] = [
+        PermissionSlackUsergroupV1(
+            handle=g, workspace=SlackWorkspaceV1(name=slack_workspace)
+        )
+        for g in slack_groups or []
+    ] + [PermissionGitlabGroupMembershipV1(group=g) for g in gitlab_groups or []]
     return self_service_roles.RoleV1(
         name=name,
         path=f"/role/{name}.yaml",
@@ -111,6 +124,7 @@ def build_role(
             UserV1(org_username=u, tag_on_merge_requests=False) for u in users or []
         ],
         bots=[BotV1(org_username=b) for b in bots or []],
+        permissions=permissions,
     )
 
 

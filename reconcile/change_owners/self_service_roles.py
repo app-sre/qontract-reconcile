@@ -1,5 +1,10 @@
 from collections import defaultdict
 
+from reconcile.change_owners.approver import (
+    ApproverReachability,
+    GitlabGroupApproverReachability,
+    SlackGroupApproverReachability,
+)
 from reconcile.change_owners.bundle import BundleFileType
 from reconcile.change_owners.change_types import (
     Approver,
@@ -7,7 +12,11 @@ from reconcile.change_owners.change_types import (
     ChangeTypeContext,
     ChangeTypeProcessor,
 )
-from reconcile.gql_definitions.change_owners.queries.self_service_roles import RoleV1
+from reconcile.gql_definitions.change_owners.queries.self_service_roles import (
+    PermissionGitlabGroupMembershipV1,
+    PermissionSlackUsergroupV1,
+    RoleV1,
+)
 
 
 def cover_changes_with_self_service_roles(
@@ -83,8 +92,29 @@ def change_type_contexts_for_self_service_roles(
                                 context=f"RoleV1 - {role.name}",
                                 origin=ownership.change_type.name,
                                 approvers=approvers,
+                                approver_reachability=approver_reachability_from_role(
+                                    role
+                                ),
                                 context_file=ownership.context_file_ref,
                             ),
                         )
                     )
     return change_type_contexts
+
+
+def approver_reachability_from_role(role: RoleV1) -> list[ApproverReachability]:
+    reachability: list[ApproverReachability] = []
+    for permission in role.permissions or []:
+        if isinstance(permission, PermissionSlackUsergroupV1):
+            reachability.append(
+                SlackGroupApproverReachability(
+                    slack_group=permission.handle,
+                    workspace=permission.workspace.name,
+                )
+            )
+        elif isinstance(permission, PermissionGitlabGroupMembershipV1):
+            reachability.append(
+                GitlabGroupApproverReachability(gitlab_group=permission.group)
+            )
+
+    return reachability
