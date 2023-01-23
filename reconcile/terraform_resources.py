@@ -17,10 +17,14 @@ from sretoolbox.utils import threaded
 import reconcile.openshift_base as ob
 from reconcile import queries
 from reconcile.aws_iam_keys import run as disable_keys
+from reconcile.change_owners.diff import IDENTIFIER_FIELD_NAME
 from reconcile.utils import gql
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.defer import defer
-from reconcile.utils.external_resource_spec import ExternalResourceSpecInventory
+from reconcile.utils.external_resource_spec import (
+    ExternalResourceSpec,
+    ExternalResourceSpecInventory,
+)
 from reconcile.utils.external_resources import (
     PROVIDER_AWS,
     get_external_resource_specs,
@@ -33,6 +37,7 @@ from reconcile.utils.oc import (
 from reconcile.utils.ocm import OCMMap
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.openshift_resource import ResourceInventory
+from reconcile.utils.runtime.integration import DesiredStateShardConfig
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.terraform_client import TerraformClient as Terraform
 from reconcile.utils.terrascript_aws_client import TerrascriptClient as Terrascript
@@ -676,7 +681,6 @@ def run(
     account_name=None,
     defer=None,
 ):
-
     ri, oc_map, tf, resource_specs = setup(
         dry_run,
         print_to_file,
@@ -747,19 +751,44 @@ def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
         for spec in get_external_resource_specs(
             ns_info, provision_provider=PROVIDER_AWS
         ):
+
+            def register_resource(
+                spec: ExternalResourceSpec, resource: Optional[dict[str, Any]]
+            ):
+                if resource:
+                    resources.append(
+                        {
+                            IDENTIFIER_FIELD_NAME: f"{spec.cluster_name}/{spec.namespace_name}/{spec.provisioner_name}/{spec.provider}/{spec.identifier}/{resource.get('path')}",
+                            "content_sha": resource.get("sha256sum"),
+                            "provisioner": spec.provisioner_name,
+                        }
+                    )
+
             defaults = spec.resource.get("defaults")
             if defaults:
-                resources.append(gqlapi.get_resource(defaults))
+                register_resource(spec, gqlapi.get_resource(defaults))
             parameter_group = spec.resource.get("parameter_group")
             if parameter_group:
-                resources.append(gqlapi.get_resource(parameter_group))
+                register_resource(spec, gqlapi.get_resource(parameter_group))
             for spec_item in spec.resource.get("specs") or []:
                 defaults = spec_item.get("defaults")
                 if defaults:
-                    resources.append(gqlapi.get_resource(defaults))
+                    register_resource(spec, gqlapi.get_resource(defaults))
 
     return {
         "accounts": queries.get_aws_accounts(terraform_state=True),
         "namespaces": namespaces,
         "resources": resources,
     }
+
+
+def desired_state_shard_config() -> DesiredStateShardConfig:
+    return DesiredStateShardConfig(
+        shard_arg_name="account_name",
+        shard_path_selectors={
+            "accounts[*].name",
+            "namespaces[*].externalResources[*].provisioner.name",
+            "resources[*].provisioner",
+        },
+        sharded_run_review=lambda proposal: len(proposal.proposed_shards) <= 2,
+    )
