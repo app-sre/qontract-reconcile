@@ -24,7 +24,7 @@ QONTRACT_INTEGRATION = "ocm-oidc-idp"
 
 DEFAULT_EMAIL_CLAIMS: list[str] = ["email"]
 DEFAULT_NAME_CLAIMS: list[str] = ["name"]
-DEFAULT_USERNAME_CLAIMS: list[str] = ["username"]
+DEFAULT_USERNAME_CLAIMS: list[str] = ["preferred_username"]
 DEFAULT_GROUPS_CLAIMS: list[str] = []
 
 
