@@ -341,6 +341,12 @@ def account_name(function):
     return function
 
 
+def cloudflare_zone_name(function):
+    function = click.option("--zone-name", default=None)(function)
+
+    return function
+
+
 def account_name_multiple(function):
     """This option can be used when more than one account needs to be passed as argument"""
     function = click.option(
@@ -1655,6 +1661,34 @@ def terraform_cloudflare_resources(
         enable_deletion,
         thread_pool_size,
         account_name,
+    )
+
+
+@integration.command(short_help="Manage Cloudflare DNS using Terraform.")
+@print_to_file
+@enable_deletion(default=False)
+@threaded(default=20)
+@binary(["terraform"])
+@binary_version("terraform", ["version"], TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
+@account_name
+@cloudflare_zone_name
+@click.pass_context
+def terraform_cloudflare_dns(
+    ctx, print_to_file, enable_deletion, thread_pool_size, account_name, zone_name
+):
+    from reconcile import terraform_cloudflare_dns
+
+    run_class_integration(
+        integration=terraform_cloudflare_dns.TerraformCloudflareDNSIntegration(
+            terraform_cloudflare_dns.TerraformCloudflareDNSIntegrationParams(
+                print_to_file=print_to_file,
+                enable_deletion=enable_deletion,
+                thread_pool_size=thread_pool_size,
+                selected_account=account_name,
+                selected_zone=zone_name,
+            )
+        ),
+        ctx=ctx.obj,
     )
 
 
