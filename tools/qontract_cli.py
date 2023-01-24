@@ -2075,12 +2075,15 @@ def alert_to_receiver(
     alert_labels: list[dict] = []
     for group in rule_spec["groups"]:
         for rule in group["rules"]:
-            alert_labels.append(
-                {
-                    "name": rule["alert"],
-                    "labels": rule["labels"] | additional_labels,
-                }
-            )
+            try:
+                alert_labels.append(
+                    {
+                        "name": rule["alert"],
+                        "labels": rule["labels"] | additional_labels,
+                    }
+                )
+            except KeyError:
+                print("Skipping rule with no alert and/or labels", file=sys.stderr)
 
     if alert_name:
         alert_labels = [al for al in alert_labels if al["name"] == alert_name]
