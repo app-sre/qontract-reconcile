@@ -45,6 +45,10 @@ def delete_skupper_site(
         )
 
     for item in to_delete.values():
+        if "qontract.integration" in item["metadata"].get("annotations", {}):
+            # don't delete resources managed by other integrations
+            continue
+
         logging.info(
             [
                 "delete",
