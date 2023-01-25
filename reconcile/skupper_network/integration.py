@@ -259,6 +259,9 @@ def run(
 
 def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
     gqlapi = gql.get_api()
+    skupper_networks = get_skupper_networks(gqlapi.query)
     return {
-        "skupper_networks": [site.dict() for site in get_skupper_networks(gqlapi.query)]
+        "skupper_sites": [
+            site.dict() for site in compile_skupper_sites(skupper_networks)
+        ],
     }
