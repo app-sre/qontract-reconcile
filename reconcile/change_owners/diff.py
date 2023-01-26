@@ -163,6 +163,7 @@ def extract_diffs(old_file_content: Any, new_file_content: Any) -> list[Diff]:
             old_file_content,
             new_file_content,
             ignore_order=True,
+            report_repetition=True,
             iterable_compare_func=compare_object_ctx_identifier,
             cutoff_intersection_for_pairs=1,
         )
@@ -227,6 +228,25 @@ def extract_diffs(old_file_content: Any, new_file_content: Any) -> list[Diff]:
                     new=None,
                 )
                 for path, change in deep_diff.get("iterable_item_removed", {}).items()
+            ]
+        )
+
+        # handle repetition change
+        diffs.extend(
+            [
+                Diff(
+                    path=deepdiff_path_to_jsonpath(path),
+                    diff_type=DiffType.ADDED
+                    if change["old_repeat"] < change["new_repeat"]
+                    else DiffType.REMOVED,
+                    old=None
+                    if change["old_repeat"] < change["new_repeat"]
+                    else change["value"],
+                    new=change["value"]
+                    if change["old_repeat"] < change["new_repeat"]
+                    else None,
+                )
+                for path, change in deep_diff.get("repetition_change", {}).items()
             ]
         )
 

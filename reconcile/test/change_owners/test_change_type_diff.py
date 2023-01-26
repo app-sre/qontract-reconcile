@@ -573,6 +573,82 @@ def test_bundle_change_diff_item_reorder():
     assert not bundle_change
 
 
+def test_bundle_change_diff_item_repeat_increase():
+    bundle_change = create_bundle_file_change(
+        path="path",
+        schema="/access/user-1.yml",
+        file_type=BundleFileType.DATAFILE,
+        old_file_content={
+            "$schema": "/access/user-1.yml",
+            "roles": [
+                {"$ref": "an_item"},
+                {"$ref": "another_item"},
+            ],
+        },
+        new_file_content={
+            "$schema": "/access/user-1.yml",
+            "roles": [
+                {"$ref": "an_item"},
+                {"$ref": "an_item"},
+                {"$ref": "another_item"},
+            ],
+        },
+    )
+    assert bundle_change
+
+    expected = [
+        DiffCoverage(
+            diff=Diff(
+                path=jsonpath_ng.parse("roles.[0]"),
+                diff_type=DiffType.ADDED,
+                old=None,
+                new={"$ref": "an_item"},
+            ),
+            coverage=[],
+        ),
+    ]
+    diffs = sorted(bundle_change.diff_coverage, key=lambda d: str(d.diff.path))
+    assert diffs == expected
+
+
+def test_bundle_change_diff_item_repeat_decrease():
+    bundle_change = create_bundle_file_change(
+        path="path",
+        schema="/access/user-1.yml",
+        file_type=BundleFileType.DATAFILE,
+        old_file_content={
+            "$schema": "/access/user-1.yml",
+            "roles": [
+                {"$ref": "an_item"},
+                {"$ref": "an_item"},
+                {"$ref": "another_item"},
+            ],
+        },
+        new_file_content={
+            "$schema": "/access/user-1.yml",
+            "roles": [
+                {"$ref": "an_item"},
+                {"$ref": "another_item"},
+            ],
+        },
+    )
+    assert bundle_change
+
+    expected = [
+        DiffCoverage(
+            diff=Diff(
+                path=jsonpath_ng.parse("roles.[0]"),
+                diff_type=DiffType.REMOVED,
+                old={"$ref": "an_item"},
+                new=None,
+            ),
+            coverage=[],
+        ),
+    ]
+    diffs = sorted(bundle_change.diff_coverage, key=lambda d: str(d.diff.path))
+    assert diffs == expected
+
+
 def test_bundle_change_diff_resourcefile_without_schema_unparsable():
     bundle_change = create_bundle_file_change(
         path="path",
