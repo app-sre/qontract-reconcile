@@ -41,3 +41,11 @@ def has_uncommited_changes() -> bool:
     if result.stdout:
         return True
     return False
+
+
+def show_uncommited_changes() -> str:
+    cmd = ["git", "diff"]
+    result = subprocess.run(
+        cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=True
+    )
+    return result.stdout.decode("utf-8")
