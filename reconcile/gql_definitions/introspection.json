@@ -9061,6 +9061,18 @@
                             "deprecationReason": null
                         },
                         {
+                            "name": "addonManagedUpgrades",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "Boolean",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
                             "name": "addonUpgradeTests",
                             "description": null,
                             "args": [],
@@ -22262,6 +22274,18 @@
                         },
                         {
                             "name": "early_exit",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "Boolean",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "check_only_affected_shards",
                             "description": null,
                             "args": [],
                             "type": {
