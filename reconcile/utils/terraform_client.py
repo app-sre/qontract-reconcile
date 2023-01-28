@@ -1,6 +1,7 @@
 import json
 import logging
 import shutil
+import sys
 from collections import defaultdict
 from collections.abc import (
     Iterable,
@@ -30,8 +31,10 @@ from sretoolbox.utils import (
 )
 
 import reconcile.utils.lean_terraform_client as lean_tf
+from reconcile.status import ExitCodes
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.aws_helper import get_region_from_availability_zone
+from reconcile.utils.defer import defer
 from reconcile.utils.external_resource_spec import (
     ExternalResourceSpec,
     ExternalResourceSpecInventory,
@@ -683,3 +686,39 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
             return not set(changed_resource_arguments) - set(changed_values)
         else:
             return False
+
+
+@defer
+def run_terraform(
+    QONTRACT_INTEGRATION: str,
+    QONTRACT_INTEGRATION_VERSION: str,
+    QONTRACT_TF_PREFIX: str,
+    dry_run: bool,
+    enable_deletion: bool,
+    thread_pool_size: int,
+    working_dirs: Mapping[str, str],
+    accounts: Iterable[Mapping[str, Any]],
+):
+    tf = TerraformClient(
+        QONTRACT_INTEGRATION,
+        QONTRACT_INTEGRATION_VERSION,
+        QONTRACT_TF_PREFIX,
+        accounts,
+        working_dirs,
+        thread_pool_size,
+    )
+    defer(tf.cleanup)
+
+    disabled_deletions_detected, err = tf.plan(enable_deletion)
+    if err:
+        sys.exit(ExitCodes.ERROR)
+    if disabled_deletions_detected:
+        logging.error("Deletions detected but they are disabled")
+        sys.exit(ExitCodes.ERROR)
+
+    if dry_run:
+        sys.exit(ExitCodes.SUCCESS)
+
+    err = tf.apply()
+    if err:
+        sys.exit(ExitCodes.ERROR)

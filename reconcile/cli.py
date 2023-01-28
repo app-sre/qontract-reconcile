@@ -4,6 +4,7 @@ import logging
 import os
 import re
 import sys
+import traceback
 from signal import SIGUSR1
 from types import ModuleType
 from typing import Optional
@@ -521,6 +522,7 @@ def run_class_integration(
         sys.stderr.write(str(e) + "\n")
         sys.exit(ExitCodes.FORBIDDEN_SCHEMA)
     except Exception as e:
+        traceback.print_exc()
         sys.stderr.write(str(e) + "\n")
         sys.exit(ExitCodes.ERROR)
     finally:
@@ -1702,6 +1704,30 @@ def terraform_cloudflare_dns(
             )
         ),
         ctx=ctx.obj,
+    )
+
+
+@integration.command(short_help="Manage Cloudflare Users using Terraform.")
+@print_to_file
+@binary(["terraform"])
+@threaded(default=20)
+@binary_version("terraform", ["version"], TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
+@account_name
+@enable_deletion(default=True)
+@click.pass_context
+def terraform_cloudflare_users(
+    ctx, print_to_file, account_name, thread_pool_size, enable_deletion
+):
+
+    import reconcile.terraform_cloudflare_users
+
+    run_integration(
+        reconcile.terraform_cloudflare_users.TerraformCloudflareUsers(),
+        ctx.obj,
+        print_to_file,
+        account_name,
+        thread_pool_size,
+        enable_deletion,
     )
 
 

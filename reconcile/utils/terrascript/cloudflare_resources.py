@@ -8,11 +8,13 @@ from typing import (
 )
 
 from terrascript import (
+    Data,
     Output,
     Resource,
     Variable,
 )
 from terrascript.resource import (
+    cloudflare_account_member,
     cloudflare_argo,
     cloudflare_record,
     cloudflare_worker_route,
@@ -50,9 +52,28 @@ class cloudflare_certificate_pack(Resource):
     """
 
 
+class cloudflare_accounts(Data):
+    """
+    https://registry.terraform.io/providers/cloudflare/cloudflare/latest/docs/data-sources/accounts
+
+    This resource isn't supported directly by Terrascript, which is why it needs to be
+    defined like this as a Resource.
+    """
+
+
+class cloudflare_account_roles(Data):
+    """
+    https://registry.terraform.io/providers/cloudflare/cloudflare/latest/docs/data-sources/account_roles
+
+    This resource isn't supported directly by Terrascript, which is why it needs to be
+    defined like this as a Resource.
+    """
+
+
+# TODO: rename to include object?
 def create_cloudflare_terrascript_resource(
     spec: ExternalResourceSpec,
-) -> list[Union[Resource, Output]]:
+) -> list[Union[Resource, Output, Data]]:
     """
     Create the required Cloudflare Terrascript resources as defined by the external
     resources spec.
@@ -63,6 +84,8 @@ def create_cloudflare_terrascript_resource(
         return CloudflareWorkerScriptTerrascriptResource(spec).populate()
     elif resource_type == "zone":
         return CloudflareZoneTerrascriptResource(spec).populate()
+    elif resource_type == "cloudflare_account_member":
+        return CloudflareAccountMemberTerrascriptResource(spec).populate()
     else:
         raise UnsupportedCloudflareResourceError(
             f"The resource type {resource_type} is not supported"
@@ -203,5 +226,46 @@ class CloudflareZoneTerrascriptResource(TerrascriptResource):
             resources.append(cloudflare_worker_route(identifier, **worker_route_values))
 
         resources.extend(self._create_cloudflare_certificate_pack(zone, zone_certs))
+
+        return resources
+
+
+# class CloudflareAccountsTerrascriptData:
+#
+#     def __init__(self, spec: ExternalResourceSpec):
+#         self._spec = spec
+#
+#     def populate(self) -> list[Data]:
+#         values = ResourceValueResolver(self._spec).resolve()
+#
+#         cf_accounts = cloudflare_accounts(self._spec.identifier, **values)
+#         return [cf_accounts]
+
+
+class CloudflareAccountRolesTerrascriptData:
+    def __init__(self, spec: ExternalResourceSpec):
+        self._spec = spec
+
+    def populate(self) -> list[Data]:
+        values = ResourceValueResolver(self._spec).resolve()
+
+        cf_accounts = cloudflare_account_roles(self._spec.identifier, **values)
+        return [cf_accounts]
+
+
+class CloudflareAccountMemberTerrascriptResource(TerrascriptResource):
+    def populate(self) -> list[Union[Resource, Output]]:
+        resources = []
+        values = ResourceValueResolver(self._spec).resolve()
+        data_source_cloudflare_account_roles = values.pop("cloudflare_account_roles")
+
+        cf_account_member = cloudflare_account_member(self._spec.identifier, **values)
+        resources.append(cf_account_member)
+
+        cf_account_roles = cloudflare_account_roles(
+            data_source_cloudflare_account_roles.pop("identifier"),
+            **data_source_cloudflare_account_roles,
+        )
+        resources.append(cf_account_roles)
 
         return resources

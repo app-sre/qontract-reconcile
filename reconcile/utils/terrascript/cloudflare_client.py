@@ -1,4 +1,8 @@
 import tempfile
+from abc import (
+    ABC,
+    abstractmethod,
+)
 from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import (
@@ -8,6 +12,7 @@ from typing import (
 
 from terrascript import (
     Backend,
+    Data,
     Output,
     Resource,
     Terraform,
@@ -16,15 +21,22 @@ from terrascript import (
     provider,
 )
 
+from reconcile.utils.exceptions import SecretIncompleteError
 from reconcile.utils.external_resource_spec import (
     ExternalResourceSpec,
     ExternalResourceSpecInventory,
 )
+from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.terraform.config import TerraformS3BackendConfig
 from reconcile.utils.terraform.config_client import TerraformConfigClient
 from reconcile.utils.terrascript.cloudflare_resources import (
     cloudflare_account,
     create_cloudflare_terrascript_resource,
+)
+from reconcile.utils.terrascript.models import (
+    CloudflareAccount,
+    Integration,
+    TerraformStateS3,
 )
 
 TMP_DIR_PREFIX = "terrascript-cloudflare-"
@@ -165,6 +177,141 @@ class TerrascriptCloudflareClient(TerraformConfigClient):
         """Return the Terraform JSON representation of the resources"""
         return str(self._terrascript)
 
-    def _add_resources(self, tf_resources: Iterable[Union[Resource, Output]]) -> None:
+    def _add_resources(
+        self, tf_resources: Iterable[Union[Resource, Output, Data]]
+    ) -> None:
         for resource in tf_resources:
             self._terrascript.add(resource)
+
+
+class TerraformS3StateNamingStrategy(ABC):
+    @abstractmethod
+    def get_object_key(self, qr_integration: Integration) -> str:
+        pass
+
+
+class Default(TerraformS3StateNamingStrategy):
+    def get_object_key(self, qr_integration: Integration) -> str:
+        return qr_integration.key
+
+
+class AccountShardingStrategy(TerraformS3StateNamingStrategy):
+    def __init__(self, account: CloudflareAccount):
+        super().__init__()
+        self.account: CloudflareAccount = account
+
+    def get_object_key(self, qr_integration: Integration) -> str:
+        return f"{qr_integration.name}-{self.account.name}.tfstate"
+
+
+class TerrascriptCloudflareClientFactory:
+    @staticmethod
+    def _validate(tf_state_s3: TerraformStateS3, qr_integration: str) -> None:
+        if tf_state_s3.region is None:
+            raise InvalidTerraformState("region must be provided for terraform state")
+        if tf_state_s3.bucket is None:
+            raise InvalidTerraformState("bucket must be provided for terraform state")
+
+    @staticmethod
+    def _create_backend_config(
+        tf_state_s3: TerraformStateS3, key: str, secret_reader: SecretReader
+    ) -> TerraformS3BackendConfig:
+        aws_acct_creds = secret_reader.read_all(
+            {"path": tf_state_s3.automation_token_path}
+        )
+        aws_access_key_id = aws_acct_creds.get("aws_access_key_id")
+        aws_secret_access_key = aws_acct_creds.get("aws_secret_access_key")
+        if not aws_access_key_id or not aws_secret_access_key:
+            raise SecretIncompleteError(
+                f"secret {tf_state_s3.automation_token_path} incomplete: aws_access_key_id and/or aws_secret_access_key missing"
+            )
+
+        return TerraformS3BackendConfig(
+            aws_access_key_id,
+            aws_secret_access_key,
+            tf_state_s3.bucket,
+            key,
+            tf_state_s3.region,
+        )
+
+    @staticmethod
+    def _create_cloudflare_account_config(
+        cf_acct: CloudflareAccount, secret_reader: SecretReader
+    ) -> CloudflareAccountConfig:
+        cf_acct_creds = secret_reader.read_all({"path": cf_acct.api_credentials_path})
+        cf_acct_config = CloudflareAccountConfig(
+            cf_acct.name,
+            cf_acct_creds["api_token"],
+            cf_acct_creds["account_id"],
+            cf_acct.enforce_twofactor or DEFAULT_CLOUDFLARE_ACCOUNT_2FA,
+            cf_acct.type or DEFAULT_CLOUDFLARE_ACCOUNT_TYPE,
+        )
+        return cf_acct_config
+
+    @classmethod
+    def get_client(
+        cls,
+        qr_integration: str,
+        tf_state_s3: TerraformStateS3,
+        cf_acct: CloudflareAccount,
+        sharding_strategy: Optional[TerraformS3StateNamingStrategy],
+        secret_reader: SecretReader,
+        cf_account_exists: bool,
+    ) -> TerrascriptCloudflareClient:
+        # cls._validate(tf_state_s3, qr_integration)
+        key = _get_terraform_s3_state_key_name(
+            qr_integration, tf_state_s3.integrations, sharding_strategy
+        )
+        if key is None:
+            raise IntegrationUndefined(
+                "Must declare integration name under terraform state in app-interface"
+            )
+        backend_config = cls._create_backend_config(tf_state_s3, key, secret_reader)
+        cf_acct_config = cls._create_cloudflare_account_config(cf_acct, secret_reader)
+        ts_config = create_cloudflare_terrascript(
+            cf_acct_config, backend_config, cf_acct.provider_version, cf_account_exists
+        )
+        client = TerrascriptCloudflareClient(ts_config)
+        return client
+
+
+def _get_terraform_s3_state_key_name(
+    qr_integration: str,
+    integrations: Iterable[Integration],
+    sharding_strategy: Optional[TerraformS3StateNamingStrategy],
+) -> Optional[str]:
+    if sharding_strategy is None:
+        sharding_strategy = Default()
+
+    for i in integrations:
+        name = i.name
+        if name.replace("-", "_") == qr_integration:
+            return sharding_strategy.get_object_key(i)
+    return None
+
+
+def validate_terraform_state_for_cloudflare_client(
+    qr_integration: str, tf_state_s3: TerraformStateS3
+) -> None:
+    if tf_state_s3.region is None:
+        raise InvalidTerraformState("region must be provided for terraform state")
+    if tf_state_s3.bucket is None:
+        raise InvalidTerraformState("bucket must be provided for terraform state")
+    if qr_integration not in [
+        i.name.replace("-", "_") for i in tf_state_s3.integrations
+    ]:
+        raise IntegrationUndefined(
+            "Must declare integration name under terraform state in app-interface"
+        )
+
+
+class IntegrationUndefined(Exception):
+    pass
+
+
+class InvalidTerraformState(Exception):
+    pass
+
+
+class CloudflareClientCreationError(Exception):
+    pass
