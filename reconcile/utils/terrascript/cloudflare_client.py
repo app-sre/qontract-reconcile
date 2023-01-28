@@ -200,17 +200,6 @@ class TerrascriptCloudflareClientFactory(ABC):
             if self.zone is None:
                 raise ValueError('Must set this')
 
-    def _create_backend_config(self) -> TerraformS3BackendConfig:
-
-        def _get_bucket_key_based_on_sharding_strategy():
-            if self.sharding_strategy == ZONE_STRATEGY:
-                return f"{self.QONTRACT_INTEGRATION}-{self.cf_acct.name}{self.zone}.tfstate"
-            elif self.sharding_strategy == ACCOUNT_STRATEGY:
-                return f"{self.QONTRACT_INTEGRATION}-{self.cf_acct.name}.tfstate"
-
-        if self.bucket_key is None:
-            raise ValueError('Incomplete data...')
-
         # default from AWS account file
         tf_state = self.aws_acct.terraform_state
         if tf_state is None:
@@ -223,16 +212,26 @@ class TerrascriptCloudflareClientFactory(ABC):
         if self.QONTRACT_INTEGRATION not in [i.name.replace("-", "_") for i in integrations]:
             raise ValueError('Must declare integration name under terraform state in app-interface')
 
+
+    def _create_backend_config(self) -> TerraformS3BackendConfig:
+
+        def _get_bucket_key_based_on_sharding_strategy():
+            if self.sharding_strategy == ZONE_STRATEGY:
+                return f"{self.QONTRACT_INTEGRATION}-{self.cf_acct.name}{self.zone}.tfstate"
+            elif self.sharding_strategy == ACCOUNT_STRATEGY:
+                return f"{self.QONTRACT_INTEGRATION}-{self.cf_acct.name}.tfstate"
+            return None
+
         self.bucket_key = _get_bucket_key_based_on_sharding_strategy()
 
-        if tf_state.bucket and self.bucket_key and tf_state.region:
+        if self.aws_acct.terraform_state.bucket and self.aws_acct.terraform_state.region:
             aws_acct_creds = self.secret_reader.read_all({"path": self.aws_acct.automation_token.path})
             backend_config = TerraformS3BackendConfig(
                 aws_acct_creds["aws_access_key_id"],
                 aws_acct_creds["aws_secret_access_key"],
-                tf_state.bucket,
+                self.aws_acct.terraform_state.bucket,
                 self.bucket_key,
-                tf_state.region,
+                self.aws_acct.terraform_state.region,
             )
         else:
             # Alternatively, could expand to utilize local state on filesystem...
@@ -265,4 +264,4 @@ def use():
     settings = queries.get_app_interface_settings()
     secret_reader = SecretReader(settings=settings)
     account_bldr = TerrascriptCloudflareClientFactory()
-    account_bldr.sharding_strategy(ACCOUNT)
+    account_bldr.sharding_strategy(ACCOUNT_STRATEGY)
