@@ -6,6 +6,7 @@ from typing import (
     Union,
 )
 
+from reconcile.utils.secret_reader import SecretReader
 from terrascript import (
     Backend,
     Output,
@@ -16,6 +17,7 @@ from terrascript import (
     provider,
 )
 
+from reconcile import queries
 from reconcile.utils.external_resource_spec import (
     ExternalResourceSpec,
     ExternalResourceSpecInventory,
@@ -26,6 +28,8 @@ from reconcile.utils.terrascript.cloudflare_resources import (
     cloudflare_account,
     create_cloudflare_terrascript_resource,
 )
+
+from abc import ABC, abstractmethod
 
 TMP_DIR_PREFIX = "terrascript-cloudflare-"
 
@@ -45,9 +49,9 @@ class CloudflareAccountConfig:
 
 
 def create_cloudflare_terrascript(
-    account_config: CloudflareAccountConfig,
-    backend_config: TerraformS3BackendConfig,
-    provider_version: str,
+        account_config: CloudflareAccountConfig,
+        backend_config: TerraformS3BackendConfig,
+        provider_version: str,
 ) -> Terrascript:
     """
     Configures a Terrascript class with the required provider(s) and backend
@@ -113,8 +117,8 @@ class TerrascriptCloudflareClient(TerraformConfigClient):
     """
 
     def __init__(
-        self,
-        ts_client: Terrascript,
+            self,
+            ts_client: Terrascript,
     ) -> None:
         self._terrascript = ts_client
         self._resource_specs: ExternalResourceSpecInventory = {}
@@ -149,3 +153,116 @@ class TerrascriptCloudflareClient(TerraformConfigClient):
     def _add_resources(self, tf_resources: Iterable[Union[Resource, Output]]) -> None:
         for resource in tf_resources:
             self._terrascript.add(resource)
+
+
+ZONE_STRATEGY = 'zone'
+ACCOUNT_STRATEGY = 'account'
+SHARDING_STRATEGY = [ZONE_STRATEGY, ACCOUNT_STRATEGY]
+
+
+class TerrascriptCloudflareClientFactory(ABC):
+
+    # aws_acct is a dependency because we decided to store state in aws s3 for terraform. TBD if this needs to be
+    # optional to support local state. currently, out of scope for now.
+
+    # need dataclasses for aws_acct and cf_acct, separate from query classes.
+    def __init__(self, secret_reader, aws_acct, provider_version, cf_acct):
+        self.secret_reader = secret_reader  # for reading aws creds for state
+        self.aws_acct = aws_acct  # contains state
+        self.provider_version = provider_version
+        self.bucket_key = None
+        self.cf_acct = cf_acct
+        self.QONTRACT_INTEGRATION = None
+        self.sharding_strategy = None
+        # Optional vars
+        self.zone = None
+        pass
+
+    def set_sharding_strategy(self, sharding_strategy: str):
+
+        if sharding_strategy not in SHARDING_STRATEGY:
+            raise ValueError('Incorrect value')
+
+        self.sharding_strategy = sharding_strategy
+
+    def set_zone(self, zone):
+        '''zone is ignored if sharding strategy is account'''
+        self.zone = zone
+
+    def set_qr_integration_name(self, name):
+        self.QONTRACT_INTEGRATION = name
+
+    def _validate(self):
+        if self.QONTRACT_INTEGRATION is None:
+            raise ValueError('Must set this')
+
+        if self.sharding_strategy == 'zone':
+            if self.zone is None:
+                raise ValueError('Must set this')
+
+    def _create_backend_config(self) -> TerraformS3BackendConfig:
+
+        def _get_bucket_key_based_on_sharding_strategy():
+            if self.sharding_strategy == ZONE_STRATEGY:
+                return f"{self.QONTRACT_INTEGRATION}-{self.cf_acct.name}{self.zone}.tfstate"
+            elif self.sharding_strategy == ACCOUNT_STRATEGY:
+                return f"{self.QONTRACT_INTEGRATION}-{self.cf_acct.name}.tfstate"
+
+        if self.bucket_key is None:
+            raise ValueError('Incomplete data...')
+
+        # default from AWS account file
+        tf_state = self.aws_acct.terraform_state
+        if tf_state is None:
+            raise ValueError(
+                f"AWS account {self.aws_acct.name} cannot be used for Cloudflare "
+                f"account {self.cf_acct.name} because it does define a terraform state "
+            )
+
+        integrations = tf_state.integrations or []
+        if self.QONTRACT_INTEGRATION not in [i.name.replace("-", "_") for i in integrations]:
+            raise ValueError('Must declare integration name under terraform state in app-interface')
+
+        self.bucket_key = _get_bucket_key_based_on_sharding_strategy()
+
+        if tf_state.bucket and self.bucket_key and tf_state.region:
+            aws_acct_creds = self.secret_reader.read_all({"path": self.aws_acct.automation_token.path})
+            backend_config = TerraformS3BackendConfig(
+                aws_acct_creds["aws_access_key_id"],
+                aws_acct_creds["aws_secret_access_key"],
+                tf_state.bucket,
+                self.bucket_key,
+                tf_state.region,
+            )
+        else:
+            # Alternatively, could expand to utilize local state on filesystem...
+            raise ValueError(f"No state bucket config found for account {self.aws_acct.name}")
+
+        return backend_config
+
+    def _create_cloudflare_account_config(self) -> CloudflareAccountConfig:
+
+        cf_acct_creds = self.secret_reader.read_all({"path": self.cf_acct.api_credentials.path})
+        cf_acct_config = CloudflareAccountConfig(
+            self.cf_acct.name,
+            cf_acct_creds["api_token"],
+            cf_acct_creds["account_id"],
+            self.cf_acct.enforce_twofactor or DEFAULT_CLOUDFLARE_ACCOUNT_2FA,
+            self.cf_acct.q_type or DEFAULT_CLOUDFLARE_ACCOUNT_TYPE,
+        )
+        return cf_acct_config
+
+    def create(self) -> TerrascriptCloudflareClient:
+        self._validate()
+        backend_config = self._create_backend_config()
+        cf_acct_config = self._create_cloudflare_account_config()
+        ts_config = create_cloudflare_terrascript(cf_acct_config, backend_config, self.provider_version)
+        client = TerrascriptCloudflareClient(ts_config)
+        return client
+
+
+def use():
+    settings = queries.get_app_interface_settings()
+    secret_reader = SecretReader(settings=settings)
+    account_bldr = TerrascriptCloudflareClientFactory()
+    account_bldr.sharding_strategy(ACCOUNT)
