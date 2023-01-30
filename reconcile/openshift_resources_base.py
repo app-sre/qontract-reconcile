@@ -1,4 +1,5 @@
 import base64
+import hashlib
 import json
 import logging
 import sys
@@ -25,6 +26,7 @@ from sretoolbox.utils import (
 
 import reconcile.openshift_base as ob
 from reconcile import queries
+from reconcile.change_owners.diff import IDENTIFIER_FIELD_NAME
 from reconcile.checkpoint import url_makes_sense
 from reconcile.github_users import init_github
 from reconcile.utils import (
@@ -49,6 +51,7 @@ from reconcile.utils.openshift_resource import (
     ResourceInventory,
     ResourceKeyExistsError,
 )
+from reconcile.utils.runtime.integration import DesiredStateShardConfig
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.sharding import is_in_shard
@@ -967,8 +970,12 @@ def early_exit_desired_state(
             settings=settings,
         )
 
+    def add_ns_identify(ns):
+        ns[IDENTIFIER_FIELD_NAME] = f"{ns['cluster']['name']}/{ns['name']}"
+        return ns
+
     return {
-        "namespaces": namespaces,
+        "namespaces": [add_ns_identify(ns) for ns in namespaces],
         "resources": resources,
     }
 
@@ -976,6 +983,8 @@ def early_exit_desired_state(
 def _early_exit_fetch_resource(spec, settings):
     resource = spec[0]
     ns_info = spec[1]
+    cluster_name = ns_info["cluster"]["name"]
+    id = f"{cluster_name}/{ns_info['name']}/{resource['provider']}/{resource['resource']['path']}"
     if resource.get("enable_query_support"):
         # use the regular resource processing functionality that evaluates templates
         # and inline queries, if the resource is allowed to use this inline query
@@ -989,7 +998,12 @@ def _early_exit_fetch_resource(spec, settings):
         # detect changes in desired state
         c = resource["resource"].get("content")
     del resource["resource"]
-    return c
+    content_sha = hashlib.md5(c.encode("utf-8")).hexdigest()
+    return {
+        IDENTIFIER_FIELD_NAME: id,
+        "cluster": cluster_name,
+        "content_sha": content_sha,
+    }
 
 
 @contextmanager
@@ -1026,3 +1040,14 @@ def _early_exit_monkey_patch_assign(
     sys.modules[__name__].lookup_github_file_content = lookup_github_file_content
     sys.modules[__name__].url_makes_sense = url_makes_sense
     sys.modules[__name__].check_alertmanager_config = check_alertmanager_config
+
+
+def desired_state_shard_config() -> DesiredStateShardConfig:
+    return DesiredStateShardConfig(
+        shard_arg_name="cluster_name",
+        shard_path_selectors={
+            "namespaces[*].cluster.name",
+            "resources[*].cluster",
+        },
+        sharded_run_review=lambda proposal: len(proposal.proposed_shards) <= 2,
+    )
