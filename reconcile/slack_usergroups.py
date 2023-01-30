@@ -470,7 +470,7 @@ def get_desired_state_cluster_usergroups(
     ] = openshift_users.fetch_desired_state(oc_map=None)
     for cluster in clusters:
         if not integration_is_enabled(QONTRACT_INTEGRATION, cluster):
-            logging.warning(
+            logging.debug(
                 f"For cluster {cluster.name} the integration {QONTRACT_INTEGRATION} is not enabled. Skipping."
             )
             continue
