@@ -9,11 +9,13 @@ from reconcile import (
     queries,
     typed_queries,
 )
+from reconcile.change_owners.diff import IDENTIFIER_FIELD_NAME
 from reconcile.utils import (
     expiration,
     gql,
 )
 from reconcile.utils.aws_api import AWSApi
+from reconcile.utils.runtime.integration import DesiredStateShardConfig
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.smtp_client import (
@@ -210,7 +212,30 @@ def run(
 
 
 def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
+    def add_account_identity(acc):
+        acc[IDENTIFIER_FIELD_NAME] = acc["path"]
+        return acc
+
+    def add_role_identity(role):
+        role[IDENTIFIER_FIELD_NAME] = role["name"]
+        return role
+
     return {
-        "accounts": queries.get_aws_accounts(terraform_state=True),
-        "roles": get_tf_roles(),
+        "accounts": [
+            add_account_identity(a)
+            for a in queries.get_aws_accounts(terraform_state=True)
+        ],
+        "roles": [add_role_identity(r) for r in get_tf_roles()],
     }
+
+
+def desired_state_shard_config() -> DesiredStateShardConfig:
+    return DesiredStateShardConfig(
+        shard_arg_name="account_name",
+        shard_path_selectors={
+            "accounts[*].name",
+            "roles[*].aws_groups[*].account.name",
+            "roles[*].user_policies[*].account.name",
+        },
+        sharded_run_review=lambda proposal: len(proposal.proposed_shards) <= 2,
+    )
