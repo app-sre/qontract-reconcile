@@ -1289,23 +1289,23 @@ class OCNative(OCDeprecated):
     def get_api_resources(self):
         c_res = self.client.resources
         # this returns a prefix:apis map
-        api_prefix = c_res.parse_api_groups(request_resources=False, update=True)
+        apis = c_res.parse_api_groups(request_resources=False, update=True)
         api_resources = {}
-        for prefix, apis in api_prefix.items():
+        for prefix, api_groups in apis.items():
             # each api prefix consists of api:versions map
-            for apigroup, versions in apis.items():
-                if prefix == "apis" and len(apigroup) == 0:
+            for group, versions in api_groups.items():
+                if prefix == "apis" and len(group) == 0:
                     # the apis group has an entry with an empty api, but
                     # querying the apis group with a blank api produces an
                     # error.  We skip that condition with this hack
                     continue
-                # each version is a version:obj map, where obj contains if this
-                # api version is preferred and optionally a list of kinds that
-                # are part of that apigroup/version.
-                for version, obj in versions.items():
+                # each version is a version:resource_group map, where resource_group
+                # contains if this api version is preferred and optionally a list of
+                # kinds that are part of that apigroup/version.
+                for version, resource_group in versions.items():
                     try:
-                        resources = c_res.get_resources_for_api_version(
-                            prefix, apigroup, version, True
+                        resource_list = c_res.get_resources_for_api_version(
+                            prefix, group, version, True
                         )
                     except ApiException:
                         # there may be apigroups/versions that require elevated
@@ -1315,12 +1315,12 @@ class OCNative(OCDeprecated):
                     # {kind}List:ResourceList where a Resource contains the api
                     # group_version (group/api_version) and a ResourceList
                     # represents a list of API objects
-                    for kind, res in resources.items():
-                        for r in res:
+                    for kind, resources in resource_list.items():
+                        for r in resources:
                             if isinstance(r, ResourceList):
                                 continue
                             api_resources = self.add_api_resource(
-                                kind, api_resources, obj.preferred, r
+                                kind, api_resources, resource_group.preferred, r
                             )
         return api_resources
 
@@ -1392,12 +1392,12 @@ class OCNative(OCDeprecated):
             raise StatusCodeError(f"[{self.server}]: {e}")
 
     @staticmethod
-    def add_api_resource(kind, kgv, preferred, resource):
-        updated_kgv = copy.copy(kgv)
+    def add_api_resource(kind, api_resources, preferred, resource):
+        new_api_resources = copy.copy(api_resources)
 
-        if kind not in kgv:
+        if kind not in api_resources:
             # this is a new kind so add it
-            updated_kgv[kind] = [resource]
+            new_api_resources[kind] = [resource]
         else:
             # this kind already exists, so check if this apigroup has
             # already been added as an option.  If this apigroup/version is the
@@ -1405,17 +1405,17 @@ class OCNative(OCDeprecated):
             # preferred apigroup/version is used instead of a non-preferred one
             # group = resource.group_version.split("/", 1)[0]
             new_group = True
-            for pos in range(len(kgv[kind])):
-                if resource.group == kgv[kind][pos].group:
+            for pos in range(len(api_resources[kind])):
+                if resource.group == api_resources[kind][pos].group:
                     new_group = False
                     if preferred:
-                        updated_kgv[kind][pos] = resource
+                        new_api_resources[kind][pos] = resource
                     break
 
             if new_group:
                 # this is a new apigroup
-                updated_kgv[kind].append(resource)
-        return updated_kgv
+                new_api_resources[kind].append(resource)
+        return new_api_resources
 
     def is_kind_supported(self, kind: str) -> bool:
         if "." in kind:
