@@ -1728,6 +1728,13 @@ QUAY_ORGS_QUERY = """
         name
       }
     }
+    mirrorFilters {
+      ... on QuayOrgMirrorFilter_v1 {
+        name
+        tags
+        tagsExclude
+      }
+    }
   }
 }
 """
