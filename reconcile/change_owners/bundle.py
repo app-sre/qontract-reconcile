@@ -55,7 +55,7 @@ class QontractServerFileDiffResolver:
             file_type=file_ref.file_type.value,
             file_path=file_ref.path,
         )
-        return data["old"], data["new"]
+        return data.get("old"), data.get("new")
 
 
 class NoOpFileDiffResolver:
