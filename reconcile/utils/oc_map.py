@@ -255,7 +255,6 @@ class OCMap:
                 self._privileged_oc_map[cluster] = value
             else:
                 self._oc_map[cluster] = value
-        return
 
     def cluster_disabled(self, cluster_info: HasCluster) -> bool:
         try:
