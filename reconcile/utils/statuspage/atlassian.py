@@ -96,9 +96,10 @@ class AtlassianStatusPage(StatusPageProvider):
                 f"{desired.group_name} is currently unsupported"
             )
 
-        component_update = dict(
-            name=desired.display_name, description=desired.description
-        )
+        component_update = {
+            "name": desired.display_name,
+            "description": desired.description,
+        }
         if group_id:
             component_update["group_id"] = group_id
 
