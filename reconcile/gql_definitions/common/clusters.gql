@@ -1,0 +1,270 @@
+# qenerate: plugin=pydantic_v1
+
+query Clusters($name: String) {
+  clusters: clusters_v1(name: $name) {
+    path
+    name
+    serverUrl
+    consoleUrl
+    kibanaUrl
+    elbFQDN
+    prometheusUrl
+    managedGroups
+    managedClusterRoles
+    insecureSkipTLSVerify
+    jumpHost {
+      ... CommonJumphostFields
+    }
+    auth {
+      service
+      ... on ClusterAuthGithubOrg_v1 {
+        org
+      }
+      ... on ClusterAuthGithubOrgTeam_v1 {
+        org
+        team
+      }
+      # ... on ClusterAuthOIDC_v1 {
+      # }
+    }
+    ocm {
+      name
+      url
+      accessTokenClientId
+      accessTokenUrl
+      accessTokenClientSecret {
+        ... VaultSecret
+      }
+      blockedVersions
+      inheritVersionData {
+        name
+        publishVersionData {
+          name
+        }
+      }
+      sectors {
+        name
+        dependencies {
+          name
+          ocm {
+            name
+          }
+        }
+      }
+    }
+    awsInfrastructureAccess {
+      awsGroup {
+        account {
+          name
+          uid
+          terraformUsername
+          automationToken {
+            ... VaultSecret
+          }
+        }
+        roles {
+          users {
+            org_username
+          }
+        }
+      }
+      accessLevel
+    }
+    awsInfrastructureManagementAccounts {
+      ... AWSInfrastructureManagementAccount
+    }
+    spec {
+      product
+      hypershift
+      ... on ClusterSpecOSD_v1 {
+        storage
+        load_balancers
+      }
+      ... on ClusterSpecROSA_v1 {
+        subnet_ids
+        availability_zones
+        account {
+          uid
+          rosa {
+            ocm_environments {
+              ocm {
+                name
+              }
+              creator_role_arn
+              installer_role_arn
+              support_role_arn
+              controlplane_role_arn
+              worker_role_arn
+            }
+          }
+        }
+      }
+      id
+      external_id
+      provider
+      region
+      channel
+      version
+      initial_version
+      multi_az
+      nodes
+      instance_type
+      private
+      provision_shard_id
+      autoscale {
+        min_replicas
+        max_replicas
+      }
+      disable_user_workload_monitoring
+    }
+    externalConfiguration {
+      labels
+    }
+    upgradePolicy {
+      workloads
+      schedule
+      conditions {
+        soakDays
+        mutexes
+        sector
+      }
+    }
+    additionalRouters {
+      private
+      route_selectors
+    }
+    network {
+      type
+      vpc
+      service
+      pod
+    }
+    machinePools {
+      id
+      instance_type
+      replicas
+      labels
+      taints {
+        key
+        value
+        effect
+      }
+    }
+    peering {
+      connections {
+        name
+        provider
+        manageRoutes
+        delete
+        ... on ClusterPeeringConnectionAccount_v1 {
+          vpc {
+            account {
+              name
+              uid
+              terraformUsername
+              automationToken {
+                ... VaultSecret
+              }
+            }
+            vpc_id
+            cidr_block
+            region
+          }
+          assumeRole
+        }
+        ... on ClusterPeeringConnectionAccountVPCMesh_v1 {
+          account {
+            name
+            uid
+            terraformUsername
+            automationToken {
+              ... VaultSecret
+            }
+          }
+          tags
+        }
+        ... on ClusterPeeringConnectionAccountTGW_v1 {
+          account {
+            name
+            uid
+            terraformUsername
+            automationToken {
+              ... VaultSecret
+            }
+          }
+          tags
+          cidrBlock
+          manageSecurityGroups
+          assumeRole
+        }
+        ... on ClusterPeeringConnectionClusterRequester_v1 {
+          cluster {
+            name
+            network {
+              vpc
+            }
+            spec {
+              region
+            }
+            awsInfrastructureAccess {
+              awsGroup {
+                account {
+                  name
+                  uid
+                  terraformUsername
+                  automationToken {
+                    ... VaultSecret
+                  }
+                }
+              }
+              accessLevel
+            }
+            awsInfrastructureManagementAccounts {
+              ... AWSInfrastructureManagementAccount
+            }
+            peering {
+              connections {
+                name
+                provider
+                manageRoutes
+                ... on ClusterPeeringConnectionClusterAccepter_v1 {
+                  name
+                  cluster {
+                    name
+                  }
+                  awsInfrastructureManagementAccount {
+                    name
+                    uid
+                    terraformUsername
+                    automationToken {
+                      ... VaultSecret
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    addons {
+      name
+      parameters {
+        id
+        value
+      }
+    }
+    automationToken {
+      ... VaultSecret
+    }
+    clusterAdmin
+    clusterAdminAutomationToken {
+      ... VaultSecret
+    }
+    internal
+    disable {
+      e2eTests
+      integrations
+    }
+  }
+}
