@@ -560,8 +560,11 @@ def setup(
     internal: str,
     use_jump_host: bool,
     account_names: Optional[Collection[str]],
+    exclude_accounts: Optional[Collection[str]],
 ) -> tuple[ResourceInventory, OC_Map, Terraform, ExternalResourceSpecInventory]:
     accounts = queries.get_aws_accounts(terraform_state=True)
+    if not account_names and exclude_accounts:
+        accounts = [ac for ac in accounts if ac["name"] not in exclude_accounts]
     if account_names:
         accounts = [n for n in accounts if n["name"] in account_names]
         if len(accounts) != len(account_names):
@@ -700,6 +703,7 @@ def run(
     light=False,
     vault_output_path="",
     account_name: Optional[Sequence[str]] = None,
+    exclude_accounts: Optional[Sequence[str]] = None,
     defer=None,
 ) -> None:
     # account_name is a tuple of account names for more detail go to
@@ -722,6 +726,7 @@ def run(
         internal,
         use_jump_host,
         account_names,
+        exclude_accounts,
     )
 
     if not dry_run:
