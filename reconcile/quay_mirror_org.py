@@ -118,6 +118,9 @@ class QuayMirrorOrg:
                         "username": username,
                         "token": token,
                     },
+                    "mirror_filters": org_info.get("mirror_filters").get(
+                        repo["name"], {}
+                    ),
                 }
                 summary[org_key].append(data)
 
@@ -158,9 +161,22 @@ class QuayMirrorOrg:
                     mirror_url, username=mirror_username, password=mirror_password
                 )
 
+                tags = item["mirror_filters"].get("tags")
+                tags_exclude = item["mirror_filters"].get("tags_exclude")
+
                 for tag in image_mirror:
                     upstream = image_mirror[tag]
                     downstream = image[tag]
+
+                    if not QuayMirror.sync_tag(
+                        tags=tags, tags_exclude=tags_exclude, candidate=tag
+                    ):
+                        _LOG.debug(
+                            "Image %s excluded through a mirror filter",
+                            upstream,
+                        )
+                        continue
+
                     if tag not in image:
                         _LOG.debug(
                             "Image %s and mirror %s are out of sync",

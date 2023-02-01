@@ -31,6 +31,14 @@ def get_quay_api_store():
         else:
             mirror = None
 
+        mirror_filters = {}
+        if org_data.get("mirrorFilters"):
+            for repo in org_data["mirrorFilters"]:
+                mirror_filters[repo["name"]] = {
+                    "tags": repo.get("tags"),
+                    "tags_exclude": repo.get("tagsExclude"),
+                }
+
         if org_data.get("pushCredentials"):
             push_token = secret_reader.read_all(org_data["pushCredentials"])
         else:
@@ -43,6 +51,7 @@ def get_quay_api_store():
             "teams": org_data.get("managedTeams"),
             "managedRepos": org_data.get("managedRepos"),
             "mirror": mirror,
+            "mirror_filters": mirror_filters,
         }
 
     return store
