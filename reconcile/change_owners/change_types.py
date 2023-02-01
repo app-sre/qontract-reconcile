@@ -861,6 +861,12 @@ class ChangeTypeContext:
     def disabled(self) -> bool:
         return self.change_type_processor.disabled
 
+    def includes_approver(self, approver_name: str) -> bool:
+        return (
+            next((a for a in self.approvers if a.org_username == approver_name), None)
+            is not None
+        )
+
 
 JSON_PATH_ROOT = "$"
 
