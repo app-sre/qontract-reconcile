@@ -8,6 +8,7 @@ from typing import (
 
 from reconcile.gql_definitions.terraform_cloudflare_resources.terraform_cloudflare_accounts import AWSAccountV1, \
     CloudflareAccountV1
+from reconcile.utils.models.models import CloudflareAccount, AWSAccount, TerraformStateS3, Integration
 
 from reconcile.utils.secret_reader import SecretReader
 from terrascript import (
@@ -166,7 +167,7 @@ SHARDING_STRATEGY = [ZONE_STRATEGY, ACCOUNT_STRATEGY]
 # TODO: maybe this should be a builder? re-evaluate
 # maybe remove aws_acct and cf_acct (provider_version?) as dependency, but instead pass them through argument with create(cf_acct, aws_acct)
 # or use setter with builder set_aws_acct/set_cf_acct
-class TerrascriptCloudflareClientFactory(ABC):
+class TerrascriptCloudflareClientFactory:
 
     # aws_acct is a dependency because we decided to store state in aws s3 for terraform. TBD if this needs to be
     # optional to support local state. currently, out of scope for now.
@@ -176,37 +177,27 @@ class TerrascriptCloudflareClientFactory(ABC):
         self.secret_reader: SecretReader = secret_reader  # for reading aws creds for state
         self.backend_config_provider: TerraformS3BackendConfigProvider = backend_config_provider
 
-        pass
 
-    def _validate(self, aws_acct: AWSAccountV1, cf_acct: CloudflareAccountV1):
+    # def _validate(self, tf_state_s3: TerraformStateS3):
+    #     integrations = tf_state_s3.integrations or []
+    #     if self.backend_config_provider.qr_integration not in [i.name.replace("-", "_") for i in integrations]:
+    #         raise ValueError('Must declare integration name under terraform state in app-interface')
 
-        # default from AWS account file
-        tf_state = aws_acct.terraform_state
-        if tf_state is None:
-            raise ValueError(
-                f"AWS account {aws_acct.name} cannot be used for Cloudflare "
-                f"account {cf_acct.name} because it does define a terraform state "
-            )
-
-        integrations = tf_state.integrations or []
-        if self.backend_config_provider.bucket_base_key not in [i.name.replace("-", "_") for i in integrations]:
-            raise ValueError('Must declare integration name under terraform state in app-interface')
-
-    def _create_cloudflare_account_config(self, cf_acct: CloudflareAccountV1) -> CloudflareAccountConfig:
-
-        cf_acct_creds = self.secret_reader.read_all({"path": cf_acct.api_credentials.path})
+    def _create_cloudflare_account_config(self, cf_acct: CloudflareAccount) -> CloudflareAccountConfig:
+        cf_acct_creds = self.secret_reader.read_all({"path": cf_acct.api_credentials_path})
         cf_acct_config = CloudflareAccountConfig(
             cf_acct.name,
             cf_acct_creds["api_token"],
             cf_acct_creds["account_id"],
             cf_acct.enforce_twofactor or DEFAULT_CLOUDFLARE_ACCOUNT_2FA,
-            cf_acct.q_type or DEFAULT_CLOUDFLARE_ACCOUNT_TYPE,
+            cf_acct.type or DEFAULT_CLOUDFLARE_ACCOUNT_TYPE,
         )
         return cf_acct_config
 
-    def create(self, aws_acct, cf_acct, provider_version) -> TerrascriptCloudflareClient:
-        self._validate(aws_acct, cf_acct)
-        backend_config = self.backend_config_provider.create(aws_acct)
+    def create(self, tf_state_s3: TerraformStateS3, cf_acct: CloudflareAccount,
+               provider_version) -> TerrascriptCloudflareClient:
+        # self._validate(tf_state_s3, cf_acct)
+        backend_config = self.backend_config_provider.create(tf_state_s3)
         cf_acct_config = self._create_cloudflare_account_config(cf_acct)
         ts_config = create_cloudflare_terrascript(cf_acct_config, backend_config, provider_version)
         client = TerrascriptCloudflareClient(ts_config)
@@ -215,43 +206,58 @@ class TerrascriptCloudflareClientFactory(ABC):
 
 class TerraformS3BackendConfigProvider:
 
-    def __init__(self, bucket_base_key, secret_reader):
+    def __init__(self, qr_integration, secret_reader):
         self.sharding_strategy = None
-        self.bucket_base_key = bucket_base_key
+        self.qr_integration = qr_integration
         self.secret_reader = secret_reader
 
     def set_sharding_strategy(self, sharding_strategy):
         self.sharding_strategy: TerraformS3BackendConfigShardingStrategy = sharding_strategy
 
-    def create(self, aws_acct: AWSAccountV1) -> TerraformS3BackendConfig:
-        aws_acct_creds = self.secret_reader.read_all({"path": aws_acct.automation_token.path})
-        if self.sharding_strategy is None:
-            raise ValueError('Must set strategy')
+    def create(self, tf_state_s3: TerraformStateS3) -> TerraformS3BackendConfig:
+        aws_acct_creds = self.secret_reader.read_all({"path": tf_state_s3.automation_token_path})
 
-        key = self.sharding_strategy.get_bucket_key(self.bucket_base_key)
+        key = self.sharding_strategy.get_bucket_key(self.qr_integration)
 
         return TerraformS3BackendConfig(aws_acct_creds["aws_access_key_id"],
                                         aws_acct_creds["aws_secret_access_key"],
-                                        aws_acct.terraform_state.bucket,
+                                        tf_state_s3.bucket,
                                         key,
-                                        aws_acct.terraform_state.region)
+                                        tf_state_s3.region)
 
 
 class TerraformS3BackendConfigShardingStrategy(ABC):
 
     @abstractmethod
-    def get_bucket_key(self, bucket_base_key) -> str:
+    def get_bucket_key(self, qr_integration) -> str:
         pass
+
+
+class QRIntegrationTerraformS3BackendConfigShardingStrategy(TerraformS3BackendConfigShardingStrategy):
+
+    def __init__(self, tf_state_s3: TerraformStateS3):
+        self.tf_state_s3: TerraformStateS3 = tf_state_s3
+
+    def get_bucket_key(self, qr_integration) -> str:
+
+        integrations = self.tf_state_s3.integrations or []
+        if qr_integration not in [i.name.replace("-", "_") for i in integrations]:
+            raise ValueError('Must declare integration name under terraform state in app-interface')
+
+        for i in integrations or []:
+            name = i.integration
+            if name.replace("-", "_") == qr_integration:
+                return i.key
 
 
 class AccountBasedTerraformS3BackendConfigShardingStrategy(TerraformS3BackendConfigShardingStrategy):
 
     def __init__(self, account):
         super().__init__()
-        self.account: CloudflareAccountV1 = account
+        self.account: CloudflareAccount = account
 
-    def get_bucket_key(self, bucket_base_key) -> str:
-        return f"{bucket_base_key}-{self.account.name}.tfstate"
+    def get_bucket_key(self, qr_integration) -> str:
+        return f"{qr_integration}-{self.account.name}.tfstate"
 
 
 def use():
@@ -261,4 +267,22 @@ def use():
     account: Optional[CloudflareAccountV1] = None
     cp.set_sharding_strategy(AccountBasedTerraformS3BackendConfigShardingStrategy(account))
     factory = TerrascriptCloudflareClientFactory(secret_reader, cp)
-    factory.create(account, None, '3.19')
+
+    accounts: Optional[list[CloudflareAccountV1]] = None
+
+    for account in accounts:
+        cf_account = CloudflareAccount(account.name,
+                                       account.api_credentials.path,
+                                       account.enforce_twofactor,
+                                       account.q_type)
+        cp = TerraformS3BackendConfigProvider('test', secret_reader)
+
+        cp.set_sharding_strategy(AccountBasedTerraformS3BackendConfigShardingStrategy(cf_account))
+
+        tf_state_s3 = TerraformStateS3(account.terraform_state_account.automation_token.path,
+                                       account.terraform_state_account.terraform_state.bucket,
+                                       account.terraform_state_account.terraform_state.region,
+                                       [Integration(i.integration, i.key) for i in
+                                        account.terraform_state_account.terraform_state.integrations])
+
+        factory.create(tf_state_s3, cf_account, '3.19')
