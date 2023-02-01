@@ -74,10 +74,10 @@ def component_to_dict(
     group_id: Optional[str] = None,
     status: Optional[str] = None,
 ) -> dict[str, Optional[str]]:
-    data = dict(
-        name=component.display_name,
-        description=component.description,
-    )
+    data = {
+        "name": component.display_name,
+        "description": component.description,
+    }
     if group_id:
         data["group_id"] = group_id
     if status:
