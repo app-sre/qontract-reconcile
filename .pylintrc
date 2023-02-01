@@ -3,7 +3,6 @@ extension-pkg-allow-list=pydantic
 
 [MESSAGES CONTROL]
 disable = attribute-defined-outside-init,
-          broad-except,
           duplicate-code,
           expression-not-assigned,
           fixme,
@@ -56,4 +55,10 @@ disable = attribute-defined-outside-init,
           # global and multi-threading locks          
           global-variable-not-assigned,
           # This one is inconsistent between isort and pylint
-          wrong-import-order
+          wrong-import-order,
+          # since v2.16
+          use-dict-literal,
+          broad-exception-raised,
+          broad-exception-caught,
+          pointless-exception-statement,
+          superfluous-parens,
