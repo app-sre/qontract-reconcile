@@ -83,11 +83,14 @@ class TestIsCompareTags:
 @pytest.mark.parametrize(
     "tags, tags_exclude, candidate, result",
     [
+        # Tags include tests.
         (["^sha256-.+sig$", "^main-.+"], None, "main-755781cc", True),
         (["^sha256-.+sig$", "^main-.+"], None, "sha256-8b5.sig", True),
         (["^sha256-.+sig$", "^main-.+"], None, "1.2.3", False),
+        # Tags exclude tests.
         (None, ["^sha256-.+sig$", "^main-.+"], "main-755781cc", False),
         (None, ["^sha256-.+sig$", "^main-.+"], "sha256-8b5.sig", False),
+        # When both includes and excludes are explicitly given, includes take precedence.
         (
             ["^sha256-.+sig$", "^main-.+"],
             ["^sha256-.+sig$", "^main-.+"],
