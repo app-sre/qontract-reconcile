@@ -26,3 +26,4 @@ class CloudflareAccount:
     api_credentials_path: str
     enforce_twofactor: bool
     type: str
+    provider_version: str

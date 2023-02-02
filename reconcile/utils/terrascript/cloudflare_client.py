@@ -160,25 +160,33 @@ class TerrascriptCloudflareClient(TerraformConfigClient):
             self._terrascript.add(resource)
 
 
-class TerraformS3BackendConfigShardingStrategy(ABC):
+class S3ObjectKeyShardingStrategy(ABC):
 
     @abstractmethod
     def get_object_key(self, qr_integration) -> str:
         pass
 
 
-class DefaultTerraformS3BackendConfigShardingStrategy(TerraformS3BackendConfigShardingStrategy):
+class Default(S3ObjectKeyShardingStrategy):
 
     def get_object_key(self, qr_integration) -> str:
         return f"{qr_integration}.tfstate"
 
 
-class TemplateBasedStrategy(TerraformS3BackendConfigShardingStrategy):
+class TemplateBasedStrategy(S3ObjectKeyShardingStrategy):
 
     def get_object_key(self, qr_integration) -> str:
         pass
 
 
+class AccountShardingStrategy(S3ObjectKeyShardingStrategy):
+
+    def __init__(self, account):
+        super().__init__()
+        self.account: CloudflareAccount = account
+
+    def get_bucket_key(self, qr_integration) -> str:
+        return f"{qr_integration}-{self.account.name}.tfstate"
 
 
 class TerrascriptCloudflareClientFactory:
@@ -209,28 +217,17 @@ class TerrascriptCloudflareClientFactory:
     def create(self, qr_integration: str,
                tf_state_s3: TerraformStateS3,
                cf_acct: CloudflareAccount,
-               provider_version,
-               sharding_strategy: TerraformS3BackendConfigShardingStrategy) -> TerrascriptCloudflareClient:
+               sharding_strategy: S3ObjectKeyShardingStrategy) -> TerrascriptCloudflareClient:
         key = get_s3_object_key(qr_integration, tf_state_s3, sharding_strategy)
         backend_config = self._create_backend_config(tf_state_s3, key)
         cf_acct_config = self._create_cloudflare_account_config(cf_acct)
-        ts_config = create_cloudflare_terrascript(cf_acct_config, backend_config, provider_version)
+        ts_config = create_cloudflare_terrascript(cf_acct_config, backend_config, cf_acct.provider_version)
         client = TerrascriptCloudflareClient(ts_config)
         return client
 
 
-class AccountBasedTerraformS3BackendConfigShardingStrategy(TerraformS3BackendConfigShardingStrategy):
-
-    def __init__(self, account):
-        super().__init__()
-        self.account: CloudflareAccount = account
-
-    def get_bucket_key(self, qr_integration) -> str:
-        return f"{qr_integration}-{self.account.name}.tfstate"
-
-
 def get_s3_object_key(qr_integration: str, tf_state_s3: TerraformStateS3,
-                      sharding_strategy: TerraformS3BackendConfigShardingStrategy):
+                      sharding_strategy: S3ObjectKeyShardingStrategy):
     integrations = tf_state_s3.integrations or []
     if qr_integration not in [i.name.replace("-", "_") for i in integrations]:
         raise ValueError('Must declare integration name under terraform state in app-interface')
@@ -252,7 +249,8 @@ def use():
         cf_account = CloudflareAccount(account.name,
                                        account.api_credentials.path,
                                        account.enforce_twofactor,
-                                       account.q_type)
+                                       account.q_type,
+                                       account.provider_version)
 
         tf_state_s3 = TerraformStateS3(account.terraform_state_account.automation_token.path,
                                        account.terraform_state_account.terraform_state.bucket,
@@ -260,4 +258,5 @@ def use():
                                        [Integration(i.integration, i.key) for i in
                                         account.terraform_state_account.terraform_state.integrations])
 
-        factory.create('qr-integration', tf_state_s3, cf_account, '3.19', AccountBasedTerraformS3BackendConfigShardingStrategy(cf_account))
+        factory.create('qr-integration', tf_state_s3, cf_account,
+                       AccountShardingStrategy(cf_account))
