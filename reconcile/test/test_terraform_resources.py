@@ -10,6 +10,16 @@ def test_cannot_use_exclude_accounts_if_not_dry_run():
     assert "Exclude accounts is only supported in dry-run mode" in str(excinfo.value)
 
 
+def test_cannot_use_exclude_account_with_account_name():
+    with pytest.raises(RuntimeError) as excinfo:
+        integ.run(True, exclude_accounts=("a", "b"), account_name=("c", "d"))
+
+    assert (
+        "Using exclude account and account name at the same time is not allowed"
+        in str(excinfo.value)
+    )
+
+
 def test_cannot_pass_two_aws_account_if_not_dry_run():
     with pytest.raises(RuntimeError) as excinfo:
         integ.run(False, account_name=("a", "b"))
