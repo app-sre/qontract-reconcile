@@ -1,10 +1,11 @@
 from collections import defaultdict
+from collections.abc import (
+    Iterable,
+    Mapping,
+)
 from dataclasses import dataclass
 from enum import Enum
-from typing import (
-    Any,
-    Iterable,
-)
+from typing import Any
 
 from reconcile.change_owners.bundle import FileRef
 from reconcile.change_owners.change_types import (
@@ -29,7 +30,7 @@ class Decision:
 
 
 def get_approver_decisions_from_mr_comments(
-    comments: Iterable[dict[str, Any]]
+    comments: Iterable[Mapping[str, Any]]
 ) -> list[Decision]:
     decisions: list[Decision] = []
     for c in sorted(comments, key=lambda k: k["created_at"]):
@@ -98,7 +99,7 @@ class ChangeDecision:
 
 
 def apply_decisions_to_changes(
-    changes: list[BundleFileChange],
+    changes: Iterable[BundleFileChange],
     approver_decisions: Iterable[Decision],
     auto_approver_usernames: set[str],
 ) -> list[ChangeDecision]:
