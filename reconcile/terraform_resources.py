@@ -706,6 +706,11 @@ def run(
     exclude_accounts: Optional[Sequence[str]] = None,
     defer=None,
 ) -> None:
+    if exclude_accounts and not dry_run:
+        message = "Exclude accounts is only supported in dry-run mode"
+        logging.error(message)
+        raise RuntimeError(message)
+
     # account_name is a tuple of account names for more detail go to
     # https://click.palletsprojects.com/en/8.1.x/options/#multiple-options
     account_names = account_name
