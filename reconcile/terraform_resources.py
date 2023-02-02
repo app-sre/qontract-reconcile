@@ -711,6 +711,13 @@ def run(
         logging.error(message)
         raise RuntimeError(message)
 
+    if exclude_accounts and account_name:
+        message = (
+            "Using exclude account and account name at the same time is not allowed"
+        )
+        logging.error(message)
+        raise RuntimeError(message)
+
     # account_name is a tuple of account names for more detail go to
     # https://click.palletsprojects.com/en/8.1.x/options/#multiple-options
     account_names = account_name
