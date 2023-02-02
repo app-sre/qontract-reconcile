@@ -170,7 +170,7 @@ class S3ObjectKeyShardingStrategy(ABC):
 class Default(S3ObjectKeyShardingStrategy):
 
     def get_object_key(self, qr_integration) -> str:
-        return f"{qr_integration}.tfstate"
+        return qr_integration
 
 
 class TemplateBasedStrategy(S3ObjectKeyShardingStrategy):
