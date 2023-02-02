@@ -117,7 +117,7 @@ class OCMap:
                     self._jumphosts_dict[cluster_d.get("name")] = cluster_d.get(
                         "jumpHost"
                     )
-            clusters_dict = {}
+            clusters_dict: dict[str, HasCluster] = {}
             privileged_clusters: dict[str, HasCluster] = {}
             for ns_info in namespaces:
                 # init a namespace with clusterAdmin with both auth tokens
