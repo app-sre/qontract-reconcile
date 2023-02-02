@@ -1147,7 +1147,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 self.populate_tf_resources(spec, ocm_map=ocm_map)
 
     def init_populate_specs(
-        self, namespaces: Iterable[Mapping[str, Any]], account_name: Optional[str]
+        self,
+        namespaces: Iterable[Mapping[str, Any]],
+        account_names: Optional[Iterable[str]],
     ) -> None:
         """
         Initiates resource specs from the definitions in app-interface
@@ -1163,7 +1165,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 namespace_info, provision_provider=PROVIDER_AWS
             )
             for spec in specs:
-                if account_name and spec.provisioner_name != account_name:
+                if account_names and spec.provisioner_name not in account_names:
                     continue
                 self.account_resource_specs.setdefault(
                     spec.provisioner_name, []
