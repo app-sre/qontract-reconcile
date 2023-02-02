@@ -1,12 +1,13 @@
 import logging
+from collections.abc import (
+    Iterable,
+    Mapping,
+    MutableMapping,
+)
 from threading import Lock
 from typing import (
     Any,
-    Mapping,
-    MutableMapping,
     Optional,
-    Protocol,
-    Sequence,
     Union,
 )
 
@@ -19,40 +20,7 @@ from reconcile.utils.oc import (
     OCLogMsg,
     StatusCodeError,
 )
-from reconcile.utils.secret_reader import (
-    HasSecret,
-    SecretNotFound,
-    SecretReaderBase,
-)
-
-
-class HasDisable(Protocol):
-    integrations: Optional[list[str]]
-    e2e_tests: Optional[list[str]]
-
-
-class HasCluster(Protocol):
-    name: str
-    server_url: str
-    internal: Optional[bool]
-    insecure_skip_tls_verify: Optional[bool]
-
-    @property
-    def automation_token(self) -> Optional[HasSecret]:
-        ...
-
-    @property
-    def cluster_admin_automation_token(self) -> Optional[HasSecret]:
-        ...
-
-    @property
-    def disable(self) -> Optional[HasDisable]:
-        ...
-
-
-class HasNamespace(Protocol):
-    cluster: HasCluster
-    cluster_admin: Optional[bool]
+from reconcile.utils.oc_connection_parameters import OCConnectionParameters
 
 
 class OCMap:
@@ -67,14 +35,12 @@ class OCMap:
 
     def __init__(
         self,
-        clusters: Optional[Sequence[HasCluster]] = None,
-        clusters_untyped: Optional[Sequence[MutableMapping[Any, Any]]] = None,
-        namespaces: Optional[Sequence[HasNamespace]] = None,
-        namespaces_untyped: Optional[Sequence[MutableMapping[Any, Any]]] = None,
+        connection_parameters: Iterable[OCConnectionParameters],
+        clusters_untyped: Optional[Iterable[MutableMapping[Any, Any]]] = None,
+        namespaces_untyped: Optional[Iterable[MutableMapping[Any, Any]]] = None,
         integration: str = "",
         e2e_test: str = "",
         settings_untyped: Optional[Mapping[Any, Any]] = None,
-        secret_reader: Optional[SecretReaderBase] = None,
         internal: Optional[bool] = None,
         use_jump_host: bool = True,
         thread_pool_size: int = 1,
@@ -86,7 +52,6 @@ class OCMap:
         self._privileged_oc_map: dict[str, Union[OCDeprecated, OCLogMsg]] = {}
         self._calling_integration = integration
         self._calling_e2e_test = e2e_test
-        self._secret_reader = secret_reader
         self._internal = internal
         self._use_jump_host = use_jump_host
         self._thread_pool_size = thread_pool_size
@@ -95,58 +60,47 @@ class OCMap:
         self._lock = Lock()
         self._jh_ports: dict[str, int] = {}
         self._settings_dict = settings_untyped
-        self._jumphosts_dict: dict[Any, Any] = {}
 
-        if clusters and namespaces:
-            raise KeyError("expected only one of clusters or namespaces.")
-        elif clusters and clusters_untyped:
-            for cluster_dict in clusters_untyped:
-                self._jumphosts_dict[cluster_dict.get("name")] = cluster_dict.get(
-                    "jumpHost"
-                )
-            threaded.run(
-                self.init_oc_client,
-                clusters,
-                self._thread_pool_size,
-                privileged=cluster_admin,
+        # TODO: remove these once jumphosts are typed
+        # ############################################
+        self._jumphosts_dict: dict[Any, Any] = {}
+        for cluster_dict in clusters_untyped or []:
+            self._jumphosts_dict[cluster_dict.get("name")] = cluster_dict.get(
+                "jumpHost"
             )
-        elif namespaces and namespaces_untyped:
-            for ns_dict in namespaces_untyped:
-                cluster_d = ns_dict.get("cluster")
-                if cluster_d:
-                    self._jumphosts_dict[cluster_d.get("name")] = cluster_d.get(
-                        "jumpHost"
-                    )
-            clusters_dict: dict[str, HasCluster] = {}
-            privileged_clusters: dict[str, HasCluster] = {}
-            for ns_info in namespaces:
-                # init a namespace with clusterAdmin with both auth tokens
-                # OC_Map is used in various places and even when a namespace
-                # declares clusterAdmin token usage, many of those places are
-                # happy with regular dedicated-admin and will request a cluster
-                # with oc_map.get(cluster) without specifying privileged access
-                # specifically
-                c = ns_info.cluster
-                clusters_dict[c.name] = c
-                privileged = ns_info.cluster_admin or cluster_admin
-                if privileged:
-                    privileged_clusters[c.name] = c
-            if clusters_dict:
-                threaded.run(
-                    self.init_oc_client,
-                    clusters_dict.values(),
-                    self._thread_pool_size,
-                    privileged=False,
-                )
-            if privileged_clusters:
-                threaded.run(
-                    self.init_oc_client,
-                    privileged_clusters.values(),
-                    self._thread_pool_size,
-                    privileged=True,
-                )
-        else:
-            raise KeyError("expected one of clusters or namespaces.")
+        for ns_dict in namespaces_untyped or []:
+            cluster_d = ns_dict.get("cluster")
+            if cluster_d:
+                self._jumphosts_dict[cluster_d.get("name")] = cluster_d.get("jumpHost")
+        # ############################################
+
+        # init a namespace with clusterAdmin with both auth tokens
+        # OC_Map is used in various places and even when a namespace
+        # declares clusterAdmin token usage, many of those places are
+        # happy with regular dedicated-admin and will request a cluster
+        # with oc_map.get(cluster) without specifying privileged access
+        # specifically
+        privileged_clusters: list[OCConnectionParameters] = [
+            c for c in connection_parameters if (c.is_cluster_admin or cluster_admin)
+        ]
+        unprivileged_clusters: list[OCConnectionParameters] = [
+            c
+            for c in connection_parameters
+            if not (c.is_cluster_admin or cluster_admin)
+        ]
+
+        threaded.run(
+            self.init_oc_client,
+            unprivileged_clusters,
+            self._thread_pool_size,
+            privileged=False,
+        )
+        threaded.run(
+            self.init_oc_client,
+            privileged_clusters,
+            self._thread_pool_size,
+            privileged=True,
+        )
 
     def set_jh_ports(self, jh: MutableMapping[Any, Any]) -> None:
         # This will be replaced with getting the data from app-interface in
@@ -159,8 +113,10 @@ class OCMap:
                 self._jh_ports[key] = port
             jh["localPort"] = self._jh_ports[key]
 
-    def init_oc_client(self, cluster_info: HasCluster, privileged: bool) -> None:
-        cluster = cluster_info.name
+    def init_oc_client(
+        self, cluster_info: OCConnectionParameters, privileged: bool
+    ) -> None:
+        cluster = cluster_info.cluster_name
         if not privileged and self._oc_map.get(cluster):
             return None
         if privileged and self._privileged_oc_map.get(cluster):
@@ -170,9 +126,9 @@ class OCMap:
         if self._internal is not None:
             # integration is executed with `--internal` or `--external`
             # filter out non matching clusters
-            if self._internal and not cluster_info.internal:
+            if self._internal and not cluster_info.is_internal:
                 return
-            if not self._internal and cluster_info.internal:
+            if not self._internal and cluster_info.is_internal:
                 return
 
         if privileged:
@@ -201,24 +157,10 @@ class OCMap:
             )
         else:
             server_url = cluster_info.server_url
-            insecure_skip_tls_verify = cluster_info.insecure_skip_tls_verify
-
-            try:
-                if not self._secret_reader:
-                    raise Exception("No secret_reader set")
-                token = self._secret_reader.read_secret(automation_token)
-            except SecretNotFound:
-                self.set_oc(
-                    cluster,
-                    OCLogMsg(
-                        log_level=logging.ERROR, message=f"[{cluster}] secret not found"
-                    ),
-                    privileged,
-                )
-                return
+            insecure_skip_tls_verify = cluster_info.skip_tls_verify
 
             if self._use_jump_host:
-                jump_host = self._jumphosts_dict[cluster_info.name]
+                jump_host = self._jumphosts_dict[cluster_info.cluster_name]
             else:
                 jump_host = None
             if jump_host:
@@ -229,7 +171,7 @@ class OCMap:
                 oc_client: Union[OCDeprecated, OCLogMsg] = OC(  # type: ignore
                     cluster,
                     server_url,
-                    token,
+                    automation_token,
                     jump_host,
                     settings=self._settings_dict,
                     init_projects=self._init_projects,
@@ -256,20 +198,16 @@ class OCMap:
             else:
                 self._oc_map[cluster] = value
 
-    def cluster_disabled(self, cluster_info: HasCluster) -> bool:
+    def cluster_disabled(self, cluster_info: OCConnectionParameters) -> bool:
         try:
-            integrations = []
-            if cluster_info.disable:
-                integrations = cluster_info.disable.integrations or []
+            integrations = cluster_info.disabled_integrations or []
             if self._calling_integration.replace("_", "-") in integrations:
                 return True
         except (KeyError, TypeError):
             pass
 
         try:
-            tests = []
-            if cluster_info.disable:
-                tests = cluster_info.disable.e2e_tests or []
+            tests = cluster_info.disabled_e2e_tests or []
             if self._calling_e2e_test.replace("_", "-") in tests:
                 return True
         except (KeyError, TypeError):

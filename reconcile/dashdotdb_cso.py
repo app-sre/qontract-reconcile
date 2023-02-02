@@ -20,6 +20,9 @@ from reconcile.utils.oc import (
     OC_Map,
     StatusCodeError,
 )
+from reconcile.utils.oc_connection_parameters import (
+    get_oc_connection_parameters_from_clusters,
+)
 from reconcile.utils.oc_map import OCMap
 from reconcile.utils.secret_reader import (
     SecretReaderBase,
@@ -91,16 +94,17 @@ class DashdotdbCSO(DashdotdbBase):
 
     def run(self) -> None:
         clusters: list[ClusterV1] = get_clusters()
+        oc_map_parameters = get_oc_connection_parameters_from_clusters(
+            secret_reader=self.secret_reader, clusters=clusters
+        )
         oc_map = OCMap(
-            clusters=clusters,
+            connection_parameters=oc_map_parameters,
             clusters_untyped=[cluster.dict(by_alias=True) for cluster in clusters],
             integration=QONTRACT_INTEGRATION,
             settings_untyped=self.settings,
             use_jump_host=True,
             thread_pool_size=self.thread_pool_size,
-            secret_reader=self.secret_reader,
         )
-
         manifests = threaded.run(
             func=self._get_imagemanifestvuln,
             iterable=oc_map.clusters(),
