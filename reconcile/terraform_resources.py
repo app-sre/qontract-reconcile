@@ -694,7 +694,7 @@ def run(
     use_jump_host=True,
     light=False,
     vault_output_path="",
-    account_name: Optional[tuple[str]] = None,
+    account_name: Optional[Collection[str]] = None,
     defer=None,
 ) -> None:
     # account_name is a tuple of account names for more detail go to
@@ -812,6 +812,7 @@ def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
 def desired_state_shard_config() -> DesiredStateShardConfig:
     return DesiredStateShardConfig(
         shard_arg_name="account_name",
+        shard_arg_is_collection=True,
         shard_path_selectors={
             "accounts[*].name",
             "namespaces[*].externalResources[*].provisioner.name",
