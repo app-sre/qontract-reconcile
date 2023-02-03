@@ -2,7 +2,6 @@ import pytest
 
 from reconcile.change_owners.bundle import BundleFileType
 from reconcile.change_owners.change_types import (
-    ChangeTypeCycleError,
     ChangeTypePriority,
     init_change_type_processors,
 )
@@ -29,6 +28,28 @@ def namespace_change_type() -> ChangeTypeV1:
                 schema="namespace-1.yml",
                 selectors=["description"],
             )
+        ],
+        inherit=None,
+        implicitOwnership=[],
+    )
+
+
+@pytest.fixture
+def app_hierarchy_change_type() -> ChangeTypeV1:
+    return ChangeTypeV1(
+        name="app-hierarchy",
+        description="app-hierarchy",
+        contextType=BundleFileType.DATAFILE.value,
+        contextSchema="app-1.yml",
+        disabled=False,
+        priority=ChangeTypePriority.HIGH.value,
+        changes=[
+            build_change_type_change(
+                schema="app-1.yml",
+                change_type_names=["app-hierarchy"],
+                context_selector="parent",
+                context_when=None,
+            ),
         ],
         inherit=None,
         implicitOwnership=[],
@@ -102,7 +123,7 @@ def test_change_type_ownership_resolve(
 
     namespace_change_type_processor = processors[namespace_change_type.name]
     contexts = namespace_change_type_processor.find_context_file_refs(
-        namespace_change.fileref, namespace_change.old, namespace_change.new
+        namespace_change.fileref, namespace_change.old, namespace_change.new, set()
     )
     ownership_dict = {ro.owned_file_ref.path: ro for ro in contexts}
     assert len(ownership_dict) == 2
@@ -153,7 +174,7 @@ def test_change_type_ownership_expansion_with_context_selector(
 
     saas_file_change_type_processor = processors[saas_file_change_type.name]
     contexts = saas_file_change_type_processor.find_context_file_refs(
-        saas_file_change.fileref, saas_file_change.old, saas_file_change.new
+        saas_file_change.fileref, saas_file_change.old, saas_file_change.new, set()
     )
     ownership_dict = {ro.owned_file_ref.path: ro for ro in contexts}
     assert len(ownership_dict) == 2
@@ -172,16 +193,104 @@ def test_change_type_ownership_expansion_with_context_selector(
     assert ownership_dict["my-app.yml"].change_type.name == "app"
 
 
-def test_change_type_expansion_cycle(
-    namespace_change_type: ChangeTypeV1,
-    app_change_type: ChangeTypeV1,
-    saas_file_change_type: ChangeTypeV1,
+def test_change_type_expansion_hierarchy(
+    app_hierarchy_change_type: ChangeTypeV1,
 ):
-    namespace_change_type.changes = app_change_type.changes
-    namespace_change_type.changes[0].change_types[0].name = "app"  # type: ignore
+    app_change = build_test_datafile(
+        filepath="app.yml",
+        schema="app-1.yml",
+        content={
+            "name": "app",
+            "parent": "parent-app.yml",
+            "description": "my-description",
+        },
+    ).create_bundle_change(jsonpath_patches={"$.description": "updated-description"})
 
-    with pytest.raises(ChangeTypeCycleError):
-        init_change_type_processors(
-            [namespace_change_type, app_change_type, saas_file_change_type],
-            MockFileDiffResolver(fail_on_unknown_path=False),
+    processors = init_change_type_processors(
+        [app_hierarchy_change_type],
+        MockFileDiffResolver()
+        .register_raw_diff(
+            path="parent-app.yml",
+            old={"name": "parent-app", "parent": "grand-parent-app.yml"},
+            new={"name": "parent-app", "parent": "grand-parent-app.yml"},
         )
+        .register_raw_diff(
+            path="grand-parent-app.yml",
+            old={"name": "grant-parent-app"},
+            new={"name": "grant-parent-app"},
+        ),
+    )
+
+    app_hierarchy_change_type_processor = processors[app_hierarchy_change_type.name]
+    contexts = app_hierarchy_change_type_processor.find_context_file_refs(
+        app_change.fileref, app_change.old, app_change.new, set()
+    )
+    ownership_dict = {ro.owned_file_ref.path: ro for ro in contexts}
+    assert len(ownership_dict) == 3
+
+    assert "app.yml" in ownership_dict
+    assert ownership_dict["app.yml"].change_type.name == app_hierarchy_change_type.name
+
+    assert "parent-app.yml" in ownership_dict
+    assert (
+        ownership_dict["parent-app.yml"].change_type.name
+        == app_hierarchy_change_type.name
+    )
+
+    assert "grand-parent-app.yml" in ownership_dict
+    assert (
+        ownership_dict["grand-parent-app.yml"].change_type.name
+        == app_hierarchy_change_type.name
+    )
+
+
+def test_change_type_expansion_hierarchy_cycle_prevention(
+    app_hierarchy_change_type: ChangeTypeV1,
+):
+    app_change = build_test_datafile(
+        filepath="app.yml",
+        schema="app-1.yml",
+        content={
+            "name": "app",
+            "parent": "parent-app.yml",
+            "description": "my-description",
+        },
+    ).create_bundle_change(jsonpath_patches={"$.description": "updated-description"})
+
+    processors = init_change_type_processors(
+        [app_hierarchy_change_type],
+        MockFileDiffResolver()
+        .register_bundle_change(app_change)
+        .register_raw_diff(
+            path="parent-app.yml",
+            old={"name": "parent-app", "parent": "grand-parent-app.yml"},
+            new={"name": "parent-app", "parent": "grand-parent-app.yml"},
+        )
+        .register_raw_diff(
+            path="grand-parent-app.yml",
+            old={"name": "grant-parent-app", "parent": "app.yml"},
+            new={"name": "grant-parent-app", "parent": "app.yml"},
+        ),
+    )
+
+    app_hierarchy_change_type_processor = processors[app_hierarchy_change_type.name]
+    contexts = app_hierarchy_change_type_processor.find_context_file_refs(
+        app_change.fileref, app_change.old, app_change.new, set()
+    )
+    ownership_dict = {ro.owned_file_ref.path: ro for ro in contexts}
+    assert len(ownership_dict) == 3
+
+    assert "app.yml" in ownership_dict
+    assert ownership_dict["app.yml"].change_type.name == app_hierarchy_change_type.name
+
+    assert "parent-app.yml" in ownership_dict
+    assert (
+        ownership_dict["parent-app.yml"].change_type.name
+        == app_hierarchy_change_type.name
+    )
+
+    assert "grand-parent-app.yml" in ownership_dict
+    assert (
+        ownership_dict["grand-parent-app.yml"].change_type.name
+        == app_hierarchy_change_type.name
+    )

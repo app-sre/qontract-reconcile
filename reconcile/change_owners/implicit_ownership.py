@@ -37,7 +37,9 @@ def change_type_contexts_for_implicit_ownership(
     ]
     for ctp in processors_with_implicit_ownership:
         for bc in bundle_changes:
-            for ownership in ctp.find_context_file_refs(bc.fileref, bc.old, bc.new):
+            for ownership in ctp.find_context_file_refs(
+                bc.fileref, bc.old, bc.new, set()
+            ):
                 for io in ctp.implicit_ownership:
                     if isinstance(io, ChangeTypeImplicitOwnershipJsonPathProviderV1):
                         if ownership.context_file_ref != bc.fileref:

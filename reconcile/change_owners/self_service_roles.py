@@ -63,7 +63,9 @@ def change_type_contexts_for_self_service_roles(
     change_type_contexts = []
     for bc in bundle_changes:
         for ctp in change_type_processors:
-            for ownership in ctp.find_context_file_refs(bc.fileref, bc.old, bc.new):
+            for ownership in ctp.find_context_file_refs(
+                bc.fileref, bc.old, bc.new, set()
+            ):
                 # if the context file is bound with the change type in
                 # a role, build a changetypecontext
                 for role in role_lookup[

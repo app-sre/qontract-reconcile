@@ -6,6 +6,7 @@ from collections import defaultdict
 from collections.abc import (
     MutableMapping,
     Sequence,
+    Set,
 )
 from dataclasses import (
     dataclass,
@@ -15,6 +16,7 @@ from enum import Enum
 from typing import (
     Any,
     Optional,
+    Tuple,
 )
 
 import anymarkup
@@ -443,14 +445,19 @@ class ContextExpansion:
     change_type: "ChangeTypeProcessor"
     file_diff_resolver: FileDiffResolver
 
-    def expand_from_file_ref(self, file_ref: FileRef) -> list["ResolvedContext"]:
+    def expand_from_file_ref(
+        self,
+        file_ref: FileRef,
+        expansion_trail: Set[Tuple[str, FileRef]],
+    ) -> list["ResolvedContext"]:
         old_data, new_data = self.file_diff_resolver.lookup_file_diff(file_ref)
-        return self.expand(old_data, new_data)
+        return self.expand(old_data, new_data, expansion_trail)
 
     def expand(
         self,
-        old_data: Optional[dict[str, Any]] = None,
-        new_data: Optional[dict[str, Any]] = None,
+        old_data: Optional[dict[str, Any]],
+        new_data: Optional[dict[str, Any]],
+        expansion_trail: Set[Tuple[str, FileRef]],
     ) -> list["ResolvedContext"]:
         """
         Find context based on the `self.context`, lookup the file diff for
@@ -470,6 +477,7 @@ class ContextExpansion:
                     ref,
                     old_data=ref_old_data,
                     new_data=ref_new_data,
+                    expansion_trail=expansion_trail,
                 )
             )
         return expaned_context_file_refs
@@ -566,6 +574,7 @@ class ChangeTypeProcessor:
         file_ref: FileRef,
         old_data: Optional[dict[str, Any]],
         new_data: Optional[dict[str, Any]],
+        expansion_trail: Set[Tuple[str, FileRef]],
     ) -> list[ResolvedContext]:
         """
         ChangeTypeV1 are attached to bundle files, react to changes within
@@ -622,6 +631,13 @@ class ChangeTypeProcessor:
         """
         contexts: list[ResolvedContext] = []
 
+        # prevent infinite ownership resolution
+        expansion_trail_copy = set(expansion_trail)
+        if (self.name, file_ref) in expansion_trail_copy:
+            return contexts
+        else:
+            expansion_trail_copy.add((self.name, file_ref))
+
         # direct context extraction
         # the changed file itself is giving the context for approver extraction
         # see doc string for more details
@@ -636,7 +652,7 @@ class ChangeTypeProcessor:
 
             # expand context based on change-type composition
             for ce in self._context_expansions:
-                for ec in ce.expand(old_data, new_data):
+                for ec in ce.expand(old_data, new_data, expansion_trail_copy):
                     # add expanded contexts (derived owned files)
                     contexts.append(
                         ResolvedContext(
@@ -661,7 +677,9 @@ class ChangeTypeProcessor:
                         )
                     )
                     for ce in self._context_expansions:
-                        for ec in ce.expand_from_file_ref(ctx_file_ref):
+                        for ec in ce.expand_from_file_ref(
+                            ctx_file_ref, expansion_trail_copy
+                        ):
                             # add expanded contexts (derived owned files)
                             contexts.append(
                                 ResolvedContext(
@@ -727,7 +745,6 @@ def init_change_type_processors(
     processors: dict[str, ChangeTypeProcessor] = {}
 
     change_type_inheritance_graph = networkx.DiGraph()
-    change_type_composition_graph = networkx.DiGraph()
 
     for change_type in change_types:
         # build raw change-type-processor
@@ -789,8 +806,6 @@ def init_change_type_processors(
                             file_diff_resolver=file_diff_resolver,
                         )
                     )
-                    # register dependency in graph for cycle detection
-                    change_type_composition_graph.add_edge(change_type.name, ct.name)
 
     #
     # V A L I D A T E
@@ -799,10 +814,6 @@ def init_change_type_processors(
     # detect inheritance cycles
     if cycles := list(networkx.simple_cycles(change_type_inheritance_graph)):
         raise ChangeTypeCycleError("Cycles detected in change-type inheritance", cycles)
-
-    # detect composition cycles
-    if cycles := list(networkx.simple_cycles(change_type_composition_graph)):
-        raise ChangeTypeCycleError("Cycles detected in change-type composition", cycles)
 
     #
     # A G G R E G A T I O N

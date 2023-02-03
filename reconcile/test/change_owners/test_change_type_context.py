@@ -31,7 +31,7 @@ def test_extract_context_file_refs_from_bundle_change(
     )
     ctp = change_type_to_processor(saas_file_changetype)
     file_refs = ctp.find_context_file_refs(
-        bundle_change.fileref, bundle_change.old, bundle_change.new
+        bundle_change.fileref, bundle_change.old, bundle_change.new, set()
     )
     assert [o.context_file_ref for o in file_refs] == [saas_file.file_ref()]
 
@@ -49,7 +49,7 @@ def test_extract_context_file_refs_from_bundle_change_schema_mismatch(
     )
     ctp = change_type_to_processor(saas_file_changetype)
     file_refs = ctp.find_context_file_refs(
-        bundle_change.fileref, bundle_change.old, bundle_change.new
+        bundle_change.fileref, bundle_change.old, bundle_change.new, set()
     )
     assert not file_refs
 
@@ -81,7 +81,7 @@ def test_extract_context_file_refs_selector(
     assert namespace_change
     ctp = change_type_to_processor(cluster_owner_change_type)
     file_refs = ctp.find_context_file_refs(
-        namespace_change.fileref, namespace_change.old, namespace_change.new
+        namespace_change.fileref, namespace_change.old, namespace_change.new, set()
     )
     assert [o.context_file_ref for o in file_refs] == [
         FileRef(
@@ -118,7 +118,7 @@ def test_extract_context_file_refs_in_list_added_selector(
     assert user_change
     ctp = change_type_to_processor(role_member_change_type)
     file_refs = ctp.find_context_file_refs(
-        user_change.fileref, user_change.old, user_change.new
+        user_change.fileref, user_change.old, user_change.new, set()
     )
     assert [o.context_file_ref for o in file_refs] == [
         FileRef(
@@ -153,7 +153,7 @@ def test_extract_context_file_refs_in_list_removed_selector(
     assert user_change
     ctp = change_type_to_processor(role_member_change_type)
     file_refs = ctp.find_context_file_refs(
-        user_change.fileref, user_change.old, user_change.new
+        user_change.fileref, user_change.old, user_change.new, set()
     )
     assert [o.context_file_ref for o in file_refs] == [
         FileRef(
@@ -181,6 +181,6 @@ def test_extract_context_file_refs_in_list_selector_change_schema_mismatch(
     assert datafile_change
     ctp = change_type_to_processor(role_member_change_type)
     file_refs = ctp.find_context_file_refs(
-        datafile_change.fileref, datafile_change.old, datafile_change.new
+        datafile_change.fileref, datafile_change.old, datafile_change.new, set()
     )
     assert not file_refs
