@@ -24,7 +24,11 @@ from reconcile.utils.oc_connection_parameters import OCConnectionParameters
 
 
 class OCMap:
-    """OCMap takes a list of OCConnectionParameters as input
+    """
+    DO NOT USE YET! This class is still in refactoring state.
+    Only selected integrations are using this class for now.
+
+    OCMap takes a list of OCConnectionParameters as input
     and initializes a dictionary of Openshift Clients (OC) per cluster.
 
     In case a connection parameter does not have an automation token
