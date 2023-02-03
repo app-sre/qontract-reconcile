@@ -491,6 +491,7 @@ def merge_merge_requests(
 
         last_pipeline_result = pipelines[0]["status"]
         if last_pipeline_result != "success":
+            gl.add_comment_to_merge_request(mr.iid, "/retest")
             continue
 
         logging.info(["merge", gl.project.name, mr.iid])
