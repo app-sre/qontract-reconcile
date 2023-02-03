@@ -212,6 +212,17 @@ def run(
 
 
 def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
+
+    """
+    Finding diffs in deeply nested structures is time/resource consuming.
+    Having a unique known property to identify objects makes it easier to match
+    the same object in different states. This speeds up the diffing process
+    A LOT!
+
+    The IDENTIFIER_FIELD_NAME is added for that purpose. It is a well known field
+    for the DeepDiff library used in qontract-reconcile.
+    """
+
     def add_account_identity(acc):
         acc[IDENTIFIER_FIELD_NAME] = acc["path"]
         return acc
@@ -237,5 +248,6 @@ def desired_state_shard_config() -> DesiredStateShardConfig:
             "roles[*].aws_groups[*].account.name",
             "roles[*].user_policies[*].account.name",
         },
+        # Only run shard if less than 2 shards are affected. Else it is not worth the effort -> run everything.
         sharded_run_review=lambda proposal: len(proposal.proposed_shards) <= 2,
     )
