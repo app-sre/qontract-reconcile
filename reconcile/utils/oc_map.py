@@ -88,19 +88,19 @@ class OCMap:
         ]
 
         threaded.run(
-            self.init_oc_client,
+            self._init_oc_client,
             unprivileged_clusters,
             self._thread_pool_size,
             privileged=False,
         )
         threaded.run(
-            self.init_oc_client,
+            self._init_oc_client,
             privileged_clusters,
             self._thread_pool_size,
             privileged=True,
         )
 
-    def set_jh_ports(self, jh: MutableMapping[Any, Any]) -> None:
+    def _set_jh_ports(self, jh: MutableMapping[Any, Any]) -> None:
         # This will be replaced with getting the data from app-interface in
         # a future PR.
         jh["remotePort"] = 8888
@@ -111,7 +111,7 @@ class OCMap:
                 self._jh_ports[key] = port
             jh["localPort"] = self._jh_ports[key]
 
-    def init_oc_client(
+    def _init_oc_client(
         self, cluster_info: OCConnectionParameters, privileged: bool
     ) -> None:
         cluster = cluster_info.cluster_name
@@ -119,7 +119,7 @@ class OCMap:
             return None
         if privileged and self._privileged_oc_map.get(cluster):
             return None
-        if self.cluster_disabled(cluster_info):
+        if self._is_cluster_disabled(cluster_info):
             return None
         if self._internal is not None:
             # integration is executed with `--internal` or `--external`
@@ -137,7 +137,7 @@ class OCMap:
             token_name = "automationToken"
 
         if automation_token is None:
-            self.set_oc(
+            self._set_oc(
                 cluster,
                 OCLogMsg(
                     log_level=logging.ERROR, message=f"[{cluster}] has no {token_name}"
@@ -146,7 +146,7 @@ class OCMap:
             )
         # serverUrl isn't set when a new cluster is initially created.
         elif not cluster_info.server_url:
-            self.set_oc(
+            self._set_oc(
                 cluster,
                 OCLogMsg(
                     log_level=logging.ERROR, message=f"[{cluster}] has no serverUrl"
@@ -162,7 +162,7 @@ class OCMap:
             else:
                 jump_host = None
             if jump_host:
-                self.set_jh_ports(jump_host)
+                self._set_jh_ports(jump_host)
             try:
                 # TODO: wait for next mypy release to support this
                 # https://github.com/python/mypy/issues/14426
@@ -176,9 +176,9 @@ class OCMap:
                     init_api_resources=self._init_api_resources,
                     insecure_skip_tls_verify=insecure_skip_tls_verify,
                 )
-                self.set_oc(cluster, oc_client, privileged)
+                self._set_oc(cluster, oc_client, privileged)
             except StatusCodeError as e:
-                self.set_oc(
+                self._set_oc(
                     cluster,
                     OCLogMsg(
                         log_level=logging.ERROR,
@@ -187,7 +187,7 @@ class OCMap:
                     privileged,
                 )
 
-    def set_oc(
+    def _set_oc(
         self, cluster: str, value: Union[OCDeprecated, OCLogMsg], privileged: bool
     ) -> None:
         with self._lock:
@@ -196,7 +196,7 @@ class OCMap:
             else:
                 self._oc_map[cluster] = value
 
-    def cluster_disabled(self, cluster_info: OCConnectionParameters) -> bool:
+    def _is_cluster_disabled(self, cluster_info: OCConnectionParameters) -> bool:
         try:
             integrations = cluster_info.disabled_integrations or []
             if self._calling_integration.replace("_", "-") in integrations:
