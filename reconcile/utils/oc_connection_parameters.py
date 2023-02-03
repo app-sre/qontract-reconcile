@@ -51,6 +51,13 @@ class Namespace(Protocol):
 
 @dataclass
 class OCConnectionParameters:
+    """
+    Container for Openshift Client (OC) parameters.
+    These parameters are necessary to initialize a connection to a cluster.
+    As a convenience, this class is able to convert generated classes
+    into proper OC connection parameters.
+    """
+
     cluster_name: str
     server_url: str
     is_internal: Optional[bool]

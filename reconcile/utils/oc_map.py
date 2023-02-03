@@ -24,12 +24,10 @@ from reconcile.utils.oc_connection_parameters import OCConnectionParameters
 
 
 class OCMap:
-    """OCMap gets a GraphQL query results list as input
-    and initiates a dictionary of OC clients per cluster.
+    """OCMap takes a list of OCConnectionParameters as input
+    and initializes a dictionary of Openshift Clients (OC) per cluster.
 
-    The input must contain either 'clusters' or 'namespaces', but not both.
-
-    In case a cluster does not have an automation token
+    In case a connection parameter does not have an automation token
     the OC client will be initiated with a OCLogMessage.
     """
 
