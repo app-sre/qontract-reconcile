@@ -1620,7 +1620,7 @@ def terraform_resources(
         use_jump_host,
         light,
         vault_output_path,
-        account_name,
+        account_name=account_name,
     )
 
 

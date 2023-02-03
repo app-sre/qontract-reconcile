@@ -66,8 +66,20 @@ def test_demo_integration_kwargs_have_shard_info():
         **{demo_integration_shard_config.SHARD_ARG_NAME: "shard1"}
     )
 
+    assert integration.kwargs_have_shard_info(
+        **{demo_integration_shard_config.SHARD_ARG_NAME: ["shard1"]}
+    )
+
     assert not integration.kwargs_have_shard_info(
         **{demo_integration_shard_config.SHARD_ARG_NAME: None}
+    )
+
+    assert not integration.kwargs_have_shard_info(
+        **{demo_integration_shard_config.SHARD_ARG_NAME: ()}
+    )
+
+    assert not integration.kwargs_have_shard_info(
+        **{demo_integration_shard_config.SHARD_ARG_NAME: []}
     )
 
     assert not integration.kwargs_have_shard_info(**{})
