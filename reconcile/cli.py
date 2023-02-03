@@ -343,6 +343,18 @@ def account_name(function):
     return function
 
 
+def account_name_multiple(function):
+    """This option can be used when more than one account needs to be passed as argument"""
+    function = click.option(
+        "--account-name",
+        default=None,
+        multiple=True,
+        help="aws account names to act on i.e.: --account-name aws-account-1 --account-name aws-account-2",
+    )(function)
+
+    return function
+
+
 def workspace_name(function):
     function = click.option(
         "--workspace-name", help="slack workspace name to act on.", default=None
@@ -1576,7 +1588,7 @@ def ldap_users(ctx, gitlab_project_id):
 @internal()
 @use_jump_host()
 @enable_deletion(default=False)
-@account_name
+@account_name_multiple
 @click.option(
     "--light/--full",
     default=False,
@@ -1608,7 +1620,7 @@ def terraform_resources(
         use_jump_host,
         light,
         vault_output_path,
-        account_name=account_name,
+        account_name,
     )
 
 
