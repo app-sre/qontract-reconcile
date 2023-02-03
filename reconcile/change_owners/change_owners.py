@@ -229,9 +229,9 @@ def write_coverage_report_to_mr(
             "schema": d.file.schema,
             "change": d.diff.path,
         }
-        if d.decision.hold:
+        if d.is_held():
             item["status"] = "hold"
-        elif d.decision.approve:
+        elif d.is_approved():
             item["status"] = "approved"
         item["approvers"] = approvers
         results.append(item)
@@ -404,10 +404,8 @@ def run(
                 gl.get_merge_request_author_username(gitlab_merge_request_id),
             },
         )
-        hold = any(d.decision.hold for d in change_decisions)
-        approved = all(
-            d.decision.approve and not d.decision.hold for d in change_decisions
-        )
+        hold = any(d.is_held() for d in change_decisions)
+        approved = all(d.is_approved() and not d.is_held() for d in change_decisions)
 
         #
         #   R E P O R T I N G
