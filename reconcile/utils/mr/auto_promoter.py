@@ -33,7 +33,7 @@ class AutoPromoter(MergeRequestBase):
     name = "auto_promoter"
 
     def __init__(self, promotions):
-        self.promotions = promotions
+        self.promotions = [p for p in promotions if p]
         super().__init__()
 
         self.labels = [AUTO_MERGE]
