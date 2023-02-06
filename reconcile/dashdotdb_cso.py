@@ -11,13 +11,19 @@ from reconcile.dashdotdb_base import (
     LOG,
     DashdotdbBase,
 )
+from reconcile.gql_definitions.common.clusters import ClusterV1
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
+from reconcile.typed_queries.clusters import get_clusters
 from reconcile.utils.oc import (
     OC_Map,
     StatusCodeError,
 )
+from reconcile.utils.oc_connection_parameters import (
+    get_oc_connection_parameters_from_clusters,
+)
+from reconcile.utils.oc_map import OCMap
 from reconcile.utils.secret_reader import (
     SecretReaderBase,
     create_secret_reader,
@@ -87,16 +93,18 @@ class DashdotdbCSO(DashdotdbBase):
         return {"cluster": cluster, "data": imagemanifestvuln}
 
     def run(self) -> None:
-        clusters = queries.get_clusters()
-
-        oc_map = OC_Map(
-            clusters=clusters,
+        clusters: list[ClusterV1] = get_clusters()
+        oc_map_parameters = get_oc_connection_parameters_from_clusters(
+            secret_reader=self.secret_reader, clusters=clusters
+        )
+        oc_map = OCMap(
+            connection_parameters=oc_map_parameters,
+            clusters_untyped=[cluster.dict(by_alias=True) for cluster in clusters],
             integration=QONTRACT_INTEGRATION,
-            settings=self.settings,
+            settings_untyped=self.settings,
             use_jump_host=True,
             thread_pool_size=self.thread_pool_size,
         )
-
         manifests = threaded.run(
             func=self._get_imagemanifestvuln,
             iterable=oc_map.clusters(),

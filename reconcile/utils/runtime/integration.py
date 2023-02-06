@@ -131,7 +131,8 @@ class QontractReconcileIntegration(ABC):
             self.get_desired_state_shard_config()
         )
         if sharding_config:
-            return kwargs.get(sharding_config.shard_arg_name) is not None
+            shard_arg_value = kwargs.get(sharding_config.shard_arg_name)
+            return shard_arg_value is not None and shard_arg_value
         else:
             return False
 

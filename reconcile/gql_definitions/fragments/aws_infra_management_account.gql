@@ -1,0 +1,15 @@
+# qenerate: plugin=pydantic_v1
+
+fragment AWSInfrastructureManagementAccount on AWSInfrastructureManagementAccount_v1 {
+  account {
+    name
+    uid
+    terraformUsername
+    resourcesDefaultRegion
+    automationToken {
+      ... VaultSecret
+    }
+  }
+  accessLevel
+  default
+}

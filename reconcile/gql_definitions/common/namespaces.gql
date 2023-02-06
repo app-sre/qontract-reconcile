@@ -1,0 +1,120 @@
+# qenerate: plugin=pydantic_v1
+
+query Namespaces {
+  namespaces: namespaces_v1 {
+    name
+    delete
+    labels
+    clusterAdmin
+    managedRoles
+    app {
+      name
+      serviceOwners {
+        name
+        email
+      }
+    }
+    managedExternalResources
+    externalResources {
+      provider
+      provisioner {
+        name
+      }
+      ... on NamespaceTerraformProviderResourceAWS_v1 {
+        resources {
+          provider
+          ... on NamespaceTerraformResourceRDS_v1
+          {
+            identifier
+            output_resource_name
+            defaults
+            replica_source
+          }
+          ... on NamespaceTerraformResourceECR_v1
+          {
+            region
+            identifier
+            output_resource_name
+            mirror {
+              url
+              pullCredentials {
+                ... VaultSecret
+              }
+              tags
+              tagsExclude
+            }
+          }
+        }
+      }
+    }
+    cluster {
+      name
+      serverUrl
+      insecureSkipTLSVerify
+      jumpHost {
+        ... CommonJumphostFields
+      }
+      automationToken {
+        path
+        field
+        version
+        format
+      }
+      clusterAdminAutomationToken {
+        ... VaultSecret
+      }
+      internal
+      disable {
+        integrations
+        e2eTests
+      }
+    }
+    managedResourceNames {
+      resource
+      resourceNames
+    }
+    limitRanges {
+      name
+      limits {
+        default {
+          cpu
+          memory
+        }
+        defaultRequest {
+          cpu
+          memory
+        }
+        max {
+          cpu
+          memory
+        }
+        maxLimitRequestRatio {
+          cpu
+          memory
+        }
+        min {
+          cpu
+          memory
+        }
+        type
+      }
+    }
+    quota {
+      quotas {
+        name
+        resources {
+          limits {
+            cpu
+            memory
+          }
+          requests {
+            cpu
+            memory
+          }
+          pods
+        }
+        scopes
+      }
+    }
+  }
+}

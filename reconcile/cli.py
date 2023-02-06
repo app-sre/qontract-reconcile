@@ -60,6 +60,11 @@ def before_breadcrumb(crumb, hint):
     if "category" in crumb and crumb["category"] == "subprocess":
         # remove cluster token
         crumb["message"] = re.sub(r"--token \S*\b", "--token ***", crumb["message"])
+        # remove credentials in skopeo commands
+        crumb["message"] = re.sub(
+            r"(--(src|dest)-creds=[^:]+):[^ ]+", r"\1:***", crumb["message"]
+        )
+
     return crumb
 
 
@@ -1615,7 +1620,7 @@ def terraform_resources(
         use_jump_host,
         light,
         vault_output_path,
-        account_name,
+        account_name=account_name,
     )
 
 
