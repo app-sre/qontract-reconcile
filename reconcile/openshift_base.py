@@ -780,7 +780,7 @@ def _validate_resources_used_exist(
             # Check serving-cert-secret-name annotation on every considered resource
             for service in service_resources:
                 metadata = service.body.get("metadata", {})
-                annotations = metadata.get("annotations", {})
+                annotations = metadata.get("annotations") or {}
                 serving_cert_alpha_secret_name = annotations.get(
                     "service.alpha.openshift.io/serving-cert-secret-name", False
                 )
