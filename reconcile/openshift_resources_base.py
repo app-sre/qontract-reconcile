@@ -1,6 +1,7 @@
 import base64
 import hashlib
 import itertools
+import hashlib
 import json
 import logging
 import sys
@@ -1180,15 +1181,12 @@ def early_exit_desired_state(
             settings=settings,
         )
 
-    def post_process_ns(ns):
+    def add_ns_identify(ns):
         ns[IDENTIFIER_FIELD_NAME] = f"{ns['cluster']['name']}/{ns['name']}"
-        # the sharedResources have been aggreated into the openshiftResources
-        # and are no longer needed - speeds up diffing process
-        del ns["sharedResources"]
         return ns
 
     return {
-        "namespaces": [post_process_ns(ns) for ns in namespaces],
+        "namespaces": [add_ns_identify(ns) for ns in namespaces],
         "resources": resources,
     }
 
@@ -1211,7 +1209,6 @@ def _early_exit_fetch_resource(spec, settings):
         # detect changes in desired state
         c = resource["resource"].get("content")
     del resource["resource"]
-    resource[IDENTIFIER_FIELD_NAME] = id
     content_sha = hashlib.md5(c.encode("utf-8")).hexdigest()
     return {
         IDENTIFIER_FIELD_NAME: id,
