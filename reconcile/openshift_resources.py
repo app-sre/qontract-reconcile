@@ -2,6 +2,7 @@ from typing import Any
 
 import reconcile.openshift_base as ob
 import reconcile.openshift_resources_base as orb
+from reconcile.utils.runtime.integration import DesiredStateShardConfig
 from reconcile.utils.semver_helper import make_semver
 
 QONTRACT_INTEGRATION = "openshift_resources"
@@ -39,3 +40,7 @@ def run(
 
 def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
     return orb.early_exit_desired_state(PROVIDERS)
+
+
+def desired_state_shard_config() -> DesiredStateShardConfig:
+    return orb.desired_state_shard_config()

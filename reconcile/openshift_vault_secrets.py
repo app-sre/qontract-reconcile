@@ -1,6 +1,8 @@
 from typing import Any
 
 import reconcile.openshift_resources_base as orb
+from reconcile.change_owners.diff import IDENTIFIER_FIELD_NAME
+from reconcile.utils.runtime.integration import DesiredStateShardConfig
 from reconcile.utils.semver_helper import make_semver
 
 QONTRACT_INTEGRATION = "openshift-vault-secrets"
@@ -34,6 +36,20 @@ def run(
 def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
     namespaces, _ = orb.get_namespaces(PROVIDERS)
 
+    def add_ns_identify(ns):
+        ns[IDENTIFIER_FIELD_NAME] = f"{ns['cluster']['name']}/{ns['name']}"
+        return ns
+
     return {
-        "namespaces": namespaces,
+        "namespaces": [add_ns_identify(ns) for ns in namespaces],
     }
+
+
+def desired_state_shard_config() -> DesiredStateShardConfig:
+    return DesiredStateShardConfig(
+        shard_arg_name="cluster_name",
+        shard_path_selectors={
+            "namespaces[*].cluster.name",
+        },
+        sharded_run_review=lambda proposal: len(proposal.proposed_shards) <= 2,
+    )
