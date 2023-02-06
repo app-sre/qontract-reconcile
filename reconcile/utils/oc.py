@@ -48,6 +48,7 @@ from sretoolbox.utils import (
 
 from reconcile.status import RunningState
 from reconcile.utils.jump_host import JumpHostSSH
+from reconcile.utils.jump_host import JumphostParameters, JumpHostSSH
 from reconcile.utils.metrics import reconcile_time
 from reconcile.utils.secret_reader import (
     SecretNotFound,
@@ -273,7 +274,18 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
 
         self.jump_host = None
         if jh is not None:
-            self.jump_host = JumpHostSSH(jh, settings=settings)
+            secret_reader = SecretReader(settings=settings)
+            key = secret_reader.read(jh["identity"])
+            jumphost_parameters = JumphostParameters(
+                hostname=jh["hostname"],
+                key=key,
+                known_hosts=jh["knownHosts"],
+                local_port=jh.get("localPort"),
+                port=jh.get("port"),
+                remote_port=jh.get("remotePort"),
+                user=jh["user"],
+            )
+            self.jump_host = JumpHostSSH(parameters=jumphost_parameters)
             oc_base_cmd = self.jump_host.get_ssh_base_cmd() + oc_base_cmd
 
         self.oc_base_cmd = oc_base_cmd
