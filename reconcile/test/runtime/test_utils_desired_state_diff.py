@@ -6,6 +6,7 @@ import pytest
 from pytest_mock.plugin import MockerFixture
 
 from reconcile.change_owners.diff import (
+    IDENTIFIER_FIELD_NAME,
     Diff,
     DiffType,
 )
@@ -19,10 +20,15 @@ from reconcile.utils.runtime.desired_state_diff import (
     build_desired_state_diff,
     extract_diffs_with_timeout,
 )
+from reconcile.utils.runtime.integration import DesiredStateShardConfig
 
 pytest_plugins = [
     "reconcile.test.runtime.fixtures",
 ]
+
+#
+# build desired state diff
+#
 
 
 def test_desired_state_diff_building(simple_test_integration: SimpleTestIntegration):
@@ -128,6 +134,11 @@ def test_desired_state_diff_building_time(
     assert diff.affected_shards == set()
 
 
+#
+# extract diffs
+#
+
+
 def test_extract_diffs_with_timeout():
     """
     test timeout behaviour of diff extraction
@@ -163,3 +174,123 @@ def test_extract_diffs_with_timeout():
     )
     assert diffs
     assert isinstance(diffs[0], Diff)
+
+
+#
+# find changed shards
+#
+
+
+def test_find_changed_shards_removed_diff():
+    assert build_desired_state_diff(
+        sharding_config=DesiredStateShardConfig(
+            shard_arg_name="shard",
+            shard_path_selectors={"data[*].shard"},
+            sharded_run_review=lambda x: True,
+        ),
+        previous_desired_state={
+            "data": [
+                {"shard": "a", "value": "a"},
+                {"shard": "b", "value": "b"},
+            ]
+        },
+        current_desired_state={
+            "data": [
+                {"shard": "b", "value": "b"},
+            ]
+        },
+    ).affected_shards == {"a"}
+
+
+def test_find_changed_shards_added_diff():
+    assert build_desired_state_diff(
+        sharding_config=DesiredStateShardConfig(
+            shard_arg_name="shard",
+            shard_path_selectors={"data[*].shard"},
+            sharded_run_review=lambda x: True,
+        ),
+        previous_desired_state={
+            "data": [
+                {"shard": "b", "value": "b"},
+            ]
+        },
+        current_desired_state={
+            "data": [
+                {"shard": "a", "value": "a"},
+                {"shard": "b", "value": "b"},
+            ]
+        },
+    ).affected_shards == {"a"}
+
+
+def test_find_changed_shards_change_diff():
+    assert build_desired_state_diff(
+        sharding_config=DesiredStateShardConfig(
+            shard_arg_name="shard",
+            shard_path_selectors={"data[*].shard"},
+            sharded_run_review=lambda x: True,
+        ),
+        previous_desired_state={
+            "data": [
+                {"shard": "a", "value": "a"},
+                {"shard": "b", "value": "b"},
+            ]
+        },
+        current_desired_state={
+            "data": [
+                {"shard": "a", "value": "a"},
+                {"shard": "b", "value": "c"},
+            ]
+        },
+    ).affected_shards == {"b"}
+
+
+def test_find_changed_shards_mixed_diff():
+    assert build_desired_state_diff(
+        sharding_config=DesiredStateShardConfig(
+            shard_arg_name="shard",
+            shard_path_selectors={"data[*].shard"},
+            sharded_run_review=lambda x: True,
+        ),
+        previous_desired_state={
+            "data": [
+                {"shard": "a", "value": "a", IDENTIFIER_FIELD_NAME: "a"},
+                {"shard": "b", "value": "b", IDENTIFIER_FIELD_NAME: "b"},
+            ]
+        },
+        current_desired_state={
+            "data": [
+                {"shard": "b", "value": "c", IDENTIFIER_FIELD_NAME: "b"},
+                {"shard": "c", "value": "d", IDENTIFIER_FIELD_NAME: "c"},
+            ]
+        },
+    ).affected_shards == {
+        "a",  # the deleted one
+        "b",  # the changed one
+        "c",  # the adde one
+    }
+
+
+def test_find_changed_shards_no_diff():
+    assert (
+        build_desired_state_diff(
+            sharding_config=DesiredStateShardConfig(
+                shard_arg_name="shard",
+                shard_path_selectors={"data[*].shard"},
+                sharded_run_review=lambda x: True,
+            ),
+            previous_desired_state={
+                "data": [
+                    {"shard": "a", "value": "a"},
+                    {"shard": "b", "value": "b"},
+                ]
+            },
+            current_desired_state={
+                "data": [
+                    {"shard": "a", "value": "a"},
+                    {"shard": "b", "value": "b"},
+                ]
+            },
+        ).affected_shards
+        == set()
+    )
