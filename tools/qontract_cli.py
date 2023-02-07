@@ -1001,7 +1001,7 @@ def sshuttle_command(
 @click.argument("instance_name")
 @click.argument("job_name")
 @click.pass_context
-def jenkins_job_vault_secrets(ctx, instance_name, job_name):
+def jenkins_job_vault_secrets(ctx, instance_name: str, job_name: str) -> None:
     secret_reader = SecretReader(queries.get_secret_reader_settings())
     jjb: JJB = init_jjb(secret_reader, instance_name, config_name=None, print_only=True)
     jobs = jjb.get_all_jobs([job_name], instance_name)[instance_name]
@@ -1445,7 +1445,7 @@ def app_interface_merge_queue(ctx):
 
 @get.command()
 @click.pass_context
-def app_interface_review_queue(ctx):
+def app_interface_review_queue(ctx) -> None:
     settings = queries.get_app_interface_settings()
     instance = queries.get_gitlab_instance()
     secret_reader = SecretReader(settings=settings)
@@ -1611,14 +1611,14 @@ def app_interface_open_selfserviceable_mr_queue(ctx):
 
 @get.command()
 @click.pass_context
-def change_types(ctx):
+def change_types(ctx) -> None:
     """List all change types."""
     change_types = fetch_change_type_processors(gql.get_api(), NoOpFileDiffResolver())
 
     usage_statistics: dict[str, int] = defaultdict(int)
     roles = fetch_self_service_roles(gql.get_api())
     for r in roles:
-        for ss in r.self_service:
+        for ss in r.self_service or []:
             nr_files = len(ss.datafiles or []) + len(ss.resources or [])
             usage_statistics[ss.change_type.name] += nr_files
     data = []
