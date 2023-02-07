@@ -31,7 +31,9 @@ query GlitchtipInstance {
   instances: glitchtip_instances_v1 {
     name
     consoleUrl
-    automationUserEmail
+    automationUserEmail {
+      ...VaultSecret
+    }
     automationToken {
       ...VaultSecret
     }
@@ -43,7 +45,7 @@ query GlitchtipInstance {
 class GlitchtipInstanceV1(BaseModel):
     name: str = Field(..., alias="name")
     console_url: str = Field(..., alias="consoleUrl")
-    automation_user_email: str = Field(..., alias="automationUserEmail")
+    automation_user_email: VaultSecret = Field(..., alias="automationUserEmail")
     automation_token: VaultSecret = Field(..., alias="automationToken")
 
     class Config:

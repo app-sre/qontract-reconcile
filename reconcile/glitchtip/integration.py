@@ -153,10 +153,18 @@ def run(dry_run: bool, instance: Optional[str] = None) -> None:
             read_timeout=read_timeout,
             max_retries=max_retries,
         )
+        automation_user_email = secret_reader.read(
+            {
+                "path": glitchtip_instance.automation_user_email.path,
+                "field": glitchtip_instance.automation_user_email.field,
+                "format": glitchtip_instance.automation_user_email.q_format,
+                "version": glitchtip_instance.automation_user_email.version,
+            }
+        )
         current_state = fetch_current_state(
             glitchtip_client=glitchtip_client,
             # the automation user isn't managed by app-interface (chicken - egg problem), so just ignore it
-            ignore_users=[glitchtip_instance.automation_user_email],
+            ignore_users=[automation_user_email],
         )
         desired_state = fetch_desired_state(
             glitchtip_projects=[
