@@ -553,6 +553,18 @@ def init_working_dirs(
     return ts, working_dirs
 
 
+def filter_accounts_by_name(
+    accounts: Iterable[Mapping[str, Any]], filter: Iterable[str]
+) -> Collection[Mapping[str, Any]]:
+    return [ac for ac in accounts if ac["name"] in filter]
+
+
+def exclude_accounts_by_name(
+    accounts: Iterable[Mapping[str, Any]], filter: Iterable[str]
+) -> Collection[Mapping[str, Any]]:
+    return [ac for ac in accounts if ac["name"] not in filter]
+
+
 def setup(
     dry_run: bool,
     print_to_file: str,
@@ -564,9 +576,12 @@ def setup(
 ) -> tuple[ResourceInventory, OC_Map, Terraform, ExternalResourceSpecInventory]:
     accounts = queries.get_aws_accounts(terraform_state=True)
     if not account_names and exclude_accounts:
-        accounts = [ac for ac in accounts if ac["name"] not in exclude_accounts]
+        accounts = exclude_accounts_by_name(accounts, exclude_accounts)
+        if len(accounts) == 0:
+            raise ValueError("You have excluded all aws accounts, verify your input")
+        account_names = tuple(ac["name"] for ac in accounts)
     if account_names:
-        accounts = [n for n in accounts if n["name"] in account_names]
+        accounts = filter_accounts_by_name(accounts, account_names)
         if len(accounts) != len(account_names):
             # Some of the passed account names don't exist in app-interface
             acc_names = tuple(
