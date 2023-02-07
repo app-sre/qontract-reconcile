@@ -847,7 +847,7 @@ class TestConfigHashPromotionsValidation(TestCase):
         self.ig_patcher.stop()
         self.gfc_patcher.stop()
 
-    def test_config_hash_is_filled(self):
+    def test_config_hash_is_filled(self) -> None:
         """Ensures the get_config_diff_saas_file fills the promotion data
         on the publisher target. This data is used in publish_promotions
         method to add the hash to subscribed targets.

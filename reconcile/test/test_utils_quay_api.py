@@ -29,7 +29,7 @@ def test_create_or_update_team_default_payload(quay_api):
 
     quay_api.create_or_update_team(TEAM_NAME)
 
-    assert json.loads(responses.calls[0].request.body) == {"role": "member"}
+    assert json.loads(responses.calls[0].request.body) == {"role": "member"}  # type: ignore
 
 
 @responses.activate
@@ -42,7 +42,7 @@ def test_create_or_update_team_with_description(quay_api):
 
     quay_api.create_or_update_team(TEAM_NAME, description="This is a team")
 
-    assert json.loads(responses.calls[0].request.body) == {
+    assert json.loads(responses.calls[0].request.body) == {  # type: ignore
         "role": "member",
         "description": "This is a team",
     }

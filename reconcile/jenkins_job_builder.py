@@ -1,5 +1,6 @@
 import logging
 import sys
+from collections.abc import Callable
 from typing import Optional
 
 from reconcile import queries
@@ -102,19 +103,20 @@ def validate_repos_and_admins(jjb: JJB):
 
 @defer
 def run(
-    dry_run,
-    io_dir="throughput/",
-    print_only=False,
-    config_name=None,
-    job_name=None,
-    instance_name=None,
-    defer=None,
-):
+    dry_run: bool,
+    io_dir: str = "throughput/",
+    print_only: bool = False,
+    config_name: Optional[str] = None,
+    job_name: Optional[str] = None,
+    instance_name: Optional[str] = None,
+    defer: Optional[Callable] = None,
+) -> None:
     if not print_only and config_name is not None:
         raise Exception("--config-name must works with --print-only mode")
     secret_reader = SecretReader(queries.get_secret_reader_settings())
     jjb: JJB = init_jjb(secret_reader, instance_name, config_name, print_only)
-    defer(jjb.cleanup)
+    if defer:
+        defer(jjb.cleanup)
 
     if print_only:
         jjb.print_jobs(job_name=job_name)
