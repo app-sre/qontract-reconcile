@@ -1,0 +1,98 @@
+# qenerate: plugin=pydantic_v1
+
+query SkupperNetworks {
+  skupper_networks: skupper_network_v1 {
+    identifier
+    siteConfigDefaults {
+      clusterLocal
+      console
+      consoleAuthentication
+      consoleIngress
+      controllerCpuLimit
+      controllerCpu
+      controllerMemoryLimit
+      controllerMemory
+      controllerPodAntiaffinity
+      controllerServiceAnnotations
+      edge
+      ingress
+      routerConsole
+      routerCpuLimit
+      routerCpu
+      routerMemoryLimit
+      routerMemory
+      routerLogging
+      routerPodAntiaffinity
+      routerServiceAnnotations
+      routers
+      serviceController
+      serviceSync
+      skupperSiteController
+    }
+    namespaces {
+      name
+      delete
+      skupperSite {
+        delete
+        config {
+          clusterLocal
+          console
+          consoleAuthentication
+          consoleIngress
+          controllerCpuLimit
+          controllerCpu
+          controllerMemoryLimit
+          controllerMemory
+          controllerPodAntiaffinity
+          controllerServiceAnnotations
+          edge
+          ingress
+          routerConsole
+          routerCpuLimit
+          routerCpu
+          routerMemoryLimit
+          routerMemory
+          routerLogging
+          routerPodAntiaffinity
+          routerServiceAnnotations
+          routers
+          serviceController
+          serviceSync
+        }
+      }
+      cluster {
+        name
+        serverUrl
+        insecureSkipTLSVerify
+        jumpHost {
+          ...CommonJumphostFields
+        }
+        spec {
+          private
+        }
+        automationToken {
+          ...VaultSecret
+        }
+        internal
+        disable {
+          integrations
+        }
+        peering {
+          connections {
+            provider
+            ... on ClusterPeeringConnectionClusterRequester_v1 {
+              cluster {
+                name
+              }
+            }
+            ... on ClusterPeeringConnectionClusterAccepter_v1 {
+              cluster {
+                name
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

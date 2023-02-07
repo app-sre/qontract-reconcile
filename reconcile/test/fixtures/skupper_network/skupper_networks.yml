@@ -1,0 +1,564 @@
+skupper_networks:
+  - identifier: small
+    siteConfigDefaults:
+      clusterLocal: null
+      console: null
+      consoleAuthentication: null
+      consoleIngress: null
+      controllerCpuLimit: null
+      controllerCpu: null
+      controllerMemoryLimit: null
+      controllerMemory: null
+      controllerPodAntiaffinity: null
+      controllerServiceAnnotations: null
+      edge: null
+      ingress: null
+      routerConsole: null
+      routerCpuLimit: null
+      routerCpu: null
+      routerMemoryLimit: "1Gi"
+      routerMemory: null
+      routerLogging: null
+      routerPodAntiaffinity: null
+      routerServiceAnnotations: null
+      routers: null
+      serviceController: null
+      serviceSync: null
+      skupperSiteController: "quay.io/skupper/site-controller:1.2.0"
+    namespaces:
+      - name: site-1
+        delete: null
+        skupperSite:
+          delete: null
+          config:
+            clusterLocal: null
+            console: null
+            consoleAuthentication: null
+            consoleIngress: null
+            controllerCpuLimit: null
+            controllerCpu: null
+            controllerMemoryLimit: null
+            controllerMemory: null
+            controllerPodAntiaffinity: null
+            controllerServiceAnnotations: null
+            edge: null
+            ingress: null
+            routerConsole: null
+            routerCpuLimit: null
+            routerCpu: null
+            routerMemoryLimit: "1Gi"
+            routerMemory: null
+            routerLogging: null
+            routerPodAntiaffinity: null
+            routerServiceAnnotations: null
+            routers: 1
+            serviceController: null
+            serviceSync: null
+        cluster:
+          name: small-1
+          serverUrl: "https://api.small-1"
+          insecureSkipTLSVerify: null
+          jumpHost: null
+          spec:
+            private: false
+          automationToken:
+            path: creds/kube-configs/small-1
+            field: token
+            version: null
+            format: null
+          internal: false
+          disable: null
+          peering:
+            connections:
+              - provider: account-vpc-mesh
+      - name: site-2
+        delete: null
+        skupperSite:
+          delete: null
+          config:
+            clusterLocal: null
+            console: null
+            consoleAuthentication: null
+            consoleIngress: null
+            controllerCpuLimit: null
+            controllerCpu: null
+            controllerMemoryLimit: null
+            controllerMemory: null
+            controllerPodAntiaffinity: null
+            controllerServiceAnnotations: null
+            edge: null
+            ingress: null
+            routerConsole: null
+            routerCpuLimit: null
+            routerCpu: null
+            routerMemoryLimit: "1Gi"
+            routerMemory: null
+            routerLogging: null
+            routerPodAntiaffinity: null
+            routerServiceAnnotations: null
+            routers: 1
+            serviceController: null
+            serviceSync: null
+        cluster:
+          name: small-2
+          serverUrl: "https://api.small-2"
+          insecureSkipTLSVerify: null
+          jumpHost: null
+          spec:
+            private: false
+          automationToken:
+            path: creds/kube-configs/small-2
+            field: token
+            version: null
+            format: null
+          internal: false
+          disable: null
+          peering:
+            connections:
+              - provider: account-vpc-mesh
+
+  - identifier: advanced
+    siteConfigDefaults:
+      clusterLocal: null
+      console: null
+      consoleAuthentication: null
+      consoleIngress: null
+      controllerCpuLimit: null
+      controllerCpu: null
+      controllerMemoryLimit: null
+      controllerMemory: null
+      controllerPodAntiaffinity: null
+      controllerServiceAnnotations: null
+      edge: null
+      ingress: null
+      routerConsole: null
+      routerCpuLimit: null
+      routerCpu: null
+      routerMemoryLimit: "1Gi"
+      routerMemory: null
+      routerLogging: null
+      routerPodAntiaffinity: null
+      routerServiceAnnotations: null
+      routers: null
+      serviceController: null
+      serviceSync: null
+      skupperSiteController: "quay.io/skupper/site-controller:1.2.0"
+    namespaces:
+      - name: public-1
+        delete: null
+        skupperSite:
+          delete: null
+          config:
+            clusterLocal: null
+            console: null
+            consoleAuthentication: null
+            consoleIngress: null
+            controllerCpuLimit: null
+            controllerCpu: null
+            controllerMemoryLimit: null
+            controllerMemory: null
+            controllerPodAntiaffinity: null
+            controllerServiceAnnotations: null
+            edge: null
+            ingress: null
+            routerConsole: null
+            routerCpuLimit: null
+            routerCpu: null
+            routerMemoryLimit: "1Gi"
+            routerMemory: null
+            routerLogging: null
+            routerPodAntiaffinity: null
+            routerServiceAnnotations: null
+            routers: 1
+            serviceController: null
+            serviceSync: null
+        cluster:
+          name: public-1
+          serverUrl: "https://api.public-1"
+          insecureSkipTLSVerify: null
+          jumpHost: null
+          spec:
+            private: false
+          automationToken:
+            path: creds/kube-configs/public-1
+            field: token
+            version: null
+            format: null
+          internal: false
+          disable: null
+          peering:
+            connections:
+              - provider: account-vpc-mesh
+
+      - name: public-2
+        delete: null
+        skupperSite:
+          delete: null
+          config:
+            clusterLocal: null
+            console: null
+            consoleAuthentication: null
+            consoleIngress: null
+            controllerCpuLimit: null
+            controllerCpu: null
+            controllerMemoryLimit: null
+            controllerMemory: null
+            controllerPodAntiaffinity: null
+            controllerServiceAnnotations: null
+            edge: null
+            ingress: null
+            routerConsole: null
+            routerCpuLimit: null
+            routerCpu: null
+            routerMemoryLimit: "1Gi"
+            routerMemory: null
+            routerLogging: null
+            routerPodAntiaffinity: null
+            routerServiceAnnotations: null
+            routers: 1
+            serviceController: null
+            serviceSync: null
+        cluster:
+          name: public-2
+          serverUrl: "https://api.public-2"
+          insecureSkipTLSVerify: null
+          jumpHost: null
+          spec:
+            private: false
+          automationToken:
+            path: creds/kube-configs/public-2
+            field: token
+            version: null
+            format: null
+          internal: false
+          disable: null
+          peering:
+            connections:
+              - provider: account-vpc-mesh
+
+      - name: edge-1
+        delete: null
+        skupperSite:
+          delete: null
+          config:
+            clusterLocal: null
+            console: null
+            consoleAuthentication: null
+            consoleIngress: null
+            controllerCpuLimit: null
+            controllerCpu: null
+            controllerMemoryLimit: null
+            controllerMemory: null
+            controllerPodAntiaffinity: null
+            controllerServiceAnnotations: null
+            edge: true
+            ingress: null
+            routerConsole: null
+            routerCpuLimit: null
+            routerCpu: null
+            routerMemoryLimit: "1Gi"
+            routerMemory: null
+            routerLogging: null
+            routerPodAntiaffinity: null
+            routerServiceAnnotations: null
+            routers: 2
+            serviceController: null
+            serviceSync: null
+        cluster:
+          name: internal-1
+          serverUrl: "https://api.internal-1"
+          insecureSkipTLSVerify: null
+          jumpHost: null
+          spec:
+            private: false
+          automationToken:
+            path: creds/kube-configs/internal-1
+            field: token
+            version: null
+            format: null
+          internal: true
+          disable: null
+          peering:
+            connections:
+              - provider: account-vpc-mesh
+
+      - name: edge-2
+        delete: null
+        skupperSite:
+          delete: null
+          config:
+            clusterLocal: null
+            console: null
+            consoleAuthentication: null
+            consoleIngress: null
+            controllerCpuLimit: null
+            controllerCpu: null
+            controllerMemoryLimit: null
+            controllerMemory: null
+            controllerPodAntiaffinity: null
+            controllerServiceAnnotations: null
+            edge: true
+            ingress: null
+            routerConsole: null
+            routerCpuLimit: null
+            routerCpu: null
+            routerMemoryLimit: "1Gi"
+            routerMemory: null
+            routerLogging: null
+            routerPodAntiaffinity: null
+            routerServiceAnnotations: null
+            routers: 1
+            serviceController: null
+            serviceSync: null
+        cluster:
+          name: internal-2
+          serverUrl: "https://api.internal-2"
+          insecureSkipTLSVerify: null
+          jumpHost: null
+          spec:
+            private: false
+          automationToken:
+            path: creds/kube-configs/internal-2
+            field: token
+            version: null
+            format: null
+          internal: true
+          disable: null
+          peering:
+            connections:
+              - provider: account-vpc-mesh
+
+      - name: private-1
+        delete: null
+        skupperSite:
+          delete: null
+          config:
+            clusterLocal: null
+            console: null
+            consoleAuthentication: null
+            consoleIngress: null
+            controllerCpuLimit: null
+            controllerCpu: null
+            controllerMemoryLimit: null
+            controllerMemory: null
+            controllerPodAntiaffinity: null
+            controllerServiceAnnotations: null
+            edge: null
+            ingress: null
+            routerConsole: null
+            routerCpuLimit: null
+            routerCpu: null
+            routerMemoryLimit: "1Gi"
+            routerMemory: null
+            routerLogging: null
+            routerPodAntiaffinity: null
+            routerServiceAnnotations: null
+            routers: 1
+            serviceController: null
+            serviceSync: null
+        cluster:
+          name: private-1
+          serverUrl: "https://api.private-1"
+          insecureSkipTLSVerify: null
+          jumpHost: null
+          spec:
+            private: true
+          automationToken:
+            path: creds/kube-configs/private-1
+            field: token
+            version: null
+            format: null
+          internal: false
+          disable: null
+          peering:
+            connections:
+              - provider: account-vpc-mesh
+
+      - name: private-2
+        delete: null
+        skupperSite:
+          delete: null
+          config:
+            clusterLocal: null
+            console: null
+            consoleAuthentication: null
+            consoleIngress: null
+            controllerCpuLimit: null
+            controllerCpu: null
+            controllerMemoryLimit: null
+            controllerMemory: null
+            controllerPodAntiaffinity: null
+            controllerServiceAnnotations: null
+            edge: null
+            ingress: null
+            routerConsole: null
+            routerCpuLimit: null
+            routerCpu: null
+            routerMemoryLimit: "1Gi"
+            routerMemory: null
+            routerLogging: null
+            routerPodAntiaffinity: null
+            routerServiceAnnotations: null
+            routers: 1
+            serviceController: null
+            serviceSync: null
+        cluster:
+          name: private-2
+          serverUrl: "https://api.private-2"
+          insecureSkipTLSVerify: null
+          jumpHost: null
+          spec:
+            private: false
+          automationToken:
+            path: creds/kube-configs/private-2
+            field: token
+            version: null
+            format: null
+          internal: false
+          disable: null
+          peering:
+            connections:
+              - provider: account-vpc-mesh
+              - provider: cluster-vpc-requester
+                cluster:
+                  name: private-1
+
+      - name: delete-1
+        delete: true
+        skupperSite:
+          delete: null
+          config:
+            clusterLocal: null
+            console: null
+            consoleAuthentication: null
+            consoleIngress: null
+            controllerCpuLimit: null
+            controllerCpu: null
+            controllerMemoryLimit: null
+            controllerMemory: null
+            controllerPodAntiaffinity: null
+            controllerServiceAnnotations: null
+            edge: null
+            ingress: null
+            routerConsole: null
+            routerCpuLimit: null
+            routerCpu: null
+            routerMemoryLimit: "1Gi"
+            routerMemory: null
+            routerLogging: null
+            routerPodAntiaffinity: null
+            routerServiceAnnotations: null
+            routers: 1
+            serviceController: null
+            serviceSync: null
+        cluster:
+          name: public-1
+          serverUrl: "https://api.public-1"
+          insecureSkipTLSVerify: null
+          jumpHost: null
+          spec:
+            private: false
+          automationToken:
+            path: creds/kube-configs/public-1
+            field: token
+            version: null
+            format: null
+          internal: false
+          disable: null
+          peering:
+            connections:
+              - provider: account-vpc-mesh
+
+      - name: delete-2
+        delete: null
+        skupperSite:
+          delete: true
+          config:
+            clusterLocal: null
+            console: null
+            consoleAuthentication: null
+            consoleIngress: null
+            controllerCpuLimit: null
+            controllerCpu: null
+            controllerMemoryLimit: null
+            controllerMemory: null
+            controllerPodAntiaffinity: null
+            controllerServiceAnnotations: null
+            edge: null
+            ingress: null
+            routerConsole: null
+            routerCpuLimit: null
+            routerCpu: null
+            routerMemoryLimit: "1Gi"
+            routerMemory: null
+            routerLogging: null
+            routerPodAntiaffinity: null
+            routerServiceAnnotations: null
+            routers: 1
+            serviceController: null
+            serviceSync: null
+        cluster:
+          name: public-1
+          serverUrl: "https://api.public-1"
+          insecureSkipTLSVerify: null
+          jumpHost: null
+          spec:
+            private: false
+          automationToken:
+            path: creds/kube-configs/public-1
+            field: token
+            version: null
+            format: null
+          internal: false
+          disable: null
+          peering:
+            connections:
+              - provider: account-vpc-mesh
+
+      - name: disabled-1
+        delete: null
+        skupperSite:
+          delete: null
+          config:
+            clusterLocal: null
+            console: null
+            consoleAuthentication: null
+            consoleIngress: null
+            controllerCpuLimit: null
+            controllerCpu: null
+            controllerMemoryLimit: null
+            controllerMemory: null
+            controllerPodAntiaffinity: null
+            controllerServiceAnnotations: null
+            edge: null
+            ingress: null
+            routerConsole: null
+            routerCpuLimit: null
+            routerCpu: null
+            routerMemoryLimit: "1Gi"
+            routerMemory: null
+            routerLogging: null
+            routerPodAntiaffinity: null
+            routerServiceAnnotations: null
+            routers: 1
+            serviceController: null
+            serviceSync: null
+        cluster:
+          name: disabled-1
+          serverUrl: "https://api.disabled-1"
+          insecureSkipTLSVerify: null
+          jumpHost: null
+          spec:
+            private: false
+          automationToken:
+            path: creds/kube-configs/disabled-1
+            field: token
+            version: null
+            format: null
+          internal: false
+          disable:
+            integrations:
+              - skupper-network
+          peering:
+            connections:
+              - provider: account-vpc-mesh

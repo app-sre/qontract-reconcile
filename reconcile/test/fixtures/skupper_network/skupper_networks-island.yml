@@ -1,0 +1,73 @@
+skupper_networks:
+  - identifier: small
+    siteConfigDefaults:
+      clusterLocal: null
+      console: null
+      consoleAuthentication: null
+      consoleIngress: null
+      controllerCpuLimit: null
+      controllerCpu: null
+      controllerMemoryLimit: null
+      controllerMemory: null
+      controllerPodAntiaffinity: null
+      controllerServiceAnnotations: null
+      edge: null
+      ingress: null
+      routerConsole: null
+      routerCpuLimit: null
+      routerCpu: null
+      routerMemoryLimit: "1Gi"
+      routerMemory: null
+      routerLogging: null
+      routerPodAntiaffinity: null
+      routerServiceAnnotations: null
+      routers: null
+      serviceController: null
+      serviceSync: null
+      skupperSiteController: "quay.io/skupper/site-controller:1.2.0"
+    namespaces:
+      - name: site-1
+        delete: null
+        skupperSite:
+          delete: null
+          config:
+            clusterLocal: null
+            console: null
+            consoleAuthentication: null
+            consoleIngress: null
+            controllerCpuLimit: null
+            controllerCpu: null
+            controllerMemoryLimit: null
+            controllerMemory: null
+            controllerPodAntiaffinity: null
+            controllerServiceAnnotations: null
+            edge: null
+            ingress: null
+            routerConsole: null
+            routerCpuLimit: null
+            routerCpu: null
+            routerMemoryLimit: "1Gi"
+            routerMemory: null
+            routerLogging: null
+            routerPodAntiaffinity: null
+            routerServiceAnnotations: null
+            routers: 1
+            serviceController: null
+            serviceSync: null
+        cluster:
+          name: small-1
+          serverUrl: "https://api.small-1"
+          insecureSkipTLSVerify: null
+          jumpHost: null
+          spec:
+            private: false
+          automationToken:
+            path: creds/kube-configs/small-1
+            field: token
+            version: null
+            format: null
+          internal: false
+          disable: null
+          peering:
+            connections:
+              - provider: account-vpc-mesh
