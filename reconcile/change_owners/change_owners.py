@@ -192,6 +192,7 @@ def manage_conditional_label(
 def write_coverage_report_to_mr(
     self_serviceable: bool,
     change_decisions: list[ChangeDecision],
+    authoritative: bool,
     mr_id: int,
     gl: GitLabApi,
 ) -> None:
@@ -242,6 +243,8 @@ def write_coverage_report_to_mr(
     self_serviceability_hint = "All changes require an `/lgtm` from a listed approver "
     if not self_serviceable:
         self_serviceability_hint += "but <b>not all changes are self-serviceable and require AppSRE approval</b>"
+    if not authoritative:
+        self_serviceability_hint += "\n\nchanges outside of data and resources detected - <b>PAY EXTRA ATTENTION WHILE REVIEWING</b>\n\n"
     approver_reachability_hint = "Reach out to approvers for reviews"
     if approver_reachability:
         approver_reachability_hint += " on\n" + "\n".join(
@@ -413,7 +416,12 @@ def run(
 
         if mr_management_enabled:
             write_coverage_report_to_mr(
-                self_serviceable, change_decisions, gitlab_merge_request_id, gl
+                self_serviceable,
+                change_decisions,
+                change_type_processing_mode
+                == CHANGE_TYPE_PROCESSING_MODE_AUTHORITATIVE,
+                gitlab_merge_request_id,
+                gl,
             )
         write_coverage_report_to_stdout(change_decisions)
 
