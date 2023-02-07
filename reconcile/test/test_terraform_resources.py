@@ -29,6 +29,22 @@ def test_cannot_pass_two_aws_account_if_not_dry_run():
     )
 
 
+def test_filter_accounts_by_name():
+    accounts = [{"name": "a"}, {"name": "b"}, {"name": "c"}]
+
+    filtered = integ.filter_accounts_by_name(accounts, filter=("a", "b"))
+
+    assert filtered == [{"name": "a"}, {"name": "b"}]
+
+
+def test_exclude_accounts_by_name():
+    accounts = [{"name": "a"}, {"name": "b"}, {"name": "c"}]
+
+    filtered = integ.exclude_accounts_by_name(accounts, filter=("a", "b"))
+
+    assert filtered == [{"name": "c"}]
+
+
 def test_cannot_pass_invalid_aws_account(mocker):
     mocker.patch(
         "reconcile.queries.get_aws_accounts",
