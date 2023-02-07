@@ -17,7 +17,16 @@ cluster:
   disable: null
   insecureSkipTLSVerify: null
   internal: false
-  jumpHost: null
+  jumpHost:
+    hostname: jumphost
+    identity:
+      field: identity
+      format: base64
+      path: jumphost-secret
+      version: null
+    knownHosts: /path/to/file
+    port: null
+    user: jumphost-user
   name: test-cluster
   serverUrl: server-url
 clusterAdmin: true
