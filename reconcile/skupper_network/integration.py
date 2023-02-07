@@ -223,7 +223,7 @@ def run(
     # data query
     skupper_networks = get_skupper_networks(gqlapi.query)
     if not skupper_networks:
-        logging.info("No skupper networks found. Exiting...")
+        logging.debug("No skupper networks found. Exiting...")
         return
     skupper_sites = compile_skupper_sites(skupper_networks)
 
