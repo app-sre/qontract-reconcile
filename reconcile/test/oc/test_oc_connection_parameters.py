@@ -11,7 +11,7 @@ from reconcile.utils.secret_reader import SecretReaderBase
 
 
 @pytest.mark.parametrize(
-    "cluster,expected_parameters",
+    "cluster, expected_parameters",
     [
         (
             "cluster_no_jumphost",
@@ -65,7 +65,7 @@ def test_from_cluster(cluster: str, expected_parameters: OCConnectionParameters)
 
 
 @pytest.mark.parametrize(
-    "namespace,expected_parameters",
+    "namespace, expected_parameters",
     [
         (
             "namespace_no_admin",

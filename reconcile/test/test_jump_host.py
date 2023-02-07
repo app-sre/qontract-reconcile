@@ -21,7 +21,7 @@ EXPECTED_KNOWN_HOSTS_CONTENT = "known-hosts-file-content"
 
 
 @pytest.mark.parametrize(
-    "parameters,expected_port",
+    "parameters, expected_port",
     [
         (
             # Jumphost with default port
@@ -64,7 +64,7 @@ def test_base_jumphost(fs: Any, parameters: JumphostParameters, expected_port: i
 
 
 @pytest.mark.parametrize(
-    "parameters,local_port,remote_port",
+    "parameters, local_port, remote_port",
     [
         (
             # Jumphost without remote or local port set
