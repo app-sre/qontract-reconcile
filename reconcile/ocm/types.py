@@ -87,9 +87,9 @@ class OCMSpec(BaseModel):
     spec: Union[OSDClusterSpec, ROSAClusterSpec, OCMClusterSpec]
     network: OCMClusterNetwork
     domain: Optional[str]
-    server_url: str = Field(None, alias="serverUrl")
-    console_url: str = Field(None, alias="consoleUrl")
-    elb_fqdn: str = Field(None, alias="elbFQDN")
+    server_url: str = Field("", alias="serverUrl")
+    console_url: str = Field("", alias="consoleUrl")
+    elb_fqdn: str = Field("", alias="elbFQDN")
 
     class Config:
         smart_union = True
