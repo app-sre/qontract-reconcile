@@ -3,8 +3,8 @@ import random
 import shutil
 import tempfile
 import threading
-from typing import Optional
 from dataclasses import dataclass
+from typing import Optional
 
 from sshtunnel import SSHTunnelForwarder
 
@@ -71,6 +71,10 @@ class JumpHostSSH(JumpHostBase):
         )
         self._remote_port = parameters.remote_port
 
+    @property
+    def local_port(self) -> Optional[int]:
+        return self._local_port
+
     @staticmethod
     def get_unique_random_port():
         with JumpHostSSH.tunnel_lock:
@@ -80,7 +84,7 @@ class JumpHostSSH(JumpHostBase):
             JumpHostSSH.local_ports.append(port)
             return port
 
-    def _get_known_hosts(known_hosts_path: str) -> str:
+    def _get_known_hosts(self, known_hosts_path: str) -> str:
         gqlapi = gql.get_api()
 
         try:

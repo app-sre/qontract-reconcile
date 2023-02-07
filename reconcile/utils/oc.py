@@ -47,8 +47,10 @@ from sretoolbox.utils import (
 )
 
 from reconcile.status import RunningState
-from reconcile.utils.jump_host import JumpHostSSH
-from reconcile.utils.jump_host import JumphostParameters, JumpHostSSH
+from reconcile.utils.jump_host import (
+    JumphostParameters,
+    JumpHostSSH,
+)
 from reconcile.utils.metrics import reconcile_time
 from reconcile.utils.secret_reader import (
     SecretNotFound,

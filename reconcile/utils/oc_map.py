@@ -13,9 +13,9 @@ from typing import (
 
 from sretoolbox.utils import threaded
 
+from reconcile.utils.jump_host import JumpHostSSH
 from reconcile.utils.oc import (
     OC,
-    JumpHostSSH,
     OCDeprecated,
     OCLogMsg,
     StatusCodeError,

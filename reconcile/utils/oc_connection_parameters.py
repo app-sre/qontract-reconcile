@@ -27,7 +27,7 @@ class Jumphost(Protocol):
     port: Optional[int]
     known_hosts: str
     user: str
-    
+
     @property
     def identity(self) -> HasSecret:
         ...
@@ -126,7 +126,6 @@ class OCConnectionParameters:
                     f"[{cluster.name}] jumphost secret {jh.identity} not found"
                 )
                 raise e
-
 
         return OCConnectionParameters(
             cluster_name=cluster.name,
