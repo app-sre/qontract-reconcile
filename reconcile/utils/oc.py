@@ -277,10 +277,11 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
         self.jump_host = None
         if jh is not None:
             secret_reader = SecretReader(settings=settings)
-            key = secret_reader.read(jh["identity"])
+            key: bytes = secret_reader.read(jh["identity"])
+            decoded_key = key.decode("utf-8")
             jumphost_parameters = JumphostParameters(
                 hostname=jh["hostname"],
-                key=key,
+                key=decoded_key,
                 known_hosts=jh["knownHosts"],
                 local_port=jh.get("localPort"),
                 port=jh.get("port"),

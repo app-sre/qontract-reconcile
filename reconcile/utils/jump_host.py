@@ -18,8 +18,8 @@ DYNAMIC_PORT_MAX = 65535
 
 
 class HTTPStatusCodeError(Exception):
-    def __init__(self, msg):
-        super().__init__("HTTP status code error: " + str(msg))
+    def __init__(self, msg: str):
+        super().__init__("HTTP status code error: " + msg)
 
 
 @dataclass
@@ -41,16 +41,16 @@ class JumpHostBase:
         self._identity = parameters.key
         self._init_identity_file()
 
-    def _init_identity_file(self):
+    def _init_identity_file(self) -> None:
         self._identity_dir = tempfile.mkdtemp()
 
         identity_file = self._identity_dir + "/id"
         with open(identity_file, "w") as f:
-            f.write(self._identity.decode("utf-8"))
+            f.write(self._identity)
         os.chmod(identity_file, 0o600)
         self._identity_file = identity_file
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         shutil.rmtree(self._identity_dir)
 
 
@@ -59,9 +59,12 @@ class JumpHostSSH(JumpHostBase):
     local_ports: list[int] = []
     tunnel_lock = threading.Lock()
 
-    def __init__(self, parameters: JumphostParameters):
+    def __init__(
+        self, parameters: JumphostParameters, gql_api: Optional[gql.GqlApi] = None
+    ):
         JumpHostBase.__init__(self, parameters=parameters)
 
+        self._gql_api = gql.get_api() if gql_api is None else gql_api
         self._known_hosts = self._get_known_hosts(parameters.known_hosts)
         self._init_known_hosts_file()
         self._local_port = (
@@ -76,7 +79,7 @@ class JumpHostSSH(JumpHostBase):
         return self._local_port
 
     @staticmethod
-    def get_unique_random_port():
+    def get_unique_random_port() -> int:
         with JumpHostSSH.tunnel_lock:
             port = random.randint(DYNAMIC_PORT_MIN, DYNAMIC_PORT_MAX)
             while port in JumpHostSSH.local_ports:
@@ -85,22 +88,20 @@ class JumpHostSSH(JumpHostBase):
             return port
 
     def _get_known_hosts(self, known_hosts_path: str) -> str:
-        gqlapi = gql.get_api()
-
         try:
-            known_hosts = gqlapi.get_resource(known_hosts_path)
+            known_hosts = self._gql_api.get_resource(known_hosts_path)
         except gql.GqlGetResourceError as e:
             raise FetchResourceError(str(e))
         return known_hosts["content"]
 
-    def _init_known_hosts_file(self):
+    def _init_known_hosts_file(self) -> None:
         known_hosts_file = self._identity_dir + "/known_hosts"
         with open(known_hosts_file, "w") as f:
             f.write(self._known_hosts)
         os.chmod(known_hosts_file, 0o600)
         self.known_hosts_file = known_hosts_file
 
-    def get_ssh_base_cmd(self):
+    def get_ssh_base_cmd(self) -> list[str]:
         user_host = "{}@{}".format(self._user, self._hostname)
 
         return [
@@ -122,7 +123,7 @@ class JumpHostSSH(JumpHostBase):
             user_host,
         ]
 
-    def create_ssh_tunnel(self):
+    def create_ssh_tunnel(self) -> None:
         with JumpHostSSH.tunnel_lock:
             if self._local_port not in JumpHostSSH.bastion_tunnel:
                 # Hide connect messages from sshtunnel
@@ -138,7 +139,7 @@ class JumpHostSSH(JumpHostBase):
                     tunnel.start()
                 JumpHostSSH.bastion_tunnel[self._local_port] = tunnel
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         JumpHostBase.cleanup(self)
         with JumpHostSSH.tunnel_lock:
             tunnels = JumpHostSSH.bastion_tunnel
