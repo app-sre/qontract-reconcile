@@ -4,7 +4,9 @@ query GlitchtipInstance {
   instances: glitchtip_instances_v1 {
     name
     consoleUrl
-    automationUserEmail
+    automationUserEmail {
+      ...VaultSecret
+    }
     automationToken {
       ...VaultSecret
     }

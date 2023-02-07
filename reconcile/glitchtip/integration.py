@@ -142,21 +142,16 @@ def run(dry_run: bool, instance: Optional[str] = None) -> None:
 
         glitchtip_client = GlitchtipClient(
             host=glitchtip_instance.console_url,
-            token=secret_reader.read(
-                {
-                    "path": glitchtip_instance.automation_token.path,
-                    "field": glitchtip_instance.automation_token.field,
-                    "format": glitchtip_instance.automation_token.q_format,
-                    "version": glitchtip_instance.automation_token.version,
-                }
-            ),
+            token=secret_reader.read_secret(glitchtip_instance.automation_token),
             read_timeout=read_timeout,
             max_retries=max_retries,
         )
         current_state = fetch_current_state(
             glitchtip_client=glitchtip_client,
             # the automation user isn't managed by app-interface (chicken - egg problem), so just ignore it
-            ignore_users=[glitchtip_instance.automation_user_email],
+            ignore_users=[
+                secret_reader.read_secret(glitchtip_instance.automation_user_email)
+            ],
         )
         desired_state = fetch_desired_state(
             glitchtip_projects=[
