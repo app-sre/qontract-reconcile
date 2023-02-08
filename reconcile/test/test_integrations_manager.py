@@ -384,13 +384,7 @@ def test_initialize_shard_specs_no_shards(
     """
     intop.initialize_shard_specs(collected_namespaces_env_test1, shard_manager)
     expected = [
-        {
-            "shard_id": "0",
-            "shards": "1",
-            "shard_name": "",
-            "shard_name_suffix": "",
-            "extra_args": "",
-        }
+        {"shard_id": "0", "shards": "1", "shard_name_suffix": "", "extra_args": ""}
     ]
     assert (
         expected
@@ -408,20 +402,8 @@ def test_initialize_shard_specs_two_shards(
     collected_namespaces_env_test1[0]["integration_specs"][0]["shards"] = 2
     intop.initialize_shard_specs(collected_namespaces_env_test1, shard_manager)
     expected = [
-        {
-            "shard_id": "0",
-            "shards": "2",
-            "shard_name": "0",
-            "shard_name_suffix": "-0",
-            "extra_args": "",
-        },
-        {
-            "shard_id": "1",
-            "shards": "2",
-            "shard_name": "1",
-            "shard_name_suffix": "-1",
-            "extra_args": "",
-        },
+        {"shard_id": "0", "shards": "2", "shard_name_suffix": "-0", "extra_args": ""},
+        {"shard_id": "1", "shards": "2", "shard_name_suffix": "-1", "extra_args": ""},
     ]
     assert (
         expected
@@ -442,20 +424,8 @@ def test_initialize_shard_specs_two_shards_explicit(
     collected_namespaces_env_test1[0]["integration_specs"][0]["shards"] = 2
     intop.initialize_shard_specs(collected_namespaces_env_test1, shard_manager)
     expected = [
-        {
-            "shard_id": "0",
-            "shards": "2",
-            "shard_name": "0",
-            "shard_name_suffix": "-0",
-            "extra_args": "",
-        },
-        {
-            "shard_id": "1",
-            "shards": "2",
-            "shard_name": "1",
-            "shard_name_suffix": "-1",
-            "extra_args": "",
-        },
+        {"shard_id": "0", "shards": "2", "shard_name_suffix": "-0", "extra_args": ""},
+        {"shard_id": "1", "shards": "2", "shard_name_suffix": "-1", "extra_args": ""},
     ]
     assert (
         expected
@@ -477,19 +447,16 @@ def test_initialize_shard_specs_aws_account_shards(
     intop.initialize_shard_specs(collected_namespaces_env_test1, shard_manager)
     expected = [
         {
-            "shard_name": "acc-1",
             "shard_name_suffix": "-acc-1",
             "shard_key": "acc-1",
             "extra_args": "--account-name acc-1",
         },
         {
-            "shard_name": "acc-2",
             "shard_name_suffix": "-acc-2",
             "shard_key": "acc-2",
             "extra_args": "--account-name acc-2",
         },
         {
-            "shard_name": "acc-3",
             "shard_name_suffix": "-acc-3",
             "shard_key": "acc-3",
             "extra_args": "--account-name acc-3",
@@ -515,19 +482,16 @@ def test_initialize_shard_specs_extra_arg_agregation(
     intop.initialize_shard_specs(collected_namespaces_env_test1, shard_manager)
     expected = [
         {
-            "shard_name": "acc-1",
             "shard_name_suffix": "-acc-1",
             "shard_key": "acc-1",
             "extra_args": "--arg --account-name acc-1",
         },
         {
-            "shard_name": "acc-2",
             "shard_name_suffix": "-acc-2",
             "shard_key": "acc-2",
             "extra_args": "--arg --account-name acc-2",
         },
         {
-            "shard_name": "acc-3",
             "shard_name_suffix": "-acc-3",
             "shard_key": "acc-3",
             "extra_args": "--arg --account-name acc-3",
@@ -653,102 +617,3 @@ def test_collect_managed_integrations_all(integrations):
     assert "integ3" in found
 
     assert len([i for i in found if i == "integ2"]) == 2
-
-
-def test_match_labels_for_workloads(
-    collected_namespaces_env_test1: list[dict[str, Any]],
-    shard_manager: intop.IntegrationShardManager,
-):
-    intop.initialize_shard_specs(collected_namespaces_env_test1, shard_manager)
-    ri = ResourceInventory()
-    ri.initialize_resource_type("cl1", "ns1", "Deployment")
-    ri.initialize_resource_type("cl1", "ns1", "Service")
-    intop.fetch_desired_state(
-        namespaces=collected_namespaces_env_test1,
-        ri=ri,
-        image_tag_from_ref=None,
-        environment_override_mapping={"test1": {}},
-    )
-
-    deployment = ri.get_desired("cl1", "ns1", "Deployment", "qontract-reconcile-integ1")
-    assert deployment
-    match_labels = deployment.body["spec"]["selector"]["matchLabels"]
-    assert match_labels.keys() == {"app"}
-    assert match_labels["app"] == "qontract-reconcile-integ1"
-    pod_template_labels = deployment.body["spec"]["template"]["metadata"]["labels"]
-    assert pod_template_labels.keys() == {
-        "app",
-        "component",
-    }
-    assert pod_template_labels["app"] == "qontract-reconcile-integ1"
-    assert pod_template_labels["component"] == "qontract-reconcile"
-
-
-def test_match_labels_for_string_sharded_workloads(
-    collected_namespaces_env_test1: list[dict[str, Any]],
-    shard_manager: intop.IntegrationShardManager,
-):
-    collected_namespaces_env_test1[0]["integration_specs"][0][
-        "shardingStrategy"
-    ] = "per-aws-account"
-    intop.initialize_shard_specs(collected_namespaces_env_test1, shard_manager)
-    ri = ResourceInventory()
-    ri.initialize_resource_type("cl1", "ns1", "Deployment")
-    ri.initialize_resource_type("cl1", "ns1", "Service")
-    intop.fetch_desired_state(
-        namespaces=collected_namespaces_env_test1,
-        ri=ri,
-        image_tag_from_ref=None,
-        environment_override_mapping={"test1": {}},
-    )
-
-    for acc in ["acc-1", "acc-2", "acc-3"]:
-        deployment = ri.get_desired(
-            "cl1", "ns1", "Deployment", f"qontract-reconcile-integ1-{acc}"
-        )
-        assert deployment
-        match_labels = deployment.body["spec"]["selector"]["matchLabels"]
-        assert match_labels == {
-            "app": "qontract-reconcile-integ1",
-            "qontract_reconcile_integration_shard": acc,
-        }
-        pod_template_labels = deployment.body["spec"]["template"]["metadata"]["labels"]
-        assert pod_template_labels == {
-            "app": "qontract-reconcile-integ1",
-            "qontract_reconcile_integration_shard": acc,
-            "component": "qontract-reconcile",
-        }
-
-
-def test_match_labels_for_number_sharded_workloads(
-    collected_namespaces_env_test1: list[dict[str, Any]],
-    shard_manager: intop.IntegrationShardManager,
-):
-    collected_namespaces_env_test1[0]["integration_specs"][0]["shards"] = 2
-    intop.initialize_shard_specs(collected_namespaces_env_test1, shard_manager)
-    ri = ResourceInventory()
-    ri.initialize_resource_type("cl1", "ns1", "Deployment")
-    ri.initialize_resource_type("cl1", "ns1", "Service")
-    intop.fetch_desired_state(
-        namespaces=collected_namespaces_env_test1,
-        ri=ri,
-        image_tag_from_ref=None,
-        environment_override_mapping={"test1": {}},
-    )
-
-    for shard in [0, 1]:
-        deployment = ri.get_desired(
-            "cl1", "ns1", "Deployment", f"qontract-reconcile-integ1-{shard}"
-        )
-        assert deployment
-        match_labels = deployment.body["spec"]["selector"]["matchLabels"]
-        assert match_labels == {
-            "app": "qontract-reconcile-integ1",
-            "qontract_reconcile_integration_shard": str(shard),
-        }
-        pod_template_labels = deployment.body["spec"]["template"]["metadata"]["labels"]
-        assert pod_template_labels == {
-            "app": "qontract-reconcile-integ1",
-            "qontract_reconcile_integration_shard": str(shard),
-            "component": "qontract-reconcile",
-        }
