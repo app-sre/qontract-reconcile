@@ -684,7 +684,7 @@ def test_match_labels_for_workloads(
     assert pod_template_labels["component"] == "qontract-reconcile"
 
 
-def test_match_labels_for_sharded_workloads(
+def test_match_labels_for_string_sharded_workloads(
     collected_namespaces_env_test1: list[dict[str, Any]],
     shard_manager: intop.IntegrationShardManager,
 ):
@@ -708,15 +708,47 @@ def test_match_labels_for_sharded_workloads(
         )
         assert deployment
         match_labels = deployment.body["spec"]["selector"]["matchLabels"]
-        assert match_labels.keys() == {"app", "qontract_reconcile_integration_shard"}
-        assert match_labels["app"] == "qontract-reconcile-integ1"
-        assert match_labels["qontract_reconcile_integration_shard"] == acc
-        pod_template_labels = deployment.body["spec"]["template"]["metadata"]["labels"]
-        assert pod_template_labels.keys() == {
-            "app",
-            "qontract_reconcile_integration_shard",
-            "component",
+        assert match_labels == {
+            "app": "qontract-reconcile-integ1",
+            "qontract_reconcile_integration_shard": acc,
         }
-        assert pod_template_labels["app"] == "qontract-reconcile-integ1"
-        assert pod_template_labels["component"] == "qontract-reconcile"
-        assert pod_template_labels["qontract_reconcile_integration_shard"] == acc
+        pod_template_labels = deployment.body["spec"]["template"]["metadata"]["labels"]
+        assert pod_template_labels == {
+            "app": "qontract-reconcile-integ1",
+            "qontract_reconcile_integration_shard": acc,
+            "component": "qontract-reconcile",
+        }
+
+
+def test_match_labels_for_number_sharded_workloads(
+    collected_namespaces_env_test1: list[dict[str, Any]],
+    shard_manager: intop.IntegrationShardManager,
+):
+    collected_namespaces_env_test1[0]["integration_specs"][0]["shards"] = 2
+    intop.initialize_shard_specs(collected_namespaces_env_test1, shard_manager)
+    ri = ResourceInventory()
+    ri.initialize_resource_type("cl1", "ns1", "Deployment")
+    ri.initialize_resource_type("cl1", "ns1", "Service")
+    intop.fetch_desired_state(
+        namespaces=collected_namespaces_env_test1,
+        ri=ri,
+        image_tag_from_ref=None,
+        environment_override_mapping={"test1": {}},
+    )
+
+    for shard in [0, 1]:
+        deployment = ri.get_desired(
+            "cl1", "ns1", "Deployment", f"qontract-reconcile-integ1-{shard}"
+        )
+        assert deployment
+        match_labels = deployment.body["spec"]["selector"]["matchLabels"]
+        assert match_labels == {
+            "app": "qontract-reconcile-integ1",
+            "qontract_reconcile_integration_shard": str(shard),
+        }
+        pod_template_labels = deployment.body["spec"]["template"]["metadata"]["labels"]
+        assert pod_template_labels == {
+            "app": "qontract-reconcile-integ1",
+            "qontract_reconcile_integration_shard": str(shard),
+            "component": "qontract-reconcile",
+        }

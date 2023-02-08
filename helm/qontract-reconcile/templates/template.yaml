@@ -39,14 +39,14 @@ objects:
       matchLabels:
         app: qontract-reconcile-{{ $integration.name }}
         {{- if $shard.shard_name }}
-        qontract_reconcile_integration_shard: {{ $shard.shard_name }}
+        qontract_reconcile_integration_shard: "{{ $shard.shard_name }}"
         {{- end }}
     template:
       metadata:
         labels:
           app: qontract-reconcile-{{ $integration.name }}
           {{- if $shard.shard_name }}
-          qontract_reconcile_integration_shard: {{ $shard.shard_name }}
+          qontract_reconcile_integration_shard: "{{ $shard.shard_name }}"
           {{- end }}
           component: qontract-reconcile
       spec:
