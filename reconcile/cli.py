@@ -756,6 +756,14 @@ def jenkins_plugins(ctx):
     run_integration(reconcile.jenkins_plugins, ctx.obj)
 
 
+@integration.command(short_help="Manage Jenkins worker fleets via JCasC.")
+@click.pass_context
+def jenkins_worker_fleets(ctx):
+    import reconcile.jenkins_worker_fleets
+
+    run_integration(reconcile.jenkins_worker_fleets, ctx.obj)
+
+
 @integration.command(
     short_help="Manage Jenkins jobs configurations using jenkins-jobs."
 )

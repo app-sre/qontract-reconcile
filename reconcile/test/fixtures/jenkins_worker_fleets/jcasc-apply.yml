@@ -1,0 +1,66 @@
+jenkins:
+  clouds:
+  - eC2Fleet:
+      name: ci-int-jenkins-worker-app-interface
+      fleet: ci-int-jenkins-worker-app-interface
+      region: us-east-1
+      minSize: 3
+      maxSize: 9
+      computerConnector:
+        sSHConnector:
+          credentialsId: jenkins
+          port: 22
+          sshHostKeyVerificationStrategy: nonVerifyingKeyVerificationStrategy
+      fsRoot: "/var/lib/jenkins"
+      labelString: app-interface
+      numExecutors: 2
+      idleMinutes: 30
+      minSpareSize: 0
+      noDelayProvision: true
+      addNodeOnlyIfRunning: true
+      alwaysReconnect: false
+      privateIpUsed: true
+      restrictUsage: true
+  - eC2Fleet:
+      name: ci-int-jenkins-worker-app-sre
+      fleet: ci-int-jenkins-worker-app-sre
+      region: us-east-1
+      minSize: 1
+      maxSize: 1
+      computerConnector:
+        sSHConnector:
+          credentialsId: jenkins
+          port: 22
+          sshHostKeyVerificationStrategy: nonVerifyingKeyVerificationStrategy
+      fsRoot: "/var/lib/jenkins"
+      labelString: app-sre
+      numExecutors: 3
+      idleMinutes: 30
+      minSpareSize: 0
+      noDelayProvision: false
+      addNodeOnlyIfRunning: true
+      alwaysReconnect: false
+      privateIpUsed: true
+      restrictUsage: true
+  - eC2Fleet:
+      name: ci-int-jenkins-worker-rhel7
+      fleet: ci-int-jenkins-worker-rhel7
+      region: us-east-1
+      minSize: 1
+      maxSize: 1
+      computerConnector:
+        sSHConnector:
+          credentialsId: jenkins
+          port: 22
+          sshHostKeyVerificationStrategy: nonVerifyingKeyVerificationStrategy
+      fsRoot: "/var/lib/jenkins"
+      labelString: rhel7
+      numExecutors: 3
+      idleMinutes: 30
+      minSpareSize: 0
+      noDelayProvision: false
+      addNodeOnlyIfRunning: true
+      alwaysReconnect: false
+      privateIpUsed: true
+      restrictUsage: true
+

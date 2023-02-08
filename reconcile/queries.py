@@ -320,15 +320,50 @@ JENKINS_INSTANCES_QUERY = """
       name
       keep_hours
     }
+    {% if worker_fleets %}
+    workerFleets {
+      account
+      identifier
+      credentialsId
+      fsRoot
+      labelString
+      numExecutors
+      idleMinutes
+      minSpareSize
+      noDelayProvision
+      namespace{
+        name
+        managedExternalResources
+        externalResources {
+          provider
+          ... on NamespaceTerraformProviderResourceAWS_v1 {
+            provisioner {
+              name
+              resourcesDefaultRegion
+            }
+            resources {
+              provider
+              ... on NamespaceTerraformResourceASG_v1 {
+                identifier
+                defaults
+                overrides
+              }
+            }
+          }
+        }
+      }
+    }
+    {% endif %}
   }
 }
 """
 
 
-def get_jenkins_instances():
+def get_jenkins_instances(worker_fleets=False):
     """Returns a list of Jenkins instances"""
     gqlapi = gql.get_api()
-    return gqlapi.query(JENKINS_INSTANCES_QUERY)["instances"]
+    query = Template(JENKINS_INSTANCES_QUERY).render(worker_fleets=worker_fleets)
+    return gqlapi.query(query)["instances"]
 
 
 def get_jenkins_instances_previous_urls():

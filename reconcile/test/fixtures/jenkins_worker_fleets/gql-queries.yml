@@ -1,0 +1,92 @@
+gql_response:
+  instances:
+  - name: ci-int
+    workerFleets:
+    - account: app-sre
+      identifier: ci-int-jenkins-worker-app-interface
+      credentialsId: jenkins
+      fsRoot: "/var/lib/jenkins"
+      labelString: app-interface
+      numExecutors: 2
+      noDelayProvision: true
+      namespace:
+        name: app-sre-ci
+        managedExternalResources: true
+        externalResources:
+        - provider: aws
+          provisioner:
+            name: app-sre
+            resourcesDefaultRegion: us-east-1
+          resources:
+          - provider: aws-iam-service-account
+          - provider: asg
+            identifier: ci-int-jenkins-worker-app-interface
+            defaults: "/terraform/resources/app-sre/production/ci-int-asg-1.yml"
+            overrides: '{"min_size":3,"max_size":9}'
+    - account: app-sre
+      identifier: ci-int-jenkins-worker-app-sre
+      credentialsId: jenkins
+      fsRoot: "/var/lib/jenkins"
+      labelString: app-sre
+      numExecutors: 3
+      namespace:
+        name: app-sre-ci
+        managedExternalResources: true
+        externalResources:
+        - provider: aws
+          provisioner:
+            name: app-sre
+            resourcesDefaultRegion: us-east-1
+          resources:
+          - provider: aws-iam-service-account
+          - provider: asg
+            identifier: ci-int-jenkins-worker-app-sre
+            defaults: "/terraform/resources/app-sre/production/ci-int-asg-1.yml"
+    - account: app-sre
+      identifier: ci-int-jenkins-worker-rhel7
+      credentialsId: jenkins
+      fsRoot: "/var/lib/jenkins"
+      labelString: rhel7
+      numExecutors: 3
+      namespace:
+        name: app-sre-ci
+        managedExternalResources: true
+        externalResources:
+        - provider: aws
+          provisioner:
+            name: app-sre
+            resourcesDefaultRegion: us-east-1
+          resources:
+          - provider: aws-iam-service-account
+          - provider: asg
+            identifier: ci-int-jenkins-worker-rhel7
+            defaults: "/terraform/resources/app-sre/production/ci-int-asg-1.yml"
+  - name: ci-ext
+    workerFleets:
+    - account: app-sre
+      identifier: ci-int-jenkins-worker-app-interface
+      credentialsId: jenkins
+      fsRoot: "/var/lib/jenkins"
+      labelString: app-interface
+      numExecutors: 2
+      noDelayProvision: true
+      namespace:
+        name: app-sre-ci
+        managedExternalResources: true
+        externalResources:
+        - provider: aws
+          provisioner:
+            name: app-sre
+            resourcesDefaultRegion: us-east-1
+          resources:
+          - provider: aws-iam-service-account
+          - provider: asg
+            identifier: ci-int-jenkins-worker-app-sre
+            defaults: "/terraform/resources/app-sre/production/ci-int-asg-1.yml"
+
+gql_resource:
+  content: |
+    $schema: /aws/asg-defaults-1.yml
+
+    max_size: 1
+    min_size: 1

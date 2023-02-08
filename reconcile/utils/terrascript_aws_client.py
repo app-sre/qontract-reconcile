@@ -3692,7 +3692,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         return working_dirs
 
-    def init_values(self, spec: ExternalResourceSpec) -> dict:
+    def init_values(self, spec: ExternalResourceSpec, init_tags: bool = True) -> dict:
         """
         Initialize the values of the terraform resource and merge the defaults and
         overrides.
@@ -3705,7 +3705,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         self.aggregate_values(values)
         self.override_values(values, overrides)
         values["identifier"] = spec.identifier
-        values["tags"] = spec.tags(self.integration)
+        if init_tags:
+            values["tags"] = spec.tags(self.integration)
 
         for key in VARIABLE_KEYS:
             val = resource.get(key, None)

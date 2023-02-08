@@ -1,7 +1,9 @@
 import logging
+from typing import Any
 
 import requests
 import toml
+import yaml
 from sretoolbox.utils import retry
 
 from reconcile.utils.secret_reader import SecretReader
@@ -29,6 +31,28 @@ class JenkinsApi:
         self.password = password
         self.ssl_verify = ssl_verify
         self.should_restart = False
+
+    def get_jcaas_config(self) -> dict[str, Any]:
+        url = f"{self.url}/manage/configuration-as-code/export"
+        res = requests.post(
+            url,
+            verify=self.ssl_verify,
+            auth=(self.user, self.password),
+            timeout=60,
+        )
+        res.raise_for_status()
+        return yaml.safe_load(res.text)
+
+    def apply_jcaas_config(self, config: dict[str, Any]):
+        url = f"{self.url}/manage/configuration-as-code/apply"
+        res = requests.post(
+            url,
+            verify=self.ssl_verify,
+            auth=(self.user, self.password),
+            data=yaml.safe_dump(config),
+            timeout=60,
+        )
+        res.raise_for_status()
 
     def get_job_names(self):
         url = f"{self.url}/api/json?tree=jobs[name]"
