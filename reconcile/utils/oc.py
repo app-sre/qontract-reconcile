@@ -263,7 +263,7 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
         1. Old way with nested untyped dictionaries
         2. Typed way with connection_parameters
 
-        We aim to deprecate the old way over time.
+        We aim to deprecate the old way (w/o connection_parameters) over time.
         """
         if connection_parameters:
             self._init(
