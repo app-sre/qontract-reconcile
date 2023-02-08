@@ -2686,6 +2686,12 @@ DNS_ZONES_QUERY = """
         name
         elbFQDN
       }
+      _records_from_vault {
+        path
+        field
+        key
+        version
+      }
       _target_namespace_zone {
         namespace {
           managedExternalResources

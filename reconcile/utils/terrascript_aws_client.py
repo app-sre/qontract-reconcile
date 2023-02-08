@@ -18,6 +18,7 @@ from ipaddress import (
     ip_address,
     ip_network,
 )
+from json import JSONDecodeError
 from threading import Lock
 from typing import (
     Any,
@@ -833,7 +834,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     assume_role={"role_arn": assume_role},
                 )
 
-    def populate_route53(self, desired_state, default_ttl=300):
+    def populate_route53(
+        self, desired_state: Iterable[dict[str, Any]], default_ttl: int = 300
+    ) -> None:
         for zone in desired_state:
             acct_name = zone["account_name"]
 
@@ -886,6 +889,39 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 self.add_resource(acct_name, healthcheck_resource)
                 # Assign the healthcheck resource ID to the record
                 record["health_check_id"] = f"${{{healthcheck_resource.id}}}"
+
+            # Get value from Vault if _records_from_vault was set
+            records_from_vault: Optional[Iterable[dict[str, str]]] = record.pop(
+                "records_from_vault", None
+            )
+            if records_from_vault:
+                vault_values: list[str] = []
+                for rec in records_from_vault:
+                    value = self.secret_reader.read(
+                        {
+                            "path": rec["path"],
+                            "field": rec["field"],
+                            "version": rec["version"],
+                        }
+                    )
+                    if rec["key"]:
+                        try:
+                            value = json.loads(value)[rec["key"]]
+                        except JSONDecodeError:
+                            logging.error(
+                                "Failed to decode the contents of secret (is it in JSON format?): %s",
+                                rec["path"],
+                            )
+                            raise
+                        except KeyError:
+                            logging.error(
+                                "Key '%s' was not found in secret: %s",
+                                rec["key"],
+                                rec["path"],
+                            )
+                            raise
+                    vault_values.append(value)
+                record["records"] = vault_values
 
             record_values = {"zone_id": f"${{{zone_resource.id}}}", **record}
             record_resource = aws_route53_record(record_id, **record_values)
