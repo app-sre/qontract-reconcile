@@ -935,7 +935,7 @@ def run(
             f"cluster={cluster_name}, namespace={namespace_name}. "
             "Exiting."
         )
-        return
+        return None
     oc_map, ri = fetch_data(
         namespaces,
         thread_pool_size,
