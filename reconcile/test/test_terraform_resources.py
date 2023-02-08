@@ -20,6 +20,19 @@ def test_cannot_use_exclude_account_with_account_name():
     )
 
 
+def test_cannot_exclude_all_accounts(mocker):
+    mocker.patch(
+        "reconcile.queries.get_aws_accounts",
+        return_value=[{"name": "a"}, {"name": "b"}],
+        autospec=True,
+    )
+
+    with pytest.raises(ValueError) as excinfo:
+        integ.run(True, exclude_accounts=("a", "b"))
+
+    assert "You have excluded all aws accounts, verify your input" in str(excinfo.value)
+
+
 def test_cannot_pass_two_aws_account_if_not_dry_run():
     with pytest.raises(RuntimeError) as excinfo:
         integ.run(False, account_name=("a", "b"))
