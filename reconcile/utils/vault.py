@@ -237,7 +237,11 @@ class _VaultClient:
         if data is None:
             raise SecretNotFound
 
-        return base64.b64decode(data) if secret_format == "base64" else data
+        return (
+            base64.b64decode(data).decode("utf-8")
+            if secret_format == "base64"
+            else data
+        )
 
     def _read_v2(self, path, field, version):
         data, _ = self._read_all_v2(path, version)
