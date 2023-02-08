@@ -88,6 +88,7 @@ class StaticShardingStrategy(ShardingStrategy):
             {
                 "shard_id": str(s),
                 "shards": str(shards),
+                "shard_name": str(s) if shards > 1 else "",
                 "shard_name_suffix": f"-{s}" if shards > 1 else "",
                 "extra_args": "",
             }
@@ -109,6 +110,7 @@ class AWSAccountShardManager(ShardingStrategy):
             return [
                 {
                     "shard_key": account["name"],
+                    "shard_name": account["name"] if len(filtered_accounts) > 1 else "",
                     "shard_name_suffix": f"-{account['name']}"
                     if len(filtered_accounts) > 1
                     else "",
