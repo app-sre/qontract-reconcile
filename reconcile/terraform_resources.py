@@ -576,6 +576,11 @@ def setup(
 ) -> tuple[ResourceInventory, OC_Map, Terraform, ExternalResourceSpecInventory]:
     accounts = queries.get_aws_accounts(terraform_state=True)
     if not account_names and exclude_accounts:
+        excluding = filter_accounts_by_name(accounts, exclude_accounts)
+        if len(excluding) != len(exclude_accounts):
+            raise ValueError(
+                f"Accounts {exclude_accounts} were provided as arguments, but not found in app-interface. Check your input for typos or for missing AWS account definitions."
+            )
         accounts = exclude_accounts_by_name(accounts, exclude_accounts)
         if len(accounts) == 0:
             raise ValueError("You have excluded all aws accounts, verify your input")
