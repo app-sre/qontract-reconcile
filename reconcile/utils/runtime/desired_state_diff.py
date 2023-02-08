@@ -85,6 +85,10 @@ def find_changed_shards(
     return affected_shards
 
 
+EXTRACT_TASK_RESULT_KEY_DIFFS = "diffs"
+EXTRACT_TASK_RESULT_KEY_ERROR = "error"
+
+
 def _extract_diffs_task(
     extraction_function: Callable[
         [Mapping[str, Any], Mapping[str, Any]], Iterable[Diff]
@@ -97,13 +101,22 @@ def _extract_diffs_task(
     A multiprocessing task that extracts diffs from two desired states
     and stores them in a return value dictionary.
     """
-    diffs = extraction_function(previous_desired_state, current_desired_state)
-    return_value["diffs"] = diffs
+    try:
+        diffs = extraction_function(previous_desired_state, current_desired_state)
+        return_value[EXTRACT_TASK_RESULT_KEY_DIFFS] = diffs
+    except BaseException as e:
+        return_value[EXTRACT_TASK_RESULT_KEY_ERROR] = e
 
 
 class DiffDetectionTimeout(Exception):
     """
     Raised when the fine grained diff detection takes too long.
+    """
+
+
+class DiffDetectionFailure(Exception):
+    """
+    Raised when the fine grained diff detection fails.
     """
 
 
@@ -155,7 +168,20 @@ def extract_diffs_with_timeout(
         process.join()
         raise DiffDetectionTimeout()
     else:
-        return result_value["diffs"]
+        if EXTRACT_TASK_RESULT_KEY_DIFFS in result_value:
+            return result_value[EXTRACT_TASK_RESULT_KEY_DIFFS]
+        else:
+            original_error = result_value.get(EXTRACT_TASK_RESULT_KEY_ERROR)
+            if original_error:
+                raise DiffDetectionFailure() from original_error
+            else:
+                # not every error situation of the diff extraction process
+                # will result in an exception. the lack of a result is an error
+                # indicator as well. in those cases, we raise at least
+                # a generic exception to indicate that something went wrong
+                raise DiffDetectionFailure(
+                    "unknown error during fine grained diff detection"
+                )
 
 
 def build_desired_state_diff(
@@ -202,6 +228,10 @@ def build_desired_state_diff(
         logging.warning(
             f"unable to extract fine grained diffs for shard extraction "
             f"within {exract_diff_timeout_seconds} seconds. continue without sharding"
+        )
+    except DiffDetectionFailure as e:
+        logging.warning(
+            f"unable to extract fine grained diffs for shard extraction: {e}"
         )
 
     return DesiredStateDiff(

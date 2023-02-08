@@ -16,6 +16,7 @@ from reconcile.test.runtime.fixtures import (
 )
 from reconcile.utils.runtime import desired_state_diff
 from reconcile.utils.runtime.desired_state_diff import (
+    DiffDetectionFailure,
     DiffDetectionTimeout,
     build_desired_state_diff,
     extract_diffs_with_timeout,
@@ -109,6 +110,18 @@ def diff_extration_with_3_second_sleep(
     ]
 
 
+def diff_extration_with_endless_recursion(
+    old_file_content: Any, new_file_content: Any
+) -> list[Diff]:
+    return diff_extration_with_endless_recursion(old_file_content, new_file_content)
+
+
+def diff_extration_with_exception(
+    old_file_content: Any, new_file_content: Any
+) -> list[Diff]:
+    raise Exception("something went wrong")
+
+
 def test_desired_state_diff_building_time(
     mocker: MockerFixture, shardable_test_integration: ShardableTestIntegration
 ):
@@ -174,6 +187,32 @@ def test_extract_diffs_with_timeout():
     )
     assert diffs
     assert isinstance(diffs[0], Diff)
+
+
+def test_extract_diffs_with_recursion_issue():
+    """
+    test if a max recursion issue is caught properly
+    """
+    with pytest.raises(DiffDetectionFailure):
+        extract_diffs_with_timeout(
+            diff_extration_with_endless_recursion,
+            previous_desired_state={},
+            current_desired_state={},
+            timeout_seconds=100,
+        )
+
+
+def test_extract_diffs_with_exception():
+    """
+    test with exception
+    """
+    with pytest.raises(DiffDetectionFailure):
+        extract_diffs_with_timeout(
+            diff_extration_with_exception,
+            previous_desired_state={},
+            current_desired_state={},
+            timeout_seconds=100,
+        )
 
 
 #
