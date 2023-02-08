@@ -72,7 +72,7 @@ def change_type_contexts_for_implicit_ownership(
                                 bc,
                                 ChangeTypeContext(
                                     change_type_processor=ctp,
-                                    context=f"implicit ownership - (via {ownership.change_type.name}))",
+                                    context=f"implicit ownership - (via {ownership.change_type.name})",
                                     origin=ownership.change_type.name,
                                     approvers=implicit_approvers,
                                     context_file=ownership.context_file_ref,
