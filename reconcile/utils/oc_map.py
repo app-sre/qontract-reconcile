@@ -1,7 +1,5 @@
 import logging
-from collections.abc import (
-    Iterable,
-)
+from collections.abc import Iterable
 from threading import Lock
 from typing import (
     Optional,
