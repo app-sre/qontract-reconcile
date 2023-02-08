@@ -87,6 +87,9 @@ class OCConnectionParameters:
     jumphost_user: Optional[str]
     jumphost_port: Optional[int]
     jumphost_key: Optional[str]
+    # These tunneling ports are currently calculated and set outside of this class
+    jumphost_local_port: Optional[int]
+    jumphost_remote_port: Optional[int]
 
     @staticmethod
     def from_cluster(
@@ -113,6 +116,8 @@ class OCConnectionParameters:
         jumphost_user = None
         jumphost_port = None
         jumphost_key = None
+        jumphost_remote_port = None
+        jumphost_local_port = None
         if jh := cluster.jump_host:
             jumphost_hostname = jh.hostname
             jumphost_known_hosts = jh.known_hosts
@@ -140,6 +145,8 @@ class OCConnectionParameters:
             jumphost_known_hosts=jumphost_known_hosts,
             jumphost_user=jumphost_user,
             jumphost_port=jumphost_port,
+            jumphost_remote_port=jumphost_remote_port,
+            jumphost_local_port=jumphost_local_port,
             # is_cluster_admin only possible for namespace queries
             is_cluster_admin=None,
             cluster_admin_automation_token=None,
@@ -186,6 +193,8 @@ class OCConnectionParameters:
             jumphost_known_hosts=parameter.jumphost_known_hosts,
             jumphost_user=parameter.jumphost_user,
             jumphost_port=parameter.jumphost_port,
+            jumphost_local_port=parameter.jumphost_local_port,
+            jumphost_remote_port=parameter.jumphost_remote_port,
             cluster_admin_automation_token=cluster_admin_automation_token,
         )
 

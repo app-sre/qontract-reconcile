@@ -38,11 +38,8 @@ class OCMap:
     def __init__(
         self,
         connection_parameters: Iterable[OCConnectionParameters],
-        clusters_untyped: Optional[Iterable[MutableMapping[Any, Any]]] = None,
-        namespaces_untyped: Optional[Iterable[MutableMapping[Any, Any]]] = None,
         integration: str = "",
         e2e_test: str = "",
-        settings_untyped: Optional[Mapping[Any, Any]] = None,
         internal: Optional[bool] = None,
         use_jump_host: bool = True,
         thread_pool_size: int = 1,
@@ -61,20 +58,6 @@ class OCMap:
         self._init_api_resources = init_api_resources
         self._lock = Lock()
         self._jh_ports: dict[str, int] = {}
-        self._settings_dict = settings_untyped
-
-        # TODO: remove these once jumphosts are typed
-        # ############################################
-        self._jumphosts_dict: dict[Any, Any] = {}
-        for cluster_dict in clusters_untyped or []:
-            self._jumphosts_dict[cluster_dict.get("name")] = cluster_dict.get(
-                "jumpHost"
-            )
-        for ns_dict in namespaces_untyped or []:
-            cluster_d = ns_dict.get("cluster")
-            if cluster_d:
-                self._jumphosts_dict[cluster_d.get("name")] = cluster_d.get("jumpHost")
-        # ############################################
 
         # init a namespace with clusterAdmin with both auth tokens
         # OC_Map is used in various places and even when a namespace
@@ -104,40 +87,42 @@ class OCMap:
             privileged=True,
         )
 
-    def _set_jh_ports(self, jh: MutableMapping[Any, Any]) -> None:
+    def _set_jumphost_tunnel_ports(
+        self, connection_parameters: OCConnectionParameters
+    ) -> None:
         # This will be replaced with getting the data from app-interface in
         # a future PR.
-        jh["remotePort"] = 8888
-        key = f"{jh['hostname']}:{jh['remotePort']}"
+        connection_parameters.jumphost_remote_port = 8888
+        key = f"{connection_parameters.jumphost_hostname}:{connection_parameters.jumphost_remote_port}"
         with self._lock:
             if key not in self._jh_ports:
                 port = JumpHostSSH.get_unique_random_port()
                 self._jh_ports[key] = port
-            jh["localPort"] = self._jh_ports[key]
+            connection_parameters.jumphost_local_port = self._jh_ports[key]
 
     def _init_oc_client(
-        self, cluster_info: OCConnectionParameters, privileged: bool
+        self, connection_parameters: OCConnectionParameters, privileged: bool
     ) -> None:
-        cluster = cluster_info.cluster_name
+        cluster = connection_parameters.cluster_name
         if not privileged and self._oc_map.get(cluster):
             return None
         if privileged and self._privileged_oc_map.get(cluster):
             return None
-        if self._is_cluster_disabled(cluster_info):
+        if self._is_cluster_disabled(connection_parameters):
             return None
         if self._internal is not None:
             # integration is executed with `--internal` or `--external`
             # filter out non matching clusters
-            if self._internal and not cluster_info.is_internal:
+            if self._internal and not connection_parameters.is_internal:
                 return
-            if not self._internal and cluster_info.is_internal:
+            if not self._internal and connection_parameters.is_internal:
                 return
 
         if privileged:
-            automation_token = cluster_info.cluster_admin_automation_token
+            automation_token = connection_parameters.cluster_admin_automation_token
             token_name = "clusterAdminAutomationToken"
         else:
-            automation_token = cluster_info.automation_token
+            automation_token = connection_parameters.automation_token
             token_name = "automationToken"
 
         if automation_token is None:
@@ -149,7 +134,7 @@ class OCMap:
                 privileged,
             )
         # serverUrl isn't set when a new cluster is initially created.
-        elif not cluster_info.server_url:
+        elif not connection_parameters.server_url:
             self._set_oc(
                 cluster,
                 OCLogMsg(
@@ -158,27 +143,17 @@ class OCMap:
                 privileged,
             )
         else:
-            server_url = cluster_info.server_url
-            insecure_skip_tls_verify = cluster_info.skip_tls_verify
-
-            if self._use_jump_host:
-                jump_host = self._jumphosts_dict[cluster_info.cluster_name]
-            else:
-                jump_host = None
-            if jump_host:
-                self._set_jh_ports(jump_host)
+            if self._use_jump_host and connection_parameters.jumphost_hostname:
+                self._set_jumphost_tunnel_ports(
+                    connection_parameters=connection_parameters
+                )
             try:
                 # TODO: wait for next mypy release to support this
                 # https://github.com/python/mypy/issues/14426
                 oc_client: Union[OCDeprecated, OCLogMsg] = OC(  # type: ignore
-                    cluster,
-                    server_url,
-                    automation_token,
-                    jump_host,
-                    settings=self._settings_dict,
+                    connection_parameters=connection_parameters,
                     init_projects=self._init_projects,
                     init_api_resources=self._init_api_resources,
-                    insecure_skip_tls_verify=insecure_skip_tls_verify,
                 )
                 self._set_oc(cluster, oc_client, privileged)
             except StatusCodeError as e:

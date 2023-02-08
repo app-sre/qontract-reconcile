@@ -6,7 +6,10 @@ import re
 import tempfile
 import threading
 import time
-from collections.abc import Iterable
+from collections.abc import (
+    Iterable,
+    Mapping,
+)
 from contextlib import suppress
 from datetime import datetime
 from functools import wraps
@@ -17,6 +20,7 @@ from subprocess import (
 from threading import Lock
 from typing import (
     Any,
+    Optional,
     Union,
 )
 
@@ -52,6 +56,7 @@ from reconcile.utils.jump_host import (
     JumpHostSSH,
 )
 from reconcile.utils.metrics import reconcile_time
+from reconcile.utils.oc_connection_parameters import OCConnectionParameters
 from reconcile.utils.secret_reader import (
     SecretNotFound,
     SecretReader,
@@ -241,15 +246,56 @@ def equal_spec_template(t1: dict, t2: dict) -> bool:
 class OCDeprecated:  # pylint: disable=too-many-public-methods
     def __init__(
         self,
-        cluster_name,
-        server,
-        token,
-        jh=None,
-        settings=None,
-        init_projects=False,
-        init_api_resources=False,
-        local=False,
-        insecure_skip_tls_verify=False,
+        cluster_name: Optional[str],
+        server: Optional[str],
+        token: Optional[str],
+        jh: Optional[Mapping[Any, Any]] = None,
+        settings: Optional[Mapping[Any, Any]] = None,
+        init_projects: bool = False,
+        init_api_resources: bool = False,
+        local: bool = False,
+        insecure_skip_tls_verify: bool = False,
+        connection_parameters: Optional[OCConnectionParameters] = None,
+    ):
+        """
+        As of now we have to conform with 2 ways to initialize this client:
+
+        1. Old way with nested untyped dictionaries
+        2. Typed way with connection_parameters
+
+        We aim to deprecate the old way over time.
+        """
+        if connection_parameters:
+            self._init(
+                connection_parameters=connection_parameters,
+                local=local,
+                init_projects=init_projects,
+                init_api_resources=init_api_resources,
+            )
+        elif cluster_name:
+            self._init_old_without_types(
+                cluster_name=cluster_name,
+                server=server,
+                token=token,
+                jh=jh,
+                settings=settings,
+                init_projects=init_projects,
+                init_api_resources=init_api_resources,
+                local=local,
+                insecure_skip_tls_verify=insecure_skip_tls_verify,
+            )
+
+    def _init_old_without_types(
+        self,
+        cluster_name: str,
+        server: Optional[str],
+        token: Optional[str],
+        jh: Optional[Mapping[Any, Any]] = None,
+        settings: Optional[Mapping[Any, Any]] = None,
+        init_projects: bool = False,
+        init_api_resources: bool = False,
+        local: bool = False,
+        insecure_skip_tls_verify: bool = False,
     ):
         """Initiates an OC client
 
@@ -287,6 +333,73 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
                 port=jh.get("port"),
                 remote_port=jh.get("remotePort"),
                 user=jh["user"],
+            )
+            self.jump_host = JumpHostSSH(parameters=jumphost_parameters)
+            oc_base_cmd = self.jump_host.get_ssh_base_cmd() + oc_base_cmd
+
+        self.oc_base_cmd = oc_base_cmd
+
+        # calling get_version to check if cluster is reachable
+        if not local:
+            self.get_version()
+
+        self.api_resources_lock = threading.RLock()
+        self.init_api_resources = init_api_resources
+        self.api_resources = None
+        if self.init_api_resources:
+            self.api_resources = self.get_api_resources()
+
+        self.init_projects = init_projects
+        if self.init_projects:
+            if self.is_kind_supported("Project"):
+                kind = "Project.project.openshift.io"
+            else:
+                kind = "Namespace"
+            self.projects = [p["metadata"]["name"] for p in self.get_all(kind)["items"]]
+
+        self.slow_oc_reconcile_threshold = float(
+            os.environ.get("SLOW_OC_RECONCILE_THRESHOLD", 600)
+        )
+
+        self.is_log_slow_oc_reconcile = os.environ.get(
+            "LOG_SLOW_OC_RECONCILE", ""
+        ).lower() in ["true", "yes"]
+
+    def _init(
+        self,
+        connection_parameters: OCConnectionParameters,
+        init_projects: bool = False,
+        init_api_resources: bool = False,
+        local: bool = False,
+    ):
+        self.cluster_name = connection_parameters.cluster_name
+        self.server = connection_parameters.server_url
+        oc_base_cmd = ["oc", "--kubeconfig", "/dev/null"]
+        if connection_parameters.skip_tls_verify:
+            oc_base_cmd.extend(["--insecure-skip-tls-verify"])
+        if self.server:
+            oc_base_cmd.extend(["--server", self.server])
+
+        token = connection_parameters.automation_token
+        if (
+            connection_parameters.is_cluster_admin
+            and connection_parameters.cluster_admin_automation_token
+        ):
+            token = connection_parameters.cluster_admin_automation_token
+
+        if token:
+            oc_base_cmd.extend(["--token", token])
+
+        self.jump_host = None
+        if connection_parameters.jumphost_hostname:
+            jumphost_parameters = JumphostParameters(
+                hostname=connection_parameters.jumphost_hostname,
+                key=connection_parameters.jumphost_key,
+                known_hosts=connection_parameters.jumphost_known_hosts,
+                local_port=connection_parameters.jumphost_local_port,
+                port=connection_parameters.jumphost_port,
+                remote_port=connection_parameters.jumphost_remote_port,
+                user=connection_parameters.jumphost_user,
             )
             self.jump_host = JumpHostSSH(parameters=jumphost_parameters)
             oc_base_cmd = self.jump_host.get_ssh_base_cmd() + oc_base_cmd
@@ -997,14 +1110,15 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
 class OCNative(OCDeprecated):
     def __init__(
         self,
-        cluster_name,
-        server,
-        token,
-        jh=None,
-        settings=None,
-        init_projects=False,
-        local=False,
-        insecure_skip_tls_verify=False,
+        cluster_name: Optional[str],
+        server: Optional[str],
+        token: Optional[str],
+        jh: Optional[Mapping[Any, Any]] = None,
+        settings: Optional[Mapping[Any, Any]] = None,
+        init_projects: bool = False,
+        local: bool = False,
+        insecure_skip_tls_verify: bool = False,
+        connection_parameters: Optional[OCConnectionParameters] = None,
     ):
         super().__init__(
             cluster_name,
@@ -1016,7 +1130,15 @@ class OCNative(OCDeprecated):
             init_api_resources=False,
             local=local,
             insecure_skip_tls_verify=insecure_skip_tls_verify,
+            connection_parameters=connection_parameters,
         )
+
+        if connection_parameters:
+            token = connection_parameters.automation_token
+            if connection_parameters.is_cluster_admin:
+                token = connection_parameters.cluster_admin_automation_token
+
+            server = connection_parameters.server_url
 
         if server:
             self.client = self._get_client(server, token)
@@ -1272,15 +1394,16 @@ class OC:
 
     def __new__(
         cls,
-        cluster_name,
-        server,
-        token,
-        jh=None,
-        settings=None,
-        init_projects=False,
-        init_api_resources=False,
-        local=False,
-        insecure_skip_tls_verify=False,
+        cluster_name: Optional[str] = None,
+        server: Optional[str] = None,
+        token: Optional[str] = None,
+        jh: Optional[Mapping[Any, Any]] = None,
+        settings: Optional[Mapping[Any, Any]] = None,
+        init_projects: bool = False,
+        init_api_resources: bool = False,
+        local: bool = False,
+        insecure_skip_tls_verify: bool = False,
+        connection_parameters: Optional[OCConnectionParameters] = None,
     ):
         use_native = os.environ.get("USE_NATIVE_CLIENT", "")
         if len(use_native) > 0:
@@ -1291,32 +1414,37 @@ class OC:
                 enable_toggle, context={"cluster_name": cluster_name}
             )
 
+        if connection_parameters:
+            cluster_name = connection_parameters.cluster_name
+
         if use_native:
             OC.client_status.labels(cluster_name=cluster_name, native_client=True).inc()
             return OCNative(
-                cluster_name,
-                server,
-                token,
-                jh,
-                settings,
-                init_projects,
-                local,
-                insecure_skip_tls_verify,
+                cluster_name=cluster_name,
+                server=server,
+                token=token,
+                jh=jh,
+                settings=settings,
+                init_projects=init_projects,
+                local=local,
+                insecure_skip_tls_verify=insecure_skip_tls_verify,
+                connection_parameters=connection_parameters,
             )
         else:
             OC.client_status.labels(
                 cluster_name=cluster_name, native_client=False
             ).inc()
             return OCDeprecated(
-                cluster_name,
-                server,
-                token,
-                jh,
-                settings,
-                init_projects,
-                init_api_resources,
-                local,
-                insecure_skip_tls_verify,
+                cluster_name=cluster_name,
+                server=server,
+                token=token,
+                jh=jh,
+                settings=settings,
+                init_projects=init_projects,
+                init_api_resources=init_api_resources,
+                local=local,
+                insecure_skip_tls_verify=insecure_skip_tls_verify,
+                connection_parameters=connection_parameters,
             )
 
 
