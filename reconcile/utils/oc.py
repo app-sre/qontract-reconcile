@@ -390,7 +390,12 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
             oc_base_cmd.extend(["--token", token])
 
         self.jump_host = None
-        if connection_parameters.jumphost_hostname:
+        if (
+            connection_parameters.jumphost_hostname
+            and connection_parameters.jumphost_user
+            and connection_parameters.jumphost_key
+            and connection_parameters.jumphost_known_hosts
+        ):
             jumphost_parameters = JumphostParameters(
                 hostname=connection_parameters.jumphost_hostname,
                 key=connection_parameters.jumphost_key,
@@ -1146,7 +1151,7 @@ class OCNative(OCDeprecated):
         else:
             raise Exception("A method relies on client/api_kind_version to be set")
 
-        self.object_clients = {}
+        self.object_clients: dict[Any, Any] = {}
 
         self.init_projects = init_projects
         if self.init_projects:
@@ -1362,7 +1367,7 @@ class OCNative(OCDeprecated):
             except StatusCodeError:
                 return False
         else:
-            return kind in self.api_resources
+            return kind in (self.api_resources or {})
 
 
 OCClient = Union[OCNative, OCDeprecated]
@@ -1404,9 +1409,10 @@ class OC:
         insecure_skip_tls_verify: bool = False,
         connection_parameters: Optional[OCConnectionParameters] = None,
     ):
-        use_native = os.environ.get("USE_NATIVE_CLIENT", "")
-        if len(use_native) > 0:
-            use_native = use_native.lower() in ["true", "yes"]
+        use_native_env = os.environ.get("USE_NATIVE_CLIENT", "")
+        use_native = True
+        if len(use_native_env) > 0:
+            use_native = use_native_env.lower() in ["true", "yes"]
         else:
             enable_toggle = "openshift-resources-native-client"
             use_native = get_feature_toggle_state(
