@@ -20,6 +20,21 @@ def test_cannot_use_exclude_account_with_account_name():
     )
 
 
+def test_cannot_exclude_invalid_aws_account(mocker):
+    mocker.patch(
+        "reconcile.queries.get_aws_accounts",
+        return_value=[{"name": "a"}],
+        autospec=True,
+    )
+    with pytest.raises(ValueError) as excinfo:
+        integ.run(True, exclude_accounts=("b"))
+
+    assert (
+        "Accounts b were provided as arguments, but not found in app-interface. Check your input for typos or for missing AWS account definitions."
+        in str(excinfo.value)
+    )
+
+
 def test_cannot_exclude_all_accounts(mocker):
     mocker.patch(
         "reconcile.queries.get_aws_accounts",
