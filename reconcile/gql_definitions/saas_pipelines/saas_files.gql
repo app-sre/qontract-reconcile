@@ -1,0 +1,204 @@
+# qenerate: plugin=pydantic_v1
+
+query SaasFiles {
+  saas_files: saas_files_v2 {
+    path
+    name
+    app {
+      name
+    }
+    pipelinesProvider {
+      name
+      provider
+      ...on PipelinesProviderTekton_v1 {
+        namespace {
+          name
+          cluster {
+            name
+            consoleUrl
+            serverUrl
+            insecureSkipTLSVerify
+            jumpHost {
+              ... CommonJumphostFields
+            }
+            automationToken {
+              ... VaultSecret
+            }
+            internal
+            disable {
+              integrations
+            }
+          }
+        }
+        defaults {
+          pipelineTemplates {
+            openshiftSaasDeploy {
+              name
+            }
+          }
+        }
+        pipelineTemplates {
+          openshiftSaasDeploy {
+            name
+          }
+        }
+      }
+    }
+    deployResources {
+      requests {
+        cpu
+        memory
+      }
+      limits {
+        cpu
+        memory
+      }
+    }
+    slack {
+      output
+      workspace {
+        name
+        integrations {
+          name
+          token {
+            ... VaultSecret
+          }
+          channel
+          icon_emoji
+          username
+        }
+      }
+      channel
+      notifications {
+        start
+      }
+    }
+    managedResourceTypes
+    takeover
+    deprecated
+    compare
+    timeout
+    publishJobLogs
+    clusterAdmin
+    imagePatterns
+    allowedSecretParameterPaths
+    use_channel_in_image_tag
+    authentication {
+      code {
+        ... VaultSecret
+      }
+      image {
+        ... VaultSecret
+      }
+    }
+    parameters
+    secretParameters {
+      name
+      secret {
+        ... VaultSecret
+      }
+    }
+    resourceTemplates {
+      name
+      url
+      path
+      provider
+      hash_length
+      parameters
+      secretParameters {
+        name
+        secret {
+          ... VaultSecret
+        }
+      }
+      targets {
+        path
+        name
+        namespace {
+          name
+          environment {
+            name
+            parameters
+            secretParameters {
+              name
+              secret {
+                ... VaultSecret
+              }
+            }
+          }
+          app {
+            name
+          }
+          cluster {
+            name
+            serverUrl
+            insecureSkipTLSVerify
+            jumpHost {
+              ... CommonJumphostFields
+            }
+            automationToken {
+              ... VaultSecret
+            }
+            clusterAdminAutomationToken {
+              ... VaultSecret
+            }
+            internal
+            disable {
+              integrations
+            }
+          }
+        }
+        ref
+        promotion {
+          auto
+          publish
+          subscribe
+          promotion_data {
+            channel
+            data {
+              type
+              ... on ParentSaasPromotion_v1 {
+                parent_saas
+                target_config_hash
+              }
+            }
+          }
+        }
+        parameters
+        secretParameters {
+          name
+          secret {
+            ... VaultSecret
+          }
+        }
+        upstream {
+          instance {
+            name
+            serverUrl
+          }
+          name
+        }
+        image {
+          org {
+            name
+            instance {
+              url
+            }
+          }
+          name
+        }
+        disable
+        delete
+      }
+    }
+    selfServiceRoles {
+      users {
+        org_username
+        tag_on_merge_requests
+      }
+      bots {
+        org_username
+      }
+    }
+  }
+}

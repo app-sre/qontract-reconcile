@@ -1717,6 +1717,27 @@ def cna_resources(
     )
 
 
+@integration.command(
+    short_help="Manage pipelines defined by SaaS files"
+)
+@enable_deletion(default=False)
+@threaded(default=20)
+@click.pass_context
+def saas_pipelines(
+    ctx,
+    enable_deletion,
+    thread_pool_size,
+):
+    import reconcile.saas_pipelines.integration
+
+    run_integration(
+        reconcile.saas_pipelines.integration,
+        ctx.obj,
+        enable_deletion,
+        thread_pool_size,
+    )
+
+
 @integration.command(short_help="Manage AWS users using Terraform.")
 @print_to_file
 @threaded(default=20)
