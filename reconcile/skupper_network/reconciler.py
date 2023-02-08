@@ -77,7 +77,7 @@ def _create_token(
     integration_version: str,
 ) -> None:
     """Create a connection token secret in the site's namespace."""
-    oc = oc_map.get_cluster(site.cluster.name)
+    oc = oc_map.get_cluster(connected_site.cluster.name)
     logging.info(f"{connected_site}: Creating new connection token for {site}")
     sc = get_site_controller(connected_site)
     if not dry_run:
