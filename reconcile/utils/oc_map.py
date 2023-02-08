@@ -1,12 +1,9 @@
 import logging
 from collections.abc import (
     Iterable,
-    Mapping,
-    MutableMapping,
 )
 from threading import Lock
 from typing import (
-    Any,
     Optional,
     Union,
 )
