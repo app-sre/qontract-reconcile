@@ -35,7 +35,8 @@ def run(
 
     # check for unused resources types
     # listed under `managedResourceTypes`
-    ob.check_unused_resource_types(ri)
+    if ri:
+        ob.check_unused_resource_types(ri)
 
 
 def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:

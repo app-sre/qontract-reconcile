@@ -929,6 +929,13 @@ def run(
     namespaces, overrides = get_namespaces(
         providers=providers, cluster_name=cluster_name, namespace_name=namespace_name
     )
+    if not namespaces:
+        logging.info(
+            "No namespaces found when filtering for "
+            f"cluster={cluster_name}, namespace={namespace_name}. "
+            "Exiting."
+        )
+        return
     oc_map, ri = fetch_data(
         namespaces,
         thread_pool_size,
