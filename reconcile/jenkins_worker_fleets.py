@@ -25,6 +25,10 @@ def get_current_state(jenkins: JenkinsApi) -> list[JenkinsWorkerFleet]:
         if fleet:
             current_state.append(JenkinsWorkerFleet(**fleet))
 
+    # fix https://github.com/jenkinsci/ec2-fleet-plugin/issues/323
+    config = {"jenkins": {"clouds": clouds}}
+    jenkins.apply_jcasc_config(config)
+
     return current_state
 
 

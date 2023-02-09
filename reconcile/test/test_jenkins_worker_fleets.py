@@ -36,7 +36,7 @@ def test_jenkins_worker_fleets(mocker: MockerFixture, caplog):
     desired_state = get_desired_state(terrascript, workerFleets)
     with caplog.at_level(logging.INFO):
         act(False, instance["name"], current_state, desired_state, jenkins)
-    mock_apply.assert_called_once_with(fixture.get_anymarkup("jcasc-apply.yml"))
+    mock_apply.assert_called_with(fixture.get_anymarkup("jcasc-apply.yml"))
 
     assert [rec.message for rec in caplog.records] == [
         "['create_jenkins_worker_fleet', 'ci-int', 'ci-int-jenkins-worker-app-interface']",
