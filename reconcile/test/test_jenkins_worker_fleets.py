@@ -16,7 +16,7 @@ fixture = Fixtures("jenkins_worker_fleets")
 
 
 def test_jenkins_worker_fleets(mocker: MockerFixture, caplog):
-    mock_get = mocker.patch.object(JenkinsApi, "get_jcaas_config")
+    mock_get = mocker.patch.object(JenkinsApi, "get_jcasc_config")
     mock_get.return_value = fixture.get_anymarkup("jcasc-export.yml")
 
     mock_gql = mocker.patch("reconcile.utils.gql.get_api", autospec=True)
@@ -24,7 +24,7 @@ def test_jenkins_worker_fleets(mocker: MockerFixture, caplog):
         "gql-queries.yml"
     )["gql_resource"]
 
-    mock_apply = mocker.patch.object(JenkinsApi, "apply_jcaas_config")
+    mock_apply = mocker.patch.object(JenkinsApi, "apply_jcasc_config")
 
     instance = fixture.get_anymarkup("gql-queries.yml")["gql_response"]["instances"][0]
     jenkins = JenkinsApi("url", "user", "password")
