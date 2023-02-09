@@ -7,7 +7,10 @@ jenkins:
       computerConnector:
         sSHConnector:
           credentialsId: "jenkins"
+          launchTimeoutSeconds: 60
+          maxNumRetries: 10
           port: 22
+          retryWaitTime: 15
           sshHostKeyVerificationStrategy: "nonVerifyingKeyVerificationStrategy"
       disableTaskResubmit: false
       fleet: "ci-int-jenkins-worker-app-sre"
@@ -15,7 +18,7 @@ jenkins:
       idleMinutes: 30
       initOnlineCheckIntervalSec: 15
       initOnlineTimeoutSec: 180
-      labelString: "app-sre"
+      labelString: "app-sre app-interface-long-running"
       maxSize: 2
       maxTotalUses: -1
       minSize: 1
@@ -23,7 +26,7 @@ jenkins:
       name: "ci-int-jenkins-worker-app-sre"
       noDelayProvision: false
       numExecutors: 3
-      oldId: "42ff7cce-6593-4ff8-af5d-3b127a559ecd"
+      oldId: "b8b749eb-fac5-4df6-92bf-09b7289752ce"
       privateIpUsed: true
       region: "us-east-1"
       restrictUsage: true
@@ -35,7 +38,10 @@ jenkins:
       computerConnector:
         sSHConnector:
           credentialsId: "jenkins"
+          launchTimeoutSeconds: 60
+          maxNumRetries: 10
           port: 22
+          retryWaitTime: 15
           sshHostKeyVerificationStrategy: "nonVerifyingKeyVerificationStrategy"
       disableTaskResubmit: false
       fleet: "ci-int-jenkins-worker-rhel7"
@@ -51,7 +57,7 @@ jenkins:
       name: "ci-int-jenkins-worker-rhel7"
       noDelayProvision: false
       numExecutors: 3
-      oldId: "42ff7cce-6593-4ff8-af5d-3b127a559ecd"
+      oldId: "a7833fe6-f643-4d5f-8178-a7109fecc9b7"
       privateIpUsed: true
       region: "us-east-1"
       restrictUsage: true
@@ -63,7 +69,10 @@ jenkins:
       computerConnector:
         sSHConnector:
           credentialsId: "jenkins"
+          launchTimeoutSeconds: 60
+          maxNumRetries: 10
           port: 22
+          retryWaitTime: 15
           sshHostKeyVerificationStrategy: "nonVerifyingKeyVerificationStrategy"
       disableTaskResubmit: false
       fleet: "ci-int-jenkins-worker-rhel8"
@@ -79,7 +88,7 @@ jenkins:
       name: "ci-int-jenkins-worker-rhel8"
       noDelayProvision: false
       numExecutors: 3
-      oldId: "42ff7cce-6593-4ff8-af5d-3b127a559ecd"
+      oldId: "5ab427f6-4d05-46f8-bf47-a069e329b543"
       privateIpUsed: true
       region: "us-east-1"
       restrictUsage: true

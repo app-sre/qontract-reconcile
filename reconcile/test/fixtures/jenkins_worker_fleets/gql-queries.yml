@@ -10,7 +10,7 @@ gql_response:
       numExecutors: 2
       noDelayProvision: true
       namespace:
-        name: app-sre-ci
+        name: app-sre
         managedExternalResources: true
         externalResources:
         - provider: aws
@@ -21,16 +21,16 @@ gql_response:
           - provider: aws-iam-service-account
           - provider: asg
             identifier: ci-int-jenkins-worker-app-interface
-            defaults: "/terraform/resources/app-sre/production/ci-int-asg-1.yml"
+            defaults: "/terraform/resources/asg-1.yml"
             overrides: '{"min_size":3,"max_size":9}'
     - account: app-sre
       identifier: ci-int-jenkins-worker-app-sre
       credentialsId: jenkins
       fsRoot: "/var/lib/jenkins"
-      labelString: app-sre
+      labelString: app-sre app-interface-long-running
       numExecutors: 3
       namespace:
-        name: app-sre-ci
+        name: app-sre
         managedExternalResources: true
         externalResources:
         - provider: aws
@@ -41,7 +41,7 @@ gql_response:
           - provider: aws-iam-service-account
           - provider: asg
             identifier: ci-int-jenkins-worker-app-sre
-            defaults: "/terraform/resources/app-sre/production/ci-int-asg-1.yml"
+            defaults: "/terraform/resources/asg-1.yml"
     - account: app-sre
       identifier: ci-int-jenkins-worker-rhel7
       credentialsId: jenkins
@@ -49,7 +49,7 @@ gql_response:
       labelString: rhel7
       numExecutors: 3
       namespace:
-        name: app-sre-ci
+        name: app-sre
         managedExternalResources: true
         externalResources:
         - provider: aws
@@ -60,7 +60,7 @@ gql_response:
           - provider: aws-iam-service-account
           - provider: asg
             identifier: ci-int-jenkins-worker-rhel7
-            defaults: "/terraform/resources/app-sre/production/ci-int-asg-1.yml"
+            defaults: "/terraform/resources/asg-1.yml"
   - name: ci-ext
     workerFleets:
     - account: app-sre
@@ -82,7 +82,7 @@ gql_response:
           - provider: aws-iam-service-account
           - provider: asg
             identifier: ci-int-jenkins-worker-app-sre
-            defaults: "/terraform/resources/app-sre/production/ci-int-asg-1.yml"
+            defaults: "/terraform/resources/asg-1.yml"
 
 gql_resource:
   content: |

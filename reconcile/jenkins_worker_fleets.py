@@ -17,13 +17,17 @@ QONTRACT_INTEGRATION = "jenkins-worker-fleets"
 def get_current_state(jenkins: JenkinsApi) -> list[JenkinsWorkerFleet]:
     current_state = []
 
-    jenkins_config = cast(dict[str, Any], jenkins.get_jcaas_config().get("jenkins"))
+    jenkins_config = cast(dict[str, Any], jenkins.get_jcasc_config().get("jenkins"))
     clouds = cast(list[dict[str, Any]], jenkins_config.get("clouds", []))
     for c in clouds:
         # eC2Fleet is defined by jcasc schema
         fleet = c.get("eC2Fleet", None)
         if fleet:
             current_state.append(JenkinsWorkerFleet(**fleet))
+
+    # fix https://github.com/jenkinsci/ec2-fleet-plugin/issues/323
+    config = {"jenkins": {"clouds": clouds}}
+    jenkins.apply_jcasc_config(config)
 
     return current_state
 
@@ -100,7 +104,7 @@ def act(
             for d in desired_state:
                 d_clouds.append({"eC2Fleet": d.dict(by_alias=True)})
             config = {"jenkins": {"clouds": d_clouds}}
-            jenkins.apply_jcaas_config(config)
+            jenkins.apply_jcasc_config(config)
 
 
 def run(dry_run: bool) -> None:

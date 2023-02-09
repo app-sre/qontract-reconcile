@@ -32,7 +32,7 @@ class JenkinsApi:
         self.ssl_verify = ssl_verify
         self.should_restart = False
 
-    def get_jcaas_config(self) -> dict[str, Any]:
+    def get_jcasc_config(self) -> dict[str, Any]:
         url = f"{self.url}/manage/configuration-as-code/export"
         res = requests.post(
             url,
@@ -43,7 +43,7 @@ class JenkinsApi:
         res.raise_for_status()
         return yaml.safe_load(res.text)
 
-    def apply_jcaas_config(self, config: dict[str, Any]):
+    def apply_jcasc_config(self, config: dict[str, Any]):
         url = f"{self.url}/manage/configuration-as-code/apply"
         res = requests.post(
             url,
