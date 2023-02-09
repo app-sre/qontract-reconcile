@@ -199,7 +199,7 @@ class SkupperSite(BaseModel):
     @property
     def on_internal_cluster(self) -> bool:
         """Return True if the skupper site is hosted on an internal cluster."""
-        return self.cluster.internal if self.cluster.internal else False
+        return self.cluster.internal or False
 
     def is_peered_with(self, other: SkupperSite) -> bool:
         """Return True if the involved skupper site clusters are peered."""
