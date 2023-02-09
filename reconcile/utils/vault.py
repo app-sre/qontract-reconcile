@@ -343,7 +343,7 @@ class _VaultClient:
         else:
             path_list = self._list(path)
 
-        return path_list["data"]["keys"]
+        return path_list["data"]["keys"] or []
 
     def list_all(self, path):
         """Returns a list of secrets in a given path and
