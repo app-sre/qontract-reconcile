@@ -196,6 +196,11 @@ class SkupperSite(BaseModel):
         """Return True if the skupper site is not hosted on a private cluster."""
         return not self.on_private_cluster
 
+    @property
+    def on_internal_cluster(self) -> bool:
+        """Return True if the skupper site is hosted on an internal cluster."""
+        return self.cluster.internal if self.cluster.internal else False
+
     def is_peered_with(self, other: SkupperSite) -> bool:
         """Return True if the involved skupper site clusters are peered."""
         if not self.cluster.peering:
@@ -252,7 +257,7 @@ class SkupperSite(BaseModel):
                 and not other.is_connected_to(self)
             ]
 
-        # Connect to all public clusters + all other peered & private/not-internal
+        # Connect to all public clusters + all other peered & private clusters
         if self.on_private_cluster and not self.delete:
             connected_sites = [
                 other
@@ -269,6 +274,18 @@ class SkupperSite(BaseModel):
                 if other != self
                 and other.on_private_cluster
                 and self.is_peered_with(other)
+                and not other.is_edge_site
+                and not other.delete
+                and not other.is_connected_to(self)
+            ]
+
+        # If the site is on an internal cluster, connect to all other internal clusters too
+        if self.on_internal_cluster and not self.delete:
+            connected_sites += [
+                other
+                for other in sites
+                if other != self
+                and other.on_internal_cluster
                 and not other.is_edge_site
                 and not other.delete
                 and not other.is_connected_to(self)
