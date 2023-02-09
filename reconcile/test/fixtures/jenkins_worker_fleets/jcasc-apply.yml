@@ -33,7 +33,7 @@ jenkins:
           port: 22
           sshHostKeyVerificationStrategy: nonVerifyingKeyVerificationStrategy
       fsRoot: "/var/lib/jenkins"
-      labelString: app-sre
+      labelString: app-sre app-interface-long-running
       numExecutors: 3
       idleMinutes: 30
       minSpareSize: 0
@@ -63,4 +63,3 @@ jenkins:
       alwaysReconnect: false
       privateIpUsed: true
       restrictUsage: true
-
