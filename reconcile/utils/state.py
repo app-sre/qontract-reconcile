@@ -14,7 +14,7 @@ from jinja2 import Template
 
 from reconcile.utils import gql
 from reconcile.utils.aws_api import AWSApi
-from reconcile.utils.secret_reader import SecretReader
+from reconcile.utils.secret_reader import SecretReaderBase
 
 
 class StateInaccessibleException(Exception):
@@ -38,7 +38,7 @@ STATE_ACCOUNT_QUERY = """
 """
 
 
-def init_state(integration: str, secret_reader: SecretReader):
+def init_state(integration: str, secret_reader: SecretReaderBase):
     state_bucket_account_name = os.environ["APP_INTERFACE_STATE_BUCKET_ACCOUNT"]
     query = Template(STATE_ACCOUNT_QUERY).render(name=state_bucket_account_name)
     accounts = gql.get_api().query(query)["accounts"]
@@ -69,7 +69,7 @@ class State:
         integration: str,
         accounts: Iterable[Mapping[str, Any]],
         settings: Optional[Mapping[str, Any]] = None,
-        secret_reader: Optional[SecretReader] = None,
+        secret_reader: Optional[SecretReaderBase] = None,
     ) -> None:
         """Initiates S3 client from AWSApi."""
         self.state_path = f"state/{integration}" if integration else "state"
