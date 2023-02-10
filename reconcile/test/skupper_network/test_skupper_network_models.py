@@ -300,3 +300,22 @@ def test_skupper_network_model_skupper_site_properties(
         namespace_factory("internal01", private=False), edge=True
     )
     assert internal01.is_edge_site is True
+
+
+def test_skupper_network_model_skupper_site_token_labels(
+    skupper_site_factory: SkupperSiteFactory, namespace_factory: NamespaceFactory
+) -> None:
+    # very long name
+    long01 = skupper_site_factory(
+        namespace_factory(
+            "this-is-a-very-long-namespace-name-and-clearly-exceeds-some-kubernetes-limits",
+            private=False,
+        ),
+        edge=False,
+    )
+    # https://issues.redhat.com/browse/APPSRE-6993
+    assert (
+        long01.token_labels["token-receiver"]
+        == "cluster-this-is-a-very-long-namespace-name-and-clearly-exceeds-"
+    )
+    assert len(long01.token_labels["token-receiver"]) <= 63

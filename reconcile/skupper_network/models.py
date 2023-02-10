@@ -305,4 +305,8 @@ class SkupperSite(BaseModel):
     @property
     def token_labels(self) -> dict[str, str]:
         """Get the token labels."""
-        return {"token-receiver": self.name}
+        # This label is used to identify the site in the `skupper link status` command
+        # self.name ({skupper_network.identifier}-{ns.cluster.name}-{ns.name}) can be longer than 63 characters
+        # so use cluster.name-namespaced.name instead and trim it to 63 characters
+        # a namespace can't be in more than one skupper network, so it's safe to omit the skupper network identifier
+        return {"token-receiver": f"{self.cluster.name}-{self.namespace.name}"[0:63]}
