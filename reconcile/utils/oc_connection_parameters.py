@@ -88,9 +88,9 @@ class OCConnectionParameters:
     jumphost_user: Optional[str]
     jumphost_port: Optional[int]
     jumphost_key: Optional[str]
-    jumphost_remote_port: Optional[int]
-    # The local port is currently calculated and set outside of this class
+    # These tunneling ports are currently calculated and set outside of this class
     jumphost_local_port: Optional[int]
+    jumphost_remote_port: Optional[int]
 
     @staticmethod
     def from_cluster(

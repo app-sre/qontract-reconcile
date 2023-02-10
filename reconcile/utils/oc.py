@@ -454,6 +454,78 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
             "LOG_SLOW_OC_RECONCILE", ""
         ).lower() in ["true", "yes"]
 
+    def _init(
+        self,
+        connection_parameters: OCConnectionParameters,
+        init_projects: bool = False,
+        init_api_resources: bool = False,
+        local: bool = False,
+    ):
+        self.cluster_name = connection_parameters.cluster_name
+        self.server = connection_parameters.server_url
+        oc_base_cmd = ["oc", "--kubeconfig", "/dev/null"]
+        if connection_parameters.skip_tls_verify:
+            oc_base_cmd.extend(["--insecure-skip-tls-verify"])
+        if self.server:
+            oc_base_cmd.extend(["--server", self.server])
+
+        token = connection_parameters.automation_token
+        if (
+            connection_parameters.is_cluster_admin
+            and connection_parameters.cluster_admin_automation_token
+        ):
+            token = connection_parameters.cluster_admin_automation_token
+
+        if token:
+            oc_base_cmd.extend(["--token", token])
+
+        self.jump_host = None
+        if (
+            connection_parameters.jumphost_hostname
+            and connection_parameters.jumphost_user
+            and connection_parameters.jumphost_key
+            and connection_parameters.jumphost_known_hosts
+        ):
+            jumphost_parameters = JumphostParameters(
+                hostname=connection_parameters.jumphost_hostname,
+                key=connection_parameters.jumphost_key,
+                known_hosts=connection_parameters.jumphost_known_hosts,
+                local_port=connection_parameters.jumphost_local_port,
+                port=connection_parameters.jumphost_port,
+                remote_port=connection_parameters.jumphost_remote_port,
+                user=connection_parameters.jumphost_user,
+            )
+            self.jump_host = JumpHostSSH(parameters=jumphost_parameters)
+            oc_base_cmd = self.jump_host.get_ssh_base_cmd() + oc_base_cmd
+
+        self.oc_base_cmd = oc_base_cmd
+
+        # calling get_version to check if cluster is reachable
+        if not local:
+            self.get_version()
+
+        self.api_resources_lock = threading.RLock()
+        self.init_api_resources = init_api_resources
+        self.api_resources = None
+        if self.init_api_resources:
+            self.api_resources = self.get_api_resources()
+
+        self.init_projects = init_projects
+        if self.init_projects:
+            if self.is_kind_supported("Project"):
+                kind = "Project.project.openshift.io"
+            else:
+                kind = "Namespace"
+            self.projects = [p["metadata"]["name"] for p in self.get_all(kind)["items"]]
+
+        self.slow_oc_reconcile_threshold = float(
+            os.environ.get("SLOW_OC_RECONCILE_THRESHOLD", 600)
+        )
+
+        self.is_log_slow_oc_reconcile = os.environ.get(
+            "LOG_SLOW_OC_RECONCILE", ""
+        ).lower() in ["true", "yes"]
+
     def whoami(self):
         return self._run(["whoami"])
 

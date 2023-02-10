@@ -19,10 +19,7 @@ from reconcile.utils.oc import (
     OCLogMsg,
     StatusCodeError,
 )
-from reconcile.utils.oc_map import (
-    OCMap,
-    init_oc_map_from_clusters,
-)
+from reconcile.utils.oc_map import OCMap
 from reconcile.utils.secret_reader import (
     SecretReaderBase,
     create_secret_reader,
@@ -93,9 +90,11 @@ class DashdotdbCSO(DashdotdbBase):
 
     def run(self) -> None:
         clusters: list[ClusterV1] = get_clusters()
-        oc_map = init_oc_map_from_clusters(
-            clusters=clusters,
-            secret_reader=self.secret_reader,
+        oc_map_parameters = get_oc_connection_parameters_from_clusters(
+            secret_reader=self.secret_reader, clusters=clusters
+        )
+        oc_map = OCMap(
+            connection_parameters=oc_map_parameters,
             integration=QONTRACT_INTEGRATION,
             use_jump_host=True,
             thread_pool_size=self.thread_pool_size,
