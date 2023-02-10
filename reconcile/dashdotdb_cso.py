@@ -6,7 +6,6 @@ from typing import (
 import requests
 from sretoolbox.utils import threaded
 
-from reconcile import queries
 from reconcile.dashdotdb_base import (
     LOG,
     DashdotdbBase,
@@ -44,7 +43,6 @@ class DashdotdbCSO(DashdotdbBase):
             scope="imagemanifestvuln",
             secret_reader=secret_reader,
         )
-        self.settings = queries.get_app_interface_settings()
 
     def _post(self, manifest: dict[Any, Any]) -> Optional[requests.Response]:
         if manifest is None:
@@ -99,9 +97,7 @@ class DashdotdbCSO(DashdotdbBase):
         )
         oc_map = OCMap(
             connection_parameters=oc_map_parameters,
-            clusters_untyped=[cluster.dict(by_alias=True) for cluster in clusters],
             integration=QONTRACT_INTEGRATION,
-            settings_untyped=self.settings,
             use_jump_host=True,
             thread_pool_size=self.thread_pool_size,
         )
