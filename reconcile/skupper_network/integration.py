@@ -226,6 +226,9 @@ def run(
         logging.debug("No skupper networks found. Exiting...")
         return
     skupper_sites = compile_skupper_sites(skupper_networks)
+    if not skupper_sites:
+        logging.debug("No skupper sites found. Exiting...")
+        return
 
     # APIs
     oc_map = OC_Map(

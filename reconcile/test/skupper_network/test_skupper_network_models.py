@@ -112,7 +112,10 @@ def skupper_site_factory(
 @pytest.fixture
 def namespace_factory() -> NamespaceFactory:
     def _namespace_factory(
-        name: str, private: bool, peered_with: Optional[str] = None
+        name: str,
+        private: bool,
+        internal: bool = False,
+        peered_with: Optional[str] = None,
     ) -> NamespaceV1:
         return NamespaceV1(
             name=name,
@@ -123,7 +126,7 @@ def namespace_factory() -> NamespaceFactory:
                 jumpHost=None,
                 spec=ClusterSpecV1(private=private),
                 automationToken=None,
-                internal=False,
+                internal=internal,
                 disable=None,
                 peering=ClusterPeeringV1(
                     connections=[
@@ -213,11 +216,13 @@ def test_skupper_network_model_skupper_site_compute_connected_sites(
     private03 = skupper_site_factory(
         namespace_factory("private03", private=True), edge=False
     )
+    edge01 = skupper_site_factory(namespace_factory("edge01", private=False), edge=True)
+    edge02 = skupper_site_factory(namespace_factory("edge02", private=False), edge=True)
     internal01 = skupper_site_factory(
-        namespace_factory("internal01", private=False), edge=True
+        namespace_factory("internal01", private=True, internal=True), edge=False
     )
     internal02 = skupper_site_factory(
-        namespace_factory("internal02", private=False), edge=True
+        namespace_factory("internal02", private=True, internal=True), edge=False
     )
     island01 = skupper_site_factory(
         namespace_factory("island01", private=False), edge=False
@@ -229,6 +234,8 @@ def test_skupper_network_model_skupper_site_compute_connected_sites(
         private01,
         private02,
         private03,
+        edge01,
+        edge02,
         internal01,
         internal02,
     ]
@@ -246,12 +253,16 @@ def test_skupper_network_model_skupper_site_compute_connected_sites(
     assert private02.has_incoming_connections(all_sites) is False
     assert private03.connected_sites == {public01, public02}
     assert private03.is_connected_to(private01) is False
-    assert internal01.connected_sites == {public01, public02}
-    assert internal01.has_incoming_connections(all_sites) is False
-    assert internal02.connected_sites == {public01, public02}
+    assert edge01.connected_sites == {public01, public02}
+    assert edge01.has_incoming_connections(all_sites) is False
+    assert edge02.connected_sites == {public01, public02}
     assert delete01.connected_sites == set()
     assert delete01.has_incoming_connections(all_sites) is False
     assert island01.is_island(all_sites) is True
+    assert internal01.connected_sites == {public01, public02}
+    assert internal01.has_incoming_connections([internal02])
+    assert internal02.connected_sites == {public01, public02, internal01}
+    assert internal02.has_incoming_connections(all_sites) is False
 
 
 def test_skupper_network_model_skupper_site_properties(
