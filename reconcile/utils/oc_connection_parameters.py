@@ -25,6 +25,7 @@ class Disable(Protocol):
 class Jumphost(Protocol):
     hostname: str
     port: Optional[int]
+    remote_port: Optional[int]
     known_hosts: str
     user: str
 
@@ -87,9 +88,9 @@ class OCConnectionParameters:
     jumphost_user: Optional[str]
     jumphost_port: Optional[int]
     jumphost_key: Optional[str]
-    # These tunneling ports are currently calculated and set outside of this class
-    jumphost_local_port: Optional[int]
     jumphost_remote_port: Optional[int]
+    # These local port is currently calculated and set outside of this class
+    jumphost_local_port: Optional[int]
 
     @staticmethod
     def from_cluster(
@@ -123,6 +124,7 @@ class OCConnectionParameters:
             jumphost_known_hosts = jh.known_hosts
             jumphost_user = jh.user
             jumphost_port = jh.port
+            jumphost_remote_port = jh.remote_port
 
             try:
                 jumphost_key = secret_reader.read_secret(jh.identity)
