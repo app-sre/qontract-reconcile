@@ -32,6 +32,7 @@ jumpHost:
     version: null
   knownHosts: /path/to/file
   port: null
+  remotePort: 8888
   user: jumphost-user
 kibanaUrl: ''
 machinePools: null
