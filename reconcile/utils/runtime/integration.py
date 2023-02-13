@@ -7,8 +7,12 @@ from types import ModuleType
 from typing import (
     Any,
     Callable,
+    Generic,
     Optional,
+    TypeVar,
 )
+
+from pydantic import BaseModel
 
 
 @dataclass
@@ -70,7 +74,54 @@ class DesiredStateShardConfig:
     """
 
 
-class QontractReconcileIntegration(ABC):
+RunParamsSelfTypeVar = TypeVar("RunParamsSelfTypeVar", bound="RunParams")
+
+
+class RunParams(ABC):
+    """
+    A `RunParams` instance is a container for the parameters that an integration
+    needs to run. This is the base class for all flavors of `RunParams`.
+    """
+
+    @abstractmethod
+    def copy_and_update(
+        self: RunParamsSelfTypeVar, update: dict[str, Any]
+    ) -> RunParamsSelfTypeVar:
+        """
+        Returns a copy of the `RunParams` instance with the given `update` applied.
+        """
+
+    @abstractmethod
+    def get(self, field: str) -> Any:
+        """
+        Returns the value of the given `field`.
+        """
+
+
+PydanticRunParamsSelfTypeVar = TypeVar(
+    "PydanticRunParamsSelfTypeVar", bound="PydanticRunParams"
+)
+
+
+class PydanticRunParams(RunParams, BaseModel):
+    """
+    A flavor of `RunParams` that uses Pydantic's `BaseModel` as the base class.
+    This enables validation based on type hints and pydantic advanced validation.
+    """
+
+    def copy_and_update(
+        self: PydanticRunParamsSelfTypeVar, update: dict[str, Any]
+    ) -> PydanticRunParamsSelfTypeVar:
+        return self.copy(update=update)
+
+    def get(self, field: str) -> Any:
+        return getattr(self, field)
+
+
+RunParamsTypeVar = TypeVar("RunParamsTypeVar", bound=RunParams)
+
+
+class QontractReconcileIntegration(ABC, Generic[RunParamsTypeVar]):
     """
     The base class for all integrations. It defines the basic interface to interact
     with an integration and offers hook methods that allow the integration to opt
@@ -83,7 +134,7 @@ class QontractReconcileIntegration(ABC):
         ...
 
     def get_early_exit_desired_state(
-        self, *args: Any, **kwargs: Any
+        self, params: RunParamsTypeVar
     ) -> Optional[dict[str, Any]]:
         """
         An integration that wants to support early exit on its desired state
@@ -107,7 +158,7 @@ class QontractReconcileIntegration(ABC):
         return None
 
     @abstractmethod
-    def run(self, dry_run: bool, *args: Any, **kwargs: Any) -> None:
+    def run(self, dry_run: bool, params: RunParamsTypeVar) -> None:
         """
         The `run` function of a QontractReconcileIntegration is the entry point to
         its actual functionality. It is obliged to honor the `dry_run` argument and not
@@ -123,36 +174,38 @@ class QontractReconcileIntegration(ABC):
         """
         return self.get_desired_state_shard_config() is not None
 
-    def kwargs_have_shard_info(self, **kwargs: Any) -> bool:
+    def params_have_shard_info(self, params: RunParamsTypeVar) -> bool:
         """
-        Returns `True` if the args and kwargs already contain sharding information.
+        Returns `True` if the params already contain sharding information.
         """
         sharding_config = (  # pylint: disable=assignment-from-none
             self.get_desired_state_shard_config()
         )
         if sharding_config:
-            shard_arg_value = kwargs.get(sharding_config.shard_arg_name)
+            shard_arg_value = params.get(sharding_config.shard_arg_name)
             return shard_arg_value is not None and shard_arg_value
         else:
             return False
 
     def run_for_shard(
-        self, dry_run: bool, shard: str, *run_args: Any, **run_kwargs: Any
+        self, dry_run: bool, shard: str, params: RunParamsTypeVar
     ) -> None:
         """
-        Runs the integration for a specific shard, by patching the `run_kwargs`.
+        Runs the integration for a specific shard, by patching the run parameters.
         If the integration does not support sharded runs, it raises an exception.
         """
         sharding_config = (  # pylint: disable=assignment-from-none
             self.get_desired_state_shard_config()
         )
         if sharding_config:
-            shard_kwargs = run_kwargs.copy()
-            if sharding_config.shard_arg_is_collection:
-                shard_kwargs[sharding_config.shard_arg_name] = [shard]
-            else:
-                shard_kwargs[sharding_config.shard_arg_name] = shard
-            self.run(dry_run, *run_args, **shard_kwargs)
+            sharded_params = params.copy_and_update(
+                {
+                    sharding_config.shard_arg_name: [shard]
+                    if sharding_config.shard_arg_is_collection
+                    else shard
+                }
+            )
+            self.run(dry_run, sharded_params)
         else:
             raise NotImplementedError(
                 "The integration does not support run in sharded mode."
@@ -164,7 +217,27 @@ EARLY_EXIT_DESIRED_STATE_FUNCTION = "early_exit_desired_state"
 DESIRED_STATE_SHARD_CONFIG_FUNCTION = "desired_state_shard_config"
 
 
-class ModuleBasedQontractReconcileIntegration(QontractReconcileIntegration):
+class ArgsKwargsRunParams(RunParams):
+    dry_run: bool
+    args: Any
+    kwargs: Any
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        self.args = args
+        self.kwargs = kwargs
+
+    def copy_and_update(self, update: dict[str, Any]) -> "ArgsKwargsRunParams":
+        kwargs_copy = self.kwargs.copy()
+        kwargs_copy.update(update)
+        return ArgsKwargsRunParams(*self.args, **kwargs_copy)
+
+    def get(self, field: str) -> Any:
+        return self.kwargs.get(field)
+
+
+class ModuleBasedQontractReconcileIntegration(
+    QontractReconcileIntegration[ArgsKwargsRunParams]
+):
     """
     Since most integrations are implemented as modules, this class provides a
     wrapper around a module that implements the `QontractReconcileIntegration`
@@ -193,10 +266,10 @@ class ModuleBasedQontractReconcileIntegration(QontractReconcileIntegration):
             raise NotImplementedError("Integration missing QONTRACT_INTEGRATION.")
 
     def get_early_exit_desired_state(
-        self, *args: Any, **kwargs: Any
+        self, params: ArgsKwargsRunParams
     ) -> Optional[dict[str, Any]]:
         if self._integration_supports(EARLY_EXIT_DESIRED_STATE_FUNCTION):
-            return self._module.early_exit_desired_state(*args, **kwargs)
+            return self._module.early_exit_desired_state(*params.args, **params.kwargs)
         else:
             return None
 
@@ -205,5 +278,5 @@ class ModuleBasedQontractReconcileIntegration(QontractReconcileIntegration):
             return self._module.desired_state_shard_config()
         return None
 
-    def run(self, dry_run: bool, *args: Any, **kwargs: Any) -> None:
-        self._module.run(dry_run, *args, **kwargs)
+    def run(self, dry_run: bool, params: ArgsKwargsRunParams) -> None:
+        self._module.run(dry_run, *params.args, **params.kwargs)

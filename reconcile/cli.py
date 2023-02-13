@@ -8,7 +8,7 @@ from signal import SIGUSR1
 from types import ModuleType
 from typing import (
     Optional,
-    Union,
+    TypeVar,
 )
 
 import click
@@ -31,8 +31,10 @@ from reconcile.utils.environ import environ
 from reconcile.utils.exceptions import PrintToFileInGitRepositoryError
 from reconcile.utils.git import is_file_in_git_repo
 from reconcile.utils.runtime.integration import (
+    ArgsKwargsRunParams,
     ModuleBasedQontractReconcileIntegration,
     QontractReconcileIntegration,
+    RunParams,
 )
 from reconcile.utils.runtime.meta import IntegrationMeta
 from reconcile.utils.runtime.runner import (
@@ -460,24 +462,30 @@ class UnknownIntegrationTypeError(Exception):
     pass
 
 
+RunParamsTypeVar = TypeVar("RunParamsTypeVar", bound=RunParams)
+
+
 def run_integration(
-    func_container: Union[ModuleType, QontractReconcileIntegration],
+    func_container: ModuleType,
     ctx,
     *args,
     **kwargs,
 ):
+    run_class_integration(
+        integration=ModuleBasedQontractReconcileIntegration(func_container),
+        ctx=ctx,
+        params=ArgsKwargsRunParams(*args, **kwargs),
+    )
+
+
+def run_class_integration(
+    integration: QontractReconcileIntegration[RunParamsTypeVar],
+    ctx,
+    params: RunParamsTypeVar,
+):
     register_faulthandler()
     dump_schemas_file = ctx.get("dump_schemas_file")
     try:
-        if isinstance(func_container, QontractReconcileIntegration):
-            integration = func_container
-        elif isinstance(func_container, ModuleType):
-            integration = ModuleBasedQontractReconcileIntegration(func_container)
-        else:
-            raise UnknownIntegrationTypeError(
-                f"Unknown integration type {type(func_container)}"
-            )
-
         running_state = RunningState()
         running_state.integration = integration.name  # type: ignore[attr-defined]
 
@@ -499,8 +507,7 @@ def run_integration(
                 check_only_affected_shards=check_only_affected_shards,
                 gql_sha_url=ctx["gql_sha_url"],
                 print_url=ctx["gql_url_print"],
-                run_args=args,
-                run_kwargs=kwargs,
+                params=params,
             )
         )
     except gql.GqlApiIntegrationNotFound as e:

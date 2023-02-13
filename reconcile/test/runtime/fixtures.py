@@ -7,11 +7,17 @@ import pytest
 
 from reconcile.utils.runtime.integration import (
     DesiredStateShardConfig,
+    PydanticRunParams,
     QontractReconcileIntegration,
 )
 
 
-class SimpleTestIntegration(QontractReconcileIntegration):
+class SimpleTestIntegrationParams(PydanticRunParams):
+    int_arg: int
+    opt_str_arg: Optional[str] = None
+
+
+class SimpleTestIntegration(QontractReconcileIntegration[SimpleTestIntegrationParams]):
     def __init__(self):
         self.desired_state_data = {}
 
@@ -19,13 +25,15 @@ class SimpleTestIntegration(QontractReconcileIntegration):
     def name(self) -> str:
         return "test-integration"
 
-    def get_early_exit_desired_state(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
+    def get_early_exit_desired_state(
+        self, params: SimpleTestIntegrationParams
+    ) -> dict[str, Any]:
         return self.desired_state_data
 
     def get_desired_state_shard_config(self) -> Optional[DesiredStateShardConfig]:
         return None
 
-    def run(self, dry_run: bool, *args, **kwargs) -> None:
+    def run(self, dry_run: bool, params: SimpleTestIntegrationParams) -> None:
         pass
 
 
@@ -34,7 +42,13 @@ def simple_test_integration() -> SimpleTestIntegration:
     return SimpleTestIntegration()
 
 
-class ShardableTestIntegration(QontractReconcileIntegration):
+class ShardableTestIntegrationParams(PydanticRunParams):
+    shard: Optional[str] = None
+
+
+class ShardableTestIntegration(
+    QontractReconcileIntegration[ShardableTestIntegrationParams]
+):
     def __init__(self):
         self.desired_state_data = {}
 
@@ -42,7 +56,9 @@ class ShardableTestIntegration(QontractReconcileIntegration):
     def name(self) -> str:
         return "shardable-test-integration"
 
-    def get_early_exit_desired_state(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
+    def get_early_exit_desired_state(
+        self, params: ShardableTestIntegrationParams
+    ) -> dict[str, Any]:
         return self.desired_state_data
 
     def get_desired_state_shard_config(self) -> Optional[DesiredStateShardConfig]:
@@ -52,7 +68,7 @@ class ShardableTestIntegration(QontractReconcileIntegration):
             sharded_run_review=lambda srp: True,
         )
 
-    def run(self, dry_run: bool, *args, **kwargs) -> None:
+    def run(self, dry_run: bool, params: ShardableTestIntegrationParams) -> None:
         pass
 
 
