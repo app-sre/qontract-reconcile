@@ -15,7 +15,10 @@ from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
 from reconcile.typed_queries.clusters import get_clusters
-from reconcile.utils.oc import StatusCodeError, OCLogMsg
+from reconcile.utils.oc import (
+    OCLogMsg,
+    StatusCodeError,
+)
 from reconcile.utils.oc_map import (
     OCMap,
     init_oc_map_from_clusters,
