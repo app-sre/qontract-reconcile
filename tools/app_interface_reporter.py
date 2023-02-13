@@ -22,7 +22,6 @@ from reconcile.cli import (
     config_file,
     dry_run,
     gitlab_project_id,
-    init_log_level,
     log_level,
     threaded,
 )
@@ -30,12 +29,9 @@ from reconcile.jenkins_job_builder import (
     get_openshift_saas_deploy_job_name,
     init_jjb,
 )
-from reconcile.utils import (
-    config,
-    gql,
-)
 from reconcile.utils.jjb_client import JJB
 from reconcile.utils.mr import CreateAppInterfaceReporter
+from reconcile.utils.runtime.environment import init_env
 from reconcile.utils.secret_reader import SecretReader
 
 CONTENT_FORMAT_VERSION = "1.0.0"
@@ -537,10 +533,8 @@ def get_repo_url(job):
 def main(
     configfile, dry_run, log_level, gitlab_project_id, reports_path, thread_pool_size
 ):
-    config.init_from_toml(configfile)
-    init_log_level(log_level)
-    config.init_from_toml(configfile)
-    gql.init_from_config()
+
+    init_env(log_level=log_level, config_file=configfile)
 
     now = datetime.now()
     apps = get_apps_data(now, thread_pool_size=thread_pool_size)
