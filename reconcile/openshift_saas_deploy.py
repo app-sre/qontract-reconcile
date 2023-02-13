@@ -234,11 +234,13 @@ def run(
     success = not ri.has_error_registered()
     # only publish promotions for deployment jobs (a single saas file)
     if notify:
-        # Auto-promote next stages only if there are changes in the
-        # promoting stage. This prevents trigger promotions on job re-runs
-        auto_promote = len(actions) > 0
+        # Auto-promotions are now created by saas-auto-promotions-manager integration
+        # However, we still need saas-herder to publish the state to S3, because
+        # saas-auto-promotions-manager needs that information
         with mr_client_gateway.init(gitlab_project_id=gitlab_project_id) as mr_cli:
-            saasherder.publish_promotions(success, all_saas_files, mr_cli, auto_promote)
+            saasherder.publish_promotions(
+                success, all_saas_files, mr_cli, auto_promote=False
+            )
 
     if not success:
         sys.exit(ExitCodes.ERROR)

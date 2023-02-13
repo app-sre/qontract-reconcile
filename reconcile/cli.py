@@ -1717,23 +1717,18 @@ def cna_resources(
     )
 
 
-@integration.command(
-    short_help="Manage pipelines defined by SaaS files"
-)
-@enable_deletion(default=False)
-@threaded(default=20)
+@integration.command(short_help="Manage auto-promotions defined in SaaS files")
+@threaded(default=10)
 @click.pass_context
-def saas_pipelines(
+def saas_auto_promotions_manager(
     ctx,
-    enable_deletion,
     thread_pool_size,
 ):
-    import reconcile.saas_pipelines.integration
+    import reconcile.saas_auto_promotions_manager.integration
 
     run_integration(
-        reconcile.saas_pipelines.integration,
+        reconcile.saas_auto_promotions_manager.integration,
         ctx.obj,
-        enable_deletion,
         thread_pool_size,
     )
 

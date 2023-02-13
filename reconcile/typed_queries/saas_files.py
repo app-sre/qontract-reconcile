@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 from collections.abc import Callable
 from typing import Optional
 
@@ -60,18 +59,3 @@ def get_saasherder_settings(
     if _settings := saasherder_settings_query(query_func).settings:
         return _settings[0]
     raise AppInterfaceSettingsError("settings missing")
-=======
-from typing import Optional
-
-from reconcile.gql_definitions.saas_pipelines.saas_files import (
-    SaasFileV2,
-    query,
-)
-from reconcile.utils import gql
-
-
-def get_saas_files() -> list[SaasFileV2]:
-    gqlapi = gql.get_api()
-    data = query(gqlapi.query)
-    return list(data.saas_files or [])
->>>>>>> APPSRE-6941 saas pipelines integration
