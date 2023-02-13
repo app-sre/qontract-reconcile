@@ -15,19 +15,26 @@ from reconcile.utils.oc import (
     OCLogMsg,
     StatusCodeError,
 )
-from reconcile.utils.oc_connection_parameters import OCConnectionParameters
+from reconcile.utils.oc_connection_parameters import (
+    Cluster,
+    Namespace,
+    OCConnectionParameters,
+    get_oc_connection_parameters_from_clusters,
+    get_oc_connection_parameters_from_namespaces,
+)
+from reconcile.utils.secret_reader import SecretReaderBase
 
 
 class OCMap:
     """
-    DO NOT USE YET! This class is still in refactoring state.
-    Only selected integrations are using this class for now.
-
     OCMap takes a list of OCConnectionParameters as input
     and initializes a dictionary of Openshift Clients (OC) per cluster.
 
     In case a connection parameter does not have an automation token
     the OC client will be initiated with a OCLogMessage.
+
+    For convenience, use init_oc_map_from_clusters() or
+    init_oc_map_from_namespaces() to initiate an OCMap object.
     """
 
     def __init__(
@@ -222,3 +229,71 @@ class OCMap:
         for oc in self._privileged_oc_map.values():
             if oc and isinstance(oc, OCDeprecated):
                 oc.cleanup()
+
+
+def init_oc_map_from_clusters(
+    clusters: Iterable[Cluster],
+    secret_reader: SecretReaderBase,
+    integration: str = "",
+    e2e_test: str = "",
+    internal: Optional[bool] = None,
+    use_jump_host: bool = True,
+    thread_pool_size: int = 1,
+    init_projects: bool = False,
+    init_api_resources: bool = False,
+    cluster_admin: bool = False,
+) -> OCMap:
+    """
+    Convenience function to hide connection_parameters implementation
+    from caller.
+    """
+    connection_parameters = get_oc_connection_parameters_from_clusters(
+        clusters=clusters,
+        secret_reader=secret_reader,
+        thread_pool_size=2,
+    )
+    return OCMap(
+        connection_parameters=connection_parameters,
+        integration=integration,
+        e2e_test=e2e_test,
+        internal=internal,
+        use_jump_host=use_jump_host,
+        thread_pool_size=thread_pool_size,
+        init_projects=init_projects,
+        init_api_resources=init_api_resources,
+        cluster_admin=cluster_admin,
+    )
+
+
+def init_oc_map_from_namespaces(
+    namespaces: Iterable[Namespace],
+    secret_reader: SecretReaderBase,
+    integration: str = "",
+    e2e_test: str = "",
+    internal: Optional[bool] = None,
+    use_jump_host: bool = True,
+    thread_pool_size: int = 1,
+    init_projects: bool = False,
+    init_api_resources: bool = False,
+    cluster_admin: bool = False,
+) -> OCMap:
+    """
+    Convenience function to hide connection_parameters implementation
+    from caller.
+    """
+    connection_parameters = get_oc_connection_parameters_from_namespaces(
+        namespaces=namespaces,
+        secret_reader=secret_reader,
+        thread_pool_size=2,
+    )
+    return OCMap(
+        connection_parameters=connection_parameters,
+        integration=integration,
+        e2e_test=e2e_test,
+        internal=internal,
+        use_jump_host=use_jump_host,
+        thread_pool_size=thread_pool_size,
+        init_projects=init_projects,
+        init_api_resources=init_api_resources,
+        cluster_admin=cluster_admin,
+    )

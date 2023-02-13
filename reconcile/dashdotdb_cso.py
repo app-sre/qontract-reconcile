@@ -15,14 +15,11 @@ from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
 from reconcile.typed_queries.clusters import get_clusters
-from reconcile.utils.oc import (
-    OC_Map,
-    StatusCodeError,
+from reconcile.utils.oc import StatusCodeError, OCLogMsg
+from reconcile.utils.oc_map import (
+    OCMap,
+    init_oc_map_from_clusters,
 )
-from reconcile.utils.oc_connection_parameters import (
-    get_oc_connection_parameters_from_clusters,
-)
-from reconcile.utils.oc_map import OCMap
 from reconcile.utils.secret_reader import (
     SecretReaderBase,
     create_secret_reader,
@@ -70,13 +67,14 @@ class DashdotdbCSO(DashdotdbBase):
         return response
 
     @staticmethod
-    def _get_imagemanifestvuln(
-        cluster: str, oc_map: OC_Map
-    ) -> Optional[dict[str, Any]]:
+    def _get_imagemanifestvuln(cluster: str, oc_map: OCMap) -> Optional[dict[str, Any]]:
         LOG.info("%s processing %s", LOGMARKER, cluster)
         oc = oc_map.get(cluster)
-        if not oc:
+        if isinstance(oc, OCLogMsg):
             LOG.log(level=oc.log_level, msg=oc.message)
+            return None
+        if not oc:
+            LOG.error("No OC client for cluster %s", cluster)
             return None
 
         try:
@@ -92,11 +90,9 @@ class DashdotdbCSO(DashdotdbBase):
 
     def run(self) -> None:
         clusters: list[ClusterV1] = get_clusters()
-        oc_map_parameters = get_oc_connection_parameters_from_clusters(
-            secret_reader=self.secret_reader, clusters=clusters
-        )
-        oc_map = OCMap(
-            connection_parameters=oc_map_parameters,
+        oc_map = init_oc_map_from_clusters(
+            clusters=clusters,
+            secret_reader=self.secret_reader,
             integration=QONTRACT_INTEGRATION,
             use_jump_host=True,
             thread_pool_size=self.thread_pool_size,
