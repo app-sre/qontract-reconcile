@@ -581,11 +581,11 @@ def setup(
     thread_pool_size: int,
     internal: str,
     use_jump_host: bool,
-    account_names: Optional[Collection[str]],
+    include_accounts: Optional[Collection[str]],
     exclude_accounts: Optional[Collection[str]],
 ) -> tuple[ResourceInventory, OC_Map, Terraform, ExternalResourceSpecInventory]:
     accounts = queries.get_aws_accounts(terraform_state=True)
-    if not account_names and exclude_accounts:
+    if not include_accounts and exclude_accounts:
         excluding = filter_accounts_by_name(accounts, exclude_accounts)
         if len(excluding) != len(exclude_accounts):
             raise ValueError(
@@ -595,7 +595,7 @@ def setup(
         if len(accounts) == 0:
             raise ValueError("You have excluded all aws accounts, verify your input")
         account_names = tuple(ac["name"] for ac in accounts)
-    if account_names:
+    elif include_accounts:
         accounts = filter_accounts_by_name(accounts, account_names)
         if len(accounts) != len(account_names):
             # Some of the passed account names don't exist in app-interface
