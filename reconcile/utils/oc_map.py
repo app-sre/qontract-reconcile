@@ -85,9 +85,6 @@ class OCMap:
     def _set_jumphost_tunnel_ports(
         self, connection_parameters: OCConnectionParameters
     ) -> None:
-        # This will be replaced with getting the data from app-interface in
-        # a future PR.
-        connection_parameters.jumphost_remote_port = 8888
         key = f"{connection_parameters.jumphost_hostname}:{connection_parameters.jumphost_remote_port}"
         with self._lock:
             if key not in self._jh_ports:

@@ -26,6 +26,7 @@ cluster:
       version: null
     knownHosts: /path/to/file
     port: null
+    remotePort: null
     user: jumphost-user
   name: test-cluster
   serverUrl: server-url

@@ -48,7 +48,7 @@ from reconcile.utils.secret_reader import SecretReaderBase
                 jumphost_key="secret2",
                 jumphost_known_hosts="/path/to/file",
                 jumphost_user="jumphost-user",
-                jumphost_remote_port=None,
+                jumphost_remote_port=8888,
                 jumphost_local_port=None,
                 is_cluster_admin=None,
                 is_internal=True,

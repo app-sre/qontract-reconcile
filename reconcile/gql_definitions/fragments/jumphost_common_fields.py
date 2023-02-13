@@ -24,6 +24,7 @@ class CommonJumphostFields(BaseModel):
     known_hosts: str = Field(..., alias="knownHosts")
     user: str = Field(..., alias="user")
     port: Optional[int] = Field(..., alias="port")
+    remote_port: Optional[int] = Field(..., alias="remotePort")
     identity: VaultSecret = Field(..., alias="identity")
 
     class Config:

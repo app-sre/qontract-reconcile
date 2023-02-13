@@ -45,6 +45,7 @@ fragment CommonJumphostFields on ClusterJumpHost_v1 {
   knownHosts
   user
   port
+  remotePort
   identity {
     ... VaultSecret
   }
