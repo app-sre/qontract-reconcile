@@ -11,6 +11,7 @@ from pytest_mock.plugin import MockerFixture
 
 from reconcile.test.runtime.fixtures import (
     ShardableTestIntegration,
+    ShardableTestIntegrationParams,
     SimpleTestIntegration,
 )
 from reconcile.utils import gql
@@ -62,8 +63,6 @@ def dry_run_test_integration_cfg(
         check_only_affected_shards=True,
         gql_sha_url=False,
         print_url=True,
-        run_args=(),
-        run_kwargs={},
         main_data={"data": "a"},
         comparison_data={"data": "b"},
     )
@@ -81,8 +80,6 @@ def wet_run_test_integration_cfg(
         check_only_affected_shards=True,
         gql_sha_url=False,
         print_url=True,
-        run_args=(),
-        run_kwargs={},
         main_data={"data": "a"},
         comparison_data={"data": "b"},
     )
@@ -101,8 +98,6 @@ def test_run_configuration_switch_to_main_bundle(
         check_only_affected_shards=False,
         gql_sha_url=False,
         print_url=True,
-        run_args=None,
-        run_kwargs=None,
     )
     cfg.switch_to_main_bundle()
     gql_init_from_config.assert_called_with(
@@ -127,8 +122,6 @@ def test_run_configuration_switch_to_comparison_bundle(
         check_only_affected_shards=False,
         gql_sha_url=False,
         print_url=True,
-        run_args=None,
-        run_kwargs=None,
     )
     cfg.switch_to_comparison_bundle()
     gql_init_from_config.assert_called_with(
@@ -191,8 +184,6 @@ def test_get_desired_state_diff(
         check_only_affected_shards=check_only_affected_shards,
         gql_sha_url=False,
         print_url=True,
-        run_args=(),
-        run_kwargs={},
         main_data=current_data,
         comparison_data=previous_data,
     )
@@ -218,8 +209,6 @@ def test_run_configuration_dispatch_dry_run(
         check_only_affected_shards=False,
         gql_sha_url=False,
         print_url=True,
-        run_args=(),
-        run_kwargs={},
         main_data={"data": "a"},
         comparison_data={"data": "b"},
     )
@@ -247,8 +236,6 @@ def test_run_configuration_dispatch_wet_run(
         check_only_affected_shards=False,
         gql_sha_url=False,
         print_url=True,
-        run_args=(),
-        run_kwargs={},
         main_data={"data": "a"},
         comparison_data={"data": "b"},
     )
@@ -270,16 +257,12 @@ def test_run_configuration_dry_run(
     with dry_run=True
     """
     simple_test_integration.run = MagicMock()  # type: ignore
-    args = (1,)
-    kwargs = {"a_string": "s"}
     _integration_dry_run(
         simple_test_integration,
         None,
-        *args,
-        **kwargs,
     )
 
-    simple_test_integration.run.assert_called_once_with(True, *args, **kwargs)
+    simple_test_integration.run.assert_called_once_with(True)
 
 
 def test_run_configuration_dry_run_diff_no_early_exit(
@@ -289,8 +272,6 @@ def test_run_configuration_dry_run_diff_no_early_exit(
     when there is not diff, we don't do early exit but run the integration
     """
     simple_test_integration.run = MagicMock()  # type: ignore
-    args = (1,)
-    kwargs = {"a_string": "s"}
     _integration_dry_run(
         simple_test_integration,
         DesiredStateDiff(
@@ -299,11 +280,9 @@ def test_run_configuration_dry_run_diff_no_early_exit(
             diff_found=True,
             affected_shards=set(),
         ),
-        *args,
-        **kwargs,
     )
 
-    simple_test_integration.run.assert_called_once_with(True, *args, **kwargs)
+    simple_test_integration.run.assert_called_once_with(True)
 
 
 def test_run_configuration_dry_run_no_diff_early_exit(
@@ -313,8 +292,6 @@ def test_run_configuration_dry_run_no_diff_early_exit(
     when there is no difference in the desired state, exit early.
     """
     simple_test_integration.run = MagicMock()  # type: ignore
-    args = (1,)
-    kwargs = {"a_string": "s"}
     _integration_dry_run(
         simple_test_integration,
         DesiredStateDiff(
@@ -323,25 +300,26 @@ def test_run_configuration_dry_run_no_diff_early_exit(
             diff_found=False,
             affected_shards=set(),
         ),
-        *args,
-        **kwargs,
     )
 
     assert not simple_test_integration.run.called
 
 
 def test_run_configuration_dry_run_diff_no_early_exit_sharding(
-    shardable_test_integration: ShardableTestIntegration,
+    mocker: MockerFixture,
 ):
     """
     when there is not diff, we don't do early exit. since the integration supports
     sharding, and affected shards have been detected, we run the integration once
     per shard.
     """
-    shardable_test_integration.run = MagicMock()  # type: ignore
+    integration_run_func = mocker.patch.object(
+        ShardableTestIntegration, "run", autospec=True
+    )
+    shardable_test_integration = ShardableTestIntegration(
+        params=ShardableTestIntegrationParams()
+    )
     affected_shards = {"a", "b"}
-    args = ()
-    kwargs = {"an_arg": "arg"}
     _integration_dry_run(
         shardable_test_integration,
         DesiredStateDiff(
@@ -350,21 +328,21 @@ def test_run_configuration_dry_run_diff_no_early_exit_sharding(
             diff_found=True,
             affected_shards=affected_shards,
         ),
-        *args,
-        **kwargs,
     )
 
     # make sure the run method has been called once per shard
-    assert shardable_test_integration.run.call_count == len(affected_shards)
+    assert integration_run_func.call_count == len(affected_shards)
+    called_sharded_params = [
+        c[0][0].params for c in integration_run_func.call_args_list
+    ]
     for shard in affected_shards:
-        shard_kwargs = kwargs.copy()
-        shard_kwargs["shard"] = shard
-        shardable_test_integration.run.assert_any_call(True, *args, **shard_kwargs)
+        sharded_params = shardable_test_integration.params.copy_and_update(
+            {"shard": shard}
+        )
+        assert sharded_params in called_sharded_params
 
 
-def test_run_configuration_dry_run_diff_no_early_exit_shard_err(
-    shardable_test_integration: ShardableTestIntegration,
-):
+def test_run_configuration_dry_run_diff_no_early_exit_shard_err(mocker: MockerFixture):
     """
     if a shard fails during dry-run, we expect exit with an error
     """
@@ -376,21 +354,26 @@ def test_run_configuration_dry_run_diff_no_early_exit_shard_err(
     sys_exit_0_shard = "sys-exit-0"  # success
     sys_exit_false_shard = "sys-exit-false"  # success
 
-    def integration_run_func(
-        dry_run: bool, an_arg: str, shard: Optional[str] = None
-    ) -> None:
-        if shard == failing_shard:
-            raise Exception(f"shard {shard} failed")
-        if shard == sys_exit_1_shard:
+    def integration_run_func(self: ShardableTestIntegration, dry_run: bool) -> None:
+        if self.params.shard == failing_shard:
+            raise Exception(f"shard {self.params.shard} failed")
+        if self.params.shard == sys_exit_1_shard:
             sys.exit(1)
-        if shard == sys_exit_false_shard:
+        if self.params.shard == sys_exit_false_shard:
             sys.exit(False)
-        if shard == sys_exit_0_shard:
+        if self.params.shard == sys_exit_0_shard:
             sys.exit(0)
-        if shard == sys_exit_true_shard:
+        if self.params.shard == sys_exit_true_shard:
             sys.exit(True)
 
-    shardable_test_integration.run = MagicMock(side_effect=integration_run_func)  # type: ignore
+    integration_run_func_mock = mocker.patch.object(
+        ShardableTestIntegration, "run", side_effect=integration_run_func, autospec=True
+    )
+
+    shardable_test_integration = ShardableTestIntegration(
+        params=ShardableTestIntegrationParams()
+    )
+
     affected_shards = {
         succeeding_shard,
         another_succeeding_shard,
@@ -400,8 +383,6 @@ def test_run_configuration_dry_run_diff_no_early_exit_shard_err(
         sys_exit_0_shard,
         sys_exit_true_shard,
     }
-    args = ()
-    kwargs = {"an_arg": "arg"}
 
     with pytest.raises(SystemExit) as e:
         _integration_dry_run(
@@ -412,31 +393,29 @@ def test_run_configuration_dry_run_diff_no_early_exit_shard_err(
                 diff_found=True,
                 affected_shards=affected_shards,
             ),
-            *args,
-            **kwargs,
         )
 
     # the SystemExit exception contains the nr of failed shards as code
     assert e.value.code == 3
 
     # make sure the run method has been called once per shard
-    assert shardable_test_integration.run.call_count == len(affected_shards)
+    assert integration_run_func_mock.call_count == len(affected_shards)
+    called_sharded_params = [
+        c[0][0].params for c in integration_run_func_mock.call_args_list
+    ]
     for shard in affected_shards:
-        shard_kwargs = kwargs.copy()
-        shard_kwargs["shard"] = shard
-        shardable_test_integration.run.assert_any_call(True, *args, **shard_kwargs)
+        sharded_params = shardable_test_integration.params.copy_and_update(
+            {"shard": shard}
+        )
+        assert sharded_params in called_sharded_params
 
 
 def test_run_configuration_wet_run(simple_test_integration: SimpleTestIntegration):
     simple_test_integration.run = MagicMock()  # type: ignore
-    args = (1,)
-    kwargs = {"a_string": "s"}
     _integration_wet_run(
         simple_test_integration,
-        *args,
-        **kwargs,
     )
 
     assert not simple_test_integration.run.assert_called_once_with(  # type: ignore
-        False, *args, **kwargs
+        False
     )
