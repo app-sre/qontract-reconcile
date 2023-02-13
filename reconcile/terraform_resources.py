@@ -587,26 +587,15 @@ def setup(
     accounts = queries.get_aws_accounts(terraform_state=True)
     if not include_accounts and exclude_accounts:
         excluding = filter_accounts_by_name(accounts, exclude_accounts)
-        if len(excluding) != len(exclude_accounts):
-            raise ValueError(
-                f"Accounts {exclude_accounts} were provided as arguments, but not found in app-interface. Check your input for typos or for missing AWS account definitions."
-            )
+        validate_account_names(excluding, exclude_accounts)
         accounts = exclude_accounts_by_name(accounts, exclude_accounts)
         if len(accounts) == 0:
             raise ValueError("You have excluded all aws accounts, verify your input")
         account_names = tuple(ac["name"] for ac in accounts)
     elif include_accounts:
-        accounts = filter_accounts_by_name(accounts, account_names)
-        if len(accounts) != len(account_names):
-            # Some of the passed account names don't exist in app-interface
-            acc_names = tuple(
-                a
-                for a in account_names
-                if a not in tuple(account["name"] for account in accounts)
-            )
-            raise ValueError(
-                f"Accounts {acc_names} were provided as arguments, but not found in app-interface. Check your input for typos or for missing AWS account definitions."
-            )
+        accounts = filter_accounts_by_name(accounts, include_accounts)
+        validate_account_names(accounts, include_accounts)
+    account_names = tuple(a["name"] for a in accounts)
     settings = queries.get_app_interface_settings()
 
     # build a resource inventory for all the kube secrets managed by the
