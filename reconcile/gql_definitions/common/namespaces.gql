@@ -55,10 +55,7 @@ query Namespaces {
         ... CommonJumphostFields
       }
       automationToken {
-        path
-        field
-        version
-        format
+        ... VaultSecret
       }
       clusterAdminAutomationToken {
         ... VaultSecret
@@ -77,24 +74,19 @@ query Namespaces {
       name
       limits {
         default {
-          cpu
-          memory
+          ... ResourceValues
         }
         defaultRequest {
-          cpu
-          memory
+          ... ResourceValues
         }
         max {
-          cpu
-          memory
+          ... ResourceValues
         }
         maxLimitRequestRatio {
-          cpu
-          memory
+          ... ResourceValues
         }
         min {
-          cpu
-          memory
+          ... ResourceValues
         }
         type
       }
@@ -104,12 +96,10 @@ query Namespaces {
         name
         resources {
           limits {
-            cpu
-            memory
+            ... ResourceValues
           }
           requests {
-            cpu
-            memory
+            ... ResourceValues
           }
           pods
         }

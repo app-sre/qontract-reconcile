@@ -1,0 +1,6 @@
+# qenerate: plugin=pydantic_v1
+
+fragment ResourceValues on ResourceValues_v1 {
+    cpu
+    memory
+}

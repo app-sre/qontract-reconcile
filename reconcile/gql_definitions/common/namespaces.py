@@ -19,6 +19,7 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
 from reconcile.gql_definitions.fragments.jumphost_common_fields import (
     CommonJumphostFields,
 )
+from reconcile.gql_definitions.fragments.resource_values import ResourceValues
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
 
@@ -32,6 +33,11 @@ fragment CommonJumphostFields on ClusterJumpHost_v1 {
   identity {
     ... VaultSecret
   }
+}
+
+fragment ResourceValues on ResourceValues_v1 {
+    cpu
+    memory
 }
 
 fragment VaultSecret on VaultSecret_v1 {
@@ -96,10 +102,7 @@ query Namespaces {
         ... CommonJumphostFields
       }
       automationToken {
-        path
-        field
-        version
-        format
+        ... VaultSecret
       }
       clusterAdminAutomationToken {
         ... VaultSecret
@@ -118,24 +121,19 @@ query Namespaces {
       name
       limits {
         default {
-          cpu
-          memory
+          ... ResourceValues
         }
         defaultRequest {
-          cpu
-          memory
+          ... ResourceValues
         }
         max {
-          cpu
-          memory
+          ... ResourceValues
         }
         maxLimitRequestRatio {
-          cpu
-          memory
+          ... ResourceValues
         }
         min {
-          cpu
-          memory
+          ... ResourceValues
         }
         type
       }
@@ -145,12 +143,10 @@ query Namespaces {
         name
         resources {
           limits {
-            cpu
-            memory
+            ... ResourceValues
           }
           requests {
-            cpu
-            memory
+            ... ResourceValues
           }
           pods
         }
@@ -252,17 +248,6 @@ class NamespaceTerraformProviderResourceAWSV1(NamespaceExternalResourceV1):
         extra = Extra.forbid
 
 
-class ClusterV1_VaultSecretV1(BaseModel):
-    path: str = Field(..., alias="path")
-    field: str = Field(..., alias="field")
-    version: Optional[int] = Field(..., alias="version")
-    q_format: Optional[str] = Field(..., alias="format")
-
-    class Config:
-        smart_union = True
-        extra = Extra.forbid
-
-
 class DisableClusterAutomationsV1(BaseModel):
     integrations: Optional[list[str]] = Field(..., alias="integrations")
     e2e_tests: Optional[list[str]] = Field(..., alias="e2eTests")
@@ -277,9 +262,7 @@ class ClusterV1(BaseModel):
     server_url: str = Field(..., alias="serverUrl")
     insecure_skip_tls_verify: Optional[bool] = Field(..., alias="insecureSkipTLSVerify")
     jump_host: Optional[CommonJumphostFields] = Field(..., alias="jumpHost")
-    automation_token: Optional[ClusterV1_VaultSecretV1] = Field(
-        ..., alias="automationToken"
-    )
+    automation_token: Optional[VaultSecret] = Field(..., alias="automationToken")
     cluster_admin_automation_token: Optional[VaultSecret] = Field(
         ..., alias="clusterAdminAutomationToken"
     )
@@ -300,65 +283,14 @@ class NamespaceManagedResourceNamesV1(BaseModel):
         extra = Extra.forbid
 
 
-class ResourceValuesV1(BaseModel):
-    cpu: Optional[str] = Field(..., alias="cpu")
-    memory: Optional[str] = Field(..., alias="memory")
-
-    class Config:
-        smart_union = True
-        extra = Extra.forbid
-
-
-class LimitRangeItemV1_ResourceValuesV1(BaseModel):
-    cpu: Optional[str] = Field(..., alias="cpu")
-    memory: Optional[str] = Field(..., alias="memory")
-
-    class Config:
-        smart_union = True
-        extra = Extra.forbid
-
-
-class LimitRangeV1_LimitRangeItemV1_ResourceValuesV1(BaseModel):
-    cpu: Optional[str] = Field(..., alias="cpu")
-    memory: Optional[str] = Field(..., alias="memory")
-
-    class Config:
-        smart_union = True
-        extra = Extra.forbid
-
-
-class NamespaceV1_LimitRangeV1_LimitRangeItemV1_ResourceValuesV1(BaseModel):
-    cpu: Optional[str] = Field(..., alias="cpu")
-    memory: Optional[str] = Field(..., alias="memory")
-
-    class Config:
-        smart_union = True
-        extra = Extra.forbid
-
-
-class Namespaces_NamespaceV1_LimitRangeV1_LimitRangeItemV1_ResourceValuesV1(BaseModel):
-    cpu: Optional[str] = Field(..., alias="cpu")
-    memory: Optional[str] = Field(..., alias="memory")
-
-    class Config:
-        smart_union = True
-        extra = Extra.forbid
-
-
 class LimitRangeItemV1(BaseModel):
-    default: Optional[ResourceValuesV1] = Field(..., alias="default")
-    default_request: Optional[LimitRangeItemV1_ResourceValuesV1] = Field(
-        ..., alias="defaultRequest"
+    default: Optional[ResourceValues] = Field(..., alias="default")
+    default_request: Optional[ResourceValues] = Field(..., alias="defaultRequest")
+    max: Optional[ResourceValues] = Field(..., alias="max")
+    max_limit_request_ratio: Optional[ResourceValues] = Field(
+        ..., alias="maxLimitRequestRatio"
     )
-    max: Optional[LimitRangeV1_LimitRangeItemV1_ResourceValuesV1] = Field(
-        ..., alias="max"
-    )
-    max_limit_request_ratio: Optional[
-        NamespaceV1_LimitRangeV1_LimitRangeItemV1_ResourceValuesV1
-    ] = Field(..., alias="maxLimitRequestRatio")
-    min: Optional[
-        Namespaces_NamespaceV1_LimitRangeV1_LimitRangeItemV1_ResourceValuesV1
-    ] = Field(..., alias="min")
+    min: Optional[ResourceValues] = Field(..., alias="min")
     q_type: Optional[str] = Field(..., alias="type")
 
     class Config:
@@ -375,31 +307,9 @@ class LimitRangeV1(BaseModel):
         extra = Extra.forbid
 
 
-class ResourceQuotaItemResourcesV1_ResourceValuesV1(BaseModel):
-    cpu: Optional[str] = Field(..., alias="cpu")
-    memory: Optional[str] = Field(..., alias="memory")
-
-    class Config:
-        smart_union = True
-        extra = Extra.forbid
-
-
-class ResourceQuotaItemV1_ResourceQuotaItemResourcesV1_ResourceValuesV1(BaseModel):
-    cpu: Optional[str] = Field(..., alias="cpu")
-    memory: Optional[str] = Field(..., alias="memory")
-
-    class Config:
-        smart_union = True
-        extra = Extra.forbid
-
-
 class ResourceQuotaItemResourcesV1(BaseModel):
-    limits: Optional[ResourceQuotaItemResourcesV1_ResourceValuesV1] = Field(
-        ..., alias="limits"
-    )
-    requests: Optional[
-        ResourceQuotaItemV1_ResourceQuotaItemResourcesV1_ResourceValuesV1
-    ] = Field(..., alias="requests")
+    limits: Optional[ResourceValues] = Field(..., alias="limits")
+    requests: Optional[ResourceValues] = Field(..., alias="requests")
     pods: Optional[int] = Field(..., alias="pods")
 
     class Config:
