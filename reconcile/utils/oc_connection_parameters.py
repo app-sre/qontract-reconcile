@@ -89,7 +89,7 @@ class OCConnectionParameters:
     jumphost_port: Optional[int]
     jumphost_key: Optional[str]
     jumphost_remote_port: Optional[int]
-    # These local port is currently calculated and set outside of this class
+    # The local port is currently calculated and set outside of this class
     jumphost_local_port: Optional[int]
 
     @staticmethod
