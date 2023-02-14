@@ -1454,7 +1454,10 @@ class OC:
 
 
 class OC_Map:
-    """OC_Map gets a GraphQL query results list as input
+    """
+    DEPRECATED! Use reconcile.utils.oc_map.OCMap instead.
+
+    OC_Map gets a GraphQL query results list as input
     and initiates a dictionary of OC clients per cluster.
 
     The input must contain either 'clusters' or 'namespaces', but not both.
