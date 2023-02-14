@@ -205,12 +205,6 @@ class AccountShardingStrategy(TerraformS3StateNamingStrategy):
 
 
 class TerrascriptCloudflareClientFactory:
-    @staticmethod
-    def _validate(tf_state_s3: TerraformStateS3, qr_integration: str) -> None:
-        if tf_state_s3.region is None:
-            raise InvalidTerraformState("region must be provided for terraform state")
-        if tf_state_s3.bucket is None:
-            raise InvalidTerraformState("bucket must be provided for terraform state")
 
     @staticmethod
     def _create_backend_config(
@@ -258,7 +252,6 @@ class TerrascriptCloudflareClientFactory:
         secret_reader: SecretReader,
         cf_account_exists: bool,
     ) -> TerrascriptCloudflareClient:
-        # cls._validate(tf_state_s3, qr_integration)
         key = _get_terraform_s3_state_key_name(
             qr_integration, tf_state_s3.integrations, sharding_strategy
         )
@@ -312,6 +305,3 @@ class IntegrationUndefined(Exception):
 class InvalidTerraformState(Exception):
     pass
 
-
-class CloudflareClientCreationError(Exception):
-    pass

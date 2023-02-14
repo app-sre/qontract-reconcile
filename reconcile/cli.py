@@ -4,7 +4,6 @@ import logging
 import os
 import re
 import sys
-import traceback
 from signal import SIGUSR1
 from types import ModuleType
 from typing import Optional
@@ -522,7 +521,6 @@ def run_class_integration(
         sys.stderr.write(str(e) + "\n")
         sys.exit(ExitCodes.FORBIDDEN_SCHEMA)
     except Exception as e:
-        traceback.print_exc()
         sys.stderr.write(str(e) + "\n")
         sys.exit(ExitCodes.ERROR)
     finally:
