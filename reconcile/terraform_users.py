@@ -10,6 +10,7 @@ from reconcile import (
     queries,
     typed_queries,
 )
+from reconcile.change_owners.diff import IDENTIFIER_FIELD_NAME
 from reconcile.gql_definitions.common.pgp_reencryption_settings import query
 from reconcile.utils import (
     expiration,
