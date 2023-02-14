@@ -62,9 +62,14 @@ query ClustersMinimal($name: String) {
     automationToken {
       ... VaultSecret
     }
+    clusterAdmin
+    clusterAdminAutomationToken {
+      ... VaultSecret
+    }
     internal
     disable {
       integrations
+      e2eTests
     }
     auth {
       service
@@ -109,6 +114,7 @@ class ClusterSpecV1(BaseModel):
 
 class DisableClusterAutomationsV1(BaseModel):
     integrations: Optional[list[str]] = Field(..., alias="integrations")
+    e2e_tests: Optional[list[str]] = Field(..., alias="e2eTests")
 
     class Config:
         smart_union = True
@@ -173,6 +179,10 @@ class ClusterV1(BaseModel):
     ocm: Optional[OpenShiftClusterManagerV1] = Field(..., alias="ocm")
     spec: Optional[ClusterSpecV1] = Field(..., alias="spec")
     automation_token: Optional[VaultSecret] = Field(..., alias="automationToken")
+    cluster_admin: Optional[bool] = Field(..., alias="clusterAdmin")
+    cluster_admin_automation_token: Optional[VaultSecret] = Field(
+        ..., alias="clusterAdminAutomationToken"
+    )
     internal: Optional[bool] = Field(..., alias="internal")
     disable: Optional[DisableClusterAutomationsV1] = Field(..., alias="disable")
     auth: list[
