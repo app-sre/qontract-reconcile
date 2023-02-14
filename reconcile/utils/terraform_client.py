@@ -698,6 +698,7 @@ def run_terraform(
     thread_pool_size: int,
     working_dirs: Mapping[str, str],
     accounts: Iterable[Mapping[str, Any]],
+    defer=None,
 ):
     tf = TerraformClient(
         QONTRACT_INTEGRATION,
@@ -707,6 +708,7 @@ def run_terraform(
         working_dirs,
         thread_pool_size,
     )
+
     defer(tf.cleanup)
 
     disabled_deletions_detected, err = tf.plan(enable_deletion)

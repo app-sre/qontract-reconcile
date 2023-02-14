@@ -205,7 +205,6 @@ class AccountShardingStrategy(TerraformS3StateNamingStrategy):
 
 
 class TerrascriptCloudflareClientFactory:
-
     @staticmethod
     def _create_backend_config(
         tf_state_s3: TerraformStateS3, key: str, secret_reader: SecretReader
@@ -304,4 +303,3 @@ class IntegrationUndefined(Exception):
 
 class InvalidTerraformState(Exception):
     pass
-
