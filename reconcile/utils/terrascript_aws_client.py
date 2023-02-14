@@ -725,7 +725,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
                     if (
                         appsre_pgp_key is not None
-                        and account not in skip_reencrypt_accounts
+                        and account_name not in skip_reencrypt_accounts
                     ):
                         user_public_gpg_key = appsre_pgp_key
 
