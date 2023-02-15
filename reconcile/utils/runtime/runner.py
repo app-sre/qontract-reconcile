@@ -9,6 +9,7 @@ from typing import (
 
 from sretoolbox.utils import threaded as sretoolbox_threaded
 
+from reconcile.status import ExitCodes
 from reconcile.utils import gql
 from reconcile.utils.runtime.desired_state_diff import (
     DesiredStateDiff,
@@ -208,19 +209,17 @@ def _integration_dry_run(
             sharded_integration.run(True)
 
         # run all shards
-        exceptions = sretoolbox_threaded.run(
+        results = sretoolbox_threaded.run(
             run_integration_shard,
             affected_shard_list,
             thread_pool_size=min(len(affected_shard_list), 10),
             return_exceptions=True,
         )
 
-        for shard, ex in zip(affected_shard_list, exceptions):
-            if ex:
-                logging.error(f"Failed to run integration shard {shard}: {ex}")
-        failed_shards_count = sum(
-            1 for _ in filter(lambda e: e is not None, exceptions)
-        )
+        for shard, result in zip(affected_shard_list, results):
+            if _is_task_result_an_error(result):
+                logging.error(f"Failed to run integration shard {shard}: {result}")
+        failed_shards_count = sum(1 for _ in filter(_is_task_result_an_error, results))
         if failed_shards_count > 0:
             sys.exit(failed_shards_count)
         else:
@@ -228,3 +227,13 @@ def _integration_dry_run(
 
     # if not, we run the integration in full
     integration.run(True)
+
+
+def _is_task_result_an_error(result: Any) -> bool:
+    """
+    Returns True if the current exception is an error, i.e. should be
+    considered a failure of the integration run.
+    """
+    if isinstance(result, SystemExit):
+        return result.args[0] != ExitCodes.SUCCESS and result.code is not False
+    return isinstance(result, BaseException)
