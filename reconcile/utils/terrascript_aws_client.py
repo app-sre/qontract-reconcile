@@ -5321,8 +5321,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         )
         tf_resources.append(cognito_resource_server_gateway_resource)
 
-        # POOL CLIENT
-        cognito_user_pool_client = aws_cognito_user_pool_client(
+        # OCM POOL CLIENT
+        ocm_cognito_user_pool_client = aws_cognito_user_pool_client(
             "userpool_client",
             name=f"ocm-{identifier}-pool-client",
             user_pool_id=f"${{{cognito_user_pool_resource.id}}}",
@@ -5330,7 +5330,18 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             depends_on=["aws_cognito_resource_server.userpool_gateway_resource_server"],
             **pool_client_args,
         )
-        tf_resources.append(cognito_user_pool_client)
+        tf_resources.append(ocm_cognito_user_pool_client)
+
+        # INSIGHTS POOL CLIENT
+        insights_cognito_user_pool_client = aws_cognito_user_pool_client(
+            "userpool_client",
+            name=f"insights-{identifier}-pool-client",
+            user_pool_id=f"${{{cognito_user_pool_resource.id}}}",
+            callback_urls=[f"{bucket_url}/token.html"],
+            depends_on=["aws_cognito_resource_server.userpool_gateway_resource_server"],
+            **pool_client_args,
+        )
+        tf_resources.append(insights_cognito_user_pool_client)
 
         # POOL RESOURCE SERVER
         cognito_resource_server_resource = aws_cognito_resource_server(
@@ -5687,8 +5698,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         )
         tf_resources.append(api_gateway_integration_token_response_resource)
 
-        # AUTH
-        api_gateway_integration_auth_response_resource = aws_api_gateway_integration_response(
+        # AUTH - OCM
+        ocm_api_gw_intg_auth_response_resource = aws_api_gateway_integration_response(
             "gw_integration_response_auth",
             rest_api_id=f"${{{api_gateway_rest_api_resource.id}}}",
             resource_id=f"${{{api_gateway_auth_resource.id}}}",
@@ -5696,13 +5707,30 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             status_code="${aws_api_gateway_method_response.gw_method_auth_get_response.status_code}",
             response_parameters={
                 "method.response.header.Location": f"'{user_pool_url}/oauth2/authorize?client_id="
-                f"${{{cognito_user_pool_client.id}}}\u0026response_type=code"
+                f"${{{ocm_cognito_user_pool_client.id}}}\u0026response_type=code"
                 f"\u0026scope=openid+gateway/AccessToken\u0026redirect_uri={bucket_url}/"
                 "token.html'",
             },
             depends_on=["aws_api_gateway_integration.gw_integration_auth"],
         )
-        tf_resources.append(api_gateway_integration_auth_response_resource)
+        tf_resources.append(ocm_api_gateway_integration_auth_response_resource)
+
+        # AUTH - INSIGHTS
+        ins_api_gw_intg_auth_response_resource = aws_api_gateway_integration_response(
+            "ins_gw_integration_response_auth",
+            rest_api_id=f"${{{api_gateway_rest_api_resource.id}}}",
+            resource_id=f"${{{api_gateway_auth_resource.id}}}",
+            http_method="${aws_api_gateway_method.gw_method_auth_get.http_method}",
+            status_code="${aws_api_gateway_method_response.gw_method_auth_get_response.status_code}",
+            response_parameters={
+                "method.response.header.Location": f"'{user_pool_url}/oauth2/authorize?client_id="
+                f"${{{insights_cognito_user_pool_client.id}}}\u0026response_type=code"
+                f"\u0026scope=openid+gateway/AccessToken\u0026redirect_uri={bucket_url}/"
+                "token.html'",
+            },
+            depends_on=["aws_api_gateway_integration.gw_integration_auth"],
+        )
+        tf_resources.append(ins_api_gw_intg_auth_response_resource)
 
         # DEPLOYMENT
         api_gateway_deployment_resource = aws_api_gateway_deployment(
@@ -5725,6 +5753,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 "${jsonencode(aws_api_gateway_integration_response.gw_integration_response_proxy)},"
                 "${jsonencode(aws_api_gateway_integration_response.gw_integration_response_token)},"
                 "${jsonencode(aws_api_gateway_integration_response.gw_integration_response_auth)}"
+                "${jsonencode(aws_api_gateway_integration_response.ins_gw_integration_response_auth)}"
                 "]))"
             },
             lifecycle={"create_before_destroy": True},
