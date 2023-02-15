@@ -9,12 +9,12 @@ from unittest.mock import ANY
 
 import pytest
 
-from reconcile.status_page_components import register_providers
-from reconcile.utils.statuspage.atlassian import (
+from reconcile.statuspage.integration import register_providers
+from reconcile.statuspage.atlassian import (
     AtlassianComponent,
     AtlassianStatusPage,
 )
-from reconcile.utils.statuspage.models import (
+from reconcile.statuspage.models import (
     StatusComponent,
     StatusPage,
     StatusPageComponentStatusProvider,
@@ -22,7 +22,7 @@ from reconcile.utils.statuspage.models import (
 )
 from reconcile.utils.vaultsecretref import VaultSecretRef
 
-from .fixtures import Fixtures
+from reconcile.test.fixtures import Fixtures
 
 fxt = Fixtures("statuspage")
 

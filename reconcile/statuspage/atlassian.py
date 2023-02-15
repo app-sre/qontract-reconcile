@@ -8,7 +8,7 @@ from typing import (
 import statuspageio  # type: ignore
 from pydantic import BaseModel
 
-from reconcile.utils.statuspage.models import (
+from reconcile.statuspage.models import (
     StatusComponent,
     StatusPage,
     StatusPageProvider,
@@ -96,9 +96,10 @@ class AtlassianStatusPage(StatusPageProvider):
                 f"{desired.group_name} is currently unsupported"
             )
 
-        component_update = dict(
-            name=desired.display_name, description=desired.description
-        )
+        component_update = {
+            "name": desired.display_name,
+            "description": desired.description,
+        }
         if group_id:
             component_update["group_id"] = group_id
 
