@@ -1,7 +1,6 @@
 import json
 import logging
 import shutil
-import sys
 from collections import defaultdict
 from collections.abc import (
     Iterable,
@@ -31,7 +30,6 @@ from sretoolbox.utils import (
 )
 
 import reconcile.utils.lean_terraform_client as lean_tf
-from reconcile.status import ExitCodes
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.aws_helper import get_region_from_availability_zone
 from reconcile.utils.defer import defer
@@ -713,14 +711,24 @@ def run_terraform(
 
     disabled_deletions_detected, err = tf.plan(enable_deletion)
     if err:
-        sys.exit(ExitCodes.ERROR)
+        raise TerraformPlanFailed(f'Failed to run terraform plan for integration {QONTRACT_INTEGRATION}')
     if disabled_deletions_detected:
-        logging.error("Deletions detected but they are disabled")
-        sys.exit(ExitCodes.ERROR)
+        logging.warning("Deletions detected but they are disabled")
+        raise TerraformDeletionDetected("Deletions detected but they are disabled")
 
     if dry_run:
-        sys.exit(ExitCodes.SUCCESS)
+        return
 
     err = tf.apply()
     if err:
-        sys.exit(ExitCodes.ERROR)
+        TerraformApplyFailed(f'Failed to run terraform apply for integration {QONTRACT_INTEGRATION}')
+
+
+class TerraformPlanFailed(Exception):
+    pass
+
+class TerraformApplyFailed(Exception):
+    pass
+
+class TerraformDeletionDetected(Exception):
+    pass
