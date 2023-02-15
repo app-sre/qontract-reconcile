@@ -1032,7 +1032,6 @@ class CheckClusterScopedResourceNames:
 class CheckClusterScopedResourceDuplicates:
     oc_map: OC_Map
     all_namespaces: Optional[list[Mapping]] = None
-    thread_pool_size: int = 10
 
     def check(self) -> list[Exception]:
         errors: list[Exception] = []
@@ -1040,56 +1039,40 @@ class CheckClusterScopedResourceDuplicates:
         cluster_cs_resources = get_cluster_scoped_resources(
             self.oc_map, clusters, self.all_namespaces
         )
-        results = threaded.run(
-            self._find_resource_duplicates,
-            list(cluster_cs_resources.items()),
-            self.thread_pool_size,
-            return_exceptions=True,
-        )
-        for r in results:
-            if isinstance(r, Exception):
-                errors.append(r)
-        if errors:
-            return errors
 
-        for cluster, duplicates in dict(results).items():
-            for kind_name, namespaces in duplicates.items():
-                kind, name = kind_name
-                errors.append(
-                    CheckError(
-                        f"Cluster resource defined in multiple namespaces. "
-                        f"cluster: {cluster}, namespaces: {namespaces}, "
-                        f"kind:{kind}, name:{name}"
-                    )
+        duplicates = self._find_resource_duplicates(cluster_cs_resources)
+        for cluster, kind, name, namespaces in duplicates:
+            errors.append(
+                CheckError(
+                    f"Cluster resource defined in multiple namespaces. "
+                    f"cluster: {cluster}, namespaces: {namespaces}, "
+                    f"kind:{kind}, name:{name}"
                 )
+            )
         return errors
 
     def _find_resource_duplicates(
-        self, input: Tuple[str, Mapping]
-    ) -> Tuple[str, dict[Tuple[str, str], list[str]]]:
-        """Finds resource duplicates. Duplicates is a di
-
-        Have: {cluster: {ns: {kind:[names], ns2: {kind:{names]}}}]
-        Want: {cluster: {(kind, name):[ns1,ns2,...], (kind2,name2): [ns3,ns4,...]}
-
-        :param input: (cluster, resources)
-        :return: (cluster, duplicates)
+        self, cluster_cs_resources: dict[str, dict[str, dict[str, list[str]]]]
+    ) -> list[Tuple[str, str, str, list[str]]]:
+        # ) -> dict[Tuple[str, str, str], list[str]]:
+        """Finds cluster resource duplicates by kind/name.
+        :param cluster_cs_resources
+        :return: duplicates as [(cluster, kind, name, [namespaces])]
         """
-        remap: dict[str, dict[str, list[str]]] = {}
-        duplicates: dict[Tuple[str, str], list[str]] = {}
+        duplicates: list[Tuple[str, str, str, list[str]]] = []
 
-        cluster, cluster_resources = input
-        for ns, resources in cluster_resources.items():
-            if not ns:
-                continue
-            for kind, names in resources.items():
-                k_ref = remap.setdefault(kind, {})
-                for name in names:
-                    n_ref = k_ref.setdefault(name, [])
-                    n_ref.append(ns)
-                    if len(n_ref) > 1:
-                        duplicates[(kind, name)] = n_ref
-        return (cluster, duplicates)
+        for cluster, cluster_resources in cluster_cs_resources.items():
+            _kind_name: dict[str, dict[str, list[str]]] = {}
+            for ns, resources in cluster_resources.items():
+                for kind, names in resources.items():
+                    k_ref = _kind_name.setdefault(kind, {})
+                    for name in names:
+                        n_ref = k_ref.setdefault(name, [])
+                        n_ref.append(ns)
+                        if len(n_ref) > 1:
+                            duplicates.append((cluster, kind, name, n_ref))
+
+        return duplicates
 
 
 def check_cluster_scoped_resources(
@@ -1121,7 +1104,7 @@ def get_cluster_scoped_resources(
     clusters: Iterable[str],
     namespaces: Optional[Iterable[Mapping[str, Any]]] = None,
     thread_pool_size: int = 10,
-) -> dict[str, dict[str, list[str]]]:
+) -> dict[str, dict[str, dict[str, list[str]]]]:
     """Returns cluster scoped resources for a list of clusters
 
     :param oc_map: OC_Map
@@ -1145,7 +1128,7 @@ def get_cluster_scoped_resources(
         False,
         oc_map=oc_map,
     )
-    cluster_resources: dict[str, dict[str, list[str]]] = {}
+    cluster_resources: dict[str, dict[str, dict[str, list[str]]]] = {}
     for cluster, namespace, resources in results:
         c_ref = cluster_resources.setdefault(cluster, {})
         c_ref[namespace] = resources
