@@ -123,8 +123,7 @@ def run(
     defer=None,
 ) -> None:
     settings = get_app_interface_vault_settings()
-    use_vault = (settings or False) and settings.vault
-    secret_reader = create_secret_reader(use_vault=use_vault)
+    secret_reader = create_secret_reader(use_vault=settings.vault)
 
     query_func = gql.get_api().query
     cna_provisioners = cna_provisioners_query(query_func).cna_provisioners or []

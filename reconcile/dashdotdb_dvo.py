@@ -261,8 +261,6 @@ def run(
     cluster_name: Optional[str] = None,
 ) -> None:
     vault_settings = get_app_interface_vault_settings()
-    if not vault_settings:
-        raise Exception("Missing app-interface vault_settings")
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     dashdotdb_dvo = DashdotdbDVO(
         dry_run=dry_run, thread_pool_size=thread_pool_size, secret_reader=secret_reader

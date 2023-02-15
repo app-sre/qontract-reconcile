@@ -116,8 +116,6 @@ class DashdotdbCSO(DashdotdbBase):
 
 def run(dry_run: bool = False, thread_pool_size: int = 10) -> None:
     vault_settings = get_app_interface_vault_settings()
-    if not vault_settings:
-        raise Exception("Missing app-interface vault_settings")
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     dashdotdb_cso = DashdotdbCSO(
         dry_run=dry_run, thread_pool_size=thread_pool_size, secret_reader=secret_reader
