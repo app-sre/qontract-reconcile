@@ -10,9 +10,12 @@ from typing import (
     Tuple,
 )
 
-from reconcile import queries
 from reconcile.gql_definitions.terraform_cloudflare_users import (
+    app_interface_setting_cloudflare_and_vault,
     terraform_cloudflare_roles,
+)
+from reconcile.gql_definitions.terraform_cloudflare_users.app_interface_setting_cloudflare_and_vault import (
+    AppInterfaceSettingCloudflareAndVaultQueryData,
 )
 from reconcile.gql_definitions.terraform_cloudflare_users.terraform_cloudflare_roles import (
     CloudflareAccountRoleQueryData,
@@ -22,7 +25,10 @@ from reconcile.status import ExitCodes
 from reconcile.utils import gql
 from reconcile.utils.external_resource_spec import ExternalResourceSpec
 from reconcile.utils.runtime.integration import QontractReconcileIntegration
-from reconcile.utils.secret_reader import SecretReader
+from reconcile.utils.secret_reader import (
+    SecretReaderBase,
+    create_secret_reader,
+)
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.terraform import safe_resource_id
 from reconcile.utils.terraform.config_client import (
@@ -40,6 +46,7 @@ from reconcile.utils.terrascript.models import (
     CloudflareAccount,
     Integration,
     TerraformStateS3,
+    VaultSecret,
 )
 
 QONTRACT_INTEGRATION = "terraform_cloudflare_users"
@@ -69,19 +76,23 @@ class TerraformCloudflareUsers(QontractReconcileIntegration):
 
         return {
             "cloudflare_roles": cloudflare_roles.dict(),
-            CLOUDFLARE_EMAIL_DOMAIN_ALLOW_LIST_KEY: settings.get(
-                CLOUDFLARE_EMAIL_DOMAIN_ALLOW_LIST_KEY
-            ),
+            CLOUDFLARE_EMAIL_DOMAIN_ALLOW_LIST_KEY: settings.settings[0]
+            if settings.settings is not None
+            else [],
         }
 
     def _get_desired_state(
         self,
-    ) -> Tuple[CloudflareAccountRoleQueryData, Mapping[str, Any]]:
+    ) -> Tuple[
+        CloudflareAccountRoleQueryData, AppInterfaceSettingCloudflareAndVaultQueryData
+    ]:
         cloudflare_roles = terraform_cloudflare_roles.query(
             query_func=gql.get_api().query
         )
 
-        settings = queries.get_app_interface_settings()
+        settings = app_interface_setting_cloudflare_and_vault.query(
+            query_func=gql.get_api().query
+        )
         return cloudflare_roles, settings
 
     def run(self, dry_run: bool, *args: Any, **kwargs: Any) -> None:
@@ -92,7 +103,11 @@ class TerraformCloudflareUsers(QontractReconcileIntegration):
 
         cloudflare_roles, settings = self._get_desired_state()
 
-        secret_reader = SecretReader(settings=settings)
+        secret_reader = create_secret_reader(
+            use_vault=settings.settings[0].vault
+            if settings.settings is not None
+            else True
+        )
 
         cf_clients = self._build_cloudflare_terraform_config_client_collection(
             cloudflare_roles, secret_reader, account_name
@@ -101,7 +116,9 @@ class TerraformCloudflareUsers(QontractReconcileIntegration):
         users = get_cloudflare_users(
             cloudflare_roles.cloudflare_account_roles,
             account_name,
-            settings.get(CLOUDFLARE_EMAIL_DOMAIN_ALLOW_LIST_KEY),
+            settings.settings[0].cloudflare_email_domain_allow_list
+            if settings.settings is not None
+            else None,
         )
         specs = build_external_resource_spec_from_cloudflare_users(users)
 
@@ -111,7 +128,7 @@ class TerraformCloudflareUsers(QontractReconcileIntegration):
         working_dirs = cf_clients.dump(print_to_file=print_to_file)
 
         if print_to_file:
-            sys.exit(ExitCodes.SUCCESS)
+            return
 
         # for storing unique CloudflareAccountV1 since cloudflare_account_role_v1 can contain duplicates due to schema
         account_names_to_account = {
@@ -138,7 +155,7 @@ class TerraformCloudflareUsers(QontractReconcileIntegration):
     def _build_cloudflare_terraform_config_client_collection(
         self,
         query_data: CloudflareAccountRoleQueryData,
-        secret_reader: SecretReader,
+        secret_reader: SecretReaderBase,
         account_name: str,
     ) -> TerraformConfigClientCollection:
         cf_clients = TerraformConfigClientCollection()
@@ -147,7 +164,12 @@ class TerraformCloudflareUsers(QontractReconcileIntegration):
                 continue
             cf_account = CloudflareAccount(
                 role.account.name,
-                role.account.api_credentials.path,
+                VaultSecret(
+                    role.account.api_credentials.path,
+                    role.account.api_credentials.field,
+                    role.account.api_credentials.version,
+                    role.account.api_credentials.q_format,
+                ),
                 role.account.enforce_twofactor,
                 role.account.q_type,
                 role.account.provider_version,
@@ -181,7 +203,12 @@ class TerraformCloudflareUsers(QontractReconcileIntegration):
                 )
 
             tf_state_s3 = TerraformStateS3(
-                role.account.terraform_state_account.automation_token.path,
+                VaultSecret(
+                    role.account.terraform_state_account.automation_token.path,
+                    role.account.terraform_state_account.automation_token.field,
+                    role.account.terraform_state_account.automation_token.version,
+                    role.account.terraform_state_account.automation_token.q_format,
+                ),
                 bucket,
                 region,
                 Integration(integration.integration, integration.key),

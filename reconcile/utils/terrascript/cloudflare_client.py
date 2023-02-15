@@ -26,7 +26,7 @@ from reconcile.utils.external_resource_spec import (
     ExternalResourceSpec,
     ExternalResourceSpecInventory,
 )
-from reconcile.utils.secret_reader import SecretReader
+from reconcile.utils.secret_reader import SecretReaderBase
 from reconcile.utils.terraform.config import TerraformS3BackendConfig
 from reconcile.utils.terraform.config_client import TerraformConfigClient
 from reconcile.utils.terrascript.cloudflare_resources import (
@@ -207,16 +207,14 @@ class AccountShardingStrategy(TerraformS3StateNamingStrategy):
 class TerrascriptCloudflareClientFactory:
     @staticmethod
     def _create_backend_config(
-        tf_state_s3: TerraformStateS3, key: str, secret_reader: SecretReader
+        tf_state_s3: TerraformStateS3, key: str, secret_reader: SecretReaderBase
     ) -> TerraformS3BackendConfig:
-        aws_acct_creds = secret_reader.read_all(
-            {"path": tf_state_s3.automation_token_path}
-        )
+        aws_acct_creds = secret_reader.read_all_secret(tf_state_s3.automation_token)
         aws_access_key_id = aws_acct_creds.get("aws_access_key_id")
         aws_secret_access_key = aws_acct_creds.get("aws_secret_access_key")
         if not aws_access_key_id or not aws_secret_access_key:
             raise SecretIncompleteError(
-                f"secret {tf_state_s3.automation_token_path} incomplete: aws_access_key_id and/or aws_secret_access_key missing"
+                f"secret {tf_state_s3.automation_token} incomplete: aws_access_key_id and/or aws_secret_access_key missing"
             )
 
         return TerraformS3BackendConfig(
@@ -229,9 +227,9 @@ class TerrascriptCloudflareClientFactory:
 
     @staticmethod
     def _create_cloudflare_account_config(
-        cf_acct: CloudflareAccount, secret_reader: SecretReader
+        cf_acct: CloudflareAccount, secret_reader: SecretReaderBase
     ) -> CloudflareAccountConfig:
-        cf_acct_creds = secret_reader.read_all({"path": cf_acct.api_credentials_path})
+        cf_acct_creds = secret_reader.read_all_secret(cf_acct.api_credentials)
         cf_acct_config = CloudflareAccountConfig(
             cf_acct.name,
             cf_acct_creds["api_token"],
@@ -247,7 +245,7 @@ class TerrascriptCloudflareClientFactory:
         tf_state_s3: TerraformStateS3,
         cf_acct: CloudflareAccount,
         sharding_strategy: Optional[TerraformS3StateNamingStrategy],
-        secret_reader: SecretReader,
+        secret_reader: SecretReaderBase,
         cf_account_exists: bool,
     ) -> TerrascriptCloudflareClient:
         key = _get_terraform_s3_state_key_name(

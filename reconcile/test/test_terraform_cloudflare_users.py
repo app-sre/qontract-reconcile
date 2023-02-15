@@ -1,3 +1,4 @@
+from dataclasses import asdict
 from typing import Any
 from unittest.mock import (
     call,
@@ -7,9 +8,13 @@ from unittest.mock import (
 import pytest
 
 from reconcile import terraform_cloudflare_users
+from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
+from reconcile.gql_definitions.terraform_cloudflare_users.app_interface_setting_cloudflare_and_vault import (
+    AppInterfaceSettingCloudflareAndVaultQueryData,
+    AppInterfaceSettingsV1,
+)
 from reconcile.gql_definitions.terraform_cloudflare_users.terraform_cloudflare_roles import (
     AWSAccountV1,
-    AWSAccountV1_VaultSecretV1,
     AWSTerraformStateIntegrationsV1,
     CloudflareAccountRoleQueryData,
     CloudflareAccountRoleV1,
@@ -17,7 +22,6 @@ from reconcile.gql_definitions.terraform_cloudflare_users.terraform_cloudflare_r
     RoleV1,
     TerraformStateAWSV1,
     UserV1,
-    VaultSecretV1,
 )
 from reconcile.terraform_cloudflare_users import (
     QONTRACT_INTEGRATION,
@@ -28,7 +32,7 @@ from reconcile.terraform_cloudflare_users import (
     get_cloudflare_users,
 )
 from reconcile.utils.external_resource_spec import ExternalResourceSpec
-from reconcile.utils.secret_reader import SecretReader
+from reconcile.utils.secret_reader import SecretReaderBase
 
 
 @pytest.fixture
@@ -50,11 +54,16 @@ def query_data_with_one_role_one_user():
                 account=CloudflareAccountV1(
                     name="cloudflare-account",
                     providerVersion="3.19",
-                    apiCredentials=VaultSecretV1(path="creds", field="some-field"),
+                    apiCredentials=VaultSecret(
+                        path="creds", field="some-field", version=None, format=None
+                    ),
                     terraformStateAccount=AWSAccountV1(
                         name="aws-account",
-                        automationToken=AWSAccountV1_VaultSecretV1(
-                            path="some-path", field="some-field"
+                        automationToken=VaultSecret(
+                            path="some-path",
+                            field="some-field",
+                            version=None,
+                            format=None,
                         ),
                         terraformState=TerraformStateAWSV1(
                             provider="s3",
@@ -98,11 +107,16 @@ def query_data_with_one_role_two_users():
                 account=CloudflareAccountV1(
                     name="cloudflare-account",
                     providerVersion="3.19",
-                    apiCredentials=VaultSecretV1(path="creds", field="some-field"),
+                    apiCredentials=VaultSecret(
+                        path="creds", field="some-field", version=None, format=None
+                    ),
                     terraformStateAccount=AWSAccountV1(
                         name="aws-account",
-                        automationToken=AWSAccountV1_VaultSecretV1(
-                            path="some-path", field="some-field"
+                        automationToken=VaultSecret(
+                            path="some-path",
+                            field="some-field",
+                            version=None,
+                            format=None,
                         ),
                         terraformState=TerraformStateAWSV1(
                             provider="s3",
@@ -143,11 +157,16 @@ def query_data_with_two_roles_from_same_account_one_user():
                 account=CloudflareAccountV1(
                     name="cloudflare-account",
                     providerVersion="3.19",
-                    apiCredentials=VaultSecretV1(path="creds", field="some-field"),
+                    apiCredentials=VaultSecret(
+                        path="creds", field="some-field", version=None, format=None
+                    ),
                     terraformStateAccount=AWSAccountV1(
                         name="aws-account",
-                        automationToken=AWSAccountV1_VaultSecretV1(
-                            path="some-path", field="some-field"
+                        automationToken=VaultSecret(
+                            path="some-path",
+                            field="some-field",
+                            version=None,
+                            format=None,
                         ),
                         terraformState=TerraformStateAWSV1(
                             provider="s3",
@@ -180,11 +199,16 @@ def query_data_with_two_roles_from_same_account_one_user():
                 account=CloudflareAccountV1(
                     name="cloudflare-account",
                     providerVersion="3.19",
-                    apiCredentials=VaultSecretV1(path="creds", field="some-field"),
+                    apiCredentials=VaultSecret(
+                        path="creds", field="some-field", version=None, format=None
+                    ),
                     terraformStateAccount=AWSAccountV1(
                         name="aws-account",
-                        automationToken=AWSAccountV1_VaultSecretV1(
-                            path="some-path", field="some-field"
+                        automationToken=VaultSecret(
+                            path="some-path",
+                            field="some-field",
+                            version=None,
+                            format=None,
                         ),
                         terraformState=TerraformStateAWSV1(
                             provider="s3",
@@ -225,11 +249,16 @@ def query_data_with_two_roles_from_different_account_one_user():
                 account=CloudflareAccountV1(
                     name="cloudflare-account-1",
                     providerVersion="3.19",
-                    apiCredentials=VaultSecretV1(path="creds-1", field="some-field-1"),
+                    apiCredentials=VaultSecret(
+                        path="creds-1", field="some-field-1", version=None, format=None
+                    ),
                     terraformStateAccount=AWSAccountV1(
                         name="aws-account-1",
-                        automationToken=AWSAccountV1_VaultSecretV1(
-                            path="some-path-1", field="some-field-1"
+                        automationToken=VaultSecret(
+                            path="some-path-1",
+                            field="some-field-1",
+                            version=None,
+                            format=None,
                         ),
                         terraformState=TerraformStateAWSV1(
                             provider="s3",
@@ -262,11 +291,16 @@ def query_data_with_two_roles_from_different_account_one_user():
                 account=CloudflareAccountV1(
                     name="cloudflare-account-2",
                     providerVersion="3.19",
-                    apiCredentials=VaultSecretV1(path="creds-2", field="some-field-2"),
+                    apiCredentials=VaultSecret(
+                        path="creds-2", field="some-field-2", version=None, format=None
+                    ),
                     terraformStateAccount=AWSAccountV1(
                         name="aws-account-2",
-                        automationToken=AWSAccountV1_VaultSecretV1(
-                            path="some-path-2", field="some-field-2"
+                        automationToken=VaultSecret(
+                            path="some-path-2",
+                            field="some-field-2",
+                            version=None,
+                            format=None,
                         ),
                         terraformState=TerraformStateAWSV1(
                             provider="s3",
@@ -307,11 +341,16 @@ def query_data_with_two_roles_from_different_account_two_users():
                 account=CloudflareAccountV1(
                     name="cloudflare-account-1",
                     providerVersion="3.19",
-                    apiCredentials=VaultSecretV1(path="creds-1", field="some-field-1"),
+                    apiCredentials=VaultSecret(
+                        path="creds-1", field="some-field-1", version=None, format=None
+                    ),
                     terraformStateAccount=AWSAccountV1(
                         name="aws-account-1",
-                        automationToken=AWSAccountV1_VaultSecretV1(
-                            path="some-path-1", field="some-field-1"
+                        automationToken=VaultSecret(
+                            path="some-path-1",
+                            field="some-field-1",
+                            version=None,
+                            format=None,
                         ),
                         terraformState=TerraformStateAWSV1(
                             provider="s3",
@@ -344,11 +383,16 @@ def query_data_with_two_roles_from_different_account_two_users():
                 account=CloudflareAccountV1(
                     name="cloudflare-account-2",
                     providerVersion="3.19",
-                    apiCredentials=VaultSecretV1(path="creds-2", field="some-field-2"),
+                    apiCredentials=VaultSecret(
+                        path="creds-2", field="some-field-2", version=None, format=None
+                    ),
                     terraformStateAccount=AWSAccountV1(
                         name="aws-account-2",
-                        automationToken=AWSAccountV1_VaultSecretV1(
-                            path="some-path-2", field="some-field-2"
+                        automationToken=VaultSecret(
+                            path="some-path-2",
+                            field="some-field-2",
+                            version=None,
+                            format=None,
                         ),
                         terraformState=TerraformStateAWSV1(
                             provider="s3",
@@ -370,13 +414,34 @@ def query_data_with_two_roles_from_different_account_two_users():
     )
 
 
+@pytest.fixture
+def app_interface_settings_cloudflare_and_vault():
+    return AppInterfaceSettingCloudflareAndVaultQueryData(
+        settings=[
+            AppInterfaceSettingsV1(
+                cloudflareEmailDomainAllowList=["redhat.com"], vault=True
+            )
+        ]
+    )
+
+
 def secret_reader_side_effect(*args):
-    if {"path": "some-path"} in args:
+    if {
+        "path": "some-path",
+        "field": "some-field",
+        "version": None,
+        "q_format": None,
+    } == asdict(args[0]):
         aws_acct_creds = {}
         aws_acct_creds["aws_access_key_id"] = "key_id"
         aws_acct_creds["aws_secret_access_key"] = "access_key"
         return aws_acct_creds
-    elif {"path": "creds"} in args:
+    elif {
+        "path": "creds",
+        "field": "some-field",
+        "version": None,
+        "q_format": None,
+    } == asdict(args[0]):
         cf_acct_creds = {}
         cf_acct_creds["api_token"] = "api_token"
         cf_acct_creds["account_id"] = "account_id"
@@ -385,11 +450,11 @@ def secret_reader_side_effect(*args):
 
 @pytest.fixture
 def secret_reader(mocker):
-    secret_reader = mocker.Mock(spec=SecretReader)
-    secret_reader.read_all.side_effect = secret_reader_side_effect
+    secret_reader = mocker.Mock(spec=SecretReaderBase)
+    secret_reader.read_all_secret.side_effect = secret_reader_side_effect
 
     mocked_secret_reader = mocker.patch(
-        "reconcile.terraform_cloudflare_users.SecretReader", autospec=True
+        "reconcile.terraform_cloudflare_users.create_secret_reader", autospec=True
     )
     mocked_secret_reader.return_value = secret_reader
 
@@ -397,7 +462,10 @@ def secret_reader(mocker):
 
 
 def test_terraform_cloudflare_users(
-    mocker, secret_reader, query_data_with_one_role_one_user
+    mocker,
+    secret_reader,
+    query_data_with_one_role_one_user,
+    app_interface_settings_cloudflare_and_vault,
 ):
 
     # Used to mock out file system dependency within TerrascriptCloudflareClient
@@ -421,6 +489,12 @@ def test_terraform_cloudflare_users(
     )
 
     query_data.query.return_value = query_data_with_one_role_one_user
+
+    settings = mocker.patch(
+        "reconcile.terraform_cloudflare_users.app_interface_setting_cloudflare_and_vault",
+        autospec=True,
+    )
+    settings.query.return_value = app_interface_settings_cloudflare_and_vault
 
     mocked_run_terraform = mocker.patch(
         "reconcile.terraform_cloudflare_users.run_terraform", autospec=True
@@ -450,10 +524,20 @@ def test_terraform_cloudflare_users(
             {
                 "name": "cloudflare-account",
                 "providerVersion": "3.19",
-                "apiCredentials": {"path": "creds", "field": "some-field"},
+                "apiCredentials": {
+                    "path": "creds",
+                    "field": "some-field",
+                    "version": None,
+                    "format": None,
+                },
                 "terraformStateAccount": {
                     "name": "aws-account",
-                    "automationToken": {"path": "some-path", "field": "some-field"},
+                    "automationToken": {
+                        "path": "some-path",
+                        "field": "some-field",
+                        "version": None,
+                        "format": None,
+                    },
                     "terraformState": {
                         "provider": "s3",
                         "bucket": "app-interface",

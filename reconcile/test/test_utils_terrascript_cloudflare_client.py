@@ -1,4 +1,5 @@
 import json
+from dataclasses import asdict
 from unittest.mock import (
     create_autospec,
     mock_open,
@@ -8,7 +9,7 @@ import pytest
 from terrascript import Terrascript
 
 from reconcile.utils.external_resource_spec import ExternalResourceSpec
-from reconcile.utils.secret_reader import SecretReader
+from reconcile.utils.secret_reader import SecretReaderBase
 from reconcile.utils.terraform.config import TerraformS3BackendConfig
 from reconcile.utils.terrascript.cloudflare_client import (
     AccountShardingStrategy,
@@ -21,6 +22,7 @@ from reconcile.utils.terrascript.models import (
     CloudflareAccount,
     Integration,
     TerraformStateS3,
+    VaultSecret,
 )
 
 INTEGRATION = "qontract-reconcile-integration"
@@ -308,12 +310,22 @@ def test_create_cloudflare_terrascript_not_include_account(
 
 
 def secret_reader_side_effect(*args):
-    if {"path": "automation_token_path"} in args:
+    if {
+        "path": "automation_token_path",
+        "field": "some-field",
+        "version": None,
+        "q_format": None,
+    } == asdict(args[0]):
         aws_acct_creds = {}
         aws_acct_creds["aws_access_key_id"] = "key_id"
         aws_acct_creds["aws_secret_access_key"] = "access_key"
         return aws_acct_creds
-    elif {"path": "creds"} in args:
+    elif {
+        "path": "creds",
+        "field": "some-field",
+        "version": None,
+        "q_format": None,
+    } == asdict(args[0]):
         cf_acct_creds = {}
         cf_acct_creds["api_token"] = "api_token"
         cf_acct_creds["account_id"] = "account_id"
@@ -323,7 +335,12 @@ def secret_reader_side_effect(*args):
 @pytest.fixture
 def terraform_state_s3():
     tf_state_s3 = TerraformStateS3(
-        "automation_token_path",
+        VaultSecret(
+            path="automation_token_path",
+            field="some-field",
+            version=None,
+            q_format=None,
+        ),
         "app-interface",
         "us-east-1",
         Integration(INTEGRATION.replace("_", "-"), "key"),
@@ -333,19 +350,25 @@ def terraform_state_s3():
 
 @pytest.fixture
 def cloudflare_account():
-    cf_account = CloudflareAccount("test-account", "creds", True, "enterprise", "3.19")
+    cf_account = CloudflareAccount(
+        "test-account",
+        VaultSecret(path="creds", field="some-field", version=None, q_format=None),
+        True,
+        "enterprise",
+        "3.19",
+    )
     return cf_account
 
 
 @pytest.fixture
-def secret_reader_side_effect_fixture(mocker):
-    secret_reader = mocker.Mock(spec=SecretReader)
-    secret_reader.read_all.side_effect = secret_reader_side_effect
-    return secret_reader
+def secret_reader_fixture(mocker):
+    mocked_secret_reader = mocker.Mock(spec=SecretReaderBase)
+    mocked_secret_reader.read_all_secret.side_effect = secret_reader_side_effect
+    return mocked_secret_reader
 
 
 def test_cloudflare_client_factory_skip_account_resource(
-    terraform_state_s3, cloudflare_account, secret_reader_side_effect_fixture
+    terraform_state_s3, cloudflare_account, secret_reader_fixture
 ):
     """
     Tests that cloudflare terrascript resource 'cloudflare_account' is skipped
@@ -355,7 +378,7 @@ def test_cloudflare_client_factory_skip_account_resource(
         terraform_state_s3,
         cloudflare_account,
         None,
-        secret_reader_side_effect_fixture,
+        secret_reader_fixture,
         True,
     )
 
@@ -368,7 +391,7 @@ def test_cloudflare_client_factory_skip_account_resource(
 
 
 def test_cloudflare_client_factory_create_account_resource(
-    terraform_state_s3, cloudflare_account, secret_reader_side_effect_fixture
+    terraform_state_s3, cloudflare_account, secret_reader_fixture
 ):
     """
     Tests that cloudflare terrascript resource 'cloudflare_account' is created
@@ -378,7 +401,7 @@ def test_cloudflare_client_factory_create_account_resource(
         terraform_state_s3,
         cloudflare_account,
         None,
-        secret_reader_side_effect_fixture,
+        secret_reader_fixture,
         False,
     )
 
@@ -404,7 +427,18 @@ def test_cloudflare_client_factory_create_account_resource(
         (None, "key"),
         (
             AccountShardingStrategy(
-                CloudflareAccount("cf-acct", "api-credentials-path", None, None, "3.19")
+                CloudflareAccount(
+                    "cf-acct",
+                    VaultSecret(
+                        path="api-credentials-path",
+                        field="some-field",
+                        version=None,
+                        q_format=None,
+                    ),
+                    None,
+                    None,
+                    "3.19",
+                )
             ),
             "qontract-reconcile-integration-cf-acct.tfstate",
         ),
@@ -413,7 +447,7 @@ def test_cloudflare_client_factory_create_account_resource(
 def test_cloudflare_client_factory_object_key_strategies(
     terraform_state_s3,
     cloudflare_account,
-    secret_reader_side_effect_fixture,
+    secret_reader_fixture,
     sharding_strategy,
     expected_key,
 ):
@@ -425,7 +459,7 @@ def test_cloudflare_client_factory_object_key_strategies(
         terraform_state_s3,
         cloudflare_account,
         sharding_strategy,
-        secret_reader_side_effect_fixture,
+        secret_reader_fixture,
         False,
     )
 
