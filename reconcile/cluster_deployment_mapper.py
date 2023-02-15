@@ -25,9 +25,6 @@ def run(dry_run: bool, vault_output_path: Optional[str]) -> None:
         sys.exit(ExitCodes.ERROR)
 
     vault_settings = get_app_interface_vault_settings()
-    if not vault_settings:
-        logging.error("Missing app-interface vault_settings")
-        sys.exit(ExitCodes.ERROR)
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     clusters = get_clusters()
     oc_map = init_oc_map_from_clusters(

@@ -1,6 +1,5 @@
 import itertools
 import logging
-import sys
 from collections.abc import (
     Callable,
     Iterable,
@@ -80,9 +79,6 @@ def fetch_current_state(
     use_jump_host: bool,
 ) -> tuple[OCMap, list[Any]]:
     vault_settings = get_app_interface_vault_settings()
-    if not vault_settings:
-        logging.error("Missing app-interface vault_settings")
-        sys.exit(ExitCodes.ERROR)
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     clusters = get_clusters_minimal()
 
