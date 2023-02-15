@@ -25,5 +25,6 @@ def get_app_interface_vault_settings() -> AppInterfaceSettingsV1:
     vault_settings = get_app_interface_vault_settings_optional()
     if not vault_settings:
         logging.error("Missing app-interface vault_settings")
+        # TODO: We should raise an exception https://issues.redhat.com/browse/APPSRE-7041
         sys.exit(ExitCodes.ERROR)
     return vault_settings
