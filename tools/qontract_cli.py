@@ -903,10 +903,61 @@ def terraform_users_credentials(ctx) -> None:
         secret_request = {
             "path": f"{reencrypt_settings.aws_account_output_vault_path}/{secret}"
         }
-        credentials.append(vc.read_all(secret_request))
+        secret_data = vc.read_all(secret_request)
+        if secret_data["account"] not in skip_accounts:
+            credentials.append(secret_data)
 
     columns = ["account", "console_url", "user_name", "encrypted_password"]
     print_output(ctx.obj["options"], credentials, columns)
+
+
+@root.command()
+@click.argument("account_name")
+@click.argument("output_path")
+@click.pass_context
+def user_credentials_migrate_output(ctx, account_name, output_path) -> None:
+    vc = cast(_VaultClient, VaultClient())
+
+    skip_accounts, appsre_pgp_key, reencrypt_settings = tfu.get_reencrypt_settings()
+
+    accounts, working_dirs, _, aws_api = tfu.setup(
+        False,
+        1,
+        skip_accounts,
+        account_name=account_name,
+        appsre_pgp_key=appsre_pgp_key,
+    )
+
+    tf = Terraform(
+        tfu.QONTRACT_INTEGRATION,
+        tfu.QONTRACT_INTEGRATION_VERSION,
+        tfu.QONTRACT_TF_PREFIX,
+        accounts,
+        working_dirs,
+        10,
+        aws_api,
+        init_users=True,
+    )
+    credentials = []
+    for account, output in tf.outputs.items():
+        if account in skip_accounts:
+            user_passwords = tf.format_output(output, tf.OUTPUT_TYPE_PASSWORDS)
+            console_urls = tf.format_output(output, tf.OUTPUT_TYPE_CONSOLEURLS)
+            for user_name, enc_password in user_passwords.items():
+                item = {
+                    "account": account,
+                    "console_url": console_urls[account],
+                    "user_name": user_name,
+                    "encrypted_password": enc_password,
+                }
+                credentials.append(item)
+
+    for cred in credentials:
+        new_secret = {
+            "path": f"{output_path}/{cred['user_name']}_{cred['account']}",
+            "data": cred,
+        }
+        vc.write(new_secret, decode_base64=False)
 
 
 @get.command()
