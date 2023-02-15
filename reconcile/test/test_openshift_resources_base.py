@@ -346,19 +346,31 @@ def test_get_cluster_scoped_resources(oc_map_api_resources, nss_csr_overrides):
 
 def test_find_resource_duplicates(oc_map_api_resources):
     input = {
-        "ns1": {
-            "ClusterRole": ["cr1"],
-            "Project.config.openshift.io": ["pr1", "pr2"],
+        "cs1": {
+            "ns1": {
+                "ClusterRole": ["cr1"],
+                "Project.config.openshift.io": ["pr1", "pr2"],
+            },
+            "ns2": {
+                "ClusterRole": ["cr1"],
+            },
         },
-        "ns2": {
-            "ClusterRole": ["cr1"],
+        "cs2": {
+            "ns3": {
+                "ClusterRole": ["cr1"],
+                "ClusterRoleBinding": ["crb1"],
+            },
+            "ns4": {
+                "ClusterRoleBinding": ["crb1"],
+            },
         },
     }
-
-    expected = ("cs1", {("ClusterRole", "cr1"): ["ns1", "ns2"]})
-
+    expected = {
+        ("cs1", "ClusterRole", "cr1"): ["ns1", "ns2"],
+        ("cs2", "ClusterRoleBinding", "crb1"): ["ns3", "ns4"],
+    }
     c = CheckClusterScopedResourceDuplicates(oc_map_api_resources)
-    result = c._find_resource_duplicates(("cs1", input))
+    result = c._find_resource_duplicates(input)
     assert result == expected
 
 
