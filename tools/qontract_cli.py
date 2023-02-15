@@ -918,7 +918,7 @@ def terraform_users_credentials(ctx) -> None:
 def user_credentials_migrate_output(ctx, account_name, output_path) -> None:
     vc = cast(_VaultClient, VaultClient())
 
-    skip_accounts, appsre_pgp_key, reencrypt_settings = tfu.get_reencrypt_settings()
+    skip_accounts, appsre_pgp_key, _ = tfu.get_reencrypt_settings()
 
     accounts, working_dirs, _, aws_api = tfu.setup(
         False,
