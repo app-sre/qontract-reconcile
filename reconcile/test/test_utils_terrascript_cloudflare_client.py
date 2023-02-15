@@ -356,7 +356,7 @@ def test_cloudflare_client_factory_skip_account_resource(
         cloudflare_account,
         None,
         secret_reader_side_effect_fixture,
-        True
+        True,
     )
 
     output = json.loads(client.dumps())
@@ -379,7 +379,7 @@ def test_cloudflare_client_factory_create_account_resource(
         cloudflare_account,
         None,
         secret_reader_side_effect_fixture,
-        False
+        False,
     )
 
     output = json.loads(client.dumps())
@@ -426,7 +426,7 @@ def test_cloudflare_client_factory_object_key_strategies(
         cloudflare_account,
         sharding_strategy,
         secret_reader_side_effect_fixture,
-        False
+        False,
     )
 
     output = json.loads(client.dumps())

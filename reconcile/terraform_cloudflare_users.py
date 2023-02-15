@@ -32,7 +32,9 @@ from reconcile.utils.terraform.config_client import (
 from reconcile.utils.terraform_client import run_terraform
 from reconcile.utils.terrascript.cloudflare_client import (
     AccountShardingStrategy,
-    TerrascriptCloudflareClientFactory, IntegrationUndefined, InvalidTerraformState,
+    IntegrationUndefined,
+    InvalidTerraformState,
+    TerrascriptCloudflareClientFactory,
 )
 from reconcile.utils.terrascript.models import (
     CloudflareAccount,
@@ -182,7 +184,7 @@ class TerraformCloudflareUsers(QontractReconcileIntegration):
                 role.account.terraform_state_account.automation_token.path,
                 bucket,
                 region,
-                Integration(integration.integration, integration.key)
+                Integration(integration.integration, integration.key),
             )
 
             client = TerrascriptCloudflareClientFactory.get_client(
