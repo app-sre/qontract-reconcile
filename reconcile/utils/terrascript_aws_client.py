@@ -5334,7 +5334,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         # INSIGHTS POOL CLIENT
         insights_cognito_user_pool_client = aws_cognito_user_pool_client(
-            "userpool_client",
+            "ins_userpool_client",
             name=f"insights-{identifier}-pool-client",
             user_pool_id=f"${{{cognito_user_pool_resource.id}}}",
             callback_urls=[f"{bucket_url}/token.html"],
