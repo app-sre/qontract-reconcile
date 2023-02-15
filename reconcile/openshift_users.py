@@ -20,7 +20,6 @@ from reconcile.gql_definitions.common.clusters_minimal import (
     ClusterAuthOIDCV1,
     ClusterV1,
 )
-from reconcile.status import ExitCodes
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
