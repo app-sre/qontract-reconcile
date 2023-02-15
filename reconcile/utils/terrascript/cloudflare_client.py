@@ -244,7 +244,6 @@ class TerrascriptCloudflareClientFactory:
     @classmethod
     def get_client(
         cls,
-        qr_integration: str,
         tf_state_s3: TerraformStateS3,
         cf_acct: CloudflareAccount,
         sharding_strategy: Optional[TerraformS3StateNamingStrategy],
@@ -252,12 +251,8 @@ class TerrascriptCloudflareClientFactory:
         cf_account_exists: bool,
     ) -> TerrascriptCloudflareClient:
         key = _get_terraform_s3_state_key_name(
-            qr_integration, tf_state_s3.integrations, sharding_strategy
+            tf_state_s3.integration, sharding_strategy
         )
-        if key is None:
-            raise IntegrationUndefined(
-                "Must declare integration name under terraform state in app-interface"
-            )
         backend_config = cls._create_backend_config(tf_state_s3, key, secret_reader)
         cf_acct_config = cls._create_cloudflare_account_config(cf_acct, secret_reader)
         ts_config = create_cloudflare_terrascript(
@@ -268,33 +263,13 @@ class TerrascriptCloudflareClientFactory:
 
 
 def _get_terraform_s3_state_key_name(
-    qr_integration: str,
-    integrations: Iterable[Integration],
+    integration: Integration,
     sharding_strategy: Optional[TerraformS3StateNamingStrategy],
-) -> Optional[str]:
+) -> str:
     if sharding_strategy is None:
         sharding_strategy = Default()
 
-    for i in integrations:
-        name = i.name
-        if name.replace("-", "_") == qr_integration:
-            return sharding_strategy.get_object_key(i)
-    return None
-
-
-def validate_terraform_state_for_cloudflare_client(
-    qr_integration: str, tf_state_s3: TerraformStateS3
-) -> None:
-    if tf_state_s3.region is None:
-        raise InvalidTerraformState("region must be provided for terraform state")
-    if tf_state_s3.bucket is None:
-        raise InvalidTerraformState("bucket must be provided for terraform state")
-    if qr_integration not in [
-        i.name.replace("-", "_") for i in tf_state_s3.integrations
-    ]:
-        raise IntegrationUndefined(
-            "Must declare integration name under terraform state in app-interface"
-        )
+    return sharding_strategy.get_object_key(integration)
 
 
 class IntegrationUndefined(Exception):

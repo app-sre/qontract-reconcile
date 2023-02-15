@@ -32,8 +32,7 @@ from reconcile.utils.terraform.config_client import (
 from reconcile.utils.terraform_client import run_terraform
 from reconcile.utils.terrascript.cloudflare_client import (
     AccountShardingStrategy,
-    TerrascriptCloudflareClientFactory,
-    validate_terraform_state_for_cloudflare_client,
+    TerrascriptCloudflareClientFactory, IntegrationUndefined, InvalidTerraformState,
 )
 from reconcile.utils.terrascript.models import (
     CloudflareAccount,
@@ -153,31 +152,40 @@ class TerraformCloudflareUsers(QontractReconcileIntegration):
             )
 
             tf_state = role.account.terraform_state_account.terraform_state
+            if not tf_state:
+                raise ValueError(
+                    f"AWS account {role.account.terraform_state_account.name} cannot be used for Cloudflare "
+                    f"account {cf_account.name} because it does define a terraform state "
+                )
 
-            bucket = tf_state.bucket if tf_state is not None else None
-            region = tf_state.region if tf_state is not None else None
+            bucket = tf_state.bucket
+            region = tf_state.region
+            integrations = tf_state.integrations
+
             if not bucket:
-                raise ValueError("Terraform state must have bucket defined")
+                raise InvalidTerraformState("Terraform state must have bucket defined")
             if not region:
-                raise ValueError("Terraform state must have region defined")
+                raise InvalidTerraformState("Terraform state must have region defined")
 
-            temp_integrations = tf_state.integrations if tf_state is not None else []
-            integrations: Iterable[Integration] = [
-                Integration(i.integration, i.key) for i in temp_integrations
-            ]
+            integration = None
+            for i in integrations:
+                if i.integration.replace("-", "_") == QONTRACT_INTEGRATION:
+                    integration = i
+                    break
+
+            if not integration:
+                raise IntegrationUndefined(
+                    "Must declare integration name under terraform state in app-interface"
+                )
 
             tf_state_s3 = TerraformStateS3(
                 role.account.terraform_state_account.automation_token.path,
                 bucket,
                 region,
-                integrations,
+                Integration(integration.integration, integration.key)
             )
 
-            validate_terraform_state_for_cloudflare_client(
-                QONTRACT_INTEGRATION, tf_state_s3
-            )
             client = TerrascriptCloudflareClientFactory.get_client(
-                QONTRACT_INTEGRATION,
                 tf_state_s3,
                 cf_account,
                 AccountShardingStrategy(cf_account),

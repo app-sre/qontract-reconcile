@@ -1,14 +1,7 @@
 from dataclasses import dataclass
 from typing import (
-    Iterable,
-    Optional,
+    Optional
 )
-
-
-@dataclass
-class AWSAccount:
-    automation_token_path: str
-    bucket: str
 
 
 @dataclass
@@ -22,7 +15,7 @@ class TerraformStateS3:
     automation_token_path: str
     bucket: str
     region: str
-    integrations: Iterable[Integration]
+    integration: Integration
 
 
 @dataclass
