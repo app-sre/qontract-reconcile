@@ -2,7 +2,6 @@ import base64
 import hashlib
 import itertools
 import hashlib
-import itertools
 import json
 import logging
 import sys

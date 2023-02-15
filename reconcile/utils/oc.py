@@ -1254,7 +1254,7 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
 
         # Same Kinds might exist in different api groups
         kind_resources = self.api_resources.get(kind)
-        if not kind:
+        if not kind_resources:
             raise StatusCodeError(f"Kind {kind} does not exist in the ApiServer")
 
         if len(kg) > 1:
