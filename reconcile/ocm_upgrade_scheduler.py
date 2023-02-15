@@ -266,12 +266,15 @@ def version_conditions_met(
     return True
 
 
-def gates_to_agree(version_prefix: str, cluster: str, ocm: OCM) -> list[str]:
+def gates_to_agree(
+    version_prefix: str, cluster: str, cluster_version: str, ocm: OCM
+) -> list[str]:
     """Check via OCM if a version is agreed
 
     Args:
         version_prefix (string): major.minor version prefix
         cluster (string)
+        cluster_version (string): current version of the cluster
         ocm (OCM): used to fetch infos from OCM
 
     Returns:
@@ -281,11 +284,12 @@ def gates_to_agree(version_prefix: str, cluster: str, ocm: OCM) -> list[str]:
         agreement["version_gate"]["id"]
         for agreement in ocm.get_version_agreement(cluster)
     }
+    semver_cluster = parse_semver(f"{cluster_version}")
 
     return [
         gate["id"]
         for gate in ocm.get_version_gates(version_prefix)
-        if gate["id"] not in agreements
+        if gate["id"] not in agreements and semver_cluster.match(f"<{version_prefix}.0")
     ]
 
 
@@ -356,6 +360,7 @@ def calculate_diff(
     for d in desired_state:
         # ignore clusters with an existing upgrade policy
         cluster = d["cluster"]
+        current_version = d["current_version"]
         ocm = ocm_map.get(cluster)
         c = [c for c in current_state if c["cluster"] == cluster]
         if c:
@@ -453,7 +458,10 @@ def calculate_diff(
             else:
                 item["next_run"] = next_schedule.strftime("%Y-%m-%dT%H:%M:%SZ")
                 item["gates_to_agree"] = gates_to_agree(
-                    get_version_prefix(version), cluster, ocm
+                    get_version_prefix(version),
+                    cluster,
+                    current_version,
+                    ocm,
                 )
             for mutex in cluster_mutexes(d):
                 locked[mutex] = cluster
