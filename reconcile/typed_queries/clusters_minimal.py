@@ -7,7 +7,7 @@ from reconcile.gql_definitions.common.clusters_minimal import (
 from reconcile.utils import gql
 
 
-def get_clusters_minimal(name: Optional[str]) -> list[ClusterV1]:
+def get_clusters_minimal(name: Optional[str] = None) -> list[ClusterV1]:
     variables = {}
     if name:
         variables["name"] = name
