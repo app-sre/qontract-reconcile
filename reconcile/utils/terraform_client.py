@@ -14,6 +14,7 @@ from datetime import (
 from threading import Lock
 from typing import (
     Any,
+    Callable,
     Optional,
     cast,
 )
@@ -696,7 +697,7 @@ def run_terraform(
     thread_pool_size: int,
     working_dirs: Mapping[str, str],
     accounts: Iterable[Mapping[str, Any]],
-    defer=None,
+    defer=Optional[Callable],
 ):
     tf = TerraformClient(
         QONTRACT_INTEGRATION,

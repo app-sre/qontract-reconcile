@@ -246,7 +246,7 @@ class TerrascriptCloudflareClientFactory:
         cf_acct: CloudflareAccount,
         sharding_strategy: Optional[TerraformS3StateNamingStrategy],
         secret_reader: SecretReaderBase,
-        cf_account_exists: bool,
+        is_managed_account: bool,
     ) -> TerrascriptCloudflareClient:
         key = _get_terraform_s3_state_key_name(
             tf_state_s3.integration, sharding_strategy
@@ -254,7 +254,7 @@ class TerrascriptCloudflareClientFactory:
         backend_config = cls._create_backend_config(tf_state_s3, key, secret_reader)
         cf_acct_config = cls._create_cloudflare_account_config(cf_acct, secret_reader)
         ts_config = create_cloudflare_terrascript(
-            cf_acct_config, backend_config, cf_acct.provider_version, cf_account_exists
+            cf_acct_config, backend_config, cf_acct.provider_version, is_managed_account
         )
         client = TerrascriptCloudflareClient(ts_config)
         return client

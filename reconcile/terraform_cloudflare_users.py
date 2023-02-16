@@ -236,9 +236,9 @@ def get_cloudflare_users(
     email_domain_allow_list: Optional[Iterable[str]],
 ) -> Mapping[str, Mapping[str, CloudflareUser]]:
     """
-    Builds a two-level dictionary of users with 1st level keys mapping to cloudflare account names
+    Returns a two-level dictionary of users with 1st level keys mapping to cloudflare account names
     and 2nd level keys mapping to user's email address.
-    The method also takes into consideration account_name and email_domain_allow_list which can be
+    The method also takes into consideration :param account_name: and :param email_domain_allow_list: which can be
     used to filter users not matching these parameters
     """
     users: dict[str, dict[str, CloudflareUser]] = {}
@@ -284,6 +284,10 @@ def get_cloudflare_users(
 def build_external_resource_spec_from_cloudflare_users(
     cloudflare_users: Mapping[str, Mapping[str, CloudflareUser]]
 ) -> Iterable[ExternalResourceSpec]:
+    """
+    This method transforms :param cloudflare_users: into a list of ExternalResourceSpec
+    as TerrascriptCloudflareClient works only with the ExternalResourceSpec.
+    """
     specs: list[ExternalResourceSpec] = []
 
     for _, v in cloudflare_users.items():
