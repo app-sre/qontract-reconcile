@@ -477,13 +477,6 @@ def test_terraform_cloudflare_users(
 
     mocker.patch("reconcile.terraform_cloudflare_users.gql", autospec=True)
 
-    mocked_queries = mocker.patch(
-        "reconcile.terraform_cloudflare_users.queries", autospec=True
-    )
-    mocked_queries.get_app_interface_settings.return_value = {
-        "cloudflareEmailDomainAllowList": ["redhat.com"]
-    }
-
     query_data = mocker.patch(
         "reconcile.terraform_cloudflare_users.terraform_cloudflare_roles", autospec=True
     )
