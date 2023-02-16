@@ -8,6 +8,7 @@ PYPI_PUSH_IMAGE := quay.io/app-sre/qontract-reconcile-builder:0.3.8
 IMAGE_NAME := quay.io/app-sre/qontract-reconcile
 IMAGE_TAG := $(shell git rev-parse --short=7 HEAD)
 VENV_CMD := . venv/bin/activate &&
+UUID := $(shell uuid)
 
 ifneq (,$(wildcard $(CURDIR)/.docker))
 	DOCKER_CONF := $(CURDIR)/.docker
@@ -81,9 +82,9 @@ clean:
 	@find . -name "*.pyc" -delete
 
 pypi-release:
-	@$(CONTAINER_ENGINE) build -t qontract-reconcile-delete-me:latest -f dockerfiles/Dockerfile.publish-release .
-	@$(CONTAINER_ENGINE) run -e TWINE_USERNAME -e TWINE_PASSWORD --rm qontract-reconcile-delete-me:latest ./build_tag.sh
-	@$(CONTAINER_ENGINE) rmi qontract-reconcile-delete-me:latest
+	@$(CONTAINER_ENGINE) build -t $(uuid):latest -f dockerfiles/Dockerfile.publish-release .
+	@$(CONTAINER_ENGINE) run -e TWINE_USERNAME -e TWINE_PASSWORD --rm $(uuid):latest ./build_tag.sh
+	@$(CONTAINER_ENGINE) rmi $(uuid):latest
 
 dev-venv: clean ## Create a local venv for your IDE and remote debugging
 	python3.9 -m venv venv
