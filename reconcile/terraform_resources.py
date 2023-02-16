@@ -278,6 +278,7 @@ provider
     }
   }
   certificate_arn
+  ingress_cidr_blocks
   idle_timeout
   targets {
     name

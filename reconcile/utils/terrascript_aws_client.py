@@ -4583,6 +4583,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             "security_groups": None,
             "self": None,
         }
+        ingress_cidr_blocks = resource["ingress_cidr_blocks"]
         values = {
             "provider": provider,
             "vpc_id": vpc_id,
@@ -4593,7 +4594,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     "from_port": 80,
                     "to_port": 80,
                     "protocol": "tcp",
-                    "cidr_blocks": ["0.0.0.0/0"],
+                    "cidr_blocks": ingress_cidr_blocks,
                     "ipv6_cidr_blocks": ["::/0"],
                     **empty_required_sg_values,
                 },
@@ -4602,7 +4603,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     "from_port": 443,
                     "to_port": 443,
                     "protocol": "tcp",
-                    "cidr_blocks": ["0.0.0.0/0"],
+                    "cidr_blocks": ingress_cidr_blocks,
                     "ipv6_cidr_blocks": ["::/0"],
                     **empty_required_sg_values,
                 },
