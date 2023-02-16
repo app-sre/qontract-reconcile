@@ -264,7 +264,9 @@ class OcpReleaseMirror:
         return False
 
     @staticmethod
-    def _get_aws_account_info(account: Optional[Mapping[str, Any]]) -> Optional[dict[str, Any]]:
+    def _get_aws_account_info(
+        account: Optional[Mapping[str, Any]]
+    ) -> Optional[dict[str, Any]]:
         for account_info in queries.get_aws_accounts():
             if "name" not in account_info:
                 continue
