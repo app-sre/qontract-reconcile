@@ -220,7 +220,6 @@ VARIABLE_KEYS = [
     "openshift_ingress_load_balancer_arn",
     "domain_name",
     "certificate_arn",
-    "ingress_cidr_blocks",
     "vpc_id",
     "subnet_ids",
     "network_interface_ids",
