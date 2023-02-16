@@ -954,10 +954,8 @@ def run(
         overrides=overrides,
     )
     defer(oc_map.cleanup)
-    if dry_run:
-        error = check_cluster_scoped_resources(
-            oc_map, ri, namespaces, None, thread_pool_size
-        )
+    if dry_run and QONTRACT_INTEGRATION == "openshift-resources":
+        error = check_cluster_scoped_resources(oc_map, ri, namespaces, None)
         if error:
             sys.exit(1)
 
