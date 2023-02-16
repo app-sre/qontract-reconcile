@@ -1,35 +1,61 @@
 import itertools
 import logging
+from collections.abc import (
+    Callable,
+    Iterable,
+    Mapping,
+)
+from typing import (
+    Any,
+    Optional,
+)
 
 from sretoolbox.utils import threaded
 
 from reconcile import (
     openshift_groups,
     openshift_rolebindings,
-    queries,
 )
+from reconcile.gql_definitions.common.clusters_minimal import (
+    ClusterAuthOIDCV1,
+    ClusterV1,
+)
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
+from reconcile.typed_queries.clusters_minimal import get_clusters_minimal
 from reconcile.utils.defer import defer
-from reconcile.utils.oc import OC_Map
+from reconcile.utils.oc_map import (
+    OCLogMsg,
+    OCMap,
+    init_oc_map_from_clusters,
+)
+from reconcile.utils.secret_reader import create_secret_reader
 
 QONTRACT_INTEGRATION = "openshift-users"
 
 
-def get_cluster_users(cluster, oc_map, clusters):
+def get_cluster_users(
+    cluster: str, oc_map: OCMap, clusters: Iterable[ClusterV1]
+) -> list[dict[str, Any]]:
     oc = oc_map.get(cluster)
-    if not oc:
+    if isinstance(oc, OCLogMsg):
         logging.log(level=oc.log_level, msg=oc.message)
+        return []
+    if not oc:
+        logging.error("No OC client for cluster %s", cluster)
         return []
     users: list[str] = []
 
     # get cluster info for current cluster name from clusters list
-    cluster_info = next((cl for cl in clusters if cl["name"] == cluster))
+    cluster_info = next((cl for cl in clusters if cl.name == cluster))
 
     # backwarts compatibiltiy for clusters w/o auth
     identity_prefixes = ["github"]
 
-    for auth in cluster_info["auth"]:
-        if auth["service"] == "oidc":
-            identity_prefixes.append(auth["name"])
+    for auth in cluster_info.auth:
+        if isinstance(auth, ClusterAuthOIDCV1):
+            identity_prefixes.append(auth.name)
 
     for u in oc.get_users():
         if u["metadata"].get("labels", {}).get("admin", ""):
@@ -46,13 +72,19 @@ def get_cluster_users(cluster, oc_map, clusters):
     return [{"cluster": cluster, "user": user} for user in users]
 
 
-def fetch_current_state(thread_pool_size, internal, use_jump_host):
-    clusters = queries.get_clusters(minimal=True)
-    settings = queries.get_app_interface_settings()
-    oc_map = OC_Map(
+def fetch_current_state(
+    thread_pool_size: int,
+    internal: Optional[bool],
+    use_jump_host: bool,
+) -> tuple[OCMap, list[Any]]:
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
+    clusters = get_clusters_minimal()
+
+    oc_map = init_oc_map_from_clusters(
         clusters=clusters,
+        secret_reader=secret_reader,
         integration=QONTRACT_INTEGRATION,
-        settings=settings,
         internal=internal,
         use_jump_host=use_jump_host,
         thread_pool_size=thread_pool_size,
@@ -68,7 +100,9 @@ def fetch_current_state(thread_pool_size, internal, use_jump_host):
     return oc_map, current_state
 
 
-def fetch_desired_state(oc_map, enforced_user_keys=None):
+def fetch_desired_state(
+    oc_map: Optional[OCMap], enforced_user_keys: Any = None
+) -> list[Any]:
     desired_state = []
     flat_rolebindings_desired_state = openshift_rolebindings.fetch_desired_state(
         ri=None, oc_map=oc_map, enforced_user_keys=enforced_user_keys
@@ -86,7 +120,9 @@ def fetch_desired_state(oc_map, enforced_user_keys=None):
     return desired_state
 
 
-def calculate_diff(current_state, desired_state):
+def calculate_diff(
+    current_state: Iterable[Any], desired_state: Iterable[Any]
+) -> list[dict[str, Any]]:
     diff = []
     users_to_del = subtract_states(current_state, desired_state, "del_user")
     diff.extend(users_to_del)
@@ -94,7 +130,9 @@ def calculate_diff(current_state, desired_state):
     return diff
 
 
-def subtract_states(from_state, subtract_state, action):
+def subtract_states(
+    from_state: Iterable[Any], subtract_state: Iterable[Any], action: Any
+) -> list[dict[str, Any]]:
     result = []
 
     for f_user in from_state:
@@ -112,23 +150,33 @@ def subtract_states(from_state, subtract_state, action):
     return result
 
 
-def act(diff, oc_map):
+def act(diff: Mapping[str, Any], oc_map: OCMap) -> None:
     cluster = diff["cluster"]
     user = diff["user"]
     action = diff["action"]
 
     if action == "del_user":
-        oc_map.get(cluster).delete_user(user)
+        oc = oc_map.get(cluster)
+        if not oc or isinstance(oc, OCLogMsg):
+            raise Exception("No proper Openshift Client for del_user operation")
+        oc.delete_user(user)
     else:
         raise Exception("invalid action: {}".format(action))
 
 
 @defer
-def run(dry_run, thread_pool_size=10, internal=None, use_jump_host=True, defer=None):
+def run(
+    dry_run: bool,
+    thread_pool_size: int = 10,
+    internal: Optional[bool] = None,
+    use_jump_host: bool = True,
+    defer: Optional[Callable] = None,
+) -> None:
     oc_map, current_state = fetch_current_state(
         thread_pool_size, internal, use_jump_host
     )
-    defer(oc_map.cleanup)
+    if defer:
+        defer(oc_map.cleanup)
     desired_state = fetch_desired_state(oc_map)
 
     diffs = calculate_diff(current_state, desired_state)

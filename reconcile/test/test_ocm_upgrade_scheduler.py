@@ -299,14 +299,20 @@ class TestVersionGateAgreement:
 
     @staticmethod
     def test_gates_to_agree_basic(ocm):
-        gta = ous.gates_to_agree("4.9", "foo", ocm)
+        gta = ous.gates_to_agree("4.8", "foo", "4.7.1", ocm)
         assert len(gta) == 1
         assert gta[0] == 1
 
     @staticmethod
     def test_gates_to_agree_empty(ocm):
         ocm.get_version_agreement.return_value.append({"version_gate": {"id": 1}})
-        gta = ous.gates_to_agree("4.9", "foo", ocm)
+        gta = ous.gates_to_agree("4.9", "foo", "4.8.1", ocm)
+        assert len(gta) == 0
+
+    @staticmethod
+    def test_gates_to_agree_same_version(ocm):
+        ocm.get_version_agreement.return_value.append({"version_gate": {"id": 1}})
+        gta = ous.gates_to_agree("4.9", "foo", "4.9.1", ocm)
         assert len(gta) == 0
 
 
