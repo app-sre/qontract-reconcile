@@ -15,7 +15,11 @@ from reconcile.status import (
     ExitCodes,
     RunningState,
 )
-from reconcile.utils import gql
+from reconcile.terraform_cloudflare_users import TerraformCloudflareUsersParams
+from reconcile.utils import (
+    config,
+    gql,
+)
 from reconcile.utils.aggregated_list import RunnerException
 from reconcile.utils.binary import (
     binary,
@@ -1719,13 +1723,16 @@ def terraform_cloudflare_users(
 
     import reconcile.terraform_cloudflare_users
 
-    run_integration(
-        reconcile.terraform_cloudflare_users.TerraformCloudflareUsers(),
+    run_class_integration(
+        reconcile.terraform_cloudflare_users.TerraformCloudflareUsers(
+            TerraformCloudflareUsersParams(
+                print_to_file=print_to_file,
+                account_name=account_name,
+                thread_pool_size=thread_pool_size,
+                enable_deletion=enable_deletion,
+            )
+        ),
         ctx.obj,
-        print_to_file,
-        account_name,
-        thread_pool_size,
-        enable_deletion,
     )
 
 

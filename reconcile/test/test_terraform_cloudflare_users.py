@@ -28,6 +28,7 @@ from reconcile.terraform_cloudflare_users import (
     QONTRACT_INTEGRATION_VERSION,
     QONTRACT_TF_PREFIX,
     CloudflareUser,
+    TerraformCloudflareUsersParams,
     build_external_resource_spec_from_cloudflare_users,
     get_cloudflare_users,
 )
@@ -493,25 +494,24 @@ def test_terraform_cloudflare_users(
         "reconcile.terraform_cloudflare_users.run_terraform", autospec=True
     )
 
-    integration = terraform_cloudflare_users.TerraformCloudflareUsers()
-
-    dry_run = True
-    print_to_file = None
-    account_name = "cloudflare-account"
-    thread_pool_size = 20
-    enable_deletion = True
-
-    integration.run(
-        dry_run, print_to_file, account_name, thread_pool_size, enable_deletion
+    params = TerraformCloudflareUsersParams(
+        print_to_file=None,
+        account_name="cloudflare-account",
+        thread_pool_size=20,
+        enable_deletion=True,
     )
+    dry_run = True
+    integration = terraform_cloudflare_users.TerraformCloudflareUsers(params=params)
+
+    integration.run(dry_run)
 
     expected_call_args = call(
         QONTRACT_INTEGRATION,
         QONTRACT_INTEGRATION_VERSION,
         QONTRACT_TF_PREFIX,
         dry_run,
-        enable_deletion,
-        thread_pool_size,
+        params.enable_deletion,
+        params.thread_pool_size,
         {"cloudflare-account": tf_directory},
         [
             {

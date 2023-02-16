@@ -1,3 +1,4 @@
+import logging
 from dataclasses import dataclass
 from typing import (
     Any,
@@ -22,7 +23,10 @@ from reconcile.gql_definitions.terraform_cloudflare_users.terraform_cloudflare_r
 )
 from reconcile.utils import gql
 from reconcile.utils.external_resource_spec import ExternalResourceSpec
-from reconcile.utils.runtime.integration import QontractReconcileIntegration
+from reconcile.utils.runtime.integration import (
+    PydanticRunParams,
+    QontractReconcileIntegration,
+)
 from reconcile.utils.secret_reader import (
     SecretReaderBase,
     create_secret_reader,
@@ -61,7 +65,16 @@ class CloudflareUser:
     roles: Set[str]
 
 
-class TerraformCloudflareUsers(QontractReconcileIntegration):
+class TerraformCloudflareUsersParams(PydanticRunParams):
+    print_to_file: Optional[str]
+    account_name: Optional[str]
+    thread_pool_size: int
+    enable_deletion: bool
+
+
+class TerraformCloudflareUsers(
+    QontractReconcileIntegration[TerraformCloudflareUsersParams]
+):
     @property
     def name(self) -> str:
         return QONTRACT_INTEGRATION.replace("_", "-")
@@ -93,11 +106,11 @@ class TerraformCloudflareUsers(QontractReconcileIntegration):
         )
         return cloudflare_roles, settings
 
-    def run(self, dry_run: bool, *args: Any, **kwargs: Any) -> None:
-        print_to_file = args[0]
-        account_name = args[1]
-        thread_pool_size = args[2]
-        enable_deletion = args[3]
+    def run(self, dry_run: bool) -> None:
+        print_to_file = self.params.print_to_file
+        account_name = self.params.account_name
+        thread_pool_size = self.params.thread_pool_size
+        enable_deletion = self.params.enable_deletion
 
         cloudflare_roles, settings = self._get_desired_state()
 
@@ -154,7 +167,7 @@ class TerraformCloudflareUsers(QontractReconcileIntegration):
         self,
         query_data: CloudflareAccountRoleQueryData,
         secret_reader: SecretReaderBase,
-        account_name: str,
+        account_name: Optional[str],
     ) -> TerraformConfigClientCollection:
         cf_clients = TerraformConfigClientCollection()
         for role in query_data.cloudflare_account_roles or []:

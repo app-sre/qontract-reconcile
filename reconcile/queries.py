@@ -106,7 +106,6 @@ APP_INTERFACE_SETTINGS_QUERY = """
       readTimeout
       connectTimeout
     }
-    cloudflareEmailDomainAllowList
   }
 }
 """
