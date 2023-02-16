@@ -7,7 +7,7 @@ IMAGE_TEST := reconcile-test
 IMAGE_NAME := quay.io/app-sre/qontract-reconcile
 IMAGE_TAG := $(shell git rev-parse --short=7 HEAD)
 VENV_CMD := . venv/bin/activate &&
-UUID := $(shell python -c 'import uuid; print(str(uuid.uuid4()))')
+UUID := $(shell python3 -c 'import uuid; print(str(uuid.uuid4()))')
 
 ifneq (,$(wildcard $(CURDIR)/.docker))
 	DOCKER_CONF := $(CURDIR)/.docker
