@@ -1,4 +1,3 @@
-import sys
 from dataclasses import dataclass
 from typing import (
     Any,
@@ -21,7 +20,6 @@ from reconcile.gql_definitions.terraform_cloudflare_users.terraform_cloudflare_r
     CloudflareAccountRoleQueryData,
     CloudflareAccountRoleV1,
 )
-from reconcile.status import ExitCodes
 from reconcile.utils import gql
 from reconcile.utils.external_resource_spec import ExternalResourceSpec
 from reconcile.utils.runtime.integration import QontractReconcileIntegration
