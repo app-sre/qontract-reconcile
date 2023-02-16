@@ -1,4 +1,3 @@
-import copy
 from typing import Any
 from unittest.mock import (
     Mock,
@@ -6,12 +5,10 @@ from unittest.mock import (
 )
 
 import pytest
-from kubernetes.dynamic import Resource
 
 from reconcile import openshift_resources_base as orb
 from reconcile.openshift_base import CurrentStateSpec
 from reconcile.openshift_resources_base import (
-    CheckClusterScopedResourceDuplicates,
     canonicalize_namespaces,
     ob,
 )
@@ -32,10 +29,11 @@ def namespaces() -> list[dict[str, Any]]:
 def oc_cs1(self) -> oc.OCClient:
     client = oc.OCNative(cluster_name="cs1", server="s", token="t", local=True)
     client.init_api_resources = True
-    client.api_resources = {
+    client.api_kind_version = {
         "Template": ["template.openshift.io/v1"],
         "Subscription": ["apps.open-cluster-management.io/v1", "operators.coreos.com"],
     }
+    client.api_resources = client.api_kind_version.keys()
     client.get_items = lambda kind, **kwargs: []
     return client
 
@@ -252,189 +250,3 @@ def test_fetch_states_oc_error(current_state_spec: CurrentStateSpec):
     assert ri.has_error_registered("cs1")
     _, _, _, resource = list(ri)[0]
     assert len(resource["current"]) == 0
-
-
-@pytest.fixture
-def nss_csr_overrides() -> list[dict[str, Any]]:
-    return [fxt.get_anymarkup("ns-overrides-cluster-resources.yml")]
-
-
-@pytest.fixture
-def api_resources():
-    p1 = Resource(
-        prefix="",
-        kind="Project",
-        group="project.openshift.io",
-        api_version="v1",
-        namespaced=False,
-    )
-    p2 = Resource(
-        prefix="",
-        kind="Project",
-        group="config.openshift.io",
-        api_version="v1",
-        namespaced=False,
-    )
-    cr = Resource(
-        prefix="",
-        kind="ClusterRole",
-        group="rbac.authorization.k8s.io",
-        api_version="v1",
-        namespaced=False,
-    )
-    d1 = Resource(
-        prefix="",
-        kind="Deployment",
-        group="apps",
-        api_version="v1",
-        namespaced=True,
-    )
-    return {"Project": [p1, p2], "ClusterRole": [cr], "Deployment": [d1]}
-
-
-@pytest.fixture
-def oc_api_resources(mocker, api_resources):
-    mock = mocker.patch("reconcile.utils.oc.OCNative", autospec=True).return_value
-    mock.get_api_resources.return_value = api_resources
-    mock.is_kind_namespaced.side_effect = lambda k: k == "Deployment"
-    return oc.OCNative("cluster", "server", "token", local=True)
-
-
-@pytest.fixture
-def oc_map_api_resources(mocker, oc_api_resources):
-    ocmap = mocker.patch("reconcile.utils.oc.OC_Map", autospec=True).return_value
-    ocmap.get_cluster.return_value = oc_api_resources
-    ocmap.clusters.side_effect = (
-        lambda include_errors=False, privileged=False: ["cs1"] if not privileged else []
-    )
-    return oc.OC_Map(clusters=["cs1"])
-
-
-def test_get_namespace_cluster_scoped_resources(
-    oc_map_api_resources, nss_csr_overrides
-):
-    expected = (
-        "cs1",
-        "ns1",
-        {
-            "ClusterRole": ["cr1"],
-            "Project.config.openshift.io": ["pr1", "pr2"],
-        },
-    )
-
-    result = orb._get_namespace_cluster_scoped_resources(
-        nss_csr_overrides[0],
-        oc_map_api_resources,
-    )
-    assert result == expected
-
-
-def test_get_cluster_scoped_resources(oc_map_api_resources, nss_csr_overrides):
-    expected = {
-        "cs1": {
-            "ns1": {
-                "ClusterRole": ["cr1"],
-                "Project.config.openshift.io": ["pr1", "pr2"],
-            }
-        }
-    }
-    result = orb.get_cluster_scoped_resources(
-        oc_map_api_resources, clusters=["cs1"], namespaces=nss_csr_overrides
-    )
-    assert result == expected
-
-
-def test_find_resource_duplicates(oc_map_api_resources):
-    input = {
-        "cs1": {
-            "ns1": {
-                "ClusterRole": ["cr1"],
-                "Project.config.openshift.io": ["pr1", "pr2"],
-            },
-            "ns2": {
-                "ClusterRole": ["cr1"],
-            },
-        },
-        "cs2": {
-            "ns3": {
-                "ClusterRole": ["cr1"],
-                "ClusterRoleBinding": ["crb1"],
-            },
-            "ns4": {
-                "ClusterRoleBinding": ["crb1"],
-            },
-        },
-    }
-    expected = [
-        ("cs1", "ClusterRole", "cr1", ["ns1", "ns2"]),
-        ("cs2", "ClusterRoleBinding", "crb1", ["ns3", "ns4"]),
-    ]
-    c = CheckClusterScopedResourceDuplicates(oc_map_api_resources)
-    result = c._find_resource_duplicates(input)
-    assert result == expected
-
-
-@pytest.fixture
-def resource_inventory_csr_tests():
-    ri = ResourceInventory()
-    ri.initialize_resource_type("cs1", "ns1", "ClusterRole")
-    ri.initialize_resource_type("cs1", "ns1", "Project.config.openshift.io")
-    ri.add_desired("cs1", "ns1", "ClusterRole", "cr1", "dummy_values", True)
-    ri.add_desired(
-        "cs1", "ns1", "Project.config.openshift.io", "pr1", "dummy_values", True
-    )
-    ri.add_desired(
-        "cs1", "ns1", "Project.config.openshift.io", "pr2", "dummy_values", True
-    )
-    return ri
-
-
-def test_check_cluster_scoped_resources_ok(
-    oc_map_api_resources, resource_inventory_csr_tests, nss_csr_overrides
-):
-    error = orb.check_cluster_scoped_resources(
-        oc_map_api_resources,
-        resource_inventory_csr_tests,
-        nss_csr_overrides,
-        nss_csr_overrides,
-    )
-
-    assert error is False
-
-
-def test_check_cluster_scoper_resources_non_declared(
-    oc_map_api_resources, resource_inventory_csr_tests, nss_csr_overrides
-):
-    resource_inventory_csr_tests.add_desired(
-        "cs1", "ns1", "ClusterRole", "cr3", "dummy_value", True
-    )
-    error = orb.check_cluster_scoped_resources(
-        oc_map_api_resources,
-        resource_inventory_csr_tests,
-        nss_csr_overrides,
-        nss_csr_overrides,
-    )
-
-    assert error is True
-
-
-def test_check_cluster_scoped_resources_duplicated(
-    oc_map_api_resources, resource_inventory_csr_tests, nss_csr_overrides
-):
-    ns2 = copy.deepcopy(nss_csr_overrides[0])
-    ns2["name"] = "ns3"
-
-    all_namespaces = [nss_csr_overrides[0], ns2]
-    error = orb.check_cluster_scoped_resources(
-        oc_map_api_resources,
-        resource_inventory_csr_tests,
-        nss_csr_overrides,
-        all_namespaces,
-    )
-
-    assert error is True
-
-
-def test_check_error():
-    e = orb.CheckError("message")
-    print(e)

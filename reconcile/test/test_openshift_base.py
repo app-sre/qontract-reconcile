@@ -4,7 +4,6 @@ from unittest.mock import patch
 
 import pytest
 import yaml
-from kubernetes.dynamic import Resource
 from pydantic import BaseModel
 from pytest_mock import MockerFixture
 
@@ -524,34 +523,15 @@ def test_namespaces_managed_mixed_qualified_types_with_resource_names(
 #
 
 
-@pytest.fixture
-def api_resources():
-    r1 = Resource(
-        prefix="",
-        kind="Kind",
-        group="fully.qualified",
-        api_version="v1",
-        namespaced=True,
-    )
-    r2 = Resource(
-        prefix="",
-        kind="Kind",
-        group="another.group",
-        api_version="v1",
-        namespaced=True,
-    )
-    return {"Kind": [r1, r2]}
-
-
 def test_populate_current_state(
-    api_resources, resource_inventory: resource.ResourceInventory, oc_cs1: oc.OCNative
+    resource_inventory: resource.ResourceInventory, oc_cs1: oc.OCNative
 ):
     """
     test that populate_current_state properly populates the resource inventory
     """
     # prepare client and resource inventory
     oc_cs1.init_api_resources = True
-    oc_cs1.api_resources = api_resources
+    oc_cs1.api_kind_version = {"Kind": ["fully.qualified/v1", "another.group/v1"]}
     oc_cs1.get_items = lambda kind, **kwargs: [
         build_resource("Kind", "fully.qualified/v1", "name")
     ]
@@ -582,8 +562,7 @@ def test_populate_current_state_unknown_kind(
     test that a missing kind in the cluster is catched early on
     """
     oc_cs1.init_api_resources = True
-    k1 = Resource(prefix="", group="some.other.group", api_version="v1", kind="Kind")
-    oc_cs1.api_resources = {"Kind": [k1]}
+    oc_cs1.api_kind_version = {"Kind": ["some.other.group/v1"]}
     get_item_mock = mocker.patch.object(oc.OCNative, "get_items", autospec=True)
 
     spec = sut.CurrentStateSpec(
