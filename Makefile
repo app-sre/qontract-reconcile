@@ -3,7 +3,6 @@
 CONTAINER_ENGINE ?= $(shell which podman >/dev/null 2>&1 && echo podman || echo docker)
 CONTAINER_UID ?= $(shell id -u)
 IMAGE_TEST := reconcile-test
-PYPI_PUSH_IMAGE := quay.io/app-sre/qontract-reconcile-builder:0.3.8
 
 IMAGE_NAME := quay.io/app-sre/qontract-reconcile
 IMAGE_TAG := $(shell git rev-parse --short=7 HEAD)
