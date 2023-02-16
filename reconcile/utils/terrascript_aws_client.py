@@ -4637,7 +4637,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             "provider": provider,
             "name": identifier,
             "internal": False,
-            "ip_address_type": "dualstack",
+            "ip_address_type": resource.get("ip_address_type", "ipv4"),
             "load_balancer_type": "application",
             "security_groups": [f"${{{sg_tf_resource.id}}}"],
             "subnets": [s["id"] for s in vpc["subnets"]],
