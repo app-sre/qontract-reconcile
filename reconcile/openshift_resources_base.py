@@ -1080,7 +1080,6 @@ def check_cluster_scoped_resources(
     ri: ResourceInventory,
     namespaces: list[Mapping[str, Any]],
     all_namespaces: Optional[list[Mapping[str, Any]]] = None,
-    thread_pool_size: int = 10,
 ) -> bool:
 
     checks = [
