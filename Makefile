@@ -81,9 +81,9 @@ clean:
 	@find . -name "*.pyc" -delete
 
 pypi-release:
-	@$(CONTAINER_ENGINE) build -t $(uuid):latest -f dockerfiles/Dockerfile.publish-release .
-	@$(CONTAINER_ENGINE) run -e TWINE_USERNAME -e TWINE_PASSWORD --rm $(uuid):latest ./build_tag.sh
-	@$(CONTAINER_ENGINE) rmi $(uuid):latest
+	@$(CONTAINER_ENGINE) build -t $(UUID):latest -f dockerfiles/Dockerfile.publish-release .
+	@$(CONTAINER_ENGINE) run -e TWINE_USERNAME -e TWINE_PASSWORD --rm $(UUID):latest ./build_tag.sh
+	@$(CONTAINER_ENGINE) rmi $(UUID):latest
 
 dev-venv: clean ## Create a local venv for your IDE and remote debugging
 	python3.9 -m venv venv
