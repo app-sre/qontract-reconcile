@@ -4,6 +4,7 @@ from unittest import TestCase
 from unittest.mock import patch
 
 import pytest
+from kubernetes.dynamic import Resource
 from kubernetes.dynamic.exceptions import ResourceNotFoundError
 
 import reconcile.utils.oc
@@ -891,3 +892,42 @@ def test_get_replicaset_allow_empty(patch_sleep, mocker, oc: OCNative, deploymen
     )
     oc__get_owned_replicasets.return_value = []
     assert oc.get_replicaset("namespace", deployment, allow_empty=True) == {}
+
+
+@pytest.fixture
+def api_resources():
+    k1_g1 = Resource(
+        prefix="", kind="kind1", group="group1", api_version="v1", namespaced=True
+    )
+    k1_g11 = Resource(
+        prefix="", kind="kind1", group="group11", api_version="v1", namespaced=True
+    )
+    k2_g2 = Resource(
+        prefix="", kind="kind2", group="group2", api_version="v2", namespaced=False
+    )
+    return {"kind1": [k1_g1, k1_g11], "kind2": [k2_g2]}
+
+
+@pytest.fixture
+def oc_api_resources(mocker, api_resources):
+    get_api_resources = mocker.patch.object(
+        OCNative, "get_api_resources", autospec=True
+    )
+    get_api_resources.return_value = api_resources
+    return OC("cluster", "server", "token", local=True)
+
+
+def test_is_kind_namespaced(oc_api_resources):
+    assert oc_api_resources.is_kind_namespaced("kind1")
+
+
+def test_is_kind_namespaced_full_name(oc_api_resources):
+    assert oc_api_resources.is_kind_namespaced("kind1.group11")
+
+
+def test_is_kind_not_namespaced(oc_api_resources):
+    assert not oc_api_resources.is_kind_namespaced("kind2")
+
+
+def test_is_kind_not_namespaced_full_name(oc_api_resources):
+    assert not oc_api_resources.is_kind_namespaced("kind2.group2")
