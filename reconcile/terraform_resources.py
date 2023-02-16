@@ -280,6 +280,7 @@ provider
   certificate_arn
   ingress_cidr_blocks
   idle_timeout
+  ip_address_type
   targets {
     name
     default
