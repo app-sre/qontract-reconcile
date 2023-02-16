@@ -3,6 +3,7 @@
 CONTAINER_ENGINE ?= $(shell which podman >/dev/null 2>&1 && echo podman || echo docker)
 CONTAINER_UID ?= $(shell id -u)
 IMAGE_TEST := reconcile-test
+PYPI_PUSH_IMAGE := quay.io/app-sre/qontract-reconcile-builder:0.3.8
 
 IMAGE_NAME := quay.io/app-sre/qontract-reconcile
 IMAGE_TAG := $(shell git rev-parse --short=7 HEAD)
@@ -78,6 +79,9 @@ clean:
 	@rm -rf .tox .eggs reconcile.egg-info build .pytest_cache venv GIT_VERSION
 	@find . -name "__pycache__" -type d -print0 | xargs -0 rm -rf
 	@find . -name "*.pyc" -delete
+
+pypi-release:
+	@$(CONTAINER_ENGINE) run -e UID=$(shell id -u) -e TWINE_USERNAME -e TWINE_PASSWORD -v $(shell pwd):/work --rm $(PYPI_PUSH_IMAGE) ./build_tag.sh
 
 dev-venv: clean ## Create a local venv for your IDE and remote debugging
 	python3.9 -m venv venv
