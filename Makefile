@@ -83,6 +83,7 @@ clean:
 pypi-release:
 	@$(CONTAINER_ENGINE) build -t qontract-reconcile-delete-me:latest -f dockerfiles/Dockerfile.publish-release .
 	@$(CONTAINER_ENGINE) run -e TWINE_USERNAME -e TWINE_PASSWORD --rm qontract-reconcile-delete-me:latest ./build_tag.sh
+	@$(CONTAINER_ENGINE) rmi qontract-reconcile-delete-me:latest
 
 dev-venv: clean ## Create a local venv for your IDE and remote debugging
 	python3.9 -m venv venv
