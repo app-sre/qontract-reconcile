@@ -81,7 +81,8 @@ clean:
 	@find . -name "*.pyc" -delete
 
 pypi-release:
-	@$(CONTAINER_ENGINE) run -e UID=$(shell id -u) -e TWINE_USERNAME -e TWINE_PASSWORD -v $(shell pwd):/work --rm $(PYPI_PUSH_IMAGE) ./build_tag.sh
+	@$(CONTAINER_ENGINE) build -t qontract-reconcile-delete-me:latest -f dockerfiles/Dockerfile.publish-release .
+	@$(CONTAINER_ENGINE) run -e TWINE_USERNAME -e TWINE_PASSWORD --rm qontract-reconcile-delete-me:latest ./build_tag.sh
 
 dev-venv: clean ## Create a local venv for your IDE and remote debugging
 	python3.9 -m venv venv
