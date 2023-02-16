@@ -3059,49 +3059,6 @@ def get_dyn_traffic_directors():
     return gqlapi.query(DYN_TRAFFIC_DIRECTORS_QUERY)["dyn_traffic_directors"]
 
 
-STATUS_PAGE_QUERY = """
-{
-  status_pages: status_page_v1 {
-    name
-    pageId
-    apiUrl
-    provider
-    credentials {
-      path
-      field
-      version
-      format
-    }
-    components {
-      name
-      displayName
-      description
-      path
-      groupName
-      app {
-        name
-      }
-      status {
-        provider
-        ... on ManualStatusProvider_v1 {
-          manual {
-            componentStatus
-            from
-            until
-          }
-        }
-      }
-    }
-  }
-}
-"""
-
-
-def get_status_pages():
-    gqlapi = gql.get_api()
-    return gqlapi.query(STATUS_PAGE_QUERY)["status_pages"]
-
-
 CLOSED_BOX_MONITORING_PROBES_QUERY = """
 {
   apps: apps_v1 {

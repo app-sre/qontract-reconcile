@@ -1,23 +1,28 @@
 import logging
-from collections.abc import Iterable
 from typing import (
     Any,
     Optional,
+    Protocol,
+    Tuple,
 )
 
 import statuspageio  # type: ignore
 from pydantic import BaseModel
 
-from reconcile.statuspage.models import (
+from reconcile.gql_definitions.statuspage.statuspages import StatusPageV1
+from reconcile.statuspage.page import (
     StatusComponent,
     StatusPage,
     StatusPageProvider,
 )
+from reconcile.statuspage.state import ComponentBindingState
+from reconcile.statuspage.status import ManualStatusProvider
+from reconcile.utils.secret_reader import SecretReaderBase
 
-LOG = logging.getLogger(__name__)
+PROVIDER_NAME = "atlassian"
 
 
-class AtlassianComponent(BaseModel):
+class AtlassianRawComponent(BaseModel):
     """
     atlassian status page REST schema for component
     """
@@ -30,127 +35,316 @@ class AtlassianComponent(BaseModel):
     automation_email: Optional[str]
     group_id: Optional[str]
     group: Optional[bool]
-    group_name: Optional[str]
 
 
-class AtlassianStatusPage(StatusPageProvider):
+class AtlassianAPI(Protocol):
+    def list_components(self) -> list[AtlassianRawComponent]:
+        ...
 
-    page_id: str
-    api_url: str
-    token: str
+    def update_component(self, id: str, data: dict[str, Any]) -> None:
+        ...
 
-    components_by_id: dict[str, AtlassianComponent] = {}
-    components_by_displayname: dict[str, AtlassianComponent] = {}
-    group_name_to_id: dict[str, str] = {}
+    def create_component(self, data: dict[str, Any]) -> str:
+        ...
 
-    def rebuild_state(self):
-        components = self._fetch_components()
-        self.components_by_id = {c.id: c for c in components}
-        self.components_by_displayname = {c.name: c for c in components}
-        self.group_name_to_id = {g.name: g.id for g in components if g.group}
+    def delete_component(self, id: str) -> None:
+        ...
 
-    def component_ids(self) -> Iterable[str]:
-        return self.components_by_id.keys()
 
-    def _find_component(
-        self, component: StatusComponent
-    ) -> Optional[AtlassianComponent]:
-        if component.component_id and component.component_id in self.components_by_id:
-            return self.components_by_id.get(component.component_id)
-        else:
-            return self.components_by_displayname.get(component.display_name)
-
-    def apply_component(self, dry_run: bool, desired: StatusComponent) -> Optional[str]:
-        current = self._find_component(desired)
-
-        desired_component_status = desired.desired_component_status()
-        status_update_required = desired_component_status and (
-            not current or desired_component_status != current.status
+class LegacyLibAtlassianAPI:
+    def __init__(self, page_id: str, api_url: str, token: str):
+        self.page_id = page_id
+        self.api_url = api_url
+        self.token = token
+        self._client = statuspageio.Client(
+            api_key=self.token, page_id=self.page_id, organization_id="unset"
         )
 
-        if (
-            current
-            and desired.display_name == current.name
-            and desired.description == current.description
-            and desired.group_name == current.group_name
-            and not status_update_required
-        ):
-            return current.id
+    def list_components(self) -> list[AtlassianRawComponent]:
+        return [
+            AtlassianRawComponent(
+                **c.toDict(),
+            )
+            for c in self._client.components.list()
+        ]
 
-        # precheck - does the desired group exists?
+    def update_component(self, id: str, data: dict[str, Any]) -> None:
+        self._client.components.update(id, **data)
+
+    def create_component(self, data: dict[str, Any]) -> str:
+        result = self._client.components.create(**data)
+        return result["id"]
+
+    def delete_component(self, id: str) -> None:
+        self._client.components.delete(id)
+
+
+class AtlassianStatusPageProvider(StatusPageProvider):
+    """
+    The provider implements CRUD operations for Atlassian status pages.
+    It also takes care of a mixed set of components on a page, where some
+    components are managed by app-interface and some are managed manually
+    by various teams. The term `bound` used throughout the code refers to
+    components that are managed by app-interface. The binding status is
+    managed by the injected `ComponentBindingState` instance and persists
+    the binding information (what app-interface component name is bound to
+    what status page component id).
+    """
+
+    def __init__(
+        self,
+        page_name: str,
+        api: AtlassianAPI,
+        component_binding_state: ComponentBindingState,
+    ):
+        self.page_name = page_name
+        self._api = api
+        self._binding_state = component_binding_state
+
+        # component cache
+        self._components: list[AtlassianRawComponent] = []
+        self._components_by_id: dict[str, AtlassianRawComponent] = {}
+        self._components_by_displayname: dict[str, AtlassianRawComponent] = {}
+        self._group_name_to_id: dict[str, str] = {}
+        self._group_id_to_name: dict[str, str] = {}
+        self._build_component_cache()
+
+    def _build_component_cache(self):
+        self._components = self._api.list_components()
+        self._components_by_id = {c.id: c for c in self._components}
+        self._components_by_displayname = {c.name: c for c in self._components}
+        self._group_name_to_id = {g.name: g.id for g in self._components if g.group}
+        self._group_id_to_name = {g.id: g.name for g in self._components if g.group}
+
+    def get_component_by_id(self, id: str) -> Optional[StatusComponent]:
+        raw = self.get_raw_component_by_id(id)
+        if raw:
+            return self._bound_raw_component_to_status_component(raw)
+        else:
+            return None
+
+    def get_raw_component_by_id(self, id: str) -> Optional[AtlassianRawComponent]:
+        return self._components_by_id.get(id)
+
+    def get_current_page(self) -> StatusPage:
+        """
+        Builds a StatusPage instance from the current state of the page. This
+        way the current state of the page can be compared to the desired state
+        of the page coming from GQL.
+        """
+        components = [
+            self._bound_raw_component_to_status_component(c) for c in self._components
+        ]
+        return StatusPage(
+            name=self.page_name,
+            components=[c for c in components if c is not None],
+        )
+
+    def _bound_raw_component_to_status_component(
+        self, raw_component: AtlassianRawComponent
+    ) -> Optional[StatusComponent]:
+        bound_component_name = self._binding_state.get_name_for_component_id(
+            raw_component.id
+        )
+        if bound_component_name:
+            group_name = (
+                self._group_id_to_name.get(raw_component.group_id)
+                if raw_component.group_id
+                else None
+            )
+            return StatusComponent(
+                name=bound_component_name,
+                display_name=raw_component.name,
+                description=raw_component.description,
+                group_name=group_name,
+                status_provider_configs=[
+                    ManualStatusProvider(
+                        component_status=raw_component.status,
+                    )
+                ],
+            )
+        else:
+            return None
+
+    def lookup_component(
+        self, desired_component: StatusComponent
+    ) -> Tuple[Optional[AtlassianRawComponent], bool]:
+        """
+        Finds the component on the page that matches the desired component. This
+        is either done explicitely by using binding information if available or
+        by using the display name of the desired component to find a matching
+        component on the page. This way, this provider offers adoption logic
+        for existing components on the page that are not yes bound to app-interface.
+        """
+        component_id = self._binding_state.get_id_for_component_name(
+            desired_component.name
+        )
+        component = None
+        bound = True
+        if component_id:
+            component = self.get_raw_component_by_id(component_id)
+
+        if component is None:
+            bound = False
+            # either the component name is not bound to an ID or for whatever
+            # reason or the component is not found on the page anymore
+            component = self._components_by_displayname.get(
+                desired_component.display_name
+            )
+            if component and self._binding_state.get_name_for_component_id(
+                component.id
+            ):
+                # this component is already bound to a different component
+                # in app-interface. we are protecting this binding here by
+                # not allowing this component to be found via display name
+                component = None
+
+        return component, bound
+
+    def should_apply(
+        self, desired: StatusComponent, current: Optional[AtlassianRawComponent]
+    ) -> bool:
+        """
+        Verifies if the desired component should be applied to the status page
+        when compared to the current state of the component on the page.
+        """
+        current_group_name = (
+            self._group_id_to_name.get(current.group_id)
+            if current and current.group_id
+            else None
+        )
+
+        # check if group exists
         group_id = None
         if desired.group_name:
-            group_id = self.group_name_to_id.get(desired.group_name, None)
+            group_id = self._group_name_to_id.get(desired.group_name, None)
             if not group_id:
                 raise ValueError(
                     f"Group {desired.group_name} referenced "
                     f"by {desired.name} does not exist"
                 )
 
-        # Special handling if a component needs to be moved out of any grouping
-        # We would need to use the component_group endpoint but for now let's
-        # just raise this as an error because of lazyness へ‿(ツ)‿ㄏ
-        if current and current.group_name and not desired.group_name:
+        # Special handling if a component needs to be moved out of any grouping.
+        # We would need to use the component_group endpoint but for not lets
+        # ignore this situation.
+        if current and current_group_name and not desired.group_name:
             raise ValueError(
                 f"Remove grouping from the component "
                 f"{desired.group_name} is currently unsupported"
             )
 
+        # component status
+        desired_component_status = desired.desired_component_status()
+        status_update_required = desired_component_status and (
+            not current or desired_component_status != current.status
+        )
+
+        # shortcut execution if there is nothing to do
+        if (
+            current
+            and desired.display_name == current.name
+            and desired.description == current.description
+            and desired.group_name == current_group_name
+            and not status_update_required
+        ):
+            return False
+        else:
+            return True
+
+    def apply_component(self, dry_run: bool, desired: StatusComponent) -> None:
+        current_component, bound = self.lookup_component(desired)
+
+        # if the component is not yet bound to a statuspage component, bind it now
+        if current_component and not bound:
+            self._bind_component(
+                dry_run=dry_run,
+                component_name=desired.name,
+                component_id=current_component.id,
+            )
+
+        # validte the component and check if the current state needs to be updated
+        needs_update = self.should_apply(desired, current_component)
+        if not needs_update:
+            return
+
+        # calculate update
         component_update = {
             "name": desired.display_name,
             "description": desired.description,
         }
+
+        # resolve group
+        group_id = (
+            self._group_name_to_id.get(desired.group_name, None)
+            if desired.group_name
+            else None
+        )
         if group_id:
             component_update["group_id"] = group_id
 
-        if status_update_required:
+        # resolve status
+        desired_component_status = desired.desired_component_status()
+        if desired_component_status:
             component_update["status"] = desired_component_status
 
-        if current:
-            LOG.info(f"update component {desired.name}: {component_update}")
+        if current_component:
+            logging.info(f"update component {desired.name}: {component_update}")
             if not dry_run:
-                self._update_component(current.id, component_update)
-            return current.id
+                self._api.update_component(current_component.id, component_update)
         else:
-            LOG.info(f"create component {desired.name}: {component_update}")
+            logging.info(f"create component {desired.name}: {component_update}")
             if not dry_run:
-                return self._create_component(component_update)
-            else:
-                return None
+                component_id = self._api.create_component(component_update)
+                self._bind_component(
+                    dry_run=dry_run,
+                    component_name=desired.name,
+                    component_id=component_id,
+                )
 
-    def _update_component(self, id: str, data: dict[str, Any]) -> None:
-        self._client().components.update(id, **data)
-
-    def _create_component(self, data: dict[str, Any]) -> Optional[str]:
-        result = self._client().components.create(**data)
-        return result.get("id")
-
-    def delete_component(self, dry_run: bool, id: str) -> None:
-        if not dry_run:
-            self._client().components.delete(id)
-            self.rebuild_state()
-
-    def _fetch_components(self) -> list[AtlassianComponent]:
-        raw_components = self._client().components.list()
-        group_ids_to_name = {g.id: g.name for g in raw_components if g.group}
-        return [
-            AtlassianComponent(
-                **c.toDict(), group_name=group_ids_to_name.get(c.group_id, None)
+    def delete_component(self, dry_run: bool, component_name: str) -> None:
+        component_id = self._binding_state.get_id_for_component_name(component_name)
+        if component_id:
+            if not dry_run:
+                self._api.delete_component(component_id)
+                self._binding_state.forget_component(component_name)
+                self._build_component_cache()
+        else:
+            logging.warning(
+                f"can't delete component {component_name} because it is not "
+                f"bound to any component on page {self.page_name}"
             )
-            for c in raw_components
-        ]
 
-    def _client(self):
-        return statuspageio.Client(
-            api_key=self.token, page_id=self.page_id, organization_id="unset"
+    def has_component_binding_for(self, component_name: str) -> bool:
+        return self._binding_state.get_id_for_component_name(component_name) is not None
+
+    def _bind_component(
+        self,
+        dry_run: bool,
+        component_name: str,
+        component_id: str,
+    ) -> None:
+        logging.info(
+            f"bind component {component_name} to ID {component_id} "
+            f"on page {self.page_name}"
         )
+        if not dry_run:
+            self._binding_state.bind_component(component_name, component_id)
 
 
-def load_provider(page: StatusPage) -> StatusPageProvider:
-    provider = AtlassianStatusPage(
-        page_id=page.page_id,
-        api_url=page.api_url,
-        token=page.credentials.get("token"),
+def init_provider_for_page(
+    page: StatusPageV1,
+    secret_reader: SecretReaderBase,
+    component_binding_state: ComponentBindingState,
+) -> AtlassianStatusPageProvider:
+    """
+    Initializes the provider for atlassian status page.
+    """
+    return AtlassianStatusPageProvider(
+        page_name=page.name,
+        api=LegacyLibAtlassianAPI(
+            page_id=page.page_id,
+            api_url=page.api_url,
+            token=secret_reader.read_secret(page.credentials),
+        ),
+        component_binding_state=component_binding_state,
     )
-    provider.rebuild_state()
-    return provider

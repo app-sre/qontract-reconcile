@@ -2236,9 +2236,9 @@ def dyn_traffic_director(ctx, enable_deletion):
 )
 @click.pass_context
 def status_page_components(ctx):
-    import reconcile.statuspage.integration
+    from reconcile.statuspage.integration import StatusPageComponentsIntegration
 
-    run_integration(reconcile.statuspage.integration, ctx.obj)
+    run_class_integration(StatusPageComponentsIntegration(), ctx.obj)
 
 
 @integration.command(
