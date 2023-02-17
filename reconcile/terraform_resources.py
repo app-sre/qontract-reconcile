@@ -726,14 +726,12 @@ def run(
     defer=None,
 ) -> None:
     if exclude_accounts and not dry_run:
-        message = "Exclude accounts is only supported in dry-run mode"
+        message = "--exclude-accounts is only supported in dry-run mode"
         logging.error(message)
         raise RuntimeError(message)
 
     if exclude_accounts and account_name:
-        message = (
-            "Using exclude account and account name at the same time is not allowed"
-        )
+        message = "Using --exclude-accounts and --account-name at the same time is not allowed"
         logging.error(message)
         raise RuntimeError(message)
 
