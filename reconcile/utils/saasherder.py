@@ -54,6 +54,10 @@ from reconcile.utils.state import State
 TARGET_CONFIG_HASH = "target_config_hash"
 
 
+class ChannelUndefinedException(Exception):
+    pass
+
+
 class Providers:
     TEKTON = "tekton"
 
@@ -868,6 +872,51 @@ class SaasHerder:
                 return True
         return False
 
+    def _get_consolidated_parameters(self, options, commit_sha):
+        target = options["target"]
+        parameters = options["parameters"]
+        environment = target["namespace"]["environment"]
+        environment_parameters = self._collect_parameters(environment)
+        environment_secret_parameters = self._collect_secret_parameters(environment)
+        target_parameters = self._collect_parameters(target)
+        target_secret_parameters = self._collect_secret_parameters(target)
+
+        consolidated_parameters = {}
+        consolidated_parameters.update(environment_parameters)
+        consolidated_parameters.update(environment_secret_parameters)
+        consolidated_parameters.update(parameters)
+        consolidated_parameters.update(target_parameters)
+        consolidated_parameters.update(target_secret_parameters)
+
+        for replace_key, replace_value in consolidated_parameters.items():
+            if not isinstance(replace_value, str):
+                continue
+            replace_pattern = "${" + replace_key + "}"
+            for k, v in consolidated_parameters.items():
+                if not isinstance(v, str):
+                    continue
+                if replace_pattern in v:
+                    consolidated_parameters[k] = v.replace(
+                        replace_pattern, replace_value
+                    )
+        return consolidated_parameters
+
+    def _get_image_tag(self, consolidated_parameters, sha_substring):
+        # IMAGE_TAG takes one of two forms:
+        # - If saas file attribute 'use_channel_in_image_tag' is true,
+        #   it is {CHANNEL}-{SHA}
+        # - Otherwise it is just {SHA}
+        if self._get_saas_file_feature_enabled("use_channel_in_image_tag"):
+            try:
+                channel = consolidated_parameters["CHANNEL"]
+            except KeyError:
+                raise ChannelUndefinedException()
+            image_tag = f"{channel}-{sha_substring}"
+        else:
+            image_tag = sha_substring
+
+        return image_tag
+
     def _process_template(self, options):
         saas_file_name = options["saas_file_name"]
         resource_template_name = options["resource_template_name"]
@@ -884,34 +933,7 @@ class SaasHerder:
         html_url = None
         commit_sha = None
 
-        if provider == "openshift-template":
-            hash_length = options["hash_length"]
-            parameters = options["parameters"]
-            environment = target["namespace"]["environment"]
-            environment_parameters = self._collect_parameters(environment)
-            environment_secret_parameters = self._collect_secret_parameters(environment)
-            target_parameters = self._collect_parameters(target)
-            target_secret_parameters = self._collect_secret_parameters(target)
-
-            consolidated_parameters = {}
-            consolidated_parameters.update(environment_parameters)
-            consolidated_parameters.update(environment_secret_parameters)
-            consolidated_parameters.update(parameters)
-            consolidated_parameters.update(target_parameters)
-            consolidated_parameters.update(target_secret_parameters)
-
-            for replace_key, replace_value in consolidated_parameters.items():
-                if not isinstance(replace_value, str):
-                    continue
-                replace_pattern = "${" + replace_key + "}"
-                for k, v in consolidated_parameters.items():
-                    if not isinstance(v, str):
-                        continue
-                    if replace_pattern in v:
-                        consolidated_parameters[k] = v.replace(
-                            replace_pattern, replace_value
-                        )
-
+        if provider in ("openshift-template", "kustomize"):
             get_file_contents_options = {
                 "url": url,
                 "path": path,
@@ -930,28 +952,27 @@ class SaasHerder:
                 )
                 return None, None, None
 
+            consolidated_parameters = self._get_consolidated_parameters(
+                options, commit_sha
+            )
+
             # add IMAGE_TAG only if it is unspecified
-            image_tag = consolidated_parameters.get("IMAGE_TAG")
+            image_tag = consolidated_parameters.get("IMAGE_TAG", None)
             if not image_tag:
+                hash_length = options["hash_length"]
                 sha_substring = commit_sha[:hash_length]
-                # IMAGE_TAG takes one of two forms:
-                # - If saas file attribute 'use_channel_in_image_tag' is true,
-                #   it is {CHANNEL}-{SHA}
-                # - Otherwise it is just {SHA}
-                if self._get_saas_file_feature_enabled("use_channel_in_image_tag"):
-                    try:
-                        channel = consolidated_parameters["CHANNEL"]
-                    except KeyError:
-                        logging.error(
-                            f"[{saas_file_name}/{resource_template_name}] "
-                            + f"{html_url}: CHANNEL is required when "
-                            + "'use_channel_in_image_tag' is true."
-                        )
-                        return None, None, None
-                    image_tag = f"{channel}-{sha_substring}"
-                else:
-                    image_tag = sha_substring
-                consolidated_parameters["IMAGE_TAG"] = image_tag
+                try:
+                    image_tag = self._get_image_tag(
+                        consolidated_parameters, sha_substring
+                    )
+                    consolidated_parameters["IMAGE_TAG"] = image_tag
+                except ChannelUndefinedException:
+                    logging.error(
+                        f"[{saas_file_name}/{resource_template_name}] "
+                        + f"{html_url}: CHANNEL is required when "
+                        + "'use_channel_in_image_tag' is true."
+                    )
+                    return None, None, None
 
             # This relies on IMAGE_TAG already being calculated.
             need_repo_digest = self._parameter_value_needed(
@@ -989,7 +1010,15 @@ class SaasHerder:
 
             oc = OCLocal("cluster", None, None, local=True)
             try:
-                resources = oc.process(template, consolidated_parameters)
+                if provider == "kustomize":
+                    kustomize_dir = (
+                        consolidated_parameters.pop("KUSTOMIZE_DIR", None) or path
+                    )
+                    resources = oc.kustomize(
+                        url, kustomize_dir, commit_sha, consolidated_parameters
+                    )
+                if provider == "openshift-template":
+                    resources = oc.process(template, consolidated_parameters)
             except StatusCodeError as e:
                 logging.error(
                     f"[{saas_file_name}/{resource_template_name}] "

@@ -14,6 +14,7 @@ from contextlib import suppress
 from dataclasses import dataclass
 from datetime import datetime
 from functools import wraps
+from string import Template
 from subprocess import (
     PIPE,
     Popen,
@@ -26,6 +27,7 @@ from typing import (
 )
 
 import urllib3
+import yaml
 from kubernetes.client import (
     ApiClient,
     Configuration,
@@ -532,6 +534,17 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
             slow_oc_reconcile_threshold=self.slow_oc_reconcile_threshold,
             is_log_slow_oc_reconcile=self.is_log_slow_oc_reconcile,
         )
+
+    def kustomize(self, url, path, ref, parameters=None):
+        cmd = [
+            "kustomize",
+            "--output",
+            "/dev/stdout",
+            f"{url}{path}?ref={ref}",
+        ]
+        result = self._run(cmd)
+        result = Template(result.decode()).safe_substitute(parameters)
+        return yaml.load_all(result, Loader=yaml.SafeLoader)
 
     def process(self, template, parameters=None):
         if parameters is None:
