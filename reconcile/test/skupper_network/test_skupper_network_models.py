@@ -119,6 +119,7 @@ def namespace_factory() -> NamespaceFactory:
     ) -> NamespaceV1:
         return NamespaceV1(
             name=name,
+            clusterAdmin=None,
             cluster=ClusterV1(
                 name=f"cluster-{name}",
                 serverUrl="https://api.example.com:6443",
@@ -126,6 +127,7 @@ def namespace_factory() -> NamespaceFactory:
                 jumpHost=None,
                 spec=ClusterSpecV1(private=private),
                 automationToken=None,
+                clusterAdminAutomationToken=None,
                 internal=internal,
                 disable=None,
                 peering=ClusterPeeringV1(

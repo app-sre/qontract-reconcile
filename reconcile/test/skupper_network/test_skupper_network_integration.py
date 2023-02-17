@@ -11,7 +11,7 @@ from reconcile.skupper_network.models import (
 )
 from reconcile.skupper_network.site_controller import CONFIG_NAME
 from reconcile.test.fixtures import Fixtures
-from reconcile.utils.oc import OC_Map
+from reconcile.utils.oc_map import OCMap
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.openshift_resource import ResourceInventory
 
@@ -130,7 +130,7 @@ def test_skupper_network_intg_fetch_desired_state(
 
 
 def test_skupper_network_intg_fetch_current_state(
-    oc_map: OC_Map,
+    oc_map: OCMap,
     skupper_sites: list[SkupperSite],
     fake_site_configmap: dict[str, Any],
 ) -> None:

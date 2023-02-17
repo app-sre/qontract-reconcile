@@ -104,9 +104,21 @@ class HasOrgAndGithubUsername(Protocol):
     github_username: str
 
 
+class HasOCMap(Protocol):
+    """An OCMap protocol."""
+
+    def get(
+        self, cluster: str, privileged: bool = False
+    ) -> Union[OCDeprecated, OCLogMsg]:
+        ...
+
+    def get_cluster(self, cluster: str, privileged: bool = False) -> OCDeprecated:
+        ...
+
+
 def init_specs_to_fetch(
     ri: ResourceInventory,
-    oc_map: OC_Map,
+    oc_map: HasOCMap,
     namespaces: Optional[Iterable[Mapping]] = None,
     clusters: Optional[Iterable[Mapping]] = None,
     override_managed_types: Optional[Iterable[str]] = None,
@@ -344,7 +356,7 @@ def wait_for_namespace_exists(oc, namespace):
 
 def apply(
     dry_run: bool,
-    oc_map: OC_Map,
+    oc_map: HasOCMap,
     cluster: str,
     namespace: str,
     resource_type: str,
@@ -501,7 +513,7 @@ def create(dry_run, oc_map, cluster, namespace, resource_type, resource):
 
 def delete(
     dry_run: bool,
-    oc_map: OC_Map,
+    oc_map: HasOCMap,
     cluster: str,
     namespace: str,
     resource_type: str,
@@ -538,7 +550,7 @@ def check_unused_resource_types(ri):
 def _realize_resource_data(
     unpacked_ri_item,
     dry_run,
-    oc_map: OC_Map,
+    oc_map: HasOCMap,
     ri: ResourceInventory,
     take_over,
     caller,
@@ -717,7 +729,7 @@ def _realize_resource_data(
 
 def realize_data(
     dry_run,
-    oc_map: OC_Map,
+    oc_map: HasOCMap,
     ri: ResourceInventory,
     thread_pool_size,
     take_over=False,
@@ -824,9 +836,9 @@ def _validate_resources_used_exist(
             continue
 
 
-def validate_planned_data(ri: ResourceInventory, oc_map: OC_Map) -> None:
+def validate_planned_data(ri: ResourceInventory, oc_map: HasOCMap) -> None:
     for cluster, namespace, kind, data in ri:
-        oc = oc_map.get(cluster)
+        oc = oc_map.get_cluster(cluster)
 
         for name, d_item in data["desired"].items():
             if kind in ("Deployment", "DeploymentConfig"):
@@ -840,7 +852,7 @@ def validate_planned_data(ri: ResourceInventory, oc_map: OC_Map) -> None:
 
 
 @retry(exceptions=(ValidationError), max_attempts=100)
-def validate_realized_data(actions: Iterable[dict[str, str]], oc_map: OC_Map):
+def validate_realized_data(actions: Iterable[dict[str, str]], oc_map: HasOCMap):
     """
     Validate the realized desired state.
 
@@ -868,7 +880,7 @@ def validate_realized_data(actions: Iterable[dict[str, str]], oc_map: OC_Map):
             logging.info(["validating", cluster, namespace, kind, name])
 
             oc = oc_map.get(cluster)
-            if not oc:
+            if isinstance(oc, OCLogMsg):
                 logging.log(level=oc.log_level, msg=oc.message)
                 continue
             resource = oc.get(namespace, kind, name=name)

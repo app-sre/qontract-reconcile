@@ -192,16 +192,14 @@ class OCMap:
 
     def get(
         self, cluster: str, privileged: bool = False
-    ) -> Optional[Union[OCDeprecated, OCLogMsg]]:
+    ) -> Union[OCDeprecated, OCLogMsg]:
         cluster_map = self._privileged_oc_map if privileged else self._oc_map
         return cluster_map.get(
             cluster,
             OCLogMsg(log_level=logging.DEBUG, message=f"[{cluster}] cluster skipped"),
         )
 
-    def get_cluster(
-        self, cluster: str, privileged: bool = False
-    ) -> Optional[Union[OCDeprecated, OCLogMsg]]:
+    def get_cluster(self, cluster: str, privileged: bool = False) -> OCDeprecated:
         result = self.get(cluster, privileged)
         if isinstance(result, OCLogMsg):
             raise result

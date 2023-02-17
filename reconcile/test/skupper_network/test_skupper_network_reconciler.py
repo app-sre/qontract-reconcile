@@ -10,16 +10,14 @@ from pytest_mock import MockerFixture
 
 from reconcile.skupper_network import reconciler
 from reconcile.skupper_network.models import SkupperSite
-from reconcile.utils.oc import (
-    OC_Map,
-    OCNative,
-)
+from reconcile.utils.oc import OCNative
+from reconcile.utils.oc_map import OCMap
 
 
 @pytest.mark.parametrize("dry_run", [True, False])
 def test_skupper_network_reconciler_delete_skupper_resources(
     dry_run: bool,
-    oc_map: OC_Map,
+    oc_map: OCMap,
     oc: OCNative,
     skupper_sites: list[SkupperSite],
     fake_site_configmap: dict[str, Any],
@@ -60,7 +58,7 @@ def test_skupper_network_reconciler_delete_skupper_resources(
 
 
 def test_skupper_network_reconciler_get_token(
-    oc_map: OC_Map,
+    oc_map: OCMap,
     oc: OCNative,
     skupper_sites: list[SkupperSite],
     fake_site_configmap: dict[str, Any],
@@ -74,7 +72,7 @@ def test_skupper_network_reconciler_get_token(
 @pytest.mark.parametrize("dry_run", [True, False])
 def test_skupper_network_reconciler_create_token(
     dry_run: bool,
-    oc_map: OC_Map,
+    oc_map: OCMap,
     oc: OCNative,
     skupper_sites: list[SkupperSite],
 ) -> None:
@@ -119,7 +117,7 @@ def test_skupper_network_reconciler_transfer_token(
     dry_run: bool,
     is_usable_connection_token: bool,
     mocker: MockerFixture,
-    oc_map: OC_Map,
+    oc_map: OCMap,
     oc: OCNative,
     skupper_sites: list[SkupperSite],
     fake_token: dict[str, Any],
@@ -177,7 +175,7 @@ def test_skupper_network_reconciler_connect_sites(
     local_token: dict[str, Any],
     remote_token: dict[str, Any],
     mocker: MockerFixture,
-    oc_map: OC_Map,
+    oc_map: OCMap,
     oc: OCNative,
     skupper_sites: list[SkupperSite],
 ) -> None:
@@ -265,7 +263,7 @@ def test_skupper_network_reconciler_delete_unused_tokens(
     dry_run: bool,
     token_secrets: list[dict[str, Any]],
     expected_deletion_count: int,
-    oc_map: OC_Map,
+    oc_map: OCMap,
     oc: OCNative,
     skupper_sites: list[SkupperSite],
 ) -> None:
