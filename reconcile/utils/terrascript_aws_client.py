@@ -4649,6 +4649,10 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         if idle_timeout:
             values["idle_timeout"] = idle_timeout
 
+        enable_http2 = resource.get("enable_http2")
+        if enable_http2 is False:
+            values["enable_http2"] = False
+
         lb_tf_resource = aws_lb(identifier, **values)
         tf_resources.append(lb_tf_resource)
 
