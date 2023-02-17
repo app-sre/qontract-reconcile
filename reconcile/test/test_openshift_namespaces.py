@@ -201,3 +201,25 @@ class TestOpenshiftNamespaces(TestCase):
         with self.assertRaises(SystemExit), contextlib.redirect_stderr(f):
             openshift_namespaces.run(False, thread_pool_size=1)
             self.assertIn("SomeError", f.getvalue())
+
+    def test_run_with_cluster_name(self):
+        self.test_ns = [
+            NS(c1, n1, delete=False, exists=False),
+            NS(c2, n2, delete=False, exists=False),
+        ]
+
+        openshift_namespaces.run(False, thread_pool_size=1, cluster_name=c1)
+
+        self.oc_clients[c1].new_project.assert_called_with(n1)
+        self.assertNotIn(c2, self.oc_clients)
+
+    def test_run_with_namespace_name(self):
+        self.test_ns = [
+            NS(c1, n1, delete=False, exists=False),
+            NS(c2, n2, delete=False, exists=False),
+        ]
+
+        openshift_namespaces.run(False, thread_pool_size=1, namespace_name=n1)
+
+        self.oc_clients[c1].new_project.assert_called_with(n1)
+        self.assertNotIn(c2, self.oc_clients)
