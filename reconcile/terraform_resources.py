@@ -711,6 +711,18 @@ def populate_desired_state(
             )
 
 
+class ExcludeAccountsAndDryRunException(Exception):
+    pass
+
+
+class ExcludeAccountsAndAccountNameException(Exception):
+    pass
+
+
+class MultipleAccountNamesInDryRunException(Exception):
+    pass
+
+
 @defer
 def run(
     dry_run,
@@ -728,12 +740,12 @@ def run(
     if exclude_accounts and not dry_run:
         message = "--exclude-accounts is only supported in dry-run mode"
         logging.error(message)
-        raise RuntimeError(message)
+        raise ExcludeAccountsAndDryRunException(message)
 
     if exclude_accounts and account_name:
         message = "Using --exclude-accounts and --account-name at the same time is not allowed"
         logging.error(message)
-        raise RuntimeError(message)
+        raise ExcludeAccountsAndAccountNameException(message)
 
     # account_name is a tuple of account names for more detail go to
     # https://click.palletsprojects.com/en/8.1.x/options/#multiple-options
@@ -746,7 +758,7 @@ def run(
     if account_names and len(account_names) > 1 and not dry_run:
         message = "Running with multiple accounts is only supported in dry-run mode"
         logging.error(message)
-        raise RuntimeError(message)
+        raise MultipleAccountNamesInDryRunException(message)
 
     ri, oc_map, tf, resource_specs = setup(
         dry_run,
