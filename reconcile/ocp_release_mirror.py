@@ -2,23 +2,35 @@ import base64
 import logging
 import sys
 from collections import namedtuple
+from collections.abc import Mapping
+from typing import (
+    Any,
+    Optional,
+)
 from urllib.parse import urlparse
 
 from sretoolbox.container import Image
 
 from reconcile import queries
+from reconcile.gql_definitions.ocp_release_mirror.ocp_release_mirror import (
+    NamespaceV1,
+    OcpReleaseMirrorV1,
+)
 from reconcile.quay_base import (
     OrgKey,
     get_quay_api_store,
 )
 from reconcile.status import ExitCodes
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
+from reconcile.typed_queries.ocp_release_mirror import get_ocp_release_mirrors
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.external_resources import get_external_resource_specs
-from reconcile.utils.oc import (
-    OC_Map,
-    OCLocal,
-)
+from reconcile.utils.oc import OCLocal
+from reconcile.utils.oc_map import init_oc_map_from_clusters
 from reconcile.utils.ocm import OCMMap
+from reconcile.utils.secret_reader import create_secret_reader
 
 QONTRACT_INTEGRATION = "ocp-release-mirror"
 
@@ -34,31 +46,32 @@ class OcpReleaseMirrorError(Exception):
 
 
 class OcpReleaseMirror:
-    def __init__(self, dry_run, instance):
+    def __init__(self, dry_run: bool, instance: OcpReleaseMirrorV1):
         self.dry_run = dry_run
-        self.settings = queries.get_app_interface_settings()
+        settings = get_app_interface_vault_settings()
+        secret_reader = create_secret_reader(use_vault=settings.vault)
 
-        cluster_info = instance["hiveCluster"]
-        hive_cluster = instance["hiveCluster"]["name"]
+        cluster_info = instance.hive_cluster
+        hive_cluster = instance.hive_cluster.name
 
         # Getting the OCM Client for the hive cluster
         ocm_map = OCMMap(
-            clusters=[cluster_info],
+            clusters=[cluster_info.dict(by_alias=True)],
             integration=QONTRACT_INTEGRATION,
-            settings=self.settings,
+            settings=settings.dict(by_alias=True),
         )
 
         self.ocm_cli = ocm_map.get(hive_cluster)
-        if not self.ocm_cli:
+        if self.ocm_cli is None:
             raise OcpReleaseMirrorError(
                 f"Can't create ocm client for " f"cluster {hive_cluster}"
             )
 
         # Getting the OC Client for the hive cluster
-        oc_map = OC_Map(
+        oc_map = init_oc_map_from_clusters(
             clusters=[cluster_info],
             integration=QONTRACT_INTEGRATION,
-            settings=self.settings,
+            secret_reader=secret_reader,
         )
         self.oc_cli = oc_map.get(hive_cluster)
         if not self.oc_cli:
@@ -66,25 +79,29 @@ class OcpReleaseMirror:
                 f"Can't create oc client for " f"cluster {hive_cluster}"
             )
 
-        namespace = instance["ecrResourcesNamespace"]
-        ocp_release_identifier = instance["ocpReleaseEcrIdentifier"]
-        ocp_art_dev_identifier = instance["ocpArtDevEcrIdentifier"]
+        namespace = instance.ecr_resources_namespace
+        ocp_release_identifier = instance.ocp_release_ecr_identifier
+        ocp_art_dev_identifier = instance.ocp_art_dev_ecr_identifier
 
-        ocp_release_info = self._get_tf_resource_info(namespace, ocp_release_identifier)
+        ocp_release_info = self._get_tf_resource_info(
+            namespace=namespace, identifier=ocp_release_identifier
+        )
         if ocp_release_info is None:
             raise OcpReleaseMirrorError(
                 f"Could not find rds "
                 f"identifier "
                 f"{ocp_release_identifier} in "
-                f"namespace {namespace['name']}"
+                f"namespace {namespace.name}"
             )
 
-        ocp_art_dev_info = self._get_tf_resource_info(namespace, ocp_art_dev_identifier)
+        ocp_art_dev_info = self._get_tf_resource_info(
+            namespace=namespace, identifier=ocp_art_dev_identifier
+        )
         if ocp_art_dev_info is None:
             raise OcpReleaseMirrorError(
                 f"Could not find rds identifier"
                 f" {ocp_art_dev_identifier} in"
-                f"namespace {namespace['name']}"
+                f"namespace {namespace.name}"
             )
 
         # Getting the AWS Client for the accounts
@@ -95,7 +112,7 @@ class OcpReleaseMirror:
         self.aws_cli = AWSApi(
             thread_pool_size=1,
             accounts=aws_accounts,
-            settings=self.settings,
+            secret_reader=secret_reader,
             init_ecr_auth_tokens=True,
         )
         self.aws_cli.map_ecr_resources()
@@ -118,10 +135,10 @@ class OcpReleaseMirror:
 
         # Process all the quayOrgTargets
         quay_api_store = get_quay_api_store()
-        self.quay_target_orgs = []
-        for quayTargetOrg in instance["quayTargetOrgs"]:
-            org_name = quayTargetOrg["name"]
-            instance_name = quayTargetOrg["instance"]["name"]
+        self.quay_target_orgs: list[dict[str, Any]] = []
+        for quay_target_org in instance.quay_target_orgs:
+            org_name = quay_target_org.name
+            instance_name = quay_target_org.instance.name
             org_key = OrgKey(instance_name, org_name)
             org_info = quay_api_store[org_key]
 
@@ -161,18 +178,18 @@ class OcpReleaseMirror:
         }
 
         # Append quay_target_orgs auths to registry_creds
-        for quay_target_org in self.quay_target_orgs:
-            url = quay_target_org["url"]
+        for quay_target_org_dict in self.quay_target_orgs:
+            url = quay_target_org_dict["url"]
 
             if url in self.registry_creds["auths"].keys():
                 OcpReleaseMirrorError(
                     "Cannot mirror to the same Quay " f"instance multiple times: {url}"
                 )
 
-            self.registry_creds["auths"].update(quay_target_org["auths"])
+            self.registry_creds["auths"].update(quay_target_org_dict["auths"])
 
         # Initiate channel groups
-        self.channel_groups = instance["mirrorChannels"]
+        self.channel_groups = instance.mirror_channels
 
     def run(self):
         ocp_releases = self._get_ocp_releases()
@@ -247,13 +264,16 @@ class OcpReleaseMirror:
         return False
 
     @staticmethod
-    def _get_aws_account_info(account):
+    def _get_aws_account_info(
+        account: Optional[Mapping[str, Any]]
+    ) -> Optional[dict[str, Any]]:
         for account_info in queries.get_aws_accounts():
             if "name" not in account_info:
                 continue
             if account_info["name"] != account:
                 continue
             return account_info
+        return None
 
     def _get_ocp_releases(self):
         ocp_releases = []
@@ -305,8 +325,10 @@ class OcpReleaseMirror:
         }
 
     @staticmethod
-    def _get_tf_resource_info(namespace, identifier):
-        specs = get_external_resource_specs(namespace)
+    def _get_tf_resource_info(
+        namespace: NamespaceV1, identifier: str
+    ) -> Optional[dict[str, Any]]:
+        specs = get_external_resource_specs(namespace.dict(by_alias=True))
         for spec in specs:
             if spec.provider != "ecr":
                 continue
@@ -318,8 +340,9 @@ class OcpReleaseMirror:
                 "account": spec.provisioner_name,
                 "region": spec.resource.get("region"),
             }
+        return None
 
-    def _get_image_uri(self, account, repository):
+    def _get_image_uri(self, account: str, repository: str) -> Any:
         for repo in self.aws_cli.resources[account]["ecr"]:
             if repo["repositoryName"] == repository:
                 return repo["repositoryUri"]
@@ -331,11 +354,11 @@ class OcpReleaseMirror:
         return {url: {"username": user, "password": token, "email": "", "auth": auth}}
 
 
-def run(dry_run):
-    instances = queries.get_ocp_release_mirror()
+def run(dry_run: bool) -> None:
+    instances = get_ocp_release_mirrors()
     for instance in instances:
         try:
-            quay_mirror = OcpReleaseMirror(dry_run, instance=instance)
+            quay_mirror = OcpReleaseMirror(dry_run=dry_run, instance=instance)
             quay_mirror.run()
         except OcpReleaseMirrorError as details:
             LOG.error(str(details))
