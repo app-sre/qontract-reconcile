@@ -104,7 +104,7 @@ class HasOrgAndGithubUsername(Protocol):
     github_username: str
 
 
-class HasOCMap(Protocol):
+class ClusterMap(Protocol):
     """An OCMap protocol."""
 
     def get(
@@ -118,7 +118,7 @@ class HasOCMap(Protocol):
 
 def init_specs_to_fetch(
     ri: ResourceInventory,
-    oc_map: HasOCMap,
+    oc_map: ClusterMap,
     namespaces: Optional[Iterable[Mapping]] = None,
     clusters: Optional[Iterable[Mapping]] = None,
     override_managed_types: Optional[Iterable[str]] = None,
@@ -356,7 +356,7 @@ def wait_for_namespace_exists(oc, namespace):
 
 def apply(
     dry_run: bool,
-    oc_map: HasOCMap,
+    oc_map: ClusterMap,
     cluster: str,
     namespace: str,
     resource_type: str,
@@ -513,7 +513,7 @@ def create(dry_run, oc_map, cluster, namespace, resource_type, resource):
 
 def delete(
     dry_run: bool,
-    oc_map: HasOCMap,
+    oc_map: ClusterMap,
     cluster: str,
     namespace: str,
     resource_type: str,
@@ -550,7 +550,7 @@ def check_unused_resource_types(ri):
 def _realize_resource_data(
     unpacked_ri_item,
     dry_run,
-    oc_map: HasOCMap,
+    oc_map: ClusterMap,
     ri: ResourceInventory,
     take_over,
     caller,
@@ -729,7 +729,7 @@ def _realize_resource_data(
 
 def realize_data(
     dry_run,
-    oc_map: HasOCMap,
+    oc_map: ClusterMap,
     ri: ResourceInventory,
     thread_pool_size,
     take_over=False,
@@ -836,7 +836,7 @@ def _validate_resources_used_exist(
             continue
 
 
-def validate_planned_data(ri: ResourceInventory, oc_map: HasOCMap) -> None:
+def validate_planned_data(ri: ResourceInventory, oc_map: ClusterMap) -> None:
     for cluster, namespace, kind, data in ri:
         oc = oc_map.get_cluster(cluster)
 
@@ -852,7 +852,7 @@ def validate_planned_data(ri: ResourceInventory, oc_map: HasOCMap) -> None:
 
 
 @retry(exceptions=(ValidationError), max_attempts=100)
-def validate_realized_data(actions: Iterable[dict[str, str]], oc_map: HasOCMap):
+def validate_realized_data(actions: Iterable[dict[str, str]], oc_map: ClusterMap):
     """
     Validate the realized desired state.
 
