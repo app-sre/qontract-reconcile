@@ -128,4 +128,4 @@ def run(
     ob.realize_data(dry_run, oc_map, ri, thread_pool_size)
 
     if ri.has_error_registered():
-        sys.exit(1)
+        sys.exit(ExitCodes.ERROR)
