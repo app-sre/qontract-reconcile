@@ -17,6 +17,7 @@ from reconcile.gql_definitions.openshift_groups.managed_groups import (
 from reconcile.gql_definitions.openshift_groups.managed_roles import (
     query as query_managed_roles,
 )
+from reconcile.openshift_base import ClusterMap
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
@@ -35,7 +36,7 @@ QONTRACT_INTEGRATION = "openshift-groups"
 
 
 def get_cluster_state(
-    group_items: Mapping[str, str], oc_map: OCMap
+    group_items: Mapping[str, str], oc_map: ClusterMap
 ) -> list[dict[str, str]]:
     results: list[dict[str, str]] = []
     cluster = group_items["cluster"]
@@ -60,7 +61,7 @@ def get_cluster_state(
 
 
 def create_groups_list(
-    clusters: Iterable[ClusterV1], oc_map: OCMap
+    clusters: Iterable[ClusterV1], oc_map: ClusterMap
 ) -> list[dict[str, str]]:
     groups_list: list[dict[str, str]] = []
     for cluster_info in clusters:
@@ -101,7 +102,7 @@ def fetch_current_state(
 
 
 def fetch_desired_state(
-    oc_map: OCMap, enforced_user_keys: Optional[list[str]] = None
+    oc_map: ClusterMap, enforced_user_keys: Optional[list[str]] = None
 ) -> list[dict[str, str]]:
     gqlapi = gql.get_api()
     roles = query_managed_roles(query_func=gqlapi.query).roles or []
@@ -234,7 +235,7 @@ def sort_diffs(diff: Mapping[str, Optional[str]]) -> int:
         return 2
 
 
-def act(diff: Mapping[str, Optional[str]], oc_map: OCMap) -> None:
+def act(diff: Mapping[str, Optional[str]], oc_map: ClusterMap) -> None:
     cluster = diff.get("cluster") or ""
     group = diff["group"]
     user = diff["user"]
