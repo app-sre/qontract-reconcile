@@ -42,9 +42,6 @@ def get_cluster_users(
     if isinstance(oc, OCLogMsg):
         logging.log(level=oc.log_level, msg=oc.message)
         return []
-    if not oc:
-        logging.error("No OC client for cluster %s", cluster)
-        return []
     users: list[str] = []
 
     # get cluster info for current cluster name from clusters list

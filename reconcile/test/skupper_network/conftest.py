@@ -8,10 +8,8 @@ from reconcile.skupper_network import integration as intg
 from reconcile.skupper_network.models import SkupperSite
 from reconcile.skupper_network.site_controller import CONFIG_NAME
 from reconcile.test.fixtures import Fixtures
-from reconcile.utils.oc import (
-    OC_Map,
-    OCNative,
-)
+from reconcile.utils.oc import OCNative
+from reconcile.utils.oc_map import OCMap
 
 
 @pytest.fixture
@@ -58,7 +56,7 @@ def oc(mocker: MockerFixture, fake_site_configmap: dict[str, Any]) -> OCNative:
 
 
 @pytest.fixture
-def oc_map(mocker: MockerFixture, oc: OCNative) -> OC_Map:
-    oc_map = mocker.patch("reconcile.utils.oc.OC_Map", autospec=True)
+def oc_map(mocker: MockerFixture, oc: OCNative) -> OCMap:
+    oc_map = mocker.patch("reconcile.utils.oc_map.OCMap", autospec=True)
     oc_map.get_cluster.return_value = oc
     return oc_map

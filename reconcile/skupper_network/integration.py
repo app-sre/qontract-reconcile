@@ -11,7 +11,6 @@ from typing import (
 
 from sretoolbox.utils import threaded
 
-from reconcile import queries
 from reconcile.gql_definitions.skupper_network.skupper_networks import SkupperNetworkV1
 from reconcile.gql_definitions.skupper_network.skupper_networks import (
     query as skupper_networks_query,
@@ -24,12 +23,19 @@ from reconcile.skupper_network.models import (
 from reconcile.skupper_network.site_controller import CONFIG_NAME
 from reconcile.skupper_network.site_controller import LABELS as SITE_CONTROLLER_LABELS
 from reconcile.skupper_network.site_controller import get_site_controller
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
 from reconcile.utils import gql
 from reconcile.utils.defer import defer
 from reconcile.utils.disabled_integrations import integration_is_enabled
-from reconcile.utils.oc import OC_Map
+from reconcile.utils.oc_map import (
+    OCMap,
+    init_oc_map_from_namespaces,
+)
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.openshift_resource import ResourceInventory
+from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.semver_helper import make_semver
 
 QONTRACT_INTEGRATION = "skupper-network"
@@ -90,7 +96,7 @@ def compile_skupper_sites(
 
 def fetch_current_state(
     site: SkupperSite,
-    oc_map: OC_Map,
+    oc_map: OCMap,
     ri: ResourceInventory,
     integration_managed_kinds: Iterable[str],
 ) -> None:
@@ -174,7 +180,7 @@ def skupper_site_config_changes(ri: ResourceInventory) -> bool:
 
 
 def act(
-    oc_map: OC_Map,
+    oc_map: OCMap,
     ri: ResourceInventory,
     dry_run: bool,
     thread_pool_size: int,
@@ -217,7 +223,8 @@ def run(
     use_jump_host: bool = True,
     defer: Optional[Callable] = None,
 ) -> None:
-    settings = queries.get_app_interface_settings()
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     gqlapi = gql.get_api()
 
     # data query
@@ -231,10 +238,10 @@ def run(
         return
 
     # APIs
-    oc_map = OC_Map(
-        namespaces=[site.namespace.dict(by_alias=True) for site in skupper_sites],
+    oc_map = init_oc_map_from_namespaces(
+        namespaces=[site.namespace for site in skupper_sites],
+        secret_reader=secret_reader,
         integration=QONTRACT_INTEGRATION,
-        settings=settings,
         use_jump_host=use_jump_host,
         thread_pool_size=thread_pool_size,
         internal=internal,

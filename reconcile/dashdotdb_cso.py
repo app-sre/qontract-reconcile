@@ -76,9 +76,6 @@ class DashdotdbCSO(DashdotdbBase):
         if isinstance(oc, OCLogMsg):
             LOG.log(level=oc.log_level, msg=oc.message)
             return None
-        if not oc:
-            LOG.error("No OC client for cluster %s", cluster)
-            return None
 
         try:
             imagemanifestvuln = oc.get_all("ImageManifestVuln", all_namespaces=True)
