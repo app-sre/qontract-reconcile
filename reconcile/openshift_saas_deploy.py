@@ -46,7 +46,9 @@ def compose_console_url(saas_file, saas_file_name, env_name):
     )
 
 
-def slack_notify(saas_file_name, env_name, slack, ri, console_url, in_progress):
+def slack_notify(
+    saas_file_name, env_name, slack, ri, console_url, in_progress, trigger_reason
+):
     success = not ri.has_error_registered()
     if in_progress:
         icon = ":yellow_jenkins_circle:"
@@ -57,10 +59,12 @@ def slack_notify(saas_file_name, env_name, slack, ri, console_url, in_progress):
     else:
         icon = ":red_jenkins_circle:"
         description = "Failure"
+
     message = (
         f"{icon} SaaS file *{saas_file_name}* "
         + f"deployment to environment *{env_name}*: "
-        + f"{description} (<{console_url}|Open>)"
+        + f"{description} (<{console_url}|Open>) "
+        + f"trigger reason: {trigger_reason}"
     )
     slack.chat_post_message(message)
 
@@ -81,48 +85,6 @@ def run(
     if not saas_files:
         logging.error("no saas files found")
         sys.exit(ExitCodes.ERROR)
-
-    # notify different outputs (publish results, slack notifications)
-    # we only do this if:
-    # - this is not a dry run
-    # - there is a single saas file deployed
-    notify = not dry_run and len(saas_files) == 1
-    if notify:
-        saas_file = saas_files[0]
-        slack_info = saas_file.get("slack")
-        if slack_info:
-            slack = slackapi_from_slack_workspace(
-                slack_info,
-                SecretReader(queries.get_secret_reader_settings()),
-                QONTRACT_INTEGRATION,
-                init_usergroups=False,
-            )
-            ri = ResourceInventory()
-            console_url = compose_console_url(saas_file, saas_file_name, env_name)
-            # deployment result notification
-            defer(
-                lambda: slack_notify(
-                    saas_file_name,
-                    env_name,
-                    slack,
-                    ri,
-                    console_url,
-                    in_progress=False,
-                )
-            )
-            # deployment start notification
-            slack_notifications = slack_info.get("notifications")
-            if slack_notifications and slack_notifications.get("start"):
-                slack_notify(
-                    saas_file_name,
-                    env_name,
-                    slack,
-                    ri,
-                    console_url,
-                    in_progress=True,
-                )
-        else:
-            slack = None
 
     # instance exists in v1 saas files only
     desired_jenkins_instances = [
@@ -166,6 +128,51 @@ def run(
     )
     defer(oc_map.cleanup)
     saasherder.populate_desired_state(ri)
+    trigger_reason = saasherder.all_trigger_specs[saas_file_name]["reason"]
+
+    # notify different outputs (publish results, slack notifications)
+    # we only do this if:
+    # - this is not a dry run
+    # - there is a single saas file deployed
+    notify = not dry_run and len(saas_files) == 1
+    if notify:
+        saas_file = saas_files[0]
+        slack_info = saas_file.get("slack")
+        if slack_info:
+            slack = slackapi_from_slack_workspace(
+                slack_info,
+                SecretReader(queries.get_secret_reader_settings()),
+                QONTRACT_INTEGRATION,
+                init_usergroups=False,
+            )
+            ri = ResourceInventory()
+            console_url = compose_console_url(saas_file, saas_file_name, env_name)
+            # deployment result notification
+            defer(
+                lambda: slack_notify(
+                    saas_file_name,
+                    env_name,
+                    slack,
+                    ri,
+                    console_url,
+                    in_progress=False,
+                    trigger_reason=trigger_reason,
+                )
+            )
+            # deployment start notification
+            slack_notifications = slack_info.get("notifications")
+            if slack_notifications and slack_notifications.get("start"):
+                slack_notify(
+                    saas_file_name,
+                    env_name,
+                    slack,
+                    ri,
+                    console_url,
+                    in_progress=True,
+                    trigger_reason=trigger_reason,
+                )
+        else:
+            slack = None
 
     # validate that this deployment is valid
     # based on promotion information in targets
