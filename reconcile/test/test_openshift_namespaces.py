@@ -85,22 +85,28 @@ class TestOpenshiftNamespaces(TestCase):
     def test_create_namespace(self):
         self.test_ns = [
             NS(c1, n1, delete=False, exists=False),
+            NS(c2, n2, delete=False, exists=False),
         ]
 
         openshift_namespaces.run(False, thread_pool_size=1)
-        oc = self.oc_clients[c1]
-        oc.new_project.assert_called_with(n1)
-        oc.delete_project.assert_not_called()
+
+        for ns in self.test_ns:
+            oc = self.oc_clients[ns.cluster]
+            oc.new_project.assert_called_with(ns.name)
+            oc.delete_project.assert_not_called()
 
     def test_delete_namespace(self):
         self.test_ns = [
             NS(c1, n1, delete=True, exists=True),
+            NS(c2, n2, delete=True, exists=True),
         ]
 
         openshift_namespaces.run(False, thread_pool_size=1)
-        oc = self.oc_clients[c1]
-        oc.delete_project.assert_called_with(n1)
-        oc.new_project.assert_not_called()
+
+        for ns in self.test_ns:
+            oc = self.oc_clients[ns.cluster]
+            oc.delete_project.assert_called_with(ns.name)
+            oc.new_project.assert_not_called()
 
     def test_dup_present_namespace_no_deletes_should_do_nothing(self):
         self.test_ns = [
@@ -201,3 +207,25 @@ class TestOpenshiftNamespaces(TestCase):
         with self.assertRaises(SystemExit), contextlib.redirect_stderr(f):
             openshift_namespaces.run(False, thread_pool_size=1)
             self.assertIn("SomeError", f.getvalue())
+
+    def test_run_with_cluster_name(self):
+        self.test_ns = [
+            NS(c1, n1, delete=False, exists=False),
+            NS(c2, n2, delete=False, exists=False),
+        ]
+
+        openshift_namespaces.run(False, thread_pool_size=1, cluster_name=c1)
+
+        self.oc_clients[c1].new_project.assert_called_with(n1)
+        self.assertNotIn(c2, self.oc_clients)
+
+    def test_run_with_namespace_name(self):
+        self.test_ns = [
+            NS(c1, n1, delete=False, exists=False),
+            NS(c2, n2, delete=False, exists=False),
+        ]
+
+        openshift_namespaces.run(False, thread_pool_size=1, namespace_name=n1)
+
+        self.oc_clients[c1].new_project.assert_called_with(n1)
+        self.assertNotIn(c2, self.oc_clients)

@@ -13,6 +13,7 @@ from typing import (
 from sretoolbox.utils import threaded
 
 import reconcile.openshift_base as ob
+import reconcile.openshift_resources_base as orb
 from reconcile import queries
 from reconcile.status import ExitCodes
 from reconcile.utils.defer import defer
@@ -136,17 +137,22 @@ def run(
     thread_pool_size=10,
     internal: Optional[bool] = None,
     use_jump_host=True,
+    cluster_name=None,
+    namespace_name=None,
     defer=None,
 ):
 
     all_namespaces = queries.get_namespaces(minimal=True)
     shard_namespaces, duplicates = get_shard_namespaces(all_namespaces)
+    namespaces = orb.filter_namespaces_by_cluster_and_namespace(
+        shard_namespaces, cluster_name, namespace_name
+    )
 
-    desired_state = get_desired_state(shard_namespaces)
+    desired_state = get_desired_state(namespaces)
 
     settings = queries.get_app_interface_settings()
     oc_map = OC_Map(
-        namespaces=shard_namespaces,
+        namespaces=namespaces,
         integration=QONTRACT_INTEGRATION,
         settings=settings,
         internal=internal,

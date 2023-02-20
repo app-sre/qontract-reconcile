@@ -1325,8 +1325,12 @@ def openshift_namespace_labels(ctx, thread_pool_size, internal, use_jump_host):
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
 @internal()
 @use_jump_host()
+@cluster_name
+@namespace_name
 @click.pass_context
-def openshift_namespaces(ctx, thread_pool_size, internal, use_jump_host):
+def openshift_namespaces(
+    ctx, thread_pool_size, internal, use_jump_host, cluster_name, namespace_name
+):
     import reconcile.openshift_namespaces
 
     run_integration(
@@ -1335,6 +1339,8 @@ def openshift_namespaces(ctx, thread_pool_size, internal, use_jump_host):
         thread_pool_size,
         internal,
         use_jump_host,
+        cluster_name=cluster_name,
+        namespace_name=namespace_name,
     )
 
 
