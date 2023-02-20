@@ -76,7 +76,7 @@ class TestGabiAuthorizedUser(TestCase):
     def test_gabi_authorized_users_exceed(
         self, mock_request, get_gabi_instances, oc_version, secret_read, get_settings
     ):
-        expirationDate = date.today() + timedelta(days=(gabi_u.EXPIRATION_MAX + 1))
+        expirationDate = date.today() + timedelta(days=(gabi_u.EXPIRATION_DAYS_MAX + 1))
         get_gabi_instances.return_value = mock_get_gabi_instances(expirationDate)
         mock_request.side_effect = apply_request
         with self.assertRaises(RunnerException):
