@@ -538,6 +538,7 @@ def fetch_current_state(
 
 def init_working_dirs(
     accounts: list[dict[str, Any]],
+    filter_disabled_accounts: bool,
     thread_pool_size: int,
     settings: Optional[Mapping[str, Any]] = None,
 ) -> tuple[Terrascript, dict[str, str]]:
@@ -547,6 +548,7 @@ def init_working_dirs(
         thread_pool_size,
         accounts,
         settings=settings,
+        filter_disabled_accounts=filter_disabled_accounts,
     )
     working_dirs = ts.dump()
     return ts, working_dirs
@@ -583,7 +585,12 @@ def setup(
     )
 
     # initialize terrascript (scripting engine to generate terraform manifests)
-    ts, working_dirs = init_working_dirs(accounts, thread_pool_size, settings=settings)
+    ts, working_dirs = init_working_dirs(
+        accounts=accounts,
+        filter_disabled_accounts=not dry_run,
+        thread_pool_size=thread_pool_size,
+        settings=settings,
+    )
 
     # initialize terraform client
     # it is used to plan and apply according to the output of terrascript

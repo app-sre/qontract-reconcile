@@ -318,12 +318,17 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         accounts: list[dict[str, Any]],
         settings: Optional[Mapping[str, Any]] = None,
         prefetch_resources_by_schemas: Optional[list[str]] = None,
+        filter_disabled_accounts: Optional[bool] = True,
     ) -> None:
         self.integration = integration
         self.integration_prefix = integration_prefix
         self.settings = settings
         self.thread_pool_size = thread_pool_size
-        filtered_accounts = self.filter_disabled_accounts(accounts)
+        filtered_accounts = (
+            self.filter_disabled_accounts(accounts)
+            if filter_disabled_accounts
+            else accounts
+        )
         self.secret_reader = SecretReader(settings=settings)
         self.populate_configs(filtered_accounts)
         self.versions = {a["name"]: a["providerVersion"] for a in filtered_accounts}
