@@ -60,6 +60,7 @@ query SkupperNetworks {
           serviceSync
         }
       }
+      clusterAdmin
       cluster {
         name
         serverUrl
@@ -73,9 +74,13 @@ query SkupperNetworks {
         automationToken {
           ...VaultSecret
         }
+        clusterAdminAutomationToken {
+          ...VaultSecret
+        }
         internal
         disable {
           integrations
+          e2eTests
         }
         peering {
           connections {

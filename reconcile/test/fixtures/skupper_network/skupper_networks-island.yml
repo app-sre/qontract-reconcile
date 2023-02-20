@@ -54,6 +54,7 @@ skupper_networks:
             routers: 1
             serviceController: null
             serviceSync: null
+        clusterAdmin: null
         cluster:
           name: small-1
           serverUrl: "https://api.small-1"
@@ -66,6 +67,7 @@ skupper_networks:
             field: token
             version: null
             format: null
+          clusterAdminAutomationToken: null
           internal: false
           disable: null
           peering:

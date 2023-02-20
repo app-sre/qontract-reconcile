@@ -8,14 +8,14 @@ import reconcile.openshift_base as ob
 from reconcile.skupper_network.models import SkupperSite
 from reconcile.skupper_network.site_controller import LABELS as SITE_CONTROLLER_LABELS
 from reconcile.skupper_network.site_controller import get_site_controller
-from reconcile.utils.oc import OC_Map
+from reconcile.utils.oc_map import OCMap
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.openshift_resource import ResourceInventory
 
 
 def delete_skupper_site(
     site: SkupperSite,
-    oc_map: OC_Map,
+    oc_map: OCMap,
     dry_run: bool,
     integration_managed_kinds: Iterable[str],
 ) -> None:
@@ -62,14 +62,14 @@ def delete_skupper_site(
             oc.delete(site.namespace.name, item["kind"], item["metadata"]["name"])
 
 
-def _get_token(oc_map: OC_Map, site: SkupperSite, name: str) -> dict[str, Any]:
+def _get_token(oc_map: OCMap, site: SkupperSite, name: str) -> dict[str, Any]:
     """Get a connection token secret from the site's namespace."""
     oc = oc_map.get_cluster(site.cluster.name)
     return oc.get(site.namespace.name, "Secret", name, allow_not_found=True)
 
 
 def _create_token(
-    oc_map: OC_Map,
+    oc_map: OCMap,
     site: SkupperSite,
     connected_site: SkupperSite,
     dry_run: bool,
@@ -94,7 +94,7 @@ def _create_token(
 
 
 def _transfer_token(
-    oc_map: OC_Map,
+    oc_map: OCMap,
     site: SkupperSite,
     connected_site: SkupperSite,
     dry_run: bool,
@@ -145,7 +145,7 @@ def _transfer_token(
 
 def connect_sites(
     site: SkupperSite,
-    oc_map: OC_Map,
+    oc_map: OCMap,
     dry_run: bool,
     integration: str,
     integration_version: str,
@@ -209,7 +209,7 @@ def connect_sites(
                 )
 
 
-def delete_unused_tokens(site: SkupperSite, oc_map: OC_Map, dry_run: bool) -> None:
+def delete_unused_tokens(site: SkupperSite, oc_map: OCMap, dry_run: bool) -> None:
     """Delete any other connection tokens that are no longer needed."""
     oc = oc_map.get_cluster(site.cluster.name)
     for item in oc.get_items(
@@ -228,7 +228,7 @@ def delete_unused_tokens(site: SkupperSite, oc_map: OC_Map, dry_run: bool) -> No
 
 
 def reconcile(
-    oc_map: OC_Map,
+    oc_map: OCMap,
     ri: ResourceInventory,
     dry_run: bool,
     thread_pool_size: int,

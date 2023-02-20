@@ -101,6 +101,7 @@ query SkupperNetworks {
           serviceSync
         }
       }
+      clusterAdmin
       cluster {
         name
         serverUrl
@@ -114,9 +115,13 @@ query SkupperNetworks {
         automationToken {
           ...VaultSecret
         }
+        clusterAdminAutomationToken {
+          ...VaultSecret
+        }
         internal
         disable {
           integrations
+          e2eTests
         }
         peering {
           connections {
@@ -232,6 +237,7 @@ class ClusterSpecV1(BaseModel):
 
 class DisableClusterAutomationsV1(BaseModel):
     integrations: Optional[list[str]] = Field(..., alias="integrations")
+    e2e_tests: Optional[list[str]] = Field(..., alias="e2eTests")
 
     class Config:
         smart_union = True
@@ -303,6 +309,9 @@ class ClusterV1(BaseModel):
     jump_host: Optional[CommonJumphostFields] = Field(..., alias="jumpHost")
     spec: Optional[ClusterSpecV1] = Field(..., alias="spec")
     automation_token: Optional[VaultSecret] = Field(..., alias="automationToken")
+    cluster_admin_automation_token: Optional[VaultSecret] = Field(
+        ..., alias="clusterAdminAutomationToken"
+    )
     internal: Optional[bool] = Field(..., alias="internal")
     disable: Optional[DisableClusterAutomationsV1] = Field(..., alias="disable")
     peering: Optional[ClusterPeeringV1] = Field(..., alias="peering")
@@ -318,6 +327,7 @@ class NamespaceV1(BaseModel):
     skupper_site: Optional[NamespaceSkupperSiteConfigV1] = Field(
         ..., alias="skupperSite"
     )
+    cluster_admin: Optional[bool] = Field(..., alias="clusterAdmin")
     cluster: ClusterV1 = Field(..., alias="cluster")
 
     class Config:
