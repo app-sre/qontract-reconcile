@@ -97,8 +97,12 @@ def fetch_current_state(
     return oc_map, current_state
 
 
-def fetch_desired_state(oc_map: OCMap, enforced_user_keys: Any = None) -> list[Any]:
+def fetch_desired_state(
+    oc_map: Optional[OCMap], enforced_user_keys: Any = None
+) -> list[Any]:
     desired_state = []
+    if not oc_map:
+        raise RuntimeError("No OCMap given to fetch desired state")
     flat_rolebindings_desired_state = openshift_rolebindings.fetch_desired_state(
         ri=None, oc_map=oc_map, enforced_user_keys=enforced_user_keys
     )
