@@ -88,10 +88,15 @@ def fetch_desired_state(
                     f"Could not find RDS identifier {identifier} "
                     f'for account {account} in namespace {namespace["name"]}'
                 )
-            cluster = namespace["cluster"]["name"]
             users = get_usernames(g["users"], namespace["cluster"])
             resource = construct_gabi_oc_resource(g["name"], expiration_date, users)
-            ri.add_desired(cluster, namespace["name"], "ConfigMap", g["name"], resource)
+            ri.add_desired(
+                namespace["cluster"]["name"],
+                namespace["name"],
+                resource.kind,
+                resource.name,
+                resource,
+            )
 
 
 @defer
