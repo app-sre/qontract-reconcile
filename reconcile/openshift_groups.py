@@ -66,7 +66,7 @@ def create_groups_list(
     for cluster_info in clusters:
         cluster = cluster_info.name
         oc = oc_map.get(cluster)
-        if not oc:
+        if isinstance(oc, OCLogMsg):
             logging.log(level=oc.log_level, msg=oc.message)
         groups = cluster_info.managed_groups or []
         for group_name in groups:
@@ -240,7 +240,7 @@ def act(diff: Mapping[str, Optional[str]], oc_map: OCMap) -> None:
     user = diff["user"]
     action = diff["action"]
     oc = oc_map.get(cluster)
-    if not oc:
+    if isinstance(oc, OCLogMsg):
         logging.log(level=oc.log_level, msg=oc.message)
         return None
 
