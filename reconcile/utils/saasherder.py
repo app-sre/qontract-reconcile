@@ -429,8 +429,8 @@ class SaasHerder:
         subscriptions: MutableMapping[str, list[tuple]],
     ):
         """
-        Function to gather promotion publish and subcribe configurations
-        It validates a publish channel is unique across all publis targets.
+        Function to gather promotion publish and subscribe configurations
+        It validates a publish channel is unique across all publish targets.
         """
         publish = promotion.get("publish") or []
         for channel in publish:
@@ -477,7 +477,7 @@ class SaasHerder:
                     if sub_rt_url != pub_rt_url:
                         self.valid = False
                         logging.error(
-                            "Subscriber and Publisher targets have diferent "
+                            "Subscriber and Publisher targets have different "
                             "source repositories\n"
                             "publisher_saas: {}\n"
                             "publisher_rt: {}\n"
@@ -1775,7 +1775,7 @@ class SaasHerder:
             if item is None:
                 continue
             # validate that the commit sha being promoted
-            # was succesfully published to the subscribed channel(s)
+            # was successfully published to the subscribed channel(s)
             subscribe = item.get("subscribe")
             if subscribe:
                 commit_sha = item["commit_sha"]
@@ -1855,7 +1855,7 @@ class SaasHerder:
 
         if self.promotions and not auto_promote:
             logging.info(
-                "Auto-promotions to next stages are disabled. This could"
+                "Auto-promotions to next stages are disabled. This could "
                 "happen if the current stage does not make any change"
             )
 
