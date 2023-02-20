@@ -1,3 +1,4 @@
+import json
 import logging
 import sys
 from collections.abc import (
@@ -30,12 +31,22 @@ QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 EXPIRATION_MAX = 90
 
 
-def construct_gabi_oc_resource(name: str, users: Iterable[str]) -> OpenshiftResource:
+def construct_gabi_oc_resource(
+    name: str, expiration_date: date, users: Iterable[str]
+) -> OpenshiftResource:
     body = {
         "apiVersion": "v1",
         "kind": "ConfigMap",
         "metadata": {"name": name, "annotations": {"qontract.recycle": "true"}},
-        "data": {"authorized-users.yaml": "\n".join(users)},
+        "data": {
+            "config.json": json.dumps(
+                {
+                    "expiration": str(expiration_date),
+                    "users": users,
+                },
+                separators=(",", ":"),
+            )
+        },
     }
     return OpenshiftResource(
         body, QONTRACT_INTEGRATION, QONTRACT_INTEGRATION_VERSION, error_details=name
@@ -54,8 +65,8 @@ def fetch_desired_state(
     gabi_instances: Iterable[Mapping], ri: ResourceInventory
 ) -> None:
     for g in gabi_instances:
-        exp_date = datetime.strptime(g["expirationDate"], "%Y-%m-%d").date()
-        if (exp_date - date.today()).days > EXPIRATION_MAX:
+        expiration_date = datetime.strptime(g["expirationDate"], "%Y-%m-%d").date()
+        if (expiration_date - date.today()).days > EXPIRATION_MAX:
             raise RunnerException(
                 f'The maximum expiration date of {g["name"]} '
                 f"shall not exceed {EXPIRATION_MAX} days form today"
@@ -78,12 +89,8 @@ def fetch_desired_state(
                     f'for account {account} in namespace {namespace["name"]}'
                 )
             cluster = namespace["cluster"]["name"]
-            users = (
-                get_usernames(g["users"], namespace["cluster"])
-                if exp_date >= date.today()
-                else []
-            )
-            resource = construct_gabi_oc_resource(g["name"], users)
+            users = get_usernames(g["users"], namespace["cluster"])
+            resource = construct_gabi_oc_resource(g["name"], expiration_date, users)
             ri.add_desired(cluster, namespace["name"], "ConfigMap", g["name"], resource)
 
 
