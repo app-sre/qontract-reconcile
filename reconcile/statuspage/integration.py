@@ -1,6 +1,6 @@
 import logging
 import sys
-from typing import Callable
+from collections.abc import Callable
 
 from reconcile import queries
 from reconcile.gql_definitions.statuspage import statuspages
@@ -89,8 +89,8 @@ class StatusPageComponentsIntegration(QontractReconcileIntegration[NoParams]):
             try:
                 desired_state = build_status_page(p)
                 page_provider = init_provider_for_page(
-                    p,
-                    secret_reader=secret_reader,
+                    page=p,
+                    token=secret_reader.read_secret(p.credentials),
                     component_binding_state=binding_state,
                 )
                 self.reconcile(

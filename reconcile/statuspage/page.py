@@ -2,10 +2,8 @@ from abc import (
     ABC,
     abstractmethod,
 )
-from typing import (
-    Callable,
-    Optional,
-)
+from collections.abc import Callable
+from typing import Optional
 
 from pydantic import BaseModel
 
@@ -18,7 +16,6 @@ from reconcile.statuspage.status import (
     StatusProvider,
     build_status_provider_config,
 )
-from reconcile.utils.secret_reader import SecretReaderBase
 
 
 def build_status_page_component(component: StatusPageComponentV1) -> "StatusComponent":
@@ -103,14 +100,14 @@ def build_status_page(
 
 def init_provider_for_page(
     page: StatusPageV1,
-    secret_reader: SecretReaderBase,
+    token: str,
     component_binding_state: ComponentBindingState,
 ) -> StatusPageProvider:
     """
     Initialize a status page provider for a given status page.
     """
     if page.provider in _PROVIDERS:
-        return _PROVIDERS[page.provider](page, secret_reader, component_binding_state)
+        return _PROVIDERS[page.provider](page, token, component_binding_state)
     else:
         raise ValueError(f"provider {page.provider} is not supported")
 
@@ -134,7 +131,7 @@ class StatusPage(BaseModel):
 
 
 ProviderInitializer = Callable[
-    [StatusPageV1, SecretReaderBase, ComponentBindingState], StatusPageProvider
+    [StatusPageV1, str, ComponentBindingState], StatusPageProvider
 ]
 
 _PROVIDERS: dict[str, ProviderInitializer] = {}

@@ -95,5 +95,4 @@ def build_status_provider_config(
             start=cfg.manual.q_from,
             end=cfg.manual.until,
         )
-    else:
-        return None
+    return None

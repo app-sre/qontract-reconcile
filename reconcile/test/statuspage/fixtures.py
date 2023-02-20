@@ -1,8 +1,7 @@
+from collections.abc import Iterable
 from typing import (
     Any,
-    Iterable,
     Optional,
-    Tuple,
 )
 
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
@@ -23,14 +22,14 @@ from reconcile.statuspage.state import ComponentBindingState
 
 def describe_component_v1(
     name: str, display_name: str, group: Optional[str], status: Optional[str]
-) -> Tuple[str, str, Optional[str], Optional[str]]:
+) -> tuple[str, str, Optional[str], Optional[str]]:
     return (name, display_name, group, status)
 
 
 def construct_status_page_v1(
     name: str,
     provider: str,
-    component_repr: list[Tuple[str, str, Optional[str], Optional[str]]],
+    component_repr: list[tuple[str, str, Optional[str], Optional[str]]],
 ) -> StatusPageV1:
     components = [
         StatusPageComponentV1(
@@ -114,12 +113,12 @@ class DictComponentBindingState:
 
 def describe_atlassian_component(
     id: str, name: str, group: Optional[str], status: str, binding: Optional[str]
-) -> Tuple[str, str, Optional[str], str, Optional[str]]:
+) -> tuple[str, str, Optional[str], str, Optional[str]]:
     return (id, name, group, status, binding)
 
 
 def construct_binding_state(
-    component_repr: Iterable[Tuple[str, str, Optional[str], str, Optional[str]]]
+    component_repr: Iterable[tuple[str, str, Optional[str], str, Optional[str]]]
 ) -> ComponentBindingState:
     return DictComponentBindingState(
         {
@@ -131,7 +130,7 @@ def construct_binding_state(
 
 
 def construct_atlassian_api(
-    component_repr: Iterable[Tuple[str, str, Optional[str], str, Optional[str]]],
+    component_repr: Iterable[tuple[str, str, Optional[str], str, Optional[str]]],
     group_names: Iterable[str],
 ) -> AtlassianAPI:
     components = [
@@ -167,7 +166,7 @@ def construct_atlassian_api(
 
 def construct_atlassian_page(
     page_name: str,
-    component_repr: Iterable[Tuple[str, str, Optional[str], str, Optional[str]]],
+    component_repr: Iterable[tuple[str, str, Optional[str], str, Optional[str]]],
     groups: Iterable[str],
 ) -> AtlassianStatusPageProvider:
     api = construct_atlassian_api(component_repr, groups)

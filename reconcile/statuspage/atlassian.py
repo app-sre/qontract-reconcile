@@ -3,7 +3,6 @@ from typing import (
     Any,
     Optional,
     Protocol,
-    Tuple,
 )
 
 import statuspageio  # type: ignore
@@ -17,7 +16,6 @@ from reconcile.statuspage.page import (
 )
 from reconcile.statuspage.state import ComponentBindingState
 from reconcile.statuspage.status import ManualStatusProvider
-from reconcile.utils.secret_reader import SecretReaderBase
 
 PROVIDER_NAME = "atlassian"
 
@@ -52,6 +50,15 @@ class AtlassianAPI(Protocol):
 
 
 class LegacyLibAtlassianAPI:
+    """
+    This API class wraps the statuspageio python library for basic component operations.
+    This class is named Legacy for a couple reasons:
+    * the underlying library is not maintained anymore
+    * the library has no type annotated
+    * the library does not support pagination which becomes important for this API
+    Therefore this lib will be replaced by a think wrapper based on uplink in an upcoming PR.
+    """
+
     def __init__(self, page_id: str, api_url: str, token: str):
         self.page_id = page_id
         self.api_url = api_url
@@ -120,8 +127,7 @@ class AtlassianStatusPageProvider(StatusPageProvider):
         raw = self.get_raw_component_by_id(id)
         if raw:
             return self._bound_raw_component_to_status_component(raw)
-        else:
-            return None
+        return None
 
     def get_raw_component_by_id(self, id: str) -> Optional[AtlassianRawComponent]:
         return self._components_by_id.get(id)
@@ -163,12 +169,11 @@ class AtlassianStatusPageProvider(StatusPageProvider):
                     )
                 ],
             )
-        else:
-            return None
+        return None
 
     def lookup_component(
         self, desired_component: StatusComponent
-    ) -> Tuple[Optional[AtlassianRawComponent], bool]:
+    ) -> tuple[Optional[AtlassianRawComponent], bool]:
         """
         Finds the component on the page that matches the desired component. This
         is either done explicitely by using binding information if available or
@@ -235,21 +240,19 @@ class AtlassianStatusPageProvider(StatusPageProvider):
 
         # component status
         desired_component_status = desired.desired_component_status()
-        status_update_required = desired_component_status and (
+        status_update_required = desired_component_status is not None and (
             not current or desired_component_status != current.status
         )
 
         # shortcut execution if there is nothing to do
-        if (
-            current
-            and desired.display_name == current.name
-            and desired.description == current.description
-            and desired.group_name == current_group_name
-            and not status_update_required
-        ):
-            return False
-        else:
-            return True
+        update_required = (
+            current is None
+            or desired.display_name != current.name
+            or desired.description != current.description
+            or desired.group_name != current_group_name
+            or status_update_required
+        )
+        return update_required
 
     def apply_component(self, dry_run: bool, desired: StatusComponent) -> None:
         current_component, bound = self.lookup_component(desired)
@@ -333,7 +336,7 @@ class AtlassianStatusPageProvider(StatusPageProvider):
 
 def init_provider_for_page(
     page: StatusPageV1,
-    secret_reader: SecretReaderBase,
+    token: str,
     component_binding_state: ComponentBindingState,
 ) -> AtlassianStatusPageProvider:
     """
@@ -344,7 +347,7 @@ def init_provider_for_page(
         api=LegacyLibAtlassianAPI(
             page_id=page.page_id,
             api_url=page.api_url,
-            token=secret_reader.read_secret(page.credentials),
+            token=token,
         ),
         component_binding_state=component_binding_state,
     )
