@@ -204,9 +204,11 @@ def validate_diffs(diffs: Iterable[Mapping[str, Optional[str]]]) -> None:
     desired_combos = [
         {"cluster": diff["cluster"], "group": diff["group"]} for diff in diffs
     ]
-    desired_combos_unique: list[dict[str, Optional[str]]] = list(
-        set(item for item in desired_combos)
-    )
+    desired_combos_unique: list[dict[str, Optional[str]]] = []
+    for combo in desired_combos:
+        if combo in desired_combos_unique:
+            continue
+        desired_combos_unique.append(combo)
 
     valid_combos = [
         {"cluster": cluster.name, "group": group}
