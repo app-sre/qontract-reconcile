@@ -31,7 +31,7 @@ class IntegrationRunConfiguration:
     integration: QontractReconcileIntegration
     valdiate_schemas: bool
     """
-    Wheter to fail an integration if it queries schemas it is not allowed to.
+    Whether to fail an integration if it queries schemas it is not allowed to.
     Allowed schemas are listed in the `/app-sre/integration-1.yml` files.
     """
 
@@ -62,7 +62,7 @@ class IntegrationRunConfiguration:
 
     print_url: bool
     """
-    A debug flag to control wheter the URL of the GraphQL endpoint in use is printed.
+    A debug flag to control whether the URL of the GraphQL endpoint in use is printed.
     """
 
     def main_bundle_desired_state(self) -> Optional[dict[str, Any]]:
