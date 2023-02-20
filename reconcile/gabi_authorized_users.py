@@ -11,6 +11,7 @@ from datetime import (
 )
 from typing import (
     Any,
+    Callable,
     Optional,
 )
 
@@ -104,9 +105,9 @@ def run(
     dry_run: bool,
     thread_pool_size: int = 10,
     internal: Optional[bool] = None,
-    use_jump_host=True,
-    defer=None,
-):
+    use_jump_host: bool = True,
+    defer: Optional[Callable] = None,
+) -> None:
     gabi_instances = queries.get_gabi_instances()
     if not gabi_instances:
         logging.debug("No GABI instances found in app-interface")
@@ -123,7 +124,8 @@ def run(
         internal=internal,
         use_jump_host=use_jump_host,
     )
-    defer(oc_map.cleanup)
+    if defer:
+        defer(oc_map.cleanup)
     fetch_desired_state(gabi_instances, ri)
     ob.realize_data(dry_run, oc_map, ri, thread_pool_size)
 
