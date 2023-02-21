@@ -538,7 +538,13 @@ def integration(
 ):
     ctx.ensure_object(dict)
 
-    init_env(log_level=log_level, config_file=configfile)
+    init_env(
+        log_level=log_level,
+        config_file=configfile,
+        # don't print gql url in dry-run mode - less noisy PR check logs and
+        # the actual SHA is not that important during PR checks
+        print_gql_url=(not dry_run and bool(gql_url_print)),
+    )
 
     ctx.obj["dry_run"] = dry_run
     ctx.obj["early_exit_compare_sha"] = early_exit_compare_sha

@@ -19,7 +19,9 @@ LOG_DATEFMT = "%Y-%m-%d %H:%M:%S"
 
 
 def init_env(
-    log_level: Optional[str] = None, config_file: Optional[str] = None
+    log_level: Optional[str] = None,
+    config_file: Optional[str] = None,
+    print_gql_url: Optional[bool] = True,
 ) -> None:
     # store env configs in environment variables. this way child processes
     # will inherit them and a compatible environment can be setup in a child
@@ -44,4 +46,4 @@ def init_env(
     config.init_from_toml(config_file)
 
     # init basic gql connection
-    gql.init_from_config()
+    gql.init_from_config(print_url=print_gql_url)
