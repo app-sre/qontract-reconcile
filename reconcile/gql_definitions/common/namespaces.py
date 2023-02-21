@@ -274,7 +274,7 @@ class ClusterV1(BaseModel):
         extra = Extra.forbid
 
 
-class NamespaceManagedResourceNamesV1(BaseModel):
+class ManagedResourceNamesV1(BaseModel):
     resource: str = Field(..., alias="resource")
     resource_names: list[str] = Field(..., alias="resourceNames")
 
@@ -351,7 +351,7 @@ class NamespaceV1(BaseModel):
         ]
     ] = Field(..., alias="externalResources")
     cluster: ClusterV1 = Field(..., alias="cluster")
-    managed_resource_names: Optional[list[NamespaceManagedResourceNamesV1]] = Field(
+    managed_resource_names: Optional[list[ManagedResourceNamesV1]] = Field(
         ..., alias="managedResourceNames"
     )
     limit_ranges: Optional[LimitRangeV1] = Field(..., alias="limitRanges")

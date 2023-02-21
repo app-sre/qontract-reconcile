@@ -8,6 +8,13 @@ from typing import Any
 import pytest
 
 import reconcile.integrations_manager as intop
+from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
+from reconcile.gql_definitions.terraform_cloudflare_dns.terraform_cloudflare_zones import (
+    AWSAccountV1,
+    CloudflareAccountV1,
+    CloudflareDnsRecordV1,
+    CloudflareDnsZoneV1,
+)
 from reconcile.utils.openshift_resource import ResourceInventory
 from reconcile.utils.runtime.meta import IntegrationMeta
 
@@ -323,6 +330,73 @@ def aws_accounts() -> list[dict[str, Any]]:
 
 
 @pytest.fixture
+def cloudflare_records():
+    return [
+        CloudflareDnsRecordV1(
+            identifier="id",
+            name="subdomain",
+            type="CNAME",
+            ttl=10,
+            value="foo.com",
+            priority=None,
+            data=None,
+            proxied=None,
+        )
+    ]
+
+
+@pytest.fixture
+def aws_account_for_cloudflare():
+    return AWSAccountV1(
+        name="foo",
+        consoleUrl="url",
+        terraformUsername="bar",
+        automationToken=VaultSecret(path="foo", field="bar", format=None, version=None),
+        terraformState=None,
+    )
+
+
+@pytest.fixture
+def cloudflare_account(aws_account_for_cloudflare):
+    return CloudflareAccountV1(
+        name="fakeaccount",
+        type="free",
+        description="description",
+        providerVersion="0.0",
+        enforceTwofactor=False,
+        apiCredentials=VaultSecret(
+            path="foo/bar", field="foo", format="bar", version=2
+        ),
+        terraformStateAccount=aws_account_for_cloudflare,
+        deletionApprovals=None,
+    )
+
+
+@pytest.fixture
+def cloudflare_dns_zones(cloudflare_account, cloudflare_records):
+    return [
+        CloudflareDnsZoneV1(
+            identifier="zone1",
+            zone="fakezone1.com",
+            account=cloudflare_account,
+            records=cloudflare_records,
+            type="full",
+            plan="free",
+            delete=False,
+        ),
+        CloudflareDnsZoneV1(
+            identifier="zone2",
+            zone="fakezone2.com",
+            account=cloudflare_account,
+            records=cloudflare_records,
+            type="full",
+            plan="free",
+            delete=False,
+        ),
+    ]
+
+
+@pytest.fixture
 def aws_account_sharding_strategy(
     aws_accounts: list[dict[str, Any]]
 ) -> intop.AWSAccountShardManager:
@@ -330,13 +404,22 @@ def aws_account_sharding_strategy(
 
 
 @pytest.fixture
+def cloudflare_zone_sharding_strategy(
+    cloudflare_dns_zones: list[CloudflareDnsZoneV1],
+) -> intop.CloudflareZoneShardManager:
+    return intop.CloudflareZoneShardManager(cloudflare_dns_zones)
+
+
+@pytest.fixture
 def shard_manager(
     aws_account_sharding_strategy: intop.AWSAccountShardManager,
+    cloudflare_zone_sharding_strategy: intop.CloudflareZoneShardManager,
 ) -> intop.IntegrationShardManager:
     return intop.IntegrationShardManager(
         strategies={
             "static": intop.StaticShardingStrategy(),
             "per-aws-account": aws_account_sharding_strategy,
+            "per-cloudflare-zone": cloudflare_zone_sharding_strategy,
         },
         integration_runtime_meta={
             "integ1": IntegrationMeta(
@@ -344,6 +427,11 @@ def shard_manager(
             ),
             "integ2": IntegrationMeta(name="integ2", short_help="", args=["--arg"]),
             "integ3": IntegrationMeta(name="integ3", short_help="", args=[]),
+            "integ4": IntegrationMeta(
+                name="integ4",
+                short_help="",
+                args=["--arg", "--zone-name", "--account-name"],
+            ),
         },
     )
 
@@ -465,6 +553,55 @@ def test_initialize_shard_specs_aws_account_shards(
     assert (
         expected
         == collected_namespaces_env_test1[0]["integration_specs"][0]["shard_specs"]
+    )
+
+
+def test_initialize_shard_specs_cloudflare_zone_shards(
+    collected_namespaces_env_test1: list[dict[str, Any]],
+    shard_manager: intop.IntegrationShardManager,
+):
+    """
+    The per-cloudflare-zone strategy would result in two shards when there is two zones.
+    """
+    collected_namespaces_env_test1[0]["integration_specs"][0][
+        "shardingStrategy"
+    ] = "per-cloudflare-zone"
+    collected_namespaces_env_test1[0]["integration_specs"][0]["name"] = "integ4"
+    intop.initialize_shard_specs(collected_namespaces_env_test1, shard_manager)
+    expected = [
+        {
+            "shard_key": "fakeaccount-zone1",
+            "shard_name_suffix": "-fakeaccount-zone1",
+            "extra_args": "--zone-name zone1",
+        },
+        {
+            "shard_key": "fakeaccount-zone2",
+            "shard_name_suffix": "-fakeaccount-zone2",
+            "extra_args": "--zone-name zone2",
+        },
+    ]
+    assert (
+        expected
+        == collected_namespaces_env_test1[0]["integration_specs"][0]["shard_specs"]
+    )
+
+
+def test_initialize_shard_specs_cloudflare_zone_shards_raise_exception(
+    collected_namespaces_env_test1: list[dict[str, Any]],
+    shard_manager: intop.IntegrationShardManager,
+):
+    """
+    The per-cloudflare-zone strategy will raise an exception when --zone-name is not set.
+    """
+    collected_namespaces_env_test1[0]["integration_specs"][0][
+        "shardingStrategy"
+    ] = "per-cloudflare-zone"
+    collected_namespaces_env_test1[0]["integration_specs"][0]["name"] = "integ1"
+    with pytest.raises(ValueError) as e:
+        intop.initialize_shard_specs(collected_namespaces_env_test1, shard_manager)
+    assert (
+        e.value.args[0]
+        == "integration integ1 does not support the provided argument. --zone-name is required by the per-cloudflare-zone sharding strategy."
     )
 
 

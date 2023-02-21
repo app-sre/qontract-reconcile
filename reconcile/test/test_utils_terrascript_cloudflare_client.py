@@ -14,6 +14,7 @@ from reconcile.utils.terrascript.cloudflare_client import (
     TerrascriptCloudflareClient,
     create_cloudflare_terrascript,
 )
+from reconcile.utils.terrascript.cloudflare_resources import cloudflare_account
 
 
 @pytest.fixture
@@ -29,6 +30,19 @@ def backend_config():
         "bucket-name",
         "qontract-reconcile.tfstate",
         "us-east-1",
+    )
+
+
+@pytest.fixture
+def cloudflare_account_test(account_config):
+    cloudflare_account_values = {
+        "name": account_config.name,
+        "enforce_twofactor": account_config.enforce_twofactor,
+        "type": account_config.type,
+    }
+    return cloudflare_account(
+        account_config.name,
+        **cloudflare_account_values,
     )
 
 
@@ -56,6 +70,22 @@ def test_create_cloudflare_resources_terraform_json(account_config, backend_conf
             "zone": "domain.com",
             "plan": "enterprise",
             "type": "partial",
+            "records": [
+                {
+                    "name": "domain.com",
+                    "identifier": "domiancomns1",
+                    "type": "NS",
+                    "ttl": 10,
+                    "value": "ns1.domain.com",
+                },
+                {
+                    "name": "domain.com",
+                    "identifier": "domiancomns2",
+                    "type": "NS",
+                    "ttl": 10,
+                    "value": "ns2.domain.com",
+                },
+            ],
             "certificates": [
                 {
                     "identifier": "some-cert",
@@ -114,6 +144,24 @@ def test_create_cloudflare_resources_terraform_json(account_config, backend_conf
                     "plan": "enterprise",
                     "type": "partial",
                 }
+            },
+            "cloudflare_record": {
+                "domiancomns1": {
+                    "zone_id": "${cloudflare_zone.domain-com.id}",
+                    "name": "domain.com",
+                    "type": "NS",
+                    "ttl": 10,
+                    "value": "ns1.domain.com",
+                    "depends_on": ["cloudflare_zone.domain-com"],
+                },
+                "domiancomns2": {
+                    "zone_id": "${cloudflare_zone.domain-com.id}",
+                    "name": "domain.com",
+                    "type": "NS",
+                    "ttl": 10,
+                    "value": "ns2.domain.com",
+                    "depends_on": ["cloudflare_zone.domain-com"],
+                },
             },
             "cloudflare_zone_settings_override": {
                 "domain-com": {
@@ -190,3 +238,26 @@ def test_create_cloudflare_terrascript(account_config, backend_config):
     ts = create_cloudflare_terrascript(account_config, backend_config, "3.18")
 
     assert isinstance(ts, Terrascript)
+
+
+def test_create_cloudflare_terrascript_contain_account(
+    account_config, backend_config, cloudflare_account_test
+):
+    """To ensure that a expected cloudflare account config gets added"""
+    ts = create_cloudflare_terrascript(account_config, backend_config, "3.18")
+
+    for t in ts:
+        if isinstance(t, cloudflare_account):
+            assert t == cloudflare_account_test
+
+
+def test_create_cloudflare_terrascript_not_include_account(
+    account_config, backend_config
+):
+    """To ensure that cloudflare account not added to Terrascript when it is specified not managed by caller."""
+    ts = create_cloudflare_terrascript(
+        account_config, backend_config, "3.18", is_managed_account=False
+    )
+
+    for t in ts:
+        assert not isinstance(t, cloudflare_account)
