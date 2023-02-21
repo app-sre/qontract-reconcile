@@ -22,7 +22,10 @@ from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
 from reconcile.typed_queries.clusters import get_clusters
-from reconcile.utils import gql
+from reconcile.utils import (
+    expiration,
+    gql,
+)
 from reconcile.utils.defer import defer
 from reconcile.utils.oc_map import (
     OCLogMsg,
@@ -105,7 +108,7 @@ def fetch_desired_state(
     oc_map: ClusterMap, enforced_user_keys: Optional[list[str]] = None
 ) -> list[dict[str, str]]:
     gqlapi = gql.get_api()
-    roles = query_managed_roles(query_func=gqlapi.query).roles or []
+    roles = expiration.filter(query_managed_roles(query_func=gqlapi.query).roles or [])
     desired_state: list[dict[str, str]] = []
 
     for r in roles:
@@ -121,9 +124,7 @@ def fetch_desired_state(
                 enforced_user_keys=enforced_user_keys,
             )
             for u in r.users:
-                for username in {
-                    u.dict(by_alias=True)[user_key] for user_key in user_keys
-                }:
+                for username in {getattr(u, user_key) for user_key in user_keys}:
                     if username is None:
                         continue
 
