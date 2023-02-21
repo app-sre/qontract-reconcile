@@ -15,10 +15,7 @@ from reconcile.status import (
     ExitCodes,
     RunningState,
 )
-from reconcile.utils import (
-    config,
-    gql,
-)
+from reconcile.utils import gql
 from reconcile.utils.aggregated_list import RunnerException
 from reconcile.utils.binary import (
     binary,
@@ -27,6 +24,7 @@ from reconcile.utils.binary import (
 from reconcile.utils.environ import environ
 from reconcile.utils.exceptions import PrintToFileInGitRepositoryError
 from reconcile.utils.git import is_file_in_git_repo
+from reconcile.utils.runtime.environment import init_env
 from reconcile.utils.runtime.integration import (
     ModuleArgsKwargsRunParams,
     ModuleBasedQontractReconcileIntegration,
@@ -44,12 +42,6 @@ TERRAFORM_VERSION_REGEX = r"^Terraform\sv([\d]+\.[\d]+\.[\d]+)$"
 
 OC_VERSION = "4.10.15"
 OC_VERSION_REGEX = r"^Client\sVersion:\s([\d]+\.[\d]+\.[\d]+)$"
-
-LOG_FMT = (
-    "[%(asctime)s] [%(levelname)s] "
-    "[%(filename)s:%(funcName)s:%(lineno)d] - %(message)s"
-)
-LOG_DATEFMT = "%Y-%m-%d %H:%M:%S"
 
 
 def before_breadcrumb(crumb, hint):
@@ -521,11 +513,6 @@ def run_class_integration(
                 f.write(json.dumps(gqlapi.get_queried_schemas()))
 
 
-def init_log_level(log_level):
-    level = getattr(logging, log_level) if log_level else logging.INFO
-    logging.basicConfig(format=LOG_FMT, datefmt=LOG_DATEFMT, level=level)
-
-
 @click.group()
 @config_file
 @dry_run
@@ -551,8 +538,8 @@ def integration(
 ):
     ctx.ensure_object(dict)
 
-    init_log_level(log_level)
-    config.init_from_toml(configfile)
+    init_env(log_level=log_level, config_file=configfile)
+
     ctx.obj["dry_run"] = dry_run
     ctx.obj["early_exit_compare_sha"] = early_exit_compare_sha
     ctx.obj["check_only_affected_shards"] = check_only_affected_shards

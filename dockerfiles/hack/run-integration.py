@@ -10,15 +10,15 @@ from typing import Optional
 import click
 from prometheus_client import start_http_server
 
-from reconcile.cli import (
-    LOG_DATEFMT,
-    LOG_FMT,
-)
 from reconcile.status import ExitCodes
 from reconcile.utils.metrics import (
     execution_counter,
     run_status,
     run_time,
+)
+from reconcile.utils.runtime.environment import (
+    LOG_DATEFMT,
+    LOG_FMT,
 )
 
 SHARDS = int(os.environ.get("SHARDS", 1))
