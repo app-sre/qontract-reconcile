@@ -31,7 +31,6 @@ TMP_DIR_PREFIX = "terrascript-cloudflare-"
 
 DEFAULT_CLOUDFLARE_ACCOUNT_TYPE = "standard"
 DEFAULT_CLOUDFLARE_ACCOUNT_2FA = False
-DEFAULT_IS_MANAGED_CLOUDFLARE_ACCOUNT = True
 
 
 @dataclass
@@ -43,33 +42,17 @@ class CloudflareAccountConfig:
     account_id: str
     enforce_twofactor: bool = DEFAULT_CLOUDFLARE_ACCOUNT_2FA
     type: str = DEFAULT_CLOUDFLARE_ACCOUNT_TYPE
-    is_managed_account: bool = DEFAULT_IS_MANAGED_CLOUDFLARE_ACCOUNT
 
 
 def create_cloudflare_terrascript(
     account_config: CloudflareAccountConfig,
     backend_config: TerraformS3BackendConfig,
     provider_version: str,
-    is_managed_account: bool = True,
 ) -> Terrascript:
     """
     Configures a Terrascript class with the required provider(s) and backend
-    configuration.
-
-    This is offloaded to a separate function to avoid mixing additional
+    configuration. This is offloaded to a separate function to avoid mixing additional
     logic into TerrascriptCloudflareClient.
-
-    :param account_config: CloudflareAccount configuration.
-    :param backend_config: S3 as backend to store Terraform state.
-    :param provider_version: Terraform Cloudflare provider version.
-    :is_managed_account:
-            If the target cloudflare account is being managed by the caller or not.
-            Currently this is deferred to terraform-cloudflare-resources.
-            Until further improvement(Tracked by APPSRE-7035),
-            this argument can be set to False in other integrations.
-            Defaults to True.
-
-    :return: a Terrascript object that contains corresponding resources
     """
     terrascript = Terrascript()
 
@@ -101,12 +84,10 @@ def create_cloudflare_terrascript(
         "enforce_twofactor": account_config.enforce_twofactor,
         "type": account_config.type,
     }
-
-    if is_managed_account:
-        terrascript += cloudflare_account(
-            account_config.name,
-            **cloudflare_account_values,
-        )
+    terrascript += cloudflare_account(
+        account_config.name,
+        **cloudflare_account_values,
+    )
 
     # Some resources need "account_id" to be set at the resource level
     # The cloudflare provider is being migrated from settings account_id at the provider
