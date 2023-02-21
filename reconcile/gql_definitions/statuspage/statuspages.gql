@@ -1,0 +1,33 @@
+# qenerate: plugin=pydantic_v1
+
+query StatusPages {
+  status_pages: status_page_v1 {
+    name
+    pageId
+    apiUrl
+    provider
+    credentials {
+      ...VaultSecret
+    }
+    components {
+      name
+      displayName
+      description
+      path
+      groupName
+      app {
+        name
+      }
+      status_config: status {
+        provider
+        ... on ManualStatusProvider_v1 {
+          manual {
+            componentStatus
+            from
+            until
+          }
+        }
+      }
+    }
+  }
+}

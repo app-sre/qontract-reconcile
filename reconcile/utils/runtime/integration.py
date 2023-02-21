@@ -118,6 +118,18 @@ class PydanticRunParams(RunParams, BaseModel):
         return getattr(self, field)
 
 
+class NoParams(RunParams):
+    """
+    A `RunParams` instance that does not contain any parameters.
+    """
+
+    def copy_and_update(self, update: dict[str, Any]) -> "NoParams":
+        return NoParams()
+
+    def get(self, field: str) -> None:
+        raise ValueError(f"Field '{field}' does not exist")
+
+
 RunParamsTypeVar = TypeVar("RunParamsTypeVar", bound=RunParams)
 IntegrationClassTypeVar = TypeVar(
     "IntegrationClassTypeVar", bound="QontractReconcileIntegration"
