@@ -538,14 +538,20 @@ def integration(
 ):
     ctx.ensure_object(dict)
 
-    init_env(log_level=log_level, config_file=configfile)
+    init_env(
+        log_level=log_level,
+        config_file=configfile,
+        # don't print gql url in dry-run mode - less noisy PR check logs and
+        # the actual SHA is not that important during PR checks
+        print_gql_url=(not dry_run and bool(gql_url_print)),
+    )
 
     ctx.obj["dry_run"] = dry_run
     ctx.obj["early_exit_compare_sha"] = early_exit_compare_sha
     ctx.obj["check_only_affected_shards"] = check_only_affected_shards
     ctx.obj["validate_schemas"] = validate_schemas
     ctx.obj["gql_sha_url"] = gql_sha_url
-    ctx.obj["gql_url_print"] = gql_url_print
+    ctx.obj["gql_url_print"] = not dry_run and bool(gql_url_print)
     ctx.obj["dump_schemas_file"] = dump_schemas_file
 
 
