@@ -4963,6 +4963,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             "vpc_security_group_ids": common_values.get("vpc_security_group_ids"),
             "update_default_version": common_values.get("update_default_version"),
             "block_device_mappings": common_values.get("block_device_mappings"),
+            "insights_callback_urls": common_values.get("insights_callback_urls"),
             "tags": tags,
             "tag_specifications": [
                 {"resource_type": "instance", "tags": tags},
@@ -5342,8 +5343,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             "ins_userpool_client",
             name=f"insights-{identifier}-pool-client",
             user_pool_id=f"${{{cognito_user_pool_resource.id}}}",
-            callback_urls=[f"{bucket_url}/token.html"],
-            depends_on=["aws_cognito_resource_server.userpool_gateway_resource_server"],
+            callback_urls={insights_callback_urls},
             **pool_client_args,
         )
         tf_resources.append(insights_cognito_user_pool_client)
