@@ -5,12 +5,14 @@ from collections.abc import (
     Iterable,
     Mapping,
 )
-from typing import Optional
+from typing import (
+    Any,
+    Optional,
+)
 
 from sretoolbox.utils import threaded
 
 import reconcile.openshift_base as ob
-from reconcile.gql_definitions.common.clusters import ClusterV1
 from reconcile.gql_definitions.openshift_groups.managed_groups import (
     query as query_managed_groups,
 )
@@ -64,15 +66,18 @@ def get_cluster_state(
 
 
 def create_groups_list(
-    clusters: Iterable[ClusterV1], oc_map: ClusterMap
+    clusters: Iterable[Mapping[str, Any]], oc_map: ClusterMap
 ) -> list[dict[str, str]]:
+    """
+    Also used by ocm-groups integration and thus requires to work with dict for now
+    """
     groups_list: list[dict[str, str]] = []
     for cluster_info in clusters:
-        cluster = cluster_info.name
+        cluster = cluster_info["name"]
         oc = oc_map.get(cluster)
         if isinstance(oc, OCLogMsg):
             logging.log(level=oc.log_level, msg=oc.message)
-        groups = cluster_info.managed_groups or []
+        groups = cluster_info["managedGroups"] or []
         for group_name in groups:
             groups_list.append({"cluster": cluster, "group_name": group_name})
     return groups_list
@@ -95,7 +100,7 @@ def fetch_current_state(
         thread_pool_size=thread_pool_size,
     )
 
-    groups_list = create_groups_list(clusters, oc_map)
+    groups_list = create_groups_list([c.dict(by_alias=True) for c in clusters], oc_map)
     results = threaded.run(
         get_cluster_state, groups_list, thread_pool_size, oc_map=oc_map
     )
