@@ -25,17 +25,8 @@ from reconcile.github_org import (
     GH_BASE_URL,
     get_default_config,
 )
-from reconcile.gql_definitions.terraform_cloudflare_dns import (
-    terraform_cloudflare_zones,
-)
-from reconcile.gql_definitions.terraform_cloudflare_dns.terraform_cloudflare_zones import (
-    CloudflareDnsZoneV1,
-)
 from reconcile.status import ExitCodes
-from reconcile.utils import (
-    gql,
-    helm,
-)
+from reconcile.utils import helm
 from reconcile.utils.defer import defer
 from reconcile.utils.oc import oc_process
 from reconcile.utils.openshift_resource import (
@@ -138,35 +129,6 @@ class AWSAccountShardManager(ShardingStrategy):
             or "integrations" not in a["disable"]
             or integration not in (a["disable"]["integrations"] or [])
         ]
-
-
-class CloudflareZoneShardManager(ShardingStrategy):
-    """
-    This provides a new sharding strategy that each shard is targeting a Cloudflare zone.
-    It uses the combination of the Cloudflare account name and the zone's identifier as the unique sharding key.
-    """
-
-    def __init__(self, cloudflare_zones: Optional[Iterable[CloudflareDnsZoneV1]]):
-        self.cloudflare_zones = cloudflare_zones or []
-
-    def build_integration_shards(
-        self, integration_meta: IntegrationMeta, _: Mapping[str, Any]
-    ) -> list[dict[str, Any]]:
-        if "--zone-name" in integration_meta.args:
-            return [
-                {
-                    "shard_key": f"{zone.account.name}-{zone.identifier}",
-                    "shard_name_suffix": f"-{zone.account.name}-{zone.identifier}"
-                    if self.cloudflare_zones
-                    else "",
-                    "extra_args": f"--zone-name {zone.identifier}",
-                }
-                for zone in self.cloudflare_zones
-            ]
-        else:
-            raise ValueError(
-                f"integration {integration_meta.name} does not support the provided argument. --zone-name is required by the per-cloudflare-zone sharding strategy."
-            )
 
 
 @dataclass
@@ -386,9 +348,6 @@ def run(
         strategies={
             "static": StaticShardingStrategy(),
             "per-aws-account": AWSAccountShardManager(queries.get_aws_accounts()),
-            "per-cloudflare-zone": CloudflareZoneShardManager(
-                terraform_cloudflare_zones.query(query_func=gql.get_api().query).zones
-            ),
         },
         integration_runtime_meta=integration_runtime_meta,
     )

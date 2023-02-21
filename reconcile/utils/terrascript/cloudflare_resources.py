@@ -177,7 +177,7 @@ class CloudflareZoneTerrascriptResource(TerrascriptResource):
             resources.append(cloudflare_argo(self._spec.identifier, **argo_values))
 
         for record in zone_records:
-            identifier = safe_resource_id(record.pop("identifier"))
+            identifier = safe_resource_id(record.get("name"))
             record_values = {
                 "zone_id": f"${{{zone.id}}}",
                 "depends_on": self._get_dependencies([zone]),
