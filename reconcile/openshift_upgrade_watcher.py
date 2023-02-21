@@ -1,11 +1,25 @@
 import logging
+from collections.abc import (
+    Callable,
+    Iterable,
+)
 from datetime import datetime
 from typing import Optional
 
 from reconcile import queries
+from reconcile.gql_definitions.common.clusters import ClusterV1
 from reconcile.slack_base import slackapi_from_queries
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
+from reconcile.typed_queries.clusters import get_clusters
 from reconcile.utils.defer import defer
-from reconcile.utils.oc import OC_Map
+from reconcile.utils.oc_map import (
+    OCLogMsg,
+    OCMap,
+    init_oc_map_from_clusters,
+)
+from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.slack_api import SlackApi
 from reconcile.utils.state import State
 
@@ -39,14 +53,14 @@ def handle_slack_notification(
 
 
 def notify_upgrades_start(
-    oc_map: OC_Map,
+    oc_map: OCMap,
     state: State,
     slack: Optional[SlackApi],
 ):
     now = datetime.utcnow()
     for cluster in oc_map.clusters(include_errors=True):
         oc = oc_map.get(cluster)
-        if not oc:
+        if isinstance(oc, OCLogMsg):
             logging.log(level=oc.log_level, msg=oc.message)
             continue
         upgrade_config = oc.get(
@@ -72,13 +86,19 @@ def notify_upgrades_start(
                 + f"cluster `{cluster}` is currently "
                 + f"being upgraded to version `{version}`"
             )
-            handle_slack_notification(msg, slack, state, state_key, None)
+            handle_slack_notification(
+                msg=msg, slack=slack, state=state, state_key=state_key, state_value=None
+            )
 
 
-def notify_upgrades_done(clusters: list[dict], state: State, slack: Optional[SlackApi]):
+def notify_upgrades_done(
+    clusters: Iterable[ClusterV1], state: State, slack: Optional[SlackApi]
+):
     for cluster in clusters:
-        cluster_name = cluster["name"]
-        version = cluster["spec"]["version"]
+        cluster_name = cluster.name
+        if not cluster.spec:
+            raise RuntimeError(f"Cluster '{cluster_name}' does not have any spec.")
+        version = cluster.spec.version
         state_key = f"{cluster_name}-{version}"
         msg = (
             f"{cluster_slack_handle(cluster_name, slack)}: "
@@ -88,28 +108,38 @@ def notify_upgrades_done(clusters: list[dict], state: State, slack: Optional[Sla
 
 
 @defer
-def run(dry_run, thread_pool_size=10, internal=None, use_jump_host=True, defer=None):
-    settings = queries.get_app_interface_settings()
+def run(
+    dry_run: bool,
+    thread_pool_size: int = 10,
+    internal: Optional[bool] = None,
+    use_jump_host: bool = True,
+    defer: Optional[Callable] = None,
+) -> None:
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     accounts = queries.get_state_aws_accounts()
     state = State(
-        integration=QONTRACT_INTEGRATION, accounts=accounts, settings=settings
+        integration=QONTRACT_INTEGRATION,
+        accounts=accounts,
+        secret_reader=secret_reader,
     )
 
-    clusters = [c for c in queries.get_clusters() if c.get("ocm")]
+    clusters = [c for c in get_clusters() if c.ocm]
 
     slack: Optional[SlackApi] = None
     if not dry_run:
         slack = slackapi_from_queries(QONTRACT_INTEGRATION)
 
-    oc_map = OC_Map(
+    oc_map = init_oc_map_from_clusters(
         clusters=clusters,
         integration=QONTRACT_INTEGRATION,
-        settings=settings,
+        secret_reader=secret_reader,
         internal=internal,
         use_jump_host=use_jump_host,
         thread_pool_size=thread_pool_size,
     )
-    defer(oc_map.cleanup)
-    notify_upgrades_start(oc_map, state, slack)
+    if defer:
+        defer(oc_map.cleanup)
+    notify_upgrades_start(oc_map=oc_map, state=state, slack=slack)
 
-    notify_upgrades_done(clusters, state, slack)
+    notify_upgrades_done(clusters=clusters, state=state, slack=slack)
