@@ -21,7 +21,7 @@ LOG_DATEFMT = "%Y-%m-%d %H:%M:%S"
 def init_env(
     log_level: Optional[str] = None,
     config_file: Optional[str] = None,
-    print_gql_url: Optional[bool] = True,
+    print_gql_url: bool = True,
 ) -> None:
     # store env configs in environment variables. this way child processes
     # will inherit them and a compatible environment can be setup in a child
