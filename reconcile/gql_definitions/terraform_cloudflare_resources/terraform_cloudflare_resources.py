@@ -56,6 +56,7 @@ query TerraformCloudflareResources {
               tiered_caching
             }
             records {
+              identifier
               name
               type
               ttl
@@ -151,11 +152,12 @@ class CloudflareZoneArgoV1(BaseModel):
         extra = Extra.forbid
 
 
-class CloudflareZoneRecordV1(BaseModel):
+class CloudflareDnsRecordV1(BaseModel):
+    identifier: str = Field(..., alias="identifier")
     name: str = Field(..., alias="name")
     q_type: str = Field(..., alias="type")
     ttl: int = Field(..., alias="ttl")
-    value: str = Field(..., alias="value")
+    value: Optional[str] = Field(..., alias="value")
     proxied: Optional[bool] = Field(..., alias="proxied")
 
     class Config:
@@ -197,7 +199,7 @@ class NamespaceTerraformResourceCloudflareZoneV1(
     q_type: Optional[str] = Field(..., alias="type")
     settings: Optional[Json] = Field(..., alias="settings")
     argo: Optional[CloudflareZoneArgoV1] = Field(..., alias="argo")
-    records: Optional[list[CloudflareZoneRecordV1]] = Field(..., alias="records")
+    records: Optional[list[CloudflareDnsRecordV1]] = Field(..., alias="records")
     workers: Optional[list[CloudflareZoneWorkerV1]] = Field(..., alias="workers")
     certificates: Optional[list[CloudflareZoneCertificateV1]] = Field(
         ..., alias="certificates"
