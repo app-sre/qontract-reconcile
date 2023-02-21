@@ -4583,6 +4583,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             "security_groups": None,
             "self": None,
         }
+        ingress_cidr_blocks = resource["ingress_cidr_blocks"]
         values = {
             "provider": provider,
             "vpc_id": vpc_id,
@@ -4593,7 +4594,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     "from_port": 80,
                     "to_port": 80,
                     "protocol": "tcp",
-                    "cidr_blocks": ["0.0.0.0/0"],
+                    "cidr_blocks": ingress_cidr_blocks,
                     "ipv6_cidr_blocks": ["::/0"],
                     **empty_required_sg_values,
                 },
@@ -4602,7 +4603,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     "from_port": 443,
                     "to_port": 443,
                     "protocol": "tcp",
-                    "cidr_blocks": ["0.0.0.0/0"],
+                    "cidr_blocks": ingress_cidr_blocks,
                     "ipv6_cidr_blocks": ["::/0"],
                     **empty_required_sg_values,
                 },
@@ -4636,7 +4637,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             "provider": provider,
             "name": identifier,
             "internal": False,
-            "ip_address_type": "dualstack",
+            "ip_address_type": resource.get("ip_address_type", "ipv4"),
             "load_balancer_type": "application",
             "security_groups": [f"${{{sg_tf_resource.id}}}"],
             "subnets": [s["id"] for s in vpc["subnets"]],
@@ -4647,6 +4648,10 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         idle_timeout = resource.get("idle_timeout")
         if idle_timeout:
             values["idle_timeout"] = idle_timeout
+
+        enable_http2 = resource.get("enable_http2")
+        if enable_http2 is False:
+            values["enable_http2"] = False
 
         lb_tf_resource = aws_lb(identifier, **values)
         tf_resources.append(lb_tf_resource)

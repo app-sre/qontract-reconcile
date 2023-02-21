@@ -591,6 +591,12 @@ class ResourceInventory:
         except KeyError:
             return None
 
+    def get_desired_by_type(self, cluster, namespace, resource_type):
+        try:
+            return self._clusters[cluster][namespace][resource_type]["desired"]
+        except KeyError:
+            return None
+
     def get_current(self, cluster, namespace, resource_type, name):
         try:
             return self._clusters[cluster][namespace][resource_type]["current"][name]

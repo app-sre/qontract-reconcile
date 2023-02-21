@@ -37,6 +37,7 @@ query TerraformCloudflareResources {
               tiered_caching
             }
             records {
+              identifier
               name
               type
               ttl

@@ -6,10 +6,7 @@ import re
 import sys
 from signal import SIGUSR1
 from types import ModuleType
-from typing import (
-    Optional,
-    Union,
-)
+from typing import Optional
 
 import click
 import sentry_sdk
@@ -18,10 +15,7 @@ from reconcile.status import (
     ExitCodes,
     RunningState,
 )
-from reconcile.utils import (
-    config,
-    gql,
-)
+from reconcile.utils import gql
 from reconcile.utils.aggregated_list import RunnerException
 from reconcile.utils.binary import (
     binary,
@@ -30,7 +24,9 @@ from reconcile.utils.binary import (
 from reconcile.utils.environ import environ
 from reconcile.utils.exceptions import PrintToFileInGitRepositoryError
 from reconcile.utils.git import is_file_in_git_repo
+from reconcile.utils.runtime.environment import init_env
 from reconcile.utils.runtime.integration import (
+    ModuleArgsKwargsRunParams,
     ModuleBasedQontractReconcileIntegration,
     QontractReconcileIntegration,
 )
@@ -46,12 +42,6 @@ TERRAFORM_VERSION_REGEX = r"^Terraform\sv([\d]+\.[\d]+\.[\d]+)$"
 
 OC_VERSION = "4.10.15"
 OC_VERSION_REGEX = r"^Client\sVersion:\s([\d]+\.[\d]+\.[\d]+)$"
-
-LOG_FMT = (
-    "[%(asctime)s] [%(levelname)s] "
-    "[%(filename)s:%(funcName)s:%(lineno)d] - %(message)s"
-)
-LOG_DATEFMT = "%Y-%m-%d %H:%M:%S"
 
 
 def before_breadcrumb(crumb, hint):
@@ -343,6 +333,12 @@ def account_name(function):
     return function
 
 
+def cloudflare_zone_name(function):
+    function = click.option("--zone-name", default=None)(function)
+
+    return function
+
+
 def account_name_multiple(function):
     """This option can be used when more than one account needs to be passed as argument"""
     function = click.option(
@@ -461,23 +457,26 @@ class UnknownIntegrationTypeError(Exception):
 
 
 def run_integration(
-    func_container: Union[ModuleType, QontractReconcileIntegration],
+    func_container: ModuleType,
     ctx,
     *args,
     **kwargs,
 ):
+    run_class_integration(
+        integration=ModuleBasedQontractReconcileIntegration(
+            ModuleArgsKwargsRunParams(func_container, *args, **kwargs)
+        ),
+        ctx=ctx,
+    )
+
+
+def run_class_integration(
+    integration: QontractReconcileIntegration,
+    ctx,
+):
     register_faulthandler()
     dump_schemas_file = ctx.get("dump_schemas_file")
     try:
-        if isinstance(func_container, QontractReconcileIntegration):
-            integration = func_container
-        elif isinstance(func_container, ModuleType):
-            integration = ModuleBasedQontractReconcileIntegration(func_container)
-        else:
-            raise UnknownIntegrationTypeError(
-                f"Unknown integration type {type(func_container)}"
-            )
-
         running_state = RunningState()
         running_state.integration = integration.name  # type: ignore[attr-defined]
 
@@ -499,8 +498,6 @@ def run_integration(
                 check_only_affected_shards=check_only_affected_shards,
                 gql_sha_url=ctx["gql_sha_url"],
                 print_url=ctx["gql_url_print"],
-                run_args=args,
-                run_kwargs=kwargs,
             )
         )
     except gql.GqlApiIntegrationNotFound as e:
@@ -520,11 +517,6 @@ def run_integration(
             gqlapi = gql.get_api()
             with open(dump_schemas_file, "w") as f:
                 f.write(json.dumps(gqlapi.get_queried_schemas()))
-
-
-def init_log_level(log_level):
-    level = getattr(logging, log_level) if log_level else logging.INFO
-    logging.basicConfig(format=LOG_FMT, datefmt=LOG_DATEFMT, level=level)
 
 
 @click.group()
@@ -552,14 +544,20 @@ def integration(
 ):
     ctx.ensure_object(dict)
 
-    init_log_level(log_level)
-    config.init_from_toml(configfile)
+    init_env(
+        log_level=log_level,
+        config_file=configfile,
+        # don't print gql url in dry-run mode - less noisy PR check logs and
+        # the actual SHA is not that important during PR checks
+        print_gql_url=(not dry_run and bool(gql_url_print)),
+    )
+
     ctx.obj["dry_run"] = dry_run
     ctx.obj["early_exit_compare_sha"] = early_exit_compare_sha
     ctx.obj["check_only_affected_shards"] = check_only_affected_shards
     ctx.obj["validate_schemas"] = validate_schemas
     ctx.obj["gql_sha_url"] = gql_sha_url
-    ctx.obj["gql_url_print"] = gql_url_print
+    ctx.obj["gql_url_print"] = not dry_run and bool(gql_url_print)
     ctx.obj["dump_schemas_file"] = dump_schemas_file
 
 
@@ -1320,8 +1318,12 @@ def openshift_namespace_labels(ctx, thread_pool_size, internal, use_jump_host):
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
 @internal()
 @use_jump_host()
+@cluster_name
+@namespace_name
 @click.pass_context
-def openshift_namespaces(ctx, thread_pool_size, internal, use_jump_host):
+def openshift_namespaces(
+    ctx, thread_pool_size, internal, use_jump_host, cluster_name, namespace_name
+):
     import reconcile.openshift_namespaces
 
     run_integration(
@@ -1330,6 +1332,8 @@ def openshift_namespaces(ctx, thread_pool_size, internal, use_jump_host):
         thread_pool_size,
         internal,
         use_jump_host,
+        cluster_name=cluster_name,
+        namespace_name=namespace_name,
     )
 
 
@@ -1656,6 +1660,34 @@ def terraform_cloudflare_resources(
         enable_deletion,
         thread_pool_size,
         account_name,
+    )
+
+
+@integration.command(short_help="Manage Cloudflare DNS using Terraform.")
+@print_to_file
+@enable_deletion(default=False)
+@threaded(default=20)
+@binary(["terraform"])
+@binary_version("terraform", ["version"], TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
+@account_name
+@cloudflare_zone_name
+@click.pass_context
+def terraform_cloudflare_dns(
+    ctx, print_to_file, enable_deletion, thread_pool_size, account_name, zone_name
+):
+    from reconcile import terraform_cloudflare_dns
+
+    run_class_integration(
+        integration=terraform_cloudflare_dns.TerraformCloudflareDNSIntegration(
+            terraform_cloudflare_dns.TerraformCloudflareDNSIntegrationParams(
+                print_to_file=print_to_file,
+                enable_deletion=enable_deletion,
+                thread_pool_size=thread_pool_size,
+                selected_account=account_name,
+                selected_zone=zone_name,
+            )
+        ),
+        ctx=ctx.obj,
     )
 
 
@@ -2238,9 +2270,9 @@ def dyn_traffic_director(ctx, enable_deletion):
 )
 @click.pass_context
 def status_page_components(ctx):
-    import reconcile.status_page_components
+    from reconcile.statuspage.integration import StatusPageComponentsIntegration
 
-    run_integration(reconcile.status_page_components, ctx.obj)
+    run_class_integration(StatusPageComponentsIntegration(), ctx.obj)
 
 
 @integration.command(

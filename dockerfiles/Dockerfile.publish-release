@@ -1,0 +1,13 @@
+FROM quay.io/app-sre/qontract-reconcile-builder:0.3.8 as build-image
+
+WORKDIR /work
+
+COPY .git .
+COPY helm helm
+COPY e2e_tests e2e_tests
+COPY reconcile reconcile
+COPY release release
+COPY tools tools
+COPY setup.py .
+COPY dockerfiles/hack/run-integration.py .
+COPY build_tag.sh .

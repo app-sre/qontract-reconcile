@@ -21,9 +21,14 @@ query ClustersMinimal($name: String) {
     automationToken {
       ... VaultSecret
     }
+    clusterAdmin
+    clusterAdminAutomationToken {
+      ... VaultSecret
+    }
     internal
     disable {
       integrations
+      e2eTests
     }
     auth {
       service

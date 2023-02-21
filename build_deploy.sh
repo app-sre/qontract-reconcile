@@ -7,5 +7,4 @@ docker --config="$DOCKER_CONF" login -u="$QUAY_USER" -p="$QUAY_TOKEN" quay.io
 # build images
 make test build push
 
-# publish to pypi
-./build_tag.sh
+make pypi-release

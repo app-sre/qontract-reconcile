@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import (
     Any,
     Optional,
+    TypeVar,
 )
 
 from sretoolbox.utils import threaded as sretoolbox_threaded
@@ -13,7 +14,12 @@ from reconcile.utils.runtime.desired_state_diff import (
     DesiredStateDiff,
     build_desired_state_diff,
 )
-from reconcile.utils.runtime.integration import QontractReconcileIntegration
+from reconcile.utils.runtime.integration import (
+    QontractReconcileIntegration,
+    RunParams,
+)
+
+RunParamsTypeVar = TypeVar("RunParamsTypeVar", bound=RunParams)
 
 
 @dataclass
@@ -23,11 +29,9 @@ class IntegrationRunConfiguration:
     """
 
     integration: QontractReconcileIntegration
-    run_args: Any
-    run_kwargs: Any
     valdiate_schemas: bool
     """
-    Wheter to fail an integration if it queries schemas it is not allowed to.
+    Whether to fail an integration if it queries schemas it is not allowed to.
     Allowed schemas are listed in the `/app-sre/integration-1.yml` files.
     """
 
@@ -58,19 +62,17 @@ class IntegrationRunConfiguration:
 
     print_url: bool
     """
-    A debug flag to control wheter the URL of the GraphQL endpoint in use is printed.
+    A debug flag to control whether the URL of the GraphQL endpoint in use is printed.
     """
 
     def main_bundle_desired_state(self) -> Optional[dict[str, Any]]:
         self.switch_to_main_bundle()
-        return self.integration.get_early_exit_desired_state(
-            *self.run_args, **self.run_kwargs
-        )
+        return self.integration.get_early_exit_desired_state()
 
     def comparison_bundle_desired_state(self) -> Optional[dict[str, Any]]:
         self.switch_to_comparison_bundle()
-        data = self.integration.get_early_exit_desired_state(  # pylint: disable=assignment-from-none
-            *self.run_args, **self.run_kwargs
+        data = (  # pylint: disable=assignment-from-none
+            self.integration.get_early_exit_desired_state()
         )
         self.switch_to_main_bundle()
         return data
@@ -152,33 +154,24 @@ def run_integration_cfg(run_cfg: IntegrationRunConfiguration) -> None:
     if run_cfg.dry_run:
         desired_state_diff = get_desired_state_diff(run_cfg)
         run_cfg.switch_to_main_bundle()
-        _integration_dry_run(
-            run_cfg.integration,
-            desired_state_diff,
-            *run_cfg.run_args,
-            **run_cfg.run_kwargs,
-        )
+        _integration_dry_run(run_cfg.integration, desired_state_diff)
     else:
         run_cfg.switch_to_main_bundle()
-        _integration_wet_run(
-            run_cfg.integration, *run_cfg.run_args, **run_cfg.run_kwargs
-        )
+        _integration_wet_run(run_cfg.integration)
 
 
 def _integration_wet_run(
-    integration: QontractReconcileIntegration, *run_args: Any, **run_kwargs: Any
+    integration: QontractReconcileIntegration[RunParamsTypeVar],
 ) -> None:
     """
     Runs an integration in wet mode, i.e. not in dry-run mode.
     """
-    integration.run(False, *run_args, **run_kwargs)
+    integration.run(False)
 
 
 def _integration_dry_run(
-    integration: QontractReconcileIntegration,
+    integration: QontractReconcileIntegration[RunParamsTypeVar],
     desired_state_diff: Optional[DesiredStateDiff],
-    *run_args: Any,
-    **run_kwargs: Any,
 ) -> None:
     """
     Runs an integration in dry-run mode, i.e. not actually making any changes
@@ -201,9 +194,7 @@ def _integration_dry_run(
     # affected shards only
     if (
         integration.supports_sharded_dry_run_mode()
-        and not integration.kwargs_have_shard_info(
-            **run_kwargs
-        )  # already running in sharded mode?
+        and not integration.params_have_shard_info()  # already running in sharded mode?
         and desired_state_diff
         and desired_state_diff.affected_shards
     ):
@@ -211,7 +202,10 @@ def _integration_dry_run(
         logging.info(f"run {integration.name} for shards {affected_shard_list}")
 
         def run_integration_shard(shard: str) -> None:
-            integration.run_for_shard(True, shard, *run_args, **run_kwargs)
+            sharded_integration = integration.build_integration_instance_for_shard(
+                shard
+            )
+            sharded_integration.run(True)
 
         # run all shards
         exceptions = sretoolbox_threaded.run(
@@ -231,4 +225,4 @@ def _integration_dry_run(
             return
 
     # if not, we run the integration in full
-    integration.run(True, *run_args, **run_kwargs)
+    integration.run(True)

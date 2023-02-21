@@ -7,6 +7,7 @@ IMAGE_TEST := reconcile-test
 IMAGE_NAME := quay.io/app-sre/qontract-reconcile
 IMAGE_TAG := $(shell git rev-parse --short=7 HEAD)
 VENV_CMD := . venv/bin/activate &&
+UUID := $(shell python3 -c 'import uuid; print(str(uuid.uuid4()))')
 
 ifneq (,$(wildcard $(CURDIR)/.docker))
 	DOCKER_CONF := $(CURDIR)/.docker
@@ -78,6 +79,11 @@ clean:
 	@rm -rf .tox .eggs reconcile.egg-info build .pytest_cache venv GIT_VERSION
 	@find . -name "__pycache__" -type d -print0 | xargs -0 rm -rf
 	@find . -name "*.pyc" -delete
+
+pypi-release:
+	@$(CONTAINER_ENGINE) build -t $(UUID):latest -f dockerfiles/Dockerfile.publish-release .
+	@$(CONTAINER_ENGINE) run -e TWINE_USERNAME -e TWINE_PASSWORD --rm $(UUID):latest ./build_tag.sh
+	@$(CONTAINER_ENGINE) rmi $(UUID):latest
 
 dev-venv: clean ## Create a local venv for your IDE and remote debugging
 	python3.9 -m venv venv

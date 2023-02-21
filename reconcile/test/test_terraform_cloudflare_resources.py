@@ -1,9 +1,11 @@
 import pytest
 
+from reconcile.gql_definitions.terraform_cloudflare_dns.terraform_cloudflare_zones import (
+    CloudflareDnsRecordV1,
+)
 from reconcile.gql_definitions.terraform_cloudflare_resources.terraform_cloudflare_resources import (
     CloudflareAccountV1,
     CloudflareZoneCertificateV1,
-    CloudflareZoneRecordV1,
     CloudflareZoneWorkerV1,
     NamespaceTerraformProviderResourceCloudflareV1,
     NamespaceTerraformResourceCloudflareZoneV1,
@@ -50,12 +52,15 @@ def external_resources(provisioner_config):
                     "smart_routing": True,
                 },
                 records=[
-                    CloudflareZoneRecordV1(
+                    CloudflareDnsRecordV1(
                         name="record",
                         type="CNAME",
                         ttl=5,
                         value="example.com",
                         proxied=False,
+                        identifier="record",
+                        priority=None,
+                        data=None,
                     ),
                 ],
                 workers=[

@@ -278,7 +278,10 @@ provider
     }
   }
   certificate_arn
+  ingress_cidr_blocks
   idle_timeout
+  enable_http2
+  ip_address_type
   targets {
     name
     default
