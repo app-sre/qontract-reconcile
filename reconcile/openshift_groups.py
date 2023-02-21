@@ -1,61 +1,50 @@
 import itertools
 import logging
-import sys
+from collections.abc import (
+    Callable,
+    Iterable,
+    Mapping,
+)
+from typing import Optional
 
 from sretoolbox.utils import threaded
 
 import reconcile.openshift_base as ob
-from reconcile import queries
+from reconcile.gql_definitions.common.clusters import ClusterV1
+from reconcile.gql_definitions.openshift_groups.managed_groups import (
+    query as query_managed_groups,
+)
+from reconcile.gql_definitions.openshift_groups.managed_roles import (
+    query as query_managed_roles,
+)
+from reconcile.openshift_base import ClusterMap
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
+from reconcile.typed_queries.clusters import get_clusters
 from reconcile.utils import (
     expiration,
     gql,
 )
 from reconcile.utils.defer import defer
-from reconcile.utils.oc import OC_Map
+from reconcile.utils.oc_map import (
+    OCLogMsg,
+    OCMap,
+    init_oc_map_from_clusters,
+)
+from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.sharding import is_in_shard
-
-ROLES_QUERY = """
-{
-  roles: roles_v1 {
-    name
-    users {
-      org_username
-      github_username
-    }
-    expirationDate
-    access {
-      cluster {
-        name
-        auth {
-          service
-        }
-      }
-      group
-    }
-  }
-}
-"""
-
-GROUPS_QUERY = """
-{
-  clusters: clusters_v1 {
-    name
-    managedGroups
-    ocm {
-      name
-    }
-  }
-}
-"""
 
 QONTRACT_INTEGRATION = "openshift-groups"
 
 
-def get_cluster_state(group_items, oc_map):
-    results = []
+def get_cluster_state(
+    group_items: Mapping[str, str], oc_map: ClusterMap
+) -> list[dict[str, str]]:
+    results: list[dict[str, str]] = []
     cluster = group_items["cluster"]
     oc = oc_map.get(cluster)
-    if not oc:
+    if isinstance(oc, OCLogMsg):
         logging.log(level=oc.log_level, msg=oc.message)
         return results
     group_name = group_items["group_name"]
@@ -74,30 +63,33 @@ def get_cluster_state(group_items, oc_map):
     return results
 
 
-def create_groups_list(clusters, oc_map):
-    groups_list = []
+def create_groups_list(
+    clusters: Iterable[ClusterV1], oc_map: ClusterMap
+) -> list[dict[str, str]]:
+    groups_list: list[dict[str, str]] = []
     for cluster_info in clusters:
-        cluster = cluster_info["name"]
+        cluster = cluster_info.name
         oc = oc_map.get(cluster)
-        if not oc:
+        if isinstance(oc, OCLogMsg):
             logging.log(level=oc.log_level, msg=oc.message)
-        groups = cluster_info["managedGroups"]
-        if groups is None:
-            continue
+        groups = cluster_info.managed_groups or []
         for group_name in groups:
             groups_list.append({"cluster": cluster, "group_name": group_name})
     return groups_list
 
 
-def fetch_current_state(thread_pool_size, internal, use_jump_host):
-    clusters = [c for c in queries.get_clusters() if is_in_shard(c["name"])]
-    ocm_clusters = [c["name"] for c in clusters if c.get("ocm") is not None]
+def fetch_current_state(
+    thread_pool_size: int, internal: Optional[bool], use_jump_host: bool
+) -> tuple[OCMap, list[dict[str, str]], list[str]]:
+    clusters = [c for c in get_clusters() if is_in_shard(c.name)]
+    ocm_clusters = [c.name for c in clusters if c.ocm is not None]
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     current_state = []
-    settings = queries.get_app_interface_settings()
-    oc_map = OC_Map(
+    oc_map = init_oc_map_from_clusters(
         clusters=clusters,
         integration=QONTRACT_INTEGRATION,
-        settings=settings,
+        secret_reader=secret_reader,
         internal=internal,
         use_jump_host=use_jump_host,
         thread_pool_size=thread_pool_size,
@@ -112,32 +104,34 @@ def fetch_current_state(thread_pool_size, internal, use_jump_host):
     return oc_map, current_state, ocm_clusters
 
 
-def fetch_desired_state(oc_map, enforced_user_keys=None):
+def fetch_desired_state(
+    oc_map: ClusterMap, enforced_user_keys: Optional[list[str]] = None
+) -> list[dict[str, str]]:
     gqlapi = gql.get_api()
-    roles = expiration.filter(gqlapi.query(ROLES_QUERY)["roles"])
-    desired_state = []
+    roles = expiration.filter(query_managed_roles(query_func=gqlapi.query).roles or [])
+    desired_state: list[dict[str, str]] = []
 
     for r in roles:
-        for a in r["access"] or []:
-            if None in [a["cluster"], a["group"]]:
+        for a in r.access or []:
+            if not a.cluster or not a.group:
                 continue
-            if oc_map and a["cluster"]["name"] not in oc_map.clusters():
+            if a.cluster.name not in oc_map.clusters():
                 continue
 
             user_keys = ob.determine_user_keys_for_access(
-                a["cluster"]["name"],
-                a["cluster"]["auth"],
+                a.cluster.name,
+                a.cluster.auth,
                 enforced_user_keys=enforced_user_keys,
             )
-            for u in r["users"]:
-                for username in {u[user_key] for user_key in user_keys}:
+            for u in r.users:
+                for username in {getattr(u, user_key) for user_key in user_keys}:
                     if username is None:
                         continue
 
                     desired_state.append(
                         {
-                            "cluster": a["cluster"]["name"],
-                            "group": a["group"],
+                            "cluster": a.cluster.name,
+                            "group": a.group,
                             "user": username,
                         }
                     )
@@ -145,8 +139,11 @@ def fetch_desired_state(oc_map, enforced_user_keys=None):
     return desired_state
 
 
-def calculate_diff(current_state, desired_state):
-    diff = []
+def calculate_diff(
+    current_state: Iterable[Mapping[str, str]],
+    desired_state: Iterable[Mapping[str, str]],
+) -> list[dict[str, Optional[str]]]:
+    diff: list[dict[str, Optional[str]]] = []
     users_to_add = subtract_states(
         desired_state, current_state, "add_user_to_group", "create_group"
     )
@@ -159,8 +156,13 @@ def calculate_diff(current_state, desired_state):
     return diff
 
 
-def subtract_states(from_state, subtract_state, user_action, group_action):
-    result = []
+def subtract_states(
+    from_state: Iterable[Mapping[str, str]],
+    subtract_state: Iterable[Mapping[str, str]],
+    user_action: str,
+    group_action: str,
+) -> list[dict[str, Optional[str]]]:
+    result: list[dict[str, Optional[str]]] = []
 
     for f_user in from_state:
         found = False
@@ -196,24 +198,23 @@ def subtract_states(from_state, subtract_state, user_action, group_action):
     return result
 
 
-def validate_diffs(diffs):
+def validate_diffs(diffs: Iterable[Mapping[str, Optional[str]]]) -> None:
     gqlapi = gql.get_api()
-    clusters_query = gqlapi.query(GROUPS_QUERY)["clusters"]
+    clusters_query = query_managed_groups(query_func=gqlapi.query).clusters or []
 
     desired_combos = [
         {"cluster": diff["cluster"], "group": diff["group"]} for diff in diffs
     ]
-    desired_combos_unique = []
-    [
-        desired_combos_unique.append(item)
-        for item in desired_combos
-        if item not in desired_combos_unique
-    ]
+    desired_combos_unique: list[dict[str, Optional[str]]] = []
+    for combo in desired_combos:
+        if combo in desired_combos_unique:
+            continue
+        desired_combos_unique.append(combo)
 
     valid_combos = [
-        {"cluster": cluster["name"], "group": group}
+        {"cluster": cluster.name, "group": group}
         for cluster in clusters_query
-        for group in cluster["managedGroups"] or []
+        for group in cluster.managed_groups or []
     ]
 
     invalid_combos = [
@@ -227,23 +228,23 @@ def validate_diffs(diffs):
                 " (hint: should be added to managedGroups)"
             ).format(combo["cluster"], combo["group"])
             logging.error(msg)
-        sys.exit(1)
+        raise RuntimeError(msg)
 
 
-def sort_diffs(diff):
+def sort_diffs(diff: Mapping[str, Optional[str]]) -> int:
     if diff["action"] in ["create_group", "del_user_from_group"]:
         return 1
     else:
         return 2
 
 
-def act(diff, oc_map):
-    cluster = diff["cluster"]
+def act(diff: Mapping[str, Optional[str]], oc_map: ClusterMap) -> None:
+    cluster = diff.get("cluster") or ""
     group = diff["group"]
     user = diff["user"]
     action = diff["action"]
     oc = oc_map.get(cluster)
-    if not oc:
+    if isinstance(oc, OCLogMsg):
         logging.log(level=oc.log_level, msg=oc.message)
         return None
 
@@ -260,12 +261,19 @@ def act(diff, oc_map):
 
 
 @defer
-def run(dry_run, thread_pool_size=10, internal=None, use_jump_host=True, defer=None):
+def run(
+    dry_run: bool,
+    thread_pool_size: int = 10,
+    internal: Optional[bool] = None,
+    use_jump_host: bool = True,
+    defer: Optional[Callable] = None,
+) -> None:
 
     oc_map, current_state, ocm_clusters = fetch_current_state(
         thread_pool_size, internal, use_jump_host
     )
-    defer(oc_map.cleanup)
+    if defer:
+        defer(oc_map.cleanup)
     desired_state = fetch_desired_state(oc_map)
 
     # we only manage dedicated-admins via OCM

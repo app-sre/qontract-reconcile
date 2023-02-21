@@ -115,6 +115,11 @@ class ClusterMap(Protocol):
     def get_cluster(self, cluster: str, privileged: bool = False) -> OCDeprecated:
         ...
 
+    def clusters(
+        self, include_errors: bool = False, privileged: bool = False
+    ) -> list[str]:
+        ...
+
 
 def init_specs_to_fetch(
     ri: ResourceInventory,
