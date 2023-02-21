@@ -551,7 +551,7 @@ def integration(
     ctx.obj["check_only_affected_shards"] = check_only_affected_shards
     ctx.obj["validate_schemas"] = validate_schemas
     ctx.obj["gql_sha_url"] = gql_sha_url
-    ctx.obj["gql_url_print"] = gql_url_print
+    ctx.obj["gql_url_print"] = not dry_run and bool(gql_url_print)
     ctx.obj["dump_schemas_file"] = dump_schemas_file
 
 
