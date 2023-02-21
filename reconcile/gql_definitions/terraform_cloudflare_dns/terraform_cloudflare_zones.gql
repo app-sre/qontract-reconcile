@@ -43,6 +43,7 @@ query CloudflareDnsZone {
       ttl
       value
       priority
+      proxied
       data {
         algorithm
         protocol

@@ -70,6 +70,7 @@ query CloudflareDnsZone {
       ttl
       value
       priority
+      proxied
       data {
         algorithm
         protocol
@@ -170,6 +171,7 @@ class CloudflareDnsRecordV1(BaseModel):
     ttl: int = Field(..., alias="ttl")
     value: Optional[str] = Field(..., alias="value")
     priority: Optional[int] = Field(..., alias="priority")
+    proxied: Optional[bool] = Field(..., alias="proxied")
     data: Optional[CloudflareDnsRecordDataSettingsV1] = Field(..., alias="data")
 
     class Config:

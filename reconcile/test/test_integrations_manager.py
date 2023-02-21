@@ -340,6 +340,7 @@ def cloudflare_records():
             value="foo.com",
             priority=None,
             data=None,
+            proxied=None,
         )
     ]
 
