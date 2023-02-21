@@ -105,7 +105,7 @@ def fetch_current_state(
 
 
 def fetch_desired_state(
-    oc_map: ClusterMap, enforced_user_keys: Optional[list[str]] = None
+    oc_map: Optional[ClusterMap], enforced_user_keys: Optional[list[str]] = None
 ) -> list[dict[str, str]]:
     gqlapi = gql.get_api()
     roles = expiration.filter(query_managed_roles(query_func=gqlapi.query).roles or [])
@@ -115,7 +115,7 @@ def fetch_desired_state(
         for a in r.access or []:
             if not a.cluster or not a.group:
                 continue
-            if a.cluster.name not in oc_map.clusters():
+            if oc_map and a.cluster.name not in oc_map.clusters():
                 continue
 
             user_keys = ob.determine_user_keys_for_access(
