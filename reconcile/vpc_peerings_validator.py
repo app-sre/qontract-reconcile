@@ -1,3 +1,4 @@
+import ipaddress
 import logging
 import sys
 from typing import (
@@ -11,11 +12,77 @@ from reconcile.gql_definitions.vpc_peerings_validator.vpc_peerings_validator imp
     ClusterPeeringConnectionClusterRequesterV1,
     ClusterV1,
     VpcPeeringsValidatorQueryData,
+    # ClusterPeeringConnectionAccountV1,
+    ClusterPeeringV1,
 )
 from reconcile.status import ExitCodes
 from reconcile.utils import gql
 
 QONTRACT_INTEGRATION = "vpc-peerings-validator"
+
+
+def validate_no_cidr_overlap(query_data: VpcPeeringsValidatorQueryData,) -> bool:
+    valid = True
+    clusters: list[ClusterV1] = query_data.clusters or []
+
+    cidr_block_entries = {}
+
+    for cluster in clusters:
+        if cluster.peering:
+            cluster.peering.connections
+            for peering in cluster.peering.connections:
+                if peering.provider == "account-vpc":
+                    cidr_block = str(peering.vpc.cidr_block)
+                    # some IPs are for VPCs like ci.int so we'll need to block it from the logic
+                    if (
+                        (cidr_block != "10.29.88.0/22")
+                        and (cidr_block != "172.32.0.0/16")
+                        and cidr_block != "172.31.0.0/16"
+                        and cidr_block != "192.168.0.0/20"
+                    ):
+                        cidr_block_entries[cluster.name] = cidr_block
+                    else:
+                        continue
+
+    duplicates, overlaps = find_cidr_duplicates_and_overlap(cidr_block_entries)
+
+    if duplicates:
+        valid = False
+        return valid
+    if overlaps:
+        valid = False
+        return valid
+    else:
+        return valid
+
+
+def find_cidr_duplicates_and_overlap(input_dict):
+    values = list(input_dict.values())
+    duplicates = {
+        key: value for key, value in input_dict.items() if values.count(value) > 1
+    }
+
+    network_list = [ipaddress.ip_network(value) for value in values]
+    overlaps = {}
+
+    for i in range(len(network_list)):
+        for j in range(i + 1, len(network_list)):
+            if network_list[i].overlaps(network_list[j]):
+                network1 = next(
+                    key
+                    for key, val in input_dict.items()
+                    if val == str(network_list[i])
+                )
+                network2 = next(
+                    key
+                    for key, val in input_dict.items()
+                    if val == str(network_list[j])
+                )
+
+                if network1 in overlaps:
+                    overlaps[network1].append(network2)
+
+    return duplicates, overlaps
 
 
 def validate_no_internal_to_public_peerings(
@@ -107,6 +174,8 @@ def run(dry_run: bool):
     if not validate_no_internal_to_public_peerings(query_data):
         valid = False
     if not validate_no_public_to_public_peerings(query_data):
+        valid = False
+    if not validate_no_cidr_overlap(query_data):
         valid = False
 
     if not valid:
