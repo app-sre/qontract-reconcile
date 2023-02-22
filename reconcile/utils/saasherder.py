@@ -249,7 +249,7 @@ class SaasHerder:
             return
         for sp in secret_parameters:
             path = sp["secret"]["path"]
-            match = [a for a in allowed_secret_parameter_paths if path.startswith(a)]
+            match = [a for a in allowed_secret_parameter_paths if (os.path.commonpath([path, a]) == a)]
             if not match:
                 self.valid = False
                 logging.error(
