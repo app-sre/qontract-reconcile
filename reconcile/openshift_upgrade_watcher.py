@@ -26,7 +26,7 @@ from reconcile.utils.state import State
 QONTRACT_INTEGRATION = "openshift-upgrade-watcher"
 
 
-def cluster_slack_handle(cluster: str, slack: Optional[SlackApi]):
+def cluster_slack_handle(cluster: str, slack: Optional[SlackApi]) -> str:
     usergroup = f"{cluster}-cluster"
     usergroup_id = f"@{usergroup}"
     if slack:
@@ -40,7 +40,7 @@ def handle_slack_notification(
     state: State,
     state_key: str,
     state_value: Optional[str],
-):
+) -> None:
     """Check notification status, notify if needed and update the notification status"""
     if state.exists(state_key) and state.get(state_key) == state_value:
         # already notified for this state key & value
@@ -56,7 +56,7 @@ def notify_upgrades_start(
     oc_map: OCMap,
     state: State,
     slack: Optional[SlackApi],
-):
+) -> None:
     now = datetime.utcnow()
     for cluster in oc_map.clusters(include_errors=True):
         oc = oc_map.get(cluster)
@@ -93,7 +93,7 @@ def notify_upgrades_start(
 
 def notify_upgrades_done(
     clusters: Iterable[ClusterV1], state: State, slack: Optional[SlackApi]
-):
+) -> None:
     for cluster in clusters:
         cluster_name = cluster.name
         if not cluster.spec:
