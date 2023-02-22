@@ -18,6 +18,7 @@ from reconcile.utils.terrascript.cloudflare_client import (
     TerrascriptCloudflareClientFactory,
     create_cloudflare_terrascript,
 )
+from reconcile.utils.terrascript.cloudflare_resources import cloudflare_account
 from reconcile.utils.terrascript.models import (
     CloudflareAccount,
     Integration,
@@ -349,7 +350,7 @@ def terraform_state_s3():
 
 
 @pytest.fixture
-def cloudflare_account():
+def cloudflare_account_dataclass():
     cf_account = CloudflareAccount(
         "test-account",
         VaultSecret(path="creds", field="some-field", version=None, q_format=None),
@@ -368,15 +369,15 @@ def secret_reader_fixture(mocker):
 
 
 def test_cloudflare_client_factory_skip_account_resource(
-    terraform_state_s3, cloudflare_account, secret_reader_fixture
+    terraform_state_s3, cloudflare_account_dataclass, secret_reader_fixture
 ):
     """
     Tests that cloudflare terrascript resource 'cloudflare_account' is skipped
     """
-    is_managed_account = True
+    is_managed_account = False
     client = TerrascriptCloudflareClientFactory.get_client(
         terraform_state_s3,
-        cloudflare_account,
+        cloudflare_account_dataclass,
         None,
         secret_reader_fixture,
         is_managed_account,
@@ -391,16 +392,16 @@ def test_cloudflare_client_factory_skip_account_resource(
 
 
 def test_cloudflare_client_factory_create_account_resource(
-    terraform_state_s3, cloudflare_account, secret_reader_fixture
+    terraform_state_s3, cloudflare_account_dataclass, secret_reader_fixture
 ):
     """
     Tests that cloudflare terrascript resource 'cloudflare_account' is created
     """
 
-    is_managed_account = False
+    is_managed_account = True
     client = TerrascriptCloudflareClientFactory.get_client(
         terraform_state_s3,
-        cloudflare_account,
+        cloudflare_account_dataclass,
         None,
         secret_reader_fixture,
         is_managed_account,
@@ -447,7 +448,7 @@ def test_cloudflare_client_factory_create_account_resource(
 )
 def test_cloudflare_client_factory_object_key_strategies(
     terraform_state_s3,
-    cloudflare_account,
+    cloudflare_account_dataclass,
     secret_reader_fixture,
     sharding_strategy,
     expected_key,
@@ -458,7 +459,7 @@ def test_cloudflare_client_factory_object_key_strategies(
 
     client = TerrascriptCloudflareClientFactory.get_client(
         terraform_state_s3,
-        cloudflare_account,
+        cloudflare_account_dataclass,
         sharding_strategy,
         secret_reader_fixture,
         False,

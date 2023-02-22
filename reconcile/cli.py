@@ -16,10 +16,7 @@ from reconcile.status import (
     RunningState,
 )
 from reconcile.terraform_cloudflare_users import TerraformCloudflareUsersParams
-from reconcile.utils import (
-    config,
-    gql,
-)
+from reconcile.utils import gql
 from reconcile.utils.aggregated_list import RunnerException
 from reconcile.utils.binary import (
     binary,

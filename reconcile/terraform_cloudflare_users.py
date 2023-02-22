@@ -229,7 +229,7 @@ class TerraformCloudflareUsers(
                 cf_account,
                 AccountShardingStrategy(cf_account),
                 secret_reader,
-                True,
+                False,
             )
 
             try:
