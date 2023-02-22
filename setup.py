@@ -61,7 +61,7 @@ setup(
         # Is there any better place to put this in?
         "packaging~=21.3",
         # Needed to fix issues with router's certificates
-        "cryptography==36.0.2",
+        "cryptography==39.0.1",
         "deepdiff6==6.2.0",
         "jsonpath-ng~=1.5",
         "networkx~=2.8",
