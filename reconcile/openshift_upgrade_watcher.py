@@ -95,16 +95,20 @@ def notify_upgrades_done(
     clusters: Iterable[ClusterV1], state: State, slack: Optional[SlackApi]
 ) -> None:
     for cluster in clusters:
-        cluster_name = cluster.name
         if not cluster.spec:
-            raise RuntimeError(f"Cluster '{cluster_name}' does not have any spec.")
-        version = cluster.spec.version
-        state_key = f"{cluster_name}-{version}"
+            raise RuntimeError(f"Cluster '{cluster.name}' does not have any spec.")
+        state_key = f"{cluster.name}-{cluster.spec.version}"
         msg = (
-            f"{cluster_slack_handle(cluster_name, slack)}: "
-            + f"cluster `{cluster_name}` is now running version `{version}`"
+            f"{cluster_slack_handle(cluster.name, slack)}: "
+            + f"cluster `{cluster.name}` is now running version `{cluster.spec.version}`"
         )
-        handle_slack_notification(msg, slack, state, state_key, version)
+        handle_slack_notification(
+            msg=msg,
+            slack=slack,
+            state=state,
+            state_key=state_key,
+            state_value=cluster.spec.version,
+        )
 
 
 @defer
