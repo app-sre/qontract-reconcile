@@ -1,4 +1,3 @@
-from dataclasses import asdict
 from typing import Any
 from unittest.mock import (
     call,
@@ -432,7 +431,7 @@ def secret_reader_side_effect(*args):
         "field": "some-field",
         "version": None,
         "q_format": None,
-    } == asdict(args[0]):
+    } == args[0]:
         aws_acct_creds = {}
         aws_acct_creds["aws_access_key_id"] = "key_id"
         aws_acct_creds["aws_secret_access_key"] = "access_key"
@@ -442,7 +441,7 @@ def secret_reader_side_effect(*args):
         "field": "some-field",
         "version": None,
         "q_format": None,
-    } == asdict(args[0]):
+    } == args[0]:
         cf_acct_creds = {}
         cf_acct_creds["api_token"] = "api_token"
         cf_acct_creds["account_id"] = "account_id"

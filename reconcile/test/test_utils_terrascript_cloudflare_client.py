@@ -1,5 +1,9 @@
 import json
-from dataclasses import asdict
+from dataclasses import (
+    asdict,
+    dataclass,
+)
+from typing import Optional
 from unittest.mock import (
     create_autospec,
     mock_open,
@@ -23,7 +27,6 @@ from reconcile.utils.terrascript.models import (
     CloudflareAccount,
     Integration,
     TerraformStateS3,
-    VaultSecret,
 )
 
 INTEGRATION = "qontract-reconcile-integration"
@@ -331,6 +334,14 @@ def secret_reader_side_effect(*args):
         cf_acct_creds["api_token"] = "api_token"
         cf_acct_creds["account_id"] = "account_id"
         return cf_acct_creds
+
+
+@dataclass
+class VaultSecret:
+    path: str
+    field: str
+    version: Optional[int]
+    q_format: Optional[str]
 
 
 @pytest.fixture

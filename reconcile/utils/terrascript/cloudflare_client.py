@@ -196,6 +196,11 @@ class Default(TerraformS3StateNamingStrategy):
 
 
 class AccountShardingStrategy(TerraformS3StateNamingStrategy):
+    """
+    This strategy is in place until we solve for keyStrategy as specified in
+    https://issues.redhat.com/browse/APPSRE-6933
+    """
+
     def __init__(self, account: CloudflareAccount):
         super().__init__()
         self.account: CloudflareAccount = account

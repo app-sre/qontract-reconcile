@@ -1,12 +1,12 @@
-from dataclasses import dataclass
-from typing import (
-    Any,
+from collections.abc import (
     Iterable,
     Mapping,
     MutableMapping,
+)
+from dataclasses import dataclass
+from typing import (
+    Any,
     Optional,
-    Set,
-    Tuple,
 )
 
 from reconcile.gql_definitions.terraform_cloudflare_users import (
@@ -47,7 +47,6 @@ from reconcile.utils.terrascript.models import (
     CloudflareAccount,
     Integration,
     TerraformStateS3,
-    VaultSecret,
 )
 
 QONTRACT_INTEGRATION = "terraform_cloudflare_users"
@@ -61,7 +60,7 @@ class CloudflareUser:
     email_address: str
     account_name: str
     org_username: str
-    roles: Set[str]
+    roles: set[str]
 
 
 class TerraformCloudflareUsersParams(PydanticRunParams):
@@ -84,16 +83,17 @@ class TerraformCloudflareUsers(
 
         cloudflare_roles, settings = self._get_desired_state()
 
+        if not settings.settings:
+            raise RuntimeError("App interface setting not defined")
+
         return {
             "cloudflare_roles": cloudflare_roles.dict(),
-            CLOUDFLARE_EMAIL_DOMAIN_ALLOW_LIST_KEY: settings.settings[0]
-            if settings.settings is not None
-            else [],
+            CLOUDFLARE_EMAIL_DOMAIN_ALLOW_LIST_KEY: settings.settings,
         }
 
     def _get_desired_state(
         self,
-    ) -> Tuple[
+    ) -> tuple[
         CloudflareAccountRoleQueryData, AppInterfaceSettingCloudflareAndVaultQueryData
     ]:
         cloudflare_roles = terraform_cloudflare_roles.query(
@@ -103,6 +103,7 @@ class TerraformCloudflareUsers(
         settings = app_interface_setting_cloudflare_and_vault.query(
             query_func=gql.get_api().query
         )
+
         return cloudflare_roles, settings
 
     def run(self, dry_run: bool) -> None:
@@ -113,11 +114,10 @@ class TerraformCloudflareUsers(
 
         cloudflare_roles, settings = self._get_desired_state()
 
-        secret_reader = create_secret_reader(
-            use_vault=settings.settings[0].vault
-            if settings.settings is not None
-            else True
-        )
+        if not settings.settings:
+            raise RuntimeError("App interface setting not defined")
+
+        secret_reader = create_secret_reader(use_vault=settings.settings[0].vault)
 
         cf_clients = self._build_cloudflare_terraform_config_client_collection(
             cloudflare_roles, secret_reader, account_name
@@ -126,9 +126,7 @@ class TerraformCloudflareUsers(
         users = get_cloudflare_users(
             cloudflare_roles.cloudflare_account_roles,
             account_name,
-            settings.settings[0].cloudflare_email_domain_allow_list
-            if settings.settings is not None
-            else None,
+            settings.settings[0].cloudflare_email_domain_allow_list,
         )
         specs = build_external_resource_spec_from_cloudflare_users(users)
 
@@ -174,12 +172,7 @@ class TerraformCloudflareUsers(
                 continue
             cf_account = CloudflareAccount(
                 role.account.name,
-                VaultSecret(
-                    role.account.api_credentials.path,
-                    role.account.api_credentials.field,
-                    role.account.api_credentials.version,
-                    role.account.api_credentials.q_format,
-                ),
+                role.account.api_credentials,
                 role.account.enforce_twofactor,
                 role.account.q_type,
                 role.account.provider_version,
@@ -213,12 +206,7 @@ class TerraformCloudflareUsers(
                 )
 
             tf_state_s3 = TerraformStateS3(
-                VaultSecret(
-                    role.account.terraform_state_account.automation_token.path,
-                    role.account.terraform_state_account.automation_token.field,
-                    role.account.terraform_state_account.automation_token.version,
-                    role.account.terraform_state_account.automation_token.q_format,
-                ),
+                role.account.terraform_state_account.automation_token,
                 bucket,
                 region,
                 Integration(integration.integration, integration.key),
@@ -244,7 +232,7 @@ def get_cloudflare_users(
     cloudflare_roles: Optional[Iterable[CloudflareAccountRoleV1]],
     account_name: Optional[str],
     email_domain_allow_list: Optional[Iterable[str]],
-) -> Mapping[str, Mapping[str, CloudflareUser]]:
+) -> dict[str, dict[str, CloudflareUser]]:
     """
     Returns a two-level dictionary of users with 1st level keys mapping to cloudflare account names
     and 2nd level keys mapping to user's email address.

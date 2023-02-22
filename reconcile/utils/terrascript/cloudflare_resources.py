@@ -230,18 +230,6 @@ class CloudflareZoneTerrascriptResource(TerrascriptResource):
         return resources
 
 
-# class CloudflareAccountsTerrascriptData:
-#
-#     def __init__(self, spec: ExternalResourceSpec):
-#         self._spec = spec
-#
-#     def populate(self) -> list[Data]:
-#         values = ResourceValueResolver(self._spec).resolve()
-#
-#         cf_accounts = cloudflare_accounts(self._spec.identifier, **values)
-#         return [cf_accounts]
-
-
 class CloudflareAccountRolesTerrascriptData:
     def __init__(self, spec: ExternalResourceSpec):
         self._spec = spec
