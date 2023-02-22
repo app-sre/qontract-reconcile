@@ -6,6 +6,15 @@ from datetime import (
 import pytest
 
 from reconcile import openshift_upgrade_watcher as ouw
+from reconcile.gql_definitions.common.clusters import ClusterV1
+from reconcile.test.fixtures import Fixtures
+
+fxt = Fixtures("openshift_upgrade_watcher")
+
+
+def load_cluster(path: str) -> ClusterV1:
+    content = fxt.get_anymarkup(path)
+    return ClusterV1(**content)
 
 
 @pytest.fixture
@@ -28,7 +37,7 @@ upgrade_version = "4.5.2"
 
 @pytest.fixture
 def oc_map(mocker):
-    map = mocker.patch("reconcile.utils.oc.OC_Map", autospec=True).return_value
+    map = mocker.patch("reconcile.utils.oc_map.OCMap", autospec=True).return_value
     map.clusters.return_value = [cluster_name]
     oc = mocker.patch("reconcile.utils.oc.OCNative", autospec=True)
     oc.get.return_value = {"items": []}
@@ -102,14 +111,10 @@ def test_new_upgrade_already_notified(mocker, state, slack, oc_map, upgrade_conf
 
 @pytest.fixture
 def clusters():
-    return [
-        {
-            "name": cluster_name,
-            "spec": {
-                "version": upgrade_version,
-            },
-        }
-    ]
+    cluster = load_cluster("cluster1.yml")
+    cluster.name = cluster_name
+    cluster.spec.version = upgrade_version
+    return [cluster]
 
 
 def test_new_version_no_op(mocker, state, slack, clusters):
