@@ -218,6 +218,7 @@ VARIABLE_KEYS = [
     "api_proxy_uri",
     "cognito_callback_bucket_name",
     "openshift_ingress_load_balancer_arn",
+    "insights_callback_urls",
     "domain_name",
     "certificate_arn",
     "vpc_id",
