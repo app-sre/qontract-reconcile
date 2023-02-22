@@ -113,6 +113,8 @@ def test_new_upgrade_already_notified(mocker, state, slack, oc_map, upgrade_conf
 def clusters():
     cluster = load_cluster("cluster1.yml")
     cluster.name = cluster_name
+    if not cluster.spec:
+        raise RuntimeError("This test requires a cluster_spec. Check your fixture.")
     cluster.spec.version = upgrade_version
     return [cluster]
 
