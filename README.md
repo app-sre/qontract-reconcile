@@ -171,7 +171,7 @@ Additional tools that use the libraries created by the reconciliations are also 
   terraform-users                 Manage AWS users using Terraform.
   terraform-vpc-peerings          Manage VPC peerings between OSD clusters and
                                   AWS accounts or other OSD clusters.
-  terraform-cloudflare-users      Manage user access to cloudflare accounts
+  terraform-cloudflare-users      Manage user access to Cloudflare accounts.
   unleash-watcher                 Watch for changes in Unleah feature toggles
                                   and notify on Slack.
   user-validator                  Validate user files.

@@ -182,7 +182,7 @@ class TerraformCloudflareUsers(
             if not tf_state:
                 raise ValueError(
                     f"AWS account {role.account.terraform_state_account.name} cannot be used for Cloudflare "
-                    f"account {cf_account.name} because it does define a terraform state "
+                    f"account {cf_account.name} because it does define a Terraform state "
                 )
 
             bucket = tf_state.bucket
@@ -202,7 +202,7 @@ class TerraformCloudflareUsers(
 
             if not integration:
                 raise IntegrationUndefined(
-                    "Must declare integration name under terraform state in app-interface"
+                    "Must declare integration name under Terraform state in app-interface"
                 )
 
             tf_state_s3 = TerraformStateS3(
@@ -234,8 +234,8 @@ def get_cloudflare_users(
     email_domain_allow_list: Optional[Iterable[str]],
 ) -> dict[str, dict[str, CloudflareUser]]:
     """
-    Returns a two-level dictionary of users with 1st level keys mapping to cloudflare account names
-    and 2nd level keys mapping to user's email address.
+    Returns a two-level dictionary of users with 1st level keys mapping to Cloudflare account names
+    and 2nd level keys mapping to the user's email address.
     The method also takes into consideration :param account_name: and :param email_domain_allow_list: which can be
     used to filter users not matching these parameters
     """

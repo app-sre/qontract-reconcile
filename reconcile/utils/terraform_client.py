@@ -713,7 +713,7 @@ def run_terraform(
     disabled_deletions_detected, err = tf.plan(enable_deletion)
     if err:
         raise TerraformPlanFailed(
-            f"Failed to run terraform plan for integration {QONTRACT_INTEGRATION}"
+            f"Failed to run Terraform plan for integration {QONTRACT_INTEGRATION}"
         )
     if disabled_deletions_detected:
         logging.warning("Deletions detected but they are disabled")
