@@ -2627,6 +2627,9 @@ DNS_ZONES_QUERY = """
       _target_cluster {
         name
         elbFQDN
+        disable {
+          integrations
+        }
       }
       _target_namespace_zone {
         namespace {

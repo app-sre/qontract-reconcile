@@ -75,6 +75,10 @@ def build_desired_state(
             # Process '_target_cluster'
             target_cluster = record.pop("_target_cluster", None)
             if target_cluster:
+                if target_cluster["disable"]:
+                    if QONTRACT_INTEGRATION.replace("_", "-") in target_cluster["disable"]["integrations"] or []:
+                        # The integration is marked as disabled for this cluster -> skip
+                        continue
                 target_cluster_elb = target_cluster["elbFQDN"]
 
                 # get_a_record is used here to validate the record and reused later
