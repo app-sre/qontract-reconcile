@@ -78,7 +78,7 @@ def build_desired_state(
             if target_cluster:
                 if not integration_is_enabled(
                     integration=QONTRACT_INTEGRATION.replace("_", "-"),
-                    disable_obj=target_cluster["disable"],
+                    disable_obj=target_cluster,
                 ):
                     continue
                 target_cluster_elb = target_cluster["elbFQDN"]
