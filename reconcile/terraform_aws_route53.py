@@ -80,6 +80,7 @@ def build_desired_state(
                     integration=QONTRACT_INTEGRATION.replace("_", "-"),
                     disable_obj=target_cluster,
                 ):
+                    logging.info("Skipping cluster '%s'", target_cluster["name"])
                     continue
                 target_cluster_elb = target_cluster["elbFQDN"]
 
