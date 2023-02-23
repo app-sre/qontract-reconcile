@@ -218,6 +218,7 @@ VARIABLE_KEYS = [
     "api_proxy_uri",
     "cognito_callback_bucket_name",
     "openshift_ingress_load_balancer_arn",
+    "insights_callback_urls",
     "domain_name",
     "certificate_arn",
     "vpc_id",
@@ -5148,6 +5149,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             "openshift_ingress_load_balancer_arn"
         )
         vpce_id = common_values.get("vpce_id")
+        insights_callback_urls = common_values.get("insights_callback_urls")
 
         # Manage IAM Resources
         lambda_role_policy = {
@@ -5326,7 +5328,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         )
         tf_resources.append(cognito_resource_server_gateway_resource)
 
-        # POOL CLIENT
+        # OCM POOL CLIENT
         cognito_user_pool_client = aws_cognito_user_pool_client(
             "userpool_client",
             name=f"ocm-{identifier}-pool-client",
@@ -5336,6 +5338,17 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             **pool_client_args,
         )
         tf_resources.append(cognito_user_pool_client)
+
+        # INSIGHTS POOL CLIENT
+        if insights_callback_urls:
+            insights_cognito_user_pool_client = aws_cognito_user_pool_client(
+                "ins_userpool_client",
+                name=f"insights-{identifier}-pool-client",
+                user_pool_id=f"${{{cognito_user_pool_resource.id}}}",
+                callback_urls={insights_callback_urls},
+                **pool_client_args,
+            )
+            tf_resources.append(insights_cognito_user_pool_client)
 
         # POOL RESOURCE SERVER
         cognito_resource_server_resource = aws_cognito_resource_server(

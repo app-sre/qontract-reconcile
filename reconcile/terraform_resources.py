@@ -368,6 +368,7 @@ provider
   domain_name
   network_interface_ids
   openshift_ingress_load_balancer_arn
+  insights_callback_urls
   output_resource_name
   annotations
   vpc_id
