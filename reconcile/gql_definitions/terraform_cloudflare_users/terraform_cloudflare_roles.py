@@ -151,7 +151,7 @@ class CloudflareAccountRoleQueryData(BaseModel):
 
 def query(query_func: Callable, **kwargs: Any) -> CloudflareAccountRoleQueryData:
     """
-    This is a convenience function that queries and parses the data into
+    This is a convenience function which queries and parses the data into
     concrete types. It should be compatible with most GQL clients.
     You do not have to use it to consume the generated data classes.
     Alternatively, you can also mime and alternate the behavior

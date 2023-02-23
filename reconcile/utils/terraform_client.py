@@ -725,7 +725,7 @@ def run_terraform(
     err = tf.apply()
     if err:
         TerraformApplyFailed(
-            f"Failed to run terraform apply for integration {QONTRACT_INTEGRATION}"
+            f"Failed to run Terraform apply for integration {QONTRACT_INTEGRATION}"
         )
 
 
