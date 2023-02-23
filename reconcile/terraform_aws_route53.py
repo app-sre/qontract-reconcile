@@ -11,6 +11,7 @@ from reconcile.status import ExitCodes
 from reconcile.utils import dnsutils
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.defer import defer
+from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.external_resources import (
     PROVIDER_AWS,
     get_external_resource_specs,
@@ -75,6 +76,12 @@ def build_desired_state(
             # Process '_target_cluster'
             target_cluster = record.pop("_target_cluster", None)
             if target_cluster:
+                if not integration_is_enabled(
+                    integration=QONTRACT_INTEGRATION.replace("_", "-"),
+                    disable_obj=target_cluster,
+                ):
+                    logging.info("Skipping cluster '%s'", target_cluster["name"])
+                    continue
                 target_cluster_elb = target_cluster["elbFQDN"]
 
                 # get_a_record is used here to validate the record and reused later
