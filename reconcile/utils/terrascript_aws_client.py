@@ -5720,7 +5720,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             },
             depends_on=["aws_api_gateway_integration.gw_integration_auth"],
         )
-        tf_resources.append(ocm_api_gateway_integration_auth_response_resource)
+        tf_resources.append(ocm_api_gw_intg_auth_response_resource)
 
         # DEPLOYMENT
         api_gateway_deployment_resource = aws_api_gateway_deployment(
