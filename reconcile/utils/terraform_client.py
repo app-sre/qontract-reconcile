@@ -12,9 +12,11 @@ from datetime import (
     timedelta,
 )
 from threading import Lock
+from collections.abc import (
+    Callable,
+)
 from typing import (
     Any,
-    Callable,
     Optional,
     cast,
 )
