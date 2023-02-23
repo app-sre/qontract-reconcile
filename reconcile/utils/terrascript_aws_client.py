@@ -1666,8 +1666,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             values.setdefault("lifecycle", {}).setdefault("ignore_changes", []).append(
                 "grant"
             )
-        server_side_encryption_configuration = common_values.get(
-            "server_side_encryption_configuration", DEFAULT_S3_SSE_CONFIGURATION
+        server_side_encryption_configuration = (
+            common_values.get("server_side_encryption_configuration")
+            or DEFAULT_S3_SSE_CONFIGURATION
         )
         values[
             "server_side_encryption_configuration"
