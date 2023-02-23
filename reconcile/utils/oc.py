@@ -1174,7 +1174,7 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
             except StatusCodeError:
                 return False
         else:
-            return kind in self.api_resources
+            return kind in self.get_api_resources()
 
     def is_kind_namespaced(self, kind: str) -> bool:
         kg = kind.split(".", 1)
