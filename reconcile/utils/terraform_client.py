@@ -3,6 +3,7 @@ import logging
 import shutil
 from collections import defaultdict
 from collections.abc import (
+    Callable,
     Iterable,
     Mapping,
 )
@@ -12,9 +13,6 @@ from datetime import (
     timedelta,
 )
 from threading import Lock
-from collections.abc import (
-    Callable,
-)
 from typing import (
     Any,
     Optional,
