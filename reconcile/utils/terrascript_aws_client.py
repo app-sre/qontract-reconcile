@@ -234,6 +234,10 @@ EMAIL_REGEX = re.compile(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$")
 
 TMP_DIR_PREFIX = "terrascript-aws-"
 
+DEFAULT_S3_SSE_CONFIGURATION = {
+    "rule": {"apply_server_side_encryption_by_default": {"sse_algorithm": "AES256"}}
+}
+
 
 class StateInaccessibleException(Exception):
     pass
@@ -1662,13 +1666,13 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             values.setdefault("lifecycle", {}).setdefault("ignore_changes", []).append(
                 "grant"
             )
-        server_side_encryption_configuration = common_values.get(
-            "server_side_encryption_configuration"
+        server_side_encryption_configuration = (
+            common_values.get("server_side_encryption_configuration")
+            or DEFAULT_S3_SSE_CONFIGURATION
         )
-        if server_side_encryption_configuration:
-            values[
-                "server_side_encryption_configuration"
-            ] = server_side_encryption_configuration
+        values[
+            "server_side_encryption_configuration"
+        ] = server_side_encryption_configuration
         # Support static website hosting [rosa-authenticator]
         website = common_values.get("website")
         if website:
