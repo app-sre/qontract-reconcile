@@ -13,6 +13,7 @@ from reconcile.utils.secret_reader import SecretReaderBase
 @pytest.mark.parametrize(
     "cluster, use_jump_host, expected_parameters",
     [
+        ### No jumphost settings and --no-jump-host flag
         (
             "cluster_no_jumphost",
             False,
@@ -35,6 +36,30 @@ from reconcile.utils.secret_reader import SecretReaderBase
                 skip_tls_verify=None,
             ),
         ),
+        ### No jumphost settings and --use-jump-host flag
+        (
+            "cluster_no_jumphost",
+            True,
+            OCConnectionParameters(
+                cluster_name="test-cluster",
+                server_url="server-url",
+                automation_token="secret1",
+                cluster_admin_automation_token=None,
+                disabled_e2e_tests=[],
+                disabled_integrations=[],
+                jumphost_port=None,
+                jumphost_hostname=None,
+                jumphost_key=None,
+                jumphost_known_hosts=None,
+                jumphost_user=None,
+                jumphost_remote_port=None,
+                jumphost_local_port=None,
+                is_cluster_admin=None,
+                is_internal=False,
+                skip_tls_verify=None,
+            ),
+        ),
+        ### Jumphost settings and --use-jump-host flag
         (
             "cluster_with_jumphost",
             True,
@@ -51,6 +76,29 @@ from reconcile.utils.secret_reader import SecretReaderBase
                 jumphost_known_hosts="/path/to/file",
                 jumphost_user="jumphost-user",
                 jumphost_remote_port=8888,
+                jumphost_local_port=None,
+                is_cluster_admin=None,
+                is_internal=True,
+                skip_tls_verify=None,
+            ),
+        ),
+        ### Jumphost settings, but --no-jump-host flag given
+        (
+            "cluster_with_jumphost",
+            False,
+            OCConnectionParameters(
+                cluster_name="test-cluster",
+                server_url="server-url",
+                automation_token="secret1",
+                cluster_admin_automation_token=None,
+                disabled_e2e_tests=[],
+                disabled_integrations=[],
+                jumphost_port=None,
+                jumphost_hostname=None,
+                jumphost_key=None,
+                jumphost_known_hosts=None,
+                jumphost_user=None,
+                jumphost_remote_port=None,
                 jumphost_local_port=None,
                 is_cluster_admin=None,
                 is_internal=True,
@@ -77,6 +125,7 @@ def test_from_cluster(
 @pytest.mark.parametrize(
     "namespace, use_jump_host, expected_parameters",
     [
+        ### No jumphost settings and --no-jump-host flag
         (
             "namespace_no_admin",
             False,
@@ -99,6 +148,30 @@ def test_from_cluster(
                 skip_tls_verify=None,
             ),
         ),
+        ### No jumphost settings and --use-jump-host flag
+        (
+            "namespace_no_admin",
+            True,
+            OCConnectionParameters(
+                cluster_name="test-cluster",
+                server_url="server-url",
+                automation_token="secret1",
+                cluster_admin_automation_token=None,
+                disabled_e2e_tests=[],
+                disabled_integrations=[],
+                jumphost_port=None,
+                jumphost_hostname=None,
+                jumphost_key=None,
+                jumphost_known_hosts=None,
+                jumphost_user=None,
+                jumphost_remote_port=None,
+                jumphost_local_port=None,
+                is_cluster_admin=None,
+                is_internal=False,
+                skip_tls_verify=None,
+            ),
+        ),
+        ### Jumphost settings and --use-jump-host flag
         (
             "namespace_with_admin",
             True,
@@ -121,6 +194,29 @@ def test_from_cluster(
                 skip_tls_verify=None,
             ),
         ),
+        ### Jumphost settings and --no-jump-host flag
+        (
+            "namespace_with_admin",
+            False,
+            OCConnectionParameters(
+                cluster_name="test-cluster",
+                server_url="server-url",
+                automation_token="secret1",
+                cluster_admin_automation_token="secret2",
+                disabled_e2e_tests=[],
+                disabled_integrations=[],
+                jumphost_port=None,
+                jumphost_hostname=None,
+                jumphost_key=None,
+                jumphost_known_hosts=None,
+                jumphost_user=None,
+                jumphost_remote_port=None,
+                jumphost_local_port=None,
+                is_cluster_admin=True,
+                is_internal=False,
+                skip_tls_verify=None,
+            ),
+        ),
     ],
 )
 def test_from_namespace(
@@ -136,33 +232,3 @@ def test_from_namespace(
     )
 
     assert parameters == expected_parameters
-
-
-def test_missing_jumphost_settings_cluster():
-    test_cluster = load_cluster_for_connection_parameters("cluster_no_jumphost.yml")
-    secret_reader = create_autospec(SecretReaderBase)
-    with pytest.raises(RuntimeError) as e:
-        OCConnectionParameters.from_cluster(
-            secret_reader=secret_reader,
-            cluster=test_cluster,
-            use_jump_host=True,
-        )
-    assert (
-        str(e.value)
-        == "Cannot use jumphost. Cluster test-cluster does not have any jumphost settings."
-    )
-
-
-def test_missing_jumphost_settings_namespace():
-    test_namespace = load_namespace_for_connection_parameters("namespace_no_admin.yml")
-    secret_reader = create_autospec(SecretReaderBase)
-    with pytest.raises(RuntimeError) as e:
-        OCConnectionParameters.from_namespace(
-            secret_reader=secret_reader,
-            namespace=test_namespace,
-            use_jump_host=True,
-        )
-    assert (
-        str(e.value)
-        == "Cannot use jumphost. Cluster test-cluster does not have any jumphost settings."
-    )

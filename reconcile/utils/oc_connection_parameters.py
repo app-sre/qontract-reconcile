@@ -121,11 +121,7 @@ class OCConnectionParameters:
         jumphost_key = None
         jumphost_remote_port = None
         jumphost_local_port = None
-        if use_jump_host:
-            if not cluster.jump_host:
-                raise RuntimeError(
-                    f"Cannot use jumphost. Cluster {cluster.name} does not have any jumphost settings."
-                )
+        if use_jump_host and cluster.jump_host:
             jumphost_hostname = cluster.jump_host.hostname
             jumphost_known_hosts = cluster.jump_host.known_hosts
             jumphost_user = cluster.jump_host.user
