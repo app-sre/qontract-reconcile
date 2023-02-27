@@ -94,7 +94,9 @@ class OCConnectionParameters:
 
     @staticmethod
     def from_cluster(
-        cluster: Cluster, secret_reader: SecretReaderBase
+        cluster: Cluster,
+        secret_reader: SecretReaderBase,
+        use_jump_host: bool = True,
     ) -> OCConnectionParameters:
         automation_token: Optional[str] = None
         if cluster.automation_token:
@@ -119,18 +121,22 @@ class OCConnectionParameters:
         jumphost_key = None
         jumphost_remote_port = None
         jumphost_local_port = None
-        if jh := cluster.jump_host:
-            jumphost_hostname = jh.hostname
-            jumphost_known_hosts = jh.known_hosts
-            jumphost_user = jh.user
-            jumphost_port = jh.port
-            jumphost_remote_port = jh.remote_port
+        if use_jump_host:
+            if not cluster.jump_host:
+                raise RuntimeError(
+                    f"Cannot use jumphost. Cluster {cluster.name} does not have any jumphost settings."
+                )
+            jumphost_hostname = cluster.jump_host.hostname
+            jumphost_known_hosts = cluster.jump_host.known_hosts
+            jumphost_user = cluster.jump_host.user
+            jumphost_port = cluster.jump_host.port
+            jumphost_remote_port = cluster.jump_host.remote_port
 
             try:
-                jumphost_key = secret_reader.read_secret(jh.identity)
+                jumphost_key = secret_reader.read_secret(cluster.jump_host.identity)
             except SecretNotFound as e:
                 logging.error(
-                    f"[{cluster.name}] jumphost secret {jh.identity} not found"
+                    f"[{cluster.name}] jumphost secret {cluster.jump_host.identity} not found"
                 )
                 raise e
 
@@ -156,7 +162,9 @@ class OCConnectionParameters:
 
     @staticmethod
     def from_namespace(
-        namespace: Namespace, secret_reader: SecretReaderBase
+        namespace: Namespace,
+        secret_reader: SecretReaderBase,
+        use_jump_host: bool = True,
     ) -> OCConnectionParameters:
         """
         This does the same as from_cluster(), but additionally checks
@@ -205,6 +213,7 @@ def get_oc_connection_parameters_from_clusters(
     secret_reader: SecretReaderBase,
     clusters: Iterable[Cluster],
     thread_pool_size: int = 1,
+    use_jump_host: bool = True,
 ) -> list[OCConnectionParameters]:
     """
     Convert nested generated cluster classes from queries into flat ClusterParameter objects.
@@ -216,6 +225,7 @@ def get_oc_connection_parameters_from_clusters(
         clusters,
         thread_pool_size,
         secret_reader=secret_reader,
+        use_jump_host=use_jump_host,
     )
     return parameters
 
@@ -224,6 +234,7 @@ def get_oc_connection_parameters_from_namespaces(
     secret_reader: SecretReaderBase,
     namespaces: Iterable[Namespace],
     thread_pool_size: int = 1,
+    use_jump_host: bool = True,
 ) -> list[OCConnectionParameters]:
     """
     Convert nested generated namespace classes from queries into flat ClusterParameter objects.
@@ -235,5 +246,6 @@ def get_oc_connection_parameters_from_namespaces(
         namespaces,
         thread_pool_size,
         secret_reader=secret_reader,
+        use_jump_host=use_jump_host,
     )
     return parameters
