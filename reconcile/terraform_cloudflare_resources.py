@@ -2,9 +2,13 @@ import logging
 import sys
 from typing import (
     Any,
+    Iterable,
     Optional,
     Tuple,
+    cast,
 )
+
+from sretoolbox.utils import threaded
 
 from reconcile.gql_definitions.terraform_cloudflare_resources import (
     terraform_cloudflare_accounts,
@@ -16,7 +20,14 @@ from reconcile.gql_definitions.terraform_cloudflare_resources.terraform_cloudfla
     TerraformCloudflareAccountsQueryData,
 )
 from reconcile.gql_definitions.terraform_cloudflare_resources.terraform_cloudflare_resources import (
+    NamespaceTerraformProviderResourceCloudflareV1,
+    NamespaceV1,
     TerraformCloudflareResourcesQueryData,
+)
+from reconcile.openshift_base import (
+    CurrentStateSpec,
+    init_specs_to_fetch,
+    realize_data,
 )
 from reconcile.status import ExitCodes
 from reconcile.typed_queries.app_interface_vault_settings import (
@@ -25,9 +36,19 @@ from reconcile.typed_queries.app_interface_vault_settings import (
 from reconcile.utils import gql
 from reconcile.utils.defer import defer
 from reconcile.utils.exceptions import SecretIncompleteError
+from reconcile.utils.external_resource_spec import ExternalResourceSpecInventory
 from reconcile.utils.external_resources import (
     PROVIDER_CLOUDFLARE,
     get_external_resource_specs,
+)
+from reconcile.utils.oc import StatusCodeError
+from reconcile.utils.oc_map import (
+    OCMap,
+    init_oc_map_from_namespaces,
+)
+from reconcile.utils.openshift_resource import (
+    OpenshiftResource,
+    ResourceInventory,
 )
 from reconcile.utils.secret_reader import (
     SecretReaderBase,
@@ -43,6 +64,10 @@ from reconcile.utils.terrascript.cloudflare_client import (
     TerraformS3BackendConfig,
     TerrascriptCloudflareClient,
     create_cloudflare_terrascript,
+)
+from reconcile.utils.vault import (
+    VaultClient,
+    _VaultClient,
 )
 
 QONTRACT_INTEGRATION = "terraform_cloudflare_resources"
@@ -127,19 +152,200 @@ def build_clients(
     return clients
 
 
+def _build_oc_resources(
+    cloudflare_namespaces: Iterable[NamespaceV1],
+    secret_reader: SecretReaderBase,
+    use_jump_host: bool,
+    thread_pool_size: int,
+    internal: Optional[bool] = None,
+    account_names: Optional[Iterable[str]] = None,
+) -> tuple[ResourceInventory, OCMap]:
+    ri = ResourceInventory()
+
+    oc_map = init_oc_map_from_namespaces(
+        # The Namespace Protocol isn't happy with NamespaceV1, but since it's a
+        # generated class there isn't a lot that can be done here.
+        cloudflare_namespaces,  # type: ignore[arg-type]
+        secret_reader,
+        integration=QONTRACT_INTEGRATION,
+        use_jump_host=use_jump_host,
+        thread_pool_size=thread_pool_size,
+        internal=internal,
+    )
+
+    namespace_mapping = [ns.dict() for ns in cloudflare_namespaces]
+
+    state_specs = init_specs_to_fetch(
+        ri, oc_map, namespaces=namespace_mapping, override_managed_types=["Secret"]
+    )
+    current_state_specs: list[CurrentStateSpec] = [
+        s for s in state_specs if isinstance(s, CurrentStateSpec)
+    ]
+    threaded.run(
+        _populate_oc_resources,
+        current_state_specs,
+        thread_pool_size,
+        ri=ri,
+        account_names=account_names,
+    )
+
+    return ri, oc_map
+
+
+def _populate_oc_resources(
+    spec: CurrentStateSpec,
+    ri: ResourceInventory,
+    account_names: Optional[Iterable[str]],
+):
+    """
+    This was taken from terraform_resources and might be a later candidate for DRY.
+    """
+    if spec.oc is None:
+        return
+    logging.debug(
+        "[populate_oc_resources] cluster: "
+        + spec.cluster
+        + " namespace: "
+        + spec.namespace
+        + " resource: "
+        + spec.kind
+    )
+
+    try:
+        for item in spec.oc.get_items(spec.kind, namespace=spec.namespace):
+            openshift_resource = OpenshiftResource(
+                item, QONTRACT_INTEGRATION, QONTRACT_INTEGRATION_VERSION
+            )
+            if account_names:
+                caller = openshift_resource.caller
+                if caller and caller not in account_names:
+                    continue
+
+            ri.add_current(
+                spec.cluster,
+                spec.namespace,
+                spec.kind,
+                openshift_resource.name,
+                openshift_resource,
+            )
+    except StatusCodeError as e:
+        ri.register_error(cluster=spec.cluster)
+        msg = "cluster: {},"
+        msg += "namespace: {},"
+        msg += "resource: {},"
+        msg += "exception: {}"
+        msg = msg.format(spec.cluster, spec.namespace, spec.kind, str(e))
+        logging.error(msg)
+
+
+def _populate_desired_state(
+    ri: ResourceInventory, resource_specs: ExternalResourceSpecInventory
+) -> None:
+    for spec in resource_specs.values():
+        if ri.is_cluster_present(spec.cluster_name):
+            oc_resource = spec.build_oc_secret(
+                QONTRACT_INTEGRATION, QONTRACT_INTEGRATION_VERSION
+            )
+
+            if not oc_resource.body.get("data"):
+                logging.debug(
+                    "Skipping oc_resource %s because there is no Secret data (not all resources have outputs)",
+                    oc_resource.name,
+                )
+                continue
+
+            ri.add_desired(
+                cluster=spec.cluster_name,
+                namespace=spec.namespace_name,
+                resource_type=oc_resource.kind,
+                name=spec.output_resource_name,
+                value=oc_resource,
+                privileged=spec.namespace.get("clusterAdmin") or False,
+            )
+
+
+def _write_external_resource_secrets_to_vault(
+    vault_path: str,
+    resource_specs: ExternalResourceSpecInventory,
+    integration_name: str,
+) -> None:
+    """
+    Write the secrets associated with an external resource to Vault. This was taken
+    from terraform-resources with minor modifications. We can consider moving this to a
+    separate module if we have additional needs for a similar function.
+    """
+    integration_name = integration_name.replace("_", "-")
+    vault_client = cast(_VaultClient, VaultClient())
+    for spec in resource_specs.values():
+        # A secret can be empty if the terraform-* integrations are not enabled on the cluster
+        # the resource is defined on - lets skip vault writes for those right now and
+        # give this more thought - e.g. not processing such specs at all when the integration
+        # is disabled
+        if spec.secret:
+            secret_path = f"{vault_path}/{integration_name}/{spec.cluster_name}/{spec.namespace_name}/{spec.output_resource_name}"
+            # vault only stores strings as values - by converting to str upfront, we can compare current to desired
+            stringified_secret = {k: str(v) for k, v in spec.secret.items()}
+            desired_secret = {"path": secret_path, "data": stringified_secret}
+            vault_client.write(desired_secret, decode_base64=False)
+
+
+def _filter_cloudflare_namespaces(
+    namespaces: Iterable[NamespaceV1], account_names: set[str]
+) -> list[NamespaceV1]:
+    """
+    Get only the namespaces that have Cloudflare resources and that match account_names.
+    """
+    cloudflare_namespaces: list[NamespaceV1] = []
+    for ns in namespaces:
+        if isinstance(
+            ns.external_resources, NamespaceTerraformProviderResourceCloudflareV1
+        ):
+            for ex in ns.external_resources:
+                if (
+                    ex.provider == PROVIDER_CLOUDFLARE
+                    and ex.provisioner.name in account_names
+                ):
+                    cloudflare_namespaces.append(ns)
+    return cloudflare_namespaces
+
+
 @defer
 def run(
     dry_run: bool,
     print_to_file: Optional[str],
     enable_deletion: bool,
     thread_pool_size: int,
-    selected_account=None,
+    selected_account: Optional[str] = None,
+    vault_output_path: str = "",
+    internal: Optional[bool] = None,
+    use_jump_host: bool = True,
     defer=None,
 ) -> None:
     vault_settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
 
     query_accounts, query_resources = _get_cloudflare_desired_state()
+
+    if not query_accounts.accounts:
+        logging.info("No Cloudflare accounts were detected, nothing to do.")
+        sys.exit(ExitCodes.SUCCESS)
+
+    if not query_resources.namespaces:
+        logging.info("No namespaces were detected, nothing to do.")
+        sys.exit(ExitCodes.SUCCESS)
+
+    if selected_account:
+        account_names = [selected_account]
+    else:
+        account_names = [acct.name for acct in query_accounts.accounts]
+
+    cloudflare_namespaces = _filter_cloudflare_namespaces(
+        query_resources.namespaces, set(account_names)
+    )
+
+    if not cloudflare_namespaces:
+        logging.info("No namespaces were detected, nothing to do.")
+        sys.exit(ExitCodes.SUCCESS)
 
     # Build Cloudflare clients
     cf_clients = TerraformConfigClientCollection()
@@ -149,7 +355,7 @@ def run(
     # Register Cloudflare resources
     cf_specs = [
         spec
-        for namespace in query_resources.namespaces or []
+        for namespace in query_resources.namespaces
         for spec in get_external_resource_specs(
             namespace.dict(by_alias=True), PROVIDER_CLOUDFLARE
         )
@@ -158,6 +364,18 @@ def run(
     cf_clients.add_specs(cf_specs)
 
     cf_clients.populate_resources()
+
+    ri, oc_map = _build_oc_resources(
+        cloudflare_namespaces,
+        secret_reader,
+        use_jump_host=use_jump_host,
+        thread_pool_size=thread_pool_size,
+        internal=internal,
+        account_names=account_names,
+    )
+
+    if defer:
+        defer(oc_map.cleanup)
 
     working_dirs = cf_clients.dump(print_to_file=print_to_file)
 
@@ -191,6 +409,25 @@ def run(
     err = tf.apply()
     if err:
         sys.exit(ExitCodes.ERROR)
+
+    # refresh output data after terraform apply
+    tf.populate_terraform_output_secrets(
+        resource_specs=cf_clients.resource_spec_inventory
+    )
+
+    # populate the resource inventory with latest output data
+    _populate_desired_state(ri, cf_clients.resource_spec_inventory)
+
+    actions = realize_data(
+        dry_run, oc_map, ri, thread_pool_size, caller=selected_account
+    )
+
+    if actions and vault_output_path:
+        _write_external_resource_secrets_to_vault(
+            vault_output_path,
+            cf_clients.resource_spec_inventory,
+            QONTRACT_INTEGRATION.replace("_", "-"),
+        )
 
 
 def _get_cloudflare_desired_state() -> Tuple[

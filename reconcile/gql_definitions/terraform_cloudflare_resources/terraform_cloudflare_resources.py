@@ -22,6 +22,43 @@ DEFINITION = """
 query TerraformCloudflareResources {
   namespaces: namespaces_v1 {
     name
+    clusterAdmin
+    cluster {
+      name
+      serverUrl
+      insecureSkipTLSVerify
+      jumpHost {
+        hostname
+        knownHosts
+        user
+        port
+        identity {
+          path
+          field
+          version
+          format
+        }
+      }
+      automationToken {
+        path
+        field
+        version
+        format
+      }
+      clusterAdminAutomationToken {
+        path
+        field
+        version
+        format
+      }
+      spec {
+        region
+      }
+      internal
+      disable {
+        integrations
+      }
+    }
     managedExternalResources
     externalResources {
       ... on NamespaceTerraformProviderResourceCloudflare_v1 {
@@ -92,6 +129,59 @@ class ConfiguredBaseModel(BaseModel):
     class Config:
         smart_union = True
         extra = Extra.forbid
+
+
+class VaultSecretV1(ConfiguredBaseModel):
+    path: str = Field(..., alias="path")
+    field: str = Field(..., alias="field")
+    version: Optional[int] = Field(..., alias="version")
+    q_format: Optional[str] = Field(..., alias="format")
+
+
+class ClusterJumpHostV1(ConfiguredBaseModel):
+    hostname: str = Field(..., alias="hostname")
+    known_hosts: str = Field(..., alias="knownHosts")
+    user: str = Field(..., alias="user")
+    port: Optional[int] = Field(..., alias="port")
+    identity: VaultSecretV1 = Field(..., alias="identity")
+
+
+class ClusterV1_VaultSecretV1(ConfiguredBaseModel):
+    path: str = Field(..., alias="path")
+    field: str = Field(..., alias="field")
+    version: Optional[int] = Field(..., alias="version")
+    q_format: Optional[str] = Field(..., alias="format")
+
+
+class NamespaceV1_ClusterV1_VaultSecretV1(ConfiguredBaseModel):
+    path: str = Field(..., alias="path")
+    field: str = Field(..., alias="field")
+    version: Optional[int] = Field(..., alias="version")
+    q_format: Optional[str] = Field(..., alias="format")
+
+
+class ClusterSpecV1(ConfiguredBaseModel):
+    region: str = Field(..., alias="region")
+
+
+class DisableClusterAutomationsV1(ConfiguredBaseModel):
+    integrations: Optional[list[str]] = Field(..., alias="integrations")
+
+
+class ClusterV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+    server_url: str = Field(..., alias="serverUrl")
+    insecure_skip_tls_verify: Optional[bool] = Field(..., alias="insecureSkipTLSVerify")
+    jump_host: Optional[ClusterJumpHostV1] = Field(..., alias="jumpHost")
+    automation_token: Optional[ClusterV1_VaultSecretV1] = Field(
+        ..., alias="automationToken"
+    )
+    cluster_admin_automation_token: Optional[
+        NamespaceV1_ClusterV1_VaultSecretV1
+    ] = Field(..., alias="clusterAdminAutomationToken")
+    spec: Optional[ClusterSpecV1] = Field(..., alias="spec")
+    internal: Optional[bool] = Field(..., alias="internal")
+    disable: Optional[DisableClusterAutomationsV1] = Field(..., alias="disable")
 
 
 class NamespaceExternalResourceV1(ConfiguredBaseModel):
@@ -189,6 +279,8 @@ class NamespaceTerraformProviderResourceCloudflareV1(NamespaceExternalResourceV1
 
 class NamespaceV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+    cluster_admin: Optional[bool] = Field(..., alias="clusterAdmin")
+    cluster: ClusterV1 = Field(..., alias="cluster")
     managed_external_resources: Optional[bool] = Field(
         ..., alias="managedExternalResources"
     )
