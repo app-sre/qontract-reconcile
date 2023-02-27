@@ -863,7 +863,9 @@ def clusters_aws_account_ids(ctx):
 @get.command()
 @click.pass_context
 def terraform_users_credentials(ctx) -> None:
-    vc = cast(_VaultClient, VaultClient())
+    settings = queries.get_app_interface_settings()
+    accounts = queries.get_state_aws_accounts()
+    state = State("account-notifier", accounts, settings=settings)
 
     skip_accounts, appsre_pgp_key, reencrypt_settings = tfu.get_reencrypt_settings()
 
@@ -899,13 +901,11 @@ def terraform_users_credentials(ctx) -> None:
                 }
                 credentials.append(item)
 
-    for secret in vc.list(reencrypt_settings.aws_account_output_vault_path):
-        secret_request = {
-            "path": f"{reencrypt_settings.aws_account_output_vault_path}/{secret}"
-        }
-        secret_data = vc.read_all(secret_request)
-        if secret_data["account"] not in skip_accounts:
-            credentials.append(secret_data)
+    for secret in state.ls():
+        if secret.startswith("/output/"):
+            secret_data = state.get(secret[1:])
+            if secret_data["account"] not in skip_accounts:
+                credentials.append(secret_data)
 
     columns = ["account", "console_url", "user_name", "encrypted_password"]
     print_output(ctx.obj["options"], credentials, columns)
@@ -940,23 +940,23 @@ def user_credentials_migrate_output(ctx, account_name, output_path) -> None:
     )
     credentials = []
     for account, output in tf.outputs.items():
-        if account in skip_accounts:
-            user_passwords = tf.format_output(output, tf.OUTPUT_TYPE_PASSWORDS)
-            console_urls = tf.format_output(output, tf.OUTPUT_TYPE_CONSOLEURLS)
-            for user_name, enc_password in user_passwords.items():
-                item = {
-                    "account": account,
-                    "console_url": console_urls[account],
-                    "user_name": user_name,
-                    "encrypted_password": enc_password,
-                }
-                credentials.append(item)
+        user_passwords = tf.format_output(output, tf.OUTPUT_TYPE_PASSWORDS)
+        console_urls = tf.format_output(output, tf.OUTPUT_TYPE_CONSOLEURLS)
+        for user_name, enc_password in user_passwords.items():
+            item = {
+                "account": account,
+                "console_url": console_urls[account],
+                "user_name": user_name,
+                "encrypted_password": enc_password,
+            }
+            credentials.append(item)
 
     for cred in credentials:
         new_secret = {
             "path": f"{output_path}/{cred['user_name']}_{cred['account']}",
             "data": cred,
         }
+        print(new_secret["path"])
         vc.write(new_secret, decode_base64=False)
 
 
