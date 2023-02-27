@@ -7,14 +7,12 @@ import sys
 from collections import defaultdict
 from datetime import datetime
 from operator import itemgetter
-from typing import (
-    Optional,
-    cast,
-)
+from typing import Optional
 
 import click
 import requests
 import yaml
+from sretoolbox.utils import threaded
 
 import reconcile.gitlab_housekeeping as glhk
 import reconcile.ocm_upgrade_scheduler as ous
@@ -70,10 +68,6 @@ from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.semver_helper import parse_semver
 from reconcile.utils.state import State
 from reconcile.utils.terraform_client import TerraformClient as Terraform
-from reconcile.utils.vault import (
-    VaultClient,
-    _VaultClient,
-)
 from tools.cli_commands.gpg_encrypt import (
     GPGEncryptCommand,
     GPGEncryptCommandData,
@@ -867,7 +861,7 @@ def terraform_users_credentials(ctx) -> None:
     accounts = queries.get_state_aws_accounts()
     state = State("account-notifier", accounts, settings=settings)
 
-    skip_accounts, appsre_pgp_key, reencrypt_settings = tfu.get_reencrypt_settings()
+    skip_accounts, appsre_pgp_key, _ = tfu.get_reencrypt_settings()
 
     accounts, working_dirs, _, aws_api = tfu.setup(
         False,
@@ -901,11 +895,24 @@ def terraform_users_credentials(ctx) -> None:
                 }
                 credentials.append(item)
 
-    for secret in state.ls():
-        if secret.startswith("/output/"):
-            secret_data = state.get(secret[1:])
+    secrets = state.ls()
+
+    def _get_secret(secret_key: str):
+        if secret_key.startswith("/output/"):
+            secret_data = state.get(secret_key[1:])
             if secret_data["account"] not in skip_accounts:
-                credentials.append(secret_data)
+                return secret_data
+        return None
+
+    secret_result = threaded.run(
+        _get_secret,
+        secrets,
+        10,
+    )
+
+    for secret in secret_result:
+        if secret and secret["account"] not in skip_accounts:
+            credentials.append(secret)
 
     columns = ["account", "console_url", "user_name", "encrypted_password"]
     print_output(ctx.obj["options"], credentials, columns)
