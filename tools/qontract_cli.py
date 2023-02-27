@@ -913,10 +913,11 @@ def terraform_users_credentials(ctx) -> None:
 
 @root.command()
 @click.argument("account_name")
-@click.argument("output_path")
 @click.pass_context
-def user_credentials_migrate_output(ctx, account_name, output_path) -> None:
-    vc = cast(_VaultClient, VaultClient())
+def user_credentials_migrate_output(ctx, account_name) -> None:
+    settings = queries.get_app_interface_settings()
+    accounts = queries.get_state_aws_accounts()
+    state = State("account-notifier", accounts, settings=settings)
 
     skip_accounts, appsre_pgp_key, _ = tfu.get_reencrypt_settings()
 
@@ -952,12 +953,7 @@ def user_credentials_migrate_output(ctx, account_name, output_path) -> None:
             credentials.append(item)
 
     for cred in credentials:
-        new_secret = {
-            "path": f"{output_path}/{cred['user_name']}_{cred['account']}",
-            "data": cred,
-        }
-        print(new_secret["path"])
-        vc.write(new_secret, decode_base64=False)
+        state.add(f"output/{cred['account']}/{cred['user_name']}", cred)
 
 
 @get.command()
