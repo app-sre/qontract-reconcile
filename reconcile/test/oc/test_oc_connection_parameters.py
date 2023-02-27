@@ -13,7 +13,7 @@ from reconcile.utils.secret_reader import SecretReaderBase
 @pytest.mark.parametrize(
     "cluster, use_jump_host, expected_parameters",
     [
-        ### No jumphost settings and --no-jump-host flag
+        # No jumphost settings and --no-jump-host flag
         (
             "cluster_no_jumphost",
             False,
@@ -36,7 +36,7 @@ from reconcile.utils.secret_reader import SecretReaderBase
                 skip_tls_verify=None,
             ),
         ),
-        ### No jumphost settings and --use-jump-host flag
+        # No jumphost settings and --use-jump-host flag
         (
             "cluster_no_jumphost",
             True,
@@ -59,7 +59,7 @@ from reconcile.utils.secret_reader import SecretReaderBase
                 skip_tls_verify=None,
             ),
         ),
-        ### Jumphost settings and --use-jump-host flag
+        # Jumphost settings and --use-jump-host flag
         (
             "cluster_with_jumphost",
             True,
@@ -82,7 +82,7 @@ from reconcile.utils.secret_reader import SecretReaderBase
                 skip_tls_verify=None,
             ),
         ),
-        ### Jumphost settings, but --no-jump-host flag given
+        # Jumphost settings, but --no-jump-host flag given
         (
             "cluster_with_jumphost",
             False,
@@ -125,7 +125,7 @@ def test_from_cluster(
 @pytest.mark.parametrize(
     "namespace, use_jump_host, expected_parameters",
     [
-        ### No jumphost settings and --no-jump-host flag
+        # No jumphost settings and --no-jump-host flag
         (
             "namespace_no_admin",
             False,
@@ -148,7 +148,7 @@ def test_from_cluster(
                 skip_tls_verify=None,
             ),
         ),
-        ### No jumphost settings and --use-jump-host flag
+        # No jumphost settings and --use-jump-host flag
         (
             "namespace_no_admin",
             True,
@@ -171,7 +171,7 @@ def test_from_cluster(
                 skip_tls_verify=None,
             ),
         ),
-        ### Jumphost settings and --use-jump-host flag
+        # Jumphost settings and --use-jump-host flag
         (
             "namespace_with_admin",
             True,
@@ -194,7 +194,7 @@ def test_from_cluster(
                 skip_tls_verify=None,
             ),
         ),
-        ### Jumphost settings and --no-jump-host flag
+        # Jumphost settings and --no-jump-host flag
         (
             "namespace_with_admin",
             False,
