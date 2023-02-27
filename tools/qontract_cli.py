@@ -517,13 +517,13 @@ def get_available_upgrades(ocm: OCM, version: str, channel: str) -> list[str]:
     return [u for u in upgrades if not ocm.version_blocked(u)]
 
 
-def inheritVersionDataText(ocm_org: str, ocm_specs: list[dict]) -> str:
+def inherit_version_data_text(ocm_org: str, ocm_specs: list[dict]) -> str:
     ocm_spec = [o for o in ocm_specs if o["name"] == ocm_org][0]
-    inheritVersionData = ocm_spec["inheritVersionData"]
-    if not inheritVersionData:
+    inherit_version_data = ocm_spec["inheritVersionData"]
+    if not inherit_version_data:
         return ""
-    inheritedOrgs = [f"[{o['name']}](#{o['name']})" for o in inheritVersionData]
-    return f"inheriting version data from {', '.join(inheritedOrgs)}"
+    inherited_orgs = [f"[{o['name']}](#{o['name']})" for o in inherit_version_data]
+    return f"inheriting version data from {', '.join(inherited_orgs)}"
 
 
 @get.command()
@@ -580,7 +580,7 @@ def ocm_fleet_upgrade_policies(
             )
             print(
                 ocm_org_section.format(
-                    ocm_org, inheritVersionDataText(ocm_org, ocm_specs), json_data
+                    ocm_org, inherit_version_data_text(ocm_org, ocm_specs), json_data
                 )
             )
 
@@ -669,7 +669,9 @@ def ocm_addon_upgrade_policies(ctx):
             indent=1,
         )
         print(
-            section.format(ocm_name, inheritVersionDataText(ocm_name, ocms), json_data)
+            section.format(
+                ocm_name, inherit_version_data_text(ocm_name, ocms), json_data
+            )
         )
 
 
