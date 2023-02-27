@@ -518,7 +518,10 @@ def get_available_upgrades(ocm: OCM, version: str, channel: str) -> list[str]:
 
 
 def inherit_version_data_text(ocm_org: str, ocm_specs: list[dict]) -> str:
-    ocm_spec = [o for o in ocm_specs if o["name"] == ocm_org][0]
+    ocm_specs_for_org = [o for o in ocm_specs if o["name"] == ocm_org]
+    if not ocm_specs_for_org:
+        raise ValueError(f"{ocm_org} not found in list of organizations")
+    ocm_spec = ocm_specs_for_org[0]
     inherit_version_data = ocm_spec["inheritVersionData"]
     if not inherit_version_data:
         return ""
