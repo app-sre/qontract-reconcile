@@ -172,7 +172,9 @@ class OCConnectionParameters:
         """
         cluster = namespace.cluster
         parameter = OCConnectionParameters.from_cluster(
-            cluster=cluster, secret_reader=secret_reader
+            cluster=cluster,
+            secret_reader=secret_reader,
+            use_jump_host=use_jump_host,
         )
         if namespace.cluster_admin is None:
             return parameter

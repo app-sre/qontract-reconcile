@@ -11,10 +11,11 @@ from reconcile.utils.secret_reader import SecretReaderBase
 
 
 @pytest.mark.parametrize(
-    "cluster, expected_parameters",
+    "cluster, use_jump_host, expected_parameters",
     [
         (
             "cluster_no_jumphost",
+            False,
             OCConnectionParameters(
                 cluster_name="test-cluster",
                 server_url="server-url",
@@ -36,6 +37,7 @@ from reconcile.utils.secret_reader import SecretReaderBase
         ),
         (
             "cluster_with_jumphost",
+            True,
             OCConnectionParameters(
                 cluster_name="test-cluster",
                 server_url="server-url",
@@ -57,22 +59,27 @@ from reconcile.utils.secret_reader import SecretReaderBase
         ),
     ],
 )
-def test_from_cluster(cluster: str, expected_parameters: OCConnectionParameters):
+def test_from_cluster(
+    cluster: str, expected_parameters: OCConnectionParameters, use_jump_host: bool
+):
     test_cluster = load_cluster_for_connection_parameters(f"{cluster}.yml")
     secret_reader = create_autospec(SecretReaderBase)
     secret_reader.read_secret.side_effect = ["secret1", "secret2"]
     parameters = OCConnectionParameters.from_cluster(
-        secret_reader=secret_reader, cluster=test_cluster
+        secret_reader=secret_reader,
+        cluster=test_cluster,
+        use_jump_host=use_jump_host,
     )
 
     assert parameters == expected_parameters
 
 
 @pytest.mark.parametrize(
-    "namespace, expected_parameters",
+    "namespace, use_jump_host, expected_parameters",
     [
         (
             "namespace_no_admin",
+            False,
             OCConnectionParameters(
                 cluster_name="test-cluster",
                 server_url="server-url",
@@ -94,6 +101,7 @@ def test_from_cluster(cluster: str, expected_parameters: OCConnectionParameters)
         ),
         (
             "namespace_with_admin",
+            True,
             OCConnectionParameters(
                 cluster_name="test-cluster",
                 server_url="server-url",
@@ -115,12 +123,46 @@ def test_from_cluster(cluster: str, expected_parameters: OCConnectionParameters)
         ),
     ],
 )
-def test_from_namespace(namespace: str, expected_parameters: OCConnectionParameters):
+def test_from_namespace(
+    namespace: str, expected_parameters: OCConnectionParameters, use_jump_host: bool
+):
     test_namespace = load_namespace_for_connection_parameters(f"{namespace}.yml")
     secret_reader = create_autospec(SecretReaderBase)
     secret_reader.read_secret.side_effect = ["secret1", "secret2", "secret3"]
     parameters = OCConnectionParameters.from_namespace(
-        secret_reader=secret_reader, namespace=test_namespace
+        secret_reader=secret_reader,
+        namespace=test_namespace,
+        use_jump_host=use_jump_host,
     )
 
     assert parameters == expected_parameters
+
+
+def test_missing_jumphost_settings_cluster():
+    test_cluster = load_cluster_for_connection_parameters("cluster_no_jumphost.yml")
+    secret_reader = create_autospec(SecretReaderBase)
+    with pytest.raises(RuntimeError) as e:
+        OCConnectionParameters.from_cluster(
+            secret_reader=secret_reader,
+            cluster=test_cluster,
+            use_jump_host=True,
+        )
+    assert (
+        str(e.value)
+        == "Cannot use jumphost. Cluster test-cluster does not have any jumphost settings."
+    )
+
+
+def test_missing_jumphost_settings_namespace():
+    test_namespace = load_namespace_for_connection_parameters("namespace_no_admin.yml")
+    secret_reader = create_autospec(SecretReaderBase)
+    with pytest.raises(RuntimeError) as e:
+        OCConnectionParameters.from_namespace(
+            secret_reader=secret_reader,
+            namespace=test_namespace,
+            use_jump_host=True,
+        )
+    assert (
+        str(e.value)
+        == "Cannot use jumphost. Cluster test-cluster does not have any jumphost settings."
+    )
