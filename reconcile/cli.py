@@ -351,6 +351,17 @@ def account_name_multiple(function):
     return function
 
 
+def exclude_aws_accounts(function):
+    function = click.option(
+        "--exclude-accounts",
+        multiple=True,
+        help="aws account name to remove from execution when in dry-run",
+        default=[],
+    )(function)
+
+    return function
+
+
 def workspace_name(function):
     function = click.option(
         "--workspace-name", help="slack workspace name to act on.", default=None
@@ -1601,6 +1612,7 @@ def ldap_users(ctx, gitlab_project_id):
 @use_jump_host()
 @enable_deletion(default=False)
 @account_name_multiple
+@exclude_aws_accounts
 @click.option(
     "--light/--full",
     default=False,
@@ -1617,6 +1629,7 @@ def terraform_resources(
     light,
     vault_output_path,
     account_name,
+    exclude_accounts,
 ):
     import reconcile.terraform_resources
 
@@ -1633,6 +1646,7 @@ def terraform_resources(
         light,
         vault_output_path,
         account_name=account_name,
+        exclude_accounts=exclude_accounts,
     )
 
 
