@@ -224,7 +224,7 @@ Install the package:
 ```sh
 pip install .
 
-# or use this for development mode so rebuild/reinstall isn't necessary after 
+# or use this for development mode so rebuild/reinstall isn't necessary after
 # each change that is made during development
 pip install -e .
 
@@ -258,9 +258,9 @@ must only contain instructions related to the python code build.
 
 ## CI Tooling
 
-This project uses [tox](https://tox.readthedocs.io/en/latest/) for running 
-tests, linting/static analysis, and type checkers. Some of the more common 
-commands have been provided below, but see the tox docs for more complete 
+This project uses [tox](https://tox.readthedocs.io/en/latest/) for running
+tests, linting/static analysis, and type checkers. Some of the more common
+commands have been provided below, but see the tox docs for more complete
 documentation.
 
 Running all checks (tests, linting, and type checkers):
@@ -287,9 +287,9 @@ tox -e lint
 # Only run the type checker
 tox -e type
 
-# Look at tox.ini for usage of posargs, this allows us to override which 
-# options are passed to the CLI where it's being used. This can be helpful 
-# for type checking a specific file, or running a subset of unit tests (this  
+# Look at tox.ini for usage of posargs, this allows us to override which
+# options are passed to the CLI where it's being used. This can be helpful
+# for type checking a specific file, or running a subset of unit tests (this
 # can be even faster).
 tox -e type -- reconcile/utils/slack_api.py
 ```
@@ -355,6 +355,7 @@ Run `make format` before you commit your changes to keep the code compliant.
 ## Release
 
 Release version are calculated from git tags of the form X.Y.Z.
+
 - If the current commit has such a tag, it will be used as is
 - Otherwise the latest tag of that format is used and:
   - the patch label (Z) is incremented
