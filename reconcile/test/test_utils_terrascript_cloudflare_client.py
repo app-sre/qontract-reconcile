@@ -121,7 +121,7 @@ def test_create_cloudflare_resources_terraform_json(account_config, backend_conf
         "cloudflare",
         {"name": "cloudflare-account"},
         {
-            "provider": "cloudflare_account_member",
+            "provider": "account_member",
             "identifier": "user1",
             "email_address": "user1@redhat.com",
             "account_id": "1234567890",

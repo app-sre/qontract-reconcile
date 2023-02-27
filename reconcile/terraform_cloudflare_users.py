@@ -36,7 +36,12 @@ from reconcile.utils.terraform.config_client import (
     ClientAlreadyRegisteredError,
     TerraformConfigClientCollection,
 )
-from reconcile.utils.terraform_client import run_terraform
+from reconcile.utils.terraform_client import (
+    TerraformApplyFailed,
+    TerraformClient,
+    TerraformDeletionDetected,
+    TerraformPlanFailed,
+)
 from reconcile.utils.terrascript.cloudflare_client import (
     AccountShardingStrategy,
     IntegrationUndefined,
@@ -149,7 +154,7 @@ class TerraformCloudflareUsers(
             acct.dict(by_alias=True) for _, acct in account_names_to_account.items()
         ]
 
-        run_terraform(
+        self._run_terraform(
             QONTRACT_INTEGRATION,
             QONTRACT_INTEGRATION_VERSION,
             QONTRACT_TF_PREFIX,
@@ -159,6 +164,48 @@ class TerraformCloudflareUsers(
             working_dirs,
             accounts,
         )
+
+    def _run_terraform(
+        self,
+        QONTRACT_INTEGRATION: str,
+        QONTRACT_INTEGRATION_VERSION: str,
+        QONTRACT_TF_PREFIX: str,
+        dry_run: bool,
+        enable_deletion: bool,
+        thread_pool_size: int,
+        working_dirs: Mapping[str, str],
+        accounts: Iterable[Mapping[str, Any]],
+    ) -> None:
+        tf = TerraformClient(
+            QONTRACT_INTEGRATION,
+            QONTRACT_INTEGRATION_VERSION,
+            QONTRACT_TF_PREFIX,
+            accounts,
+            working_dirs,
+            thread_pool_size,
+        )
+
+        try:
+            disabled_deletions_detected, err = tf.plan(enable_deletion)
+            if err:
+                raise TerraformPlanFailed(
+                    f"Failed to run terraform plan for integration {QONTRACT_INTEGRATION}"
+                )
+            if disabled_deletions_detected:
+                raise TerraformDeletionDetected(
+                    "Deletions detected but they are disabled"
+                )
+
+            if dry_run:
+                return
+
+            err = tf.apply()
+            if err:
+                TerraformApplyFailed(
+                    f"Failed to run terraform apply for integration {QONTRACT_INTEGRATION}"
+                )
+        finally:
+            tf.cleanup()
 
     def _build_cloudflare_terraform_config_client_collection(
         self,
@@ -296,12 +343,17 @@ def build_external_resource_spec_from_cloudflare_users(
             }
 
             cloudflare_account_member = {
-                "provider": "cloudflare_account_member",
+                "provider": "account_member",
                 "identifier": safe_resource_id(cf_user.org_username),
                 "email_address": cf_user.email_address,
                 "account_id": "${var.account_id}",
                 "role_ids": [
                     # I know this is ugly :(
+                    # Terrascript doesn't support local values. Hence, we have to rely on string templating
+                    # (https://developer.hashicorp.com/terraform/language/expressions/strings#string-templates) to get
+                    # cloudflare role ids from role name.
+                    # This string template essentially uses cloudflare_account_roles (https://registry.terraform.io/providers/cloudflare/cloudflare/latest/docs/data-sources/account_roles)
+                    # data source to get role id corresponding to a role name. We populate this string template for every role name listed.
                     f'%{{ for role in data.cloudflare_account_roles.{safe_resource_id(cf_user.account_name)}.roles ~}}  %{{if role.name == "{each}" ~}}${{role.id}}%{{ endif ~}}  %{{ endfor ~}}'
                     for each in cf_user.roles
                 ],

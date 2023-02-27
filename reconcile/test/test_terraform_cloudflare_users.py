@@ -489,10 +489,10 @@ def test_terraform_cloudflare_users(
     )
     settings.query.return_value = app_interface_settings_cloudflare_and_vault
 
-    mocked_run_terraform = mocker.patch(
-        "reconcile.terraform_cloudflare_users.run_terraform", autospec=True
+    mocked_terraform_client = mocker.patch(
+        "reconcile.terraform_cloudflare_users.TerraformClient", autospec=True
     )
-
+    mocked_terraform_client.return_value.plan.return_value = False, None
     params = TerraformCloudflareUsersParams(
         print_to_file=None,
         account_name="cloudflare-account",
@@ -508,10 +508,6 @@ def test_terraform_cloudflare_users(
         QONTRACT_INTEGRATION,
         QONTRACT_INTEGRATION_VERSION,
         QONTRACT_TF_PREFIX,
-        dry_run,
-        params.enable_deletion,
-        params.thread_pool_size,
-        {"cloudflare-account": tf_directory},
         [
             {
                 "name": "cloudflare-account",
@@ -546,9 +542,12 @@ def test_terraform_cloudflare_users(
                 "type": "enterprise",
             }
         ],
+        {"cloudflare-account": tf_directory},
+        params.thread_pool_size,
     )
-    assert mocked_run_terraform.called
-    assert mocked_run_terraform.call_args == expected_call_args
+    assert mocked_terraform_client.called
+    assert mocked_terraform_client.call_args == expected_call_args
+    assert call().apply() not in mocked_terraform_client.method_calls
 
 
 def test_get_cloudflare_users_without_email_domain_allow_list(
@@ -708,7 +707,7 @@ def test_build_external_resource_spec_from_cloudflare_users(
         provision_provider="cloudflare",
         provisioner={"name": "cloudflare-account"},
         resource={
-            "provider": "cloudflare_account_member",
+            "provider": "account_member",
             "identifier": "user1",
             "email_address": "user1@redhat.com",
             "account_id": "${var.account_id}",

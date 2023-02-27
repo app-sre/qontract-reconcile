@@ -84,7 +84,7 @@ def create_cloudflare_terrascript_resource(
         return CloudflareWorkerScriptTerrascriptResource(spec).populate()
     elif resource_type == "zone":
         return CloudflareZoneTerrascriptResource(spec).populate()
-    elif resource_type == "cloudflare_account_member":
+    elif resource_type == "account_member":
         return CloudflareAccountMemberTerrascriptResource(spec).populate()
     else:
         raise UnsupportedCloudflareResourceError(
@@ -228,17 +228,6 @@ class CloudflareZoneTerrascriptResource(TerrascriptResource):
         resources.extend(self._create_cloudflare_certificate_pack(zone, zone_certs))
 
         return resources
-
-
-class CloudflareAccountRolesTerrascriptData:
-    def __init__(self, spec: ExternalResourceSpec):
-        self._spec = spec
-
-    def populate(self) -> list[Data]:
-        values = ResourceValueResolver(self._spec).resolve()
-
-        cf_accounts = cloudflare_account_roles(self._spec.identifier, **values)
-        return [cf_accounts]
 
 
 class CloudflareAccountMemberTerrascriptResource(TerrascriptResource):
