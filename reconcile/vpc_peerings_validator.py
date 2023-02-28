@@ -12,8 +12,6 @@ from reconcile.gql_definitions.vpc_peerings_validator.vpc_peerings_validator imp
     ClusterPeeringConnectionClusterRequesterV1,
     ClusterV1,
     VpcPeeringsValidatorQueryData,
-    # ClusterPeeringConnectionAccountV1,
-    ClusterPeeringV1,
 )
 from reconcile.status import ExitCodes
 from reconcile.utils import gql
