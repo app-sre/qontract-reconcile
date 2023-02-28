@@ -19,7 +19,6 @@ from typing import (
     Tuple,
 )
 
-import os
 import anymarkup
 import jinja2
 import jinja2.meta
@@ -887,7 +886,7 @@ JSON_PATH_ROOT = "$"
 
 
 def change_path_covered_by_allowed_path(changed_path: str, allowed_path: str) -> bool:
-    return (allowed_path == JSON_ROOT) or (os.path.commonpath([changed_path, allowed_path]) == allowed_path)
+    return changed_path.startswith(allowed_path) or allowed_path == JSON_PATH_ROOT
 
 
 def get_priority_for_changes(
