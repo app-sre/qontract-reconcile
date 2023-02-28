@@ -21,6 +21,7 @@ from reconcile.vpc_peerings_validator import (
     validate_no_cidr_overlap,
 )
 
+
 @pytest.fixture
 def query_data_i2p() -> VpcPeeringsValidatorQueryData:
     return VpcPeeringsValidatorQueryData(
