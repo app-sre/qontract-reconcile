@@ -92,7 +92,9 @@ class TerraformCloudflareUsers(
             raise RuntimeError("App interface setting not defined")
 
         early_exit_desired_state = cloudflare_roles.dict()
-        early_exit_desired_state.update({CLOUDFLARE_EMAIL_DOMAIN_ALLOW_LIST_KEY: settings.settings})
+        early_exit_desired_state.update(
+            {CLOUDFLARE_EMAIL_DOMAIN_ALLOW_LIST_KEY: settings.settings}
+        )
         return early_exit_desired_state
 
     def _get_desired_state(
