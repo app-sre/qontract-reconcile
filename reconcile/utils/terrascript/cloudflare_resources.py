@@ -124,8 +124,17 @@ class CloudflareZoneTerrascriptResource(TerrascriptResource):
                 "depends_on": self._get_dependencies([zone]),
                 **cert_values,
             }
+
+            cert_pack = cloudflare_certificate_pack(identifier, **zone_cert_values)
+
+            resources.append(cert_pack)
+
+            output_name = f"{self._spec.output_prefix}__validation_records"
             resources.append(
-                cloudflare_certificate_pack(identifier, **zone_cert_values)
+                Output(
+                    output_name,
+                    value=f"${{{{ for value in {cert_pack.validation_records}: value.txt_name => value.txt_value }}}}",
+                )
             )
 
         return resources
