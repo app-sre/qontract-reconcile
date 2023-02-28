@@ -67,24 +67,22 @@ class OCMap:
         # happy with regular dedicated-admin and will request a cluster
         # with oc_map.get(cluster) without specifying privileged access
         # specifically
-        privileged_clusters: list[OCConnectionParameters] = [
-            c for c in connection_parameters if (c.is_cluster_admin or cluster_admin)
-        ]
-        unprivileged_clusters: list[OCConnectionParameters] = [
-            c
+        all_clusters = {c.cluster_name: c for c in connection_parameters}
+        privileged_clusters = {
+            c.cluster_name: c
             for c in connection_parameters
-            if not (c.is_cluster_admin or cluster_admin)
-        ]
+            if (c.is_cluster_admin or cluster_admin)
+        }
 
         threaded.run(
             self._init_oc_client,
-            unprivileged_clusters,
+            list(all_clusters.values()),
             self._thread_pool_size,
             privileged=False,
         )
         threaded.run(
             self._init_oc_client,
-            privileged_clusters,
+            list(privileged_clusters.values()),
             self._thread_pool_size,
             privileged=True,
         )
