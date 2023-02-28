@@ -30,7 +30,7 @@ def validate_no_cidr_overlap(query_data: VpcPeeringsValidatorQueryData,) -> bool
             cluster.peering.connections
             for peering in cluster.peering.connections:
                 if peering.provider == "account-vpc":
-                    cidr_block = str(peering.vpc.cidr_block) # type: ignore[union-attr]
+                    cidr_block = str(peering.vpc.cidr_block)  # type: ignore[union-attr]
                     # some IPs are for VPCs like ci.int so we'll need to block it from the logic
                     if (
                         (cidr_block != "10.29.88.0/22")
