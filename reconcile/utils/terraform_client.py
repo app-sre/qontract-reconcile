@@ -683,3 +683,15 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
             return not set(changed_resource_arguments) - set(changed_values)
         else:
             return False
+
+
+class TerraformPlanFailed(Exception):
+    pass
+
+
+class TerraformApplyFailed(Exception):
+    pass
+
+
+class TerraformDeletionDetected(Exception):
+    pass
