@@ -147,5 +147,5 @@ def query_data_vpc_cidr() -> VpcPeeringsValidatorQueryData:
 
 
 def test_query_cidr_validator(query_data_vpc_cidr: VpcPeeringsValidatorQueryData,):
-    if query_data_vpc_cidr.clusters[0].peering.connections[0].vpc.cidr_block == query_data_vpc_cidr.clusters[1].peering.connections[0].vpc.cidr_block:
+    if query_data_vpc_cidr.clusters[0].peering.connections[0].vpc.cidr_block == query_data_vpc_cidr.clusters[1].peering.connections[0].vpc.cidr_block: # type: ignore[union-attr]
         assert validate_no_cidr_overlap(query_data_vpc_cidr) is False
