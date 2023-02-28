@@ -140,7 +140,9 @@ def setup(
     jenkins_map = jenkins_base.get_jenkins_map()
     pipelines_providers = queries.get_pipelines_providers()
     tkn_provider_namespaces = [
-        pp["namespace"] for pp in pipelines_providers if pp["provider"] == "tekton"
+        pp["namespace"]
+        for pp in pipelines_providers
+        if pp["provider"] == Providers.TEKTON
     ]
 
     oc_map = OC_Map(

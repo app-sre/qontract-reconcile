@@ -1,7 +1,6 @@
 from unittest import TestCase
 
 from reconcile.utils.mr.auto_promoter import (
-    TARGET_CONFIG_HASH,
     AutoPromoter,
     ParentSaasConfigPromotion,
 )
