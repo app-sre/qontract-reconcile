@@ -1,4 +1,3 @@
-import json
 from dataclasses import dataclass
 from typing import Optional
 from unittest import TestCase
@@ -49,7 +48,7 @@ class NS:
         namespace.name = self.name
         namespace.cluster.name = self.cluster
         if self.desired is not None:
-            namespace.labels = json.dumps(self.desired)
+            namespace.labels = self.desired
         return namespace
 
     def oc_get_all(self):

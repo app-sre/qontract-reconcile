@@ -1,4 +1,3 @@
-import json
 import logging
 import sys
 from collections.abc import (
@@ -241,9 +240,8 @@ def get_desired(
         # eg: internal settings may not match --internal / --external param
         if cluster not in oc_map.clusters():
             continue
-        labels = json.loads(ns.labels)
 
-        validation_errors = validate_labels(labels)
+        validation_errors = validate_labels(ns.labels)
         for err in validation_errors:
             inventory.add_error(cluster=cluster, namespace=ns_name, err=err)
         if inventory.errors(cluster=cluster, namespace=ns_name):
@@ -255,7 +253,9 @@ def get_desired(
             to_be_ignored.append((cluster, ns_name))
             continue
 
-        inventory.set(cluster=cluster, namespace=ns_name, type=DESIRED, labels=labels)
+        inventory.set(
+            cluster=cluster, namespace=ns_name, type=DESIRED, labels=ns.labels
+        )
 
     for cluster, ns_name in to_be_ignored:
         # Log only a warning here and do not report errors nor fail the
