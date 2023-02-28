@@ -6,7 +6,10 @@ from reconcile.test.oc.fixtures import (
     load_cluster_for_connection_parameters,
     load_namespace_for_connection_parameters,
 )
-from reconcile.utils.oc_connection_parameters import OCConnectionParameters
+from reconcile.utils.oc_connection_parameters import (
+    OCConnectionParameters,
+    get_oc_connection_parameters_from_namespaces,
+)
 from reconcile.utils.secret_reader import SecretReaderBase
 
 
@@ -232,3 +235,51 @@ def test_from_namespace(
     )
 
     assert parameters == expected_parameters
+
+
+def test_multiple_namespaces_with_same_cluster():
+    test_namespaces = [
+        load_namespace_for_connection_parameters(
+            "namespace_with_admin.yml"
+        ),  # test-cluster
+        load_namespace_for_connection_parameters(
+            "namespace_with_admin.yml"
+        ),  # test-cluster
+        load_namespace_for_connection_parameters(
+            "namespace_no_admin.yml"
+        ),  # test-cluster
+        load_namespace_for_connection_parameters(
+            "namespace_no_admin_2.yml"
+        ),  # test-cluster-2
+    ]
+    secret_reader = create_autospec(SecretReaderBase)
+    secret_reader.read_secret.side_effect = ["secret"] * 10
+    parameters = sorted(
+        get_oc_connection_parameters_from_namespaces(
+            secret_reader=secret_reader,
+            namespaces=test_namespaces,
+            use_jump_host=True,
+        ),
+        key=lambda x: x.cluster_name,
+    )
+
+    assert len(parameters) == 3
+
+    privileged_cluster = parameters[0]
+    unprivileged_cluster_1 = parameters[1]
+    unprivileged_cluster_2 = parameters[2]
+
+    assert privileged_cluster.cluster_name == "test-cluster"
+    assert privileged_cluster.automation_token == "secret"
+    assert privileged_cluster.cluster_admin_automation_token == "secret"
+    assert privileged_cluster.is_cluster_admin
+
+    assert unprivileged_cluster_1.cluster_name == "test-cluster"
+    assert not unprivileged_cluster_1.is_cluster_admin
+    assert unprivileged_cluster_1.automation_token == "secret"
+    assert not unprivileged_cluster_1.cluster_admin_automation_token
+
+    assert unprivileged_cluster_2.cluster_name == "test-cluster-2"
+    assert not unprivileged_cluster_2.is_cluster_admin
+    assert unprivileged_cluster_2.automation_token == "secret"
+    assert not unprivileged_cluster_2.cluster_admin_automation_token

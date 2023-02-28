@@ -183,7 +183,7 @@ class OCConnectionParameters:
                 )
             except SecretNotFound as e:
                 logging.error(
-                    f"[{cluster.name}] secret {cluster.automation_token} not found"
+                    f"[{cluster.name}] secret {cluster.cluster_admin_automation_token} not found"
                 )
                 raise e
 
@@ -239,9 +239,23 @@ def get_oc_connection_parameters_from_namespaces(
     Also fetch required ClusterParameter secrets from vault with multiple threads.
     ClusterParameter objects are used to initialize an OCMap.
     """
+    # Namespace and Cluster have a n to 1 relationship, i.e., a cluster has multiple namespaces.
+    # In a first step we must make sure to have a unique set of clusters for privileged and non-priveleged access.
+    clusters: dict[str, Namespace] = {ns.cluster.name: ns for ns in namespaces}
+    privileged_clusters: dict[str, Namespace] = {}
+
+    for ns in namespaces:
+        if not ns.cluster_admin:
+            continue
+        privileged_clusters[ns.cluster.name] = ns
+        # Note, that every privileged cluster connection also has an unprivileged version
+        clusters[ns.cluster.name].cluster_admin = None
+
+    namespace_set = list(privileged_clusters.values()) + list(clusters.values())
+
     parameters: list[OCConnectionParameters] = threaded.run(
         OCConnectionParameters.from_namespace,
-        namespaces,
+        namespace_set,
         thread_pool_size,
         secret_reader=secret_reader,
         use_jump_host=use_jump_host,
