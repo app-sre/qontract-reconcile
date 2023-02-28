@@ -1,0 +1,60 @@
+app:
+  name: test-app
+  serviceOwners:
+  - email: owner@owner
+    name: owner
+cluster:
+  automationToken:
+    field: token
+    format: null
+    path: path/to/automation_token
+    version: null
+  clusterAdminAutomationToken:
+    field: token
+    format: null
+    path: path/to/admin_token
+    version: null
+  disable: null
+  insecureSkipTLSVerify: null
+  internal: false
+  jumpHost: null
+  name: test-cluster
+  serverUrl: server-url
+clusterAdmin: null
+delete: null
+externalResources: []
+labels: null
+limitRanges:
+  limits:
+  - default:
+      cpu: '1'
+      memory: 512Mi
+    defaultRequest:
+      cpu: 100m
+      memory: 256Mi
+    max:
+      cpu: '3'
+      memory: 8Gi
+    maxLimitRequestRatio:
+      cpu: '20'
+      memory: '4'
+    min:
+      cpu: 10m
+      memory: 20Mi
+    type: Container
+  - default: null
+    defaultRequest: null
+    max:
+      cpu: '3'
+      memory: 8Gi
+    maxLimitRequestRatio: null
+    min:
+      cpu: 10m
+      memory: 20Mi
+    type: Pod
+  name: resource-limits
+managedExternalResources: true
+managedResourceNames: null
+managedRoles: true
+name: name
+quota: null
