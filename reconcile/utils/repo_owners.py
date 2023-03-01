@@ -1,4 +1,5 @@
 import logging
+import os
 import pathlib
 
 from ruamel import yaml
@@ -72,7 +73,7 @@ class RepoOwners:
             path_owners["reviewers"].update(self.owners_map["."]["reviewers"])
 
         for owned_path, owners in self.owners_map.items():
-            if path.startswith(owned_path):
+            if os.path.commonpath([path, owned_path]) == owned_path:
                 path_owners["approvers"].update(owners["approvers"])
                 path_owners["reviewers"].update(owners["reviewers"])
 
@@ -96,7 +97,7 @@ class RepoOwners:
             candidates.append(".")
 
         for owned_path in self.owners_map:
-            if path.startswith(owned_path):
+            if os.path.commonpath([path, owned_path]) == owned_path:
                 candidates.append(owned_path)
 
         if candidates:
