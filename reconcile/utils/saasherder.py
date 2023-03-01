@@ -249,7 +249,11 @@ class SaasHerder:
             return
         for sp in secret_parameters:
             path = sp["secret"]["path"]
-            match = [a for a in allowed_secret_parameter_paths if (os.path.commonpath([path, a]) == a)]
+            match = [
+                a
+                for a in allowed_secret_parameter_paths
+                if (os.path.commonpath([path, a]) == a)
+            ]
             if not match:
                 self.valid = False
                 logging.error(
@@ -465,7 +469,7 @@ class SaasHerder:
             else:
                 (pub_saas, pub_rt_name, pub_rt_url) = pub_channel_ref
 
-            for (sub_saas, sub_rt_name, sub_rt_url) in sub_targets:
+            for sub_saas, sub_rt_name, sub_rt_url in sub_targets:
                 if not pub_channel_ref:
                     logging.error(
                         "Channel is not published by any target\n"
