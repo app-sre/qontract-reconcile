@@ -67,7 +67,9 @@ class OCMap:
         # happy with regular dedicated-admin and will request a cluster
         # with oc_map.get(cluster) without specifying privileged access
         # specifically
-        def filter_unique_connection_parameters(connection_parameters: Iterable[OCConnectionParameters]) -> list[OCConnectionParameters]:
+        def filter_unique_connection_parameters(
+            connection_parameters: Iterable[OCConnectionParameters],
+        ) -> list[OCConnectionParameters]:
             unique_by_cluster_name = {c.cluster_name: c for c in connection_parameters}
             return list(unique_by_cluster_name.values())
 
