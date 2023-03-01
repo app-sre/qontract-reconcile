@@ -2,7 +2,6 @@ import logging
 import sys
 
 from gitlab import MAINTAINER_ACCESS
-from gitlab.exceptions import GitlabGetError
 
 from reconcile import queries
 from reconcile.utils.gitlab_api import GitLabApi
