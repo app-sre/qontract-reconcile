@@ -92,7 +92,7 @@ class TestGabiAuthorizedUser(TestCase):
         secret_read,
         get_settings,
     ):
-        expirationDate = date.today()
+        expirationDate = date(2023, 1, 1)
         get_gabi_instances.return_value = mock_get_gabi_instances(expirationDate)
         mock_request.side_effect = apply_request
         gabi_u.run(dry_run=False)
@@ -133,7 +133,7 @@ class TestGabiAuthorizedUser(TestCase):
         secret_read,
         get_settings,
     ):
-        expirationDate = date.today() - timedelta(days=1)
+        expirationDate = date(2023, 1, 1) - timedelta(days=1)
         get_gabi_instances.return_value = mock_get_gabi_instances(expirationDate)
         mock_request.side_effect = delete_request
         gabi_u.run(dry_run=False)
