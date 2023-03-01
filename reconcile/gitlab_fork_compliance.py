@@ -84,20 +84,12 @@ class GitlabForkCompliance:
         return self.OK
 
     def check_bot_access(self):
-        # The bot needs access to the fork project
-        try:
-            self.src = GitLabApi(
-                self.instance,
-                project_id=self.mr.source_project_id,
-                settings=self.settings,
-            )
-            project_bot = self.src.project.members.get(self.gl_cli.user.id)
-        except GitlabGetError:
-            self.handle_error("access denied for user {bot}", MSG_ACCESS)
-            return self.ERR_NOT_A_MEMBER
-
-        # The bot has to be a maintainer of the fork project
-        if not project_bot or project_bot.access_level != MAINTAINER_ACCESS:
+        self.src = GitLabApi(
+            self.instance,
+            project_id=self.mr.source_project_id,
+            settings=self.settings,
+        )
+        if self.gl_cli.user.username not in self.src.get_project_maintainers():
             self.handle_error(
                 "{bot} is not a maintainer in the fork project", MSG_ACCESS
             )
