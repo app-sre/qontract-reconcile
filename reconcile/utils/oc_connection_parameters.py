@@ -6,7 +6,6 @@ from dataclasses import dataclass
 from typing import (
     Optional,
     Protocol,
-    Union,
 )
 
 from sretoolbox.utils import threaded
@@ -236,9 +235,7 @@ def get_oc_connection_parameters_from_namespaces(
         namespaces=(ns for ns in namespaces if (ns.cluster_admin or cluster_admin))
     )
 
-    unprivileged_connections: list[
-        Union[OCConnectionParameters, Exception]
-    ] = threaded.run(
+    unprivileged_connections: list[OCConnectionParameters] = threaded.run(
         OCConnectionParameters.from_cluster,
         all_unique_clusters,
         thread_pool_size,
@@ -248,9 +245,7 @@ def get_oc_connection_parameters_from_namespaces(
         return_exceptions=True,
     )
 
-    privileged_connections: list[
-        Union[OCConnectionParameters, Exception]
-    ] = threaded.run(
+    privileged_connections: list[OCConnectionParameters] = threaded.run(
         OCConnectionParameters.from_cluster,
         unique_privileged_clusters,
         thread_pool_size,

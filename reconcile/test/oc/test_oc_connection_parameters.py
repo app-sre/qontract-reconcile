@@ -280,7 +280,7 @@ def test_from_namespaces(
     is_cluster_admin: bool,
     expected_parameters: list[ExpectedConnection],
 ):
-    namespaces = [
+    parsed_namespaces = [
         load_namespace_for_connection_parameters(f"{ns}.yml") for ns in namespaces
     ]
     secret_reader = create_autospec(SecretReaderBase)
@@ -291,7 +291,7 @@ def test_from_namespaces(
 
     parameters = get_oc_connection_parameters_from_namespaces(
         secret_reader=secret_reader,
-        namespaces=namespaces,
+        namespaces=parsed_namespaces,
         cluster_admin=is_cluster_admin,
         use_jump_host=False,
         thread_pool_size=1,
