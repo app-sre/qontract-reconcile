@@ -13,7 +13,10 @@ from reconcile.utils.oc_connection_parameters import (
     OCConnectionParameters,
     get_oc_connection_parameters_from_namespaces,
 )
-from reconcile.utils.secret_reader import SecretReaderBase
+from reconcile.utils.secret_reader import (
+    SecretNotFound,
+    SecretReaderBase,
+)
 
 
 @pytest.mark.parametrize(
@@ -158,12 +161,13 @@ class ExpectedConnection:
 
 
 @pytest.mark.parametrize(
-    "namespaces, is_cluster_admin, expected_parameters",
+    "namespaces, is_cluster_admin, mock_secrets, expected_parameters",
     [
         (
             # No duplicated namespaces
             ["namespace_with_admin", "namespace_no_admin"],
             False,
+            True,
             [
                 ExpectedConnection(
                     cluster_name="cluster-with-admin",
@@ -189,6 +193,7 @@ class ExpectedConnection:
             # Duplicated namespace
             ["namespace_with_admin", "namespace_with_admin", "namespace_no_admin"],
             False,
+            True,
             [
                 ExpectedConnection(
                     cluster_name="cluster-with-admin",
@@ -213,6 +218,7 @@ class ExpectedConnection:
         (
             # Enforce admin
             ["namespace_with_admin", "namespace_no_admin"],
+            True,
             True,
             [
                 ExpectedConnection(
@@ -245,6 +251,7 @@ class ExpectedConnection:
             # Enforce admin on namespace w/o token
             ["namespace_no_admin_token"],
             True,
+            True,
             [
                 ExpectedConnection(
                     cluster_name="cluster-without-admin",
@@ -264,6 +271,7 @@ class ExpectedConnection:
             # Missing automation token
             ["namespace_no_tokens"],
             False,
+            True,
             [
                 ExpectedConnection(
                     cluster_name="cluster-without-admin",
@@ -273,18 +281,41 @@ class ExpectedConnection:
                 ),
             ],
         ),
+        (
+            # SecretNotFound error from vault
+            ["namespace_with_admin"],
+            False,
+            False,
+            [
+                ExpectedConnection(
+                    cluster_name="cluster-with-admin",
+                    automation_token=None,
+                    cluster_admin_automation_token=None,
+                    is_cluster_admin=False,
+                ),
+                ExpectedConnection(
+                    cluster_name="cluster-with-admin",
+                    automation_token=None,
+                    cluster_admin_automation_token=None,
+                    is_cluster_admin=True,
+                ),
+            ],
+        ),
     ],
 )
 def test_from_namespaces(
     namespaces: list[str],
     is_cluster_admin: bool,
+    mock_secrets: bool,
     expected_parameters: list[ExpectedConnection],
 ):
     parsed_namespaces = [
         load_namespace_for_connection_parameters(f"{ns}.yml") for ns in namespaces
     ]
     secret_reader = create_autospec(SecretReaderBase)
-    secret_reader.read_secret.side_effect = ["secret"] * 100
+    secret_reader.read_secret.side_effect = (
+        ["secret"] * 100 if mock_secrets else SecretNotFound("secret")
+    )
 
     def _sort(items: Iterable[OCConnectionParameters]) -> list[OCConnectionParameters]:
         return sorted(items, key=lambda x: (x.cluster_name, str(x.automation_token)))

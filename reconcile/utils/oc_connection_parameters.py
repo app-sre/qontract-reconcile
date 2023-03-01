@@ -108,7 +108,7 @@ class OCConnectionParameters:
                     cluster_admin_automation_token = secret_reader.read_secret(
                         cluster.cluster_admin_automation_token
                     )
-                except SecretNotFound as e:
+                except SecretNotFound:
                     logging.error(
                         f"[{cluster.name}] secret {cluster.automation_token} not found"
                     )
@@ -124,7 +124,7 @@ class OCConnectionParameters:
                     automation_token = secret_reader.read_secret(
                         cluster.automation_token
                     )
-                except SecretNotFound as e:
+                except SecretNotFound:
                     logging.error(
                         f"[{cluster.name}] secret {cluster.automation_token} not found"
                     )
