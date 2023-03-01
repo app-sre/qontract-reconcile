@@ -45,6 +45,7 @@ class GitlabForkCompliance:
             self.instance, project_id=project_id, settings=self.settings
         )
         self.mr = self.gl_cli.get_merge_request(mr_id)
+        self.maintainers_group_id = self.gl_cli.get_group_id(maintainers_group)
 
     def run(self):
         self.exit_code |= self.check_branch()
@@ -91,13 +92,24 @@ class GitlabForkCompliance:
                 project_id=self.mr.source_project_id,
                 settings=self.settings,
             )
+            # default, bot was directly added
             project_bot = self.src.project.members.get(self.gl_cli.user.id)
+
+            # fallback, group was added to repository
+            if not project_bot and self.src.is_group_in_project(
+                self.maintainers_group_id, self.mr.source_project_id
+            ):
+                project_bot = self.src.get_group_member_object(
+                    self.maintainers_group, self.gl_cli.user.id
+                )
         except GitlabGetError:
             self.handle_error("access denied for user {bot}", MSG_ACCESS)
             return self.ERR_NOT_A_MEMBER
 
-        # The bot has to be a maintainer of the fork project
-        if not project_bot or project_bot.access_level != MAINTAINER_ACCESS:
+        if (
+            not project_bot
+            or project_bot.username not in self.src.get_project_maintainers()
+        ):
             self.handle_error(
                 "{bot} is not a maintainer in the fork project", MSG_ACCESS
             )

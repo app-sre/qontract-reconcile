@@ -223,6 +223,15 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
             for m in self.get_items(group.members.list)
         ]
 
+    def get_group_member_object(self, group_name, member_id):
+        if not self.check_group_exists(group_name):
+            logging.error(group_name + " group not found")
+            return []
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
+        group = self.gl.groups.get(group_name)
+        members = [m for m in self.get_items(group.members.list) if m.id == member_id]
+        return members[0] if members else None
+
     def add_project_member(self, repo_url, user, access="maintainer"):
         project = self.get_project(repo_url)
         if project is None:
@@ -301,6 +310,16 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         group = self.gl.groups.get(group_name)
         return group.id, [p.name for p in self.get_items(group.projects.list)]
+
+    def get_group_id(self, group_name):
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
+        group = self.gl.groups.get(group_name)
+        return group.id
+
+    def is_group_in_project(self, group_id, project_id):
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
+        projects = self.gl.groups.get(group_id).projects.list(all=True)
+        return project_id in [p.id for p in projects]
 
     def create_project(self, group_id, project):
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
