@@ -50,7 +50,7 @@ def sortable_jsonpath_string_repr(
 ) -> str:
     """
     Return a string representation of the JSONPath that can be used for sorting.
-    The relevant thing is the reprsentation of an Index, which needs to be left
+    The relevant aspect is the representation of an Index, which needs to be left
     padded with zeros to ensure comparability of the string representation.
 
     Please be aware that the resulting string representation is not necessarily
