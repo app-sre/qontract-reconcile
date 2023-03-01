@@ -19,7 +19,7 @@ def test_repo_owners_subpath() -> None:
         }
 
     owners = repo_owners.RepoOwners(None)
-    owners._get_owners_map = _mock_get_owners_map   # type: ignore
+    owners._get_owners_map = _mock_get_owners_map  # type: ignore
     assert owners.get_path_owners("/foobar/baz") == {
         "approvers": ["foobar_approver"],
         "reviewers": ["foobar_reviewer"],
@@ -40,7 +40,7 @@ def test_repo_owners_subpath_closest() -> None:
         }
 
     owners = repo_owners.RepoOwners(None)
-    owners._get_owners_map = _mock_get_owners_map   # type: ignore
+    owners._get_owners_map = _mock_get_owners_map  # type: ignore
     assert owners.get_path_closest_owners("/foobar/baz") == {
         "approvers": ["root_approver"],
         "reviewers": ["root_reviewer"],
