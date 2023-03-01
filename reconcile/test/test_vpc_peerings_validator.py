@@ -1,13 +1,13 @@
 import pytest
 
 from reconcile.gql_definitions.vpc_peerings_validator.vpc_peerings_validator import (
+    AWSVPCV1,
+    ClusterPeeringConnectionAccountV1,
     ClusterPeeringConnectionClusterAccepterV1,
     ClusterPeeringV1,
     ClusterSpecV1,
     ClusterV1,
-    ClusterPeeringConnectionAccountV1,
     VpcPeeringsValidatorQueryData,
-    AWSVPCV1,
 )
 from reconcile.gql_definitions.vpc_peerings_validator.vpc_peerings_validator_peered_cluster_fragment import (
     ClusterSpecV1 as PeeredClusterSpec,
@@ -16,9 +16,9 @@ from reconcile.gql_definitions.vpc_peerings_validator.vpc_peerings_validator_pee
     VpcPeeringsValidatorPeeredCluster,
 )
 from reconcile.vpc_peerings_validator import (
+    validate_no_cidr_overlap,
     validate_no_internal_to_public_peerings,
     validate_no_public_to_public_peerings,
-    validate_no_cidr_overlap,
 )
 
 
@@ -118,13 +118,10 @@ def query_data_vpc_cidr() -> VpcPeeringsValidatorQueryData:
                     connections=[
                         ClusterPeeringConnectionAccountV1(
                             provider="account-vpc",
-                            vpc=AWSVPCV1(
-                                cidr_block="10.20.0.0/20",
-                                name="vpc1"
-                            )
+                            vpc=AWSVPCV1(cidr_block="10.20.0.0/20", name="vpc1"),
                         )
                     ]
-                )
+                ),
             ),
             ClusterV1(
                 name="clustertest2",
@@ -134,18 +131,15 @@ def query_data_vpc_cidr() -> VpcPeeringsValidatorQueryData:
                     connections=[
                         ClusterPeeringConnectionAccountV1(
                             provider="account-vpc",
-                            vpc=AWSVPCV1(
-                                cidr_block="10.20.0.0/20",
-                                name="vpc2"
-                            )
+                            vpc=AWSVPCV1(cidr_block="10.20.0.0/20", name="vpc2"),
                         )
                     ]
-                )
-            )
+                ),
+            ),
         ]
     )
 
 
-def test_query_cidr_validator(query_data_vpc_cidr: VpcPeeringsValidatorQueryData,):
-    if query_data_vpc_cidr.clusters[0].peering.connections[0].vpc.cidr_block == query_data_vpc_cidr.clusters[1].peering.connections[0].vpc.cidr_block:  # type: ignore[union-attr]
+def test_query_cidr_validator(query_data_vpc_cidr: VpcPeeringsValidatorQueryData):
+    if query_data_vpc_cidr.clusters[0].peering.connections[0].vpc.cidr_block == query_data_vpc_cidr.clusters[1].peering.connections[0].vpc.cidr_block:  # type: ignore[index,union-attr]
         assert validate_no_cidr_overlap(query_data_vpc_cidr) is False

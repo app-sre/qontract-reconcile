@@ -19,7 +19,9 @@ from reconcile.utils import gql
 QONTRACT_INTEGRATION = "vpc-peerings-validator"
 
 
-def validate_no_cidr_overlap(query_data: VpcPeeringsValidatorQueryData,) -> bool:
+def validate_no_cidr_overlap(
+    query_data: VpcPeeringsValidatorQueryData,
+) -> bool:
     valid = True
     clusters: list[ClusterV1] = query_data.clusters or []
 
@@ -61,7 +63,7 @@ def find_cidr_duplicates_and_overlap(input_dict):
     }
 
     network_list = [ipaddress.ip_network(value) for value in values]
-    overlaps = {}
+    overlaps = {}  # type: ignore[var-annotated]
 
     for i in range(len(network_list)):
         for j in range(i + 1, len(network_list)):
