@@ -361,9 +361,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             # the time provider can be removed if all AWS accounts
             # upgrade to a provider version with this bug fix
             # https://github.com/hashicorp/terraform-provider-aws/pull/20926
-            ts += time(version="0.7.2")
+            ts += time(version="0.9.1")
 
-            ts += provider.random(version="3.1.0")
+            ts += provider.random(version="3.4.3")
 
             ts += provider.template(version="2.2.0")
 
