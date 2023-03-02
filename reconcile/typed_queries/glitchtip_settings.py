@@ -1,7 +1,4 @@
-from reconcile.gql_definitions.glitchtip.glitchtip_settings import (
-    GlitchtipSettingsV1,
-    query,
-)
+from reconcile.gql_definitions.glitchtip.glitchtip_settings import query
 from reconcile.utils import gql
 
 
