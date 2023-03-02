@@ -80,10 +80,12 @@ class JiraClient:
         body: str,
         labels: Optional[Iterable[str]] = None,
         links: Iterable[str] = (),
-        issueType: Optional[Mapping[str, str]] = {"name": "Task"},
+        issueType: Optional[Mapping[str, str]] = None,
         assignee: Optional[str] = None,
     ) -> Issue:
         """Create an issue in our project with the given labels."""
+        if not issueType:
+            issueType = {"name": "Task"}
         issue = self.jira.create_issue(
             project=self.project,
             summary=summary,
