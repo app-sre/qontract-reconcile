@@ -16,8 +16,31 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
+from reconcile.gql_definitions.fragments.jumphost_common_fields import (
+    CommonJumphostFields,
+)
+from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
+
 
 DEFINITION = """
+fragment CommonJumphostFields on ClusterJumpHost_v1 {
+  hostname
+  knownHosts
+  user
+  port
+  remotePort
+  identity {
+    ... VaultSecret
+  }
+}
+
+fragment VaultSecret on VaultSecret_v1 {
+    path
+    field
+    version
+    format
+}
+
 query Projects {
   glitchtip_projects: glitchtip_projects_v1 {
     name
@@ -40,6 +63,34 @@ query Projects {
       name
       instance {
         name
+      }
+    }
+    # for glitchtip-project-dsn
+    namespaces {
+      name
+      delete
+      clusterAdmin
+      cluster {
+        name
+        serverUrl
+        insecureSkipTLSVerify
+        jumpHost {
+          ...CommonJumphostFields
+        }
+        spec {
+          private
+        }
+        automationToken {
+          ...VaultSecret
+        }
+        clusterAdminAutomationToken {
+          ...VaultSecret
+        }
+        internal
+        disable {
+          integrations
+          e2eTests
+        }
       }
     }
   }
@@ -109,6 +160,52 @@ class GlitchtipProjectsV1_GlitchtipOrganizationV1(BaseModel):
         extra = Extra.forbid
 
 
+class ClusterSpecV1(BaseModel):
+    private: bool = Field(..., alias="private")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
+class DisableClusterAutomationsV1(BaseModel):
+    integrations: Optional[list[str]] = Field(..., alias="integrations")
+    e2e_tests: Optional[list[str]] = Field(..., alias="e2eTests")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
+class ClusterV1(BaseModel):
+    name: str = Field(..., alias="name")
+    server_url: str = Field(..., alias="serverUrl")
+    insecure_skip_tls_verify: Optional[bool] = Field(..., alias="insecureSkipTLSVerify")
+    jump_host: Optional[CommonJumphostFields] = Field(..., alias="jumpHost")
+    spec: Optional[ClusterSpecV1] = Field(..., alias="spec")
+    automation_token: Optional[VaultSecret] = Field(..., alias="automationToken")
+    cluster_admin_automation_token: Optional[VaultSecret] = Field(
+        ..., alias="clusterAdminAutomationToken"
+    )
+    internal: Optional[bool] = Field(..., alias="internal")
+    disable: Optional[DisableClusterAutomationsV1] = Field(..., alias="disable")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
+class NamespaceV1(BaseModel):
+    name: str = Field(..., alias="name")
+    delete: Optional[bool] = Field(..., alias="delete")
+    cluster_admin: Optional[bool] = Field(..., alias="clusterAdmin")
+    cluster: ClusterV1 = Field(..., alias="cluster")
+
+    class Config:
+        smart_union = True
+        extra = Extra.forbid
+
+
 class GlitchtipProjectsV1(BaseModel):
     name: str = Field(..., alias="name")
     platform: str = Field(..., alias="platform")
@@ -116,6 +213,7 @@ class GlitchtipProjectsV1(BaseModel):
     organization: GlitchtipProjectsV1_GlitchtipOrganizationV1 = Field(
         ..., alias="organization"
     )
+    namespaces: list[NamespaceV1] = Field(..., alias="namespaces")
 
     class Config:
         smart_union = True
