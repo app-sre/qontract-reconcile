@@ -60,24 +60,10 @@ class OCMap:
         self._lock = Lock()
         self._jh_ports: dict[str, int] = {}
 
-        unprivileged_connections = (
-            c for c in connection_parameters if not c.is_cluster_admin
-        )
-        privileged_connections = (
-            c for c in connection_parameters if c.is_cluster_admin
-        )
-
         threaded.run(
             self._init_oc_client,
-            unprivileged_connections,
+            connection_parameters,
             self._thread_pool_size,
-            privileged=False,
-        )
-        threaded.run(
-            self._init_oc_client,
-            privileged_connections,
-            self._thread_pool_size,
-            privileged=True,
         )
 
     def _set_jumphost_tunnel_ports(
@@ -91,9 +77,11 @@ class OCMap:
             connection_parameters.jumphost_local_port = self._jh_ports[key]
 
     def _init_oc_client(
-        self, connection_parameters: OCConnectionParameters, privileged: bool
+        self,
+        connection_parameters: OCConnectionParameters,
     ) -> None:
         cluster = connection_parameters.cluster_name
+        privileged = connection_parameters.is_cluster_admin
         if not privileged and self._oc_map.get(cluster):
             return None
         if privileged and self._privileged_oc_map.get(cluster):
