@@ -39,12 +39,16 @@ class JiraClient:
             self.server, token_auth=token_auth, timeout=(read_timeout, connect_timeout)
         )
 
-    def get_issues(self, fields: Optional[Mapping] = None) -> list[Issue]:
+    def get_issues(self, fields: Optional[Mapping] = None, custom_jql: Optional[str, Any] = None) -> list[Issue]:
         block_size = 100
         block_num = 0
 
         all_issues: list[Issue] = []
-        jql = "project={}".format(self.project)
+
+        jql = f"project={self.project}"
+        if custom_jql:
+            jql = f"{jql} and {custom_jql}"
+        
         kwargs: dict[str, Any] = {}
         if fields:
             kwargs["fields"] = ",".join(fields)
