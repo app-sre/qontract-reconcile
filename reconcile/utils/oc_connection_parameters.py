@@ -110,7 +110,7 @@ class OCConnectionParameters:
                     )
                 except SecretNotFound:
                     logging.error(
-                        f"[{cluster.name}] secret {cluster.automation_token} not found"
+                        f"[{cluster.name}] admin token {cluster.cluster_admin_automation_token} not found"
                     )
             else:
                 # Note, that currently OCMap uses OCLogMsg if a token is missing, i.e.,
@@ -126,7 +126,7 @@ class OCConnectionParameters:
                     )
                 except SecretNotFound:
                     logging.error(
-                        f"[{cluster.name}] secret {cluster.automation_token} not found"
+                        f"[{cluster.name}] automation token {cluster.automation_token} not found"
                     )
             else:
                 # Note, that currently OCMap uses OCLogMsg if a token is missing, i.e.,
