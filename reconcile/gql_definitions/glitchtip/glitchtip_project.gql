@@ -24,5 +24,33 @@ query Projects {
         name
       }
     }
+    # for glitchtip-project-dsn
+    namespaces {
+      name
+      delete
+      clusterAdmin
+      cluster {
+        name
+        serverUrl
+        insecureSkipTLSVerify
+        jumpHost {
+          ...CommonJumphostFields
+        }
+        spec {
+          private
+        }
+        automationToken {
+          ...VaultSecret
+        }
+        clusterAdminAutomationToken {
+          ...VaultSecret
+        }
+        internal
+        disable {
+          integrations
+          e2eTests
+        }
+      }
+    }
   }
 }
