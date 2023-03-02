@@ -333,9 +333,9 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
     def get_merge_request_first_commit_hash(self, mr_id: int) -> str:
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         merge_request = self.project.mergerequests.get(mr_id)
-        commits = mr.commits()
+        commits = merge_request.commits()
         first = commits.next()
-        return first_commit_hash.id
+        return first.id
 
     def get_merge_request_label_events(self, mr: ProjectMergeRequest):
         return self.get_items(mr.resourcelabelevents.list)

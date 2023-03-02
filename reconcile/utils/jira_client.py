@@ -40,7 +40,7 @@ class JiraClient:
         )
 
     def get_issues(
-        self, fields: Optional[Mapping] = None, custom_jql: Optional[str, Any] = None
+        self, fields: Optional[Mapping] = None, custom_jql: Optional[str] = None
     ) -> list[Issue]:
         block_size = 100
         block_num = 0
@@ -81,7 +81,7 @@ class JiraClient:
         labels: Optional[Iterable[str]] = None,
         links: Iterable[str] = (),
         issueType: Optional[Mapping[str, str]] = {"name": "Task"},
-        assignee: Optional[str, Any] = None,
+        assignee: Optional[str] = None,
     ) -> Issue:
         """Create an issue in our project with the given labels."""
         issue = self.jira.create_issue(
