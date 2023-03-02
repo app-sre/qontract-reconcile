@@ -99,3 +99,15 @@ class JiraClient:
                 type="is caused by", inwardIssue=issue.key, outwardIssue=ln
             )
         return issue
+
+    def delete_issue(
+        self,
+        issue: Issue,
+    ) -> bool:
+        """Delete an issue in a project by object reference"""
+        try:
+            issue.delete()
+            return True
+        except Exception as err:
+            logging.exception("Error in deleting issue.")
+            return False
