@@ -78,6 +78,8 @@ class JiraClient:
         body: str,
         labels: Optional[Iterable[str]] = None,
         links: Iterable[str] = (),
+        issueType: Optional[Mapping[str, str]] = {"name": "Task"},
+        assignee: Optional[str, Any] = None
     ) -> Issue:
         """Create an issue in our project with the given labels."""
         issue = self.jira.create_issue(
@@ -85,7 +87,8 @@ class JiraClient:
             summary=summary,
             description=body,
             labels=labels,
-            issuetype={"name": "Task"},
+            issuetype=issueType,
+            assignee=assignee,
         )
         for ln in links:
             self.jira.create_issue_link(
