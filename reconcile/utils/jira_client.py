@@ -81,7 +81,7 @@ class JiraClient:
         labels: Optional[Iterable[str]] = None,
         links: Iterable[str] = (),
         issueType: Optional[Mapping[str, str]] = None,
-        assignee: Optional[str] = None,
+        assignee: Optional[Mapping[str, str]] = None,
     ) -> Issue:
         """Create an issue in our project with the given labels."""
         if not issueType:
