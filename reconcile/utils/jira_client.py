@@ -39,7 +39,9 @@ class JiraClient:
             self.server, token_auth=token_auth, timeout=(read_timeout, connect_timeout)
         )
 
-    def get_issues(self, fields: Optional[Mapping] = None, custom_jql: Optional[str, Any] = None) -> list[Issue]:
+    def get_issues(
+        self, fields: Optional[Mapping] = None, custom_jql: Optional[str, Any] = None
+    ) -> list[Issue]:
         block_size = 100
         block_num = 0
 
@@ -48,7 +50,7 @@ class JiraClient:
         jql = f"project={self.project}"
         if custom_jql:
             jql = f"{jql} and {custom_jql}"
-        
+
         kwargs: dict[str, Any] = {}
         if fields:
             kwargs["fields"] = ",".join(fields)
@@ -79,7 +81,7 @@ class JiraClient:
         labels: Optional[Iterable[str]] = None,
         links: Iterable[str] = (),
         issueType: Optional[Mapping[str, str]] = {"name": "Task"},
-        assignee: Optional[str, Any] = None
+        assignee: Optional[str, Any] = None,
     ) -> Issue:
         """Create an issue in our project with the given labels."""
         issue = self.jira.create_issue(
