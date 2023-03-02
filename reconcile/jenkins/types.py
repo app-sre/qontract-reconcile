@@ -51,7 +51,7 @@ class JenkinsWorkerFleet(BaseModel):
     min_spare_size: int = Field(0, alias="minSpareSize")
     no_delay_provision: bool = Field(False, alias="noDelayProvision")
     add_node_only_if_running: bool = Field(True, alias="addNodeOnlyIfRunning")
-    always_reconnect: bool = Field(False, alias="alwaysReconnect")
+    always_reconnect: bool = Field(True, alias="alwaysReconnect")
     private_ip_used: bool = Field(True, alias="privateIpUsed")
     restrict_usage: bool = Field(True, alias="restrictUsage")
 
