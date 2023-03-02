@@ -1,7 +1,7 @@
 import logging
 import sys
 
-from gitlab import MAINTAINER_ACCESS
+from gitlab import MAINTAINER_ACCESS, GitlabGetError
 
 from reconcile import queries
 from reconcile.utils.gitlab_api import GitLabApi
@@ -83,11 +83,16 @@ class GitlabForkCompliance:
         return self.OK
 
     def check_bot_access(self):
-        self.src = GitLabApi(
-            self.instance,
-            project_id=self.mr.source_project_id,
-            settings=self.settings,
-        )
+        try:
+            self.src = GitLabApi(
+                self.instance,
+                project_id=self.mr.source_project_id,
+                settings=self.settings,
+            )
+        except GitlabGetError:
+            self.handle_error("access denied for user {bot}", MSG_ACCESS)
+            return self.ERR_NOT_A_MEMBER
+
         if self.gl_cli.user.username not in self.src.get_project_maintainers():
             self.handle_error(
                 "{bot} is not a maintainer in the fork project", MSG_ACCESS
