@@ -74,7 +74,7 @@ class CreateDeleteUserInfra(MergeRequestBase):
 
     @property
     def description(self) -> str:
-        return f"delete user(s)"
+        return "delete user(s)"
 
     def process(self, gitlab_cli):
         raw_file = gitlab_cli.project.files.get(
