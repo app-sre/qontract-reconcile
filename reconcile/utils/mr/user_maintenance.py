@@ -61,8 +61,8 @@ class CreateDeleteUserInfra(MergeRequestBase):
 
     name = "create_ssh_key_mr"
 
-    def __init__(self, username):
-        self.username = username
+    def __init__(self, usernames):
+        self.usernames = usernames
 
         super().__init__()
 
@@ -70,11 +70,11 @@ class CreateDeleteUserInfra(MergeRequestBase):
 
     @property
     def title(self) -> str:
-        return f"[{self.name}] delete user {self.username}"
+        return f"[{self.name}] delete user(s)"
 
     @property
     def description(self) -> str:
-        return f"delete user {self.username}"
+        return f"delete user(s)"
 
     def process(self, gitlab_cli):
         raw_file = gitlab_cli.project.files.get(
@@ -84,8 +84,8 @@ class CreateDeleteUserInfra(MergeRequestBase):
 
         new_list = []
         for user in content[0]["vars"]["users"]:
-            if self.username == user["name"]:
-                content[0]["vars"]["deleted_users"].append(self.username)
+            if user["name"] in self.usernames:
+                content[0]["vars"]["deleted_users"].append(user["name"])
                 continue
             new_list.append(user)
 

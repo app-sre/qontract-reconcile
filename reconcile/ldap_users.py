@@ -84,5 +84,7 @@ def run(dry_run, app_interface_project_id, infra_project_id):
             mr = CreateDeleteUserAppInterface(username, paths)
             mr.submit(cli=mr_cli_app_interface)
 
-            mr_infra = CreateDeleteUserInfra(username)
-            mr_infra.submit(cli=mr_cli_infra)
+    if not dry_run:
+        usernames = [u["username"] for u in users_to_delete]
+        mr_infra = CreateDeleteUserInfra(usernames)
+        mr_infra.submit(cli=mr_cli_infra)
