@@ -18,6 +18,9 @@ server:
           qontract.recycle: 'true'
           qontract.sha256sum: abc
       data:
+        authorized-users.yaml: |-
+           user1
+           user2
         config.json: |-
           {"expiration":"2023-01-01","users":["user1","user2"]}
   apis:
@@ -47,5 +50,6 @@ desired:
     annotations:
       qontract.recycle: 'true'
   data:
+    authorized-users.yaml: ''
     config.json: |-
       {"expiration":"2022-12-31","users":["user1","user2"]}

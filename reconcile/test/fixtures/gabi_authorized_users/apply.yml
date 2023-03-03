@@ -64,5 +64,8 @@ desired:
     annotations:
       qontract.recycle: 'true'
   data:
+    authorized-users.yaml: |-
+      user1
+      user2
     config.json: |-
       {"expiration":"2023-01-01","users":["user1","user2"]}

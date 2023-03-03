@@ -35,18 +35,21 @@ EXPIRATION_DAYS_MAX = 90
 def construct_gabi_oc_resource(
     name: str, expiration_date: date, users: Iterable[str]
 ) -> OpenshiftResource:
+    # Support the legacy users file. To be removed in the future.
+    _users = users if expiration_date >= date.today() else []
     body = {
         "apiVersion": "v1",
         "kind": "ConfigMap",
         "metadata": {"name": name, "annotations": {"qontract.recycle": "true"}},
         "data": {
+            "authorized-users.yaml": "\n".join(_users),
             "config.json": json.dumps(
                 {
                     "expiration": str(expiration_date),
                     "users": users,
                 },
                 separators=(",", ":"),
-            )
+            ),
         },
     }
     return OpenshiftResource(
