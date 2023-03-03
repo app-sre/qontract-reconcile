@@ -129,12 +129,14 @@ class _VaultClient:
         if self.kube_auth_role:
             # must read each time to account for sa token refresh
             with open(self.kube_sa_token_path) as f:
-                self._client.auth_kubernetes(
-                    role=self.kube_auth_role,
-                    jwt=f.read(),
-                    mount_point=self.kube_auth_mount,
-                )
-                print("WE MADE IT")
+                try:
+                    self._client.auth_kubernetes(
+                        role=self.kube_auth_role,
+                        jwt=f.read(),
+                        mount_point=self.kube_auth_mount,
+                    )
+                except Exception as e:
+                    LOG.error(e)
         else:
             self._client.auth_approle(self.role_id, self.secret_id)
 
