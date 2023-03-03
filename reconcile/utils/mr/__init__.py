@@ -13,7 +13,7 @@ from reconcile.utils.mr.ocm_update_recommended_version import (
 from reconcile.utils.mr.ocm_upgrade_scheduler_org_updates import (
     CreateOCMUpgradeSchedulerOrgUpdates,
 )
-from reconcile.utils.mr.user_maintenance import CreateDeleteUser
+from reconcile.utils.mr.user_maintenance import CreateDeleteUserAppInterface, CreateDeleteUserInfra
 
 __all__ = [
     "init_from_sqs_message",
@@ -25,7 +25,8 @@ __all__ = [
     "CreateOCMUpgradeSchedulerOrgUpdates",
     "CreateOCMUpdateRecommendedVersion",
     "CreateAppInterfaceNotificator",
-    "CreateDeleteUser",
+    "CreateDeleteUserAppInterface",
+    "CreateDeleteUserInfra",
     "AutoPromoter",
 ]
 
