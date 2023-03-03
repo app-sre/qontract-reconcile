@@ -63,15 +63,33 @@ class _VaultClient:
         server: Optional[str] = None,
         role_id: Optional[str] = None,
         secret_id: Optional[str] = None,
+        kube_auth_role: Optional[str] = None,
+        kube_auth_mount: Optional[str] = None,
         auto_refresh: bool = True,
     ):
         config = get_config()
 
         server = config["vault"]["server"] if server is None else server
-        self.role_id = config["vault"]["role_id"] if role_id is None else role_id
-        self.secret_id = (
-            config["vault"]["secret_id"] if secret_id is None else secret_id
-        )
+        if "kube_auth_role" in config["vault"] or kube_auth_role is not None:
+            self.kube_auth_role = (
+                config["vault"]["kube_auth_role"]
+                if kube_auth_role is None
+                else kube_auth_role
+            )
+            self.kube_auth_mount = (
+                config["vault"]["kube_auth_mount"]
+                if kube_auth_mount is None
+                else kube_auth_mount
+            )
+            self.kube_sa_token_path = os.environ.get(
+                "KUBE_SA_TOKEN_PATH",
+                "/var/run/secrets/kubernetes.io/serviceaccount/token",
+            )
+        else:
+            self.role_id = config["vault"]["role_id"] if role_id is None else role_id
+            self.secret_id = (
+                config["vault"]["secret_id"] if secret_id is None else secret_id
+            )
 
         # This is a threaded world. Let's define a big
         # connections pool to live in that world
@@ -108,7 +126,17 @@ class _VaultClient:
             self._refresh_client_auth()
 
     def _refresh_client_auth(self):
-        self._client.auth_approle(self.role_id, self.secret_id)
+        if self.kube_auth_role:
+            # must read each time to account for sa token refresh
+            with open(self.kube_sa_token_path) as f:
+                self._client.auth_kubernetes(
+                    role=self.kube_auth_role,
+                    jwt=f.read(),
+                    mount_point=self.kube_auth_mount,
+                )
+                print("WE MADE IT")
+        else:
+            self._client.auth_approle(self.role_id, self.secret_id)
 
     @retry()
     def read_all_with_version(self, secret: Mapping) -> tuple[Mapping, Optional[str]]:
