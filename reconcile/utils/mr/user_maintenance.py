@@ -1,7 +1,7 @@
 from ruamel import yaml
 
 from reconcile.utils.mr.base import MergeRequestBase
-from reconcile.utils.mr.labels import AUTO_MERGE, DO_NOT_MERGE_HOLD
+from reconcile.utils.mr.labels import AUTO_MERGE
 
 
 class PathTypes:
@@ -77,7 +77,9 @@ class CreateDeleteUserInfra(MergeRequestBase):
         return f"delete user {self.username}"
 
     def process(self, gitlab_cli):
-        raw_file = gitlab_cli.project.files.get(file_path=self.PLAYBOOK, ref=self.branch)
+        raw_file = gitlab_cli.project.files.get(
+            file_path=self.PLAYBOOK, ref=self.branch
+        )
         content = yaml.load(raw_file.decode(), Loader=yaml.RoundTripLoader)
 
         new_list = []

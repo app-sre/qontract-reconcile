@@ -1598,7 +1598,9 @@ def quay_permissions(ctx):
 def ldap_users(ctx, infra_project_id, app_interface_project_id):
     import reconcile.ldap_users
 
-    run_integration(reconcile.ldap_users, ctx.obj, app_interface_project_id, infra_project_id)
+    run_integration(
+        reconcile.ldap_users, ctx.obj, app_interface_project_id, infra_project_id
+    )
 
 
 @integration.command(short_help="Manage AWS Resources using Terraform.")

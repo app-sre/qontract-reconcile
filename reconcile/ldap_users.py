@@ -7,7 +7,10 @@ from reconcile import (
 )
 from reconcile.utils import gql
 from reconcile.utils.ldap_client import LdapClient
-from reconcile.utils.mr import CreateDeleteUserAppInterface, CreateDeleteUserInfra
+from reconcile.utils.mr import (
+    CreateDeleteUserAppInterface,
+    CreateDeleteUserInfra,
+)
 from reconcile.utils.mr.user_maintenance import PathTypes
 
 QONTRACT_INTEGRATION = "ldap-users"
