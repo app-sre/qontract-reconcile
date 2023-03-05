@@ -33,7 +33,10 @@ from reconcile.utils.oc_map import (
 )
 from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.sharding import is_in_shard
-from reconcile.utils.state import State
+from reconcile.utils.state import (
+    State,
+    init_state,
+)
 
 _LOG = logging.getLogger(__name__)
 
@@ -437,10 +440,7 @@ def run(
     _LOG.debug("Collecting desired state ...")
     get_desired(inventory, oc_map, namespaces)
 
-    accounts = queries.get_state_aws_accounts()
-    state = State(
-        integration=QONTRACT_INTEGRATION, accounts=accounts, secret_reader=secret_reader
-    )
+    state = init_state(integration=QONTRACT_INTEGRATION)
     _LOG.debug("Collecting managed state ...")
     get_managed(inventory, state)
 

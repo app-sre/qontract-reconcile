@@ -6,14 +6,17 @@ from reconcile import (
     queries,
     typed_queries,
 )
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
 from reconcile.utils.gpg import gpg_encrypt
-from reconcile.utils.secret_reader import SecretReader
+from reconcile.utils.secret_reader import SecretReader, create_secret_reader
 from reconcile.utils.smtp_client import (
     DEFAULT_SMTP_TIMEOUT,
     SmtpClient,
     get_smtp_server_connection,
 )
-from reconcile.utils.state import State
+from reconcile.utils.state import init_state
 
 QONTRACT_INTEGRATION = "requests-sender"
 
@@ -53,18 +56,20 @@ def get_encrypted_credentials(credentials_name, user, settings):
 
 def run(dry_run):
     settings = queries.get_app_interface_settings()
-    accounts = queries.get_state_aws_accounts()
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     smtp_settings = typed_queries.smtp.settings()
     smtp_client = SmtpClient(
         server=get_smtp_server_connection(
-            secret_reader=SecretReader(settings=settings),
+            secret_reader=secret_reader,
             secret=smtp_settings.credentials,
         ),
         mail_address=smtp_settings.mail_address,
         timeout=smtp_settings.timeout or DEFAULT_SMTP_TIMEOUT,
     )
-    state = State(
-        integration=QONTRACT_INTEGRATION, accounts=accounts, settings=settings
+    state = init_state(
+        integration=QONTRACT_INTEGRATION,
+        secret_reader=secret_reader,
     )
     credentials_requests = queries.get_credentials_requests()
 

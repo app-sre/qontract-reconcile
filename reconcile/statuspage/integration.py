@@ -2,7 +2,6 @@ import logging
 import sys
 from collections.abc import Callable
 
-from reconcile import queries
 from reconcile.gql_definitions.statuspage import statuspages
 from reconcile.gql_definitions.statuspage.statuspages import StatusPageV1
 from reconcile.statuspage.page import (
@@ -25,7 +24,10 @@ from reconcile.utils.secret_reader import (
     create_secret_reader,
 )
 from reconcile.utils.semver_helper import make_semver
-from reconcile.utils.state import State
+from reconcile.utils.state import (
+    State,
+    init_state,
+)
 
 QONTRACT_INTEGRATION = "status-page-components"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
@@ -36,9 +38,9 @@ def get_status_pages(query_func: Callable) -> list[StatusPageV1]:
 
 
 def get_state(secret_reader: SecretReaderBase) -> State:
-    accounts = queries.get_state_aws_accounts()
-    return State(
-        integration=QONTRACT_INTEGRATION, accounts=accounts, secret_reader=secret_reader
+    return init_state(
+        integration=QONTRACT_INTEGRATION,
+        secret_reader=secret_reader,
     )
 
 

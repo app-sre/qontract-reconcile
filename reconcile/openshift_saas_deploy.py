@@ -132,7 +132,6 @@ def run(
         desired_instances=desired_jenkins_instances
     )
     settings = queries.get_app_interface_settings()
-    accounts = queries.get_aws_accounts()
     try:
         instance = queries.get_gitlab_instance()
         gl = GitLabApi(instance, settings=settings)
@@ -149,7 +148,7 @@ def run(
         integration_version=QONTRACT_INTEGRATION_VERSION,
         settings=settings,
         jenkins_map=jenkins_map,
-        accounts=accounts,
+        initialise_state=True,
     )
     if len(saasherder.namespaces) == 0:
         logging.warning("no targets found")

@@ -797,7 +797,9 @@ class TestConfigHashPromotionsValidation(TestCase):
     def setUp(self) -> None:
         self.all_saas_files = [self.fxt.get_anymarkup("saas.gql.yml")]
 
-        self.state_patcher = patch("reconcile.utils.saasherder.State", autospec=True)
+        self.state_patcher = patch(
+            "reconcile.utils.saasherder.init_state", autospec=True
+        )
         self.state_mock = self.state_patcher.start().return_value
 
         self.ig_patcher = patch.object(SaasHerder, "_initiate_github", autospec=True)
@@ -827,7 +829,7 @@ class TestConfigHashPromotionsValidation(TestCase):
             gitlab=None,
             integration="",
             integration_version="",
-            accounts={"name": "test-account"},  # Initiates State in SaasHerder
+            initialise_state=True,
             settings={"hashLength": 24},
         )
 
@@ -938,7 +940,9 @@ class TestConfigHashTrigger(TestCase):
     def setUp(self) -> None:
         self.all_saas_files = [self.fxt.get_anymarkup("saas.gql.yml")]
 
-        self.state_patcher = patch("reconcile.utils.saasherder.State", autospec=True)
+        self.state_patcher = patch(
+            "reconcile.utils.saasherder.init_state", autospec=True
+        )
         self.state_mock = self.state_patcher.start().return_value
 
         self.saas_file = self.fxt.get_anymarkup("saas.gql.yml")
@@ -962,7 +966,7 @@ class TestConfigHashTrigger(TestCase):
             gitlab=None,
             integration="",
             integration_version="",
-            accounts={"name": "test-account"},  # Initiates State in SaasHerder
+            initialise_state=True,
             settings={"hashLength": 24},
         )
 

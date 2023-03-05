@@ -47,7 +47,7 @@ class TestRunInteg(TestCase):
         self.get_credentials_requests_patcher = patch.object(
             queries, "get_credentials_requests", autospec=True
         )
-        self.state_patcher = patch.object(integ, "State", autospec=True)
+        self.state_patcher = patch.object(integ, "init_state", autospec=True)
 
         self.do_exit = self.exit_patcher.start()
         self.get_encrypted_credentials = self.get_encrypted_creds_patcher.start()

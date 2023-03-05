@@ -49,7 +49,7 @@ from reconcile.utils.openshift_resource import (
     fully_qualified_kind,
 )
 from reconcile.utils.secret_reader import SecretReader
-from reconcile.utils.state import State
+from reconcile.utils.state import init_state
 
 TARGET_CONFIG_HASH = "target_config_hash"
 
@@ -174,7 +174,7 @@ class SaasHerder:
         integration_version,
         settings,
         jenkins_map=None,
-        accounts=None,
+        initialise_state=False,
         validate=False,
         include_trigger_trace=False,
     ):
@@ -206,8 +206,8 @@ class SaasHerder:
         self.compare = self._get_saas_file_feature_enabled("compare", default=True)
         self.publish_job_logs = self._get_saas_file_feature_enabled("publishJobLogs")
         self.cluster_admin = self._get_saas_file_feature_enabled("clusterAdmin")
-        if accounts:
-            self._initiate_state(accounts)
+        if initialise_state:
+            self.state = init_state(integration=self.integration)
 
     def _register_error(self):
         self.error_registered = True
@@ -703,11 +703,6 @@ class SaasHerder:
             for rt in resource_templates:
                 repo_urls.add(rt["url"])
         return repo_urls
-
-    def _initiate_state(self, accounts):
-        self.state = State(
-            integration=self.integration, accounts=accounts, settings=self.settings
-        )
 
     @staticmethod
     def _collect_parameters(container):

@@ -5,7 +5,10 @@ from reconcile.slack_base import slackapi_from_slack_workspace
 from reconcile.utils.jira_client import JiraClient
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.sharding import is_in_shard_round_robin
-from reconcile.utils.state import State
+from reconcile.utils.state import (
+    State,
+    init_state,
+)
 
 QONTRACT_INTEGRATION = "jira-watcher"
 
@@ -85,17 +88,14 @@ def act(dry_run, jira_board, diffs):
             slack.chat_post_message(diff)
 
 
-def write_state(state, project, state_to_write):
+def write_state(state: State, project, state_to_write):
     state.add(project, value=state_to_write, force=True)
 
 
 def run(dry_run):
     jira_boards = [j for j in queries.get_jira_boards() if j.get("slack")]
-    accounts = queries.get_state_aws_accounts()
     settings = queries.get_app_interface_settings()
-    state = State(
-        integration=QONTRACT_INTEGRATION, accounts=accounts, settings=settings
-    )
+    state = init_state(integration=QONTRACT_INTEGRATION)
     for index, jira_board in enumerate(jira_boards):
         if not is_in_shard_round_robin(jira_board["name"], index):
             continue
