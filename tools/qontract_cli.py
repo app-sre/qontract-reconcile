@@ -33,9 +33,6 @@ from reconcile.cli import config_file
 from reconcile.jenkins_job_builder import init_jjb
 from reconcile.prometheus_rules_tester import get_data_from_jinja_test_template
 from reconcile.slack_base import slackapi_from_queries
-from reconcile.typed_queries.app_interface_vault_settings import (
-    get_app_interface_vault_settings,
-)
 from reconcile.utils import (
     amtool,
     config,
@@ -69,7 +66,6 @@ from reconcile.utils.ocm import (
 from reconcile.utils.output import print_output
 from reconcile.utils.secret_reader import (
     SecretReader,
-    create_secret_reader,
 )
 from reconcile.utils.semver_helper import parse_semver
 from reconcile.utils.state import init_state
@@ -1824,9 +1820,7 @@ def state(ctx):
 @click.argument("integration", default="")
 @click.pass_context
 def ls(ctx, integration):
-    vault_settings = get_app_interface_vault_settings()
-    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
-    state = init_state(integration=integration, secret_reader=secret_reader)
+    state = init_state(integration=integration)
     keys = state.ls()
     # if integration in not defined the 2th token will be the integration name
     key_index = 1 if integration else 2
@@ -1847,9 +1841,7 @@ def ls(ctx, integration):
 @click.argument("key")
 @click.pass_context
 def get(ctx, integration, key):
-    vault_settings = get_app_interface_vault_settings()
-    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
-    state = init_state(integration=integration, secret_reader=secret_reader)
+    state = init_state(integration=integration)
     value = state.get(key)
     print(value)
 
@@ -1859,9 +1851,7 @@ def get(ctx, integration, key):
 @click.argument("key")
 @click.pass_context
 def add(ctx, integration, key):
-    vault_settings = get_app_interface_vault_settings()
-    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
-    state = init_state(integration=integration, secret_reader=secret_reader)
+    state = init_state(integration=integration)
     state.add(key)
 
 
@@ -1871,9 +1861,7 @@ def add(ctx, integration, key):
 @click.argument("value")
 @click.pass_context
 def set(ctx, integration, key, value):
-    vault_settings = get_app_interface_vault_settings()
-    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
-    state = init_state(integration=integration, secret_reader=secret_reader)
+    state = init_state(integration=integration)
     state.add(key, value=value, force=True)
 
 
@@ -1882,9 +1870,7 @@ def set(ctx, integration, key, value):
 @click.argument("key")
 @click.pass_context
 def rm(ctx, integration, key):
-    vault_settings = get_app_interface_vault_settings()
-    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
-    state = init_state(integration=integration, secret_reader=secret_reader)
+    state = init_state(integration=integration)
     state.rm(key)
 
 

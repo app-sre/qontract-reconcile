@@ -48,6 +48,11 @@ class TestRunInteg(TestCase):
             queries, "get_credentials_requests", autospec=True
         )
         self.state_patcher = patch.object(integ, "init_state", autospec=True)
+        self.vault_settings_patcher = patch.object(
+            integ,
+            "get_app_interface_vault_settings",
+            autospec=True,
+        )
 
         self.do_exit = self.exit_patcher.start()
         self.get_encrypted_credentials = self.get_encrypted_creds_patcher.start()
@@ -60,6 +65,7 @@ class TestRunInteg(TestCase):
         self.get_credentials_requests.return_value = self.requests
         self.get_encrypted_credentials.return_value = "anencryptedcred"
         self.state = self.state_patcher.start()
+        self.vault_settings_patcher.start()
         self.settings = {
             "smtp": {
                 "secret_path": "asecretpath",
@@ -84,6 +90,7 @@ class TestRunInteg(TestCase):
             self.get_credentials_requests_patcher,
             self.get_aws_accounts_patcher,
             self.state_patcher,
+            self.vault_settings_patcher,
         ):
             p.stop()
 
