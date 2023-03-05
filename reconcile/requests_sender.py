@@ -10,7 +10,10 @@ from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
 from reconcile.utils.gpg import gpg_encrypt
-from reconcile.utils.secret_reader import SecretReader, create_secret_reader
+from reconcile.utils.secret_reader import (
+    SecretReader,
+    create_secret_reader,
+)
 from reconcile.utils.smtp_client import (
     DEFAULT_SMTP_TIMEOUT,
     SmtpClient,

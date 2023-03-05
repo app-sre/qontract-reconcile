@@ -67,7 +67,10 @@ from reconcile.utils.ocm import (
     OCMMap,
 )
 from reconcile.utils.output import print_output
-from reconcile.utils.secret_reader import SecretReader, create_secret_reader
+from reconcile.utils.secret_reader import (
+    SecretReader,
+    create_secret_reader,
+)
 from reconcile.utils.semver_helper import parse_semver
 from reconcile.utils.state import init_state
 from reconcile.utils.terraform_client import TerraformClient as Terraform
