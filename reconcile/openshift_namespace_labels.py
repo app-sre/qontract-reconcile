@@ -15,7 +15,6 @@ from kubernetes.client.exceptions import ApiException
 from sretoolbox.utils import threaded
 
 import reconcile.openshift_base as ob
-from reconcile import queries
 from reconcile.gql_definitions.common.namespaces import NamespaceV1
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,

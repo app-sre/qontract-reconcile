@@ -150,7 +150,7 @@ class TestOpenshiftNamespaceLabels(TestCase):
 
         module = "reconcile.openshift_namespace_labels"
 
-        self.queries_patcher = patch(f"{module}.queries")
+        self.queries_patcher = patch("reconcile.queries")
         self.queries = self.queries_patcher.start()
 
         self.namespaces_patcher = patch(f"{module}.get_namespaces")
