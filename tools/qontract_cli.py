@@ -877,9 +877,8 @@ def clusters_aws_account_ids(ctx):
 @get.command()
 @click.pass_context
 def terraform_users_credentials(ctx) -> None:
-    settings = queries.get_app_interface_settings()
     accounts = queries.get_state_aws_accounts()
-    state = State("account-notifier", accounts, settings=settings)
+    state = init_state(integration="account-notifier")
 
     skip_accounts, appsre_pgp_key, _ = tfu.get_reencrypt_settings()
 
@@ -942,10 +941,8 @@ def terraform_users_credentials(ctx) -> None:
 @click.argument("account_name")
 @click.pass_context
 def user_credentials_migrate_output(ctx, account_name) -> None:
-    settings = queries.get_app_interface_settings()
     accounts = queries.get_state_aws_accounts()
-    state = State("account-notifier", accounts, settings=settings)
-
+    state = init_state(integration="account-notifier")
     skip_accounts, appsre_pgp_key, _ = tfu.get_reencrypt_settings()
 
     accounts, working_dirs, _, aws_api = tfu.setup(
