@@ -23,8 +23,12 @@ Additional tools that use the libraries created by the reconciliations are also 
   blackbox-exporter-endpoint-monitoring
                                   Manages Prometheus Probe resources for
                                   blackbox-exporter
+  change-owners                   Detects owners for changes in app-interface
+                                  PRs and allows them to self-service merge.
   cluster-deployment-mapper       Maps ClusterDeployment resources to Cluster
                                   IDs.
+  cna-resources                   Manage Cloud Resources using Cloud Native
+                                  Assets (CNA).
   dashdotdb-cso                   Collects the ImageManifestVuln CRs from all
                                   the clusters and posts them to Dashdotdb.
   dashdotdb-dvo                   Collects the DeploymentValidations from all
@@ -64,6 +68,10 @@ Additional tools that use the libraries created by the reconciliations are also 
                                   based on OWNERS files schema.
   gitlab-permissions              Manage permissions on GitLab projects.
   gitlab-projects                 Create GitLab projects.
+  glitchtip                       Configure and enforce glitchtip instance
+                                  configuration.
+  glitchtip-project-dsn           Glitchtip project dsn as openshift secret.
+  integrations-manager            Manages Qontract Reconcile integrations.
   integrations-validator          Ensures all integrations are defined in App-
                                   Interface.
   jenkins-job-builder             Manage Jenkins jobs configurations using
@@ -78,6 +86,7 @@ Additional tools that use the libraries created by the reconciliations are also 
   jenkins-webhooks                Manage web hooks to Jenkins jobs.
   jenkins-webhooks-cleaner        Remove webhooks to previous Jenkins
                                   instances.
+  jenkins-worker-fleets           Manage Jenkins worker fleets via JCasC.
   jira-watcher                    Watch for changes in Jira boards and notify
                                   on Slack.
   kafka-clusters                  Manages Kafka clusters via OCM.
@@ -85,8 +94,15 @@ Additional tools that use the libraries created by the reconciliations are also 
                                   search.
   ocm-additional-routers          Manage additional routers in OCM.
   ocm-addons                      Manages cluster Addons in OCM.
+  ocm-addons-upgrade-scheduler-org
+                                  Manage Addons Upgrade Policy schedules in
+                                  OCM organizations.
+  ocm-addons-upgrade-tests-trigger
+                                  Trigger jenkins jobs following Addon
+                                  upgrades.
   ocm-aws-infrastructure-access   Grants AWS infrastructure access to members
                                   in AWS groups via OCM.
+  ocm-cluster-admin               Manage Cluster Admin in OCM.
   ocm-clusters                    Manages clusters via OCM.
   ocm-external-configuration-labels
                                   Manage External Configuration labels in OCM.
@@ -94,10 +110,14 @@ Additional tools that use the libraries created by the reconciliations are also 
   ocm-groups                      Manage membership in OpenShift groups via
                                   OCM.
   ocm-machine-pools               Manage Machine Pools in OCM.
+  ocm-oidc-idp                    Manage OIDC Identity Providers in OCM.
+  ocm-update-recommended-version  Update recommended version for OCM orgs
   ocm-upgrade-scheduler           Manage Upgrade Policy schedules in OCM.
-  ocm-upgrade-scheduler-org       Manage Upgrade Policy schedules in OCM organizations.
+  ocm-upgrade-scheduler-org       Manage Upgrade Policy schedules in OCM
+                                  organizations.
   ocm-upgrade-scheduler-org-updater
-                                  Update Upgrade Policy schedules in OCM organizations.
+                                  Update Upgrade Policy schedules in OCM
+                                  organizations.
   ocp-release-mirror              Mirrors OCP release images.
   openshift-clusterrolebindings   Configures ClusterRolebindings in OpenShift
                                   clusters.
@@ -113,11 +133,16 @@ Additional tools that use the libraries created by the reconciliations are also 
   openshift-routes                Manages OpenShift Routes.
   openshift-saas-deploy           Manage OpenShift resources defined in Saas
                                   files.
+  openshift-saas-deploy-change-tester
+                                  Runs openshift-saas-deploy for each saas-
+                                  file that changed within a bundle.
   openshift-saas-deploy-trigger-cleaner
                                   Clean up deployment related resources.
   openshift-saas-deploy-trigger-configs
                                   Trigger deployments when configuration
                                   changes.
+  openshift-saas-deploy-trigger-images
+                                  Trigger deployments when images are pushed.
   openshift-saas-deploy-trigger-moving-commits
                                   Trigger deployments when a commit changed
                                   for a ref.
@@ -143,6 +168,8 @@ Additional tools that use the libraries created by the reconciliations are also 
                                   compatibility.
   requests-sender                 Send emails to users based on requests
                                   submitted to app-interface.
+  resource-scraper                Get resources from clusters and store in
+                                  Vault.
   saas-file-owners                Manages labels on merge requests based on
                                   approver schema for saas files.
   saas-file-validator             Validates Saas files.
@@ -157,23 +184,30 @@ Additional tools that use the libraries created by the reconciliations are also 
   signalfx-prometheus-endpoint-monitoring
                                   Manages Prometheus Probe resources for
                                   signalfx exporter
+  skupper-network                 Manages Skupper Networks.
   slack-usergroups                Manage Slack User Groups (channels and
-                                  users) and Slack Cluster User Groups
-                                  for OpenShift users notifications.
+                                  users).
   sql-query                       Runs SQL Queries against app-interface RDS
                                   resources.
   status-page-components          Manages components on statuspage.io hosted
                                   status pages.
+  template-tester                 Tests templating of resources.
   terraform-aws-route53           Manage AWS Route53 resources using
                                   Terraform.
+  terraform-cloudflare-dns        Manage Cloudflare DNS using Terraform.
+  terraform-cloudflare-resources  Manage Cloudflare Resources using Terraform.
   terraform-resources             Manage AWS Resources using Terraform.
   terraform-tgw-attachments       Manages Transit Gateway attachments.
   terraform-users                 Manage AWS users using Terraform.
   terraform-vpc-peerings          Manage VPC peerings between OSD clusters and
                                   AWS accounts or other OSD clusters.
+  terraform-cloudflare-users      Manage user access to Cloudflare accounts.
   unleash-watcher                 Watch for changes in Unleah feature toggles
                                   and notify on Slack.
-  user-validator                  Validate user files.
+  vault-replication               Allow vault to replicate secrets to other
+                                  instances.
+  vpc-peerings-validator          Validates that VPC peerings do not exist
+                                  between public and internal clusters.
 ```
 
 ### e2e-tests

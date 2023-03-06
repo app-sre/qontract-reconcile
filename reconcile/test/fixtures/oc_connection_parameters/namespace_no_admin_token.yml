@@ -9,18 +9,24 @@ cluster:
     format: null
     path: path/to/automation_token
     version: null
-  clusterAdminAutomationToken:
-    field: token
-    format: null
-    path: path/to/admin_token
-    version: null
+  clusterAdminAutomationToken: null
   disable: null
   insecureSkipTLSVerify: null
   internal: false
-  jumpHost: null
+  jumpHost:
+    hostname: jumphost
+    identity:
+      field: identity
+      format: base64
+      path: jumphost-secret
+      version: null
+    knownHosts: /path/to/file
+    port: null
+    remotePort: null
+    user: jumphost-user
   name: cluster-without-admin
   serverUrl: server-url
-clusterAdmin: null
+clusterAdmin: true
 delete: null
 externalResources: []
 labels: null

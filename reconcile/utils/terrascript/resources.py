@@ -6,6 +6,7 @@ from collections.abc import Iterable
 from typing import Union
 
 from terrascript import (
+    Data,
     Output,
     Resource,
 )
@@ -39,5 +40,5 @@ class TerrascriptResource(ABC):
         ]
 
     @abstractmethod
-    def populate(self) -> list[Union[Resource, Output]]:
+    def populate(self) -> list[Union[Resource, Output, Data]]:
         """Calling this method should return the Terrascript resources to be created."""

@@ -47,7 +47,6 @@ class OCMap:
         thread_pool_size: int = 1,
         init_projects: bool = False,
         init_api_resources: bool = False,
-        cluster_admin: bool = False,
     ):
         self._oc_map: dict[str, Union[OCDeprecated, OCLogMsg]] = {}
         self._privileged_oc_map: dict[str, Union[OCDeprecated, OCLogMsg]] = {}
@@ -61,32 +60,10 @@ class OCMap:
         self._lock = Lock()
         self._jh_ports: dict[str, int] = {}
 
-        # init a namespace with clusterAdmin with both auth tokens
-        # OC_Map is used in various places and even when a namespace
-        # declares clusterAdmin token usage, many of those places are
-        # happy with regular dedicated-admin and will request a cluster
-        # with oc_map.get(cluster) without specifying privileged access
-        # specifically
-        privileged_clusters: list[OCConnectionParameters] = [
-            c for c in connection_parameters if (c.is_cluster_admin or cluster_admin)
-        ]
-        unprivileged_clusters: list[OCConnectionParameters] = [
-            c
-            for c in connection_parameters
-            if not (c.is_cluster_admin or cluster_admin)
-        ]
-
         threaded.run(
             self._init_oc_client,
-            unprivileged_clusters,
+            connection_parameters,
             self._thread_pool_size,
-            privileged=False,
-        )
-        threaded.run(
-            self._init_oc_client,
-            privileged_clusters,
-            self._thread_pool_size,
-            privileged=True,
         )
 
     def _set_jumphost_tunnel_ports(
@@ -100,9 +77,11 @@ class OCMap:
             connection_parameters.jumphost_local_port = self._jh_ports[key]
 
     def _init_oc_client(
-        self, connection_parameters: OCConnectionParameters, privileged: bool
+        self,
+        connection_parameters: OCConnectionParameters,
     ) -> None:
         cluster = connection_parameters.cluster_name
+        privileged = connection_parameters.is_cluster_admin
         if not privileged and self._oc_map.get(cluster):
             return None
         if privileged and self._privileged_oc_map.get(cluster):
@@ -239,7 +218,6 @@ def init_oc_map_from_clusters(
     thread_pool_size: int = 1,
     init_projects: bool = False,
     init_api_resources: bool = False,
-    cluster_admin: bool = False,
 ) -> OCMap:
     """
     Convenience function to hide connection_parameters implementation
@@ -260,7 +238,6 @@ def init_oc_map_from_clusters(
         thread_pool_size=thread_pool_size,
         init_projects=init_projects,
         init_api_resources=init_api_resources,
-        cluster_admin=cluster_admin,
     )
 
 
@@ -285,6 +262,7 @@ def init_oc_map_from_namespaces(
         secret_reader=secret_reader,
         thread_pool_size=2,
         use_jump_host=use_jump_host,
+        cluster_admin=cluster_admin,
     )
     return OCMap(
         connection_parameters=connection_parameters,
@@ -295,5 +273,4 @@ def init_oc_map_from_namespaces(
         thread_pool_size=thread_pool_size,
         init_projects=init_projects,
         init_api_resources=init_api_resources,
-        cluster_admin=cluster_admin,
     )

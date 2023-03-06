@@ -15,6 +15,7 @@ from reconcile.status import (
     ExitCodes,
     RunningState,
 )
+from reconcile.terraform_cloudflare_users import TerraformCloudflareUsersParams
 from reconcile.utils import gql
 from reconcile.utils.aggregated_list import RunnerException
 from reconcile.utils.binary import (
@@ -1708,6 +1709,33 @@ def terraform_cloudflare_dns(
     )
 
 
+@integration.command(short_help="Manage Cloudflare Users using Terraform.")
+@print_to_file
+@binary(["terraform"])
+@threaded(default=20)
+@binary_version("terraform", ["version"], TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
+@account_name
+@enable_deletion(default=True)
+@click.pass_context
+def terraform_cloudflare_users(
+    ctx, print_to_file, account_name, thread_pool_size, enable_deletion
+):
+
+    import reconcile.terraform_cloudflare_users
+
+    run_class_integration(
+        reconcile.terraform_cloudflare_users.TerraformCloudflareUsers(
+            TerraformCloudflareUsersParams(
+                print_to_file=print_to_file,
+                account_name=account_name,
+                thread_pool_size=thread_pool_size,
+                enable_deletion=enable_deletion,
+            )
+        ),
+        ctx.obj,
+    )
+
+
 @integration.command(
     short_help="Manage Cloud Resources using Cloud Native Assets (CNA)."
 )
@@ -2446,6 +2474,27 @@ def glitchtip(ctx, instance):
     import reconcile.glitchtip.integration
 
     run_integration(reconcile.glitchtip.integration, ctx.obj, instance)
+
+
+@integration.command(short_help="Glitchtip project dsn as openshift secret.")
+@threaded()
+@binary(["oc", "ssh"])
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
+@internal()
+@use_jump_host()
+@click.option("--instance", help="Reconcile just this instance.", default=None)
+@click.pass_context
+def glitchtip_project_dsn(ctx, thread_pool_size, internal, use_jump_host, instance):
+    import reconcile.glitchtip_project_dsn.integration
+
+    run_integration(
+        reconcile.glitchtip_project_dsn.integration,
+        ctx.obj,
+        thread_pool_size,
+        internal,
+        use_jump_host,
+        instance,
+    )
 
 
 @integration.command(short_help="Manages Skupper Networks.")

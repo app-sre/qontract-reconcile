@@ -1,3 +1,4 @@
+import pytest
 from jsonpath_ng import (
     Child,
     Fields,
@@ -15,6 +16,7 @@ from reconcile.utils.jsonpath import (
     apply_constraint_to_path,
     jsonpath_parts,
     narrow_jsonpath_node,
+    sortable_jsonpath_string_repr,
 )
 
 #
@@ -196,3 +198,21 @@ def test_apply_partially_incompatible_constraint_to_path():
 
 def test_apply_field_constraint_to_wildcard_path():
     assert apply_constraint_to_path(parse("a.*.c"), parse("a.b.c.d")) == parse("a.b.c")
+
+
+#
+# test sortable jsonpath representation
+#
+
+
+@pytest.mark.parametrize(
+    "jsonpath, sortable_jsonpath",
+    [
+        ("a.b[0].c", "a.b.[00000].c"),
+        ("a.b[10].c", "a.b.[00010].c"),
+        ("[10]", "[00010]"),
+        ("a.[10][*]", "a.[00010].*"),
+    ],
+)
+def test_sortable_jsonpath_string_repr(jsonpath: str, sortable_jsonpath: str):
+    assert sortable_jsonpath_string_repr(parse(jsonpath), 5) == sortable_jsonpath
