@@ -1,0 +1,29 @@
+# qenerate: plugin=pydantic_v1
+
+query NamespacesMinimal {
+  namespaces: namespaces_v1 {
+    name
+    delete
+    labels
+    clusterAdmin
+    cluster {
+      name
+      serverUrl
+      insecureSkipTLSVerify
+      jumpHost {
+        ... CommonJumphostFields
+      }
+      automationToken {
+        ... VaultSecret
+      }
+      clusterAdminAutomationToken {
+        ... VaultSecret
+      }
+      internal
+      disable {
+        e2eTests
+        integrations
+      }
+    }
+  }
+}

@@ -1,23 +1,31 @@
 import logging
 import sys
 from collections.abc import (
+    Callable,
     Iterable,
     Mapping,
 )
 from typing import (
     Any,
     Optional,
-    cast,
 )
 
 from sretoolbox.utils import threaded
 
-import reconcile.openshift_base as ob
-import reconcile.openshift_resources_base as orb
-from reconcile import queries
+from reconcile.gql_definitions.common.namespaces_minimal import NamespaceV1
 from reconcile.status import ExitCodes
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
+from reconcile.typed_queries.namespaces_minimal import get_namespaces_minimal
 from reconcile.utils.defer import defer
-from reconcile.utils.oc import OC_Map
+from reconcile.utils.oc_filters import filter_namespaces_by_cluster_and_namespace
+from reconcile.utils.oc_map import (
+    OCLogMsg,
+    OCMap,
+    init_oc_map_from_namespaces,
+)
+from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.sharding import is_in_shard
 
 QONTRACT_INTEGRATION = "openshift-namespaces"
@@ -32,18 +40,18 @@ NS_ACTION_DELETE = "delete"
 DUPLICATES_LOG_MSG = "Found multiple definitions for the namespace {key}"
 
 
-def get_desired_state(namespaces: Iterable[Mapping[str, Any]]) -> list[dict[str, str]]:
+def get_desired_state(namespaces: Iterable[NamespaceV1]) -> list[dict[str, str]]:
 
     desired_state: list[dict[str, str]] = []
     for ns in namespaces:
         state = NS_STATE_PRESENT
-        if ob.is_namespace_deleted(ns):
+        if ns.delete:
             state = NS_STATE_ABSENT
 
         desired_state.append(
             {
-                "cluster": ns["cluster"]["name"],
-                "namespace": ns["name"],
+                "cluster": ns.cluster.name,
+                "namespace": ns.name,
                 "desired_state": state,
             }
         )
@@ -52,29 +60,31 @@ def get_desired_state(namespaces: Iterable[Mapping[str, Any]]) -> list[dict[str,
 
 
 def get_shard_namespaces(
-    namespaces: Iterable[Mapping[str, Any]]
-) -> tuple[list[dict[str, str]], bool]:
+    namespaces: Iterable[NamespaceV1],
+) -> tuple[list[NamespaceV1], bool]:
 
     # Structure holding duplicates by namespace key
-    duplicates: dict[str, list[dict[str, str]]] = {}
+    duplicates: dict[str, list[NamespaceV1]] = {}
     # namespace filtered list without duplicates
-    filtered_ns: dict[str, dict[str, Any]] = {}
+    filtered_ns: dict[str, NamespaceV1] = {}
 
     err = False
     for ns in namespaces:
-        key = f'{ns["cluster"]["name"]}/{ns["name"]}'
+        key = f"{ns.cluster.name}/{ns.name}"
 
         if is_in_shard(key):
             if key not in filtered_ns:
-                filtered_ns[key] = cast(dict, ns)
+                filtered_ns[key] = ns
             else:
                 # Duplicated NS
                 dupe_list_by_key = duplicates.setdefault(key, [])
-                dupe_list_by_key.append(cast(dict, ns))
+                dupe_list_by_key.append(ns)
 
     for key, dupe_list in duplicates.items():
         dupe_list.append(filtered_ns[key])
-        delete_flags = [ns["delete"] for ns in dupe_list_by_key]
+        delete_flags = (
+            [ns.delete for ns in dupe_list_by_key] if dupe_list_by_key else []
+        )
 
         if len(set(delete_flags)) > 1:
             # If true only some definitions in list have the delete flag.
@@ -91,13 +101,13 @@ def get_shard_namespaces(
     return list(filtered_ns.values()), err
 
 
-def manage_namespaces(spec: Mapping[str, str], oc_map: OC_Map, dry_run: bool) -> None:
+def manage_namespaces(spec: Mapping[str, str], oc_map: OCMap, dry_run: bool) -> None:
     cluster = spec["cluster"]
     namespace = spec["namespace"]
     desired_state = spec["desired_state"]
 
     oc = oc_map.get(cluster)
-    if not oc:
+    if isinstance(oc, OCLogMsg):
         logging.log(level=oc.log_level, msg=oc.message)
         return None
 
@@ -134,34 +144,39 @@ def check_results(
 @defer
 def run(
     dry_run: bool,
-    thread_pool_size=10,
+    thread_pool_size: int = 10,
     internal: Optional[bool] = None,
-    use_jump_host=True,
-    cluster_name=None,
-    namespace_name=None,
-    defer=None,
-):
+    use_jump_host: bool = True,
+    cluster_name: Optional[str] = None,
+    namespace_name: Optional[str] = None,
+    defer: Optional[Callable] = None,
+) -> None:
 
-    all_namespaces = queries.get_namespaces(minimal=True)
+    all_namespaces = get_namespaces_minimal()
     shard_namespaces, duplicates = get_shard_namespaces(all_namespaces)
-    namespaces = orb.filter_namespaces_by_cluster_and_namespace(
-        shard_namespaces, cluster_name, namespace_name
+    namespaces = filter_namespaces_by_cluster_and_namespace(
+        namespaces=shard_namespaces,
+        cluster_name=cluster_name,
+        namespace_name=namespace_name,
     )
 
     desired_state = get_desired_state(namespaces)
 
-    settings = queries.get_app_interface_settings()
-    oc_map = OC_Map(
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
+
+    oc_map = init_oc_map_from_namespaces(
         namespaces=namespaces,
         integration=QONTRACT_INTEGRATION,
-        settings=settings,
+        secret_reader=secret_reader,
         internal=internal,
         use_jump_host=use_jump_host,
         thread_pool_size=thread_pool_size,
         init_projects=True,
     )
 
-    defer(oc_map.cleanup)
+    if defer:
+        defer(oc_map.cleanup)
 
     results = threaded.run(
         manage_namespaces,
@@ -172,6 +187,6 @@ def run(
         oc_map=oc_map,
     )
 
-    err = check_results(desired_state, results)
+    err = check_results(desired_state=desired_state, results=results)
     if err or duplicates:
         sys.exit(ExitCodes.ERROR)
