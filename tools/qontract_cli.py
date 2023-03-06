@@ -511,6 +511,18 @@ def get_available_upgrades(ocm: OCM, version: str, channel: str) -> list[str]:
     return [u for u in upgrades if not ocm.version_blocked(u)]
 
 
+def inherit_version_data_text(ocm_org: str, ocm_specs: list[dict]) -> str:
+    ocm_specs_for_org = [o for o in ocm_specs if o["name"] == ocm_org]
+    if not ocm_specs_for_org:
+        raise ValueError(f"{ocm_org} not found in list of organizations")
+    ocm_spec = ocm_specs_for_org[0]
+    inherit_version_data = ocm_spec["inheritVersionData"]
+    if not inherit_version_data:
+        return ""
+    inherited_orgs = [f"[{o['name']}](#{o['name']})" for o in inherit_version_data]
+    return f"inheriting version data from {', '.join(inherited_orgs)}"
+
+
 @get.command()
 @click.pass_context
 def ocm_fleet_upgrade_policies(
@@ -552,7 +564,7 @@ def ocm_fleet_upgrade_policies(
         ocm_orgs = sorted({o["ocm"] for o in results})
         ocm_org_section = """
 # {}
-
+{}
 ```json:table
 {}
 ```
@@ -563,7 +575,11 @@ def ocm_fleet_upgrade_policies(
                 {"fields": fields, "items": data, "filter": True, "caption": ""},
                 indent=1,
             )
-            print(ocm_org_section.format(ocm_org, json_data))
+            print(
+                ocm_org_section.format(
+                    ocm_org, inherit_version_data_text(ocm_org, ocm_specs), json_data
+                )
+            )
 
     else:
         columns = [
@@ -634,7 +650,7 @@ def ocm_addon_upgrade_policies(ctx):
     ]
     section = """
 # {}
-
+{}
 ```json:table
 {}
 ```
@@ -649,7 +665,11 @@ def ocm_addon_upgrade_policies(ctx):
             },
             indent=1,
         )
-        print(section.format(ocm_name, json_data))
+        print(
+            section.format(
+                ocm_name, inherit_version_data_text(ocm_name, ocms), json_data
+            )
+        )
 
 
 @root.command()

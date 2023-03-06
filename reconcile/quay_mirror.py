@@ -196,6 +196,8 @@ class QuayMirror:
         return True
 
     def process_sync_tasks(self):
+        if self.is_compare_tags:
+            _LOG.warning("Making a compare-tags run. This is a slow operation.")
         summary = self.process_repos_query(self.images)
         sync_tasks = defaultdict(list)
         for org_key, data in summary.items():

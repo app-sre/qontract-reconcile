@@ -7,7 +7,10 @@ from reconcile import (
 )
 from reconcile.utils import gql
 from reconcile.utils.ldap_client import LdapClient
-from reconcile.utils.mr import CreateDeleteUser
+from reconcile.utils.mr import (
+    CreateDeleteUserAppInterface,
+    CreateDeleteUserInfra,
+)
 from reconcile.utils.mr.user_maintenance import PathTypes
 
 QONTRACT_INTEGRATION = "ldap-users"
@@ -57,7 +60,7 @@ def get_ldap_settings() -> dict:
         raise ValueError("no app-interface-settings settings found")
 
 
-def run(dry_run, gitlab_project_id=None):
+def run(dry_run, app_interface_project_id, infra_project_id):
     users = init_users()
     with LdapClient.from_settings(get_ldap_settings()) as ldap_client:
         ldap_users = ldap_client.get_users([u["username"] for u in users])
@@ -65,8 +68,11 @@ def run(dry_run, gitlab_project_id=None):
     users_to_delete = [u for u in users if u["username"] not in ldap_users]
 
     if not dry_run:
-        mr_cli = mr_client_gateway.init(
-            gitlab_project_id=gitlab_project_id, sqs_or_gitlab="gitlab"
+        mr_cli_app_interface = mr_client_gateway.init(
+            gitlab_project_id=app_interface_project_id, sqs_or_gitlab="gitlab"
+        )
+        mr_cli_infra = mr_client_gateway.init(
+            gitlab_project_id=infra_project_id, sqs_or_gitlab="gitlab"
         )
 
     for u in users_to_delete:
@@ -75,5 +81,10 @@ def run(dry_run, gitlab_project_id=None):
         logging.info(["delete_user", username])
 
         if not dry_run:
-            mr = CreateDeleteUser(username, paths)
-            mr.submit(cli=mr_cli)
+            mr = CreateDeleteUserAppInterface(username, paths)
+            mr.submit(cli=mr_cli_app_interface)
+
+    if not dry_run:
+        usernames = [u["username"] for u in users_to_delete]
+        mr_infra = CreateDeleteUserInfra(usernames)
+        mr_infra.submit(cli=mr_cli_infra)

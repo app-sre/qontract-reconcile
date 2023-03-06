@@ -1,0 +1,148 @@
+---
+glitchtip_projects:
+- name: no-namespaces
+  platform: python
+  namespaces: []
+  teams: []
+  organization:
+    name: NASA
+    instance:
+      name: glitchtip-dev
+- name: integration-disabled
+  platform: python
+  namespaces:
+  - name: namespace-1
+    delete: null
+    clusterAdmin: null
+    cluster:
+      name: cluster-1
+      serverUrl: "https://api.cluster-1"
+      insecureSkipTLSVerify: null
+      jumpHost: null
+      spec:
+        private: false
+      automationToken:
+        path: creds/kube-configs/small-1
+        field: token
+        version: null
+        format: null
+      clusterAdminAutomationToken: null
+      internal: false
+      disable:
+        integrations:
+        - glitchtip-project-dsn
+        e2eTests: null
+  teams: []
+  organization:
+    name: NASA
+    instance:
+      name: glitchtip-dev
+- name: namespace_delete
+  platform: python
+  namespaces:
+  - name: namespace-1
+    delete: true
+    clusterAdmin: null
+    cluster:
+      name: cluster-1
+      serverUrl: "https://api.cluster-1"
+      insecureSkipTLSVerify: null
+      jumpHost: null
+      spec:
+        private: false
+      automationToken:
+        path: creds/kube-configs/small-1
+        field: token
+        version: null
+        format: null
+      clusterAdminAutomationToken: null
+      internal: false
+      disable: null
+  teams: []
+  organization:
+    name: NASA
+    instance:
+      name: glitchtip-dev
+- name: apollo-11-flight-control
+  platform: python
+  teams: []
+  organization:
+    name: NASA
+    instance:
+      name: glitchtip-dev
+  namespaces:
+  - name: namespace-1
+    delete: null
+    clusterAdmin: null
+    cluster:
+      name: cluster-1
+      serverUrl: "https://api.cluster-1"
+      insecureSkipTLSVerify: null
+      jumpHost: null
+      spec:
+        private: false
+      automationToken:
+        path: creds/kube-configs/small-1
+        field: token
+        version: null
+        format: null
+      clusterAdminAutomationToken: null
+      internal: false
+      disable: null
+  - name: namespace-1
+    delete: null
+    clusterAdmin: null
+    cluster:
+      name: cluster-2
+      serverUrl: "https://api.cluster-2"
+      insecureSkipTLSVerify: null
+      jumpHost: null
+      spec:
+        private: false
+      automationToken:
+        path: creds/kube-configs/small-1
+        field: token
+        version: null
+        format: null
+      clusterAdminAutomationToken: null
+      internal: false
+      disable: null
+  - name: namespace-delete
+    delete: true
+    clusterAdmin: null
+    cluster:
+      name: cluster-2
+      serverUrl: "https://api.cluster-2"
+      insecureSkipTLSVerify: null
+      jumpHost: null
+      spec:
+        private: false
+      automationToken:
+        path: creds/kube-configs/small-1
+        field: token
+        version: null
+        format: null
+      clusterAdminAutomationToken: null
+      internal: false
+      disable: null
+  - name: cluster-integration-disabled
+    delete: null
+    clusterAdmin: null
+    cluster:
+      name: cluster-1
+      serverUrl: "https://api.cluster-1"
+      insecureSkipTLSVerify: null
+      jumpHost: null
+      spec:
+        private: false
+      automationToken:
+        path: creds/kube-configs/small-1
+        field: token
+        version: null
+        format: null
+      clusterAdminAutomationToken: null
+      internal: false
+      disable:
+        integrations:
+        - glitchtip-project-dsn
+        e2eTests: null

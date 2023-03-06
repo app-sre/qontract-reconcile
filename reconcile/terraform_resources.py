@@ -553,27 +553,49 @@ def init_working_dirs(
     return ts, working_dirs
 
 
+def filter_accounts_by_name(
+    accounts: Iterable[Mapping[str, Any]], filter: Iterable[str]
+) -> Collection[Mapping[str, Any]]:
+    return [ac for ac in accounts if ac["name"] in filter]
+
+
+def exclude_accounts_by_name(
+    accounts: Iterable[Mapping[str, Any]], filter: Iterable[str]
+) -> Collection[Mapping[str, Any]]:
+    return [ac for ac in accounts if ac["name"] not in filter]
+
+
+def validate_account_names(
+    accounts: Collection[Mapping[str, Any]], names: Collection[str]
+) -> None:
+    if len(accounts) != len(names):
+        missing_names = set(names) - {a["name"] for a in accounts}
+        raise ValueError(
+            f"Accounts {missing_names} were provided as arguments, but not found in app-interface. Check your input for typos or for missing AWS account definitions."
+        )
+
+
 def setup(
     dry_run: bool,
     print_to_file: str,
     thread_pool_size: int,
     internal: str,
     use_jump_host: bool,
-    account_names: Optional[Collection[str]],
+    include_accounts: Optional[Collection[str]],
+    exclude_accounts: Optional[Collection[str]],
 ) -> tuple[ResourceInventory, OC_Map, Terraform, ExternalResourceSpecInventory]:
     accounts = queries.get_aws_accounts(terraform_state=True)
-    if account_names:
-        accounts = [n for n in accounts if n["name"] in account_names]
-        if len(accounts) != len(account_names):
-            # Some of the passed account names don't exist in app-interface
-            acc_names = tuple(
-                a
-                for a in account_names
-                if a not in tuple(account["name"] for account in accounts)
-            )
-            raise ValueError(
-                f"Accounts {acc_names} were provided as arguments, but not found in app-interface. Check your input for typos or for missing AWS account definitions."
-            )
+    if not include_accounts and exclude_accounts:
+        excluding = filter_accounts_by_name(accounts, exclude_accounts)
+        validate_account_names(excluding, exclude_accounts)
+        accounts = exclude_accounts_by_name(accounts, exclude_accounts)
+        if len(accounts) == 0:
+            raise ValueError("You have excluded all aws accounts, verify your input")
+        account_names = tuple(ac["name"] for ac in accounts)
+    elif include_accounts:
+        accounts = filter_accounts_by_name(accounts, include_accounts)
+        validate_account_names(accounts, include_accounts)
+    account_names = tuple(a["name"] for a in accounts)
     settings = queries.get_app_interface_settings()
 
     # build a resource inventory for all the kube secrets managed by the
@@ -689,6 +711,18 @@ def populate_desired_state(
             )
 
 
+class ExcludeAccountsAndDryRunException(Exception):
+    pass
+
+
+class ExcludeAccountsAndAccountNameException(Exception):
+    pass
+
+
+class MultipleAccountNamesInDryRunException(Exception):
+    pass
+
+
 @defer
 def run(
     dry_run,
@@ -700,8 +734,19 @@ def run(
     light=False,
     vault_output_path="",
     account_name: Optional[Sequence[str]] = None,
+    exclude_accounts: Optional[Sequence[str]] = None,
     defer=None,
 ) -> None:
+    if exclude_accounts and not dry_run:
+        message = "--exclude-accounts is only supported in dry-run mode"
+        logging.error(message)
+        raise ExcludeAccountsAndDryRunException(message)
+
+    if exclude_accounts and account_name:
+        message = "Using --exclude-accounts and --account-name at the same time is not allowed"
+        logging.error(message)
+        raise ExcludeAccountsAndAccountNameException(message)
+
     # account_name is a tuple of account names for more detail go to
     # https://click.palletsprojects.com/en/8.1.x/options/#multiple-options
     account_names = account_name
@@ -713,7 +758,7 @@ def run(
     if account_names and len(account_names) > 1 and not dry_run:
         message = "Running with multiple accounts is only supported in dry-run mode"
         logging.error(message)
-        raise RuntimeError(message)
+        raise MultipleAccountNamesInDryRunException(message)
 
     ri, oc_map, tf, resource_specs = setup(
         dry_run,
@@ -722,6 +767,7 @@ def run(
         internal,
         use_jump_host,
         account_names,
+        exclude_accounts,
     )
 
     if not dry_run:

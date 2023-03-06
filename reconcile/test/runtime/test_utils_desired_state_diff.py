@@ -220,7 +220,10 @@ def test_extract_diffs_with_exception():
 #
 
 
-def test_find_changed_shards_removed_diff():
+def test_config_removed_from_shard():
+    """
+    when something is removed from a shard, that shard is affected
+    """
     assert build_desired_state_diff(
         sharding_config=DesiredStateShardConfig(
             shard_arg_name="shard",
@@ -229,19 +232,22 @@ def test_find_changed_shards_removed_diff():
         ),
         previous_desired_state={
             "data": [
-                {"shard": "a", "value": "a"},
-                {"shard": "b", "value": "b"},
+                {"shard": "a", "value": "a", IDENTIFIER_FIELD_NAME: "a"},
+                {"shard": "b", "value": "b", IDENTIFIER_FIELD_NAME: "b"},
             ]
         },
         current_desired_state={
             "data": [
-                {"shard": "b", "value": "b"},
+                {"shard": "b", "value": "b", IDENTIFIER_FIELD_NAME: "b"},
             ]
         },
     ).affected_shards == {"a"}
 
 
-def test_find_changed_shards_added_diff():
+def test_config_added_into_shard():
+    """
+    when something is added to a shard, that shard is affected
+    """
     assert build_desired_state_diff(
         sharding_config=DesiredStateShardConfig(
             shard_arg_name="shard",
@@ -250,19 +256,22 @@ def test_find_changed_shards_added_diff():
         ),
         previous_desired_state={
             "data": [
-                {"shard": "b", "value": "b"},
+                {"shard": "b", "value": "b", IDENTIFIER_FIELD_NAME: "b"},
             ]
         },
         current_desired_state={
             "data": [
-                {"shard": "a", "value": "a"},
-                {"shard": "b", "value": "b"},
+                {"shard": "a", "value": "a", IDENTIFIER_FIELD_NAME: "a"},
+                {"shard": "b", "value": "b", IDENTIFIER_FIELD_NAME: "b"},
             ]
         },
     ).affected_shards == {"a"}
 
 
-def test_find_changed_shards_change_diff():
+def test_config_in_shard_changes():
+    """
+    when something in a shard changes, that chard is affected
+    """
     assert build_desired_state_diff(
         sharding_config=DesiredStateShardConfig(
             shard_arg_name="shard",
@@ -271,17 +280,45 @@ def test_find_changed_shards_change_diff():
         ),
         previous_desired_state={
             "data": [
-                {"shard": "a", "value": "a"},
-                {"shard": "b", "value": "b"},
+                {"shard": "a", "value": "a", IDENTIFIER_FIELD_NAME: "a"},
+                {"shard": "b", "value": "b", IDENTIFIER_FIELD_NAME: "b"},
             ]
         },
         current_desired_state={
             "data": [
-                {"shard": "a", "value": "a"},
-                {"shard": "b", "value": "c"},
+                {"shard": "a", "value": "a", IDENTIFIER_FIELD_NAME: "a"},
+                {"shard": "b", "value": "c", IDENTIFIER_FIELD_NAME: "b"},
             ]
         },
     ).affected_shards == {"b"}
+
+
+def test_config_moved_to_another_shard():
+    """
+    when something moves to another shard, both shards are affected
+    """
+    assert build_desired_state_diff(
+        sharding_config=DesiredStateShardConfig(
+            shard_arg_name="shard",
+            shard_path_selectors={"data[*].shard"},
+            sharded_run_review=lambda x: True,
+        ),
+        previous_desired_state={
+            "data": [
+                {"shard": "a", "value": "a", IDENTIFIER_FIELD_NAME: "a"},
+                {"shard": "b", "value": "b", IDENTIFIER_FIELD_NAME: "b"},
+            ]
+        },
+        current_desired_state={
+            "data": [
+                {"shard": "a", "value": "a", IDENTIFIER_FIELD_NAME: "a"},
+                {"shard": "c", "value": "b", IDENTIFIER_FIELD_NAME: "b"},
+            ]
+        },
+    ).affected_shards == {
+        "b",  # the old one
+        "c",  # the new one
+    }
 
 
 def test_find_changed_shards_mixed_diff():

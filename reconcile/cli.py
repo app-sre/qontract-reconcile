@@ -15,6 +15,7 @@ from reconcile.status import (
     ExitCodes,
     RunningState,
 )
+from reconcile.terraform_cloudflare_users import TerraformCloudflareUsersParams
 from reconcile.utils import gql
 from reconcile.utils.aggregated_list import RunnerException
 from reconcile.utils.binary import (
@@ -346,6 +347,17 @@ def account_name_multiple(function):
         default=None,
         multiple=True,
         help="aws account names to act on i.e.: --account-name aws-account-1 --account-name aws-account-2",
+    )(function)
+
+    return function
+
+
+def exclude_aws_accounts(function):
+    function = click.option(
+        "--exclude-accounts",
+        multiple=True,
+        help="aws account name to remove from execution when in dry-run",
+        default=[],
     )(function)
 
     return function
@@ -1581,12 +1593,15 @@ def quay_permissions(ctx):
 
 
 @integration.command(short_help="Removes users which are not found in LDAP search.")
-@click.argument("gitlab-project-id")
+@click.argument("app-interface-project-id")
+@click.argument("infra-project-id")
 @click.pass_context
-def ldap_users(ctx, gitlab_project_id):
+def ldap_users(ctx, infra_project_id, app_interface_project_id):
     import reconcile.ldap_users
 
-    run_integration(reconcile.ldap_users, ctx.obj, gitlab_project_id)
+    run_integration(
+        reconcile.ldap_users, ctx.obj, app_interface_project_id, infra_project_id
+    )
 
 
 @integration.command(short_help="Manage AWS Resources using Terraform.")
@@ -1601,6 +1616,7 @@ def ldap_users(ctx, gitlab_project_id):
 @use_jump_host()
 @enable_deletion(default=False)
 @account_name_multiple
+@exclude_aws_accounts
 @click.option(
     "--light/--full",
     default=False,
@@ -1617,6 +1633,7 @@ def terraform_resources(
     light,
     vault_output_path,
     account_name,
+    exclude_accounts,
 ):
     import reconcile.terraform_resources
 
@@ -1633,6 +1650,7 @@ def terraform_resources(
         light,
         vault_output_path,
         account_name=account_name,
+        exclude_accounts=exclude_accounts,
     )
 
 
@@ -1688,6 +1706,33 @@ def terraform_cloudflare_dns(
             )
         ),
         ctx=ctx.obj,
+    )
+
+
+@integration.command(short_help="Manage Cloudflare Users using Terraform.")
+@print_to_file
+@binary(["terraform"])
+@threaded(default=20)
+@binary_version("terraform", ["version"], TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
+@account_name
+@enable_deletion(default=True)
+@click.pass_context
+def terraform_cloudflare_users(
+    ctx, print_to_file, account_name, thread_pool_size, enable_deletion
+):
+
+    import reconcile.terraform_cloudflare_users
+
+    run_class_integration(
+        reconcile.terraform_cloudflare_users.TerraformCloudflareUsers(
+            TerraformCloudflareUsersParams(
+                print_to_file=print_to_file,
+                account_name=account_name,
+                thread_pool_size=thread_pool_size,
+                enable_deletion=enable_deletion,
+            )
+        ),
+        ctx.obj,
     )
 
 
@@ -2429,6 +2474,27 @@ def glitchtip(ctx, instance):
     import reconcile.glitchtip.integration
 
     run_integration(reconcile.glitchtip.integration, ctx.obj, instance)
+
+
+@integration.command(short_help="Glitchtip project dsn as openshift secret.")
+@threaded()
+@binary(["oc", "ssh"])
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
+@internal()
+@use_jump_host()
+@click.option("--instance", help="Reconcile just this instance.", default=None)
+@click.pass_context
+def glitchtip_project_dsn(ctx, thread_pool_size, internal, use_jump_host, instance):
+    import reconcile.glitchtip_project_dsn.integration
+
+    run_integration(
+        reconcile.glitchtip_project_dsn.integration,
+        ctx.obj,
+        thread_pool_size,
+        internal,
+        use_jump_host,
+        instance,
+    )
 
 
 @integration.command(short_help="Manages Skupper Networks.")

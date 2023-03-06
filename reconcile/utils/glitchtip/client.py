@@ -10,6 +10,7 @@ import requests
 from reconcile.utils.glitchtip.models import (
     Organization,
     Project,
+    ProjectKey,
     Team,
     User,
 )
@@ -148,6 +149,17 @@ class GlitchtipClient:
         """Delete a project."""
         self._delete(
             f"/api/0/teams/{organization_slug}/{team_slug}/projects/{slug}/",
+        )
+
+    def project_key(self, organization_slug: str, project_slug: str) -> ProjectKey:
+        """Retrieve project key (DSN)."""
+        keys = self._list(f"/api/0/projects/{organization_slug}/{project_slug}/keys/")
+        if not keys:
+            # only happens if org_slug/project_slug does not exist
+            raise ValueError(f"No keys found for project {project_slug}")
+        # always return the first key
+        return ProjectKey(
+            dsn=keys[0]["dsn"]["public"], security_endpoint=keys[0]["dsn"]["security"]
         )
 
     def add_project_to_team(

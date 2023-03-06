@@ -77,7 +77,7 @@ class OCConnectionParameters:
     cluster_name: str
     server_url: str
     is_internal: Optional[bool]
-    is_cluster_admin: Optional[bool]
+    is_cluster_admin: bool
     skip_tls_verify: Optional[bool]
     automation_token: Optional[str]
     cluster_admin_automation_token: Optional[str]
@@ -94,17 +94,44 @@ class OCConnectionParameters:
 
     @staticmethod
     def from_cluster(
-        cluster: Cluster, secret_reader: SecretReaderBase
+        cluster: Cluster,
+        secret_reader: SecretReaderBase,
+        cluster_admin: bool,
+        use_jump_host: bool = True,
     ) -> OCConnectionParameters:
         automation_token: Optional[str] = None
-        if cluster.automation_token:
-            try:
-                automation_token = secret_reader.read_secret(cluster.automation_token)
-            except SecretNotFound as e:
-                logging.error(
-                    f"[{cluster.name}] secret {cluster.automation_token} not found"
+        cluster_admin_automation_token: Optional[str] = None
+
+        if cluster_admin:
+            if cluster.cluster_admin_automation_token:
+                try:
+                    cluster_admin_automation_token = secret_reader.read_secret(
+                        cluster.cluster_admin_automation_token
+                    )
+                except SecretNotFound:
+                    logging.error(
+                        f"[{cluster.name}] admin token {cluster.cluster_admin_automation_token} not found"
+                    )
+            else:
+                # Note, that currently OCMap uses OCLogMsg if a token is missing, i.e.,
+                # for now this is valid behavior.
+                logging.debug(
+                    f"No admin automation token set for cluster '{cluster.name}', but privileged access requested."
                 )
-                raise e
+        else:
+            if cluster.automation_token:
+                try:
+                    automation_token = secret_reader.read_secret(
+                        cluster.automation_token
+                    )
+                except SecretNotFound:
+                    logging.error(
+                        f"[{cluster.name}] automation token {cluster.automation_token} not found"
+                    )
+            else:
+                # Note, that currently OCMap uses OCLogMsg if a token is missing, i.e.,
+                # for now this is valid behavior.
+                logging.debug(f"No automation token for cluster '{cluster.name}'.")
 
         disabled_integrations = []
         disabled_e2e_tests = []
@@ -119,18 +146,18 @@ class OCConnectionParameters:
         jumphost_key = None
         jumphost_remote_port = None
         jumphost_local_port = None
-        if jh := cluster.jump_host:
-            jumphost_hostname = jh.hostname
-            jumphost_known_hosts = jh.known_hosts
-            jumphost_user = jh.user
-            jumphost_port = jh.port
-            jumphost_remote_port = jh.remote_port
+        if use_jump_host and cluster.jump_host:
+            jumphost_hostname = cluster.jump_host.hostname
+            jumphost_known_hosts = cluster.jump_host.known_hosts
+            jumphost_user = cluster.jump_host.user
+            jumphost_port = cluster.jump_host.port
+            jumphost_remote_port = cluster.jump_host.remote_port
 
             try:
-                jumphost_key = secret_reader.read_secret(jh.identity)
+                jumphost_key = secret_reader.read_secret(cluster.jump_host.identity)
             except SecretNotFound as e:
                 logging.error(
-                    f"[{cluster.name}] jumphost secret {jh.identity} not found"
+                    f"[{cluster.name}] jumphost secret {cluster.jump_host.identity} not found"
                 )
                 raise e
 
@@ -149,73 +176,37 @@ class OCConnectionParameters:
             jumphost_port=jumphost_port,
             jumphost_remote_port=jumphost_remote_port,
             jumphost_local_port=jumphost_local_port,
-            # is_cluster_admin only possible for namespace queries
-            is_cluster_admin=None,
-            cluster_admin_automation_token=None,
-        )
-
-    @staticmethod
-    def from_namespace(
-        namespace: Namespace, secret_reader: SecretReaderBase
-    ) -> OCConnectionParameters:
-        """
-        This does the same as from_cluster(), but additionally checks
-        for cluster_admin credentials.
-        """
-        cluster = namespace.cluster
-        parameter = OCConnectionParameters.from_cluster(
-            cluster=cluster, secret_reader=secret_reader
-        )
-        if namespace.cluster_admin is None:
-            return parameter
-
-        cluster_admin_automation_token = None
-        if cluster.cluster_admin_automation_token and namespace.cluster_admin:
-            try:
-                cluster_admin_automation_token = secret_reader.read_secret(
-                    cluster.cluster_admin_automation_token
-                )
-            except SecretNotFound as e:
-                logging.error(
-                    f"[{cluster.name}] secret {cluster.automation_token} not found"
-                )
-                raise e
-
-        return OCConnectionParameters(
-            cluster_name=parameter.cluster_name,
-            server_url=parameter.server_url,
-            is_internal=parameter.is_internal,
-            skip_tls_verify=parameter.skip_tls_verify,
-            disabled_e2e_tests=parameter.disabled_e2e_tests,
-            disabled_integrations=parameter.disabled_integrations,
-            automation_token=parameter.automation_token,
-            is_cluster_admin=namespace.cluster_admin,
-            jumphost_hostname=parameter.jumphost_hostname,
-            jumphost_key=parameter.jumphost_key,
-            jumphost_known_hosts=parameter.jumphost_known_hosts,
-            jumphost_user=parameter.jumphost_user,
-            jumphost_port=parameter.jumphost_port,
-            jumphost_local_port=parameter.jumphost_local_port,
-            jumphost_remote_port=parameter.jumphost_remote_port,
             cluster_admin_automation_token=cluster_admin_automation_token,
+            is_cluster_admin=cluster_admin,
         )
+
+
+def _filter_unique_clusters_from_namespace(
+    namespaces: Iterable[Namespace],
+) -> list[Cluster]:
+    unique_by_cluster_name = {ns.cluster.name: ns.cluster for ns in namespaces}
+    return list(unique_by_cluster_name.values())
 
 
 def get_oc_connection_parameters_from_clusters(
     secret_reader: SecretReaderBase,
     clusters: Iterable[Cluster],
     thread_pool_size: int = 1,
+    use_jump_host: bool = True,
 ) -> list[OCConnectionParameters]:
     """
     Convert nested generated cluster classes from queries into flat ClusterParameter objects.
     Also fetch required ClusterParameter secrets from vault with multiple threads.
     ClusterParameter objects are used to initialize an OCMap.
     """
+    unique_clusers = list({c.name: c for c in clusters}.values())
     parameters: list[OCConnectionParameters] = threaded.run(
         OCConnectionParameters.from_cluster,
-        clusters,
+        unique_clusers,
         thread_pool_size,
         secret_reader=secret_reader,
+        use_jump_host=use_jump_host,
+        cluster_admin=False,
     )
     return parameters
 
@@ -224,16 +215,44 @@ def get_oc_connection_parameters_from_namespaces(
     secret_reader: SecretReaderBase,
     namespaces: Iterable[Namespace],
     thread_pool_size: int = 1,
+    use_jump_host: bool = True,
+    cluster_admin: bool = False,
 ) -> list[OCConnectionParameters]:
     """
     Convert nested generated namespace classes from queries into flat ClusterParameter objects.
     Also fetch required ClusterParameter secrets from vault with multiple threads.
     ClusterParameter objects are used to initialize an OCMap.
     """
-    parameters: list[OCConnectionParameters] = threaded.run(
-        OCConnectionParameters.from_namespace,
-        namespaces,
+
+    # init a namespace with clusterAdmin with both auth tokens
+    # OC_Map is used in various places and even when a namespace
+    # declares clusterAdmin token usage, many of those places are
+    # happy with regular dedicated-admin and will request a cluster
+    # with oc_map.get(cluster) without specifying privileged access
+    # specifically
+    all_unique_clusters = _filter_unique_clusters_from_namespace(namespaces=namespaces)
+    unique_privileged_clusters = _filter_unique_clusters_from_namespace(
+        namespaces=(ns for ns in namespaces if (ns.cluster_admin or cluster_admin))
+    )
+
+    unprivileged_connections: list[OCConnectionParameters] = threaded.run(
+        OCConnectionParameters.from_cluster,
+        all_unique_clusters,
         thread_pool_size,
         secret_reader=secret_reader,
+        use_jump_host=use_jump_host,
+        cluster_admin=False,
+        return_exceptions=True,
     )
-    return parameters
+
+    privileged_connections: list[OCConnectionParameters] = threaded.run(
+        OCConnectionParameters.from_cluster,
+        unique_privileged_clusters,
+        thread_pool_size,
+        secret_reader=secret_reader,
+        use_jump_host=use_jump_host,
+        cluster_admin=True,
+        return_exceptions=True,
+    )
+
+    return unprivileged_connections + privileged_connections

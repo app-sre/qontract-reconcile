@@ -48,6 +48,7 @@ from reconcile.gql_definitions.change_owners.queries.change_types import (
     ChangeTypeImplicitOwnershipV1,
     ChangeTypeV1,
 )
+from reconcile.utils.jsonpath import sortable_jsonpath_string_repr
 
 
 class ChangeTypePriority(Enum):
@@ -103,7 +104,9 @@ class DiffCoverage:
         if uncovered_data and isinstance(uncovered_data, MutableMapping):
             # sort splits so that later indices are always removed before earlier ones
             sorted_splits = sorted(
-                self._split_into, key=lambda x: str(x.diff.path), reverse=True
+                self._split_into,
+                key=lambda x: sortable_jsonpath_string_repr(x.diff.path, 5),
+                reverse=True,
             )
             for s in sorted_splits:
                 if s.is_covered():
