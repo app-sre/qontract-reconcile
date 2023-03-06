@@ -1,0 +1,10 @@
+
+# Configure the Red Hat InfoSec security scanner to ignore certain files
+# See https://source.redhat.com/departments/it/it-information-security/wiki/details_about_rover_github_information_security_and_scanning#how-can-i-tell-the-scanner-to-allow-certain-things-in-my-repo-
+[allowlist]
+description = "Global Allowlist"
+
+# Ignore based on any subset of the file path
+paths = [
+    '''reconcile\/test\/fixtures\/glitchtip\/api\/0\/projects\/nasa\/apollo-11-flight-control\/keys\/get.json$''',
+]

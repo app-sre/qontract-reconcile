@@ -18,41 +18,13 @@ cluster:
   insecureSkipTLSVerify: null
   internal: false
   jumpHost: null
-  name: test-cluster
+  name: cluster-without-admin
   serverUrl: server-url
 clusterAdmin: null
 delete: null
 externalResources: []
 labels: null
-limitRanges:
-  limits:
-  - default:
-      cpu: '1'
-      memory: 512Mi
-    defaultRequest:
-      cpu: 100m
-      memory: 256Mi
-    max:
-      cpu: '3'
-      memory: 8Gi
-    maxLimitRequestRatio:
-      cpu: '20'
-      memory: '4'
-    min:
-      cpu: 10m
-      memory: 20Mi
-    type: Container
-  - default: null
-    defaultRequest: null
-    max:
-      cpu: '3'
-      memory: 8Gi
-    maxLimitRequestRatio: null
-    min:
-      cpu: 10m
-      memory: 20Mi
-    type: Pod
-  name: resource-limits
+limitRanges: null
 managedExternalResources: true
 managedResourceNames: null
 managedRoles: true

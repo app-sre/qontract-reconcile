@@ -730,7 +730,6 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
                     d = self.api_resources.setdefault(kind, [])
                     d.append(obj)
 
-                self.api_resources = [r.split()[-1] for r in results]
         return self.api_resources
 
     def get_version(self):
@@ -1137,9 +1136,13 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
         return out_json
 
     def _parse_kind(self, kind_name):
+        # This is a provisional solution while we work in redefining
+        # the api resources initialization.
+        if not self.api_resources:
+            self.get_api_resources()
+
         kind_group = kind_name.split(".", 1)
         kind = kind_group[0]
-        # if kind in self.api_kind_version:
         if kind in self.api_resources:
             group_version = self.api_resources[kind][0].group_version
         else:
@@ -1167,6 +1170,11 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
         return (kind, group_version)
 
     def is_kind_supported(self, kind: str) -> bool:
+        # This is a provisional solution while we work in redefining
+        # the api resources initialization.
+        if not self.api_resources:
+            self.get_api_resources()
+
         if "." in kind:
             try:
                 self._parse_kind(kind)
@@ -1177,6 +1185,11 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
             return kind in self.api_resources
 
     def is_kind_namespaced(self, kind: str) -> bool:
+        # This is a provisional solution while we work in redefining
+        # the api resources initialization.
+        if not self.api_resources:
+            self.get_api_resources()
+
         kg = kind.split(".", 1)
         kind = kg[0]
 

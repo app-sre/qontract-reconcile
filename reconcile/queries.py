@@ -2613,6 +2613,11 @@ DNS_ZONES_QUERY = """
       weighted_routing_policy {
         weight
       }
+      geolocation_routing_policy {
+        continent
+        country
+        subdivision
+      }
       set_identifier
       records
       _healthcheck {

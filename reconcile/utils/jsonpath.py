@@ -45,6 +45,29 @@ def narrow_jsonpath_node(
     return None
 
 
+def sortable_jsonpath_string_repr(
+    path: jsonpath_ng.JSONPath, index_padding: int = 5
+) -> str:
+    """
+    Return a string representation of the JSONPath that can be used for sorting.
+    The relevant aspect is the representation of an Index, which needs to be left
+    padded with zeros to ensure comparability of the string representation.
+
+    Please be aware that the resulting string representation is not necessarily
+    a valid JSONPath expression, even though it might look like one occasionally.
+    The only purpose of this function is to produce sortable strings.
+    """
+    sortable_parts = []
+    for p in jsonpath_parts(path, ignore_filter=True):
+        if isinstance(p, jsonpath_ng.Fields):
+            sortable_parts.append(p.fields[0])
+        elif isinstance(p, jsonpath_ng.Index):
+            sortable_parts.append(f"[{str(p.index).zfill(index_padding)}]")
+        elif isinstance(p, jsonpath_ng.Slice):
+            sortable_parts.append("*")
+    return ".".join(sortable_parts)
+
+
 def jsonpath_parts(
     path: jsonpath_ng.JSONPath, ignore_filter: Optional[bool] = False
 ) -> list[jsonpath_ng.JSONPath]:

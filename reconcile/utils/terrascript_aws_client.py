@@ -218,6 +218,7 @@ VARIABLE_KEYS = [
     "api_proxy_uri",
     "cognito_callback_bucket_name",
     "openshift_ingress_load_balancer_arn",
+    "insights_callback_urls",
     "domain_name",
     "certificate_arn",
     "vpc_id",
@@ -232,6 +233,10 @@ VARIABLE_KEYS = [
 EMAIL_REGEX = re.compile(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$")
 
 TMP_DIR_PREFIX = "terrascript-aws-"
+
+DEFAULT_S3_SSE_CONFIGURATION = {
+    "rule": {"apply_server_side_encryption_by_default": {"sse_algorithm": "AES256"}}
+}
 
 
 class StateInaccessibleException(Exception):
@@ -356,9 +361,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             # the time provider can be removed if all AWS accounts
             # upgrade to a provider version with this bug fix
             # https://github.com/hashicorp/terraform-provider-aws/pull/20926
-            ts += time(version="0.7.2")
+            ts += time(version="0.9.1")
 
-            ts += provider.random(version="3.1.0")
+            ts += provider.random(version="3.4.3")
 
             ts += provider.template(version="2.2.0")
 
@@ -1661,13 +1666,13 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             values.setdefault("lifecycle", {}).setdefault("ignore_changes", []).append(
                 "grant"
             )
-        server_side_encryption_configuration = common_values.get(
-            "server_side_encryption_configuration"
+        server_side_encryption_configuration = (
+            common_values.get("server_side_encryption_configuration")
+            or DEFAULT_S3_SSE_CONFIGURATION
         )
-        if server_side_encryption_configuration:
-            values[
-                "server_side_encryption_configuration"
-            ] = server_side_encryption_configuration
+        values[
+            "server_side_encryption_configuration"
+        ] = server_side_encryption_configuration
         # Support static website hosting [rosa-authenticator]
         website = common_values.get("website")
         if website:
@@ -5148,6 +5153,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             "openshift_ingress_load_balancer_arn"
         )
         vpce_id = common_values.get("vpce_id")
+        insights_callback_urls = common_values.get("insights_callback_urls")
 
         # Manage IAM Resources
         lambda_role_policy = {
@@ -5326,7 +5332,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         )
         tf_resources.append(cognito_resource_server_gateway_resource)
 
-        # POOL CLIENT
+        # OCM POOL CLIENT
         cognito_user_pool_client = aws_cognito_user_pool_client(
             "userpool_client",
             name=f"ocm-{identifier}-pool-client",
@@ -5336,6 +5342,17 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             **pool_client_args,
         )
         tf_resources.append(cognito_user_pool_client)
+
+        # INSIGHTS POOL CLIENT
+        if insights_callback_urls:
+            insights_cognito_user_pool_client = aws_cognito_user_pool_client(
+                "ins_userpool_client",
+                name=f"insights-{identifier}-pool-client",
+                user_pool_id=f"${{{cognito_user_pool_resource.id}}}",
+                callback_urls=insights_callback_urls,
+                **pool_client_args,
+            )
+            tf_resources.append(insights_cognito_user_pool_client)
 
         # POOL RESOURCE SERVER
         cognito_resource_server_resource = aws_cognito_resource_server(

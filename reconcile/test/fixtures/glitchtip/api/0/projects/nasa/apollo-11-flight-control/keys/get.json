@@ -1,0 +1,14 @@
+[
+  {
+    "dateCreated": "2023-03-01T11:09:50.223950Z",
+    "dsn": {
+      "public": "http://public_dsn",
+      "secret": "http://secret_dsn",
+      "security": "http://security_endpoint"
+    },
+    "id": "idid",
+    "label": "",
+    "public": "publicpublic",
+    "projectId": 2
+  }
+]

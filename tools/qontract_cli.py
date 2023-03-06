@@ -7,14 +7,12 @@ import sys
 from collections import defaultdict
 from datetime import datetime
 from operator import itemgetter
-from typing import (
-    Optional,
-    cast,
-)
+from typing import Optional
 
 import click
 import requests
 import yaml
+from sretoolbox.utils import threaded
 
 import reconcile.gitlab_housekeeping as glhk
 import reconcile.ocm_upgrade_scheduler as ous
@@ -70,10 +68,6 @@ from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.semver_helper import parse_semver
 from reconcile.utils.state import State
 from reconcile.utils.terraform_client import TerraformClient as Terraform
-from reconcile.utils.vault import (
-    VaultClient,
-    _VaultClient,
-)
 from tools.cli_commands.gpg_encrypt import (
     GPGEncryptCommand,
     GPGEncryptCommandData,
@@ -517,6 +511,18 @@ def get_available_upgrades(ocm: OCM, version: str, channel: str) -> list[str]:
     return [u for u in upgrades if not ocm.version_blocked(u)]
 
 
+def inherit_version_data_text(ocm_org: str, ocm_specs: list[dict]) -> str:
+    ocm_specs_for_org = [o for o in ocm_specs if o["name"] == ocm_org]
+    if not ocm_specs_for_org:
+        raise ValueError(f"{ocm_org} not found in list of organizations")
+    ocm_spec = ocm_specs_for_org[0]
+    inherit_version_data = ocm_spec["inheritVersionData"]
+    if not inherit_version_data:
+        return ""
+    inherited_orgs = [f"[{o['name']}](#{o['name']})" for o in inherit_version_data]
+    return f"inheriting version data from {', '.join(inherited_orgs)}"
+
+
 @get.command()
 @click.pass_context
 def ocm_fleet_upgrade_policies(
@@ -558,7 +564,7 @@ def ocm_fleet_upgrade_policies(
         ocm_orgs = sorted({o["ocm"] for o in results})
         ocm_org_section = """
 # {}
-
+{}
 ```json:table
 {}
 ```
@@ -569,7 +575,11 @@ def ocm_fleet_upgrade_policies(
                 {"fields": fields, "items": data, "filter": True, "caption": ""},
                 indent=1,
             )
-            print(ocm_org_section.format(ocm_org, json_data))
+            print(
+                ocm_org_section.format(
+                    ocm_org, inherit_version_data_text(ocm_org, ocm_specs), json_data
+                )
+            )
 
     else:
         columns = [
@@ -640,7 +650,7 @@ def ocm_addon_upgrade_policies(ctx):
     ]
     section = """
 # {}
-
+{}
 ```json:table
 {}
 ```
@@ -655,7 +665,11 @@ def ocm_addon_upgrade_policies(ctx):
             },
             indent=1,
         )
-        print(section.format(ocm_name, json_data))
+        print(
+            section.format(
+                ocm_name, inherit_version_data_text(ocm_name, ocms), json_data
+            )
+        )
 
 
 @root.command()
@@ -863,9 +877,11 @@ def clusters_aws_account_ids(ctx):
 @get.command()
 @click.pass_context
 def terraform_users_credentials(ctx) -> None:
-    vc = cast(_VaultClient, VaultClient())
+    settings = queries.get_app_interface_settings()
+    accounts = queries.get_state_aws_accounts()
+    state = State("account-notifier", accounts, settings=settings)
 
-    skip_accounts, appsre_pgp_key, reencrypt_settings = tfu.get_reencrypt_settings()
+    skip_accounts, appsre_pgp_key, _ = tfu.get_reencrypt_settings()
 
     accounts, working_dirs, _, aws_api = tfu.setup(
         False,
@@ -899,13 +915,24 @@ def terraform_users_credentials(ctx) -> None:
                 }
                 credentials.append(item)
 
-    for secret in vc.list(reencrypt_settings.aws_account_output_vault_path):
-        secret_request = {
-            "path": f"{reencrypt_settings.aws_account_output_vault_path}/{secret}"
-        }
-        secret_data = vc.read_all(secret_request)
-        if secret_data["account"] not in skip_accounts:
-            credentials.append(secret_data)
+    secrets = state.ls()
+
+    def _get_secret(secret_key: str):
+        if secret_key.startswith("/output/"):
+            secret_data = state.get(secret_key[1:])
+            if secret_data["account"] not in skip_accounts:
+                return secret_data
+        return None
+
+    secret_result = threaded.run(
+        _get_secret,
+        secrets,
+        10,
+    )
+
+    for secret in secret_result:
+        if secret and secret["account"] not in skip_accounts:
+            credentials.append(secret)
 
     columns = ["account", "console_url", "user_name", "encrypted_password"]
     print_output(ctx.obj["options"], credentials, columns)
@@ -913,10 +940,11 @@ def terraform_users_credentials(ctx) -> None:
 
 @root.command()
 @click.argument("account_name")
-@click.argument("output_path")
 @click.pass_context
-def user_credentials_migrate_output(ctx, account_name, output_path) -> None:
-    vc = cast(_VaultClient, VaultClient())
+def user_credentials_migrate_output(ctx, account_name) -> None:
+    settings = queries.get_app_interface_settings()
+    accounts = queries.get_state_aws_accounts()
+    state = State("account-notifier", accounts, settings=settings)
 
     skip_accounts, appsre_pgp_key, _ = tfu.get_reencrypt_settings()
 
@@ -940,24 +968,19 @@ def user_credentials_migrate_output(ctx, account_name, output_path) -> None:
     )
     credentials = []
     for account, output in tf.outputs.items():
-        if account in skip_accounts:
-            user_passwords = tf.format_output(output, tf.OUTPUT_TYPE_PASSWORDS)
-            console_urls = tf.format_output(output, tf.OUTPUT_TYPE_CONSOLEURLS)
-            for user_name, enc_password in user_passwords.items():
-                item = {
-                    "account": account,
-                    "console_url": console_urls[account],
-                    "user_name": user_name,
-                    "encrypted_password": enc_password,
-                }
-                credentials.append(item)
+        user_passwords = tf.format_output(output, tf.OUTPUT_TYPE_PASSWORDS)
+        console_urls = tf.format_output(output, tf.OUTPUT_TYPE_CONSOLEURLS)
+        for user_name, enc_password in user_passwords.items():
+            item = {
+                "account": account,
+                "console_url": console_urls[account],
+                "user_name": user_name,
+                "encrypted_password": enc_password,
+            }
+            credentials.append(item)
 
     for cred in credentials:
-        new_secret = {
-            "path": f"{output_path}/{cred['user_name']}_{cred['account']}",
-            "data": cred,
-        }
-        vc.write(new_secret, decode_base64=False)
+        state.add(f"output/{cred['account']}/{cred['user_name']}", cred)
 
 
 @get.command()

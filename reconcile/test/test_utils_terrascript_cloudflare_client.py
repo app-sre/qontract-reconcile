@@ -1,4 +1,9 @@
 import json
+from dataclasses import (
+    asdict,
+    dataclass,
+)
+from typing import Optional
 from unittest.mock import (
     create_autospec,
     mock_open,
@@ -8,13 +13,23 @@ import pytest
 from terrascript import Terrascript
 
 from reconcile.utils.external_resource_spec import ExternalResourceSpec
+from reconcile.utils.secret_reader import SecretReaderBase
 from reconcile.utils.terraform.config import TerraformS3BackendConfig
 from reconcile.utils.terrascript.cloudflare_client import (
+    AccountShardingStrategy,
     CloudflareAccountConfig,
     TerrascriptCloudflareClient,
+    TerrascriptCloudflareClientFactory,
     create_cloudflare_terrascript,
 )
 from reconcile.utils.terrascript.cloudflare_resources import cloudflare_account
+from reconcile.utils.terrascript.models import (
+    CloudflareAccount,
+    Integration,
+    TerraformStateS3,
+)
+
+INTEGRATION = "qontract-reconcile-integration"
 
 
 @pytest.fixture
@@ -102,7 +117,25 @@ def test_create_cloudflare_resources_terraform_json(account_config, backend_conf
         {},
     )
 
+    cf_account_member_spec = ExternalResourceSpec(
+        "cloudflare",
+        {"name": "cloudflare-account"},
+        {
+            "provider": "account_member",
+            "identifier": "user1",
+            "email_address": "user1@redhat.com",
+            "account_id": "1234567890",
+            "role_ids": ["abc123"],
+            "cloudflare_account_roles": {
+                "identifier": "cloudflare-account",
+                "account_id": "${var.account_id}",
+            },
+        },
+        {},
+    )
+
     cloudflare_client.add_spec(spec)
+    cloudflare_client.add_spec(cf_account_member_spec)
     cloudflare_client.populate_resources()
 
     expected_dict = {
@@ -128,8 +161,20 @@ def test_create_cloudflare_resources_terraform_json(account_config, backend_conf
                 }
             ]
         },
+        "data": {
+            "cloudflare_account_roles": {
+                "cloudflare-account": {"account_id": "${var.account_id}"}
+            }
+        },
         "variable": {"account_id": {"default": "account_id", "type": "string"}},
         "resource": {
+            "cloudflare_account_member": {
+                "user1": {
+                    "account_id": "1234567890",
+                    "email_address": "user1@redhat.com",
+                    "role_ids": ["abc123"],
+                }
+            },
             "cloudflare_account": {
                 "account-name": {
                     "name": "account-name",
@@ -183,6 +228,11 @@ def test_create_cloudflare_resources_terraform_json(account_config, backend_conf
                     "depends_on": ["cloudflare_zone.domain-com"],
                 }
             },
+        },
+        "output": {
+            "domain-com-zone__validation_records": {
+                "value": "${{ for value in cloudflare_certificate_pack.some-cert.validation_records: value.txt_name => value.txt_value }}"
+            }
         },
     }
 
@@ -261,3 +311,170 @@ def test_create_cloudflare_terrascript_not_include_account(
 
     for t in ts:
         assert not isinstance(t, cloudflare_account)
+
+
+def secret_reader_side_effect(*args):
+    if {
+        "path": "automation_token_path",
+        "field": "some-field",
+        "version": None,
+        "q_format": None,
+    } == asdict(args[0]):
+        aws_acct_creds = {}
+        aws_acct_creds["aws_access_key_id"] = "key_id"
+        aws_acct_creds["aws_secret_access_key"] = "access_key"
+        return aws_acct_creds
+    elif {
+        "path": "creds",
+        "field": "some-field",
+        "version": None,
+        "q_format": None,
+    } == asdict(args[0]):
+        cf_acct_creds = {}
+        cf_acct_creds["api_token"] = "api_token"
+        cf_acct_creds["account_id"] = "account_id"
+        return cf_acct_creds
+
+
+@dataclass
+class VaultSecret:
+    path: str
+    field: str
+    version: Optional[int]
+    q_format: Optional[str]
+
+
+@pytest.fixture
+def terraform_state_s3():
+    tf_state_s3 = TerraformStateS3(
+        VaultSecret(
+            path="automation_token_path",
+            field="some-field",
+            version=None,
+            q_format=None,
+        ),
+        "app-interface",
+        "us-east-1",
+        Integration(INTEGRATION.replace("_", "-"), "key"),
+    )
+    return tf_state_s3
+
+
+@pytest.fixture
+def cloudflare_account_dataclass():
+    cf_account = CloudflareAccount(
+        "test-account",
+        VaultSecret(path="creds", field="some-field", version=None, q_format=None),
+        True,
+        "enterprise",
+        "3.19",
+    )
+    return cf_account
+
+
+@pytest.fixture
+def secret_reader_fixture(mocker):
+    mocked_secret_reader = mocker.Mock(spec=SecretReaderBase)
+    mocked_secret_reader.read_all_secret.side_effect = secret_reader_side_effect
+    return mocked_secret_reader
+
+
+def test_cloudflare_client_factory_skip_account_resource(
+    terraform_state_s3, cloudflare_account_dataclass, secret_reader_fixture
+):
+    """
+    Tests that cloudflare terrascript resource 'cloudflare_account' is skipped
+    """
+    is_managed_account = False
+    client = TerrascriptCloudflareClientFactory.get_client(
+        terraform_state_s3,
+        cloudflare_account_dataclass,
+        None,
+        secret_reader_fixture,
+        is_managed_account,
+    )
+
+    output = json.loads(client.dumps())
+
+    assert isinstance(client, TerrascriptCloudflareClient)
+
+    with pytest.raises(KeyError):
+        _ = output["resource"]["cloudflare_account"]
+
+
+def test_cloudflare_client_factory_create_account_resource(
+    terraform_state_s3, cloudflare_account_dataclass, secret_reader_fixture
+):
+    """
+    Tests that cloudflare terrascript resource 'cloudflare_account' is created
+    """
+
+    is_managed_account = True
+    client = TerrascriptCloudflareClientFactory.get_client(
+        terraform_state_s3,
+        cloudflare_account_dataclass,
+        None,
+        secret_reader_fixture,
+        is_managed_account,
+    )
+
+    output = json.loads(client.dumps())
+
+    expected_result = {
+        "cloudflare_account": {
+            "test-account": {
+                "name": "test-account",
+                "enforce_twofactor": True,
+                "type": "enterprise",
+            }
+        }
+    }
+    assert isinstance(client, TerrascriptCloudflareClient)
+
+    assert expected_result == output["resource"]
+
+
+@pytest.mark.parametrize(
+    "sharding_strategy,expected_key",
+    [
+        (None, "key"),
+        (
+            AccountShardingStrategy(
+                CloudflareAccount(
+                    "cf-acct",
+                    VaultSecret(
+                        path="api-credentials-path",
+                        field="some-field",
+                        version=None,
+                        q_format=None,
+                    ),
+                    None,
+                    None,
+                    "3.19",
+                )
+            ),
+            "qontract-reconcile-integration-cf-acct.tfstate",
+        ),
+    ],
+)
+def test_cloudflare_client_factory_object_key_strategies(
+    terraform_state_s3,
+    cloudflare_account_dataclass,
+    secret_reader_fixture,
+    sharding_strategy,
+    expected_key,
+):
+    """
+    Tests various sharding strategies for cloudflare terrascript client
+    """
+
+    client = TerrascriptCloudflareClientFactory.get_client(
+        terraform_state_s3,
+        cloudflare_account_dataclass,
+        sharding_strategy,
+        secret_reader_fixture,
+        False,
+    )
+
+    output = json.loads(client.dumps())
+    assert expected_key == output["terraform"]["backend"]["s3"]["key"]

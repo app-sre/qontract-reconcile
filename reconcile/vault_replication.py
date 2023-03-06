@@ -121,6 +121,12 @@ def copy_vault_secret(
         # Raise exception if we can't read the secret from the source vault.
         # This is likely to be related to the approle permissions.
         raise SecretAccessForbidden("Cannot read secret from source vault")
+    except SecretNotFound:
+        # If the secret is present in vault, but there are no versions of it
+        # we want to be aware of it, but not cause a failure of the complete
+        # integration
+        logging.error(["replicate_vault_secret", "no versions found for secret", path])
+        return
 
     try:
         dest_data, dest_version = dest_vault.read_all_with_version(secret_dict)

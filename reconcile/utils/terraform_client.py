@@ -222,7 +222,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
     ) -> tuple[bool, list]:
         disabled_deletion_detected = False
         account_enable_deletion = self.accounts[name].get("enableDeletion") or False
-        # deletions are alowed
+        # deletions are allowed
         # if enableDeletion is true for an account
         # or if the integration's enable_deletion is true
         deletions_allowed = enable_deletion or account_enable_deletion
@@ -267,6 +267,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         always_enabled_deletions = {
             "random_id",
             "aws_lb_target_group_attachment",
+            "cloudflare_record",  # This is because a zone can contain up to one thousand records and it's not practical to require adding each record to deletionApprovals
         }
 
         # https://www.terraform.io/docs/internals/json-format.html
@@ -683,3 +684,15 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
             return not set(changed_resource_arguments) - set(changed_values)
         else:
             return False
+
+
+class TerraformPlanFailed(Exception):
+    pass
+
+
+class TerraformApplyFailed(Exception):
+    pass
+
+
+class TerraformDeletionDetected(Exception):
+    pass

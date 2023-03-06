@@ -16,6 +16,7 @@ from reconcile.utils.glitchtip import (
     User,
 )
 from reconcile.utils.glitchtip.client import get_next_url
+from reconcile.utils.glitchtip.models import ProjectKey
 
 
 @pytest.mark.parametrize(
@@ -223,6 +224,14 @@ def test_glitchtip_projects(glitchtip_client: GlitchtipClient) -> None:
             ],
         ),
     ]
+
+
+def test_glitchtip_project_key(glitchtip_client: GlitchtipClient) -> None:
+    assert glitchtip_client.project_key(
+        organization_slug="nasa", project_slug="apollo-11-flight-control"
+    ) == ProjectKey(
+        dsn="http://public_dsn", security_endpoint="http://security_endpoint"
+    )
 
 
 def test_glitchtip_create_project(glitchtip_client: GlitchtipClient) -> None:

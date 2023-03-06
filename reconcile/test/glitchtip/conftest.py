@@ -1,10 +1,14 @@
 from pathlib import Path
+from typing import Any
 
 import httpretty as httpretty_module
 import pytest
+from pytest_mock import MockerFixture
 
 from reconcile.test.fixtures import Fixtures
 from reconcile.utils.glitchtip import GlitchtipClient
+from reconcile.utils.oc import OCNative
+from reconcile.utils.oc_map import OCMap
 
 
 @pytest.fixture
@@ -64,6 +68,8 @@ def glitchtip_server_full_api_response(
         "api/0/teams/nasa/nasa-pilots/projects/",
         "api/0/teams/nasa/nasa-pilots/projects/science-tools/",
         "api/0/teams/nasa/nasa-flight-control/members/",
+        # glitchtip-project-dsn
+        "api/0/projects/nasa/apollo-11-flight-control/keys/",
     ]:
         get_file = Path(fx.path(path)) / "get.json"
         if get_file.exists():
@@ -97,3 +103,30 @@ def glitchtip_server_full_api_response(
                 body=delete_file.read_text(),
                 content_type="text/json",
             )
+
+
+@pytest.fixture
+def fake_secret() -> dict[str, Any]:
+    return {
+        "apiVersion": "v1",
+        "kind": "Secret",
+        "metadata": {"name": "fake-secret"},
+        "data": {
+            "dsn": "fake",
+            "security_endpoint": "fake",
+        },
+    }
+
+
+@pytest.fixture
+def oc(mocker: MockerFixture, fake_secret: dict[str, Any]) -> OCNative:
+    oc = mocker.patch("reconcile.utils.oc.OCNative", autospec=True)
+    oc.get_items.return_value = [fake_secret]
+    return oc
+
+
+@pytest.fixture
+def oc_map(mocker: MockerFixture, oc: OCNative) -> OCMap:
+    oc_map = mocker.patch("reconcile.utils.oc_map.OCMap", autospec=True)
+    oc_map.get_cluster.return_value = oc
+    return oc_map

@@ -75,7 +75,7 @@ def find_changed_shards(
                             for shard in shard_path.find(previous_desired_state)
                         }
                     )
-                if d.diff_type in {d.diff_type.ADDED}:
+                if d.diff_type in {DiffType.CHANGED, d.diff_type.ADDED}:
                     affected_shards.update(
                         {
                             shard.value

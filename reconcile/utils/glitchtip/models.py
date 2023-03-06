@@ -76,6 +76,11 @@ class Team(BaseModel):
         return hash(self.slug)
 
 
+class ProjectKey(BaseModel):
+    dsn: str
+    security_endpoint: str
+
+
 class Project(BaseModel):
     pk: Optional[int] = Field(None, alias="id")
     name: str
