@@ -1593,12 +1593,15 @@ def quay_permissions(ctx):
 
 
 @integration.command(short_help="Removes users which are not found in LDAP search.")
-@click.argument("gitlab-project-id")
+@click.argument("app-interface-project-id")
+@click.argument("infra-project-id")
 @click.pass_context
-def ldap_users(ctx, gitlab_project_id):
+def ldap_users(ctx, infra_project_id, app_interface_project_id):
     import reconcile.ldap_users
 
-    run_integration(reconcile.ldap_users, ctx.obj, gitlab_project_id)
+    run_integration(
+        reconcile.ldap_users, ctx.obj, app_interface_project_id, infra_project_id
+    )
 
 
 @integration.command(short_help="Manage AWS Resources using Terraform.")

@@ -17,7 +17,7 @@ from reconcile import (
 )
 from reconcile.github_org import get_default_config
 from reconcile.ldap_users import init_users as init_users_and_paths
-from reconcile.utils.mr import CreateDeleteUser
+from reconcile.utils.mr import CreateDeleteUserAppInterface
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.smtp_client import (
     DEFAULT_SMTP_TIMEOUT,
@@ -111,7 +111,7 @@ def run(
             if send_mails:
                 send_email_notification(user, smtp_client)
             elif enable_deletion:
-                mr = CreateDeleteUser(username, paths)
+                mr = CreateDeleteUserAppInterface(username, paths)
                 mr.submit(cli=mr_cli)
             else:
                 msg = (

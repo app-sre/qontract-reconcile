@@ -11,7 +11,7 @@ class PathTypes:
     GABI = 3
 
 
-class CreateDeleteUser(MergeRequestBase):
+class CreateDeleteUserAppInterface(MergeRequestBase):
 
     name = "create_delete_user_mr"
 
@@ -53,3 +53,50 @@ class CreateDeleteUser(MergeRequestBase):
                     commit_message=self.title,
                     content=new_content,
                 )
+
+
+class CreateDeleteUserInfra(MergeRequestBase):
+
+    PLAYBOOK = "ansible/playbooks/bastion-accounts.yml"
+
+    name = "create_ssh_key_mr"
+
+    def __init__(self, usernames):
+        self.usernames = usernames
+
+        super().__init__()
+
+        self.labels = [AUTO_MERGE]
+
+    @property
+    def title(self) -> str:
+        return f"[{self.name}] delete user(s)"
+
+    @property
+    def description(self) -> str:
+        return "delete user(s)"
+
+    def process(self, gitlab_cli):
+        raw_file = gitlab_cli.project.files.get(
+            file_path=self.PLAYBOOK, ref=self.branch
+        )
+        content = yaml.load(raw_file.decode(), Loader=yaml.RoundTripLoader)
+
+        new_list = []
+        for user in content[0]["vars"]["users"]:
+            if user["name"] in self.usernames:
+                content[0]["vars"]["deleted_users"].append(user["name"])
+                continue
+            new_list.append(user)
+
+        content[0]["vars"]["users"] = new_list
+
+        new_content = "---\n"
+        new_content += yaml.dump(content, Dumper=yaml.RoundTripDumper)
+
+        gitlab_cli.update_file(
+            branch_name=self.branch,
+            file_path=self.PLAYBOOK,
+            commit_message=self.title,
+            content=new_content,
+        )
