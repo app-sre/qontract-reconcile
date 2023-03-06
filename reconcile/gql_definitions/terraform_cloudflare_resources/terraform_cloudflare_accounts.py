@@ -16,21 +16,28 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
+from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
+
 
 DEFINITION = """
+fragment VaultSecret on VaultSecret_v1 {
+    path
+    field
+    version
+    format
+}
+
 query TerraformCloudflareAccounts {
   accounts: cloudflare_accounts_v1 {
     name
     providerVersion
     apiCredentials {
-      path
-      field
+      ... VaultSecret
     }
     terraformStateAccount {
       name
       automationToken {
-        path
-        field
+        ... VaultSecret
       }
       terraformState {
         provider
@@ -52,24 +59,6 @@ query TerraformCloudflareAccounts {
   }
 }
 """
-
-
-class VaultSecretV1(BaseModel):
-    path: str = Field(..., alias="path")
-    field: str = Field(..., alias="field")
-
-    class Config:
-        smart_union = True
-        extra = Extra.forbid
-
-
-class AWSAccountV1_VaultSecretV1(BaseModel):
-    path: str = Field(..., alias="path")
-    field: str = Field(..., alias="field")
-
-    class Config:
-        smart_union = True
-        extra = Extra.forbid
 
 
 class AWSTerraformStateIntegrationsV1(BaseModel):
@@ -96,7 +85,7 @@ class TerraformStateAWSV1(BaseModel):
 
 class AWSAccountV1(BaseModel):
     name: str = Field(..., alias="name")
-    automation_token: AWSAccountV1_VaultSecretV1 = Field(..., alias="automationToken")
+    automation_token: VaultSecret = Field(..., alias="automationToken")
     terraform_state: Optional[TerraformStateAWSV1] = Field(..., alias="terraformState")
 
     class Config:
@@ -117,7 +106,7 @@ class DeletionApprovalV1(BaseModel):
 class CloudflareAccountV1(BaseModel):
     name: str = Field(..., alias="name")
     provider_version: str = Field(..., alias="providerVersion")
-    api_credentials: VaultSecretV1 = Field(..., alias="apiCredentials")
+    api_credentials: VaultSecret = Field(..., alias="apiCredentials")
     terraform_state_account: AWSAccountV1 = Field(..., alias="terraformStateAccount")
     deletion_approvals: Optional[list[DeletionApprovalV1]] = Field(
         ..., alias="deletionApprovals"

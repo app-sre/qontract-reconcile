@@ -6,7 +6,6 @@ from typing import (
     Tuple,
 )
 
-from reconcile import queries
 from reconcile.gql_definitions.terraform_cloudflare_resources import (
     terraform_cloudflare_accounts,
     terraform_cloudflare_resources,
@@ -20,6 +19,9 @@ from reconcile.gql_definitions.terraform_cloudflare_resources.terraform_cloudfla
     TerraformCloudflareResourcesQueryData,
 )
 from reconcile.status import ExitCodes
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
 from reconcile.utils import gql
 from reconcile.utils.defer import defer
 from reconcile.utils.exceptions import SecretIncompleteError
@@ -27,7 +29,10 @@ from reconcile.utils.external_resources import (
     PROVIDER_CLOUDFLARE,
     get_external_resource_specs,
 )
-from reconcile.utils.secret_reader import SecretReader
+from reconcile.utils.secret_reader import (
+    SecretReaderBase,
+    create_secret_reader,
+)
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.terraform.config_client import TerraformConfigClientCollection
 from reconcile.utils.terraform_client import TerraformClient
@@ -46,11 +51,11 @@ QONTRACT_TF_PREFIX = "qrtfcf"
 
 
 def create_backend_config(
-    secret_reader: SecretReader,
+    secret_reader: SecretReaderBase,
     aws_acct: AWSAccountV1,
     cf_acct: CloudflareAccountV1,
 ) -> TerraformS3BackendConfig:
-    aws_acct_creds = secret_reader.read_all({"path": aws_acct.automation_token.path})
+    aws_acct_creds = secret_reader.read_all_secret(aws_acct.automation_token)
 
     # default from AWS account file
     tf_state = aws_acct.terraform_state
@@ -86,7 +91,7 @@ def create_backend_config(
 
 
 def build_clients(
-    secret_reader: SecretReader,
+    secret_reader: SecretReaderBase,
     query_accounts: TerraformCloudflareAccountsQueryData,
     selected_account: Optional[str] = None,
 ) -> list[tuple[str, TerrascriptCloudflareClient]]:
@@ -94,7 +99,7 @@ def build_clients(
     for cf_acct in query_accounts.accounts or []:
         if selected_account and cf_acct.name != selected_account:
             continue
-        cf_acct_creds = secret_reader.read_all({"path": cf_acct.api_credentials.path})
+        cf_acct_creds = secret_reader.read_all_secret(cf_acct.api_credentials)
         if not cf_acct_creds.get("api_token") or not cf_acct_creds.get("account_id"):
             raise SecretIncompleteError(
                 f"secret {cf_acct.api_credentials.path} incomplete: api_token and/or account_id missing"
@@ -130,8 +135,8 @@ def run(
     selected_account=None,
     defer=None,
 ) -> None:
-    settings = queries.get_app_interface_settings()
-    secret_reader = SecretReader(settings=settings)
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
 
     query_accounts, query_resources = _get_cloudflare_desired_state()
 

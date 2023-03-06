@@ -5,14 +5,12 @@ query TerraformCloudflareAccounts {
     name
     providerVersion
     apiCredentials {
-      path
-      field
+      ... VaultSecret
     }
     terraformStateAccount {
       name
       automationToken {
-        path
-        field
+        ... VaultSecret
       }
       terraformState {
         provider
