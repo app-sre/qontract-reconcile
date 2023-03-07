@@ -14,7 +14,6 @@ from reconcile.gql_definitions.common.app_interface_vault_settings import (
 from reconcile.gql_definitions.common.namespaces_minimal import NamespaceV1
 from reconcile.test.fixtures import Fixtures
 from reconcile.utils.oc import StatusCodeError
-from reconcile.utils.oc_map import OCMap
 from reconcile.utils.secret_reader import SecretReaderBase
 
 fxt = Fixtures("openshift_namespaces")
