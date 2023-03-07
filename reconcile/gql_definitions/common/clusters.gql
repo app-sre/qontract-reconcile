@@ -30,6 +30,7 @@ query Clusters($name: String) {
     ocm {
       name
       url
+      orgId
       accessTokenClientId
       accessTokenUrl
       accessTokenClientSecret {

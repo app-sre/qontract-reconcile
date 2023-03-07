@@ -522,10 +522,6 @@ OCM_PRODUCTS_IMPL = {
 }
 
 
-class OCMServiceAccountNotAssociatedToOrg(Exception):
-    pass
-
-
 class SectorConfigError(Exception):
     pass
 
@@ -579,6 +575,7 @@ class OCM:  # pylint: disable=too-many-public-methods
 
     :param name: OCM instance name
     :param url: OCM instance URL
+    :param org_id: OCM org ID
     :param access_token_client_id: client-id to get access token
     :param access_token_url: URL to get access token from
     :param access_token_client_secret: client-secret to get access token
@@ -599,6 +596,7 @@ class OCM:  # pylint: disable=too-many-public-methods
         self,
         name,
         url,
+        org_id,
         access_token_client_id,
         access_token_url,
         access_token_client_secret,
@@ -621,10 +619,7 @@ class OCM:  # pylint: disable=too-many-public-methods
             )
         else:
             self._ocm_client = ocm_client
-        try:
-            self.org_id = self.whoami()["organization"]["id"]
-        except KeyError:
-            raise OCMServiceAccountNotAssociatedToOrg(access_token_client_id)
+        self.org_id = org_id
         self._init_clusters(init_provision_shards=init_provision_shards)
 
         if init_addons:
@@ -1778,12 +1773,14 @@ class OCMMap:  # pylint: disable=too-many-public-methods
             self.ocm_map[ocm_name] = False
         else:
             url = ocm_info["url"]
+            org_id = ocm_info["orgId"]
             name = ocm_info["name"]
             secret_reader = SecretReader(settings=self.settings)
             token = secret_reader.read(access_token_client_secret)
             self.ocm_map[ocm_name] = OCM(
                 name,
                 url,
+                org_id,
                 access_token_client_id,
                 access_token_url,
                 token,

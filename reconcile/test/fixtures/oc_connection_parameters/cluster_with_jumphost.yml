@@ -57,6 +57,7 @@ ocm:
   name: ocm-production
   sectors: null
   url: ocm-url
+  orgId: org-id
 peering:
   connections: []
 prometheusUrl: prom-url
