@@ -694,14 +694,18 @@ def test_act_add_new_usergroups(
         workspace="slack-workspace",
         usergroup="usergroup-2",
         usergroup_id="USERGB",
-        users=set([
-            SlackObject(pk="USERB", name="userb"),
-            SlackObject(pk="USERC", name="userc"),
-        ]),
-        channels=set([
-            SlackObject(pk="CHANB", name="channelb"),
-            SlackObject(pk="CHANC", name="channelc"),
-        ]),
+        users=set(
+            [
+                SlackObject(pk="USERB", name="userb"),
+                SlackObject(pk="USERC", name="userc"),
+            ]
+        ),
+        channels=set(
+            [
+                SlackObject(pk="CHANB", name="channelb"),
+                SlackObject(pk="CHANC", name="channelc"),
+            ]
+        ),
         description="A new usergroup",
     )
 
@@ -709,14 +713,18 @@ def test_act_add_new_usergroups(
         workspace="slack-workspace",
         usergroup="usergroup-3",
         usergroup_id="USERGC",
-        users=set([
-            SlackObject(pk="USERF", name="userf"),
-            SlackObject(pk="USERG", name="userg"),
-        ]),
-        channels=set([
-            SlackObject(pk="CHANF", name="channelf"),
-            SlackObject(pk="CHANG", name="channelg"),
-        ]),
+        users=set(
+            [
+                SlackObject(pk="USERF", name="userf"),
+                SlackObject(pk="USERG", name="userg"),
+            ]
+        ),
+        channels=set(
+            [
+                SlackObject(pk="CHANF", name="channelf"),
+                SlackObject(pk="CHANG", name="channelg"),
+            ]
+        ),
         description="Another new usergroup",
     )
     slack_client_mock.create_usergroup.side_effect = ["USERGB", "USERGC"]

@@ -74,13 +74,17 @@ def ocm_osd_cluster_spec():
         load_balancers=5,
         storage=1100,
         provider="aws",
+        initial_version=None,
+        hypershift=None,
     )
     obj = OCMSpec(
         spec=spec,
         network=n,
         domain="devshift.net",
-        server_url="https://api.test-cluster.0000.p1.openshiftapps.com:6443",
-        console_url="https://console-openshift-console.test-cluster.0000.p1.openshiftapps.com",
+        serverUrl="https://api.test-cluster.0000.p1.openshiftapps.com:6443",
+        consoleUrl="https://console-openshift-console.test-cluster.0000.p1.openshiftapps.com",
+        path=None,
+        elbFQDN="",
     )
     yield obj
 

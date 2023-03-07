@@ -62,7 +62,7 @@ def add_cluster(
     clusters: dict[str, OCMSpec], cluster_name: str, version: str, channel: str
 ):
     clusters[cluster_name] = OCMSpec(
-        network=OCMClusterNetwork(vpc="", service="", pod=""),
+        network=OCMClusterNetwork(vpc="", service="", pod="", type=None),
         spec=OCMClusterSpec(
             version=version,
             channel=channel,
@@ -72,7 +72,20 @@ def add_cluster(
             product="",
             provider="",
             region="",
+            hypershift=None,
+            initial_version=None,
+            provision_shard_id=None,
+            nodes=None,
+            id=None,
+            external_id=None,
+            disable_user_workload_monitoring=None,
+            autoscale=None,
         ),
+        path=None,
+        consoleUrl="",
+        serverUrl="",
+        domain=None,
+        elbFQDN="",
     )
 
 

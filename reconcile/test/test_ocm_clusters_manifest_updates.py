@@ -33,14 +33,17 @@ def cluster_ocm_spec():
         load_balancers=5,
         storage=1100,
         provider="aws",
+        hypershift=None,
+        initial_version=None,
     )
     obj = OCMSpec(
         spec=spec,
         network=n,
         domain="0000.p1.openshiftapps.com",
-        server_url="https://api.cluster.0000.p1.openshiftapps.com:6443",
-        console_url="https://console-openshift-console.apps.cluster.0000.p1.openshiftapps.com",
-        elb_fqdn="elb.apps.cluster.0000.p1.openshiftapps.com",
+        serverUrl="https://api.cluster.0000.p1.openshiftapps.com:6443",
+        consoleUrl="https://console-openshift-console.apps.cluster.0000.p1.openshiftapps.com",
+        elbFQDN="elb.apps.cluster.0000.p1.openshiftapps.com",
+        path="",
     )
     yield obj
 
