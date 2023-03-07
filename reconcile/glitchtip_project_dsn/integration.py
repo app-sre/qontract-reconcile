@@ -115,8 +115,8 @@ def fetch_desired_state(
     glitchtip_client: GlitchtipClient,
 ) -> None:
     for glitchtip_project in glitchtip_projects:
-        org = Organization(name=glitchtip_project.organization.name)
-        project = Project(name=glitchtip_project.name)
+        org = Organization(name=glitchtip_project.organization.name, id=None)
+        project = Project(name=glitchtip_project.name, id=None, platform=None)
         key = glitchtip_client.project_key(
             organization_slug=org.slug, project_slug=project.slug
         )
