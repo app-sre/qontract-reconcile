@@ -132,6 +132,7 @@ class VersionData(BaseModel):
             self.stats = Stats(
                 min_version=min_version,
                 min_version_per_workload=min_version_per_workload,
+                inherited=None,
             )
 
     def aggregate(self, added: "VersionData", added_org_name: str) -> None:

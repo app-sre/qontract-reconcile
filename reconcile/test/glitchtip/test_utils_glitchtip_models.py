@@ -25,7 +25,7 @@ from reconcile.utils.glitchtip.models import slugify
 def test_model_slugs(
     model: Union[type[Organization], type[Project], type[Team]], name: str, slug: str
 ) -> None:
-    assert model(name=name).slug == slug
+    assert model(name=name).slug == slug  # type: ignore[call-arg]
 
 
 @pytest.mark.parametrize(
@@ -40,6 +40,6 @@ def test_model_slugs(
 )
 def test_model_team(team_kwargs: Mapping[str, str]) -> None:
     slug = slugify("Test 1 2 3")
-    team = Team(**team_kwargs)
+    team = Team(**team_kwargs)  # type: ignore[arg-type]
     assert team.name == slug
     assert team.slug == slug

@@ -194,6 +194,7 @@ class OCMProductOsd(OCMProduct):
             nodes=cluster["nodes"].get("compute"),
             autoscale=autoscale_spec,
             hypershift=cluster["hypershift"]["enabled"],
+            initial_version=None,
         )
 
         if not cluster["ccs"]["enabled"]:
@@ -212,11 +213,13 @@ class OCMProductOsd(OCMProduct):
         )
 
         ocm_spec = OCMSpec(
-            console_url=cluster["console"]["url"],
-            server_url=cluster["api"]["url"],
+            consoleUrl=cluster["console"]["url"],
+            serverUrl=cluster["api"]["url"],
             domain=cluster["dns"]["base_domain"],
             spec=spec,
             network=network,
+            path=None,
+            elbFQDN="",
         )
 
         return ocm_spec
@@ -405,6 +408,7 @@ class OCMProductRosa(OCMProduct):
             hypershift=cluster["hypershift"]["enabled"],
             subnet_ids=cluster["aws"].get("subnet_ids"),
             availability_zones=cluster["nodes"].get("availability_zones"),
+            initial_version=None,
         )
 
         network = OCMClusterNetwork(
@@ -415,11 +419,13 @@ class OCMProductRosa(OCMProduct):
         )
 
         ocm_spec = OCMSpec(
-            console_url=cluster["console"]["url"],
-            server_url=cluster["api"]["url"],
+            consoleUrl=cluster["console"]["url"],
+            serverUrl=cluster["api"]["url"],
             domain=cluster["dns"]["base_domain"],
             spec=spec,
             network=network,
+            path=None,
+            elbFQDN="",
         )
 
         return ocm_spec

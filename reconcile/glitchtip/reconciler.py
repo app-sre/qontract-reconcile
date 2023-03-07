@@ -53,7 +53,9 @@ class GlitchtipReconciler:
                     platform=project.platform,
                 )
             else:
-                new_project = Project(name=project.name, platform=project.platform)
+                new_project = Project(
+                    name=project.name, platform=project.platform, id=None
+                )
             organization_projects.append(new_project)
 
         for desired_project in desired_projects:
@@ -135,7 +137,7 @@ class GlitchtipReconciler:
                     organization_slug=organization_slug, slug=team.slug
                 )
             else:
-                new_team = Team(slug=team.slug)
+                new_team = Team(slug=team.slug, id=None)
             organization_teams.append(new_team)
 
         for desired_team in desired_teams:
@@ -218,7 +220,7 @@ class GlitchtipReconciler:
                     role=user.role,
                 )
             else:
-                new_user = User(email=user.email, role=user.role, pending=True)
+                new_user = User(email=user.email, role=user.role, pending=True, id=None)
             organization_users.append(new_user)
 
         for desired_user in desired_users:
@@ -258,7 +260,7 @@ class GlitchtipReconciler:
                     current_org = self.client.create_organization(name=desired_org.name)
                 else:
                     # dry-run mode - use empty Org and go ahead
-                    current_org = Organization(name=desired_org.name)
+                    current_org = Organization(name=desired_org.name, id=None)
             else:
                 current_org = current[current.index(desired_org)]
 

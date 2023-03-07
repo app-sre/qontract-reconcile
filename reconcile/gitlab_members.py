@@ -80,7 +80,7 @@ def get_desired_state(
                 for r in p.roles or []:
                     for u in (r.users or []) + (r.bots or []):
                         desired_group_members[g].append(
-                            GitlabUser(user=u.org_username, access_level=p.access)
+                            GitlabUser(user=u.org_username or "", access_level=p.access)
                         )
                 if p.pagerduty:
                     usernames_from_pagerduty = get_usernames_from_pagerduty(
