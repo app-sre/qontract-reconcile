@@ -239,7 +239,7 @@ def test_include_user_to_cluster_usergroup_user_has_cluster_access(
         autospec=True,
         return_value=False,
     )
-    cluster = ClusterV1(name="cluster", auth=[], disable={"integrations": []})
+    cluster = ClusterV1(name="cluster", auth=[], disable=None)
     # user_has_cluster_access -> False
     assert not integ.include_user_to_cluster_usergroup(user, cluster, ["user1"])
 
@@ -251,7 +251,7 @@ def test_include_user_to_cluster_usergroup(mocker: MockerFixture, user: UserV1) 
         autospec=True,
         return_value=True,
     )
-    cluster = ClusterV1(name="cluster", auth=[], disable={"integrations": []})
+    cluster = ClusterV1(name="cluster", auth=[], disable=None)
 
     # user.tag_on_cluster_updates
     user.tag_on_cluster_updates = False
@@ -442,7 +442,7 @@ def test_get_desired_state_cluster_usergroups(
     ).return_value = True
     slack_client_mock.get_usergroup_id.return_value = "ugid"
 
-    cluster = ClusterV1(name="cluster1", auth=[], disable={"integrations": []})
+    cluster = ClusterV1(name="cluster1", auth=[], disable=None)
     result = integ.get_desired_state_cluster_usergroups(
         slack_map, [cluster], [user], None, None
     )
@@ -487,7 +487,7 @@ def test_get_desired_state_non_existing_usergroup(
     ).return_value = True
     slack_client_mock.get_usergroup_id.return_value = None
 
-    cluster = ClusterV1(name="cluster1", auth=[], disable={"integrations": []})
+    cluster = ClusterV1(name="cluster1", auth=[], disable=None)
     result = integ.get_desired_state_cluster_usergroups(
         slack_map, [cluster], [user], None, None
     )
@@ -694,14 +694,14 @@ def test_act_add_new_usergroups(
         workspace="slack-workspace",
         usergroup="usergroup-2",
         usergroup_id="USERGB",
-        users=[
+        users=set([
             SlackObject(pk="USERB", name="userb"),
             SlackObject(pk="USERC", name="userc"),
-        ],
-        channels=[
+        ]),
+        channels=set([
             SlackObject(pk="CHANB", name="channelb"),
             SlackObject(pk="CHANC", name="channelc"),
-        ],
+        ]),
         description="A new usergroup",
     )
 
@@ -709,14 +709,14 @@ def test_act_add_new_usergroups(
         workspace="slack-workspace",
         usergroup="usergroup-3",
         usergroup_id="USERGC",
-        users=[
+        users=set([
             SlackObject(pk="USERF", name="userf"),
             SlackObject(pk="USERG", name="userg"),
-        ],
-        channels=[
+        ]),
+        channels=set([
             SlackObject(pk="CHANF", name="channelf"),
             SlackObject(pk="CHANG", name="channelg"),
-        ],
+        ]),
         description="Another new usergroup",
     )
     slack_client_mock.create_usergroup.side_effect = ["USERGB", "USERGC"]
