@@ -44,7 +44,7 @@ def namespace(assets: list[CNANullAssetV1]) -> NamespaceV1:
                 provisioner=ExternalResourcesProvisionerV1(
                     name="test",
                 ),
-                resources=assets,
+                resources=assets,  # type: ignore[arg-type]
             )
         ],
     )

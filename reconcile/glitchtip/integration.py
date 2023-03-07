@@ -85,10 +85,10 @@ def fetch_desired_state(
     for glitchtip_project in glitchtip_projects:
         organization = organizations.setdefault(
             glitchtip_project.organization.name,
-            Organization(name=glitchtip_project.organization.name),
+            Organization(name=glitchtip_project.organization.name, id=None),
         )
         project = Project(
-            name=glitchtip_project.name, platform=glitchtip_project.platform
+            name=glitchtip_project.name, platform=glitchtip_project.platform, id=None
         )
         # Check project is unique within an organization
         if project.name in [p.name for p in organization.projects]:
@@ -101,10 +101,11 @@ def fetch_desired_state(
                         User(
                             email=f"{role_user.org_username}@{mail_domain}",
                             role=get_user_role(organization, role),
+                            id=None,
                         )
                     )
 
-            team = Team(name=glitchtip_team.name, users=users)
+            team = Team(name=glitchtip_team.name, users=users, id=None)
             project.teams.append(team)
             if team not in organization.teams:
                 organization.teams.append(team)
