@@ -1,0 +1,22 @@
+---
+name: "test-namespace"
+delete: null
+labels: "{\"some\":\"label\"}"
+clusterAdmin: null
+cluster:
+  name: "test-cluster"
+  serverUrl: "https://test"
+  insecureSkipTLSVerify: null
+  jumpHost: null
+  automationToken:
+    path: "path/to/token"
+    field: "token"
+    version: null
+    format: null
+  clusterAdminAutomationToken:
+    path: "path/to/admin/token"
+    field: "token"
+    version: null
+    format: null
+  internal: false
+  disable: null
