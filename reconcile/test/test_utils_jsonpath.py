@@ -1,3 +1,5 @@
+from typing import Optional
+
 import pytest
 from jsonpath_ng import (
     Child,
@@ -16,6 +18,7 @@ from reconcile.utils.jsonpath import (
     apply_constraint_to_path,
     jsonpath_parts,
     narrow_jsonpath_node,
+    remove_prefix_from_path,
     sortable_jsonpath_string_repr,
 )
 
@@ -60,6 +63,23 @@ def test_jsonpath_parts_with_filter_ignore():
         parse("a"),
         parse("b"),
         parse("d"),
+    ]
+
+
+def test_jsonpath_parts_ignore_root():
+    path = parse("$.a.b")
+    assert jsonpath_parts(path, ignore_root=True) == [
+        parse("a"),
+        parse("b"),
+    ]
+
+
+def test_jsonpath_parts_without_ignore_root():
+    path = parse("$.a.b")
+    assert jsonpath_parts(path) == [
+        parse("$"),
+        parse("a"),
+        parse("b"),
     ]
 
 
@@ -216,3 +236,32 @@ def test_apply_field_constraint_to_wildcard_path():
 )
 def test_sortable_jsonpath_string_repr(jsonpath: str, sortable_jsonpath: str):
     assert sortable_jsonpath_string_repr(parse(jsonpath), 5) == sortable_jsonpath
+
+
+#
+# test remove prefix from path
+#
+
+
+@pytest.mark.parametrize(
+    "path, prefix, expected",
+    [
+        # simple prefix
+        ("a.b.c.d.e", "a.b.c", "d.e"),
+        # the path is has not the defined prefix
+        ("a.b.c.d.e", "f.g", None),
+        # path and prefix are the same
+        ("a.b.c.d.e", "a.b.c.d.e", None),
+        # path with index
+        ("a.b[1].c", "a", "b[1].c"),
+        # path with index after the prefix
+        ("a.b[1].c", "a.b", "[1].c"),
+        # prefix is root
+        ("a.b", "$", "a.b"),
+        # prefix and path are root
+        ("$", "$", None),
+    ],
+)
+def test_remove_prefix_from_path(path: str, prefix: str, expected: Optional[str]):
+    expected_path = parse(expected) if expected else None
+    assert remove_prefix_from_path(parse(path), parse(prefix)) == expected_path

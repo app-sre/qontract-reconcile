@@ -283,6 +283,61 @@ def test_diff_splitting_empty_parent_coverage():
     assert diffs["roles.[1]"].is_directly_covered()
 
 
+def test_nested_diff_splitting_empty_parent_coverage():
+    """
+    Same as test_diff_splitting_empty_parent_coverage but with a diff that is nested deeper
+    """
+
+    bundle_change = create_bundle_file_change(
+        path="path",
+        schema=None,
+        file_type=BundleFileType.DATAFILE,
+        old_file_content={
+            "top": {
+                "middle": {
+                    "some": "value",
+                },
+            }
+        },
+        new_file_content={
+            "top": {
+                "middle": {
+                    "some": "value",
+                    "self_serviceable": {
+                        "a": "a",
+                        "b": "b",
+                    },
+                }
+            }
+        },
+    )
+
+    assert bundle_change
+    # only the root diff is present
+    assert len(bundle_change.diff_coverage) == 1
+
+    # this change-type only coveres the elements a and b of the the self_serviceable
+    # object but not the object itself
+    role_change_type = ChangeTypeContext(
+        change_type_processor=build_change_type(
+            "self_serviceable",
+            ["top.middle.self_serviceable.a", "top.middle.self_serviceable.b"],
+        ),
+        context="context",
+        origin="",
+        context_file=FileRef(
+            path="context_file.yml", file_type=BundleFileType.DATAFILE, schema=None
+        ),
+        approvers=[],
+    )
+    bundle_change.cover_changes(role_change_type)
+
+    diffs = {d.diff.path_str(): d for d in bundle_change.diff_coverage}
+    assert len(diffs) == 2
+    assert diffs["top.middle.self_serviceable.a"].is_directly_covered()
+    assert diffs["top.middle.self_serviceable.b"].is_directly_covered()
+
+
 def test_diff_splitting_two_contexts_on_same_split():
     """
     Test that a split can be covered by multiple contexts.

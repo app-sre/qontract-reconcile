@@ -48,7 +48,10 @@ from reconcile.gql_definitions.change_owners.queries.change_types import (
     ChangeTypeImplicitOwnershipV1,
     ChangeTypeV1,
 )
-from reconcile.utils.jsonpath import sortable_jsonpath_string_repr
+from reconcile.utils.jsonpath import (
+    remove_prefix_from_path,
+    sortable_jsonpath_string_repr,
+)
 
 
 class ChangeTypePriority(Enum):
@@ -82,6 +85,24 @@ class DiffCoverage:
     # can have splits on their own. DiffCoverage objects form a tree-like structure
     _split_into: list["DiffCoverage"] = field(default_factory=list)
 
+    parent: Optional["DiffCoverage"] = None
+
+    def relative_path(self) -> jsonpath_ng.JSONPath:
+        if self.parent:
+            path = remove_prefix_from_path(self.diff.path, self.parent.diff.path)
+            if not path:
+                # this can't happen, the parent path is always a prefix of the child path
+                # but we need to make mypy happy so lets raise an exception that will
+                # never be raised
+                raise ValueError(
+                    "Diff split seems not to be under its parent change. "
+                    "This can only happen due to a bug in change-owners. "
+                    "Happy bug hunting!"
+                )
+            else:
+                return path
+        return self.diff.path
+
     def is_covered(self) -> bool:
         """
         a diff is considered covered,
@@ -110,10 +131,11 @@ class DiffCoverage:
             )
             for s in sorted_splits:
                 if s.is_covered():
+                    relative_path = s.relative_path()
                     # this removes the data that matches the path
-                    s.diff.path.filter(lambda x: True, uncovered_data)
-                    # remove empty parents recursively
-                    parent_path = s.diff.path
+                    relative_path.filter(lambda x: True, uncovered_data)
+                    # remove empty parents iteratively
+                    parent_path = relative_path
                     while parent_path := parent_of_jsonpath(parent_path):
                         for parent_data in parent_path.find(uncovered_data):
                             if not parent_data.value:
@@ -145,15 +167,19 @@ class DiffCoverage:
 
             # no suitable existing split found, create a new one
             split_sub_coverage = DiffCoverage(
-                self.diff.create_subdiff(path), self.coverage.copy()
+                diff=self.diff.create_subdiff(path),
+                coverage=self.coverage.copy(),
+                parent=self,
             )
 
             # consolidate existing splits. maybe they should go under the newly created one?
             consolidated_splits = [split_sub_coverage]
             for s in self._split_into:
                 if split_sub_coverage.path_under_changed_path(s.diff.path_str()):
+                    s.parent = split_sub_coverage
                     split_sub_coverage._split_into.append(s)
                 else:
+                    s.parent = self
                     consolidated_splits.append(s)
 
             # add the covering context to the new split and all its child splits
