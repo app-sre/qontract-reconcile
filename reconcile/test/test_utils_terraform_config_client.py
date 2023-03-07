@@ -28,16 +28,16 @@ def empty_git_repo(tmp_path_factory) -> Path:
 
 def create_external_resource_spec(provisioner_name, identifier):
     return ExternalResourceSpec(
-        "cloudflare_zone",
-        {"name": provisioner_name, "automationToken": {}},
-        {
+        provision_provider="cloudflare_zone",
+        provisioner={"name": provisioner_name, "automationToken": {}},
+        resource={
             "provider": "cloudflare_zone",
             "identifier": f"{identifier}-com",
             "zone": f"{identifier}.com",
             "plan": "enterprise",
             "type": "partial",
         },
-        {},
+        namespace={},
     )
 
 

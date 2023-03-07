@@ -172,7 +172,9 @@ def test_resource_specs_without_account_filter(ts):
     namespaces = [ns1]
     ts.init_populate_specs(namespaces, None)
     specs = ts.resource_spec_inventory
-    spec = ExternalResourceSpec(p, pa, ra, ns1)
+    spec = ExternalResourceSpec(
+        provision_provider=p, provisioner=pa, resource=ra, namespace=ns1
+    )
     assert specs == {ExternalResourceUniqueKey.from_spec(spec): spec}
 
 
@@ -198,7 +200,9 @@ def test_resource_specs_with_account_filter(ts):
     namespaces = [ns1]
     ts.init_populate_specs(namespaces, "a")
     specs = ts.resource_spec_inventory
-    spec = ExternalResourceSpec(p, pa, ra, ns1)
+    spec = ExternalResourceSpec(
+        provision_provider=p, provisioner=pa, resource=ra, namespace=ns1
+    )
     assert specs == {ExternalResourceUniqueKey.from_spec(spec): spec}
 
 

@@ -9,13 +9,13 @@ from reconcile.utils.terrascript.cloudflare_resources import (
 
 def create_external_resource_spec(provision_provider):
     return ExternalResourceSpec(
-        provision_provider,
-        {"name": "dev", "automationToken": {}},
-        {
+        provision_provider=provision_provider,
+        provisioner={"name": "dev", "automationToken": {}},
+        resource={
             "provider": provision_provider,
             "identifier": "test",
         },
-        {},
+        namespace={},
     )
 
 

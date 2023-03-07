@@ -77,9 +77,9 @@ def test_create_cloudflare_resources_terraform_json(account_config, backend_conf
     cloudflare_client = TerrascriptCloudflareClient(terrascript_client)
 
     spec = ExternalResourceSpec(
-        "cloudflare_zone",
-        {"name": "dev", "automationToken": {}},
-        {
+        provision_provider="cloudflare_zone",
+        provisioner={"name": "dev", "automationToken": {}},
+        resource={
             "provider": "zone",
             "identifier": "domain-com",
             "zone": "domain.com",
@@ -114,13 +114,13 @@ def test_create_cloudflare_resources_terraform_json(account_config, backend_conf
                 }
             ],
         },
-        {},
+        namespace={},
     )
 
     cf_account_member_spec = ExternalResourceSpec(
-        "cloudflare",
-        {"name": "cloudflare-account"},
-        {
+        provision_provider="cloudflare",
+        provisioner={"name": "cloudflare-account"},
+        resource={
             "provider": "account_member",
             "identifier": "user1",
             "email_address": "user1@redhat.com",
@@ -131,7 +131,7 @@ def test_create_cloudflare_resources_terraform_json(account_config, backend_conf
                 "account_id": "${var.account_id}",
             },
         },
-        {},
+        namespace={},
     )
 
     cloudflare_client.add_spec(spec)

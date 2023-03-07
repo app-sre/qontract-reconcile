@@ -17,6 +17,7 @@ def cluster_ocm_spec():
         vpc="10.112.0.0/16",
         service="10.120.0.0/16",
         pod="10.128.0.0/14",
+        type=None,
     )
     spec = OSDClusterSpec(
         product="osd",
@@ -29,10 +30,23 @@ def cluster_ocm_spec():
         load_balancers=5,
         storage=1100,
         provider="aws",
+        autoscale=None,
+        disable_user_workload_monitoring=None,
+        external_id=None,
+        id=None,
+        nodes=None,
+        provision_shard_id=None,
+        initial_version=None,
+        hypershift=None,
     )
     obj = OCMSpec(
         spec=spec,
         network=n,
+        path=None,
+        domain=None,
+        serverUrl="",
+        consoleUrl="",
+        elbFQDN="",
     )
     yield obj
 
