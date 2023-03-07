@@ -90,9 +90,15 @@ def build_status_provider_config(
     provider specific implementation that provides the status resolution logic.
     """
     if isinstance(cfg, ManualStatusProviderV1):
+        start = None
+        end = None
+        if q_from := cfg.manual.q_from:
+            start = datetime.fromisoformat(q_from)
+        if until := cfg.manual.until:
+            end = datetime.fromisoformat(until)
         return ManualStatusProvider(
             component_status=cfg.manual.component_status,
-            start=cfg.manual.q_from,
-            end=cfg.manual.until,
+            start=start,
+            end=end,
         )
     return None

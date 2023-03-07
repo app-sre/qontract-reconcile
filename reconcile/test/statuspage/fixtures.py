@@ -44,7 +44,7 @@ def construct_status_page_v1(
                 ManualStatusProviderV1(
                     provider="manual",
                     manual=ManualStatusProviderConfigV1(
-                        **{"componentStatus": status, "from": None, "until": None}
+                        **{"componentStatus": status, "from": None, "until": None}  # type: ignore[arg-type]
                     ),
                 )
             ]
