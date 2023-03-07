@@ -1,3 +1,4 @@
+from functools import reduce
 from itertools import zip_longest
 from typing import Optional
 
@@ -69,7 +70,7 @@ def sortable_jsonpath_string_repr(
 
 
 def jsonpath_parts(
-    path: jsonpath_ng.JSONPath, ignore_filter: Optional[bool] = False
+    path: jsonpath_ng.JSONPath, ignore_filter: bool = False, ignore_root: bool = False
 ) -> list[jsonpath_ng.JSONPath]:
     """
     Return a list of JSONPath nodes that make up the given path.
@@ -81,6 +82,8 @@ def jsonpath_parts(
         if isinstance(current, jsonpath_ng.ext.filter.Filter) and ignore_filter:
             continue
         parts.insert(0, current)
+    if isinstance(path, jsonpath_ng.Root) and ignore_root:
+        return parts
     parts.insert(0, path)
     return parts
 
@@ -115,3 +118,23 @@ def apply_constraint_to_path(
         return None
     else:
         return prefix_path
+
+
+def remove_prefix_from_path(
+    path: jsonpath_ng.JSONPath, prefix: jsonpath_ng.JSONPath
+) -> Optional[jsonpath_ng.JSONPath]:
+    path_parts = jsonpath_parts(path, ignore_root=True)
+    prefix_parts = jsonpath_parts(prefix, ignore_root=True)
+
+    if len(path_parts) < len(prefix_parts):
+        return None
+
+    # check that the path is properly prefixed
+    for i, p in enumerate(prefix_parts):
+        if p != path_parts[i]:
+            return None
+
+    suffix = path_parts[len(prefix_parts) :]
+    if suffix:
+        return reduce(lambda a, b: a.child(b), suffix)
+    return None
