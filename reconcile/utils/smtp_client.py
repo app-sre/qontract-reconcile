@@ -38,7 +38,7 @@ def get_smtp_server_connection(
     - secret: a 'secret' class instance which implements the HasSecret protocol. E.g. VaultSecret (reconcile.gql_definitions.common.smtp_client_settings.SmtpSettingsV1.credentials)
     """
     data = secret_reader.read_all_secret(secret)
-    return SmtpServerConnectionInfo(**data)
+    return SmtpServerConnectionInfo(**data)  # type: ignore[arg-type]
 
 
 class SmtpClient:

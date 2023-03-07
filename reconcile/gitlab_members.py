@@ -90,9 +90,9 @@ def get_desired_state(
                         pagerduty_map,
                         get_username_method=lambda u: u.org_username,
                     )
-                    for u in usernames_from_pagerduty:
+                    for user in usernames_from_pagerduty:
                         desired_group_members[g].append(
-                            GitlabUser(user=u, access_level=p.access)
+                            GitlabUser(user=user, access_level=p.access)
                         )
 
     return desired_group_members
