@@ -83,13 +83,13 @@ def slack_notify(
 @defer
 def run(
     dry_run: bool,
-    defer: Callable,
     thread_pool_size: int = 10,
     io_dir: str = "throughput/",
     use_jump_host: bool = True,
     saas_file_name: Optional[str] = None,
     env_name: Optional[str] = None,
     gitlab_project_id: Optional[str] = None,
+    defer: Optional[Callable] = None,
 ) -> None:
     all_saas_files = queries.get_saas_files()
     saas_files = queries.get_saas_files(saas_file_name, env_name)
@@ -119,17 +119,20 @@ def run(
             )
             ri = ResourceInventory()
             console_url = compose_console_url(saas_file, saas_file_name, env_name)
-            # deployment result notification
-            defer(
-                lambda: slack_notify(
-                    saas_file_name,
-                    env_name,
-                    slack,
-                    ri,
-                    console_url,
-                    in_progress=False,
+            if (
+                defer
+            ):  # defer is provided by the method decorator. this makes just mypy happy
+                # deployment result notification
+                defer(
+                    lambda: slack_notify(
+                        saas_file_name,
+                        env_name,
+                        slack,
+                        ri,
+                        console_url,
+                        in_progress=False,
+                    )
                 )
-            )
             # deployment start notification
             slack_notifications = slack_info.get("notifications")
             if slack_notifications and slack_notifications.get("start"):
@@ -183,7 +186,8 @@ def run(
         cluster_admin=saasherder.cluster_admin,
         use_jump_host=use_jump_host,
     )
-    defer(oc_map.cleanup)
+    if defer:  # defer is provided by the method decorator. this makes just mypy happy
+        defer(oc_map.cleanup)
     saasherder.populate_desired_state(ri)
 
     # validate that this deployment is valid
