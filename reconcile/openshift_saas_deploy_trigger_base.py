@@ -46,7 +46,7 @@ def run(
     internal: bool,
     use_jump_host: bool,
     include_trigger_trace: bool,
-    defer: Callable,
+    defer: Optional[Callable] = None,
 ) -> bool:
     """Run trigger integration
 
@@ -74,7 +74,8 @@ def run(
     )
     if error:
         return error
-    defer(oc_map.cleanup)
+    if defer:  # defer is set by method decorator. this makes just mypy happy
+        defer(oc_map.cleanup)
 
     trigger_specs, diff_err = saasherder.get_diff(trigger_type, dry_run)
     # This will be populated by 'trigger' in the below loop and
