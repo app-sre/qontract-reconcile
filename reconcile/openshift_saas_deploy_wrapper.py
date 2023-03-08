@@ -1,4 +1,5 @@
 import sys
+from typing import Optional
 
 from sretoolbox.utils import threaded
 
@@ -13,8 +14,12 @@ QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 
 def osd_run_wrapper(
-    diff, dry_run, available_thread_pool_size, use_jump_host, gitlab_project_id
-):
+    diff: dict[str, str],
+    dry_run: bool,
+    available_thread_pool_size: int,
+    use_jump_host: bool,
+    gitlab_project_id: Optional[str],
+) -> int:
     saas_file_name = diff["saas_file_name"]
     env_name = diff["environment"]
     exit_code = 0
@@ -33,12 +38,12 @@ def osd_run_wrapper(
 
 
 def run(
-    dry_run,
-    thread_pool_size=10,
-    io_dir="throughput/",
-    use_jump_host=True,
-    gitlab_project_id=None,
-):
+    dry_run: bool,
+    thread_pool_size: int = 10,
+    io_dir: str = "throughput/",
+    use_jump_host: bool = True,
+    gitlab_project_id: Optional[str] = None,
+) -> None:
     saas_file_owners_diffs = read_saas_file_owners_diffs(io_dir)
     if len(saas_file_owners_diffs) == 0:
         return
