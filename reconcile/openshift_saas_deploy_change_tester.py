@@ -2,6 +2,7 @@ import copy
 import json
 import logging
 import sys
+from collections.abc import Iterable
 from typing import Any
 
 from sretoolbox.utils import threaded
@@ -17,8 +18,12 @@ QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 
 def osd_run_wrapper(
-    spec, dry_run, available_thread_pool_size, use_jump_host, gitlab_project_id
-):
+    spec: tuple[str, str],
+    dry_run: bool,
+    available_thread_pool_size: int,
+    use_jump_host: bool,
+    gitlab_project_id: str,
+) -> int:
     saas_file_name, env_name = spec
     exit_code = 0
     try:
@@ -35,13 +40,13 @@ def osd_run_wrapper(
     return exit_code
 
 
-def init_gitlab(gitlab_project_id):
+def init_gitlab(gitlab_project_id: str) -> GitLabApi:
     instance = queries.get_gitlab_instance()
     settings = queries.get_app_interface_settings()
     return GitLabApi(instance, project_id=gitlab_project_id, settings=settings)
 
 
-def collect_state(saas_files: list[dict[str, Any]]):
+def collect_state(saas_files: list[dict[str, Any]]) -> list[dict[str, Any]]:
     state = []
     for saas_file in saas_files:
         saas_file_path = saas_file["path"]
@@ -119,7 +124,11 @@ def collect_state(saas_files: list[dict[str, Any]]):
     return state
 
 
-def collect_compare_diffs(current_state, desired_state, changed_paths):
+def collect_compare_diffs(
+    current_state: Iterable[dict[str, Any]],
+    desired_state: Iterable[dict[str, Any]],
+    changed_paths: Iterable[str],
+) -> set[str]:
     """Collect a list of URLs in a git diff format
     for each change in the merge request"""
     compare_diffs = set()
@@ -156,8 +165,11 @@ def collect_compare_diffs(current_state, desired_state, changed_paths):
 
 
 def update_mr_with_ref_diffs(
-    gitlab_project_id, gitlab_merge_request_id, current_state, desired_state
-):
+    gitlab_project_id: str,
+    gitlab_merge_request_id: int,
+    current_state: Iterable[dict[str, Any]],
+    desired_state: Iterable[dict[str, Any]],
+) -> None:
     """
     Update the merge request with links to the differences in the referenced commits.
     """
@@ -181,11 +193,11 @@ def update_mr_with_ref_diffs(
 def run(
     dry_run: bool,
     gitlab_project_id: str,
-    gitlab_merge_request_id: str,
+    gitlab_merge_request_id: int,
     thread_pool_size: int,
     comparison_sha: str,
     use_jump_host: bool,
-):
+) -> None:
     comparison_gql_api = gql.get_api_for_sha(
         comparison_sha, QONTRACT_INTEGRATION, validate_schemas=False
     )
