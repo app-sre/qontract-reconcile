@@ -2,6 +2,7 @@ import json
 import logging
 import sys
 from collections.abc import (
+    Callable,
     Iterable,
     Mapping,
 )
@@ -11,7 +12,6 @@ from datetime import (
 )
 from typing import (
     Any,
-    Callable,
     Optional,
 )
 
