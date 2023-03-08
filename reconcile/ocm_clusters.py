@@ -87,6 +87,10 @@ def _cluster_version_needs_update(
     :return: True if current version is greater than desired_version
     """
 
+    # .spec.version not set in app-interface (or empty string)
+    if not desired_version:
+        return True
+
     desired_version = parse_semver(desired_version)
     current_version = parse_semver(current_version)
 
