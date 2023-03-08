@@ -8,6 +8,7 @@ from datetime import (
 )
 from typing import Optional
 
+from dateutil.parser import isoparse
 from pydantic import BaseModel
 
 from reconcile.gql_definitions.statuspage.statuspages import (
@@ -90,9 +91,11 @@ def build_status_provider_config(
     provider specific implementation that provides the status resolution logic.
     """
     if isinstance(cfg, ManualStatusProviderV1):
+        start = isoparse(cfg.manual.q_from) if cfg.manual.q_from else None
+        end = isoparse(cfg.manual.until) if cfg.manual.until else None
         return ManualStatusProvider(
             component_status=cfg.manual.component_status,
-            start=cfg.manual.q_from,
-            end=cfg.manual.until,
+            start=start,
+            end=end,
         )
     return None
