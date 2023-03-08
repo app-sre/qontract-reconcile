@@ -4,6 +4,7 @@ import logging
 import os
 import re
 import sys
+import traceback
 from signal import SIGUSR1
 from types import ModuleType
 from typing import Optional
@@ -521,8 +522,8 @@ def run_class_integration(
     except gql.GqlApiErrorForbiddenSchema as e:
         sys.stderr.write(str(e) + "\n")
         sys.exit(ExitCodes.FORBIDDEN_SCHEMA)
-    except Exception as e:
-        sys.stderr.write(str(e) + "\n")
+    except Exception:
+        traceback.print_exc(file=sys.stderr)
         sys.exit(ExitCodes.ERROR)
     finally:
         if dump_schemas_file:
