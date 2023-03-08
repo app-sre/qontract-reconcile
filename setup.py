@@ -65,6 +65,7 @@ setup(
         "deepdiff6==6.2.0",
         "jsonpath-ng~=1.5",
         "networkx~=2.8",
+        "mypy-boto3-s3~=1.24.94",
     ],
     test_suite="tests",
     classifiers=[

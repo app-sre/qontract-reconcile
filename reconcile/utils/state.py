@@ -11,10 +11,17 @@ from typing import (
 
 from botocore.errorfactory import ClientError
 from jinja2 import Template
+from mypy_boto3_s3 import S3Client
 
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
 from reconcile.utils import gql
 from reconcile.utils.aws_api import AWSApi
-from reconcile.utils.secret_reader import SecretReaderBase
+from reconcile.utils.secret_reader import (
+    SecretReaderBase,
+    create_secret_reader,
+)
 
 
 class StateInaccessibleException(Exception):
@@ -38,12 +45,55 @@ STATE_ACCOUNT_QUERY = """
 """
 
 
-def init_state(integration: str, secret_reader: SecretReaderBase):
+def init_state(
+    integration: str,
+    secret_reader: Optional[SecretReaderBase] = None,
+) -> "State":
+    if not secret_reader:
+        vault_settings = get_app_interface_vault_settings()
+        secret_reader = create_secret_reader(use_vault=vault_settings.vault)
+
+    state_bucket_name = os.environ["APP_INTERFACE_STATE_BUCKET"]
     state_bucket_account_name = os.environ["APP_INTERFACE_STATE_BUCKET_ACCOUNT"]
     query = Template(STATE_ACCOUNT_QUERY).render(name=state_bucket_account_name)
-    accounts = gql.get_api().query(query)["accounts"]
+    aws_accounts = gql.get_api().query(query)["accounts"]
+    return init_state_from_accounts(
+        integration=integration,
+        secret_reader=secret_reader,
+        bucket_name=state_bucket_name,
+        account_name=state_bucket_account_name,
+        accounts=aws_accounts,
+    )
+
+
+def init_state_from_accounts(
+    integration: str,
+    secret_reader: SecretReaderBase,
+    bucket_name: str,
+    account_name: str,
+    accounts: Iterable[Mapping[str, Any]],
+) -> "State":
+    aws_account = next(
+        (a for a in accounts if a["name"] == account_name),
+        None,
+    )
+    if not aws_account:
+        raise StateInaccessibleException(
+            f"Can initialize state. app-interface does not define an AWS account named {account_name}"
+        )
+
+    aws_api = AWSApi(
+        1,
+        [aws_account],
+        settings=None,
+        secret_reader=secret_reader,
+        init_users=False,
+    )
+    session = aws_api.get_session(account_name)
     return State(
-        integration=integration, accounts=accounts, secret_reader=secret_reader
+        integration=integration,
+        bucket=bucket_name,
+        client=session.client("s3"),
     )
 
 
@@ -64,28 +114,11 @@ class State:
     or not accessible
     """
 
-    def __init__(
-        self,
-        integration: str,
-        accounts: Iterable[Mapping[str, Any]],
-        settings: Optional[Mapping[str, Any]] = None,
-        secret_reader: Optional[SecretReaderBase] = None,
-    ) -> None:
+    def __init__(self, integration: str, bucket: str, client: S3Client) -> None:
         """Initiates S3 client from AWSApi."""
         self.state_path = f"state/{integration}" if integration else "state"
-        self.bucket = os.environ["APP_INTERFACE_STATE_BUCKET"]
-        account = os.environ["APP_INTERFACE_STATE_BUCKET_ACCOUNT"]
-        accounts = [a for a in accounts if a["name"] == account]
-        aws_api = AWSApi(
-            1,
-            accounts,
-            settings=settings,
-            secret_reader=secret_reader,
-            init_users=False,
-        )
-        session = aws_api.get_session(account)
-
-        self.client = session.client("s3")
+        self.bucket = bucket
+        self.client = client
 
         # check if the bucket exists
         try:

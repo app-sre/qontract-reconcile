@@ -5,7 +5,10 @@ import sys
 from reconcile import queries
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.defer import defer
-from reconcile.utils.state import State
+from reconcile.utils.state import (
+    State,
+    init_state,
+)
 from reconcile.utils.terrascript_aws_client import TerrascriptClient as Terrascript
 
 QONTRACT_INTEGRATION = "aws-iam-keys"
@@ -83,11 +86,7 @@ def run(
         return
 
     settings = queries.get_app_interface_settings()
-    state = State(
-        integration=QONTRACT_INTEGRATION,
-        accounts=queries.get_state_aws_accounts(),
-        settings=settings,
-    )
+    state = init_state(integration=QONTRACT_INTEGRATION)
     keys_to_delete = get_keys_to_delete(accounts)
     if not should_run(state, keys_to_delete):
         logging.debug("nothing to do here")

@@ -3,10 +3,14 @@ import pytest
 from botocore.errorfactory import ClientError
 from moto import mock_s3
 
+from reconcile.utils.secret_reader import ConfigSecretReader
 from reconcile.utils.state import (
-    State,
     StateInaccessibleException,
+    init_state_from_accounts,
 )
+
+BUCKET = "some-bucket"
+ACCOUNT = "some-account"
 
 
 @pytest.fixture
@@ -21,8 +25,8 @@ def s3_client(monkeypatch):
     monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "testing")
     monkeypatch.setenv("AWS_SECURITY_TOKEN", "testing")
     monkeypatch.setenv("AWS_SESSION_TOKEN", "testing")
-    monkeypatch.setenv("APP_INTERFACE_STATE_BUCKET", "some-bucket")
-    monkeypatch.setenv("APP_INTERFACE_STATE_BUCKET_ACCOUNT", "some-account")
+    monkeypatch.setenv("APP_INTERFACE_STATE_BUCKET", BUCKET)
+    monkeypatch.setenv("APP_INTERFACE_STATE_BUCKET_ACCOUNT", ACCOUNT)
 
     with mock_s3():
         s3_client = boto3.client("s3", region_name="us-east-1")
@@ -44,7 +48,13 @@ def test_ls_returns_correct_file(accounts, s3_client, mocker):
     mock_aws_api = mocker.patch("reconcile.utils.state.AWSApi", autospec=True)
     mock_aws_api.return_value.get_session.return_value.client.return_value = s3_client
 
-    state = State("integration-name", accounts)
+    state = init_state_from_accounts(
+        integration="integration-name",
+        bucket_name=BUCKET,
+        account_name=ACCOUNT,
+        accounts=accounts,
+        secret_reader=ConfigSecretReader(),
+    )
 
     keys = state.ls()
 
@@ -70,7 +80,13 @@ def test_ls_when_integration_is_empty_string(accounts, s3_client, mocker):
     mock_aws_api = mocker.patch("reconcile.utils.state.AWSApi", autospec=True)
     mock_aws_api.return_value.get_session.return_value.client.return_value = s3_client
 
-    state = State("", accounts)
+    state = init_state_from_accounts(
+        integration="",
+        bucket_name=BUCKET,
+        account_name=ACCOUNT,
+        accounts=accounts,
+        secret_reader=ConfigSecretReader(),
+    )
 
     keys = state.ls()
 
@@ -89,7 +105,13 @@ def test_ls_when_state_is_empty(accounts, s3_client, mocker):
     mock_aws_api = mocker.patch("reconcile.utils.state.AWSApi", autospec=True)
     mock_aws_api.return_value.get_session.return_value.client.return_value = s3_client
 
-    state = State("integration-name", accounts)
+    state = init_state_from_accounts(
+        integration="integration-name",
+        bucket_name=BUCKET,
+        account_name=ACCOUNT,
+        accounts=accounts,
+        secret_reader=ConfigSecretReader(),
+    )
 
     keys = state.ls()
 
@@ -115,7 +137,13 @@ def test_ls_when_that_are_more_than_1000_keys(accounts, s3_client, mocker):
     mock_aws_api = mocker.patch("reconcile.utils.state.AWSApi", autospec=True)
     mock_aws_api.return_value.get_session.return_value.client.return_value = s3_client
 
-    state = State("integration", accounts)
+    state = init_state_from_accounts(
+        integration="integration",
+        bucket_name=BUCKET,
+        account_name=ACCOUNT,
+        accounts=accounts,
+        secret_reader=ConfigSecretReader(),
+    )
 
     keys = state.ls()
 
@@ -133,8 +161,13 @@ def test_exists_for_existing_key(accounts, s3_client, mocker):
     mock_aws_api = mocker.patch("reconcile.utils.state.AWSApi", autospec=True)
     mock_aws_api.return_value.get_session.return_value.client.return_value = s3_client
 
-    state = State("integration-name", accounts)
-
+    state = init_state_from_accounts(
+        integration="integration-name",
+        bucket_name=BUCKET,
+        account_name=ACCOUNT,
+        accounts=accounts,
+        secret_reader=ConfigSecretReader(),
+    )
     assert state.exists(key)
 
 
@@ -144,8 +177,13 @@ def test_exists_for_missing_key(accounts, s3_client, mocker):
     mock_aws_api = mocker.patch("reconcile.utils.state.AWSApi", autospec=True)
     mock_aws_api.return_value.get_session.return_value.client.return_value = s3_client
 
-    state = State("integration-name", accounts)
-
+    state = init_state_from_accounts(
+        integration="integration-name",
+        bucket_name=BUCKET,
+        account_name=ACCOUNT,
+        accounts=accounts,
+        secret_reader=ConfigSecretReader(),
+    )
     assert not state.exists("some-key")
 
 
@@ -155,7 +193,13 @@ def test_exists_for_missing_bucket(accounts, s3_client, mocker):
     mock_aws_api.return_value.get_session.return_value.client.return_value = s3_client
 
     with pytest.raises(StateInaccessibleException, match=r".*404.*"):
-        State("integration-name", accounts)
+        init_state_from_accounts(
+            integration="integration-name",
+            bucket_name=BUCKET,
+            account_name=ACCOUNT,
+            accounts=accounts,
+            secret_reader=ConfigSecretReader(),
+        )
 
 
 def test_exists_for_forbidden(accounts, s3_client, mocker):
@@ -165,7 +209,13 @@ def test_exists_for_forbidden(accounts, s3_client, mocker):
         forbidden_error
     )
 
-    state = State("integration-name", accounts)
+    state = init_state_from_accounts(
+        integration="integration-name",
+        bucket_name=BUCKET,
+        account_name=ACCOUNT,
+        accounts=accounts,
+        secret_reader=ConfigSecretReader(),
+    )
 
     with pytest.raises(StateInaccessibleException, match=r".*403.*"):
         state.exists("some-key")

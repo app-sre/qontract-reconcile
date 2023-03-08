@@ -131,7 +131,6 @@ def setup(
 
     instance = queries.get_gitlab_instance()
     settings = queries.get_app_interface_settings()
-    accounts = queries.get_state_aws_accounts()
     gl = GitLabApi(instance, settings=settings)
     jenkins_map = jenkins_base.get_jenkins_map()
     pipelines_providers = queries.get_pipelines_providers()
@@ -156,7 +155,7 @@ def setup(
         integration_version=integration_version,
         settings=settings,
         jenkins_map=jenkins_map,
-        accounts=accounts,
+        initialise_state=True,
         include_trigger_trace=include_trigger_trace,
     )
 
