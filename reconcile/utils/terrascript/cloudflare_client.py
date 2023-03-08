@@ -44,6 +44,7 @@ TMP_DIR_PREFIX = "terrascript-cloudflare-"
 DEFAULT_CLOUDFLARE_ACCOUNT_TYPE = "standard"
 DEFAULT_CLOUDFLARE_ACCOUNT_2FA = False
 DEFAULT_IS_MANAGED_CLOUDFLARE_ACCOUNT = True
+DEFAULT_PROVIDER_RPS = 4
 
 
 @dataclass
@@ -62,6 +63,7 @@ def create_cloudflare_terrascript(
     account_config: CloudflareAccountConfig,
     backend_config: TerraformS3BackendConfig,
     provider_version: str,
+    provider_rps: int = DEFAULT_PROVIDER_RPS,
     is_managed_account: bool = True,
 ) -> Terrascript:
     """
@@ -98,6 +100,7 @@ def create_cloudflare_terrascript(
         "cloudflare": {
             "source": "cloudflare/cloudflare",
             "version": provider_version,
+            "rps": provider_rps,
         }
     }
 
@@ -259,7 +262,10 @@ class TerrascriptCloudflareClientFactory:
         backend_config = cls._create_backend_config(tf_state_s3, key, secret_reader)
         cf_acct_config = cls._create_cloudflare_account_config(cf_acct, secret_reader)
         ts_config = create_cloudflare_terrascript(
-            cf_acct_config, backend_config, cf_acct.provider_version, is_managed_account
+            cf_acct_config,
+            backend_config,
+            cf_acct.provider_version,
+            is_managed_account=is_managed_account,
         )
         client = TerrascriptCloudflareClient(ts_config)
         return client
