@@ -3,7 +3,10 @@ from collections.abc import (
     Callable,
     MutableMapping,
 )
-from typing import Any
+from typing import (
+    Any,
+    Optional,
+)
 
 import httpretty as _httpretty
 import pytest
@@ -91,8 +94,8 @@ def gql_class_factory() -> Callable[
     """Create a GQL class from a fixture and set default values to None."""
 
     def _gql_class_factory(
-        klass: type[BaseModel], data: MutableMapping[str, Any] = {}
+        klass: type[BaseModel], data: Optional[MutableMapping[str, Any]] = None
     ) -> BaseModel:
-        return klass(**data_default_none(klass, data))
+        return klass(**data_default_none(klass, data or {}))
 
     return _gql_class_factory
