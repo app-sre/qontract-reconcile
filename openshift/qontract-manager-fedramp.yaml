@@ -151,8 +151,6 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           - name: USE_NATIVE_CLIENT
             value: "${USE_NATIVE_CLIENT}"
-          - name: KUBE_SA_TOKEN_PATH
-            value: "${KUBE_SA_TOKEN_PATH}/token"
           - name: ENVIRONMENT_NAME
             value: "${ENVIRONMENT_NAME}"
           - name: IMAGE
@@ -191,8 +189,6 @@ objects:
             mountPath: /config
           - name: logs
             mountPath: /fluentd/log/
-          - name: qontract-reconcile-sa-token
-            mountPath: ${KUBE_SA_TOKEN_PATH}
         - name: fluentd
           image: ${FLUENTD_IMAGE}:${FLUENTD_IMAGE_TAG}
           imagePullPolicy: ${FLUENTD_IMAGE_PULL_POLICY}
@@ -227,12 +223,6 @@ objects:
           - name: buffer
             mountPath: /fluentd/buffer
         volumes:
-        - name: qontract-reconcile-sa-token
-          projected: 
-            sources:
-            - serviceAccountToken:
-                expirationSeconds: 1800
-                path: token
         - name: qontract-reconcile-toml
           secret:
             secretName: qontract-reconcile-toml

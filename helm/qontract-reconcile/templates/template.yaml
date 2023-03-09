@@ -276,8 +276,6 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           - name: USE_NATIVE_CLIENT
             value: "${USE_NATIVE_CLIENT}"
-          - name: KUBE_SA_TOKEN_PATH
-            value: "${KUBE_SA_TOKEN_PATH}/token"
           {{- if $integration.environmentAware }}
           - name: ENVIRONMENT_NAME
             value: "${ENVIRONMENT_NAME}"
@@ -305,6 +303,10 @@ objects:
             value: "${INTERNAL_CERTIFICATES_IMAGE_TAG}"
           - name: INTERNAL_CERTIFICATES_IMAGE_PULL_POLICY
             value: "${INTERNAL_CERTIFICATES_IMAGE_PULL_POLICY}"
+          {{- end }}
+          {{- if $integration.saTokenProjection }}
+          - name: KUBE_SA_TOKEN_PATH
+            value: "${KUBE_SA_TOKEN_PATH}/token"
           {{- end }}
           {{- with $integration.extraEnv }}
           {{- range $i, $env := . }}
@@ -355,8 +357,10 @@ objects:
           {{- end }}
           - name: logs
             mountPath: /fluentd/log/
+          {{- if $integration.saTokenProjection }}
           - name: qontract-reconcile-sa-token
             mountPath: ${KUBE_SA_TOKEN_PATH}
+          {{- end }}
         - name: fluentd
           image: ${FLUENTD_IMAGE}:${FLUENTD_IMAGE_TAG}
           imagePullPolicy: ${FLUENTD_IMAGE_PULL_POLICY}
@@ -415,12 +419,14 @@ objects:
             mountPath: /fluentd/buffer
           {{- end }}
         volumes:
+        {{- if $integration.saTokenProjection }}
         - name: qontract-reconcile-sa-token
           projected: 
             sources:
             - serviceAccountToken:
                 expirationSeconds: 1800
                 path: token
+        {{- end }}
         - name: qontract-reconcile-toml
           secret:
             secretName: qontract-reconcile-toml
