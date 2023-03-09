@@ -91,7 +91,7 @@ def ocm(mocker: MockerFixture, ocm_url: str, cluster: str, cluster_id: str) -> O
     mocker.patch("reconcile.utils.ocm.OCM._init_clusters")
     mocker.patch("reconcile.utils.ocm.OCM._init_blocked_versions")
     mocker.patch("reconcile.utils.ocm.OCM._init_version_gates")
-    ocm = OCM("name", "url", "tid", "turl", "ot")
+    ocm = OCM("name", "url", "org_id", "tid", "turl", "ot")
     ocm._ocm_client._url = ocm_url
     ocm.cluster_ids = {cluster: cluster_id}
     return ocm
@@ -292,6 +292,7 @@ def test_ocm_map_upgrade_policies_sector(ocm, mocker):
     ocm1_info = {
         "name": "ocm1",
         "sectors": sectors,
+        "orgId": "orgId1",
         "accessTokenClientId": "atci",
         "accessTokenUrl": "atu",
         "accessTokenClientSecret": "atcs",
@@ -311,6 +312,7 @@ def test_ocm_map_upgrade_policies_sector(ocm, mocker):
     # second org, using the same sector names
     ocm2_info = deepcopy(ocm1_info)
     ocm2_info["name"] = "ocm2"
+    ocm2_info["orgId"] = ("orgId2",)
     c3 = {
         "name": "c3",
         "ocm": ocm2_info,

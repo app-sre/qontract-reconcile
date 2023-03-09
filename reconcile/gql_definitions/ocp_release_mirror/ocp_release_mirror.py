@@ -55,6 +55,7 @@ query OCPReleaseMirror {
       ocm {
         name
         url
+        orgId
         accessTokenClientId
         accessTokenUrl
         accessTokenClientSecret {
@@ -140,6 +141,7 @@ class ConfiguredBaseModel(BaseModel):
 class OpenShiftClusterManagerV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     url: str = Field(..., alias="url")
+    org_id: str = Field(..., alias="orgId")
     access_token_client_id: str = Field(..., alias="accessTokenClientId")
     access_token_url: str = Field(..., alias="accessTokenUrl")
     access_token_client_secret: Optional[VaultSecret] = Field(

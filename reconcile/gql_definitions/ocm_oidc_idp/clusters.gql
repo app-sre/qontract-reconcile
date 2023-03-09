@@ -6,6 +6,7 @@ query OidcClusters($name: String) {
     ocm {
       name
       url
+      orgId
       accessTokenClientId
       accessTokenUrl
       accessTokenClientSecret {

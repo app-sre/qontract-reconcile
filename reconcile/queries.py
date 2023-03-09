@@ -650,6 +650,7 @@ CLUSTERS_QUERY = """
     ocm {
       name
       url
+      orgId
       accessTokenClientId
       accessTokenUrl
       accessTokenClientSecret {
@@ -980,6 +981,7 @@ CLUSTER_PEERING_QUERY = """
     ocm {
       name
       url
+      orgId
       accessTokenClientId
       accessTokenUrl
       accessTokenClientSecret {
@@ -1158,6 +1160,7 @@ OCM_QUERY = """
     path
     name
     url
+    orgId
     blockedVersions
     recommendedVersions {
       recommendedVersion
@@ -1258,6 +1261,7 @@ KAFKA_CLUSTERS_QUERY = """
     ocm {
       name
       url
+      orgId
       accessTokenClientId
       accessTokenUrl
       accessTokenClientSecret {
@@ -2724,6 +2728,7 @@ OCP_RELEASE_ECR_MIRROR_QUERY = """
       ocm {
         name
         url
+        orgId
         accessTokenClientId
         accessTokenUrl
         accessTokenClientSecret {

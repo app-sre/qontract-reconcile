@@ -4,6 +4,7 @@ clusters:
     ocm:
       name: ocm-production
       url: "https://api.openshift.com"
+      orgId: "org-id"
       accessTokenClientId: "access-token-client-id"
       accessTokenUrl: "http://token-url.com"
       accessTokenClientSecret: null
@@ -27,6 +28,7 @@ clusters:
     ocm:
       name: ocm-production
       url: "https://api.openshift.com"
+      orgId: "org-id"
       accessTokenClientId: "access-token-client-id"
       accessTokenUrl: "http://token-url.com"
       accessTokenClientSecret: null
@@ -52,6 +54,7 @@ clusters:
     ocm:
       name: ocm-production
       url: "https://api.openshift.com"
+      orgId: "org-id"
       accessTokenClientId: "access-token-client-id"
       accessTokenUrl: "http://token-url.com"
       accessTokenClientSecret: null
@@ -83,6 +86,7 @@ clusters:
     ocm:
       name: ocm-production
       url: "https://api.openshift.com"
+      orgId: "org-id"
       accessTokenClientId: "access-token-client-id"
       accessTokenUrl: "http://token-url.com"
       accessTokenClientSecret: null

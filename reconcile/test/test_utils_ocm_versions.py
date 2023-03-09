@@ -10,7 +10,7 @@ def ocm(mocker):
     mocker.patch("reconcile.utils.ocm.OCM.whoami")
     mocker.patch("reconcile.utils.ocm.OCM._init_clusters")
     mocker.patch("reconcile.utils.ocm.OCM._init_version_gates")
-    return OCM("name", "url", "tid", "turl", "ot")
+    return OCM("name", "url", "org_id", "tid", "turl", "ot")
 
 
 def test_no_blocked_versions(ocm):
@@ -62,4 +62,4 @@ def test_version_not_blocked_regex(ocm):
 
 def test_version_invalid_regex(ocm):
     with pytest.raises(TypeError):
-        OCM("name", "url", "tid", "turl", "ot", blocked_versions=["["])
+        OCM("name", "url", "org_id", "tid", "turl", "ot", blocked_versions=["["])
