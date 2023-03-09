@@ -75,14 +75,14 @@ def data_default_none(
 
 @pytest.fixture
 def data_factory() -> Callable[
-    [type[BaseModel], MutableMapping[str, Any]], MutableMapping[str, Any]
+    [type[BaseModel], Optional[MutableMapping[str, Any]]], MutableMapping[str, Any]
 ]:
     """Set default values to None."""
 
     def _data_factory(
-        klass: type[BaseModel], data: MutableMapping[str, Any] = {}
+        klass: type[BaseModel], data: Optional[MutableMapping[str, Any]] = None
     ) -> MutableMapping[str, Any]:
-        return data_default_none(klass, data)
+        return data_default_none(klass, data or {})
 
     return _data_factory
 
