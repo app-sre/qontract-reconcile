@@ -219,6 +219,8 @@ parameters:
   value: "0"
 - name: USER_ID
   value: dummy
+- name: KUBE_SA_TOKEN_PATH
+  value: '/var/run/secrets/kubernetes.io/serviceaccount'
 - name: LOG_FILE
   value: "/fluentd/log/integration.log"
 - name: SLACK_CHANNEL
@@ -253,5 +255,3 @@ parameters:
   value: 123
 - name: INTEG_MEMORY_REQUEST
   value: 45Mi
-- name: KUBE_SA_TOKEN_PATH
-  value: '/var/run/secrets/kubernetes.io/serviceaccount'
