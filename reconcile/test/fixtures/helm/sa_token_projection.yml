@@ -149,6 +149,8 @@ objects:
             mountPath: /config
           - name: logs
             mountPath: /fluentd/log/
+          - name: qontract-reconcile-sa-token
+            mountPath: ${KUBE_SA_TOKEN_PATH}
         - name: fluentd
           image: ${FLUENTD_IMAGE}:${FLUENTD_IMAGE_TAG}
           imagePullPolicy: ${FLUENTD_IMAGE_PULL_POLICY}
@@ -180,8 +182,6 @@ objects:
             mountPath: /fluentd/log/
           - name: fluentd-config
             mountPath: /fluentd/etc/
-          - name: qontract-reconcile-sa-token
-            mountPath: ${KUBE_SA_TOKEN_PATH}
         volumes:
         - name: qontract-reconcile-sa-token
           projected: 
