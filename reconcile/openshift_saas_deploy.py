@@ -1,5 +1,10 @@
 import logging
 import sys
+from collections.abc import Callable
+from typing import (
+    Any,
+    Optional,
+)
 
 import reconcile.jenkins_plugins as jenkins_base
 import reconcile.openshift_base as ob
@@ -16,12 +21,15 @@ from reconcile.utils.openshift_resource import ResourceInventory
 from reconcile.utils.saasherder import SaasHerder
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.semver_helper import make_semver
+from reconcile.utils.slack_api import SlackApi
 
 QONTRACT_INTEGRATION = "openshift-saas-deploy"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 
-def compose_console_url(saas_file, saas_file_name, env_name):
+def compose_console_url(
+    saas_file: dict[str, Any], saas_file_name: str, env_name: str
+) -> str:
     pp = saas_file["pipelinesProvider"]
     pp_ns = pp["namespace"]
     pp_ns_name = pp_ns["name"]
@@ -46,7 +54,14 @@ def compose_console_url(saas_file, saas_file_name, env_name):
     )
 
 
-def slack_notify(saas_file_name, env_name, slack, ri, console_url, in_progress):
+def slack_notify(
+    saas_file_name: str,
+    env_name: str,
+    slack: SlackApi,
+    ri: ResourceInventory,
+    console_url: str,
+    in_progress: bool,
+) -> None:
     success = not ri.has_error_registered()
     if in_progress:
         icon = ":yellow_jenkins_circle:"
@@ -67,15 +82,15 @@ def slack_notify(saas_file_name, env_name, slack, ri, console_url, in_progress):
 
 @defer
 def run(
-    dry_run,
-    thread_pool_size=10,
-    io_dir="throughput/",
-    use_jump_host=True,
-    saas_file_name=None,
-    env_name=None,
-    gitlab_project_id=None,
-    defer=None,
-):
+    dry_run: bool,
+    thread_pool_size: int = 10,
+    io_dir: str = "throughput/",
+    use_jump_host: bool = True,
+    saas_file_name: Optional[str] = None,
+    env_name: Optional[str] = None,
+    gitlab_project_id: Optional[str] = None,
+    defer: Optional[Callable] = None,
+) -> None:
     all_saas_files = queries.get_saas_files()
     saas_files = queries.get_saas_files(saas_file_name, env_name)
     if not saas_files:
@@ -91,6 +106,11 @@ def run(
         saas_file = saas_files[0]
         slack_info = saas_file.get("slack")
         if slack_info:
+            if not saas_file_name or not env_name:
+                raise RuntimeError(
+                    "saas_file_name and env_name must be provided "
+                    + "when using slack notifications"
+                )
             slack = slackapi_from_slack_workspace(
                 slack_info,
                 SecretReader(queries.get_secret_reader_settings()),
@@ -99,17 +119,20 @@ def run(
             )
             ri = ResourceInventory()
             console_url = compose_console_url(saas_file, saas_file_name, env_name)
-            # deployment result notification
-            defer(
-                lambda: slack_notify(
-                    saas_file_name,
-                    env_name,
-                    slack,
-                    ri,
-                    console_url,
-                    in_progress=False,
+            if (
+                defer
+            ):  # defer is provided by the method decorator. this makes just mypy happy
+                # deployment result notification
+                defer(
+                    lambda: slack_notify(
+                        saas_file_name,
+                        env_name,
+                        slack,
+                        ri,
+                        console_url,
+                        in_progress=False,
+                    )
                 )
-            )
             # deployment start notification
             slack_notifications = slack_info.get("notifications")
             if slack_notifications and slack_notifications.get("start"):
@@ -163,7 +186,8 @@ def run(
         cluster_admin=saasherder.cluster_admin,
         use_jump_host=use_jump_host,
     )
-    defer(oc_map.cleanup)
+    if defer:  # defer is provided by the method decorator. this makes just mypy happy
+        defer(oc_map.cleanup)
     saasherder.populate_desired_state(ri)
 
     # validate that this deployment is valid
