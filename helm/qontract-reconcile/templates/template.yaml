@@ -276,6 +276,8 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           - name: USE_NATIVE_CLIENT
             value: "${USE_NATIVE_CLIENT}"
+          - name: KUBE_SA_TOKEN_PATH
+            value: "${KUBE_SA_TOKEN_PATH}/token"
           {{- if $integration.environmentAware }}
           - name: ENVIRONMENT_NAME
             value: "${ENVIRONMENT_NAME}"
@@ -303,8 +305,6 @@ objects:
             value: "${INTERNAL_CERTIFICATES_IMAGE_TAG}"
           - name: INTERNAL_CERTIFICATES_IMAGE_PULL_POLICY
             value: "${INTERNAL_CERTIFICATES_IMAGE_PULL_POLICY}"
-          - name: KUBE_SA_TOKEN_PATH
-            value: "${KUBE_SA_TOKEN_PATH}/token"
           {{- end }}
           {{- with $integration.extraEnv }}
           {{- range $i, $env := . }}
