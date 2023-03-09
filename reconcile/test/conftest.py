@@ -89,7 +89,7 @@ def data_factory() -> Callable[
 
 @pytest.fixture
 def gql_class_factory() -> Callable[
-    [type[BaseModel], MutableMapping[str, Any]], BaseModel
+    [type[BaseModel], Optional[MutableMapping[str, Any]]], BaseModel
 ]:
     """Create a GQL class from a fixture and set default values to None."""
 
