@@ -1,14 +1,13 @@
-from collections.abc import Callable
+from collections.abc import (
+    Callable,
+    MutableMapping,
+)
 from typing import Optional
 
 import pytest
+from pyparsing import Any
 
 from reconcile.gql_definitions.skupper_network.skupper_networks import (
-    ClusterPeeringConnectionClusterRequesterV1,
-    ClusterPeeringConnectionClusterRequesterV1_ClusterV1,
-    ClusterPeeringV1,
-    ClusterSpecV1,
-    ClusterV1,
     NamespaceV1,
     SkupperSiteConfigDefaultsV1,
     SkupperSiteConfigV1,
@@ -21,64 +20,27 @@ from reconcile.skupper_network.models import (
 
 
 @pytest.fixture
-def network_config() -> SkupperSiteConfigDefaultsV1:
+def network_config(
+    gql_class_factory: Callable[
+        [type[SkupperSiteConfigDefaultsV1], MutableMapping[str, Any]],
+        SkupperSiteConfigDefaultsV1,
+    ]
+) -> SkupperSiteConfigDefaultsV1:
     """Network config fixture."""
-    return SkupperSiteConfigDefaultsV1(
-        clusterLocal=None,
-        console=None,
-        consoleAuthentication=None,
-        consoleIngress=None,
-        controllerCpuLimit=None,
-        controllerCpu=None,
-        controllerMemoryLimit=None,
-        controllerMemory=None,
-        controllerPodAntiaffinity=None,
-        controllerServiceAnnotations=None,
-        edge=None,
-        ingress=None,
-        routerConsole=None,
-        routerCpuLimit=None,
-        routerCpu=None,
-        routerMemoryLimit=None,
-        routerMemory=None,
-        routerPodAntiaffinity=None,
-        routerServiceAnnotations=None,
-        routers=None,
-        routerLogging=None,
-        serviceController=None,
-        serviceSync=None,
-        skupperSiteController="quay.io/skupper/site-controller:1.2.0",
+    return gql_class_factory(
+        SkupperSiteConfigDefaultsV1,
+        {
+            "skupperSiteController": "quay.io/skupper/site-controller:1.2.0",
+        },
     )
 
 
 @pytest.fixture
-def site_config() -> SkupperSiteConfigV1:
+def site_config(
+    gql_class_factory: Callable[..., SkupperSiteConfigV1]
+) -> SkupperSiteConfigV1:
     """Site config fixture."""
-    return SkupperSiteConfigV1(
-        clusterLocal=None,
-        console=None,
-        consoleAuthentication=None,
-        consoleIngress=None,
-        controllerCpuLimit=None,
-        controllerCpu=None,
-        controllerMemoryLimit=None,
-        controllerMemory=None,
-        controllerPodAntiaffinity=None,
-        controllerServiceAnnotations=None,
-        edge=None,
-        ingress=None,
-        routerConsole=None,
-        routerCpuLimit=None,
-        routerCpu=None,
-        routerMemoryLimit=None,
-        routerMemory=None,
-        routerPodAntiaffinity=None,
-        routerServiceAnnotations=None,
-        routers=None,
-        routerLogging=None,
-        serviceController=None,
-        serviceSync=None,
-    )
+    return gql_class_factory(SkupperSiteConfigV1)
 
 
 SkupperSiteFactory = Callable[..., SkupperSite]
@@ -110,41 +72,40 @@ def skupper_site_factory(
 
 
 @pytest.fixture
-def namespace_factory() -> NamespaceFactory:
+def namespace_factory(
+    gql_class_factory: Callable[
+        [type[NamespaceV1], MutableMapping[str, Any]],
+        NamespaceV1,
+    ]
+) -> NamespaceFactory:
     def _namespace_factory(
         name: str,
         private: bool,
         internal: bool = False,
         peered_with: Optional[str] = None,
     ) -> NamespaceV1:
-        return NamespaceV1(
-            name=name,
-            clusterAdmin=None,
-            cluster=ClusterV1(
-                name=f"cluster-{name}",
-                serverUrl="https://api.example.com:6443",
-                insecureSkipTLSVerify=None,
-                jumpHost=None,
-                spec=ClusterSpecV1(private=private),
-                automationToken=None,
-                clusterAdminAutomationToken=None,
-                internal=internal,
-                disable=None,
-                peering=ClusterPeeringV1(
-                    connections=[
-                        ClusterPeeringConnectionClusterRequesterV1(
-                            provider="cluster-vpc-requester",
-                            cluster=ClusterPeeringConnectionClusterRequesterV1_ClusterV1(
-                                name=f"cluster-{peered_with}"
-                            ),
-                        )
-                    ]
-                )
-                if peered_with
-                else None,
-            ),
-            delete=False,
-            skupperSite=None,
+        return gql_class_factory(
+            NamespaceV1,
+            {
+                "name": name,
+                "cluster": {
+                    "name": f"cluster-{name}",
+                    "serverUrl": "https://api.example.com:6443",
+                    "spec": {"private": private},
+                    "internal": internal,
+                    "peering": {
+                        "connections": [
+                            {
+                                "provider": "cluster-vpc-requester",
+                                "cluster": {"name": f"cluster-{peered_with}"},
+                            }
+                        ]
+                    }
+                    if peered_with
+                    else None,
+                },
+                "delete": False,
+            },
         )
 
     return _namespace_factory

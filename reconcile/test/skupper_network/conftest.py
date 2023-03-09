@@ -1,3 +1,7 @@
+from collections.abc import (
+    Callable,
+    MutableMapping,
+)
 from typing import Any
 
 import pytest
@@ -18,9 +22,20 @@ def fx() -> Fixtures:
 
 
 @pytest.fixture
-def skupper_networks(fx: Fixtures) -> list[SkupperNetworkV1]:
+def skupper_networks(
+    fx: Fixtures,
+    data_factory: Callable[
+        [type[SkupperNetworkV1], MutableMapping[str, Any]], MutableMapping[str, Any]
+    ],
+) -> list[SkupperNetworkV1]:
     def q(*args: Any, **kwargs: Any) -> dict[Any, Any]:
-        return fx.get_anymarkup("skupper_networks.yml")
+        raw_data = fx.get_anymarkup("skupper_networks.yml")
+        return {
+            "skupper_networks": [
+                data_factory(SkupperNetworkV1, item)
+                for item in raw_data["skupper_networks"]
+            ]
+        }
 
     return intg.get_skupper_networks(q)
 
