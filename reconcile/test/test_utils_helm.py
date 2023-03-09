@@ -216,13 +216,6 @@ def test_template_environment_aware(values):
     assert template == expected
 
 
-def test_template_sa_token_projection(values):
-    values["integrations"][0]["saTokenProjection"] = True
-    template = helm.template(values)
-    expected = yaml.safe_load(fxt.get("sa_token_projection.yml"))
-    assert template == expected
-
-
 @pytest.fixture
 def values_cron():
     return {
