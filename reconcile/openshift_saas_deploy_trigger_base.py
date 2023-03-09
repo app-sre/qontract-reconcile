@@ -1,6 +1,5 @@
 import datetime
 import logging
-import sys
 from collections.abc import Callable
 from threading import Lock
 from typing import (
@@ -15,7 +14,6 @@ import reconcile.jenkins_plugins as jenkins_base
 import reconcile.openshift_base as osb
 from reconcile import queries
 from reconcile.openshift_tekton_resources import build_one_per_saas_file_tkn_object_name
-from reconcile.status import ExitCodes
 from reconcile.utils.defer import defer
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.oc import OC_Map
@@ -124,8 +122,7 @@ def setup(
 
     saas_files = queries.get_saas_files()
     if not saas_files:
-        logging.error("no saas files found")
-        sys.exit(ExitCodes.ERROR)
+        raise RuntimeError("no saas files found")
     saas_files = [sf for sf in saas_files if is_in_shard(sf["name"])]
 
     # Remove saas-file targets that are disabled
