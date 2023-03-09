@@ -1,4 +1,4 @@
-mypy==1.0.1
+mypy
 types-click
 types-croniter
 types-Jinja2
