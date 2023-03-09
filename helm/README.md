@@ -37,7 +37,6 @@ https://github.com/helm/helm/releases
 | logs.googleChat           | ship logs to google chat                                                 | false                                                                   |
 | resources                 | CPU/Memory resource requests/limits                                      |                                                                         |
 | fluentdResources          | CPU/Memory resource requests/limits for Fluentd                          | {requests: {memory: 30Mi, cpu: 15m}, limits: {memory: 120Mi, cpu: 25m}} |
-| saTokenProjection         | include service account token volume projection and env var to path      | false                                                                   |
 | shards                    | number of shards to run integration with                                 | 1                                                                       |
 | sleepDurationSecs         | time to sleep in seconds between integration executions                  | 600s                                                                    |
 | state                     | integration is stateful                                                  | false                                                                   |
