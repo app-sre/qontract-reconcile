@@ -6,7 +6,7 @@ import toml
 import yaml
 from sretoolbox.utils import retry
 
-from reconcile.utils.secret_reader import SecretReader
+from reconcile.utils.secret_reader import SecretReaderBase
 
 
 class JenkinsApi:
@@ -14,7 +14,7 @@ class JenkinsApi:
 
     @staticmethod
     def init_jenkins_from_secret(
-        secret_reader: SecretReader, secret, ssl_verify=True
+        secret_reader: SecretReaderBase, secret, ssl_verify=True
     ) -> "JenkinsApi":
         token_config = secret_reader.read(secret)
         config = toml.loads(token_config)

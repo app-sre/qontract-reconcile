@@ -5,13 +5,16 @@ from reconcile import (
     queries,
     typed_queries,
 )
-from reconcile.utils.secret_reader import SecretReader
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
+from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.smtp_client import (
     DEFAULT_SMTP_TIMEOUT,
     SmtpClient,
     get_smtp_server_connection,
 )
-from reconcile.utils.state import State
+from reconcile.utils.state import init_state
 
 QONTRACT_INTEGRATION = "email-sender"
 
@@ -83,16 +86,14 @@ def collect_to(to):
 
 
 def run(dry_run):
-    settings = queries.get_app_interface_settings()
-    accounts = queries.get_state_aws_accounts()
-    state = State(
-        integration=QONTRACT_INTEGRATION, accounts=accounts, settings=settings
-    )
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
+    state = init_state(integration=QONTRACT_INTEGRATION, secret_reader=secret_reader)
     emails = queries.get_app_interface_emails()
     smtp_settings = typed_queries.smtp.settings()
     smtp_client = SmtpClient(
         server=get_smtp_server_connection(
-            secret_reader=SecretReader(settings=settings),
+            secret_reader=secret_reader,
             secret=smtp_settings.credentials,
         ),
         mail_address=smtp_settings.mail_address,

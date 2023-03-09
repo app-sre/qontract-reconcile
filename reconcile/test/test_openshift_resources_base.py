@@ -124,7 +124,7 @@ def test_fetch_current_state_ri_not_initialized(
     oc_cs1: oc.OCClient, tmpl1: dict[str, Any]
 ):
     ri = ResourceInventory()
-    oc_cs1.get_items = lambda kind, **kwargs: [tmpl1]  # type: ignore[assignment]
+    oc_cs1.get_items = lambda kind, **kwargs: [tmpl1]  # type: ignore[method-assign]
     ri.initialize_resource_type("cs1", "wrong_namespace", "Template")
     ri.initialize_resource_type("wrong_cluster", "ns1", "Template")
     ri.initialize_resource_type("cs1", "ns1", "wrong_kind")
@@ -145,7 +145,7 @@ def test_fetch_current_state_ri_not_initialized(
 def test_fetch_current_state_ri_initialized(oc_cs1: oc.OCClient, tmpl1: dict[str, Any]):
     ri = ResourceInventory()
     ri.initialize_resource_type("cs1", "ns1", "Template")
-    oc_cs1.get_items = lambda kind, **kwargs: [tmpl1]  # type: ignore[assignment]
+    oc_cs1.get_items = lambda kind, **kwargs: [tmpl1]  # type: ignore[method-assign]
     orb.fetch_current_state(
         oc=oc_cs1,
         ri=ri,
@@ -225,7 +225,7 @@ def test_fetch_current_state_long_kind_not_supported(
 def test_fetch_states(current_state_spec: CurrentStateSpec, tmpl1: dict[str, Any]):
     ri = ResourceInventory()
     ri.initialize_resource_type("cs1", "ns1", "Template")
-    current_state_spec.oc.get_items = lambda kind, **kwargs: [tmpl1]  # type: ignore[assignment]
+    current_state_spec.oc.get_items = lambda kind, **kwargs: [tmpl1]  # type: ignore[method-assign]
     orb.fetch_states(ri=ri, spec=current_state_spec)
     _, _, _, resource = list(ri)[0]
     assert len(resource["current"]) == 1
@@ -243,7 +243,7 @@ def test_fetch_states_unknown_kind(current_state_spec: CurrentStateSpec):
 
 
 def test_fetch_states_oc_error(current_state_spec: CurrentStateSpec):
-    current_state_spec.oc.get_items = Mock(  # type: ignore[assignment]
+    current_state_spec.oc.get_items = Mock(  # type: ignore[method-assign]
         side_effect=oc.StatusCodeError("something wrong with openshift")
     )
     ri = ResourceInventory()

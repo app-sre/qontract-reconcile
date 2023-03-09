@@ -350,11 +350,7 @@ class OCMProductRosa(OCMProduct):
         ocm: OCM, cluster: Mapping[str, Any], init_provision_shards: bool
     ) -> OCMSpec:
 
-        is_hosted_cp = cluster["hypershift"]["enabled"]
-
-        # Hypershift does not allow set the provision_shard
-        # This might change in the future
-        if init_provision_shards and not is_hosted_cp:
+        if init_provision_shards:
             provision_shard_id = ocm.get_provision_shard(cluster["id"])["id"]
         else:
             provision_shard_id = None
@@ -464,10 +460,12 @@ class OCMProductRosa(OCMProduct):
             ocm_spec["nodes"]["compute"] = cluster.spec.nodes
 
         if isinstance(cluster.spec, ROSAClusterSpec):
+            ocm_spec.setdefault("properties", {})
+            ocm_spec["properties"][
+                "rosa_creator_arn"
+            ] = cluster.spec.account.rosa.creator_role_arn
+
             rosa_spec: dict[str, Any] = {
-                "properties": {
-                    "rosa_creator_arn": cluster.spec.account.rosa.creator_role_arn
-                },
                 "product": {"id": "rosa"},
                 "ccs": {"enabled": True},
                 "aws": {

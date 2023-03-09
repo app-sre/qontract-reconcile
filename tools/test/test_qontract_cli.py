@@ -17,7 +17,7 @@ def mock_queries(mocker):
 
 @pytest.fixture
 def mock_state(mocker):
-    return mocker.patch("tools.qontract_cli.State", autospec=True)
+    return mocker.patch("tools.qontract_cli.init_state", autospec=True)
 
 
 def test_state_ls_with_integration(env_vars, mock_queries, mock_state):

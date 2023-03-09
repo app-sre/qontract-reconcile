@@ -11,7 +11,7 @@ from typing import (
 
 from reconcile import queries
 from reconcile.utils.aws_api import AWSApi
-from reconcile.utils.state import State
+from reconcile.utils.state import init_state
 
 QONTRACT_INTEGRATION = "aws-iam-password-reset"
 
@@ -37,9 +37,7 @@ def run(dry_run):
     accounts = queries.get_aws_accounts(reset_passwords=True)
     settings = queries.get_app_interface_settings()
     roles = queries.get_roles(aws=True)
-    state = State(
-        integration=QONTRACT_INTEGRATION, accounts=accounts, settings=settings
-    )
+    state = init_state(integration=QONTRACT_INTEGRATION)
 
     for a in accounts:
         aws_api = None

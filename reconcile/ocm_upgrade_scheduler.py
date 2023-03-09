@@ -29,7 +29,7 @@ from reconcile.utils.semver_helper import (
     parse_semver,
     sort_versions,
 )
-from reconcile.utils.state import State
+from reconcile.utils.state import init_state
 
 QONTRACT_INTEGRATION = "ocm-upgrade-scheduler"
 
@@ -150,11 +150,7 @@ def get_version_data_map(
     Returns:
         dict: version data per OCM instance
     """
-    settings = queries.get_app_interface_settings()
-    accounts = queries.get_state_aws_accounts()
-    state = State(
-        integration=QONTRACT_INTEGRATION, accounts=accounts, settings=settings
-    )
+    state = init_state(integration=QONTRACT_INTEGRATION)
     results: dict[str, VersionData] = {}
     # we keep a remote state per OCM instance
     for ocm_name in ocm_map.instances():

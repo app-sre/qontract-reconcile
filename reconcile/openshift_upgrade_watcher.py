@@ -6,7 +6,6 @@ from collections.abc import (
 from datetime import datetime
 from typing import Optional
 
-from reconcile import queries
 from reconcile.gql_definitions.common.clusters import ClusterV1
 from reconcile.slack_base import slackapi_from_queries
 from reconcile.typed_queries.app_interface_vault_settings import (
@@ -21,7 +20,10 @@ from reconcile.utils.oc_map import (
 )
 from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.slack_api import SlackApi
-from reconcile.utils.state import State
+from reconcile.utils.state import (
+    State,
+    init_state,
+)
 
 QONTRACT_INTEGRATION = "openshift-upgrade-watcher"
 
@@ -121,12 +123,7 @@ def run(
 ) -> None:
     vault_settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
-    accounts = queries.get_state_aws_accounts()
-    state = State(
-        integration=QONTRACT_INTEGRATION,
-        accounts=accounts,
-        secret_reader=secret_reader,
-    )
+    state = init_state(integration=QONTRACT_INTEGRATION, secret_reader=secret_reader)
 
     clusters = [
         c for c in get_clusters() if c.ocm and not (c.spec and c.spec.hypershift)

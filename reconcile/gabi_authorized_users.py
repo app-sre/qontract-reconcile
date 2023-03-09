@@ -1,6 +1,8 @@
+import json
 import logging
 import sys
 from collections.abc import (
+    Callable,
     Iterable,
     Mapping,
 )
@@ -27,15 +29,28 @@ from reconcile.utils.semver_helper import make_semver
 
 QONTRACT_INTEGRATION = "gabi-authorized-users"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
-EXPIRATION_MAX = 90
+EXPIRATION_DAYS_MAX = 90
 
 
-def construct_gabi_oc_resource(name: str, users: Iterable[str]) -> OpenshiftResource:
+def construct_gabi_oc_resource(
+    name: str, expiration_date: date, users: Iterable[str]
+) -> OpenshiftResource:
+    # Support the legacy users file. To be removed in the future.
+    _users = users if expiration_date >= date.today() else []
     body = {
         "apiVersion": "v1",
         "kind": "ConfigMap",
         "metadata": {"name": name, "annotations": {"qontract.recycle": "true"}},
-        "data": {"authorized-users.yaml": "\n".join(users)},
+        "data": {
+            "authorized-users.yaml": "\n".join(_users),
+            "config.json": json.dumps(
+                {
+                    "expiration": str(expiration_date),
+                    "users": users,
+                },
+                separators=(",", ":"),
+            ),
+        },
     }
     return OpenshiftResource(
         body, QONTRACT_INTEGRATION, QONTRACT_INTEGRATION_VERSION, error_details=name
@@ -54,11 +69,11 @@ def fetch_desired_state(
     gabi_instances: Iterable[Mapping], ri: ResourceInventory
 ) -> None:
     for g in gabi_instances:
-        exp_date = datetime.strptime(g["expirationDate"], "%Y-%m-%d").date()
-        if (exp_date - date.today()).days > EXPIRATION_MAX:
+        expiration_date = datetime.strptime(g["expirationDate"], "%Y-%m-%d").date()
+        if (expiration_date - date.today()).days > EXPIRATION_DAYS_MAX:
             raise RunnerException(
-                f'The maximum expiration date of {g["name"]} '
-                f"shall not exceed {EXPIRATION_MAX} days form today"
+                f'The maximum expiration date of {g["name"]} shall not '
+                f"exceed {EXPIRATION_DAYS_MAX} days from today"
             )
         for i in g["instances"]:
             namespace = i["namespace"]
@@ -74,17 +89,18 @@ def fetch_desired_state(
                     break
             if not found:
                 raise RunnerException(
-                    f"Could not find rds identifier {identifier} "
+                    f"Could not find RDS identifier {identifier} "
                     f'for account {account} in namespace {namespace["name"]}'
                 )
-            cluster = namespace["cluster"]["name"]
-            users = (
-                get_usernames(g["users"], namespace["cluster"])
-                if exp_date >= date.today()
-                else []
+            users = get_usernames(g["users"], namespace["cluster"])
+            resource = construct_gabi_oc_resource(g["name"], expiration_date, users)
+            ri.add_desired(
+                namespace["cluster"]["name"],
+                namespace["name"],
+                resource.kind,
+                resource.name,
+                resource,
             )
-            resource = construct_gabi_oc_resource(g["name"], users)
-            ri.add_desired(cluster, namespace["name"], "ConfigMap", g["name"], resource)
 
 
 @defer
@@ -92,12 +108,12 @@ def run(
     dry_run: bool,
     thread_pool_size: int = 10,
     internal: Optional[bool] = None,
-    use_jump_host=True,
-    defer=None,
-):
+    use_jump_host: bool = True,
+    defer: Optional[Callable] = None,
+) -> None:
     gabi_instances = queries.get_gabi_instances()
     if not gabi_instances:
-        logging.debug("No gabi instances found in app-interface")
+        logging.debug("No GABI instances found in app-interface")
         sys.exit(ExitCodes.SUCCESS)
 
     gabi_namespaces = [i["namespace"] for g in gabi_instances for i in g["instances"]]
@@ -111,9 +127,10 @@ def run(
         internal=internal,
         use_jump_host=use_jump_host,
     )
-    defer(oc_map.cleanup)
+    if defer:
+        defer(oc_map.cleanup)
     fetch_desired_state(gabi_instances, ri)
     ob.realize_data(dry_run, oc_map, ri, thread_pool_size)
 
     if ri.has_error_registered():
-        sys.exit(1)
+        sys.exit(ExitCodes.ERROR)

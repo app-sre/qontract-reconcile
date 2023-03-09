@@ -66,7 +66,7 @@ from reconcile.utils.ocm import (
 from reconcile.utils.output import print_output
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.semver_helper import parse_semver
-from reconcile.utils.state import State
+from reconcile.utils.state import init_state
 from reconcile.utils.terraform_client import TerraformClient as Terraform
 from tools.cli_commands.gpg_encrypt import (
     GPGEncryptCommand,
@@ -877,9 +877,8 @@ def clusters_aws_account_ids(ctx):
 @get.command()
 @click.pass_context
 def terraform_users_credentials(ctx) -> None:
-    settings = queries.get_app_interface_settings()
     accounts = queries.get_state_aws_accounts()
-    state = State("account-notifier", accounts, settings=settings)
+    state = init_state(integration="account-notifier")
 
     skip_accounts, appsre_pgp_key, _ = tfu.get_reencrypt_settings()
 
@@ -942,10 +941,8 @@ def terraform_users_credentials(ctx) -> None:
 @click.argument("account_name")
 @click.pass_context
 def user_credentials_migrate_output(ctx, account_name) -> None:
-    settings = queries.get_app_interface_settings()
     accounts = queries.get_state_aws_accounts()
-    state = State("account-notifier", accounts, settings=settings)
-
+    state = init_state(integration="account-notifier")
     skip_accounts, appsre_pgp_key, _ = tfu.get_reencrypt_settings()
 
     accounts, working_dirs, _, aws_api = tfu.setup(
@@ -1818,9 +1815,7 @@ def state(ctx):
 @click.argument("integration", default="")
 @click.pass_context
 def ls(ctx, integration):
-    settings = queries.get_app_interface_settings()
-    accounts = queries.get_state_aws_accounts()
-    state = State(integration, accounts, settings=settings)
+    state = init_state(integration=integration)
     keys = state.ls()
     # if integration in not defined the 2th token will be the integration name
     key_index = 1 if integration else 2
@@ -1841,9 +1836,7 @@ def ls(ctx, integration):
 @click.argument("key")
 @click.pass_context
 def get(ctx, integration, key):
-    settings = queries.get_app_interface_settings()
-    accounts = queries.get_state_aws_accounts()
-    state = State(integration, accounts, settings=settings)
+    state = init_state(integration=integration)
     value = state.get(key)
     print(value)
 
@@ -1853,9 +1846,7 @@ def get(ctx, integration, key):
 @click.argument("key")
 @click.pass_context
 def add(ctx, integration, key):
-    settings = queries.get_app_interface_settings()
-    accounts = queries.get_state_aws_accounts()
-    state = State(integration, accounts, settings=settings)
+    state = init_state(integration=integration)
     state.add(key)
 
 
@@ -1865,9 +1856,7 @@ def add(ctx, integration, key):
 @click.argument("value")
 @click.pass_context
 def set(ctx, integration, key, value):
-    settings = queries.get_app_interface_settings()
-    accounts = queries.get_state_aws_accounts()
-    state = State(integration, accounts, settings=settings)
+    state = init_state(integration=integration)
     state.add(key, value=value, force=True)
 
 
@@ -1876,9 +1865,7 @@ def set(ctx, integration, key, value):
 @click.argument("key")
 @click.pass_context
 def rm(ctx, integration, key):
-    settings = queries.get_app_interface_settings()
-    accounts = queries.get_state_aws_accounts()
-    state = State(integration, accounts, settings=settings)
+    state = init_state(integration=integration)
     state.rm(key)
 
 
