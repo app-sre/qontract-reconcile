@@ -37,7 +37,7 @@ setup(
         "pypd>=1.1.0,<1.2.0",
         "Jinja2>=2.10.1,<3.2.0",
         "jira~=3.1",
-        "pyOpenSSL~=21.0",
+        "pyOpenSSL~=23.0",
         "ruamel.yaml>=0.16.5,<0.18.0",
         "terrascript==0.9.0",
         "tabulate>=0.8.6,<0.9.0",
@@ -60,8 +60,6 @@ setup(
         # this is really needed only in lint and type validations.
         # Is there any better place to put this in?
         "packaging~=21.3",
-        # Needed to fix issues with router's certificates
-        "cryptography==36.0.2",
         "deepdiff6==6.2.0",
         "jsonpath-ng~=1.5",
         "networkx~=2.8",
