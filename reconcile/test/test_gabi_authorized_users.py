@@ -2,14 +2,10 @@ import json
 import os
 from datetime import (
     date,
-    datetime,
     timedelta,
 )
 from unittest import TestCase
-from unittest.mock import (
-    Mock,
-    patch,
-)
+from unittest.mock import patch
 
 import reconcile.gabi_authorized_users as gabi_u
 import reconcile.openshift_base as ob
@@ -88,7 +84,6 @@ class TestGabiAuthorizedUser(TestCase):
         with self.assertRaises(RunnerException):
             gabi_u.run(dry_run=False)
 
-    @patch.object(gabi_u, "date", Mock(wraps=datetime))
     @patch.object(ob, "apply", autospec=True)
     def test_gabi_authorized_users_apply(
         self,
@@ -102,7 +97,6 @@ class TestGabiAuthorizedUser(TestCase):
         expiration_date = date(2023, 1, 1)
         get_gabi_instances.return_value = mock_get_gabi_instances(expiration_date)
         mock_request.side_effect = apply_request
-        gabi_u.date.today.return_value = expiration_date
         gabi_u.run(dry_run=False)
         expected = OR(
             apply["desired"],
