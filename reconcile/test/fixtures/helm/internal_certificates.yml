@@ -281,3 +281,5 @@ parameters:
   value: 123
 - name: INTEG_MEMORY_REQUEST
   value: 45Mi
+- name: KUBE_SA_TOKEN_PATH
+  value: '/var/run/secrets/kubernetes.io/serviceaccount'
