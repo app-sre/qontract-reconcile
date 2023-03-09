@@ -4,8 +4,8 @@ jenkins:
       name: ci-int-jenkins-worker-app-interface
       fleet: ci-int-jenkins-worker-app-interface
       region: us-east-1
-      minSize: 3
-      maxSize: 9
+      minSize: 0
+      maxSize: 10
       computerConnector:
         sSHConnector:
           credentialsId: jenkins
@@ -13,12 +13,13 @@ jenkins:
           sshHostKeyVerificationStrategy: nonVerifyingKeyVerificationStrategy
       fsRoot: "/var/lib/jenkins"
       labelString: app-interface
-      numExecutors: 2
+      numExecutors: 3
       idleMinutes: 30
-      minSpareSize: 0
-      noDelayProvision: true
+      minSpareSize: 1
+      maxTotalUses: 100
+      noDelayProvision: false
       addNodeOnlyIfRunning: true
-      alwaysReconnect: false
+      alwaysReconnect: true
       privateIpUsed: true
       restrictUsage: true
   - eC2Fleet:
@@ -37,9 +38,10 @@ jenkins:
       numExecutors: 3
       idleMinutes: 30
       minSpareSize: 0
+      maxTotalUses: -1
       noDelayProvision: false
       addNodeOnlyIfRunning: true
-      alwaysReconnect: false
+      alwaysReconnect: true
       privateIpUsed: true
       restrictUsage: true
   - eC2Fleet:
@@ -58,8 +60,9 @@ jenkins:
       numExecutors: 3
       idleMinutes: 30
       minSpareSize: 0
+      maxTotalUses: -1
       noDelayProvision: false
       addNodeOnlyIfRunning: true
-      alwaysReconnect: false
+      alwaysReconnect: true
       privateIpUsed: true
       restrictUsage: true
