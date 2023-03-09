@@ -9,6 +9,7 @@ integrations:
       memory: 600Mi
       cpu: 400m
   environmentAware: true
+  saTokenProjection: true
   logs:
     slack: true
   shard_specs:
