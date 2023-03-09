@@ -135,6 +135,8 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           - name: USE_NATIVE_CLIENT
             value: "${USE_NATIVE_CLIENT}"
+          - name: KUBE_SA_TOKEN_PATH
+            value: "${KUBE_SA_TOKEN_PATH}/token"
           resources:
             limits:
               cpu: ${INTEG_CPU_LIMIT}
@@ -147,6 +149,8 @@ objects:
             mountPath: /config
           - name: logs
             mountPath: /fluentd/log/
+          - name: qontract-reconcile-sa-token
+            mountPath: ${KUBE_SA_TOKEN_PATH}
         - name: fluentd
           image: ${FLUENTD_IMAGE}:${FLUENTD_IMAGE_TAG}
           imagePullPolicy: ${FLUENTD_IMAGE_PULL_POLICY}
@@ -179,6 +183,12 @@ objects:
           - name: fluentd-config
             mountPath: /fluentd/etc/
         volumes:
+        - name: qontract-reconcile-sa-token
+          projected: 
+            sources:
+            - serviceAccountToken:
+                expirationSeconds: 1800
+                path: token
         - name: qontract-reconcile-toml
           secret:
             secretName: qontract-reconcile-toml
@@ -233,6 +243,8 @@ parameters:
   value: "0"
 - name: USER_ID
   value: dummy
+- name: KUBE_SA_TOKEN_PATH
+  value: '/var/run/secrets/kubernetes.io/serviceaccount'
 - name: LOG_FILE
   value: "/fluentd/log/integration.log"
 - name: SLACK_CHANNEL

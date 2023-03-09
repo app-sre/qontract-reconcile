@@ -151,8 +151,6 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           - name: USE_NATIVE_CLIENT
             value: "${USE_NATIVE_CLIENT}"
-          - name: KUBE_SA_TOKEN_PATH
-            value: "${KUBE_SA_TOKEN_PATH}/token"
           - name: ENVIRONMENT_NAME
             value: "${ENVIRONMENT_NAME}"
           - name: IMAGE
@@ -179,6 +177,8 @@ objects:
             value: "${INTERNAL_CERTIFICATES_IMAGE_TAG}"
           - name: INTERNAL_CERTIFICATES_IMAGE_PULL_POLICY
             value: "${INTERNAL_CERTIFICATES_IMAGE_PULL_POLICY}"
+          - name: KUBE_SA_TOKEN_PATH
+            value: "${KUBE_SA_TOKEN_PATH}/token"
           resources:
             limits:
               cpu: ${INTEGRATIONS_MANAGER_CPU_LIMIT}
