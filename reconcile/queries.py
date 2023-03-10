@@ -330,7 +330,9 @@ JENKINS_INSTANCES_QUERY = """
       numExecutors
       idleMinutes
       minSpareSize
+      maxTotalUses
       noDelayProvision
+      alwaysReconnect
       namespace{
         name
         managedExternalResources
