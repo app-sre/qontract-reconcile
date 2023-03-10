@@ -33,7 +33,11 @@ pipelinesProvider:
   provider: tekton
   namespace:
     name: app-sre-pipelines
-    cluster: *CLUSTER_PROD_1
+    cluster:
+      name: prod-1
+      serverUrl: 'https://api.prod-1.openshiftapps.com:6443'
+      consoleUrl: 'https://console.appsres03ue1.5nvu.p1.openshiftapps.com:6443'
+      internal: true
   defaults:
     pipelineTemplates:
       openshiftSaasDeploy:

@@ -815,7 +815,7 @@ class TestConfigHashPromotionsValidation(TestCase):
 
     def test_promotion_state_config_hash_not_match_no_validates(self) -> None:
         """Promotion is not valid if the parent target config hash set in
-        the state does not match with the one set in the subsriber target
+        the state does not match with the one set in the subscriber target
         promotion_data. This could happen if the parent target has run again
         with the same ref before before the subscriber target promotion MR is
         merged.

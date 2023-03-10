@@ -50,6 +50,7 @@ def test_saasherder_allowed_secret_paths(
                         "cluster": {
                             "name": "appsres03ue1",
                             "serverUrl": "https://api.appsres03ue1.5nvu.p1.openshiftapps.com:6443",
+                            "consoleUrl": "https://console.appsres03ue1.5nvu.p1.openshiftapps.com:6443",
                             "internal": True,
                         },
                     },

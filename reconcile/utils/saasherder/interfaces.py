@@ -8,6 +8,7 @@ from typing import (
     Optional,
     Protocol,
     Union,
+    runtime_checkable,
 )
 
 from reconcile.utils.oc_connection_parameters import Cluster
@@ -198,11 +199,9 @@ class SaasResourceTemplateTargetNamespace(Protocol):
         ...
 
 
-class SaasPromotionChannelData(Protocol):
+@runtime_checkable
+class SaasParentSaasPromotion(Protocol):
     q_type: str
-
-
-class SaasParentSaasPromotion(SaasPromotionChannelData):
     parent_saas: Optional[str]
     target_config_hash: Optional[str]
 
@@ -213,7 +212,7 @@ class SaasPromotionData(Protocol):
     @property
     def data(
         self,
-    ) -> Optional[Sequence[Union[SaasParentSaasPromotion, SaasPromotionChannelData]]]:
+    ) -> Optional[Sequence[SaasParentSaasPromotion]]:
         ...
 
 
