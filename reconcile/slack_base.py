@@ -5,7 +5,10 @@ from typing import (
 )
 
 from reconcile import queries
-from reconcile.utils.secret_reader import SecretReaderBase
+from reconcile.utils.secret_reader import (
+    SecretReader,
+    SecretReaderBase,
+)
 from reconcile.utils.slack_api import (
     HasClientConfig,
     SlackApi,
