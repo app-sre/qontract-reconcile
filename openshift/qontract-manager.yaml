@@ -177,6 +177,8 @@ objects:
             value: "${INTERNAL_CERTIFICATES_IMAGE_TAG}"
           - name: INTERNAL_CERTIFICATES_IMAGE_PULL_POLICY
             value: "${INTERNAL_CERTIFICATES_IMAGE_PULL_POLICY}"
+          - name: INTEGRATIONS_MANAGER_IMAGE_TAG_FROM_REF
+            value: "${INTEGRATIONS_MANAGER_IMAGE_TAG_FROM_REF}"
           resources:
             limits:
               cpu: ${INTEGRATIONS_MANAGER_CPU_LIMIT}
@@ -295,3 +297,5 @@ parameters:
   value: 200m
 - name: INTEGRATIONS_MANAGER_MEMORY_REQUEST
   value: 300Mi
+- name: INTEGRATIONS_MANAGER_IMAGE_TAG_FROM_REF
+  value: ""
