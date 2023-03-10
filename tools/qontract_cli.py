@@ -1792,8 +1792,6 @@ def selectorsyncset_managed_resources(ctx):
     data = []
     for c in clusters:
         c_name = c.name
-        if c_name != "hivei01ue1":
-            continue
         oc = oc_map.get(c_name)
         if not oc or isinstance(oc, OCLogMsg):
             continue
