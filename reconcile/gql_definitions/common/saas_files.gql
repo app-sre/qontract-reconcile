@@ -15,6 +15,7 @@ query SaasFiles {
           name
           cluster {
             ...OcConnectionCluster
+            consoleUrl
           }
         }
         defaults {

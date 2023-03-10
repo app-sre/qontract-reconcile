@@ -77,6 +77,7 @@ query SaasFiles {
           name
           cluster {
             ...OcConnectionCluster
+            consoleUrl
           }
         }
         defaults {
@@ -254,9 +255,13 @@ class PipelinesProviderV1(ConfiguredBaseModel):
     provider: str = Field(..., alias="provider")
 
 
+class ClusterV1(OcConnectionCluster):
+    console_url: str = Field(..., alias="consoleUrl")
+
+
 class NamespaceV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
-    cluster: OcConnectionCluster = Field(..., alias="cluster")
+    cluster: ClusterV1 = Field(..., alias="cluster")
 
 
 class PipelinesProviderTektonObjectTemplateV1(ConfiguredBaseModel):
