@@ -33,6 +33,10 @@ from reconcile.cli import config_file
 from reconcile.jenkins_job_builder import init_jjb
 from reconcile.prometheus_rules_tester import get_data_from_jinja_test_template
 from reconcile.slack_base import slackapi_from_queries
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
+from reconcile.typed_queries.clusters import get_clusters
 from reconcile.utils import (
     amtool,
     config,
@@ -58,13 +62,14 @@ from reconcile.utils.mr.labels import (
     SAAS_FILE_UPDATE,
     SELF_SERVICEABLE,
 )
-from reconcile.utils.oc import OC_Map
+from reconcile.utils.oc import OC_Map, OCLogMsg
+from reconcile.utils.oc_map import init_oc_map_from_clusters
 from reconcile.utils.ocm import (
     OCM,
     OCMMap,
 )
 from reconcile.utils.output import print_output
-from reconcile.utils.secret_reader import SecretReader
+from reconcile.utils.secret_reader import SecretReader, create_secret_reader
 from reconcile.utils.semver_helper import parse_semver
 from reconcile.utils.state import init_state
 from reconcile.utils.terraform_client import TerraformClient as Terraform
@@ -1758,6 +1763,64 @@ def app_interface_merge_history(ctx):
     merge_queue_data.sort(key=itemgetter("merged_at"), reverse=True)
     ctx.obj["options"]["sort"] = False  # do not sort
     print_output(ctx.obj["options"], merge_queue_data, columns)
+
+
+@get.command(
+    short_help="obtain a list of all resources that are managed "
+    "on a customer cluster via a Hive SelectorSyncSet."
+)
+@click.pass_context
+def selectorsyncset_managed_resources(ctx):
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
+    clusters = get_clusters()
+    oc_map = init_oc_map_from_clusters(
+        clusters=clusters,
+        secret_reader=secret_reader,
+        integration="qontract-cli",
+        thread_pool_size=1,
+        init_api_resources=True,
+    )
+    columns = [
+        "cluster",
+        "SelectorSyncSet_name",
+        "SaaSFile_name",
+        "kind",
+        "namespace",
+        "name",
+    ]
+    data = []
+    for c in clusters:
+        c_name = c.name
+        if c_name != "hivei01ue1":
+            continue
+        oc = oc_map.get(c_name)
+        if not oc or isinstance(oc, OCLogMsg):
+            continue
+        if "SelectorSyncSet" not in (oc.api_resources or []):
+            continue
+        selectorsyncsets = oc.get_all("SelectorSyncSet")["items"]
+        for sss in selectorsyncsets:
+            try:
+                for resource in sss["spec"]["resources"]:
+                    kind = resource["kind"]
+                    namespace = resource["metadata"].get("namespace")
+                    name = resource["metadata"]["name"]
+                    item = {
+                        "cluster": c_name,
+                        "SelectorSyncSet_name": sss["metadata"]["name"],
+                        "SaaSFile_name": sss["metadata"]["annotations"][
+                            "qontract.caller_name"
+                        ],
+                        "kind": kind,
+                        "namespace": namespace,
+                        "name": name,
+                    }
+                data.append(item)
+            except KeyError:
+                pass
+
+    print_output(ctx.obj["options"], data, columns)
 
 
 @root.group()
