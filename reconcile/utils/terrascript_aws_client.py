@@ -114,7 +114,9 @@ from terrascript.resource import (
     aws_route,
     aws_route53_health_check,
     aws_route53_record,
+    aws_route53_vpc_association_authorization,
     aws_route53_zone,
+    aws_route53_zone_association,
     aws_s3_bucket,
     aws_s3_bucket_notification,
     aws_s3_bucket_policy,
@@ -1148,6 +1150,22 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     rule_identifier = f"{identifier}-{rule['vpc_id']}"
                     tf_resource = aws_security_group_rule(rule_identifier, **values)
                     self.add_resource(req_account_name, tf_resource)
+
+            for zone in requester.get("hostedzones") or []:
+                id = f"{identifier}-{zone}"
+                values = {
+                    "vpc_id": accepter["vpc_id"],
+                    "zone_id": zone,
+                }
+                authorization = aws_route53_vpc_association_authorization(id, **values)
+                self.add_resource(req_account_name, authorization)
+                values = {
+                    "provider": "aws." + acc_alias,
+                    "vpc_id": f"${{aws_route53_vpc_association_authorization.{id}.vpc_id}}",
+                    "zone_id": f"${{aws_route53_vpc_association_authorization.{id}.zone_id}}",
+                }
+                association = aws_route53_zone_association(id, **values)
+                self.add_resource(acc_account_name, association)
 
     @staticmethod
     def get_az_unique_subnet_ids(subnets_id_az):

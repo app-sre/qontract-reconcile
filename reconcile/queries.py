@@ -1072,6 +1072,7 @@ CLUSTER_PEERING_QUERY = """
           tags
           cidrBlock
           manageSecurityGroups
+          manageRoute53Associations
           assumeRole
         }
         ... on ClusterPeeringConnectionClusterRequester_v1 {

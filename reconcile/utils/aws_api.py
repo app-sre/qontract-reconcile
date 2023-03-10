@@ -1076,6 +1076,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         tags=None,
         route_tables=False,
         security_groups=False,
+        route53_associations=False,
     ):
         results = []
         ec2 = self._account_ec2_client(account["name"], region_name)
@@ -1090,6 +1091,23 @@ class AWSApi:  # pylint: disable=too-many-public-methods
                 "tgw_arn": tgw_arn,
                 "region": region_name,
             }
+
+            if route53_associations:
+                route53 = self._account_route53_client(account["name"], region_name)
+                paginator = route53.get_paginator("list_hosted_zones")
+                zones = []
+                for page in paginator.paginate():
+                    for zone in page["HostedZones"]:
+                        if zone["Config"]["PrivateZone"]:  # TODO: add filter on tags?
+                            zone_name = zone["Name"]
+                            # ignore high-level zone names, like p1.openshiftapps.com.
+                            # since zone names end with a dot, we get a length of 4
+                            zone_name_labels = zone_name.split(".")
+                            if len(zone_name_labels) <= 4:
+                                continue
+                            zone_id = self._get_hosted_zone_id(zone)
+                            zones.append(zone_id)
+                item["hostedzones"] = zones
 
             if route_tables or security_groups:
                 # both routes and rules are provisioned for resources
