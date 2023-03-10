@@ -70,6 +70,7 @@ class _VaultClient:
         config = get_config()
 
         server = config["vault"]["server"] if server is None else server
+        self.kube_auth_enabled = False
         if "kube_auth_role" in config["vault"] or kube_auth_role is not None:
             self.kube_auth_role = (
                 config["vault"]["kube_auth_role"]
@@ -85,6 +86,7 @@ class _VaultClient:
                 "KUBE_SA_TOKEN_PATH",
                 "/var/run/secrets/kubernetes.io/serviceaccount/token",
             )
+            self.kube_auth_enabled = True
         else:
             self.role_id = config["vault"]["role_id"] if role_id is None else role_id
             self.secret_id = (
@@ -126,7 +128,7 @@ class _VaultClient:
             self._refresh_client_auth()
 
     def _refresh_client_auth(self):
-        if self.kube_auth_role:
+        if self.kube_auth_enabled:
             # must read each time to account for sa token refresh
             with open(self.kube_sa_token_path) as f:
                 try:
