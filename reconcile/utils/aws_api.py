@@ -1098,13 +1098,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
                 zones = []
                 for page in paginator.paginate():
                     for zone in page["HostedZones"]:
-                        if zone["Config"]["PrivateZone"]:  # TODO: add filter on tags?
-                            zone_name = zone["Name"]
-                            # ignore high-level zone names, like p1.openshiftapps.com.
-                            # since zone names end with a dot, we get a length of 4
-                            zone_name_labels = zone_name.split(".")
-                            if len(zone_name_labels) <= 4:
-                                continue
+                        if zone["Config"]["PrivateZone"]:
                             zone_id = self._get_hosted_zone_id(zone)
                             zones.append(zone_id)
                 item["hostedzones"] = zones
