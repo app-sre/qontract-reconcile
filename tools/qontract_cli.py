@@ -62,14 +62,20 @@ from reconcile.utils.mr.labels import (
     SAAS_FILE_UPDATE,
     SELF_SERVICEABLE,
 )
-from reconcile.utils.oc import OC_Map, OCLogMsg
+from reconcile.utils.oc import (
+    OC_Map,
+    OCLogMsg,
+)
 from reconcile.utils.oc_map import init_oc_map_from_clusters
 from reconcile.utils.ocm import (
     OCM,
     OCMMap,
 )
 from reconcile.utils.output import print_output
-from reconcile.utils.secret_reader import SecretReader, create_secret_reader
+from reconcile.utils.secret_reader import (
+    SecretReader,
+    create_secret_reader,
+)
 from reconcile.utils.semver_helper import parse_semver
 from reconcile.utils.state import init_state
 from reconcile.utils.terraform_client import TerraformClient as Terraform
