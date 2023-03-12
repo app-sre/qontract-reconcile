@@ -1827,6 +1827,69 @@ def selectorsyncset_managed_resources(ctx):
     print_output(ctx.obj["options"], data, columns)
 
 
+@get.command(
+    short_help="obtain a list of all resources that are managed "
+    "on a customer cluster via an ACM Policy via a Hive SelectorSyncSet."
+)
+@click.pass_context
+def selectorsyncset_managed_hypershift_resources(ctx):
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
+    clusters = get_clusters()
+    oc_map = init_oc_map_from_clusters(
+        clusters=clusters,
+        secret_reader=secret_reader,
+        integration="qontract-cli",
+        thread_pool_size=1,
+        init_api_resources=True,
+    )
+    columns = [
+        "cluster",
+        "SaaSFile_name",
+        "SelectorSyncSet_name",
+        "Policy_name",
+        "kind",
+        "namespace",
+        "name",
+    ]
+    data = []
+    for c in clusters:
+        c_name = c.name
+        oc = oc_map.get(c_name)
+        if not oc or isinstance(oc, OCLogMsg):
+            continue
+        if "SelectorSyncSet" not in (oc.api_resources or []):
+            continue
+        selectorsyncsets = oc.get_all("SelectorSyncSet")["items"]
+        for sss in selectorsyncsets:
+            try:
+                for policy_resource in sss["spec"]["resources"]:
+                    if policy_resource["kind"] != "Policy":
+                        continue
+                    for pt in policy_resource["spec"]["policy-templates"]:
+                        for ot in pt["objectDefinition"]["spec"]["object-templates"]:
+                            resource = ot["objectDefinition"]
+                            kind = resource["kind"]
+                            namespace = resource["metadata"].get("namespace")
+                            name = resource["metadata"]["name"]
+                            item = {
+                                "cluster": c_name,
+                                "SaaSFile_name": sss["metadata"]["annotations"][
+                                    "qontract.caller_name"
+                                ],
+                                "SelectorSyncSet_name": sss["metadata"]["name"],
+                                "Policy_name": policy_resource["metadata"]["name"],
+                                "kind": kind,
+                                "namespace": namespace,
+                                "name": name,
+                            }
+                            data.append(item)
+            except KeyError:
+                pass
+
+    print_output(ctx.obj["options"], data, columns)
+
+
 @root.group()
 @output
 @click.pass_context
