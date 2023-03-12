@@ -1820,7 +1820,7 @@ def selectorsyncset_managed_resources(ctx):
                         "namespace": namespace,
                         "name": name,
                     }
-                data.append(item)
+                    data.append(item)
             except KeyError:
                 pass
 
