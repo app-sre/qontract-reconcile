@@ -1509,13 +1509,11 @@ class SaasHerder:
                 last_build_result_number = last_build_result["number"]
                 if self.include_trigger_trace:
                     trigger_spec.reason = f"{upstream['instance']['serverUrl']}/job/{job_name}/{last_build_result_number}"
-                    last_built_result_change_set_items = last_build_result["changeSet"][
-                        "items"
-                    ]
-                    if last_built_result_change_set_items:
-                        commit_sha = last_built_result_change_set_items[0]["commitId"]
+                    last_built_result_commit_sha = last_build_result.get("commit_sha")
+                    if last_built_result_commit_sha:
                         trigger_spec.reason = (
-                            f"{url}/commit/{commit_sha} via " + trigger_spec.reason
+                            f"{url}/commit/{last_built_result_commit_sha} via "
+                            + trigger_spec.reason
                         )
                 state_build_result = self.state.get(trigger_spec.state_key, None)
                 # skip if last_build_result is incomplete or
