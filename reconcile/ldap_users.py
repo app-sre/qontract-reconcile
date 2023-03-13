@@ -16,7 +16,7 @@ from reconcile.utils.mr.user_maintenance import PathTypes
 QONTRACT_INTEGRATION = "ldap-users"
 
 
-def init_users():
+def init_users() -> dict:
     app_int_users = queries.get_users(refs=True)
 
     users = defaultdict(list)
@@ -32,6 +32,9 @@ def init_users():
             users[u].append(item)
         for g in user.get("gabi_instances"):
             item = {"type": PathTypes.GABI, "path": "data" + g["path"]}
+            users[u].append(item)
+        for a in user.get("aws_accounts", []):
+            item = {"type": PathTypes.AWS_ACCOUNTS, "path": "data" + a["path"]}
             users[u].append(item)
 
     return [{"username": username, "paths": paths} for username, paths in users.items()]
@@ -59,11 +62,16 @@ def get_ldap_settings() -> dict:
     raise ValueError("no app-interface-settings settings found")
 
 
+<<<<<<< HEAD
 def run(dry_run, app_interface_project_id, infra_project_id):
+=======
+def run(dry_run, gitlab_project_id=None) -> None:
+>>>>>>> 53018c38 (add ability to remove resetPassword entries for users not in LDAP.  Part of APPSRE-6367)
     users = init_users()
     with LdapClient.from_settings(get_ldap_settings()) as ldap_client:
         ldap_users = ldap_client.get_users([u["username"] for u in users])
 
+    ldap_users.remove("jmosco")
     users_to_delete = [u for u in users if u["username"] not in ldap_users]
 
     if not dry_run:
