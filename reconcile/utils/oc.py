@@ -753,7 +753,7 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
 
     def job_logs(self, namespace, name, follow, output):
         self.wait_for_job_running(namespace, name)
-        cmd = ["logs", "-n", namespace, f"job/{name}"]
+        cmd = ["logs", "--all-containers=true", "-n", namespace, f"job/{name}"]
         if follow:
             cmd.append("-f")
         # pylint: disable=consider-using-with
