@@ -30,6 +30,7 @@ from reconcile.utils.saasherder import SaasHerder
 from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.slack_api import SlackApi
+from reconcile.utils.state import init_state
 
 QONTRACT_INTEGRATION = "openshift-saas-deploy"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
@@ -169,18 +170,19 @@ def run(
         repo_url=saasherder_settings.repo_url,
         gitlab=gl,
         jenkins_map=jenkins_map,
+        state=init_state(integration=QONTRACT_INTEGRATION, secret_reader=secret_reader),
     )
     if len(saasherder.namespaces) == 0:
         logging.warning("no targets found")
         sys.exit(ExitCodes.SUCCESS)
 
     ri, oc_map = ob.fetch_current_state(
-        namespaces=saasherder.namespaces,
+        namespaces=[ns.dict(by_alias=True) for ns in saasherder.namespaces],
         thread_pool_size=thread_pool_size,
         integration=QONTRACT_INTEGRATION,
         integration_version=QONTRACT_INTEGRATION_VERSION,
         init_api_resources=True,
-        cluster_admin=saasherder.cluster_admin,
+        cluster_admin=bool(saasherder.cluster_admin),
         use_jump_host=use_jump_host,
     )
     if defer:  # defer is provided by the method decorator. this makes just mypy happy

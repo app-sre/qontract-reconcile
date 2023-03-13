@@ -8,6 +8,10 @@ from typing import (
 )
 
 from github import Github
+from pydantic import (
+    BaseModel,
+    Field,
+)
 
 from reconcile.utils.oc_connection_parameters import Cluster
 from reconcile.utils.saasherder.interfaces import (
@@ -125,13 +129,16 @@ TriggerSpecUnion = Union[
 ]
 
 
-@dataclass
-class Namespace:
+class Namespace(BaseModel):
     name: str
     environment: SaasEnvironment
     app: SaasApp
     cluster: Cluster
-    managed_resource_types: Iterable[str]
+    managed_resource_types: list[str] = Field(..., alias="managedResourceTypes")
+
+    class Config:
+        arbitrary_types_allowed = True
+        allow_population_by_field_name = True
 
 
 @dataclass

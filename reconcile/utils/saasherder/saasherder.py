@@ -1000,7 +1000,12 @@ class SaasHerder:
             error = True
             logging.error(f"{error_prefix} Image is not in imagePatterns: {image}")
         try:
-            valid = Image(image, **image_auth)
+            valid = Image(
+                image,
+                username=image_auth.username,
+                password=image_auth.password,
+                auth_server=image_auth.auth_server,
+            )
             if not valid:
                 error = True
                 logging.error(f"{error_prefix} Image does not exist: {image}")
