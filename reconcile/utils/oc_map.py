@@ -226,7 +226,7 @@ def init_oc_map_from_clusters(
     connection_parameters = get_oc_connection_parameters_from_clusters(
         clusters=clusters,
         secret_reader=secret_reader,
-        thread_pool_size=2,
+        thread_pool_size=thread_pool_size,
         use_jump_host=use_jump_host,
     )
     return OCMap(
@@ -260,7 +260,7 @@ def init_oc_map_from_namespaces(
     connection_parameters = get_oc_connection_parameters_from_namespaces(
         namespaces=namespaces,
         secret_reader=secret_reader,
-        thread_pool_size=2,
+        thread_pool_size=thread_pool_size,
         use_jump_host=use_jump_host,
         cluster_admin=cluster_admin,
     )
