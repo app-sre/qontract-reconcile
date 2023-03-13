@@ -51,7 +51,7 @@ class TriggerSpecBase:
     saas_file_name: str
     env_name: str
     timeout: Optional[str]
-    pipelines_provider: Optional[SaasPipelinesProviders]
+    pipelines_provider: SaasPipelinesProviders
     resource_template_name: str
     cluster_name: str
     namespace_name: str

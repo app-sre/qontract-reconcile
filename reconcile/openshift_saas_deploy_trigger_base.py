@@ -5,7 +5,6 @@ from threading import Lock
 from typing import (
     Any,
     Optional,
-    cast,
 )
 
 from sretoolbox.utils import threaded
@@ -32,6 +31,7 @@ from reconcile.utils.saasherder import (
     SaasHerder,
     TriggerSpecUnion,
 )
+from reconcile.utils.saasherder.interfaces import SaasPipelinesProviderTekton
 from reconcile.utils.saasherder.models import TriggerTypes
 from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.sharding import is_in_shard
@@ -203,10 +203,8 @@ def trigger(
         bool: True if there was an error, False otherwise
     """
     saas_file_name = spec.saas_file_name
-    provider_name: str = cast(dict, spec.pipelines_provider)["provider"]
-
     error = False
-    if provider_name == Providers.TEKTON.value:
+    if spec.pipelines_provider.provider == Providers.TEKTON.value:
         error = _trigger_tekton(
             spec,
             dry_run,
@@ -218,7 +216,10 @@ def trigger(
         )
     else:
         error = True
-        logging.error(f"[{saas_file_name}] unsupported provider: " + f"{provider_name}")
+        logging.error(
+            f"[{saas_file_name}] unsupported provider: "
+            + f"{spec.pipelines_provider.provider}"
+        )
 
     return error
 
@@ -232,28 +233,23 @@ def _trigger_tekton(
     integration: str,
     integration_version: str,
 ) -> bool:
-    saas_file_name = spec.saas_file_name
-    env_name = spec.env_name
-    timeout = spec.timeout
-    pipelines_provider = cast(dict, spec.pipelines_provider)
-
-    pipeline_template_name = pipelines_provider["defaults"]["pipelineTemplates"][
-        "openshiftSaasDeploy"
-    ]["name"]
-
-    if pipelines_provider["pipelineTemplates"]:
-        pipeline_template_name = pipelines_provider["pipelineTemplates"][
-            "openshiftSaasDeploy"
-        ]["name"]
-
-    tkn_pipeline_name = build_one_per_saas_file_tkn_object_name(
-        pipeline_template_name, saas_file_name
+    if not isinstance(spec.pipelines_provider, SaasPipelinesProviderTekton):
+        # This should never happen. It's here to make mypy happy
+        raise TypeError(
+            f"spec.pipelines_provider should be of type "
+            f"SaasPipelinesProviderTekton, got {type(spec.pipelines_provider)}"
+        )
+    pipeline_template_name = (
+        spec.pipelines_provider.pipeline_templates.openshift_saas_deploy.name
+        if spec.pipelines_provider.pipeline_templates
+        else spec.pipelines_provider.defaults.pipeline_templates.openshift_saas_deploy.name
     )
-
-    tkn_namespace_info = pipelines_provider["namespace"]
-    tkn_namespace_name = tkn_namespace_info["name"]
-    tkn_cluster_name = tkn_namespace_info["cluster"]["name"]
-    tkn_cluster_console_url = tkn_namespace_info["cluster"]["consoleUrl"]
+    tkn_pipeline_name = build_one_per_saas_file_tkn_object_name(
+        pipeline_template_name, spec.saas_file_name
+    )
+    tkn_namespace_name = spec.pipelines_provider.namespace.name
+    tkn_cluster_name = spec.pipelines_provider.namespace.cluster.name
+    tkn_cluster_console_url = spec.pipelines_provider.namespace.cluster.console_url
 
     # if pipeline does not exist it means that either it hasn't been
     # statically created from app-interface or it hasn't been dynamically
@@ -270,10 +266,10 @@ def _trigger_tekton(
         return False
 
     tkn_trigger_resource, tkn_name = _construct_tekton_trigger_resource(
-        saas_file_name,
-        env_name,
+        spec.saas_file_name,
+        spec.env_name,
         tkn_pipeline_name,
-        timeout,
+        spec.timeout,
         tkn_cluster_console_url,
         tkn_namespace_name,
         integration,

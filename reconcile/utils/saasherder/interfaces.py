@@ -11,7 +11,7 @@ from typing import (
     runtime_checkable,
 )
 
-from reconcile.utils.oc_connection_parameters import Cluster
+from reconcile.utils import oc_connection_parameters
 from reconcile.utils.secret_reader import HasSecret
 
 
@@ -48,11 +48,17 @@ class SaasPipelinesProvider(Protocol):
     provider: str
 
 
+class SaasPipelinesProviderTektonNamespaceCluster(
+    oc_connection_parameters.Cluster, Protocol
+):
+    console_url: str
+
+
 class SaasPipelinesProviderTektonNamespace(Protocol):
     name: str
 
     @property
-    def cluster(self) -> Cluster:
+    def cluster(self) -> SaasPipelinesProviderTektonNamespaceCluster:
         ...
 
 
@@ -86,7 +92,11 @@ class SaasPipelinesProviderTekton_PipelinesProviderPipelineTemplates(Protocol):
         ...
 
 
-class SaasPipelinesProviderTekton(SaasPipelinesProvider, Protocol):
+@runtime_checkable
+class SaasPipelinesProviderTekton(Protocol):
+    name: str
+    provider: str
+
     @property
     def namespace(self) -> SaasPipelinesProviderTektonNamespace:
         ...
@@ -187,7 +197,7 @@ class SaasResourceTemplateTargetNamespace(Protocol):
         ...
 
     @property
-    def cluster(self) -> Cluster:
+    def cluster(self) -> oc_connection_parameters.Cluster:
         ...
 
     def dict(

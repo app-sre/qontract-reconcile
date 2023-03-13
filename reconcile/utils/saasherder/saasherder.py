@@ -1141,7 +1141,7 @@ class SaasHerder:
                     saas_file_name=saas_file.name,
                     env_name=target.namespace.environment.name,
                     timeout=None,
-                    pipelines_provider=None,
+                    pipelines_provider=saas_file.pipelines_provider,
                     resource_template_name=rt.name,
                     cluster_name=target.namespace.cluster.name,
                     namespace_name=target.namespace.name,
@@ -1634,9 +1634,18 @@ class SaasHerder:
                 # was a json string. Keep it that way to be backwards compatible.
                 desired_target_config["saas_file_parameters"] = (
                     json.dumps(saas_file.parameters, separators=(",", ":"))
-                    if saas_file.parameters
+                    if saas_file.parameters is not None
                     else None
                 )
+
+                # before the GQL classes are introduced, the parameters attribute
+                # was a json string. Keep it that way to be backwards compatible.
+                desired_target_config["parameters"] = (
+                    json.dumps(target.parameters, separators=(",", ":"))
+                    if target.parameters is not None
+                    else None
+                )
+
                 # add managed resource types to target config
                 desired_target_config[
                     "saas_file_managed_resource_types"
@@ -1647,7 +1656,7 @@ class SaasHerder:
                 # was a json string. Keep it that way to be backwards compatible.
                 desired_target_config["rt_parameters"] = (
                     json.dumps(rt.parameters, separators=(",", ":"))
-                    if rt.parameters
+                    if rt.parameters is not None
                     else None
                 )
                 # Convert to dict, ChainMap is not JSON serializable
