@@ -199,6 +199,10 @@ class SaasResourceTemplateTargetNamespace(Protocol):
         ...
 
 
+class SaasPromotionChannelData(Protocol):
+    q_type: str
+
+
 @runtime_checkable
 class SaasParentSaasPromotion(Protocol):
     q_type: str
@@ -212,7 +216,7 @@ class SaasPromotionData(Protocol):
     @property
     def data(
         self,
-    ) -> Optional[Sequence[SaasParentSaasPromotion]]:
+    ) -> Optional[Sequence[Union[SaasParentSaasPromotion, SaasPromotionChannelData]]]:
         ...
 
 
