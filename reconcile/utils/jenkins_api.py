@@ -77,7 +77,7 @@ class JenkinsApi:
             job_name = r["name"]
             builds = r.get("builds", [])
             for b in builds:
-                change_set_items = b["changeSet"]["items"]
+                change_set_items = b.get("changeSet", {}).get("items")
                 if change_set_items:
                     b["commit_sha"] = change_set_items[0]["commitId"]
             jobs_state[job_name] = builds
