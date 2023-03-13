@@ -764,11 +764,32 @@ def upgrade_cluster_addon(
 @click.argument("name", default="")
 @click.pass_context
 def clusters_network(ctx, name):
-    clusters = queries.get_clusters()
+    settings = queries.get_app_interface_settings()
+    clusters = [
+        c
+        for c in queries.get_clusters()
+        if c.get("ocm") is not None
+        and c.get("awsInfrastructureManagementAccounts") is not None
+    ]
     if name:
         clusters = [c for c in clusters if c["name"] == name]
 
-    columns = ["name", "network.vpc", "network.service", "network.pod"]
+    columns = ["name", "vpc_id", "network.vpc", "network.service", "network.pod"]
+    ocm_map = OCMMap(clusters=clusters, settings=settings)
+
+    for cluster in clusters:
+        cluster_name = cluster["name"]
+        management_account = tfvpc._get_default_management_account(cluster)
+        account = tfvpc._build_infrastructure_assume_role(
+            management_account, cluster, ocm_map.get(cluster_name)
+        )
+        if not account:
+            continue
+        account["resourcesDefaultRegion"] = management_account["resourcesDefaultRegion"]
+        aws_api = AWSApi(1, [account], settings=settings, init_users=False)
+        vpc_id, _, _ = aws_api.get_cluster_vpc_details(account)
+        cluster["vpc_id"] = vpc_id
+
     # TODO(mafriedm): fix this
     # do not sort
     ctx.obj["options"]["sort"] = False
