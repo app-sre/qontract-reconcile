@@ -141,7 +141,11 @@ def test_create_cloudflare_resources_terraform_json(account_config, backend_conf
     expected_dict = {
         "terraform": {
             "required_providers": {
-                "cloudflare": {"source": "cloudflare/cloudflare", "version": "3.18"}
+                "cloudflare": {
+                    "source": "cloudflare/cloudflare",
+                    "version": "3.18",
+                    "rps": 4,
+                }
             },
             "backend": {
                 "s3": {

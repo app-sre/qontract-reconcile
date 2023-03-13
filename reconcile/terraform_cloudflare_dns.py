@@ -7,6 +7,7 @@ from collections.abc import (
 from typing import (
     Any,
     Optional,
+    Sequence,
 )
 
 from reconcile.gql_definitions.terraform_cloudflare_dns import (
@@ -15,6 +16,7 @@ from reconcile.gql_definitions.terraform_cloudflare_dns import (
 from reconcile.gql_definitions.terraform_cloudflare_dns.terraform_cloudflare_zones import (
     AWSAccountV1,
     CloudflareAccountV1,
+    CloudflareDnsRecordV1,
     CloudflareDnsZoneQueryData,
     CloudflareDnsZoneV1,
 )
@@ -41,6 +43,7 @@ from reconcile.utils.terraform_client import TerraformClient
 from reconcile.utils.terrascript.cloudflare_client import (
     DEFAULT_CLOUDFLARE_ACCOUNT_2FA,
     DEFAULT_CLOUDFLARE_ACCOUNT_TYPE,
+    DEFAULT_PROVIDER_RPS,
     CloudflareAccountConfig,
     TerraformS3BackendConfig,
     TerrascriptCloudflareClient,
@@ -176,6 +179,27 @@ class TerraformCloudflareDNSIntegration(
         )
 
 
+def get_cloudflare_provider_rps(
+    records: Optional[Sequence[CloudflareDnsRecordV1]],
+) -> int:
+    """
+    Setting Cloudlare Terraform provider's RPS based on the size of the zone to improve performance of MR checks.
+    Specifically it was observed that 1000 records zone will result in around 250 seconds build time, and it become
+    problematic for MR merge throughput when exceeding 5 minutes. Therefore setting rps to 2 for smaller zone to
+    save throttle quota, and 6 for the large zones so MR checks won't take more than 250 seconds.
+    """
+
+    if not records:
+        return DEFAULT_PROVIDER_RPS
+    size = len(records)
+    if size <= 50:
+        return 2
+    elif size <= 1000:
+        return DEFAULT_PROVIDER_RPS
+    else:
+        return 6
+
+
 def create_backend_config(
     secret_reader: SecretReaderBase,
     aws_acct: AWSAccountV1,
@@ -196,6 +220,8 @@ def create_backend_config(
     integrations = tf_state.integrations or []
     for i in integrations or []:
         name = i.integration
+
+        bucket_key = bucket_name = bucket_region = None
         if name.replace("-", "_") == integration_name:
             # Currently terraform-state-1.yml can only have one bucket
             # but multiple integrations, which means without schema changes
@@ -271,10 +297,13 @@ def build_clients(
             integration_name=integration_name,
         )
 
+        rps = get_cloudflare_provider_rps(zone.records)
+
         ts_config = create_cloudflare_terrascript(
-            cf_acct_config,
-            aws_backend_config,
-            cf_acct.provider_version,
+            account_config=cf_acct_config,
+            backend_config=aws_backend_config,
+            provider_version=cf_acct.provider_version,
+            provider_rps=rps,
             is_managed_account=False,
         )
 

@@ -66,6 +66,7 @@ def create_backend_config(
         )
 
     integrations = tf_state.integrations or []
+    bucket_key = bucket_name = bucket_region = None
     for i in integrations or []:
         name = i.integration
         if name.replace("-", "_") == QONTRACT_INTEGRATION:
