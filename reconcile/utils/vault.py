@@ -118,6 +118,12 @@ class _VaultClient:
             t = threading.Thread(target=self._auto_refresh_client_auth, daemon=True)
             t.start()
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self._client.adapter.close()
+
     def _auto_refresh_client_auth(self):
         """
         Thread that periodically refreshes the vault token
