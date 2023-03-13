@@ -149,7 +149,7 @@ def setup(
     tkn_provider_namespaces = [
         pp["namespace"]
         for pp in pipelines_providers
-        if pp["provider"] == Providers.TEKTON
+        if pp["provider"] == Providers.TEKTON.value
     ]
 
     oc_map = OC_Map(
@@ -203,10 +203,10 @@ def trigger(
         bool: True if there was an error, False otherwise
     """
     saas_file_name = spec.saas_file_name
-    provider_name = cast(dict, spec.pipelines_provider)["provider"]
+    provider_name: str = cast(dict, spec.pipelines_provider)["provider"]
 
     error = False
-    if provider_name == Providers.TEKTON:
+    if provider_name == Providers.TEKTON.value:
         error = _trigger_tekton(
             spec,
             dry_run,
