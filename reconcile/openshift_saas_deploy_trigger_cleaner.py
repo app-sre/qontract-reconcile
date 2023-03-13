@@ -1,8 +1,13 @@
 import logging
+from collections.abc import Callable
 from datetime import (
     datetime,
     timedelta,
     timezone,
+)
+from typing import (
+    Any,
+    Optional,
 )
 
 from dateutil import parser
@@ -17,7 +22,7 @@ QONTRACT_INTEGRATION = "openshift-saas-deploy-trigger-cleaner"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 
-def within_retention_days(resource, days):
+def within_retention_days(resource: dict[str, Any], days: int) -> bool:
     metadata = resource["metadata"]
     creation_date = parser.parse(metadata["creationTimestamp"])
     now_date = datetime.now(timezone.utc)
@@ -27,7 +32,13 @@ def within_retention_days(resource, days):
 
 
 @defer
-def run(dry_run, thread_pool_size=10, internal=None, use_jump_host=True, defer=None):
+def run(
+    dry_run: bool,
+    thread_pool_size: int = 10,
+    internal: Optional[bool] = None,
+    use_jump_host: bool = True,
+    defer: Optional[Callable] = None,
+) -> None:
     settings = queries.get_app_interface_settings()
     pipelines_providers = queries.get_pipelines_providers()
     tkn_namespaces = [
@@ -44,7 +55,8 @@ def run(dry_run, thread_pool_size=10, internal=None, use_jump_host=True, defer=N
         use_jump_host=use_jump_host,
         thread_pool_size=thread_pool_size,
     )
-    defer(oc_map.cleanup)
+    if defer:
+        defer(oc_map.cleanup)
 
     for pp in pipelines_providers:
         retention = pp.get("retention")

@@ -330,7 +330,9 @@ JENKINS_INSTANCES_QUERY = """
       numExecutors
       idleMinutes
       minSpareSize
+      maxTotalUses
       noDelayProvision
+      alwaysReconnect
       namespace{
         name
         managedExternalResources
@@ -650,6 +652,7 @@ CLUSTERS_QUERY = """
     ocm {
       name
       url
+      orgId
       accessTokenClientId
       accessTokenUrl
       accessTokenClientSecret {
@@ -980,6 +983,7 @@ CLUSTER_PEERING_QUERY = """
     ocm {
       name
       url
+      orgId
       accessTokenClientId
       accessTokenUrl
       accessTokenClientSecret {
@@ -1068,6 +1072,7 @@ CLUSTER_PEERING_QUERY = """
           tags
           cidrBlock
           manageSecurityGroups
+          manageRoute53Associations
           assumeRole
         }
         ... on ClusterPeeringConnectionClusterRequester_v1 {
@@ -1158,6 +1163,7 @@ OCM_QUERY = """
     path
     name
     url
+    orgId
     blockedVersions
     recommendedVersions {
       recommendedVersion
@@ -1258,6 +1264,7 @@ KAFKA_CLUSTERS_QUERY = """
     ocm {
       name
       url
+      orgId
       accessTokenClientId
       accessTokenUrl
       accessTokenClientSecret {
@@ -2724,6 +2731,7 @@ OCP_RELEASE_ECR_MIRROR_QUERY = """
       ocm {
         name
         url
+        orgId
         accessTokenClientId
         accessTokenUrl
         accessTokenClientSecret {

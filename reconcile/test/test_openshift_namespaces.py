@@ -3,11 +3,26 @@ import io
 from unittest import TestCase
 from unittest.mock import (
     Mock,
+    create_autospec,
     patch,
 )
 
 from reconcile import openshift_namespaces
+from reconcile.gql_definitions.common.app_interface_vault_settings import (
+    AppInterfaceSettingsV1,
+)
+from reconcile.gql_definitions.common.namespaces_minimal import NamespaceV1
+from reconcile.test.fixtures import Fixtures
 from reconcile.utils.oc import StatusCodeError
+from reconcile.utils.secret_reader import SecretReaderBase
+
+fxt = Fixtures("openshift_namespaces")
+
+
+def load_namespace(name: str) -> NamespaceV1:
+    content = fxt.get_anymarkup(name)
+    return NamespaceV1(**content)
+
 
 c1, c2 = "cluster1", "cluster2"
 n1, n2 = "ns1", "ns2"
@@ -26,12 +41,11 @@ class NS:
 
     def gql(self):
         """Get this namespace as an output of GQL"""
-        d = {
-            "name": self.name,
-            "cluster": {"name": self.cluster},
-            "delete": self.delete,
-        }
-        return d
+        ns = load_namespace("namespace.yml")
+        ns.name = self.name
+        ns.cluster.name = self.cluster
+        ns.delete = self.delete
+        return ns
 
 
 class TestOpenshiftNamespaces(TestCase):
@@ -56,8 +70,8 @@ class TestOpenshiftNamespaces(TestCase):
             oc = self.oc_clients[cluster]
         return oc
 
-    def _queries_get_namespaces(self, minimal=False):
-        """Mock queries.get_namespaces() by returning our test data
+    def _queries_get_namespaces(self):
+        """Mock get_namespaces() by returning our test data
         gql_response is set in the test method.
         """
         return [ns.gql() for ns in self.test_ns]
@@ -69,11 +83,22 @@ class TestOpenshiftNamespaces(TestCase):
 
         module = "reconcile.openshift_namespaces"
 
-        self.queries_patcher = patch(f"{module}.queries", autospec=True)
+        self.queries_patcher = patch(f"{module}.get_namespaces_minimal", autospec=True)
         self.queries = self.queries_patcher.start()
-        self.queries.get_namespaces.side_effect = self._queries_get_namespaces
+        self.queries.side_effect = self._queries_get_namespaces
 
-        self.oc_map_patcher = patch(f"{module}.OC_Map", autospec=True)
+        vault_settings = AppInterfaceSettingsV1(vault=False)
+        self.get_vault_settings_patcher = patch(
+            f"{module}.get_app_interface_vault_settings"
+        )
+        self.get_vault_settings = self.get_vault_settings_patcher.start()
+        self.get_vault_settings.side_effect = [vault_settings]
+
+        self.create_secret_reader_patcher = patch(f"{module}.create_secret_reader")
+        self.create_secret_reader = self.create_secret_reader_patcher.start()
+        self.create_secret_reader.side_effect = [create_autospec(spec=SecretReaderBase)]
+
+        self.oc_map_patcher = patch(f"{module}.init_oc_map_from_namespaces")
         self.oc_map = self.oc_map_patcher.start().return_value
         self.oc_map.clusters.side_effect = self._oc_map_clusters
         self.oc_map.get.side_effect = self._oc_map_get

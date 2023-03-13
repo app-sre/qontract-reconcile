@@ -1,4 +1,8 @@
-from collections.abc import Sequence
+from collections.abc import (
+    Callable,
+    MutableMapping,
+    Sequence,
+)
 from typing import Any
 
 import pytest
@@ -17,9 +21,20 @@ from reconcile.utils.openshift_resource import ResourceInventory
 
 
 @pytest.fixture
-def projects(fx: Fixtures) -> list[GlitchtipProjectsV1]:
+def projects(
+    fx: Fixtures,
+    data_factory: Callable[
+        [type[GlitchtipProjectsV1], MutableMapping[str, Any]], MutableMapping[str, Any]
+    ],
+) -> list[GlitchtipProjectsV1]:
     def q(*args: Any, **kwargs: Any) -> dict:
-        return fx.get_anymarkup("dsn_projects.yml")
+        raw_data = fx.get_anymarkup("dsn_projects.yml")
+        return {
+            "glitchtip_projects": [
+                data_factory(GlitchtipProjectsV1, item)
+                for item in raw_data["glitchtip_projects"]
+            ]
+        }
 
     return projects_query(q)
 

@@ -1,7 +1,12 @@
 import datetime
 import logging
+from collections.abc import Callable
 from threading import Lock
-from typing import cast
+from typing import (
+    Any,
+    Optional,
+    cast,
+)
 
 from sretoolbox.utils import threaded
 
@@ -31,16 +36,16 @@ class TektonTimeoutBadValueError(Exception):
 
 @defer
 def run(
-    dry_run,
-    trigger_type,
-    integration,
-    integration_version,
-    thread_pool_size,
-    internal,
-    use_jump_host,
-    include_trigger_trace,
-    defer=None,
-):
+    dry_run: bool,
+    trigger_type: str,
+    integration: str,
+    integration_version: str,
+    thread_pool_size: int,
+    internal: bool,
+    use_jump_host: bool,
+    include_trigger_trace: bool,
+    defer: Optional[Callable] = None,
+) -> bool:
     """Run trigger integration
 
     Args:
@@ -67,12 +72,13 @@ def run(
     )
     if error:
         return error
-    defer(oc_map.cleanup)
+    if defer:  # defer is set by method decorator. this makes just mypy happy
+        defer(oc_map.cleanup)
 
     trigger_specs, diff_err = saasherder.get_diff(trigger_type, dry_run)
     # This will be populated by 'trigger' in the below loop and
     # we need it to be consistent across all iterations
-    already_triggered = set()
+    already_triggered: set[str] = set()
 
     errors = threaded.run(
         trigger,
@@ -91,13 +97,13 @@ def run(
 
 
 def setup(
-    thread_pool_size,
-    internal,
-    use_jump_host,
-    integration,
-    integration_version,
-    include_trigger_trace,
-):
+    thread_pool_size: int,
+    internal: bool,
+    use_jump_host: bool,
+    integration: str,
+    integration_version: str,
+    include_trigger_trace: bool,
+) -> tuple[SaasHerder, OC_Map, bool]:
     """Setup required resources for triggering integrations
 
     Args:
@@ -116,8 +122,7 @@ def setup(
 
     saas_files = queries.get_saas_files()
     if not saas_files:
-        logging.error("no saas files found")
-        return None, None, True
+        raise RuntimeError("no saas files found")
     saas_files = [sf for sf in saas_files if is_in_shard(sf["name"])]
 
     # Remove saas-file targets that are disabled
@@ -215,7 +220,7 @@ def _trigger_tekton(
     already_triggered: set[str],
     integration: str,
     integration_version: str,
-):
+) -> bool:
     saas_file_name = spec.saas_file_name
     env_name = spec.env_name
     timeout = spec.timeout
@@ -292,25 +297,29 @@ def _trigger_tekton(
     return error
 
 
-def _pipeline_exists(name, tkn_cluster_name, tkn_namespace_name, oc_map):
+def _pipeline_exists(
+    name: str, tkn_cluster_name: str, tkn_namespace_name: str, oc_map: OC_Map
+) -> bool:
     oc = oc_map.get(tkn_cluster_name)
-    return oc.get(
+    if oc.get(
         namespace=tkn_namespace_name, kind="Pipeline", name=name, allow_not_found=True
-    )
+    ):
+        return True
+    return False
 
 
 def _construct_tekton_trigger_resource(
-    saas_file_name,
-    env_name,
-    tkn_pipeline_name,
-    timeout,
-    tkn_cluster_console_url,
-    tkn_namespace_name,
-    integration,
-    integration_version,
-    include_trigger_trace,
-    reason,
-):
+    saas_file_name: str,
+    env_name: str,
+    tkn_pipeline_name: str,
+    timeout: Optional[str],
+    tkn_cluster_console_url: str,
+    tkn_namespace_name: str,
+    integration: str,
+    integration_version: str,
+    include_trigger_trace: bool,
+    reason: Optional[str],
+) -> tuple[OR, str]:
     """Construct a resource (PipelineRun) to trigger a deployment via Tekton.
 
     Args:
@@ -319,7 +328,7 @@ def _construct_tekton_trigger_resource(
         tkn_cluster_console_url (string): Cluster console URL of the cluster
                                           where the pipeline runs
         tkn_namespace_name (string): namespace where the pipeline runs
-        timeout (int): Timeout in minutes before the PipelineRun fails (must be > 60)
+        timeout (str): Timeout in minutes before the PipelineRun fails (must be > 60)
         integration (string): Name of calling integration
         integration_version (string): Version of calling integration
         include_trigger_trace (bool): Should include traces of the triggering integration and reason
@@ -343,13 +352,18 @@ def _construct_tekton_trigger_resource(
         {"name": "tkn_namespace_name", "value": tkn_namespace_name},
     ]
     if include_trigger_trace:
+        if not reason:
+            raise RuntimeError(
+                "reason must be provided if include_trigger_trace is True"
+            )
+
         parameters.extend(
             [
                 {"name": "trigger_integration", "value": integration},
                 {"name": "trigger_reason", "value": reason},
             ]
         )
-    body = {
+    body: dict[str, Any] = {
         "apiVersion": "tekton.dev/v1beta1",
         "kind": "PipelineRun",
         "metadata": {"name": name},
@@ -371,7 +385,7 @@ def _construct_tekton_trigger_resource(
     return OR(body, integration, integration_version, error_details=name), long_name
 
 
-def _register_trigger(name, already_triggered):
+def _register_trigger(name: str, already_triggered: set[str]) -> bool:
     """checks if a trigger should occur and registers as if it did
 
     Args:
@@ -382,8 +396,6 @@ def _register_trigger(name, already_triggered):
     Returns:
         bool: to trigger or not to trigger
     """
-    global _trigger_lock
-
     to_trigger = False
     with _trigger_lock:
         if name not in already_triggered:

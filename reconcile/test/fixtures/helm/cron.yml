@@ -46,9 +46,13 @@ objects:
                   secretKeyRef:
                     name: unleash
                     key: CLIENT_ACCESS_TOKEN
+              - name: KUBE_SA_TOKEN_PATH
+                value: "${KUBE_SA_TOKEN_MOUNT_PATH}/${KUBE_SA_TOKEN_FILENAME}"
               volumeMounts:
               - name: qontract-reconcile-toml
                 mountPath: /config
+              - name: qontract-reconcile-sa-token
+                mountPath: ${KUBE_SA_TOKEN_MOUNT_PATH}
               resources:
                 limits:
                   cpu: ${INTEG_CPU_LIMIT}
@@ -61,6 +65,12 @@ objects:
             - name: qontract-reconcile-toml
               secret:
                 secretName: qontract-reconcile-toml
+            - name: qontract-reconcile-sa-token
+              projected: 
+                sources:
+                - serviceAccountToken:
+                    expirationSeconds: 1800
+                    path: ${KUBE_SA_TOKEN_FILENAME}
 - apiVersion: v1
   kind: Service
   metadata:
@@ -108,6 +118,10 @@ parameters:
   value: "0"
 - name: USER_ID
   value: dummy
+- name: KUBE_SA_TOKEN_MOUNT_PATH
+  value: '/var/run/secrets/kubernetes.io/serviceaccount'
+- name: KUBE_SA_TOKEN_FILENAME
+  value: 'token'
 - name: LOG_FILE
   value: "/fluentd/log/integration.log"
 - name: SLACK_CHANNEL

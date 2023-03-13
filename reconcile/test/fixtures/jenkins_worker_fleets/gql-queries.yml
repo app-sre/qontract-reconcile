@@ -7,8 +7,9 @@ gql_response:
       credentialsId: jenkins
       fsRoot: "/var/lib/jenkins"
       labelString: app-interface
-      numExecutors: 2
-      noDelayProvision: true
+      numExecutors: 3
+      minSpareSize: 1
+      maxTotalUses: 100
       namespace:
         name: app-sre
         managedExternalResources: true
@@ -22,7 +23,7 @@ gql_response:
           - provider: asg
             identifier: ci-int-jenkins-worker-app-interface
             defaults: "/terraform/resources/asg-1.yml"
-            overrides: '{"min_size":3,"max_size":9}'
+            overrides: '{"min_size":0,"max_size":10}'
     - account: app-sre
       identifier: ci-int-jenkins-worker-app-sre
       credentialsId: jenkins

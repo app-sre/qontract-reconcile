@@ -1,7 +1,16 @@
 import time
+from collections.abc import (
+    Callable,
+    MutableMapping,
+)
+from typing import (
+    Any,
+    Optional,
+)
 
 import httpretty as _httpretty
 import pytest
+from pydantic import BaseModel
 
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
@@ -36,3 +45,57 @@ def vault_secret():
         format=None,
         version=None,
     )
+
+
+def data_default_none(
+    klass: type[BaseModel], data: MutableMapping[str, Any]
+) -> MutableMapping[str, Any]:
+    """Set default values to None for required but optional fields."""
+    for field in klass.__fields__.values():
+        if not field.required:
+            continue
+
+        if field.alias not in data:
+            if field.allow_none:
+                data[field.alias] = None
+        else:
+            if isinstance(field.type_, type) and issubclass(field.type_, BaseModel):
+                if isinstance(data[field.alias], dict):
+                    data[field.alias] = data_default_none(
+                        field.type_, data[field.alias]
+                    )
+                if isinstance(data[field.alias], list):
+                    data[field.alias] = [
+                        data_default_none(field.type_, item)
+                        for item in data[field.alias]
+                    ]
+
+    return data
+
+
+@pytest.fixture
+def data_factory() -> Callable[
+    [type[BaseModel], Optional[MutableMapping[str, Any]]], MutableMapping[str, Any]
+]:
+    """Set default values to None."""
+
+    def _data_factory(
+        klass: type[BaseModel], data: Optional[MutableMapping[str, Any]] = None
+    ) -> MutableMapping[str, Any]:
+        return data_default_none(klass, data or {})
+
+    return _data_factory
+
+
+@pytest.fixture
+def gql_class_factory() -> Callable[
+    [type[BaseModel], Optional[MutableMapping[str, Any]]], BaseModel
+]:
+    """Create a GQL class from a fixture and set default values to None."""
+
+    def _gql_class_factory(
+        klass: type[BaseModel], data: Optional[MutableMapping[str, Any]] = None
+    ) -> BaseModel:
+        return klass(**data_default_none(klass, data or {}))
+
+    return _gql_class_factory

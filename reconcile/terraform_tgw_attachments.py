@@ -81,6 +81,7 @@ def build_desired_state_tgw_attachments(clusters, ocm_map: OCMMap, awsapi: AWSAp
                 tags=json.loads(peer_connection.get("tags") or "{}"),
                 route_tables=peer_connection.get("manageRoutes"),
                 security_groups=peer_connection.get("manageSecurityGroups"),
+                route53_associations=peer_connection.get("manageRoute53Associations"),
             )
             for tgw in account_tgws:
                 tgw_id = tgw["tgw_id"]
@@ -93,6 +94,7 @@ def build_desired_state_tgw_attachments(clusters, ocm_map: OCMMap, awsapi: AWSAp
                     "region": tgw["region"],
                     "routes": tgw.get("routes"),
                     "rules": tgw.get("rules"),
+                    "hostedzones": tgw.get("hostedzones"),
                     "cidr_block": peer_connection.get("cidrBlock"),
                     "account": account,
                 }

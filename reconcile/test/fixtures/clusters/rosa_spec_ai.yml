@@ -13,6 +13,7 @@ elbFQDN: "elb.tst-jpr-rosa.0000.p1.openshiftapps.com"
 ocm:
   name: ocm-stage
   url: non-existent-ocm-url
+  orgId: org-id
   accessTokenClientId: cloud-services
   accessTokenClientSecret:
     path: "client-secret-path"

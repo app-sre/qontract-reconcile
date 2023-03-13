@@ -1044,12 +1044,12 @@ def openshift_saas_deploy(
     run_integration(
         reconcile.openshift_saas_deploy,
         ctx.obj,
-        thread_pool_size,
-        io_dir,
-        use_jump_host,
-        saas_file_name,
-        env_name,
-        gitlab_project_id,
+        thread_pool_size=thread_pool_size,
+        io_dir=io_dir,
+        use_jump_host=use_jump_host,
+        saas_file_name=saas_file_name,
+        env_name=env_name,
+        gitlab_project_id=gitlab_project_id,
     )
 
 

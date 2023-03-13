@@ -52,6 +52,7 @@ def test_ocm_oidc_idp_get_clusters(clusters: Sequence[ClusterV1]):
             ocm=OpenShiftClusterManagerV1(
                 name="ocm-production",
                 url="https://api.openshift.com",
+                orgId="org-id",
                 accessTokenClientId="access-token-client-id",
                 accessTokenUrl="http://token-url.com",
                 accessTokenClientSecret=None,
@@ -79,6 +80,7 @@ def test_ocm_oidc_idp_get_clusters(clusters: Sequence[ClusterV1]):
             ocm=OpenShiftClusterManagerV1(
                 name="ocm-production",
                 url="https://api.openshift.com",
+                orgId="org-id",
                 accessTokenClientId="access-token-client-id",
                 accessTokenUrl="http://token-url.com",
                 accessTokenClientSecret=None,
@@ -107,6 +109,7 @@ def test_ocm_oidc_idp_get_clusters(clusters: Sequence[ClusterV1]):
             ocm=OpenShiftClusterManagerV1(
                 name="ocm-production",
                 url="https://api.openshift.com",
+                orgId="org-id",
                 accessTokenClientId="access-token-client-id",
                 accessTokenUrl="http://token-url.com",
                 accessTokenClientSecret=None,

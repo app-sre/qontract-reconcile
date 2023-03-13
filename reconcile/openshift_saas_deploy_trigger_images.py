@@ -1,4 +1,5 @@
 import sys
+from typing import Optional
 
 import reconcile.openshift_saas_deploy_trigger_base as osdt_base
 from reconcile.status import ExitCodes
@@ -10,12 +11,12 @@ QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 
 def run(
-    dry_run,
-    thread_pool_size=10,
-    internal=None,
-    use_jump_host=True,
-    include_trigger_trace=False,
-):
+    dry_run: bool,
+    thread_pool_size: int = 10,
+    internal: Optional[bool] = None,
+    use_jump_host: bool = True,
+    include_trigger_trace: bool = False,
+) -> None:
     error = osdt_base.run(
         dry_run=dry_run,
         trigger_type=TriggerTypes.CONTAINER_IMAGES,
