@@ -62,16 +62,11 @@ def get_ldap_settings() -> dict:
     raise ValueError("no app-interface-settings settings found")
 
 
-<<<<<<< HEAD
 def run(dry_run, app_interface_project_id, infra_project_id):
-=======
-def run(dry_run, gitlab_project_id=None) -> None:
->>>>>>> 53018c38 (add ability to remove resetPassword entries for users not in LDAP.  Part of APPSRE-6367)
     users = init_users()
     with LdapClient.from_settings(get_ldap_settings()) as ldap_client:
         ldap_users = ldap_client.get_users([u["username"] for u in users])
 
-    ldap_users.remove("jmosco")
     users_to_delete = [u for u in users if u["username"] not in ldap_users]
 
     if not dry_run:
