@@ -52,12 +52,12 @@ def oc_map(mocker, oc_cs1: oc.OCNative) -> oc.OC_Map:
     def get_cluster(cluster: str, privileged: bool = False):
         if cluster == "cs1":
             return oc_cs1
-        else:
-            return (
-                oc.OCLogMsg(
-                    log_level=logging.DEBUG, message=f"[{cluster}] cluster skipped"
-                ),
-            )
+
+        return (
+            oc.OCLogMsg(
+                log_level=logging.DEBUG, message=f"[{cluster}] cluster skipped"
+            ),
+        )
 
     oc_map = mocker.patch("reconcile.utils.oc.OC_Map", autospec=True).return_value
     oc_map.get.mock_add_spec(oc.OC_Map.get)

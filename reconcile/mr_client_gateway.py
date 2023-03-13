@@ -31,8 +31,7 @@ def get_mr_gateway_settings() -> Mapping[str, Any]:
     if settings:
         # assuming a single settings file for now
         return settings[0]
-    else:
-        raise ValueError("no app-interface-settings found")
+    raise ValueError("no app-interface-settings found")
 
 
 def init(gitlab_project_id=None, sqs_or_gitlab=None):
@@ -60,10 +59,9 @@ def init(gitlab_project_id=None, sqs_or_gitlab=None):
             secret_reader=SecretReader(settings),
         )
 
-    elif client_type == "sqs":
+    if client_type == "sqs":
         accounts = queries.get_queue_aws_accounts()
 
         return SQSGateway(accounts, secret_reader=SecretReader(settings))
 
-    else:
-        raise MRClientGatewayError(f"Invalid client type: {client_type}")
+    raise MRClientGatewayError(f"Invalid client type: {client_type}")

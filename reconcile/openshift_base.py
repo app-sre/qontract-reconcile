@@ -133,7 +133,7 @@ def init_specs_to_fetch(
 
     if clusters and namespaces:
         raise KeyError("expected only one of clusters or namespaces.")
-    elif namespaces:
+    if namespaces:
         for namespace_info in namespaces:
             if override_managed_types is None:
                 managed_types = set(namespace_info.get(managed_types_key) or [])
@@ -633,12 +633,12 @@ def _realize_resource_data(
                         ).format(cluster, namespace, resource_type, name)
                         logging.debug(msg)
                         continue
-                    else:
-                        msg = (
-                            "[{}/{}] resource '{}/{}' present and "
-                            "has stale sha256sum due to manual changes."
-                        ).format(cluster, namespace, resource_type, name)
-                        logging.info(msg)
+
+                    msg = (
+                        "[{}/{}] resource '{}/{}' present and "
+                        "has stale sha256sum due to manual changes."
+                    ).format(cluster, namespace, resource_type, name)
+                    logging.info(msg)
 
                 logging.debug("CURRENT: " + OR.serialize(OR.canonicalize(c_item.body)))
         else:

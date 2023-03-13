@@ -56,8 +56,7 @@ def get_ldap_settings() -> dict:
     if settings:
         # assuming a single settings file for now
         return settings[0]
-    else:
-        raise ValueError("no app-interface-settings settings found")
+    raise ValueError("no app-interface-settings settings found")
 
 
 def run(dry_run, app_interface_project_id, infra_project_id):

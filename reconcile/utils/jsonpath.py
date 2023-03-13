@@ -19,26 +19,26 @@ def narrow_jsonpath_node(
     """
     if path_1 == path_2:
         return path_1
-    elif isinstance(path_1, jsonpath_ng.Fields) and isinstance(
+    if isinstance(path_1, jsonpath_ng.Fields) and isinstance(
         path_2, jsonpath_ng.Fields
     ):
         if path_1.fields == ("*",):
             return path_2
-        elif path_2.fields == ("*",):
+        if path_2.fields == ("*",):
             return path_1
-    elif isinstance(path_1, jsonpath_ng.Index) and isinstance(
+    if isinstance(path_1, jsonpath_ng.Index) and isinstance(
         path_2, (jsonpath_ng.Slice, jsonpath_ng.ext.filter.Filter)
     ):
         return path_1
-    elif isinstance(
+    if isinstance(
         path_1, (jsonpath_ng.Slice, jsonpath_ng.ext.filter.Filter)
     ) and isinstance(path_2, jsonpath_ng.Index):
         return path_2
-    elif isinstance(path_1, jsonpath_ng.ext.filter.Filter) and isinstance(
+    if isinstance(path_1, jsonpath_ng.ext.filter.Filter) and isinstance(
         path_2, jsonpath_ng.Slice
     ):
         return path_1
-    elif isinstance(path_1, jsonpath_ng.Slice) and isinstance(
+    if isinstance(path_1, jsonpath_ng.Slice) and isinstance(
         path_2, jsonpath_ng.ext.filter.Filter
     ):
         return path_2
@@ -116,8 +116,7 @@ def apply_constraint_to_path(
                 break
     if common_prefix_length < min_common_prefix_length:
         return None
-    else:
-        return prefix_path
+    return prefix_path
 
 
 def remove_prefix_from_path(

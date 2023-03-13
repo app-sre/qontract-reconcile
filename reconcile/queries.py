@@ -297,8 +297,7 @@ def get_integrations(managed=False):
     gqlapi = gql.get_api()
     if managed:
         return gqlapi.query(INTEGRATIONS_QUERY)["integrations"]
-    else:
-        return gqlapi.query(gql.INTEGRATIONS_QUERY)["integrations"]
+    return gqlapi.query(gql.INTEGRATIONS_QUERY)["integrations"]
 
 
 JENKINS_INSTANCES_QUERY = """
@@ -1473,8 +1472,7 @@ def get_namespaces(minimal=False):
     gqlapi = gql.get_api()
     if minimal:
         return gqlapi.query(NAMESPACES_MINIMAL_QUERY)["namespaces"]
-    else:
-        return gqlapi.query(NAMESPACES_QUERY)["namespaces"]
+    return gqlapi.query(NAMESPACES_QUERY)["namespaces"]
 
 
 SA_TOKEN = """

@@ -239,8 +239,7 @@ def validate_diffs(diffs: Iterable[Mapping[str, Optional[str]]]) -> None:
 def sort_diffs(diff: Mapping[str, Optional[str]]) -> int:
     if diff["action"] in ["create_group", "del_user_from_group"]:
         return 1
-    else:
-        return 2
+    return 2
 
 
 def act(diff: Mapping[str, Optional[str]], oc_map: ClusterMap) -> None:

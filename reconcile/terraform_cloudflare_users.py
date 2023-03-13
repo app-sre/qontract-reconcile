@@ -202,7 +202,7 @@ class TerraformCloudflareUsers(
 
             err = tf.apply()
             if err:
-                TerraformApplyFailed(
+                raise TerraformApplyFailed(
                     f"Failed to run terraform apply for integration {QONTRACT_INTEGRATION}"
                 )
         finally:

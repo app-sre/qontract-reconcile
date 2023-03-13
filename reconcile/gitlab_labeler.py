@@ -74,8 +74,7 @@ def guess_onboarding_status(
 
     if len(labels) == 1:
         return labels.pop()
-    else:
-        return None
+    return None
 
 
 def guess_labels(

@@ -16,11 +16,9 @@ from reconcile.gql_definitions.statuspage.statuspages import (
     StatusProviderV1,
 )
 
-"""
-This module defines the interface for status providers for components on status
-pages. A status provider is responsible for determining the status of a component.
-This status will then be used to update the status page component.
-"""
+# This module defines the interface for status providers for components on status
+# pages. A status provider is responsible for determining the status of a component.
+# This status will then be used to update the status page component.
 
 
 class StatusProvider(ABC):
@@ -62,8 +60,7 @@ class ManualStatusProvider(StatusProvider, BaseModel):
     def get_status(self) -> Optional[str]:
         if self._is_active():
             return self.component_status
-        else:
-            return None
+        return None
 
     def _is_active(self) -> bool:
         """
@@ -78,7 +75,7 @@ class ManualStatusProvider(StatusProvider, BaseModel):
         now = datetime.now(timezone.utc)
         if self.start and now < self.start:
             return False
-        elif self.end and self.end < now:
+        if self.end and self.end < now:
             return False
         return True
 

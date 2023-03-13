@@ -62,7 +62,6 @@ class SmtpClient:
             self._client = smtplib.SMTP(
                 host=self.host, port=self.port, timeout=self.timeout
             )
-            self._client.send
             self._client.starttls()
             self._client.login(self.user, self.passwd)
         return self._client

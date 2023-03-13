@@ -77,8 +77,7 @@ def _build_infrastructure_assume_role(
             "assume_region": cluster["spec"]["region"],
             "assume_cidr": cluster["network"]["vpc"],
         }
-    else:
-        return None
+    return None
 
 
 def aws_assume_roles_for_cluster_vpc_peering(

@@ -109,11 +109,10 @@ def build_entry_point_func(command_name: str) -> click.Command:
     )
     if entry_point:
         return entry_point.load()
-    else:
-        raise ValueError(
-            f"Command {command_name} unknown."
-            f"Have a look at setup.py for valid entry points."
-        )
+    raise ValueError(
+        f"Command {command_name} unknown."
+        f"Have a look at setup.py for valid entry points."
+    )
 
 
 def main():

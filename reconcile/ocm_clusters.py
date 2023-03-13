@@ -104,7 +104,7 @@ def _cluster_version_needs_update(
         )
         return True
 
-    elif current_version < desired_version:
+    if current_version < desired_version:
         raise ClusterVersionError(
             f"[{cluster}] desired version [{desired_version}] is greater than "
             f"current version [{current_version}]. Please correct version to be "

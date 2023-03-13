@@ -127,10 +127,6 @@ class MergeRequestBase(metaclass=ABCMeta):
 
     def submit_to_gitlab(self, gitlab_cli):
         """
-        :param gitlab_cli:
-        :type gitlab_cli: GitLabApi
-        """
-        """
         Sends the MR to Gitlab.
 
         :param gitlab_cli: The SQS Client instance.

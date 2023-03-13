@@ -444,8 +444,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 key=key_backend_value,
                 region=region_backend_value,
             )
-        else:
-            raise ValueError(f"No bucket config found for account {account_name}")
+        raise ValueError(f"No bucket config found for account {account_name}")
 
     def get_lambda_zip(self, release_url: str) -> str:
         if not self.lambda_zip.get(release_url):
@@ -486,8 +485,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     self.logtoes_zip = self.download_logtoes_zip(LOGTOES_RELEASE)
         if release_url == LOGTOES_RELEASE:
             return self.logtoes_zip
-        else:
-            return self.download_logtoes_zip(release_url)
+        return self.download_logtoes_zip(release_url)
 
     def download_logtoes_zip(self, release_url):
         headers = {"Authorization": "token " + self.token}
@@ -516,8 +514,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     )
         if release_url == ROSA_AUTHENTICATOR_PRE_SIGNUP_RELEASE:
             return self.rosa_authenticator_pre_signup_zip
-        else:
-            return self.download_rosa_authenticator_zip(release_url)
+        return self.download_rosa_authenticator_zip(release_url)
 
     def download_rosa_authenticator_zip(self, release_url):
         headers = {"Authorization": "token " + self.token}
@@ -4065,12 +4062,11 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     f"exactly contain these keys: {', '.join(required_keys)}"
                 )
 
-            """
-            AWS requires the admin user password must be at least 8 chars long, contain at least one
-            uppercase letter, one lowercase letter, one number, and one special character.
+            # AWS requires the admin user password must be at least 8 chars long, contain at least one
+            # uppercase letter, one lowercase letter, one number, and one special character.
+            #
+            # This helps to fail early before 'terraform apply' will complain.
 
-            This helps to fail early before 'terraform apply' will complain.
-            """
             password_validator = PasswordValidator(
                 policy_flags=(
                     PasswordPolicy.HAS_DIGIT
@@ -4913,14 +4909,16 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         # get commit_sha from ref
         if re.match(pattern, ref):
             return ref
+
         # get commit_sha from branch
-        elif "github" in url:
+        if "github" in url:
             github = self.init_github()
             repo_name = url.rstrip("/").replace("https://github.com/", "")
             repo = github.get_repo(repo_name)
             commit = repo.get_commit(sha=ref)
             return commit.sha
-        elif "gitlab" in url:
+
+        if "gitlab" in url:
             gitlab = self.init_gitlab()
             project = gitlab.get_project(url)
             commits = project.commits.list(ref_name=ref)

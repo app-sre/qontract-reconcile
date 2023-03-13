@@ -182,8 +182,8 @@ class OcpReleaseMirror:
             url = quay_target_org_dict["url"]
 
             if url in self.registry_creds["auths"].keys():
-                OcpReleaseMirrorError(
-                    "Cannot mirror to the same Quay " f"instance multiple times: {url}"
+                raise OcpReleaseMirrorError(
+                    f"Cannot mirror to the same Quay instance multiple times: {url}"
                 )
 
             self.registry_creds["auths"].update(quay_target_org_dict["auths"])

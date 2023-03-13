@@ -317,9 +317,9 @@ def get_merge_requests(
                     # label added by an unauthorized user. remove it maybe later
                     labels_by_unauthorized_users.add(label_name)
                     continue
-                else:
-                    # label added by an authorized user, so don't delete it
-                    labels_by_authorized_users.add(label_name)
+
+                # label added by an authorized user, so don't delete it
+                labels_by_authorized_users.add(label_name)
 
                 if label_name in MERGE_LABELS_PRIORITY and not approval_found:
                     approval_found = True
@@ -486,8 +486,7 @@ def merge_merge_requests(
                     raise InsistOnPipelineError(
                         f"Pipelines for merge request have not completed yet: {mr.iid}"
                     )
-                else:
-                    continue
+                continue
 
         last_pipeline_result = pipelines[0]["status"]
         if last_pipeline_result != "success":

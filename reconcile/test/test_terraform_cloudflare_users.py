@@ -436,7 +436,8 @@ def secret_reader_side_effect(*args):
         aws_acct_creds["aws_access_key_id"] = "key_id"
         aws_acct_creds["aws_secret_access_key"] = "access_key"
         return aws_acct_creds
-    elif {
+
+    if {
         "path": "creds",
         "field": "some-field",
         "version": None,

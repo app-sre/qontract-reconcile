@@ -490,7 +490,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
     def get_tag_value(tags, tag):
         if isinstance(tags, dict):
             return tags.get(tag, "")
-        elif isinstance(tags, list):
+        if isinstance(tags, list):
             for t in tags:
                 if t["Key"] == tag:
                     return t["Value"]
@@ -1415,7 +1415,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
             raise ValueError(
                 f"found multiple AMI with {tags=} in account {account_name}"
             )
-        elif not images:
+        if not images:
             return None
         return images[0]["ImageId"]
 

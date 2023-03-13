@@ -273,7 +273,7 @@ class QuayMirror:
                                 upstream,
                             )
                             continue
-                        elif downstream.is_part_of(upstream):
+                        if downstream.is_part_of(upstream):
                             _LOG.debug(
                                 "Image %s is part of mirror multi-arch image %s",
                                 downstream,

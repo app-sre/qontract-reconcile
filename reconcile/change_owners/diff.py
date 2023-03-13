@@ -38,26 +38,26 @@ class Diff:
         if sub_path == self.path:
             # no need to subdiff ... this is the same path
             return self
-        else:
-            sub_path_str = str(sub_path)
-            if self.path == jsonpath_ng.Root():
-                absolute_sub_path = sub_path
-            elif sub_path_str.startswith(self.path_str()):
-                absolute_sub_path = jsonpath_ng.ext.parse(
-                    f"${sub_path_str[len(self.path_str()):]}"
-                )
-            else:
-                raise Exception(
-                    f"sub_path {sub_path_str} is not prefixed by {self.path_str()}"
-                )
-            sub_old = absolute_sub_path.find(self.old)
-            sub_new = absolute_sub_path.find(self.new)
-            return Diff(
-                path=sub_path,
-                diff_type=self.diff_type,
-                old=sub_old[0].value if len(sub_old) > 0 else None,
-                new=sub_new[0].value if len(sub_new) > 0 else None,
+
+        sub_path_str = str(sub_path)
+        if self.path == jsonpath_ng.Root():
+            absolute_sub_path = sub_path
+        elif sub_path_str.startswith(self.path_str()):
+            absolute_sub_path = jsonpath_ng.ext.parse(
+                f"${sub_path_str[len(self.path_str()):]}"
             )
+        else:
+            raise Exception(
+                f"sub_path {sub_path_str} is not prefixed by {self.path_str()}"
+            )
+        sub_old = absolute_sub_path.find(self.old)
+        sub_new = absolute_sub_path.find(self.new)
+        return Diff(
+            path=sub_path,
+            diff_type=self.diff_type,
+            old=sub_old[0].value if len(sub_old) > 0 else None,
+            new=sub_new[0].value if len(sub_new) > 0 else None,
+        )
 
     def get_context_data_copy(self) -> Optional[Any]:
         if self.diff_type in [DiffType.ADDED, DiffType.CHANGED]:
@@ -94,8 +94,7 @@ class Diff:
         if value:
             if isinstance(value, (dict, list)):
                 return json.dumps(value, indent=2)
-            else:
-                return str(value)
+            return str(value)
         return value
 
 
@@ -107,7 +106,7 @@ def _extract_identifier_from_object(obj: Any) -> Optional[str]:
     if isinstance(obj, dict):
         if IDENTIFIER_FIELD_NAME in obj:
             return obj.get(IDENTIFIER_FIELD_NAME)
-        elif REF_FIELD_NAME in obj and len(obj) == 1:
+        if REF_FIELD_NAME in obj and len(obj) == 1:
             return obj.get(REF_FIELD_NAME)
     return None
 
@@ -277,16 +276,14 @@ def deepdiff_path_to_jsonpath(deep_diff_path: str) -> jsonpath_ng.JSONPath:
     def build_jsonpath_part(element: str) -> jsonpath_ng.JSONPath:
         if element.isdigit():
             return jsonpath_ng.Index(int(element))
-        else:
-            if "." in element:
-                return jsonpath_ng.Fields(f"'{element}'")
-            else:
-                return jsonpath_ng.Fields(element)
+
+        if "." in element:
+            return jsonpath_ng.Fields(f"'{element}'")
+        return jsonpath_ng.Fields(element)
 
     path_parts = [
         build_jsonpath_part(p) for p in DEEP_DIFF_RE.findall(deep_diff_path[4:])
     ]
     if path_parts:
         return reduce(lambda a, b: a.child(b), path_parts)
-    else:
-        return jsonpath_ng.Root()
+    return jsonpath_ng.Root()

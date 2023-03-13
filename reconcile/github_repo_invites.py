@@ -95,8 +95,7 @@ def get_settings() -> Mapping[str, Any]:
     if settings:
         # assuming a single settings file for now
         return settings[0]
-    else:
-        raise ValueError("no app-interface-settings found")
+    raise ValueError("no app-interface-settings found")
 
 
 def run(dry_run):

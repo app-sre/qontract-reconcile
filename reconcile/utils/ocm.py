@@ -1687,7 +1687,7 @@ class OCMMap:  # pylint: disable=too-many-public-methods
         inputs = [i for i in [clusters, namespaces, ocms] if i]
         if len(inputs) > 1:
             raise KeyError("expected only one of clusters, namespaces or ocm.")
-        elif clusters:
+        if clusters:
             for cluster_info in clusters:
                 self.init_ocm_client_from_cluster(
                     cluster_info,

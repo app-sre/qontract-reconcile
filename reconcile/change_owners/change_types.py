@@ -71,8 +71,7 @@ def parent_of_jsonpath(path: jsonpath_ng.JSONPath) -> Optional[jsonpath_ng.JSONP
     # structures where a parent can be extracted
     if isinstance(path, jsonpath_ng.Child):
         return path.left
-    else:
-        return None
+    return None
 
 
 @dataclass
@@ -99,8 +98,7 @@ class DiffCoverage:
                     "This can only happen due to a bug in change-owners. "
                     "Happy bug hunting!"
                 )
-            else:
-                return path
+            return path
         return self.diff.path
 
     def is_covered(self) -> bool:
@@ -187,11 +185,12 @@ class DiffCoverage:
 
             self._split_into = consolidated_splits
             return split_sub_coverage
-        elif self.diff.path == path:
+
+        if self.diff.path == path:
             self.add_covering_context(ctx)
             return self
-        else:
-            return None
+
+        return None
 
     def add_covering_context(self, ctx: "ChangeTypeContext"):
         self.coverage.append(ctx)
@@ -380,8 +379,7 @@ def create_bundle_file_change(
             new=new_file_content,
             diffs=diffs,
         )
-    else:
-        return None
+    return None
 
 
 class PathExpression:
@@ -412,13 +410,13 @@ class PathExpression:
     def jsonpath_for_context(self, ctx: "ChangeTypeContext") -> jsonpath_ng.JSONPath:
         if self.parsed_jsonpath:
             return self.parsed_jsonpath
-        else:
-            expr = self.template.render(
-                {
-                    self.CTX_FILE_PATH_VAR_NAME: ctx.context_file.path,
-                }
-            )
-            return jsonpath_ng.ext.parse(expr)
+
+        expr = self.template.render(
+            {
+                self.CTX_FILE_PATH_VAR_NAME: ctx.context_file.path,
+            }
+        )
+        return jsonpath_ng.ext.parse(expr)
 
     def __eq__(self, obj):
         return (
@@ -567,8 +565,7 @@ class JsonPathChangeDetector(ChangeDetector):
             return self.context.find_ownership_context(
                 self.context_schema, old_data, new_data
             )
-        else:
-            return []
+        return []
 
 
 @dataclass
@@ -664,8 +661,8 @@ class ChangeTypeProcessor:
         expansion_trail_copy = set(expansion_trail)
         if (self.name, file_ref) in expansion_trail_copy:
             return contexts
-        else:
-            expansion_trail_copy.add((self.name, file_ref))
+
+        expansion_trail_copy.add((self.name, file_ref))
 
         # direct context extraction
         # the changed file itself is giving the context for approver extraction

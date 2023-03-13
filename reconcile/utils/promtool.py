@@ -36,7 +36,7 @@ def run_test(test_yaml_spec, rule_files):
     new_rule_files = []
     for rule_file in test_yaml_spec["rule_files"]:
         if rule_file not in temp_rule_files:
-            raise CommandExecutionResult(False, f"{rule_file} not in rule_files dict")
+            return CommandExecutionResult(False, f"{rule_file} not in rule_files dict")
 
         new_rule_files.append(temp_rule_files[rule_file])
 

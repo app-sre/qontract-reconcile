@@ -469,8 +469,7 @@ def calculate_diff(
 def sort_diffs(diff):
     if diff["action"] == "delete":
         return 1
-    else:
-        return 2
+    return 2
 
 
 def action_log(*items: Optional[str]) -> None:

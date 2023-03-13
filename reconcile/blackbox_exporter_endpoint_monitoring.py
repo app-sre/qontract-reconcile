@@ -102,5 +102,4 @@ def build_probe(
         return OpenshiftResource(
             body, QONTRACT_INTEGRATION, QONTRACT_INTEGRATION_VERSION
         )
-    else:
-        return None
+    return None

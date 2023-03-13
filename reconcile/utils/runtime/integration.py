@@ -200,8 +200,7 @@ class QontractReconcileIntegration(ABC, Generic[RunParamsTypeVar]):
         if sharding_config:
             shard_arg_value = self.params.get(sharding_config.shard_arg_name)
             return bool(shard_arg_value)
-        else:
-            return False
+        return False
 
     def build_integration_instance_for_shard(
         self: IntegrationClassTypeVar, shard: str
@@ -222,10 +221,10 @@ class QontractReconcileIntegration(ABC, Generic[RunParamsTypeVar]):
                 }
             )
             return type(self)(sharded_params)
-        else:
-            raise NotImplementedError(
-                "The integration does not support run in sharded mode."
-            )
+
+        raise NotImplementedError(
+            "The integration does not support run in sharded mode."
+        )
 
 
 RUN_FUNCTION = "run"
@@ -282,16 +281,14 @@ class ModuleBasedQontractReconcileIntegration(
     def name(self) -> str:
         if self._integration_supports(NAME_FIELD):
             return self.params.module.QONTRACT_INTEGRATION.replace("_", "-")
-        else:
-            raise NotImplementedError("Integration missing QONTRACT_INTEGRATION.")
+        raise NotImplementedError("Integration missing QONTRACT_INTEGRATION.")
 
     def get_early_exit_desired_state(self) -> Optional[dict[str, Any]]:
         if self._integration_supports(EARLY_EXIT_DESIRED_STATE_FUNCTION):
             return self.params.module.early_exit_desired_state(
                 *self.params.args, **self.params.kwargs
             )
-        else:
-            return None
+        return None
 
     def get_desired_state_shard_config(self) -> Optional["DesiredStateShardConfig"]:
         if self._integration_supports(DESIRED_STATE_SHARD_CONFIG_FUNCTION):

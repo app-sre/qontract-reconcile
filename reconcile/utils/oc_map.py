@@ -182,8 +182,7 @@ class OCMap:
         result = self.get(cluster, privileged)
         if isinstance(result, OCLogMsg):
             raise result
-        else:
-            return result
+        return result
 
     def clusters(
         self, include_errors: bool = False, privileged: bool = False

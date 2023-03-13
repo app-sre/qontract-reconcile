@@ -369,8 +369,7 @@ class SlackApi:
         except SlackApiError as e:
             if e.response["error"] == "users_not_found":
                 raise UserNotFoundException(e.response["error"])
-            else:
-                raise
+            raise
 
         return result["user"]["id"]
 
