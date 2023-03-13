@@ -774,7 +774,14 @@ def clusters_network(ctx, name):
     if name:
         clusters = [c for c in clusters if c["name"] == name]
 
-    columns = ["name", "vpc_id", "network.vpc", "network.service", "network.pod"]
+    columns = [
+        "name",
+        "vpc_id",
+        "network.vpc",
+        "network.service",
+        "network.pod",
+        "egress_ips",
+    ]
     ocm_map = OCMMap(clusters=clusters, settings=settings)
 
     for cluster in clusters:
@@ -789,6 +796,8 @@ def clusters_network(ctx, name):
         aws_api = AWSApi(1, [account], settings=settings, init_users=False)
         vpc_id, _, _ = aws_api.get_cluster_vpc_details(account)
         cluster["vpc_id"] = vpc_id
+        egress_ips = aws_api.get_cluster_nat_gateways_egress_ips(account)
+        cluster["egress_ips"] = ", ".join(sorted(egress_ips))
 
     # TODO(mafriedm): fix this
     # do not sort
