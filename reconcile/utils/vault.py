@@ -71,7 +71,12 @@ class _VaultClient:
 
         server = config["vault"]["server"] if server is None else server
         self.kube_auth_enabled = False
-        if "kube_auth_role" in config["vault"] or kube_auth_role is not None:
+        if "role_id" in config["vault"] or role_id is not None:
+            self.role_id = config["vault"]["role_id"] if role_id is None else role_id
+            self.secret_id = (
+                config["vault"]["secret_id"] if secret_id is None else secret_id
+            )
+        else:
             self.kube_auth_role = (
                 config["vault"]["kube_auth_role"]
                 if kube_auth_role is None
@@ -87,11 +92,6 @@ class _VaultClient:
                 "/var/run/secrets/kubernetes.io/serviceaccount/token",
             )
             self.kube_auth_enabled = True
-        else:
-            self.role_id = config["vault"]["role_id"] if role_id is None else role_id
-            self.secret_id = (
-                config["vault"]["secret_id"] if secret_id is None else secret_id
-            )
 
         # This is a threaded world. Let's define a big
         # connections pool to live in that world
