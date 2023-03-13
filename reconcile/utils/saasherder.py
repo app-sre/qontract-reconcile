@@ -1479,6 +1479,7 @@ class SaasHerder:
         trigger_specs = []
         for rt in saas_file["resourceTemplates"]:
             rt_name = rt["name"]
+            url = rt["url"]
             for target in rt["targets"]:
                 upstream = target.get("upstream")
                 if not upstream:
@@ -1508,6 +1509,12 @@ class SaasHerder:
                 last_build_result_number = last_build_result["number"]
                 if self.include_trigger_trace:
                     trigger_spec.reason = f"{upstream['instance']['serverUrl']}/job/{job_name}/{last_build_result_number}"
+                    last_build_result_commit_sha = last_build_result.get("commit_sha")
+                    if last_build_result_commit_sha:
+                        trigger_spec.reason = (
+                            f"{url}/commit/{last_build_result_commit_sha} via "
+                            + trigger_spec.reason
+                        )
                 state_build_result = self.state.get(trigger_spec.state_key, None)
                 # skip if last_build_result is incomplete or
                 # there is no change in job state
