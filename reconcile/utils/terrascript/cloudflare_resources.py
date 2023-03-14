@@ -95,10 +95,9 @@ def create_cloudflare_terrascript_resource(
         return CloudflareLogpushJob(spec).populate()
     if resource_type == "logpull_retention":
         return CloudflareLogpullRetention(spec).populate()
-    else:
-        raise UnsupportedCloudflareResourceError(
-            f"The resource type {resource_type} is not supported"
-        )
+    raise UnsupportedCloudflareResourceError(
+        f"The resource type {resource_type} is not supported"
+    )
 
 
 class CloudflareWorkerScriptTerrascriptResource(TerrascriptResource):
@@ -342,7 +341,6 @@ class CloudflareLogpushOwnershipChallengeResource(TerrascriptResource):
                     destination_conf=destination_conf,
                 )
             )
-            return resources
         else:
             resources.append(
                 cloudflare_logpush_ownership_challenge(
