@@ -143,11 +143,17 @@ class Namespace(BaseModel):
 class PromotionChannelData(BaseModel):
     q_type: str = Field(..., alias="type")
 
+    class Config:
+        allow_population_by_field_name = True
+
 
 class ParentSaasPromotion(BaseModel):
     q_type: str = Field(..., alias="type")
     parent_saas: Optional[str]
     target_config_hash: Optional[str]
+
+    class Config:
+        allow_population_by_field_name = True
 
 
 class PromotionData(BaseModel):
