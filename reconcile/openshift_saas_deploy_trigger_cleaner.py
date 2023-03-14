@@ -44,7 +44,7 @@ def run(
     tkn_namespaces = [
         pp["namespace"]
         for pp in pipelines_providers
-        if pp["provider"] == Providers.TEKTON
+        if pp["provider"] == Providers.TEKTON.value
     ]
 
     oc_map = OC_Map(
@@ -63,7 +63,7 @@ def run(
         if not retention:
             continue
 
-        if pp["provider"] == Providers.TEKTON:
+        if pp["provider"] == Providers.TEKTON.value:
             ns_info = pp["namespace"]
             namespace = ns_info["name"]
             cluster = ns_info["cluster"]["name"]
