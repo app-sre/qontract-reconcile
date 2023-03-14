@@ -16,7 +16,7 @@ from reconcile.utils.mr.user_maintenance import PathTypes
 QONTRACT_INTEGRATION = "ldap-users"
 
 
-def init_users() -> dict:
+def init_users() -> list[dict[str, list]]:
     app_int_users = queries.get_users(refs=True)
 
     users = defaultdict(list)
