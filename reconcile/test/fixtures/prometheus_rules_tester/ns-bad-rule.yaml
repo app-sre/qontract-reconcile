@@ -1,0 +1,50 @@
+- cluster:
+    auth:
+    - org: example-org
+      service: github-org-team
+      team: appint-ex-01-cluster
+    - service: oidc
+    automationToken:
+      field: token
+      format: null
+      path: creds/kube-configs/appint-ex-01
+      version: null
+    clusterAdminAutomationToken: null
+    disable: null
+    insecureSkipTLSVerify: null
+    internal: false
+    jumpHost: null
+    name: appint-ex-01
+    network:
+      pod: 10.128.0.0/14
+    serverUrl: https://api.appint-ex-01.e7t8.p1.openshiftapps.com:6443
+    spec:
+      region: us-east-1
+      version: 4.11.14
+  clusterAdmin: null
+  delete: null
+  managedResourceNames: null
+  managedResourceTypeOverrides: null
+  managedResourceTypes: []
+  name: openshift-customer-monitoring
+  openshiftResources:
+  - enable_query_support: null
+    provider: prometheus-rule
+    resource:
+      content: "---\n$schema: /openshift/prometheus-rule-1.yml\napiVersion: monitoring.coreos.com/v1\n\
+        kind: PrometheusRule\nmetadata:\n  labels:\n    prometheus: app-sre\n    role:\
+        \ alert-rules\n  name: yak-shaver\nspec:\n  groups:\n  - name: yak-shaver.rules\n\
+        \    rules:\n    - alert: YakShaverIsDown\n      annotations:\n        dashboard:\
+        \ https://grafana.app-sre.devshift.net/d/DE29QJlWk/yak-shaver?orgId=1&refresh=5m\n\
+        \        message: Yak Shaver has disappeared from Prometheus target discovery.\n\
+        \        runbook: https://gitlab.cee.redhat.com/service/app-interface/blob/master/docs/app-sre/sop/YakShaverIsDown.md\n\
+        \      here-we-expect-expr: |\n        absent(up{job=\"yak-shaver\"} == 1)\n      for: 1m\n\
+        \      labels:\n        service: yak-shaver\n        severity: high\n    \
+        \    env: {{{env}}}\n"
+      path: bad-rule.prometheusrules.yaml
+      schema: /openshift/prometheus-rule-1.yml
+    tests:
+    - bad-test.prometheusrulestests.yaml
+    type: resource-template-extracurlyjinja2
+    variables: '{"env":"stage"}'
+  sharedResources: []

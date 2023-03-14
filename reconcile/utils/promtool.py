@@ -2,6 +2,11 @@ import copy
 import os
 import subprocess
 import tempfile
+from typing import (
+    Iterable,
+    Mapping,
+    MutableMapping,
+)
 
 import yaml
 
@@ -9,12 +14,14 @@ from reconcile.utils.defer import defer
 from reconcile.utils.structs import CommandExecutionResult
 
 
-def check_rule(yaml_spec):
+def check_rule(yaml_spec: Mapping) -> CommandExecutionResult:
     """Run promtool check rules on the given yaml spec given as dict"""
     return _run_yaml_spec_cmd(cmd=["promtool", "check", "rules"], yaml_spec=yaml_spec)
 
 
-def run_test(test_yaml_spec, rule_files):
+def run_test(
+    test_yaml_spec: MutableMapping, rule_files: Mapping[str, Mapping]
+) -> CommandExecutionResult:
     """Run promtool test rules
 
     params:
@@ -50,7 +57,7 @@ def run_test(test_yaml_spec, rule_files):
     )
 
 
-def _run_yaml_spec_cmd(cmd, yaml_spec):
+def _run_yaml_spec_cmd(cmd: list[str], yaml_spec: Mapping) -> CommandExecutionResult:
     with tempfile.NamedTemporaryFile() as fp:
         try:
             fp.write(yaml.dump(yaml_spec).encode())
@@ -75,7 +82,7 @@ def _run_yaml_spec_cmd(cmd, yaml_spec):
     return CommandExecutionResult(True, result.stdout.decode())
 
 
-def _cleanup(paths):
+def _cleanup(paths: Iterable[str]) -> None:
     try:
         for path in paths:
             os.unlink(path)

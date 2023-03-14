@@ -125,6 +125,17 @@ provider
   vault_tls_secret_path
   vault_tls_secret_version
 }
+... on NamespaceOpenshiftResourcePrometheusRule_v1 {
+  resource: path {
+    content
+    path
+    schema
+  }
+  type
+  variables
+  enable_query_support
+  tests
+}
 """
 
 NAMESPACES_QUERY = """
@@ -697,6 +708,39 @@ def fetch_openshift_resource(
         openshift_resource = fetch_provider_route(
             resource["resource"], tls_path, tls_version, settings
         )
+    elif provider == "prometheus-rule":
+        path = resource["resource"]["path"]
+        _locked_debug_log("Processing {}: {}".format(provider, path))
+        add_path_to_prom_rules = resource.get("add_path_to_prom_rules", True)
+        tv = {}
+        if resource["variables"]:
+            tv = anymarkup.parse(resource["variables"], force_types=None)
+        tv["resource"] = resource
+        tv["resource"]["namespace"] = parent
+
+        tt = resource["type"]
+        if tt == "resource":
+            tfunc = None
+            tv = None
+        elif tt == "resource-template-jinja2":
+            tfunc = process_jinja2_template
+        elif tt == "resource-template-extracurlyjinja2":
+            tfunc = process_extracurlyjinja2_template
+        else:
+            raise UnknownTemplateTypeError(tt)
+        try:
+            openshift_resource = fetch_provider_resource(
+                resource["resource"],
+                tfunc=tfunc,
+                tvars=tv,
+                add_path_to_prom_rules=add_path_to_prom_rules,
+                skip_validation=skip_validation,
+                settings=settings,
+            )
+        except Exception as e:
+            msg = "could not render template at path {}\n{}".format(path, e)
+            raise ResourceTemplateRenderError(msg)
+
     else:
         raise UnknownProviderError(provider)
 
@@ -880,6 +924,7 @@ def canonicalize_namespaces(
                 override = ["Secret"]
             elif providers[0] == "route":
                 override = ["Route"]
+
             namespace_info["openshiftResources"] = ors
             canonicalized_namespaces.append(namespace_info)
     logging.debug(f"Overriding {override}")
@@ -1159,7 +1204,7 @@ def early_exit_desired_state(
     # to ignore data that is not part of the desired state in app-interface.
     # the context manager also ensures this function patching is
     # reverted afterwards
-    with _early_exit_monkey_patch():
+    with early_exit_monkey_patch():
         resources = threaded.run(
             _early_exit_fetch_resource,
             fetch_specs,
@@ -1208,7 +1253,7 @@ def _early_exit_fetch_resource(spec, settings):
 
 
 @contextmanager
-def _early_exit_monkey_patch():
+def early_exit_monkey_patch():
     """Avoid looking outside of app-interface on early-exit pr-check."""
     orig_lookup_secret = lookup_secret
     orig_lookup_github_file_content = lookup_github_file_content

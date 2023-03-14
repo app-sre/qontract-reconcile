@@ -7,7 +7,7 @@ from reconcile.utils.semver_helper import make_semver
 
 QONTRACT_INTEGRATION = "openshift_resources"
 QONTRACT_INTEGRATION_VERSION = make_semver(1, 9, 3)
-PROVIDERS = ["resource", "resource-template"]
+PROVIDERS = ["resource", "resource-template", "prometheus-rule"]
 
 
 def run(

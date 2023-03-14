@@ -31,7 +31,7 @@ from reconcile.utils.structs import CommandExecutionResult
 # to the configmap.
 MAX_CONFIGMAP_SIZE = 0.5 * 1024 * 1024
 
-QONTRACT_INTEGRATION = "prometheus_rules_tester"
+QONTRACT_INTEGRATION = "prometheus_rules_tester_old"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 PROVIDERS = ["resource", "resource-template"]
