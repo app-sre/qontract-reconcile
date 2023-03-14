@@ -194,10 +194,9 @@ def get_cloudflare_provider_rps(
     size = len(records)
     if size <= 50:
         return 2
-    elif size <= 1000:
+    if size <= 1000:
         return DEFAULT_PROVIDER_RPS
-    else:
-        return 6
+    return 6
 
 
 def create_backend_config(
