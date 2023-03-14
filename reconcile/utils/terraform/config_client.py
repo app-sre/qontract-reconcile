@@ -83,6 +83,7 @@ class TerraformConfigClientCollection:
             try:
                 self._clients[spec.provisioner_name].add_spec(spec)
             except KeyError:
+                print(spec.provider)
                 raise ClientNotRegisteredError(
                     f"There aren't any clients registered with the account name: {spec.provisioner_name}"
                 )
