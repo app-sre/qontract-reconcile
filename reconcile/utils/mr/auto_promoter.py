@@ -20,6 +20,7 @@ from ruamel import yaml
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.mr.base import MergeRequestBase
 from reconcile.utils.mr.labels import AUTO_MERGE
+from reconcile.utils.saasherder.interfaces import SaasPromotion
 from reconcile.utils.saasherder.models import Promotion
 
 LOG = logging.getLogger(__name__)
@@ -37,13 +38,14 @@ class AutoPromoter(MergeRequestBase):
     name = "auto_promoter"
 
     def __init__(
-        self, promotions: Union[Sequence[Promotion], Sequence[dict[str, Any]]]
+        self, promotions: Union[Sequence[SaasPromotion], Sequence[dict[str, Any]]]
     ):
         # !!! Attention !!!
         # AutoPromoter is also initialized with promitions as dict by 'gitlab_mr_sqs_consumer'
         # loaded from SQS message body, therefore self.promotions must be json serializable
         self.promotions = [
-            p.dict() if isinstance(p, Promotion) else p for p in promotions
+            p.dict(by_alias=True) if isinstance(p, SaasPromotion) else p
+            for p in promotions
         ]
 
         # the parent class stores self.promotions (the json serializable one) in self.sqs_msg_data
@@ -69,7 +71,7 @@ class AutoPromoter(MergeRequestBase):
         return "openshift-saas-deploy automated promotion"
 
     @staticmethod
-    def init_promotion_data(channel: str, promotion: Promotion) -> dict[str, Any]:
+    def init_promotion_data(channel: str, promotion: SaasPromotion) -> dict[str, Any]:
         psc = ParentSaasConfigPromotion(
             parent_saas=promotion.saas_file_name,
             target_config_hash=promotion.target_config_hash,
@@ -78,7 +80,7 @@ class AutoPromoter(MergeRequestBase):
 
     @staticmethod
     def process_promotion(
-        promotion: Promotion,
+        promotion: SaasPromotion,
         target_promotion: MutableMapping[str, Any],
         target_channels: Iterable[str],
     ) -> bool:
@@ -114,7 +116,7 @@ class AutoPromoter(MergeRequestBase):
         return modified
 
     def process_target(
-        self, target: MutableMapping[str, Any], promotion: Promotion
+        self, target: MutableMapping[str, Any], promotion: SaasPromotion
     ) -> bool:
         target_updated = False
         target_promotion = target.get("promotion")

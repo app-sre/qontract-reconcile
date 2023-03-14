@@ -224,13 +224,24 @@ class TestPromotions(TestCase):
             commit_sha="ahash",
             saas_file_name="saas_file",
             target_config_hash="111111111",
+            promotion_data=[
+                {
+                    "channel": "test-channel",
+                    "data": [
+                        {
+                            "parent_saas": "saas_file",
+                            "target_config_hash": "111111111",
+                            "type": "parent_saas_config",
+                        }
+                    ],
+                }
+            ],
         )
 
         ap = AutoPromoter([promotion])
-        self.assertEqual(
-            json.dumps(ap.sqs_data),
-            '{"pr_type": "auto_promoter", "promotions": [{"commit_sha": "ahash", "saas_file_name": "saas_file", "target_config_hash": "111111111", "auto": true, "publish": ["test-channel"], "subscribe": null, "promotion_data": null, "saas_file_paths": ["destination-saas-file"], "target_paths": null}]}',
-        )
+        sqs_json = '{"pr_type": "auto_promoter", "promotions": [{"commit_sha": "ahash", "saas_file_name": "saas_file", "target_config_hash": "111111111", "auto": true, "publish": ["test-channel"], "subscribe": null, "promotion_data": [{"channel": "test-channel", "data": [{"type": "parent_saas_config", "parent_saas": "saas_file", "target_config_hash": "111111111"}]}], "saas_file_paths": ["destination-saas-file"], "target_paths": null}]}'
+        print(json.dumps(ap.sqs_data))
+        self.assertEqual(json.dumps(ap.sqs_data), sqs_json)
 
     def test_init_with_promotion_object(self) -> None:
         promotion = Promotion(
@@ -240,10 +251,22 @@ class TestPromotions(TestCase):
             commit_sha="ahash",
             saas_file_name="saas_file",
             target_config_hash="111111111",
+            promotion_data=[
+                {
+                    "channel": "test-channel",
+                    "data": [
+                        {
+                            "parent_saas": "saas_file",
+                            "target_config_hash": "111111111",
+                            "type": "parent_saas_config",
+                        }
+                    ],
+                }
+            ],
         )
 
         ap = AutoPromoter([promotion])
-        self.assertEqual(ap.promotions, [promotion.dict()])
+        self.assertEqual(ap.promotions, [promotion.dict(by_alias=True)])
         self.assertEqual(ap._promotions, [promotion])
 
     def test_init_with_dict_object(self) -> None:
@@ -254,8 +277,20 @@ class TestPromotions(TestCase):
             commit_sha="ahash",
             saas_file_name="saas_file",
             target_config_hash="111111111",
+            promotion_data=[
+                {
+                    "channel": "test-channel",
+                    "data": [
+                        {
+                            "parent_saas": "saas_file",
+                            "target_config_hash": "111111111",
+                            "type": "parent_saas_config",
+                        }
+                    ],
+                }
+            ],
         )
 
-        ap = AutoPromoter([promotion.dict()])
-        self.assertEqual(ap.promotions, [promotion.dict()])
+        ap = AutoPromoter([promotion.dict(by_alias=True)])
+        self.assertEqual(ap.promotions, [promotion.dict(by_alias=True)])
         self.assertEqual(ap._promotions, [promotion])

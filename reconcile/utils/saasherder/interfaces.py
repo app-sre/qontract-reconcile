@@ -240,6 +240,25 @@ class SaasResourceTemplateTargetPromotion(Protocol):
         ...
 
 
+@runtime_checkable
+class SaasPromotion(Protocol):
+    commit_sha: str
+    saas_file_name: str
+    target_config_hash: str
+    auto: Optional[bool] = None
+    publish: Optional[list[str]] = None
+    subscribe: Optional[list[str]] = None
+    saas_file_paths: Optional[list[str]] = None
+    target_paths: Optional[list[str]] = None
+
+    @property
+    def promotion_data(self) -> Optional[Sequence[SaasPromotionData]]:
+        ...
+
+    def dict(self, *, by_alias: bool = False) -> dict[str, Any]:
+        ...
+
+
 class SaasResourceTemplateTarget_SaasSecretParameters(Protocol):
     name: str
 
