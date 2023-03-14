@@ -101,6 +101,8 @@ class _VaultClient:
         adapter = HTTPAdapter(pool_connections=100, pool_maxsize=100)
         session.mount("https://", adapter)
         self._client = hvac.Client(url=server, session=session)
+        self._close_lock = threading.Lock()
+        self._closed = False
 
         authenticated = False
         for _ in range(0, 3):
@@ -122,7 +124,16 @@ class _VaultClient:
         return self
 
     def __exit__(self, *exc):
-        self._client.adapter.close()
+        self.close()
+
+    def close(self):
+        """
+        Close the client and release any resources associated with it.
+        """
+        with self._close_lock:
+            if not self._closed:
+                self._client.adapter.close()
+                self._closed = True
 
     def _auto_refresh_client_auth(self):
         """
@@ -130,8 +141,12 @@ class _VaultClient:
         """
         while True:
             time.sleep(VAULT_AUTO_REFRESH_INTERVAL)
-            LOG.debug("auto refresh client auth")
-            self._refresh_client_auth()
+            with self._close_lock:
+                if self._closed:
+                    LOG.debug("client is closed, exiting auto refresh")
+                    break
+                LOG.debug("auto refresh client auth")
+                self._refresh_client_auth()
 
     def _refresh_client_auth(self):
         if self.kube_auth_enabled:
@@ -398,20 +413,23 @@ class _VaultClient:
 
 class VaultClient:
 
+    _instance_lock = threading.Lock()
     _instance = None
 
     def __new__(cls, *args, **kwargs):
-        if cls._instance is None:
-            cls._instance = _VaultClient(*args, **kwargs)
+        with cls._instance_lock:
+            if cls._instance is None:
+                cls._instance = _VaultClient(*args, **kwargs)
+                return cls._instance
+
+            try:
+                is_authenticated = cls._instance._client.is_authenticated()
+            except requests.exceptions.ConnectionError:
+                is_authenticated = False
+
+            if not is_authenticated:
+                cls._instance.close()
+                cls._instance = _VaultClient(*args, **kwargs)
+                return cls._instance
+
             return cls._instance
-
-        try:
-            is_authenticated = cls._instance._client.is_authenticated()
-        except requests.exceptions.ConnectionError:
-            is_authenticated = False
-
-        if not is_authenticated:
-            cls._instance = _VaultClient(*args, **kwargs)
-            return cls._instance
-
-        return cls._instance
