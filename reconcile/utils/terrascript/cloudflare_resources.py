@@ -85,15 +85,15 @@ def create_cloudflare_terrascript_resource(
 
     if resource_type == "worker_script":
         return CloudflareWorkerScriptTerrascriptResource(spec).populate()
-    elif resource_type == "zone":
+    if resource_type == "zone":
         return CloudflareZoneTerrascriptResource(spec).populate()
-    elif resource_type == "account_member":
+    if resource_type == "account_member":
         return CloudflareAccountMemberTerrascriptResource(spec).populate()
-    elif resource_type == "logpush_ownership_challenge":
+    if resource_type == "logpush_ownership_challenge":
         return CloudflareLogpushOwnershipChallengeResource(spec).populate()
-    elif resource_type == "logpush_job":
+    if resource_type == "logpush_job":
         return CloudflareLogpushJob(spec).populate()
-    elif resource_type == "logpull_retention":
+    if resource_type == "logpull_retention":
         return CloudflareLogpullRetention(spec).populate()
     else:
         raise UnsupportedCloudflareResourceError(
@@ -276,7 +276,7 @@ class CloudflareLogpushJob(TerrascriptResource):
         resources = []
         values = ResourceValueResolver(self._spec).resolve()
         destination_conf = values.get("destination_conf")
-        zone = values.get("zone_name")  # make this into zone name
+        zone = values.get("zone_name")
         enabled = values.get("enabled")
         logpull_options = values.get("logpull_options")
         dataset = values.get("dataset")
@@ -330,7 +330,7 @@ class CloudflareLogpushOwnershipChallengeResource(TerrascriptResource):
         resources = []
         values = ResourceValueResolver(self._spec).resolve()
         destination_conf = values.get("destination_conf")
-        zone = values.get("zone_name")  # make this into zone name
+        zone = values.get("zone_name")
         if zone:
             resources.append(
                 self.cloudflare_zone(zone, name=zone, account_id="${var.account_id}")
