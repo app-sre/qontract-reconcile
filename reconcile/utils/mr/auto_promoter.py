@@ -2,7 +2,7 @@ import hashlib
 import json
 import logging
 from collections.abc import (
-    Iterable,
+    Mapping,
     MutableMapping,
 )
 from dataclasses import (
@@ -13,12 +13,12 @@ from typing import Any
 
 from ruamel import yaml
 
-from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.mr.base import MergeRequestBase
 from reconcile.utils.mr.labels import AUTO_MERGE
-from reconcile.utils.saasherder.models import Promotion
 
 LOG = logging.getLogger(__name__)
+
+TARGET_CONFIG_HASH = "target_config_hash"
 
 
 @dataclass
@@ -32,8 +32,8 @@ class ParentSaasConfigPromotion:
 class AutoPromoter(MergeRequestBase):
     name = "auto_promoter"
 
-    def __init__(self, promotions: Iterable[Promotion]):
-        self.promotions = promotions
+    def __init__(self, promotions):
+        self.promotions = [p for p in promotions if p]
         super().__init__()
 
         self.labels = [AUTO_MERGE]
@@ -55,19 +55,18 @@ class AutoPromoter(MergeRequestBase):
         return "openshift-saas-deploy automated promotion"
 
     @staticmethod
-    def init_promotion_data(channel: str, promotion: Promotion) -> dict[str, Any]:
+    def init_promotion_data(
+        channel: str, promotion: Mapping[str, Any]
+    ) -> dict[str, Any]:
         psc = ParentSaasConfigPromotion(
-            parent_saas=promotion.saas_file_name,
-            target_config_hash=promotion.target_config_hash,
+            parent_saas=promotion["saas_file"],
+            target_config_hash=promotion[TARGET_CONFIG_HASH],
         )
         return {"channel": channel, "data": [asdict(psc)]}
 
     @staticmethod
-    def process_promotion(
-        promotion: Promotion,
-        target_promotion: MutableMapping[str, Any],
-        target_channels: Iterable[str],
-    ) -> bool:
+    def process_promotion(promotion, target_promotion, target_channels):
+
         # Existent subscribe data channel data
         promotion_data = {
             v["channel"]: v["data"]
@@ -90,17 +89,20 @@ class AutoPromoter(MergeRequestBase):
                     if item["type"] == ParentSaasConfigPromotion.TYPE:
                         target_psc = ParentSaasConfigPromotion(**item)
                         promotion_psc = ParentSaasConfigPromotion(
-                            parent_saas=promotion.saas_file_name,
-                            target_config_hash=promotion.target_config_hash,
+                            parent_saas=promotion["saas_file"],
+                            target_config_hash=promotion[TARGET_CONFIG_HASH],
                         )
                         if target_psc != promotion_psc:
                             channel_data[i] = asdict(promotion_psc)
                             modified = True
 
-        return modified
+            return modified
 
     def process_target(
-        self, target: MutableMapping[str, Any], promotion: Promotion
+        self,
+        target: MutableMapping[str, Any],
+        promotion_item: Mapping[str, Any],
+        commit_sha: str,
     ) -> bool:
         target_updated = False
         target_promotion = target.get("promotion")
@@ -112,31 +114,37 @@ class AutoPromoter(MergeRequestBase):
         subscribe = target_promotion.get("subscribe")
         if not subscribe:
             return target_updated
-        if not promotion.publish:
-            return target_updated
 
-        channels = [c for c in subscribe if c in promotion.publish]
-        if channels:
+        channels = [c for c in subscribe if c in promotion_item["publish"]]
+        if len(channels) > 0:
             # Update REF on target if differs.
-            if target["ref"] != promotion.commit_sha:
-                target["ref"] = promotion.commit_sha
+            if target["ref"] != commit_sha:
+                target["ref"] = commit_sha
                 target_updated = True
 
             # Update Promotion data
-            modified = self.process_promotion(promotion, target_promotion, channels)
+            modified = self.process_promotion(
+                promotion_item, target_promotion, channels
+            )
 
             if modified:
                 target_updated = True
 
         return target_updated
 
-    def process(self, gitlab_cli: GitLabApi) -> None:
-        for promotion in self.promotions:
-            if not promotion.publish:
+    def process(self, gitlab_cli):
+        for item in self.promotions:
+            saas_file_paths = item.get("saas_file_paths") or []
+            target_paths = item.get("target_paths") or []
+            if not (saas_file_paths or target_paths):
                 continue
-            if not promotion.commit_sha:
+            publish = item.get("publish")
+            if not publish:
                 continue
-            for saas_file_path in promotion.saas_file_paths or []:
+            commit_sha = item.get("commit_sha")
+            if not commit_sha:
+                continue
+            for saas_file_path in saas_file_paths:
                 saas_file_updated = False
                 try:
                     # This will only work with gitlab cli, not with SQS
@@ -152,13 +160,13 @@ class AutoPromoter(MergeRequestBase):
 
                 for rt in content["resourceTemplates"]:
                     for target in rt["targets"]:
-                        if self.process_target(target, promotion):
+                        if self.process_target(target, item, commit_sha):
                             saas_file_updated = True
 
                 if saas_file_updated:
                     new_content = "---\n"
-                    new_content += yaml.dump(content, Dumper=yaml.RoundTripDumper) or ""
-                    msg = f"auto promote {promotion.commit_sha} in {saas_file_path}"
+                    new_content += yaml.dump(content, Dumper=yaml.RoundTripDumper)
+                    msg = f"auto promote {commit_sha} in {saas_file_path}"
                     gitlab_cli.update_file(
                         branch_name=self.branch,
                         file_path=saas_file_path,
@@ -167,12 +175,12 @@ class AutoPromoter(MergeRequestBase):
                     )
                 else:
                     LOG.info(
-                        f"commit sha {promotion.commit_sha} has already been "
+                        f"commit sha {commit_sha} has already been "
                         f"promoted to all targets in {content['name']} "
-                        f"subscribing to {','.join(promotion.publish)}"
+                        f"subscribing to {','.join(item['publish'])}"
                     )
 
-            for target_path in promotion.target_paths or []:
+            for target_path in target_paths:
                 try:
                     # This will only work with gitlab cli, not with SQS
                     # this method is only triggered by gitlab_sqs_consumer
@@ -184,10 +192,10 @@ class AutoPromoter(MergeRequestBase):
                     logging.error(e)
 
                 content = yaml.load(raw_file.decode(), Loader=yaml.RoundTripLoader)
-                if self.process_target(content, promotion):
+                if self.process_target(content, item, commit_sha):
                     new_content = "---\n"
-                    new_content += yaml.dump(content, Dumper=yaml.RoundTripDumper)  # type: ignore
-                    msg = f"auto promote {promotion.commit_sha} in {target_path}"
+                    new_content += yaml.dump(content, Dumper=yaml.RoundTripDumper)
+                    msg = f"auto promote {commit_sha} in {target_path}"
                     gitlab_cli.update_file(
                         branch_name=self.branch,
                         file_path=target_path,
@@ -196,7 +204,7 @@ class AutoPromoter(MergeRequestBase):
                     )
                 else:
                     LOG.info(
-                        f"commit sha {promotion.commit_sha} has already been "
+                        f"commit sha {commit_sha} has already been "
                         f"promoted to all targets in {content['name']} "
-                        f"subscribing to {','.join(promotion.publish)}"
+                        f"subscribing to {','.join(item['publish'])}"
                     )

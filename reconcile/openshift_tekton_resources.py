@@ -92,7 +92,7 @@ def fetch_tkn_providers(saas_file_name: Optional[str]) -> dict[str, Any]:
     duplicates: set[str] = set()
     all_tkn_providers = {}
     for pipeline_provider in queries.get_pipelines_providers():
-        if pipeline_provider["provider"] != Providers.TEKTON.value:
+        if pipeline_provider["provider"] != Providers.TEKTON:
             continue
 
         if pipeline_provider["name"] in all_tkn_providers:
