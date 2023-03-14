@@ -9,6 +9,7 @@ pytest-cov~=2.12
 pytest-mock~=3.6
 responses
 testslide~=2.7
+typeguard==2.13.3
 moto~=2.2
 MarkupSafe==2.1.1
 smtpdfix==0.3.3
