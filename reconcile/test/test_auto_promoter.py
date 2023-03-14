@@ -240,7 +240,6 @@ class TestPromotions(TestCase):
 
         ap = AutoPromoter([promotion])
         sqs_json = '{"pr_type": "auto_promoter", "promotions": [{"commit_sha": "ahash", "saas_file_name": "saas_file", "target_config_hash": "111111111", "auto": true, "publish": ["test-channel"], "subscribe": null, "promotion_data": [{"channel": "test-channel", "data": [{"type": "parent_saas_config", "parent_saas": "saas_file", "target_config_hash": "111111111"}]}], "saas_file_paths": ["destination-saas-file"], "target_paths": null}]}'
-        print(json.dumps(ap.sqs_data))
         self.assertEqual(json.dumps(ap.sqs_data), sqs_json)
 
     def test_init_with_promotion_object(self) -> None:
