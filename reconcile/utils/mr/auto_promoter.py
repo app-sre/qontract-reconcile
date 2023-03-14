@@ -9,7 +9,11 @@ from dataclasses import (
     asdict,
     dataclass,
 )
-from typing import Any
+from typing import (
+    Any,
+    Sequence,
+    Union,
+)
 
 from ruamel import yaml
 
@@ -32,10 +36,20 @@ class ParentSaasConfigPromotion:
 class AutoPromoter(MergeRequestBase):
     name = "auto_promoter"
 
-    def __init__(self, promotions: Iterable[Promotion]):
-        self.promotions = promotions
-        super().__init__()
+    def __init__(
+        self, promotions: Union[Sequence[Promotion], Sequence[dict[str, Any]]]
+    ):
+        # !!! Attention !!!
+        # AutoPromoter is also initialized with promitions as dict by 'gitlab_mr_sqs_consumer'
+        # loaded from SQS message body, therefore self.promotions must be json serializable
+        self.promotions = [
+            p.dict() if isinstance(p, Promotion) else p for p in promotions
+        ]
 
+        # the parent class stores self.promotions (the json serializable one) in self.sqs_msg_data
+        super().__init__()
+        # create an internal list with Promotion objects out of self.promotions
+        self._promotions = [Promotion(**p) for p in self.promotions]
         self.labels = [AUTO_MERGE]
 
     @property
@@ -131,7 +145,7 @@ class AutoPromoter(MergeRequestBase):
         return target_updated
 
     def process(self, gitlab_cli: GitLabApi) -> None:
-        for promotion in self.promotions:
+        for promotion in self._promotions:
             if not promotion.publish:
                 continue
             if not promotion.commit_sha:

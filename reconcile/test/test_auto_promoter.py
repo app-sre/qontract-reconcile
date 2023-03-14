@@ -1,3 +1,4 @@
+import json
 from unittest import TestCase
 
 from reconcile.utils.mr.auto_promoter import (
@@ -6,11 +7,6 @@ from reconcile.utils.mr.auto_promoter import (
 )
 from reconcile.utils.saasherder.models import Promotion
 from reconcile.utils.saasherder.saasherder import TARGET_CONFIG_HASH
-
-# from unittest.mock import MagicMock
-
-
-# from .fixtures import Fixtures
 
 
 class TestPromotions(TestCase):
@@ -137,3 +133,129 @@ class TestPromotions(TestCase):
             promotion, target_promotion, ["test-channel"]
         )
         self.assertFalse(modified)
+
+    def test_title_property(self) -> None:
+        promotion = Promotion(
+            saas_file_paths=["destination-saas-file"],
+            auto=True,
+            publish=["test-channel"],
+            commit_sha="ahash",
+            saas_file_name="saas_file",
+            target_config_hash="111111111",
+        )
+
+        ap = AutoPromoter([promotion])
+        self.assertEqual(
+            ap.title, "[auto_promoter] openshift-saas-deploy automated promotion 769891"
+        )
+
+    def test_description_property(self) -> None:
+        promotion = Promotion(
+            saas_file_paths=["destination-saas-file"],
+            auto=True,
+            publish=["test-channel"],
+            commit_sha="ahash",
+            saas_file_name="saas_file",
+            target_config_hash="111111111",
+        )
+
+        ap = AutoPromoter([promotion])
+        self.assertEqual(ap.description, "openshift-saas-deploy automated promotion")
+
+    def test_gitlab_data_property(self) -> None:
+        promotion = Promotion(
+            saas_file_paths=["destination-saas-file"],
+            auto=True,
+            publish=["test-channel"],
+            commit_sha="ahash",
+            saas_file_name="saas_file",
+            target_config_hash="111111111",
+        )
+
+        ap = AutoPromoter([promotion])
+        self.assertTrue(ap.gitlab_data["source_branch"].startswith("auto_promoter-"))
+        self.assertEqual(ap.gitlab_data["target_branch"], "master")
+        self.assertEqual(
+            ap.gitlab_data["title"],
+            "[auto_promoter] openshift-saas-deploy automated promotion 769891",
+        )
+        self.assertEqual(
+            ap.gitlab_data["description"], "openshift-saas-deploy automated promotion"
+        )
+        self.assertEqual(ap.gitlab_data["remove_source_branch"], True)
+        self.assertEqual(ap.gitlab_data["labels"], ["bot/automerge"])
+
+    def test_sqs_data_property(self) -> None:
+        promotion = Promotion(
+            saas_file_paths=["destination-saas-file"],
+            auto=True,
+            publish=["test-channel"],
+            commit_sha="ahash",
+            saas_file_name="saas_file",
+            target_config_hash="111111111",
+        )
+
+        ap = AutoPromoter([promotion])
+        self.assertEqual(
+            ap.sqs_data,
+            {
+                "pr_type": "auto_promoter",
+                "promotions": [
+                    {
+                        "commit_sha": "ahash",
+                        "saas_file_name": "saas_file",
+                        "target_config_hash": "111111111",
+                        "auto": True,
+                        "publish": ["test-channel"],
+                        "subscribe": None,
+                        "promotion_data": None,
+                        "saas_file_paths": ["destination-saas-file"],
+                        "target_paths": None,
+                    }
+                ],
+            },
+        )
+
+    def test_sqs_data_json_serializable(self) -> None:
+        promotion = Promotion(
+            saas_file_paths=["destination-saas-file"],
+            auto=True,
+            publish=["test-channel"],
+            commit_sha="ahash",
+            saas_file_name="saas_file",
+            target_config_hash="111111111",
+        )
+
+        ap = AutoPromoter([promotion])
+        self.assertEqual(
+            json.dumps(ap.sqs_data),
+            '{"pr_type": "auto_promoter", "promotions": [{"commit_sha": "ahash", "saas_file_name": "saas_file", "target_config_hash": "111111111", "auto": true, "publish": ["test-channel"], "subscribe": null, "promotion_data": null, "saas_file_paths": ["destination-saas-file"], "target_paths": null}]}',
+        )
+
+    def test_init_with_promotion_object(self) -> None:
+        promotion = Promotion(
+            saas_file_paths=["destination-saas-file"],
+            auto=True,
+            publish=["test-channel"],
+            commit_sha="ahash",
+            saas_file_name="saas_file",
+            target_config_hash="111111111",
+        )
+
+        ap = AutoPromoter([promotion])
+        self.assertEqual(ap.promotions, [promotion.dict()])
+        self.assertEqual(ap._promotions, [promotion])
+
+    def test_init_with_dict_object(self) -> None:
+        promotion = Promotion(
+            saas_file_paths=["destination-saas-file"],
+            auto=True,
+            publish=["test-channel"],
+            commit_sha="ahash",
+            saas_file_name="saas_file",
+            target_config_hash="111111111",
+        )
+
+        ap = AutoPromoter([promotion.dict()])
+        self.assertEqual(ap.promotions, [promotion.dict()])
+        self.assertEqual(ap._promotions, [promotion])

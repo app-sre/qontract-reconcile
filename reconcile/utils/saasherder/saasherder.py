@@ -40,7 +40,7 @@ from reconcile.status import RunningState
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.jenkins_api import JenkinsApi
 from reconcile.utils.jjb_client import JJB
-from reconcile.utils.mr.base import MergeRequestBase
+from reconcile.utils.mr.base import MRClient
 from reconcile.utils.oc import (
     OCLocal,
     StatusCodeError,
@@ -1764,7 +1764,7 @@ class SaasHerder:
         self,
         success: bool,
         all_saas_files: Iterable[SaasFile],
-        mr_cli: MergeRequestBase,
+        mr_cli: MRClient,
         auto_promote: bool = False,
     ) -> None:
         """

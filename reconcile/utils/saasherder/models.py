@@ -141,17 +141,19 @@ class Namespace(BaseModel):
         allow_population_by_field_name = True
 
 
-@dataclass
-class Promotion:
+class Promotion(BaseModel):
     commit_sha: str
     saas_file_name: str
     target_config_hash: str
     auto: Optional[bool] = None
-    publish: Optional[Iterable[str]] = None
-    subscribe: Optional[Iterable[str]] = None
-    promotion_data: Optional[Iterable[SaasPromotionData]] = None
-    saas_file_paths: Optional[Iterable[str]] = None
-    target_paths: Optional[Iterable[str]] = None
+    publish: Optional[list[str]] = None
+    subscribe: Optional[list[str]] = None
+    promotion_data: Optional[list[SaasPromotionData]] = None
+    saas_file_paths: Optional[list[str]] = None
+    target_paths: Optional[list[str]] = None
+
+    class Config:
+        arbitrary_types_allowed = True
 
 
 @dataclass
