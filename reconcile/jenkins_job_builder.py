@@ -7,10 +7,7 @@ from reconcile import queries
 from reconcile.utils import gql
 from reconcile.utils.defer import defer
 from reconcile.utils.jjb_client import JJB
-from reconcile.utils.secret_reader import (
-    SecretReader,
-    SecretReaderBase,
-)
+from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.state import init_state
 
 QUERY = """
@@ -71,7 +68,7 @@ def collect_configs(instance_name, config_name):
 
 
 def init_jjb(
-    secret_reader: SecretReaderBase,
+    secret_reader: SecretReader,
     instance_name: Optional[str] = None,
     config_name: Optional[str] = None,
     print_only: bool = False,

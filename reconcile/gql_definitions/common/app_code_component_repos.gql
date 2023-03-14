@@ -1,9 +1,0 @@
-# qenerate: plugin=pydantic_v1
-
-query AppCodeComponentRepos {
-  apps: apps_v1 {
-    codeComponents {
-      url
-    }
-  }
-}

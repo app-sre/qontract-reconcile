@@ -5,10 +5,7 @@ from typing import (
 )
 
 from reconcile import queries
-from reconcile.utils.secret_reader import (
-    SecretReader,
-    SecretReaderBase,
-)
+from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.slack_api import (
     HasClientConfig,
     SlackApi,
@@ -28,7 +25,7 @@ def slackapi_from_queries(
 
 def slackapi_from_slack_workspace(
     slack_workspace: Mapping[str, Any],
-    secret_reader: SecretReaderBase,
+    secret_reader: SecretReader,
     integration_name: str,
     init_usergroups: bool = True,
     channel: Optional[str] = None,
