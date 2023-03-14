@@ -63,10 +63,8 @@ class MockAWSAPI:
             vpc_id, rt = self.vpc_details[account["assume_cidr"]]
             if not route_tables:
                 return vpc_id, None, None
-            else:
-                return vpc_id, rt, None
-        else:
-            return None, None, None
+            return vpc_id, rt, None
+        return None, None, None
 
     def auto_speced_mock(self, mocker) -> aws_api.AWSApi:
         aws_api_mock = mocker.patch(

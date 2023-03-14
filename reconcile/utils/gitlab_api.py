@@ -274,13 +274,13 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
     def get_access_level_string(access_level):
         if access_level == gitlab.OWNER_ACCESS:
             return "owner"
-        elif access_level == gitlab.MAINTAINER_ACCESS:
+        if access_level == gitlab.MAINTAINER_ACCESS:
             return "maintainer"
-        elif access_level == gitlab.DEVELOPER_ACCESS:
+        if access_level == gitlab.DEVELOPER_ACCESS:
             return "developer"
-        elif access_level == gitlab.REPORTER_ACCESS:
+        if access_level == gitlab.REPORTER_ACCESS:
             return "reporter"
-        elif access_level == gitlab.GUEST_ACCESS:
+        if access_level == gitlab.GUEST_ACCESS:
             return "guest"
 
     @staticmethod
@@ -288,13 +288,13 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         access = access.lower()
         if access == "owner":
             return gitlab.OWNER_ACCESS
-        elif access == "maintainer":
+        if access == "maintainer":
             return gitlab.MAINTAINER_ACCESS
-        elif access == "developer":
+        if access == "developer":
             return gitlab.DEVELOPER_ACCESS
-        elif access == "reporter":
+        if access == "reporter":
             return gitlab.REPORTER_ACCESS
-        elif access == "guest":
+        if access == "guest":
             return gitlab.GUEST_ACCESS
 
     def get_group_id_and_projects(self, group_name):

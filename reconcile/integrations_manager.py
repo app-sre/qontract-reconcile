@@ -84,8 +84,7 @@ class IntegrationShardManager:
                 for s in shards:
                     s["extra_args"] = f"{extra_args} {s['extra_args']}".strip()
             return shards
-        else:
-            raise ValueError(f"unsupported sharding strategy '{sharding_strategy}'")
+        raise ValueError(f"unsupported sharding strategy '{sharding_strategy}'")
 
 
 class StaticShardingStrategy(ShardingStrategy):
@@ -125,10 +124,9 @@ class AWSAccountShardManager(ShardingStrategy):
                 }
                 for account in filtered_accounts
             ]
-        else:
-            raise ValueError(
-                f"integration {integration_meta.name} does not support arg --account-name required by the per-aws-account sharding strategy"
-            )
+        raise ValueError(
+            f"integration {integration_meta.name} does not support arg --account-name required by the per-aws-account sharding strategy"
+        )
 
     def _aws_accounts_for_integration(self, integration: str) -> list[dict[str, Any]]:
         return [
@@ -163,10 +161,9 @@ class CloudflareZoneShardManager(ShardingStrategy):
                 }
                 for zone in self.cloudflare_zones
             ]
-        else:
-            raise ValueError(
-                f"integration {integration_meta.name} does not support the provided argument. --zone-name is required by the per-cloudflare-zone sharding strategy."
-            )
+        raise ValueError(
+            f"integration {integration_meta.name} does not support the provided argument. --zone-name is required by the per-cloudflare-zone sharding strategy."
+        )
 
 
 @dataclass

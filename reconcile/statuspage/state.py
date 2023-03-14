@@ -5,13 +5,11 @@ from typing import (
 
 from reconcile.utils.state import State
 
-"""
-This module manages the binding state of components in the desired state
-and their representation on an actual status page.
-
-This state management is required to map component identities between app-interface
-and the status page provider.
-"""
+# This module manages the binding state of components in the desired state
+# and their representation on an actual status page.
+#
+# This state management is required to map component identities between app-interface
+# and the status page provider.
 
 
 class ComponentBindingState(Protocol):

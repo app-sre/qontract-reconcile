@@ -147,11 +147,11 @@ class State:
             error_code = details.response.get("Error", {}).get("Code", None)
             if error_code == "404":
                 return False
-            else:
-                raise StateInaccessibleException(
-                    f"Can not access state key {key_path} "
-                    f"in bucket {self.bucket} - {str(details)}"
-                )
+
+            raise StateInaccessibleException(
+                f"Can not access state key {key_path} "
+                f"in bucket {self.bucket} - {str(details)}"
+            )
 
     def ls(self):
         """

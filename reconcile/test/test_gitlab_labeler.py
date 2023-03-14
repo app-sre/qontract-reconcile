@@ -54,8 +54,7 @@ class TestOnboardingGuesser:
         """Mock for GqlApi.query using test_data set in setUp"""
         if query == APPS_QUERY:
             return {"apps": self.test_data.apps}
-        else:
-            return None
+        return None
 
     def teardown_method(self) -> None:
         """cleanup patches created in self.setUp"""

@@ -735,13 +735,13 @@ class SaasHerder:
         f = repo.get_contents(path, commit_sha)
         if f.size < 1024**2:  # 1 MB
             return f.decoded_content
-        else:
-            tree = repo.get_git_tree(commit_sha, recursive="/" in path).tree
-            for x in tree:
-                if x.path != path.lstrip("/"):
-                    continue
-                blob = repo.get_git_blob(x.sha)
-                return base64.b64decode(blob.content).decode("utf8")
+
+        tree = repo.get_git_tree(commit_sha, recursive="/" in path).tree
+        for x in tree:
+            if x.path != path.lstrip("/"):
+                continue
+            blob = repo.get_git_blob(x.sha)
+            return base64.b64decode(blob.content).decode("utf8")
 
     @retry(max_attempts=20)
     def _get_file_contents(self, options):
@@ -1352,21 +1352,20 @@ class SaasHerder:
             # TODO: replace error with actual error handling when needed
             error = False
             return self.get_moving_commits_diff(dry_run), error
-        elif trigger_type == TriggerTypes.UPSTREAM_JOBS:
+        if trigger_type == TriggerTypes.UPSTREAM_JOBS:
             # error is being returned from the called function
             return self.get_upstream_jobs_diff(dry_run)
-        elif trigger_type == TriggerTypes.CONFIGS:
+        if trigger_type == TriggerTypes.CONFIGS:
             # TODO: replace error with actual error handling when needed
             error = False
             return self.get_configs_diff(), error
-        elif trigger_type == TriggerTypes.CONTAINER_IMAGES:
+        if trigger_type == TriggerTypes.CONTAINER_IMAGES:
             # TODO: replace error with actual error handling when needed
             error = False
             return self.get_container_images_diff(dry_run), error
-        else:
-            raise NotImplementedError(
-                f"saasherder get_diff for trigger type: {trigger_type}"
-            )
+        raise NotImplementedError(
+            f"saasherder get_diff for trigger type: {trigger_type}"
+        )
 
     def update_state(self, trigger_spec: TriggerSpecUnion):
         self.state.add(
@@ -1840,13 +1839,13 @@ class SaasHerder:
 
                     if promotion_target_config_hash == state_config_hash:
                         return True
-                    else:
-                        logging.error(
-                            "Parent saas target has run with a newer "
-                            "configuration and the same commit (ref). "
-                            "Check if other MR exists for this target"
-                        )
-                        return False
+
+                    logging.error(
+                        "Parent saas target has run with a newer "
+                        "configuration and the same commit (ref). "
+                        "Check if other MR exists for this target"
+                    )
+                    return False
         return True
 
     def publish_promotions(self, success, all_saas_files, mr_cli, auto_promote=False):

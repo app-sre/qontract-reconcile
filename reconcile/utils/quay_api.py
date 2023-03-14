@@ -166,8 +166,7 @@ class QuayApi:
 
         if next_page:
             return self.list_images(images, next_page, count + 1)
-        else:
-            return images
+        return images
 
     def repo_create(self, repo_name, description, public):
         """Creates a repository called repo_name with the given description

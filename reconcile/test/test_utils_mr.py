@@ -16,9 +16,11 @@ class DummyMergeRequest(MergeRequestBase):
         super().__init__()
         self.process_error = process_error
 
+    @property
     def title(self):
         return "xxx"
 
+    @property
     def description(self):
         return "xxx"
 

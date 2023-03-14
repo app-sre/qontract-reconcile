@@ -242,5 +242,4 @@ def get_self_service_role_by_name(
     ).roles
     if result:
         return result[0]
-    else:
-        return None
+    return None
