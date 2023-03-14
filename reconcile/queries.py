@@ -1805,6 +1805,9 @@ USERS_QUERY = """
     pagerduty_username
     public_gpg_key
     {% if refs %}
+    aws_accounts {
+      path
+    }
     requests {
       path
     }

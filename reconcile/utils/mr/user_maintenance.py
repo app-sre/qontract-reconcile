@@ -9,6 +9,7 @@ class PathTypes:
     REQUEST = 1
     QUERY = 2
     GABI = 3
+    AWS_ACCOUNTS = 4
 
 
 class CreateDeleteUserAppInterface(MergeRequestBase):
@@ -53,6 +54,20 @@ class CreateDeleteUserAppInterface(MergeRequestBase):
                     commit_message=self.title,
                     content=new_content,
                 )
+            elif path_type == PathTypes.AWS_ACCOUNTS:
+                raw_file = gitlab_cli.project.files.get(file_path=path, ref=self.branch)
+                content = yaml.load(raw_file.decode(), Loader=yaml.RoundTripLoader)
+                for reset_record in content["resetPasswords"]:
+                    if self.username in reset_record["user"]["$ref"]:
+                        content["resetPasswords"].remove(reset_record)
+                        new_content = "---\n"
+                        new_content += yaml.dump(content, Dumper=yaml.RoundTripDumper)
+                        gitlab_cli.update_file(
+                            branch_name=self.branch,
+                            file_path=path,
+                            commit_message=self.title,
+                            content=new_content,
+                        )
 
 
 class CreateDeleteUserInfra(MergeRequestBase):
