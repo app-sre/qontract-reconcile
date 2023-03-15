@@ -82,3 +82,18 @@ glitchtip_projects:
       disable:
         integrations:
         - glitchtip-project-dsn
+- name: project-does-not-exist-yet
+  platform: python
+  namespaces:
+  - name: namespace-1
+    cluster:
+      name: cluster-1
+      serverUrl: "https://api.cluster-1"
+      spec:
+        private: false
+      internal: false
+  teams: []
+  organization:
+    name: empty-org
+    instance:
+      name: glitchtip-dev

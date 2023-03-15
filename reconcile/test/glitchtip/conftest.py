@@ -70,6 +70,7 @@ def glitchtip_server_full_api_response(
         "api/0/teams/nasa/nasa-flight-control/members/",
         # glitchtip-project-dsn
         "api/0/projects/nasa/apollo-11-flight-control/keys/",
+        "api/0/organizations/empty-org/projects/",
     ]:
         get_file = Path(fx.path(path)) / "get.json"
         if get_file.exists():
