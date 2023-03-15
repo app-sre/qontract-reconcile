@@ -229,6 +229,7 @@ VARIABLE_KEYS = [
     "vpce_id",
     "fifo_topic",
     "subscriptions",
+    "records",
     "extra_tags",
 ]
 
@@ -5123,6 +5124,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         zone_id = safe_resource_id(identifier)
         zone_tf_resource = aws_route53_zone(zone_id, **values)
         tf_resources.append(zone_tf_resource)
+        self.populate_route53_records(account, common_values, zone_tf_resource)
 
         policy = {
             "Version": "2012-10-17",
