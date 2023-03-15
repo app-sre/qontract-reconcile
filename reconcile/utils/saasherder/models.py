@@ -165,7 +165,7 @@ class Promotion(BaseModel):
     """Implementation of the SaasPromotion interface for saasherder and AutoPromoter."""
 
     commit_sha: str
-    saas_file_name: str
+    saas_file: str
     target_config_hash: str
     auto: Optional[bool] = None
     publish: Optional[list[str]] = None

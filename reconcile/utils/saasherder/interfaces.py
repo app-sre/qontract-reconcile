@@ -243,7 +243,7 @@ class SaasResourceTemplateTargetPromotion(Protocol):
 @runtime_checkable
 class SaasPromotion(Protocol):
     commit_sha: str
-    saas_file_name: str
+    saas_file: str
     target_config_hash: str
     auto: Optional[bool] = None
     publish: Optional[list[str]] = None

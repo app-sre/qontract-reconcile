@@ -73,7 +73,7 @@ class AutoPromoter(MergeRequestBase):
     @staticmethod
     def init_promotion_data(channel: str, promotion: SaasPromotion) -> dict[str, Any]:
         psc = ParentSaasConfigPromotion(
-            parent_saas=promotion.saas_file_name,
+            parent_saas=promotion.saas_file,
             target_config_hash=promotion.target_config_hash,
         )
         return {"channel": channel, "data": [asdict(psc)]}
@@ -106,7 +106,7 @@ class AutoPromoter(MergeRequestBase):
                     if item["type"] == ParentSaasConfigPromotion.TYPE:
                         target_psc = ParentSaasConfigPromotion(**item)
                         promotion_psc = ParentSaasConfigPromotion(
-                            parent_saas=promotion.saas_file_name,
+                            parent_saas=promotion.saas_file,
                             target_config_hash=promotion.target_config_hash,
                         )
                         if target_psc != promotion_psc:

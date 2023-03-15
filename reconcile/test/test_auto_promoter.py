@@ -13,7 +13,7 @@ class TestPromotions(TestCase):
     def test_init_promotion_data(self) -> None:
         promotion = Promotion(
             commit_sha="ahash",
-            saas_file_name="saas_file",
+            saas_file="saas_file",
             target_config_hash="123123123",
         )
 
@@ -44,7 +44,7 @@ class TestPromotions(TestCase):
 
     def test_process_promotion_init_promotion_data(self) -> None:
         promotion = Promotion(
-            saas_file_name="saas_file",
+            saas_file="saas_file",
             saas_file_paths=["destination-saas-file"],
             auto=True,
             publish=["test-channel"],
@@ -72,7 +72,7 @@ class TestPromotions(TestCase):
             auto=True,
             publish=["test-channel"],
             commit_sha="ahash",
-            saas_file_name="saas_file",
+            saas_file="saas_file",
             target_config_hash="111111111",
         )
 
@@ -108,7 +108,7 @@ class TestPromotions(TestCase):
             auto=True,
             publish=["test-channel"],
             commit_sha="ahash",
-            saas_file_name="saas_file",
+            saas_file="saas_file",
             target_config_hash="111111111",
         )
 
@@ -140,13 +140,13 @@ class TestPromotions(TestCase):
             auto=True,
             publish=["test-channel"],
             commit_sha="ahash",
-            saas_file_name="saas_file",
+            saas_file="saas_file",
             target_config_hash="111111111",
         )
 
         ap = AutoPromoter([promotion])
         self.assertEqual(
-            ap.title, "[auto_promoter] openshift-saas-deploy automated promotion 769891"
+            ap.title, "[auto_promoter] openshift-saas-deploy automated promotion 4af7b1"
         )
 
     def test_description_property(self) -> None:
@@ -155,7 +155,7 @@ class TestPromotions(TestCase):
             auto=True,
             publish=["test-channel"],
             commit_sha="ahash",
-            saas_file_name="saas_file",
+            saas_file="saas_file",
             target_config_hash="111111111",
         )
 
@@ -168,7 +168,7 @@ class TestPromotions(TestCase):
             auto=True,
             publish=["test-channel"],
             commit_sha="ahash",
-            saas_file_name="saas_file",
+            saas_file="saas_file",
             target_config_hash="111111111",
         )
 
@@ -177,7 +177,7 @@ class TestPromotions(TestCase):
         self.assertEqual(ap.gitlab_data["target_branch"], "master")
         self.assertEqual(
             ap.gitlab_data["title"],
-            "[auto_promoter] openshift-saas-deploy automated promotion 769891",
+            "[auto_promoter] openshift-saas-deploy automated promotion 4af7b1",
         )
         self.assertEqual(
             ap.gitlab_data["description"], "openshift-saas-deploy automated promotion"
@@ -191,7 +191,7 @@ class TestPromotions(TestCase):
             auto=True,
             publish=["test-channel"],
             commit_sha="ahash",
-            saas_file_name="saas_file",
+            saas_file="saas_file",
             target_config_hash="111111111",
         )
 
@@ -203,7 +203,7 @@ class TestPromotions(TestCase):
                 "promotions": [
                     {
                         "commit_sha": "ahash",
-                        "saas_file_name": "saas_file",
+                        "saas_file": "saas_file",
                         "target_config_hash": "111111111",
                         "auto": True,
                         "publish": ["test-channel"],
@@ -222,7 +222,7 @@ class TestPromotions(TestCase):
             auto=True,
             publish=["test-channel"],
             commit_sha="ahash",
-            saas_file_name="saas_file",
+            saas_file="saas_file",
             target_config_hash="111111111",
             promotion_data=[
                 {
@@ -239,7 +239,7 @@ class TestPromotions(TestCase):
         )
 
         ap = AutoPromoter([promotion])
-        sqs_json = '{"pr_type": "auto_promoter", "promotions": [{"commit_sha": "ahash", "saas_file_name": "saas_file", "target_config_hash": "111111111", "auto": true, "publish": ["test-channel"], "subscribe": null, "promotion_data": [{"channel": "test-channel", "data": [{"type": "parent_saas_config", "parent_saas": "saas_file", "target_config_hash": "111111111"}]}], "saas_file_paths": ["destination-saas-file"], "target_paths": null}]}'
+        sqs_json = '{"pr_type": "auto_promoter", "promotions": [{"commit_sha": "ahash", "saas_file": "saas_file", "target_config_hash": "111111111", "auto": true, "publish": ["test-channel"], "subscribe": null, "promotion_data": [{"channel": "test-channel", "data": [{"type": "parent_saas_config", "parent_saas": "saas_file", "target_config_hash": "111111111"}]}], "saas_file_paths": ["destination-saas-file"], "target_paths": null}]}'
         self.assertEqual(json.dumps(ap.sqs_data), sqs_json)
 
     def test_init_with_promotion_object(self) -> None:
@@ -248,7 +248,7 @@ class TestPromotions(TestCase):
             auto=True,
             publish=["test-channel"],
             commit_sha="ahash",
-            saas_file_name="saas_file",
+            saas_file="saas_file",
             target_config_hash="111111111",
             promotion_data=[
                 {
@@ -274,7 +274,7 @@ class TestPromotions(TestCase):
             auto=True,
             publish=["test-channel"],
             commit_sha="ahash",
-            saas_file_name="saas_file",
+            saas_file="saas_file",
             target_config_hash="111111111",
             promotion_data=[
                 {

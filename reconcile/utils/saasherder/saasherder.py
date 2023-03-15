@@ -721,9 +721,7 @@ class SaasHerder:
         return resources, html_url, commit_sha
 
     @retry()
-    def _get_commit_sha(
-        self, url: str, ref: str, github: Github, hash_length: Optional[int] = None
-    ) -> str:
+    def _get_commit_sha(self, url: str, ref: str, github: Github) -> str:
         commit_sha = ""
         if "github" in url:
             repo_name = url.rstrip("/").replace("https://github.com/", "")
@@ -736,9 +734,6 @@ class SaasHerder:
             project = self.gitlab.get_project(url)
             commits = project.commits.list(ref_name=ref)
             commit_sha = commits[0].id
-
-        if hash_length:
-            return commit_sha[:hash_length]
 
         return commit_sha
 
@@ -936,7 +931,7 @@ class SaasHerder:
                 subscribe=target.promotion.subscribe,
                 promotion_data=target.promotion.promotion_data,
                 commit_sha=commit_sha,
-                saas_file_name=saas_file_name,
+                saas_file=saas_file_name,
                 target_config_hash=target_config_hash,
             )
         return resources, html_url, target_promotion
@@ -1499,12 +1494,12 @@ class SaasHerder:
                 try:
                     if not target.image:
                         continue
-                    desired_image_tag = self._get_commit_sha(
+                    commit_sha = self._get_commit_sha(
                         url=rt.url,
                         ref=target.ref,
                         github=github,
-                        hash_length=rt.hash_length or self.hash_length,
                     )
+                    desired_image_tag = commit_sha[: rt.hash_length or self.hash_length]
                     # don't trigger if image doesn't exist
                     image_registry = f"{target.image.org.instance.url}/{target.image.org.name}/{target.image.name}"
                     image_uri = f"{image_registry}:{desired_image_tag}"
@@ -1784,7 +1779,7 @@ class SaasHerder:
             if promotion.publish:
                 value = {
                     "success": success,
-                    "saas_file": promotion.saas_file_name,
+                    "saas_file": promotion.saas_file,
                     "target_config_hash": promotion.target_config_hash,
                 }
                 all_subscribed_saas_file_paths = set()
