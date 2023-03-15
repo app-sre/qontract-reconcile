@@ -1152,6 +1152,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 id = f"{identifier}-{zone}"
                 values = {
                     "vpc_id": accepter["vpc_id"],
+                    "vpc_region": accepter["region"],
                     "zone_id": zone,
                 }
                 authorization = aws_route53_vpc_association_authorization(id, **values)
@@ -1159,6 +1160,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 values = {
                     "provider": "aws." + acc_alias,
                     "vpc_id": f"${{aws_route53_vpc_association_authorization.{id}.vpc_id}}",
+                    "vpc_region": accepter["region"],
                     "zone_id": f"${{aws_route53_vpc_association_authorization.{id}.zone_id}}",
                 }
                 association = aws_route53_zone_association(id, **values)
