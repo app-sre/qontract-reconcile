@@ -128,10 +128,12 @@ def run(
         ocm_map = {}
 
     accounts = queries.get_aws_accounts(terraform_state=True, ecrs=False)
-    awsapi = AWSApi(1, accounts, settings=settings, init_users=False)
 
     # Fetch desired state for cluster-to-vpc(account) VPCs
-    desired_state, err = build_desired_state_tgw_attachments(clusters, ocm_map, awsapi)
+    with AWSApi(1, accounts, settings=settings, init_users=False) as awsapi:
+        desired_state, err = build_desired_state_tgw_attachments(
+            clusters, ocm_map, awsapi
+        )
     if err:
         sys.exit(1)
 
@@ -156,10 +158,12 @@ def run(
     ts.populate_additional_providers(participating_accounts)
     ts.populate_tgw_attachments(desired_state)
     working_dirs = ts.dump(print_to_file=print_to_file)
-    aws_api = AWSApi(1, accounts, settings=settings, init_users=False)
 
     if print_to_file:
         sys.exit()
+
+    aws_api = AWSApi(1, accounts, settings=settings, init_users=False)
+    defer(aws_api.close)
 
     tf = Terraform(
         QONTRACT_INTEGRATION,
