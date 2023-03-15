@@ -81,6 +81,7 @@ def run(
         include_trigger_trace=include_trigger_trace,
     )
     if defer:  # defer is set by method decorator. this makes just mypy happy
+        defer(saasherder.cleanup)
         defer(oc_map.cleanup)
 
     trigger_specs, diff_err = saasherder.get_diff(trigger_type, dry_run)

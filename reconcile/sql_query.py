@@ -8,9 +8,9 @@ from collections.abc import (
 from textwrap import indent
 from typing import (
     Any,
+    Callable,
     Optional,
     Union,
-    Callable,
 )
 
 import jinja2
