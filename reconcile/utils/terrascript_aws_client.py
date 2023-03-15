@@ -229,6 +229,7 @@ VARIABLE_KEYS = [
     "vpce_id",
     "fifo_topic",
     "subscriptions",
+    "records",
     "extra_tags",
 ]
 
@@ -845,41 +846,50 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             zone_resource = aws_route53_zone(zone_res_name, **zone_values)
             self.add_resource(acct_name, zone_resource)
 
-            counts = {}
-            for record in zone["records"]:
-                record_fqdn = f"{record['name']}.{zone['name']}"
-                record_id = safe_resource_id(f"{record_fqdn}_{record['type'].upper()}")
+            self.populate_route53_records(acct_name, zone, zone_resource, default_ttl)
 
-                # Count record names so we can generate unique IDs
-                if record_id not in counts:
-                    counts[record_id] = 0
-                counts[record_id] += 1
+    def populate_route53_records(
+        self,
+        acct_name: str,
+        zone: dict[str, Any],
+        zone_resource: aws_route53_zone,
+        default_ttl: int = 300,
+    ):
+        counts = {}
+        for record in zone.get("records") or []:
+            record_fqdn = f"{record['name']}.{zone['name']}"
+            record_id = safe_resource_id(f"{record_fqdn}_{record['type'].upper()}")
 
-                # If more than one record with a given name, append _{count}
-                if counts[record_id] > 1:
-                    record_id = f"{record_id}_{counts[record_id]}"
+            # Count record names so we can generate unique IDs
+            if record_id not in counts:
+                counts[record_id] = 0
+            counts[record_id] += 1
 
-                # Use default TTL if none is specified
-                # or if this record is an alias
-                # None/zero is accepted but not a good default
-                if not record.get("alias") and record.get("ttl") is None:
-                    record["ttl"] = default_ttl
+            # If more than one record with a given name, append _{count}
+            if counts[record_id] > 1:
+                record_id = f"{record_id}_{counts[record_id]}"
 
-                # Define healthcheck if needed
-                healthcheck = record.pop("healthcheck", None)
-                if healthcheck:
-                    healthcheck_id = record_id
-                    healthcheck_values = {**healthcheck}
-                    healthcheck_resource = aws_route53_health_check(
-                        healthcheck_id, **healthcheck_values
-                    )
-                    self.add_resource(acct_name, healthcheck_resource)
-                    # Assign the healthcheck resource ID to the record
-                    record["health_check_id"] = f"${{{healthcheck_resource.id}}}"
+            # Use default TTL if none is specified
+            # or if this record is an alias
+            # None/zero is accepted but not a good default
+            if not record.get("alias") and record.get("ttl") is None:
+                record["ttl"] = default_ttl
 
-                record_values = {"zone_id": f"${{{zone_resource.id}}}", **record}
-                record_resource = aws_route53_record(record_id, **record_values)
-                self.add_resource(acct_name, record_resource)
+            # Define healthcheck if needed
+            healthcheck = record.pop("healthcheck", None)
+            if healthcheck:
+                healthcheck_id = record_id
+                healthcheck_values = {**healthcheck}
+                healthcheck_resource = aws_route53_health_check(
+                    healthcheck_id, **healthcheck_values
+                )
+                self.add_resource(acct_name, healthcheck_resource)
+                # Assign the healthcheck resource ID to the record
+                record["health_check_id"] = f"${{{healthcheck_resource.id}}}"
+
+            record_values = {"zone_id": f"${{{zone_resource.id}}}", **record}
+            record_resource = aws_route53_record(record_id, **record_values)
+            self.add_resource(acct_name, record_resource)
 
     def populate_vpc_peerings(self, desired_state):
         for item in desired_state:
@@ -5114,6 +5124,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         zone_id = safe_resource_id(identifier)
         zone_tf_resource = aws_route53_zone(zone_id, **values)
         tf_resources.append(zone_tf_resource)
+        self.populate_route53_records(account, common_values, zone_tf_resource)
 
         policy = {
             "Version": "2012-10-17",

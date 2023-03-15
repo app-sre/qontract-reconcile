@@ -2586,6 +2586,23 @@ def get_unleash_instances():
     return gqlapi.query(UNLEASH_INSTANCES_QUERY)["unleash_instances"]
 
 
+DNS_RECORD = """
+name
+type
+ttl
+alias {
+  name
+  zone_id
+  evaluate_target_health
+}
+weighted_routing_policy {
+  weight
+}
+set_identifier
+records
+"""
+
+
 DNS_ZONES_QUERY = """
 {
   zones: dns_zone_v1 {
@@ -2607,24 +2624,7 @@ DNS_ZONES_QUERY = """
       region
     }
     records {
-      name
-      type
-      ttl
-      alias {
-        name
-        zone_id
-        evaluate_target_health
-      }
-      weighted_routing_policy {
-        weight
-      }
-      geolocation_routing_policy {
-        continent
-        country
-        subdivision
-      }
-      set_identifier
-      records
+      %s
       _healthcheck {
         fqdn
         port
@@ -2662,7 +2662,9 @@ DNS_ZONES_QUERY = """
     }
   }
 }
-"""
+""" % (
+    indent(DNS_RECORD, 6 * " "),
+)
 
 
 def get_dns_zones(account_name=None):

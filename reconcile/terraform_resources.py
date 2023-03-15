@@ -358,6 +358,9 @@ provider
   name
   output_resource_name
   annotations
+  records {
+    %s
+  }
 }
 ... on NamespaceTerraformResourceRosaAuthenticator_V1 {
   region
@@ -385,7 +388,9 @@ provider
   annotations
   defaults
 }
-"""
+""" % (
+    indent(queries.DNS_RECORD, 4 * " "),
+)
 
 
 TF_NAMESPACES_QUERY = """
