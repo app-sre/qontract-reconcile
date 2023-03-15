@@ -93,7 +93,7 @@ def init_state_from_accounts(
     return State(
         integration=integration,
         bucket=bucket_name,
-        client=session.client("s3"),
+        client=aws_api.get_session_client(session, "s3"),
     )
 
 

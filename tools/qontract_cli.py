@@ -796,11 +796,11 @@ def clusters_network(ctx, name):
         if not account:
             continue
         account["resourcesDefaultRegion"] = management_account["resourcesDefaultRegion"]
-        aws_api = AWSApi(1, [account], settings=settings, init_users=False)
-        vpc_id, _, _ = aws_api.get_cluster_vpc_details(account)
-        cluster["vpc_id"] = vpc_id
-        egress_ips = aws_api.get_cluster_nat_gateways_egress_ips(account)
-        cluster["egress_ips"] = ", ".join(sorted(egress_ips))
+        with AWSApi(1, [account], settings=settings, init_users=False) as aws_api:
+            vpc_id, _, _ = aws_api.get_cluster_vpc_details(account)
+            cluster["vpc_id"] = vpc_id
+            egress_ips = aws_api.get_cluster_nat_gateways_egress_ips(account)
+            cluster["egress_ips"] = ", ".join(sorted(egress_ips))
 
     # TODO(mafriedm): fix this
     # do not sort
@@ -887,8 +887,8 @@ def clusters_egress_ips(ctx):
         if not account:
             continue
         account["resourcesDefaultRegion"] = management_account["resourcesDefaultRegion"]
-        aws_api = AWSApi(1, [account], settings=settings, init_users=False)
-        egress_ips = aws_api.get_cluster_nat_gateways_egress_ips(account)
+        with AWSApi(1, [account], settings=settings, init_users=False) as aws_api:
+            egress_ips = aws_api.get_cluster_nat_gateways_egress_ips(account)
         item = {"cluster": cluster_name, "egress_ips": ", ".join(sorted(egress_ips))}
         results.append(item)
 

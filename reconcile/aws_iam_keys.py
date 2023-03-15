@@ -94,12 +94,12 @@ def run(
         # may be the calling entity, and has more to do
         return
 
-    aws = AWSApi(thread_pool_size, accounts, settings=settings)
     working_dirs = init_tf_working_dirs(accounts, thread_pool_size, settings)
     defer(lambda: cleanup(working_dirs))
-    error, service_account_recycle_complete = aws.delete_keys(
-        dry_run, keys_to_delete, working_dirs, disable_service_account_keys
-    )
+    with AWSApi(thread_pool_size, accounts, settings=settings) as aws:
+        error, service_account_recycle_complete = aws.delete_keys(
+            dry_run, keys_to_delete, working_dirs, disable_service_account_keys
+        )
     if error:
         sys.exit(1)
 

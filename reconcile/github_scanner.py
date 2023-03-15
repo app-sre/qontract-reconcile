@@ -41,8 +41,8 @@ def get_all_repos_to_scan(repos):
 def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
     accounts = queries.get_aws_accounts()
     settings = queries.get_app_interface_settings()
-    aws = AWSApi(thread_pool_size, accounts, settings=settings)
-    existing_keys = aws.get_users_keys()
+    with AWSApi(thread_pool_size, accounts, settings=settings) as aws:
+        existing_keys = aws.get_users_keys()
     existing_keys_list = [
         key
         for user_key in existing_keys.values()

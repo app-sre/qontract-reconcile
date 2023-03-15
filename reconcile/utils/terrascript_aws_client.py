@@ -4562,7 +4562,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         self, identifier, openshift_service, account_name, namespace_info, ocm_map
     ):
         account = self.accounts[account_name]
-        awsapi = AWSApi(1, [account], settings=self.settings, init_users=False)
         cluster = namespace_info["cluster"]
         ocm = ocm_map.get(cluster["name"])
         account[
@@ -4574,7 +4573,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         )
         account["assume_region"] = cluster["spec"]["region"]
         service_name = f"{namespace_info['name']}/{openshift_service}"
-        ips = awsapi.get_alb_network_interface_ips(account, service_name)
+        with AWSApi(1, [account], settings=self.settings, init_users=False) as awsapi:
+            ips = awsapi.get_alb_network_interface_ips(account, service_name)
         if not ips:
             raise ValueError(
                 f"[{account_name}/{identifier}] expected at least one "
@@ -4957,10 +4957,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         # Get the most recent AMI id
         aws_account = self.accounts[account]
-        aws = AWSApi(1, [aws_account], settings=self.settings, init_users=False)
-        image_id = aws.get_image_id(account, region, tags)
-
-        return image_id
+        with AWSApi(1, [aws_account], settings=self.settings, init_users=False) as aws:
+            return aws.get_image_id(account, region, tags)
 
     def _use_previous_image_id(self, filters: Iterable[Mapping[str, Any]]) -> bool:
         for f in filters:
@@ -5238,28 +5236,28 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         settings = queries.get_app_interface_settings()
         all_aws_accounts = queries.get_aws_accounts()
         target_account_arr = [a for a in all_aws_accounts if a["name"] == account]
-        aws_api = AWSApi(thread_pool_size, target_account_arr, settings=settings)
-        session = aws_api.get_session(account)
-        s3_client = session.client("s3")
+        with AWSApi(thread_pool_size, target_account_arr, settings=settings) as aws_api:
+            session = aws_api.get_session(account)
+            s3_client = aws_api.get_session_client(session, "s3")
 
-        # check if the bucket exists
-        try:
-            s3_client.head_bucket(Bucket=bucket_name)
-        except ClientError as details:
-            raise StateInaccessibleException(
-                f"Bucket {bucket_name} is not accessible - {str(details)}"
+            # check if the bucket exists
+            try:
+                s3_client.head_bucket(Bucket=bucket_name)
+            except ClientError as details:
+                raise StateInaccessibleException(
+                    f"Bucket {bucket_name} is not accessible - {str(details)}"
+                )
+
+            # todo: probably remove 'RedHat' from the object/variable/filepath
+            # names to keep the code RedHat-agnostic?
+            # (then again: ROSA literally means "Red Hat OpenShift Service on AWS")
+
+            # download redhat-logo-png file
+            redhat_logo_png_obj_name = "Logo-RedHat-B-Color-RGB.png"
+            redhat_logo_png_filepath = "/tmp/Logo-RedHat-B-Color-RGB.png"
+            s3_client.download_file(
+                bucket_name, redhat_logo_png_obj_name, redhat_logo_png_filepath
             )
-
-        # todo: probably remove 'RedHat' from the object/variable/filepath
-        # names to keep the code RedHat-agnostic?
-        # (then again: ROSA literally means "Red Hat OpenShift Service on AWS")
-
-        # download redhat-logo-png file
-        redhat_logo_png_obj_name = "Logo-RedHat-B-Color-RGB.png"
-        redhat_logo_png_filepath = "/tmp/Logo-RedHat-B-Color-RGB.png"
-        s3_client.download_file(
-            bucket_name, redhat_logo_png_obj_name, redhat_logo_png_filepath
-        )
         if not os.path.exists(redhat_logo_png_filepath):
             raise Exception(
                 f"Attempted to download object {redhat_logo_png_obj_name} "

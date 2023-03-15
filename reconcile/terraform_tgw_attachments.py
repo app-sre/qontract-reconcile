@@ -163,7 +163,6 @@ def run(
         sys.exit()
 
     aws_api = AWSApi(1, accounts, settings=settings, init_users=False)
-    defer(aws_api.close)
 
     tf = Terraform(
         QONTRACT_INTEGRATION,
