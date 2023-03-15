@@ -6,6 +6,7 @@ from reconcile import (
     queries,
 )
 from reconcile.utils.aws_api import AWSApi
+from reconcile.utils.defer import defer
 from reconcile.utils.mr import CreateDeleteAwsAccessKey
 
 QONTRACT_INTEGRATION = "aws-support-cases-sos"
@@ -41,9 +42,11 @@ def get_keys_to_delete(aws_support_cases):
     return keys
 
 
-def act(dry_run, gitlab_project_id, accounts, keys_to_delete):
+@defer
+def act(dry_run, gitlab_project_id, accounts, keys_to_delete, defer=None):
     if not dry_run and keys_to_delete:
         mr_cli = mr_client_gateway.init(gitlab_project_id=gitlab_project_id)
+        defer(mr_cli.cleanup)
 
     for k in keys_to_delete:
         account = k["account"]

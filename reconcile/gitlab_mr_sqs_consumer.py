@@ -8,6 +8,7 @@ import sys
 
 from reconcile import queries
 from reconcile.utils import mr
+from reconcile.utils.defer import defer
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.sqs_gateway import SQSGateway
@@ -15,11 +16,13 @@ from reconcile.utils.sqs_gateway import SQSGateway
 QONTRACT_INTEGRATION = "gitlab-mr-sqs-consumer"
 
 
-def run(dry_run, gitlab_project_id):
+@defer
+def run(dry_run, gitlab_project_id, defer=None):
     secret_reader = SecretReader(queries.get_secret_reader_settings())
 
     accounts = queries.get_queue_aws_accounts()
     sqs_cli = SQSGateway(accounts, secret_reader)
+    defer(sqs_cli.cleanup)
 
     instance = queries.get_gitlab_instance()
     gitlab_cli = GitLabApi(
