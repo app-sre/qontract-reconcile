@@ -16,7 +16,7 @@ from reconcile.utils.mr.user_maintenance import PathTypes
 QONTRACT_INTEGRATION = "ldap-users"
 
 
-def init_users() -> list[dict[str, list]]:
+def init_users():
     app_int_users = queries.get_users(refs=True)
 
     users = defaultdict(list)
@@ -32,9 +32,6 @@ def init_users() -> list[dict[str, list]]:
             users[u].append(item)
         for g in user.get("gabi_instances"):
             item = {"type": PathTypes.GABI, "path": "data" + g["path"]}
-            users[u].append(item)
-        for a in user.get("aws_accounts", []):
-            item = {"type": PathTypes.AWS_ACCOUNTS, "path": "data" + a["path"]}
             users[u].append(item)
 
     return [{"username": username, "paths": paths} for username, paths in users.items()]
