@@ -663,10 +663,10 @@ class SaasHerder:
 
     @retry(max_attempts=20)
     def _get_file_contents(
-        self, url: str, path: str, ref: str, github: Github, hash_length: int
+        self, url: str, path: str, ref: str, github: Github
     ) -> tuple[Any, str, str]:
         html_url = f"{url}/blob/{ref}{path}"
-        commit_sha = self._get_commit_sha(url, ref, github, hash_length)
+        commit_sha = self._get_commit_sha(url, ref, github)
 
         if "github" in url:
             repo_name = url.rstrip("/").replace("https://github.com/", "")
@@ -685,10 +685,10 @@ class SaasHerder:
 
     @retry()
     def _get_directory_contents(
-        self, url: str, path: str, ref: str, github: Github, hash_length: int
+        self, url: str, path: str, ref: str, github: Github
     ) -> tuple[list[Any], str, str]:
         html_url = f"{url}/tree/{ref}{path}"
-        commit_sha = self._get_commit_sha(url, ref, github, hash_length)
+        commit_sha = self._get_commit_sha(url, ref, github)
         resources = []
         if "github" in url:
             repo_name = url.rstrip("/").replace("https://github.com/", "")
@@ -831,11 +831,7 @@ class SaasHerder:
 
             try:
                 template, html_url, commit_sha = self._get_file_contents(
-                    url=url,
-                    path=path,
-                    ref=target.ref,
-                    github=github,
-                    hash_length=hash_length,
+                    url=url, path=path, ref=target.ref, github=github
                 )
             except Exception as e:
                 logging.error(
@@ -917,11 +913,7 @@ class SaasHerder:
         elif provider == "directory":
             try:
                 resources, html_url, commit_sha = self._get_directory_contents(
-                    url=url,
-                    path=path,
-                    ref=target.ref,
-                    github=github,
-                    hash_length=hash_length,
+                    url=url, path=path, ref=target.ref, github=github
                 )
             except Exception as e:
                 logging.error(
