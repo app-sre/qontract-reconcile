@@ -4,7 +4,6 @@ from abc import (
     ABCMeta,
     abstractmethod,
 )
-from typing import Union
 from uuid import uuid4
 
 from gitlab.exceptions import GitlabError
@@ -26,9 +25,6 @@ class MergeRequestProcessingError(Exception):
     """
     Used when the merge request could not be processed for technical reasons
     """
-
-
-MRClient = Union[GitLabApi, SQSGateway]
 
 
 class MergeRequestBase(metaclass=ABCMeta):
@@ -106,7 +102,7 @@ class MergeRequestBase(metaclass=ABCMeta):
             **self.sqs_msg_data,
         }
 
-    def submit_to_sqs(self, sqs_cli) -> None:
+    def submit_to_sqs(self, sqs_cli):
         """
         Sends the MR message to SQS.
 
@@ -204,7 +200,7 @@ class MergeRequestBase(metaclass=ABCMeta):
             from_=self.main_branch, to=self.branch
         )["diffs"]
 
-    def submit(self, cli: MRClient):
+    def submit(self, cli):
         if isinstance(cli, GitLabApi):
             return self.submit_to_gitlab(gitlab_cli=cli)
 

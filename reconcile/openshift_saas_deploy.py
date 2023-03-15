@@ -1,7 +1,10 @@
 import logging
 import sys
 from collections.abc import Callable
-from typing import Optional
+from typing import (
+    Any,
+    Optional,
+)
 
 import reconcile.jenkins_plugins as jenkins_base
 import reconcile.openshift_base as ob
@@ -9,50 +12,45 @@ from reconcile import (
     mr_client_gateway,
     queries,
 )
-from reconcile.gql_definitions.common.saas_files import (
-    PipelinesProviderTektonV1,
-    SaasFileV2,
-)
 from reconcile.openshift_tekton_resources import build_one_per_saas_file_tkn_object_name
 from reconcile.slack_base import slackapi_from_slack_workspace
 from reconcile.status import ExitCodes
-from reconcile.typed_queries.app_interface_vault_settings import (
-    get_app_interface_vault_settings,
-)
-from reconcile.typed_queries.saas_files import (
-    get_saas_files,
-    get_saasherder_settings,
-)
 from reconcile.utils.defer import defer
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.openshift_resource import ResourceInventory
 from reconcile.utils.saasherder import SaasHerder
-from reconcile.utils.secret_reader import create_secret_reader
+from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.slack_api import SlackApi
-from reconcile.utils.state import init_state
 
 QONTRACT_INTEGRATION = "openshift-saas-deploy"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 
-def compose_console_url(saas_file: SaasFileV2, env_name: str) -> str:
-    if not isinstance(saas_file.pipelines_provider, PipelinesProviderTektonV1):
-        raise ValueError(
-            f"Unsupported pipelines_provider: {saas_file.pipelines_provider}"
-        )
-    pipeline_template_name = (
-        saas_file.pipelines_provider.defaults.pipeline_templates.openshift_saas_deploy.name
-        if not saas_file.pipelines_provider.pipeline_templates
-        else saas_file.pipelines_provider.pipeline_templates.openshift_saas_deploy.name
-    )
+def compose_console_url(
+    saas_file: dict[str, Any], saas_file_name: str, env_name: str
+) -> str:
+    pp = saas_file["pipelinesProvider"]
+    pp_ns = pp["namespace"]
+    pp_ns_name = pp_ns["name"]
+    pp_cluster = pp_ns["cluster"]
+    pp_cluster_console_url = pp_cluster["consoleUrl"]
+
+    pipeline_template_name = pp["defaults"]["pipelineTemplates"]["openshiftSaasDeploy"][
+        "name"
+    ]
+
+    if pp["pipelineTemplates"]:
+        pipeline_template_name = pp["pipelineTemplates"]["openshiftSaasDeploy"]["name"]
+
     pipeline_name = build_one_per_saas_file_tkn_object_name(
-        pipeline_template_name, saas_file.name
+        pipeline_template_name, saas_file_name
     )
+
     return (
-        f"{saas_file.pipelines_provider.namespace.cluster.console_url}/k8s/ns/{saas_file.pipelines_provider.namespace.name}/"
+        f"{pp_cluster_console_url}/k8s/ns/{pp_ns_name}/"
         + "tekton.dev~v1beta1~Pipeline/"
-        + f"{pipeline_name}/Runs?name={saas_file.name}-{env_name}"
+        + f"{pipeline_name}/Runs?name={saas_file_name}-{env_name}"
     )
 
 
@@ -93,37 +91,34 @@ def run(
     gitlab_project_id: Optional[str] = None,
     defer: Optional[Callable] = None,
 ) -> None:
-    vault_settings = get_app_interface_vault_settings()
-    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
-
-    all_saas_files = get_saas_files()
-    saas_files = get_saas_files(saas_file_name, env_name)
+    all_saas_files = queries.get_saas_files()
+    saas_files = queries.get_saas_files(saas_file_name, env_name)
     if not saas_files:
         logging.error("no saas files found")
-        raise RuntimeError("no saas files found")
+        sys.exit(ExitCodes.ERROR)
 
     # notify different outputs (publish results, slack notifications)
     # we only do this if:
     # - this is not a dry run
     # - there is a single saas file deployed
     notify = not dry_run and len(saas_files) == 1
-    slack = None
     if notify:
         saas_file = saas_files[0]
-        if saas_file.slack:
+        slack_info = saas_file.get("slack")
+        if slack_info:
             if not saas_file_name or not env_name:
                 raise RuntimeError(
                     "saas_file_name and env_name must be provided "
                     + "when using slack notifications"
                 )
             slack = slackapi_from_slack_workspace(
-                saas_file.slack.dict(by_alias=True),
-                secret_reader,
+                slack_info,
+                SecretReader(queries.get_secret_reader_settings()),
                 QONTRACT_INTEGRATION,
                 init_usergroups=False,
             )
             ri = ResourceInventory()
-            console_url = compose_console_url(saas_file, env_name)
+            console_url = compose_console_url(saas_file, saas_file_name, env_name)
             if (
                 defer
             ):  # defer is provided by the method decorator. this makes just mypy happy
@@ -139,7 +134,8 @@ def run(
                     )
                 )
             # deployment start notification
-            if saas_file.slack.notifications and saas_file.slack.notifications.start:
+            slack_notifications = slack_info.get("notifications")
+            if slack_notifications and slack_notifications.get("start"):
                 slack_notify(
                     saas_file_name,
                     env_name,
@@ -148,9 +144,16 @@ def run(
                     console_url,
                     in_progress=True,
                 )
+        else:
+            slack = None
 
-    jenkins_map = jenkins_base.get_jenkins_map()
-    saasherder_settings = get_saasherder_settings()
+    # instance exists in v1 saas files only
+    desired_jenkins_instances = [
+        s["instance"]["name"] for s in saas_files if s.get("instance")
+    ]
+    jenkins_map = jenkins_base.get_jenkins_map(
+        desired_instances=desired_jenkins_instances
+    )
     settings = queries.get_app_interface_settings()
     try:
         instance = queries.get_gitlab_instance()
@@ -161,28 +164,26 @@ def run(
         gl = None
 
     saasherder = SaasHerder(
-        saas_files=saas_files,
+        saas_files,
         thread_pool_size=thread_pool_size,
+        gitlab=gl,
         integration=QONTRACT_INTEGRATION,
         integration_version=QONTRACT_INTEGRATION_VERSION,
-        secret_reader=secret_reader,
-        hash_length=saasherder_settings.hash_length,
-        repo_url=saasherder_settings.repo_url,
-        gitlab=gl,
+        settings=settings,
         jenkins_map=jenkins_map,
-        state=init_state(integration=QONTRACT_INTEGRATION, secret_reader=secret_reader),
+        initialise_state=True,
     )
     if len(saasherder.namespaces) == 0:
         logging.warning("no targets found")
         sys.exit(ExitCodes.SUCCESS)
 
     ri, oc_map = ob.fetch_current_state(
-        namespaces=[ns.dict(by_alias=True) for ns in saasherder.namespaces],
+        namespaces=saasherder.namespaces,
         thread_pool_size=thread_pool_size,
         integration=QONTRACT_INTEGRATION,
         integration_version=QONTRACT_INTEGRATION_VERSION,
         init_api_resources=True,
-        cluster_admin=bool(saasherder.cluster_admin),
+        cluster_admin=saasherder.cluster_admin,
         use_jump_host=use_jump_host,
     )
     if defer:  # defer is provided by the method decorator. this makes just mypy happy
@@ -208,7 +209,7 @@ def run(
         ri,
         thread_pool_size,
         caller=saas_file_name,
-        all_callers=[sf.name for sf in all_saas_files if not sf.deprecated],
+        all_callers=[sf["name"] for sf in all_saas_files if not sf["deprecated"]],
         wait_for_namespace=True,
         no_dry_run_skip_compare=(not saasherder.compare),
         take_over=saasherder.take_over,
@@ -247,13 +248,7 @@ def run(
     # - there is a single saas file deployed
     # - output is 'events'
     # - no errors were registered
-    if (
-        notify
-        and slack
-        and actions
-        and saas_file.slack
-        and saas_file.slack.output == "events"
-    ):
+    if notify and slack and actions and slack_info.get("output") == "events":
         for action in actions:
             message = (
                 f"[{action['cluster']}] "

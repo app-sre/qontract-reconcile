@@ -5,6 +5,7 @@ from threading import Lock
 from typing import (
     Any,
     Optional,
+    cast,
 )
 
 from sretoolbox.utils import threaded
@@ -13,13 +14,6 @@ import reconcile.jenkins_plugins as jenkins_base
 import reconcile.openshift_base as osb
 from reconcile import queries
 from reconcile.openshift_tekton_resources import build_one_per_saas_file_tkn_object_name
-from reconcile.typed_queries.app_interface_vault_settings import (
-    get_app_interface_vault_settings,
-)
-from reconcile.typed_queries.saas_files import (
-    get_saas_files,
-    get_saasherder_settings,
-)
 from reconcile.utils.defer import defer
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.oc import OC_Map
@@ -31,11 +25,7 @@ from reconcile.utils.saasherder import (
     SaasHerder,
     TriggerSpecUnion,
 )
-from reconcile.utils.saasherder.interfaces import SaasPipelinesProviderTekton
-from reconcile.utils.saasherder.models import TriggerTypes
-from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.sharding import is_in_shard
-from reconcile.utils.state import init_state
 
 _trigger_lock = Lock()
 
@@ -47,7 +37,7 @@ class TektonTimeoutBadValueError(Exception):
 @defer
 def run(
     dry_run: bool,
-    trigger_type: TriggerTypes,
+    trigger_type: str,
     integration: str,
     integration_version: str,
     thread_pool_size: int,
@@ -72,7 +62,7 @@ def run(
     Returns:
         bool: True if there was an error, False otherwise
     """
-    saasherder, oc_map = setup(
+    saasherder, oc_map, error = setup(
         thread_pool_size=thread_pool_size,
         internal=internal,
         use_jump_host=use_jump_host,
@@ -80,6 +70,8 @@ def run(
         integration_version=integration_version,
         include_trigger_trace=include_trigger_trace,
     )
+    if error:
+        return error
     if defer:  # defer is set by method decorator. this makes just mypy happy
         defer(oc_map.cleanup)
 
@@ -111,7 +103,7 @@ def setup(
     integration: str,
     integration_version: str,
     include_trigger_trace: bool,
-) -> tuple[SaasHerder, OC_Map]:
+) -> tuple[SaasHerder, OC_Map, bool]:
     """Setup required resources for triggering integrations
 
     Args:
@@ -125,21 +117,22 @@ def setup(
     Returns:
         saasherder (SaasHerder): a SaasHerder instance
         oc_map (OC_Map): a dictionary of OC clients per cluster
+        error (bool): True if one happened, False otherwise
     """
-    vault_settings = get_app_interface_vault_settings()
-    saasherder_settings = get_saasherder_settings()
-    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
-    saas_files = get_saas_files()
+
+    saas_files = queries.get_saas_files()
     if not saas_files:
         raise RuntimeError("no saas files found")
-    saas_files = [sf for sf in saas_files if is_in_shard(sf.name)]
+    saas_files = [sf for sf in saas_files if is_in_shard(sf["name"])]
 
     # Remove saas-file targets that are disabled
     for saas_file in saas_files[:]:
-        for rt in saas_file.resource_templates[:]:
-            for target in rt.targets[:]:
-                if target.disable:
-                    rt.targets.remove(target)
+        resource_templates = saas_file["resourceTemplates"]
+        for rt in resource_templates[:]:
+            targets = rt["targets"]
+            for target in targets[:]:
+                if target["disable"]:
+                    targets.remove(target)
 
     instance = queries.get_gitlab_instance()
     settings = queries.get_app_interface_settings()
@@ -147,9 +140,7 @@ def setup(
     jenkins_map = jenkins_base.get_jenkins_map()
     pipelines_providers = queries.get_pipelines_providers()
     tkn_provider_namespaces = [
-        pp["namespace"]
-        for pp in pipelines_providers
-        if pp["provider"] == Providers.TEKTON.value
+        pp["namespace"] for pp in pipelines_providers if pp["provider"] == "tekton"
     ]
 
     oc_map = OC_Map(
@@ -164,18 +155,16 @@ def setup(
     saasherder = SaasHerder(
         saas_files,
         thread_pool_size=thread_pool_size,
+        gitlab=gl,
         integration=integration,
         integration_version=integration_version,
-        secret_reader=secret_reader,
-        hash_length=saasherder_settings.hash_length,
-        repo_url=saasherder_settings.repo_url,
-        gitlab=gl,
+        settings=settings,
         jenkins_map=jenkins_map,
-        state=init_state(integration=integration, secret_reader=secret_reader),
+        initialise_state=True,
         include_trigger_trace=include_trigger_trace,
     )
 
-    return saasherder, oc_map
+    return saasherder, oc_map, False
 
 
 def trigger(
@@ -203,8 +192,10 @@ def trigger(
         bool: True if there was an error, False otherwise
     """
     saas_file_name = spec.saas_file_name
+    provider_name = cast(dict, spec.pipelines_provider)["provider"]
+
     error = False
-    if spec.pipelines_provider.provider == Providers.TEKTON.value:
+    if provider_name == Providers.TEKTON:
         error = _trigger_tekton(
             spec,
             dry_run,
@@ -216,10 +207,7 @@ def trigger(
         )
     else:
         error = True
-        logging.error(
-            f"[{saas_file_name}] unsupported provider: "
-            + f"{spec.pipelines_provider.provider}"
-        )
+        logging.error(f"[{saas_file_name}] unsupported provider: " + f"{provider_name}")
 
     return error
 
@@ -233,23 +221,28 @@ def _trigger_tekton(
     integration: str,
     integration_version: str,
 ) -> bool:
-    if not isinstance(spec.pipelines_provider, SaasPipelinesProviderTekton):
-        # This should never happen. It's here to make mypy happy
-        raise TypeError(
-            f"spec.pipelines_provider should be of type "
-            f"SaasPipelinesProviderTekton, got {type(spec.pipelines_provider)}"
-        )
-    pipeline_template_name = (
-        spec.pipelines_provider.pipeline_templates.openshift_saas_deploy.name
-        if spec.pipelines_provider.pipeline_templates
-        else spec.pipelines_provider.defaults.pipeline_templates.openshift_saas_deploy.name
-    )
+    saas_file_name = spec.saas_file_name
+    env_name = spec.env_name
+    timeout = spec.timeout
+    pipelines_provider = cast(dict, spec.pipelines_provider)
+
+    pipeline_template_name = pipelines_provider["defaults"]["pipelineTemplates"][
+        "openshiftSaasDeploy"
+    ]["name"]
+
+    if pipelines_provider["pipelineTemplates"]:
+        pipeline_template_name = pipelines_provider["pipelineTemplates"][
+            "openshiftSaasDeploy"
+        ]["name"]
+
     tkn_pipeline_name = build_one_per_saas_file_tkn_object_name(
-        pipeline_template_name, spec.saas_file_name
+        pipeline_template_name, saas_file_name
     )
-    tkn_namespace_name = spec.pipelines_provider.namespace.name
-    tkn_cluster_name = spec.pipelines_provider.namespace.cluster.name
-    tkn_cluster_console_url = spec.pipelines_provider.namespace.cluster.console_url
+
+    tkn_namespace_info = pipelines_provider["namespace"]
+    tkn_namespace_name = tkn_namespace_info["name"]
+    tkn_cluster_name = tkn_namespace_info["cluster"]["name"]
+    tkn_cluster_console_url = tkn_namespace_info["cluster"]["consoleUrl"]
 
     # if pipeline does not exist it means that either it hasn't been
     # statically created from app-interface or it hasn't been dynamically
@@ -266,10 +259,10 @@ def _trigger_tekton(
         return False
 
     tkn_trigger_resource, tkn_name = _construct_tekton_trigger_resource(
-        spec.saas_file_name,
-        spec.env_name,
+        saas_file_name,
+        env_name,
         tkn_pipeline_name,
-        spec.timeout,
+        timeout,
         tkn_cluster_console_url,
         tkn_namespace_name,
         integration,

@@ -310,17 +310,17 @@ def populate_current_state(
 
 
 def fetch_current_state(
-    namespaces: Optional[Iterable[Mapping]] = None,
-    clusters: Optional[Iterable[Mapping]] = None,
-    thread_pool_size: Optional[int] = None,
-    integration: Optional[str] = None,
-    integration_version: Optional[str] = None,
-    override_managed_types: Optional[Iterable[str]] = None,
-    internal: Optional[bool] = None,
-    use_jump_host: bool = True,
-    init_api_resources: bool = False,
-    cluster_admin: bool = False,
-) -> tuple[ResourceInventory, OC_Map]:
+    namespaces=None,
+    clusters=None,
+    thread_pool_size=None,
+    integration=None,
+    integration_version=None,
+    override_managed_types=None,
+    internal=None,
+    use_jump_host=True,
+    init_api_resources=False,
+    cluster_admin=False,
+):
     ri = ResourceInventory()
     settings = queries.get_app_interface_settings()
     oc_map = OC_Map(
