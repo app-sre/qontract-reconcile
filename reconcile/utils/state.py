@@ -128,6 +128,18 @@ class State:
                 f"Bucket {self.bucket} is not accessible - {str(details)}"
             )
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self.cleanup()
+
+    def cleanup(self):
+        """
+        Closes the S3 client
+        """
+        self.client.close()
+
     def exists(self, key):
         """
         Checks if a key exists in the state.

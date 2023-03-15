@@ -2,6 +2,7 @@ import logging
 
 from reconcile import queries
 from reconcile.slack_base import slackapi_from_slack_workspace
+from reconcile.utils.defer import defer
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.slack_api import SlackApi
 from reconcile.utils.state import init_state
@@ -98,10 +99,12 @@ def act(dry_run, state, unleash_instance, diffs, secret_reader: SecretReader):
                 state.add(key, diff["to"], force=True)
 
 
-def run(dry_run):
+@defer
+def run(dry_run, defer=None):
     secret_reader = SecretReader(settings=queries.get_secret_reader_settings())
     unleash_instances = queries.get_unleash_instances()
     state = init_state(QONTRACT_INTEGRATION, secret_reader)
+    defer(state.cleanup)
     for unleash_instance in unleash_instances:
         instance_name = unleash_instance["name"]
         current_state = fetch_current_state(unleash_instance, secret_reader)

@@ -11,6 +11,7 @@ from typing import (
 
 from reconcile import queries
 from reconcile.utils.aws_api import AWSApi
+from reconcile.utils.defer import defer
 from reconcile.utils.state import init_state
 
 QONTRACT_INTEGRATION = "aws-iam-password-reset"
@@ -33,11 +34,13 @@ def account_in_roles(roles: Iterable[Mapping[str, Any]], aws_account: str) -> bo
     return False
 
 
-def run(dry_run):
+@defer
+def run(dry_run, defer=None):
     accounts = queries.get_aws_accounts(reset_passwords=True)
     settings = queries.get_app_interface_settings()
     roles = queries.get_roles(aws=True)
     state = init_state(integration=QONTRACT_INTEGRATION)
+    defer(state.cleanup)
 
     for a in accounts:
         account_name = a["name"]

@@ -87,6 +87,7 @@ def run(
 
     settings = queries.get_app_interface_settings()
     state = init_state(integration=QONTRACT_INTEGRATION)
+    defer(state.cleanup)
     keys_to_delete = get_keys_to_delete(accounts)
     if not should_run(state, keys_to_delete):
         logging.debug("nothing to do here")

@@ -2,6 +2,7 @@ import logging
 
 from reconcile import queries
 from reconcile.slack_base import slackapi_from_queries
+from reconcile.utils.defer import defer
 from reconcile.utils.imap_client import ImapClient
 from reconcile.utils.state import init_state
 
@@ -33,10 +34,12 @@ def get_sentry_users_from_mails(mails):
     return user_names
 
 
-def run(dry_run):
+@defer
+def run(dry_run, defer=None):
     settings = queries.get_app_interface_settings()
     users = queries.get_users()
     state = init_state(integration=QONTRACT_INTEGRATION)
+    defer(state.cleanup)
     with ImapClient(settings=settings) as imap_client:
         mails = imap_client.get_mails(
             folder="[Gmail]/Sent Mail", criteria='SUBJECT "Sentry Access Request"'

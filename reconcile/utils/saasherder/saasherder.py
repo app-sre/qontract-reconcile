@@ -144,6 +144,16 @@ class SaasHerder:
         self.publish_job_logs = self._get_saas_file_feature_enabled("publish_job_logs")
         self.cluster_admin = self._get_saas_file_feature_enabled("cluster_admin")
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self.cleanup()
+
+    def cleanup(self) -> None:
+        if self.state:
+            self.state.cleanup()
+
     def _register_error(self) -> None:
         self.error_registered = True
 

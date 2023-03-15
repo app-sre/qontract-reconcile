@@ -1,10 +1,11 @@
 import logging
-from typing import Optional
+from typing import Optional, Callable
 
 from reconcile import queries
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
+from reconcile.utils.defer import defer
 from reconcile.utils.jenkins_api import JenkinsApi
 from reconcile.utils.ocm import OCMMap
 from reconcile.utils.secret_reader import create_secret_reader
@@ -13,11 +14,13 @@ from reconcile.utils.state import init_state
 QONTRACT_INTEGRATION = "ocm-addons-upgrade-tests-trigger"
 
 
-def run(dry_run: bool) -> None:
+@defer
+def run(dry_run: bool, defer: Optional[Callable] = None) -> None:
     settings = queries.get_app_interface_settings()
     vault_settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     state = init_state(integration=QONTRACT_INTEGRATION, secret_reader=secret_reader)
+    defer(state.cleanup)
     ocms = queries.get_openshift_cluster_managers()
     for ocm_info in ocms:
         ocm_name = ocm_info["name"]

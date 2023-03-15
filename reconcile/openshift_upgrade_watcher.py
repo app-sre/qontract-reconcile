@@ -124,6 +124,7 @@ def run(
     vault_settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     state = init_state(integration=QONTRACT_INTEGRATION, secret_reader=secret_reader)
+    defer(state.cleanup)
 
     clusters = [
         c for c in get_clusters() if c.ocm and not (c.spec and c.spec.hypershift)

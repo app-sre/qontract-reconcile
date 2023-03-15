@@ -10,6 +10,7 @@ from typing import (
     Any,
     Optional,
     Union,
+    Callable,
 )
 
 import jinja2
@@ -22,6 +23,7 @@ from reconcile import (
     typed_queries,
 )
 from reconcile.status import ExitCodes
+from reconcile.utils.defer import defer
 from reconcile.utils.external_resources import get_external_resource_specs
 from reconcile.utils.oc import (
     OC_Map,
@@ -555,9 +557,13 @@ def openshift_delete_by_label(
             )
 
 
-def run(dry_run: bool, enable_deletion: bool = False) -> None:
+@defer
+def run(
+    dry_run: bool, enable_deletion: bool = False, defer: Optional[Callable] = None
+) -> None:
     settings = queries.get_app_interface_settings()
     state = init_state(integration=QONTRACT_INTEGRATION)
+    defer(state.cleanup)
     smtp_settings = typed_queries.smtp.settings()
     smtp_client = SmtpClient(
         server=get_smtp_server_connection(
