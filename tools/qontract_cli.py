@@ -29,7 +29,10 @@ from reconcile.change_owners.change_owners import (
     fetch_self_service_roles,
 )
 from reconcile.checkpoint import report_invalid_metadata
-from reconcile.cli import config_file
+from reconcile.cli import (
+    config_file,
+    use_jump_host,
+)
 from reconcile.jenkins_job_builder import init_jjb
 from reconcile.prometheus_rules_tester import get_data_from_jinja_test_template
 from reconcile.slack_base import slackapi_from_queries
@@ -1805,8 +1808,9 @@ def app_interface_merge_history(ctx):
     short_help="obtain a list of all resources that are managed "
     "on a customer cluster via a Hive SelectorSyncSet."
 )
+@use_jump_host()
 @click.pass_context
-def selectorsyncset_managed_resources(ctx):
+def selectorsyncset_managed_resources(ctx, use_jump_host):
     vault_settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     clusters = get_clusters()
@@ -1816,6 +1820,7 @@ def selectorsyncset_managed_resources(ctx):
         integration="qontract-cli",
         thread_pool_size=1,
         init_api_resources=True,
+        use_jump_host=use_jump_host,
     )
     columns = [
         "cluster",
@@ -1861,8 +1866,9 @@ def selectorsyncset_managed_resources(ctx):
     short_help="obtain a list of all resources that are managed "
     "on a customer cluster via an ACM Policy via a Hive SelectorSyncSet."
 )
+@use_jump_host()
 @click.pass_context
-def selectorsyncset_managed_hypershift_resources(ctx):
+def selectorsyncset_managed_hypershift_resources(ctx, use_jump_host):
     vault_settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     clusters = get_clusters()
@@ -1872,6 +1878,7 @@ def selectorsyncset_managed_hypershift_resources(ctx):
         integration="qontract-cli",
         thread_pool_size=1,
         init_api_resources=True,
+        use_jump_host=use_jump_host,
     )
     columns = [
         "cluster",
