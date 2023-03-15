@@ -69,17 +69,6 @@ def data_default_none(
                         data_default_none(field.type_, item)
                         for item in data[field.alias]
                     ]
-            elif field.sub_fields and all(
-                isinstance(sub_field.type_, type)
-                and issubclass(sub_field.type_, BaseModel)
-                for sub_field in field.sub_fields
-            ):
-                # Union[ClassA, ClassB] field
-                for sub_field in field.sub_fields:
-                    if isinstance(data[field.alias], dict):
-                        data[field.alias].update(
-                            data_default_none(sub_field.type_, data[field.alias])
-                        )
 
     return data
 

@@ -9,21 +9,21 @@
       "serverUrl": "https://api.appsres03ue1.5nvu.p1.openshiftapps.com:6443"
     }
   },
-  "ref": "1234567890123456789012345678901234567890",
+  "ref": "main",
   "promotion": {
     "auto": true,
-    "subscribe": ["test-saas-deployments-deploy"],
+    "subscribe": [
+      "test-saas-deployments-deploy"
+    ],
     "promotion_data": [
-      {
-        "channel": "test-saas-deployments-deploy",
-        "data": [
-          {
-            "type": "parent_saas_config",
-            "parent_saas": "test-saas-deployments-deploy",
-            "target_config_hash": "ed2af38cf21f268c"
-          }
-        ]
-      }
+        {
+            "channel": "test-saas-deployments-deploy",
+            "data": [{
+                "type": "parent_saas_config",
+                "parent_saas": "test-saas-deployments-deploy",
+                "target_config_hash": "ed2af38cf21f268c"
+            }]
+        }
     ]
   },
   "parameters": null,
@@ -31,7 +31,9 @@
   "disable": null,
   "delete": null,
   "saas_file_parameters": null,
-  "saas_file_managed_resource_types": ["Job"],
+  "saas_file_managed_resource_types": [
+    "Job"
+  ],
   "url": "https://github.com/app-sre/test-saas-deployments",
   "path": "/openshift/deploy-template.yml",
   "rt_parameters": "{\"PARAM\":\"test\"}"

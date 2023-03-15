@@ -1,10 +1,6 @@
-from collections.abc import Callable
-
 import pytest
 
-from reconcile.gql_definitions.common.saas_files import SaasFileV2
 from reconcile.utils.saasherder import SaasHerder
-from reconcile.utils.secret_reader import SecretReader
 
 
 @pytest.mark.parametrize(
@@ -24,103 +20,56 @@ def test_saasherder_allowed_secret_paths(
     allowed_secret_parameter_path: str,
     referenced_secret_path: str,
     expected_valid: bool,
-    secret_reader: SecretReader,
-    gql_class_factory: Callable[
-        ...,
-        SaasFileV2,
-    ],
 ):
     """
     ensure a parent directory in allowed_secret_parameter_paths matches correctly
     """
     saas_files = [
-        gql_class_factory(
-            SaasFileV2,
-            {
-                "path": "path1",
-                "name": "a1",
-                "managedResourceTypes": [],
-                "allowedSecretParameterPaths": [allowed_secret_parameter_path],
-                "app": {"name": "app1"},
-                "pipelinesProvider": {
-                    "name": "tekton-app-sre-pipelines-appsres03ue1",
-                    "provider": "tekton",
-                    "namespace": {
-                        "name": "app-sre-pipelines",
-                        "cluster": {
-                            "name": "appsres03ue1",
-                            "serverUrl": "https://api.appsres03ue1.5nvu.p1.openshiftapps.com:6443",
-                            "consoleUrl": "https://console.appsres03ue1.5nvu.p1.openshiftapps.com:6443",
-                            "internal": True,
-                        },
-                    },
-                    "defaults": {
-                        "pipelineTemplates": {
-                            "openshiftSaasDeploy": {"name": "openshift-saas-deploy"}
-                        }
-                    },
-                    "pipelineTemplates": {
-                        "openshiftSaasDeploy": {"name": "openshift-saas-deploy"}
-                    },
-                },
-                "imagePatterns": [],
-                "resourceTemplates": [
-                    {
-                        "path": "path1",
-                        "name": "test",
-                        "url": "url",
-                        "targets": [
-                            {
-                                "namespace": {
-                                    "name": "test-ns-subscriber",
-                                    "environment": {
-                                        "name": "App-SRE",
-                                        "parameters": "{}",
-                                    },
-                                    "app": {"name": "test-saas-deployments"},
-                                    "cluster": {
-                                        "name": "appsres03ue1",
-                                        "serverUrl": "https://api.appsres03ue1.5nvu.p1.openshiftapps.com:6443",
-                                        "internal": True,
-                                    },
-                                },
-                                "ref": "main",
-                                "upstream": {
-                                    "instance": {
-                                        "name": "ci",
-                                        "serverUrl": "https://jenkins.com",
-                                    },
-                                    "name": "job",
-                                },
-                                "parameters": "{}",
-                                "secretParameters": [
-                                    {
-                                        "name": "secret",
-                                        "secret": {
-                                            "path": referenced_secret_path,
-                                            "field": "db.endpoint",
-                                        },
-                                    },
-                                ],
+        {
+            "path": "path1",
+            "name": "a1",
+            "managedResourceTypes": [],
+            "allowedSecretParameterPaths": [allowed_secret_parameter_path],
+            "resourceTemplates": [
+                {
+                    "name": "test",
+                    "url": "url",
+                    "targets": [
+                        {
+                            "namespace": {
+                                "name": "ns",
+                                "environment": {"name": "env1", "parameters": "{}"},
+                                "cluster": {"name": "cluster"},
                             },
-                        ],
-                    },
-                ],
-                "selfServiceRoles": [
-                    {"users": [{"org_username": "theirname"}], "bots": []}
-                ],
-            },
-        )
+                            "ref": "main",
+                            "upstream": {"instance": {"name": "ci"}, "name": "job"},
+                            "parameters": {},
+                            "secretParameters": [
+                                {
+                                    "name": "secret",
+                                    "secret": {
+                                        "path": referenced_secret_path,
+                                        "field": "db.endpoint",
+                                    },
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+            "selfServiceRoles": [
+                {"users": [{"org_username": "theirname"}], "bots": []}
+            ],
+        },
     ]
 
     saasherder = SaasHerder(
         saas_files,
-        secret_reader=secret_reader,
         thread_pool_size=1,
+        gitlab=None,
         integration="",
         integration_version="",
-        hash_length=7,
-        repo_url="https://repo-url.com",
+        settings={},
         validate=True,
     )
 
