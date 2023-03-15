@@ -33,7 +33,12 @@ def validate_no_cidr_overlap(
                 if peering.provider == "account-vpc":
                     cidr_block = str(peering.vpc.cidr_block)  # type: ignore[union-attr]
                     # some IPs are for VPCs like ci.int so we'll need to block it from the logic
-                    if cidr_block not in ('10.29.88.0/22', '172.32.0.0/16', '172.31.0.0/16', '192.168.0.0/20'):
+                    if cidr_block not in (
+                        "10.29.88.0/22",
+                        "172.32.0.0/16",
+                        "172.31.0.0/16",
+                        "192.168.0.0/20",
+                    ):
                         cidr_block_entries[cluster.name] = cidr_block
                     else:
                         continue
@@ -58,8 +63,8 @@ def find_cidr_duplicates_and_overlap(input_dict):
     network_list = [ipaddress.ip_network(value) for value in values]
     overlaps = {}  # type: ignore[var-annotated]
 
-    for i in range(len(network_list)):
-        for j in range(i + 1, len(network_list)):
+    for i in range(len(network_list)):  # type: ignore[consider-using-enumerate]
+        for j in range(i + 1, len(network_list)):  # type: ignore[consider-using-enumerate]
             if network_list[i].overlaps(network_list[j]):
                 network1 = next(
                     key
