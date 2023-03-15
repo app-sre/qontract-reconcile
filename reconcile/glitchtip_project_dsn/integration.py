@@ -117,6 +117,9 @@ def fetch_desired_state(
     for glitchtip_project in glitchtip_projects:
         org = Organization(name=glitchtip_project.organization.name)
         project = Project(name=glitchtip_project.name)
+        if project not in glitchtip_client.projects(organization_slug=org.slug):
+            logging.info(f"Project {project.name} does not exist (yet). Skipping.")
+            continue
         key = glitchtip_client.project_key(
             organization_slug=org.slug, project_slug=project.slug
         )
