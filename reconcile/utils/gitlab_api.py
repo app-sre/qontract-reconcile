@@ -103,7 +103,6 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         """
         This method is a placeholder for cleanup actions. This is aligned with SQSGateway.
         """
-        pass
 
     @retry()
     def _auth(self):

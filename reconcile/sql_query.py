@@ -563,7 +563,8 @@ def run(
 ) -> None:
     settings = queries.get_app_interface_settings()
     state = init_state(integration=QONTRACT_INTEGRATION)
-    defer(state.cleanup)
+    if defer:
+        defer(state.cleanup)
     smtp_settings = typed_queries.smtp.settings()
     smtp_client = SmtpClient(
         server=get_smtp_server_connection(

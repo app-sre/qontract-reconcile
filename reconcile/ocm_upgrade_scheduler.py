@@ -156,7 +156,8 @@ def get_version_data_map(
         dict: version data per OCM instance
     """
     state = init_state(integration=QONTRACT_INTEGRATION)
-    defer(state.cleanup)
+    if defer:
+        defer(state.cleanup)
     results: dict[str, VersionData] = {}
     # we keep a remote state per OCM instance
     for ocm_name in ocm_map.instances():

@@ -94,7 +94,7 @@ Resource = dict[str, Any]
 Resources = list[Resource]
 
 
-class SaasHerder:
+class SaasHerder:  # pylint: disable=too-many-public-methods
     """Wrapper around SaaS deployment actions."""
 
     def __init__(

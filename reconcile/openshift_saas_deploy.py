@@ -172,7 +172,8 @@ def run(
         jenkins_map=jenkins_map,
         state=init_state(integration=QONTRACT_INTEGRATION, secret_reader=secret_reader),
     )
-    defer(saasherder.cleanup)
+    if defer:
+        defer(saasherder.cleanup)
     if len(saasherder.namespaces) == 0:
         logging.warning("no targets found")
         sys.exit(ExitCodes.SUCCESS)

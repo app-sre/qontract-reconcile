@@ -368,5 +368,5 @@ def run(dry_run: bool) -> None:
             LOG.error(str(details))
             sys.exit(ExitCodes.ERROR)
         finally:
-            if quay_mirror:
+            if quay_mirror is not None:
                 quay_mirror.cleanup()

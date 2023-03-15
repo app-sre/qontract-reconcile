@@ -190,7 +190,10 @@ class AWSApi:  # pylint: disable=too-many-public-methods
 
     # pylint: disable=method-hidden
     def get_session_client(
-        self, session: Session, service_name: str, region_name: Optional[str] = None
+        self,
+        session: Session,
+        service_name,
+        region_name: Optional[str] = None,
     ):
         region = region_name if region_name else session.region_name
         client = session.client(service_name, region_name=region)
@@ -200,7 +203,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
     @staticmethod
     # pylint: disable=method-hidden
     def _get_session_resource(
-        session: Session, service_name: str, region_name: Optional[str] = None
+        session: Session, service_name, region_name: Optional[str] = None
     ):
         region = region_name if region_name else session.region_name
         return session.resource(service_name, region_name=region)

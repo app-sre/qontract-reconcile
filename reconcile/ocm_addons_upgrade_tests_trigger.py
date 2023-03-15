@@ -23,7 +23,8 @@ def run(dry_run: bool, defer: Optional[Callable] = None) -> None:
     vault_settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     state = init_state(integration=QONTRACT_INTEGRATION, secret_reader=secret_reader)
-    defer(state.cleanup)
+    if defer:
+        defer(state.cleanup)
     ocms = queries.get_openshift_cluster_managers()
     for ocm_info in ocms:
         ocm_name = ocm_info["name"]
