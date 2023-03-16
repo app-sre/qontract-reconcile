@@ -78,22 +78,13 @@ class ClusterPeeringConnectionV1(ConfiguredBaseModel):
     provider: str = Field(..., alias="provider")
 
 
-# class AWSVPCV1(BaseModel):
 class AWSVPCV1(ConfiguredBaseModel):
     cidr_block: str = Field(..., alias="cidr_block")
     name: str = Field(..., alias="name")
 
-    # class Config:
-    #     smart_union = True
-    #     extra = Extra.forbid
-
 
 class ClusterPeeringConnectionAccountV1(ClusterPeeringConnectionV1):
     vpc: AWSVPCV1 = Field(..., alias="vpc")
-
-    # class Config:
-    #     smart_union = True
-    #     extra = Extra.forbid
 
 
 class ClusterPeeringConnectionClusterRequesterV1(ClusterPeeringConnectionV1):
