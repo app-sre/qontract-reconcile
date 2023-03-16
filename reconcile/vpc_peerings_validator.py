@@ -28,6 +28,7 @@ def validate_no_cidr_overlap(
     cidr_block_entries = {}
 
     for cluster in clusters:
+        logging.debug("hello")
         if cluster.peering:
             for peering in cluster.peering.connections:
                 if peering.provider == "account-vpc":
@@ -63,8 +64,8 @@ def find_cidr_duplicates_and_overlap(input_dict):
     network_list = [ipaddress.ip_network(value) for value in values]
     overlaps = {}  # type: ignore[var-annotated]
 
-    for i in range(len(network_list)):  # type: ignore[consider-using-enumerate]
-        for j in range(i + 1, len(network_list)):  # type: ignore[consider-using-enumerate]
+    for i in range(len(network_list)):
+        for j in range(i + 1, len(network_list)):
             if network_list[i].overlaps(network_list[j]):
                 network1 = next(
                     key
