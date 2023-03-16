@@ -8,7 +8,7 @@ IMAGE_NAME := quay.io/app-sre/qontract-reconcile
 IMAGE_TAG := $(shell git rev-parse --short=7 HEAD)
 VENV_CMD := . venv/bin/activate &&
 UUID := $(shell python3 -c 'import uuid; print(str(uuid.uuid4()))')
-EXPECTED_QENERATE_VERSION := 0.5.2
+EXPECTED_QENERATE_VERSION := $(shell grep qenerate requirements/requirements-type.txt | cut -d = -f3)
 
 ifneq (,$(wildcard $(CURDIR)/.docker))
 	DOCKER_CONF := $(CURDIR)/.docker
