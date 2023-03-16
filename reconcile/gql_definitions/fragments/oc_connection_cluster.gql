@@ -1,0 +1,21 @@
+# qenerate: plugin=pydantic_v1
+
+fragment OcConnectionCluster on Cluster_v1 {
+  name
+  serverUrl
+  internal
+  insecureSkipTLSVerify
+  jumpHost {
+    ...CommonJumphostFields
+  }
+  automationToken {
+    ...VaultSecret
+  }
+  clusterAdminAutomationToken {
+    ...VaultSecret
+  }
+  disable {
+    integrations
+    e2eTests
+  }
+}

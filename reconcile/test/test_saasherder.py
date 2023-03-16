@@ -1,319 +1,351 @@
-from typing import Any
+from collections.abc import (
+    Callable,
+    Iterable,
+    MutableMapping,
+)
+from typing import (
+    Any,
+    Optional,
+)
 from unittest import TestCase
 from unittest.mock import (
     MagicMock,
     patch,
 )
 
+import pytest
 import yaml
-from github import GithubException
+from github import (
+    Github,
+    GithubException,
+)
+from pydantic import BaseModel
 
+from reconcile.gql_definitions.common.saas_files import (
+    SaasFileV2,
+    SaasResourceTemplateTargetImageV1,
+    SaasResourceTemplateTargetPromotionV1,
+    SaasResourceTemplateV2,
+)
 from reconcile.utils.jjb_client import JJB
 from reconcile.utils.openshift_resource import ResourceInventory
-from reconcile.utils.saasherder import (
-    TARGET_CONFIG_HASH,
-    SaasHerder,
-    TriggerSpecConfig,
-    TriggerSpecMovingCommit,
-)
+from reconcile.utils.saasherder import SaasHerder
+from reconcile.utils.saasherder.models import TriggerSpecMovingCommit
+from reconcile.utils.secret_reader import SecretReaderBase
 
 from .fixtures import Fixtures
 
 
 class MockJJB:
-    def __init__(self, data):
+    def __init__(self, data: dict[str, list[dict]]) -> None:
         self.jobs = data
 
-    def get_all_jobs(self, job_types):
+    def get_all_jobs(self, job_types: Iterable[str]) -> dict[str, list[dict]]:
         return self.jobs
 
     @staticmethod
-    def get_repo_url(job):
+    def get_repo_url(job: dict[str, Any]) -> str:
         return JJB.get_repo_url(job)
 
     @staticmethod
-    def get_ref(job):
+    def get_ref(job: dict[str, Any]) -> str:
         return JJB.get_ref(job)
 
 
+class MockSecretReader(SecretReaderBase):
+    """
+    Read secrets from a config file
+    """
+
+    def _read(
+        self, path: str, field: str, format: Optional[str], version: Optional[int]
+    ) -> str:
+        return "secret"
+
+    def _read_all(
+        self, path: str, field: str, format: Optional[str], version: Optional[int]
+    ) -> dict[str, str]:
+        return {"param": "secret"}
+
+
+@pytest.fixture()
+def inject_gql_class_factory(
+    request: pytest.FixtureRequest,
+    gql_class_factory: Callable[..., SaasFileV2],
+) -> None:
+    def _gql_class_factory(
+        self: Any,
+        klass: type[BaseModel],
+        data: Optional[MutableMapping[str, Any]] = None,
+    ) -> BaseModel:
+        return gql_class_factory(klass, data)
+
+    request.cls.gql_class_factory = _gql_class_factory
+
+
+@pytest.mark.usefixtures("inject_gql_class_factory")
 class TestSaasFileValid(TestCase):
-    def setUp(self):
-        self.saas_files = [
-            {
-                "path": "path1",
-                "name": "a1",
-                "managedResourceTypes": [],
-                "resourceTemplates": [
-                    {
-                        "name": "rt",
-                        "url": "url",
-                        "targets": [
-                            {
-                                "namespace": {
-                                    "name": "ns",
-                                    "environment": {"name": "env1", "parameters": "{}"},
-                                    "cluster": {"name": "cluster"},
-                                },
-                                "ref": "main",
-                                "upstream": {"instance": {"name": "ci"}, "name": "job"},
-                                "parameters": {},
-                            },
-                            {
-                                "namespace": {
-                                    "name": "ns",
-                                    "environment": {"name": "env2", "parameters": "{}"},
-                                    "cluster": {"name": "cluster"},
-                                },
-                                "ref": "master",
-                                "upstream": {"instance": {"name": "ci"}, "name": "job"},
-                                "parameters": {},
-                            },
-                            {
-                                "namespace": {
-                                    "name": "ns",
-                                    "environment": {"name": "env3", "parameters": "{}"},
-                                    "cluster": {"name": "cluster"},
-                                },
-                                "ref": "master",
-                                "image": {
-                                    "org": {
-                                        "name": "org1",
-                                        "instance": {"name": "q1"},
-                                    },
-                                    "name": "image",
-                                },
-                                "parameters": {},
-                            },
-                            {
-                                "namespace": {
-                                    "name": "ns",
-                                    "environment": {"name": "env4", "parameters": "{}"},
-                                    "cluster": {"name": "cluster"},
-                                },
-                                "ref": "2637b6c41bda7731b1bcaaf18b4a50d7c5e63e30",
-                                "parameters": {},
-                            },
-                        ],
-                    }
-                ],
-                "roles": [{"users": [{"org_username": "myname"}]}],
-                "selfServiceRoles": [
-                    {"users": [{"org_username": "theirname"}], "bots": []}
-                ],
-            }
-        ]
+    def setUp(self) -> None:
+        self.saas_file = self.gql_class_factory(  # type: ignore[attr-defined] # it's set in the fixture
+            SaasFileV2, Fixtures("saasherder").get_anymarkup("saas.gql.yml")
+        )
         jjb_mock_data = {
             "ci": [
                 {
                     "name": "job",
-                    "properties": [{"github": {"url": "url"}}],
+                    "properties": [
+                        {
+                            "github": {
+                                "url": "https://github.com/app-sre/test-saas-deployments"
+                            }
+                        }
+                    ],
                     "scm": [{"git": {"branches": ["main"]}}],
                 },
                 {
                     "name": "job",
-                    "properties": [{"github": {"url": "url"}}],
+                    "properties": [
+                        {
+                            "github": {
+                                "url": "https://github.com/app-sre/test-saas-deployments"
+                            }
+                        }
+                    ],
                     "scm": [{"git": {"branches": ["master"]}}],
                 },
             ]
         }
         self.jjb = MockJJB(jjb_mock_data)
 
-    def test_check_saas_file_env_combo_unique(self):
+    def test_check_saas_file_env_combo_unique(self) -> None:
         saasherder = SaasHerder(
-            self.saas_files,
+            [self.saas_file],
+            secret_reader=MockSecretReader(),
             thread_pool_size=1,
-            gitlab=None,
             integration="",
             integration_version="",
-            settings={},
+            hash_length=7,
+            repo_url="https://repo-url.com",
             validate=True,
         )
-
         self.assertTrue(saasherder.valid)
 
-    def test_check_saas_file_env_combo_not_unique(self):
-        self.saas_files[0][
-            "name"
-        ] = "long-name-which-is-too-long-to-produce-unique-combo"
+    def test_check_saas_file_env_combo_not_unique(self) -> None:
+        self.saas_file.name = "long-name-which-is-too-long-to-produce-unique-combo"
         saasherder = SaasHerder(
-            self.saas_files,
+            [self.saas_file],
+            secret_reader=MockSecretReader(),
             thread_pool_size=1,
-            gitlab=None,
             integration="",
             integration_version="",
-            settings={},
+            hash_length=7,
+            repo_url="https://repo-url.com",
             validate=True,
         )
 
         self.assertFalse(saasherder.valid)
 
-    def test_saas_file_auto_promotion_used_with_commit_sha(self):
-        self.saas_files[0]["resourceTemplates"][0]["targets"][3]["promotion"] = {
-            "auto": True
+    def test_saas_file_auto_promotion_used_with_commit_sha(self) -> None:
+        self.saas_file.resource_templates[0].targets[
+            1
+        ].ref = "1234567890123456789012345678901234567890"
+        self.saas_file.resource_templates[0].targets[
+            1
+        ].promotion = SaasResourceTemplateTargetPromotionV1(
+            auto=True, publish=None, subscribe=None, promotion_data=None
+        )
+        saasherder = SaasHerder(
+            [self.saas_file],
+            secret_reader=MockSecretReader(),
+            thread_pool_size=1,
+            integration="",
+            integration_version="",
+            hash_length=7,
+            repo_url="https://repo-url.com",
+            validate=True,
+        )
+
+        self.assertTrue(saasherder.valid)
+
+    def test_saas_file_auto_promotion_not_used_with_commit_sha(self) -> None:
+        self.saas_file.resource_templates[0].targets[1].ref = "main"
+        self.saas_file.resource_templates[0].targets[
+            1
+        ].promotion = SaasResourceTemplateTargetPromotionV1(
+            auto=True, publish=None, subscribe=None, promotion_data=None
+        )
+        saasherder = SaasHerder(
+            [self.saas_file],
+            secret_reader=MockSecretReader(),
+            thread_pool_size=1,
+            integration="",
+            integration_version="",
+            hash_length=7,
+            repo_url="https://repo-url.com",
+            validate=True,
+        )
+
+        self.assertFalse(saasherder.valid)
+
+    def test_check_saas_file_upstream_not_used_with_commit_sha(self) -> None:
+        saasherder = SaasHerder(
+            [self.saas_file],
+            secret_reader=MockSecretReader(),
+            thread_pool_size=1,
+            integration="",
+            integration_version="",
+            hash_length=7,
+            repo_url="https://repo-url.com",
+            validate=True,
+        )
+
+        self.assertTrue(saasherder.valid)
+
+    def test_check_saas_file_upstream_used_with_commit_sha(self) -> None:
+        self.saas_file.resource_templates[0].targets[
+            0
+        ].ref = "2637b6c41bda7731b1bcaaf18b4a50d7c5e63e30"
+        saasherder = SaasHerder(
+            [self.saas_file],
+            secret_reader=MockSecretReader(),
+            thread_pool_size=1,
+            integration="",
+            integration_version="",
+            hash_length=7,
+            repo_url="https://repo-url.com",
+            validate=True,
+        )
+
+        self.assertFalse(saasherder.valid)
+
+    def test_check_saas_file_upstream_used_with_image(self) -> None:
+        self.saas_file.resource_templates[0].targets[
+            0
+        ].image = SaasResourceTemplateTargetImageV1(
+            **{"name": "image", "org": {"name": "org", "instance": {"url": "url"}}}
+        )
+        saasherder = SaasHerder(
+            [self.saas_file],
+            secret_reader=MockSecretReader(),
+            thread_pool_size=1,
+            integration="",
+            integration_version="",
+            hash_length=7,
+            repo_url="https://repo-url.com",
+            validate=True,
+        )
+
+        self.assertFalse(saasherder.valid)
+
+    def test_check_saas_file_image_used_with_commit_sha(self) -> None:
+        self.saas_file.resource_templates[0].targets[
+            0
+        ].ref = "2637b6c41bda7731b1bcaaf18b4a50d7c5e63e30"
+        self.saas_file.resource_templates[0].targets[
+            0
+        ].image = SaasResourceTemplateTargetImageV1(
+            **{"name": "image", "org": {"name": "org", "instance": {"url": "url"}}}
+        )
+        saasherder = SaasHerder(
+            [self.saas_file],
+            secret_reader=MockSecretReader(),
+            thread_pool_size=1,
+            integration="",
+            integration_version="",
+            hash_length=7,
+            repo_url="https://repo-url.com",
+            validate=True,
+        )
+
+        self.assertFalse(saasherder.valid)
+
+    def test_validate_image_tag_not_equals_ref_valid(self) -> None:
+        self.saas_file.resource_templates[0].targets[0].parameters = {
+            "IMAGE_TAG": "2637b6c"
         }
         saasherder = SaasHerder(
-            self.saas_files,
+            [self.saas_file],
+            secret_reader=MockSecretReader(),
             thread_pool_size=1,
-            gitlab=None,
             integration="",
             integration_version="",
-            settings={},
+            hash_length=7,
+            repo_url="https://repo-url.com",
             validate=True,
         )
 
         self.assertTrue(saasherder.valid)
 
-    def test_saas_file_auto_promotion_not_used_with_commit_sha(self):
-        self.saas_files[0]["resourceTemplates"][0]["targets"][2]["ref"] = "main"
-        self.saas_files[0]["resourceTemplates"][0]["targets"][2]["promotion"] = {
-            "auto": True
+    def test_validate_image_tag_not_equals_ref_invalid(self) -> None:
+        self.saas_file.resource_templates[0].targets[
+            0
+        ].ref = "2637b6c41bda7731b1bcaaf18b4a50d7c5e63e30"
+        self.saas_file.resource_templates[0].targets[0].parameters = {
+            "IMAGE_TAG": "2637b6c"
         }
         saasherder = SaasHerder(
-            self.saas_files,
+            [self.saas_file],
+            secret_reader=MockSecretReader(),
             thread_pool_size=1,
-            gitlab=None,
             integration="",
             integration_version="",
-            settings={},
+            hash_length=7,
+            repo_url="https://repo-url.com",
             validate=True,
         )
 
         self.assertFalse(saasherder.valid)
 
-    def test_check_saas_file_upstream_not_used_with_commit_sha(self):
+    def test_validate_upstream_jobs_valid(self) -> None:
         saasherder = SaasHerder(
-            self.saas_files,
+            [self.saas_file],
+            secret_reader=MockSecretReader(),
             thread_pool_size=1,
-            gitlab=None,
             integration="",
             integration_version="",
-            settings={},
+            hash_length=7,
+            repo_url="https://repo-url.com",
             validate=True,
         )
-
+        saasherder.validate_upstream_jobs(self.jjb)  # type: ignore
         self.assertTrue(saasherder.valid)
 
-    def test_check_saas_file_upstream_used_with_commit_sha(self):
-        self.saas_files[0]["resourceTemplates"][0]["targets"][0][
-            "ref"
-        ] = "2637b6c41bda7731b1bcaaf18b4a50d7c5e63e30"
+    def test_validate_upstream_jobs_invalid(self) -> None:
         saasherder = SaasHerder(
-            self.saas_files,
+            [self.saas_file],
+            secret_reader=MockSecretReader(),
             thread_pool_size=1,
-            gitlab=None,
             integration="",
             integration_version="",
-            settings={},
-            validate=True,
-        )
-
-        self.assertFalse(saasherder.valid)
-
-    def test_check_saas_file_upstream_used_with_image(self):
-        self.saas_files[0]["resourceTemplates"][0]["targets"][0]["image"] = "here"
-        saasherder = SaasHerder(
-            self.saas_files,
-            thread_pool_size=1,
-            gitlab=None,
-            integration="",
-            integration_version="",
-            settings={},
-            validate=True,
-        )
-
-        self.assertFalse(saasherder.valid)
-
-    def test_check_saas_file_image_used_with_commit_sha(self):
-        self.saas_files[0]["resourceTemplates"][0]["targets"][2][
-            "ref"
-        ] = "2637b6c41bda7731b1bcaaf18b4a50d7c5e63e30"
-        saasherder = SaasHerder(
-            self.saas_files,
-            thread_pool_size=1,
-            gitlab=None,
-            integration="",
-            integration_version="",
-            settings={},
-            validate=True,
-        )
-
-        self.assertFalse(saasherder.valid)
-
-    def test_validate_image_tag_not_equals_ref_valid(self):
-        self.saas_files[0]["resourceTemplates"][0]["targets"][0][
-            "parameters"
-        ] = '{"IMAGE_TAG": "2637b6c"}'
-        saasherder = SaasHerder(
-            self.saas_files,
-            thread_pool_size=1,
-            gitlab=None,
-            integration="",
-            integration_version="",
-            settings={},
-            validate=True,
-        )
-
-        self.assertTrue(saasherder.valid)
-
-    def test_validate_image_tag_not_equals_ref_invalid(self):
-        self.saas_files[0]["resourceTemplates"][0]["targets"][0][
-            "ref"
-        ] = "2637b6c41bda7731b1bcaaf18b4a50d7c5e63e30"
-        self.saas_files[0]["resourceTemplates"][0]["targets"][0][
-            "parameters"
-        ] = '{"IMAGE_TAG": "2637b6c"}'
-        saasherder = SaasHerder(
-            self.saas_files,
-            thread_pool_size=1,
-            gitlab=None,
-            integration="",
-            integration_version="",
-            settings={},
-            validate=True,
-        )
-
-        self.assertFalse(saasherder.valid)
-
-    def test_validate_upstream_jobs_valid(self):
-        saasherder = SaasHerder(
-            self.saas_files,
-            thread_pool_size=1,
-            gitlab=None,
-            integration="",
-            integration_version="",
-            settings={},
-            validate=True,
-        )
-        saasherder.validate_upstream_jobs(self.jjb)
-        self.assertTrue(saasherder.valid)
-
-    def test_validate_upstream_jobs_invalid(self):
-        saasherder = SaasHerder(
-            self.saas_files,
-            thread_pool_size=1,
-            gitlab=None,
-            integration="",
-            integration_version="",
-            settings={},
+            hash_length=7,
+            repo_url="https://repo-url.com",
             validate=True,
         )
         jjb = MockJJB({"ci": []})
-        saasherder.validate_upstream_jobs(jjb)
+        saasherder.validate_upstream_jobs(jjb)  # type: ignore
         self.assertFalse(saasherder.valid)
 
-    def test_check_saas_file_promotion_same_source(self):
-        rts = [
+    def test_check_saas_file_promotion_same_source(self) -> None:
+        raw_rts = [
             {
                 "name": "rt_publisher",
                 "url": "repo_publisher",
+                "path": "path",
                 "targets": [
                     {
                         "namespace": {
                             "name": "ns",
-                            "environment": {"name": "env1"},
-                            "cluster": {"name": "cluster"},
+                            "app": {"name": "app"},
+                            "environment": {
+                                "name": "env1",
+                            },
+                            "cluster": {
+                                "name": "appsres03ue1",
+                                "serverUrl": "https://url",
+                                "internal": True,
+                            },
                         },
-                        "parameters": {},
+                        "parameters": "{}",
                         "ref": "0000000000000",
                         "promotion": {
                             "publish": ["channel-1"],
@@ -324,222 +356,184 @@ class TestSaasFileValid(TestCase):
             {
                 "name": "rt_subscriber",
                 "url": "this-repo-will-not-match-the-publisher",
+                "path": "path",
                 "targets": [
                     {
                         "namespace": {
                             "name": "ns2",
-                            "environment": {"name": "env1"},
-                            "cluster": {"name": "cluster"},
+                            "app": {"name": "app"},
+                            "environment": {
+                                "name": "env1",
+                            },
+                            "cluster": {
+                                "name": "appsres03ue1",
+                                "serverUrl": "https://url",
+                                "internal": True,
+                            },
                         },
-                        "parameters": {},
+                        "parameters": "{}",
                         "ref": "0000000000000",
                         "promotion": {
-                            "auto": "true",
+                            "auto": "True",
                             "subscribe": ["channel-1"],
                         },
                     }
                 ],
             },
         ]
-        self.saas_files[0]["resourceTemplates"] = rts
+        rts = [
+            self.gql_class_factory(  # type: ignore[attr-defined] # it's set in the fixture
+                SaasResourceTemplateV2, rt
+            )
+            for rt in raw_rts
+        ]
+        self.saas_file.resource_templates = rts
         saasherder = SaasHerder(
-            self.saas_files,
+            [self.saas_file],
+            secret_reader=MockSecretReader(),
             thread_pool_size=1,
-            gitlab=None,
             integration="",
             integration_version="",
-            settings={},
+            hash_length=7,
+            repo_url="https://repo-url.com",
             validate=True,
         )
         self.assertFalse(saasherder.valid)
 
 
+@pytest.mark.usefixtures("inject_gql_class_factory")
 class TestGetMovingCommitsDiffSaasFile(TestCase):
-    def setUp(self):
-        self.saas_files = [
-            {
-                "path": "path1",
-                "name": "a1",
-                "managedResourceTypes": [],
-                "resourceTemplates": [
-                    {
-                        "name": "rt",
-                        "url": "http://github.com/user/repo",
-                        "targets": [
-                            {
-                                "namespace": {
-                                    "name": "ns",
-                                    "environment": {"name": "env1"},
-                                    "cluster": {"name": "cluster1"},
-                                },
-                                "parameters": {},
-                                "ref": "main",
-                            },
-                            {
-                                "namespace": {
-                                    "name": "ns",
-                                    "environment": {"name": "env2"},
-                                    "cluster": {"name": "cluster2"},
-                                },
-                                "parameters": {},
-                                "ref": "secondary",
-                            },
-                        ],
-                    }
-                ],
-                "roles": [{"users": [{"org_username": "myname"}]}],
-            }
-        ]
+    def setUp(self) -> None:
+        self.saas_file = self.gql_class_factory(  # type: ignore[attr-defined] # it's set in the fixture
+            SaasFileV2, Fixtures("saasherder").get_anymarkup("saas.gql.yml")
+        )
+
         self.initiate_gh_patcher = patch.object(
             SaasHerder, "_initiate_github", autospec=True
-        )
-        self.get_pipelines_provider_patcher = patch.object(
-            SaasHerder, "_get_pipelines_provider"
         )
         self.get_commit_sha_patcher = patch.object(
             SaasHerder, "_get_commit_sha", autospec=True
         )
         self.initiate_gh = self.initiate_gh_patcher.start()
-        self.get_pipelines_provider = self.get_pipelines_provider_patcher.start()
         self.get_commit_sha = self.get_commit_sha_patcher.start()
         self.maxDiff = None
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         for p in (
             self.initiate_gh_patcher,
-            self.get_pipelines_provider_patcher,
             self.get_commit_sha_patcher,
         ):
             p.stop()
 
-    def test_get_moving_commits_diff_saas_file_all_fine(self):
+    def test_get_moving_commits_diff_saas_file_all_fine(self) -> None:
         saasherder = SaasHerder(
-            self.saas_files,
+            [self.saas_file],
+            secret_reader=MockSecretReader(),
             thread_pool_size=1,
-            gitlab=None,
             integration="",
             integration_version="",
-            settings={},
-            validate=False,
+            hash_length=7,
+            repo_url="https://repo-url.com",
         )
         saasherder.state = MagicMock()
         saasherder.state.get.return_value = "asha"
-        self.get_commit_sha.side_effect = ("abcd4242", "4242efg")
-        self.get_pipelines_provider.return_value = "apipelineprovider"
+        self.get_commit_sha.side_effect = ("abcd4242",)
+        # 2nd target is the one that will be promoted
         expected = [
             TriggerSpecMovingCommit(
-                saas_file_name=self.saas_files[0]["name"],
-                env_name="env1",
+                saas_file_name=self.saas_file.name,
+                env_name="App-SRE",
                 timeout=None,
-                ref="main",
+                pipelines_provider=self.saas_file.pipelines_provider,
+                resource_template_name="test-saas-deployments",
+                cluster_name="appsres03ue1",
+                namespace_name="test-ns-subscriber",
                 state_content="abcd4242",
-                cluster_name="cluster1",
-                pipelines_provider="apipelineprovider",
-                namespace_name="ns",
-                resource_template_name="rt",
-            ),
-            TriggerSpecMovingCommit(
-                saas_file_name=self.saas_files[0]["name"],
-                env_name="env2",
-                timeout=None,
-                ref="secondary",
-                state_content="4242efg",
-                cluster_name="cluster2",
-                pipelines_provider="apipelineprovider",
-                namespace_name="ns",
-                resource_template_name="rt",
-            ),
+                ref="1234567890123456789012345678901234567890",
+                reason=None,
+            )
         ]
 
         self.assertEqual(
-            saasherder.get_moving_commits_diff_saas_file(self.saas_files[0], True),
+            saasherder.get_moving_commits_diff_saas_file(self.saas_file, True),
             expected,
         )
 
-    def test_get_moving_commits_diff_saas_file_all_fine_include_trigger_trace(self):
+    def test_get_moving_commits_diff_saas_file_all_fine_include_trigger_trace(
+        self,
+    ) -> None:
         saasherder = SaasHerder(
-            self.saas_files,
+            [self.saas_file],
+            secret_reader=MockSecretReader(),
             thread_pool_size=1,
-            gitlab=None,
             integration="",
             integration_version="",
-            settings={},
-            validate=False,
+            hash_length=7,
+            repo_url="https://repo-url.com",
             include_trigger_trace=True,
         )
+
         saasherder.state = MagicMock()
         saasherder.state.get.return_value = "asha"
         self.get_commit_sha.side_effect = ("abcd4242", "4242efg")
-        self.get_pipelines_provider.return_value = "apipelineprovider"
         expected = [
             TriggerSpecMovingCommit(
-                saas_file_name=self.saas_files[0]["name"],
-                env_name="env1",
+                saas_file_name=self.saas_file.name,
+                env_name="App-SRE",
                 timeout=None,
-                ref="main",
+                pipelines_provider=self.saas_file.pipelines_provider,
+                resource_template_name="test-saas-deployments",
+                cluster_name="appsres03ue1",
+                namespace_name="test-ns-subscriber",
                 state_content="abcd4242",
-                cluster_name="cluster1",
-                pipelines_provider="apipelineprovider",
-                namespace_name="ns",
-                resource_template_name="rt",
-                reason="http://github.com/user/repo/commit/abcd4242",
-            ),
-            TriggerSpecMovingCommit(
-                saas_file_name=self.saas_files[0]["name"],
-                env_name="env2",
-                timeout=None,
-                ref="secondary",
-                state_content="4242efg",
-                cluster_name="cluster2",
-                pipelines_provider="apipelineprovider",
-                namespace_name="ns",
-                resource_template_name="rt",
-                reason="http://github.com/user/repo/commit/4242efg",
+                ref="1234567890123456789012345678901234567890",
+                reason="https://github.com/app-sre/test-saas-deployments/commit/abcd4242",
             ),
         ]
 
         self.assertEqual(
-            saasherder.get_moving_commits_diff_saas_file(self.saas_files[0], True),
+            saasherder.get_moving_commits_diff_saas_file(self.saas_file, True),
             expected,
         )
 
-    def test_get_moving_commits_diff_saas_file_bad_sha1(self):
+    def test_get_moving_commits_diff_saas_file_bad_sha1(self) -> None:
         saasherder = SaasHerder(
-            self.saas_files,
+            [self.saas_file],
+            secret_reader=MockSecretReader(),
             thread_pool_size=1,
-            gitlab=None,
             integration="",
             integration_version="",
-            settings={},
-            validate=False,
+            hash_length=7,
+            repo_url="https://repo-url.com",
         )
         saasherder.state = MagicMock()
         saasherder.state.get.return_value = "asha"
-        self.get_pipelines_provider.return_value = "apipelineprovider"
         self.get_commit_sha.side_effect = GithubException(
             401, "somedata", {"aheader": "avalue"}
         )
         # At least we don't crash!
         self.assertEqual(
-            saasherder.get_moving_commits_diff_saas_file(self.saas_files[0], True), []
+            saasherder.get_moving_commits_diff_saas_file(self.saas_file, True), []
         )
 
 
+@pytest.mark.usefixtures("inject_gql_class_factory")
 class TestPopulateDesiredState(TestCase):
-    def setUp(self):
-        saas_files = []
+    def setUp(self) -> None:
         self.fxts = Fixtures("saasherder_populate_desired")
-        for file in [self.fxts.get("saas_remote_openshift_template.yaml")]:
-            saas_files.append(yaml.safe_load(file))
-
-        self.assertEqual(1, len(saas_files))
+        raw_saas_file = self.fxts.get_anymarkup("saas_remote_openshift_template.yaml")
+        del raw_saas_file["_placeholders"]
+        saas_file = self.gql_class_factory(  # type: ignore[attr-defined] # it's set in the fixture
+            SaasFileV2, raw_saas_file
+        )
         self.saasherder = SaasHerder(
-            saas_files,
+            [saas_file],
+            secret_reader=MockSecretReader(),
             thread_pool_size=1,
-            gitlab=None,
             integration="",
             integration_version="",
-            settings={"hashLength": 7},
+            hash_length=7,
+            repo_url="https://repo-url.com",
         )
 
         # Mock GitHub interactions.
@@ -566,13 +560,15 @@ class TestPopulateDesiredState(TestCase):
         )
         self.get_check_images_patcher.start()
 
-    def fake_get_file_contents(self, options):
-        self.assertEqual("https://github.com/rhobs/configuration", options["url"])
+    def fake_get_file_contents(
+        self, url: str, path: str, ref: str, github: Github
+    ) -> tuple[Any, str, str]:
+        self.assertEqual("https://github.com/rhobs/configuration", url)
 
-        content = self.fxts.get(options["ref"] + (options["path"].replace("/", "_")))
-        return yaml.safe_load(content), "yolo", options["ref"]
+        content = self.fxts.get(ref + (path.replace("/", "_")))
+        return yaml.safe_load(content), "yolo", ref
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         for p in (
             self.initiate_gh_patcher,
             self.get_file_contents_patcher,
@@ -580,13 +576,7 @@ class TestPopulateDesiredState(TestCase):
         ):
             p.stop()
 
-    def test_populate_desired_state_saas_file_delete(self):
-        spec = {"delete": True}
-
-        desired_state = self.saasherder.populate_desired_state_saas_file(spec, None)
-        self.assertIsNone(desired_state)
-
-    def test_populate_desired_state_cases(self):
+    def test_populate_desired_state_cases(self) -> None:
         ri = ResourceInventory()
         for resource_type in (
             "Deployment",
@@ -609,175 +599,131 @@ class TestPopulateDesiredState(TestCase):
                 cnt += 1
 
         self.assertEqual(5, cnt, "expected 5 resources, found less")
+        self.assertEqual(self.saasherder.promotions, [None, None, None, None])
 
 
+@pytest.mark.usefixtures("inject_gql_class_factory")
 class TestCollectRepoUrls(TestCase):
-    def test_collect_repo_urls(self):
-        repo_url = "git-repo"
-        saas_files = [
-            {
-                "path": "path1",
-                "name": "name1",
-                "managedResourceTypes": [],
-                "resourceTemplates": [{"name": "name", "url": repo_url, "targets": []}],
-            }
-        ]
+    def setUp(self) -> None:
+        self.saas_file = self.gql_class_factory(  # type: ignore[attr-defined] # it's set in the fixture
+            SaasFileV2, Fixtures("saasherder").get_anymarkup("saas.gql.yml")
+        )
 
+    def test_collect_repo_urls(self) -> None:
+        repo_url = "https://github.com/app-sre/test-saas-deployments"
         saasherder = SaasHerder(
-            saas_files,
+            [self.saas_file],
+            secret_reader=MockSecretReader(),
             thread_pool_size=1,
-            gitlab=None,
             integration="",
             integration_version="",
-            settings={},
+            hash_length=7,
+            repo_url="https://repo-url.com",
         )
         self.assertEqual({repo_url}, saasherder.repo_urls)
 
 
+@pytest.mark.usefixtures("inject_gql_class_factory")
 class TestGetSaasFileAttribute(TestCase):
-    def test_attribute_none(self):
-        saas_files = [
-            {
-                "path": "path1",
-                "name": "name1",
-                "managedResourceTypes": [],
-                "resourceTemplates": [],
-            }
-        ]
+    def setUp(self) -> None:
+        self.saas_file = self.gql_class_factory(  # type: ignore[attr-defined] # it's set in the fixture
+            SaasFileV2, Fixtures("saasherder").get_anymarkup("saas.gql.yml")
+        )
 
+    def test_no_such_attribute(self) -> None:
         saasherder = SaasHerder(
-            saas_files,
+            [self.saas_file],
+            secret_reader=MockSecretReader(),
             thread_pool_size=1,
-            gitlab=None,
             integration="",
             integration_version="",
-            settings={},
+            hash_length=7,
+            repo_url="https://repo-url.com",
         )
         att = saasherder._get_saas_file_feature_enabled("no_such_attribute")
         self.assertEqual(att, None)
 
-    def test_attribute_not_none(self):
-        saas_files = [
-            {
-                "path": "path1",
-                "name": "name1",
-                "managedResourceTypes": [],
-                "resourceTemplates": [],
-                "attrib": True,
-            }
-        ]
-
+    def test_attribute_none(self) -> None:
         saasherder = SaasHerder(
-            saas_files,
+            [self.saas_file],
+            secret_reader=MockSecretReader(),
             thread_pool_size=1,
-            gitlab=None,
             integration="",
             integration_version="",
-            settings={},
+            hash_length=7,
+            repo_url="https://repo-url.com",
         )
-        att = saasherder._get_saas_file_feature_enabled("attrib")
+        att = saasherder._get_saas_file_feature_enabled("takeover")
+        self.assertEqual(att, None)
+
+    def test_attribute_not_none(self) -> None:
+        saasherder = SaasHerder(
+            [self.saas_file],
+            secret_reader=MockSecretReader(),
+            thread_pool_size=1,
+            integration="",
+            integration_version="",
+            hash_length=7,
+            repo_url="https://repo-url.com",
+        )
+        att = saasherder._get_saas_file_feature_enabled("publish_job_logs")
         self.assertEqual(att, True)
 
-    def test_attribute_none_with_default(self):
-        saas_files = [
-            {
-                "path": "path1",
-                "name": "name1",
-                "managedResourceTypes": [],
-                "resourceTemplates": [],
-            }
-        ]
-
+    def test_attribute_none_with_default(self) -> None:
         saasherder = SaasHerder(
-            saas_files,
+            [self.saas_file],
+            secret_reader=MockSecretReader(),
             thread_pool_size=1,
-            gitlab=None,
             integration="",
             integration_version="",
-            settings={},
+            hash_length=7,
+            repo_url="https://repo-url.com",
         )
         att = saasherder._get_saas_file_feature_enabled("no_such_att", default=True)
         self.assertEqual(att, True)
 
-    def test_attribute_not_none_with_default(self):
-        saas_files = [
-            {
-                "path": "path1",
-                "name": "name1",
-                "managedResourceTypes": [],
-                "resourceTemplates": [],
-                "attrib": True,
-            }
-        ]
-
+    def test_attribute_not_none_with_default(self) -> None:
         saasherder = SaasHerder(
-            saas_files,
+            [self.saas_file],
+            secret_reader=MockSecretReader(),
             thread_pool_size=1,
-            gitlab=None,
             integration="",
             integration_version="",
-            settings={},
+            hash_length=7,
+            repo_url="https://repo-url.com",
         )
-        att = saasherder._get_saas_file_feature_enabled("attrib", default=False)
+        att = saasherder._get_saas_file_feature_enabled(
+            "publish_job_logs", default=False
+        )
         self.assertEqual(att, True)
 
-    def test_attribute_multiple_saas_files_return_false(self):
-        saas_files = [
-            {
-                "path": "path1",
-                "name": "name1",
-                "managedResourceTypes": [],
-                "resourceTemplates": [],
-                "attrib": True,
-            },
-            {
-                "path": "path2",
-                "name": "name2",
-                "managedResourceTypes": [],
-                "resourceTemplates": [],
-            },
-        ]
-
+    def test_attribute_multiple_saas_files_return_false(self) -> None:
         saasherder = SaasHerder(
-            saas_files,
+            [self.saas_file, self.saas_file],
+            secret_reader=MockSecretReader(),
             thread_pool_size=1,
-            gitlab=None,
             integration="",
             integration_version="",
-            settings={},
+            hash_length=7,
+            repo_url="https://repo-url.com",
         )
-        self.assertFalse(saasherder._get_saas_file_feature_enabled("attrib"))
+        self.assertFalse(saasherder._get_saas_file_feature_enabled("publish_job_logs"))
 
-    def test_attribute_multiple_saas_files_with_default_return_false(self):
-        saas_files = [
-            {
-                "path": "path1",
-                "name": "name1",
-                "managedResourceTypes": [],
-                "resourceTemplates": [],
-                "attrib": True,
-            },
-            {
-                "path": "path2",
-                "name": "name2",
-                "managedResourceTypes": [],
-                "resourceTemplates": [],
-                "attrib": True,
-            },
-        ]
-
+    def test_attribute_multiple_saas_files_with_default_return_false(self) -> None:
         saasherder = SaasHerder(
-            saas_files,
+            [self.saas_file, self.saas_file],
+            secret_reader=MockSecretReader(),
             thread_pool_size=1,
-            gitlab=None,
             integration="",
             integration_version="",
-            settings={},
+            hash_length=7,
+            repo_url="https://repo-url.com",
         )
         att = saasherder._get_saas_file_feature_enabled("attrib", default=True)
         self.assertFalse(att)
 
 
+@pytest.mark.usefixtures("inject_gql_class_factory")
 class TestConfigHashPromotionsValidation(TestCase):
     """TestCase to test SaasHerder promotions validation. SaasHerder is
     initialized with ResourceInventory population. Like is done in
@@ -789,17 +735,18 @@ class TestConfigHashPromotionsValidation(TestCase):
     template: Any
 
     @classmethod
-    def setUpClass(cls):
+    def setUpClass(cls) -> None:
         cls.fxt = Fixtures("saasherder")
         cls.cluster = "test-cluster"
         cls.template = cls.fxt.get_anymarkup("template_1.yml")
 
     def setUp(self) -> None:
-        self.all_saas_files = [self.fxt.get_anymarkup("saas.gql.yml")]
-
-        self.state_patcher = patch(
-            "reconcile.utils.saasherder.init_state", autospec=True
+        self.saas_file = self.gql_class_factory(  # type: ignore[attr-defined] # it's set in the fixture
+            SaasFileV2, Fixtures("saasherder").get_anymarkup("saas.gql.yml")
         )
+        self.all_saas_files = [self.saas_file]
+
+        self.state_patcher = patch("reconcile.utils.state.State", autospec=True)
         self.state_mock = self.state_patcher.start().return_value
 
         self.ig_patcher = patch.object(SaasHerder, "_initiate_github", autospec=True)
@@ -810,11 +757,6 @@ class TestConfigHashPromotionsValidation(TestCase):
 
         self.gfc_patcher = patch.object(SaasHerder, "_get_file_contents", autospec=True)
         gfc_mock = self.gfc_patcher.start()
-
-        self.saas_file = self.fxt.get_anymarkup("saas.gql.yml")
-        # ApiVersion is set in the saas gql query method in queries module
-        self.saas_file["apiVersion"] = "v2"
-
         gfc_mock.return_value = (self.template, "url", "ahash")
 
         self.deploy_current_state_fxt = self.fxt.get_anymarkup("saas_deploy.state.json")
@@ -825,12 +767,13 @@ class TestConfigHashPromotionsValidation(TestCase):
 
         self.saasherder = SaasHerder(
             [self.saas_file],
+            secret_reader=MockSecretReader(),
             thread_pool_size=1,
-            gitlab=None,
+            state=self.state_mock,
             integration="",
             integration_version="",
-            initialise_state=True,
-            settings={"hashLength": 24},
+            hash_length=24,
+            repo_url="https://repo-url.com",
         )
 
         # IMPORTANT: Populating desired state modify self.saas_files within
@@ -844,55 +787,42 @@ class TestConfigHashPromotionsValidation(TestCase):
         if self.ri.has_error_registered():
             raise Exception("Errors registered in Resourceinventory")
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         self.state_patcher.stop()
         self.ig_patcher.stop()
         self.gfc_patcher.stop()
 
-    def test_config_hash_is_filled(self) -> None:
-        """Ensures the get_config_diff_saas_file fills the promotion data
-        on the publisher target. This data is used in publish_promotions
-        method to add the hash to subscribed targets.
-        IMPORTANT: This is not the promotion_data within promotion. This
-        fields are set by _process_template method in saasherder
-        """
-        trigger_spec: TriggerSpecConfig = self.saasherder.get_configs_diff_saas_file(
-            self.saas_file
-        )[0]
-        promotion = trigger_spec.state_content["promotion"]
-        self.assertIsNotNone(promotion[TARGET_CONFIG_HASH])
-
-    def test_promotion_state_config_hash_match_validates(self):
+    def test_promotion_state_config_hash_match_validates(self) -> None:
         """A promotion is valid if the parent target config_hash set in
         the state is equal to the one set in the subscriber target
         promotion data. This is the happy path.
         """
         publisher_state = {
             "success": True,
-            "saas_file": self.saas_file["name"],
-            TARGET_CONFIG_HASH: "ed2af38cf21f268c",
+            "saas_file": self.saas_file.name,
+            "target_config_hash": "ed2af38cf21f268c",
         }
         self.state_mock.get.return_value = publisher_state
         result = self.saasherder.validate_promotions()
         self.assertTrue(result)
 
-    def test_promotion_state_config_hash_not_match_no_validates(self):
+    def test_promotion_state_config_hash_not_match_no_validates(self) -> None:
         """Promotion is not valid if the parent target config hash set in
-        the state does not match with the one set in the subsriber target
+        the state does not match with the one set in the subscriber target
         promotion_data. This could happen if the parent target has run again
         with the same ref before before the subscriber target promotion MR is
         merged.
         """
         publisher_state = {
             "success": True,
-            "saas_file": self.saas_file["name"],
-            TARGET_CONFIG_HASH: "will_not_match",
+            "saas_file": self.saas_file.name,
+            "target_config_hash": "will_not_match",
         }
         self.state_mock.get.return_value = publisher_state
         result = self.saasherder.validate_promotions()
         self.assertFalse(result)
 
-    def test_promotion_without_state_config_hash_validates(self):
+    def test_promotion_without_state_config_hash_validates(self) -> None:
         """Existent states won't have promotion data. If there is an ongoing
         promotion, this ensures it will happen.
         """
@@ -903,25 +833,28 @@ class TestConfigHashPromotionsValidation(TestCase):
         result = self.saasherder.validate_promotions()
         self.assertTrue(result)
 
-    def test_promotion_without_promotion_data_validates(self):
+    def test_promotion_without_promotion_data_validates(self) -> None:
         """A manual promotion might be required, subsribed targets without
         promotion_data should validate if the parent target job has succed
         with the same ref.
         """
         publisher_state = {
             "success": True,
-            "saas_file": self.saas_file["name"],
-            TARGET_CONFIG_HASH: "whatever",
+            "saas_file": self.saas_file.name,
+            "target_config_hash": "whatever",
         }
 
+        self.assertEqual(len(self.saasherder.promotions), 2)
+        self.assertIsNotNone(self.saasherder.promotions[1])
         # Remove promotion_data on the promoted target
-        self.saasherder.promotions[1]["promotion_data"] = None
+        self.saasherder.promotions[1].promotion_data = None  # type: ignore
 
         self.state_mock.get.return_value = publisher_state
         result = self.saasherder.validate_promotions()
         self.assertTrue(result)
 
 
+@pytest.mark.usefixtures("inject_gql_class_factory")
 class TestConfigHashTrigger(TestCase):
     """TestCase to test Openshift SAAS deploy configs trigger. SaasHerder is
     initialized WITHOUT ResourceInventory population. Like is done in the
@@ -933,21 +866,18 @@ class TestConfigHashTrigger(TestCase):
     template: Any
 
     @classmethod
-    def setUpClass(cls):
+    def setUpClass(cls) -> None:
         cls.fxt = Fixtures("saasherder")
         cls.cluster = "test-cluster"
 
     def setUp(self) -> None:
-        self.all_saas_files = [self.fxt.get_anymarkup("saas.gql.yml")]
-
-        self.state_patcher = patch(
-            "reconcile.utils.saasherder.init_state", autospec=True
+        self.saas_file = self.gql_class_factory(  # type: ignore[attr-defined] # it's set in the fixture
+            SaasFileV2, Fixtures("saasherder").get_anymarkup("saas.gql.yml")
         )
-        self.state_mock = self.state_patcher.start().return_value
+        self.all_saas_files = [self.saas_file]
 
-        self.saas_file = self.fxt.get_anymarkup("saas.gql.yml")
-        # ApiVersion is set in the saas gql query method in queries module
-        self.saas_file["apiVersion"] = "v2"
+        self.state_patcher = patch("reconcile.utils.state.State", autospec=True)
+        self.state_mock = self.state_patcher.start().return_value
 
         self.deploy_current_state_fxt = self.fxt.get_anymarkup("saas_deploy.state.json")
 
@@ -962,50 +892,48 @@ class TestConfigHashTrigger(TestCase):
 
         self.saasherder = SaasHerder(
             [self.saas_file],
+            secret_reader=MockSecretReader(),
             thread_pool_size=1,
-            gitlab=None,
+            state=self.state_mock,
             integration="",
             integration_version="",
-            initialise_state=True,
-            settings={"hashLength": 24},
+            hash_length=24,
+            repo_url="https://repo-url.com",
         )
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         self.state_patcher.stop()
 
-    def test_same_configs_do_not_trigger(self):
+    def test_same_configs_do_not_trigger(self) -> None:
         """Ensures that if the same config is found, no job is triggered
         current Config is fetched from the state
         """
         trigger_specs = self.saasherder.get_configs_diff_saas_file(self.saas_file)
         self.assertListEqual(trigger_specs, [])
 
-    def test_config_hash_change_do_trigger(self):
+    def test_config_hash_change_do_trigger(self) -> None:
         """Ensures a new job is triggered if the parent config hash changes"""
-        configs = self.saasherder.get_saas_targets_config_trigger_specs(self.saas_file)
-
-        desired_tc = list(configs.values())[1].state_content
-        desired_promo_data = desired_tc["promotion"]["promotion_data"]
-        desired_promo_data[0]["data"][0][TARGET_CONFIG_HASH] = "Changed"
-
+        self.saasherder.saas_files[0].resource_templates[0].targets[  # type: ignore
+            1
+        ].promotion.promotion_data[0].data[0].target_config_hash = "Changed"
         trigger_specs = self.saasherder.get_configs_diff_saas_file(self.saas_file)
         self.assertEqual(len(trigger_specs), 1)
 
-    def test_non_existent_config_triggers(self):
+    def test_non_existent_config_triggers(self) -> None:
         self.state_mock.get.side_effect = [self.deploy_current_state_fxt, None]
         trigger_specs = self.saasherder.get_configs_diff_saas_file(self.saas_file)
         self.assertEqual(len(trigger_specs), 1)
 
 
 class TestRemoveNoneAttributes(TestCase):
-    def testSimpleDict(self):
+    def testSimpleDict(self) -> None:
         input = {"a": 1, "b": {}, "d": None, "e": {"aa": "aa", "bb": None}}
         expected = {"a": 1, "b": {}, "e": {"aa": "aa"}}
         res = SaasHerder.remove_none_values(input)
         self.assertEqual(res, expected)
 
-    def testNoneValue(self):
+    def testNoneValue(self) -> None:
         input = None
-        expected = {}
+        expected: dict[Any, Any] = {}
         res = SaasHerder.remove_none_values(input)
         self.assertEqual(res, expected)

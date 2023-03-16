@@ -12,9 +12,7 @@
   "ref": "main",
   "promotion": {
     "auto": null,
-    "publish": [
-      "test-saas-deployments-deploy"
-    ],
+    "publish": ["test-saas-deployments-deploy"],
     "subscribe": null
   },
   "parameters": null,
@@ -22,10 +20,15 @@
   "disable": null,
   "delete": null,
   "saas_file_parameters": null,
-  "saas_file_managed_resource_types": [
-    "Job"
-  ],
+  "saas_file_managed_resource_types": ["Job"],
   "url": "https://github.com/app-sre/test-saas-deployments",
   "path": "/openshift/deploy-template.yml",
-  "rt_parameters": "{\"PARAM\":\"test\"}"
+  "rt_parameters": "{\"PARAM\":\"test\"}",
+  "upstream": {
+    "instance": {
+      "name": "ci",
+      "serverUrl": "https://jenkins.com"
+    },
+    "name": "job"
+  }
 }
