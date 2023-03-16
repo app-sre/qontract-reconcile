@@ -104,7 +104,7 @@ gql-introspection:
 	@$(VENV_CMD) qenerate introspection http://localhost:4000/graphql > reconcile/gql_definitions/introspection.json
 
 gql-query-classes:
-	@$(VENV_CMD) qenerate --version | grep -q $(EXPECTED_QENERATE_VERSION) || (echo "Bad qenerate version. Make sure your you have version $(EXPECTED_QENERATE_VERSION) installed" && exit 1)
+	@$(VENV_CMD) qenerate --version | grep -q $(EXPECTED_QENERATE_VERSION) || (echo "Bad qenerate version. Make sure you have version $(EXPECTED_QENERATE_VERSION) installed" && exit 1)
 	@$(VENV_CMD) qenerate code -i reconcile/gql_definitions/introspection.json reconcile/gql_definitions
 	find reconcile/gql_definitions -path '*/__pycache__' -prune -o -type d -exec touch "{}/__init__.py" \;
 	@$(VENV_CMD) black reconcile/gql_definitions
