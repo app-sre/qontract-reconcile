@@ -192,8 +192,7 @@ class OcpReleaseMirror:
         self.channel_groups = instance.mirror_channels
 
     def cleanup(self):
-        if self.aws_cli:
-            self.aws_cli.cleanup()
+        self.aws_cli.cleanup()
 
     def run(self):
         ocp_releases = self._get_ocp_releases()
@@ -368,5 +367,7 @@ def run(dry_run: bool) -> None:
             LOG.error(str(details))
             sys.exit(ExitCodes.ERROR)
         finally:
-            if quay_mirror is not None:
+            try:
                 quay_mirror.cleanup()
+            except NameError:
+                LOG.debug("No quay_mirror to cleanup")

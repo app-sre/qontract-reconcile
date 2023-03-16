@@ -587,7 +587,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         return split_outputs
 
     def cleanup(self):
-        if self._aws_api:
+        if self._aws_api is not None:
             self._aws_api.cleanup()
         for _, wd in self.working_dirs.items():
             shutil.rmtree(wd)
