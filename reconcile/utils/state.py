@@ -93,7 +93,7 @@ def init_state_from_accounts(
     return State(
         integration=integration,
         bucket=bucket_name,
-        client=session.client("s3"),
+        client=aws_api.get_session_client(session, "s3"),
     )
 
 
@@ -127,6 +127,18 @@ class State:
             raise StateInaccessibleException(
                 f"Bucket {self.bucket} is not accessible - {str(details)}"
             )
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self.cleanup()
+
+    def cleanup(self):
+        """
+        Closes the S3 client
+        """
+        self.client.close()
 
     def exists(self, key):
         """

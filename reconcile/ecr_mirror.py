@@ -67,8 +67,12 @@ class EcrMirror:
             self.image_password = raw_data["token"]
             self.image_auth = f"{self.image_username}:{self.image_password}"
 
+    def _cleanup(self):
+        self.aws_cli.cleanup()
+
     def run(self):
         if self.error:
+            self._cleanup()
             return
 
         ecr_mirror = Image(
@@ -93,6 +97,7 @@ class EcrMirror:
                     )
                 except SkopeoCmdError as details:
                     LOG.error("[%s]", details)
+        self._cleanup()
 
     def _get_ecr_creds(self, account, region):
         if region is None:

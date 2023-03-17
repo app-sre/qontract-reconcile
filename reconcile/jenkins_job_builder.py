@@ -128,6 +128,8 @@ def run(
         sys.exit(0)
 
     state = init_state(QONTRACT_INTEGRATION, secret_reader)
+    if defer:
+        defer(state.cleanup)
 
     if dry_run:
         validate_repos_and_admins(jjb)

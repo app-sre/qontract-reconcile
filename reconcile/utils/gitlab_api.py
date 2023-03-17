@@ -93,6 +93,17 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
             self.project = self.gl.projects.get(project_id)
         self.saas_files = saas_files
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self.cleanup()
+
+    def cleanup(self):
+        """
+        This method is a placeholder for cleanup actions. This is aligned with SQSGateway.
+        """
+
     @retry()
     def _auth(self):
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()

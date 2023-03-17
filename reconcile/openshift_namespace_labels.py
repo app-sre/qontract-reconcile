@@ -440,6 +440,8 @@ def run(
     get_desired(inventory, oc_map, namespaces)
 
     state = init_state(integration=QONTRACT_INTEGRATION)
+    if defer:
+        defer(state.cleanup)
     _LOG.debug("Collecting managed state ...")
     get_managed(inventory, state)
 

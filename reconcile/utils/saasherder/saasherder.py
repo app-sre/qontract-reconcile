@@ -13,10 +13,12 @@ from collections.abc import (
     Sequence,
 )
 from contextlib import suppress
+from types import TracebackType
 from typing import (
     Any,
     Generator,
     Optional,
+    Type,
     Union,
 )
 
@@ -94,7 +96,7 @@ Resource = dict[str, Any]
 Resources = list[Resource]
 
 
-class SaasHerder:
+class SaasHerder:  # pylint: disable=too-many-public-methods
     """Wrapper around SaaS deployment actions."""
 
     def __init__(
@@ -143,6 +145,21 @@ class SaasHerder:
         self.compare = self._get_saas_file_feature_enabled("compare", default=True)
         self.publish_job_logs = self._get_saas_file_feature_enabled("publish_job_logs")
         self.cluster_admin = self._get_saas_file_feature_enabled("cluster_admin")
+
+    def __enter__(self) -> "SaasHerder":
+        return self
+
+    def __exit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_value: Optional[BaseException],
+        traceback: Optional[TracebackType],
+    ) -> None:
+        self.cleanup()
+
+    def cleanup(self) -> None:
+        if hasattr(self, "state") and self.state is not None:
+            self.state.cleanup()
 
     def _register_error(self) -> None:
         self.error_registered = True

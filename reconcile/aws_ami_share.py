@@ -7,6 +7,7 @@ from typing import Any
 
 from reconcile import queries
 from reconcile.utils.aws_api import AWSApi
+from reconcile.utils.defer import defer
 
 QONTRACT_INTEGRATION = "aws-ami-share"
 MANAGED_TAG = {"Key": "managed_by_integration", "Value": QONTRACT_INTEGRATION}
@@ -36,11 +37,13 @@ def get_region(
     return region
 
 
-def run(dry_run):
+@defer
+def run(dry_run, defer=None):
     accounts = queries.get_aws_accounts(sharing=True)
     sharing_accounts = filter_accounts(accounts)
     settings = queries.get_app_interface_settings()
     aws_api = AWSApi(1, sharing_accounts, settings=settings, init_users=False)
+    defer(aws_api.cleanup)
 
     for src_account in sharing_accounts:
         sharing = src_account.get("sharing")

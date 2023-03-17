@@ -129,5 +129,5 @@ def run(dry_run: bool, gitlab_project_id: int) -> None:
         )
         if not dry_run:
             logging.info(f"Creating MR for {ocm_info['name']}")
-            mr_cli = mr_client_gateway.init(gitlab_project_id=gitlab_project_id)
-            mr.submit(cli=mr_cli)
+            with mr_client_gateway.init(gitlab_project_id=gitlab_project_id) as mr_cli:
+                mr.submit(cli=mr_cli)
