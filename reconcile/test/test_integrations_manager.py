@@ -217,7 +217,7 @@ def integrations(resources: dict[str, Any]) -> Iterable[Mapping[str, Any]]:
                     "spec": {"extraArgs": None, "resources": resources},
                     "shardSpecOverride": [
                         {
-                            "awsAccount": {"name": "test"},
+                            "awsAccounts": [{"name": "test"}],
                             "imageRef": "foo",
                         }
                     ],
