@@ -297,15 +297,14 @@ def _filter_cloudflare_namespaces(
     """
     cloudflare_namespaces: list[NamespaceV1] = []
     for ns in namespaces:
-        if isinstance(
-            ns.external_resources, NamespaceTerraformProviderResourceCloudflareV1
-        ):
-            for ex in ns.external_resources:
-                if (
-                    ex.provider == PROVIDER_CLOUDFLARE
-                    and ex.provisioner.name in account_names
-                ):
-                    cloudflare_namespaces.append(ns)
+        if ns.external_resources:
+            for resource in ns.external_resources:
+                if isinstance(resource, NamespaceTerraformProviderResourceCloudflareV1):
+                    if (
+                        resource.provider == PROVIDER_CLOUDFLARE
+                        and resource.provisioner.name in account_names
+                    ):
+                        cloudflare_namespaces.append(ns)
     return cloudflare_namespaces
 
 
