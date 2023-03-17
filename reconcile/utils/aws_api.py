@@ -115,6 +115,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         init_ecr_auth_tokens=False,
         init_users=True,
     ):
+        self._session_clients = []
         self.thread_pool_size = thread_pool_size
         if secret_reader:
             self.secret_reader = secret_reader
@@ -131,7 +132,6 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         # store the app-interface accounts in a dictionary indexed by name
         self.accounts = {acc["name"]: acc for acc in accounts}
 
-        self._session_clients = []
         # Setup caches on the instance itself to avoid leak
         # https://stackoverflow.com/questions/33672412/python-functools-lru-cache-with-class-methods-release-object
         # using @lru_cache decorators on methods would lek AWSApi instances
