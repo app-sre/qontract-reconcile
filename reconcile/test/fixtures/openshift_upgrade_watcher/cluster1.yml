@@ -42,11 +42,19 @@ ocm:
     path: path/to/client_secret
     version: null
   accessTokenUrl: access-token-url
+  environment:
+    url: ocm-url
+    accessTokenClientId: client-id
+    accessTokenClientSecret:
+      field: client_secret
+      format: null
+      path: path/to/client_secret
+      version: null
+    accessTokenUrl: access-token-url
   blockedVersions: []
   inheritVersionData: null
   name: ocm-production
   sectors: null
-  url: ocm-url
   orgId: org-id
 peering:
   connections: []

@@ -3,11 +3,19 @@ clusters:
   - name: cluster-1
     ocm:
       name: ocm-production
-      url: "https://api.openshift.com"
-      orgId: "org-id"
-      accessTokenClientId: "access-token-client-id"
-      accessTokenUrl: "http://token-url.com"
+      accessTokenClientId: null
+      accessTokenUrl: null
       accessTokenClientSecret: null
+      environment:
+        url: "https://api.openshift.com"
+        accessTokenClientId: "access-token-client-id"
+        accessTokenUrl: "http://token-url.com"
+        accessTokenClientSecret:
+          field: client_secret
+          format: null
+          path: path/to/client_secret
+          version: null
+      orgId: "org-id"
       blockedVersions: []
       sectors: null
     upgradePolicy: null
@@ -27,11 +35,19 @@ clusters:
   - name: cluster-2
     ocm:
       name: ocm-production
-      url: "https://api.openshift.com"
-      orgId: "org-id"
-      accessTokenClientId: "access-token-client-id"
-      accessTokenUrl: "http://token-url.com"
+      accessTokenClientId: null
+      accessTokenUrl: null
       accessTokenClientSecret: null
+      environment:
+        url: "https://api.openshift.com"
+        accessTokenClientId: "access-token-client-id"
+        accessTokenUrl: "http://token-url.com"
+        accessTokenClientSecret:
+          field: client_secret
+          format: null
+          path: path/to/client_secret
+          version: null
+      orgId: "org-id"
       blockedVersions: []
       sectors: null
     upgradePolicy: null
@@ -53,11 +69,23 @@ clusters:
   - name: cluster-3
     ocm:
       name: ocm-production
-      url: "https://api.openshift.com"
-      orgId: "org-id"
+      environment:
+        url: "https://api.openshift.com"
+        accessTokenClientId: "access-token-client-id"
+        accessTokenUrl: "http://token-url.com"
+        accessTokenClientSecret:
+          field: client_secret
+          format: null
+          path: path/to/client_secret
+          version: null
       accessTokenClientId: "access-token-client-id"
       accessTokenUrl: "http://token-url.com"
-      accessTokenClientSecret: null
+      accessTokenClientSecret:
+        field: client_secret
+        format: null
+        path: path/to/client_secret
+        version: null
+      orgId: "org-id"
       blockedVersions: []
       sectors: null
     upgradePolicy: null
@@ -85,11 +113,19 @@ clusters:
   - name: cluster-5
     ocm:
       name: ocm-production
-      url: "https://api.openshift.com"
-      orgId: "org-id"
-      accessTokenClientId: "access-token-client-id"
-      accessTokenUrl: "http://token-url.com"
+      accessTokenClientId: null
+      accessTokenUrl: null
       accessTokenClientSecret: null
+      environment:
+        url: "https://api.openshift.com"
+        accessTokenClientId: "access-token-client-id"
+        accessTokenUrl: "http://token-url.com"
+        accessTokenClientSecret:
+          field: client_secret
+          format: null
+          path: path/to/client_secret
+          version: null
+      orgId: "org-id"
       blockedVersions: []
       sectors: null
     upgradePolicy: null

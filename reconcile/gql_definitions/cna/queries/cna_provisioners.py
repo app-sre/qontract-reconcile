@@ -17,10 +17,20 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
+from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
 
 DEFINITION = """
+fragment OCMEnvironment on OpenShiftClusterManagerEnvironment_v1 {
+    url
+    accessTokenClientId
+    accessTokenUrl
+    accessTokenClientSecret {
+        ... VaultSecret
+    }
+}
+
 fragment VaultSecret on VaultSecret_v1 {
     path
     field
@@ -40,7 +50,9 @@ query CNAProvisioners {
       accessTokenClientSecret {
         ... VaultSecret
       }
-      url
+      environment {
+        ... OCMEnvironment
+      }
     }
   }
 }
@@ -56,12 +68,12 @@ class ConfiguredBaseModel(BaseModel):
 class OpenShiftClusterManagerV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     org_id: str = Field(..., alias="orgId")
-    access_token_url: str = Field(..., alias="accessTokenUrl")
-    access_token_client_id: str = Field(..., alias="accessTokenClientId")
+    access_token_url: Optional[str] = Field(..., alias="accessTokenUrl")
+    access_token_client_id: Optional[str] = Field(..., alias="accessTokenClientId")
     access_token_client_secret: Optional[VaultSecret] = Field(
         ..., alias="accessTokenClientSecret"
     )
-    url: str = Field(..., alias="url")
+    environment: OCMEnvironment = Field(..., alias="environment")
 
 
 class CNAExperimentalProvisionerV1(ConfiguredBaseModel):

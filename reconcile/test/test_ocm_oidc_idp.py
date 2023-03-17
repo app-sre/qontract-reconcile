@@ -9,6 +9,8 @@ import pytest
 from pytest_mock import MockerFixture
 
 from reconcile import ocm_oidc_idp
+from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
+from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.gql_definitions.ocm_oidc_idp.clusters import (
     ClusterAuthOIDCClaimsV1,
     ClusterAuthOIDCV1,
@@ -51,11 +53,21 @@ def test_ocm_oidc_idp_get_clusters(clusters: Sequence[ClusterV1]):
             name="cluster-1",
             ocm=OpenShiftClusterManagerV1(
                 name="ocm-production",
-                url="https://api.openshift.com",
-                orgId="org-id",
-                accessTokenClientId="access-token-client-id",
-                accessTokenUrl="http://token-url.com",
+                accessTokenClientId=None,
+                accessTokenUrl=None,
                 accessTokenClientSecret=None,
+                environment=OCMEnvironment(
+                    url="https://api.openshift.com",
+                    accessTokenClientId="access-token-client-id",
+                    accessTokenUrl="http://token-url.com",
+                    accessTokenClientSecret=VaultSecret(
+                        field="client_secret",
+                        format=None,
+                        path="path/to/client_secret",
+                        version=None,
+                    ),
+                ),
+                orgId="org-id",
                 blockedVersions=[],
                 sectors=None,
             ),
@@ -79,11 +91,21 @@ def test_ocm_oidc_idp_get_clusters(clusters: Sequence[ClusterV1]):
             name="cluster-2",
             ocm=OpenShiftClusterManagerV1(
                 name="ocm-production",
-                url="https://api.openshift.com",
-                orgId="org-id",
-                accessTokenClientId="access-token-client-id",
-                accessTokenUrl="http://token-url.com",
+                accessTokenClientId=None,
+                accessTokenUrl=None,
                 accessTokenClientSecret=None,
+                environment=OCMEnvironment(
+                    url="https://api.openshift.com",
+                    accessTokenClientId="access-token-client-id",
+                    accessTokenUrl="http://token-url.com",
+                    accessTokenClientSecret=VaultSecret(
+                        field="client_secret",
+                        format=None,
+                        path="path/to/client_secret",
+                        version=None,
+                    ),
+                ),
+                orgId="org-id",
                 blockedVersions=[],
                 sectors=None,
             ),
@@ -108,11 +130,26 @@ def test_ocm_oidc_idp_get_clusters(clusters: Sequence[ClusterV1]):
             name="cluster-3",
             ocm=OpenShiftClusterManagerV1(
                 name="ocm-production",
-                url="https://api.openshift.com",
-                orgId="org-id",
+                environment=OCMEnvironment(
+                    url="https://api.openshift.com",
+                    accessTokenClientId="access-token-client-id",
+                    accessTokenUrl="http://token-url.com",
+                    accessTokenClientSecret=VaultSecret(
+                        field="client_secret",
+                        format=None,
+                        path="path/to/client_secret",
+                        version=None,
+                    ),
+                ),
                 accessTokenClientId="access-token-client-id",
                 accessTokenUrl="http://token-url.com",
-                accessTokenClientSecret=None,
+                accessTokenClientSecret=VaultSecret(
+                    field="client_secret",
+                    format=None,
+                    path="path/to/client_secret",
+                    version=None,
+                ),
+                orgId="org-id",
                 blockedVersions=[],
                 sectors=None,
             ),

@@ -1,0 +1,9 @@
+# qenerate: plugin=pydantic_v1
+fragment OCMEnvironment on OpenShiftClusterManagerEnvironment_v1 {
+    url
+    accessTokenClientId
+    accessTokenUrl
+    accessTokenClientSecret {
+        ... VaultSecret
+    }
+}

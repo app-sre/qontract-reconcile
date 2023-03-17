@@ -12,7 +12,9 @@ query OCPReleaseMirror {
       managedGroups
       ocm {
         name
-        url
+        environment {
+          ... OCMEnvironment
+        }
         orgId
         accessTokenClientId
         accessTokenUrl

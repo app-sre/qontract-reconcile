@@ -293,10 +293,12 @@ def test_ocm_map_upgrade_policies_sector(ocm, mocker):
         "name": "ocm1",
         "sectors": sectors,
         "orgId": "orgId1",
-        "accessTokenClientId": "atci",
-        "accessTokenUrl": "atu",
-        "accessTokenClientSecret": "atcs",
-        "url": "u",
+        "environment": {
+            "url": "u",
+            "accessTokenClientId": "atci",
+            "accessTokenUrl": "atu",
+            "accessTokenClientSecret": "atcs",
+        },
     }
     c1 = {
         "name": "c1",

@@ -12,7 +12,9 @@ query CNAProvisioners {
       accessTokenClientSecret {
         ... VaultSecret
       }
-      url
+      environment {
+        ... OCMEnvironment
+      }
     }
   }
 }
