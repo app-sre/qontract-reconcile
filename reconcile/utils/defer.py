@@ -1,7 +1,7 @@
+from contextlib import ExitStack
 from functools import wraps
 
 
-# source: https://towerbabbel.com/go-defer-in-python/
 def defer(func):
     """Defer code execution until the surrounding function returns.
     Useful for registering cleanup work.
@@ -9,16 +9,7 @@ def defer(func):
 
     @wraps(func)
     def func_wrapper(*args, **kwargs):
-        deferred = []
-
-        def defer(f):
-            return deferred.append(f)
-
-        try:
-            return func(*args, defer=defer, **kwargs)
-        finally:
-            deferred.reverse()
-            for f in deferred:
-                f()
+        with ExitStack() as stack:
+            return func(*args, defer=stack.callback, **kwargs)
 
     return func_wrapper
