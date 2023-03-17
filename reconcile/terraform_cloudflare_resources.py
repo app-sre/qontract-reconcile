@@ -163,9 +163,7 @@ def _build_oc_resources(
     ri = ResourceInventory()
 
     oc_map = init_oc_map_from_namespaces(
-        # The Namespace Protocol isn't happy with NamespaceV1, but since it's a
-        # generated class there isn't a lot that can be done here.
-        cloudflare_namespaces,  # type: ignore[arg-type]
+        cloudflare_namespaces,
         secret_reader,
         integration=QONTRACT_INTEGRATION,
         use_jump_host=use_jump_host,
