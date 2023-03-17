@@ -94,7 +94,7 @@ def write_state(state: State, project, state_to_write):
 
 
 @defer
-def run(dry_run):
+def run(dry_run, defer):
     jira_boards = [j for j in queries.get_jira_boards() if j.get("slack")]
     settings = queries.get_app_interface_settings()
     state = init_state(integration=QONTRACT_INTEGRATION)
