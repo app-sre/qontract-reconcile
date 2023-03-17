@@ -701,10 +701,12 @@ def test_values_set_shard_specifics():
         "terraform-resources": [
             intop.IntegrationShardSpecOverride(
                 imageRef="foo",
-                awsAccount={
-                    "name": "app-int-example-01",
-                    "path": "/aws/app-int-example-01/account.yml",
-                },
+                awsAccounts=[
+                    {
+                        "name": "app-int-example-01",
+                        "path": "/aws/app-int-example-01/account.yml",
+                    }
+                ],
             ),
         ],
     }
