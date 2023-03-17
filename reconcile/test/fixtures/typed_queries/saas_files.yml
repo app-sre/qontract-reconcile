@@ -1,0 +1,155 @@
+
+saas_files:
+- path: path1
+  name: saas-file-01
+  app:
+    name: app-01
+  pipelinesProvider:
+    name: pipeline-provider-01
+    provider: tekton
+    namespace:
+      name: namespace
+      cluster:
+        name: appint-ex-01
+        serverUrl: 'https://cluster-url'
+        internal: false
+        automationToken:
+            path: creds
+            field: token
+        consoleUrl: "https://console-url"
+    defaults:
+      pipelineTemplates:
+        openshiftSaasDeploy:
+          name: openshift-saas-deploy
+  managedResourceTypes: []
+  imagePatterns: []
+  parameters: |
+    { "SAAS_PARAM": "foobar" }
+  resourceTemplates:
+  - name: deploy-app
+    url: 'https://repo-url'
+    path: /openshift/template.yml
+    parameters: |
+      { "RT_PARAM": "foobar" }
+    targets:
+    - namespace:
+        name: namespace-test
+        environment:
+          name: test
+          parameters: |
+            { "ENV_PARAM": "foobar" }
+        app:
+          name: app-01
+        cluster:
+          name: appint-ex-01
+          serverUrl: 'https://cluster-url'
+          internal: false
+          automationToken:
+            path: creds
+            field: token
+      ref: main
+      parameters: |
+        { "TARGET_PARAM": "foobar" }
+    - namespace:
+        name: namespace-prod
+        environment:
+          name: prod
+        app:
+          name: app-01
+        cluster:
+          name: appint-ex-01
+          serverUrl: 'https://cluster-url'
+          internal: false
+          automationToken:
+            path: creds
+            field: token
+      ref: 1234567890123456789012345678901234567890
+- path: path2
+  name: saas-file-02
+  app:
+    name: app-02
+  pipelinesProvider:
+    name: pipeline-provider-01
+    provider: tekton
+    namespace:
+      name: namespace
+      cluster:
+        name: appint-ex-01
+        serverUrl: 'https://cluster-url'
+        internal: false
+        automationToken:
+            path: creds
+            field: token
+        consoleUrl: "https://console-url"
+    defaults:
+      pipelineTemplates:
+        openshiftSaasDeploy:
+          name: openshift-saas-deploy
+  managedResourceTypes: []
+  imagePatterns: []
+  resourceTemplates:
+  - name: deploy-app
+    url: 'https://repo-url'
+    path: /openshift/template.yml
+    targets:
+    - namespace:
+        name: namespace-test
+        environment:
+          name: test
+        app:
+          name: app-02
+        cluster:
+          name: appint-ex-01
+          serverUrl: 'https://cluster-url'
+          internal: false
+          automationToken:
+            path: creds
+            field: token
+      ref: main
+    - namespace:
+        name: namespace-prod
+        environment:
+          name: prod
+        app:
+          name: app-02
+        cluster:
+          name: appint-ex-01
+          serverUrl: 'https://cluster-url'
+          internal: false
+          automationToken:
+            path: creds
+            field: token
+      ref: 1234567890123456789012345678901234567890
+- path: path3
+  name: saas-file-03
+  app:
+    name: example
+  pipelinesProvider:
+    name: pipeline-provider-01
+    provider: tekton
+    namespace:
+      name: namespace
+      cluster:
+        name: appint-ex-01
+        serverUrl: 'https://cluster-url'
+        internal: false
+        automationToken:
+            path: creds
+            field: token
+        consoleUrl: "https://console-url"
+    defaults:
+      pipelineTemplates:
+        openshiftSaasDeploy:
+          name: openshift-saas-deploy
+  managedResourceTypes: []
+  imagePatterns: []
+  resourceTemplates:
+  - name: deploy-app
+    url: 'https://repo-url'
+    path: /openshift/template.yml
+    targets:
+    - namespaceSelector:
+        jsonPathSelectors:
+          include:
+          - 'namespace[?@.app.name="example"]'
+      ref: 1234567890123456789012345678901234567890

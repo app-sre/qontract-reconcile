@@ -20,6 +20,9 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
 from reconcile.gql_definitions.fragments.oc_connection_cluster import (
     OcConnectionCluster,
 )
+from reconcile.gql_definitions.fragments.saas_target_namespace import (
+    SaasTargetNamespace,
+)
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
 
@@ -52,6 +55,26 @@ fragment OcConnectionCluster on Cluster_v1 {
   disable {
     integrations
     e2eTests
+  }
+}
+
+fragment SaasTargetNamespace on Namespace_v1 {
+  name
+  environment {
+    name
+    parameters
+    secretParameters {
+      name
+      secret {
+        ...VaultSecret
+      }
+    }
+  }
+  app {
+    name
+  }
+  cluster {
+    ...OcConnectionCluster
   }
 }
 
@@ -165,22 +188,12 @@ query SaasFiles {
         path
         name
         namespace {
-          name
-          environment {
-            name
-            parameters
-            secretParameters {
-              name
-              secret {
-                ...VaultSecret
-              }
-            }
-          }
-          app {
-            name
-          }
-          cluster {
-            ...OcConnectionCluster
+          ...SaasTargetNamespace
+        }
+        namespaceSelector {
+          jsonPathSelectors {
+            include
+            exclude
           }
         }
         ref
@@ -360,28 +373,13 @@ class SaasResourceTemplateV2_SaasSecretParametersV1(ConfiguredBaseModel):
     secret: VaultSecret = Field(..., alias="secret")
 
 
-class EnvironmentV1_SaasSecretParametersV1(ConfiguredBaseModel):
-    name: str = Field(..., alias="name")
-    secret: VaultSecret = Field(..., alias="secret")
+class JsonPathSelectorsV1(ConfiguredBaseModel):
+    include: list[str] = Field(..., alias="include")
+    exclude: Optional[list[str]] = Field(..., alias="exclude")
 
 
-class EnvironmentV1(ConfiguredBaseModel):
-    name: str = Field(..., alias="name")
-    parameters: Optional[Json] = Field(..., alias="parameters")
-    secret_parameters: Optional[list[EnvironmentV1_SaasSecretParametersV1]] = Field(
-        ..., alias="secretParameters"
-    )
-
-
-class SaasResourceTemplateTargetV2_NamespaceV1_AppV1(ConfiguredBaseModel):
-    name: str = Field(..., alias="name")
-
-
-class SaasResourceTemplateTargetV2_NamespaceV1(ConfiguredBaseModel):
-    name: str = Field(..., alias="name")
-    environment: EnvironmentV1 = Field(..., alias="environment")
-    app: SaasResourceTemplateTargetV2_NamespaceV1_AppV1 = Field(..., alias="app")
-    cluster: OcConnectionCluster = Field(..., alias="cluster")
+class SaasResourceTemplateTargetNamespaceSelectorV1(ConfiguredBaseModel):
+    json_path_selectors: JsonPathSelectorsV1 = Field(..., alias="jsonPathSelectors")
 
 
 class PromotionChannelDataV1(ConfiguredBaseModel):
@@ -439,7 +437,10 @@ class SaasResourceTemplateTargetImageV1(ConfiguredBaseModel):
 class SaasResourceTemplateTargetV2(ConfiguredBaseModel):
     path: Optional[str] = Field(..., alias="path")
     name: Optional[str] = Field(..., alias="name")
-    namespace: SaasResourceTemplateTargetV2_NamespaceV1 = Field(..., alias="namespace")
+    namespace: Optional[SaasTargetNamespace] = Field(..., alias="namespace")
+    namespace_selector: Optional[SaasResourceTemplateTargetNamespaceSelectorV1] = Field(
+        ..., alias="namespaceSelector"
+    )
     ref: str = Field(..., alias="ref")
     promotion: Optional[SaasResourceTemplateTargetPromotionV1] = Field(
         ..., alias="promotion"

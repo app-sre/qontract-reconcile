@@ -1,0 +1,78 @@
+namespaces:
+- name: example-01
+  environment:
+    name: production
+  app:
+    name: example
+  cluster:
+    name: appint-ex-01
+    serverUrl: 'https://cluster-url'
+    internal: false
+    automationToken:
+      path: creds
+      field: token
+
+- name: example-02
+  environment:
+    name: stage
+  app:
+    name: example
+  cluster:
+    name: appint-ex-01
+    serverUrl: 'https://cluster-url'
+    internal: false
+    automationToken:
+      path: creds
+      field: token
+
+- name: app-interface-integration
+  environment:
+    name: production
+  app:
+    name: app-interface
+  cluster:
+    name: app-interface-infra
+    serverUrl: 'https://cluster-url'
+    internal: false
+    automationToken:
+      path: creds
+      field: token
+
+- name: app-interface-test-service-prod
+  environment:
+    name: stage
+  app:
+    name: app-interface-test-service
+  cluster:
+    name: appint-ex-01
+    serverUrl: 'https://cluster-url'
+    internal: false
+    automationToken:
+      path: creds
+      field: token
+
+- name: app-interface-test-service-pipelines
+  environment:
+    name: production
+  app:
+    name: app-interface-test-service
+  cluster:
+    name: appint-ex-01
+    serverUrl: 'https://cluster-url'
+    internal: false
+    automationToken:
+      path: creds
+      field: token
+
+- name: app-interface-test-service-stage
+  environment:
+    name: stage
+  app:
+    name: app-interface-test-service
+  cluster:
+    name: appint-ex-01
+    serverUrl: 'https://cluster-url'
+    internal: false
+    automationToken:
+      path: creds
+      field: token
