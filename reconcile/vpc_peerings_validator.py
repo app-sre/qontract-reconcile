@@ -64,7 +64,7 @@ def find_cidr_duplicates_and_overlap(input_dict):
     network_list = [ipaddress.ip_network(value) for value in values]
     overlaps = {}  # type: ignore[var-annotated]
 
-    for i in enumerate(network_list):
+    for i in range(len(network_list)):
         for j in range(i + 1, len(network_list)):
             if network_list[i].overlaps(network_list[j]):
                 network1 = next(
