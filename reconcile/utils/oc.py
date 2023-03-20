@@ -1655,12 +1655,26 @@ class OC_Map:
             secret_reader = SecretReader(settings=self.settings)
 
             try:
-                token = secret_reader.read(automation_token)
+                token_secret = secret_reader.read_all(automation_token)
             except SecretNotFound:
                 self.set_oc(
                     cluster,
                     OCLogMsg(
                         log_level=logging.ERROR, message=f"[{cluster}] secret not found"
+                    ),
+                    privileged,
+                )
+                return
+
+            token = token_secret[automation_token["field"]]
+            known_server_url = token_secret["server"]
+
+            if server_url != known_server_url:
+                self.set_oc(
+                    cluster,
+                    OCLogMsg(
+                        log_level=logging.ERROR,
+                        message=f"[{cluster}] server URL mismatch",
                     ),
                     privileged,
                 )
