@@ -46,6 +46,7 @@ network:
   vpc: 10.10.10.0/22
 ocm:
   environment:
+    name: name
     url: ocm-url
     accessTokenClientId: client-id
     accessTokenClientSecret:

@@ -115,6 +115,7 @@ def osd_cluster_fxt():
         "ocm": {
             "name": "non-existent-ocm",
             "environment": {
+                "name": "name",
                 "url": "https://api.non-existent-ocm.com",
                 "accessTokenClientId": "cloud-services",
                 "accessTokenUrl": "https://sso.blah.com/token",
@@ -185,6 +186,7 @@ def rosa_cluster_fxt():
         "ocm": {
             "name": "non-existent-ocm",
             "environment": {
+                "name": "name",
                 "url": "https://api.non-existent-ocm.com",
                 "accessTokenClientId": "cloud-services",
                 "accessTokenUrl": "https://sso.blah.com/token",
@@ -257,6 +259,7 @@ def rosa_hosted_cp_cluster_fxt():
             "name": "non-existent-ocm",
             "orgId": "org_id",
             "environment": {
+                "name": "name",
                 "url": "https://api.non-existent-ocm.com",
                 "accessTokenClientId": "cloud-services",
                 "accessTokenUrl": "https://sso.blah.com/token",

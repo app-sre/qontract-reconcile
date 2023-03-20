@@ -7,6 +7,7 @@ clusters:
       accessTokenUrl: null
       accessTokenClientSecret: null
       environment:
+        name: "name"
         url: "https://api.openshift.com"
         accessTokenClientId: "access-token-client-id"
         accessTokenUrl: "http://token-url.com"
@@ -39,6 +40,7 @@ clusters:
       accessTokenUrl: null
       accessTokenClientSecret: null
       environment:
+        name: "name"
         url: "https://api.openshift.com"
         accessTokenClientId: "access-token-client-id"
         accessTokenUrl: "http://token-url.com"
@@ -70,6 +72,7 @@ clusters:
     ocm:
       name: ocm-production
       environment:
+        name: "name"
         url: "https://api.openshift.com"
         accessTokenClientId: "access-token-client-id"
         accessTokenUrl: "http://token-url.com"
@@ -117,6 +120,7 @@ clusters:
       accessTokenUrl: null
       accessTokenClientSecret: null
       environment:
+        name: "name"
         url: "https://api.openshift.com"
         accessTokenClientId: "access-token-client-id"
         accessTokenUrl: "http://token-url.com"

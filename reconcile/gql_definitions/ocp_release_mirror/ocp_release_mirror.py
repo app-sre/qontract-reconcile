@@ -37,6 +37,7 @@ fragment CommonJumphostFields on ClusterJumpHost_v1 {
 }
 
 fragment OCMEnvironment on OpenShiftClusterManagerEnvironment_v1 {
+    name
     url
     accessTokenClientId
     accessTokenUrl

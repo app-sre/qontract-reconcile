@@ -294,6 +294,7 @@ def test_ocm_map_upgrade_policies_sector(ocm, mocker):
         "sectors": sectors,
         "orgId": "orgId1",
         "environment": {
+            "name": "name",
             "url": "u",
             "accessTokenClientId": "atci",
             "accessTokenUrl": "atu",

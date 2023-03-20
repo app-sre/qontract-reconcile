@@ -23,6 +23,7 @@ from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
 DEFINITION = """
 fragment OCMEnvironment on OpenShiftClusterManagerEnvironment_v1 {
+    name
     url
     accessTokenClientId
     accessTokenUrl
