@@ -167,21 +167,19 @@ def extract_diffs_with_timeout(
         process.terminate()
         process.join()
         raise DiffDetectionTimeout()
-    else:
-        if EXTRACT_TASK_RESULT_KEY_DIFFS in result_value:
-            return result_value[EXTRACT_TASK_RESULT_KEY_DIFFS]
-        else:
-            original_error = result_value.get(EXTRACT_TASK_RESULT_KEY_ERROR)
-            if original_error:
-                raise DiffDetectionFailure() from original_error
-            else:
-                # not every error situation of the diff extraction process
-                # will result in an exception. the lack of a result is an error
-                # indicator as well. in those cases, we raise at least
-                # a generic exception to indicate that something went wrong
-                raise DiffDetectionFailure(
-                    "unknown error during fine grained diff detection"
-                )
+
+    if EXTRACT_TASK_RESULT_KEY_DIFFS in result_value:
+        return result_value[EXTRACT_TASK_RESULT_KEY_DIFFS]
+
+    original_error = result_value.get(EXTRACT_TASK_RESULT_KEY_ERROR)
+    if original_error:
+        raise DiffDetectionFailure() from original_error
+
+    # not every error situation of the diff extraction process
+    # will result in an exception. the lack of a result is an error
+    # indicator as well. in those cases, we raise at least
+    # a generic exception to indicate that something went wrong
+    raise DiffDetectionFailure("unknown error during fine grained diff detection")
 
 
 def build_desired_state_diff(

@@ -106,14 +106,13 @@ class GPGEncryptCommand:
     def _fetch_secret(self) -> str:
         if self._command_data.vault_secret_path:
             return self._fetch_vault_secret()
-        elif self._command_data.secret_file_path:
+        if self._command_data.secret_file_path:
             return self._fetch_local_file_secret()
-        elif self._command_data.openshift_path:
+        if self._command_data.openshift_path:
             return self._fetch_oc_secret()
-        else:
-            raise ArgumentException(
-                f"No argument given which defines how to fetch the secret {self._command_data}"
-            )
+        raise ArgumentException(
+            f"No argument given which defines how to fetch the secret {self._command_data}"
+        )
 
     def _get_gpg_key(self) -> Optional[str]:
         target_user = self._command_data.target_user

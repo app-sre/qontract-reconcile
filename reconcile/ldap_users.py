@@ -6,6 +6,7 @@ from reconcile import (
     queries,
 )
 from reconcile.utils import gql
+from reconcile.utils.defer import defer
 from reconcile.utils.ldap_client import LdapClient
 from reconcile.utils.mr import (
     CreateDeleteUserAppInterface,
@@ -16,7 +17,7 @@ from reconcile.utils.mr.user_maintenance import PathTypes
 QONTRACT_INTEGRATION = "ldap-users"
 
 
-def init_users():
+def init_users() -> list[dict[str, list]]:
     app_int_users = queries.get_users(refs=True)
 
     users = defaultdict(list)
@@ -32,6 +33,9 @@ def init_users():
             users[u].append(item)
         for g in user.get("gabi_instances"):
             item = {"type": PathTypes.GABI, "path": "data" + g["path"]}
+            users[u].append(item)
+        for a in user.get("aws_accounts", []):
+            item = {"type": PathTypes.AWS_ACCOUNTS, "path": "data" + a["path"]}
             users[u].append(item)
 
     return [{"username": username, "paths": paths} for username, paths in users.items()]
@@ -56,11 +60,11 @@ def get_ldap_settings() -> dict:
     if settings:
         # assuming a single settings file for now
         return settings[0]
-    else:
-        raise ValueError("no app-interface-settings settings found")
+    raise ValueError("no app-interface-settings settings found")
 
 
-def run(dry_run, app_interface_project_id, infra_project_id):
+@defer
+def run(dry_run, app_interface_project_id, infra_project_id, defer=None):
     users = init_users()
     with LdapClient.from_settings(get_ldap_settings()) as ldap_client:
         ldap_users = ldap_client.get_users([u["username"] for u in users])
@@ -71,9 +75,11 @@ def run(dry_run, app_interface_project_id, infra_project_id):
         mr_cli_app_interface = mr_client_gateway.init(
             gitlab_project_id=app_interface_project_id, sqs_or_gitlab="gitlab"
         )
+        defer(mr_cli_app_interface.cleanup)
         mr_cli_infra = mr_client_gateway.init(
             gitlab_project_id=infra_project_id, sqs_or_gitlab="gitlab"
         )
+        defer(mr_cli_infra.cleanup)
 
     for u in users_to_delete:
         username = u["username"]

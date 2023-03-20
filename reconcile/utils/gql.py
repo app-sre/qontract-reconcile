@@ -107,7 +107,7 @@ class GqlApi:
 
         if validate_schemas and not int_name:
             raise Exception(
-                "Cannot validate schemas if integration name " "is not supplied"
+                "Cannot validate schemas if integration name is not supplied"
             )
 
         if int_name:
@@ -218,8 +218,7 @@ class GqlApi:
             return datetime.fromtimestamp(
                 int(self.commit_timestamp), timezone.utc
             ).isoformat()
-        else:
-            return None
+        return None
 
 
 def init(

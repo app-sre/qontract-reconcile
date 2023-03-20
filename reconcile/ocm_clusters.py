@@ -104,7 +104,7 @@ def _cluster_version_needs_update(
         )
         return True
 
-    elif current_version < desired_version:
+    if current_version < desired_version:
         raise ClusterVersionError(
             f"[{cluster}] desired version [{desired_version}] is greater than "
             f"current version [{current_version}]. Please correct version to be "
@@ -269,9 +269,9 @@ def _app_interface_updates_mr(
             create_update_mr = True
 
     if create_update_mr and not dry_run:
-        mr_cli = mr_client_gateway.init(gitlab_project_id=gitlab_project_id)
         mr = cu.CreateClustersUpdates(clusters_updates)
-        mr.submit(cli=mr_cli)
+        with mr_client_gateway.init(gitlab_project_id=gitlab_project_id) as mr_cli:
+            mr.submit(cli=mr_cli)
 
 
 def _cluster_is_compatible(cluster: Mapping[str, Any]) -> bool:

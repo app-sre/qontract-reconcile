@@ -587,6 +587,8 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         return split_outputs
 
     def cleanup(self):
+        if self._aws_api is not None:
+            self._aws_api.cleanup()
         for _, wd in self.working_dirs.items():
             shutil.rmtree(wd)
 
@@ -651,8 +653,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
                 if e.response.get("Error", {}).get("Code") == "DBInstanceNotFound":
                     logging.debug(f"Resource does not exist: {resource_name}")
                     return False
-                else:
-                    raise
+                raise
             pending_modified_values = response["DBInstances"][0].get(
                 "PendingModifiedValues"
             )
@@ -682,8 +683,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
             # the underlying resource can be scheduled and added to the set of
             # pending changes.
             return not set(changed_resource_arguments) - set(changed_values)
-        else:
-            return False
+        return False
 
 
 class TerraformPlanFailed(Exception):

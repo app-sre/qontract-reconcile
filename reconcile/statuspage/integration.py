@@ -83,27 +83,28 @@ class StatusPageComponentsIntegration(QontractReconcileIntegration[NoParams]):
     def run(self, dry_run: bool = False) -> None:
         vault_settings = get_app_interface_vault_settings()
         secret_reader = create_secret_reader(use_vault=vault_settings.vault)
-        binding_state = S3ComponentBindingState(get_state(secret_reader))
-        pages = get_status_pages(query_func=gql.get_api().query)
+        with get_state(secret_reader) as state:
+            binding_state = S3ComponentBindingState(state)
+            pages = get_status_pages(query_func=gql.get_api().query)
 
-        error = False
-        for p in pages:
-            try:
-                desired_state = build_status_page(p)
-                page_provider = init_provider_for_page(
-                    page=p,
-                    token=secret_reader.read_secret(p.credentials),
-                    component_binding_state=binding_state,
-                )
-                self.reconcile(
-                    dry_run,
-                    desired_state=desired_state,
-                    current_state=page_provider.get_current_page(),
-                    provider=page_provider,
-                )
-            except Exception:
-                logging.exception(f"failed to reconcile statuspage {p.name}")
-                error = True
+            error = False
+            for p in pages:
+                try:
+                    desired_state = build_status_page(p)
+                    page_provider = init_provider_for_page(
+                        page=p,
+                        token=secret_reader.read_secret(p.credentials),
+                        component_binding_state=binding_state,
+                    )
+                    self.reconcile(
+                        dry_run,
+                        desired_state=desired_state,
+                        current_state=page_provider.get_current_page(),
+                        provider=page_provider,
+                    )
+                except Exception:
+                    logging.exception(f"failed to reconcile statuspage {p.name}")
+                    error = True
 
-        if error:
-            sys.exit(1)
+            if error:
+                sys.exit(1)

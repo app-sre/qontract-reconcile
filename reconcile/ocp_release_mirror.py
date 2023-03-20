@@ -182,14 +182,17 @@ class OcpReleaseMirror:
             url = quay_target_org_dict["url"]
 
             if url in self.registry_creds["auths"].keys():
-                OcpReleaseMirrorError(
-                    "Cannot mirror to the same Quay " f"instance multiple times: {url}"
+                raise OcpReleaseMirrorError(
+                    f"Cannot mirror to the same Quay instance multiple times: {url}"
                 )
 
             self.registry_creds["auths"].update(quay_target_org_dict["auths"])
 
         # Initiate channel groups
         self.channel_groups = instance.mirror_channels
+
+    def cleanup(self):
+        self.aws_cli.cleanup()
 
     def run(self):
         ocp_releases = self._get_ocp_releases()
@@ -363,3 +366,8 @@ def run(dry_run: bool) -> None:
         except OcpReleaseMirrorError as details:
             LOG.error(str(details))
             sys.exit(ExitCodes.ERROR)
+        finally:
+            try:
+                quay_mirror.cleanup()
+            except NameError:
+                LOG.debug("No quay_mirror to cleanup")

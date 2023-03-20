@@ -59,13 +59,13 @@ class RawGithubApi:
                         elements.append(element)
 
                     return elements
-                else:
-                    req_url = res.links["next"]["url"]
-                    res = requests.get(req_url, headers=h, timeout=60)
-                    res.raise_for_status()
 
-                    for element in res.json():
-                        elements.append(element)
+                req_url = res.links["next"]["url"]
+                res = requests.get(req_url, headers=h, timeout=60)
+                res.raise_for_status()
+
+                for element in res.json():
+                    elements.append(element)
 
             return elements
 

@@ -179,8 +179,7 @@ def get_gitlab_instance(query_func: Callable) -> GitlabInstanceV1:
         if len(instances) != 1:
             raise AppInterfaceSettingsError("More than one gitlab instance found!")
         return instances[0]
-    else:
-        raise AppInterfaceSettingsError("No gitlab instance found!")
+    raise AppInterfaceSettingsError("No gitlab instance found!")
 
 
 def run(dry_run: bool) -> None:

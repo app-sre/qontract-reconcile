@@ -40,12 +40,16 @@ def projects(
 
 
 def test_project_query(projects: Sequence[GlitchtipProjectsV1]) -> None:
-    assert len(projects) == 1
+    assert len(projects) == 2
     assert len(projects[0].namespaces) == 2
     assert projects[0].namespaces[0].name == "namespace-1"
     assert projects[0].namespaces[0].cluster.name == "cluster-1"
     assert projects[0].namespaces[1].name == "namespace-1"
     assert projects[0].namespaces[1].cluster.name == "cluster-2"
+    #
+    assert projects[1].name == "project-does-not-exist-yet"
+    assert len(projects[1].namespaces) == 1
+    assert projects[1].namespaces[0].name == "namespace-1"
 
 
 def test_fetch_current_state(

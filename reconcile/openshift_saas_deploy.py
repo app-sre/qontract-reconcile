@@ -172,6 +172,8 @@ def run(
         jenkins_map=jenkins_map,
         state=init_state(integration=QONTRACT_INTEGRATION, secret_reader=secret_reader),
     )
+    if defer:
+        defer(saasherder.cleanup)
     if len(saasherder.namespaces) == 0:
         logging.warning("no targets found")
         sys.exit(ExitCodes.SUCCESS)
@@ -235,8 +237,8 @@ def run(
         # Auto-promote next stages only if there are changes in the
         # promoting stage. This prevents trigger promotions on job re-runs
         auto_promote = len(actions) > 0
-        mr_cli = mr_client_gateway.init(gitlab_project_id=gitlab_project_id)
-        saasherder.publish_promotions(success, all_saas_files, mr_cli, auto_promote)
+        with mr_client_gateway.init(gitlab_project_id=gitlab_project_id) as mr_cli:
+            saasherder.publish_promotions(success, all_saas_files, mr_cli, auto_promote)
 
     if not success:
         sys.exit(ExitCodes.ERROR)

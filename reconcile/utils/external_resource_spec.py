@@ -63,8 +63,7 @@ class GenericSecretOutputFormatConfig(OutputFormatProcessor):
             parsed_data = yaml.safe_load(rendered_data)
             self.validate_k8s_secret_data(parsed_data)
             return cast(dict[str, str], parsed_data)
-        else:
-            return dict(vars)
+        return dict(vars)
 
 
 @dataclass
@@ -77,8 +76,7 @@ class OutputFormat:
     def _formatter(self) -> OutputFormatProcessor:
         if self.provider == "generic-secret":
             return GenericSecretOutputFormatConfig(data=self.data)
-        else:
-            raise ValueError(f"unknown output format provider {self.provider}")
+        raise ValueError(f"unknown output format provider {self.provider}")
 
     def render(self, vars: Mapping[str, str]) -> dict[str, str]:
         return self._formatter.render(vars)
@@ -125,8 +123,7 @@ class ExternalResourceSpec:
         annotation_str = self.resource.get("annotations")
         if annotation_str:
             return json.loads(annotation_str)
-        else:
-            return {}
+        return {}
 
     def tags(self, integration: str) -> dict[str, str]:
         return {
@@ -162,8 +159,7 @@ class ExternalResourceSpec:
     def _output_format(self) -> OutputFormat:
         if self.resource.get("output_format") is not None:
             return OutputFormat(**cast(dict[str, Any], self.resource["output_format"]))
-        else:
-            return OutputFormat(provider="generic-secret")
+        return OutputFormat(provider="generic-secret")
 
 
 @dataclass(frozen=True)

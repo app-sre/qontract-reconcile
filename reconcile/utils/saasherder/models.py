@@ -18,7 +18,6 @@ from reconcile.utils.saasherder.interfaces import (
     SaasApp,
     SaasEnvironment,
     SaasPipelinesProviders,
-    SaasPromotionData,
     SaasResourceTemplateTarget,
 )
 
@@ -141,17 +140,39 @@ class Namespace(BaseModel):
         allow_population_by_field_name = True
 
 
-@dataclass
-class Promotion:
+class PromotionChannelData(BaseModel):
+    q_type: str = Field(..., alias="type")
+
+    class Config:
+        allow_population_by_field_name = True
+
+
+class ParentSaasPromotion(BaseModel):
+    q_type: str = Field(..., alias="type")
+    parent_saas: Optional[str]
+    target_config_hash: Optional[str]
+
+    class Config:
+        allow_population_by_field_name = True
+
+
+class PromotionData(BaseModel):
+    channel: Optional[str]
+    data: Optional[list[Union[ParentSaasPromotion, PromotionChannelData]]] = None
+
+
+class Promotion(BaseModel):
+    """Implementation of the SaasPromotion interface for saasherder and AutoPromoter."""
+
     commit_sha: str
-    saas_file_name: str
+    saas_file: str
     target_config_hash: str
     auto: Optional[bool] = None
-    publish: Optional[Iterable[str]] = None
-    subscribe: Optional[Iterable[str]] = None
-    promotion_data: Optional[Iterable[SaasPromotionData]] = None
-    saas_file_paths: Optional[Iterable[str]] = None
-    target_paths: Optional[Iterable[str]] = None
+    publish: Optional[list[str]] = None
+    subscribe: Optional[list[str]] = None
+    promotion_data: Optional[list[PromotionData]] = None
+    saas_file_paths: Optional[list[str]] = None
+    target_paths: Optional[list[str]] = None
 
 
 @dataclass

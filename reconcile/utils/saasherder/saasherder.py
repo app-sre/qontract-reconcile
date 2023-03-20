@@ -13,10 +13,12 @@ from collections.abc import (
     Sequence,
 )
 from contextlib import suppress
+from types import TracebackType
 from typing import (
     Any,
     Generator,
     Optional,
+    Type,
     Union,
 )
 
@@ -40,7 +42,7 @@ from reconcile.status import RunningState
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.jenkins_api import JenkinsApi
 from reconcile.utils.jjb_client import JJB
-from reconcile.utils.mr.base import MergeRequestBase
+from reconcile.utils.mr.base import MRClient
 from reconcile.utils.oc import (
     OCLocal,
     StatusCodeError,
@@ -94,7 +96,7 @@ Resource = dict[str, Any]
 Resources = list[Resource]
 
 
-class SaasHerder:
+class SaasHerder:  # pylint: disable=too-many-public-methods
     """Wrapper around SaaS deployment actions."""
 
     def __init__(
@@ -143,6 +145,21 @@ class SaasHerder:
         self.compare = self._get_saas_file_feature_enabled("compare", default=True)
         self.publish_job_logs = self._get_saas_file_feature_enabled("publish_job_logs")
         self.cluster_admin = self._get_saas_file_feature_enabled("cluster_admin")
+
+    def __enter__(self) -> "SaasHerder":
+        return self
+
+    def __exit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_value: Optional[BaseException],
+        traceback: Optional[TracebackType],
+    ) -> None:
+        self.cleanup()
+
+    def cleanup(self) -> None:
+        if hasattr(self, "state") and self.state is not None:
+            self.state.cleanup()
 
     def _register_error(self) -> None:
         self.error_registered = True
@@ -663,10 +680,10 @@ class SaasHerder:
 
     @retry(max_attempts=20)
     def _get_file_contents(
-        self, url: str, path: str, ref: str, github: Github, hash_length: int
+        self, url: str, path: str, ref: str, github: Github
     ) -> tuple[Any, str, str]:
         html_url = f"{url}/blob/{ref}{path}"
-        commit_sha = self._get_commit_sha(url, ref, github, hash_length)
+        commit_sha = self._get_commit_sha(url, ref, github)
 
         if "github" in url:
             repo_name = url.rstrip("/").replace("https://github.com/", "")
@@ -685,10 +702,10 @@ class SaasHerder:
 
     @retry()
     def _get_directory_contents(
-        self, url: str, path: str, ref: str, github: Github, hash_length: int
+        self, url: str, path: str, ref: str, github: Github
     ) -> tuple[list[Any], str, str]:
         html_url = f"{url}/tree/{ref}{path}"
-        commit_sha = self._get_commit_sha(url, ref, github, hash_length)
+        commit_sha = self._get_commit_sha(url, ref, github)
         resources = []
         if "github" in url:
             repo_name = url.rstrip("/").replace("https://github.com/", "")
@@ -721,9 +738,7 @@ class SaasHerder:
         return resources, html_url, commit_sha
 
     @retry()
-    def _get_commit_sha(
-        self, url: str, ref: str, github: Github, hash_length: Optional[int] = None
-    ) -> str:
+    def _get_commit_sha(self, url: str, ref: str, github: Github) -> str:
         commit_sha = ""
         if "github" in url:
             repo_name = url.rstrip("/").replace("https://github.com/", "")
@@ -736,9 +751,6 @@ class SaasHerder:
             project = self.gitlab.get_project(url)
             commits = project.commits.list(ref_name=ref)
             commit_sha = commits[0].id
-
-        if hash_length:
-            return commit_sha[:hash_length]
 
         return commit_sha
 
@@ -831,11 +843,7 @@ class SaasHerder:
 
             try:
                 template, html_url, commit_sha = self._get_file_contents(
-                    url=url,
-                    path=path,
-                    ref=target.ref,
-                    github=github,
-                    hash_length=hash_length,
+                    url=url, path=path, ref=target.ref, github=github
                 )
             except Exception as e:
                 logging.error(
@@ -917,11 +925,7 @@ class SaasHerder:
         elif provider == "directory":
             try:
                 resources, html_url, commit_sha = self._get_directory_contents(
-                    url=url,
-                    path=path,
-                    ref=target.ref,
-                    github=github,
-                    hash_length=hash_length,
+                    url=url, path=path, ref=target.ref, github=github
                 )
             except Exception as e:
                 logging.error(
@@ -944,7 +948,7 @@ class SaasHerder:
                 subscribe=target.promotion.subscribe,
                 promotion_data=target.promotion.promotion_data,
                 commit_sha=commit_sha,
-                saas_file_name=saas_file_name,
+                saas_file=saas_file_name,
                 target_config_hash=target_config_hash,
             )
         return resources, html_url, target_promotion
@@ -1284,21 +1288,20 @@ class SaasHerder:
             # TODO: replace error with actual error handling when needed
             error = False
             return self.get_moving_commits_diff(dry_run), error
-        elif trigger_type == TriggerTypes.UPSTREAM_JOBS:
+        if trigger_type == TriggerTypes.UPSTREAM_JOBS:
             # error is being returned from the called function
             return self.get_upstream_jobs_diff(dry_run)
-        elif trigger_type == TriggerTypes.CONFIGS:
+        if trigger_type == TriggerTypes.CONFIGS:
             # TODO: replace error with actual error handling when needed
             error = False
             return self.get_configs_diff(), error
-        elif trigger_type == TriggerTypes.CONTAINER_IMAGES:
+        if trigger_type == TriggerTypes.CONTAINER_IMAGES:
             # TODO: replace error with actual error handling when needed
             error = False
             return self.get_container_images_diff(dry_run), error
-        else:
-            raise NotImplementedError(
-                f"saasherder get_diff for trigger type: {trigger_type}"
-            )
+        raise NotImplementedError(
+            f"saasherder get_diff for trigger type: {trigger_type}"
+        )
 
     def update_state(self, trigger_spec: TriggerSpecUnion) -> None:
         if not self.state:
@@ -1508,12 +1511,12 @@ class SaasHerder:
                 try:
                     if not target.image:
                         continue
-                    desired_image_tag = self._get_commit_sha(
+                    commit_sha = self._get_commit_sha(
                         url=rt.url,
                         ref=target.ref,
                         github=github,
-                        hash_length=rt.hash_length or self.hash_length,
                     )
+                    desired_image_tag = commit_sha[: rt.hash_length or self.hash_length]
                     # don't trigger if image doesn't exist
                     image_registry = f"{target.image.org.instance.url}/{target.image.org.name}/{target.image.name}"
                     image_uri = f"{image_registry}:{desired_image_tag}"
@@ -1752,20 +1755,20 @@ class SaasHerder:
                     # matches with the hash set in promotion_data
                     if parent_saas_config.target_config_hash == state_config_hash:
                         return True
-                    else:
-                        logging.error(
-                            "Parent saas target has run with a newer "
-                            "configuration and the same commit (ref). "
-                            "Check if other MR exists for this target"
-                        )
-                        return False
+
+                    logging.error(
+                        "Parent saas target has run with a newer "
+                        "configuration and the same commit (ref). "
+                        "Check if other MR exists for this target"
+                    )
+                    return False
         return True
 
     def publish_promotions(
         self,
         success: bool,
         all_saas_files: Iterable[SaasFile],
-        mr_cli: MergeRequestBase,
+        mr_cli: MRClient,
         auto_promote: bool = False,
     ) -> None:
         """
@@ -1793,7 +1796,7 @@ class SaasHerder:
             if promotion.publish:
                 value = {
                     "success": success,
-                    "saas_file": promotion.saas_file_name,
+                    "saas_file": promotion.saas_file,
                     "target_config_hash": promotion.target_config_hash,
                 }
                 all_subscribed_saas_file_paths = set()

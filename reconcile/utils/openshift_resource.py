@@ -213,8 +213,8 @@ class OpenshiftResource:
 
     def verify_valid_k8s_object(self):
         try:
-            self.name
-            self.kind
+            self.name  # pylint: disable=pointless-statement
+            self.kind  # pylint: disable=pointless-statement
         except (KeyError, TypeError) as e:
             msg = "resource invalid data ({}). details: {}".format(
                 e.__class__.__name__, self.error_details
@@ -275,7 +275,7 @@ class OpenshiftResource:
         for il in CONTROLLER_MANAGED_LABELS.get(kind, []):
             if isinstance(il, str) and il == label:
                 return True
-            elif isinstance(il, re.Pattern) and re.search(il, label):
+            if isinstance(il, re.Pattern) and re.search(il, label):
                 return True
         return False
 
@@ -525,8 +525,7 @@ def fully_qualified_kind(kind: str, api_version: str) -> str:
     if "/" in api_version:
         group = api_version.split("/")[0]
         return f"{kind}.{group}"
-    else:
-        return kind
+    return kind
 
 
 class ResourceInventory:
@@ -659,5 +658,4 @@ def build_secret(
 def base64_encode_secret_field_value(value: str) -> Optional[str]:
     if value == "":
         return None
-    else:
-        return base64.b64encode(str(value).encode()).decode("utf-8")
+    return base64.b64encode(str(value).encode()).decode("utf-8")

@@ -577,15 +577,15 @@ def main(
             https://gitlab.cee.redhat.com/service/app-interface
             """
 
-        mr_cli = mr_client_gateway.init(
-            gitlab_project_id=gitlab_project_id, sqs_or_gitlab="gitlab"
-        )
         mr = CreateAppInterfaceReporter(
             reports=reports,
             email_body=textwrap.dedent(email_body),
             reports_path=reports_path,
         )
-        result = mr.submit(cli=mr_cli)
+        with mr_client_gateway.init(
+            gitlab_project_id=gitlab_project_id, sqs_or_gitlab="gitlab"
+        ) as mr_cli:
+            result = mr.submit(cli=mr_cli)
         logging.info(["created_mr", result.web_url])
 
 

@@ -1,4 +1,3 @@
-import functools
 import logging
 import re
 import time
@@ -7,6 +6,7 @@ from collections.abc import (
     Mapping,
 )
 from datetime import datetime
+from functools import lru_cache
 from threading import Lock
 from typing import (
     TYPE_CHECKING,
@@ -115,6 +115,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         init_ecr_auth_tokens=False,
         init_users=True,
     ):
+        self._session_clients = []
         self.thread_pool_size = thread_pool_size
         if secret_reader:
             self.secret_reader = secret_reader
@@ -135,23 +136,18 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         # https://stackoverflow.com/questions/33672412/python-functools-lru-cache-with-class-methods-release-object
         # using @lru_cache decorators on methods would lek AWSApi instances
         # since the cache keeps a reference to self.
-        self._account_ec2_client = functools.lru_cache()(self._account_ec2_client)
-        self._account_route53_client = functools.lru_cache()(
-            self._account_route53_client
-        )
-        self._account_ec2_resource = functools.lru_cache()(self._account_ec2_resource)
-        self._get_assumed_role_client = functools.lru_cache()(
-            self._get_assumed_role_client
-        )
-        self.get_account_vpcs = functools.lru_cache()(self.get_account_vpcs)
-        self.get_account_amis = functools.lru_cache()(self.get_account_amis)
-        self.get_vpc_route_tables = functools.lru_cache()(self.get_vpc_route_tables)
-        self.get_vpc_subnets = functools.lru_cache()(self.get_vpc_subnets)
-        self.get_vpc_default_sg_id = functools.lru_cache()(self.get_vpc_default_sg_id)
-        self.get_transit_gateways = functools.lru_cache()(self.get_transit_gateways)
-        self.get_transit_gateway_vpc_attachments = functools.lru_cache()(
+        self._get_assume_role_session = lru_cache()(self._get_assume_role_session)
+        self._get_session_resource = lru_cache()(self._get_session_resource)
+        self.get_account_amis = lru_cache()(self.get_account_amis)
+        self.get_account_vpcs = lru_cache()(self.get_account_vpcs)
+        self.get_session_client = lru_cache()(self.get_session_client)
+        self.get_transit_gateway_vpc_attachments = lru_cache()(
             self.get_transit_gateway_vpc_attachments
         )
+        self.get_transit_gateways = lru_cache()(self.get_transit_gateways)
+        self.get_vpc_default_sg_id = lru_cache()(self.get_vpc_default_sg_id)
+        self.get_vpc_route_tables = lru_cache()(self.get_vpc_route_tables)
+        self.get_vpc_subnets = lru_cache()(self.get_vpc_subnets)
 
     def init_sessions_and_resources(self, accounts: Iterable[awsh.Account]):
         results = threaded.run(
@@ -175,44 +171,71 @@ class AWSApi:  # pylint: disable=too-many-public-methods
             self.sessions[account_name] = session
             self.resources[account_name] = {}
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self.cleanup()
+
+    def cleanup(self):
+        """
+        Close all session clients
+        :return:
+        """
+        for client in self._session_clients:
+            client.close()
+
     def get_session(self, account: str) -> Session:
         return self.sessions[account]
 
     # pylint: disable=method-hidden
+    def get_session_client(
+        self,
+        session: Session,
+        service_name,
+        region_name: Optional[str] = None,
+    ):
+        region = region_name if region_name else session.region_name
+        client = session.client(service_name, region_name=region)
+        self._session_clients.append(client)
+        return client
+
+    @staticmethod
+    # pylint: disable=method-hidden
+    def _get_session_resource(
+        session: Session, service_name, region_name: Optional[str] = None
+    ):
+        region = region_name if region_name else session.region_name
+        return session.resource(service_name, region_name=region)
+
     def _account_ec2_client(
         self, account_name: str, region_name: Optional[str] = None
     ) -> EC2Client:
         session = self.get_session(account_name)
-        region = region_name if region_name else session.region_name
-        return session.client("ec2", region_name=region)
+        return self.get_session_client(session, "ec2", region_name)
 
     def _account_ec2_resource(
         self, account_name: str, region_name: Optional[str] = None
     ) -> EC2ServiceResource:
         session = self.get_session(account_name)
-        region = region_name if region_name else session.region_name
-        return session.resource("ec2", region_name=region)
+        return self._get_session_resource(session, "ec2", region_name)
 
-    # pylint: disable=method-hidden
     def _account_route53_client(
         self, account_name: str, region_name: Optional[str] = None
     ) -> Route53Client:
         session = self.get_session(account_name)
-        region = region_name if region_name else session.region_name
-        return session.client("route53", region_name=region)
+        return self.get_session_client(session, "route53", region_name)
 
-    # pylint: disable=method-hidden
     def _account_rds_client(
         self, account_name: str, region_name: Optional[str] = None
     ) -> RDSClient:
         session = self.get_session(account_name)
-        region = region_name if region_name else session.region_name
-        return session.client("rds", region_name=region)
+        return self.get_session_client(session, "rds", region_name)
 
     def init_users(self):
         self.users = {}
         for account, s in self.sessions.items():
-            iam = s.client("iam")
+            iam = self.get_session_client(s, "iam")
             users = self.paginate(iam, "list_users", "Users")
             users = [u["UserName"] for u in users]
             self.users[account] = users
@@ -238,7 +261,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
 
     def map_s3_resources(self):
         for account, s in self.sessions.items():
-            s3 = s.client("s3")
+            s3 = self.get_session_client(s, "s3")
             buckets_list = s3.list_buckets()
             if "Buckets" not in buckets_list:
                 continue
@@ -252,7 +275,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
 
     def map_sqs_resources(self):
         for account, s in self.sessions.items():
-            sqs = s.client("sqs")
+            sqs = self.get_session_client(s, "sqs")
             queues_list = sqs.list_queues()
             if "QueueUrls" not in queues_list:
                 continue
@@ -266,7 +289,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
 
     def map_dynamodb_resources(self):
         for account, s in self.sessions.items():
-            dynamodb = s.client("dynamodb")
+            dynamodb = self.get_session_client(s, "dynamodb")
             tables = self.paginate(dynamodb, "list_tables", "TableNames")
             self.set_resouces(account, "dynamodb", tables)
             tables_without_owner = self.get_resources_without_owner(account, tables)
@@ -277,7 +300,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
 
     def map_rds_resources(self):
         for account, s in self.sessions.items():
-            rds = s.client("rds")
+            rds = self.get_session_client(s, "rds")
             results = self.paginate(rds, "describe_db_instances", "DBInstances")
             instances = [t["DBInstanceIdentifier"] for t in results]
             self.set_resouces(account, "rds", instances)
@@ -292,7 +315,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
     def map_rds_snapshots(self):
         self.wait_for_resource("rds")
         for account, s in self.sessions.items():
-            rds = s.client("rds")
+            rds = self.get_session_client(s, "rds")
             results = self.paginate(rds, "describe_db_snapshots", "DBSnapshots")
             snapshots = [t["DBSnapshotIdentifier"] for t in results]
             self.set_resouces(account, "rds_snapshots", snapshots)
@@ -308,7 +331,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
 
     def map_route53_resources(self):
         for account, s in self.sessions.items():
-            client = s.client("route53")
+            client = self.get_session_client(s, "route53")
             results = self.paginate(client, "list_hosted_zones", "HostedZones")
             zones = list(results)
             for zone in zones:
@@ -323,7 +346,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
 
     def map_ecr_resources(self):
         for account, s in self.sessions.items():
-            client = s.client("ecr")
+            client = self.get_session_client(s, "ecr")
             repositories = self.paginate(
                 client=client, method="describe_repositories", key="repositories"
             )
@@ -400,7 +423,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
 
     def custom_dynamodb_filter(self, account, session, dynamodb, tables):
         type = "dynamodb table"
-        dynamodb_resource = session.resource("dynamodb")
+        dynamodb_resource = self._get_session_resource(session, "dynamodb")
         unfiltered_tables = []
         for t in tables:
             table_arn = dynamodb_resource.Table(t).table_arn
@@ -490,7 +513,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
     def get_tag_value(tags, tag):
         if isinstance(tags, dict):
             return tags.get(tag, "")
-        elif isinstance(tags, list):
+        if isinstance(tags, list):
             for t in tags:
                 if t["Key"] == tag:
                     return t["Value"]
@@ -507,19 +530,19 @@ class AWSApi:  # pylint: disable=too-many-public-methods
 
     def delete_resource(self, session, resource_type, resource_name):
         if resource_type == "s3":
-            resource = session.resource(resource_type)
+            resource = self._get_session_resource(session, resource_type)
             self.delete_bucket(resource, resource_name)
         elif resource_type == "sqs":
-            client = session.client(resource_type)
+            client = self.get_session_client(session, resource_type)
             self.delete_queue(client, resource_name)
         elif resource_type == "dynamodb":
-            resource = session.resource(resource_type)
+            resource = self._get_session_resource(session, resource_type)
             self.delete_table(resource, resource_name)
         elif resource_type == "rds":
-            client = session.client(resource_type)
+            client = self.get_session_client(session, resource_type)
             self.delete_instance(client, resource_name)
         elif resource_type == "rds_snapshots":
-            client = session.client(resource_type)
+            client = self.get_session_client(session, resource_type)
             self.delete_snapshot(client, resource_name)
         else:
             raise InvalidResourceTypeError(resource_type)
@@ -585,7 +608,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         service_account_recycle_complete = True
         users_keys = self.get_users_keys()
         for account, s in self.sessions.items():
-            iam = s.client("iam")
+            iam = self.get_session_client(s, "iam")
             keys = keys_to_delete.get(account, [])
             for key in keys:
                 user_and_user_keys = [
@@ -663,7 +686,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
     def get_users_keys(self):
         users_keys = {}
         for account, s in self.sessions.items():
-            iam = s.client("iam")
+            iam = self.get_session_client(s, "iam")
             users_keys[account] = {
                 user: self.get_user_keys(iam, user) for user in self.users[account]
             }
@@ -672,12 +695,12 @@ class AWSApi:  # pylint: disable=too-many-public-methods
 
     def reset_password(self, account, user_name):
         s = self.sessions[account]
-        iam = s.client("iam")
+        iam = self.get_session_client(s, "iam")
         iam.delete_login_profile(UserName=user_name)
 
     def reset_mfa(self, account, user_name):
         s = self.sessions[account]
-        iam = s.client("iam")
+        iam = self.get_session_client(s, "iam")
         mfa_devices = iam.list_mfa_devices(UserName=user_name)["MFADevices"]
         for d in mfa_devices:
             serial_number = d["SerialNumber"]
@@ -708,7 +731,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
                 self.accounts[account]["partition"]
             )
             try:
-                support = s.client("support", region_name=support_region)
+                support = self.get_session_client(s, "support", support_region)
                 support_cases = support.describe_cases(
                     includeResolvedCases=True, includeCommunications=True
                 )["cases"]
@@ -761,7 +784,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
                     aws_secret_access_key=secret_key,
                     region_name=region_name,
                 )
-                client = session.client("ecr")
+                client = self.get_session_client(session, "ecr")
                 token = client.get_authorization_token()
                 auth_tokens[f"{account_name}/{region_name}"] = token
 
@@ -780,19 +803,21 @@ class AWSApi:  # pylint: disable=too-many-public-methods
             raise KeyError("[{}] account is missing required keys".format(account_name))
         return (account["name"], account["assume_role"], account["assume_region"])
 
+    @staticmethod
+    # pylint: disable=method-hidden
     def _get_assume_role_session(
-        self, account_name: str, assume_role: str, assume_region: str
+        sts, account_name: str, assume_role: str, assume_region: str
     ) -> Session:
         """
         Returns a session for a supplied role to assume:
 
-        :param name:          name of the AWS account
+        :param sts:           boto3 sts client
+        :param account_name:  name of the AWS account
         :param assume_role:   role to assume to get access
                               to the cluster's AWS account
         :param assume_region: region in which to operate
         """
-        session = self.get_session(account_name)
-        sts = session.client("sts")
+
         if not assume_role:
             raise MissingARNError(
                 f"Could not find Role ARN {assume_role} on account "
@@ -812,14 +837,15 @@ class AWSApi:  # pylint: disable=too-many-public-methods
 
         return assumed_session
 
-    # pylint: disable=method-hidden
     def _get_assumed_role_client(
         self, account_name: str, assume_role: str, assume_region: str, client_type="ec2"
     ) -> EC2Client:
+        session = self.get_session(account_name)
+        sts = self.get_session_client(session, "sts")
         assumed_session = self._get_assume_role_session(
-            account_name, assume_role, assume_region
+            sts, account_name, assume_role, assume_region
         )
-        return assumed_session.client(client_type)
+        return self.get_session_client(assumed_session, client_type)
 
     @staticmethod
     # pylint: disable=method-hidden
@@ -1277,7 +1303,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         :type zone_name: str
         """
         session = self.get_session(account_name)
-        client = session.client("route53")
+        client = self.get_session_client(session, "route53")
 
         try:
             caller_ref = f"{datetime.now()}"
@@ -1307,7 +1333,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         :type zone_id: str
         """
         session = self.get_session(account_name)
-        client = session.client("route53")
+        client = self.get_session_client(session, "route53")
 
         try:
             client.delete_hosted_zone(Id=zone_id)
@@ -1336,7 +1362,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         :type awsdata: dict
         """
         session = self.get_session(account_name)
-        client = session.client("route53")
+        client = self.get_session_client(session, "route53")
 
         try:
             client.change_resource_record_sets(
@@ -1370,7 +1396,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         :type recordset: dict
         """
         session = self.get_session(account_name)
-        client = session.client("route53")
+        client = self.get_session_client(session, "route53")
 
         try:
             client.change_resource_record_sets(
@@ -1415,7 +1441,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
             raise ValueError(
                 f"found multiple AMI with {tags=} in account {account_name}"
             )
-        elif not images:
+        if not images:
             return None
         return images[0]["ImageId"]
 

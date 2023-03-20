@@ -9,13 +9,18 @@ from dataclasses import (
     asdict,
     dataclass,
 )
-from typing import Any
+from typing import (
+    Any,
+    Sequence,
+    Union,
+)
 
 from ruamel import yaml
 
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.mr.base import MergeRequestBase
 from reconcile.utils.mr.labels import AUTO_MERGE
+from reconcile.utils.saasherder.interfaces import SaasPromotion
 from reconcile.utils.saasherder.models import Promotion
 
 LOG = logging.getLogger(__name__)
@@ -32,10 +37,21 @@ class ParentSaasConfigPromotion:
 class AutoPromoter(MergeRequestBase):
     name = "auto_promoter"
 
-    def __init__(self, promotions: Iterable[Promotion]):
-        self.promotions = promotions
-        super().__init__()
+    def __init__(
+        self, promotions: Union[Sequence[SaasPromotion], Sequence[dict[str, Any]]]
+    ):
+        # !!! Attention !!!
+        # AutoPromoter is also initialized with promitions as dict by 'gitlab_mr_sqs_consumer'
+        # loaded from SQS message body, therefore self.promotions must be json serializable
+        self.promotions = [
+            p.dict(by_alias=True) if isinstance(p, SaasPromotion) else p
+            for p in promotions
+        ]
 
+        # the parent class stores self.promotions (the json serializable one) in self.sqs_msg_data
+        super().__init__()
+        # create an internal list with Promotion objects out of self.promotions
+        self._promotions = [Promotion(**p) for p in self.promotions]
         self.labels = [AUTO_MERGE]
 
     @property
@@ -55,16 +71,16 @@ class AutoPromoter(MergeRequestBase):
         return "openshift-saas-deploy automated promotion"
 
     @staticmethod
-    def init_promotion_data(channel: str, promotion: Promotion) -> dict[str, Any]:
+    def init_promotion_data(channel: str, promotion: SaasPromotion) -> dict[str, Any]:
         psc = ParentSaasConfigPromotion(
-            parent_saas=promotion.saas_file_name,
+            parent_saas=promotion.saas_file,
             target_config_hash=promotion.target_config_hash,
         )
         return {"channel": channel, "data": [asdict(psc)]}
 
     @staticmethod
     def process_promotion(
-        promotion: Promotion,
+        promotion: SaasPromotion,
         target_promotion: MutableMapping[str, Any],
         target_channels: Iterable[str],
     ) -> bool:
@@ -90,7 +106,7 @@ class AutoPromoter(MergeRequestBase):
                     if item["type"] == ParentSaasConfigPromotion.TYPE:
                         target_psc = ParentSaasConfigPromotion(**item)
                         promotion_psc = ParentSaasConfigPromotion(
-                            parent_saas=promotion.saas_file_name,
+                            parent_saas=promotion.saas_file,
                             target_config_hash=promotion.target_config_hash,
                         )
                         if target_psc != promotion_psc:
@@ -100,7 +116,7 @@ class AutoPromoter(MergeRequestBase):
         return modified
 
     def process_target(
-        self, target: MutableMapping[str, Any], promotion: Promotion
+        self, target: MutableMapping[str, Any], promotion: SaasPromotion
     ) -> bool:
         target_updated = False
         target_promotion = target.get("promotion")
@@ -131,7 +147,7 @@ class AutoPromoter(MergeRequestBase):
         return target_updated
 
     def process(self, gitlab_cli: GitLabApi) -> None:
-        for promotion in self.promotions:
+        for promotion in self._promotions:
             if not promotion.publish:
                 continue
             if not promotion.commit_sha:

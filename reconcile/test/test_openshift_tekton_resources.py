@@ -83,10 +83,9 @@ class TestOpenshiftTektonResources:
         """Mock for GqlApi.query using test_data set in setUp"""
         if query == otr.SAAS_FILES_QUERY:
             return {"saas_files": self.test_data.saas_files}
-        elif query == PIPELINES_PROVIDERS_QUERY:
+        if query == PIPELINES_PROVIDERS_QUERY:
             return {"pipelines_providers": self.test_data.providers}
-        else:
-            raise TstUnsupportedGqlQueryError("Unsupported query")
+        raise TstUnsupportedGqlQueryError("Unsupported query")
 
     def setup_method(self) -> None:
         self.test_data = TstData()

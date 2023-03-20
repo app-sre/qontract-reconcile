@@ -12,12 +12,15 @@ serverUrl: "https://api.tst-jpr-rosa.0000.p1.openshiftapps.com:6443"
 elbFQDN: "elb.tst-jpr-rosa.0000.p1.openshiftapps.com"
 ocm:
   name: ocm-stage
-  url: non-existent-ocm-url
   orgId: org-id
-  accessTokenClientId: cloud-services
-  accessTokenClientSecret:
-    path: "client-secret-path"
-    field: "client_secret"
+  environment:
+    name: name
+    url: non-existent-ocm-url
+    accessTokenClientId: cloud-services
+    accessTokenClientSecret:
+      path: "client-secret-path"
+      field: "client_secret"
+    accessTokenUrl: "https://sso.blah.com/token"
 spec:
   product: rosa
   account:

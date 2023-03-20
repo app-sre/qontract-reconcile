@@ -2,6 +2,7 @@ import logging
 
 from reconcile import queries
 from reconcile.slack_base import slackapi_from_slack_workspace
+from reconcile.utils.defer import defer
 from reconcile.utils.jira_client import JiraClient
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.sharding import is_in_shard_round_robin
@@ -92,10 +93,12 @@ def write_state(state: State, project, state_to_write):
     state.add(project, value=state_to_write, force=True)
 
 
-def run(dry_run):
+@defer
+def run(dry_run, defer):
     jira_boards = [j for j in queries.get_jira_boards() if j.get("slack")]
     settings = queries.get_app_interface_settings()
     state = init_state(integration=QONTRACT_INTEGRATION)
+    defer(state.cleanup)
     for index, jira_board in enumerate(jira_boards):
         if not is_in_shard_round_robin(jira_board["name"], index):
             continue

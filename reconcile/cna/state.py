@@ -128,5 +128,4 @@ class State:
         if self._i < len(self._assets_list):
             self._i += 1
             return self._assets_list[self._i - 1]
-        else:
-            raise StopIteration
+        raise StopIteration

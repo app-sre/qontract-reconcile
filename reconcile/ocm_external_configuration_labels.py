@@ -64,8 +64,7 @@ def sort_diffs(diff):
     """Sort diffs so we delete first and create later"""
     if diff["action"] == "delete":
         return 1
-    else:
-        return 2
+    return 2
 
 
 def act(dry_run, diffs, ocm_map):

@@ -9,6 +9,7 @@ from reconcile import (
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
+from reconcile.utils.defer import defer
 from reconcile.utils.gpg import gpg_encrypt
 from reconcile.utils.secret_reader import (
     SecretReader,
@@ -57,7 +58,8 @@ def get_encrypted_credentials(credentials_name, user, settings):
     return encrypted_credentials
 
 
-def run(dry_run):
+@defer
+def run(dry_run, defer=None):
     settings = queries.get_app_interface_settings()
     vault_settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
@@ -74,6 +76,7 @@ def run(dry_run):
         integration=QONTRACT_INTEGRATION,
         secret_reader=secret_reader,
     )
+    defer(state.cleanup)
     credentials_requests = queries.get_credentials_requests()
 
     # validate no 2 requests have the same name

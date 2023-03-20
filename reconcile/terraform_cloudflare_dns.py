@@ -92,6 +92,10 @@ class TerraformCloudflareDNSIntegration(
 
         query_zones = self._get_cloudflare_desired_state()
 
+        if are_record_identifiers_duplicated_within_zone(query_zones):
+            logging.error("Duplicate DNS record identifier(s) detected.")
+            sys.exit(ExitCodes.ERROR)
+
         # Build Cloudflare clients
         cf_clients = TerraformConfigClientCollection()
         zone_clients = build_clients(
@@ -179,6 +183,22 @@ class TerraformCloudflareDNSIntegration(
         )
 
 
+def are_record_identifiers_duplicated_within_zone(
+    zone_query_data: CloudflareDnsZoneQueryData,
+) -> bool:
+    duplicate_exist = False
+    for zone in zone_query_data.zones or []:
+        existing_records = set()
+        for record in zone.records or []:
+            record_id = record.identifier
+            if record_id not in existing_records:
+                existing_records.add(record_id)
+            else:
+                logging.warning(f"{record_id} already exists in zone {zone.identifier}")
+                duplicate_exist = True
+    return duplicate_exist
+
+
 def get_cloudflare_provider_rps(
     records: Optional[Sequence[CloudflareDnsRecordV1]],
 ) -> int:
@@ -194,10 +214,9 @@ def get_cloudflare_provider_rps(
     size = len(records)
     if size <= 50:
         return 2
-    elif size <= 1000:
+    if size <= 1000:
         return DEFAULT_PROVIDER_RPS
-    else:
-        return 6
+    return 6
 
 
 def create_backend_config(

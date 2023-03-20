@@ -35,6 +35,16 @@ network:
   type: OpenShiftSDN
   vpc: 10.10.10.0/22
 ocm:
+  environment:
+    name: name
+    url: ocm-url
+    accessTokenClientId: client-id
+    accessTokenClientSecret:
+      field: client_secret
+      format: null
+      path: path/to/client_secret
+      version: null
+    accessTokenUrl: access-token-url
   accessTokenClientId: client-id
   accessTokenClientSecret:
     field: client_secret
@@ -46,7 +56,6 @@ ocm:
   inheritVersionData: null
   name: ocm-production
   sectors: null
-  url: ocm-url
   orgId: org-id
 peering:
   connections: []

@@ -56,10 +56,9 @@ class GqlApproverResolver:
                 approvers["user"][0]["org_username"],
                 approvers["user"][0]["tag_on_merge_requests"],
             )
-        elif approvers.get("bot"):
+        if approvers.get("bot"):
             return Approver(approvers["bot"][0]["org_username"], False)
-        else:
-            return None
+        return None
 
 
 class ApproverReachability(Protocol):

@@ -62,10 +62,11 @@ class EndpointMonitoringProvider:
     def namespace(self) -> Optional[dict[str, Any]]:
         if self.blackboxExporter:
             return self.blackboxExporter.namespace
-        elif self.signalFx:
+
+        if self.signalFx:
             return self.signalFx.namespace
-        else:
-            return None
+
+        return None
 
     @property
     def metric_labels(self):

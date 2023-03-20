@@ -93,7 +93,7 @@ def init_state_from_accounts(
     return State(
         integration=integration,
         bucket=bucket_name,
-        client=session.client("s3"),
+        client=aws_api.get_session_client(session, "s3"),
     )
 
 
@@ -128,6 +128,18 @@ class State:
                 f"Bucket {self.bucket} is not accessible - {str(details)}"
             )
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self.cleanup()
+
+    def cleanup(self):
+        """
+        Closes the S3 client
+        """
+        self.client.close()
+
     def exists(self, key):
         """
         Checks if a key exists in the state.
@@ -147,11 +159,11 @@ class State:
             error_code = details.response.get("Error", {}).get("Code", None)
             if error_code == "404":
                 return False
-            else:
-                raise StateInaccessibleException(
-                    f"Can not access state key {key_path} "
-                    f"in bucket {self.bucket} - {str(details)}"
-                )
+
+            raise StateInaccessibleException(
+                f"Can not access state key {key_path} "
+                f"in bucket {self.bucket} - {str(details)}"
+            )
 
     def ls(self):
         """

@@ -297,8 +297,7 @@ def get_integrations(managed=False):
     gqlapi = gql.get_api()
     if managed:
         return gqlapi.query(INTEGRATIONS_QUERY)["integrations"]
-    else:
-        return gqlapi.query(gql.INTEGRATIONS_QUERY)["integrations"]
+    return gqlapi.query(gql.INTEGRATIONS_QUERY)["integrations"]
 
 
 JENKINS_INSTANCES_QUERY = """
@@ -651,7 +650,17 @@ CLUSTERS_QUERY = """
     }
     ocm {
       name
-      url
+      environment {
+        url
+        accessTokenClientId
+        accessTokenUrl
+        accessTokenClientSecret {
+          path
+          field
+          format
+          version
+        }
+      }
       orgId
       accessTokenClientId
       accessTokenUrl
@@ -982,7 +991,17 @@ CLUSTER_PEERING_QUERY = """
     name
     ocm {
       name
-      url
+      environment {
+        url
+        accessTokenClientId
+        accessTokenUrl
+        accessTokenClientSecret {
+          path
+          field
+          format
+          version
+        }
+      }
       orgId
       accessTokenClientId
       accessTokenUrl
@@ -1162,7 +1181,17 @@ OCM_QUERY = """
   instances: ocm_instances_v1 {
     path
     name
-    url
+    environment {
+      url
+      accessTokenClientId
+      accessTokenUrl
+      accessTokenClientSecret {
+        path
+        field
+        format
+        version
+      }
+    }
     orgId
     blockedVersions
     recommendedVersions {
@@ -1263,7 +1292,17 @@ KAFKA_CLUSTERS_QUERY = """
     name
     ocm {
       name
-      url
+      environment {
+        url
+        accessTokenClientId
+        accessTokenUrl
+        accessTokenClientSecret {
+          path
+          field
+          format
+          version
+        }
+      }
       orgId
       accessTokenClientId
       accessTokenUrl
@@ -1473,8 +1512,7 @@ def get_namespaces(minimal=False):
     gqlapi = gql.get_api()
     if minimal:
         return gqlapi.query(NAMESPACES_MINIMAL_QUERY)["namespaces"]
-    else:
-        return gqlapi.query(NAMESPACES_QUERY)["namespaces"]
+    return gqlapi.query(NAMESPACES_QUERY)["namespaces"]
 
 
 SA_TOKEN = """
@@ -1807,6 +1845,9 @@ USERS_QUERY = """
     pagerduty_username
     public_gpg_key
     {% if refs %}
+    aws_accounts {
+      path
+    }
     requests {
       path
     }
@@ -2588,6 +2629,28 @@ def get_unleash_instances():
     return gqlapi.query(UNLEASH_INSTANCES_QUERY)["unleash_instances"]
 
 
+DNS_RECORD = """
+name
+type
+ttl
+alias {
+  name
+  zone_id
+  evaluate_target_health
+}
+weighted_routing_policy {
+  weight
+}
+geolocation_routing_policy {
+  continent
+  country
+  subdivision
+}
+set_identifier
+records
+"""
+
+
 DNS_ZONES_QUERY = """
 {
   zones: dns_zone_v1 {
@@ -2609,24 +2672,7 @@ DNS_ZONES_QUERY = """
       region
     }
     records {
-      name
-      type
-      ttl
-      alias {
-        name
-        zone_id
-        evaluate_target_health
-      }
-      weighted_routing_policy {
-        weight
-      }
-      geolocation_routing_policy {
-        continent
-        country
-        subdivision
-      }
-      set_identifier
-      records
+      %s
       _healthcheck {
         fqdn
         port
@@ -2664,7 +2710,9 @@ DNS_ZONES_QUERY = """
     }
   }
 }
-"""
+""" % (
+    indent(DNS_RECORD, 6 * " "),
+)
 
 
 def get_dns_zones(account_name=None):
@@ -2730,7 +2778,17 @@ OCP_RELEASE_ECR_MIRROR_QUERY = """
       managedGroups
       ocm {
         name
-        url
+        environment {
+          url
+          accessTokenClientId
+          accessTokenUrl
+          accessTokenClientSecret {
+            path
+            field
+            format
+            version
+          }
+        }
         orgId
         accessTokenClientId
         accessTokenUrl

@@ -5,7 +5,9 @@ query OidcClusters($name: String) {
     name
     ocm {
       name
-      url
+      environment {
+        ... OCMEnvironment
+      }
       orgId
       accessTokenClientId
       accessTokenUrl

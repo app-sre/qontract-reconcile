@@ -29,7 +29,10 @@ from reconcile.change_owners.change_owners import (
     fetch_self_service_roles,
 )
 from reconcile.checkpoint import report_invalid_metadata
-from reconcile.cli import config_file
+from reconcile.cli import (
+    config_file,
+    use_jump_host,
+)
 from reconcile.jenkins_job_builder import init_jjb
 from reconcile.prometheus_rules_tester import get_data_from_jinja_test_template
 from reconcile.slack_base import slackapi_from_queries
@@ -793,11 +796,11 @@ def clusters_network(ctx, name):
         if not account:
             continue
         account["resourcesDefaultRegion"] = management_account["resourcesDefaultRegion"]
-        aws_api = AWSApi(1, [account], settings=settings, init_users=False)
-        vpc_id, _, _ = aws_api.get_cluster_vpc_details(account)
-        cluster["vpc_id"] = vpc_id
-        egress_ips = aws_api.get_cluster_nat_gateways_egress_ips(account)
-        cluster["egress_ips"] = ", ".join(sorted(egress_ips))
+        with AWSApi(1, [account], settings=settings, init_users=False) as aws_api:
+            vpc_id, _, _ = aws_api.get_cluster_vpc_details(account)
+            cluster["vpc_id"] = vpc_id
+            egress_ips = aws_api.get_cluster_nat_gateways_egress_ips(account)
+            cluster["egress_ips"] = ", ".join(sorted(egress_ips))
 
     # TODO(mafriedm): fix this
     # do not sort
@@ -884,8 +887,8 @@ def clusters_egress_ips(ctx):
         if not account:
             continue
         account["resourcesDefaultRegion"] = management_account["resourcesDefaultRegion"]
-        aws_api = AWSApi(1, [account], settings=settings, init_users=False)
-        egress_ips = aws_api.get_cluster_nat_gateways_egress_ips(account)
+        with AWSApi(1, [account], settings=settings, init_users=False) as aws_api:
+            egress_ips = aws_api.get_cluster_nat_gateways_egress_ips(account)
         item = {"cluster": cluster_name, "egress_ips": ", ".join(sorted(egress_ips))}
         results.append(item)
 
@@ -918,42 +921,42 @@ def clusters_aws_account_ids(ctx):
 @get.command()
 @click.pass_context
 def terraform_users_credentials(ctx) -> None:
-    accounts = queries.get_state_aws_accounts()
+    credentials = []
     state = init_state(integration="account-notifier")
 
     skip_accounts, appsre_pgp_key, _ = tfu.get_reencrypt_settings()
 
-    accounts, working_dirs, _, aws_api = tfu.setup(
-        False,
-        1,
-        skip_accounts,
-        account_name=None,
-        appsre_pgp_key=appsre_pgp_key,
-    )
+    if skip_accounts:
+        accounts, working_dirs, _, aws_api = tfu.setup(
+            False,
+            1,
+            skip_accounts,
+            account_name=None,
+            appsre_pgp_key=appsre_pgp_key,
+        )
 
-    tf = Terraform(
-        tfu.QONTRACT_INTEGRATION,
-        tfu.QONTRACT_INTEGRATION_VERSION,
-        tfu.QONTRACT_TF_PREFIX,
-        accounts,
-        working_dirs,
-        10,
-        aws_api,
-        init_users=True,
-    )
-    credentials = []
-    for account, output in tf.outputs.items():
-        if account in skip_accounts:
-            user_passwords = tf.format_output(output, tf.OUTPUT_TYPE_PASSWORDS)
-            console_urls = tf.format_output(output, tf.OUTPUT_TYPE_CONSOLEURLS)
-            for user_name, enc_password in user_passwords.items():
-                item = {
-                    "account": account,
-                    "console_url": console_urls[account],
-                    "user_name": user_name,
-                    "encrypted_password": enc_password,
-                }
-                credentials.append(item)
+        tf = Terraform(
+            tfu.QONTRACT_INTEGRATION,
+            tfu.QONTRACT_INTEGRATION_VERSION,
+            tfu.QONTRACT_TF_PREFIX,
+            accounts,
+            working_dirs,
+            10,
+            aws_api,
+            init_users=True,
+        )
+        for account, output in tf.outputs.items():
+            if account in skip_accounts:
+                user_passwords = tf.format_output(output, tf.OUTPUT_TYPE_PASSWORDS)
+                console_urls = tf.format_output(output, tf.OUTPUT_TYPE_CONSOLEURLS)
+                for user_name, enc_password in user_passwords.items():
+                    item = {
+                        "account": account,
+                        "console_url": console_urls[account],
+                        "user_name": user_name,
+                        "encrypted_password": enc_password,
+                    }
+                    credentials.append(item)
 
     secrets = state.ls()
 
@@ -1805,8 +1808,9 @@ def app_interface_merge_history(ctx):
     short_help="obtain a list of all resources that are managed "
     "on a customer cluster via a Hive SelectorSyncSet."
 )
+@use_jump_host()
 @click.pass_context
-def selectorsyncset_managed_resources(ctx):
+def selectorsyncset_managed_resources(ctx, use_jump_host):
     vault_settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     clusters = get_clusters()
@@ -1816,6 +1820,7 @@ def selectorsyncset_managed_resources(ctx):
         integration="qontract-cli",
         thread_pool_size=1,
         init_api_resources=True,
+        use_jump_host=use_jump_host,
     )
     columns = [
         "cluster",
@@ -1861,8 +1866,9 @@ def selectorsyncset_managed_resources(ctx):
     short_help="obtain a list of all resources that are managed "
     "on a customer cluster via an ACM Policy via a Hive SelectorSyncSet."
 )
+@use_jump_host()
 @click.pass_context
-def selectorsyncset_managed_hypershift_resources(ctx):
+def selectorsyncset_managed_hypershift_resources(ctx, use_jump_host):
     vault_settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     clusters = get_clusters()
@@ -1872,6 +1878,7 @@ def selectorsyncset_managed_hypershift_resources(ctx):
         integration="qontract-cli",
         thread_pool_size=1,
         init_api_resources=True,
+        use_jump_host=use_jump_host,
     )
     columns = [
         "cluster",

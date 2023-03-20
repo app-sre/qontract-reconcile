@@ -393,9 +393,7 @@ def delete_td(name: str, dry_run: bool, enable_deletion=False):
     logging.info(["delete_td", name])
 
     if not enable_deletion:
-        logging.info(
-            "deletion action is disabled. " "Delete manually or enable deletion."
-        )
+        logging.info("deletion action is disabled. Delete manually or enable deletion.")
         return
 
     if dry_run:

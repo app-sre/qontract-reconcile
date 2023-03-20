@@ -635,8 +635,7 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
         except StatusCodeError as e:
             if "NotFound" in str(e):
                 return False
-            else:
-                raise e
+            raise e
         return True
 
     @OCDecorators.process_reconcile_time
@@ -673,8 +672,7 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
         except StatusCodeError as e:
             if "NotFound" in str(e):
                 return None
-            else:
-                raise e
+            raise e
 
     def create_group(self, group):
         if self.get_group_if_exists(group) is not None:
@@ -1095,8 +1093,7 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
                             raise DeploymentFieldIsImmutableError(
                                 f"[{self.server}]: {err}"
                             )
-                        else:
-                            raise FieldIsImmutableError(f"[{self.server}]: {err}")
+                        raise FieldIsImmutableError(f"[{self.server}]: {err}")
                     if ": may not change once set" in err:
                         raise MayNotChangeOnceSetError(f"[{self.server}]: {err}")
                     if ": primary clusterIP can not be unset" in err:
@@ -1120,8 +1117,7 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
         if not out:
             if allow_not_found:
                 return "{}"
-            else:
-                raise NoOutputError(err)
+            raise NoOutputError(err)
 
         return out.strip()
 
@@ -1204,8 +1200,7 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
                 if group == r.group:
                     return r.namespaced
             raise StatusCodeError(f"Kind: {kind} does nod exist in the ApiServer")
-        else:
-            return kind_resources[0].namespaced
+        return kind_resources[0].namespaced
 
 
 class OCNative(OCDeprecated):
@@ -1323,7 +1318,7 @@ class OCNative(OCDeprecated):
                     except ApiException:
                         # there may be apigroups/versions that require elevated
                         # permisions, so go to the next one
-                        next
+                        continue
                     # resources is a map containing kind:Resource and
                     # {kind}List:ResourceList where a Resource contains the api
                     # group_version (group/api_version) and a ResourceList
@@ -1393,8 +1388,7 @@ class OCNative(OCDeprecated):
         except NotFoundError as e:
             if allow_not_found:
                 return {}
-            else:
-                raise StatusCodeError(f"[{self.server}]: {e}")
+            raise StatusCodeError(f"[{self.server}]: {e}")
 
     def get_all(self, kind, all_namespaces=False):
         k, group_version = self._parse_kind(kind)
@@ -1506,22 +1500,20 @@ class OC:
                 insecure_skip_tls_verify=insecure_skip_tls_verify,
                 connection_parameters=connection_parameters,
             )
-        else:
-            OC.client_status.labels(
-                cluster_name=cluster_name, native_client=False
-            ).inc()
-            return OCDeprecated(
-                cluster_name=cluster_name,
-                server=server,
-                token=token,
-                jh=jh,
-                settings=settings,
-                init_projects=init_projects,
-                init_api_resources=init_api_resources,
-                local=local,
-                insecure_skip_tls_verify=insecure_skip_tls_verify,
-                connection_parameters=connection_parameters,
-            )
+
+        OC.client_status.labels(cluster_name=cluster_name, native_client=False).inc()
+        return OCDeprecated(
+            cluster_name=cluster_name,
+            server=server,
+            token=token,
+            jh=jh,
+            settings=settings,
+            init_projects=init_projects,
+            init_api_resources=init_api_resources,
+            local=local,
+            insecure_skip_tls_verify=insecure_skip_tls_verify,
+            connection_parameters=connection_parameters,
+        )
 
 
 class OC_Map:
@@ -1566,7 +1558,8 @@ class OC_Map:
 
         if clusters and namespaces:
             raise KeyError("expected only one of clusters or namespaces.")
-        elif clusters:
+
+        if clusters:
             threaded.run(
                 self.init_oc_client,
                 clusters,
@@ -1735,8 +1728,7 @@ class OC_Map:
         result = self.get(cluster, privileged)
         if isinstance(result, OCLogMsg):
             raise result
-        else:
-            return result
+        return result
 
     def clusters(
         self, include_errors: bool = False, privileged: bool = False
@@ -1798,7 +1790,7 @@ def validate_labels(labels: dict[str, str]) -> Iterable[str]:
     v_pattern = re.compile(r"^(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?$")
     k_name_pattern = re.compile(r"^([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9]$")
     k_prefix_pattern = re.compile(
-        r"^[a-z0-9]([-a-z0-9]*[a-z0-9])?" r"(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$"
+        r"^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$"
     )
 
     for k, v in labels.items():
@@ -1900,9 +1892,8 @@ class OpenshiftLazyDiscoverer(LazyDiscoverer):
                 results = [max(results, key=lambda x: len(x.verbs))]
         if len(results) == 1:
             return results[0]
-        elif not results:
+        if not results:
             raise ResourceNotFoundError("No matches found for {}".format(kwargs))
-        else:
-            raise ResourceNotUniqueError(
-                "Multiple matches found for {}: {}".format(kwargs, results)
-            )
+        raise ResourceNotUniqueError(
+            "Multiple matches found for {}: {}".format(kwargs, results)
+        )

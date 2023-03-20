@@ -1687,7 +1687,7 @@ class OCMMap:  # pylint: disable=too-many-public-methods
         inputs = [i for i in [clusters, namespaces, ocms] if i]
         if len(inputs) > 1:
             raise KeyError("expected only one of clusters, namespaces or ocm.")
-        elif clusters:
+        if clusters:
             for cluster_info in clusters:
                 self.init_ocm_client_from_cluster(
                     cluster_info,
@@ -1766,31 +1766,37 @@ class OCMMap:  # pylint: disable=too-many-public-methods
         :type cluster_info: dict
         """
         ocm_name = ocm_info["name"]
-        access_token_client_id = ocm_info.get("accessTokenClientId")
-        access_token_url = ocm_info.get("accessTokenUrl")
-        access_token_client_secret = ocm_info.get("accessTokenClientSecret")
-        if access_token_client_secret is None:
-            self.ocm_map[ocm_name] = False
-        else:
-            url = ocm_info["url"]
-            org_id = ocm_info["orgId"]
-            name = ocm_info["name"]
-            secret_reader = SecretReader(settings=self.settings)
-            token = secret_reader.read(access_token_client_secret)
-            self.ocm_map[ocm_name] = OCM(
-                name,
-                url,
-                org_id,
-                access_token_client_id,
-                access_token_url,
-                token,
-                init_provision_shards=init_provision_shards,
-                init_addons=init_addons,
-                blocked_versions=ocm_info.get("blockedVersions"),
-                init_version_gates=init_version_gates,
-                sectors=ocm_info.get("sectors"),
-                inheritVersionData=ocm_info.get("inheritVersionData"),
-            )
+        ocm_environment = ocm_info["environment"]
+        access_token_client_id = (
+            ocm_info.get("accessTokenClientId")
+            or ocm_environment["accessTokenClientId"]
+        )
+        access_token_url = (
+            ocm_info.get("accessTokenUrl") or ocm_environment["accessTokenUrl"]
+        )
+        access_token_client_secret = (
+            ocm_info.get("accessTokenClientSecret")
+            or ocm_environment["accessTokenClientSecret"]
+        )
+        url = ocm_environment["url"]
+        org_id = ocm_info["orgId"]
+        name = ocm_info["name"]
+        secret_reader = SecretReader(settings=self.settings)
+        token = secret_reader.read(access_token_client_secret)
+        self.ocm_map[ocm_name] = OCM(
+            name,
+            url,
+            org_id,
+            access_token_client_id,
+            access_token_url,
+            token,
+            init_provision_shards=init_provision_shards,
+            init_addons=init_addons,
+            blocked_versions=ocm_info.get("blockedVersions"),
+            init_version_gates=init_version_gates,
+            sectors=ocm_info.get("sectors"),
+            inheritVersionData=ocm_info.get("inheritVersionData"),
+        )
 
     def instances(self) -> list[str]:
         """Get list of OCM instance names initiated in the OCM map."""

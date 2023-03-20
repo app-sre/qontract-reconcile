@@ -8,6 +8,7 @@ from reconcile import (
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
+from reconcile.utils.defer import defer
 from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.smtp_client import (
     DEFAULT_SMTP_TIMEOUT,
@@ -85,10 +86,12 @@ def collect_to(to):
     return audience
 
 
-def run(dry_run):
+@defer
+def run(dry_run, defer=None):
     vault_settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     state = init_state(integration=QONTRACT_INTEGRATION, secret_reader=secret_reader)
+    defer(state.cleanup)
     emails = queries.get_app_interface_emails()
     smtp_settings = typed_queries.smtp.settings()
     smtp_client = SmtpClient(

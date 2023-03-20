@@ -66,21 +66,20 @@ from reconcile.utils.vault import (
     SecretVersionNotFound,
 )
 
-"""
-+-----------------------+-------------------------+-------------+
-|   Current / Desired   |         Present         | Not Present |
-+=======================+=========================+=============+
-| Present               | Apply if sha256sum      | Delete      |
-| (with annotations)    | is different or if      |             |
-|                       | sha256sum is stale      |             |
-|                       | (due to manual changes) |             |
-+-----------------------+-------------------------+-------------+
-| Present               | Annotate and apply      | Skip        |
-| (without annotations) |                         |             |
-+-----------------------+-------------------------+-------------+
-| Not Present           | Apply                   | Skip        |
-+-----------------------+-------------------------+-------------+
-"""
+# +-----------------------+-------------------------+-------------+
+# |   Current / Desired   |         Present         | Not Present |
+# +=======================+=========================+=============+
+# | Present               | Apply if sha256sum      | Delete      |
+# | (with annotations)    | is different or if      |             |
+# |                       | sha256sum is stale      |             |
+# |                       | (due to manual changes) |             |
+# +-----------------------+-------------------------+-------------+
+# | Present               | Annotate and apply      | Skip        |
+# | (without annotations) |                         |             |
+# +-----------------------+-------------------------+-------------+
+# | Not Present           | Apply                   | Skip        |
+# +-----------------------+-------------------------+-------------+
+
 
 OPENSHIFT_RESOURCE = """
 provider
@@ -638,7 +637,7 @@ def fetch_openshift_resource(
         elif tt == "extracurlyjinja2":
             tfunc = process_extracurlyjinja2_template
         else:
-            UnknownTemplateTypeError(tt)
+            raise UnknownTemplateTypeError(tt)
         try:
             openshift_resource = fetch_provider_resource(
                 resource["resource"],

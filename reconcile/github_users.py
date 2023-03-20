@@ -17,6 +17,7 @@ from reconcile import (
 )
 from reconcile.github_org import get_default_config
 from reconcile.ldap_users import init_users as init_users_and_paths
+from reconcile.utils.defer import defer
 from reconcile.utils.mr import CreateDeleteUserAppInterface
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.smtp_client import (
@@ -76,12 +77,14 @@ App-Interface repository: https://gitlab.cee.redhat.com/service/app-interface
     smtp_client.send_mail([to], subject, body)
 
 
+@defer
 def run(
     dry_run,
     gitlab_project_id=None,
     thread_pool_size=10,
     enable_deletion=False,
     send_mails=False,
+    defer=None,
 ):
     smtp_settings = typed_queries.smtp.settings()
     smtp_client = SmtpClient(
@@ -101,6 +104,7 @@ def run(
 
     if not dry_run and enable_deletion:
         mr_cli = mr_client_gateway.init(gitlab_project_id=gitlab_project_id)
+        defer(mr_cli.cleanup)
 
     for user in users_to_delete:
         username = user["username"]

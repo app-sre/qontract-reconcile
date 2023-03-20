@@ -91,7 +91,7 @@ def run(dry_run):
                     for permission in permissions:
                         if permission["service"] != "quay-membership":
                             logging.warning(
-                                "wrong service kind, " "should be quay-membership"
+                                "wrong service kind, should be quay-membership"
                             )
                             continue
 

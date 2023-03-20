@@ -107,19 +107,19 @@ class JJB:  # pylint: disable=too-many-public-methods
     def sort_by_type(config):
         if config["type"] == "defaults":
             return 0
-        elif config["type"] == "global-defaults":
+        if config["type"] == "global-defaults":
             return 5
-        elif config["type"] == "views":
+        if config["type"] == "views":
             return 10
-        elif config["type"] == "secrets":
+        if config["type"] == "secrets":
             return 20
-        elif config["type"] == "base-templates":
+        if config["type"] == "base-templates":
             return 30
-        elif config["type"] == "global-base-templates":
+        if config["type"] == "global-base-templates":
             return 35
-        elif config["type"] == "job-templates":
+        if config["type"] == "job-templates":
             return 40
-        elif config["type"] == "jobs":
+        if config["type"] == "jobs":
             return 50
 
     @staticmethod
@@ -219,8 +219,7 @@ class JJB:  # pylint: disable=too-many-public-methods
     def toggle_cd(file_name):
         if "desired" in file_name:
             return file_name.replace("desired", "current")
-        else:
-            return file_name.replace("current", "desired")
+        return file_name.replace("current", "desired")
 
     def update(self) -> None:
         for name, wd in self.working_dirs.items():

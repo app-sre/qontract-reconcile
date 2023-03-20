@@ -8,6 +8,7 @@ IMAGE_NAME := quay.io/app-sre/qontract-reconcile
 IMAGE_TAG := $(shell git rev-parse --short=7 HEAD)
 VENV_CMD := . venv/bin/activate &&
 UUID := $(shell python3 -c 'import uuid; print(str(uuid.uuid4()))')
+EXPECTED_QENERATE_VERSION := $(shell grep qenerate requirements/requirements-type.txt | cut -d = -f3)
 
 ifneq (,$(wildcard $(CURDIR)/.docker))
 	DOCKER_CONF := $(CURDIR)/.docker
@@ -103,6 +104,7 @@ gql-introspection:
 	@$(VENV_CMD) qenerate introspection http://localhost:4000/graphql > reconcile/gql_definitions/introspection.json
 
 gql-query-classes:
+	@$(VENV_CMD) qenerate --version | grep -q $(EXPECTED_QENERATE_VERSION) || (echo "Bad qenerate version. Make sure you have version $(EXPECTED_QENERATE_VERSION) installed" && exit 1)
 	@$(VENV_CMD) qenerate code -i reconcile/gql_definitions/introspection.json reconcile/gql_definitions
 	find reconcile/gql_definitions -path '*/__pycache__' -prune -o -type d -exec touch "{}/__init__.py" \;
 	@$(VENV_CMD) black reconcile/gql_definitions

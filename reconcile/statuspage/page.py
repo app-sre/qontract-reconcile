@@ -59,8 +59,7 @@ class StatusComponent(BaseModel):
                 if status:
                     return status
             return "operational"
-        else:
-            return None
+        return None
 
     class Config:
         arbitrary_types_allowed = True
@@ -108,8 +107,7 @@ def init_provider_for_page(
     """
     if page.provider in _PROVIDERS:
         return _PROVIDERS[page.provider](page, token, component_binding_state)
-    else:
-        raise ValueError(f"provider {page.provider} is not supported")
+    raise ValueError(f"provider {page.provider} is not supported")
 
 
 class StatusPage(BaseModel):

@@ -227,7 +227,7 @@ class _VaultClient:
         if version is None:
             msg = "version can not be null " f"for secret with path '{path}'."
             raise SecretVersionIsNone(msg)
-        elif version == SECRET_VERSION_LATEST:
+        if version == SECRET_VERSION_LATEST:
             # https://github.com/hvac/hvac/blob/
             # ec048ded30d21c13c21cfa950d148c8bfc1467b0/
             # hvac/api/secrets_engines/kv_v2.py#L85

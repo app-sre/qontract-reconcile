@@ -229,6 +229,7 @@ VARIABLE_KEYS = [
     "vpce_id",
     "fifo_topic",
     "subscriptions",
+    "records",
     "extra_tags",
 ]
 
@@ -444,8 +445,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 key=key_backend_value,
                 region=region_backend_value,
             )
-        else:
-            raise ValueError(f"No bucket config found for account {account_name}")
+        raise ValueError(f"No bucket config found for account {account_name}")
 
     def get_lambda_zip(self, release_url: str) -> str:
         if not self.lambda_zip.get(release_url):
@@ -486,8 +486,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     self.logtoes_zip = self.download_logtoes_zip(LOGTOES_RELEASE)
         if release_url == LOGTOES_RELEASE:
             return self.logtoes_zip
-        else:
-            return self.download_logtoes_zip(release_url)
+        return self.download_logtoes_zip(release_url)
 
     def download_logtoes_zip(self, release_url):
         headers = {"Authorization": "token " + self.token}
@@ -516,8 +515,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     )
         if release_url == ROSA_AUTHENTICATOR_PRE_SIGNUP_RELEASE:
             return self.rosa_authenticator_pre_signup_zip
-        else:
-            return self.download_rosa_authenticator_zip(release_url)
+        return self.download_rosa_authenticator_zip(release_url)
 
     def download_rosa_authenticator_zip(self, release_url):
         headers = {"Authorization": "token " + self.token}
@@ -848,41 +846,50 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             zone_resource = aws_route53_zone(zone_res_name, **zone_values)
             self.add_resource(acct_name, zone_resource)
 
-            counts = {}
-            for record in zone["records"]:
-                record_fqdn = f"{record['name']}.{zone['name']}"
-                record_id = safe_resource_id(f"{record_fqdn}_{record['type'].upper()}")
+            self.populate_route53_records(acct_name, zone, zone_resource, default_ttl)
 
-                # Count record names so we can generate unique IDs
-                if record_id not in counts:
-                    counts[record_id] = 0
-                counts[record_id] += 1
+    def populate_route53_records(
+        self,
+        acct_name: str,
+        zone: dict[str, Any],
+        zone_resource: aws_route53_zone,
+        default_ttl: int = 300,
+    ):
+        counts = {}
+        for record in zone.get("records") or []:
+            record_fqdn = f"{record['name']}.{zone['name']}"
+            record_id = safe_resource_id(f"{record_fqdn}_{record['type'].upper()}")
 
-                # If more than one record with a given name, append _{count}
-                if counts[record_id] > 1:
-                    record_id = f"{record_id}_{counts[record_id]}"
+            # Count record names so we can generate unique IDs
+            if record_id not in counts:
+                counts[record_id] = 0
+            counts[record_id] += 1
 
-                # Use default TTL if none is specified
-                # or if this record is an alias
-                # None/zero is accepted but not a good default
-                if not record.get("alias") and record.get("ttl") is None:
-                    record["ttl"] = default_ttl
+            # If more than one record with a given name, append _{count}
+            if counts[record_id] > 1:
+                record_id = f"{record_id}_{counts[record_id]}"
 
-                # Define healthcheck if needed
-                healthcheck = record.pop("healthcheck", None)
-                if healthcheck:
-                    healthcheck_id = record_id
-                    healthcheck_values = {**healthcheck}
-                    healthcheck_resource = aws_route53_health_check(
-                        healthcheck_id, **healthcheck_values
-                    )
-                    self.add_resource(acct_name, healthcheck_resource)
-                    # Assign the healthcheck resource ID to the record
-                    record["health_check_id"] = f"${{{healthcheck_resource.id}}}"
+            # Use default TTL if none is specified
+            # or if this record is an alias
+            # None/zero is accepted but not a good default
+            if not record.get("alias") and record.get("ttl") is None:
+                record["ttl"] = default_ttl
 
-                record_values = {"zone_id": f"${{{zone_resource.id}}}", **record}
-                record_resource = aws_route53_record(record_id, **record_values)
-                self.add_resource(acct_name, record_resource)
+            # Define healthcheck if needed
+            healthcheck = record.pop("healthcheck", None)
+            if healthcheck:
+                healthcheck_id = record_id
+                healthcheck_values = {**healthcheck}
+                healthcheck_resource = aws_route53_health_check(
+                    healthcheck_id, **healthcheck_values
+                )
+                self.add_resource(acct_name, healthcheck_resource)
+                # Assign the healthcheck resource ID to the record
+                record["health_check_id"] = f"${{{healthcheck_resource.id}}}"
+
+            record_values = {"zone_id": f"${{{zone_resource.id}}}", **record}
+            record_resource = aws_route53_record(record_id, **record_values)
+            self.add_resource(acct_name, record_resource)
 
     def populate_vpc_peerings(self, desired_state):
         for item in desired_state:
@@ -1155,6 +1162,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 id = f"{identifier}-{zone}"
                 values = {
                     "vpc_id": accepter["vpc_id"],
+                    "vpc_region": accepter["region"],
                     "zone_id": zone,
                 }
                 authorization = aws_route53_vpc_association_authorization(id, **values)
@@ -1162,6 +1170,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 values = {
                     "provider": "aws." + acc_alias,
                     "vpc_id": f"${{aws_route53_vpc_association_authorization.{id}.vpc_id}}",
+                    "vpc_region": accepter["region"],
                     "zone_id": f"${{aws_route53_vpc_association_authorization.{id}.zone_id}}",
                 }
                 association = aws_route53_zone_association(id, **values)
@@ -4065,12 +4074,11 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     f"exactly contain these keys: {', '.join(required_keys)}"
                 )
 
-            """
-            AWS requires the admin user password must be at least 8 chars long, contain at least one
-            uppercase letter, one lowercase letter, one number, and one special character.
+            # AWS requires the admin user password must be at least 8 chars long, contain at least one
+            # uppercase letter, one lowercase letter, one number, and one special character.
+            #
+            # This helps to fail early before 'terraform apply' will complain.
 
-            This helps to fail early before 'terraform apply' will complain.
-            """
             password_validator = PasswordValidator(
                 policy_flags=(
                     PasswordPolicy.HAS_DIGIT
@@ -4554,7 +4562,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         self, identifier, openshift_service, account_name, namespace_info, ocm_map
     ):
         account = self.accounts[account_name]
-        awsapi = AWSApi(1, [account], settings=self.settings, init_users=False)
         cluster = namespace_info["cluster"]
         ocm = ocm_map.get(cluster["name"])
         account[
@@ -4566,7 +4573,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         )
         account["assume_region"] = cluster["spec"]["region"]
         service_name = f"{namespace_info['name']}/{openshift_service}"
-        ips = awsapi.get_alb_network_interface_ips(account, service_name)
+        with AWSApi(1, [account], settings=self.settings, init_users=False) as awsapi:
+            ips = awsapi.get_alb_network_interface_ips(account, service_name)
         if not ips:
             raise ValueError(
                 f"[{account_name}/{identifier}] expected at least one "
@@ -4913,14 +4921,16 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         # get commit_sha from ref
         if re.match(pattern, ref):
             return ref
+
         # get commit_sha from branch
-        elif "github" in url:
+        if "github" in url:
             github = self.init_github()
             repo_name = url.rstrip("/").replace("https://github.com/", "")
             repo = github.get_repo(repo_name)
             commit = repo.get_commit(sha=ref)
             return commit.sha
-        elif "gitlab" in url:
+
+        if "gitlab" in url:
             gitlab = self.init_gitlab()
             project = gitlab.get_project(url)
             commits = project.commits.list(ref_name=ref)
@@ -4947,10 +4957,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         # Get the most recent AMI id
         aws_account = self.accounts[account]
-        aws = AWSApi(1, [aws_account], settings=self.settings, init_users=False)
-        image_id = aws.get_image_id(account, region, tags)
-
-        return image_id
+        with AWSApi(1, [aws_account], settings=self.settings, init_users=False) as aws:
+            return aws.get_image_id(account, region, tags)
 
     def _use_previous_image_id(self, filters: Iterable[Mapping[str, Any]]) -> bool:
         for f in filters:
@@ -5114,6 +5122,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         zone_id = safe_resource_id(identifier)
         zone_tf_resource = aws_route53_zone(zone_id, **values)
         tf_resources.append(zone_tf_resource)
+        self.populate_route53_records(account, common_values, zone_tf_resource)
 
         policy = {
             "Version": "2012-10-17",
@@ -5227,28 +5236,28 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         settings = queries.get_app_interface_settings()
         all_aws_accounts = queries.get_aws_accounts()
         target_account_arr = [a for a in all_aws_accounts if a["name"] == account]
-        aws_api = AWSApi(thread_pool_size, target_account_arr, settings=settings)
-        session = aws_api.get_session(account)
-        s3_client = session.client("s3")
+        with AWSApi(thread_pool_size, target_account_arr, settings=settings) as aws_api:
+            session = aws_api.get_session(account)
+            s3_client = aws_api.get_session_client(session, "s3")
 
-        # check if the bucket exists
-        try:
-            s3_client.head_bucket(Bucket=bucket_name)
-        except ClientError as details:
-            raise StateInaccessibleException(
-                f"Bucket {bucket_name} is not accessible - {str(details)}"
+            # check if the bucket exists
+            try:
+                s3_client.head_bucket(Bucket=bucket_name)
+            except ClientError as details:
+                raise StateInaccessibleException(
+                    f"Bucket {bucket_name} is not accessible - {str(details)}"
+                )
+
+            # todo: probably remove 'RedHat' from the object/variable/filepath
+            # names to keep the code RedHat-agnostic?
+            # (then again: ROSA literally means "Red Hat OpenShift Service on AWS")
+
+            # download redhat-logo-png file
+            redhat_logo_png_obj_name = "Logo-RedHat-B-Color-RGB.png"
+            redhat_logo_png_filepath = "/tmp/Logo-RedHat-B-Color-RGB.png"
+            s3_client.download_file(
+                bucket_name, redhat_logo_png_obj_name, redhat_logo_png_filepath
             )
-
-        # todo: probably remove 'RedHat' from the object/variable/filepath
-        # names to keep the code RedHat-agnostic?
-        # (then again: ROSA literally means "Red Hat OpenShift Service on AWS")
-
-        # download redhat-logo-png file
-        redhat_logo_png_obj_name = "Logo-RedHat-B-Color-RGB.png"
-        redhat_logo_png_filepath = "/tmp/Logo-RedHat-B-Color-RGB.png"
-        s3_client.download_file(
-            bucket_name, redhat_logo_png_obj_name, redhat_logo_png_filepath
-        )
         if not os.path.exists(redhat_logo_png_filepath):
             raise Exception(
                 f"Attempted to download object {redhat_logo_png_obj_name} "

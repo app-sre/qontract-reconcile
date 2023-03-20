@@ -82,14 +82,13 @@ def create_cloudflare_terrascript_resource(
 
     if resource_type == "worker_script":
         return CloudflareWorkerScriptTerrascriptResource(spec).populate()
-    elif resource_type == "zone":
+    if resource_type == "zone":
         return CloudflareZoneTerrascriptResource(spec).populate()
-    elif resource_type == "account_member":
+    if resource_type == "account_member":
         return CloudflareAccountMemberTerrascriptResource(spec).populate()
-    else:
-        raise UnsupportedCloudflareResourceError(
-            f"The resource type {resource_type} is not supported"
-        )
+    raise UnsupportedCloudflareResourceError(
+        f"The resource type {resource_type} is not supported"
+    )
 
 
 class CloudflareWorkerScriptTerrascriptResource(TerrascriptResource):

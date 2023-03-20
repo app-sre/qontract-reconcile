@@ -5,6 +5,7 @@ from collections.abc import Mapping
 from datetime import datetime
 from typing import (
     Any,
+    Callable,
     Iterable,
     Optional,
 )
@@ -18,6 +19,7 @@ from reconcile.utils.cluster_version_data import (
     WorkloadHistory,
     get_version_data,
 )
+from reconcile.utils.defer import defer
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.ocm import (
     OCM,
@@ -132,11 +134,13 @@ def update_history(version_data: VersionData, upgrade_policies: list[dict[str, A
     version_data.check_in = now
 
 
+@defer
 def get_version_data_map(
     dry_run: bool,
     upgrade_policies: list[dict[str, Any]],
     ocm_map: OCMMap,
     addon_id: str = "",
+    defer: Optional[Callable] = None,
 ) -> dict[str, VersionData]:
     """Get a summary of versions history per OCM instance
 
@@ -146,11 +150,14 @@ def get_version_data_map(
         ocm_map (OCMMap): OCM clients per OCM instance
         addon_id (str): optional addon id to get & store the addon specific state,
           additionally to the ocm org name
+        defer (Optional<Callable>): defer function
 
     Returns:
         dict: version data per OCM instance
     """
     state = init_state(integration=QONTRACT_INTEGRATION)
+    if defer:
+        defer(state.cleanup)
     results: dict[str, VersionData] = {}
     # we keep a remote state per OCM instance
     for ocm_name in ocm_map.instances():
@@ -469,8 +476,7 @@ def calculate_diff(
 def sort_diffs(diff):
     if diff["action"] == "delete":
         return 1
-    else:
-        return 2
+    return 2
 
 
 def action_log(*items: Optional[str]) -> None:

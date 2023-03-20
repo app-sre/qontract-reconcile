@@ -175,10 +175,10 @@ from reconcile.utils.mr import CreateDeleteAwsAccessKey
 
 
 def run(dry_run, gitlab_project_id):
-    ...    
-    mr_cli = mr_client_gateway.init(gitlab_project_id=gitlab_project_id)
+    ...
     mr = CreateDeleteAwsAccessKey(...)
-    mr.submit(cli=mr_cli)
+    with mr_client_gateway.init(gitlab_project_id=gitlab_project_id) as mr_cli:
+      mr.submit(cli=mr_cli)
 ```
 
 If we want to override what's set in App Interface and get a specific client,
@@ -191,8 +191,8 @@ from reconcile.utils.mr import CreateDeleteAwsAccessKey
 
 def run(dry_run, gitlab_project_id):
     ...
-    mr_cli = mr_client_gateway.init(sqs_or_gitlab='gitlab',
-                                    gitlab_project_id=gitlab_project_id)
     mr = CreateDeleteAwsAccessKey(...)
-    mr.submit(cli=mr_cli)
+    with mr_client_gateway.init(sqs_or_gitlab='gitlab',
+                           gitlab_project_id=gitlab_project_id) as mr_cli:
+      mr.submit(cli=mr_cli)
 ```

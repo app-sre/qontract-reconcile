@@ -561,7 +561,7 @@ class TestPopulateDesiredState(TestCase):
         self.get_check_images_patcher.start()
 
     def fake_get_file_contents(
-        self, url: str, path: str, ref: str, github: Github, hash_length: int
+        self, url: str, path: str, ref: str, github: Github
     ) -> tuple[Any, str, str]:
         self.assertEqual("https://github.com/rhobs/configuration", url)
 
@@ -575,13 +575,6 @@ class TestPopulateDesiredState(TestCase):
             self.get_check_images_patcher,
         ):
             p.stop()
-
-    # TODO: fix this test
-    # def test_populate_desired_state_saas_file_delete(self) -> None:
-    #     spec = {"delete": True}
-
-    #     desired_state = self.saasherder.populate_desired_state_saas_file(spec, None)
-    #     self.assertIsNone(desired_state)
 
     def test_populate_desired_state_cases(self) -> None:
         ri = ResourceInventory()

@@ -65,7 +65,8 @@ def test_use_previous_image_id(mocker, ts, result):
 
 def test_get_asg_image_id(mocker, ts: tsclient.TerrascriptClient):
     awsapi = mocker.patch("reconcile.utils.terrascript_aws_client.AWSApi")
-    get_image_id_mock = awsapi().get_image_id
+    with awsapi() as aws:
+        get_image_id_mock = aws.get_image_id
     get_image_id_mock.return_value = "ami-123456"
 
     ref = "sha-12345"

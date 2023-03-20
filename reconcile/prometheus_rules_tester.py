@@ -270,12 +270,12 @@ def get_data_from_jinja_test_template(
                 if m:
                     data[target].append(m.group(1))
                     continue
-                else:
-                    in_list = False
-                    parsed_lists.append(target)
-                    parsed_lists.sort()
-                    if parsed_lists == desired_lists:
-                        break
+
+                in_list = False
+                parsed_lists.append(target)
+                parsed_lists.sort()
+                if parsed_lists == desired_lists:
+                    break
 
             m = root_attr_re.match(line)
             if m:
