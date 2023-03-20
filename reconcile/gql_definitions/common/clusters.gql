@@ -29,7 +29,9 @@ query Clusters($name: String) {
     }
     ocm {
       name
-      url
+      environment {
+        ... OCMEnvironment
+      }
       orgId
       accessTokenClientId
       accessTokenUrl

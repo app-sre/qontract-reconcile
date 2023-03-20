@@ -23,6 +23,7 @@ from reconcile.gql_definitions.fragments.aws_infra_management_account import (
 from reconcile.gql_definitions.fragments.jumphost_common_fields import (
     CommonJumphostFields,
 )
+from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
 
@@ -50,6 +51,16 @@ fragment CommonJumphostFields on ClusterJumpHost_v1 {
   identity {
     ... VaultSecret
   }
+}
+
+fragment OCMEnvironment on OpenShiftClusterManagerEnvironment_v1 {
+    name
+    url
+    accessTokenClientId
+    accessTokenUrl
+    accessTokenClientSecret {
+        ... VaultSecret
+    }
 }
 
 fragment VaultSecret on VaultSecret_v1 {
@@ -88,7 +99,9 @@ query Clusters($name: String) {
     }
     ocm {
       name
-      url
+      environment {
+        ... OCMEnvironment
+      }
       orgId
       accessTokenClientId
       accessTokenUrl
@@ -387,10 +400,10 @@ class OpenShiftClusterManagerSectorV1(ConfiguredBaseModel):
 
 class OpenShiftClusterManagerV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
-    url: str = Field(..., alias="url")
+    environment: OCMEnvironment = Field(..., alias="environment")
     org_id: str = Field(..., alias="orgId")
-    access_token_client_id: str = Field(..., alias="accessTokenClientId")
-    access_token_url: str = Field(..., alias="accessTokenUrl")
+    access_token_client_id: Optional[str] = Field(..., alias="accessTokenClientId")
+    access_token_url: Optional[str] = Field(..., alias="accessTokenUrl")
     access_token_client_secret: Optional[VaultSecret] = Field(
         ..., alias="accessTokenClientSecret"
     )
