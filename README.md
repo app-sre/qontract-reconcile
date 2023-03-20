@@ -35,7 +35,6 @@ Additional tools that use the libraries created by the reconciliations are also 
                                   the clusters and posts them to Dashdotdb.
   dashdotdb-slo                   Collects the ServiceSloMetrics from all the
                                   clusters and posts them to Dashdotdb.
-  dyn-traffic-director            Manage Traffic Director services in Dyn DNS.
   ecr-mirror                      Mirrors external images into AWS ECR.
   email-sender                    Send email notifications to app-interface
                                   audience.
