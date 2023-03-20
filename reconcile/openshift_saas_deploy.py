@@ -63,6 +63,7 @@ def slack_notify(
     ri: ResourceInventory,
     console_url: str,
     in_progress: bool,
+    trigger_reason: Optional[str] = "Unknown",
 ) -> None:
     success = not ri.has_error_registered()
     if in_progress:
@@ -78,6 +79,7 @@ def slack_notify(
         f"{icon} SaaS file *{saas_file_name}* "
         + f"deployment to environment *{env_name}*: "
         + f"{description} (<{console_url}|Open>)"
+        + f"trigger reason: {trigger_reason}"
     )
     slack.chat_post_message(message)
 
@@ -101,53 +103,6 @@ def run(
     if not saas_files:
         logging.error("no saas files found")
         raise RuntimeError("no saas files found")
-
-    # notify different outputs (publish results, slack notifications)
-    # we only do this if:
-    # - this is not a dry run
-    # - there is a single saas file deployed
-    notify = not dry_run and len(saas_files) == 1
-    slack = None
-    if notify:
-        saas_file = saas_files[0]
-        if saas_file.slack:
-            if not saas_file_name or not env_name:
-                raise RuntimeError(
-                    "saas_file_name and env_name must be provided "
-                    + "when using slack notifications"
-                )
-            slack = slackapi_from_slack_workspace(
-                saas_file.slack.dict(by_alias=True),
-                secret_reader,
-                QONTRACT_INTEGRATION,
-                init_usergroups=False,
-            )
-            ri = ResourceInventory()
-            console_url = compose_console_url(saas_file, env_name)
-            if (
-                defer
-            ):  # defer is provided by the method decorator. this makes just mypy happy
-                # deployment result notification
-                defer(
-                    lambda: slack_notify(
-                        saas_file_name,
-                        env_name,
-                        slack,
-                        ri,
-                        console_url,
-                        in_progress=False,
-                    )
-                )
-            # deployment start notification
-            if saas_file.slack.notifications and saas_file.slack.notifications.start:
-                slack_notify(
-                    saas_file_name,
-                    env_name,
-                    slack,
-                    ri,
-                    console_url,
-                    in_progress=True,
-                )
 
     jenkins_map = jenkins_base.get_jenkins_map()
     saasherder_settings = get_saasherder_settings()
@@ -177,6 +132,58 @@ def run(
     if len(saasherder.namespaces) == 0:
         logging.warning("no targets found")
         sys.exit(ExitCodes.SUCCESS)
+
+    # notify different outputs (publish results, slack notifications)
+    # we only do this if:
+    # - this is not a dry run
+    # - there is a single saas file deployed
+    notify = not dry_run and len(saas_files) == 1
+    slack = None
+    if notify:
+        saas_file = saas_files[0]
+        # Get trigger specs from saasherder to get the trigger reason and add it to the notification
+        trigger_specs = saasherder.get_saas_targets_config_trigger_specs(saas_file)
+        trigger_reason = trigger_specs[saas_file.name].reason
+        if saas_file.slack:
+            if not saas_file_name or not env_name:
+                raise RuntimeError(
+                    "saas_file_name and env_name must be provided "
+                    + "when using slack notifications"
+                )
+            slack = slackapi_from_slack_workspace(
+                saas_file.slack.dict(by_alias=True),
+                secret_reader,
+                QONTRACT_INTEGRATION,
+                init_usergroups=False,
+            )
+            ri = ResourceInventory()
+            console_url = compose_console_url(saas_file, env_name)
+            if (
+                defer
+            ):  # defer is provided by the method decorator. this makes just mypy happy
+                # deployment result notification
+                defer(
+                    lambda: slack_notify(
+                        saas_file_name,
+                        env_name,
+                        slack,
+                        ri,
+                        console_url,
+                        in_progress=False,
+                        trigger_reason=trigger_reason,
+                    )
+                )
+            # deployment start notification
+            if saas_file.slack.notifications and saas_file.slack.notifications.start:
+                slack_notify(
+                    saas_file_name,
+                    env_name,
+                    slack,
+                    ri,
+                    console_url,
+                    in_progress=True,
+                    trigger_reason=trigger_reason,
+                )
 
     ri, oc_map = ob.fetch_current_state(
         namespaces=[ns.dict(by_alias=True) for ns in saasherder.namespaces],
