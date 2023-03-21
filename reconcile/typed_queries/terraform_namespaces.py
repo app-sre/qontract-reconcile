@@ -1,7 +1,4 @@
-from collections.abc import (
-    Callable,
-    Iterable,
-)
+from collections.abc import Callable
 from typing import Optional
 
 from reconcile.gql_definitions.terraform_resources.terraform_resources_namespaces import (
