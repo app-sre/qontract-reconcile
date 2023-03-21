@@ -1,5 +1,8 @@
 # qenerate: plugin=pydantic_v1
 
+# TODO: longterm our codebase should be able to work with pydantic's Json type
+# qenerate: map_gql_scalar=JSON -> str
+
 query TerraformResourcesNamespaces {
   namespaces: namespaces_v1 {
     name

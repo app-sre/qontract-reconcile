@@ -454,7 +454,7 @@ class NamespaceTerraformResourceOutputFormatV1(ConfiguredBaseModel):
 class NamespaceTerraformResourceGenericSecretOutputFormatV1(
     NamespaceTerraformResourceOutputFormatV1
 ):
-    data: Optional[Json] = Field(..., alias="data")
+    data: Optional[str] = Field(..., alias="data")
 
 
 class NamespaceTerraformResourceAWSV1(ConfiguredBaseModel):
@@ -480,14 +480,14 @@ class NamespaceTerraformResourceRDSV1(NamespaceTerraformResourceAWSV1):
     availability_zone: Optional[str] = Field(..., alias="availability_zone")
     parameter_group: Optional[str] = Field(..., alias="parameter_group")
     old_parameter_group: Optional[str] = Field(..., alias="old_parameter_group")
-    overrides: Optional[Json] = Field(..., alias="overrides")
+    overrides: Optional[str] = Field(..., alias="overrides")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
     enhanced_monitoring: Optional[bool] = Field(..., alias="enhanced_monitoring")
     replica_source: Optional[str] = Field(..., alias="replica_source")
     output_resource_db_name: Optional[str] = Field(..., alias="output_resource_db_name")
     reset_password: Optional[str] = Field(..., alias="reset_password")
     ca_cert: Optional[VaultSecret] = Field(..., alias="ca_cert")
-    annotations: Optional[Json] = Field(..., alias="annotations")
+    annotations: Optional[str] = Field(..., alias="annotations")
     event_notifications: Optional[list[AWSRDSEventNotificationV1]] = Field(
         ..., alias="event_notifications"
     )
@@ -505,16 +505,16 @@ class NamespaceTerraformResourceS3V1(NamespaceTerraformResourceAWSV1):
     region: Optional[str] = Field(..., alias="region")
     identifier: str = Field(..., alias="identifier")
     defaults: str = Field(..., alias="defaults")
-    overrides: Optional[Json] = Field(..., alias="overrides")
+    overrides: Optional[str] = Field(..., alias="overrides")
     sqs_identifier: Optional[str] = Field(..., alias="sqs_identifier")
     s3_events: Optional[list[str]] = Field(..., alias="s3_events")
     sns_event_notifications: Optional[list[AWSS3EventNotificationV1]] = Field(
         ..., alias="sns_event_notifications"
     )
-    bucket_policy: Optional[Json] = Field(..., alias="bucket_policy")
+    bucket_policy: Optional[str] = Field(..., alias="bucket_policy")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
     storage_class: Optional[str] = Field(..., alias="storage_class")
-    annotations: Optional[Json] = Field(..., alias="annotations")
+    annotations: Optional[str] = Field(..., alias="annotations")
 
 
 class NamespaceTerraformResourceElastiCacheV1(NamespaceTerraformResourceAWSV1):
@@ -522,9 +522,9 @@ class NamespaceTerraformResourceElastiCacheV1(NamespaceTerraformResourceAWSV1):
     defaults: str = Field(..., alias="defaults")
     parameter_group: Optional[str] = Field(..., alias="parameter_group")
     region: Optional[str] = Field(..., alias="region")
-    overrides: Optional[Json] = Field(..., alias="overrides")
+    overrides: Optional[str] = Field(..., alias="overrides")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
-    annotations: Optional[Json] = Field(..., alias="annotations")
+    annotations: Optional[str] = Field(..., alias="annotations")
 
 
 class ClusterV1(ConfiguredBaseModel):
@@ -541,11 +541,11 @@ class NamespaceTerraformResourceServiceAccountAWSInfrastructureAccessV1(
 
 class NamespaceTerraformResourceServiceAccountV1(NamespaceTerraformResourceAWSV1):
     identifier: str = Field(..., alias="identifier")
-    variables: Optional[Json] = Field(..., alias="variables")
+    variables: Optional[str] = Field(..., alias="variables")
     policies: Optional[list[str]] = Field(..., alias="policies")
-    user_policy: Optional[Json] = Field(..., alias="user_policy")
+    user_policy: Optional[str] = Field(..., alias="user_policy")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
-    annotations: Optional[Json] = Field(..., alias="annotations")
+    annotations: Optional[str] = Field(..., alias="annotations")
     aws_infrastructure_access: Optional[
         NamespaceTerraformResourceServiceAccountAWSInfrastructureAccessV1
     ] = Field(..., alias="aws_infrastructure_access")
@@ -557,7 +557,7 @@ class NamespaceTerraformResourceSecretsManagerServiceAccountV1(
     identifier: str = Field(..., alias="identifier")
     secrets_prefix: str = Field(..., alias="secrets_prefix")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
-    annotations: Optional[Json] = Field(..., alias="annotations")
+    annotations: Optional[str] = Field(..., alias="annotations")
 
 
 class AssumeRoleV1(ConfiguredBaseModel):
@@ -568,10 +568,10 @@ class AssumeRoleV1(ConfiguredBaseModel):
 class NamespaceTerraformResourceRoleV1(NamespaceTerraformResourceAWSV1):
     identifier: str = Field(..., alias="identifier")
     assume_role: AssumeRoleV1 = Field(..., alias="assume_role")
-    assume_condition: Optional[Json] = Field(..., alias="assume_condition")
-    inline_policy: Optional[Json] = Field(..., alias="inline_policy")
+    assume_condition: Optional[str] = Field(..., alias="assume_condition")
+    inline_policy: Optional[str] = Field(..., alias="inline_policy")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
-    annotations: Optional[Json] = Field(..., alias="annotations")
+    annotations: Optional[str] = Field(..., alias="annotations")
 
 
 class KeyValueV1(ConfiguredBaseModel):
@@ -588,7 +588,7 @@ class NamespaceTerraformResourceSQSV1(NamespaceTerraformResourceAWSV1):
     region: Optional[str] = Field(..., alias="region")
     identifier: str = Field(..., alias="identifier")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
-    annotations: Optional[Json] = Field(..., alias="annotations")
+    annotations: Optional[str] = Field(..., alias="annotations")
     specs: list[SQSQueuesSpecsV1] = Field(..., alias="specs")
 
 
@@ -603,8 +603,8 @@ class NamespaceTerraformResourceSNSTopicV1(NamespaceTerraformResourceAWSV1):
     identifier: str = Field(..., alias="identifier")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
     fifo_topic: Optional[bool] = Field(..., alias="fifo_topic")
-    inline_policy: Optional[Json] = Field(..., alias="inline_policy")
-    annotations: Optional[Json] = Field(..., alias="annotations")
+    inline_policy: Optional[str] = Field(..., alias="inline_policy")
+    annotations: Optional[str] = Field(..., alias="annotations")
     subscriptions: Optional[list[NamespaceTerraformResourceSNSSubscriptionV1]] = Field(
         ..., alias="subscriptions"
     )
@@ -624,7 +624,7 @@ class NamespaceTerraformResourceDynamoDBV1(NamespaceTerraformResourceAWSV1):
     region: Optional[str] = Field(..., alias="region")
     identifier: str = Field(..., alias="identifier")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
-    annotations: Optional[Json] = Field(..., alias="annotations")
+    annotations: Optional[str] = Field(..., alias="annotations")
     specs: list[DynamoDBTableSpecsV1] = Field(..., alias="specs")
 
 
@@ -633,7 +633,7 @@ class NamespaceTerraformResourceECRV1(NamespaceTerraformResourceAWSV1):
     region: Optional[str] = Field(..., alias="region")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
     public: Optional[bool] = Field(..., alias="public")
-    annotations: Optional[Json] = Field(..., alias="annotations")
+    annotations: Optional[str] = Field(..., alias="annotations")
 
 
 class NamespaceTerraformResourceS3CloudFrontV1(NamespaceTerraformResourceAWSV1):
@@ -642,7 +642,7 @@ class NamespaceTerraformResourceS3CloudFrontV1(NamespaceTerraformResourceAWSV1):
     defaults: str = Field(..., alias="defaults")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
     storage_class: Optional[str] = Field(..., alias="storage_class")
-    annotations: Optional[Json] = Field(..., alias="annotations")
+    annotations: Optional[str] = Field(..., alias="annotations")
 
 
 class NamespaceTerraformResourceS3SQSV1(NamespaceTerraformResourceAWSV1):
@@ -652,7 +652,7 @@ class NamespaceTerraformResourceS3SQSV1(NamespaceTerraformResourceAWSV1):
     kms_encryption: Optional[bool] = Field(..., alias="kms_encryption")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
     storage_class: Optional[str] = Field(..., alias="storage_class")
-    annotations: Optional[Json] = Field(..., alias="annotations")
+    annotations: Optional[str] = Field(..., alias="annotations")
 
 
 class NamespaceTerraformResourceCloudWatchV1(NamespaceTerraformResourceAWSV1):
@@ -662,16 +662,16 @@ class NamespaceTerraformResourceCloudWatchV1(NamespaceTerraformResourceAWSV1):
     es_identifier: Optional[str] = Field(..., alias="es_identifier")
     filter_pattern: Optional[str] = Field(..., alias="filter_pattern")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
-    annotations: Optional[Json] = Field(..., alias="annotations")
+    annotations: Optional[str] = Field(..., alias="annotations")
 
 
 class NamespaceTerraformResourceKMSV1(NamespaceTerraformResourceAWSV1):
     region: Optional[str] = Field(..., alias="region")
     identifier: str = Field(..., alias="identifier")
     defaults: str = Field(..., alias="defaults")
-    overrides: Optional[Json] = Field(..., alias="overrides")
+    overrides: Optional[str] = Field(..., alias="overrides")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
-    annotations: Optional[Json] = Field(..., alias="annotations")
+    annotations: Optional[str] = Field(..., alias="annotations")
 
 
 class NamespaceTerraformResourceElasticSearchV1(NamespaceTerraformResourceAWSV1):
@@ -679,7 +679,7 @@ class NamespaceTerraformResourceElasticSearchV1(NamespaceTerraformResourceAWSV1)
     identifier: str = Field(..., alias="identifier")
     defaults: str = Field(..., alias="defaults")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
-    annotations: Optional[Json] = Field(..., alias="annotations")
+    annotations: Optional[str] = Field(..., alias="annotations")
     publish_log_types: Optional[list[str]] = Field(..., alias="publish_log_types")
 
 
@@ -694,7 +694,7 @@ class NamespaceTerraformResourceACMV1(NamespaceTerraformResourceAWSV1):
     secret: Optional[VaultSecret] = Field(..., alias="secret")
     domain: Optional[ACMDomainV1] = Field(..., alias="domain")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
-    annotations: Optional[Json] = Field(..., alias="annotations")
+    annotations: Optional[str] = Field(..., alias="annotations")
 
 
 class NamespaceTerraformResourceKinesisV1(NamespaceTerraformResourceAWSV1):
@@ -703,7 +703,7 @@ class NamespaceTerraformResourceKinesisV1(NamespaceTerraformResourceAWSV1):
     defaults: str = Field(..., alias="defaults")
     es_identifier: Optional[str] = Field(..., alias="es_identifier")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
-    annotations: Optional[Json] = Field(..., alias="annotations")
+    annotations: Optional[str] = Field(..., alias="annotations")
 
 
 class NamespaceTerraformResourceS3CloudFrontPublicKeyV1(
@@ -713,7 +713,7 @@ class NamespaceTerraformResourceS3CloudFrontPublicKeyV1(
     identifier: str = Field(..., alias="identifier")
     secret: Optional[VaultSecret] = Field(..., alias="secret")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
-    annotations: Optional[Json] = Field(..., alias="annotations")
+    annotations: Optional[str] = Field(..., alias="annotations")
 
 
 class AWSSubnetV1(ConfiguredBaseModel):
@@ -760,7 +760,7 @@ class NamespaceTerraformResourceALBV1(NamespaceTerraformResourceAWSV1):
     targets: list[NamespaceTerraformResourceALBTargetsV1] = Field(..., alias="targets")
     rules: list[NamespaceTerraformResourceALBRulesV1] = Field(..., alias="rules")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
-    annotations: Optional[Json] = Field(..., alias="annotations")
+    annotations: Optional[str] = Field(..., alias="annotations")
 
 
 class NamespaceTerraformResourceSecretsManagerV1(NamespaceTerraformResourceAWSV1):
@@ -768,7 +768,7 @@ class NamespaceTerraformResourceSecretsManagerV1(NamespaceTerraformResourceAWSV1
     identifier: str = Field(..., alias="identifier")
     secret: Optional[VaultSecret] = Field(..., alias="secret")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
-    annotations: Optional[Json] = Field(..., alias="annotations")
+    annotations: Optional[str] = Field(..., alias="annotations")
 
 
 class CloudinitConfigV1(ConfiguredBaseModel):
@@ -812,14 +812,14 @@ class NamespaceTerraformResourceASGV1(NamespaceTerraformResourceAWSV1):
     cloudinit_configs: Optional[list[CloudinitConfigV1]] = Field(
         ..., alias="cloudinit_configs"
     )
-    variables: Optional[Json] = Field(..., alias="variables")
-    overrides: Optional[Json] = Field(..., alias="overrides")
-    extra_tags: Optional[Json] = Field(..., alias="extra_tags")
+    variables: Optional[str] = Field(..., alias="variables")
+    overrides: Optional[str] = Field(..., alias="overrides")
+    extra_tags: Optional[str] = Field(..., alias="extra_tags")
     image: list[Union[ASGImageGitV1, ASGImageStaticV1, ASGImageV1]] = Field(
         ..., alias="image"
     )
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
-    annotations: Optional[Json] = Field(..., alias="annotations")
+    annotations: Optional[str] = Field(..., alias="annotations")
 
 
 class DnsRecordAliasV1(ConfiguredBaseModel):
@@ -858,7 +858,7 @@ class NamespaceTerraformResourceRoute53ZoneV1(NamespaceTerraformResourceAWSV1):
     identifier: str = Field(..., alias="identifier")
     name: str = Field(..., alias="name")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
-    annotations: Optional[Json] = Field(..., alias="annotations")
+    annotations: Optional[str] = Field(..., alias="annotations")
     records: Optional[list[DnsRecordV1]] = Field(..., alias="records")
 
 
@@ -879,7 +879,7 @@ class NamespaceTerraformResourceRosaAuthenticatorV1(NamespaceTerraformResourceAW
         ..., alias="insights_callback_urls"
     )
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
-    annotations: Optional[Json] = Field(..., alias="annotations")
+    annotations: Optional[str] = Field(..., alias="annotations")
     vpc_id: str = Field(..., alias="vpc_id")
     subnet_ids: list[str] = Field(..., alias="subnet_ids")
     vpce_id: Optional[str] = Field(..., alias="vpce_id")
@@ -894,7 +894,7 @@ class NamespaceTerraformResourceRosaAuthenticatorVPCEV1(
     subnet_ids: list[str] = Field(..., alias="subnet_ids")
     vpc_id: str = Field(..., alias="vpc_id")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
-    annotations: Optional[Json] = Field(..., alias="annotations")
+    annotations: Optional[str] = Field(..., alias="annotations")
     defaults: str = Field(..., alias="defaults")
 
 
