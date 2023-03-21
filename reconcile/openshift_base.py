@@ -353,10 +353,10 @@ def fetch_current_state(
     return ri, oc_map
 
 
-@retry(max_attempts=20)
+@retry(max_attempts=30)
 def wait_for_namespace_exists(oc, namespace):
     if not oc.project_exists(namespace):
-        raise Exception(f"namespace {namespace} does not exist")
+        raise StatusCodeError(f"namespace {namespace} does not exist")
 
 
 def apply(
