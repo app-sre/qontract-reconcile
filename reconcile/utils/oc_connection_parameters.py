@@ -75,7 +75,6 @@ class ClusterSecret:
     token: str
     username: str
 
-
 @dataclass
 class OCConnectionParameters:
     """
@@ -118,7 +117,11 @@ class OCConnectionParameters:
     ) -> Optional[str]:
         secret_raw = secret_reader.read_all_secret(secret)
         return OCConnectionParameters._get_token_verify_server_url(
-            ClusterSecret(**secret_raw), cluster
+            ClusterSecret(
+                server=secret_raw["server"],
+                token=secret_raw["token"],
+                username=secret_raw["username"],
+            ), cluster
         )
 
     @staticmethod
