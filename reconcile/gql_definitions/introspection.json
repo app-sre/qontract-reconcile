@@ -31854,6 +31854,18 @@
                             "deprecationReason": null
                         },
                         {
+                            "name": "cache_reserve",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "OBJECT",
+                                "name": "CloudflareZoneCacheReserve_v1",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
                             "name": "records",
                             "description": null,
                             "args": [],
@@ -31944,6 +31956,29 @@
                         },
                         {
                             "name": "smart_routing",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "Boolean",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        }
+                    ],
+                    "inputFields": null,
+                    "interfaces": [],
+                    "enumValues": null,
+                    "possibleTypes": null
+                },
+                {
+                    "kind": "OBJECT",
+                    "name": "CloudflareZoneCacheReserve_v1",
+                    "description": null,
+                    "fields": [
+                        {
+                            "name": "enabled",
                             "description": null,
                             "args": [],
                             "type": {

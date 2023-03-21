@@ -51,6 +51,9 @@ def external_resources(provisioner_config):
                     "tiered_caching": True,
                     "smart_routing": True,
                 },
+                cache_reserve={
+                    "enabled": True,
+                },
                 records=[
                     CloudflareDnsRecordV1(
                         name="record",
