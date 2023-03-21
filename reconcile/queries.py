@@ -229,7 +229,7 @@ INTEGRATIONS_QUERY = """
       }
       shardSpecOverride{
        ... on AWSShardSpecOverride_v1 {
-          awsAccount {
+          awsAccounts {
             name
           }
           imageRef

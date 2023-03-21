@@ -170,10 +170,10 @@ class CloudflareZoneShardManager(ShardingStrategy):
 class IntegrationShardSpecOverride:
 
     imageRef: str
-    awsAccount: Mapping[str, str]
+    awsAccounts: Iterable[Mapping[str, str]]
 
     def update_shard_if_matched(self, shard: MutableMapping[str, Any]):
-        if shard["shard_key"] == self.awsAccount["name"]:
+        if shard["shard_key"] in [a["name"] for a in self.awsAccounts]:
             shard["imageRef"] = self.imageRef
 
 
