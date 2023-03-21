@@ -13,9 +13,5 @@ def get_tekton_pipeline_providers(
 ) -> list[PipelinesProviderTektonV1]:
     if not query_func:
         query_func = gql.get_api().query
-    providers: list[PipelinesProviderTektonV1] = []
-    for provider in query(query_func).pipelines_providers or []:
-        if not isinstance(provider, PipelinesProviderTektonV1):
-            continue
-        providers.append(provider)
-    return providers
+    pipeline_providers = query(query_func).pipelines_providers or []
+    return [p for p in pipeline_providers if isinstance(p, PipelinesProviderTektonV1)]
