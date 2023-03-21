@@ -20,9 +20,16 @@ from reconcile.typed_queries.saas_files import (
     get_saas_files,
     get_saasherder_settings,
 )
+from reconcile.typed_queries.tekton_pipeline_providers import (
+    get_tekton_pipeline_providers,
+)
 from reconcile.utils.defer import defer
 from reconcile.utils.gitlab_api import GitLabApi
-from reconcile.utils.oc import OC_Map
+from reconcile.utils.oc_map import (
+    OCLogMsg,
+    OCMap,
+    init_oc_map_from_namespaces,
+)
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.parse_dhms_duration import dhms_to_seconds
 from reconcile.utils.saasherder import (
@@ -112,7 +119,7 @@ def setup(
     integration: str,
     integration_version: str,
     include_trigger_trace: bool,
-) -> tuple[SaasHerder, OC_Map]:
+) -> tuple[SaasHerder, OCMap]:
     """Setup required resources for triggering integrations
 
     Args:
@@ -146,17 +153,12 @@ def setup(
     settings = queries.get_app_interface_settings()
     gl = GitLabApi(instance, settings=settings)
     jenkins_map = jenkins_base.get_jenkins_map()
-    pipelines_providers = queries.get_pipelines_providers()
-    tkn_provider_namespaces = [
-        pp["namespace"]
-        for pp in pipelines_providers
-        if pp["provider"] == Providers.TEKTON.value
-    ]
+    tkn_provider_namespaces = [pp.namespace for pp in get_tekton_pipeline_providers()]
 
-    oc_map = OC_Map(
+    oc_map = init_oc_map_from_namespaces(
         namespaces=tkn_provider_namespaces,
         integration=integration,
-        settings=settings,
+        secret_reader=secret_reader,
         internal=internal,
         use_jump_host=use_jump_host,
         thread_pool_size=thread_pool_size,
@@ -183,7 +185,7 @@ def trigger(
     spec: TriggerSpecUnion,
     dry_run: bool,
     saasherder: SaasHerder,
-    oc_map: OC_Map,
+    oc_map: OCMap,
     already_triggered: set[str],
     integration: str,
     integration_version: str,
@@ -229,7 +231,7 @@ def _trigger_tekton(
     spec: TriggerSpecUnion,
     dry_run: bool,
     saasherder: SaasHerder,
-    oc_map: OC_Map,
+    oc_map: OCMap,
     already_triggered: set[str],
     integration: str,
     integration_version: str,
@@ -306,9 +308,12 @@ def _trigger_tekton(
 
 
 def _pipeline_exists(
-    name: str, tkn_cluster_name: str, tkn_namespace_name: str, oc_map: OC_Map
+    name: str, tkn_cluster_name: str, tkn_namespace_name: str, oc_map: OCMap
 ) -> bool:
     oc = oc_map.get(tkn_cluster_name)
+    if isinstance(oc, OCLogMsg):
+        logging.error(oc.message)
+        raise RuntimeError(f"No OC client for {tkn_cluster_name}: {oc.message}")
     if oc.get(
         namespace=tkn_namespace_name, kind="Pipeline", name=name, allow_not_found=True
     ):
