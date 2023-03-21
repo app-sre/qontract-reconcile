@@ -11,6 +11,7 @@ from typing import (
 import httpretty as _httpretty
 import pytest
 from pydantic import BaseModel
+from pydantic.error_wrappers import ValidationError
 
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
@@ -69,17 +70,23 @@ def data_default_none(
                         data_default_none(field.type_, item)
                         for item in data[field.alias]
                     ]
-            elif field.sub_fields and all(
-                isinstance(sub_field.type_, type)
-                and issubclass(sub_field.type_, BaseModel)
-                for sub_field in field.sub_fields
-            ):
-                # Union[ClassA, ClassB] field
-                for sub_field in field.sub_fields:
-                    if isinstance(data[field.alias], dict):
-                        data[field.alias].update(
-                            data_default_none(sub_field.type_, data[field.alias])
-                        )
+            elif field.sub_fields:
+                if all(
+                    isinstance(sub_field.type_, type)
+                    and issubclass(sub_field.type_, BaseModel)
+                    for sub_field in field.sub_fields
+                ):
+                    # Union[ClassA, ClassB] field
+                    for sub_field in field.sub_fields:
+                        if isinstance(data[field.alias], dict):
+                            data[field.alias].update(
+                                data_default_none(sub_field.type_, data[field.alias])
+                            )
+                else:
+                    # list[Union[ClassA, ClassB]] field
+                    data[field.alias] = []
+                    for sub_field in field.sub_fields[0].sub_fields:
+                        print(sub_field)
 
     return data
 
@@ -107,6 +114,12 @@ def gql_class_factory() -> Callable[
     def _gql_class_factory(
         klass: type[BaseModel], data: Optional[MutableMapping[str, Any]] = None
     ) -> BaseModel:
-        return klass(**data_default_none(klass, data or {}))
+        try:
+            return klass(**data_default_none(klass, data or {}))
+        except ValidationError as e:
+            msg = ""
+            for raw_error in e.raw_errors:
+                msg += f"{raw_error}\n"
+            raise RuntimeError(raw_error)
 
     return _gql_class_factory
