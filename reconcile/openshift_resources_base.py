@@ -23,6 +23,7 @@ from urllib import parse
 
 import anymarkup
 import jinja2
+import jinja2.sandbox
 from sretoolbox.utils import (
     retry,
     threaded,
@@ -335,7 +336,7 @@ def compile_jinja2_template(body, extra_curly: bool = False):
             "comment_end_string": "#}}",
         }
 
-    jinja_env = jinja2.Environment(
+    jinja_env = jinja2.sandbox.SandboxedEnvironment(
         extensions=[B64EncodeExtension, RaiseErrorExtension],
         undefined=jinja2.StrictUndefined,
         **env,

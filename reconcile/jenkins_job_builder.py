@@ -1,7 +1,10 @@
 import logging
 import sys
 from collections.abc import Callable
-from typing import Optional
+from typing import (
+    Any,
+    Optional,
+)
 
 from reconcile import queries
 from reconcile.utils import gql
@@ -51,10 +54,14 @@ def get_jenkins_configs():
     return gqlapi.query(QUERY)["jenkins_configs"]
 
 
-def collect_configs(instance_name, config_name):
+def collect_configs(
+    instance_name: Optional[str], config_name: Optional[str]
+) -> list[dict[str, Any]]:
     configs = get_jenkins_configs()
     if instance_name is not None:
         configs = [n for n in configs if n["instance"]["name"] == instance_name]
+        if not configs:
+            raise ValueError(f"instance name {instance_name} is not found")
     if config_name is not None:
         configs = [
             n
@@ -63,10 +70,7 @@ def collect_configs(instance_name, config_name):
         ]
         if not configs:
             raise ValueError(f"config name {config_name} is not found")
-        return configs, {}
 
-    if not configs:
-        raise ValueError(f"instance name {instance_name} is not found")
     return configs
 
 

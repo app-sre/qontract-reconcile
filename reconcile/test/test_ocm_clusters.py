@@ -114,7 +114,18 @@ def osd_cluster_fxt():
         },
         "ocm": {
             "name": "non-existent-ocm",
-            "url": "https://api.non-existent-ocm.com",
+            "environment": {
+                "name": "name",
+                "url": "https://api.non-existent-ocm.com",
+                "accessTokenClientId": "cloud-services",
+                "accessTokenUrl": "https://sso.blah.com/token",
+                "accessTokenClientSecret": {
+                    "path": "a-secret-path",
+                    "field": "client_secret",
+                    "format": None,
+                    "version": None,
+                },
+            },
             "orgId": "org_id",
             "accessTokenClientId": "cloud-services",
             "accessTokenUrl": "https://sso.blah.com/token",
@@ -174,7 +185,18 @@ def rosa_cluster_fxt():
         },
         "ocm": {
             "name": "non-existent-ocm",
-            "url": "https://api.non-existent-ocm.com",
+            "environment": {
+                "name": "name",
+                "url": "https://api.non-existent-ocm.com",
+                "accessTokenClientId": "cloud-services",
+                "accessTokenUrl": "https://sso.blah.com/token",
+                "accessTokenClientSecret": {
+                    "path": "a-secret-path",
+                    "field": "client_secret",
+                    "format": None,
+                    "version": None,
+                },
+            },
             "orgId": "org_id",
             "accessTokenClientId": "cloud-services",
             "accessTokenUrl": "https://sso.blah.com/token",
@@ -235,15 +257,18 @@ def rosa_hosted_cp_cluster_fxt():
         },
         "ocm": {
             "name": "non-existent-ocm",
-            "url": "https://api.non-existent-ocm.com",
             "orgId": "org_id",
-            "accessTokenClientId": "cloud-services",
-            "accessTokenUrl": "https://sso.blah.com/token",
-            "offlineToken": {
-                "path": "a-secret-path",
-                "field": "offline_token",
-                "format": None,
-                "version": None,
+            "environment": {
+                "name": "name",
+                "url": "https://api.non-existent-ocm.com",
+                "accessTokenClientId": "cloud-services",
+                "accessTokenUrl": "https://sso.blah.com/token",
+                "accessTokenClientSecret": {
+                    "path": "a-secret-path",
+                    "field": "offline_token",
+                    "format": None,
+                    "version": None,
+                },
             },
             "blockedVersions": ["^.*-fc\\..*$"],
         },

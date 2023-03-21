@@ -97,18 +97,18 @@ def build_cna_clients(
 ) -> dict[str, CNAClient]:
     clients: dict[str, CNAClient] = {}
     for provisioner in cna_provisioners:
-        if not provisioner.ocm.access_token_client_secret:
-            raise CNAConfigException(
-                f"No access_token_client_secret for provisioner {provisioner.name}"
-            )
-        secret_data = secret_reader.read_all_secret(
+        access_token_client_secret = (
             provisioner.ocm.access_token_client_secret
+            or provisioner.ocm.environment.access_token_client_secret
         )
+        secret_data = secret_reader.read_all_secret(access_token_client_secret)
         ocm_client = OCMBaseClient(
-            url=provisioner.ocm.url,
+            url=provisioner.ocm.environment.url,
             access_token_client_secret=secret_data["client_secret"],
-            access_token_url=provisioner.ocm.access_token_url,
-            access_token_client_id=provisioner.ocm.access_token_client_id,
+            access_token_url=provisioner.ocm.access_token_url
+            or provisioner.ocm.environment.access_token_url,
+            access_token_client_id=provisioner.ocm.access_token_client_id
+            or provisioner.ocm.environment.access_token_client_id,
         )
         clients[provisioner.name] = CNAClient(
             ocm_client=ocm_client,

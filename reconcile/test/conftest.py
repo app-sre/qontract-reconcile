@@ -11,6 +11,7 @@ from typing import (
 import httpretty as _httpretty
 import pytest
 from pydantic import BaseModel
+from pydantic.error_wrappers import ValidationError
 
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
@@ -69,17 +70,37 @@ def data_default_none(
                         data_default_none(field.type_, item)
                         for item in data[field.alias]
                     ]
-            elif field.sub_fields and all(
-                isinstance(sub_field.type_, type)
-                and issubclass(sub_field.type_, BaseModel)
-                for sub_field in field.sub_fields
-            ):
-                # Union[ClassA, ClassB] field
-                for sub_field in field.sub_fields:
-                    if isinstance(data[field.alias], dict):
-                        data[field.alias].update(
-                            data_default_none(sub_field.type_, data[field.alias])
-                        )
+            elif field.sub_fields:
+                if all(
+                    isinstance(sub_field.type_, type)
+                    and issubclass(sub_field.type_, BaseModel)
+                    for sub_field in field.sub_fields
+                ):
+                    # Union[ClassA, ClassB] field
+                    for sub_field in field.sub_fields:
+                        if isinstance(data[field.alias], dict):
+                            try:
+                                d = dict(data[field.alias])
+                                d.update(data_default_none(sub_field.type_, d))
+                                # Lets confirm we found a matching union class
+                                sub_field.type_(**d)
+                                data[field.alias] = d
+                                break
+                            except ValidationError:
+                                continue
+                elif isinstance(data[field.alias], list) and len(field.sub_fields) == 1:
+                    # list[Union[ClassA, ClassB]] field
+                    for sub_data in data[field.alias]:
+                        for sub_field in field.sub_fields[0].sub_fields or []:
+                            try:
+                                d = dict(sub_data)
+                                d.update(data_default_none(sub_field.type_, d))
+                                # Lets confirm we found a matching union class
+                                sub_field.type_(**d)
+                                sub_data.update(d)
+                                break
+                            except ValidationError:
+                                continue
 
     return data
 
@@ -98,6 +119,10 @@ def data_factory() -> Callable[
     return _data_factory
 
 
+class GQLClassFactoryError(Exception):
+    pass
+
+
 @pytest.fixture
 def gql_class_factory() -> Callable[
     [type[BaseModel], Optional[MutableMapping[str, Any]]], BaseModel
@@ -107,6 +132,11 @@ def gql_class_factory() -> Callable[
     def _gql_class_factory(
         klass: type[BaseModel], data: Optional[MutableMapping[str, Any]] = None
     ) -> BaseModel:
-        return klass(**data_default_none(klass, data or {}))
+        try:
+            return klass(**data_default_none(klass, data or {}))
+        except ValidationError as e:
+            msg = "[gql_class_factory] Your given data does not match the class ...\n"
+            msg += "\n".join([str(m) for m in list(e.raw_errors)])
+            raise GQLClassFactoryError(msg) from e
 
     return _gql_class_factory

@@ -650,7 +650,17 @@ CLUSTERS_QUERY = """
     }
     ocm {
       name
-      url
+      environment {
+        url
+        accessTokenClientId
+        accessTokenUrl
+        accessTokenClientSecret {
+          path
+          field
+          format
+          version
+        }
+      }
       orgId
       accessTokenClientId
       accessTokenUrl
@@ -981,7 +991,17 @@ CLUSTER_PEERING_QUERY = """
     name
     ocm {
       name
-      url
+      environment {
+        url
+        accessTokenClientId
+        accessTokenUrl
+        accessTokenClientSecret {
+          path
+          field
+          format
+          version
+        }
+      }
       orgId
       accessTokenClientId
       accessTokenUrl
@@ -1161,7 +1181,17 @@ OCM_QUERY = """
   instances: ocm_instances_v1 {
     path
     name
-    url
+    environment {
+      url
+      accessTokenClientId
+      accessTokenUrl
+      accessTokenClientSecret {
+        path
+        field
+        format
+        version
+      }
+    }
     orgId
     blockedVersions
     recommendedVersions {
@@ -1262,7 +1292,17 @@ KAFKA_CLUSTERS_QUERY = """
     name
     ocm {
       name
-      url
+      environment {
+        url
+        accessTokenClientId
+        accessTokenUrl
+        accessTokenClientSecret {
+          path
+          field
+          format
+          version
+        }
+      }
       orgId
       accessTokenClientId
       accessTokenUrl
@@ -2738,7 +2778,17 @@ OCP_RELEASE_ECR_MIRROR_QUERY = """
       managedGroups
       ocm {
         name
-        url
+        environment {
+          url
+          accessTokenClientId
+          accessTokenUrl
+          accessTokenClientSecret {
+            path
+            field
+            format
+            version
+          }
+        }
         orgId
         accessTokenClientId
         accessTokenUrl
@@ -3055,29 +3105,6 @@ def get_permissions_for_slack_usergroup():
     gqlapi = gql.get_api()
     permissions = gqlapi.query(PERMISSIONS_QUERY)["permissions"]
     return [p for p in permissions if p["service"] == "slack-usergroup"]
-
-
-DYN_TRAFFIC_DIRECTORS_QUERY = """
-{
-  dyn_traffic_directors: dyn_traffic_directors_v1 {
-    name
-    ttl
-    records {
-      cluster {
-        name
-        elbFQDN
-      }
-      hostname
-      weight
-    }
-  }
-}
-"""
-
-
-def get_dyn_traffic_directors():
-    gqlapi = gql.get_api()
-    return gqlapi.query(DYN_TRAFFIC_DIRECTORS_QUERY)["dyn_traffic_directors"]
 
 
 CLOSED_BOX_MONITORING_PROBES_QUERY = """

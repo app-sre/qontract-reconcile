@@ -1,0 +1,91 @@
+# qenerate: plugin=pydantic_v1
+
+query PipelineProviders {
+  pipelines_providers: pipelines_providers_v1 {
+    name
+    provider
+    ...on PipelinesProviderTekton_v1 {
+      defaults {
+        retention {
+          days
+          minimum
+        }
+        taskTemplates {
+          ...on PipelinesProviderTektonObjectTemplate_v1 {
+            name
+            type
+            path
+            variables
+          }
+        }
+        pipelineTemplates {
+          openshiftSaasDeploy {
+            name
+            type
+            path
+            variables
+          }
+        }
+        deployResources {
+          requests {
+            ... ResourceRequirements
+          }
+          limits {
+            ... ResourceRequirements
+          }
+        }
+      }
+      namespace {
+        name
+        clusterAdmin
+        cluster {
+          name
+          serverUrl
+          insecureSkipTLSVerify
+          jumpHost {
+            ... CommonJumphostFields
+          }
+          automationToken {
+            ... VaultSecret
+          }
+          clusterAdminAutomationToken {
+            ... VaultSecret
+          }
+          internal
+          disable {
+            integrations
+            e2eTests
+          }
+        }
+      }
+      retention {
+        days
+        minimum
+      }
+      taskTemplates {
+        ...on PipelinesProviderTektonObjectTemplate_v1 {
+          name
+          type
+          path
+          variables
+        }
+      }
+      pipelineTemplates {
+        openshiftSaasDeploy {
+          name
+          type
+          path
+          variables
+        }
+      }
+      deployResources {
+        requests {
+          ... ResourceRequirements
+        }
+        limits {
+          ... ResourceRequirements
+        }
+      }
+    }
+  }
+}
