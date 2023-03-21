@@ -79,14 +79,30 @@ def data_default_none(
                     # Union[ClassA, ClassB] field
                     for sub_field in field.sub_fields:
                         if isinstance(data[field.alias], dict):
-                            data[field.alias].update(
-                                data_default_none(sub_field.type_, data[field.alias])
-                            )
-                else:
+                            try:
+                                d = dict(data[field.alias])
+                                d.update(
+                                    data_default_none(sub_field.type_, d)
+                                )
+                                # Lets confirm we found a matching union class
+                                sub_field.type_(**d)
+                                data[field.alias] = d
+                                break
+                            except ValidationError:
+                                continue
+                elif isinstance(data[field.alias], list):
                     # list[Union[ClassA, ClassB]] field
-                    data[field.alias] = []
-                    for sub_field in field.sub_fields[0].sub_fields:
-                        print(sub_field)
+                    for sub_data in data[field.alias]:
+                        for sub_field in field.sub_fields[0].sub_fields:
+                            try:
+                                d = dict(sub_data)
+                                d.update(data_default_none(sub_field.type_, d))
+                                # Lets confirm we found a matching union class
+                                sub_field.type_(**d)
+                                sub_data.update(d)
+                                break
+                            except ValidationError:
+                                continue
 
     return data
 
@@ -117,7 +133,7 @@ def gql_class_factory() -> Callable[
         try:
             return klass(**data_default_none(klass, data or {}))
         except ValidationError as e:
-            msg = ""
+            msg = "Your data misses required parameters!\n"
             for raw_error in e.raw_errors:
                 msg += f"{raw_error}\n"
             raise RuntimeError(raw_error)
