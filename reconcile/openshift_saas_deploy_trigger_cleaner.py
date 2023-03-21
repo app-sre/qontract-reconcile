@@ -12,10 +12,18 @@ from typing import (
 
 from dateutil import parser
 
-from reconcile import queries
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
+from reconcile.typed_queries.tekton_pipeline_providers import (
+    get_tekton_pipeline_providers,
+)
 from reconcile.utils.defer import defer
-from reconcile.utils.oc import OC_Map
-from reconcile.utils.saasherder import Providers
+from reconcile.utils.oc_map import (
+    OCLogMsg,
+    init_oc_map_from_namespaces,
+)
+from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.semver_helper import make_semver
 
 QONTRACT_INTEGRATION = "openshift-saas-deploy-trigger-cleaner"
@@ -39,53 +47,52 @@ def run(
     use_jump_host: bool = True,
     defer: Optional[Callable] = None,
 ) -> None:
-    settings = queries.get_app_interface_settings()
-    pipelines_providers = queries.get_pipelines_providers()
-    tkn_namespaces = [
-        pp["namespace"]
-        for pp in pipelines_providers
-        if pp["provider"] == Providers.TEKTON.value
-    ]
-
-    oc_map = OC_Map(
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
+    pipeline_providers = get_tekton_pipeline_providers()
+    tkn_namespaces = [pp.namespace for pp in pipeline_providers]
+    oc_map = init_oc_map_from_namespaces(
         namespaces=tkn_namespaces,
         integration=QONTRACT_INTEGRATION,
-        settings=settings,
+        secret_reader=secret_reader,
         internal=internal,
         use_jump_host=use_jump_host,
         thread_pool_size=thread_pool_size,
     )
+
     if defer:
         defer(oc_map.cleanup)
 
-    for pp in pipelines_providers:
-        retention = pp.get("retention")
-        if not retention:
+    for pp in pipeline_providers:
+        if not pp.retention:
             continue
 
-        if pp["provider"] == Providers.TEKTON.value:
-            ns_info = pp["namespace"]
-            namespace = ns_info["name"]
-            cluster = ns_info["cluster"]["name"]
-            oc = oc_map.get(cluster)
-            pipeline_runs = sorted(
-                oc.get(namespace, "PipelineRun")["items"],
-                key=lambda k: k["metadata"]["creationTimestamp"],
-                reverse=True,
+        oc = oc_map.get(pp.namespace.cluster.name)
+        if isinstance(oc, OCLogMsg):
+            logging.log(level=oc.log_level, msg=oc.message)
+            continue
+        pipeline_runs = sorted(
+            oc.get(pp.namespace.name, "PipelineRun")["items"],
+            key=lambda k: k["metadata"]["creationTimestamp"],
+            reverse=True,
+        )
+
+        if pp.retention.minimum:
+            pipeline_runs = pipeline_runs[pp.retention.minimum :]
+
+        for pr in pipeline_runs:
+            name = pr["metadata"]["name"]
+            if pp.retention.days and within_retention_days(pr, pp.retention.days):
+                continue
+
+            logging.info(
+                [
+                    "delete_trigger",
+                    pp.namespace.cluster.name,
+                    pp.namespace.name,
+                    "PipelineRun",
+                    name,
+                ]
             )
-
-            retention_min = retention.get("minimum")
-            if retention_min:
-                pipeline_runs = pipeline_runs[retention_min:]
-
-            retention_days = retention.get("days")
-            for pr in pipeline_runs:
-                name = pr["metadata"]["name"]
-                if retention_days and within_retention_days(pr, retention_days):
-                    continue
-
-                logging.info(
-                    ["delete_trigger", cluster, namespace, "PipelineRun", name]
-                )
-                if not dry_run:
-                    oc.delete(namespace, "PipelineRun", name)
+            if not dry_run:
+                oc.delete(pp.namespace.name, "PipelineRun", name)
