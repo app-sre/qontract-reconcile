@@ -60,7 +60,7 @@ def find_cidr_duplicates_and_overlap(input_dict):
     }
 
     network_list = [ipaddress.ip_network(value) for value in values]
-    overlaps = {}  # type: List[str]
+    overlaps = {}
 
     for i in range(len(network_list)):
         for j in range(i + 1, len(network_list)):
