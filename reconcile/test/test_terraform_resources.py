@@ -1,6 +1,16 @@
+from collections.abc import (
+    Callable,
+    Iterable,
+    Mapping,
+)
+from typing import Any
+
 import pytest
 
 import reconcile.terraform_resources as integ
+from reconcile.gql_definitions.terraform_resources.terraform_resources_namespaces import (
+    NamespaceV1,
+)
 
 
 def test_cannot_use_exclude_accounts_if_not_dry_run():
@@ -88,160 +98,160 @@ def test_cannot_pass_invalid_aws_account(mocker):
     )
 
 
-def test_filter_namespaces_no_managed_tf_resources():
+def namespace_dict(
+    name: str,
+    external_resources: Iterable[Mapping[str, Any]],
+    managed: bool = True,
+    delete: bool = False,
+) -> dict[str, Any]:
+    data = {
+        "name": name,
+        "managedExternalResources": managed,
+        "externalResources": external_resources,
+        "cluster": {"name": "c", "serverUrl": "test"},
+        "app": {"name": "test"},
+        "environment": {"name": "test"},
+    }
+    if delete:
+        data["delete"] = True
+    return data
+
+
+def test_filter_namespaces_no_managed_tf_resources(gql_class_factory: Callable):
     ra = {"identifier": "a", "provider": "p"}
-    ns1 = {
-        "name": "ns1",
-        "managedExternalResources": False,
-        "externalResources": [],
-        "cluster": {"name": "c"},
-    }
-    ns2 = {
-        "name": "ns2",
-        "managedExternalResources": True,
-        "externalResources": [
-            {"provider": "aws", "provisioner": {"name": "a"}, "resources": [ra]}
-        ],
-        "cluster": {"name": "c"},
-    }
+    ns1 = gql_class_factory(NamespaceV1, namespace_dict("ns1", [], managed=False))
+    ns2 = gql_class_factory(
+        NamespaceV1,
+        namespace_dict(
+            "ns2",
+            [{"provider": "aws", "provisioner": {"name": "a"}, "resources": [ra]}],
+        ),
+    )
     namespaces = [ns1, ns2]
     filtered = integ.filter_tf_namespaces(namespaces, None)
     assert filtered == [ns2]
 
 
-def test_filter_namespaces_with_accounts_filter():
+def test_filter_namespaces_with_accounts_filter(gql_class_factory: Callable):
     ra = {"identifier": "a", "provider": "p"}
     rb = {"identifier": "b", "provider": "p"}
     rc = {"identifier": "c", "provider": "p"}
-    ns1 = {
-        "name": "ns1",
-        "managedExternalResources": True,
-        "externalResources": [
-            {"provider": "aws", "provisioner": {"name": "a"}, "resources": [ra]}
-        ],
-        "cluster": {"name": "c"},
-    }
-    ns2 = {
-        "name": "ns2",
-        "managedExternalResources": True,
-        "externalResources": [
-            {"provider": "aws", "provisioner": {"name": "b"}, "resources": [rb]}
-        ],
-        "cluster": {"name": "c"},
-    }
-    ns3 = {
-        "name": "ns3",
-        "managedExternalResources": True,
-        "externalResources": [
-            {"provider": "aws", "provisioner": {"name": "c"}, "resources": [rc]}
-        ],
-        "cluster": {"name": "c"},
-    }
+    ns1 = gql_class_factory(
+        NamespaceV1,
+        namespace_dict(
+            "ns1",
+            [{"provider": "aws", "provisioner": {"name": "a"}, "resources": [ra]}],
+        ),
+    )
+    ns2 = gql_class_factory(
+        NamespaceV1,
+        namespace_dict(
+            "ns2",
+            [{"provider": "aws", "provisioner": {"name": "b"}, "resources": [rb]}],
+        ),
+    )
+    ns3 = gql_class_factory(
+        NamespaceV1,
+        namespace_dict(
+            "ns3",
+            [{"provider": "aws", "provisioner": {"name": "c"}, "resources": [rc]}],
+        ),
+    )
+
     namespaces = [ns1, ns2, ns3]
     filtered = integ.filter_tf_namespaces(namespaces, ("a", "b"))
     assert filtered == [ns1, ns2]
 
 
-def test_filter_namespaces_no_accounts_filter():
+def test_filter_namespaces_no_accounts_filter(gql_class_factory: Callable):
     ra = {"identifier": "a", "provider": "p"}
     rb = {"identifier": "b", "provider": "p"}
-    ns1 = {
-        "name": "ns1",
-        "managedExternalResources": True,
-        "externalResources": [
-            {"provider": "aws", "provisioner": {"name": "a"}, "resources": [ra]}
-        ],
-        "cluster": {"name": "c"},
-    }
-    ns2 = {
-        "name": "ns2",
-        "managedExternalResources": True,
-        "externalResources": [
-            {"provider": "aws", "provisioner": {"name": "b"}, "resources": [rb]}
-        ],
-        "cluster": {"name": "c"},
-    }
+    ns1 = gql_class_factory(
+        NamespaceV1,
+        namespace_dict(
+            "ns1",
+            [{"provider": "aws", "provisioner": {"name": "a"}, "resources": [ra]}],
+        ),
+    )
+    ns2 = gql_class_factory(
+        NamespaceV1,
+        namespace_dict(
+            "ns2",
+            [{"provider": "aws", "provisioner": {"name": "b"}, "resources": [rb]}],
+        ),
+    )
     namespaces = [ns1, ns2]
     filtered = integ.filter_tf_namespaces(namespaces, None)
     assert filtered == namespaces
 
 
-def test_filter_namespaces_no_tf_resources_no_accounts_filter():
+def test_filter_namespaces_no_tf_resources_no_accounts_filter(
+    gql_class_factory: Callable,
+):
     """
     this test makes sure that a namespace is returned even if it has no resources
     attached. this way we can delete the last terraform resources that might have been
     defined on the namespace previously
     """
     ra = {"identifier": "a", "provider": "p"}
-    ns1 = {
-        "name": "ns1",
-        "managedExternalResources": True,
-        "externalResources": [],
-        "cluster": {"name": "c"},
-    }
-    ns2 = {
-        "name": "ns2",
-        "managedExternalResources": True,
-        "externalResources": [
-            {"provider": "aws", "provisioner": {"name": "a"}, "resources": [ra]}
-        ],
-        "cluster": {"name": "c"},
-    }
+    ns1 = gql_class_factory(NamespaceV1, namespace_dict("ns1", [], managed=True))
+    ns2 = gql_class_factory(
+        NamespaceV1,
+        namespace_dict(
+            "ns2",
+            [{"provider": "aws", "provisioner": {"name": "a"}, "resources": [ra]}],
+        ),
+    )
 
     namespaces = [ns1, ns2]
     filtered = integ.filter_tf_namespaces(namespaces, None)
     assert filtered == [ns1, ns2]
 
 
-def test_filter_tf_namespaces_no_tf_resources_with_accounts_filter():
+def test_filter_tf_namespaces_no_tf_resources_with_accounts_filter(
+    gql_class_factory: Callable,
+):
     """
     even if an account filter is defined, a namespace without resources is returned
     to enable terraform resource deletion. in contrast to that, a namespace with a resource
     that does not match the account will not be returned.
     """
     ra = {"identifier": "a", "provider": "p"}
-    ns1 = {
-        "name": "ns1",
-        "managedExternalResources": True,
-        "externalResources": [],
-        "cluster": {"name": "c"},
-    }
-    ns2 = {
-        "name": "ns2",
-        "managedExternalResources": True,
-        "externalResources": [
-            {"provider": "aws", "provisioner": {"name": "a"}, "resources": [ra]}
-        ],
-        "cluster": {"name": "c"},
-    }
+    ns1 = gql_class_factory(NamespaceV1, namespace_dict("ns1", [], managed=True))
+    ns2 = gql_class_factory(
+        NamespaceV1,
+        namespace_dict(
+            "ns2",
+            [{"provider": "aws", "provisioner": {"name": "a"}, "resources": [ra]}],
+        ),
+    )
     namespaces = [ns1, ns2]
     filtered = integ.filter_tf_namespaces(namespaces, ["b"])
     assert filtered == [ns1]
 
 
-def test_filter_tf_namespaces_namespace_deleted():
+def test_filter_tf_namespaces_namespace_deleted(gql_class_factory: Callable):
     """
     test that a deleted namespace is not returned
     """
     ra = {"identifier": "a", "provider": "p"}
     rb = {"identifier": "b", "provider": "p"}
-    ns1 = {
-        "name": "ns1",
-        "managedExternalResources": True,
-        "externalResources": [
-            {"provider": "aws", "provisioner": {"name": "a"}, "resources": [ra]}
-        ],
-        "cluster": {"name": "c"},
-        "delete": True,
-    }
-    ns2 = {
-        "name": "ns2",
-        "managedExternalResources": True,
-        "externalResources": [
-            {"provider": "aws", "provisioner": {"name": "b"}, "resources": [rb]}
-        ],
-        "cluster": {"name": "c"},
-    }
+    ns1 = gql_class_factory(
+        NamespaceV1,
+        namespace_dict(
+            "ns1",
+            [{"provider": "aws", "provisioner": {"name": "a"}, "resources": [ra]}],
+            delete=True,
+        ),
+    )
+    ns2 = gql_class_factory(
+        NamespaceV1,
+        namespace_dict(
+            "ns1",
+            [{"provider": "aws", "provisioner": {"name": "b"}, "resources": [rb]}],
+        ),
+    )
+
     namespaces = [ns1, ns2]
     filtered = integ.filter_tf_namespaces(namespaces, None)
     assert filtered == [ns2]
