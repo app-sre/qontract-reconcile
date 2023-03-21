@@ -81,19 +81,17 @@ def data_default_none(
                         if isinstance(data[field.alias], dict):
                             try:
                                 d = dict(data[field.alias])
-                                d.update(
-                                    data_default_none(sub_field.type_, d)
-                                )
+                                d.update(data_default_none(sub_field.type_, d))
                                 # Lets confirm we found a matching union class
                                 sub_field.type_(**d)
                                 data[field.alias] = d
                                 break
                             except ValidationError:
                                 continue
-                elif isinstance(data[field.alias], list):
+                elif isinstance(data[field.alias], list) and len(field.sub_fields) == 1:
                     # list[Union[ClassA, ClassB]] field
                     for sub_data in data[field.alias]:
-                        for sub_field in field.sub_fields[0].sub_fields:
+                        for sub_field in field.sub_fields[0].sub_fields or []:
                             try:
                                 d = dict(sub_data)
                                 d.update(data_default_none(sub_field.type_, d))
@@ -133,7 +131,7 @@ def gql_class_factory() -> Callable[
         try:
             return klass(**data_default_none(klass, data or {}))
         except ValidationError as e:
-            msg = "Your data misses required parameters!\n"
+            msg = "[gql_class_factory] Your given data does not match the class!\n"
             for raw_error in e.raw_errors:
                 msg += f"{raw_error}\n"
             raise RuntimeError(raw_error)
