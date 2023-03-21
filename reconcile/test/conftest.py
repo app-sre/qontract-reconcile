@@ -135,8 +135,8 @@ def gql_class_factory() -> Callable[
         try:
             return klass(**data_default_none(klass, data or {}))
         except ValidationError as e:
-            msg = "[gql_class_factory] Your given data does not match the class!\n"
-            msg += "\n".join(list(e.raw_errors))
+            msg = "[gql_class_factory] Your given data does not match the class ...\n"
+            msg += "\n".join([str(m) for m in list(e.raw_errors)])
             raise GQLClassFactoryError(msg) from e
 
     return _gql_class_factory
