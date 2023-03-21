@@ -64,34 +64,35 @@ def run(
         defer(oc_map.cleanup)
 
     for pp in pipeline_providers:
-        retention = pp.retention
-        if not retention:
+        if not pp.retention:
             continue
 
-        namespace = pp.namespace
-        cluster = namespace.cluster.name
-        oc = oc_map.get(cluster)
+        oc = oc_map.get(pp.namespace.cluster.name)
         if isinstance(oc, OCLogMsg):
             logging.log(level=oc.log_level, msg=oc.message)
             continue
         pipeline_runs = sorted(
-            oc.get(namespace.name, "PipelineRun")["items"],
+            oc.get(pp.namespace.name, "PipelineRun")["items"],
             key=lambda k: k["metadata"]["creationTimestamp"],
             reverse=True,
         )
 
-        retention_min = retention.minimum
-        if retention_min:
-            pipeline_runs = pipeline_runs[retention_min:]
+        if pp.retention.minimum:
+            pipeline_runs = pipeline_runs[pp.retention.minimum :]
 
-        retention_days = retention.days
         for pr in pipeline_runs:
             name = pr["metadata"]["name"]
-            if retention_days and within_retention_days(pr, retention_days):
+            if pp.retention.days and within_retention_days(pr, pp.retention.days):
                 continue
 
             logging.info(
-                ["delete_trigger", cluster, namespace.name, "PipelineRun", name]
+                [
+                    "delete_trigger",
+                    pp.namespace.cluster.name,
+                    pp.namespace.name,
+                    "PipelineRun",
+                    name,
+                ]
             )
             if not dry_run:
-                oc.delete(namespace.name, "PipelineRun", name)
+                oc.delete(pp.namespace.name, "PipelineRun", name)
