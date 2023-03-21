@@ -113,6 +113,15 @@ class OCConnectionParameters:
         return secret.token
 
     @staticmethod
+    def _get_automation_token(
+        secret_reader: SecretReaderBase, secret: HasSecret, cluster: Cluster
+    ) -> Optional[str]:
+        secret_raw = secret_reader.read_all_secret(secret)
+        return OCConnectionParameters._get_token_verify_server_url(
+            ClusterSecret(**secret_raw), cluster
+        )
+
+    @staticmethod
     def from_cluster(
         cluster: Cluster,
         secret_reader: SecretReaderBase,
@@ -125,18 +134,16 @@ class OCConnectionParameters:
         if cluster_admin:
             if cluster.cluster_admin_automation_token:
                 try:
-                    secret_raw = secret_reader.read_all_secret(
-                        cluster.cluster_admin_automation_token
+                    cluster_admin_automation_token = (
+                        OCConnectionParameters._get_automation_token(
+                            secret_reader,
+                            cluster.cluster_admin_automation_token,
+                            cluster,
+                        )
                     )
                 except SecretNotFound:
                     logging.error(
                         f"[{cluster.name}] admin token {cluster.cluster_admin_automation_token} not found"
-                    )
-                else:
-                    cluster_admin_automation_token = (
-                        OCConnectionParameters._get_token_verify_server_url(
-                            ClusterSecret(**secret_raw), cluster
-                        )
                     )
             else:
                 # Note, that currently OCMap uses OCLogMsg if a token is missing, i.e.,
@@ -147,16 +154,12 @@ class OCConnectionParameters:
         else:
             if cluster.automation_token:
                 try:
-                    secret_raw = secret_reader.read_all_secret(cluster.automation_token)
+                    automation_token = OCConnectionParameters._get_automation_token(
+                        secret_reader, cluster.automation_token, cluster
+                    )
                 except SecretNotFound:
                     logging.error(
                         f"[{cluster.name}] automation token {cluster.automation_token} not found"
-                    )
-                else:
-                    automation_token = (
-                        OCConnectionParameters._get_token_verify_server_url(
-                            ClusterSecret(**secret_raw), cluster
-                        )
                     )
             else:
                 # Note, that currently OCMap uses OCLogMsg if a token is missing, i.e.,
