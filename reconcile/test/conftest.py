@@ -134,6 +134,6 @@ def gql_class_factory() -> Callable[
             msg = "[gql_class_factory] Your given data does not match the class!\n"
             for raw_error in e.raw_errors:
                 msg += f"{raw_error}\n"
-            raise RuntimeError(raw_error)
+            raise RuntimeError(raw_error) from e
 
     return _gql_class_factory
