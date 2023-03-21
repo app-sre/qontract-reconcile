@@ -119,6 +119,10 @@ def data_factory() -> Callable[
     return _data_factory
 
 
+class GQLClassFactoryError(Exception):
+    pass
+
+
 @pytest.fixture
 def gql_class_factory() -> Callable[
     [type[BaseModel], Optional[MutableMapping[str, Any]]], BaseModel
@@ -132,8 +136,7 @@ def gql_class_factory() -> Callable[
             return klass(**data_default_none(klass, data or {}))
         except ValidationError as e:
             msg = "[gql_class_factory] Your given data does not match the class!\n"
-            for raw_error in e.raw_errors:
-                msg += f"{raw_error}\n"
-            raise RuntimeError(raw_error) from e
+            msg += "\n".join(list(e.raw_errors))
+            raise GQLClassFactoryError(msg) from e
 
     return _gql_class_factory
