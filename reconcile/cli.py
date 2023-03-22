@@ -2303,15 +2303,6 @@ def gabi_authorized_users(ctx, thread_pool_size, internal, use_jump_host):
     )
 
 
-@integration.command(short_help="Manage Traffic Director services in Dyn DNS.")
-@enable_deletion(default=False)
-@click.pass_context
-def dyn_traffic_director(ctx, enable_deletion):
-    import reconcile.dyn_traffic_director
-
-    run_integration(reconcile.dyn_traffic_director, ctx.obj, enable_deletion)
-
-
 @integration.command(
     short_help="Manages components on statuspage.io hosted status pages."
 )

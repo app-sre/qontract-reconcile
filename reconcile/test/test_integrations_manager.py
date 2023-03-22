@@ -217,7 +217,7 @@ def integrations(resources: dict[str, Any]) -> Iterable[Mapping[str, Any]]:
                     "spec": {"extraArgs": None, "resources": resources},
                     "shardSpecOverride": [
                         {
-                            "awsAccount": {"name": "test"},
+                            "awsAccounts": [{"name": "test"}],
                             "imageRef": "foo",
                         }
                     ],
@@ -701,10 +701,12 @@ def test_values_set_shard_specifics():
         "terraform-resources": [
             intop.IntegrationShardSpecOverride(
                 imageRef="foo",
-                awsAccount={
-                    "name": "app-int-example-01",
-                    "path": "/aws/app-int-example-01/account.yml",
-                },
+                awsAccounts=[
+                    {
+                        "name": "app-int-example-01",
+                        "path": "/aws/app-int-example-01/account.yml",
+                    }
+                ],
             ),
         ],
     }

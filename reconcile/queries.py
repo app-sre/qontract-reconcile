@@ -229,7 +229,7 @@ INTEGRATIONS_QUERY = """
       }
       shardSpecOverride{
        ... on AWSShardSpecOverride_v1 {
-          awsAccount {
+          awsAccounts {
             name
           }
           imageRef
@@ -3105,29 +3105,6 @@ def get_permissions_for_slack_usergroup():
     gqlapi = gql.get_api()
     permissions = gqlapi.query(PERMISSIONS_QUERY)["permissions"]
     return [p for p in permissions if p["service"] == "slack-usergroup"]
-
-
-DYN_TRAFFIC_DIRECTORS_QUERY = """
-{
-  dyn_traffic_directors: dyn_traffic_directors_v1 {
-    name
-    ttl
-    records {
-      cluster {
-        name
-        elbFQDN
-      }
-      hostname
-      weight
-    }
-  }
-}
-"""
-
-
-def get_dyn_traffic_directors():
-    gqlapi = gql.get_api()
-    return gqlapi.query(DYN_TRAFFIC_DIRECTORS_QUERY)["dyn_traffic_directors"]
 
 
 CLOSED_BOX_MONITORING_PROBES_QUERY = """
