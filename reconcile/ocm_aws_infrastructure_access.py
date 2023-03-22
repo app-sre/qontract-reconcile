@@ -5,8 +5,7 @@ from typing import Any
 
 from reconcile import queries
 from reconcile.status import ExitCodes
-from reconcile.terraform_resources import TF_NAMESPACES_QUERY
-from reconcile.utils import gql
+from reconcile.typed_queries.terraform_namespaces import get_namespaces
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.external_resources import (
     PROVIDER_AWS,
@@ -107,11 +106,10 @@ def fetch_desired_state():
     # section for aws-iam-service-account resources
     # of namespace files
     aws_accounts = queries.get_aws_accounts()
-    gqlapi = gql.get_api()
-    namespaces = gqlapi.query(TF_NAMESPACES_QUERY)["namespaces"]
+    namespaces = get_namespaces()
     for namespace_info in namespaces:
         specs = get_external_resource_specs(
-            namespace_info, provision_provider=PROVIDER_AWS
+            namespace_info.dict(by_alias=True), provision_provider=PROVIDER_AWS
         )
         for spec in specs:
             if spec.provider != "aws-iam-service-account":

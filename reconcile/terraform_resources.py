@@ -2,10 +2,10 @@ import logging
 import shutil
 import sys
 from collections.abc import (
+    Callable,
     Iterable,
     Mapping,
 )
-from textwrap import indent
 from typing import (
     Any,
     Collection,
@@ -20,6 +20,13 @@ import reconcile.openshift_base as ob
 from reconcile import queries
 from reconcile.aws_iam_keys import run as disable_keys
 from reconcile.change_owners.diff import IDENTIFIER_FIELD_NAME
+from reconcile.gql_definitions.terraform_resources.terraform_resources_namespaces import (
+    NamespaceV1,
+)
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
+from reconcile.typed_queries.terraform_namespaces import get_namespaces
 from reconcile.utils import gql
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.defer import defer
@@ -32,14 +39,16 @@ from reconcile.utils.external_resources import (
     get_external_resource_specs,
     managed_external_resources,
 )
-from reconcile.utils.oc import (
-    OC_Map,
-    StatusCodeError,
+from reconcile.utils.oc import StatusCodeError
+from reconcile.utils.oc_map import (
+    OCMap,
+    init_oc_map_from_namespaces,
 )
 from reconcile.utils.ocm import OCMMap
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.openshift_resource import ResourceInventory
 from reconcile.utils.runtime.integration import DesiredStateShardConfig
+from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.terraform_client import TerraformClient as Terraform
 from reconcile.utils.terrascript_aws_client import TerrascriptClient as Terrascript
@@ -48,417 +57,15 @@ from reconcile.utils.vault import (
     _VaultClient,
 )
 
-TF_RESOURCE_AWS = """
-output_format {
-  provider
-  ... on NamespaceTerraformResourceGenericSecretOutputFormat_v1 {
-    data
-  }
-}
-provider
-... on NamespaceTerraformResourceRDS_v1 {
-  region
-  identifier
-  defaults
-  availability_zone
-  parameter_group
-  old_parameter_group
-  overrides
-  output_resource_name
-  enhanced_monitoring
-  replica_source
-  output_resource_db_name
-  reset_password
-  ca_cert {
-    path
-    field
-    version
-    format
-  }
-  annotations
-  event_notifications {
-    destination
-    source_type
-    event_categories
-  }
-}
-... on NamespaceTerraformResourceS3_v1 {
-  region
-  identifier
-  defaults
-  overrides
-  sqs_identifier
-  s3_events
-  sns_event_notifications: event_notifications {
-    destination_type
-    destination
-    event_type
-    filter_prefix
-    filter_suffix
-  }
-  bucket_policy
-  output_resource_name
-  storage_class
-  annotations
-}
-... on NamespaceTerraformResourceElastiCache_v1 {
-  identifier
-  defaults
-  parameter_group
-  region
-  overrides
-  output_resource_name
-  annotations
-}
-... on NamespaceTerraformResourceServiceAccount_v1 {
-  identifier
-  variables
-  policies
-  user_policy
-  output_resource_name
-  annotations
-  aws_infrastructure_access {
-    cluster {
-      name
-    }
-    access_level
-    assume_role
-  }
-}
-... on NamespaceTerraformResourceSecretsManagerServiceAccount_v1 {
-  identifier
-  secrets_prefix
-  output_resource_name
-  annotations
-}
-... on NamespaceTerraformResourceRole_v1 {
-  identifier
-  assume_role {
-    AWS
-    Service
-  }
-  assume_condition
-  inline_policy
-  output_resource_name
-  annotations
-}
-... on NamespaceTerraformResourceSQS_v1 {
-  region
-  identifier
-  output_resource_name
-  annotations
-  specs {
-    defaults
-    queues {
-      key
-      value
-    }
-  }
-}
-... on NamespaceTerraformResourceSNSTopic_v1 {
-  defaults
-  region
-  identifier
-  output_resource_name
-  fifo_topic
-  inline_policy
-  annotations
-  subscriptions
-   {
-     protocol
-     endpoint
-   }
-}
-... on NamespaceTerraformResourceDynamoDB_v1 {
-  region
-  identifier
-  output_resource_name
-  annotations
-  specs {
-    defaults
-    tables {
-      key
-      value
-    }
-  }
-}
-... on NamespaceTerraformResourceECR_v1 {
-  identifier
-  region
-  output_resource_name
-  public
-  annotations
-}
-... on NamespaceTerraformResourceS3CloudFront_v1 {
-  region
-  identifier
-  defaults
-  output_resource_name
-  storage_class
-  annotations
-}
-... on NamespaceTerraformResourceS3SQS_v1 {
-  region
-  identifier
-  defaults
-  kms_encryption
-  output_resource_name
-  storage_class
-  annotations
-}
-... on NamespaceTerraformResourceCloudWatch_v1 {
-  region
-  identifier
-  defaults
-  es_identifier
-  filter_pattern
-  output_resource_name
-  annotations
-}
-... on NamespaceTerraformResourceKMS_v1 {
-  region
-  identifier
-  defaults
-  overrides
-  output_resource_name
-  annotations
-}
-... on NamespaceTerraformResourceElasticSearch_v1 {
-  region
-  identifier
-  defaults
-  output_resource_name
-  annotations
-  publish_log_types
-}
-... on NamespaceTerraformResourceACM_v1 {
-  region
-  identifier
-  secret {
-    path
-    field
-    version
-    format
-  }
-  domain {
-    domain_name
-    alternate_names
-  }
-  output_resource_name
-  annotations
-}
-... on NamespaceTerraformResourceKinesis_v1 {
-  region
-  identifier
-  defaults
-  es_identifier
-  output_resource_name
-  annotations
-}
-... on NamespaceTerraformResourceS3CloudFrontPublicKey_v1 {
-  region
-  identifier
-  secret {
-    path
-    field
-    version
-    format
-  }
-  output_resource_name
-  annotations
-}
-... on NamespaceTerraformResourceALB_v1 {
-  region
-  identifier
-  vpc {
-    vpc_id
-    cidr_block
-    subnets {
-      id
-    }
-  }
-  certificate_arn
-  ingress_cidr_blocks
-  idle_timeout
-  enable_http2
-  ip_address_type
-  targets {
-    name
-    default
-    ips
-    openshift_service
-  }
-  rules {
-    condition {
-      path
-      methods
-    }
-    action {
-      target
-      weight
-    }
-  }
-  output_resource_name
-  annotations
-}
-... on NamespaceTerraformResourceSecretsManager_v1 {
-  region
-  identifier
-  secret {
-    path
-    field
-    version
-    format
-  }
-  output_resource_name
-  annotations
-}
-... on NamespaceTerraformResourceASG_v1 {
-  region
-  identifier
-  defaults
-  cloudinit_configs {
-    filename
-    content_type
-    content
-  }
-  variables
-  overrides
-  extra_tags
-  image {
-    provider
-    ... on ASGImageGit_v1 {
-      tag_name
-      url
-      ref
-      upstream {
-        instance {
-          name
-          token {
-          path
-          field
-          version
-          format
-          }
-        }
-        name
-      }
-    }
-    ... on ASGImageStatic_v1 {
-        tag_name
-        value
-    }
-  }
-  output_resource_name
-  annotations
-}
-... on NamespaceTerraformResourceRoute53Zone_v1 {
-  region
-  identifier
-  name
-  output_resource_name
-  annotations
-  records {
-    %s
-  }
-}
-... on NamespaceTerraformResourceRosaAuthenticator_V1 {
-  region
-  identifier
-  api_proxy_uri
-  cognito_callback_bucket_name
-  certificate_arn
-  domain_name
-  network_interface_ids
-  openshift_ingress_load_balancer_arn
-  insights_callback_urls
-  output_resource_name
-  annotations
-  vpc_id
-  subnet_ids
-  vpce_id
-  defaults
-}
-... on NamespaceTerraformResourceRosaAuthenticatorVPCE_V1 {
-  region
-  identifier
-  subnet_ids,
-  vpc_id,
-  output_resource_name
-  annotations
-  defaults
-}
-""" % (
-    indent(queries.DNS_RECORD, 4 * " "),
-)
-
-
-TF_NAMESPACES_QUERY = """
-{
-  namespaces: namespaces_v1 {
-    name
-    delete
-    clusterAdmin
-    managedExternalResources
-    externalResources {
-      provider
-      provisioner {
-        name
-      }
-      ... on NamespaceTerraformProviderResourceAWS_v1 {
-        resources {
-          %s
-        }
-      }
-    }
-    environment {
-      name
-    }
-    app {
-      name
-    }
-    cluster {
-      name
-      serverUrl
-      insecureSkipTLSVerify
-      jumpHost {
-        %s
-      }
-      automationToken {
-        path
-        field
-        version
-        format
-      }
-      clusterAdminAutomationToken {
-        path
-        field
-        version
-        format
-      }
-      spec {
-        region
-      }
-      internal
-      disable {
-        integrations
-      }
-    }
-  }
-}
-""" % (
-    indent(TF_RESOURCE_AWS, 6 * " "),
-    indent(queries.JUMPHOST_FIELDS, 8 * " "),
-)
-
 QONTRACT_INTEGRATION = "terraform_resources"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 5, 2)
 QONTRACT_TF_PREFIX = "qrtf"
 
 
-def get_tf_namespaces(account_names: Optional[Iterable[str]] = None):
-    gqlapi = gql.get_api()
-    namespaces = gqlapi.query(TF_NAMESPACES_QUERY)["namespaces"]
+def get_tf_namespaces(
+    account_names: Optional[Iterable[str]] = None,
+) -> list[NamespaceV1]:
+    namespaces = get_namespaces()
     return filter_tf_namespaces(namespaces, account_names)
 
 
@@ -466,7 +73,7 @@ def populate_oc_resources(
     spec: ob.CurrentStateSpec,
     ri: ResourceInventory,
     account_names: Optional[Iterable[str]],
-):
+) -> None:
     if spec.oc is None:
         return
     logging.debug(
@@ -507,26 +114,28 @@ def populate_oc_resources(
 
 def fetch_current_state(
     dry_run: bool,
-    namespaces: Iterable[Mapping[str, Any]],
+    namespaces: Iterable[NamespaceV1],
     thread_pool_size: int,
-    internal: str,
+    internal: Optional[bool],
     use_jump_host: bool,
     account_names: Optional[Iterable[str]],
-):
+) -> tuple[ResourceInventory, Optional[OCMap]]:
     ri = ResourceInventory()
     if dry_run:
         return ri, None
-    settings = queries.get_app_interface_settings()
-    oc_map = OC_Map(
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
+    oc_map = init_oc_map_from_namespaces(
         namespaces=namespaces,
         integration=QONTRACT_INTEGRATION,
-        settings=settings,
+        secret_reader=secret_reader,
         internal=internal,
         use_jump_host=use_jump_host,
         thread_pool_size=thread_pool_size,
     )
+    namespaces_dicts = [ns.dict(by_alias=True) for ns in namespaces]
     state_specs = ob.init_specs_to_fetch(
-        ri, oc_map, namespaces=namespaces, override_managed_types=["Secret"]
+        ri, oc_map, namespaces=namespaces_dicts, override_managed_types=["Secret"]
     )
     current_state_specs: list[ob.CurrentStateSpec] = [
         s for s in state_specs if isinstance(s, ob.CurrentStateSpec)
@@ -582,13 +191,15 @@ def validate_account_names(
 
 def setup(
     dry_run: bool,
-    print_to_file: str,
+    print_to_file: Optional[str],
     thread_pool_size: int,
-    internal: str,
+    internal: Optional[bool],
     use_jump_host: bool,
     include_accounts: Optional[Collection[str]],
     exclude_accounts: Optional[Collection[str]],
-) -> tuple[ResourceInventory, OC_Map, Terraform, ExternalResourceSpecInventory]:
+) -> tuple[
+    ResourceInventory, Optional[OCMap], Terraform, ExternalResourceSpecInventory
+]:
     accounts = queries.get_aws_accounts(terraform_state=True)
     if not include_accounts and exclude_accounts:
         excluding = filter_accounts_by_name(accounts, exclude_accounts)
@@ -632,7 +243,8 @@ def setup(
         )
     else:
         ocm_map = None
-    ts.init_populate_specs(tf_namespaces, account_names)
+    tf_namespaces_dicts = [ns.dict(by_alias=True) for ns in tf_namespaces]
+    ts.init_populate_specs(tf_namespaces_dicts, account_names)
     tf.populate_terraform_output_secrets(
         resource_specs=ts.resource_spec_inventory, init_rds_replica_source=True
     )
@@ -643,20 +255,20 @@ def setup(
 
 
 def filter_tf_namespaces(
-    namespaces: Iterable[Mapping[str, Any]], account_names: Optional[Iterable[str]]
-) -> list[Mapping[str, Any]]:
+    namespaces: Iterable[NamespaceV1], account_names: Optional[Iterable[str]]
+) -> list[NamespaceV1]:
     tf_namespaces = []
     for namespace_info in namespaces:
-        if ob.is_namespace_deleted(namespace_info):
+        if ob.is_namespace_deleted(namespace_info.dict(by_alias=True)):
             continue
-        if not managed_external_resources(namespace_info):
+        if not managed_external_resources(namespace_info.dict(by_alias=True)):
             continue
 
         if not account_names:
             tf_namespaces.append(namespace_info)
             continue
 
-        specs = get_external_resource_specs(namespace_info)
+        specs = get_external_resource_specs(namespace_info.dict(by_alias=True))
         if not specs:
             tf_namespaces.append(namespace_info)
             continue
@@ -669,7 +281,11 @@ def filter_tf_namespaces(
     return tf_namespaces
 
 
-def cleanup_and_exit(tf=None, status=False, working_dirs=None):
+def cleanup_and_exit(
+    tf: Optional[Terraform] = None,
+    status: bool = False,
+    working_dirs: Optional[Mapping[str, str]] = None,
+) -> None:
     if working_dirs is None:
         working_dirs = {}
     if tf is None:
@@ -730,17 +346,17 @@ class MultipleAccountNamesInDryRunException(Exception):
 
 @defer
 def run(
-    dry_run,
-    print_to_file=None,
-    enable_deletion=False,
-    thread_pool_size=10,
-    internal=None,
-    use_jump_host=True,
-    light=False,
-    vault_output_path="",
+    dry_run: bool,
+    print_to_file: Optional[str] = None,
+    enable_deletion: bool = False,
+    thread_pool_size: int = 10,
+    internal: Optional[bool] = None,
+    use_jump_host: bool = True,
+    light: bool = False,
+    vault_output_path: str = "",
     account_name: Optional[Sequence[str]] = None,
     exclude_accounts: Optional[Sequence[str]] = None,
-    defer=None,
+    defer: Optional[Callable] = None,
 ) -> None:
     if exclude_accounts and not dry_run:
         message = "--exclude-accounts is only supported in dry-run mode"
@@ -775,7 +391,7 @@ def run(
         exclude_accounts,
     )
 
-    if not dry_run:
+    if not dry_run and oc_map and defer:
         defer(oc_map.cleanup)
 
     if print_to_file:
@@ -806,7 +422,11 @@ def run(
     # populate the resource inventory with latest output data
     populate_desired_state(ri, resource_specs)
 
-    actions = ob.realize_data(dry_run, oc_map, ri, thread_pool_size, caller=acc_name)
+    actions = []
+    if oc_map:
+        actions = ob.realize_data(
+            dry_run, oc_map, ri, thread_pool_size, caller=acc_name
+        )
 
     if not light and tf.should_apply:
         disable_keys(
@@ -826,18 +446,18 @@ def run(
     cleanup_and_exit(tf)
 
 
-def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
+def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
     gqlapi = gql.get_api()
     namespaces = get_tf_namespaces()
     resources = []
     for ns_info in namespaces:
         for spec in get_external_resource_specs(
-            ns_info, provision_provider=PROVIDER_AWS
+            ns_info.dict(by_alias=True), provision_provider=PROVIDER_AWS
         ):
 
             def register_resource(
                 spec: ExternalResourceSpec, resource: Optional[dict[str, Any]]
-            ):
+            ) -> None:
                 if resource:
                     resources.append(
                         {
