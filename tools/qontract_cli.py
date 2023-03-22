@@ -637,7 +637,7 @@ def ocm_addon_upgrade_policies(ctx):
             sector = ""
             conditions = d.get("conditions") or {}
             if conditions.get("sector"):
-                sector =conditions["sector"].name
+                sector = conditions["sector"].name
             version = d["current_version"]
             ocm_output.append(
                 {
