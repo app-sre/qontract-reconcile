@@ -372,7 +372,7 @@ class TestOCMapInit(TestCase):
         )
         self.assertEqual(len(oc_map.clusters()), 0)
 
-    @patch.object(SecretReader, "read_all", autospec=True)
+    @patch.object(SecretReader, "read", autospec=True)
     def test_automationtoken_not_found(self, mock_secret_reader):
 
         mock_secret_reader.side_effect = SecretNotFound
@@ -391,38 +391,14 @@ class TestOCMapInit(TestCase):
         )
         self.assertEqual(len(oc_map.clusters()), 0)
 
-    @patch.object(SecretReader, "read_all", autospec=True)
-    def test_server_url_mismatch(self, mock_secret_reader):
-        mock_secret_reader.return_value = {"server": "foo", "some-field": "bar"}
-
-        cluster = {
-            "name": "test-1",
-            "serverUrl": "http://localhost",
-            "automationToken": {"path": "some-path", "field": "some-field"},
-        }
-
-        oc_map = OC_Map(clusters=[cluster])
-
-        self.assertIsInstance(oc_map.get(cluster["name"]), OCLogMsg)
-        self.assertEqual(
-            oc_map.get(cluster["name"]).message,
-            f'[{cluster["name"]}] server URL mismatch',
-        )
-        self.assertEqual(len(oc_map.clusters()), 0)
-
 
 class TestOCMapGetClusters(TestCase):
-    @patch.object(SecretReader, "read_all", autospec=True)
+    @patch.object(SecretReader, "read", autospec=True)
     def test_clusters_errors_empty_return(self, mock_secret_reader):
         """
         clusters() shouldn't return the names of any clusters that didn't
         initialize a client successfully.
         """
-        mock_secret_reader.return_value = {
-            "server": "http://localhost",
-            "some-field": "bar",
-        }
-
         cluster = {
             "name": "test-1",
             "serverUrl": "http://localhost",
@@ -434,17 +410,12 @@ class TestOCMapGetClusters(TestCase):
         self.assertIsInstance(oc_map.oc_map.get(cluster["name"]), OCLogMsg)
 
     @patch.object(reconcile.utils.oc, "OC", autospec=True)
-    @patch.object(SecretReader, "read_all", autospec=True)
+    @patch.object(SecretReader, "read", autospec=True)
     def test_clusters_errors_with_include_errors(self, mock_secret_reader, mock_oc):
         """
         With the include_errors kwarg set to true, clusters that didn't
         initialize a client are still included.
         """
-        mock_secret_reader.return_value = {
-            "server": "http://localhost",
-            "some-field": "bar",
-        }
-
         cluster_1 = {
             "name": "test-1",
             "serverUrl": "http://localhost",
@@ -464,13 +435,8 @@ class TestOCMapGetClusters(TestCase):
         self.assertIsInstance(oc_map.oc_map.get(cluster_1["name"]), OCLogMsg)
 
     @patch.object(reconcile.utils.oc, "OC", autospec=True)
-    @patch.object(SecretReader, "read_all", autospec=True)
+    @patch.object(SecretReader, "read", autospec=True)
     def test_namespace_with_cluster_admin(self, mock_secret_reader, mock_oc):
-        mock_secret_reader.return_value = {
-            "server": "http://localhost",
-            "some-field": "bar",
-        }
-
         cluster_1 = {
             "name": "cl1",
             "serverUrl": "http://localhost",
@@ -501,13 +467,8 @@ class TestOCMapGetClusters(TestCase):
         self.assertIsInstance(oc_map.get(cluster_2["name"], privileged=True), OCLogMsg)
 
     @patch.object(reconcile.utils.oc, "OC", autospec=True)
-    @patch.object(SecretReader, "read_all", autospec=True)
+    @patch.object(SecretReader, "read", autospec=True)
     def test_missing_cluster_automation_token(self, mock_secret_reader, mock_oc):
-        mock_secret_reader.return_value = {
-            "server": "http://localhost",
-            "some-field": "bar",
-        }
-
         cluster_1 = {
             "name": "cl1",
             "serverUrl": "http://localhost",
@@ -528,13 +489,8 @@ class TestOCMapGetClusters(TestCase):
         self.assertFalse(oc_map.get(cluster_1["name"], privileged=True))
 
     @patch.object(reconcile.utils.oc, "OC", autospec=True)
-    @patch.object(SecretReader, "read_all", autospec=True)
-    def test_internal_clusters(self, mock_secret_reader, mock_oc):
-        mock_secret_reader.return_value = {
-            "server": "http://localhost",
-            "some-field": "bar",
-        }
-
+    @patch.object(SecretReader, "read", autospec=True)
+    def test_internal_clusters(self, selfmock_secret_reader, mock_oc):
         cluster = {
             "name": "cl1",
             "serverUrl": "http://localhost",
@@ -552,13 +508,8 @@ class TestOCMapGetClusters(TestCase):
         self.assertFalse(oc_map.get(cluster["name"]))
 
     @patch.object(reconcile.utils.oc, "OC", autospec=True)
-    @patch.object(SecretReader, "read_all", autospec=True)
-    def test_disabled_integration(self, mock_secret_reader, mock_oc):
-        mock_secret_reader.return_value = {
-            "server": "http://localhost",
-            "some-field": "bar",
-        }
-
+    @patch.object(SecretReader, "read", autospec=True)
+    def test_disabled_integration(self, selfmock_secret_reader, mock_oc):
         calling_int = "calling_integration"
         cluster = {
             "name": "cl1",
