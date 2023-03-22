@@ -4,7 +4,6 @@ from typing import Optional
 
 from pydantic import BaseModel
 
-from reconcile.utils.ocm_base_client import OCMBaseClient
 from reconcile.utils.ocm.labels import (
     OCMLabel,
     OCMOrganizationLabel,
@@ -21,6 +20,7 @@ from reconcile.utils.ocm.subscriptions import (
     build_subscription_filter,
     get_subscriptions,
 )
+from reconcile.utils.ocm_base_client import OCMBaseClient
 
 
 class OCMClusterState(Enum):

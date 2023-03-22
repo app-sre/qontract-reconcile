@@ -304,7 +304,7 @@ def ocmmap_mock(ocm_osd_cluster_spec, ocm_mock):
 
 @pytest.fixture
 def ocm_secrets_reader():
-    with patch("reconcile.utils.ocm.SecretReader", autospec=True) as sr:
+    with patch("reconcile.utils.ocm.ocm.SecretReader", autospec=True) as sr:
         yield sr
 
 

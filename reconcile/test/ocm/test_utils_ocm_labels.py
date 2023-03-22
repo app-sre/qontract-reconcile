@@ -3,7 +3,6 @@ import pytest
 from pytest_mock import MockerFixture
 
 from reconcile.test.ocm.conftest import register_ocm_get_list_request
-from reconcile.utils.ocm_base_client import OCMBaseClient
 from reconcile.utils.ocm import labels
 from reconcile.utils.ocm.labels import (
     OCMAccountLabel,
@@ -14,6 +13,7 @@ from reconcile.utils.ocm.labels import (
     get_subscription_labels,
 )
 from reconcile.utils.ocm.search_filters import Filter
+from reconcile.utils.ocm_base_client import OCMBaseClient
 
 
 def build_organization_label(key: str, value: str, org_id: str) -> OCMOrganizationLabel:

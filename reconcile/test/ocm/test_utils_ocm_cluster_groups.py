@@ -5,7 +5,6 @@ from reconcile.test.ocm.conftest import (
     register_ocm_get_list_request,
     register_ocm_post_request,
 )
-from reconcile.utils.ocm_base_client import OCMBaseClient
 from reconcile.utils.ocm.cluster_groups import (
     OCMClusterGroup,
     add_user_to_cluster_group,
@@ -15,6 +14,7 @@ from reconcile.utils.ocm.cluster_groups import (
     delete_user_from_cluster_group,
     get_cluster_groups,
 )
+from reconcile.utils.ocm_base_client import OCMBaseClient
 
 
 def test_get_cluster_groups(

@@ -12,8 +12,6 @@ from reconcile.test.ocm.conftest import (
     register_ocm_get_list_request,
     register_ocm_post_request,
 )
-
-from reconcile.utils.ocm_base_client import OCMBaseClient
 from reconcile.utils.ocm import service_log
 from reconcile.utils.ocm.search_filters import (
     DateRangeCondition,
@@ -25,6 +23,7 @@ from reconcile.utils.ocm.service_log import (
     create_service_log,
     get_service_logs,
 )
+from reconcile.utils.ocm_base_client import OCMBaseClient
 
 
 def build_service_log(

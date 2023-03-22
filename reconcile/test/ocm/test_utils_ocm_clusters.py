@@ -9,7 +9,6 @@ from reconcile.test.ocm.test_utils_ocm_labels import (
     build_subscription_label,
 )
 from reconcile.test.ocm.test_utils_ocm_subscriptions import build_ocm_subscription
-from reconcile.utils.ocm_base_client import OCMBaseClient
 from reconcile.utils.ocm import (
     clusters,
     subscriptions,
@@ -31,6 +30,7 @@ from reconcile.utils.ocm.search_filters import (
     Filter,
     or_filter,
 )
+from reconcile.utils.ocm_base_client import OCMBaseClient
 
 
 def build_cluster(

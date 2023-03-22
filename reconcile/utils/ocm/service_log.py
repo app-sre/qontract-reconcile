@@ -10,8 +10,8 @@ from typing import (
 
 from pydantic import BaseModel
 
-from reconcile.utils.ocm_base_client import OCMBaseClient
 from reconcile.utils.ocm.search_filters import Filter
+from reconcile.utils.ocm_base_client import OCMBaseClient
 
 
 class OCMServiceLogSeverity(Enum):

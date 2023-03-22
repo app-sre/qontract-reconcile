@@ -4,7 +4,6 @@ import httpretty as httpretty_module
 
 from reconcile.test.ocm.conftest import register_ocm_get_list_request
 from reconcile.test.ocm.test_utils_ocm_labels import build_subscription_label
-from reconcile.utils.ocm_base_client import OCMBaseClient
 from reconcile.utils.ocm.search_filters import Filter
 from reconcile.utils.ocm.subscriptions import (
     OCMCapability,
@@ -12,6 +11,7 @@ from reconcile.utils.ocm.subscriptions import (
     build_subscription_filter,
     get_subscriptions,
 )
+from reconcile.utils.ocm_base_client import OCMBaseClient
 
 
 def build_ocm_subscription(
