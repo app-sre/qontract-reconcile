@@ -75,6 +75,7 @@ class ClusterSecret:
     token: str
     username: str
 
+
 @dataclass
 class OCConnectionParameters:
     """
@@ -121,7 +122,8 @@ class OCConnectionParameters:
                 server=secret_raw["server"],
                 token=secret_raw["token"],
                 username=secret_raw["username"],
-            ), cluster
+            ),
+            cluster,
         )
 
     @staticmethod
