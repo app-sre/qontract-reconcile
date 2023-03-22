@@ -1891,6 +1891,8 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                     }
                     if target.parameters:
                         for param in target.parameters:
+                            if not isinstance(target.parameters[param], str):
+                                continue
                             target.parameters[param] = compile_jinja2_template(
                                 target.parameters[param], extra_curly=True
                             ).render(template_vars)
