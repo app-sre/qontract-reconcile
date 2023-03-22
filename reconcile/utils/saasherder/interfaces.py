@@ -204,7 +204,7 @@ class SaasResourceTemplateTargetNamespace(Protocol):
         self,
         *,
         by_alias: bool = False,
-        include: Union[AbstractSetIntStr, MappingIntStrAny],
+        include: Optional[Union[AbstractSetIntStr, MappingIntStrAny]] = None,
     ) -> dict[str, Any]:
         ...
 

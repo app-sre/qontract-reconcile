@@ -117,6 +117,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         self.error_registered = False
         self.saas_files = saas_files
         self.repo_urls = self._collect_repo_urls()
+        self.resolve_templated_parameters(self.saas_files)
         if validate:
             self._validate_saas_files()
             if not self.valid:
@@ -1874,3 +1875,30 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                             subscribe_target_path_map[channel].add(target.path)
 
         return subscribe_saas_file_path_map, subscribe_target_path_map
+
+    @staticmethod
+    def resolve_templated_parameters(saas_files: Iterable[SaasFile]) -> None:
+        """Resolve templated target parameters in saas files."""
+        from reconcile.openshift_resources_base import (
+            compile_jinja2_template,  # avoid circular import
+        )
+
+        for saas_file in saas_files:
+            for rt in saas_file.resource_templates:
+                for target in rt.targets:
+                    template_vars = {
+                        "resource": {"namespace": target.namespace.dict(by_alias=True)}
+                    }
+                    if target.parameters:
+                        for param in target.parameters:
+                            target.parameters[param] = compile_jinja2_template(
+                                target.parameters[param], extra_curly=True
+                            ).render(template_vars)
+                    if target.secret_parameters:
+                        for secret_param in target.secret_parameters:
+                            secret_param.secret.field = compile_jinja2_template(
+                                secret_param.secret.field, extra_curly=True
+                            ).render(template_vars)
+                            secret_param.secret.path = compile_jinja2_template(
+                                secret_param.secret.path, extra_curly=True
+                            ).render(template_vars)
