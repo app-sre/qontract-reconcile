@@ -196,6 +196,7 @@ query SaasFiles {
             exclude
           }
         }
+        provider
         ref
         promotion {
           auto
@@ -441,6 +442,7 @@ class SaasResourceTemplateTargetV2(ConfiguredBaseModel):
     namespace_selector: Optional[SaasResourceTemplateTargetNamespaceSelectorV1] = Field(
         ..., alias="namespaceSelector"
     )
+    provider: Optional[str] = Field(..., alias="provider")
     ref: str = Field(..., alias="ref")
     promotion: Optional[SaasResourceTemplateTargetPromotionV1] = Field(
         ..., alias="promotion"

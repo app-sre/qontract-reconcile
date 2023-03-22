@@ -247,12 +247,13 @@ PIPELINE_PROVIDER = {
 
 
 @pytest.mark.parametrize(
-    "name, env_name, app_name, expected_saas_files",
+    "name, env_name, app_name, fxt_file, expected_saas_files",
     [
         (
             "saas-file-01",
             None,
             None,
+            "saas_files.yml",
             [
                 {
                     "path": "path1",
@@ -289,6 +290,7 @@ PIPELINE_PROVIDER = {
                                         "app": {"name": "app-01"},
                                         "cluster": CLUSTER,
                                     },
+                                    "provider": "static",
                                     "ref": "1234567890123456789012345678901234567890",
                                 },
                             ],
@@ -301,6 +303,7 @@ PIPELINE_PROVIDER = {
             None,
             None,
             "app-02",
+            "saas_files.yml",
             [
                 {
                     "path": "path2",
@@ -331,6 +334,7 @@ PIPELINE_PROVIDER = {
                                         "app": {"name": "app-02"},
                                         "cluster": CLUSTER,
                                     },
+                                    "provider": "static",
                                     "ref": "1234567890123456789012345678901234567890",
                                 },
                             ],
@@ -343,6 +347,7 @@ PIPELINE_PROVIDER = {
             None,
             "test",
             "app-02",
+            "saas_files.yml",
             [
                 {
                     "path": "path2",
@@ -376,6 +381,7 @@ PIPELINE_PROVIDER = {
             None,
             "test",
             None,
+            "saas_files.yml",
             [
                 {
                     "path": "path1",
@@ -442,6 +448,7 @@ PIPELINE_PROVIDER = {
             "saas-file-03",
             None,
             None,
+            "saas_files.yml",
             [
                 {
                     "path": "path3",
@@ -480,6 +487,15 @@ PIPELINE_PROVIDER = {
                 }
             ],
         ),
+        # missing provider
+        pytest.param(
+            "saas-file-04",
+            None,
+            None,
+            "saas_files-missing-provider.yml",
+            [],
+            marks=pytest.mark.xfail(strict=True, raises=ParameterError),
+        ),
     ],
 )
 def test_get_saas_files(
@@ -489,6 +505,7 @@ def test_get_saas_files(
     name: Optional[str],
     env_name: Optional[str],
     app_name: Optional[str],
+    fxt_file: str,
     expected_saas_files: list[dict[str, Any]],
 ) -> None:
     namespaces = get_namespaces(
@@ -500,7 +517,7 @@ def test_get_saas_files(
     get_namespaces_mock.return_value = namespaces
 
     items = get_saas_files(
-        query_func=q("saas_files.yml", SaasFileV2, "saas_files"),
+        query_func=q(fxt_file, SaasFileV2, "saas_files"),
         name=name,
         env_name=env_name,
         app_name=app_name,

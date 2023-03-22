@@ -73,7 +73,7 @@ class SaasResourceTemplateTarget(ConfiguredBaseModel):
     delete: Optional[bool] = Field(..., alias="delete")
 
     class Config:
-        # ignore `namespaceSelector` field from the GQL schema
+        # ignore `namespaceSelector` and 'provider' fields from the GQL schema
         extra = Extra.ignore
 
 
@@ -208,7 +208,22 @@ def get_saas_files(
     for saas_file_gql in list(data.saas_files or []):
         for rt_gql in saas_file_gql.resource_templates:
             for target_gql in rt_gql.targets[:]:
-                if target_gql.namespace_selector:
+                # either namespace or namespaceSelector must be set
+                if target_gql.namespace and target_gql.namespace_selector:
+                    raise ParameterError(
+                        f"SaasFile {saas_file_gql.name}: namespace and namespaceSelector are mutually exclusive"
+                    )
+                if not target_gql.provider:
+                    target_gql.provider = "static"
+
+                if (
+                    target_gql.namespace_selector
+                    and not target_gql.provider == "dynamic"
+                ):
+                    raise ParameterError(
+                        f"SaasFile {saas_file_gql.name}: namespaceSelector can only be used with 'provider: dynamic'"
+                    )
+                if target_gql.namespace_selector and target_gql.provider == "dynamic":
                     rt_gql.targets.remove(target_gql)
                     rt_gql.targets += create_targets_for_namespace_selector(
                         query_func, target_gql, target_gql.namespace_selector

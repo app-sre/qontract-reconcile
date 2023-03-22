@@ -111,6 +111,7 @@ query SaasFiles {
             exclude
           }
         }
+        provider
         ref
         promotion {
           auto
