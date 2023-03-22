@@ -60,7 +60,9 @@ def test_terraform_config_client_collection_populate_resources():
 
 
 def test_terraform_config_client_collection_add_specs():
-    """add_specs() is called on the correct client."""
+    """
+    add_specs() is called on the correct client and resource_spec_inventory is updated.
+    """
     client_1: MagicMock = create_autospec(TerraformConfigClient)
     client_2: MagicMock = create_autospec(TerraformConfigClient)
     client_3: MagicMock = create_autospec(TerraformConfigClient)
@@ -81,6 +83,14 @@ def test_terraform_config_client_collection_add_specs():
     client_1.add_spec.assert_called_once_with(spec_1)
     client_2.add_spec.assert_has_calls([call(spec_2), call(spec_3)])
     client_3.add_spec.assert_has_calls([call(spec_4), call(spec_5)])
+
+    assert list(terraform_configs.resource_spec_inventory.values()) == [
+        spec_1,
+        spec_2,
+        spec_3,
+        spec_4,
+        spec_5,
+    ]
 
 
 def test_terraform_config_client_collection_add_specs_with_filter():

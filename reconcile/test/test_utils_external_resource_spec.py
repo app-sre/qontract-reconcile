@@ -109,14 +109,40 @@ def test_identifier_provider_missing():
         )
 
 
-def test_spec_output_prefix():
-    s = ExternalResourceSpec(
-        provision_provider="aws",
-        provisioner={"name": "a"},
-        resource={"identifier": "i", "provider": "p"},
-        namespace={},
-    )
-    assert s.output_prefix == "i-p"
+@pytest.mark.parametrize(
+    "external_resource,output_prefix",
+    [
+        (
+            ExternalResourceSpec(
+                provision_provider="aws",
+                provisioner={"name": "a"},
+                resource={"identifier": "i", "provider": "p"},
+                namespace={},
+            ),
+            "i-p",
+        ),
+        (
+            ExternalResourceSpec(
+                provision_provider="aws",
+                provisioner={"name": "a"},
+                resource={"identifier": "i", "provider": "hyphen-ated"},
+                namespace={},
+            ),
+            "i-hyphen-ated",
+        ),
+        (
+            ExternalResourceSpec(
+                provision_provider="aws",
+                provisioner={"name": "a"},
+                resource={"identifier": "i", "provider": "under_score"},
+                namespace={},
+            ),
+            "i-under-score",
+        ),
+    ],
+)
+def test_spec_output_prefix(external_resource, output_prefix):
+    assert external_resource.output_prefix == output_prefix
 
 
 def test_spec_implicit_output_resource_name():
