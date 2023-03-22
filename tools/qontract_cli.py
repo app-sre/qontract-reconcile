@@ -8,7 +8,10 @@ import sys
 from collections import defaultdict
 from datetime import datetime
 from operator import itemgetter
-from typing import Optional
+from typing import (
+    Any,
+    Optional,
+)
 
 import click
 import requests
@@ -2466,37 +2469,26 @@ def alert_to_receiver(
 @click.option("--saas-file-name", default=None, help="saas-file to act on.")
 @click.option("--env-name", default=None, help="environment to use for parameters.")
 @click.pass_context
-def saas_dev(ctx, app_name=None, saas_file_name=None, env_name=None):
+def saas_dev(ctx, app_name=None, saas_file_name=None, env_name=None) -> None:
     if env_name in [None, ""]:
         print("env-name must be defined")
         return
-    saas_files = queries.get_saas_files(saas_file_name, env_name, app_name)
+    saas_files = get_saas_files(saas_file_name, env_name, app_name)
     if not saas_files:
         print("no saas files found")
         sys.exit(1)
-    # TODO use saasherder and typed saas files
+
     for saas_file in saas_files:
-        saas_file_parameters = json.loads(saas_file.get("parameters") or "{}")
-        for rt in saas_file["resourceTemplates"]:
-            url = rt["url"]
-            path = rt["path"]
-            rt_parameters = json.loads(rt.get("parameters") or "{}")
-            for target in rt["targets"]:
-                target_parameters = json.loads(target.get("parameters") or "{}")
-                namespace = target["namespace"]
-                namespace_name = namespace["name"]
-                environment = namespace["environment"]
-                if environment["name"] != env_name:
+        for rt in saas_file.resource_templates:
+            for target in rt.targets:
+                if target.namespace.environment.name != env_name:
                     continue
-                ref = target["ref"]
-                environment_parameters = json.loads(
-                    environment.get("parameters") or "{}"
-                )
-                parameters = {}
-                parameters.update(environment_parameters)
-                parameters.update(saas_file_parameters)
-                parameters.update(rt_parameters)
-                parameters.update(target_parameters)
+
+                parameters: dict[str, Any] = {}
+                parameters.update(target.namespace.environment.parameters or {})
+                parameters.update(saas_file.parameters or {})
+                parameters.update(rt.parameters or {})
+                parameters.update(target.parameters or {})
 
                 for replace_key, replace_value in parameters.items():
                     if not isinstance(replace_value, str):
@@ -2511,15 +2503,15 @@ def saas_dev(ctx, app_name=None, saas_file_name=None, env_name=None):
                 parameters_cmd = ""
                 for k, v in parameters.items():
                     parameters_cmd += f' -p {k}="{v}"'
-                raw_url = url.replace("github.com", "raw.githubusercontent.com")
+                raw_url = rt.url.replace("github.com", "raw.githubusercontent.com")
                 if "gitlab" in raw_url:
                     raw_url += "/raw"
-                raw_url += "/" + ref
-                raw_url += path
+                raw_url += "/" + target.ref
+                raw_url += rt.path
                 cmd = (
                     "oc process --local --ignore-unknown-parameters"
                     + f"{parameters_cmd} -f {raw_url}"
-                    + f" | oc apply -n {namespace_name} -f - --dry-run"
+                    + f" | oc apply -n {target.namespace.name} -f - --dry-run"
                 )
                 print(cmd)
 
