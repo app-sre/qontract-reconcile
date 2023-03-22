@@ -1759,7 +1759,9 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                     logging.error(
                         "Parent saas target has run with a newer "
                         "configuration and the same commit (ref). "
-                        "Check if other MR exists for this target"
+                        "Check if other MR exists for this target, "
+                        f"or update {parent_saas_config.target_config_hash} "
+                        f"to {state_config_hash} for channel {channel}"
                     )
                     return False
         return True
