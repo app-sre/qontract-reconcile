@@ -17,6 +17,10 @@ from reconcile.utils.secret_reader import (
 )
 
 
+class OCConnectionError(Exception):
+    pass
+
+
 class Disable(Protocol):
     integrations: Optional[list[str]]
     e2e_tests: Optional[list[str]]
@@ -66,6 +70,13 @@ class Namespace(Protocol):
 
 
 @dataclass
+class ClusterSecret:
+    server: str
+    token: str
+    username: str
+
+
+@dataclass
 class OCConnectionParameters:
     """
     Container for Openshift Client (OC) parameters.
@@ -93,6 +104,29 @@ class OCConnectionParameters:
     jumphost_local_port: Optional[int]
 
     @staticmethod
+    def _get_token_verify_server_url(secret: ClusterSecret, cluster: Cluster) -> str:
+        if secret.server != cluster.server_url:
+            logging.error(
+                f"[{cluster.name}] server URL {cluster.server_url} does not match url in secret {secret.server}"
+            )
+            raise OCConnectionError(f"{cluster} server URL mismatch")
+        return secret.token
+
+    @staticmethod
+    def _get_automation_token(
+        secret_reader: SecretReaderBase, secret: HasSecret, cluster: Cluster
+    ) -> Optional[str]:
+        secret_raw = secret_reader.read_all_secret(secret)
+        return OCConnectionParameters._get_token_verify_server_url(
+            ClusterSecret(
+                server=secret_raw["server"],
+                token=secret_raw["token"],
+                username=secret_raw["username"],
+            ),
+            cluster,
+        )
+
+    @staticmethod
     def from_cluster(
         cluster: Cluster,
         secret_reader: SecretReaderBase,
@@ -105,8 +139,12 @@ class OCConnectionParameters:
         if cluster_admin:
             if cluster.cluster_admin_automation_token:
                 try:
-                    cluster_admin_automation_token = secret_reader.read_secret(
-                        cluster.cluster_admin_automation_token
+                    cluster_admin_automation_token = (
+                        OCConnectionParameters._get_automation_token(
+                            secret_reader,
+                            cluster.cluster_admin_automation_token,
+                            cluster,
+                        )
                     )
                 except SecretNotFound:
                     logging.error(
@@ -121,8 +159,8 @@ class OCConnectionParameters:
         else:
             if cluster.automation_token:
                 try:
-                    automation_token = secret_reader.read_secret(
-                        cluster.automation_token
+                    automation_token = OCConnectionParameters._get_automation_token(
+                        secret_reader, cluster.automation_token, cluster
                     )
                 except SecretNotFound:
                     logging.error(
