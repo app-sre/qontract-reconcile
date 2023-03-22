@@ -2,6 +2,7 @@ import logging
 import shutil
 import sys
 from collections.abc import (
+    Callable,
     Iterable,
     Mapping,
 )
@@ -72,7 +73,7 @@ def populate_oc_resources(
     spec: ob.CurrentStateSpec,
     ri: ResourceInventory,
     account_names: Optional[Iterable[str]],
-):
+) -> None:
     if spec.oc is None:
         return
     logging.debug(
@@ -190,7 +191,7 @@ def validate_account_names(
 
 def setup(
     dry_run: bool,
-    print_to_file: str,
+    print_to_file: Optional[str],
     thread_pool_size: int,
     internal: Optional[bool],
     use_jump_host: bool,
@@ -280,7 +281,11 @@ def filter_tf_namespaces(
     return tf_namespaces
 
 
-def cleanup_and_exit(tf=None, status=False, working_dirs=None):
+def cleanup_and_exit(
+    tf: Optional[Terraform] = None,
+    status: bool = False,
+    working_dirs: Optional[Mapping[str, str]] = None,
+) -> None:
     if working_dirs is None:
         working_dirs = {}
     if tf is None:
@@ -341,17 +346,17 @@ class MultipleAccountNamesInDryRunException(Exception):
 
 @defer
 def run(
-    dry_run,
-    print_to_file=None,
-    enable_deletion=False,
-    thread_pool_size=10,
-    internal=None,
-    use_jump_host=True,
-    light=False,
-    vault_output_path="",
+    dry_run: bool,
+    print_to_file: Optional[str] = None,
+    enable_deletion: bool = False,
+    thread_pool_size: int = 10,
+    internal: Optional[bool] = None,
+    use_jump_host: bool = True,
+    light: bool = False,
+    vault_output_path: str = "",
     account_name: Optional[Sequence[str]] = None,
     exclude_accounts: Optional[Sequence[str]] = None,
-    defer=None,
+    defer: Optional[Callable] = None,
 ) -> None:
     if exclude_accounts and not dry_run:
         message = "--exclude-accounts is only supported in dry-run mode"
@@ -386,7 +391,7 @@ def run(
         exclude_accounts,
     )
 
-    if not dry_run and oc_map:
+    if not dry_run and oc_map and defer:
         defer(oc_map.cleanup)
 
     if print_to_file:
@@ -441,7 +446,7 @@ def run(
     cleanup_and_exit(tf)
 
 
-def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
+def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
     gqlapi = gql.get_api()
     namespaces = get_tf_namespaces()
     resources = []
@@ -452,7 +457,7 @@ def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
 
             def register_resource(
                 spec: ExternalResourceSpec, resource: Optional[dict[str, Any]]
-            ):
+            ) -> None:
                 if resource:
                     resources.append(
                         {
