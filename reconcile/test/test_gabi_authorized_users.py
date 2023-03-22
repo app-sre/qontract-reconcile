@@ -68,20 +68,13 @@ def mock_get_gabi_instances(expiration_date: str) -> list[dict]:
 
 @patch.object(queries, "get_app_interface_settings", autospec=True)
 @patch.object(SecretReader, "read", autospec=True)
-@patch.object(SecretReader, "read_all", autospec=True)
 @patch.object(OCDeprecated, "get_version", autospec=True)
 @patch.object(queries, "get_gabi_instances", autospec=True)
 @patch.object(ApiClient, "request")
 @patch.dict(os.environ, {"USE_NATIVE_CLIENT": "True"}, clear=True)
 class TestGabiAuthorizedUser(TestCase):
     def test_gabi_authorized_users_exceed(
-        self,
-        mock_request,
-        get_gabi_instances,
-        oc_version,
-        secret_read,
-        secrect_read_all,
-        get_settings,
+        self, mock_request, get_gabi_instances, oc_version, secret_read, get_settings
     ):
         expiration_date = date.today() + timedelta(
             days=(gabi_u.EXPIRATION_DAYS_MAX + 1)
@@ -98,13 +91,11 @@ class TestGabiAuthorizedUser(TestCase):
         mock_request,
         get_gabi_instances,
         oc_version,
-        secrect_read_all,
         secret_read,
         get_settings,
     ):
         expiration_date = date(2023, 1, 1)
         get_gabi_instances.return_value = mock_get_gabi_instances(expiration_date)
-        secrect_read_all.return_value = {"server": "server", "token": "foo"}
         mock_request.side_effect = apply_request
         gabi_u.run(dry_run=False)
         expected = OR(
@@ -124,13 +115,11 @@ class TestGabiAuthorizedUser(TestCase):
         mock_request,
         get_gabi_instances,
         oc_version,
-        secrect_read_all,
         secret_read,
         get_settings,
     ):
         expiration_date = date.today()
         get_gabi_instances.return_value = mock_get_gabi_instances(expiration_date)
-        secrect_read_all.return_value = {"server": "server", "token": "foo"}
         mock_request.side_effect = delete_request
         sha.return_value = "abc"
         gabi_u.run(dry_run=False)
@@ -143,13 +132,11 @@ class TestGabiAuthorizedUser(TestCase):
         mock_request,
         get_gabi_instances,
         oc_version,
-        secrect_read_all,
         secret_read,
         get_settings,
     ):
         expiration_date = date(2023, 1, 1) - timedelta(days=1)
         get_gabi_instances.return_value = mock_get_gabi_instances(expiration_date)
-        secrect_read_all.return_value = {"server": "server", "token": "foo"}
         mock_request.side_effect = delete_request
         gabi_u.run(dry_run=False)
         expected = OR(
