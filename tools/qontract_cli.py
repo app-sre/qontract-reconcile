@@ -635,8 +635,9 @@ def ocm_addon_upgrade_policies(ctx):
         ocm_output = output.setdefault(ocm_name, [])
         for d in res.desired_state:
             sector = ""
-            if d.get("conditions", {}).get("sector"):
-                sector = d["conditions"]["sector"].name
+            conditions = d.get("conditions") or {}
+            if conditions.get("sector"):
+                sector =conditions["sector"].name
             version = d["current_version"]
             ocm_output.append(
                 {
@@ -645,8 +646,8 @@ def ocm_addon_upgrade_policies(ctx):
                     "current_version": version,
                     "schedule": d["schedule"],
                     "sector": sector,
-                    "mutexes": ", ".join(d.get("conditions", {}).get("mutexes", [])),
-                    "soak_days": d.get("conditions", {}).get("soakDays"),
+                    "mutexes": ", ".join(conditions.get("mutexes") or []),
+                    "soak_days": conditions.get("soakDays"),
                     "workloads": ", ".join(d["workloads"]),
                     "next_version": next_version if next_version != version else "",
                 }
