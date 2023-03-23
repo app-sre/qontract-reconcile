@@ -155,7 +155,7 @@ class CloudflareZoneTerrascriptResource(TerrascriptResource):
             resources.append(
                 Output(
                     output_name,
-                    value=f"${{{{ for value in {cert_pack.validation_records}: value.txt_name => value.txt_value }}}}",
+                    value=f"${{jsonencode({{ for value in {cert_pack.validation_records}: value.txt_name => value.txt_value }})}}",
                 )
             )
 
