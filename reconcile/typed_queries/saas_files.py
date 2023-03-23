@@ -1,4 +1,3 @@
-import functools
 import json
 from collections.abc import Callable
 from typing import (
@@ -126,16 +125,10 @@ class SaasFile(ConfiguredBaseModel):
     self_service_roles: Optional[list[RoleV1]] = Field(..., alias="selfServiceRoles")
 
 
-@functools.lru_cache()
-def get_namespaces(query_func: Callable) -> list[SaasTargetNamespace]:
-    return namespaces_query(query_func).namespaces or []
-
-
 def get_namespaces_by_selector(
-    query_func: Callable,
+    namespaces: list[SaasTargetNamespace],
     namespace_selector: SaasResourceTemplateTargetNamespaceSelectorV1,
 ) -> list[SaasTargetNamespace]:
-    namespaces = get_namespaces(query_func)
     namespaces_as_dict = {"namespace": [export_model(n) for n in namespaces]}
     filtered_namespaces: dict[str, Any] = {}
 
@@ -181,12 +174,12 @@ def export_model(model: BaseModel) -> dict[str, Any]:
 
 
 def create_targets_for_namespace_selector(
-    query_func: Callable,
     target: SaasResourceTemplateTargetV2,
+    namespaces: list[SaasTargetNamespace],
     namespace_selector: SaasResourceTemplateTargetNamespaceSelectorV1,
 ) -> list[SaasResourceTemplateTargetV2]:
     targets = []
-    for namespace in get_namespaces_by_selector(query_func, namespace_selector):
+    for namespace in get_namespaces_by_selector(namespaces, namespace_selector):
         target_dict = export_model(target)
         target_dict["namespace"] = export_model(namespace)
         targets.append(SaasResourceTemplateTargetV2(**target_dict))
@@ -198,11 +191,14 @@ def get_saas_files(
     env_name: Optional[str] = None,
     app_name: Optional[str] = None,
     query_func: Optional[Callable] = None,
+    namespaces: Optional[list[SaasTargetNamespace]] = None,
 ) -> list[SaasFile]:
     if not query_func:
         query_func = gql.get_api().query
     data = saas_files_query(query_func)
     saas_files: list[SaasFile] = []
+    if not namespaces:
+        namespaces = namespaces_query(query_func).namespaces or []
 
     # resolve namespaceSelectors to real namespaces
     for saas_file_gql in list(data.saas_files or []):
@@ -226,7 +222,7 @@ def get_saas_files(
                 if target_gql.namespace_selector and target_gql.provider == "dynamic":
                     rt_gql.targets.remove(target_gql)
                     rt_gql.targets += create_targets_for_namespace_selector(
-                        query_func, target_gql, target_gql.namespace_selector
+                        target_gql, namespaces, target_gql.namespace_selector
                     )
         # convert SaasFileV2 (with optional resource_templates.targets.namespace field)
         # to SaasFile (with required resource_templates.targets.namespace field)

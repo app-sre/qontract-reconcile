@@ -8,7 +8,6 @@ from typing import (
 import pytest
 from pytest_mock import MockerFixture
 
-import reconcile.typed_queries.saas_files
 from reconcile.gql_definitions.common.saas_files import (
     SaasFileV2,
     SaasResourceTemplateTargetNamespaceSelectorV1,
@@ -22,7 +21,6 @@ from reconcile.test.fixtures import Fixtures
 from reconcile.typed_queries.saas_files import (
     SaasFile,
     create_targets_for_namespace_selector,
-    get_namespaces,
     get_namespaces_by_selector,
     get_saas_files,
     get_saasherder_settings,
@@ -36,7 +34,7 @@ def fxt() -> Fixtures:
 
 
 @pytest.fixture
-def q(fxt: Fixtures, data_factory: Callable) -> Callable:
+def query_func_from_fixture(fxt: Fixtures, data_factory: Callable) -> Callable:
     def _q(
         fixture_file: str, gql_class: type, key: str
     ) -> Callable[..., dict[str, Any]]:
@@ -49,12 +47,17 @@ def q(fxt: Fixtures, data_factory: Callable) -> Callable:
     return _q
 
 
-def test_get_namespaces(q: Callable) -> None:
-    items = get_namespaces(
-        query_func=q("saas_files_namespaces.yml", SaasTargetNamespace, "namespaces")
-    )
-    assert len(items) == 6
-    assert items[0].name == "example-01"
+@pytest.fixture
+def namespaces(
+    gql_class_factory: Callable[..., SaasTargetNamespace], fxt: Fixtures
+) -> list[SaasTargetNamespace]:
+    return [
+        gql_class_factory(
+            SaasTargetNamespace,
+            ns,
+        )
+        for ns in fxt.get_anymarkup("saas_files_namespaces.yml")["namespaces"]
+    ]
 
 
 @pytest.mark.parametrize(
@@ -178,10 +181,13 @@ def test_get_namespaces(q: Callable) -> None:
     ],
 )
 def test_get_namespaces_by_selector(
-    q: Callable, json_path_selectors: Mapping[str, Any], expected_namespaces: list[str]
+    namespaces: list[SaasTargetNamespace],
+    json_path_selectors: Mapping[str, Any],
+    expected_namespaces: list[str],
 ) -> None:
+    Fixtures("saasherder").get_anymarkup("saas.gql.yml")
     items = get_namespaces_by_selector(
-        query_func=q("saas_files_namespaces.yml", SaasTargetNamespace, "namespaces"),
+        namespaces=namespaces,
         namespace_selector=SaasResourceTemplateTargetNamespaceSelectorV1(
             **json_path_selectors
         ),
@@ -190,10 +196,9 @@ def test_get_namespaces_by_selector(
 
 
 def test_create_targets_for_namespace_selector(
-    q: Callable, gql_class_factory: Callable
+    namespaces: list[SaasTargetNamespace], gql_class_factory: Callable
 ) -> None:
     items = create_targets_for_namespace_selector(
-        query_func=q("saas_files_namespaces.yml", SaasTargetNamespace, "namespaces"),
         target=gql_class_factory(
             SaasResourceTemplateTargetV2,
             {
@@ -201,6 +206,7 @@ def test_create_targets_for_namespace_selector(
                 "parameters": '{"FOO": "BAR"}',
             },
         ),
+        namespaces=namespaces,
         namespace_selector=SaasResourceTemplateTargetNamespaceSelectorV1(
             **{
                 "jsonPathSelectors": {
@@ -499,35 +505,32 @@ PIPELINE_PROVIDER = {
     ],
 )
 def test_get_saas_files(
-    q: Callable,
     gql_class_factory: Callable,
-    mocker: MockerFixture,
+    query_func_from_fixture: Callable[..., Callable],
+    namespaces: list[SaasTargetNamespace],
     name: Optional[str],
     env_name: Optional[str],
     app_name: Optional[str],
     fxt_file: str,
     expected_saas_files: list[dict[str, Any]],
 ) -> None:
-    namespaces = get_namespaces(
-        query_func=q("saas_files_namespaces.yml", SaasTargetNamespace, "namespaces")
-    )
-    get_namespaces_mock = mocker.patch.object(
-        reconcile.typed_queries.saas_files, "get_namespaces"
-    )
-    get_namespaces_mock.return_value = namespaces
-
     items = get_saas_files(
-        query_func=q(fxt_file, SaasFileV2, "saas_files"),
+        query_func=query_func_from_fixture(fxt_file, SaasFileV2, "saas_files"),
         name=name,
         env_name=env_name,
         app_name=app_name,
+        namespaces=namespaces,
     )
     assert items == [gql_class_factory(SaasFile, item) for item in expected_saas_files]
 
 
-def test_get_saasherder_settings(q: Callable) -> None:
+def test_get_saasherder_settings(
+    query_func_from_fixture: Callable[..., Callable]
+) -> None:
     setting = get_saasherder_settings(
-        query_func=q("saas_files_settings.yml", AppInterfaceSettingsV1, "settings"),
+        query_func=query_func_from_fixture(
+            "saas_files_settings.yml", AppInterfaceSettingsV1, "settings"
+        ),
     )
     assert setting.repo_url == "https://repo-url"
     assert setting.hash_length == 42
