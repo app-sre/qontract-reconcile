@@ -7,7 +7,10 @@ from collections.abc import Iterable
 from typing import Optional
 
 from reconcile.utils.exceptions import PrintToFileInGitRepositoryError
-from reconcile.utils.external_resource_spec import ExternalResourceSpec
+from reconcile.utils.external_resource_spec import (
+    ExternalResourceSpec,
+    ExternalResourceSpecInventory,
+)
 from reconcile.utils.git import is_file_in_git_repo
 
 
@@ -48,6 +51,8 @@ class TerraformConfigClientCollection:
 
     def __init__(self) -> None:
         self._clients: dict[str, TerraformConfigClient] = {}
+        self.resource_spec_inventory: ExternalResourceSpecInventory = {}
+        """Tracks the external resource specs across all clients in the collection."""
 
     def register_client(self, account_name: str, client: TerraformConfigClient) -> None:
         if account_name in self._clients:
@@ -81,6 +86,7 @@ class TerraformConfigClientCollection:
                 raise ClientNotRegisteredError(
                     f"There aren't any clients registered with the account name: {spec.provisioner_name}"
                 )
+            self.resource_spec_inventory[spec.id_object()] = spec
 
     def populate_resources(self) -> None:
         for client in self._clients.values():

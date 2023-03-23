@@ -2,6 +2,29 @@
 query TerraformCloudflareResources {
   namespaces: namespaces_v1 {
     name
+    clusterAdmin
+    cluster {
+      name
+      serverUrl
+      insecureSkipTLSVerify
+      jumpHost {
+        ... CommonJumphostFields
+      }
+      automationToken {
+        ... VaultSecret
+      }
+      clusterAdminAutomationToken {
+        ... VaultSecret
+      }
+      spec {
+        region
+      }
+      internal
+      disable {
+        integrations
+        e2eTests
+      }
+    }
     managedExternalResources
     externalResources {
       ... on NamespaceTerraformProviderResourceCloudflare_v1 {

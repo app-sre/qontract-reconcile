@@ -1216,13 +1216,15 @@ def cluster_openshift_resources(ctx):
 @get.command
 @click.pass_context
 def aws_terraform_resources(ctx):
-    gqlapi = gql.get_api()
-    namespaces = gqlapi.query(tfr.TF_NAMESPACES_QUERY)["namespaces"]
+    namespaces = tfr.get_namespaces()
     columns = ["name", "total"]
     results = {}
     for ns_info in namespaces:
         specs = (
-            get_external_resource_specs(ns_info, provision_provider=PROVIDER_AWS) or []
+            get_external_resource_specs(
+                ns_info.dict(by_alias=True), provision_provider=PROVIDER_AWS
+            )
+            or []
         )
         for spec in specs:
             account = spec.provisioner_name

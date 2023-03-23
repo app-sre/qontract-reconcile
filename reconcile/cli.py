@@ -1022,7 +1022,7 @@ def openshift_resources(
 @environ(["APP_INTERFACE_STATE_BUCKET", "APP_INTERFACE_STATE_BUCKET_ACCOUNT"])
 @environ(["gitlab_pr_submitter_queue_url"])
 @gitlab_project_id
-@threaded(default=20)
+@threaded()
 @throughput
 @use_jump_host()
 @binary(["oc", "ssh"])
@@ -1661,6 +1661,9 @@ def terraform_resources(
 @binary(["terraform"])
 @binary_version("terraform", ["version"], TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
 @account_name
+@vault_output_path
+@use_jump_host()
+@internal()
 @click.pass_context
 def terraform_cloudflare_resources(
     ctx,
@@ -1668,6 +1671,9 @@ def terraform_cloudflare_resources(
     enable_deletion,
     thread_pool_size,
     account_name,
+    vault_output_path,
+    internal,
+    use_jump_host,
 ):
     import reconcile.terraform_cloudflare_resources
 
@@ -1678,6 +1684,9 @@ def terraform_cloudflare_resources(
         enable_deletion,
         thread_pool_size,
         account_name,
+        vault_output_path,
+        internal,
+        use_jump_host,
     )
 
 

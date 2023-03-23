@@ -17,11 +17,57 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
+from reconcile.gql_definitions.fragments.jumphost_common_fields import (
+    CommonJumphostFields,
+)
+from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
+
 
 DEFINITION = """
+fragment CommonJumphostFields on ClusterJumpHost_v1 {
+  hostname
+  knownHosts
+  user
+  port
+  remotePort
+  identity {
+    ... VaultSecret
+  }
+}
+
+fragment VaultSecret on VaultSecret_v1 {
+    path
+    field
+    version
+    format
+}
+
 query TerraformCloudflareResources {
   namespaces: namespaces_v1 {
     name
+    clusterAdmin
+    cluster {
+      name
+      serverUrl
+      insecureSkipTLSVerify
+      jumpHost {
+        ... CommonJumphostFields
+      }
+      automationToken {
+        ... VaultSecret
+      }
+      clusterAdminAutomationToken {
+        ... VaultSecret
+      }
+      spec {
+        region
+      }
+      internal
+      disable {
+        integrations
+        e2eTests
+      }
+    }
     managedExternalResources
     externalResources {
       ... on NamespaceTerraformProviderResourceCloudflare_v1 {
@@ -92,6 +138,29 @@ class ConfiguredBaseModel(BaseModel):
     class Config:
         smart_union = True
         extra = Extra.forbid
+
+
+class ClusterSpecV1(ConfiguredBaseModel):
+    region: str = Field(..., alias="region")
+
+
+class DisableClusterAutomationsV1(ConfiguredBaseModel):
+    integrations: Optional[list[str]] = Field(..., alias="integrations")
+    e2e_tests: Optional[list[str]] = Field(..., alias="e2eTests")
+
+
+class ClusterV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+    server_url: str = Field(..., alias="serverUrl")
+    insecure_skip_tls_verify: Optional[bool] = Field(..., alias="insecureSkipTLSVerify")
+    jump_host: Optional[CommonJumphostFields] = Field(..., alias="jumpHost")
+    automation_token: Optional[VaultSecret] = Field(..., alias="automationToken")
+    cluster_admin_automation_token: Optional[VaultSecret] = Field(
+        ..., alias="clusterAdminAutomationToken"
+    )
+    spec: Optional[ClusterSpecV1] = Field(..., alias="spec")
+    internal: Optional[bool] = Field(..., alias="internal")
+    disable: Optional[DisableClusterAutomationsV1] = Field(..., alias="disable")
 
 
 class NamespaceExternalResourceV1(ConfiguredBaseModel):
@@ -189,6 +258,8 @@ class NamespaceTerraformProviderResourceCloudflareV1(NamespaceExternalResourceV1
 
 class NamespaceV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+    cluster_admin: Optional[bool] = Field(..., alias="clusterAdmin")
+    cluster: ClusterV1 = Field(..., alias="cluster")
     managed_external_resources: Optional[bool] = Field(
         ..., alias="managedExternalResources"
     )
