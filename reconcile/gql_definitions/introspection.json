@@ -4201,6 +4201,11 @@
                         },
                         {
                             "kind": "OBJECT",
+                            "name": "CloudflareAccount_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "OBJECT",
                             "name": "PermissionSlackUsergroup_v1",
                             "ofType": null
                         },
@@ -12842,6 +12847,11 @@
                             "kind": "INTERFACE",
                             "name": "ExternalResourcesProvisioner_v1",
                             "ofType": null
+                        },
+                        {
+                            "kind": "INTERFACE",
+                            "name": "DatafileObject_v1",
+                            "ofType": null
                         }
                     ],
                     "enumValues": null,
@@ -17191,37 +17201,17 @@
                             "deprecationReason": null
                         },
                         {
-                            "name": "provider",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "SCALAR",
-                                "name": "String",
-                                "ofType": null
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
                             "name": "namespace",
                             "description": null,
                             "args": [],
                             "type": {
-                                "kind": "OBJECT",
-                                "name": "Namespace_v1",
-                                "ofType": null
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "namespaceSelector",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "OBJECT",
-                                "name": "SaasResourceTemplateTargetNamespaceSelector_v1",
-                                "ofType": null
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "OBJECT",
+                                    "name": "Namespace_v1",
+                                    "ofType": null
+                                }
                             },
                             "isDeprecated": false,
                             "deprecationReason": null
@@ -17330,92 +17320,6 @@
                                 "kind": "SCALAR",
                                 "name": "Boolean",
                                 "ofType": null
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        }
-                    ],
-                    "inputFields": null,
-                    "interfaces": [],
-                    "enumValues": null,
-                    "possibleTypes": null
-                },
-                {
-                    "kind": "OBJECT",
-                    "name": "SaasResourceTemplateTargetNamespaceSelector_v1",
-                    "description": null,
-                    "fields": [
-                        {
-                            "name": "jsonPathSelectors",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "NON_NULL",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "OBJECT",
-                                    "name": "JsonPathSelectors_v1",
-                                    "ofType": null
-                                }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        }
-                    ],
-                    "inputFields": null,
-                    "interfaces": [],
-                    "enumValues": null,
-                    "possibleTypes": null
-                },
-                {
-                    "kind": "OBJECT",
-                    "name": "JsonPathSelectors_v1",
-                    "description": null,
-                    "fields": [
-                        {
-                            "name": "include",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "NON_NULL",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "LIST",
-                                    "name": null,
-                                    "ofType": {
-                                        "kind": "NON_NULL",
-                                        "name": null,
-                                        "ofType": {
-                                            "kind": "SCALAR",
-                                            "name": "String",
-                                            "ofType": null
-                                        }
-                                    }
-                                }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "exclude",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "NON_NULL",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "LIST",
-                                    "name": null,
-                                    "ofType": {
-                                        "kind": "NON_NULL",
-                                        "name": null,
-                                        "ofType": {
-                                            "kind": "SCALAR",
-                                            "name": "String",
-                                            "ofType": null
-                                        }
-                                    }
-                                }
                             },
                             "isDeprecated": false,
                             "deprecationReason": null
@@ -38976,16 +38880,24 @@
                             "deprecationReason": null
                         },
                         {
-                            "name": "awsAccount",
+                            "name": "awsAccounts",
                             "description": null,
                             "args": [],
                             "type": {
                                 "kind": "NON_NULL",
                                 "name": null,
                                 "ofType": {
-                                    "kind": "OBJECT",
-                                    "name": "AWSAccount_v1",
-                                    "ofType": null
+                                    "kind": "LIST",
+                                    "name": null,
+                                    "ofType": {
+                                        "kind": "NON_NULL",
+                                        "name": null,
+                                        "ofType": {
+                                            "kind": "OBJECT",
+                                            "name": "AWSAccount_v1",
+                                            "ofType": null
+                                        }
+                                    }
                                 }
                             },
                             "isDeprecated": false,
