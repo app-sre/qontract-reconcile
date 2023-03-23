@@ -216,10 +216,7 @@ def run(
         ]
     )
     desired_saas_file_state = collect_state(
-        [
-            export_model(saas_file)
-            for saas_file in get_saas_files(query_func=gql.get_api().query())
-        ]
+        [export_model(saas_file) for saas_file in get_saas_files()]
     )
     saas_file_state_diffs = [
         s for s in desired_saas_file_state if s not in comparison_saas_file_state
