@@ -10,6 +10,7 @@ from reconcile.test.oc.fixtures import (
     load_namespace_for_connection_parameters,
 )
 from reconcile.utils.oc_connection_parameters import (
+    OCConnectionError,
     OCConnectionParameters,
     get_oc_connection_parameters_from_namespaces,
 )
@@ -121,15 +122,37 @@ def test_from_cluster(
 ):
     test_cluster = load_cluster_for_connection_parameters(f"{cluster}.yml")
     secret_reader = create_autospec(SecretReaderBase)
-    secret_reader.read_secret.side_effect = ["secret1", "secret2"]
+    secret_reader.read_secret.side_effect = ["secret2"]
+    secret_reader.read_all_secret.side_effect = [
+        {"server": "server-url", "token": "secret1", "username": "foo"}
+    ]
+
     parameters = OCConnectionParameters.from_cluster(
         secret_reader=secret_reader,
         cluster=test_cluster,
         cluster_admin=False,
         use_jump_host=use_jump_host,
     )
-
     assert parameters == expected_parameters
+
+
+def test_wrong_server_url():
+    test_cluster = load_cluster_for_connection_parameters("cluster_no_jumphost.yml")
+    secret_reader = create_autospec(SecretReaderBase)
+    secret_reader.read_secret.side_effect = ["secret2"]
+    secret_reader.read_all_secret.side_effect = [
+        {"server": "wrong", "token": "secret1", "username": "foo"}
+    ]
+
+    with pytest.raises(OCConnectionError):
+        parameters = OCConnectionParameters.from_cluster(
+            secret_reader=secret_reader,
+            cluster=test_cluster,
+            cluster_admin=False,
+            use_jump_host=False,
+        )
+
+        assert parameters is None
 
 
 @dataclass
@@ -313,9 +336,17 @@ def test_from_namespaces(
         load_namespace_for_connection_parameters(f"{ns}.yml") for ns in namespaces
     ]
     secret_reader = create_autospec(SecretReaderBase)
-    secret_reader.read_secret.side_effect = (
-        ["secret"] * 100 if mock_secrets else SecretNotFound("secret")
-    )
+
+    if mock_secrets:
+        secret_reader.read_secret.return_value = "secret"
+        secret_reader.read_all_secret.return_value = {
+            "server": "server-url",
+            "token": "secret",
+            "username": "foo",
+        }
+    else:
+        secret_reader.read_all_secret.side_effect = SecretNotFound("secret")
+        secret_reader.read_secret.side_effect = SecretNotFound("secret")
 
     def _sort(items: Iterable[OCConnectionParameters]) -> list[OCConnectionParameters]:
         return sorted(items, key=lambda x: (x.cluster_name, str(x.automation_token)))

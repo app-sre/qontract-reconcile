@@ -7,6 +7,7 @@ from reconcile.gql_definitions.terraform_cloudflare_resources.terraform_cloudfla
     CloudflareAccountV1,
     CloudflareZoneCertificateV1,
     CloudflareZoneWorkerV1,
+    ClusterV1,
     NamespaceTerraformProviderResourceCloudflareV1,
     NamespaceTerraformResourceCloudflareZoneV1,
     NamespaceV1,
@@ -20,6 +21,18 @@ def query_data(external_resources):
         namespaces=[
             NamespaceV1(
                 name="namespace1",
+                clusterAdmin=True,
+                cluster=ClusterV1(
+                    name="test-cluster",
+                    serverUrl="http://localhost",
+                    insecureSkipTLSVerify=None,
+                    jumpHost=None,
+                    automationToken=None,
+                    clusterAdminAutomationToken=None,
+                    spec=None,
+                    internal=None,
+                    disable=None,
+                ),
                 managedExternalResources=True,
                 externalResources=[external_resources],
             )

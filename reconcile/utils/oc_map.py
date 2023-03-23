@@ -47,6 +47,7 @@ class OCMap:
         thread_pool_size: int = 1,
         init_projects: bool = False,
         init_api_resources: bool = False,
+        oc_cls: Optional[type[OC]] = None,
     ):
         self._oc_map: dict[str, Union[OCDeprecated, OCLogMsg]] = {}
         self._privileged_oc_map: dict[str, Union[OCDeprecated, OCLogMsg]] = {}
@@ -59,6 +60,7 @@ class OCMap:
         self._init_api_resources = init_api_resources
         self._lock = Lock()
         self._jh_ports: dict[str, int] = {}
+        self._oc_cls = oc_cls if oc_cls else OC
 
         threaded.run(
             self._init_oc_client,
@@ -126,9 +128,7 @@ class OCMap:
                     connection_parameters=connection_parameters
                 )
             try:
-                # TODO: wait for next mypy release to support this
-                # https://github.com/python/mypy/issues/14426
-                oc_client: Union[OCDeprecated, OCLogMsg] = OC(  # type: ignore
+                oc_client: Union[OCDeprecated, OCLogMsg] = self._oc_cls(
                     connection_parameters=connection_parameters,
                     init_projects=self._init_projects,
                     init_api_resources=self._init_api_resources,
