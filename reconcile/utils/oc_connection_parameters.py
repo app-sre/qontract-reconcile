@@ -105,6 +105,9 @@ class OCConnectionParameters:
 
     @staticmethod
     def _get_token_verify_server_url(secret: ClusterSecret, cluster: Cluster) -> str:
+        # Edge case, new cluster
+        if not cluster.server_url:
+            return ""
         if secret.server != cluster.server_url:
             logging.error(
                 f"[{cluster.name}] server URL {cluster.server_url} does not match url in secret {secret.server}"
