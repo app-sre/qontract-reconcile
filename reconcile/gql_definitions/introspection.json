@@ -4201,6 +4201,11 @@
                         },
                         {
                             "kind": "OBJECT",
+                            "name": "CloudflareAccount_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "OBJECT",
                             "name": "PermissionSlackUsergroup_v1",
                             "ofType": null
                         },
@@ -12841,6 +12846,11 @@
                         {
                             "kind": "INTERFACE",
                             "name": "ExternalResourcesProvisioner_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "INTERFACE",
+                            "name": "DatafileObject_v1",
                             "ofType": null
                         }
                     ],
@@ -31854,6 +31864,18 @@
                             "deprecationReason": null
                         },
                         {
+                            "name": "tiered_cache",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "OBJECT",
+                                "name": "CloudflareZoneTieredCache_v1",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
                             "name": "cache_reserve",
                             "description": null,
                             "args": [],
@@ -31962,6 +31984,33 @@
                                 "kind": "SCALAR",
                                 "name": "Boolean",
                                 "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        }
+                    ],
+                    "inputFields": null,
+                    "interfaces": [],
+                    "enumValues": null,
+                    "possibleTypes": null
+                },
+                {
+                    "kind": "OBJECT",
+                    "name": "CloudflareZoneTieredCache_v1",
+                    "description": null,
+                    "fields": [
+                        {
+                            "name": "cache_type",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
                             },
                             "isDeprecated": false,
                             "deprecationReason": null
@@ -38560,16 +38609,24 @@
                             "deprecationReason": null
                         },
                         {
-                            "name": "awsAccount",
+                            "name": "awsAccounts",
                             "description": null,
                             "args": [],
                             "type": {
                                 "kind": "NON_NULL",
                                 "name": null,
                                 "ofType": {
-                                    "kind": "OBJECT",
-                                    "name": "AWSAccount_v1",
-                                    "ofType": null
+                                    "kind": "LIST",
+                                    "name": null,
+                                    "ofType": {
+                                        "kind": "NON_NULL",
+                                        "name": null,
+                                        "ofType": {
+                                            "kind": "OBJECT",
+                                            "name": "AWSAccount_v1",
+                                            "ofType": null
+                                        }
+                                    }
                                 }
                             },
                             "isDeprecated": false,
