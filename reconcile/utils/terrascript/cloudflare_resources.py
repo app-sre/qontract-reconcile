@@ -168,6 +168,11 @@ class CloudflareZoneTerrascriptResource(TerrascriptResource):
 
         zone_settings = values.pop("settings", {})
         zone_argo = values.pop("argo", None)
+        # TODO: Do something with this value when cache_reserve is supported in
+        #       the provider https://github.com/cloudflare/terraform-provider-cloudflare
+        #       We pop the value here because it's not supported by the provider at this
+        #       time.
+        _ = values.pop("cache_reserve", None)
         zone_records = values.pop("records", [])
         zone_workers = values.pop("workers", [])
         zone_certs = values.pop("certificates", [])

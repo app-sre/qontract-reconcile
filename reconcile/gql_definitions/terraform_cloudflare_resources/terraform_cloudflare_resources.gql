@@ -59,6 +59,9 @@ query TerraformCloudflareResources {
               smart_routing
               tiered_caching
             }
+            cache_reserve {
+              enabled
+            }
             records {
               identifier
               name
