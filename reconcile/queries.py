@@ -2671,6 +2671,7 @@ DNS_ZONES_QUERY = """
       vpc_id
       region
     }
+    allowed_vault_secret_paths
     records {
       %s
       _healthcheck {

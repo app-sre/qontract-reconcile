@@ -895,8 +895,17 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 "records_from_vault", None
             )
             if records_from_vault:
+                allowed_vault_secret_paths = cast(
+                    set[str], zone.get("allowed_vault_secret_paths")
+                ) or set()
                 vault_values: list[str] = []
                 for rec in records_from_vault:
+                    if not rec["path"] in allowed_vault_secret_paths:
+                        raise ValueError(
+                            "{} is not in the list of approved Vault secret paths (allowed_vault_secret_paths)".format(
+                                rec["path"]
+                            )
+                        )
                     value = self.secret_reader.read(
                         {
                             "path": rec["path"],

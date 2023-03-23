@@ -66,6 +66,10 @@ def build_desired_state(
         if vpc:
             zone_values["vpc"] = {"vpc_id": vpc["vpc_id"], "vpc_region": vpc["region"]}
 
+        allowed_vault_secret_paths = zone.get("allowed_vault_secret_paths")
+        if allowed_vault_secret_paths:
+            zone_values["allowed_vault_secret_paths"] = set(allowed_vault_secret_paths)
+
         for record in zone["records"]:
             record_name = record["name"]
             record_type = record["type"]
