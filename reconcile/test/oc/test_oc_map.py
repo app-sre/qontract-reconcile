@@ -3,7 +3,6 @@ from typing import Any
 from unittest.mock import (
     MagicMock,
     create_autospec,
-    patch,
 )
 
 import pytest
