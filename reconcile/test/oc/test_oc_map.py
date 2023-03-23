@@ -1,10 +1,17 @@
 from collections.abc import Mapping
 from typing import Any
-from unittest.mock import patch
+from unittest.mock import (
+    MagicMock,
+    create_autospec,
+    patch,
+)
 
 import pytest
 
-from reconcile.utils.oc import OC
+from reconcile.utils.oc import (
+    OC,
+    OCDeprecated,
+)
 from reconcile.utils.oc_connection_parameters import OCConnectionParameters
 from reconcile.utils.oc_map import (
     OCLogMsg,
@@ -33,8 +40,17 @@ def make_connection_parameter(data: Mapping[str, Any]) -> OCConnectionParameters
     )
 
 
-@patch("reconcile.utils.oc_map.OC", autospec=True)
-def test_oc_map_with_errors(oc_mock: OC):
+class OCTest(OC):
+    def __new__(cls, **kwargs: Any):
+        return create_autospec(spec=OCDeprecated)
+
+
+@pytest.fixture
+def oc_cls() -> type[OC]:
+    return MagicMock(return_value=create_autospec(spec=OCDeprecated))
+
+
+def test_oc_map_with_errors(oc_cls: type[OC]):
     params_1 = make_connection_parameter(
         {
             "cluster_name": "test-1",
@@ -51,15 +67,14 @@ def test_oc_map_with_errors(oc_mock: OC):
 
     cluster_names = [params_1.cluster_name, params_2.cluster_name]
 
-    oc_map = OCMap(connection_parameters=[params_1, params_2])
+    oc_map = OCMap(connection_parameters=[params_1, params_2], oc_cls=oc_cls)
 
     assert oc_map.clusters(include_errors=True) == cluster_names
     assert isinstance(oc_map._oc_map.get(params_1.cluster_name), OCLogMsg)
-    assert isinstance(oc_map._oc_map.get(params_2.cluster_name), OC)
+    assert isinstance(oc_map._oc_map.get(params_2.cluster_name), OCDeprecated)
 
 
-@patch("reconcile.utils.oc_map.OC", autospec=True)
-def test_privileged_clusters(oc_mock: OC):
+def test_privileged_clusters(oc_cls: type[OC]):
     param_1 = make_connection_parameter(
         {
             "cluster_name": "cluster-1",
@@ -76,12 +91,12 @@ def test_privileged_clusters(oc_mock: OC):
         }
     )
 
-    oc_map = OCMap(connection_parameters=[param_1, param_2])
+    oc_map = OCMap(connection_parameters=[param_1, param_2], oc_cls=oc_cls)
     assert oc_map.clusters() == [param_2.cluster_name]
     assert oc_map.clusters(privileged=True) == [param_1.cluster_name]
     assert isinstance(oc_map.get(param_1.cluster_name), OCLogMsg)
-    assert isinstance(oc_map.get(param_2.cluster_name), OC)
-    assert isinstance(oc_map.get(param_1.cluster_name, privileged=True), OC)
+    assert isinstance(oc_map.get(param_2.cluster_name), OCDeprecated)
+    assert isinstance(oc_map.get(param_1.cluster_name, privileged=True), OCDeprecated)
     assert isinstance(oc_map.get(param_2.cluster_name, privileged=True), OCLogMsg)
 
 
