@@ -913,6 +913,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                             "version": rec["version"],
                         }
                     )
+                    # 'key' is only set when the secret data is in JSON format and a
+                    # specific item from the object needs to be selected, otherwise the
+                    # value is used as-is.
                     if rec["key"]:
                         try:
                             value = json.loads(value)[rec["key"]]
