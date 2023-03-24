@@ -56,6 +56,7 @@ query Projects {
           role
         }
         users {
+          name
           org_username
         }
       }
@@ -115,6 +116,7 @@ class GlitchtipRoleV1(ConfiguredBaseModel):
 
 
 class UserV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
     org_username: str = Field(..., alias="org_username")
 
 
