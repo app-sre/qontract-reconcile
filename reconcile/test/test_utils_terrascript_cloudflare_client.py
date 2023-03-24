@@ -215,7 +215,6 @@ def test_create_cloudflare_resources_terraform_json(account_config, backend_conf
                 "cloudflare": {
                     "source": "cloudflare/cloudflare",
                     "version": "3.18",
-                    "rps": 4,
                 }
             },
             "backend": {
@@ -233,6 +232,7 @@ def test_create_cloudflare_resources_terraform_json(account_config, backend_conf
                 {
                     "api_token": "api-token",
                     "account_id": "account_id",
+                    "rps": 4,
                 }
             ]
         },
