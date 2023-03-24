@@ -16,6 +16,9 @@ from terrascript import (
 from terrascript.resource import (
     cloudflare_account_member,
     cloudflare_argo,
+    cloudflare_logpull_retention,
+    cloudflare_logpush_job,
+    cloudflare_logpush_ownership_challenge,
     cloudflare_record,
     cloudflare_worker_route,
     cloudflare_worker_script,
@@ -86,6 +89,12 @@ def create_cloudflare_terrascript_resource(
         return CloudflareZoneTerrascriptResource(spec).populate()
     if resource_type == "account_member":
         return CloudflareAccountMemberTerrascriptResource(spec).populate()
+    if resource_type == "logpush_ownership_challenge":
+        return CloudflareLogpushOwnershipChallengeResource(spec).populate()
+    if resource_type == "logpush_job":
+        return CloudflareLogpushJob(spec).populate()
+    if resource_type == "logpull_retention":
+        return CloudflareLogpullRetention(spec).populate()
     raise UnsupportedCloudflareResourceError(
         f"The resource type {resource_type} is not supported"
     )
@@ -249,4 +258,122 @@ class CloudflareAccountMemberTerrascriptResource(TerrascriptResource):
         )
         resources.append(cf_account_roles)
 
+        return resources
+
+
+class CloudflareLogpushJob(TerrascriptResource):
+    class cloudflare_zone(Data):
+        """
+        https://registry.terraform.io/providers/cloudflare/cloudflare/latest/docs/data-sources/zones
+
+        This resource isn't supported directly by Terrascript, which is why it needs to be
+        defined like this as a Resource. In addition, this data source class has name collision with resource, hence
+        we are defining this as inner class.
+        """
+
+    def populate(self) -> list[Union[Resource, Output, Data]]:
+        resources = []
+        values = ResourceValueResolver(self._spec).resolve()
+        destination_conf = values.get("destination_conf")
+        zone = values.get("zone_name")
+        enabled = values.get("enabled")
+        logpull_options = values.get("logpull_options")
+        dataset = values.get("dataset")
+        frequency = values.get("frequency")
+        ownership_challenge = values.get("ownership_challenge")
+
+        if zone:
+            resources.append(
+                self.cloudflare_zone(zone, name=zone, account_id="${var.account_id}")
+            )
+            resources.append(
+                cloudflare_logpush_job(
+                    self._spec.identifier,
+                    enabled=enabled,
+                    logpull_options=logpull_options,
+                    ownership_challenge=ownership_challenge,
+                    dataset=dataset,
+                    frequency=frequency,
+                    destination_conf=destination_conf,
+                    zone_id=f"${{data.cloudflare_zone.{zone}.id}}",
+                )
+            )
+        else:
+            resources.append(
+                cloudflare_logpush_job(
+                    self._spec.identifier,
+                    enabled=enabled,
+                    logpull_options=logpull_options,
+                    ownership_challenge=ownership_challenge,
+                    dataset=dataset,
+                    frequency=frequency,
+                    destination_conf=destination_conf,
+                    account_id="${var.account_id}",
+                )
+            )
+
+        return resources
+
+
+class CloudflareLogpushOwnershipChallengeResource(TerrascriptResource):
+    class cloudflare_zone(Data):
+        """
+        https://registry.terraform.io/providers/cloudflare/cloudflare/latest/docs/data-sources/zones
+
+        This resource isn't supported directly by Terrascript, which is why it needs to be
+        defined like this as a Resource. In addition, this data source class has name collision with resource, hence
+        we are defining this as inner class.
+        """
+
+    def populate(self) -> list[Union[Resource, Output, Data]]:
+        resources = []
+        values = ResourceValueResolver(self._spec).resolve()
+        destination_conf = values.get("destination_conf")
+        zone = values.get("zone_name")
+        if zone:
+            resources.append(
+                self.cloudflare_zone(zone, name=zone, account_id="${var.account_id}")
+            )
+            resources.append(
+                cloudflare_logpush_ownership_challenge(
+                    self._spec.identifier,
+                    zone_id=f"${{data.cloudflare_zone.{zone}.id}}",
+                    destination_conf=destination_conf,
+                )
+            )
+        else:
+            resources.append(
+                cloudflare_logpush_ownership_challenge(
+                    self._spec.identifier,
+                    account_id="${var.account_id}",
+                    destination_conf=destination_conf,
+                )
+            )
+        return resources
+
+
+class CloudflareLogpullRetention(TerrascriptResource):
+    class cloudflare_zone(Data):
+        """
+        https://registry.terraform.io/providers/cloudflare/cloudflare/latest/docs/data-sources/zones
+
+        This resource isn't supported directly by Terrascript, which is why it needs to be
+        defined like this as a Resource. In addition, this data source class has name collision with resource, hence
+        we are defining this as inner class.
+        """
+
+    def populate(self) -> list[Union[Resource, Output, Data]]:
+        resources = []
+        values = ResourceValueResolver(self._spec).resolve()
+
+        zone = values.get("zone")
+        resources.append(
+            self.cloudflare_zone(zone, name=zone, account_id="${var.account_id}")
+        )
+        cf_logpull_retention = cloudflare_logpull_retention(
+            self._spec.identifier,
+            zone_id=f"${{data.cloudflare_zone.{zone}.id}}",
+            enabled=values.get("enabled_flag"),
+        )
+        resources.append(cf_logpull_retention)
         return resources
