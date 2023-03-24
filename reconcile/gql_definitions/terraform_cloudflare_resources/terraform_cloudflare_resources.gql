@@ -86,6 +86,29 @@ query TerraformCloudflareResources {
               wait_for_active_status
             }
           }
+          ... on NamespaceTerraformResourceLogpushOwnershipChallenge_v1
+          {
+            destination_conf
+            zone_name: zone
+            identifier
+          }
+          ... on NamespaceTerraformResourceLogpushJob_v1
+          {
+            destination_conf
+            zone_name: zone
+            identifier
+            enabled
+            logpull_options
+            ownership_challenge
+            dataset
+            frequency
+          }
+          ... on NamespaceTerraformResourceLogpullRetention_v1
+          {
+            zone
+            enabled_flag: enabled
+            identifier
+          }
         }
       }
     }
