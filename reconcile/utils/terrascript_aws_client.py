@@ -252,6 +252,10 @@ class UnknownProviderError(Exception):
         super().__init__("unknown provider error: " + str(msg))
 
 
+class UnapprovedSecretPathError(Exception):
+    pass
+
+
 class aws_ecrpublic_repository(Resource):
     pass
 
@@ -901,8 +905,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 vault_values: list[str] = []
                 for rec in records_from_vault:
                     if not rec["path"] in allowed_vault_secret_paths:
-                        raise ValueError(
-                            "{} is not in the list of approved Vault secret paths (allowed_vault_secret_paths)".format(
+                        raise UnapprovedSecretPathError(
+                            "'{}' is not in the list of approved Vault secret paths. Add this path to 'allowed_vault_secret_paths'.".format(
                                 rec["path"]
                             )
                         )
@@ -926,12 +930,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                             )
                             raise
                         except KeyError:
-                            logging.error(
-                                "Key '%s' was not found in secret: %s",
-                                rec["key"],
-                                rec["path"],
-                            )
-                            raise
+                            msg = f"Key '{rec['key']}' was not found in the contents of secret '{rec['path']}'"
+                            logging.error(msg)
+                            raise KeyError(msg)
                     vault_values.append(value)
                 record["records"] = vault_values
 
