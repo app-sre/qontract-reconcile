@@ -2671,6 +2671,7 @@ DNS_ZONES_QUERY = """
       vpc_id
       region
     }
+    allowed_vault_secret_paths
     records {
       %s
       _healthcheck {
@@ -2685,6 +2686,12 @@ DNS_ZONES_QUERY = """
       _target_cluster {
         name
         elbFQDN
+      }
+      _records_from_vault {
+        path
+        field
+        key
+        version
       }
       _target_namespace_zone {
         namespace {
