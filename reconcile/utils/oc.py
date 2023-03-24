@@ -303,6 +303,12 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
                 insecure_skip_tls_verify=insecure_skip_tls_verify,
             )
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self.cleanup()
+
     def _init_old_without_types(
         self,
         cluster_name: str,
@@ -1253,6 +1259,17 @@ class OCNative(OCDeprecated):
                 kind = "Namespace"
             self.projects = [p["metadata"]["name"] for p in self.get_all(kind)["items"]]
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self.cleanup()
+
+    def cleanup(self):
+        super().cleanup()
+        if hasattr(self, "client") and self.client is not None:
+            self.client.client.close()
+
     @retry(exceptions=(ServerTimeoutError, InternalServerError, ForbiddenError))
     def _get_client(self, server, token):
         opts = dict(
@@ -1597,6 +1614,12 @@ class OC_Map:
                 )
         else:
             raise KeyError("expected one of clusters or namespaces.")
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self.cleanup()
 
     def set_jh_ports(self, jh):
         # This will be replaced with getting the data from app-interface in
