@@ -101,8 +101,9 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
 
     def cleanup(self):
         """
-        This method is a placeholder for cleanup actions. This is aligned with SQSGateway.
+        Close gl session.
         """
+        self.gl.session.close()
 
     @retry()
     def _auth(self):
