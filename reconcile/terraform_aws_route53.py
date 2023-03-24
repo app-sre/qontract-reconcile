@@ -4,7 +4,10 @@ from collections.abc import (
     Iterable,
     Mapping,
 )
-from typing import Any
+from typing import (
+    Any,
+    Optional,
+)
 
 from reconcile import queries
 from reconcile.status import ExitCodes
@@ -62,6 +65,10 @@ def build_desired_state(
         vpc = zone.get("vpc")
         if vpc:
             zone_values["vpc"] = {"vpc_id": vpc["vpc_id"], "vpc_region": vpc["region"]}
+
+        allowed_vault_secret_paths = zone.get("allowed_vault_secret_paths")
+        if allowed_vault_secret_paths:
+            zone_values["allowed_vault_secret_paths"] = set(allowed_vault_secret_paths)
 
         for record in zone["records"]:
             record_name = record["name"]
@@ -180,6 +187,16 @@ def build_desired_state(
                 )
                 record["healthcheck"] = healthcheck
 
+            # Process '_records_from_vault'
+            records_from_vault = record.pop("_records_from_vault", None)
+            if records_from_vault:
+                logging.debug(
+                    f"{zone_name}: field `_records_from_vault` found "
+                    f"for record {record_name}. Values are: "
+                    f"{records_from_vault}"
+                )
+                record["records_from_vault"] = records_from_vault
+
             zone_values["records"].append(record)
 
         desired_state.append(zone_values)
@@ -188,11 +205,11 @@ def build_desired_state(
 
 @defer
 def run(
-    dry_run=False,
-    print_to_file=None,
-    enable_deletion=True,
-    thread_pool_size=10,
-    account_name=None,
+    dry_run: bool = False,
+    print_to_file: Optional[str] = None,
+    enable_deletion: bool = True,
+    thread_pool_size: int = 10,
+    account_name: Optional[str] = None,
     defer=None,
 ):
     settings = queries.get_app_interface_settings()

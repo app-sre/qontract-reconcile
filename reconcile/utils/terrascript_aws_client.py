@@ -18,6 +18,7 @@ from ipaddress import (
     ip_address,
     ip_network,
 )
+from json import JSONDecodeError
 from threading import Lock
 from typing import (
     Any,
@@ -249,6 +250,10 @@ class StateInaccessibleException(Exception):
 class UnknownProviderError(Exception):
     def __init__(self, msg):
         super().__init__("unknown provider error: " + str(msg))
+
+
+class UnapprovedSecretPathError(Exception):
+    pass
 
 
 class aws_ecrpublic_repository(Resource):
@@ -833,7 +838,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     assume_role={"role_arn": assume_role},
                 )
 
-    def populate_route53(self, desired_state, default_ttl=300):
+    def populate_route53(
+        self, desired_state: Iterable[dict[str, Any]], default_ttl: int = 300
+    ) -> None:
         for zone in desired_state:
             acct_name = zone["account_name"]
 
@@ -886,6 +893,48 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 self.add_resource(acct_name, healthcheck_resource)
                 # Assign the healthcheck resource ID to the record
                 record["health_check_id"] = f"${{{healthcheck_resource.id}}}"
+
+            # Get value from Vault if _records_from_vault was set
+            records_from_vault: Optional[Iterable[dict[str, str]]] = record.pop(
+                "records_from_vault", None
+            )
+            if records_from_vault:
+                allowed_vault_secret_paths = (
+                    cast(set[str], zone.get("allowed_vault_secret_paths")) or set()
+                )
+                vault_values: list[str] = []
+                for rec in records_from_vault:
+                    if not rec["path"] in allowed_vault_secret_paths:
+                        raise UnapprovedSecretPathError(
+                            "'{}' is not in the list of approved Vault secret paths. Add this path to 'allowed_vault_secret_paths'.".format(
+                                rec["path"]
+                            )
+                        )
+                    value = self.secret_reader.read(
+                        {
+                            "path": rec["path"],
+                            "field": rec["field"],
+                            "version": rec["version"],
+                        }
+                    )
+                    # 'key' is only set when the secret data is in JSON format and a
+                    # specific item from the object needs to be selected, otherwise the
+                    # value is used as-is.
+                    if rec["key"]:
+                        try:
+                            value = json.loads(value)[rec["key"]]
+                        except JSONDecodeError:
+                            logging.error(
+                                "Failed to decode the contents of secret (is it in JSON format?): %s",
+                                rec["path"],
+                            )
+                            raise
+                        except KeyError:
+                            msg = f"Key '{rec['key']}' was not found in the contents of secret '{rec['path']}'"
+                            logging.error(msg)
+                            raise KeyError(msg)
+                    vault_values.append(value)
+                record["records"] = vault_values
 
             record_values = {"zone_id": f"${{{zone_resource.id}}}", **record}
             record_resource = aws_route53_record(record_id, **record_values)
