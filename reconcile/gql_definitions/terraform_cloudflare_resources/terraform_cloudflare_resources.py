@@ -132,6 +132,29 @@ query TerraformCloudflareResources {
               wait_for_active_status
             }
           }
+          ... on NamespaceTerraformResourceLogpushOwnershipChallenge_v1
+          {
+            destination_conf
+            zone_name: zone
+            identifier
+          }
+          ... on NamespaceTerraformResourceLogpushJob_v1
+          {
+            destination_conf
+            zone_name: zone
+            identifier
+            enabled
+            logpull_options
+            ownership_challenge
+            dataset
+            frequency
+          }
+          ... on NamespaceTerraformResourceLogpullRetention_v1
+          {
+            zone
+            enabled_flag: enabled
+            identifier
+          }
         }
       }
     }
@@ -264,13 +287,43 @@ class NamespaceTerraformResourceCloudflareZoneV1(
     )
 
 
+class NamespaceTerraformResourceLogpushOwnershipChallengeV1(
+    NamespaceTerraformResourceCloudflareV1
+):
+    destination_conf: str = Field(..., alias="destination_conf")
+    zone_name: Optional[str] = Field(..., alias="zone_name")
+    identifier: str = Field(..., alias="identifier")
+
+
+class NamespaceTerraformResourceLogpushJobV1(NamespaceTerraformResourceCloudflareV1):
+    destination_conf: str = Field(..., alias="destination_conf")
+    zone_name: Optional[str] = Field(..., alias="zone_name")
+    identifier: str = Field(..., alias="identifier")
+    enabled: Optional[bool] = Field(..., alias="enabled")
+    logpull_options: Optional[str] = Field(..., alias="logpull_options")
+    ownership_challenge: Optional[str] = Field(..., alias="ownership_challenge")
+    dataset: Optional[str] = Field(..., alias="dataset")
+    frequency: Optional[str] = Field(..., alias="frequency")
+
+
+class NamespaceTerraformResourceLogpullRetentionV1(
+    NamespaceTerraformResourceCloudflareV1
+):
+    zone: str = Field(..., alias="zone")
+    enabled_flag: bool = Field(..., alias="enabled_flag")
+    identifier: str = Field(..., alias="identifier")
+
+
 class NamespaceTerraformProviderResourceCloudflareV1(NamespaceExternalResourceV1):
     provider: str = Field(..., alias="provider")
     provisioner: CloudflareAccountV1 = Field(..., alias="provisioner")
     resources: list[
         Union[
             NamespaceTerraformResourceCloudflareZoneV1,
+            NamespaceTerraformResourceLogpushJobV1,
             NamespaceTerraformResourceCloudflareWorkerScriptV1,
+            NamespaceTerraformResourceLogpushOwnershipChallengeV1,
+            NamespaceTerraformResourceLogpullRetentionV1,
             NamespaceTerraformResourceCloudflareV1,
         ]
     ] = Field(..., alias="resources")

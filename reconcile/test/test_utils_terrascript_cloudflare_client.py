@@ -134,8 +134,76 @@ def test_create_cloudflare_resources_terraform_json(account_config, backend_conf
         {},
     )
 
+    cf_logpush_ownership_challenge_for_zone = ExternalResourceSpec(
+        "cloudflare",
+        {"name": "cloudflare-account"},
+        {
+            "provider": "logpush_ownership_challenge",
+            "identifier": "logpush_ownership_challenge_zone",
+            "zone_name": "test-zone",
+            "destination_conf": "s3://bucket/logs?region=us-east-1&sse=AES256",
+        },
+        {},
+    )
+    cf_logpush_ownership_challenge_for_account = ExternalResourceSpec(
+        "cloudflare",
+        {"name": "cloudflare-account"},
+        {
+            "provider": "logpush_ownership_challenge",
+            "identifier": "logpush_ownership_challenge_account",
+            "destination_conf": "s3://bucket/logs?region=us-east-1&sse=AES256",
+        },
+        {},
+    )
+    cf_logpush_job_for_zone = ExternalResourceSpec(
+        "cloudflare",
+        {"name": "cloudflare-account"},
+        {
+            "provider": "logpush_job",
+            "identifier": "logpush_job_zone",
+            "enabled": True,
+            "zone_name": "test-zone",
+            "logpull_options": "fields=RayID,ClientIP,EdgeStartTimestamp&timestamps=rfc3339",
+            "destination_conf": "s3://bucket/logs?region=us-east-1&sse=AES256",
+            "ownership_challenge": "some-challenge",
+            "dataset": "http_requests",
+            "frequency": "high",
+        },
+        {},
+    )
+    cf_logpush_job_for_account = ExternalResourceSpec(
+        "cloudflare",
+        {"name": "cloudflare-account"},
+        {
+            "provider": "logpush_job",
+            "identifier": "logpush_job_account",
+            "enabled": True,
+            "logpull_options": "fields=RayID,ClientIP,EdgeStartTimestamp&timestamps=rfc3339",
+            "destination_conf": "s3://bucket/logs?region=us-east-1&sse=AES256",
+            "ownership_challenge": "some-challenge",
+            "dataset": "http_requests",
+            "frequency": "high",
+        },
+        {},
+    )
+    cf_logpull_retention = ExternalResourceSpec(
+        "cloudflare",
+        {"name": "cloudflare-account"},
+        {
+            "provider": "logpull_retention",
+            "identifier": "test",
+            "zone": "test-zone",
+            "enabled_flag": True,
+        },
+        {},
+    )
     cloudflare_client.add_spec(spec)
     cloudflare_client.add_spec(cf_account_member_spec)
+    cloudflare_client.add_spec(cf_logpush_ownership_challenge_for_zone)
+    cloudflare_client.add_spec(cf_logpush_ownership_challenge_for_account)
+    cloudflare_client.add_spec(cf_logpush_job_for_zone)
+    cloudflare_client.add_spec(cf_logpush_job_for_account)
+    cloudflare_client.add_spec(cf_logpull_retention)
     cloudflare_client.populate_resources()
 
     expected_dict = {
@@ -168,7 +236,10 @@ def test_create_cloudflare_resources_terraform_json(account_config, backend_conf
         "data": {
             "cloudflare_account_roles": {
                 "cloudflare-account": {"account_id": "${var.account_id}"}
-            }
+            },
+            "cloudflare_zone": {
+                "test-zone": {"account_id": "${var.account_id}", "name": "test-zone"}
+            },
         },
         "variable": {"account_id": {"default": "account_id", "type": "string"}},
         "resource": {
@@ -230,6 +301,42 @@ def test_create_cloudflare_resources_terraform_json(account_config, backend_conf
                     "cloudflare_branding": "false",
                     "wait_for_active_status": "false",
                     "depends_on": ["cloudflare_zone.domain-com"],
+                }
+            },
+            "cloudflare_logpush_ownership_challenge": {
+                "logpush_ownership_challenge_zone": {
+                    "destination_conf": "s3://bucket/logs?region=us-east-1&sse=AES256",
+                    "zone_id": "${data.cloudflare_zone.test-zone.id}",
+                },
+                "logpush_ownership_challenge_account": {
+                    "account_id": "${var.account_id}",
+                    "destination_conf": "s3://bucket/logs?region=us-east-1&sse=AES256",
+                },
+            },
+            "cloudflare_logpush_job": {
+                "logpush_job_zone": {
+                    "zone_id": "${data.cloudflare_zone.test-zone.id}",
+                    "dataset": "http_requests",
+                    "destination_conf": "s3://bucket/logs?region=us-east-1&sse=AES256",
+                    "enabled": True,
+                    "frequency": "high",
+                    "logpull_options": "fields=RayID,ClientIP,EdgeStartTimestamp&timestamps=rfc3339",
+                    "ownership_challenge": "some-challenge",
+                },
+                "logpush_job_account": {
+                    "account_id": "${var.account_id}",
+                    "dataset": "http_requests",
+                    "destination_conf": "s3://bucket/logs?region=us-east-1&sse=AES256",
+                    "enabled": True,
+                    "frequency": "high",
+                    "logpull_options": "fields=RayID,ClientIP,EdgeStartTimestamp&timestamps=rfc3339",
+                    "ownership_challenge": "some-challenge",
+                },
+            },
+            "cloudflare_logpull_retention": {
+                "test": {
+                    "enabled": True,
+                    "zone_id": "${data.cloudflare_zone.test-zone.id}",
                 }
             },
         },
