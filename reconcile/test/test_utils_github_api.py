@@ -66,7 +66,7 @@ def test_get_file_list_returned():
         github=github(multiple_contents=True),
     )
     content = api.get_file(path="some/path")
-    assert content == None
+    assert content is None
     api._repo.get_contents.assert_called_once_with(  # type: ignore[attr-defined]
         path="some/path",
         ref="master",
