@@ -1,0 +1,7 @@
+# qenerate: plugin=pydantic_v1
+
+query AUSOrganizations($name: String) {
+  organizations: ocm_instances_v1(name: $name) {
+    ... AUSOCMOrganization
+  }
+}

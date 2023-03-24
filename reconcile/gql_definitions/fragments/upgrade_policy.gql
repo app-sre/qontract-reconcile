@@ -1,0 +1,11 @@
+# qenerate: plugin=pydantic_v1
+
+fragment ClusterUpgradePolicy on ClusterUpgradePolicy_v1 {
+  workloads
+  schedule
+  conditions {
+    mutexes
+    soakDays
+    sector
+  }
+}

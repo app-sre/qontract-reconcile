@@ -1,31 +1,36 @@
 import copy
 import logging
 import sys
-from collections.abc import Mapping
+from abc import abstractmethod
+from collections.abc import (
+    Iterable,
+    Mapping,
+)
 from datetime import datetime
 from typing import (
     Any,
     Callable,
-    Iterable,
     Optional,
 )
 
 from croniter import croniter
 from semver import VersionInfo
 
-from reconcile import queries
+from reconcile.aus.models import OrganizationUpgradeSpec
 from reconcile.utils.cluster_version_data import (
     VersionData,
     WorkloadHistory,
     get_version_data,
 )
 from reconcile.utils.defer import defer
-from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.ocm import (
     OCM,
-    OCM_PRODUCT_OSD,
     OCMMap,
     Sector,
+)
+from reconcile.utils.runtime.integration import (
+    NoParams,
+    QontractReconcileIntegration,
 )
 from reconcile.utils.semver_helper import (
     parse_semver,
@@ -33,9 +38,33 @@ from reconcile.utils.semver_helper import (
 )
 from reconcile.utils.state import init_state
 
-QONTRACT_INTEGRATION = "ocm-upgrade-scheduler"
 
-SUPPORTED_OCM_PRODUCTS = [OCM_PRODUCT_OSD]
+class AdvancedUpgradeSchedulerBaseIntegration(QontractReconcileIntegration[NoParams]):
+    def run(self, dry_run: bool) -> None:
+        upgrade_specs_per_org = self.get_organization_upgrade_spec()
+        if not upgrade_specs_per_org:
+            logging.debug("No upgrade policy definitions found")
+            sys.exit(0)
+
+        for org_name, org_upgrade_spec in upgrade_specs_per_org.items():
+            if org_upgrade_spec.specs:
+                self.process_upgrade_policies_in_org(dry_run, org_upgrade_spec)
+            else:
+                logging.debug(
+                    f"Skip org {org_name} because it defines no upgrade policies"
+                )
+
+    @abstractmethod
+    def process_upgrade_policies_in_org(
+        self, dry_run: bool, org_upgrade_spec: OrganizationUpgradeSpec
+    ) -> None:
+        ...
+
+    @abstractmethod
+    def get_organization_upgrade_spec(
+        self, org_name: Optional[str] = None
+    ) -> dict[str, OrganizationUpgradeSpec]:
+        ...
 
 
 # consider first lower versions and lower soakdays (when versions are equal)
@@ -99,7 +128,9 @@ def fetch_desired_state(
     return sorted_desired_state
 
 
-def update_history(version_data: VersionData, upgrade_policies: list[dict[str, Any]]):
+def update_history(
+    version_data: VersionData, upgrade_policies: list[dict[str, Any]]
+) -> None:
     """Update history with information from clusters with upgrade policies.
 
     Args:
@@ -139,6 +170,7 @@ def get_version_data_map(
     dry_run: bool,
     upgrade_policies: list[dict[str, Any]],
     ocm_map: OCMMap,
+    integration: str,
     addon_id: str = "",
     defer: Optional[Callable] = None,
 ) -> dict[str, VersionData]:
@@ -155,7 +187,7 @@ def get_version_data_map(
     Returns:
         dict: version data per OCM instance
     """
-    state = init_state(integration=QONTRACT_INTEGRATION)
+    state = init_state(integration=integration)
     if defer:
         defer(state.cleanup)
     results: dict[str, VersionData] = {}
@@ -226,7 +258,7 @@ def version_conditions_met(
     ocm_name: str,
     workloads: list[str],
     upgrade_conditions: dict[str, Any],
-):
+) -> bool:
     """Check that upgrade conditions are met for a version
 
     Args:
@@ -473,7 +505,7 @@ def calculate_diff(
     return diffs
 
 
-def sort_diffs(diff):
+def sort_diffs(diff: dict[str, Any]) -> int:
     if diff["action"] == "delete":
         return 1
     return 2
@@ -527,38 +559,3 @@ def act(dry_run: bool, diffs: list[dict], ocm_map: OCMMap, addon_id: str = "") -
                     ocm.delete_addon_upgrade_policy(cluster, diff)
                 else:
                     ocm.delete_upgrade_policy(cluster, diff)
-
-
-def _cluster_is_compatible(cluster: Mapping[str, Any]) -> bool:
-    return (
-        cluster.get("ocm") is not None
-        and cluster.get("upgradePolicy") is not None
-        and cluster["spec"]["product"] in SUPPORTED_OCM_PRODUCTS
-    )
-
-
-def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
-    clusters = queries.get_clusters()
-    settings = queries.get_app_interface_settings()
-
-    clusters = [
-        c
-        for c in clusters
-        if integration_is_enabled(QONTRACT_INTEGRATION, c) and _cluster_is_compatible(c)
-    ]
-
-    if not clusters:
-        logging.debug("No upgradePolicy definitions found in app-interface")
-        sys.exit(0)
-
-    ocm_map = OCMMap(
-        clusters=clusters,
-        integration=QONTRACT_INTEGRATION,
-        settings=settings,
-        init_version_gates=True,
-    )
-    current_state = fetch_current_state(clusters, ocm_map)
-    desired_state = fetch_desired_state(clusters, ocm_map)
-    version_data_map = get_version_data_map(dry_run, desired_state, ocm_map)
-    diffs = calculate_diff(current_state, desired_state, ocm_map, version_data_map)
-    act(dry_run, diffs, ocm_map)
