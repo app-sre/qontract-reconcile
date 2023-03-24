@@ -1,52 +1,46 @@
 import os
-from collections.abc import Mapping
 from pathlib import Path
 from typing import Optional
 from urllib.parse import urlparse
 
-import github
+from github import (
+    Github,
+    UnknownObjectException,
+)
 from sretoolbox.utils import retry
-
-from reconcile.utils.secret_reader import SecretReader
 
 GH_BASE_URL = os.environ.get("GITHUB_API", "https://api.github.com")
 
 
-class GithubApi:
+class GithubRepositoryApi:
     """
     Github client implementing the common interfaces used in
     the qontract-reconcile integrations.
 
-    :param instance: the Github instance and provided
-                     by the app-interface
     :param repo_url: the Github repository URL
-    :param settings: the app-interface settings
-    :type instance: dict
+    :param token: auth token for Github
     :type repo_url: str
-    :type settings: dict
+    :type token: str
     """
 
     def __init__(
         self,
         repo_url: str,
-        token: Optional[str] = None,
-        instance: Optional[Mapping] = None,
-        settings: Optional[Mapping] = None,
+        token: str,
         timeout: int = 30,
+        github: Optional[Github] = None,
     ):
         parsed_repo_url = urlparse(repo_url)
         repo = parsed_repo_url.path.strip("/")
-        if not token:
-            if not secret_reader or not settings:
-                raise RuntimeError("GithubAPI needs token or settings and instance obj")
-            secret_reader = SecretReader(settings=settings)
-            token = secret_reader.read(instance["token"])
-        git_cli = github.Github(token, base_url=GH_BASE_URL, timeout=timeout)
-        self.repo = git_cli.get_repo(repo)
+
+        git_cli = github
+        if not git_cli:
+            git_cli = Github(token, base_url=GH_BASE_URL, timeout=timeout)
+        self._repo = git_cli.get_repo(repo)
 
     def get_repository_tree(self, ref: str = "master") -> list[dict[str, str]]:
         tree_items = []
-        for item in self.repo.get_git_tree(sha=ref, recursive=True).tree:
+        for item in self._repo.get_git_tree(sha=ref, recursive=True).tree:
             tree_item = {"path": item.path, "name": Path(item.path).name}
             tree_items.append(tree_item)
         return tree_items
@@ -54,10 +48,16 @@ class GithubApi:
     @retry()
     def get_file(self, path: str, ref: str = "master") -> Optional[bytes]:
         try:
-            return self.repo.get_contents(path, ref).decoded_content
-        except github.UnknownObjectException:
+            content = self._repo.get_contents(path=path, ref=ref)
+            if isinstance(content, list):
+                # TODO: we should probably raise an exception here
+                # or handle this properly
+                # -> for now staying backwards compatible
+                return None
+            return content.decoded_content
+        except UnknownObjectException:
             return None
 
     @retry()
     def get_commit_sha(self, ref: str) -> str:
-        return self.repo.get_commit(sha=ref).sha
+        return self._repo.get_commit(sha=ref).sha
