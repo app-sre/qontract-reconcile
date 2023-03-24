@@ -1,5 +1,7 @@
 import os
+from collections.abc import Mapping
 from pathlib import Path
+from typing import Optional
 from urllib.parse import urlparse
 
 import github
@@ -24,15 +26,25 @@ class GithubApi:
     :type settings: dict
     """
 
-    def __init__(self, instance, repo_url, settings, timeout=30):
+    def __init__(
+        self,
+        repo_url: str,
+        token: Optional[str] = None,
+        instance: Optional[Mapping] = None,
+        settings: Optional[Mapping] = None,
+        timeout: int = 30,
+    ):
         parsed_repo_url = urlparse(repo_url)
         repo = parsed_repo_url.path.strip("/")
-        secret_reader = SecretReader(settings=settings)
-        token = secret_reader.read(instance["token"])
+        if not token:
+            if not secret_reader or not settings:
+                raise RuntimeError("GithubAPI needs token or settings and instance obj")
+            secret_reader = SecretReader(settings=settings)
+            token = secret_reader.read(instance["token"])
         git_cli = github.Github(token, base_url=GH_BASE_URL, timeout=timeout)
         self.repo = git_cli.get_repo(repo)
 
-    def get_repository_tree(self, ref="master"):
+    def get_repository_tree(self, ref: str = "master") -> list[dict[str, str]]:
         tree_items = []
         for item in self.repo.get_git_tree(sha=ref, recursive=True).tree:
             tree_item = {"path": item.path, "name": Path(item.path).name}
@@ -40,8 +52,12 @@ class GithubApi:
         return tree_items
 
     @retry()
-    def get_file(self, path, ref="master"):
+    def get_file(self, path: str, ref: str = "master") -> Optional[bytes]:
         try:
             return self.repo.get_contents(path, ref).decoded_content
         except github.UnknownObjectException:
             return None
+
+    @retry()
+    def get_commit_sha(self, ref: str) -> str:
+        return self.repo.get_commit(sha=ref).sha

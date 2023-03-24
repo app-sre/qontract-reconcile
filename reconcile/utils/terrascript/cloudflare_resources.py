@@ -119,9 +119,9 @@ class CloudflareWorkerScriptTerrascriptResource(TerrascriptResource):
         gh_path = values["content_from_github"]["path"]
         gh_ref = values["content_from_github"]["ref"]
         gh = GithubApi(
-            queries.get_github_instance(),
-            gh_repo,
-            queries.get_app_interface_settings(),
+            repo_url=gh_repo,
+            instance=queries.get_github_instance(),
+            settings=queries.get_app_interface_settings(),
         )
         content = gh.get_file(gh_path, gh_ref)
         if content is None:

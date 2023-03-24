@@ -15,4 +15,4 @@ class TestGithubApi(TestCase):
             "token": "non-existent-token",
         }
         with self.assertRaises(ConnectTimeout):
-            GithubApi(instance, repo_url="repo", settings=None, timeout=1)
+            GithubApi(instance=instance, repo_url="repo", settings=None, timeout=1)

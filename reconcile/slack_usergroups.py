@@ -72,10 +72,10 @@ def get_git_api(url: str) -> Union[GithubApi, GitLabApi]:
     if parsed_url.hostname:
         if "github" in parsed_url.hostname:
             instance = queries.get_github_instance()
-            return GithubApi(instance, repo_url=url, settings=settings)
+            return GithubApi(instance=instance, repo_url=url, settings=settings)
         if "gitlab" in parsed_url.hostname:
             instance = queries.get_gitlab_instance()
-            return GitLabApi(instance, project_url=url, settings=settings)
+            return GitLabApi(instance=instance, project_url=url, settings=settings)
 
     raise ValueError(f"Unable to handle URL: {url}")
 
