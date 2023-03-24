@@ -102,6 +102,9 @@ query TerraformCloudflareResources {
               smart_routing
               tiered_caching
             }
+            tiered_cache {
+              cache_type
+            }
             cache_reserve {
               enabled
             }
@@ -228,6 +231,10 @@ class CloudflareZoneArgoV1(ConfiguredBaseModel):
     tiered_caching: Optional[bool] = Field(..., alias="tiered_caching")
 
 
+class CloudflareZoneTieredCacheV1(ConfiguredBaseModel):
+    cache_type: str = Field(..., alias="cache_type")
+
+
 class CloudflareZoneCacheReserveV1(ConfiguredBaseModel):
     enabled: Optional[bool] = Field(..., alias="enabled")
 
@@ -267,6 +274,9 @@ class NamespaceTerraformResourceCloudflareZoneV1(
     q_type: Optional[str] = Field(..., alias="type")
     settings: Optional[Json] = Field(..., alias="settings")
     argo: Optional[CloudflareZoneArgoV1] = Field(..., alias="argo")
+    tiered_cache: Optional[CloudflareZoneTieredCacheV1] = Field(
+        ..., alias="tiered_cache"
+    )
     cache_reserve: Optional[CloudflareZoneCacheReserveV1] = Field(
         ..., alias="cache_reserve"
     )

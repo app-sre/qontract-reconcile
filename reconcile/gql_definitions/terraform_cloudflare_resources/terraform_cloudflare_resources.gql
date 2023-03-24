@@ -59,6 +59,9 @@ query TerraformCloudflareResources {
               smart_routing
               tiered_caching
             }
+            tiered_cache {
+              cache_type
+            }
             cache_reserve {
               enabled
             }

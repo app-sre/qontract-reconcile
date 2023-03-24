@@ -64,6 +64,9 @@ def external_resources(provisioner_config):
                     "tiered_caching": True,
                     "smart_routing": True,
                 },
+                tiered_cache={
+                    "cache_type": "smart",
+                },
                 cache_reserve={
                     "enabled": True,
                 },

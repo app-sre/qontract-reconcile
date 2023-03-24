@@ -55,6 +55,15 @@ class cloudflare_certificate_pack(Resource):
     """
 
 
+class cloudflare_tiered_cache(Resource):
+    """
+    https://registry.terraform.io/providers/cloudflare/cloudflare/latest/docs/resources/tiered_cache
+
+    This resource isn't supported directly by Terrascript, which is why it needs to be
+    defined like this as a Resource.
+    """
+
+
 class cloudflare_accounts(Data):
     """
     https://registry.terraform.io/providers/cloudflare/cloudflare/latest/docs/data-sources/accounts
@@ -182,6 +191,7 @@ class CloudflareZoneTerrascriptResource(TerrascriptResource):
         #       We pop the value here because it's not supported by the provider at this
         #       time.
         _ = values.pop("cache_reserve", None)
+        zone_tiered_cache = values.pop("tiered_cache", None)
         zone_records = values.pop("records", [])
         zone_workers = values.pop("workers", [])
         zone_certs = values.pop("certificates", [])
@@ -220,6 +230,17 @@ class CloudflareZoneTerrascriptResource(TerrascriptResource):
             }
 
             resources.append(cloudflare_argo(self._spec.identifier, **argo_values))
+
+        if zone_tiered_cache is not None:
+            tiered_cache_values = {
+                "zone_id": f"${{{zone.id}}}",
+                "depends_on": self._get_dependencies([zone]),
+                **zone_tiered_cache,
+            }
+
+            resources.append(
+                cloudflare_tiered_cache(self._spec.identifier, **tiered_cache_values)
+            )
 
         for record in zone_records:
             identifier = safe_resource_id(record.pop("identifier"))
