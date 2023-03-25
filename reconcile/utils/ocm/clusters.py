@@ -44,7 +44,6 @@ class OCMCluster(BaseModel):
     openshift_version: str
     state: OCMClusterState
 
-    # projected properties
     subscription_id: str
     organization_id: str
     region_id: str
@@ -53,6 +52,11 @@ class OCMCluster(BaseModel):
     product_id: str
 
     capabilities: dict[str, OCMCapability]
+    """
+    The capabilities of a cluster. They represent feature flags and are
+    found on the subscription of a cluster.
+    """
+
     subscription_labels: dict[str, OCMSubscriptionLabel]
     organization_labels: dict[str, OCMOrganizationLabel]
 
@@ -67,6 +71,10 @@ class OCMCluster(BaseModel):
 def discover_clusters_by_labels(
     ocm_api: OCMBaseClient, label_filter: Filter
 ) -> list[OCMCluster]:
+    """
+    Discover clusters in OCM by their subscription and organization labels.
+    The discovery labels are defined via the label_filter argument.
+    """
     subscription_ids = set()
     organization_ids = set()
     for label in get_labels(ocm_api=ocm_api, filter=label_filter):
@@ -89,6 +97,11 @@ def discover_clusters_for_subscriptions(
     subscription_ids: list[str],
     cluster_filter: Optional[Filter] = None,
 ) -> list[OCMCluster]:
+    """
+    Discover clusters by filtering on their subscription IDs.
+    Additionally, a cluster_filter can be applied to narrow the
+    discovered clusters.
+    """
     if not subscription_ids:
         return []
 
@@ -106,6 +119,11 @@ def discover_clusters_for_organizations(
     organization_ids: list[str],
     cluster_filter: Optional[Filter] = None,
 ) -> list[OCMCluster]:
+    """
+    Discover clusters by filtering on their organization IDs.
+    Additionally, a cluster_filter can be applied to narrow the
+    discovered clusters.
+    """
     if not organization_ids:
         return []
 
@@ -123,6 +141,11 @@ def get_clusters_for_subscriptions(
     subscription_filter: Optional[Filter] = None,
     cluster_filter: Optional[Filter] = None,
 ) -> dict[str, "OCMCluster"]:
+    """
+    Discover clusters by filtering on their subscriptions. The subscription_filter
+    can be used to restrict on any subscription field. Additionally, a cluster_filter
+    can be applied to narrow the discovered clusters.
+    """
     # get subscription details
     subscriptions = get_subscriptions(
         ocm_api=ocm_api,
@@ -181,9 +204,13 @@ def get_clusters_for_subscriptions(
 
 
 def cluster_ready_for_app_interface() -> Filter:
+    """
+    Filter for clusters that are considered ready for app-interface processing,
+    which boils down to managed OSD/ROSA clusters in ready state.
+    """
     return (
         Filter()
         .eq("managed", "true")
-        .eq("state", "ready")
+        .eq("state", OCMClusterState.READY.value)
         .is_in("product.id", ["osd", "rosa"])
     )

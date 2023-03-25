@@ -14,6 +14,9 @@ from reconcile.utils.ocm_base_client import OCMBaseClient
 def get_subscription_labels(
     ocm_api: OCMBaseClient, filter: Filter
 ) -> Generator["OCMSubscriptionLabel", None, None]:
+    """
+    Finds all subscription labels that match the given filter.
+    """
     for subscription_label in get_labels(
         ocm_api=ocm_api, filter=filter.eq("type", "Subscription")
     ):
@@ -24,6 +27,9 @@ def get_subscription_labels(
 def get_organization_labels(
     ocm_api: OCMBaseClient, filter: Filter
 ) -> Generator["OCMOrganizationLabel", None, None]:
+    """
+    Finds all organization labels that match the given filter.
+    """
     for org_label in get_labels(
         ocm_api=ocm_api, filter=filter.eq("type", "Organization")
     ):
@@ -34,6 +40,9 @@ def get_organization_labels(
 def get_labels(
     ocm_api: OCMBaseClient, filter: Filter
 ) -> Generator["OCMLabel", None, None]:
+    """
+    Finds all labels that match the given filter.
+    """
     for label_dict in ocm_api.get_paginated(
         api_path="/api/accounts_mgmt/v1/labels",
         params={"search": filter.render()},
@@ -42,6 +51,9 @@ def get_labels(
 
 
 def build_label_from_dict(label_dict: dict[str, Any]) -> "OCMLabel":
+    """
+    Translates a label dict into a type specific label object.
+    """
     if label_dict["type"] == "Subscription":
         return OCMSubscriptionLabel(**label_dict)
     if label_dict["type"] == "Organization":
@@ -52,6 +64,10 @@ def build_label_from_dict(label_dict: dict[str, Any]) -> "OCMLabel":
 
 
 class OCMLabel(BaseModel):
+    """
+    Represents a general label without any type specific information.
+    See subclasses for type specific information.
+    """
 
     id: str
     internal: bool
@@ -61,24 +77,41 @@ class OCMLabel(BaseModel):
     key: str
     value: str
     type: str
+    """
+    The type of the label, e.g. Subscription, Organization, Account.
+    See subclasses.
+    """
 
 
 class OCMOrganizationLabel(OCMLabel):
+    """
+    Represents a label attached to an organization.
+    """
 
     organization_id: str
 
 
 class OCMSubscriptionLabel(OCMLabel):
+    """
+    Represents a label attached to a subscription.
+    """
 
     subscription_id: str
 
 
 class OCMAccountLabel(OCMLabel):
+    """
+    Represents a label attached to an account.
+    """
 
     account_id: str
 
 
 def label_filter(key: str, value: Optional[str] = None) -> Filter:
+    """
+    Creates a filter that matches a label with the given key and
+    optionally a value.
+    """
     lf = Filter().eq("key", key)
     if value:
         return lf.eq("value", value)
