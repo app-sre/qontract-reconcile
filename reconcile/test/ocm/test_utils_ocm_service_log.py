@@ -146,7 +146,7 @@ def test_create_service_log_dedup_timedelta_filter(
     )
     get_service_logs_filter = get_service_logs_mock.call_args.kwargs["filter"]
     assert isinstance(get_service_logs_filter, Filter)
-    daterange_condition = get_service_logs_filter.conditions["created_at"]
+    daterange_condition = get_service_logs_filter.condition_by_key("created_at")
     assert isinstance(daterange_condition, DateRangeCondition)
     assert daterange_condition.start is not None
     assert daterange_condition.end is None

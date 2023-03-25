@@ -11,10 +11,7 @@ from reconcile.utils.ocm.labels import (
     get_labels,
     get_organization_labels,
 )
-from reconcile.utils.ocm.search_filters import (
-    Filter,
-    or_filter,
-)
+from reconcile.utils.ocm.search_filters import Filter
 from reconcile.utils.ocm.subscriptions import (
     OCMCapability,
     build_subscription_filter,
@@ -77,14 +74,12 @@ def discover_clusters_by_labels(
             subscription_ids.add(label.subscription_id)
         elif isinstance(label, OCMOrganizationLabel):
             organization_ids.add(label.organization_id)
-    subscription_filter = or_filter(
-        Filter().is_in("id", subscription_ids),
-        Filter().is_in("organization_id", organization_ids),
-    )
+    sub_id_filter = Filter().is_in("id", subscription_ids)
+    org_id_filter = Filter().is_in("organization_id", organization_ids)
     return list(
         get_clusters_for_subscriptions(
             ocm_api=ocm_api,
-            subscription_filter=subscription_filter,
+            subscription_filter=sub_id_filter | org_id_filter,
         ).values()
     )
 
@@ -131,7 +126,7 @@ def get_clusters_for_subscriptions(
     # get subscription details
     subscriptions = get_subscriptions(
         ocm_api=ocm_api,
-        filter=(subscription_filter or Filter()).combine(build_subscription_filter()),
+        filter=(subscription_filter or Filter()) & build_subscription_filter(),
     )
     if not subscriptions:
         return {}
@@ -148,10 +143,8 @@ def get_clusters_for_subscriptions(
         organization_labels[label.organization_id].append(label)
 
     result: dict[str, OCMCluster] = {}
-    cluster_search_filter = (
-        cluster_ready_for_app_interface()
-        .combine(cluster_filter)
-        .is_in("subscription.id", subscriptions.keys())
+    cluster_search_filter = (cluster_ready_for_app_interface() & cluster_filter).is_in(
+        "subscription.id", subscriptions.keys()
     )
     chunk_size = 100
     for filter_chunk in cluster_search_filter.chunk_by(

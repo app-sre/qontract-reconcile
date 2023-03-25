@@ -26,10 +26,7 @@ from reconcile.utils.ocm.labels import (
     OCMSubscriptionLabel,
     label_filter,
 )
-from reconcile.utils.ocm.search_filters import (
-    Filter,
-    or_filter,
-)
+from reconcile.utils.ocm.search_filters import Filter
 from reconcile.utils.ocm_base_client import OCMBaseClient
 
 
@@ -167,9 +164,9 @@ def test_discover_clusters_by_labels(
     # subscription filter
     get_clusters_for_subscriptions_mock.assert_called_once_with(
         ocm_api=ocm_api,
-        subscription_filter=or_filter(
-            Filter().is_in("id", ["sub_id", "sub_id_2"]),
-            Filter().is_in("organization_id", ["org_id"]),
+        subscription_filter=(
+            Filter().is_in("id", ["sub_id", "sub_id_2"])
+            | Filter().is_in("organization_id", ["org_id"])
         ),
     )
 
@@ -231,7 +228,7 @@ def test_get_clusters_for_subscriptions(
 
     get_subscriptions_mock.assert_called_once_with(
         ocm_api=ocm_api,
-        filter=subscription_filter.combine(subscriptions.build_subscription_filter()),
+        filter=subscription_filter & subscriptions.build_subscription_filter(),
     )
 
     get_organization_labels_mock.assert_called_once_with(
@@ -264,7 +261,7 @@ def test_get_clusters_for_subscriptions_none_found(
 
     get_subscriptions_mock.assert_called_once_with(
         ocm_api=ocm_api,
-        filter=subscription_filter.combine(subscriptions.build_subscription_filter()),
+        filter=subscription_filter & subscriptions.build_subscription_filter(),
     )
 
 
