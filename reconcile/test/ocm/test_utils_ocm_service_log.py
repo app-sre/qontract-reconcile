@@ -70,7 +70,6 @@ def example_service_log(
 
 def test_get_service_logs(
     ocm_api: OCMBaseClient,
-    httpretty: httpretty_module,
     example_service_log: OCMClusterServiceLog,
 ):
     fetched_logs = list(
