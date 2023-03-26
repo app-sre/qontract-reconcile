@@ -25285,6 +25285,26 @@
                             "deprecationReason": null
                         },
                         {
+                            "name": "allowed_vault_secret_paths",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "LIST",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "NON_NULL",
+                                    "name": null,
+                                    "ofType": {
+                                        "kind": "SCALAR",
+                                        "name": "String",
+                                        "ofType": null
+                                    }
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
                             "name": "origin",
                             "description": null,
                             "args": [],
@@ -25678,6 +25698,26 @@
                             },
                             "isDeprecated": false,
                             "deprecationReason": null
+                        },
+                        {
+                            "name": "_records_from_vault",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "LIST",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "NON_NULL",
+                                    "name": null,
+                                    "ofType": {
+                                        "kind": "OBJECT",
+                                        "name": "DnsRecordFromVault_v1",
+                                        "ofType": null
+                                    }
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
                         }
                     ],
                     "inputFields": null,
@@ -25942,6 +25982,73 @@
                                     "name": "String",
                                     "ofType": null
                                 }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        }
+                    ],
+                    "inputFields": null,
+                    "interfaces": [],
+                    "enumValues": null,
+                    "possibleTypes": null
+                },
+                {
+                    "kind": "OBJECT",
+                    "name": "DnsRecordFromVault_v1",
+                    "description": null,
+                    "fields": [
+                        {
+                            "name": "path",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "field",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "key",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "String",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "version",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "Int",
+                                "ofType": null
                             },
                             "isDeprecated": false,
                             "deprecationReason": null
@@ -31892,6 +31999,42 @@
                         },
                         {
                             "name": "frequency",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "String",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "name",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "String",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "filter",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "String",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "kind",
                             "description": null,
                             "args": [],
                             "type": {

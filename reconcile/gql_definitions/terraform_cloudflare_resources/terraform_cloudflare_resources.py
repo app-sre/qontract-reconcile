@@ -148,6 +148,9 @@ query TerraformCloudflareResources {
             ownership_challenge
             dataset
             frequency
+            job_name: name
+            filter
+            kind
           }
           ... on NamespaceTerraformResourceLogpullRetention_v1
           {
@@ -304,6 +307,9 @@ class NamespaceTerraformResourceLogpushJobV1(NamespaceTerraformResourceCloudflar
     ownership_challenge: Optional[str] = Field(..., alias="ownership_challenge")
     dataset: Optional[str] = Field(..., alias="dataset")
     frequency: Optional[str] = Field(..., alias="frequency")
+    job_name: Optional[str] = Field(..., alias="job_name")
+    filter: Optional[str] = Field(..., alias="filter")
+    kind: Optional[str] = Field(..., alias="kind")
 
 
 class NamespaceTerraformResourceLogpullRetentionV1(

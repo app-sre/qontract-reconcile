@@ -105,6 +105,9 @@ query TerraformCloudflareResources {
             ownership_challenge
             dataset
             frequency
+            job_name: name
+            filter
+            kind
           }
           ... on NamespaceTerraformResourceLogpullRetention_v1
           {
