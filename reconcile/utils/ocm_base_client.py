@@ -15,8 +15,10 @@ from requests import (
 )
 from sretoolbox.utils import retry
 
-from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
-from reconcile.utils.secret_reader import SecretReaderBase
+from reconcile.utils.secret_reader import (
+    HasSecret,
+    SecretReaderBase,
+)
 
 REQUEST_TIMEOUT_SEC = 60
 
@@ -152,7 +154,7 @@ class OCMAPIClientConfiguration(Protocol):
     url: str
     access_token_client_id: str
     access_token_url: str
-    access_token_client_secret: VaultSecret
+    access_token_client_secret: HasSecret
 
 
 def init_ocm_base_client(
