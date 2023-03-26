@@ -1,8 +1,5 @@
-from typing import Optional
+from typing import Any, Callable, Optional
 
-import httpretty as httpretty_module
-
-from reconcile.test.ocm.conftest import register_ocm_get_list_request
 from reconcile.test.ocm.test_utils_ocm_labels import build_subscription_label
 from reconcile.utils.ocm.search_filters import Filter
 from reconcile.utils.ocm.subscriptions import (
@@ -38,15 +35,16 @@ def build_ocm_subscription(
     )
 
 
-def test_get_subscriptions(ocm_api: OCMBaseClient, httpretty: httpretty_module):
+def test_get_subscriptions(
+    ocm_api: OCMBaseClient,
+    register_ocm_get_list_handler: Callable[[str, Optional[Any]], None],
+):
     sub = build_ocm_subscription(
         name="sub-1",
         labels=[("label-1", "value-1")],
         capabilities=[("capability-1", "value-1")],
     )
-    register_ocm_get_list_request(
-        ocm_api,
-        httpretty,
+    register_ocm_get_list_handler(
         "/api/accounts_mgmt/v1/subscriptions",
         [sub],
     )

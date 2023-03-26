@@ -3,15 +3,13 @@ from datetime import (
     timedelta,
     timezone,
 )
+from typing import Any, Callable, Optional
 
-import httpretty as httpretty_module
+from httpretty.core import HTTPrettyRequest
+
 import pytest
 from pytest_mock import MockerFixture
 
-from reconcile.test.ocm.conftest import (
-    register_ocm_get_list_request,
-    register_ocm_post_request,
-)
 from reconcile.utils.ocm import service_log
 from reconcile.utils.ocm.search_filters import (
     DateRangeCondition,
@@ -51,7 +49,7 @@ def build_service_log(
 
 @pytest.fixture
 def example_service_log(
-    ocm_api: OCMBaseClient, httpretty: httpretty_module
+    register_ocm_get_list_handler: Callable[[str, Optional[Any]], None],
 ) -> OCMClusterServiceLog:
     expected_service_log = build_service_log(
         "some error",
@@ -59,9 +57,7 @@ def example_service_log(
         "cluster_uuid",
         severity=OCMServiceLogSeverity.Error,
     )
-    register_ocm_get_list_request(
-        ocm_api,
-        httpretty,
+    register_ocm_get_list_handler(
         "/api/service_logs/v1/cluster_logs",
         [expected_service_log],
     )
@@ -82,12 +78,12 @@ def test_get_service_logs(
 
 def test_create_service_log(
     ocm_api: OCMBaseClient,
-    httpretty: httpretty_module,
+    register_ocm_request_handler: Callable[[str, str, Optional[Any]], None],
+    find_http_request: Callable[[str, str], Optional[HTTPrettyRequest]],
 ):
     timestamp = datetime(2020, 1, 2, 0, 0, 0, 0, tzinfo=timezone.utc)
-    register_ocm_post_request(
-        ocm_api,
-        httpretty,
+    register_ocm_request_handler(
+        "POST",
         "/api/service_logs/v1/cluster_logs",
         build_service_log(
             cluster_uuid="cluster_uuid",
@@ -108,14 +104,7 @@ def test_create_service_log(
         severity=OCMServiceLogSeverity.Info,
     )
     assert result is not None
-    assert next(
-        (
-            req
-            for req in httpretty.latest_requests()
-            if req.method == "POST" and req.path == "/api/service_logs/v1/cluster_logs"
-        ),
-        None,
-    )
+    assert find_http_request("POST", "/api/service_logs/v1/cluster_logs")
 
 
 def test_create_service_log_dedup_timedelta_filter(
@@ -159,16 +148,9 @@ def test_create_service_log_dedup_timedelta_filter(
 
 def test_create_service_log_dedup(
     ocm_api: OCMBaseClient,
-    httpretty: httpretty_module,
     example_service_log: OCMClusterServiceLog,
+    find_http_request: Callable[[str, str], Optional[HTTPrettyRequest]],
 ):
-    register_ocm_post_request(
-        ocm_api,
-        httpretty,
-        "/api/service_logs/v1/cluster_logs",
-        example_service_log,
-    )
-
     create_service_log(
         ocm_api=ocm_api,
         cluster_uuid="cluster_uuid",
@@ -179,28 +161,21 @@ def test_create_service_log_dedup(
         dedup_interval=timedelta(days=1),
     )
     # expect no post call to the service log api
-    assert not next(
-        (
-            req
-            for req in httpretty.latest_requests()
-            if req.method == "POST" and req.path == "/api/service_logs/v1/cluster_logs"
-        ),
-        None,
-    )
+    assert find_http_request("POST", "/api/service_logs/v1/cluster_logs") is None
 
 
 def test_create_service_log_dedup_no_dup(
     ocm_api: OCMBaseClient,
-    httpretty: httpretty_module,
+    register_ocm_get_list_handler: Callable[[str, Optional[Any]], None],
+    register_ocm_request_handler: Callable[[str, str, Optional[Any]], None],
+    find_http_request: Callable[[str, str], Optional[HTTPrettyRequest]],
 ):
-    register_ocm_get_list_request(
-        ocm_api,
-        httpretty,
+    register_ocm_get_list_handler(
         "/api/service_logs/v1/cluster_logs",
         [],
     )
-    register_ocm_post_request(
-        ocm_api, httpretty, "/api/service_logs/v1/cluster_logs", build_service_log()
+    register_ocm_request_handler(
+        "POST", "/api/service_logs/v1/cluster_logs", build_service_log()
     )
 
     create_service_log(
@@ -213,11 +188,4 @@ def test_create_service_log_dedup_no_dup(
         dedup_interval=timedelta(days=1),
     )
     # expect a post call to the service log api
-    assert next(
-        (
-            req
-            for req in httpretty.latest_requests()
-            if req.method == "POST" and req.path == "/api/service_logs/v1/cluster_logs"
-        ),
-        None,
-    )
+    assert find_http_request("POST", "/api/service_logs/v1/cluster_logs")

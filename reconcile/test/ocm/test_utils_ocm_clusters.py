@@ -1,9 +1,7 @@
-from typing import Optional
+from typing import Any, Callable, Optional
 
-import httpretty as httpretty_module
 from pytest_mock import MockerFixture
 
-from reconcile.test.ocm.conftest import register_ocm_get_list_request
 from reconcile.test.ocm.test_utils_ocm_labels import (
     build_organization_label,
     build_subscription_label,
@@ -125,7 +123,9 @@ def test_utils_ocm_discover_clusters_for_empty_organization_id_list(
 
 
 def test_discover_clusters_by_labels(
-    mocker: MockerFixture, ocm_api: OCMBaseClient, httpretty: httpretty_module
+    mocker: MockerFixture,
+    ocm_api: OCMBaseClient,
+    register_ocm_get_list_handler: Callable[[str, Optional[Any]], None],
 ):
     """
     Tests that the discover_clusters_by_labels function discovers subscription and
@@ -137,9 +137,7 @@ def test_discover_clusters_by_labels(
         clusters, "get_clusters_for_subscriptions"
     )
 
-    register_ocm_get_list_request(
-        ocm_api,
-        httpretty,
+    register_ocm_get_list_handler(
         "/api/accounts_mgmt/v1/labels",
         [
             build_subscription_label("label", "subs_value", "sub_id").dict(
@@ -172,7 +170,9 @@ def test_discover_clusters_by_labels(
 
 
 def test_get_clusters_for_subscriptions(
-    mocker: MockerFixture, ocm_api: OCMBaseClient, httpretty: httpretty_module
+    mocker: MockerFixture,
+    ocm_api: OCMBaseClient,
+    register_ocm_get_list_handler: Callable[[str, Optional[Any]], None],
 ):
     """
     Tests the subscription and organization labels are properly queried
@@ -197,9 +197,7 @@ def test_get_clusters_for_subscriptions(
         ]
     )
 
-    register_ocm_get_list_request(
-        ocm_api,
-        httpretty,
+    register_ocm_get_list_handler(
         "/api/clusters_mgmt/v1/clusters",
         [
             {
@@ -245,7 +243,7 @@ def test_get_clusters_for_subscriptions(
 
 
 def test_get_clusters_for_subscriptions_none_found(
-    mocker: MockerFixture, ocm_api: OCMBaseClient, httpretty: httpretty_module
+    mocker: MockerFixture, ocm_api: OCMBaseClient
 ):
 
     get_subscriptions_mock = mocker.patch.object(clusters, "get_subscriptions")

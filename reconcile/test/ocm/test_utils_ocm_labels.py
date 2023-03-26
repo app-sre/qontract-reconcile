@@ -1,8 +1,7 @@
-import httpretty as httpretty_module
+from typing import Any, Callable, Optional
 import pytest
 from pytest_mock import MockerFixture
 
-from reconcile.test.ocm.conftest import register_ocm_get_list_request
 from reconcile.utils.ocm import labels
 from reconcile.utils.ocm.labels import (
     OCMAccountLabel,
@@ -125,14 +124,14 @@ def test_utils_build_ocm_unknown_label_from_dict():
 
 
 def test_utils_get_organization_labels(
-    ocm_api: OCMBaseClient, httpretty: httpretty_module, mocker: MockerFixture
+    ocm_api: OCMBaseClient,
+    mocker: MockerFixture,
+    register_ocm_get_list_handler: Callable[[str, Optional[Any]], None],
 ):
     get_labels_call_recorder = mocker.patch.object(
         labels, "get_labels", wraps=labels.get_labels
     )
-    register_ocm_get_list_request(
-        ocm_api,
-        httpretty,
+    register_ocm_get_list_handler(
         "/api/accounts_mgmt/v1/labels",
         [
             build_organization_label("label", "value", "org_id").dict(by_alias=True),
@@ -159,14 +158,14 @@ def test_utils_get_organization_labels(
 
 
 def test_utils_get_subscription_labels(
-    ocm_api: OCMBaseClient, httpretty: httpretty_module, mocker: MockerFixture
+    ocm_api: OCMBaseClient,
+    mocker: MockerFixture,
+    register_ocm_get_list_handler: Callable[[str, Optional[Any]], None],
 ):
     get_labels_call_recorder = mocker.patch.object(
         labels, "get_labels", wraps=labels.get_labels
     )
-    register_ocm_get_list_request(
-        ocm_api,
-        httpretty,
+    register_ocm_get_list_handler(
         "/api/accounts_mgmt/v1/labels",
         [
             build_subscription_label("label", "value", "sub_id").dict(by_alias=True),
