@@ -37,6 +37,9 @@ from reconcile.gql_definitions.slack_usergroups.users import UserV1
 from reconcile.gql_definitions.slack_usergroups.users import query as users_query
 from reconcile.openshift_base import user_has_cluster_access
 from reconcile.slack_base import get_slackapi
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
 from reconcile.typed_queries.pagerduty_instances import get_pagerduty_instances
 from reconcile.utils import gql
 from reconcile.utils.disabled_integrations import integration_is_enabled
@@ -44,7 +47,7 @@ from reconcile.utils.exceptions import (
     AppInterfaceSettingsError,
     UnknownError,
 )
-from reconcile.utils.github_api import GithubApi
+from reconcile.utils.github_api import GithubRepositoryApi
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.pagerduty_api import (
     PagerDutyApiException,
@@ -52,7 +55,10 @@ from reconcile.utils.pagerduty_api import (
     get_pagerduty_map,
 )
 from reconcile.utils.repo_owners import RepoOwners
-from reconcile.utils.secret_reader import SecretReader
+from reconcile.utils.secret_reader import (
+    SecretReader,
+    create_secret_reader,
+)
 from reconcile.utils.slack_api import (
     SlackApi,
     SlackApiError,
@@ -64,18 +70,25 @@ QONTRACT_INTEGRATION = "slack-usergroups"
 error_occurred = False
 
 
-def get_git_api(url: str) -> Union[GithubApi, GitLabApi]:
+def get_git_api(url: str) -> Union[GithubRepositoryApi, GitLabApi]:
     """Return GitHub/GitLab API based on url."""
     parsed_url = urlparse(url)
-    settings = queries.get_app_interface_settings()
 
     if parsed_url.hostname:
         if "github" in parsed_url.hostname:
+            vault_settings = get_app_interface_vault_settings()
+            secret_reader = create_secret_reader(use_vault=vault_settings.vault)
             instance = queries.get_github_instance()
-            return GithubApi(instance, repo_url=url, settings=settings)
+            token = secret_reader.read(instance["token"])
+
+            return GithubRepositoryApi(
+                repo_url=url,
+                token=token,
+            )
         if "gitlab" in parsed_url.hostname:
+            settings = queries.get_app_interface_settings()
             instance = queries.get_gitlab_instance()
-            return GitLabApi(instance, project_url=url, settings=settings)
+            return GitLabApi(instance=instance, project_url=url, settings=settings)
 
     raise ValueError(f"Unable to handle URL: {url}")
 
@@ -294,7 +307,7 @@ def get_slack_usernames_from_owners(
         if isinstance(repo_cli, GitLabApi):
             user_key = "org_username"
             missing_user_log_method = logging.warning
-        elif isinstance(repo_cli, GithubApi):
+        elif isinstance(repo_cli, GithubRepositoryApi):
             user_key = "github_username"
             missing_user_log_method = logging.debug
         else:

@@ -27,9 +27,13 @@ from terrascript.resource import (
 )
 
 from reconcile import queries
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
 from reconcile.utils.external_resource_spec import ExternalResourceSpec
 from reconcile.utils.external_resources import ResourceValueResolver
-from reconcile.utils.github_api import GithubApi
+from reconcile.utils.github_api import GithubRepositoryApi
+from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.terraform import safe_resource_id
 from reconcile.utils.terrascript.resources import TerrascriptResource
 
@@ -118,10 +122,13 @@ class CloudflareWorkerScriptTerrascriptResource(TerrascriptResource):
         gh_repo = values["content_from_github"]["repo"]
         gh_path = values["content_from_github"]["path"]
         gh_ref = values["content_from_github"]["ref"]
-        gh = GithubApi(
-            queries.get_github_instance(),
-            gh_repo,
-            queries.get_app_interface_settings(),
+        instance = queries.get_github_instance()
+        vault_settings = get_app_interface_vault_settings()
+        secret_reader = create_secret_reader(use_vault=vault_settings.vault)
+        token = secret_reader.read(instance["token"])
+        gh = GithubRepositoryApi(
+            repo_url=gh_repo,
+            token=token,
         )
         content = gh.get_file(gh_path, gh_ref)
         if content is None:

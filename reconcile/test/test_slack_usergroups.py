@@ -46,7 +46,7 @@ from reconcile.slack_usergroups import (
     get_users,
 )
 from reconcile.utils import repo_owners
-from reconcile.utils.github_api import GithubApi
+from reconcile.utils.github_api import GithubRepositoryApi
 from reconcile.utils.pagerduty_api import PagerDutyMap
 from reconcile.utils.slack_api import SlackApi
 
@@ -216,7 +216,7 @@ def test_get_usernames_from_pagerduty(user: UserV1) -> None:
 def test_get_slack_usernames_from_owners(mocker: MockerFixture, user: UserV1) -> None:
     mocker.patch(
         "reconcile.slack_usergroups.get_git_api"
-    ).return_value = create_autospec(GithubApi)
+    ).return_value = create_autospec(GithubRepositoryApi)
     mock_repo_owner = create_autospec(repo_owners.RepoOwners)
     mock_repo_owner.return_value.get_root_owners.return_value = {
         "approvers": ["approver1"],
