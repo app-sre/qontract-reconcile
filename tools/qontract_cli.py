@@ -15,8 +15,6 @@ import yaml
 from sretoolbox.utils import threaded
 
 import reconcile.aus.base as aus
-import reconcile.aus.ocm_upgrade_scheduler as ous
-import reconcile.aus.ocm_upgrade_scheduler_org as ouso
 import reconcile.gitlab_housekeeping as glhk
 import reconcile.openshift_base as ob
 import reconcile.openshift_resources_base as orb
@@ -240,6 +238,8 @@ def cluster_upgrades(ctx, name):
 @environ(["APP_INTERFACE_STATE_BUCKET", "APP_INTERFACE_STATE_BUCKET_ACCOUNT"])
 @click.pass_context
 def version_history(ctx):
+    import reconcile.aus.ocm_upgrade_scheduler as ous
+
     settings = queries.get_app_interface_settings()
     clusters = queries.get_clusters()
     clusters = [c for c in clusters if c.get("upgradePolicy") is not None]
@@ -467,6 +467,8 @@ def cluster_upgrade_policies(
     show_only_soaking_upgrades=False,
     by_workload=False,
 ):
+    import reconcile.aus.ocm_upgrade_scheduler as ous
+
     md_output = ctx.obj["options"]["output"] == "md"
 
     upgrade_policies_per_org = ous.organization_upgrade_spec()
@@ -558,6 +560,8 @@ def inherit_version_data_text(ocm_org: str, ocm_specs: list[dict]) -> str:
 def ocm_fleet_upgrade_policies(
     ctx,
 ):
+    import reconcile.aus.ocm_upgrade_scheduler_org as ouso
+
     md_output = ctx.obj["options"]["output"] == "md"
 
     upgrade_policies_per_org = ouso.organization_upgrade_spec()
