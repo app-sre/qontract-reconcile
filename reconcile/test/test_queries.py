@@ -32,13 +32,6 @@ class TestQueries:
     def mock_gql_query(self, query: str) -> dict[str, Any]:
         return self.fixture_data
 
-    def test_get_permissions_return_all_slack_usergroup(self) -> None:
-        self.fixture_data = Fixtures("slack_usergroups").get_anymarkup(
-            "permissions.yml"
-        )
-        result = queries.get_permissions_for_slack_usergroup()
-        assert {x["service"] for x in result} == {"slack-usergroup"}
-
     def test_get_pipelines_providers_all_defaults(self) -> None:
         data = Fixtures("queries").get_json("pipelines_providers_all_defaults.json")
         self.fixture_data = deepcopy(data)

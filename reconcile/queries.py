@@ -2371,22 +2371,6 @@ def get_saas_files(
     return saas_files
 
 
-SAAS_FILES_MINIMAL_QUERY_V2 = """
-{
-  saas_files: saas_files_v2 {
-    path
-    name
-  }
-}
-"""
-
-
-def get_saas_files_minimal() -> list[dict[str, Any]]:
-    """Returns SaasFile resources defined in app-interface."""
-    gqlapi = gql.get_api()
-    return gqlapi.query(SAAS_FILES_MINIMAL_QUERY_V2)["saas_files"]
-
-
 PIPELINES_PROVIDERS_QUERY = """
 {
   pipelines_providers: pipelines_providers_v1 {
@@ -2772,118 +2756,6 @@ def get_slack_workspace():
     return slack_workspaces[0]
 
 
-OCP_RELEASE_ECR_MIRROR_QUERY = """
-{
-  ocp_release_mirror: ocp_release_mirror_v1 {
-    hiveCluster {
-      name
-      serverUrl
-      insecureSkipTLSVerify
-      jumpHost {
-        %s
-      }
-      managedGroups
-      ocm {
-        name
-        environment {
-          url
-          accessTokenClientId
-          accessTokenUrl
-          accessTokenClientSecret {
-            path
-            field
-            format
-            version
-          }
-        }
-        orgId
-        accessTokenClientId
-        accessTokenUrl
-        accessTokenClientSecret {
-          path
-          field
-          format
-          version
-        }
-      }
-      automationToken {
-        path
-        field
-        version
-        format
-      }
-      internal
-      disable {
-        integrations
-      }
-      auth {
-        service
-        ... on ClusterAuthGithubOrg_v1 {
-          org
-        }
-        ... on ClusterAuthGithubOrgTeam_v1 {
-          org
-          team
-        }
-        # ... on ClusterAuthOIDC_v1 {
-        # }
-      }
-    }
-    ecrResourcesNamespace {
-      name
-      managedExternalResources
-      externalResources {
-        provider
-        provisioner {
-          name
-        }
-        ... on NamespaceTerraformProviderResourceAWS_v1 {
-          resources {
-            provider
-            ... on NamespaceTerraformResourceECR_v1
-            {
-              region
-              identifier
-              output_resource_name
-            }
-          }
-        }
-      }
-      cluster
-      {
-        name
-        serverUrl
-        automationToken
-        {
-          path
-          field
-          version
-          format
-        }
-        internal
-      }
-    }
-    quayTargetOrgs {
-      name
-      instance {
-        name
-      }
-    }
-    ocpReleaseEcrIdentifier
-    ocpArtDevEcrIdentifier
-    mirrorChannels
-  }
-}
-""" % (
-    indent(JUMPHOST_FIELDS, 8 * " "),
-)
-
-
-def get_ocp_release_mirror():
-    gqlapi = gql.get_api()
-    return gqlapi.query(OCP_RELEASE_ECR_MIRROR_QUERY)["ocp_release_mirror"]
-
-
 SENDGRID_ACCOUNTS_QUERY = """
 {
   sendgrid_accounts: sendgrid_accounts_v1 {
@@ -2961,26 +2833,6 @@ def get_sre_checkpoints():
     return gqlapi.query(SRE_CHECKPOINTS_QUERY)["sre_checkpoints"]
 
 
-PAGERDUTY_INSTANCES_QUERY = """
-{
-  pagerduty_instances: pagerduty_instances_v1 {
-    name
-    token {
-      path
-      field
-      version
-      format
-    }
-  }
-}
-"""
-
-
-def get_pagerduty_instances():
-    gqlapi = gql.get_api()
-    return gqlapi.query(PAGERDUTY_INSTANCES_QUERY)["pagerduty_instances"]
-
-
 GABI_INSTANCES_QUERY = """
 {
   gabi_instances: gabi_instances_v1 {
@@ -3044,74 +2896,6 @@ GABI_INSTANCES_QUERY = """
 def get_gabi_instances():
     gqlapi = gql.get_api()
     return gqlapi.query(GABI_INSTANCES_QUERY)["gabi_instances"]
-
-
-PERMISSIONS_QUERY = """
-{
-  permissions: permissions_v1 {
-    service
-    ...on PermissionSlackUsergroup_v1 {
-      channels
-      description
-      handle
-      ownersFromRepos
-      skip
-      pagerduty {
-        name
-        instance {
-          name
-        }
-        scheduleID
-        escalationPolicyID
-      }
-      roles {
-        users {
-          name
-          org_username
-          slack_username
-          pagerduty_username
-        }
-      }
-      schedule {
-        schedule {
-          start
-          end
-          users {
-            org_username
-            slack_username
-          }
-        }
-      }
-      workspace {
-        name
-        token {
-          path
-          field
-          version
-          format
-        }
-        api_client {
-          global {
-            max_retries
-            timeout
-          }
-          methods {
-            name
-            args
-          }
-        }
-        managedUsergroups
-      }
-    }
-  }
-}
-"""
-
-
-def get_permissions_for_slack_usergroup():
-    gqlapi = gql.get_api()
-    permissions = gqlapi.query(PERMISSIONS_QUERY)["permissions"]
-    return [p for p in permissions if p["service"] == "slack-usergroup"]
 
 
 CLOSED_BOX_MONITORING_PROBES_QUERY = """
