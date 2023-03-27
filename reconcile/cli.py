@@ -29,6 +29,7 @@ from reconcile.utils.runtime.environment import init_env
 from reconcile.utils.runtime.integration import (
     ModuleArgsKwargsRunParams,
     ModuleBasedQontractReconcileIntegration,
+    NoParams,
     QontractReconcileIntegration,
 )
 from reconcile.utils.runtime.meta import IntegrationMeta
@@ -1957,18 +1958,28 @@ def ocm_machine_pools(ctx, thread_pool_size):
 @environ(["APP_INTERFACE_STATE_BUCKET", "APP_INTERFACE_STATE_BUCKET_ACCOUNT"])
 @click.pass_context
 def ocm_upgrade_scheduler(ctx):
-    import reconcile.ocm_upgrade_scheduler
+    import reconcile.aus.ocm_upgrade_scheduler
 
-    run_integration(reconcile.ocm_upgrade_scheduler, ctx.obj)
+    run_class_integration(
+        integration=reconcile.aus.ocm_upgrade_scheduler.OCMClusterUpgradeSchedulerIntegration(
+            NoParams()
+        ),
+        ctx=ctx.obj,
+    )
 
 
 @integration.command(short_help="Manage Upgrade Policy schedules in OCM organizations.")
 @environ(["APP_INTERFACE_STATE_BUCKET", "APP_INTERFACE_STATE_BUCKET_ACCOUNT"])
 @click.pass_context
 def ocm_upgrade_scheduler_org(ctx):
-    import reconcile.ocm_upgrade_scheduler_org
+    import reconcile.aus.ocm_upgrade_scheduler_org
 
-    run_integration(reconcile.ocm_upgrade_scheduler_org, ctx.obj)
+    run_class_integration(
+        integration=reconcile.aus.ocm_upgrade_scheduler_org.OCMClusterUpgradeSchedulerOrgIntegration(
+            NoParams()
+        ),
+        ctx=ctx.obj,
+    )
 
 
 @integration.command(short_help="Update Upgrade Policy schedules in OCM organizations.")
@@ -1989,9 +2000,15 @@ def ocm_upgrade_scheduler_org_updater(ctx, gitlab_project_id):
 @environ(["APP_INTERFACE_STATE_BUCKET", "APP_INTERFACE_STATE_BUCKET_ACCOUNT"])
 @click.pass_context
 def ocm_addons_upgrade_scheduler_org(ctx):
-    import reconcile.ocm_addons_upgrade_scheduler_org
 
-    run_integration(reconcile.ocm_addons_upgrade_scheduler_org, ctx.obj)
+    import reconcile.aus.ocm_addons_upgrade_scheduler_org
+
+    run_class_integration(
+        integration=reconcile.aus.ocm_addons_upgrade_scheduler_org.OCMAddonsUpgradeSchedulerOrgIntegration(
+            NoParams()
+        ),
+        ctx=ctx.obj,
+    )
 
 
 @integration.command(short_help="Update recommended version for OCM orgs")

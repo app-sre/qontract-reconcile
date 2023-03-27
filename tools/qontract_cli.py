@@ -14,9 +14,8 @@ import requests
 import yaml
 from sretoolbox.utils import threaded
 
+import reconcile.aus.base as aus
 import reconcile.gitlab_housekeeping as glhk
-import reconcile.ocm_upgrade_scheduler as ous
-import reconcile.ocm_upgrade_scheduler_org as ouso
 import reconcile.openshift_base as ob
 import reconcile.openshift_resources_base as orb
 import reconcile.terraform_resources as tfr
@@ -239,13 +238,18 @@ def cluster_upgrades(ctx, name):
 @environ(["APP_INTERFACE_STATE_BUCKET", "APP_INTERFACE_STATE_BUCKET_ACCOUNT"])
 @click.pass_context
 def version_history(ctx):
+    import reconcile.aus.ocm_upgrade_scheduler as ous
+
     settings = queries.get_app_interface_settings()
     clusters = queries.get_clusters()
     clusters = [c for c in clusters if c.get("upgradePolicy") is not None]
     ocm_map = OCMMap(clusters=clusters, settings=settings)
 
-    version_data_map = ous.get_version_data_map(
-        dry_run=True, upgrade_policies=[], ocm_map=ocm_map
+    version_data_map = aus.get_version_data_map(
+        dry_run=True,
+        upgrade_policies=[],
+        ocm_map=ocm_map,
+        integration=ous.QONTRACT_INTEGRATION,
     )
 
     results = []
@@ -286,6 +290,7 @@ def soaking_days(
 def get_upgrade_policies_data(
     clusters,
     md_output,
+    integration,
     workload=None,
     show_only_soaking_upgrades=False,
     by_workload=False,
@@ -296,11 +301,11 @@ def get_upgrade_policies_data(
         settings=settings,
         init_version_gates=True,
     )
-    current_state = ous.fetch_current_state(clusters, ocm_map)
-    desired_state = ous.fetch_desired_state(clusters, ocm_map)
+    current_state = aus.fetch_current_state(clusters, ocm_map)
+    desired_state = aus.fetch_desired_state(clusters, ocm_map)
 
-    version_data_map = ous.get_version_data_map(
-        dry_run=True, upgrade_policies=[], ocm_map=ocm_map
+    version_data_map = aus.get_version_data_map(
+        dry_run=True, upgrade_policies=[], ocm_map=ocm_map, integration=integration
     )
 
     results = []
@@ -363,7 +368,7 @@ def get_upgrade_policies_data(
         if current and current[0]["schedule_type"] == "manual":
             upgrade_policy = current[0]
 
-        upgradeable_version = ous.upgradeable_version(
+        upgradeable_version = aus.upgradeable_version(
             c, version_data_map, ocm_org, upgrades
         )
 
@@ -462,9 +467,17 @@ def cluster_upgrade_policies(
     show_only_soaking_upgrades=False,
     by_workload=False,
 ):
+    import reconcile.aus.ocm_upgrade_scheduler as ous
+
     md_output = ctx.obj["options"]["output"] == "md"
-    clusters = queries.get_clusters()
-    clusters = [c for c in clusters if c.get("upgradePolicy") is not None]
+
+    upgrade_policies_per_org = ous.organization_upgrade_spec()
+    clusters = [
+        s.dict(by_alias=True)
+        for org_upgrade_spec in upgrade_policies_per_org.values()
+        for s in org_upgrade_spec.specs
+    ]
+
     if cluster:
         clusters = [c for c in clusters if cluster == c["name"]]
     if workload:
@@ -473,7 +486,12 @@ def cluster_upgrade_policies(
         ]
 
     results = get_upgrade_policies_data(
-        clusters, md_output, workload, show_only_soaking_upgrades, by_workload
+        clusters,
+        md_output,
+        ous.QONTRACT_INTEGRATION,
+        workload,
+        show_only_soaking_upgrades,
+        by_workload,
     )
 
     if md_output:
@@ -542,25 +560,24 @@ def inherit_version_data_text(ocm_org: str, ocm_specs: list[dict]) -> str:
 def ocm_fleet_upgrade_policies(
     ctx,
 ):
+    import reconcile.aus.ocm_upgrade_scheduler_org as ouso
+
     md_output = ctx.obj["options"]["output"] == "md"
-    ous.QONTRACT_INTEGRATION = ouso.QONTRACT_INTEGRATION
 
-    ocm_specs = queries.get_openshift_cluster_managers()
+    upgrade_policies_per_org = ouso.organization_upgrade_spec()
+    upgrade_policies = [
+        s.dict(by_alias=True)
+        for org_upgrade_spec in upgrade_policies_per_org.values()
+        for s in org_upgrade_spec.specs
+    ]
+    ocm_org_specs = [
+        org_upgrade_spec.org.dict(by_alias=True)
+        for org_upgrade_spec in upgrade_policies_per_org.values()
+    ]
 
-    clusters = []
-
-    for ocm_spec in ocm_specs:
-        upgrade_policy_clusters = ocm_spec.get("upgradePolicyClusters")
-        if not upgrade_policy_clusters:
-            continue
-
-        # patch clusters items with their ocm instance
-        for c in upgrade_policy_clusters:
-            c["ocm"] = ocm_spec
-
-        clusters.extend(upgrade_policy_clusters)
-
-    results = get_upgrade_policies_data(clusters, md_output)
+    results = get_upgrade_policies_data(
+        upgrade_policies, md_output, integration=ouso.QONTRACT_INTEGRATION
+    )
 
     if md_output:
         print(upgrade_policies_output_description)
@@ -591,7 +608,9 @@ def ocm_fleet_upgrade_policies(
             )
             print(
                 ocm_org_section.format(
-                    ocm_org, inherit_version_data_text(ocm_org, ocm_specs), json_data
+                    ocm_org,
+                    inherit_version_data_text(ocm_org, ocm_org_specs),
+                    json_data,
                 )
             )
 
@@ -615,43 +634,43 @@ def ocm_fleet_upgrade_policies(
 @get.command()
 @click.pass_context
 def ocm_addon_upgrade_policies(ctx):
-    import reconcile.ocm_addons_upgrade_scheduler_org as oauso
+    import reconcile.aus.ocm_addons_upgrade_scheduler_org as oauso
 
     md_output = ctx.obj["options"]["output"] == "md"
     if not md_output:
         print("We only support md output for now")
         sys.exit(1)
-    ous.QONTRACT_INTEGRATION = oauso.QONTRACT_INTEGRATION
 
-    settings = queries.get_app_interface_settings()
-    ocms = queries.get_openshift_cluster_managers()
-    results = oauso.compute(settings, ocms, dry_run=True)
+    upgrade_policies_per_org = oauso.organization_upgrade_spec()
+
     output = {}
-    for key, res in results.items():
-        ocm_name = key.ocm_name
-        ocm = key.ocm_map[ocm_name]
-        addon_id = key.addon_id
-        next_version = ocm.get_addon_version(addon_id)
-        ocm_output = output.setdefault(ocm_name, [])
-        for d in res.desired_state:
-            sector = ""
-            conditions = d.get("conditions") or {}
-            if conditions.get("sector"):
-                sector = conditions["sector"].name
-            version = d["current_version"]
-            ocm_output.append(
-                {
-                    "cluster": d["cluster"],
-                    "addon_id": addon_id,
-                    "current_version": version,
-                    "schedule": d["schedule"],
-                    "sector": sector,
-                    "mutexes": ", ".join(conditions.get("mutexes") or []),
-                    "soak_days": conditions.get("soakDays"),
-                    "workloads": ", ".join(d["workloads"]),
-                    "next_version": next_version if next_version != version else "",
-                }
-            )
+    for org_name, org_spec in upgrade_policies_per_org.items():
+        ocm_map, addon_states = oauso.get_state_for_org_spec_per_addon(
+            org_spec, fetch_current_state=False
+        )
+        ocm = ocm_map[org_name]
+        for addon_state in addon_states:
+            next_version = ocm.get_addon_version(addon_state.addon_id)
+            ocm_output = output.setdefault(org_name, [])
+            for d in addon_state.desired_state:
+                sector = ""
+                conditions = d.get("conditions") or {}
+                if conditions.get("sector"):
+                    sector = conditions["sector"].name
+                version = d["current_version"]
+                ocm_output.append(
+                    {
+                        "cluster": d["cluster"],
+                        "addon_id": addon_state.addon_id,
+                        "current_version": version,
+                        "schedule": d["schedule"],
+                        "sector": sector,
+                        "mutexes": ", ".join(conditions.get("mutexes") or []),
+                        "soak_days": conditions.get("soakDays"),
+                        "workloads": ", ".join(d["workloads"]),
+                        "next_version": next_version if next_version != version else "",
+                    }
+                )
     fields = [
         {"key": "cluster", "sortable": True},
         {"key": "addon_id", "sortable": True},
@@ -670,6 +689,10 @@ def ocm_addon_upgrade_policies(ctx):
 {}
 ```
     """
+    ocm_org_specs = [
+        org_upgrade_spec.org.dict(by_alias=True)
+        for org_upgrade_spec in upgrade_policies_per_org.values()
+    ]
     for ocm_name in sorted(output.keys()):
         json_data = json.dumps(
             {
@@ -682,7 +705,7 @@ def ocm_addon_upgrade_policies(ctx):
         )
         print(
             section.format(
-                ocm_name, inherit_version_data_text(ocm_name, ocms), json_data
+                ocm_name, inherit_version_data_text(ocm_name, ocm_org_specs), json_data
             )
         )
 
@@ -702,7 +725,7 @@ def ocm_addon_upgrade_policies(ctx):
 def upgrade_cluster_addon(
     ocm_org: str, cluster: str, addon: str, dry_run: bool, force: bool
 ) -> None:
-    import reconcile.ocm_addons_upgrade_scheduler_org as oauso
+    import reconcile.aus.ocm_addons_upgrade_scheduler_org as oauso
 
     settings = queries.get_app_interface_settings()
     ocms = queries.get_openshift_cluster_managers()
