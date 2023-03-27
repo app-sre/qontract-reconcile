@@ -35,25 +35,25 @@ class CreateAppInterfaceNotificator(MergeRequestBase):
         labels: Optional[list[str]] = None,
         email_base_path: Path = Path("data") / "app-interface" / "emails",
     ):
-        self.notification_as_dict = notification.dict()
+        self._notification_as_dict = notification.dict()
         super().__init__()
-        self.notification = notification
-        self.email_base_path = email_base_path
+        self._notification = notification
+        self._email_base_path = email_base_path
         self.labels = labels if labels else [DO_NOT_MERGE_HOLD]
 
     @property
     def title(self) -> str:
         return (
             f"[{self.name}] "
-            f"{self.notification.notification_type}: "
-            f"{self.notification.short_description}"
+            f"{self._notification.notification_type}: "
+            f"{self._notification.short_description}"
         )
 
     @property
     def description(self) -> str:
         return (
-            f"{self.notification.notification_type}: "
-            f"{self.notification.short_description}"
+            f"{self._notification.notification_type}: "
+            f"{self._notification.short_description}"
         )
 
     def process(self, gitlab_cli: GitLabApi) -> None:
@@ -62,19 +62,19 @@ class CreateAppInterfaceNotificator(MergeRequestBase):
         short_date = now.strftime("%Y-%m-%d")
 
         subject = (
-            f"[{self.notification.notification_type}] "
-            f"{self.notification.short_description} - "
+            f"[{self._notification.notification_type}] "
+            f"{self._notification.short_description} - "
             f"{short_date}"
         )
 
         content = app_interface_email(
             name=f"{self.name}-{ts}",
             subject=subject,
-            users=self.notification.recipients,
-            body=self.notification.description,
+            users=self._notification.recipients,
+            body=self._notification.description,
         )
 
-        email_path = self.email_base_path / f"{ts}.yml"
+        email_path = self._email_base_path / f"{ts}.yml"
         commit_message = f"[{self.name}] adding notification"
         gitlab_cli.create_file(
             branch_name=self.branch,
