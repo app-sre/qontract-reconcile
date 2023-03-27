@@ -218,7 +218,9 @@ def _integration_dry_run(
         for shard, ex in zip(affected_shard_list, exceptions):
             if ex:
                 logging.error(f"Failed to run integration shard {shard}: {ex}")
-        failed_shards_count = sum(1 for _ in filter(None.__ne__, exceptions))
+        failed_shards_count = sum(
+            1 for _ in filter(lambda e: e is not None, exceptions)
+        )
         if failed_shards_count > 0:
             sys.exit(failed_shards_count)
         else:

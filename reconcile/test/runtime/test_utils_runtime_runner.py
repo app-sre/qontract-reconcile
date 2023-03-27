@@ -25,10 +25,6 @@ from reconcile.utils.runtime.runner import (
     run_integration_cfg,
 )
 
-pytest_plugins = [
-    "reconcile.test.runtime.fixtures",
-]
-
 
 @dataclass
 class MockIntegrationRunConfiguration(IntegrationRunConfiguration):

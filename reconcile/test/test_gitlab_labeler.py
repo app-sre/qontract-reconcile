@@ -14,7 +14,7 @@ from reconcile.utils import gql
 from .fixtures import Fixtures
 
 
-class TestData:
+class StubData:
     """Class to add data to tests in setUp. It will be used by mocks"""
 
     def __init__(self):
@@ -35,7 +35,7 @@ class TestData:
 # setup/teardown methods instead of pytest fixtures.
 class TestOnboardingGuesser:
     def setup_method(self) -> None:
-        self.test_data = TestData()
+        self.test_data = StubData()
 
         self.fxt = Fixtures("apps")
         self.app1 = self.fxt.get_json("app1.json")

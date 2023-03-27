@@ -13,13 +13,9 @@ from reconcile.change_owners.diff import (
 )
 from reconcile.gql_definitions.change_owners.queries.change_types import ChangeTypeV1
 from reconcile.test.change_owners.fixtures import (
-    TestFile,
+    StubFile,
     change_type_to_processor,
 )
-
-pytest_plugins = [
-    "reconcile.test.change_owners.fixtures",
-]
 
 #
 # processing change coverage on a change type context
@@ -27,7 +23,7 @@ pytest_plugins = [
 
 
 def test_cover_changes_one_file(
-    saas_file_changetype: ChangeTypeV1, saas_file: TestFile
+    saas_file_changetype: ChangeTypeV1, saas_file: StubFile
 ):
     saas_file_change = saas_file.create_bundle_change(
         {"resourceTemplates[0].targets[0].ref": "new-ref"}
@@ -47,7 +43,7 @@ def test_cover_changes_one_file(
 
 
 def test_uncovered_change_because_change_type_is_disabled(
-    saas_file_changetype: ChangeTypeV1, saas_file: TestFile
+    saas_file_changetype: ChangeTypeV1, saas_file: StubFile
 ):
     saas_file_changetype.disabled = True
     saas_file_change = saas_file.create_bundle_change(
@@ -68,7 +64,7 @@ def test_uncovered_change_because_change_type_is_disabled(
 
 
 def test_uncovered_change_one_file(
-    saas_file_changetype: ChangeTypeV1, saas_file: TestFile
+    saas_file_changetype: ChangeTypeV1, saas_file: StubFile
 ):
     saas_file_change = saas_file.create_bundle_change({"name": "new-name"})
     ctx = ChangeTypeContext(
@@ -83,7 +79,7 @@ def test_uncovered_change_one_file(
 
 
 def test_partially_covered_change_one_file(
-    saas_file_changetype: ChangeTypeV1, saas_file: TestFile
+    saas_file_changetype: ChangeTypeV1, saas_file: StubFile
 ):
     ref_update_path = "resourceTemplates.[0].targets.[0].ref"
     saas_file_change = saas_file.create_bundle_change(
@@ -104,7 +100,7 @@ def test_partially_covered_change_one_file(
     assert [ref_update_diff.diff] == covered_diffs
 
 
-def test_root_change_type(cluster_owner_change_type: ChangeTypeV1, saas_file: TestFile):
+def test_root_change_type(cluster_owner_change_type: ChangeTypeV1, saas_file: StubFile):
     namespace_change = create_bundle_file_change(
         path="/my/namespace.yml",
         schema="/openshift/namespace-1.yml",

@@ -1,10 +1,9 @@
+from io import StringIO
 from unittest import TestCase
 from unittest.mock import (
     MagicMock,
     patch,
 )
-
-from ruamel import yaml
 
 import reconcile.utils.mr.clusters_updates as sut
 
@@ -40,14 +39,13 @@ class TestProcess(TestCase):
         c.process(cli)
         self.clusters[0]["spec"]["id"] = "42"
 
-        cnt = yaml.dump(
-            self.clusters[0], Dumper=yaml.RoundTripDumper, explicit_start=True
-        )
+        cnt = StringIO()
+        sut.yaml.dump(self.clusters[0], cnt)
         cli.update_file.assert_called_once_with(
             branch_name="abranch",
             file_path="/a/path",
             commit_message="update cluster cluster1 spec fields",
-            content=cnt,
+            content=cnt.getvalue(),
         )
         cancel.assert_not_called()
 
@@ -68,13 +66,12 @@ class TestProcess(TestCase):
         c.process(cli)
         self.clusters[0]["prometheusUrl"] = "aprometheusurl"
 
-        cnt = yaml.dump(
-            self.clusters[0], Dumper=yaml.RoundTripDumper, explicit_start=True
-        )
+        cnt = StringIO()
+        sut.yaml.dump(self.clusters[0], cnt)
         cli.update_file.assert_called_once_with(
             branch_name="abranch",
             file_path="/a/path",
             commit_message="update cluster cluster1 spec fields",
-            content=cnt,
+            content=cnt.getvalue(),
         )
         cancel.assert_not_called()

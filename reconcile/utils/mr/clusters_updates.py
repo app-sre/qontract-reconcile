@@ -1,7 +1,12 @@
-from ruamel import yaml
+from io import StringIO
+
+from ruamel.yaml import YAML
 
 from reconcile.change_owners.decision import DecisionCommand
 from reconcile.utils.mr.base import MergeRequestBase
+
+yaml = YAML()
+yaml.explicit_start = True  # type: ignore
 
 
 class CreateClustersUpdates(MergeRequestBase):
@@ -33,7 +38,7 @@ class CreateClustersUpdates(MergeRequestBase):
             raw_file = gitlab_cli.project.files.get(
                 file_path=cluster_path, ref=self.main_branch
             )
-            content = yaml.load(raw_file.decode(), Loader=yaml.RoundTripLoader)
+            content = yaml.load(raw_file.decode())
             if "spec" not in content:
                 self.cancel("Spec missing. Nothing to do.")
 
@@ -50,17 +55,15 @@ class CreateClustersUpdates(MergeRequestBase):
             # content.update(cluster_updates) :(
             content.update(cluster_updates["root"])
 
-            yaml.explicit_start = True
-            new_content = yaml.dump(
-                content, Dumper=yaml.RoundTripDumper, explicit_start=True
-            )
+            new_content = StringIO()
+            yaml.dump(content, new_content)
 
             msg = f"update cluster {cluster_name} spec fields"
             gitlab_cli.update_file(
                 branch_name=self.branch,
                 file_path=cluster_path,
                 commit_message=msg,
-                content=new_content,
+                content=new_content.getvalue(),
             )
 
         if not changes:

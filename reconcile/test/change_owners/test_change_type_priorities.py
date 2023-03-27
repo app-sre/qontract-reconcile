@@ -8,10 +8,6 @@ from reconcile.change_owners.change_types import (
 from reconcile.gql_definitions.change_owners.queries.change_types import ChangeTypeV1
 from reconcile.test.change_owners.fixtures import change_type_to_processor
 
-pytest_plugins = [
-    "reconcile.test.change_owners.fixtures",
-]
-
 #
 # priority tests
 #

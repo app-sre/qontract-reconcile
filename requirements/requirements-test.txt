@@ -4,8 +4,8 @@ flake8~=4.0
 git+https://github.com/gabrielfalcao/HTTPretty.git@c255165a86bef7f894c3a446b41d0b3379c5c2be
 kubernetes~=24.0
 pylint~=2.13
-pytest~=7.1
-pytest-cov~=2.12
+pytest~=7.2
+pytest-cov~=4.0.0
 pytest-mock~=3.6
 responses
 testslide~=2.7

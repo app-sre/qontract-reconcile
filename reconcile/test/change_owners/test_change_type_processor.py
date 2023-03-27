@@ -4,14 +4,9 @@ from jsonpath_ng.exceptions import JsonPathParserError
 from reconcile.change_owners.change_types import ChangeTypeContext
 from reconcile.gql_definitions.change_owners.queries.change_types import ChangeTypeV1
 from reconcile.test.change_owners.fixtures import (
-    TestFile,
+    StubFile,
     change_type_to_processor,
 )
-
-pytest_plugins = [
-    "reconcile.test.change_owners.fixtures",
-]
-
 
 #
 # change type processor validations
@@ -34,7 +29,7 @@ def test_change_type_processor_building_invalid_jsonpaths(
 
 
 def test_change_type_processor_allowed_paths_simple(
-    role_member_change_type: ChangeTypeV1, user_file: TestFile
+    role_member_change_type: ChangeTypeV1, user_file: StubFile
 ):
     changed_user_file = user_file.create_bundle_change(
         {"roles[0]": {"$ref": "some-role"}}
@@ -56,7 +51,7 @@ def test_change_type_processor_allowed_paths_simple(
 
 
 def test_change_type_processor_allowed_paths_conditions(
-    secret_promoter_change_type: ChangeTypeV1, namespace_file: TestFile
+    secret_promoter_change_type: ChangeTypeV1, namespace_file: StubFile
 ):
     changed_namespace_file = namespace_file.create_bundle_change(
         {"openshiftResources[1].version": 2}
