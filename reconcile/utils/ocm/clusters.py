@@ -1,9 +1,13 @@
 from collections import defaultdict
 from enum import Enum
-from typing import Optional
+from typing import (
+    Generator,
+    Optional,
+)
 
 from pydantic import BaseModel
 
+from reconcile.utils.ocm.base import OCMModelLink
 from reconcile.utils.ocm.labels import (
     OCMLabel,
     OCMOrganizationLabel,
@@ -36,21 +40,32 @@ class OCMClusterState(Enum):
 
 class OCMCluster(BaseModel):
 
+    kind: str = "Cluster"
     id: str
+    external_id: str
+    """
+    This is sometimes also called the cluster UUID.
+    """
+
     name: str
     display_name: str
-    external_id: str
+
+    managed: bool
 
     openshift_version: str
     state: OCMClusterState
 
-    subscription_id: str
-    organization_id: str
-    region_id: str
-    console_url: str
-    api_url: str
-    product_id: str
+    subscription: OCMModelLink
+    region: OCMModelLink
+    cloud_provider: OCMModelLink
+    product: OCMModelLink
 
+
+class ClusterDetails(BaseModel):
+
+    ocm_cluster: OCMCluster
+
+    organization_id: str
     capabilities: dict[str, OCMCapability]
     """
     The capabilities of a cluster. They represent feature flags and are
@@ -70,7 +85,7 @@ class OCMCluster(BaseModel):
 
 def discover_clusters_by_labels(
     ocm_api: OCMBaseClient, label_filter: Filter
-) -> list[OCMCluster]:
+) -> list[ClusterDetails]:
     """
     Discover clusters in OCM by their subscription and organization labels.
     The discovery labels are defined via the label_filter argument.
@@ -85,10 +100,10 @@ def discover_clusters_by_labels(
     sub_id_filter = Filter().is_in("id", subscription_ids)
     org_id_filter = Filter().is_in("organization_id", organization_ids)
     return list(
-        get_clusters_for_subscriptions(
+        get_cluster_details_for_subscriptions(
             ocm_api=ocm_api,
             subscription_filter=sub_id_filter | org_id_filter,
-        ).values()
+        )
     )
 
 
@@ -96,7 +111,7 @@ def discover_clusters_for_subscriptions(
     ocm_api: OCMBaseClient,
     subscription_ids: list[str],
     cluster_filter: Optional[Filter] = None,
-) -> list[OCMCluster]:
+) -> list[ClusterDetails]:
     """
     Discover clusters by filtering on their subscription IDs.
     Additionally, a cluster_filter can be applied to narrow the
@@ -106,11 +121,11 @@ def discover_clusters_for_subscriptions(
         return []
 
     return list(
-        get_clusters_for_subscriptions(
+        get_cluster_details_for_subscriptions(
             ocm_api=ocm_api,
             subscription_filter=Filter().is_in("id", subscription_ids),
             cluster_filter=cluster_filter,
-        ).values()
+        )
     )
 
 
@@ -118,7 +133,7 @@ def discover_clusters_for_organizations(
     ocm_api: OCMBaseClient,
     organization_ids: list[str],
     cluster_filter: Optional[Filter] = None,
-) -> list[OCMCluster]:
+) -> list[ClusterDetails]:
     """
     Discover clusters by filtering on their organization IDs.
     Additionally, a cluster_filter can be applied to narrow the
@@ -128,19 +143,31 @@ def discover_clusters_for_organizations(
         return []
 
     return list(
-        get_clusters_for_subscriptions(
+        get_cluster_details_for_subscriptions(
             ocm_api=ocm_api,
             subscription_filter=Filter().is_in("organization_id", organization_ids),
             cluster_filter=cluster_filter,
-        ).values()
+        )
     )
 
 
-def get_clusters_for_subscriptions(
+def get_ocm_clusters(
+    ocm_api: OCMBaseClient,
+    cluster_filter: Filter,
+) -> Generator[OCMCluster, None, None]:
+    for cluster_dict in ocm_api.get_paginated(
+        api_path="/api/clusters_mgmt/v1/clusters",
+        params={"search": cluster_filter.render()},
+        max_page_size=100,
+    ):
+        yield OCMCluster(**cluster_dict)
+
+
+def get_cluster_details_for_subscriptions(
     ocm_api: OCMBaseClient,
     subscription_filter: Optional[Filter] = None,
     cluster_filter: Optional[Filter] = None,
-) -> dict[str, "OCMCluster"]:
+) -> Generator[ClusterDetails, None, None]:
     """
     Discover clusters by filtering on their subscriptions. The subscription_filter
     can be used to restrict on any subscription field. Additionally, a cluster_filter
@@ -152,7 +179,7 @@ def get_clusters_for_subscriptions(
         filter=(subscription_filter or Filter()) & build_subscription_filter(),
     )
     if not subscriptions:
-        return {}
+        return
 
     # get organization labels
     organization_labels: dict[str, list[OCMOrganizationLabel]] = defaultdict(list)
@@ -165,28 +192,17 @@ def get_clusters_for_subscriptions(
     ):
         organization_labels[label.organization_id].append(label)
 
-    result: dict[str, OCMCluster] = {}
     cluster_search_filter = (cluster_ready_for_app_interface() & cluster_filter).is_in(
         "subscription.id", subscriptions.keys()
     )
-    chunk_size = 100
     for filter_chunk in cluster_search_filter.chunk_by(
-        "subscription.id", chunk_size, ignore_missing=True
+        "subscription.id", 100, ignore_missing=True
     ):
-        for cluster_dict in ocm_api.get_paginated(
-            api_path="/api/clusters_mgmt/v1/clusters",
-            params={"search": filter_chunk.render()},
-            max_page_size=chunk_size,
-        ):
-            subscription = subscriptions[cluster_dict["subscription"]["id"]]
-            result[cluster_dict["subscription"]["id"]] = OCMCluster(
-                **cluster_dict,
-                subscription_id=cluster_dict["subscription"]["id"],
+        for cluster in get_ocm_clusters(ocm_api=ocm_api, cluster_filter=filter_chunk):
+            subscription = subscriptions[cluster.subscription.id]
+            yield ClusterDetails(
+                ocm_cluster=cluster,
                 organization_id=subscription.organization_id,
-                product_id=cluster_dict["product"]["id"],
-                region_id=cluster_dict["region"]["id"],
-                api_url=cluster_dict["api"]["url"],
-                console_url=cluster_dict["console"]["url"],
                 capabilities={
                     capability.name: capability
                     for capability in subscription.capabilities or []
@@ -200,7 +216,6 @@ def get_clusters_for_subscriptions(
                     or []
                 },
             )
-    return result
 
 
 def cluster_ready_for_app_interface() -> Filter:

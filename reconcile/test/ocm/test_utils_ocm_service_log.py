@@ -3,11 +3,14 @@ from datetime import (
     timedelta,
     timezone,
 )
-from typing import Any, Callable, Optional
-
-from httpretty.core import HTTPrettyRequest
+from typing import (
+    Any,
+    Callable,
+    Optional,
+)
 
 import pytest
+from httpretty.core import HTTPrettyRequest
 from pytest_mock import MockerFixture
 
 from reconcile.utils.ocm import service_log
@@ -17,6 +20,7 @@ from reconcile.utils.ocm.search_filters import (
 )
 from reconcile.utils.ocm.service_log import (
     OCMClusterServiceLog,
+    OCMClusterServiceLogCreateModel,
     OCMServiceLogSeverity,
     create_service_log,
     get_service_logs,
@@ -97,11 +101,13 @@ def test_create_service_log(
 
     result = create_service_log(
         ocm_api=ocm_api,
-        cluster_uuid="cluster_uuid",
-        summary="something happened",
-        description="something happenes",
-        service_name="some-service",
-        severity=OCMServiceLogSeverity.Info,
+        service_log=OCMClusterServiceLogCreateModel(
+            cluster_uuid="cluster_uuid",
+            summary="something happened",
+            description="something happenes",
+            service_name="some-service",
+            severity=OCMServiceLogSeverity.Info,
+        ),
     )
     assert result is not None
     assert find_http_request("POST", "/api/service_logs/v1/cluster_logs")
@@ -125,11 +131,13 @@ def test_create_service_log_dedup_timedelta_filter(
     dedup_interval = timedelta(days=1)
     create_service_log(
         ocm_api=ocm_api,
-        cluster_uuid="cluster_uuid",
-        summary="something happened",
-        description="something happenes",
-        service_name="some-service",
-        severity=OCMServiceLogSeverity.Info,
+        service_log=OCMClusterServiceLogCreateModel(
+            cluster_uuid="cluster_uuid",
+            summary="something happened",
+            description="something happenes",
+            service_name="some-service",
+            severity=OCMServiceLogSeverity.Info,
+        ),
         dedup_interval=dedup_interval,
     )
     get_service_logs_filter = get_service_logs_mock.call_args.kwargs["filter"]
@@ -153,11 +161,13 @@ def test_create_service_log_dedup(
 ):
     create_service_log(
         ocm_api=ocm_api,
-        cluster_uuid="cluster_uuid",
-        summary="something happened",
-        description="something happenes",
-        service_name="some-service",
-        severity=OCMServiceLogSeverity.Info,
+        service_log=OCMClusterServiceLogCreateModel(
+            cluster_uuid="cluster_uuid",
+            summary="something happened",
+            description="something happenes",
+            service_name="some-service",
+            severity=OCMServiceLogSeverity.Info,
+        ),
         dedup_interval=timedelta(days=1),
     )
     # expect no post call to the service log api
@@ -180,11 +190,13 @@ def test_create_service_log_dedup_no_dup(
 
     create_service_log(
         ocm_api=ocm_api,
-        cluster_uuid="cluster_uuid",
-        summary="SOMETHING ELSE HAPPENED",
-        description="something happenes",
-        service_name="some-service",
-        severity=OCMServiceLogSeverity.Info,
+        service_log=OCMClusterServiceLogCreateModel(
+            cluster_uuid="cluster_uuid",
+            summary="SOMETHING ELSE HAPPENED",
+            description="something happenes",
+            service_name="some-service",
+            severity=OCMServiceLogSeverity.Info,
+        ),
         dedup_interval=timedelta(days=1),
     )
     # expect a post call to the service log api

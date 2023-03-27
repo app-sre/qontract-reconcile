@@ -1,4 +1,9 @@
-from typing import Any, Callable, Optional
+from typing import (
+    Any,
+    Callable,
+    Optional,
+)
+
 import pytest
 from pytest_mock import MockerFixture
 

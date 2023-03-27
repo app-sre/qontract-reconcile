@@ -70,9 +70,10 @@ def get_subscriptions(
             params={"search": filter_chunk.render()},
             max_page_size=chunk_size,
         ):
-            subscriptions[subscription_dict["id"]] = OCMSubscription(
+            sub = OCMSubscription(
                 **subscription_dict,
             )
+            subscriptions[sub.id] = sub
     return subscriptions
 
 

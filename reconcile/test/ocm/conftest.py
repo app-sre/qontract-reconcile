@@ -6,8 +6,8 @@ from typing import (
 )
 
 import httpretty as httpretty_module
-from httpretty.core import HTTPrettyRequest
 import pytest
+from httpretty.core import HTTPrettyRequest
 from pydantic.json import pydantic_encoder
 
 from reconcile.utils.ocm_base_client import OCMBaseClient

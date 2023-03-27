@@ -1,4 +1,8 @@
-from typing import Any, Callable, Optional
+from typing import (
+    Any,
+    Callable,
+    Optional,
+)
 
 from pytest_mock import MockerFixture
 
@@ -11,13 +15,15 @@ from reconcile.utils.ocm import (
     clusters,
     subscriptions,
 )
+from reconcile.utils.ocm.base import OCMModelLink
 from reconcile.utils.ocm.clusters import (
+    ClusterDetails,
     OCMCluster,
     OCMClusterState,
     discover_clusters_by_labels,
     discover_clusters_for_organizations,
     discover_clusters_for_subscriptions,
-    get_clusters_for_subscriptions,
+    get_cluster_details_for_subscriptions,
 )
 from reconcile.utils.ocm.labels import (
     OCMOrganizationLabel,
@@ -28,33 +34,42 @@ from reconcile.utils.ocm.search_filters import Filter
 from reconcile.utils.ocm_base_client import OCMBaseClient
 
 
-def build_cluster(
+def build_ocm_cluster(
     name: str,
-    org_id: str = "org_id",
     subs_id: str = "subs_id",
-    org_labels: Optional[list[tuple[str, str]]] = None,
-    subs_labels: Optional[list[tuple[str, str]]] = None,
 ) -> OCMCluster:
     return OCMCluster(
         id=f"{name}_id",
         external_id=f"{name}_external_id",
         name=name,
         display_name=f"{name}_display_name",
-        subscription_id=subs_id,
+        subscription=OCMModelLink(id=subs_id),
+        region=OCMModelLink(id="us-east-1"),
+        product=OCMModelLink(id="OCP"),
+        cloud_provider=OCMModelLink(id="aws"),
+        state=OCMClusterState.READY,
+        openshift_version="4.12.0",
+        managed=True,
+    )
+
+
+def build_cluster_details(
+    ocm_cluster: OCMCluster,
+    org_id: str = "org_id",
+    org_labels: Optional[list[tuple[str, str]]] = None,
+    subs_labels: Optional[list[tuple[str, str]]] = None,
+) -> ClusterDetails:
+    return ClusterDetails(
+        ocm_cluster=ocm_cluster,
         organization_id=org_id,
         organization_labels={
             k: build_organization_label(k, v, org_id) for k, v in org_labels or []
         },
         subscription_labels={
-            k: build_subscription_label(k, v, subs_id) for k, v in subs_labels or []
+            k: build_subscription_label(k, v, ocm_cluster.subscription.id)
+            for k, v in subs_labels or []
         },
         capabilities=[],
-        api_url="https://api.example.com",
-        console_url="https://console.example.com",
-        state=OCMClusterState.READY,
-        openshift_version="4.12.0",
-        product_id="OCP",
-        region_id="us-east-1",
     )
 
 
@@ -62,7 +77,7 @@ def test_utils_ocm_discover_clusters_for_subscriptions(
     ocm_api: OCMBaseClient, mocker: MockerFixture
 ):
     get_clusters_for_subscriptions_mock = mocker.patch.object(
-        clusters, "get_clusters_for_subscriptions"
+        clusters, "get_cluster_details_for_subscriptions"
     )
     discover_clusters_for_subscriptions(
         ocm_api,
@@ -80,7 +95,7 @@ def test_utils_ocm_discover_clusters_for_empty_subscriptions_id_list(
     ocm_api: OCMBaseClient, mocker: MockerFixture
 ):
     get_clusters_for_subscriptions_mock = mocker.patch.object(
-        clusters, "get_clusters_for_subscriptions"
+        clusters, "get_cluster_details_for_subscriptions"
     )
     assert not discover_clusters_for_subscriptions(
         ocm_api,
@@ -94,7 +109,7 @@ def test_utils_ocm_discover_clusters_for_organizations(
     ocm_api: OCMBaseClient, mocker: MockerFixture
 ):
     get_clusters_for_subscriptions_mock = mocker.patch.object(
-        clusters, "get_clusters_for_subscriptions"
+        clusters, "get_cluster_details_for_subscriptions"
     )
     discover_clusters_for_organizations(
         ocm_api,
@@ -112,7 +127,7 @@ def test_utils_ocm_discover_clusters_for_empty_organization_id_list(
     ocm_api: OCMBaseClient, mocker: MockerFixture
 ):
     get_clusters_for_subscriptions_mock = mocker.patch.object(
-        clusters, "get_clusters_for_subscriptions"
+        clusters, "get_cluster_details_for_subscriptions"
     )
     assert not discover_clusters_for_organizations(
         ocm_api,
@@ -134,7 +149,7 @@ def test_discover_clusters_by_labels(
     """
     # prepare mocks
     get_clusters_for_subscriptions_mock = mocker.patch.object(
-        clusters, "get_clusters_for_subscriptions"
+        clusters, "get_cluster_details_for_subscriptions"
     )
 
     register_ocm_get_list_handler(
@@ -200,44 +215,34 @@ def test_get_clusters_for_subscriptions(
     register_ocm_get_list_handler(
         "/api/clusters_mgmt/v1/clusters",
         [
-            {
-                "id": "cl1",
-                "name": "cl1",
-                "display_name": "cl1",
-                "state": "ready",
-                "openshift_version": "4.12.0",
-                "external_id": "external_id",
-                "subscription": {"id": subscription_id},
-                "product": {"id": "OCP"},
-                "region": {"id": "us-east-1"},
-                "api": {"url": "https://api.clusters.example.com:6443"},
-                "console": {
-                    "url": "https://console-openshift-console.apps.clusters.example.com"
-                },
-            }
+            build_ocm_cluster(
+                name="cl1",
+                subs_id=subscription_id,
+            )
         ],
     )
 
     subscription_filter = Filter().eq("id", subscription_id)
-    discoverd_clusters = get_clusters_for_subscriptions(
-        ocm_api=ocm_api,
-        subscription_filter=subscription_filter,
+    discoverd_clusters = list(
+        get_cluster_details_for_subscriptions(
+            ocm_api=ocm_api,
+            subscription_filter=subscription_filter,
+        )
     )
+    assert len(discoverd_clusters) == 1
 
     get_subscriptions_mock.assert_called_once_with(
         ocm_api=ocm_api,
         filter=subscription_filter & subscriptions.build_subscription_filter(),
     )
-
     get_organization_labels_mock.assert_called_once_with(
         ocm_api=ocm_api, filter=Filter().is_in("organization_id", [organization_id])
     )
 
-    assert subscription_id in discoverd_clusters
-    assert discoverd_clusters[subscription_id].organization_labels == {
+    assert discoverd_clusters[0].organization_labels == {
         organization_label.key: organization_label
     }
-    assert discoverd_clusters[subscription_id].subscription_labels == {
+    assert discoverd_clusters[0].subscription_labels == {
         sl.key: sl for sl in subscription.labels or []
     }
 
@@ -250,9 +255,11 @@ def test_get_clusters_for_subscriptions_none_found(
     get_subscriptions_mock.return_value = {}
 
     subscription_filter = Filter().eq("id", "sub_id")
-    discoverd_clusters = get_clusters_for_subscriptions(
-        ocm_api=ocm_api,
-        subscription_filter=subscription_filter,
+    discoverd_clusters = list(
+        get_cluster_details_for_subscriptions(
+            ocm_api=ocm_api,
+            subscription_filter=subscription_filter,
+        )
     )
 
     assert not discoverd_clusters
@@ -264,8 +271,8 @@ def test_get_clusters_for_subscriptions_none_found(
 
 
 def test_ocm_cluster_get_label():
-    cluster = build_cluster(
-        name="cl",
+    cluster = build_cluster_details(
+        ocm_cluster=build_ocm_cluster(name="cl"),
         org_labels=[("org_label", "org_value"), ("label", "org_value")],
         subs_labels=[("subs_label", "subs_value"), ("label", "subs_value")],
     )

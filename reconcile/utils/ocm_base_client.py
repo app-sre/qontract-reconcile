@@ -7,6 +7,7 @@ from typing import (
     Any,
     Optional,
     Protocol,
+    Union,
 )
 
 from requests import (
@@ -109,7 +110,7 @@ class OCMBaseClient:
     def post(
         self,
         api_path: str,
-        data: Optional[Mapping[str, Any]] = None,
+        data: Optional[Union[Mapping[str, Any], str]] = None,
         params: Optional[Mapping[str, str]] = None,
     ) -> Any:
         r = self._session.post(

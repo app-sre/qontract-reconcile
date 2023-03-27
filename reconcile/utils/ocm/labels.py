@@ -54,11 +54,12 @@ def build_label_from_dict(label_dict: dict[str, Any]) -> "OCMLabel":
     """
     Translates a label dict into a type specific label object.
     """
-    if label_dict["type"] == "Subscription":
+    label_type = label_dict.get("type")
+    if label_type == "Subscription":
         return OCMSubscriptionLabel(**label_dict)
-    if label_dict["type"] == "Organization":
+    if label_type == "Organization":
         return OCMOrganizationLabel(**label_dict)
-    if label_dict["type"] == "Account":
+    if label_type == "Account":
         return OCMAccountLabel(**label_dict)
     raise ValueError(f"Unknown label type: {label_dict['type']}")
 

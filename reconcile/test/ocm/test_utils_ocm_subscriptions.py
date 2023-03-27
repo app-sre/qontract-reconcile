@@ -1,4 +1,8 @@
-from typing import Any, Callable, Optional
+from typing import (
+    Any,
+    Callable,
+    Optional,
+)
 
 from reconcile.test.ocm.test_utils_ocm_labels import build_subscription_label
 from reconcile.utils.ocm.search_filters import Filter
