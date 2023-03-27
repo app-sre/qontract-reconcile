@@ -100,7 +100,6 @@ def create_cloudflare_terrascript(
         "cloudflare": {
             "source": "cloudflare/cloudflare",
             "version": provider_version,
-            "rps": provider_rps,
         }
     }
 
@@ -109,6 +108,7 @@ def create_cloudflare_terrascript(
     terrascript += provider.cloudflare(
         api_token=account_config.api_token,
         account_id=account_config.account_id,  # needed for some resources, see note below
+        rps=provider_rps,
     )
 
     cloudflare_account_values = {
