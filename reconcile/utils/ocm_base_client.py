@@ -1,8 +1,13 @@
 import logging
-from collections.abc import Mapping
+from collections.abc import (
+    Generator,
+    Mapping,
+)
 from typing import (
     Any,
     Optional,
+    Protocol,
+    Union,
 )
 
 from requests import (
@@ -10,6 +15,11 @@ from requests import (
     codes,
 )
 from sretoolbox.utils import retry
+
+from reconcile.utils.secret_reader import (
+    HasSecret,
+    SecretReaderBase,
+)
 
 REQUEST_TIMEOUT_SEC = 60
 
@@ -66,10 +76,41 @@ class OCMBaseClient:
         r.raise_for_status()
         return r.json()
 
+    def get_paginated(
+        self,
+        api_path: str,
+        params: Optional[dict[str, Any]] = None,
+        max_page_size: int = 100,
+        max_pages: Optional[int] = None,
+    ) -> Generator[dict[str, Any], None, None]:
+        if not params:
+            params_copy = {}
+        else:
+            params_copy = params.copy()
+        params_copy["size"] = max_page_size
+
+        # fetch pages
+        records_seen = 0
+        while True:
+            rs = self.get(api_path, params=params)
+            for item in rs.get("items", []):
+                yield item
+            total_records = rs.get("total", 0)
+            current_page = rs.get("page", 0)
+            records_on_page = rs.get("size", len(rs.get("items", [])))
+            records_seen += records_on_page
+            if total_records > records_seen and (
+                max_pages and max_pages < current_page
+            ):
+                # more page available
+                params_copy["page"] = current_page + 1
+            else:
+                return
+
     def post(
         self,
         api_path: str,
-        data: Optional[Mapping[str, Any]] = None,
+        data: Optional[Union[Mapping[str, Any], str]] = None,
         params: Optional[Mapping[str, str]] = None,
     ) -> Any:
         r = self._session.post(
@@ -108,3 +149,29 @@ class OCMBaseClient:
     def delete(self, api_path: str):
         r = self._session.delete(f"{self._url}{api_path}", timeout=REQUEST_TIMEOUT_SEC)
         r.raise_for_status()
+
+
+class OCMAPIClientConfiguration(Protocol):
+    url: str
+    access_token_client_id: str
+    access_token_url: str
+    access_token_client_secret: HasSecret
+
+
+def init_ocm_base_client(
+    cfg: OCMAPIClientConfiguration,
+    secret_reader: SecretReaderBase,
+    session: Optional[Session] = None,
+) -> OCMBaseClient:
+    """
+    Initiate an API client towards an OCM instance.
+    """
+    return OCMBaseClient(
+        url=cfg.url,
+        access_token_client_secret=secret_reader.read_secret(
+            cfg.access_token_client_secret
+        ),
+        access_token_url=cfg.access_token_url,
+        access_token_client_id=cfg.access_token_client_id,
+        session=session,
+    )

@@ -1,0 +1,19 @@
+# qenerate: plugin=pydantic_v1
+
+query AUSClusters($name: String) {
+  clusters: clusters_v1(name: $name) {
+    name
+    ocm {
+        ... AUSOCMOrganization
+    }
+    upgradePolicy {
+        ... ClusterUpgradePolicy
+    }
+    spec {
+        product
+    }
+    disable {
+        integrations
+    }
+  }
+}

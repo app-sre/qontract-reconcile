@@ -6,8 +6,8 @@ from unittest.mock import (
 import pytest
 from dateutil import parser
 
-import reconcile.ocm_addons_upgrade_scheduler_org as oauso
-import reconcile.ocm_upgrade_scheduler as ous
+import reconcile.aus.base as aus
+import reconcile.aus.ocm_addons_upgrade_scheduler_org as oauso
 
 
 @pytest.fixture
@@ -51,7 +51,7 @@ def desired_state(addon_id, cluster):
 
 
 @pytest.fixture
-@patch("reconcile.ocm_upgrade_scheduler.OCMMap", autospec=True)
+@patch("reconcile.aus.ocm_upgrade_scheduler.OCMMap", autospec=True)
 def ocm_map(mock_ocm_map, addon_id, cluster, ocm_addon_version):
     map = mock_ocm_map.return_value
     ocm = map.get.return_value
@@ -84,19 +84,19 @@ def test_delete_automatic_upgrade_policy(
 
 @pytest.fixture
 def set_upgradeable(monkeypatch):
-    datetime_mock = Mock(wraps=ous.datetime)
+    datetime_mock = Mock(wraps=aus.datetime)
     datetime_mock.utcnow.return_value = parser.parse("2021-08-30T18:55:00.00000")
-    monkeypatch.setattr(ous, "datetime", datetime_mock)
+    monkeypatch.setattr(aus, "datetime", datetime_mock)
 
-    croniter_mock = Mock(wraps=ous.croniter)
+    croniter_mock = Mock(wraps=aus.croniter)
     croniter_mock.return_value.get_next.return_value = parser.parse(
         "2021-08-30T19:00:00.00000"
     )
-    monkeypatch.setattr(ous, "croniter", croniter_mock)
+    monkeypatch.setattr(aus, "croniter", croniter_mock)
 
-    version_conditions_met = Mock(wraps=ous.version_conditions_met)
+    version_conditions_met = Mock(wraps=aus.version_conditions_met)
     version_conditions_met.return_value = True
-    monkeypatch.setattr(ous, "version_conditions_met", version_conditions_met)
+    monkeypatch.setattr(aus, "version_conditions_met", version_conditions_met)
     return True
 
 
