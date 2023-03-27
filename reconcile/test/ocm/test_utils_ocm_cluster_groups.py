@@ -37,7 +37,7 @@ def build_ocm_cluster_group(
 def test_get_cluster_groups(
     ocm_api: OCMBaseClient,
     register_ocm_get_list_handler: Callable[[str, Optional[Any]], None],
-):
+) -> None:
     cluster_id = "cluster_id"
     register_ocm_get_list_handler(
         build_cluster_groups_url(cluster_id),
@@ -64,7 +64,7 @@ def test_add_user_to_cluster_group(
     ocm_api: OCMBaseClient,
     register_ocm_request_handler: Callable[[str, str, Optional[Any]], None],
     find_http_request: Callable[[str, str], Optional[HTTPrettyRequest]],
-):
+) -> None:
     cluster_id = "cluster_id"
     user_name = "user-to-add"
     group = OCMClusterGroupId.DEDICATED_ADMINS
@@ -87,7 +87,7 @@ def test_delete_user_from_cluster_group(
     ocm_api: OCMBaseClient,
     register_ocm_request_handler: Callable[[str, str, Optional[Any]], None],
     httpretty: httpretty_module,
-):
+) -> None:
     cluster_id = "cluster_id"
     user_name = "user-to-delete"
     group = OCMClusterGroupId.DEDICATED_ADMINS

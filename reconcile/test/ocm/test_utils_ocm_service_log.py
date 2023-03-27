@@ -71,7 +71,7 @@ def example_service_log(
 def test_get_service_logs(
     ocm_api: OCMBaseClient,
     example_service_log: OCMClusterServiceLog,
-):
+) -> None:
     fetched_logs = list(
         get_service_logs(
             ocm_api=ocm_api, filter=Filter().eq("cluster_uuid", "cluster_uuid")
@@ -84,7 +84,7 @@ def test_create_service_log(
     ocm_api: OCMBaseClient,
     register_ocm_request_handler: Callable[[str, str, Optional[Any]], None],
     find_http_request: Callable[[str, str], Optional[HTTPrettyRequest]],
-):
+) -> None:
     timestamp = datetime(2020, 1, 2, 0, 0, 0, 0, tzinfo=timezone.utc)
     register_ocm_request_handler(
         "POST",
@@ -115,7 +115,7 @@ def test_create_service_log(
 
 def test_create_service_log_dedup_timedelta_filter(
     ocm_api: OCMBaseClient, mocker: MockerFixture
-):
+) -> None:
     get_service_logs_mock = mocker.patch.object(service_log, "get_service_logs")
     get_service_logs_mock.return_value = iter(
         [
@@ -158,7 +158,7 @@ def test_create_service_log_dedup(
     ocm_api: OCMBaseClient,
     example_service_log: OCMClusterServiceLog,
     find_http_request: Callable[[str, str], Optional[HTTPrettyRequest]],
-):
+) -> None:
     create_service_log(
         ocm_api=ocm_api,
         service_log=OCMClusterServiceLogCreateModel(
@@ -179,7 +179,7 @@ def test_create_service_log_dedup_no_dup(
     register_ocm_get_list_handler: Callable[[str, Optional[Any]], None],
     register_ocm_request_handler: Callable[[str, str, Optional[Any]], None],
     find_http_request: Callable[[str, str], Optional[HTTPrettyRequest]],
-):
+) -> None:
     register_ocm_get_list_handler(
         "/api/service_logs/v1/cluster_logs",
         [],

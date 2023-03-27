@@ -75,7 +75,7 @@ def build_cluster_details(
 
 def test_utils_ocm_discover_clusters_for_subscriptions(
     ocm_api: OCMBaseClient, mocker: MockerFixture
-):
+) -> None:
     get_clusters_for_subscriptions_mock = mocker.patch.object(
         clusters, "get_cluster_details_for_subscriptions"
     )
@@ -93,7 +93,7 @@ def test_utils_ocm_discover_clusters_for_subscriptions(
 
 def test_utils_ocm_discover_clusters_for_empty_subscriptions_id_list(
     ocm_api: OCMBaseClient, mocker: MockerFixture
-):
+) -> None:
     get_clusters_for_subscriptions_mock = mocker.patch.object(
         clusters, "get_cluster_details_for_subscriptions"
     )
@@ -107,7 +107,7 @@ def test_utils_ocm_discover_clusters_for_empty_subscriptions_id_list(
 
 def test_utils_ocm_discover_clusters_for_organizations(
     ocm_api: OCMBaseClient, mocker: MockerFixture
-):
+) -> None:
     get_clusters_for_subscriptions_mock = mocker.patch.object(
         clusters, "get_cluster_details_for_subscriptions"
     )
@@ -125,7 +125,7 @@ def test_utils_ocm_discover_clusters_for_organizations(
 
 def test_utils_ocm_discover_clusters_for_empty_organization_id_list(
     ocm_api: OCMBaseClient, mocker: MockerFixture
-):
+) -> None:
     get_clusters_for_subscriptions_mock = mocker.patch.object(
         clusters, "get_cluster_details_for_subscriptions"
     )
@@ -141,7 +141,7 @@ def test_discover_clusters_by_labels(
     mocker: MockerFixture,
     ocm_api: OCMBaseClient,
     register_ocm_get_list_handler: Callable[[str, Optional[Any]], None],
-):
+) -> None:
     """
     Tests that the discover_clusters_by_labels function discovers subscription and
     organization labels properly and calls get_clusters_for_subscriptions with
@@ -188,7 +188,7 @@ def test_get_clusters_for_subscriptions(
     mocker: MockerFixture,
     ocm_api: OCMBaseClient,
     register_ocm_get_list_handler: Callable[[str, Optional[Any]], None],
-):
+) -> None:
     """
     Tests the subscription and organization labels are properly queried
     and returned in the context of a cluster.
@@ -249,7 +249,7 @@ def test_get_clusters_for_subscriptions(
 
 def test_get_clusters_for_subscriptions_none_found(
     mocker: MockerFixture, ocm_api: OCMBaseClient
-):
+) -> None:
 
     get_subscriptions_mock = mocker.patch.object(clusters, "get_subscriptions")
     get_subscriptions_mock.return_value = {}
@@ -270,7 +270,7 @@ def test_get_clusters_for_subscriptions_none_found(
     )
 
 
-def test_ocm_cluster_get_label():
+def test_ocm_cluster_get_label() -> None:
     cluster = build_cluster_details(
         ocm_cluster=build_ocm_cluster(name="cl"),
         org_labels=[("org_label", "org_value"), ("label", "org_value")],

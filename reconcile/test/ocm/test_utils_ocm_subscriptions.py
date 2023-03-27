@@ -42,7 +42,7 @@ def build_ocm_subscription(
 def test_get_subscriptions(
     ocm_api: OCMBaseClient,
     register_ocm_get_list_handler: Callable[[str, Optional[Any]], None],
-):
+) -> None:
     sub = build_ocm_subscription(
         name="sub-1",
         labels=[("label-1", "value-1")],
@@ -58,16 +58,16 @@ def test_get_subscriptions(
     assert sub == subscriptions[sub.id]
 
 
-def test_build_subscription_filter():
+def test_build_subscription_filter() -> None:
     filter = build_subscription_filter()
     assert filter.render() == "managed='true' and status='Active'"
 
 
-def test_build_subscription_filter_unmanaged():
+def test_build_subscription_filter_unmanaged() -> None:
     filter = build_subscription_filter(managed=False)
     assert filter.render() == "managed='false' and status='Active'"
 
 
-def test_build_subscription_filter_state():
+def test_build_subscription_filter_state() -> None:
     filter = build_subscription_filter(state="Stale")
     assert filter.render() == "managed='true' and status='Stale'"

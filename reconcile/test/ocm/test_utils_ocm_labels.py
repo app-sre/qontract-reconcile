@@ -50,7 +50,7 @@ def build_subscription_label(
     )
 
 
-def test_utils_build_ocm_organization_label_from_dict():
+def test_utils_build_ocm_organization_label_from_dict() -> None:
     key = "some_key"
     value = "some_value"
     organization_id = "some_org_id"
@@ -73,7 +73,7 @@ def test_utils_build_ocm_organization_label_from_dict():
     assert ocm_label.organization_id == organization_id
 
 
-def test_utils_build_ocm_subscription_label_from_dict():
+def test_utils_build_ocm_subscription_label_from_dict() -> None:
     key = "some_key"
     value = "some_value"
     subscription_id = "some_sub_id"
@@ -96,7 +96,7 @@ def test_utils_build_ocm_subscription_label_from_dict():
     assert ocm_label.subscription_id == subscription_id
 
 
-def test_utils_build_ocm_account_label_from_dict():
+def test_utils_build_ocm_account_label_from_dict() -> None:
     key = "some_key"
     value = "some_value"
     account_id = "some_account_id"
@@ -119,7 +119,7 @@ def test_utils_build_ocm_account_label_from_dict():
     assert ocm_label.account_id == account_id
 
 
-def test_utils_build_ocm_unknown_label_from_dict():
+def test_utils_build_ocm_unknown_label_from_dict() -> None:
     with pytest.raises(ValueError):
         build_label_from_dict(
             {
@@ -132,7 +132,7 @@ def test_utils_get_organization_labels(
     ocm_api: OCMBaseClient,
     mocker: MockerFixture,
     register_ocm_get_list_handler: Callable[[str, Optional[Any]], None],
-):
+) -> None:
     get_labels_call_recorder = mocker.patch.object(
         labels, "get_labels", wraps=labels.get_labels
     )
@@ -166,7 +166,7 @@ def test_utils_get_subscription_labels(
     ocm_api: OCMBaseClient,
     mocker: MockerFixture,
     register_ocm_get_list_handler: Callable[[str, Optional[Any]], None],
-):
+) -> None:
     get_labels_call_recorder = mocker.patch.object(
         labels, "get_labels", wraps=labels.get_labels
     )
@@ -196,11 +196,11 @@ def test_utils_get_subscription_labels(
     )
 
 
-def test_build_label_filter_for_key():
+def test_build_label_filter_for_key() -> None:
     filter = labels.label_filter("foo")
     assert filter == Filter().eq("key", "foo")
 
 
-def test_build_label_filter_for_key_and_value():
+def test_build_label_filter_for_key_and_value() -> None:
     filter = labels.label_filter("foo", "bar")
     assert filter == Filter().eq("key", "foo").eq("value", "bar")
