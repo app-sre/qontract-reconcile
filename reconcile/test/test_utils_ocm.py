@@ -283,7 +283,7 @@ def test_sector_validate_dependencies(ocm):
 
 
 def test_ocm_map_upgrade_policies_sector(ocm, mocker):
-    mocker.patch("reconcile.utils.ocm.SecretReader")
+    mocker.patch("reconcile.utils.ocm.ocm.SecretReader")
     sectors = [
         {"name": "s1"},
         {"name": "s2", "dependencies": [{"name": "s1"}]},
