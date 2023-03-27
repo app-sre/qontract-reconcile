@@ -302,44 +302,21 @@ class CloudflareLogpushJob(TerrascriptResource):
     def populate(self) -> list[Union[Resource, Output, Data]]:
         resources = []
         values = ResourceValueResolver(self._spec).resolve()
-        destination_conf = values.get("destination_conf")
-        zone = values.get("zone_name")
-        enabled = values.get("enabled")
-        logpull_options = values.get("logpull_options")
-        dataset = values.get("dataset")
-        frequency = values.get("frequency")
-        ownership_challenge = values.get("ownership_challenge")
+        zone = values.pop("zone_name", None)
+        name = values.pop("job_name", None)
+
+        if name:
+            values["name"] = name
 
         if zone:
             resources.append(
                 self.cloudflare_zone(zone, name=zone, account_id="${var.account_id}")
             )
-            resources.append(
-                cloudflare_logpush_job(
-                    self._spec.identifier,
-                    enabled=enabled,
-                    logpull_options=logpull_options,
-                    ownership_challenge=ownership_challenge,
-                    dataset=dataset,
-                    frequency=frequency,
-                    destination_conf=destination_conf,
-                    zone_id=f"${{data.cloudflare_zone.{zone}.id}}",
-                )
-            )
+            values["zone_id"] = f"${{data.cloudflare_zone.{zone}.id}}"
         else:
-            resources.append(
-                cloudflare_logpush_job(
-                    self._spec.identifier,
-                    enabled=enabled,
-                    logpull_options=logpull_options,
-                    ownership_challenge=ownership_challenge,
-                    dataset=dataset,
-                    frequency=frequency,
-                    destination_conf=destination_conf,
-                    account_id="${var.account_id}",
-                )
-            )
+            values["account_id"] = "${var.account_id}"
 
+        resources.append(cloudflare_logpush_job(self._spec.identifier, **values))
         return resources
 
 

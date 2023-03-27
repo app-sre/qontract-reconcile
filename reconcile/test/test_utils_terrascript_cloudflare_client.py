@@ -168,6 +168,7 @@ def test_create_cloudflare_resources_terraform_json(account_config, backend_conf
             "ownership_challenge": "some-challenge",
             "dataset": "http_requests",
             "frequency": "high",
+            "kind": "edge",
         },
         {},
     )
@@ -183,6 +184,8 @@ def test_create_cloudflare_resources_terraform_json(account_config, backend_conf
             "ownership_challenge": "some-challenge",
             "dataset": "http_requests",
             "frequency": "high",
+            "job_name": "Logpush job for account",
+            "filter": '{"key":"BotScore","operator":"lt","value":"30"}',
         },
         {},
     )
@@ -322,6 +325,7 @@ def test_create_cloudflare_resources_terraform_json(account_config, backend_conf
                     "frequency": "high",
                     "logpull_options": "fields=RayID,ClientIP,EdgeStartTimestamp&timestamps=rfc3339",
                     "ownership_challenge": "some-challenge",
+                    "kind": "edge",
                 },
                 "logpush_job_account": {
                     "account_id": "${var.account_id}",
@@ -331,6 +335,8 @@ def test_create_cloudflare_resources_terraform_json(account_config, backend_conf
                     "frequency": "high",
                     "logpull_options": "fields=RayID,ClientIP,EdgeStartTimestamp&timestamps=rfc3339",
                     "ownership_challenge": "some-challenge",
+                    "name": "Logpush job for account",
+                    "filter": '{"key":"BotScore","operator":"lt","value":"30"}',
                 },
             },
             "cloudflare_logpull_retention": {
