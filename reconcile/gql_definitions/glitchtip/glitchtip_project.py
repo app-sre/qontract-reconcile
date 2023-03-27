@@ -95,6 +95,10 @@ query Projects {
         }
       }
     }
+    # for gltichtip access revalidation
+    app {
+      path
+    }
   }
 }
 """
@@ -171,6 +175,10 @@ class NamespaceV1(ConfiguredBaseModel):
     cluster: ClusterV1 = Field(..., alias="cluster")
 
 
+class AppV1(ConfiguredBaseModel):
+    path: str = Field(..., alias="path")
+
+
 class GlitchtipProjectsV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     platform: str = Field(..., alias="platform")
@@ -179,6 +187,7 @@ class GlitchtipProjectsV1(ConfiguredBaseModel):
         ..., alias="organization"
     )
     namespaces: list[NamespaceV1] = Field(..., alias="namespaces")
+    app: AppV1 = Field(..., alias="app")
 
 
 class ProjectsQueryData(ConfiguredBaseModel):

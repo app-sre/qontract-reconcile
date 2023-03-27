@@ -53,5 +53,9 @@ query Projects {
         }
       }
     }
+    # for gltichtip access revalidation
+    app {
+      path
+    }
   }
 }
