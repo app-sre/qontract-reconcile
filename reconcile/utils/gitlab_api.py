@@ -665,5 +665,5 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
 
     def get_commit_sha(self, ref: str, repo_url: str) -> str:
         project = self.gl.get_project(repo_url)
-        commits = project.commits.list(ref_name=ref)
+        commits = project.commits.list(ref_name=ref, per_page=1)
         return commits[0].id
