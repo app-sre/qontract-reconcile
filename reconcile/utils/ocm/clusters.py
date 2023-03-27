@@ -99,10 +99,14 @@ def discover_clusters_by_labels(
             organization_ids.add(label.organization_id)
     sub_id_filter = Filter().is_in("id", subscription_ids)
     org_id_filter = Filter().is_in("organization_id", organization_ids)
+    subscription_filter = (
+        sub_id_filter | org_id_filter  # pylint: disable=unsupported-binary-operation
+    )
+    # the pylint ignore above is because of a bug in pylint - https://github.com/PyCQA/pylint/issues/7381
     return list(
         get_cluster_details_for_subscriptions(
             ocm_api=ocm_api,
-            subscription_filter=sub_id_filter | org_id_filter,
+            subscription_filter=subscription_filter,
         )
     )
 
