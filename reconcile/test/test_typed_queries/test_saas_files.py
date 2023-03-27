@@ -6,7 +6,6 @@ from typing import (
 )
 
 import pytest
-from pytest_mock import MockerFixture
 
 from reconcile.gql_definitions.common.saas_files import (
     SaasFileV2,
