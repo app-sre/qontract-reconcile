@@ -1,7 +1,10 @@
 import enum
 import logging
 from collections.abc import Callable
-from typing import Any
+from typing import (
+    Any,
+    Optional,
+)
 
 from pydantic import BaseModel
 
@@ -22,6 +25,7 @@ from reconcile.gql_definitions.gitlab_members.permissions import (
     query as permissions_query,
 )
 from reconcile.utils import gql
+from reconcile.utils.defer import defer
 from reconcile.utils.exceptions import AppInterfaceSettingsError
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.pagerduty_api import (
@@ -182,7 +186,11 @@ def get_gitlab_instance(query_func: Callable) -> GitlabInstanceV1:
     raise AppInterfaceSettingsError("No gitlab instance found!")
 
 
-def run(dry_run: bool) -> None:
+@defer
+def run(
+    dry_run: bool,
+    defer: Optional[Callable] = None,
+) -> None:
     gqlapi = gql.get_api()
     # queries
     instance = get_gitlab_instance(gqlapi.query)
@@ -206,6 +214,8 @@ def run(dry_run: bool) -> None:
         },
         settings=settings,
     )
+    if defer:
+        defer(gl.cleanup)
     pagerduty_map = get_pagerduty_map(
         secret_reader, pagerduty_instances=pagerduty_instances
     )

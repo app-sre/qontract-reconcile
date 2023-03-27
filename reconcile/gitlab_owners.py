@@ -4,6 +4,7 @@ from dateutil import parser as dateparser
 from sretoolbox.utils import threaded
 
 from reconcile import queries
+from reconcile.utils.defer import defer
 from reconcile.utils.gitlab_api import (
     GitLabApi,
     MRState,
@@ -310,8 +311,10 @@ class MRApproval:
         return markdown_report.rstrip()
 
 
-def act(repo, dry_run, instance, settings):
+@defer
+def act(repo, dry_run, instance, settings, defer=None):
     gitlab_cli = GitLabApi(instance, project_url=repo, settings=settings)
+    defer(gitlab_cli.cleanup)
     project_owners = RepoOwners(
         git_cli=gitlab_cli, ref=gitlab_cli.project.default_branch
     )

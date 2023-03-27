@@ -38,6 +38,17 @@ class GithubRepositoryApi:
             git_cli = Github(token, base_url=GH_BASE_URL, timeout=timeout)
         self._repo = git_cli.get_repo(repo)
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self.cleanup()
+
+    def cleanup(self):
+        """
+        Align with GitLabApi
+        """
+
     def get_repository_tree(self, ref: str = "master") -> list[dict[str, str]]:
         tree_items = []
         for item in self._repo.get_git_tree(sha=ref, recursive=True).tree:

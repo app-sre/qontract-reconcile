@@ -142,9 +142,10 @@ def clean_pipelines(
     pipelines: list[dict],
 ) -> None:
     if not dry_run:
-        gl_piplelines = GitLabApi(
+        with GitLabApi(
             gl_instance, project_id=gl_project_id, settings=gl_settings
-        ).project.pipelines
+        ) as gl:
+            gl_piplelines = gl.project.pipelines
 
     for p in pipelines:
         logging.info(["canceling", p["web_url"]])
@@ -530,47 +531,48 @@ def run(dry_run, wait_for_pipeline):
                 u["org_username"] for la in labels_allowed for u in la["role"]["users"]
             }
         )
-        gl = GitLabApi(instance, project_url=project_url, settings=settings)
-
-        handle_stale_items(dry_run, gl, days_interval, enable_closing, "issue")
-        handle_stale_items(dry_run, gl, days_interval, enable_closing, "merge-request")
-        rebase = hk.get("rebase")
-        try:
-            merge_merge_requests(
-                dry_run,
-                gl,
-                limit,
-                rebase,
-                pipeline_timeout,
-                insist=True,
-                wait_for_pipeline=wait_for_pipeline,
-                gl_instance=instance,
-                gl_settings=settings,
-                users_allowed_to_label=users_allowed_to_label,
+        with GitLabApi(instance, project_url=project_url, settings=settings) as gl:
+            handle_stale_items(dry_run, gl, days_interval, enable_closing, "issue")
+            handle_stale_items(
+                dry_run, gl, days_interval, enable_closing, "merge-request"
             )
-        except Exception:
-            logging.error(
-                "All retries failed, trying to rerun merge_merge_requests() again."
-            )
-            merge_merge_requests(
-                dry_run,
-                gl,
-                limit,
-                rebase,
-                pipeline_timeout,
-                wait_for_pipeline=wait_for_pipeline,
-                gl_instance=instance,
-                gl_settings=settings,
-                users_allowed_to_label=users_allowed_to_label,
-            )
-        if rebase:
-            rebase_merge_requests(
-                dry_run,
-                gl,
-                limit,
-                pipeline_timeout=pipeline_timeout,
-                wait_for_pipeline=wait_for_pipeline,
-                gl_instance=instance,
-                gl_settings=settings,
-                users_allowed_to_label=users_allowed_to_label,
-            )
+            rebase = hk.get("rebase")
+            try:
+                merge_merge_requests(
+                    dry_run,
+                    gl,
+                    limit,
+                    rebase,
+                    pipeline_timeout,
+                    insist=True,
+                    wait_for_pipeline=wait_for_pipeline,
+                    gl_instance=instance,
+                    gl_settings=settings,
+                    users_allowed_to_label=users_allowed_to_label,
+                )
+            except Exception:
+                logging.error(
+                    "All retries failed, trying to rerun merge_merge_requests() again."
+                )
+                merge_merge_requests(
+                    dry_run,
+                    gl,
+                    limit,
+                    rebase,
+                    pipeline_timeout,
+                    wait_for_pipeline=wait_for_pipeline,
+                    gl_instance=instance,
+                    gl_settings=settings,
+                    users_allowed_to_label=users_allowed_to_label,
+                )
+            if rebase:
+                rebase_merge_requests(
+                    dry_run,
+                    gl,
+                    limit,
+                    pipeline_timeout=pipeline_timeout,
+                    wait_for_pipeline=wait_for_pipeline,
+                    gl_instance=instance,
+                    gl_settings=settings,
+                    users_allowed_to_label=users_allowed_to_label,
+                )

@@ -48,6 +48,14 @@ class GitlabForkCompliance:
         )
         self.mr = self.gl_cli.get_merge_request(mr_id)
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self.gl_cli.cleanup()
+        if hasattr(self, "src") and self.src is not None:
+            self.src.cleanup()
+
     def run(self):
         self.exit_code |= self.check_branch()
         self.exit_code |= self.check_bot_access()
@@ -116,5 +124,5 @@ class GitlabForkCompliance:
 
 
 def run(dry_run, project_id, mr_id, maintainers_group):
-    gfc = GitlabForkCompliance(project_id, mr_id, maintainers_group)
-    gfc.run()
+    with GitlabForkCompliance(project_id, mr_id, maintainers_group) as gfc:
+        gfc.run()

@@ -302,50 +302,49 @@ def get_slack_usernames_from_owners(
             url = url_ref
             ref = "master"
 
-        repo_cli = get_git_api(url)
+        with get_git_api(url) as repo_cli:
+            if isinstance(repo_cli, GitLabApi):
+                user_key = "org_username"
+                missing_user_log_method = logging.warning
+            elif isinstance(repo_cli, GithubRepositoryApi):
+                user_key = "github_username"
+                missing_user_log_method = logging.debug
+            else:
+                raise TypeError(f"{type(repo_cli)} not supported")
 
-        if isinstance(repo_cli, GitLabApi):
-            user_key = "org_username"
-            missing_user_log_method = logging.warning
-        elif isinstance(repo_cli, GithubRepositoryApi):
-            user_key = "github_username"
-            missing_user_log_method = logging.debug
-        else:
-            raise TypeError(f"{type(repo_cli)} not supported")
+            repo_owners = repo_owner_class(git_cli=repo_cli, ref=ref)
 
-        repo_owners = repo_owner_class(git_cli=repo_cli, ref=ref)
+            try:
+                owners = repo_owners.get_root_owners()
+            except UnknownObjectException:
+                logging.error(f"ref {ref} not found for repo {url}")
+                raise
 
-        try:
-            owners = repo_owners.get_root_owners()
-        except UnknownObjectException:
-            logging.error(f"ref {ref} not found for repo {url}")
-            raise
+            all_owners = owners["approvers"] + owners["reviewers"]
 
-        all_owners = owners["approvers"] + owners["reviewers"]
+            if not all_owners:
+                continue
 
-        if not all_owners:
-            continue
+            all_username_keys = [getattr(u, user_key) for u in users]
 
-        all_username_keys = [getattr(u, user_key) for u in users]
+            slack_usernames = [
+                get_slack_username(u)
+                for u in users
+                if getattr(u, user_key).lower() in [o.lower() for o in all_owners]
+            ]
+            not_found_users = [
+                owner
+                for owner in all_owners
+                if owner.lower() not in [u.lower() for u in all_username_keys]
+            ]
+            if not_found_users:
+                msg = (
+                    f"[{usergroup}] {user_key} not found in app-interface: "
+                    + f"{not_found_users}"
+                )
+                missing_user_log_method(msg)
 
-        slack_usernames = [
-            get_slack_username(u)
-            for u in users
-            if getattr(u, user_key).lower() in [o.lower() for o in all_owners]
-        ]
-        not_found_users = [
-            owner
-            for owner in all_owners
-            if owner.lower() not in [u.lower() for u in all_username_keys]
-        ]
-        if not_found_users:
-            msg = (
-                f"[{usergroup}] {user_key} not found in app-interface: "
-                + f"{not_found_users}"
-            )
-            missing_user_log_method(msg)
-
-        all_slack_usernames.extend(slack_usernames)
+            all_slack_usernames.extend(slack_usernames)
 
     return all_slack_usernames
 

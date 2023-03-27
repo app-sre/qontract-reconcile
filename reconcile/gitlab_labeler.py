@@ -124,21 +124,21 @@ def guess_labels(
 def run(dry_run, gitlab_project_id=None, gitlab_merge_request_id=None) -> None:
     instance = queries.get_gitlab_instance()
     settings = queries.get_app_interface_settings()
-    gl = GitLabApi(instance, project_id=gitlab_project_id, settings=settings)
-    project_labels = gl.get_project_labels()
-    labels = gl.get_merge_request_labels(gitlab_merge_request_id)
-    changed_paths = gl.get_merge_request_changed_paths(gitlab_merge_request_id)
-    guessed_labels = guess_labels(project_labels, changed_paths)
-    labels_to_add = [b for b in guessed_labels if b not in labels]
-    labels_to_create = [b for b in labels_to_add if b not in project_labels]
+    with GitLabApi(instance, project_id=gitlab_project_id, settings=settings) as gl:
+        project_labels = gl.get_project_labels()
+        labels = gl.get_merge_request_labels(gitlab_merge_request_id)
+        changed_paths = gl.get_merge_request_changed_paths(gitlab_merge_request_id)
+        guessed_labels = guess_labels(project_labels, changed_paths)
+        labels_to_add = [b for b in guessed_labels if b not in labels]
+        labels_to_create = [b for b in labels_to_add if b not in project_labels]
 
-    # This integration cannot check dry-run mode as it's always running with
-    # dry_run flag to true.
-    if labels_to_create:
-        logging.info(["create_labels", labels_to_create])
-        for label in labels_to_create:
-            gl.create_label(label, LABEL_COLOR)
+        # This integration cannot check dry-run mode as it's always running with
+        # dry_run flag to true.
+        if labels_to_create:
+            logging.info(["create_labels", labels_to_create])
+            for label in labels_to_create:
+                gl.create_label(label, LABEL_COLOR)
 
-    if labels_to_add:
-        logging.info(["add_labels", labels_to_add])
-        gl.add_labels_to_merge_request(gitlab_merge_request_id, labels_to_add)
+        if labels_to_add:
+            logging.info(["add_labels", labels_to_add])
+            gl.add_labels_to_merge_request(gitlab_merge_request_id, labels_to_add)

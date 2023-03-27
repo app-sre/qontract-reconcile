@@ -7,6 +7,7 @@ from reconcile.jenkins_job_builder import (
     get_jenkins_configs,
     init_jjb,
 )
+from reconcile.utils.defer import defer
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.jjb_client import JJB
 from reconcile.utils.secret_reader import SecretReader
@@ -40,10 +41,13 @@ def get_hooks_to_add(desired_state, gl):
     return diff
 
 
-def run(dry_run):
+@defer
+def run(dry_run, defer=None):
     secret_reader = SecretReader(queries.get_secret_reader_settings())
     jjb: JJB = init_jjb(secret_reader)
     gl = get_gitlab_api(secret_reader)
+    if defer:
+        defer(gl.cleanup)
 
     desired_state = jjb.get_job_webhooks_data()
     diff = get_hooks_to_add(desired_state, gl)

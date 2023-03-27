@@ -174,20 +174,22 @@ def update_mr_with_ref_diffs(
     Update the merge request with links to the differences in the referenced commits.
     """
     instance = queries.get_gitlab_instance()
-    gl = GitLabApi(
+    with GitLabApi(
         instance,
         project_id=gitlab_project_id,
         settings=queries.get_secret_reader_settings(),
-    )
-    changed_paths = gl.get_merge_request_changed_paths(gitlab_merge_request_id)
-    compare_diffs = collect_compare_diffs(current_state, desired_state, changed_paths)
-    if compare_diffs:
-        compare_diffs_comment_body = "Diffs:\n" + "\n".join(
-            [f"- {d}" for d in compare_diffs]
+    ) as gl:
+        changed_paths = gl.get_merge_request_changed_paths(gitlab_merge_request_id)
+        compare_diffs = collect_compare_diffs(
+            current_state, desired_state, changed_paths
         )
-        gl.add_comment_to_merge_request(
-            gitlab_merge_request_id, compare_diffs_comment_body
-        )
+        if compare_diffs:
+            compare_diffs_comment_body = "Diffs:\n" + "\n".join(
+                [f"- {d}" for d in compare_diffs]
+            )
+            gl.add_comment_to_merge_request(
+                gitlab_merge_request_id, compare_diffs_comment_body
+            )
 
 
 def run(
