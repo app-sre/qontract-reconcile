@@ -1,0 +1,69 @@
+gql_response:
+  - name: gabi1
+    expirationDate: '2023-01-01'
+    users:
+    - github_username: user1
+    - github_username: user2
+    instances:
+    - account: app-sre
+      identifier: gabi-db
+      namespace:
+        name: gabi-db
+        managedExternalResources: True
+        externalResources:
+        - provider: aws
+          provisioner:
+            name: app-sre
+          resources:
+          - provider: rds
+            identifier: gabi-db
+        cluster:
+          name: server
+          auth:
+            - service: github-org-team
+  - name: gabi2
+    expirationDate: '2023-01-01'    
+    users:
+    - github_username: user1
+    instances:
+    - account: app-sre
+      identifier: gabi-db
+      namespace:
+        name: gabi-db
+        managedExternalResources: True
+        externalResources:
+        - provider: aws
+          provisioner:
+            name: app-sre
+          resources:
+          - provider: rds
+            identifier: gabi-db1
+        cluster:
+          name: server
+          auth:
+            - service: github-org-team
+
+desired:
+  apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: gabi1
+    annotations:
+      qontract.recycle: 'true'
+  data:
+    config.json: |-
+      {"expiration":"2023-01-01","users":["user1","user2"]}
+
+current:
+  apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: gabi1
+    annotations:
+      qontract.integration: gabi-authorized-users
+      qontract.integration_version: 0.1.0
+      qontract.recycle: 'true'
+      qontract.sha256sum: af58adb091f59451c9dbea1e77b7660c73b44ef9cdb4c363fc10338285cbfc01
+  data:
+    config.json: |-
+      {"expiration":"2023-01-01","users":["user1","user2"]}
