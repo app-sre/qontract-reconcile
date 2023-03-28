@@ -959,12 +959,13 @@ def api_resources():
 
 
 @pytest.fixture
-def oc_api_resources(mocker, api_resources):
+def oc_api_resources(monkeypatch, mocker, api_resources):
+    monkeypatch.setenv("USE_NATIVE_CLIENT", "False")
     get_api_resources = mocker.patch.object(
-        OCNative, "get_api_resources", autospec=True
+        OCDeprecated, "get_api_resources", autospec=True
     )
     get_api_resources.return_value = api_resources
-    return OC("cluster", "server", "token", local=True)
+    return OC("cluster", "server", "token", local=True, init_api_resources=True)
 
 
 def test_is_kind_namespaced(oc_api_resources):
