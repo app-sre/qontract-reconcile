@@ -81,7 +81,7 @@ class CreateAppInterfaceNotificator(MergeRequestBase):
         email_path = self._email_base_path / f"{ts}.yml"
         commit_message = f"[{self.name}] adding notification"
         if not self._dry_run:
-            logging.info("no-dry-run: creating gitlab file")
+            logging.info(f"no-dry-run: creating gitlab file: {email_path}")
             gitlab_cli.create_file(
                 branch_name=self.branch,
                 file_path=str(email_path),
@@ -89,5 +89,5 @@ class CreateAppInterfaceNotificator(MergeRequestBase):
                 content=content,
             )
         else:
-            logging.info("dry-run: skipping gitlab file creation")
+            logging.info(f"dry-run: skipping gitlab file creation: {email_path}")
             logging.info(f"email: {content}")

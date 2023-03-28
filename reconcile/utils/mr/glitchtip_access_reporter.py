@@ -1,3 +1,4 @@
+import logging
 from collections.abc import Sequence
 from datetime import date
 from datetime import datetime as dt
@@ -53,30 +54,32 @@ class UpdateGlitchtipAccessReport(MergeRequestBase):
         self,
         users: Sequence[GlitchtipAccessReportUser],
         glitchtip_access_revalidation_workbook: Path,
+        dry_run: bool = True,
     ):
         super().__init__()
-        self.users = users
-        self.glitchtip_access_revalidation_workbook = str(
+        self.labels = [AUTO_MERGE]
+        self._users = users
+        self._glitchtip_access_revalidation_workbook = str(
             glitchtip_access_revalidation_workbook
         )
-        self.labels = [AUTO_MERGE]
-        self.isodate = dt.now(tz=timezone.utc).isoformat()
+        self._isodate = dt.now(tz=timezone.utc).isoformat()
+        self._dry_run = dry_run
 
     @property
     def title(self) -> str:
-        return f"[{self.name}] reports for {self.isodate}"
+        return f"[{self.name}] reports for {self._isodate}"
 
     @property
     def description(self) -> str:
-        return f"glitchtip access report for {self.isodate}"
+        return f"glitchtip access report for {self._isodate}"
 
     def _render_current_users_table(self) -> str:
         template = Template(CURRENT_USERS_TABLE_TEMPLATE, keep_trailing_newline=True)
-        return template.render(users=self.users)
+        return template.render(users=self._users)
 
     def _render_tracking_table_row(self, old_number_of_users: int) -> str:
         # | Date Reviewed | Number of Current Users | +/- Red Hat Users |
-        return f"| {date.today()} | {len(self.users)} | {len(self.users) - old_number_of_users} |\n"
+        return f"| {date.today()} | {len(self._users)} | {len(self._users) - old_number_of_users} |\n"
 
     def _update_workbook(self, workbook_md: str) -> str:
         new_workbook_md = ""
@@ -112,13 +115,22 @@ class UpdateGlitchtipAccessReport(MergeRequestBase):
 
     def process(self, gitlab_cli: GitLabApi) -> None:
         workbook_md = gitlab_cli.project.files.get(
-            file_path=self.glitchtip_access_revalidation_workbook, ref=self.branch
+            file_path=self._glitchtip_access_revalidation_workbook, ref=self.branch
         )
         workbook_md = self._update_workbook(workbook_md.decode().decode("utf-8"))
 
-        gitlab_cli.update_file(
-            branch_name=self.branch,
-            file_path=self.glitchtip_access_revalidation_workbook,
-            commit_message="update glitchtip access report",
-            content=workbook_md,
-        )
+        if not self._dry_run:
+            logging.info(
+                f"updating glitchtip access report: {self._glitchtip_access_revalidation_workbook}"
+            )
+            gitlab_cli.update_file(
+                branch_name=self.branch,
+                file_path=self._glitchtip_access_revalidation_workbook,
+                commit_message="update glitchtip access report",
+                content=workbook_md,
+            )
+        else:
+            logging.info(
+                f"dry-run: not updating glitchtip access report: {self._glitchtip_access_revalidation_workbook}"
+            )
+            logging.info(workbook_md)

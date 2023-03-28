@@ -75,17 +75,17 @@ def main(
                             )
                         )
 
-    if not dry_run:
-        mr = UpdateGlitchtipAccessReport(
-            users=list(users.values()),
-            glitchtip_access_revalidation_workbook=Path(
-                glitchtip_access_revalidation_workbook_path
-            ),
-        )
-        with mr_client_gateway.init(
-            gitlab_project_id=gitlab_project_id, sqs_or_gitlab="gitlab"
-        ) as mr_cli:
-            result = mr.submit(cli=mr_cli)
+    mr = UpdateGlitchtipAccessReport(
+        users=list(users.values()),
+        glitchtip_access_revalidation_workbook=Path(
+            glitchtip_access_revalidation_workbook_path
+        ),
+        dry_run=dry_run,
+    )
+    with mr_client_gateway.init(
+        gitlab_project_id=gitlab_project_id, sqs_or_gitlab="gitlab"
+    ) as mr_cli:
+        result = mr.submit(cli=mr_cli)
         if result:
             logging.info(["created_mr", result.web_url])
 
