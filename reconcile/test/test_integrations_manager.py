@@ -383,6 +383,7 @@ def cloudflare_dns_zones(cloudflare_account, cloudflare_records):
             type="full",
             plan="free",
             delete=False,
+            max_records=None,
         ),
         CloudflareDnsZoneV1(
             identifier="zone2",
@@ -392,6 +393,7 @@ def cloudflare_dns_zones(cloudflare_account, cloudflare_records):
             type="full",
             plan="free",
             delete=False,
+            max_records=None,
         ),
     ]
 
