@@ -41,15 +41,16 @@ The SRE team
 @log_level
 @gitlab_project_id
 @click.option(
-    "--glitchtip-access-revalidation-workbook-path",
-    help="path to glitchtip accessrevalidationworkbook markdown file",
+    "--glitchtip-access-revalidation-email-path",
+    help="App-interface path to store new Glitchtip revalidation emails",
+    default="data/app-interface/emails/glitchtip",
 )
 def main(
     configfile: str,
     dry_run: bool,
     log_level: str,
     gitlab_project_id: int,
-    glitchtip_access_revalidation_email_path: Path,
+    glitchtip_access_revalidation_email_path: str,
 ) -> None:
 
     init_env(log_level=log_level, config_file=configfile)
@@ -60,23 +61,24 @@ def main(
 
     apps = {project.app.path for project in glitchtip_projects}
 
-    if not dry_run:
-        notification = Notification(
-            notification_type="Action Required",
-            short_description="Glitchtip Access Revalidation",
-            description=EMAIL_BODY,
-            services=list(apps),
-            recipients=[],
-        )
-        mr = CreateAppInterfaceNotificator(
-            notification,
-            labels=[AUTO_MERGE],
-            email_base_path=glitchtip_access_revalidation_email_path,
-        )
-        with mr_client_gateway.init(
-            gitlab_project_id=gitlab_project_id, sqs_or_gitlab="gitlab"
-        ) as mr_cli:
-            result = mr.submit(cli=mr_cli)
+    notification = Notification(
+        notification_type="Action Required",
+        short_description="Glitchtip Access Revalidation",
+        description=EMAIL_BODY,
+        services=list(apps),
+        recipients=[],
+    )
+    mr = CreateAppInterfaceNotificator(
+        notification,
+        labels=[AUTO_MERGE],
+        email_base_path=Path(glitchtip_access_revalidation_email_path),
+        dry_run=dry_run,
+    )
+
+    with mr_client_gateway.init(
+        gitlab_project_id=gitlab_project_id, sqs_or_gitlab="gitlab"
+    ) as mr_cli:
+        result = mr.submit(cli=mr_cli)
         if result:
             logging.info(["created_mr", result.web_url])
 
