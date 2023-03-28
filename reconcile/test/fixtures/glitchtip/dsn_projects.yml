@@ -8,6 +8,8 @@ glitchtip_projects:
     name: NASA
     instance:
       name: glitchtip-dev
+  app:
+    path: /path/to/app
 - name: integration-disabled
   platform: python
   namespaces:
@@ -26,6 +28,8 @@ glitchtip_projects:
     name: NASA
     instance:
       name: glitchtip-dev
+  app:
+    path: /path/to/app
 - name: namespace_delete
   platform: python
   namespaces:
@@ -42,6 +46,8 @@ glitchtip_projects:
     name: NASA
     instance:
       name: glitchtip-dev
+  app:
+    path: /path/to/app
 - name: apollo-11-flight-control
   platform: python
   teams: []
@@ -82,6 +88,8 @@ glitchtip_projects:
       disable:
         integrations:
         - glitchtip-project-dsn
+  app:
+    path: /path/to/app
 - name: project-does-not-exist-yet
   platform: python
   namespaces:
@@ -97,3 +105,5 @@ glitchtip_projects:
     name: empty-org
     instance:
       name: glitchtip-dev
+  app:
+    path: /path/to/app
