@@ -1,0 +1,47 @@
+# qenerate: plugin=pydantic_v1
+
+fragment NamespaceOpenshiftResource on NamespaceOpenshiftResource_v1 {
+    provider
+    ... on NamespaceOpenshiftResourceResource_v1 {
+        resource: path {
+            content
+            path
+            schema
+        }
+        validate_json
+        validate_alertmanager_config
+        alertmanager_config_key
+        enable_query_support
+    }
+    ... on NamespaceOpenshiftResourceResourceTemplate_v1 {
+        resource: path {
+            content
+            path
+            schema
+        }
+        type
+        variables
+        validate_alertmanager_config
+        alertmanager_config_key
+        enable_query_support
+    }
+    ... on NamespaceOpenshiftResourceVaultSecret_v1 {
+        path
+        version
+        name
+        labels
+        annotations
+        type
+        validate_alertmanager_config
+        alertmanager_config_key
+    }
+    ... on NamespaceOpenshiftResourceRoute_v1 {
+        resource: path {
+            content
+            path
+            schema
+        }
+        vault_tls_secret_path
+        vault_tls_secret_version
+    }
+}

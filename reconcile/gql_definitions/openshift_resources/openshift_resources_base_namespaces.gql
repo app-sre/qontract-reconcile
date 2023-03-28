@@ -1,0 +1,64 @@
+# qenerate: plugin=pydantic_v1
+
+query OpenshiftResourcesBaseNamespaces {
+  namespaces: namespaces_v1 {
+    name
+    delete
+    clusterAdmin
+    managedResourceTypes
+    managedResourceTypeOverrides {
+      resource
+      override
+    }
+    managedResourceNames {
+      resource
+      resourceNames
+    }
+    sharedResources {
+      openshiftResources {
+        ... NamespaceOpenshiftResource
+      }
+    }
+    openshiftResources {
+      ... NamespaceOpenshiftResource
+    }
+    cluster {
+      name
+      serverUrl
+        auth {
+          service
+          ... on ClusterAuthGithubOrg_v1 {
+              org
+          }
+          ... on ClusterAuthGithubOrgTeam_v1 {
+              org
+              team
+          }
+          # ... on ClusterAuthOIDC_v1 {
+          # }
+        }
+      insecureSkipTLSVerify
+      jumpHost {
+        ... CommonJumphostFields
+      }
+      spec {
+        version
+        region
+      }
+      network {
+        pod
+      }
+      automationToken {
+        ... VaultSecret
+      }
+      clusterAdminAutomationToken {
+        ... VaultSecret
+      }
+      internal
+      disable {
+        e2eTests
+        integrations
+      }
+    }
+  }
+}
