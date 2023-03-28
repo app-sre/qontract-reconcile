@@ -31,15 +31,21 @@ from reconcile.utils.runtime.environment import init_env
 @gitlab_project_id
 @click.option(
     "--glitchtip-access-revalidation-workbook-path",
-    help="path to glitchtip accessrevalidationworkbook markdown file",
+    help="path to glitchtip access revalidation workbook markdown file",
+    default="docs/glitchtip/access_revalidation_workbook.md",
 )
 def main(
     configfile: str,
     dry_run: bool,
     log_level: str,
     gitlab_project_id: int,
-    glitchtip_access_revalidation_workbook_path: Path,
+    glitchtip_access_revalidation_workbook_path: str,
 ) -> None:
+    """Update Glitchtip access report.
+
+    This script updates the Glitchtip access report (markdown file) with the latest
+    access information.
+    """
 
     init_env(log_level=log_level, config_file=configfile)
 
@@ -72,7 +78,9 @@ def main(
     if not dry_run:
         mr = UpdateGlitchtipAccessReport(
             users=list(users.values()),
-            glitchtip_access_revalidation_workbook=glitchtip_access_revalidation_workbook_path,
+            glitchtip_access_revalidation_workbook=Path(
+                glitchtip_access_revalidation_workbook_path
+            ),
         )
         with mr_client_gateway.init(
             gitlab_project_id=gitlab_project_id, sqs_or_gitlab="gitlab"

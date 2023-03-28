@@ -52,7 +52,12 @@ def main(
     gitlab_project_id: int,
     glitchtip_access_revalidation_email_path: str,
 ) -> None:
+    """Revalidate Glitchtip access.
 
+    This script sends an email (via MR) to all App-Interface service owners (apps)
+    referencing Glitchtip projects. The email asks the service owners to
+    revalidate Glitchtip access for their projects.
+    """
     init_env(log_level=log_level, config_file=configfile)
 
     glitchtip_projects = (
