@@ -25,9 +25,11 @@ class GlitchtipAccessReportOrg(BaseModel):
     access_level: str
 
     def __eq__(self, other: object) -> bool:
-        if not isinstance(other, str):
-            raise NotImplementedError("Cannot compare to non string objects.")
-        return self.name == other
+        if not isinstance(other, GlitchtipAccessReportOrg):
+            raise NotImplementedError(
+                "Cannot compare to non GlitchtipAccessReportOrg objects."
+            )
+        return self.name == other.name
 
 
 class GlitchtipAccessReportUser(BaseModel):

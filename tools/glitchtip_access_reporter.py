@@ -59,7 +59,9 @@ def main(
                             name=user.name, username=user.org_username, organizations=[]
                         ),
                     )
-                    if org.name not in report_user.organizations:
+                    if org.name not in [
+                        _org.name for _org in report_user.organizations
+                    ]:
                         report_user.organizations.append(
                             GlitchtipAccessReportOrg(
                                 name=org.name,
