@@ -178,12 +178,8 @@ from reconcile.utils.terraform import safe_resource_id
 
 GH_BASE_URL = os.environ.get("GITHUB_API", "https://api.github.com")
 LOGTOES_RELEASE = "repos/app-sre/logs-to-elasticsearch-lambda/releases/latest"
-KINESIS_TO_OS_RELEASE = (
-    "https://github.com/app-sre/kinesis-to-opensearch-lambda/releases/latest"
-)
-ROSA_AUTHENTICATOR_PRE_SIGNUP_RELEASE = (
-    "repos/app-sre/cognito-pre-signup-trigger/releases/latest"
-)
+KINESIS_TO_OS_RELEASE = "https://github.com/app-sre/kinesis-to-opensearch-lambda/releases/latest"
+ROSA_AUTHENTICATOR_PRE_SIGNUP_RELEASE = "repos/app-sre/cognito-pre-signup-trigger/releases/latest"
 # VARIABLE_KEYS are passed to common_values on instantiation of a provider
 VARIABLE_KEYS = [
     "region",
@@ -238,9 +234,7 @@ EMAIL_REGEX = re.compile(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$")
 
 TMP_DIR_PREFIX = "terrascript-aws-"
 
-DEFAULT_S3_SSE_CONFIGURATION = {
-    "rule": {"apply_server_side_encryption_by_default": {"sse_algorithm": "AES256"}}
-}
+DEFAULT_S3_SSE_CONFIGURATION = {"rule": {"apply_server_side_encryption_by_default": {"sse_algorithm": "AES256"}}}
 
 
 class StateInaccessibleException(Exception):
@@ -375,11 +369,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
             ts += provider.template(version="2.2.0")
 
-            ts += Terraform(
-                backend=TerrascriptClient.state_bucket_for_account(
-                    self.integration, name, config
-                )
-            )
+            ts += Terraform(backend=TerrascriptClient.state_bucket_for_account(self.integration, name, config))
             tss[name] = ts
             locks[name] = Lock()
 
@@ -394,12 +384,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         self.accounts = {a["name"]: a for a in filtered_accounts}
         self.uids = {a["name"]: a["uid"] for a in filtered_accounts}
-        self.default_regions = {
-            a["name"]: a["resourcesDefaultRegion"] for a in filtered_accounts
-        }
-        self.partitions = {
-            a["name"]: a.get("partition") or "aws" for a in filtered_accounts
-        }
+        self.default_regions = {a["name"]: a["resourcesDefaultRegion"] for a in filtered_accounts}
+        self.partitions = {a["name"]: a.get("partition") or "aws" for a in filtered_accounts}
         self.logtoes_zip = ""
         self.logtoes_zip_lock = Lock()
         self.rosa_authenticator_pre_signup_zip = ""
@@ -418,9 +404,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 self._resource_cache.update(self.prefetch_resources(schema))
 
     @staticmethod
-    def state_bucket_for_account(
-        integration: str, account_name: str, config: dict[str, Any]
-    ) -> Backend:
+    def state_bucket_for_account(integration: str, account_name: str, config: dict[str, Any]) -> Backend:
         # creds
         access_key_backend_value = config["aws_access_key_id"]
         secret_key_backend_value = config["aws_secret_access_key"]
@@ -471,9 +455,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         else:
             release = repo.get_release(tag)
         zip_url = release.get_assets()[0].browser_download_url
-        zip_file = os.path.join(
-            "/tmp", repo_name, release.tag_name, os.path.basename(zip_url)
-        )
+        zip_file = os.path.join("/tmp", repo_name, release.tag_name, os.path.basename(zip_url))
         if not os.path.exists(zip_file):
             r = requests.get(zip_url, timeout=60)
             r.raise_for_status()
@@ -513,10 +495,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 # this may have already happened, so we check again
                 if not self.rosa_authenticator_pre_signup_zip:
                     self.token = get_default_config()["token"]
-                    self.rosa_authenticator_pre_signup_zip = (
-                        self.download_rosa_authenticator_zip(
-                            ROSA_AUTHENTICATOR_PRE_SIGNUP_RELEASE
-                        )
+                    self.rosa_authenticator_pre_signup_zip = self.download_rosa_authenticator_zip(
+                        ROSA_AUTHENTICATOR_PRE_SIGNUP_RELEASE
                     )
         if release_url == ROSA_AUTHENTICATOR_PRE_SIGNUP_RELEASE:
             return self.rosa_authenticator_pre_signup_zip
@@ -558,16 +538,12 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             with self.jenkins_lock:
                 # this may have already happened, so we check again
                 if not self.jenkins_map.get(instance_name):
-                    self.jenkins_map[
-                        instance_name
-                    ] = JenkinsApi.init_jenkins_from_secret(
+                    self.jenkins_map[instance_name] = JenkinsApi.init_jenkins_from_secret(
                         SecretReader(self.settings), instance["token"]
                     )
         return self.jenkins_map[instance_name]
 
-    def filter_disabled_accounts(
-        self, accounts: Iterable[dict[str, Any]]
-    ) -> list[dict[str, Any]]:
+    def filter_disabled_accounts(self, accounts: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
         filtered_accounts = []
         for account in accounts:
             integration = self.integration.replace("_", "-")
@@ -629,17 +605,12 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                         # this may change in the near future
                         # to include inline policies and not
                         # only managed policies, as it is currently
-                        policy_arn = (
-                            f"arn:{self._get_partition(account_name)}:"
-                            + f"iam::aws:policy/{policy}"
-                        )
-                        tf_iam_group_policy_attachment = (
-                            aws_iam_group_policy_attachment(
-                                group_name + "-" + policy.replace("/", "_"),
-                                group=group_name,
-                                policy_arn=policy_arn,
-                                depends_on=self.get_dependencies([tf_iam_group]),
-                            )
+                        policy_arn = f"arn:{self._get_partition(account_name)}:" + f"iam::aws:policy/{policy}"
+                        tf_iam_group_policy_attachment = aws_iam_group_policy_attachment(
+                            group_name + "-" + policy.replace("/", "_"),
+                            group=group_name,
+                            policy_arn=policy_arn,
+                            depends_on=self.get_dependencies([tf_iam_group]),
                         )
                         self.add_resource(account_name, tf_iam_group_policy_attachment)
                     groups[account_name][group_name] = "Done"
@@ -656,15 +627,10 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         role_name: str,
     ) -> bool:
         ok = True
-        mandatory_policies = [
-            p for p in account.get("policies") or [] if p.get("mandatory")
-        ]
+        mandatory_policies = [p for p in account.get("policies") or [] if p.get("mandatory")]
         for mp in mandatory_policies:
             if mp not in user_policies:
-                msg = (
-                    f"[{account['name']}] mandatory policy "
-                    + f"{mp['name']} not associated to role {role_name}"
-                )
+                msg = f"[{account['name']}] mandatory policy " + f"{mp['name']} not associated to role {role_name}"
                 logging.error(msg)
                 ok = False
         return ok
@@ -690,17 +656,13 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 account_name = account["name"]
                 account_console_url = account["consoleUrl"]
 
-                ok = self._validate_mandatory_policies(
-                    account, user_policies, role["name"]
-                )
+                ok = self._validate_mandatory_policies(account, user_policies, role["name"])
                 if not ok:
                     error = True
 
                 # we want to include the console url in the outputs
                 # to be used later to generate the email invitations
-                output_name_0_13 = "{}_console-urls__{}".format(
-                    self.integration_prefix, account_name
-                )
+                output_name_0_13 = "{}_console-urls__{}".format(self.integration_prefix, account_name)
                 output_value = account_console_url
                 tf_output = Output(output_name_0_13, value=output_value)
                 self.add_resource(account_name, tf_output)
@@ -733,10 +695,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                         error = True
                         continue
 
-                    if (
-                        appsre_pgp_key is not None
-                        and account_name not in skip_reencrypt_accounts
-                    ):
+                    if appsre_pgp_key is not None and account_name not in skip_reencrypt_accounts:
                         user_public_gpg_key = appsre_pgp_key
 
                     # Ref: terraform aws iam_user_login_profile
@@ -759,12 +718,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     # we want the outputs to be formed into a mail invitation
                     # for each new user. we form an output of the form
                     # 'qrtf.enc-passwords[user_name] = <encrypted password>
-                    output_name_0_13 = "{}_enc-passwords__{}".format(
-                        self.integration_prefix, user_name
-                    )
-                    output_value = (
-                        "${" + tf_iam_user_login_profile.encrypted_password + "}"
-                    )
+                    output_name_0_13 = "{}_enc-passwords__{}".format(self.integration_prefix, user_name)
+                    output_value = "${" + tf_iam_user_login_profile.encrypted_password + "}"
                     tf_output = Output(output_name_0_13, value=output_value)
                     self.add_resource(account_name, tf_output)
 
@@ -793,9 +748,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                         identifier,
                         user=user_name,
                         policy_arn=f"${{{tf_aws_iam_policy.arn}}}",
-                        depends_on=self.get_dependencies(
-                            [tf_iam_user, tf_aws_iam_policy]
-                        ),
+                        depends_on=self.get_dependencies([tf_iam_user, tf_aws_iam_policy]),
                     )
                     self.add_resource(account_name, tf_iam_user_policy_attachment)
 
@@ -838,9 +791,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     assume_role={"role_arn": assume_role},
                 )
 
-    def populate_route53(
-        self, desired_state: Iterable[dict[str, Any]], default_ttl: int = 300
-    ) -> None:
+    def populate_route53(self, desired_state: Iterable[dict[str, Any]], default_ttl: int = 300) -> None:
         for zone in desired_state:
             acct_name = zone["account_name"]
 
@@ -887,21 +838,15 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             if healthcheck:
                 healthcheck_id = record_id
                 healthcheck_values = {**healthcheck}
-                healthcheck_resource = aws_route53_health_check(
-                    healthcheck_id, **healthcheck_values
-                )
+                healthcheck_resource = aws_route53_health_check(healthcheck_id, **healthcheck_values)
                 self.add_resource(acct_name, healthcheck_resource)
                 # Assign the healthcheck resource ID to the record
                 record["health_check_id"] = f"${{{healthcheck_resource.id}}}"
 
             # Get value from Vault if _records_from_vault was set
-            records_from_vault: Optional[Iterable[dict[str, str]]] = record.pop(
-                "records_from_vault", None
-            )
+            records_from_vault: Optional[Iterable[dict[str, str]]] = record.pop("records_from_vault", None)
             if records_from_vault:
-                allowed_vault_secret_paths = (
-                    cast(set[str], zone.get("allowed_vault_secret_paths")) or set()
-                )
+                allowed_vault_secret_paths = cast(set[str], zone.get("allowed_vault_secret_paths")) or set()
                 vault_values: list[str] = []
                 for rec in records_from_vault:
                     if not rec["path"] in allowed_vault_secret_paths:
@@ -985,9 +930,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                         "provider": "aws." + req_alias,
                         "route_table_id": route_table_id,
                         "destination_cidr_block": accepter["cidr_block"],
-                        "vpc_peering_connection_id": "${aws_vpc_peering_connection."
-                        + identifier
-                        + ".id}",
+                        "vpc_peering_connection_id": "${aws_vpc_peering_connection." + identifier + ".id}",
                     }
                     route_identifier = f"{identifier}-{route_table_id}"
                     tf_resource = aws_route(route_identifier, **values)
@@ -999,9 +942,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
             # Accepter's side of the connection.
             values = {
-                "vpc_peering_connection_id": "${aws_vpc_peering_connection."
-                + identifier
-                + ".id}",
+                "vpc_peering_connection_id": "${aws_vpc_peering_connection." + identifier + ".id}",
                 "auto_accept": True,
                 "tags": {
                     "managed_by_integration": self.integration,
@@ -1024,9 +965,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     values = {
                         "route_table_id": route_table_id,
                         "destination_cidr_block": requester["cidr_block"],
-                        "vpc_peering_connection_id": "${aws_vpc_peering_connection_accepter."
-                        + identifier
-                        + ".id}",
+                        "vpc_peering_connection_id": "${aws_vpc_peering_connection_accepter." + identifier + ".id}",
                     }
                     if connection_provider in ["account-vpc", "account-vpc-mesh"]:
                         if self._multiregion_account(acc_account_name):
@@ -1074,9 +1013,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             }
             if self._multiregion_account(req_account_name):
                 values["provider"] = "aws." + requester["region"]
-            tf_resource_association = aws_ram_principal_association(
-                connection_name, **values
-            )
+            tf_resource_association = aws_ram_principal_association(connection_name, **values)
             self.add_resource(req_account_name, tf_resource_association)
 
             # accept resource share from accepter aws account
@@ -1088,9 +1025,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     "aws_ram_principal_association." + connection_name,
                 ],
             }
-            tf_resource_share_accepter = aws_ram_resource_share_accepter(
-                connection_name, **values
-            )
+            tf_resource_share_accepter = aws_ram_resource_share_accepter(connection_name, **values)
             self.add_resource(acc_account_name, tf_resource_share_accepter)
 
             # until now it was standard sharing
@@ -1123,9 +1058,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 ],
                 "tags": tags,
             }
-            tf_resource_attachment = aws_ec2_transit_gateway_vpc_attachment(
-                identifier, **values
-            )
+            tf_resource_attachment = aws_ec2_transit_gateway_vpc_attachment(identifier, **values)
             # we send the attachment from the cluster's aws account
             self.add_resource(acc_account_name, tf_resource_attachment)
 
@@ -1136,9 +1069,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             }
             if self._multiregion_account(req_account_name):
                 values["provider"] = "aws." + requester["region"]
-            tf_resource_attachment_accepter = (
-                aws_ec2_transit_gateway_vpc_attachment_accepter(identifier, **values)
-            )
+            tf_resource_attachment_accepter = aws_ec2_transit_gateway_vpc_attachment_accepter(identifier, **values)
             self.add_resource(req_account_name, tf_resource_attachment_accepter)
 
             # add routes to existing route tables
@@ -1163,10 +1094,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 for route in requester_routes:
                     route_region = route["region"]
                     if route_region not in self.supported_regions[req_account_name]:
-                        logging.warning(
-                            f"[{req_account_name}] TGW in "
-                            + f"unsupported region: {route_region}"
-                        )
+                        logging.warning(f"[{req_account_name}] TGW in " + f"unsupported region: {route_region}")
                         continue
                     values = {
                         "destination_cidr_block": route["cidr_block"],
@@ -1176,9 +1104,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     if self._multiregion_account(req_account_name):
                         values["provider"] = "aws." + route_region
                     route_identifier = f"{identifier}-{route['tgw_id']}"
-                    tf_resource = aws_ec2_transit_gateway_route(
-                        route_identifier, **values
-                    )
+                    tf_resource = aws_ec2_transit_gateway_route(route_identifier, **values)
                     self.add_resource(req_account_name, tf_resource)
 
             # add rules to security groups of VPCs which are attached
@@ -1188,10 +1114,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 for rule in requester_rules:
                     rule_region = rule["region"]
                     if rule_region not in self.supported_regions[req_account_name]:
-                        logging.warning(
-                            f"[{req_account_name}] TGW in "
-                            + f"unsupported region: {rule_region}"
-                        )
+                        logging.warning(f"[{req_account_name}] TGW in " + f"unsupported region: {rule_region}")
                         continue
                     values = {
                         "type": "ingress",
@@ -1263,15 +1186,11 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         self.resource_spec_inventory: ExternalResourceSpecInventory = {}
 
         for namespace_info in namespaces:
-            specs = get_external_resource_specs(
-                namespace_info, provision_provider=PROVIDER_AWS
-            )
+            specs = get_external_resource_specs(namespace_info, provision_provider=PROVIDER_AWS)
             for spec in specs:
                 if account_names and spec.provisioner_name not in account_names:
                     continue
-                self.account_resource_specs.setdefault(
-                    spec.provisioner_name, []
-                ).append(spec)
+                self.account_resource_specs.setdefault(spec.provisioner_name, []).append(spec)
                 self.resource_spec_inventory[spec.id_object()] = spec
 
     def populate_tf_resources(self, spec, ocm_map=None):
@@ -1460,9 +1379,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 + "AmazonRDSEnhancedMonitoringRole",
                 "depends_on": self.get_dependencies([role_tf_resource]),
             }
-            attachment_tf_resource = aws_iam_role_policy_attachment(
-                em_identifier, **em_values
-            )
+            attachment_tf_resource = aws_iam_role_policy_attachment(em_identifier, **em_values)
             tf_resources.append(attachment_tf_resource)
 
             attachment_res_name = self.get_dependencies([attachment_tf_resource])[0]
@@ -1473,9 +1390,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         reset_password_current_value = values.pop("reset_password", None)
         reset_password_desired_value = spec.get_secret_field("reset_password")
         if self._db_needs_auth(values):
-            reset_password = (
-                reset_password_current_value != reset_password_desired_value
-            )
+            reset_password = reset_password_current_value != reset_password_desired_value
             if reset_password:
                 password = self.generate_random_password()
             else:
@@ -1493,16 +1408,11 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             output_value = self.secret_reader.read(ca_cert)
             tf_resources.append(Output(output_name_0_13, value=output_value))
 
-        region = self._region_from_availability_zone(az) or self.default_regions.get(
-            account
-        )
+        region = self._region_from_availability_zone(az) or self.default_regions.get(account)
         replica_source = values.pop("replica_source", None)
         if replica_source:
             if "replicate_source_db" in values:
-                raise ValueError(
-                    "only one of replicate_source_db or replica_source "
-                    + "can be defined"
-                )
+                raise ValueError("only one of replicate_source_db or replica_source " + "can be defined")
             source_info = self._find_resource_spec(account, replica_source, "rds")
             if source_info:
                 values["backup_retention_period"] = 0
@@ -1522,24 +1432,20 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     values.pop("db_subnet_group_name", None)
                 else:
                     # replica is in different region from source
-                    values["replicate_source_db"] = (
-                        "${aws_db_instance." + replica_source + ".arn}"
-                    )
+                    values["replicate_source_db"] = "${aws_db_instance." + replica_source + ".arn}"
 
                     # db_subnet_group_name must be defined for a source db
                     # in a different region
                     if "db_subnet_group_name" not in values:
                         raise ValueError(
-                            "db_subnet_group_name must be defined if "
-                            + "read replica source in different region"
+                            "db_subnet_group_name must be defined if " + "read replica source in different region"
                         )
 
                     # storage_encrypted is ignored for cross-region replicas
                     encrypt = values.get("storage_encrypted", None)
                     if encrypt and "kms_key_id" not in values:
                         raise ValueError(
-                            "storage_encrypted ignored for cross-region "
-                            + "read replica.  Set kms_key_id"
+                            "storage_encrypted ignored for cross-region " + "read replica.  Set kms_key_id"
                         )
 
                 # Read Replicas shouldn't set these values as they come from
@@ -1557,10 +1463,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                         + "than 0"
                     )
             else:
-                raise FetchResourceError(
-                    f"source {replica_source} for read replica "
-                    + f"{identifier} not found"
-                )
+                raise FetchResourceError(f"source {replica_source} for read replica " + f"{identifier} not found")
 
         # There seems to be a bug in tf-provider-aws when making replicas
         # w/ ehanced-monitoring, causing tf to not wait long enough
@@ -1615,9 +1518,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 e_n["sns_topic"] = "${aws_sns_topic" + "." + sns_topic_name + ".arn}"
                 e_n["source_ids"] = ["${aws_db_instance" + "." + identifier + ".id}"]
                 source_type = e_n.get("source_type", "all")
-                e_n_identifier = (
-                    f"{sns_topic_name}_{source_type}_aws_db_event_subscription"
-                )
+                e_n_identifier = f"{sns_topic_name}_{source_type}_aws_db_event_subscription"
                 e_n_tf_resource = aws_db_event_subscription(e_n_identifier, **e_n)
                 tf_resources.append(e_n_tf_resource)
 
@@ -1673,9 +1574,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         return False
 
-    def _find_resource_spec(
-        self, account: str, source: str, provider: str
-    ) -> Optional[ExternalResourceSpec]:
+    def _find_resource_spec(self, account: str, source: str, provider: str) -> Optional[ExternalResourceSpec]:
         if account not in self.account_resource_specs:
             return None
 
@@ -1696,10 +1595,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
     @staticmethod
     def _db_needs_auth(config):
-        if (
-            "replicate_source_db" not in config
-            and config.get("replica_source", None) is None
-        ):
+        if "replicate_source_db" not in config and config.get("replica_source", None) is None:
             return True
         return False
 
@@ -1739,16 +1635,11 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         else:
             # ACL grants will be set out of this resource.
             # the following `ignore_change` allows to avoid conflicts
-            values.setdefault("lifecycle", {}).setdefault("ignore_changes", []).append(
-                "grant"
-            )
+            values.setdefault("lifecycle", {}).setdefault("ignore_changes", []).append("grant")
         server_side_encryption_configuration = (
-            common_values.get("server_side_encryption_configuration")
-            or DEFAULT_S3_SSE_CONFIGURATION
+            common_values.get("server_side_encryption_configuration") or DEFAULT_S3_SSE_CONFIGURATION
         )
-        values[
-            "server_side_encryption_configuration"
-        ] = server_side_encryption_configuration
+        values["server_side_encryption_configuration"] = server_side_encryption_configuration
         # Support static website hosting [rosa-authenticator]
         website = common_values.get("website")
         if website:
@@ -1857,9 +1748,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                         {
                             "Action": ["s3:ReplicateObject", "s3:ReplicateDelete"],
                             "Effect": "Allow",
-                            "Resource": "${aws_s3_bucket."
-                            + config["destination_bucket_identifier"]
-                            + ".arn}/*",
+                            "Resource": "${aws_s3_bucket." + config["destination_bucket_identifier"] + ".arn}/*",
                         },
                     ],
                 }
@@ -1871,9 +1760,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 # Terraform resource reference:
                 # https://www.terraform.io/docs/providers/aws/r/iam_policy_attachment.html
                 rc_values.clear()
-                rc_values["depends_on"] = self.get_dependencies(
-                    [role_resource, policy_resource]
-                )
+                rc_values["depends_on"] = self.get_dependencies([role_resource, policy_resource])
                 rc_values["role"] = "${aws_iam_role." + id + ".name}"
                 rc_values["policy_arn"] = "${aws_iam_policy." + id + ".arn}"
                 tf_resource = aws_iam_role_policy_attachment(id, **rc_values)
@@ -1890,9 +1777,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     "id": config["rule_name"],
                     "status": status.capitalize(),
                     "destination": {
-                        "bucket": "${aws_s3_bucket."
-                        + config["destination_bucket_identifier"]
-                        + ".arn}",
+                        "bucket": "${aws_s3_bucket." + config["destination_bucket_identifier"] + ".arn}",
                         "storage_class": sc.upper(),
                     },
                 }
@@ -1941,9 +1826,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             if filter_suffix is not None:
                 notification_values["queue"][0]["filter_suffix"] = filter_suffix
 
-            notification_tf_resource = aws_s3_bucket_notification(
-                sqs_identifier, **notification_values
-            )
+            notification_tf_resource = aws_s3_bucket_notification(sqs_identifier, **notification_values)
             tf_resources.append(notification_tf_resource)
 
         event_notifications = common_values.get("event_notifications")
@@ -1973,21 +1856,11 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     if resource_provider:
                         resource_values["provider"] = resource_provider
                     if destination_type == "sns":
-                        resource_data = data.aws_sns_topic(
-                            resource_name, **resource_values
-                        )
+                        resource_data = data.aws_sns_topic(resource_name, **resource_values)
                     elif destination_type == "sqs":
-                        resource_data = data.aws_sqs_queue(
-                            resource_name, **resource_values
-                        )
+                        resource_data = data.aws_sqs_queue(resource_name, **resource_values)
                     tf_resources.append(resource_data)
-                    resource_arn = (
-                        "${"
-                        + resource_arn_data
-                        + "."
-                        + destination_identifier
-                        + ".arn}"
-                    )
+                    resource_arn = "${" + resource_arn_data + "." + destination_identifier + ".arn}"
 
                 notification_config = {
                     "id": resource_name,
@@ -2013,9 +1886,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             if sqs_notifications:
                 notifications["queue"] = sqs_notifications
 
-            notification_tf_resource = aws_s3_bucket_notification(
-                identifier + "-event-notifications", **notifications
-            )
+            notification_tf_resource = aws_s3_bucket_notification(identifier + "-event-notifications", **notifications)
             tf_resources.append(notification_tf_resource)
 
         bucket_policy = common_values.get("bucket_policy")
@@ -2041,9 +1912,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         tf_resources.append(user_tf_resource)
 
         # iam access key for user
-        tf_resources.extend(
-            self.get_tf_iam_access_key(user_tf_resource, identifier, output_prefix)
-        )
+        tf_resources.extend(self.get_tf_iam_access_key(user_tf_resource, identifier, output_prefix))
 
         # iam user policy for bucket
         values = {}
@@ -2203,9 +2072,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         tf_resources.append(user_tf_resource)
 
         # iam access key for user
-        tf_resources.extend(
-            self.get_tf_iam_access_key(user_tf_resource, identifier, output_prefix)
-        )
+        tf_resources.extend(self.get_tf_iam_access_key(user_tf_resource, identifier, output_prefix))
 
         # iam user policies
         for policy in common_values.get("policies") or []:
@@ -2257,9 +2124,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             )
             tf_resources.append(tf_aws_iam_policy_attachment)
 
-        aws_infrastructure_access = (
-            common_values.get("aws_infrastructure_access") or None
-        )
+        aws_infrastructure_access = common_values.get("aws_infrastructure_access") or None
         if aws_infrastructure_access:
             # to provision a resource in a cluster's account, we need to
             # be able to assume role into it.
@@ -2281,18 +2146,11 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     # terraform-resources created the user
                     # and ocm-aws-infrastructure-access granted it the role
                     if identifier == user_id and state != "failed":
-                        switch_role_arn = awsh.get_role_arn_from_role_link(
-                            switch_role_link
-                        )
+                        switch_role_arn = awsh.get_role_arn_from_role_link(switch_role_link)
                         output_name_0_13 = output_prefix + "__role_arn"
-                        tf_resources.append(
-                            Output(output_name_0_13, value=switch_role_arn)
-                        )
+                        tf_resources.append(Output(output_name_0_13, value=switch_role_arn))
             else:
-                raise KeyError(
-                    f"[{account}/{identifier}] "
-                    "expected one of ocm_map or assume_role"
-                )
+                raise KeyError(f"[{account}/{identifier}] " "expected one of ocm_map or assume_role")
 
         self.add_resources(account, tf_resources)
 
@@ -2317,18 +2175,12 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 {
                     "Effect": "Allow",
                     "Action": "secretsmanager:*",
-                    "Resource": [
-                        f"arn:aws:secretsmanager:*:*:secret:{secrets_prefix}/*"
-                    ],
+                    "Resource": [f"arn:aws:secretsmanager:*:*:secret:{secrets_prefix}/*"],
                 },
             ],
         }
 
-        tf_resources.extend(
-            self.get_tf_iam_service_user(
-                [], identifier, policy, common_values["tags"], output_prefix
-            )
-        )
+        tf_resources.extend(self.get_tf_iam_service_user([], identifier, policy, common_values["tags"], output_prefix))
 
         output_name_0_13 = output_prefix + "__secrets_prefix"
         output_value = secrets_prefix
@@ -2433,34 +2285,26 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                         "deadLetterTargetArn": "${" + dl_data.arn + "}",
                         "maxReceiveCount": max_receive_count,
                     }
-                    values["redrive_policy"] = json.dumps(
-                        redrive_policy, sort_keys=True
-                    )
+                    values["redrive_policy"] = json.dumps(redrive_policy, sort_keys=True)
                 kms_master_key_id = values.pop("kms_master_key_id", None)
                 if kms_master_key_id is not None:
                     if kms_master_key_id.startswith("arn:"):
                         values["kms_master_key_id"] = kms_master_key_id
                     else:
-                        kms_key = self._find_resource_spec(
-                            account, kms_master_key_id, "kms"
-                        )
+                        kms_key = self._find_resource_spec(account, kms_master_key_id, "kms")
                         if kms_key:
                             kms_res = "aws_kms_key." + kms_key.identifier
                             values["kms_master_key_id"] = "${" + kms_res + ".arn}"
                             values["depends_on"] = [kms_res]
                         else:
-                            raise ValueError(
-                                f"failed to find kms key {kms_master_key_id}"
-                            )
+                            raise ValueError(f"failed to find kms key {kms_master_key_id}")
                     kms_keys.add(values["kms_master_key_id"])
                 queue_tf_resource = aws_sqs_queue(queue, **values)
                 tf_resources.append(queue_tf_resource)
                 output_name_0_13 = output_prefix + "__aws_region"
                 tf_resources.append(Output(output_name_0_13, value=region))
                 output_name_0_13 = "{}__{}".format(output_prefix, queue_key)
-                output_value = "https://sqs.{}.amazonaws.com/{}/{}".format(
-                    region, uid, queue_name
-                )
+                output_value = "https://sqs.{}.amazonaws.com/{}/{}".format(region, uid, queue_name)
                 tf_resources.append(Output(output_name_0_13, value=output_value))
             all_queues_per_spec.append(all_queues)
 
@@ -2476,9 +2320,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         tf_resources.append(user_tf_resource)
 
         # iam access key for user
-        tf_resources.extend(
-            self.get_tf_iam_access_key(user_tf_resource, identifier, output_prefix)
-        )
+        tf_resources.extend(self.get_tf_iam_access_key(user_tf_resource, identifier, output_prefix))
 
         # iam policy for queue
         policy_index = 0
@@ -2495,10 +2337,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     {
                         "Effect": "Allow",
                         "Action": ["sqs:*"],
-                        "Resource": [
-                            f"arn:{self._get_partition(account)}:" + f"sqs:*:{uid}:{q}"
-                            for q in all_queues
-                        ],
+                        "Resource": [f"arn:{self._get_partition(account)}:" + f"sqs:*:{uid}:{q}" for q in all_queues],
                     },
                     {"Effect": "Allow", "Action": ["sqs:ListQueues"], "Resource": "*"},
                 ],
@@ -2518,9 +2357,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             values = {}
             values["user"] = identifier
             values["policy_arn"] = "${" + policy_tf_resource.arn + "}"
-            values["depends_on"] = self.get_dependencies(
-                [user_tf_resource, policy_tf_resource]
-            )
+            values["depends_on"] = self.get_dependencies([user_tf_resource, policy_tf_resource])
             tf_resource = aws_iam_user_policy_attachment(policy_identifier, **values)
             tf_resources.append(tf_resource)
 
@@ -2563,9 +2400,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 sub_values["protocol"] = protocol
                 sub_values["endpoint"] = endpoint
                 sub_identifier = f"{identifier}_{protocol}_aws_sns_topic_subscription"
-                sub_tf_resource = aws_sns_topic_subscription(
-                    sub_identifier, **sub_values
-                )
+                sub_tf_resource = aws_sns_topic_subscription(sub_identifier, **sub_values)
                 tf_resources.append(sub_tf_resource)
 
         output_name_0_13 = output_prefix + "__aws_region"
@@ -2629,9 +2464,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         tf_resources.append(user_tf_resource)
 
         # iam access key for user
-        tf_resources.extend(
-            self.get_tf_iam_access_key(user_tf_resource, identifier, output_prefix)
-        )
+        tf_resources.extend(self.get_tf_iam_access_key(user_tf_resource, identifier, output_prefix))
 
         # iam user policy for queue
         values = {}
@@ -2643,10 +2476,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 {
                     "Effect": "Allow",
                     "Action": ["dynamodb:*"],
-                    "Resource": [
-                        "arn:aws:dynamodb:{}:{}:table/{}".format(region, uid, t)
-                        for t in all_tables
-                    ],
+                    "Resource": ["arn:aws:dynamodb:{}:{}:table/{}".format(region, uid, t) for t in all_tables],
                 }
             ],
         }
@@ -2722,9 +2552,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         tf_resources.append(user_tf_resource)
 
         # iam access key for user
-        tf_resources.extend(
-            self.get_tf_iam_access_key(user_tf_resource, identifier, output_prefix)
-        )
+        tf_resources.extend(self.get_tf_iam_access_key(user_tf_resource, identifier, output_prefix))
 
         # iam user policy for bucket
         values = {}
@@ -2817,9 +2645,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     "Action": "s3:GetObject",
                     "Resource": [
                         f"arn:aws:s3:::{identifier}/{enable_dir}/*"
-                        for enable_dir in common_values.get(
-                            "get_object_enable_dirs", []
-                        )
+                        for enable_dir in common_values.get("get_object_enable_dirs", [])
                     ],
                 }
             ],
@@ -2835,17 +2661,12 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         # cloud front distribution
         values = common_values.get("distribution_config", {})
         values["tags"] = common_values["tags"]
-        values.setdefault("default_cache_behavior", {}).setdefault(
-            "target_origin_id", "default"
-        )
+        values.setdefault("default_cache_behavior", {}).setdefault("target_origin_id", "default")
         origin = {
             "domain_name": "${" + bucket_tf_resource.bucket_domain_name + "}",
             "origin_id": values["default_cache_behavior"]["target_origin_id"],
             "s3_origin_config": {
-                "origin_access_identity": "origin-access-identity/cloudfront/"
-                + "${"
-                + cf_oai_tf_resource.id
-                + "}"
+                "origin_access_identity": "origin-access-identity/cloudfront/" + "${" + cf_oai_tf_resource.id + "}"
             },
         }
         values["origin"] = [origin]
@@ -2867,9 +2688,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         tf_resources.append(Output(output_name_0_13, value=output_value))
         # origin_access_identity
         output_name_0_13 = output_prefix + "__origin_access_identity"
-        output_value = (
-            "origin-access-identity/cloudfront/" + "${" + cf_oai_tf_resource.id + "}"
-        )
+        output_value = "origin-access-identity/cloudfront/" + "${" + cf_oai_tf_resource.id + "}"
         tf_resources.append(Output(output_name_0_13, value=output_value))
 
         # aws_s3_bucket_acl
@@ -2877,9 +2696,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         if "logging_config" in values.keys():
             # we could set this at a global level with a standard name like "cloudfront"
             # but we need all aws accounts upgraded to aws provider >3.60 first
-            tf_resources.append(
-                aws_cloudfront_log_delivery_canonical_user_id(identifier)
-            )
+            tf_resources.append(aws_cloudfront_log_delivery_canonical_user_id(identifier))
 
             logging_config_bucket = values["logging_config"]
             values = {}
@@ -2930,12 +2747,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         sqs_identifier = f"{identifier}-sqs"
         sqs_values = {"name": sqs_identifier}
 
-        sqs_values["visibility_timeout_seconds"] = int(
-            common_values.get("visibility_timeout_seconds", 30)
-        )
-        sqs_values["message_retention_seconds"] = int(
-            common_values.get("message_retention_seconds", 345600)
-        )
+        sqs_values["visibility_timeout_seconds"] = int(common_values.get("visibility_timeout_seconds", 30))
+        sqs_values["message_retention_seconds"] = int(common_values.get("message_retention_seconds", 345600))
 
         # https://docs.aws.amazon.com/AmazonS3/latest/dev/NotificationHowTo.html#grant-destinations-permissions-to-s3
         sqs_policy = {
@@ -2945,13 +2758,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     "Effect": "Allow",
                     "Principal": "*",
                     "Action": "sqs:SendMessage",
-                    "Resource": f"arn:{self._get_partition(account)}:"
-                    + f"sqs:*:*:{sqs_identifier}",
-                    "Condition": {
-                        "ArnEquals": {
-                            "aws:SourceArn": "${" + bucket_tf_resource.arn + "}"
-                        }
-                    },
+                    "Resource": f"arn:{self._get_partition(account)}:" + f"sqs:*:*:{sqs_identifier}",
+                    "Condition": {"ArnEquals": {"aws:SourceArn": "${" + bucket_tf_resource.arn + "}"}},
                 }
             ],
         }
@@ -2960,12 +2768,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         kms_encryption = common_values.get("kms_encryption", False)
         if kms_encryption:
             kms_identifier = f"{identifier}-kms"
-            kms_values = {
-                "description": "app-interface created KMS key for" + sqs_identifier
-            }
-            kms_values["key_usage"] = str(
-                common_values.get("key_usage", "ENCRYPT_DECRYPT")
-            ).upper()
+            kms_values = {"description": "app-interface created KMS key for" + sqs_identifier}
+            kms_values["key_usage"] = str(common_values.get("key_usage", "ENCRYPT_DECRYPT")).upper()
             kms_values["customer_master_key_spec"] = str(
                 common_values.get("customer_master_key_spec", "SYMMETRIC_DEFAULT")
             ).upper()
@@ -2976,10 +2780,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 "Statement": [
                     {
                         "Effect": "Allow",
-                        "Principal": {
-                            "AWS": f"arn:{self._get_partition(account)}:"
-                            + f"iam::{uid}:root"
-                        },
+                        "Principal": {"AWS": f"arn:{self._get_partition(account)}:" + f"iam::{uid}:root"},
                         "Action": "kms:*",
                         "Resource": "*",
                     },
@@ -3035,9 +2836,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         if filter_suffix is not None:
             notification_values["queue"][0]["filter_suffix"] = filter_suffix
 
-        notification_tf_resource = aws_s3_bucket_notification(
-            sqs_identifier, **notification_values
-        )
+        notification_tf_resource = aws_s3_bucket_notification(sqs_identifier, **notification_values)
         tf_resources.append(notification_tf_resource)
 
         # iam resources
@@ -3075,10 +2874,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 {
                     "Effect": "Allow",
                     "Action": ["sqs:*"],
-                    "Resource": [
-                        f"arn:{self._get_partition(account)}:"
-                        + f"sqs:*:{uid}:{sqs_identifier}"
-                    ],
+                    "Resource": [f"arn:{self._get_partition(account)}:" + f"sqs:*:{uid}:{sqs_identifier}"],
                 },
                 {"Effect": "Allow", "Action": ["sqs:ListQueues"], "Resource": "*"},
             ],
@@ -3098,19 +2894,13 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         values = {}
         values["user"] = sqs_identifier
         values["policy_arn"] = "${" + policy_tf_resource.arn + "}"
-        values["depends_on"] = self.get_dependencies(
-            [user_tf_resource, policy_tf_resource]
-        )
-        user_policy_attachment_tf_resource = aws_iam_user_policy_attachment(
-            sqs_identifier, **values
-        )
+        values["depends_on"] = self.get_dependencies([user_tf_resource, policy_tf_resource])
+        user_policy_attachment_tf_resource = aws_iam_user_policy_attachment(sqs_identifier, **values)
         tf_resources.append(user_policy_attachment_tf_resource)
 
         # outputs
         output_name_0_13 = "{}__{}".format(output_prefix, sqs_identifier)
-        output_value = "https://sqs.{}.amazonaws.com/{}/{}".format(
-            region, uid, sqs_identifier
-        )
+        output_value = "https://sqs.{}.amazonaws.com/{}/{}".format(region, uid, sqs_identifier)
         tf_resources.append(Output(output_name_0_13, value=output_value))
 
         self.add_resources(account, tf_resources)
@@ -3131,9 +2921,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         values = {
             "name": identifier,
             "tags": common_values["tags"],
-            "retention_in_days": self._get_retention_in_days(
-                common_values, account, identifier
-            ),
+            "retention_in_days": self._get_retention_in_days(common_values, account, identifier),
         }
 
         region = common_values.get("region") or self.default_regions.get(account)
@@ -3201,9 +2989,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             es_domain = {"domain_name": es_identifier}
             if provider:
                 es_domain["provider"] = provider
-            tf_resources.append(
-                data.aws_elasticsearch_domain(es_identifier, **es_domain)
-            )
+            tf_resources.append(data.aws_elasticsearch_domain(es_identifier, **es_domain))
 
             release_url = common_values.get("release_url", LOGTOES_RELEASE)
             zip_file = self.get_logtoes_zip(release_url)
@@ -3222,20 +3008,14 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             lambda_values["memory_size"] = common_values.get("memory_size", 128)
 
             lambda_values["vpc_config"] = {
-                "subnet_ids": "${data.aws_elasticsearch_domain."
-                + es_identifier
-                + ".vpc_options.0.subnet_ids}",
+                "subnet_ids": "${data.aws_elasticsearch_domain." + es_identifier + ".vpc_options.0.subnet_ids}",
                 "security_group_ids": "${data.aws_elasticsearch_domain."
                 + es_identifier
                 + ".vpc_options.0.security_group_ids}",
             }
 
             lambda_values["environment"] = {
-                "variables": {
-                    "es_endpoint": "${data.aws_elasticsearch_domain."
-                    + es_identifier
-                    + ".endpoint}"
-                }
+                "variables": {"es_endpoint": "${data.aws_elasticsearch_domain." + es_identifier + ".endpoint}"}
             }
 
             if provider:
@@ -3253,9 +3033,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
             if provider:
                 permission_vaules["provider"] = provider
-            permission_tf_resource = aws_lambda_permission(
-                lambda_identifier, **permission_vaules
-            )
+            permission_tf_resource = aws_lambda_permission(lambda_identifier, **permission_vaules)
             tf_resources.append(permission_tf_resource)
 
             subscription_vaules = {
@@ -3272,9 +3050,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
             if provider:
                 subscription_vaules["provider"] = provider
-            subscription_tf_resource = aws_cloudwatch_log_subscription_filter(
-                lambda_identifier, **subscription_vaules
-            )
+            subscription_tf_resource = aws_cloudwatch_log_subscription_filter(lambda_identifier, **subscription_vaules)
             tf_resources.append(subscription_tf_resource)
 
         output_name_0_13 = output_prefix + "__log_group_name"
@@ -3297,9 +3073,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         tf_resources.append(user_tf_resource)
 
         # iam access key for user
-        tf_resources.extend(
-            self.get_tf_iam_access_key(user_tf_resource, identifier, output_prefix)
-        )
+        tf_resources.extend(self.get_tf_iam_access_key(user_tf_resource, identifier, output_prefix))
 
         # iam user policy for log group
         policy = {
@@ -3426,13 +3200,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         es_identifier = common_values.get("es_identifier", None)
         if es_identifier:
-            es_resource = self._find_resource_spec(
-                account, es_identifier, "elasticsearch"
-            )
+            es_resource = self._find_resource_spec(account, es_identifier, "elasticsearch")
             if es_resource is None:
-                raise FetchResourceError(
-                    f"failed to find elasticsearch domain {es_identifier}"
-                )
+                raise FetchResourceError(f"failed to find elasticsearch domain {es_identifier}")
 
             assume_role_policy = {
                 "Version": "2012-10-17",
@@ -3499,9 +3269,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     ]
                 ),
             }
-            attachment_tf_resource = aws_iam_role_policy_attachment(
-                policy_identifier, **attachment_values
-            )
+            attachment_tf_resource = aws_iam_role_policy_attachment(policy_identifier, **attachment_values)
             tf_resources.append(attachment_tf_resource)
 
             secret_policy_arn = es_resource.get_secret_field("secret_policy_arn")
@@ -3520,9 +3288,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             es_domain = {"domain_name": es_identifier}
             if provider:
                 es_domain["provider"] = provider
-            tf_resources.append(
-                data.aws_elasticsearch_domain(es_identifier, **es_domain)
-            )
+            tf_resources.append(data.aws_elasticsearch_domain(es_identifier, **es_domain))
 
             release_url = common_values.get("release_url", KINESIS_TO_OS_RELEASE)
             zip_file = self.get_lambda_zip(release_url)
@@ -3538,15 +3304,11 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             lambda_values["function_name"] = lambda_identifier
             lambda_values["runtime"] = common_values.get("runtime", "python3.9")
             lambda_values["timeout"] = common_values.get("timeout", 30)
-            lambda_values["handler"] = common_values.get(
-                "handler", "lambda_function.handler"
-            )
+            lambda_values["handler"] = common_values.get("handler", "lambda_function.handler")
             lambda_values["memory_size"] = common_values.get("memory_size", 128)
 
             lambda_values["vpc_config"] = {
-                "subnet_ids": "${data.aws_elasticsearch_domain."
-                + es_identifier
-                + ".vpc_options.0.subnet_ids}",
+                "subnet_ids": "${data.aws_elasticsearch_domain." + es_identifier + ".vpc_options.0.subnet_ids}",
                 "security_group_ids": "${data.aws_elasticsearch_domain."
                 + es_identifier
                 + ".vpc_options.0.security_group_ids}",
@@ -3555,9 +3317,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             index_prefix = common_values.get("index_prefix", f"{identifier}-")
             lambda_values["environment"] = {
                 "variables": {
-                    "es_endpoint": "${data.aws_elasticsearch_domain."
-                    + es_identifier
-                    + ".endpoint}",
+                    "es_endpoint": "${data.aws_elasticsearch_domain." + es_identifier + ".endpoint}",
                     "index_prefix": index_prefix,
                 }
             }
@@ -3577,13 +3337,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             starting_position = common_values.get("starting_position", "LATEST")
             source_vaules["starting_position"] = starting_position
             if starting_position == "AT_TIMESTAMP":
-                starting_position_timestamp = common_values.get(
-                    "starting_position_timestamp", None
-                )
+                starting_position_timestamp = common_values.get("starting_position_timestamp", None)
                 if not starting_position_timestamp:
-                    source_vaules[
-                        "starting_position_timestamp"
-                    ] = starting_position_timestamp
+                    source_vaules["starting_position_timestamp"] = starting_position_timestamp
 
             batch_size = common_values.get("batch_size", 100)
             source_vaules["batch_size"] = batch_size
@@ -3593,9 +3349,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
             if provider:
                 source_vaules["provider"] = provider
-            permission_tf_resource = aws_lambda_event_source_mapping(
-                lambda_identifier, **source_vaules
-            )
+            permission_tf_resource = aws_lambda_event_source_mapping(lambda_identifier, **source_vaules)
             tf_resources.append(permission_tf_resource)
 
         # outputs
@@ -3672,9 +3426,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         return retention_in_days
 
-    def get_tf_iam_service_user(
-        self, dep_tf_resource, identifier, policy, tags, output_prefix
-    ):
+    def get_tf_iam_service_user(self, dep_tf_resource, identifier, policy, tags, output_prefix):
         # iam resources
         # Terraform resource reference:
         # https://www.terraform.io/docs/providers/aws/r/iam_access_key.html
@@ -3690,9 +3442,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         tf_resources.append(user_tf_resource)
 
         # iam access key
-        tf_resources.extend(
-            self.get_tf_iam_access_key(user_tf_resource, identifier, output_prefix)
-        )
+        tf_resources.extend(self.get_tf_iam_access_key(user_tf_resource, identifier, output_prefix))
 
         # iam user policy
         values = {}
@@ -3746,8 +3496,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
     def add_resource(self, account, tf_resource):
         if account not in self.locks:
             logging.debug(
-                "integration {} is disabled for account {}. "
-                "can not add resource".format(self.integration, account)
+                "integration {} is disabled for account {}. " "can not add resource".format(self.integration, account)
             )
             return
         with self.locks[account]:
@@ -3848,21 +3597,15 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
     ):
         output_format_0_13 = "{}__{}_{}"
         # cluster
-        output_name_0_13 = output_format_0_13.format(
-            spec.output_prefix, self.integration_prefix, "cluster"
-        )
+        output_name_0_13 = output_format_0_13.format(spec.output_prefix, self.integration_prefix, "cluster")
         output_value = spec.cluster_name
         tf_resources.append(Output(output_name_0_13, value=output_value))
         # namespace
-        output_name_0_13 = output_format_0_13.format(
-            spec.output_prefix, self.integration_prefix, "namespace"
-        )
+        output_name_0_13 = output_format_0_13.format(spec.output_prefix, self.integration_prefix, "namespace")
         output_value = spec.namespace_name
         tf_resources.append(Output(output_name_0_13, value=output_value))
         # resource
-        output_name_0_13 = output_format_0_13.format(
-            spec.output_prefix, self.integration_prefix, "resource"
-        )
+        output_name_0_13 = output_format_0_13.format(spec.output_prefix, self.integration_prefix, "resource")
         output_value = "Secret"
         tf_resources.append(Output(output_name_0_13, value=output_value))
         # output_resource_name
@@ -3873,9 +3616,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         tf_resources.append(Output(output_name_0_13, value=output_value))
         # annotations
         if spec.annotations():
-            output_name_0_13 = output_format_0_13.format(
-                spec.output_prefix, self.integration_prefix, "annotations"
-            )
+            output_name_0_13 = output_format_0_13.format(spec.output_prefix, self.integration_prefix, "annotations")
             anno_json = json.dumps(spec.annotations()).encode("utf-8")
             output_value = base64.b64encode(anno_json).decode()
             tf_resources.append(Output(output_name_0_13, value=output_value))
@@ -3907,10 +3648,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
     @staticmethod
     def get_dependencies(tf_resources: Iterable[Resource]) -> list[str]:
-        return [
-            f"{tf_resource.__class__.__name__}.{tf_resource._name}"
-            for tf_resource in tf_resources
-        ]
+        return [f"{tf_resource.__class__.__name__}.{tf_resource._name}" for tf_resource in tf_resources]
 
     @staticmethod
     def get_elasticsearch_service_role_tf_resource():
@@ -3932,15 +3670,11 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         return re.search(pattern, name)
 
     @staticmethod
-    def elasticsearch_log_group_identifier(
-        domain_identifier: str, log_type: ElasticSearchLogGroupType
-    ) -> str:
+    def elasticsearch_log_group_identifier(domain_identifier: str, log_type: ElasticSearchLogGroupType) -> str:
         log_type_name = log_type.value.lower()
         return f"OpenSearchService/{domain_identifier}/{log_type_name}"
 
-    def _elasticsearch_get_all_log_group_infos(
-        self, account: str
-    ) -> list[ElasticSearchLogGroupInfo]:
+    def _elasticsearch_get_all_log_group_infos(self, account: str) -> list[ElasticSearchLogGroupInfo]:
         """
         Gather all cloud_watch_log_groups for the
         current account. This is required to set
@@ -4004,10 +3738,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                         "logs:CreateLogStream",
                     ],
                     "Resource": [
-                        (
-                            f"arn:aws:logs:{info.region}:{info.account_id}"
-                            f":log-group:{info.log_group_identifier}:*"
-                        )
+                        (f"arn:aws:logs:{info.region}:{info.account_id}" f":log-group:{info.log_group_identifier}:*")
                         for info in log_group_infos
                         if info.account == account
                     ],
@@ -4069,23 +3800,17 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             region = values.get("region") or self.default_regions.get(account)
             if self._multiregion_account(account):
                 log_group_values["provider"] = f"aws.{region}"
-            log_group_tf_resource = aws_cloudwatch_log_group(
-                log_type_identifier.replace("/", "-"), **log_group_values
-            )
+            log_group_tf_resource = aws_cloudwatch_log_group(log_type_identifier.replace("/", "-"), **log_group_values)
             tf_resources.append(log_group_tf_resource)
             arn = f"${{{log_group_tf_resource.arn}}}"
 
             # add arn to output
-            output_name_0_13 = (
-                f"{output_prefix}__cloudwatch_log_group_" f"{log_type.lower()}_arn"
-            )
+            output_name_0_13 = f"{output_prefix}__cloudwatch_log_group_" f"{log_type.lower()}_arn"
             output_value = arn
             tf_resources.append(Output(output_name_0_13, value=output_value))
 
             # add name to output
-            output_name_0_13 = (
-                f"{output_prefix}__cloudwatch_log_group_" f"{log_type.lower()}_name"
-            )
+            output_name_0_13 = f"{output_prefix}__cloudwatch_log_group_" f"{log_type.lower()}_name"
             output_value = log_type_identifier
             tf_resources.append(Output(output_name_0_13, value=output_value))
             publishing_options.append(
@@ -4098,9 +3823,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         return tf_resources, publishing_options
 
-    def _build_es_advanced_security_options(
-        self, auth_options: Mapping[str, Any]
-    ) -> dict[str, Any]:
+    def _build_es_advanced_security_options(self, auth_options: Mapping[str, Any]) -> dict[str, Any]:
         advanced_security_options: dict[str, Any] = {
             "enabled": True,
         }
@@ -4167,10 +3890,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         es_values["tags"] = tags
         es_values["elasticsearch_version"] = values.get("elasticsearch_version")
 
-        (
-            log_group_resources,
-            publishing_options,
-        ) = self._get_tf_resource_elasticsearch_log_groups(
+        (log_group_resources, publishing_options,) = self._get_tf_resource_elasticsearch_log_groups(
             identifier=identifier,
             account=account,
             resource=spec.resource,
@@ -4195,8 +3915,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 volume_size = ebs_options.get("volume_size", None)
                 if volume_size is None:
                     raise ValueError(
-                        f"volume_size is required for enable ebs storgae on "
-                        f" Elasticsearch {values['identifier']}"
+                        f"volume_size is required for enable ebs storgae on " f" Elasticsearch {values['identifier']}"
                     )
                 ebs_values["volume_size"] = volume_size
                 volume_type = ebs_options.get("volume_type", "gp2")
@@ -4206,20 +3925,14 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         es_values["ebs_options"] = ebs_values
 
-        es_values["encrypt_at_rest"] = {
-            "enabled": values.get("encrypt_at_rest", {}).get("enabled", True)
-        }
+        es_values["encrypt_at_rest"] = {"enabled": values.get("encrypt_at_rest", {}).get("enabled", True)}
 
         node_to_node_encryption = values.get("node_to_node_encryption", {})
 
-        es_values["node_to_node_encryption"] = {
-            "enabled": node_to_node_encryption.get("enabled", True)
-        }
+        es_values["node_to_node_encryption"] = {"enabled": node_to_node_encryption.get("enabled", True)}
 
         domain_endpoint_options = values.get("domain_endpoint_options", {})
-        tls_security_policy = domain_endpoint_options.get(
-            "tls_security_policy", "Policy-Min-TLS-1-0-2019-07"
-        )
+        tls_security_policy = domain_endpoint_options.get("tls_security_policy", "Policy-Min-TLS-1-0-2019-07")
         enforce_https = domain_endpoint_options.get("enforce_https", True)
         es_values["domain_endpoint_options"] = {
             "enforce_https": enforce_https,
@@ -4228,16 +3941,12 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         cluster_config = values.get("cluster_config", {})
         dedicated_master_enabled = cluster_config.get("dedicated_master_enabled", True)
-        dedicated_master_type = cluster_config.get(
-            "dedicated_master_type", "t2.small.elasticsearch"
-        )
+        dedicated_master_type = cluster_config.get("dedicated_master_type", "t2.small.elasticsearch")
         dedicated_master_count = cluster_config.get("dedicated_master_count", 3)
         zone_awareness_enabled = cluster_config.get("zone_awareness_enabled", True)
 
         cluster_vaules = {
-            "instance_type": cluster_config.get(
-                "instance_type", "t2.small.elasticsearch"
-            ),
+            "instance_type": cluster_config.get("instance_type", "t2.small.elasticsearch"),
             "instance_count": cluster_config.get("instance_count", 3),
             "zone_awareness_enabled": zone_awareness_enabled,
         }
@@ -4249,31 +3958,21 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         if zone_awareness_enabled:
             zone_awareness_config = cluster_config.get("zone_awareness_config", {})
-            availability_zone_count = zone_awareness_config.get(
-                "availability_zone_count", 3
-            )
-            cluster_vaules["zone_awareness_config"] = {
-                "availability_zone_count": availability_zone_count
-            }
+            availability_zone_count = zone_awareness_config.get("availability_zone_count", 3)
+            cluster_vaules["zone_awareness_config"] = {"availability_zone_count": availability_zone_count}
 
         warm_enabled = cluster_config.get("warm_enabled", False)
         if warm_enabled:
             cluster_vaules["warm_enabled"] = warm_enabled
-            cluster_vaules["warm_type"] = cluster_config.get(
-                "warm_type", "ultrawarm1.medium.elasticsearch"
-            )
+            cluster_vaules["warm_type"] = cluster_config.get("warm_type", "ultrawarm1.medium.elasticsearch")
             cluster_vaules["warm_count"] = cluster_config.get("warm_count", 2)
 
         es_values["cluster_config"] = cluster_vaules
 
         snapshot_options = values.get("snapshot_options", {})
-        automated_snapshot_start_hour = snapshot_options.get(
-            "automated_snapshot_start_hour", 23
-        )
+        automated_snapshot_start_hour = snapshot_options.get("automated_snapshot_start_hour", 23)
 
-        es_values["snapshot_options"] = {
-            "automated_snapshot_start_hour": automated_snapshot_start_hour
-        }
+        es_values["snapshot_options"] = {"automated_snapshot_start_hour": automated_snapshot_start_hour}
 
         vpc_options = values.get("vpc_options", {})
         security_group_ids = vpc_options.get("security_group_ids", None)
@@ -4281,21 +3980,18 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         if subnet_ids is None:
             raise ElasticSearchResourceMissingSubnetIdError(
-                f"[{account}] No subnet ids provided for Elasticsearch"
-                + f" resource {values['identifier']}"
+                f"[{account}] No subnet ids provided for Elasticsearch" + f" resource {values['identifier']}"
             )
 
         if not zone_awareness_enabled and len(subnet_ids) > 1:
             raise ElasticSearchResourceZoneAwareSubnetInvalidError(
-                f"[{account}] Multiple subnet ids are provided but "
-                + f" zone_awareness_enabled is set to false for"
+                f"[{account}] Multiple subnet ids are provided but " + f" zone_awareness_enabled is set to false for"
                 f" resource {values['identifier']}"
             )
 
         if zone_awareness_enabled and availability_zone_count != len(subnet_ids):
             raise ElasticSearchResourceZoneAwareSubnetInvalidError(
-                f"[{account}] Subnet ids count does not match "
-                + f" availability_zone_count for"
+                f"[{account}] Subnet ids count does not match " + f" availability_zone_count for"
                 f" resource {values['identifier']}"
             )
 
@@ -4341,9 +4037,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         auth_options = values.get("auth", {})
         # TODO: @fishi0x01 make mandatory after migration APPSRE-3409
         if auth_options:
-            es_values[
-                "advanced_security_options"
-            ] = self._build_es_advanced_security_options(auth_options)
+            es_values["advanced_security_options"] = self._build_es_advanced_security_options(auth_options)
 
         # TODO: @fishi0x01 remove after migration APPSRE-3409
         # ++++++++ START: REMOVE +++++++++
@@ -4351,9 +4045,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
             advanced_security_options = values.get("advanced_security_options", {})
             if advanced_security_options:
-                es_values[
-                    "advanced_security_options"
-                ] = self._build_es_advanced_security_options_deprecated(
+                es_values["advanced_security_options"] = self._build_es_advanced_security_options_deprecated(
                     advanced_security_options
                 )
         # ++++++++ END: REMOVE ++++++++++
@@ -4384,24 +4076,18 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         tf_resources.append(Output(output_name_0_13, value=output_value))
         # vpc_id
         output_name_0_13 = output_prefix + "__vpc_id"
-        output_value = (
-            "${aws_elasticsearch_domain." + identifier + ".vpc_options.0.vpc_id}"
-        )
+        output_value = "${aws_elasticsearch_domain." + identifier + ".vpc_options.0.vpc_id}"
         tf_resources.append(Output(output_name_0_13, value=output_value))
         # add master user creds to output and secretsmanager if internal_user_database_enabled
         security_options = es_values.get("advanced_security_options", None)
-        if security_options and security_options.get(
-            "internal_user_database_enabled", False
-        ):
+        if security_options and security_options.get("internal_user_database_enabled", False):
             master_user = security_options["master_user_options"]
             secret_name = f"qrtf/es/{identifier}"
             secret_identifier = secret_name.replace("/", "-")
             secret_values = {"name": secret_name, "tags": tags}
             if provider:
                 secret_values["provider"] = provider
-            aws_secret_resource = aws_secretsmanager_secret(
-                secret_identifier, **secret_values
-            )
+            aws_secret_resource = aws_secretsmanager_secret(secret_identifier, **secret_values)
             tf_resources.append(aws_secret_resource)
 
             version_values = {
@@ -4410,9 +4096,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             }
             if provider:
                 version_values["provider"] = provider
-            aws_version_resource = aws_secretsmanager_secret_version(
-                secret_identifier, **version_values
-            )
+            aws_version_resource = aws_secretsmanager_secret_version(secret_identifier, **version_values)
             tf_resources.append(aws_version_resource)
 
             policy = {
@@ -4492,17 +4176,11 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
             key = secret_data.get("key", None)
             if key is None:
-                raise KeyError(
-                    f"Vault secret '{secret['path']}' "
-                    + "does not have required key [key]"
-                )
+                raise KeyError(f"Vault secret '{secret['path']}' " + "does not have required key [key]")
 
             certificate = secret_data.get("certificate", None)
             if certificate is None:
-                raise KeyError(
-                    f"Vault secret '{secret['path']}' "
-                    + "does not have required key [certificate]"
-                )
+                raise KeyError(f"Vault secret '{secret['path']}' " + "does not have required key [certificate]")
 
             caCertificate = secret_data.get("caCertificate", None)
 
@@ -4572,19 +4250,14 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         values = {"name": identifier, "comment": "managed by app-interface"}
         secret = common_values.get("secret", None)
         if secret is None:
-            raise KeyError(
-                "no secret defined for s3_cloudfront_public_key " f"{identifier}"
-            )
+            raise KeyError("no secret defined for s3_cloudfront_public_key " f"{identifier}")
 
         secret_data = self.secret_reader.read_all(secret)
 
         secret_key = "cloudfront_public_key"
         key = secret_data.get(secret_key, None)
         if key is None:
-            raise KeyError(
-                f"vault secret '{secret['path']}' "
-                + f"does not have required key [{secret_key}]"
-            )
+            raise KeyError(f"vault secret '{secret['path']}' " + f"does not have required key [{secret_key}]")
 
         values["encoded_key"] = key
 
@@ -4613,9 +4286,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         account = self.accounts[account_name]
         cluster = namespace_info["cluster"]
         ocm = ocm_map.get(cluster["name"])
-        account[
-            "assume_role"
-        ] = ocm.get_aws_infrastructure_access_terraform_assume_role(
+        account["assume_role"] = ocm.get_aws_infrastructure_access_terraform_assume_role(
             cluster["name"],
             account["uid"],
             account["terraformUsername"],
@@ -4761,9 +4432,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 },
                 "byte_length": 4,
             }
-            lbt_random_id = random_id(
-                f"{identifier}-{target_name}", **lbt_random_id_values
-            )
+            lbt_random_id = random_id(f"{identifier}-{target_name}", **lbt_random_id_values)
             tf_resources.append(lbt_random_id)
 
             # https://www.terraform.io/docs/providers/aws/r/
@@ -4810,9 +4479,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     values["availability_zone"] = "all"
                 ip_slug = ip.replace(".", "_")
                 lbta_identifier = f"{lbt_identifier}-{ip_slug}"
-                lbta_tf_resource = aws_lb_target_group_attachment(
-                    lbta_identifier, **values
-                )
+                lbta_tf_resource = aws_lb_target_group_attachment(lbta_identifier, **values)
                 tf_resources.append(lbta_tf_resource)
 
         # https://www.terraform.io/docs/providers/aws/r/lb_listener.html
@@ -4880,9 +4547,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             }
 
             if config_methods:
-                values["condition"].append(
-                    {"http_request_method": {"values": config_methods}}
-                )
+                values["condition"].append({"http_request_method": {"values": config_methods}})
 
             weight_sum = 0
             for a in action:
@@ -4898,9 +4563,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 weight_sum += a["weight"]
 
             if weight_sum != 100:
-                raise ValueError(
-                    "sum of weights for a rule should be 100" f" given: {weight_sum}"
-                )
+                raise ValueError("sum of weights for a rule should be 100" f" given: {weight_sum}")
 
             lblr_identifier = f"{identifier}-rule-{rule_num+1:02d}"
             lblr_tf_resource = aws_lb_listener_rule(lblr_identifier, **values)
@@ -4948,9 +4611,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         if self._multiregion_account(account):
             version_values["provider"] = "aws." + region
 
-        aws_version_resource = aws_secretsmanager_secret_version(
-            identifier, **version_values
-        )
+        aws_version_resource = aws_secretsmanager_secret_version(identifier, **version_values)
         tf_resources.append(aws_version_resource)
 
         # outputs
@@ -4987,9 +4648,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         return ""
 
-    def get_asg_image_id(
-        self, filters: Iterable[Mapping[str, Any]], account: str, region: str
-    ) -> Optional[str]:
+    def get_asg_image_id(self, filters: Iterable[Mapping[str, Any]], account: str, region: str) -> Optional[str]:
         """
         AMI ID comes form AWS Api filter result.
         AMI needs to be shared by integration aws-ami-share.
@@ -5034,9 +4693,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         if extra_tags:
             tags.update(json.loads(extra_tags))
         # common_values is untyped, so casting is necessary
-        region = cast(str, common_values.get("region")) or cast(
-            str, self.default_regions.get(account)
-        )
+        region = cast(str, common_values.get("region")) or cast(str, self.default_regions.get(account))
 
         template_values = {
             "name": identifier,
@@ -5056,9 +4713,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         if not image_id:
             if self._use_previous_image_id(image):
                 image_id = spec.get_secret_field("image_id")
-                logging.warning(
-                    f"[{account}] ami not (yet) available. using previous ami {image_id} instead."
-                )
+                logging.warning(f"[{account}] ami not (yet) available. using previous ami {image_id} instead.")
             else:
                 raise ValueError(
                     f"[{identifier}] could not find ami specified in image section in account {account}, image definition {image}"
@@ -5088,9 +4743,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             part = []
             for c in cloudinit_configs:
                 raw = self.get_raw_values(c["content"])
-                content = orb.process_extracurlyjinja2_template(
-                    body=raw["content"], vars=vars, settings=self.settings
-                )
+                content = orb.process_extracurlyjinja2_template(body=raw["content"], vars=vars, settings=self.settings)
                 # https://www.terraform.io/docs/language/expressions/strings.html#escape-sequences
                 content = content.replace("${", "$${")
                 content = content.replace("%{", "%%{")
@@ -5102,9 +4755,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     }
                 )
             cloudinit_value = {"gzip": True, "base64_encode": True, "part": part}
-            cloudinit_data = data.template_cloudinit_config(
-                identifier, **cloudinit_value
-            )
+            cloudinit_data = data.template_cloudinit_config(identifier, **cloudinit_value)
             tf_resources.append(cloudinit_data)
             template_values["user_data"] = "${" + cloudinit_data.rendered + "}"
         template_resource = aws_launch_template(identifier, **template_values)
@@ -5136,12 +4787,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         instance_types = common_values.get("instance_types")
         if instance_types:
             override = [{"instance_type": i} for i in instance_types]
-            asg_value["mixed_instances_policy"]["launch_template"][
-                "override"
-            ] = override
-        asg_value["tags"] = [
-            {"key": k, "value": v, "propagate_at_launch": True} for k, v in tags.items()
-        ]
+            asg_value["mixed_instances_policy"]["launch_template"]["override"] = override
+        asg_value["tags"] = [{"key": k, "value": v, "propagate_at_launch": True} for k, v in tags.items()]
         asg_resource = aws_autoscaling_group(identifier, **asg_value)
         tf_resources.append(asg_resource)
 
@@ -5184,8 +4831,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                         "route53:Get*",
                         "route53:List*",
                     ],
-                    "Resource": "arn:aws:route53:::hostedzone/"
-                    + f"${{{zone_tf_resource.zone_id}}}",
+                    "Resource": "arn:aws:route53:::hostedzone/" + f"${{{zone_tf_resource.zone_id}}}",
                 },
                 {"Effect": "Allow", "Action": ["route53:List*"], "Resource": "*"},
                 {"Effect": "Allow", "Action": ["tag:GetResources"], "Resource": "*"},
@@ -5215,9 +4861,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         region = common_values.get("region") or self.default_regions.get(account)
         bucket_name = common_values.get("cognito_callback_bucket_name")
         bucket_url = f"https://{bucket_name}.s3.{region}.amazonaws.com"
-        lambda_managed_policy_arn = (
-            "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
-        )
+        lambda_managed_policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
         if region in ("us-gov-west-1", "us-gov-east-1"):
             lambda_managed_policy_arn = "arn:aws-us-gov:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
         vpc_id = common_values.get("vpc_id")
@@ -5225,9 +4869,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         network_interface_ids = common_values.get("network_interface_ids")
         certificate_arn = common_values.get("certificate_arn")
         domain_name = common_values.get("domain_name")
-        openshift_ingress_load_balancer_arn = common_values.get(
-            "openshift_ingress_load_balancer_arn"
-        )
+        openshift_ingress_load_balancer_arn = common_values.get("openshift_ingress_load_balancer_arn")
         vpce_id = common_values.get("vpce_id")
         insights_callback_urls = common_values.get("insights_callback_urls")
 
@@ -5258,9 +4900,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         # Setup + manage Lambda resources
         # pre-signup lambda
-        release_url = common_values.get(
-            "release_url", ROSA_AUTHENTICATOR_PRE_SIGNUP_RELEASE
-        )
+        release_url = common_values.get("release_url", ROSA_AUTHENTICATOR_PRE_SIGNUP_RELEASE)
         zip_file = self.get_rosa_authenticator_zip(release_url)
 
         cognito_pre_signup_lambda_resource = aws_lambda_function(
@@ -5293,9 +4933,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             try:
                 s3_client.head_bucket(Bucket=bucket_name)
             except ClientError as details:
-                raise StateInaccessibleException(
-                    f"Bucket {bucket_name} is not accessible - {str(details)}"
-                )
+                raise StateInaccessibleException(f"Bucket {bucket_name} is not accessible - {str(details)}")
 
             # todo: probably remove 'RedHat' from the object/variable/filepath
             # names to keep the code RedHat-agnostic?
@@ -5304,9 +4942,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             # download redhat-logo-png file
             redhat_logo_png_obj_name = "Logo-RedHat-B-Color-RGB.png"
             redhat_logo_png_filepath = "/tmp/Logo-RedHat-B-Color-RGB.png"
-            s3_client.download_file(
-                bucket_name, redhat_logo_png_obj_name, redhat_logo_png_filepath
-            )
+            s3_client.download_file(bucket_name, redhat_logo_png_obj_name, redhat_logo_png_filepath)
         if not os.path.exists(redhat_logo_png_filepath):
             raise Exception(
                 f"Attempted to download object {redhat_logo_png_obj_name} "
@@ -5324,28 +4960,16 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         # Prepare all resource arguments from default file
         pool_args = common_values.get("user_pool_properties", None)
         pool_client_args = common_values.get("user_pool_client_properties", None)
-        cognito_resource_server_args = common_values.get(
-            "cognito_resource_server_properties", None
-        )
+        cognito_resource_server_args = common_values.get("cognito_resource_server_properties", None)
         pool_client_service_account_common_args = common_values.get(
             "pool_client_service_account_common_properties", None
         )
         rest_api_args = common_values.get("rest_api_properties", None)
-        gateway_authorizer_args = common_values.get(
-            "gateway_authorizer_properties", None
-        )
-        gateway_method_proxy_any_args = common_values.get(
-            "gateway_method_proxy_any_properties", None
-        )
-        gateway_method_get_args = common_values.get(
-            "gateway_method_get_properties", None
-        )
-        gateway_method_get_response_args = common_values.get(
-            "gateway_method_get_response_properties", None
-        )
-        gateway_method_auth_get_response_args = common_values.get(
-            "gateway_method_auth_get_response_properties", None
-        )
+        gateway_authorizer_args = common_values.get("gateway_authorizer_properties", None)
+        gateway_method_proxy_any_args = common_values.get("gateway_method_proxy_any_properties", None)
+        gateway_method_get_args = common_values.get("gateway_method_get_properties", None)
+        gateway_method_get_response_args = common_values.get("gateway_method_get_response_properties", None)
+        gateway_method_auth_get_response_args = common_values.get("gateway_method_auth_get_response_properties", None)
         integration_proxy_args = common_values.get("integration_proxy_properties", None)
         integration_token_args = common_values.get("integration_token_properties", None)
         integration_auth_args = common_values.get("integration_auth_properties", None)
@@ -5357,9 +4981,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         cognito_user_pool_resource = aws_cognito_user_pool(
             "pool",
             name=f"ocm-{identifier}-pool",
-            lambda_config={
-                "pre_sign_up": f"${{{cognito_pre_signup_lambda_resource.arn}}}"
-            },
+            lambda_config={"pre_sign_up": f"${{{cognito_pre_signup_lambda_resource.arn}}}"},
             **pool_args,
         )
         tf_resources.append(cognito_user_pool_resource)
@@ -5401,8 +5023,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             scope=[
                 {
                     "scope_name": "AccessToken",
-                    "scope_description": "Scope used to support Access Token "
-                    + "authorization in API Gateway",
+                    "scope_description": "Scope used to support Access Token " + "authorization in API Gateway",
                 }
             ],
         )
@@ -5426,7 +5047,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 name=f"insights-{identifier}-pool-client",
                 user_pool_id=f"${{{cognito_user_pool_resource.id}}}",
                 callback_urls=insights_callback_urls,
-                **pool_client_args,
+                access_token_validity=15,
+                refresh_token_validity=8,
+                token_validity_units={"access_token": "minutes", "refresh_token": "hours"} ** pool_client_args,
             )
             tf_resources.append(insights_cognito_user_pool_client)
 
@@ -5515,32 +5138,24 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         tf_resources.append(osl_service_account_pool_client_resource)
 
         # BACKPLANE CLI
-        backplane_cli_service_account_pool_client_resource = (
-            aws_cognito_user_pool_client(
-                "ocm_backplane_cli_service_account",
-                name=f"ocm-{identifier}-backplane-cli-service-account",
-                user_pool_id=f"${{{cognito_user_pool_resource.id}}}",
-                allowed_oauth_scopes=["ocm/BackplaneCLI"],
-                depends_on=[
-                    "aws_cognito_resource_server.userpool_service_resource_server"
-                ],
-                **pool_client_service_account_common_args,
-            )
+        backplane_cli_service_account_pool_client_resource = aws_cognito_user_pool_client(
+            "ocm_backplane_cli_service_account",
+            name=f"ocm-{identifier}-backplane-cli-service-account",
+            user_pool_id=f"${{{cognito_user_pool_resource.id}}}",
+            allowed_oauth_scopes=["ocm/BackplaneCLI"],
+            depends_on=["aws_cognito_resource_server.userpool_service_resource_server"],
+            **pool_client_service_account_common_args,
         )
         tf_resources.append(backplane_cli_service_account_pool_client_resource)
 
         # BACKPLANE API
-        backplane_api_service_account_pool_client_resource = (
-            aws_cognito_user_pool_client(
-                "ocm_backplane_api_service_account",
-                name=f"ocm-{identifier}-backplane-api-service-account",
-                user_pool_id=f"${{{cognito_user_pool_resource.id}}}",
-                allowed_oauth_scopes=["ocm/BackplaneService"],
-                depends_on=[
-                    "aws_cognito_resource_server.userpool_service_resource_server"
-                ],
-                **pool_client_service_account_common_args,
-            )
+        backplane_api_service_account_pool_client_resource = aws_cognito_user_pool_client(
+            "ocm_backplane_api_service_account",
+            name=f"ocm-{identifier}-backplane-api-service-account",
+            user_pool_id=f"${{{cognito_user_pool_resource.id}}}",
+            allowed_oauth_scopes=["ocm/BackplaneService"],
+            depends_on=["aws_cognito_resource_server.userpool_service_resource_server"],
+            **pool_client_service_account_common_args,
         )
         tf_resources.append(backplane_api_service_account_pool_client_resource)
 
@@ -5571,9 +5186,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         # LB TARGET GROUP ATTACHMENT
         for idx, niid in enumerate(network_interface_ids):
-            current_network_interface = data.aws_network_interface(
-                f"cni-{idx}", id=niid
-            )
+            current_network_interface = data.aws_network_interface(f"cni-{idx}", id=niid)
             tf_resources.append(current_network_interface)
             aws_lb_target_group_attachment_resource = aws_lb_target_group_attachment(
                 f"vpce_attachment_{idx}",
@@ -5677,14 +5290,12 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         # ANY RESPONSE
         # args are shared with this resource  + token get repsonse resource
-        api_gateway_method_proxy_any_response_resource = (
-            aws_api_gateway_method_response(
-                "gw_method_proxy_any_response",
-                http_method="${aws_api_gateway_method.gw_method_proxy_any.http_method}",
-                resource_id=f"${{{api_gateway_proxy_resource.id}}}",
-                rest_api_id=f"${{{api_gateway_rest_api_resource.id}}}",
-                **gateway_method_get_response_args,
-            )
+        api_gateway_method_proxy_any_response_resource = aws_api_gateway_method_response(
+            "gw_method_proxy_any_response",
+            http_method="${aws_api_gateway_method.gw_method_proxy_any.http_method}",
+            resource_id=f"${{{api_gateway_proxy_resource.id}}}",
+            rest_api_id=f"${{{api_gateway_rest_api_resource.id}}}",
+            **gateway_method_get_response_args,
         )
         tf_resources.append(api_gateway_method_proxy_any_response_resource)
 
@@ -5698,14 +5309,12 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         tf_resources.append(api_gateway_method_token_get_resource)
 
         # GET TOKEN RESPONSE
-        api_gateway_method_token_get_response_resource = (
-            aws_api_gateway_method_response(
-                "gw_method_token_get_response",
-                http_method="${aws_api_gateway_method.gw_method_token_get.http_method}",
-                resource_id=f"${{{api_gateway_token_resource.id}}}",
-                rest_api_id=f"${{{api_gateway_rest_api_resource.id}}}",
-                **gateway_method_get_response_args,
-            )
+        api_gateway_method_token_get_response_resource = aws_api_gateway_method_response(
+            "gw_method_token_get_response",
+            http_method="${aws_api_gateway_method.gw_method_token_get.http_method}",
+            resource_id=f"${{{api_gateway_token_resource.id}}}",
+            rest_api_id=f"${{{api_gateway_rest_api_resource.id}}}",
+            **gateway_method_get_response_args,
         )
         tf_resources.append(api_gateway_method_token_get_response_resource)
 
@@ -5898,9 +5507,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         tf_resources.append(base_path_mapping_api_resource)
 
         # WAF
-        waf_acl_resource = aws_wafv2_web_acl(
-            "api_waf", name=f"{identifier}-waf", **waf_acl_args
-        )
+        waf_acl_resource = aws_wafv2_web_acl("api_waf", name=f"{identifier}-waf", **waf_acl_args)
         tf_resources.append(waf_acl_resource)
 
         waf_acl_association_resource = aws_wafv2_web_acl_association(
@@ -5919,14 +5526,10 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         tf_resources.append(waf_cloudwatch_log_group_resource)
 
-        waf_web_acl_logging_configuration_resource = (
-            aws_wafv2_web_acl_logging_configuration(
-                "waf_logging_configuration",
-                log_destination_configs=[
-                    "${aws_cloudwatch_log_group.waf_log_group.arn}"
-                ],
-                resource_arn="${aws_wafv2_web_acl.api_waf.arn}",
-            )
+        waf_web_acl_logging_configuration_resource = aws_wafv2_web_acl_logging_configuration(
+            "waf_logging_configuration",
+            log_destination_configs=["${aws_cloudwatch_log_group.waf_log_group.arn}"],
+            resource_arn="${aws_wafv2_web_acl.api_waf.arn}",
         )
 
         tf_resources.append(waf_web_acl_logging_configuration_resource)
@@ -6024,9 +5627,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         vpc_id = common_values.get("vpc_id")
         subnet_ids = common_values.get("subnet_ids")
-        vpce_security_group_rule_common_args = common_values.get(
-            "vpce_security_group_rule_common_properties", None
-        )
+        vpce_security_group_rule_common_args = common_values.get("vpce_security_group_rule_common_properties", None)
         vpc_endpoint_args = common_values.get("vpc_endpoint_properties", None)
 
         # VPC ENDPOINT NETWORK MODULE SECTION
@@ -6071,12 +5672,10 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         # VPC ENDPOINT ASSOCIATION
         for sid in subnet_ids:
-            aws_vpc_endpoint_subnet_association_resource = (
-                aws_vpc_endpoint_subnet_association(
-                    f"api_gw_{sid}",
-                    vpc_endpoint_id=f"${{{aws_vpc_endpoint_resource.id}}}",
-                    subnet_id=sid,
-                )
+            aws_vpc_endpoint_subnet_association_resource = aws_vpc_endpoint_subnet_association(
+                f"api_gw_{sid}",
+                vpc_endpoint_id=f"${{{aws_vpc_endpoint_resource.id}}}",
+                subnet_id=sid,
             )
             tf_resources.append(aws_vpc_endpoint_subnet_association_resource)
 
