@@ -1,0 +1,7 @@
+# qenerate: plugin=pydantic_v1
+
+query OCMEnvironments($name: String) {
+  environments: ocm_environments_v1(name: $name) {
+    ... OCMEnvironment
+  }
+}

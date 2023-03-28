@@ -10,6 +10,7 @@ from reconcile.aus.models import (
 from reconcile.gql_definitions.advanced_upgrade_service.aus_clusters import (
     query as aus_clusters_query,
 )
+from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 from reconcile.utils import gql
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.ocm import (
@@ -59,38 +60,34 @@ class OCMClusterUpgradeSchedulerIntegration(
         )
         aus.act(dry_run, diffs, ocm_map)
 
-    def get_organization_upgrade_spec(
-        self, org_name: Optional[str] = None
+    def get_ocm_env_upgrade_specs(
+        self, ocm_env: OCMEnvironment, org_name: Optional[str] = None
     ) -> dict[str, OrganizationUpgradeSpec]:
-        return organization_upgrade_spec(org_name=org_name)
-
-
-def organization_upgrade_spec(
-    org_name: Optional[str] = None,
-) -> dict[str, OrganizationUpgradeSpec]:
-    specs_per_org: dict[str, list[ClusterUpgradeSpec]] = defaultdict(list)
-    for cluster in aus_clusters_query(query_func=gql.get_api().query).clusters or []:
-        supported_product = (
-            cluster.spec and cluster.spec.product in SUPPORTED_OCM_PRODUCTS
-        )
-        in_org_shard = org_name is None or (
-            cluster.ocm and cluster.ocm.name == org_name
-        )
-        if (
-            integration_is_enabled(QONTRACT_INTEGRATION, cluster)
-            and cluster.ocm
-            and cluster.upgrade_policy
-            and supported_product
-            and in_org_shard
+        specs_per_org: dict[str, list[ClusterUpgradeSpec]] = defaultdict(list)
+        for cluster in (
+            aus_clusters_query(query_func=gql.get_api().query).clusters or []
         ):
-            specs_per_org[cluster.ocm.name].append(
-                ClusterUpgradeSpec(
-                    name=cluster.name,
-                    ocm=cluster.ocm,
-                    upgradePolicy=cluster.upgrade_policy,
-                )
+            supported_product = (
+                cluster.spec and cluster.spec.product in SUPPORTED_OCM_PRODUCTS
             )
-    return {
-        org_name: OrganizationUpgradeSpec(org=specs[0].ocm, specs=specs)
-        for org_name, specs in specs_per_org.items()
-    }
+            in_org_shard = org_name is None or (
+                cluster.ocm and cluster.ocm.name == org_name
+            )
+            if (
+                integration_is_enabled(QONTRACT_INTEGRATION, cluster)
+                and cluster.ocm
+                and cluster.upgrade_policy
+                and supported_product
+                and in_org_shard
+            ):
+                specs_per_org[cluster.ocm.name].append(
+                    ClusterUpgradeSpec(
+                        name=cluster.name,
+                        ocm=cluster.ocm,
+                        upgradePolicy=cluster.upgrade_policy,
+                    )
+                )
+        return {
+            org_name: OrganizationUpgradeSpec(org=specs[0].ocm, specs=specs)
+            for org_name, specs in specs_per_org.items()
+        }
