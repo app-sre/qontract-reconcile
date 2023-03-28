@@ -216,7 +216,7 @@ def test_get_usernames_from_pagerduty(user: UserV1) -> None:
 def test_get_slack_usernames_from_owners(mocker: MockerFixture, user: UserV1) -> None:
     mocker.patch(
         "reconcile.slack_usergroups.get_git_api"
-    ).return_value = create_autospec(GithubRepositoryApi)
+    ).return_value.__enter__.return_value = create_autospec(GithubRepositoryApi)
     mock_repo_owner = create_autospec(repo_owners.RepoOwners)
     mock_repo_owner.return_value.get_root_owners.return_value = {
         "approvers": ["approver1"],

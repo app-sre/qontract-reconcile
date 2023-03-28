@@ -1,6 +1,10 @@
 import os
 from pathlib import Path
-from typing import Optional
+from types import TracebackType
+from typing import (
+    Optional,
+    Type,
+)
 from urllib.parse import urlparse
 
 from github import (
@@ -38,13 +42,18 @@ class GithubRepositoryApi:
             git_cli = Github(token, base_url=GH_BASE_URL, timeout=timeout)
         self._repo = git_cli.get_repo(repo)
 
-    def __enter__(self):
+    def __enter__(self) -> "GithubRepositoryApi":
         return self
 
-    def __exit__(self, *exc):
+    def __exit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_value: Optional[BaseException],
+        traceback: Optional[TracebackType],
+    ) -> None:
         self.cleanup()
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         """
         Align with GitLabApi
         """
