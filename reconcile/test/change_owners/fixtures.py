@@ -8,7 +8,6 @@ from typing import (
 
 import jsonpath_ng
 import jsonpath_ng.ext
-import pytest
 
 from reconcile.change_owners.bundle import (
     BundleFileType,
@@ -36,18 +35,14 @@ from reconcile.gql_definitions.change_owners.queries.self_service_roles import (
     PermissionGitlabGroupMembershipV1,
     PermissionSlackUsergroupV1,
     PermissionV1,
-    RoleV1,
     SelfServiceConfigV1,
     SlackWorkspaceV1,
     UserV1,
 )
-from reconcile.test.fixtures import Fixtures
-
-fxt = Fixtures("change_owners")
 
 
 @dataclass
-class TestFile:
+class StubFile:
     filepath: str
     fileschema: str
     filetype: str
@@ -83,8 +78,8 @@ def build_test_datafile(
     content: dict[str, Any],
     filepath: Optional[str] = None,
     schema: Optional[str] = None,
-) -> TestFile:
-    return TestFile(
+) -> StubFile:
+    return StubFile(
         filepath=filepath or "datafile.yaml",
         fileschema=schema or "schema-1.yml",
         filetype=BundleFileType.DATAFILE.value,
@@ -126,61 +121,6 @@ def build_role(
         bots=[BotV1(org_username=b) for b in bots or []],
         permissions=permissions,
     )
-
-
-def load_change_type(path: str) -> ChangeTypeV1:
-    content = fxt.get_anymarkup(path)
-    return ChangeTypeV1(**content)
-
-
-def load_self_service_roles(path: str) -> list[RoleV1]:
-    roles = fxt.get_anymarkup(path)["self_service_roles"]
-    return [RoleV1(**r) for r in roles]
-
-
-@pytest.fixture
-def saas_file_changetype() -> ChangeTypeV1:
-    return load_change_type("changetype_saas_file.yaml")
-
-
-@pytest.fixture
-def role_member_change_type() -> ChangeTypeV1:
-    return load_change_type("changetype_role_member.yaml")
-
-
-@pytest.fixture
-def cluster_owner_change_type() -> ChangeTypeV1:
-    return load_change_type("changetype_cluster_owner.yml")
-
-
-@pytest.fixture
-def secret_promoter_change_type() -> ChangeTypeV1:
-    return load_change_type("changetype_secret_promoter.yaml")
-
-
-@pytest.fixture
-def change_types() -> list[ChangeTypeV1]:
-    return [saas_file_changetype(), role_member_change_type()]
-
-
-@pytest.fixture
-def saas_file() -> TestFile:
-    return TestFile(**fxt.get_anymarkup("datafile_saas_file.yaml"))
-
-
-@pytest.fixture
-def user_file() -> TestFile:
-    return TestFile(**fxt.get_anymarkup("datafile_user.yaml"))
-
-
-@pytest.fixture
-def namespace_file() -> TestFile:
-    return TestFile(**fxt.get_anymarkup("datafile_namespace.yaml"))
-
-
-@pytest.fixture
-def rds_defaults_file() -> TestFile:
-    return TestFile(**fxt.get_anymarkup("resourcefile_rds_defaults.yaml"))
 
 
 def build_jsonpath_change(

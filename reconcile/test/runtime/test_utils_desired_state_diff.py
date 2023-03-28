@@ -23,10 +23,6 @@ from reconcile.utils.runtime.desired_state_diff import (
 )
 from reconcile.utils.runtime.integration import DesiredStateShardConfig
 
-pytest_plugins = [
-    "reconcile.test.runtime.fixtures",
-]
-
 #
 # build desired state diff
 #

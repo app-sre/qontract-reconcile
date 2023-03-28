@@ -8,21 +8,17 @@ from reconcile.gql_definitions.change_owners.queries.self_service_roles import (
     DatafileObjectV1,
 )
 from reconcile.test.change_owners.fixtures import (
-    TestFile,
+    StubFile,
     build_role,
     change_type_to_processor,
 )
 
-pytest_plugins = [
-    "reconcile.test.change_owners.fixtures",
-]
-
 
 def test_change_coverage(
     secret_promoter_change_type: ChangeTypeV1,
-    namespace_file: TestFile,
+    namespace_file: StubFile,
     role_member_change_type: ChangeTypeV1,
-    user_file: TestFile,
+    user_file: StubFile,
 ):
     role_approver_user = "the-one-that-approves-roles"
     team_role_path = "/team-role.yml"

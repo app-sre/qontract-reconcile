@@ -3,8 +3,6 @@ from typing import (
     Optional,
 )
 
-import pytest
-
 from reconcile.utils.runtime.integration import (
     DesiredStateShardConfig,
     PydanticRunParams,
@@ -36,11 +34,6 @@ class SimpleTestIntegration(QontractReconcileIntegration[SimpleTestIntegrationPa
         print(self.params.int_arg)
 
 
-@pytest.fixture
-def simple_test_integration() -> SimpleTestIntegration:
-    return SimpleTestIntegration(params=SimpleTestIntegrationParams(int_arg=1))
-
-
 class ShardableTestIntegrationParams(PydanticRunParams):
     shard: Optional[str] = None
 
@@ -68,8 +61,3 @@ class ShardableTestIntegration(
 
     def run(self, dry_run: bool) -> None:
         pass
-
-
-@pytest.fixture
-def shardable_test_integration() -> ShardableTestIntegration:
-    return ShardableTestIntegration(params=ShardableTestIntegrationParams())

@@ -12,11 +12,6 @@ from reconcile.change_owners.change_types import (
     parse_resource_file_content,
 )
 
-pytest_plugins = [
-    "reconcile.test.change_owners.fixtures",
-]
-
-
 #
 # label management tests
 #

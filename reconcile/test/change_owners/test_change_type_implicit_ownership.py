@@ -26,11 +26,6 @@ from reconcile.test.change_owners.fixtures import (
     build_test_datafile,
 )
 
-pytest_plugins = [
-    "reconcile.test.change_owners.fixtures",
-]
-
-
 #
 # test finding implicit approver in bundle change
 #

@@ -5,13 +5,9 @@ from reconcile.change_owners.bundle import (
 from reconcile.change_owners.change_types import create_bundle_file_change
 from reconcile.gql_definitions.change_owners.queries.change_types import ChangeTypeV1
 from reconcile.test.change_owners.fixtures import (
-    TestFile,
+    StubFile,
     change_type_to_processor,
 )
-
-pytest_plugins = [
-    "reconcile.test.change_owners.fixtures",
-]
 
 #
 # testcases for context file refs extraction from bundle changes
@@ -19,7 +15,7 @@ pytest_plugins = [
 
 
 def test_extract_context_file_refs_from_bundle_change(
-    saas_file_changetype: ChangeTypeV1, saas_file: TestFile
+    saas_file_changetype: ChangeTypeV1, saas_file: StubFile
 ):
     """
     in this testcase, a changed datafile matches directly the context schema
@@ -37,7 +33,7 @@ def test_extract_context_file_refs_from_bundle_change(
 
 
 def test_extract_context_file_refs_from_bundle_change_schema_mismatch(
-    saas_file_changetype: ChangeTypeV1, saas_file: TestFile
+    saas_file_changetype: ChangeTypeV1, saas_file: StubFile
 ):
     """
     in this testcase, the schema of the bundle change and the schema of the
