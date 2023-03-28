@@ -1,14 +1,13 @@
 from datetime import datetime
 from pathlib import Path
 
-from jinja2 import Template
 from ruamel.yaml.scalarstring import PreservedScalarString as pss
 
-from reconcile.utils.constants import PROJ_ROOT
-from reconcile.utils.mr.base import MergeRequestBase
+from reconcile.utils.mr.base import (
+    MergeRequestBase,
+    app_interface_email,
+)
 from reconcile.utils.mr.labels import AUTO_MERGE
-
-EMAIL_TEMPLATE = PROJ_ROOT / "templates" / "email.yml.j2"
 
 
 class CreateAppInterfaceReporter(MergeRequestBase):
@@ -47,16 +46,11 @@ class CreateAppInterfaceReporter(MergeRequestBase):
         ]
         gitlab_cli.create_commit(self.branch, self.title, actions)
 
-        with open(EMAIL_TEMPLATE) as file_obj:
-            template = Template(
-                file_obj.read(), keep_trailing_newline=True, trim_blocks=True
-            )
-
-        content = template.render(
-            NAME=f"app-interface-reporter-{self.ts}",
-            SUBJECT=self.title,
-            ALIASES=["all-service-owners"],
-            BODY=pss(self.email_body),
+        content = app_interface_email(
+            name=f"app-interface-reporter-{self.ts}",
+            subject=self.title,
+            aliases=["all-service-owners"],
+            body=pss(self.email_body),
         )
 
         email_path = Path("data") / "app-interface" / "emails" / f"{self.ts}.yml"

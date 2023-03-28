@@ -5,10 +5,12 @@ from ruamel import yaml
 from ruamel.yaml.scalarstring import PreservedScalarString as pss
 
 from reconcile.utils.constants import PROJ_ROOT
-from reconcile.utils.mr.base import MergeRequestBase
+from reconcile.utils.mr.base import (
+    MergeRequestBase,
+    app_interface_email,
+)
 from reconcile.utils.mr.labels import AUTO_MERGE
 
-EMAIL_TEMPLATE = PROJ_ROOT / "templates" / "email.yml.j2"
 BODY_TEMPLATE = PROJ_ROOT / "templates" / "aws_access_key_email.j2"
 
 
@@ -61,16 +63,10 @@ class CreateDeleteAwsAccessKey(MergeRequestBase):
             )
 
         body = body_template.render(ACCOUNT=self.account, ACCESS_KEY=self.key)
-
-        with open(EMAIL_TEMPLATE) as file_obj:
-            email_template = Template(
-                file_obj.read(), keep_trailing_newline=True, trim_blocks=True
-            )
-
         email_name = f"{self.account}-{self.key}"
         ref = self.path[4:] if self.path.startswith("data") else self.path
-        content = email_template.render(
-            NAME=email_name, SUBJECT=self.title, AWS_ACCOUNTS=[ref], BODY=pss(body)
+        content = app_interface_email(
+            name=email_name, subject=self.title, aws_accounts=[ref], body=pss(body)
         )
 
         email_path = Path("data") / "app-interface" / "emails" / f"{email_name}.yml"

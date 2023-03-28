@@ -4,14 +4,21 @@ from abc import (
     ABCMeta,
     abstractmethod,
 )
-from typing import Union
+from typing import (
+    Optional,
+    Union,
+)
 from uuid import uuid4
 
 from gitlab.exceptions import GitlabError
+from jinja2 import Template
 
+from reconcile.utils.constants import PROJ_ROOT
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.mr.labels import DO_NOT_MERGE_HOLD
 from reconcile.utils.sqs_gateway import SQSGateway
+
+EMAIL_TEMPLATE = PROJ_ROOT / "templates" / "email.yml.j2"
 
 LOG = logging.getLogger(__name__)
 
@@ -212,3 +219,29 @@ class MergeRequestBase(metaclass=ABCMeta):
             return self.submit_to_sqs(sqs_cli=cli)
 
         raise AttributeError(f"client {cli} not supported")
+
+
+def app_interface_email(
+    name: str,
+    subject: str,
+    body: str,
+    users: Optional[list[str]] = None,
+    aliases: Optional[list[str]] = None,
+    aws_accounts: Optional[list[str]] = None,
+    apps: Optional[list[str]] = None,
+) -> str:
+    """Render app-interface-email template."""
+    with open(EMAIL_TEMPLATE) as file_obj:
+        email_template = Template(
+            file_obj.read(), keep_trailing_newline=True, trim_blocks=True
+        )
+
+    return email_template.render(
+        NAME=name,
+        SUBJECT=subject,
+        BODY=body,
+        USERS=users,
+        ALIASES=aliases,
+        AWS_ACCOUNTS=aws_accounts,
+        SERVICES=apps,
+    )

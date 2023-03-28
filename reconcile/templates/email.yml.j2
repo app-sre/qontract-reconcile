@@ -4,22 +4,28 @@ labels: {}
 name: "{{ NAME }}"
 subject: "{{ SUBJECT }}"
 to:
-{% if USERS is defined %}
+{% if USERS is defined and USERS %}
   users:
 {%  for user in USERS %}
     - $ref: "{{ user }}"
 {% endfor %}
 {% endif %}
-{% if ALIASES is defined %}
+{% if ALIASES is defined and ALIASES %}
   aliases:
 {%  for alias in ALIASES %}
     - {{ alias }}
 {% endfor %}
 {% endif %}
-{% if AWS_ACCOUNTS is defined %}
+{% if AWS_ACCOUNTS is defined and AWS_ACCOUNTS %}
   aws_accounts:
 {%  for aws_account in AWS_ACCOUNTS %}
     - $ref: "{{ aws_account }}"
+{% endfor %}
+{% endif %}
+{% if SERVICES is defined and SERVICES %}
+  services:
+{%  for service in SERVICES %}
+    - $ref: "{{ service }}"
 {% endfor %}
 {% endif %}
 body: |
