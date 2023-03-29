@@ -149,6 +149,9 @@ def fetch_desired_state(
             spec = ocm.clusters[cluster_name].spec
             upgrade_policy["current_version"] = spec.version
             upgrade_policy["channel"] = spec.channel
+            upgrade_policy["available_upgrades"] = ocm.available_cluster_upgrades.get(
+                cluster_name
+            )
             desired_state.append(upgrade_policy)
 
     sorted_desired_state = sorted(desired_state, key=sort_key)
