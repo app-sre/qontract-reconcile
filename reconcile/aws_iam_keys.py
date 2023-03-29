@@ -1,6 +1,7 @@
 import logging
 import shutil
 import sys
+from typing import Any
 
 from reconcile import queries
 from reconcile.utils.aws_api import AWSApi
@@ -110,3 +111,7 @@ def run(
         and service_account_recycle_complete
     ):
         update_state(state, keys_to_delete)
+
+
+def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
+    return {"keys": get_keys_to_delete(queries.get_aws_accounts(terraform_state=True))}

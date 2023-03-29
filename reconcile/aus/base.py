@@ -17,6 +17,11 @@ from croniter import croniter
 from semver import VersionInfo
 
 from reconcile.aus.models import OrganizationUpgradeSpec
+from reconcile.gql_definitions.common.ocm_environments import (
+    query as ocm_environment_query,
+)
+from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
+from reconcile.utils import gql
 from reconcile.utils.cluster_version_data import (
     VersionData,
     WorkloadHistory,
@@ -29,7 +34,7 @@ from reconcile.utils.ocm import (
     Sector,
 )
 from reconcile.utils.runtime.integration import (
-    NoParams,
+    PydanticRunParams,
     QontractReconcileIntegration,
 )
 from reconcile.utils.semver_helper import (
@@ -39,20 +44,43 @@ from reconcile.utils.semver_helper import (
 from reconcile.utils.state import init_state
 
 
-class AdvancedUpgradeSchedulerBaseIntegration(QontractReconcileIntegration[NoParams]):
-    def run(self, dry_run: bool) -> None:
-        upgrade_specs_per_org = self.get_organization_upgrade_spec()
-        if not upgrade_specs_per_org:
-            logging.debug("No upgrade policy definitions found")
-            sys.exit(0)
+class AdvancedUpgradeSchedulerBaseIntegrationParams(PydanticRunParams):
 
-        for org_name, org_upgrade_spec in upgrade_specs_per_org.items():
-            if org_upgrade_spec.specs:
-                self.process_upgrade_policies_in_org(dry_run, org_upgrade_spec)
-            else:
-                logging.debug(
-                    f"Skip org {org_name} because it defines no upgrade policies"
-                )
+    ocm_environment: Optional[str] = None
+    ocm_organization: Optional[str] = None
+
+
+class AdvancedUpgradeSchedulerBaseIntegration(
+    QontractReconcileIntegration[AdvancedUpgradeSchedulerBaseIntegrationParams]
+):
+    def run(self, dry_run: bool) -> None:
+        upgrade_specs = self.get_upgrade_specs()
+        for ocm_env, env_upgrade_specs in upgrade_specs.items():
+            for org_name, org_upgrade_spec in env_upgrade_specs.items():
+                if org_upgrade_spec.specs:
+                    self.process_upgrade_policies_in_org(dry_run, org_upgrade_spec)
+                else:
+                    logging.debug(
+                        f"Skip org {org_name} in {ocm_env} because it defines no upgrade policies"
+                    )
+        sys.exit(0)
+
+    def get_upgrade_specs(self) -> dict[str, dict[str, OrganizationUpgradeSpec]]:
+        return {
+            ocm_env.name: self.get_ocm_env_upgrade_specs(
+                ocm_env,
+                self.params.ocm_organization,
+            )
+            for ocm_env in self.get_ocm_environments()
+        }
+
+    def get_ocm_environments(self) -> list[OCMEnvironment]:
+        return ocm_environment_query(
+            gql.get_api().query,
+            variables={"name": self.params.ocm_environment}
+            if self.params.ocm_environment
+            else None,
+        ).environments
 
     @abstractmethod
     def process_upgrade_policies_in_org(
@@ -61,8 +89,8 @@ class AdvancedUpgradeSchedulerBaseIntegration(QontractReconcileIntegration[NoPar
         ...
 
     @abstractmethod
-    def get_organization_upgrade_spec(
-        self, org_name: Optional[str] = None
+    def get_ocm_env_upgrade_specs(
+        self, ocm_env: OCMEnvironment, org_name: Optional[str] = None
     ) -> dict[str, OrganizationUpgradeSpec]:
         ...
 

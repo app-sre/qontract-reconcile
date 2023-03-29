@@ -29,7 +29,6 @@ from reconcile.utils.runtime.environment import init_env
 from reconcile.utils.runtime.integration import (
     ModuleArgsKwargsRunParams,
     ModuleBasedQontractReconcileIntegration,
-    NoParams,
     QontractReconcileIntegration,
 )
 from reconcile.utils.runtime.meta import IntegrationMeta
@@ -1958,11 +1957,14 @@ def ocm_machine_pools(ctx, thread_pool_size):
 @environ(["APP_INTERFACE_STATE_BUCKET", "APP_INTERFACE_STATE_BUCKET_ACCOUNT"])
 @click.pass_context
 def ocm_upgrade_scheduler(ctx):
-    import reconcile.aus.ocm_upgrade_scheduler
+    from reconcile.aus.base import AdvancedUpgradeSchedulerBaseIntegrationParams
+    from reconcile.aus.ocm_upgrade_scheduler import (
+        OCMClusterUpgradeSchedulerIntegration,
+    )
 
     run_class_integration(
-        integration=reconcile.aus.ocm_upgrade_scheduler.OCMClusterUpgradeSchedulerIntegration(
-            NoParams()
+        integration=OCMClusterUpgradeSchedulerIntegration(
+            AdvancedUpgradeSchedulerBaseIntegrationParams()
         ),
         ctx=ctx.obj,
     )
@@ -1972,11 +1974,16 @@ def ocm_upgrade_scheduler(ctx):
 @environ(["APP_INTERFACE_STATE_BUCKET", "APP_INTERFACE_STATE_BUCKET_ACCOUNT"])
 @click.pass_context
 def ocm_upgrade_scheduler_org(ctx):
-    import reconcile.aus.ocm_upgrade_scheduler_org
+    from reconcile.aus.base import AdvancedUpgradeSchedulerBaseIntegrationParams
+    from reconcile.aus.ocm_upgrade_scheduler_org import (
+        OCMClusterUpgradeSchedulerOrgIntegration,
+    )
 
     run_class_integration(
-        integration=reconcile.aus.ocm_upgrade_scheduler_org.OCMClusterUpgradeSchedulerOrgIntegration(
-            NoParams()
+        integration=OCMClusterUpgradeSchedulerOrgIntegration(
+            AdvancedUpgradeSchedulerBaseIntegrationParams(
+                # pass in env or org here for sharding
+            )
         ),
         ctx=ctx.obj,
     )
@@ -2001,11 +2008,32 @@ def ocm_upgrade_scheduler_org_updater(ctx, gitlab_project_id):
 @click.pass_context
 def ocm_addons_upgrade_scheduler_org(ctx):
 
-    import reconcile.aus.ocm_addons_upgrade_scheduler_org
+    from reconcile.aus.base import AdvancedUpgradeSchedulerBaseIntegrationParams
+    from reconcile.aus.ocm_addons_upgrade_scheduler_org import (
+        OCMAddonsUpgradeSchedulerOrgIntegration,
+    )
 
     run_class_integration(
-        integration=reconcile.aus.ocm_addons_upgrade_scheduler_org.OCMAddonsUpgradeSchedulerOrgIntegration(
-            NoParams()
+        integration=OCMAddonsUpgradeSchedulerOrgIntegration(
+            AdvancedUpgradeSchedulerBaseIntegrationParams()
+        ),
+        ctx=ctx.obj,
+    )
+
+
+@integration.command(
+    short_help="Manage Cluster Upgrade Policy schedules in OCM organizations based on OCM labels."
+)
+@environ(["APP_INTERFACE_STATE_BUCKET", "APP_INTERFACE_STATE_BUCKET_ACCOUNT"])
+@click.pass_context
+def aus_upgrade_scheduler_org(ctx):
+
+    from reconcile.aus.advanced_upgrade_service import AdvancedUpgradeServiceIntegration
+    from reconcile.aus.base import AdvancedUpgradeSchedulerBaseIntegrationParams
+
+    run_class_integration(
+        integration=AdvancedUpgradeServiceIntegration(
+            AdvancedUpgradeSchedulerBaseIntegrationParams()
         ),
         ctx=ctx.obj,
     )

@@ -22,6 +22,10 @@ import reconcile.terraform_resources as tfr
 import reconcile.terraform_users as tfu
 import reconcile.terraform_vpc_peerings as tfvpc
 from reconcile import queries
+from reconcile.aus.base import (
+    AdvancedUpgradeSchedulerBaseIntegration,
+    AdvancedUpgradeSchedulerBaseIntegrationParams,
+)
 from reconcile.change_owners.bundle import NoOpFileDiffResolver
 from reconcile.change_owners.change_owners import (
     fetch_change_type_processors,
@@ -295,6 +299,9 @@ def get_upgrade_policies_data(
     show_only_soaking_upgrades=False,
     by_workload=False,
 ):
+    if not clusters:
+        return []
+
     settings = queries.get_app_interface_settings()
     ocm_map = OCMMap(
         clusters=clusters,
@@ -467,14 +474,38 @@ def cluster_upgrade_policies(
     show_only_soaking_upgrades=False,
     by_workload=False,
 ):
-    import reconcile.aus.ocm_upgrade_scheduler as ous
+    from reconcile.aus.ocm_upgrade_scheduler import (
+        OCMClusterUpgradeSchedulerIntegration,
+    )
 
+    integration = OCMClusterUpgradeSchedulerIntegration(
+        AdvancedUpgradeSchedulerBaseIntegrationParams()
+    )
+    generate_cluster_upgrade_policies_report(
+        ctx,
+        integration=integration,
+        cluster=cluster,
+        workload=workload,
+        show_only_soaking_upgrades=show_only_soaking_upgrades,
+        by_workload=by_workload,
+    )
+
+
+def generate_cluster_upgrade_policies_report(
+    ctx,
+    integration: AdvancedUpgradeSchedulerBaseIntegration,
+    cluster: Optional[str],
+    workload: Optional[str],
+    show_only_soaking_upgrades: bool,
+    by_workload: bool,
+) -> None:
     md_output = ctx.obj["options"]["output"] == "md"
 
-    upgrade_policies_per_org = ous.organization_upgrade_spec()
+    upgrade_specs = integration.get_upgrade_specs()
     clusters = [
         s.dict(by_alias=True)
-        for org_upgrade_spec in upgrade_policies_per_org.values()
+        for org_upgrade_specs in upgrade_specs.values()
+        for org_upgrade_spec in org_upgrade_specs.values()
         for s in org_upgrade_spec.specs
     ]
 
@@ -488,7 +519,7 @@ def cluster_upgrade_policies(
     results = get_upgrade_policies_data(
         clusters,
         md_output,
-        ous.QONTRACT_INTEGRATION,
+        integration.name,
         workload,
         show_only_soaking_upgrades,
         by_workload,
@@ -560,23 +591,55 @@ def inherit_version_data_text(ocm_org: str, ocm_specs: list[dict]) -> str:
 def ocm_fleet_upgrade_policies(
     ctx,
 ):
-    import reconcile.aus.ocm_upgrade_scheduler_org as ouso
+    from reconcile.aus.ocm_upgrade_scheduler_org import (
+        OCMClusterUpgradeSchedulerOrgIntegration,
+    )
+
+    generate_fleet_upgrade_policices_report(
+        ctx,
+        OCMClusterUpgradeSchedulerOrgIntegration(
+            AdvancedUpgradeSchedulerBaseIntegrationParams()
+        ),
+    )
+
+
+@get.command()
+@click.pass_context
+def aus_fleet_upgrade_policies(
+    ctx,
+):
+    from reconcile.aus.advanced_upgrade_service import AdvancedUpgradeServiceIntegration
+
+    generate_fleet_upgrade_policices_report(
+        ctx,
+        AdvancedUpgradeServiceIntegration(
+            AdvancedUpgradeSchedulerBaseIntegrationParams()
+        ),
+    )
+
+
+def generate_fleet_upgrade_policices_report(
+    ctx, aus_integration: AdvancedUpgradeSchedulerBaseIntegration
+):
 
     md_output = ctx.obj["options"]["output"] == "md"
 
-    upgrade_policies_per_org = ouso.organization_upgrade_spec()
+    upgrade_specs = aus_integration.get_upgrade_specs()
     upgrade_policies = [
         s.dict(by_alias=True)
-        for org_upgrade_spec in upgrade_policies_per_org.values()
+        for org_upgrade_specs in upgrade_specs.values()
+        for org_upgrade_spec in org_upgrade_specs.values()
         for s in org_upgrade_spec.specs
     ]
+
     ocm_org_specs = [
         org_upgrade_spec.org.dict(by_alias=True)
-        for org_upgrade_spec in upgrade_policies_per_org.values()
+        for org_upgrade_specs in upgrade_specs.values()
+        for org_upgrade_spec in org_upgrade_specs.values()
     ]
 
     results = get_upgrade_policies_data(
-        upgrade_policies, md_output, integration=ouso.QONTRACT_INTEGRATION
+        upgrade_policies, md_output, integration=aus_integration.name
     )
 
     if md_output:
