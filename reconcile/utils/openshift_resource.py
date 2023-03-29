@@ -302,6 +302,9 @@ class OpenshiftResource:
 
         return True
 
+    def qontract_integration_annotation(self) -> Optional[str]:
+        return self.body["metadata"].get("annotations", {}).get("qontract.integration")
+
     def has_owner_reference(self):
         return bool(self.body["metadata"].get("ownerReferences", []))
 

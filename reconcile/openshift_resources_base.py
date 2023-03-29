@@ -77,6 +77,10 @@ from reconcile.utils.vault import (
 # | Present               | Annotate and apply      | Skip        |
 # | (without annotations) |                         |             |
 # +-----------------------+-------------------------+-------------+
+# | Present               |                         |             |
+# | (with annotations of  | Error                   | Skip        |
+# | another integration)  |                         |             |
+# +-----------------------+-------------------------+-------------+
 # | Not Present           | Apply                   | Skip        |
 # +-----------------------+-------------------------+-------------+
 

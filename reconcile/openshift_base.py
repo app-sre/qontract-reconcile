@@ -590,11 +590,23 @@ def _realize_resource_data(
             else:
                 # If resource doesn't have annotations, annotate and apply
                 if not c_item.has_qontract_annotations():
-                    msg = (
-                        "[{}/{}] resource '{}/{}' present "
-                        "w/o annotations, annotating and applying"
-                    ).format(cluster, namespace, resource_type, name)
-                    logging.info(msg)
+                    # if resource has annotations from a different integration, error
+                    c_int = c_item.qontract_integration_annotation()
+                    if c_int and c_int != d_item.integration:
+                        ri.register_error()
+                        msg = (
+                            f"[{cluster}/{namespace}] resource '{resource_type}/{name}' "
+                            "present with qontract annotations, conflict with integration: "
+                            f"{c_item.qontract_integration_annotation()}"
+                        )
+                        logging.error(msg)
+                        continue
+                    else:
+                        msg = (
+                            "[{}/{}] resource '{}/{}' present "
+                            "w/o annotations, annotating and applying"
+                        ).format(cluster, namespace, resource_type, name)
+                        logging.info(msg)
 
                 # don't apply if there is a caller (saas file)
                 # and this is not a take over
