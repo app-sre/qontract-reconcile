@@ -74,7 +74,7 @@ class OCMClusterUpgradeSchedulerIntegration(
                 cluster.ocm and cluster.ocm.name == org_name
             )
             if (
-                integration_is_enabled(QONTRACT_INTEGRATION, cluster)
+                integration_is_enabled(self.name, cluster)
                 and cluster.ocm
                 and cluster.upgrade_policy
                 and supported_product

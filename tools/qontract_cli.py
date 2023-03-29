@@ -697,43 +697,51 @@ def generate_fleet_upgrade_policices_report(
 @get.command()
 @click.pass_context
 def ocm_addon_upgrade_policies(ctx):
+
     import reconcile.aus.ocm_addons_upgrade_scheduler_org as oauso
+
+    integration = oauso.OCMAddonsUpgradeSchedulerOrgIntegration(
+        AdvancedUpgradeSchedulerBaseIntegrationParams()
+    )
 
     md_output = ctx.obj["options"]["output"] == "md"
     if not md_output:
         print("We only support md output for now")
         sys.exit(1)
 
-    upgrade_policies_per_org = oauso.organization_upgrade_spec()
+    upgrade_specs = integration.get_upgrade_specs()
 
     output = {}
-    for org_name, org_spec in upgrade_policies_per_org.items():
-        ocm_map, addon_states = oauso.get_state_for_org_spec_per_addon(
-            org_spec, fetch_current_state=False
-        )
-        ocm = ocm_map[org_name]
-        for addon_state in addon_states:
-            next_version = ocm.get_addon_version(addon_state.addon_id)
-            ocm_output = output.setdefault(org_name, [])
-            for d in addon_state.desired_state:
-                sector = ""
-                conditions = d.get("conditions") or {}
-                if conditions.get("sector"):
-                    sector = conditions["sector"].name
-                version = d["current_version"]
-                ocm_output.append(
-                    {
-                        "cluster": d["cluster"],
-                        "addon_id": addon_state.addon_id,
-                        "current_version": version,
-                        "schedule": d["schedule"],
-                        "sector": sector,
-                        "mutexes": ", ".join(conditions.get("mutexes") or []),
-                        "soak_days": conditions.get("soakDays"),
-                        "workloads": ", ".join(d["workloads"]),
-                        "next_version": next_version if next_version != version else "",
-                    }
-                )
+    for upgrade_policies_per_org in upgrade_specs.values():
+        for org_name, org_spec in upgrade_policies_per_org.items():
+            ocm_map, addon_states = oauso.get_state_for_org_spec_per_addon(
+                org_spec, fetch_current_state=False
+            )
+            ocm = ocm_map[org_name]
+            for addon_state in addon_states:
+                next_version = ocm.get_addon_version(addon_state.addon_id)
+                ocm_output = output.setdefault(org_name, [])
+                for d in addon_state.desired_state:
+                    sector = ""
+                    conditions = d.get("conditions") or {}
+                    if conditions.get("sector"):
+                        sector = conditions["sector"].name
+                    version = d["current_version"]
+                    ocm_output.append(
+                        {
+                            "cluster": d["cluster"],
+                            "addon_id": addon_state.addon_id,
+                            "current_version": version,
+                            "schedule": d["schedule"],
+                            "sector": sector,
+                            "mutexes": ", ".join(conditions.get("mutexes") or []),
+                            "soak_days": conditions.get("soakDays"),
+                            "workloads": ", ".join(d["workloads"]),
+                            "next_version": next_version
+                            if next_version != version
+                            else "",
+                        }
+                    )
     fields = [
         {"key": "cluster", "sortable": True},
         {"key": "addon_id", "sortable": True},
@@ -754,7 +762,8 @@ def ocm_addon_upgrade_policies(ctx):
     """
     ocm_org_specs = [
         org_upgrade_spec.org.dict(by_alias=True)
-        for org_upgrade_spec in upgrade_policies_per_org.values()
+        for org_upgrade_specs in upgrade_specs.values()
+        for org_upgrade_spec in org_upgrade_specs.values()
     ]
     for ocm_name in sorted(output.keys()):
         json_data = json.dumps(
