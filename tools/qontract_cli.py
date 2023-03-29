@@ -608,13 +608,11 @@ def ocm_fleet_upgrade_policies(
 def aus_fleet_upgrade_policies(
     ctx,
 ):
-    from reconcile.aus.aus_upgrade_scheduler_org import (
-        AUSUpgradeSchedulerOrgIntegration,
-    )
+    from reconcile.aus.advanced_upgrade_service import AdvancedUpgradeServiceIntegration
 
     generate_fleet_upgrade_policices_report(
         ctx,
-        AUSUpgradeSchedulerOrgIntegration(
+        AdvancedUpgradeServiceIntegration(
             AdvancedUpgradeSchedulerBaseIntegrationParams()
         ),
     )

@@ -2028,13 +2028,11 @@ def ocm_addons_upgrade_scheduler_org(ctx):
 @click.pass_context
 def aus_upgrade_scheduler_org(ctx):
 
-    from reconcile.aus.aus_upgrade_scheduler_org import (
-        AUSUpgradeSchedulerOrgIntegration,
-    )
+    from reconcile.aus.advanced_upgrade_service import AdvancedUpgradeServiceIntegration
     from reconcile.aus.base import AdvancedUpgradeSchedulerBaseIntegrationParams
 
     run_class_integration(
-        integration=AUSUpgradeSchedulerOrgIntegration(
+        integration=AdvancedUpgradeServiceIntegration(
             AdvancedUpgradeSchedulerBaseIntegrationParams()
         ),
         ctx=ctx.obj,

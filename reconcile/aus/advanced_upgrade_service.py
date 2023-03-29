@@ -6,10 +6,10 @@ from reconcile.aus.ocm_upgrade_scheduler_org import (
 )
 from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 
-QONTRACT_INTEGRATION = "aus-upgrade-scheduler-org"
+QONTRACT_INTEGRATION = "advanced-upgrade-scheduler"
 
 
-class AUSUpgradeSchedulerOrgIntegration(OCMClusterUpgradeSchedulerOrgIntegration):
+class AdvancedUpgradeServiceIntegration(OCMClusterUpgradeSchedulerOrgIntegration):
     @property
     def name(self) -> str:
         return QONTRACT_INTEGRATION
