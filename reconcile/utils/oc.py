@@ -30,7 +30,6 @@ from kubernetes.client import (
     ApiClient,
     Configuration,
 )
-from kubernetes.client.exceptions import ApiException
 from kubernetes.dynamic.client import DynamicClient
 from kubernetes.dynamic.discovery import (
     LazyDiscoverer,
