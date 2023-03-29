@@ -14,6 +14,7 @@ from reconcile.aus.models import (
 from reconcile.gql_definitions.advanced_upgrade_service.aus_organization import (
     query as aus_organizations_query,
 )
+from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 from reconcile.utils import gql
 from reconcile.utils.cluster_version_data import VersionData
 from reconcile.utils.ocm import OCMMap
@@ -58,10 +59,27 @@ class OCMAddonsUpgradeSchedulerOrgIntegration(
             )
             aus.act(dry_run, diffs, ocm_map, addon_id=addon_state.addon_id)
 
-    def get_organization_upgrade_spec(
-        self, org_name: Optional[str] = None
+    def get_ocm_env_upgrade_specs(
+        self, ocm_env: OCMEnvironment, org_name: Optional[str] = None
     ) -> dict[str, OrganizationUpgradeSpec]:
-        return organization_upgrade_spec(org_name=org_name)
+        return {
+            org.name: OrganizationUpgradeSpec(
+                org=org,
+                specs=[
+                    ClusterUpgradeSpec(
+                        name=cluster.name,
+                        ocm=org,
+                        upgradePolicy=cluster.upgrade_policy,
+                    )
+                    for cluster in org.upgrade_policy_clusters or []
+                ],
+            )
+            for org in aus_organizations_query(
+                query_func=gql.get_api().query
+            ).organizations
+            or []
+            if org.addon_managed_upgrades and (org_name is None or org.name == org_name)
+        }
 
 
 def get_state_for_org_spec(
@@ -108,27 +126,6 @@ def get_state_for_org_spec_per_addon(
             )
         )
     return ocm_map, result
-
-
-def organization_upgrade_spec(
-    org_name: Optional[str] = None,
-) -> dict[str, OrganizationUpgradeSpec]:
-    return {
-        org.name: OrganizationUpgradeSpec(
-            org=org,
-            specs=[
-                ClusterUpgradeSpec(
-                    name=cluster.name,
-                    ocm=org,
-                    upgradePolicy=cluster.upgrade_policy,
-                )
-                for cluster in org.upgrade_policy_clusters or []
-            ],
-        )
-        for org in aus_organizations_query(query_func=gql.get_api().query).organizations
-        or []
-        if org.addon_managed_upgrades and (org_name is None or org.name == org_name)
-    }
 
 
 def calculate_diff(

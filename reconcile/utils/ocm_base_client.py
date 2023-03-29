@@ -155,7 +155,10 @@ class OCMAPIClientConfiguration(Protocol):
     url: str
     access_token_client_id: str
     access_token_url: str
-    access_token_client_secret: HasSecret
+
+    @property
+    def access_token_client_secret(self) -> HasSecret:
+        ...
 
 
 def init_ocm_base_client(
