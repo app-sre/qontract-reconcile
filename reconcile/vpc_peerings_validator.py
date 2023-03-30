@@ -52,7 +52,7 @@ def find_cidr_duplicates_and_overlap_new(input_dict):
         key: value for key, value in input_dict.items() if values.count(value) > 1
     }
 
-    network_list = [ipaddress.ip_network(value) for value in values]
+    # network_list = [ipaddress.ip_network(value) for value in values]
     # overlaps_list = {}
     overlaps_list = []
 
