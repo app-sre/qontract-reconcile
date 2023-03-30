@@ -1,12 +1,9 @@
-from typing import (
-    Any,
-    Callable,
-    Optional,
-)
+from typing import Callable
 
 import pytest
 from pytest_mock import MockerFixture
 
+from reconcile.test.ocm.fixtures import OcmUrl
 from reconcile.utils.ocm import labels
 from reconcile.utils.ocm.labels import (
     OCMAccountLabel,
@@ -131,16 +128,21 @@ def test_utils_build_ocm_unknown_label_from_dict() -> None:
 def test_utils_get_organization_labels(
     ocm_api: OCMBaseClient,
     mocker: MockerFixture,
-    register_ocm_get_list_handler: Callable[[str, Optional[Any]], None],
+    register_ocm_url_responses: Callable[[list[OcmUrl]], int],
 ) -> None:
     get_labels_call_recorder = mocker.patch.object(
         labels, "get_labels", wraps=labels.get_labels
     )
-    register_ocm_get_list_handler(
-        "/api/accounts_mgmt/v1/labels",
+    register_ocm_url_responses(
         [
-            build_organization_label("label", "value", "org_id").dict(by_alias=True),
-        ],
+            OcmUrl(method="GET", uri="/api/accounts_mgmt/v1/labels").add_list_response(
+                [
+                    build_organization_label("label", "value", "org_id").dict(
+                        by_alias=True
+                    )
+                ]
+            )
+        ]
     )
 
     filter = Filter().eq("additional", "filter")
@@ -165,16 +167,21 @@ def test_utils_get_organization_labels(
 def test_utils_get_subscription_labels(
     ocm_api: OCMBaseClient,
     mocker: MockerFixture,
-    register_ocm_get_list_handler: Callable[[str, Optional[Any]], None],
+    register_ocm_url_responses: Callable[[list[OcmUrl]], int],
 ) -> None:
     get_labels_call_recorder = mocker.patch.object(
         labels, "get_labels", wraps=labels.get_labels
     )
-    register_ocm_get_list_handler(
-        "/api/accounts_mgmt/v1/labels",
+    register_ocm_url_responses(
         [
-            build_subscription_label("label", "value", "sub_id").dict(by_alias=True),
-        ],
+            OcmUrl(method="GET", uri="/api/accounts_mgmt/v1/labels").add_list_response(
+                [
+                    build_subscription_label("label", "value", "sub_id").dict(
+                        by_alias=True
+                    )
+                ]
+            )
+        ]
     )
 
     filter = Filter().eq("additional", "filter")

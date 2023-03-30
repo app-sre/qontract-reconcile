@@ -4,7 +4,6 @@ from datetime import (
     timezone,
 )
 from typing import (
-    Any,
     Callable,
     Optional,
 )
@@ -13,6 +12,7 @@ import pytest
 from httpretty.core import HTTPrettyRequest
 from pytest_mock import MockerFixture
 
+from reconcile.test.ocm.fixtures import OcmUrl
 from reconcile.utils.ocm import service_log
 from reconcile.utils.ocm.search_filters import (
     DateRangeCondition,
@@ -53,7 +53,7 @@ def build_service_log(
 
 @pytest.fixture
 def example_service_log(
-    register_ocm_get_list_handler: Callable[[str, Optional[Any]], None],
+    register_ocm_url_responses: Callable[[list[OcmUrl]], int],
 ) -> OCMClusterServiceLog:
     expected_service_log = build_service_log(
         "some error",
@@ -61,10 +61,14 @@ def example_service_log(
         "cluster_uuid",
         severity=OCMServiceLogSeverity.Error,
     )
-    register_ocm_get_list_handler(
-        "/api/service_logs/v1/cluster_logs",
-        [expected_service_log],
+    register_ocm_url_responses(
+        [
+            OcmUrl(
+                method="GET", uri="/api/service_logs/v1/cluster_logs"
+            ).add_list_response([expected_service_log])
+        ]
     )
+
     return expected_service_log
 
 
@@ -82,23 +86,28 @@ def test_get_service_logs(
 
 def test_create_service_log(
     ocm_api: OCMBaseClient,
-    register_ocm_request_handler: Callable[[str, str, Optional[Any]], None],
+    register_ocm_url_responses: Callable[[list[OcmUrl]], int],
     find_http_request: Callable[[str, str], Optional[HTTPrettyRequest]],
 ) -> None:
     timestamp = datetime(2020, 1, 2, 0, 0, 0, 0, tzinfo=timezone.utc)
-    register_ocm_request_handler(
-        "POST",
-        "/api/service_logs/v1/cluster_logs",
-        build_service_log(
-            cluster_uuid="cluster_uuid",
-            summary="something happened",
-            description="something happenes",
-            service_name="some-service",
-            severity=OCMServiceLogSeverity.Info,
-            timestamp=timestamp,
-        ),
+    register_ocm_url_responses(
+        [
+            OcmUrl(
+                method="POST",
+                uri="/api/service_logs/v1/cluster_logs",
+                responses=[
+                    build_service_log(
+                        cluster_uuid="cluster_uuid",
+                        summary="something happened",
+                        description="something happenes",
+                        service_name="some-service",
+                        severity=OCMServiceLogSeverity.Info,
+                        timestamp=timestamp,
+                    ),
+                ],
+            )
+        ]
     )
-
     result = create_service_log(
         ocm_api=ocm_api,
         service_log=OCMClusterServiceLogCreateModel(
@@ -176,16 +185,20 @@ def test_create_service_log_dedup(
 
 def test_create_service_log_dedup_no_dup(
     ocm_api: OCMBaseClient,
-    register_ocm_get_list_handler: Callable[[str, Optional[Any]], None],
-    register_ocm_request_handler: Callable[[str, str, Optional[Any]], None],
+    register_ocm_url_responses: Callable[[list[OcmUrl]], int],
     find_http_request: Callable[[str, str], Optional[HTTPrettyRequest]],
 ) -> None:
-    register_ocm_get_list_handler(
-        "/api/service_logs/v1/cluster_logs",
-        [],
-    )
-    register_ocm_request_handler(
-        "POST", "/api/service_logs/v1/cluster_logs", build_service_log()
+    register_ocm_url_responses(
+        [
+            OcmUrl(
+                method="GET", uri="/api/service_logs/v1/cluster_logs"
+            ).add_list_response([]),
+            OcmUrl(
+                method="POST",
+                uri="/api/service_logs/v1/cluster_logs",
+                responses=[build_service_log()],
+            ),
+        ]
     )
 
     create_service_log(
