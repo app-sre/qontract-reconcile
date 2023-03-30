@@ -42,7 +42,7 @@ from reconcile.slack_base import slackapi_from_queries
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
-from reconcile.typed_queries.clusters import get_clusters
+from reconcile.typed_queries.clusters_minimal import get_clusters_minimal
 from reconcile.utils import (
     amtool,
     config,
@@ -1911,12 +1911,12 @@ def app_interface_merge_history(ctx):
 def selectorsyncset_managed_resources(ctx, use_jump_host):
     vault_settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
-    clusters = get_clusters()
+    clusters = get_clusters_minimal()
     oc_map = init_oc_map_from_clusters(
         clusters=clusters,
         secret_reader=secret_reader,
         integration="qontract-cli",
-        thread_pool_size=1,
+        thread_pool_size=20,
         init_api_resources=True,
         use_jump_host=use_jump_host,
     )
@@ -1969,12 +1969,12 @@ def selectorsyncset_managed_resources(ctx, use_jump_host):
 def selectorsyncset_managed_hypershift_resources(ctx, use_jump_host):
     vault_settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
-    clusters = get_clusters()
+    clusters = get_clusters_minimal()
     oc_map = init_oc_map_from_clusters(
         clusters=clusters,
         secret_reader=secret_reader,
         integration="qontract-cli",
-        thread_pool_size=1,
+        thread_pool_size=20,
         init_api_resources=True,
         use_jump_host=use_jump_host,
     )
