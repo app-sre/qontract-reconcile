@@ -5436,12 +5436,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 name=f"insights-{identifier}-pool-client",
                 user_pool_id=f"${{{cognito_user_pool_resource.id}}}",
                 callback_urls=insights_callback_urls,
-                access_token_validity=15,
-                refresh_token_validity=8,
-                token_validity_units={
-                    "access_token": "minutes",
-                    "refresh_token": "hours",
-                },
                 **pool_client_args,
             )
             tf_resources.append(insights_cognito_user_pool_client)
