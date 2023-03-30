@@ -21,6 +21,7 @@ from reconcile.utils.runtime.runner import (
     IntegrationRunConfiguration,
     _integration_dry_run,
     _integration_wet_run,
+    _is_task_result_an_error,
     get_desired_state_diff,
     run_integration_cfg,
 )
@@ -415,3 +416,31 @@ def test_run_configuration_wet_run(simple_test_integration: SimpleTestIntegratio
     assert not simple_test_integration.run.assert_called_once_with(  # type: ignore
         False
     )
+
+
+#
+# test helper for task success
+#
+
+
+@pytest.mark.parametrize(
+    "result,expected_is_error",
+    [
+        # sys.exit(0) and sys.exit(False) are not considered errors
+        (SystemExit(0), False),
+        (SystemExit(False), False),
+        # sys.exit(>1) and sys.exit(True) are considered errors
+        (SystemExit(1), True),
+        (SystemExit(100), True),
+        (SystemExit(True), True),
+        # regular exceptions are considered errors
+        (Exception("Oh no!"), True),
+        # null is not considered an error
+        (None, False),
+        # any other values are not conidered errors
+        (1, False),
+        ("some string", False),
+    ],
+)
+def test_is_task_result_an_error(result: Any, expected_is_error: bool):
+    assert _is_task_result_an_error(result) == expected_is_error
