@@ -1,5 +1,5 @@
-import functools
 import json
+from functools import lru_cache
 
 import parse
 import requests
@@ -12,6 +12,9 @@ class SentryClient:  # pylint: disable=too-many-public-methods
     def __init__(self, host, token):
         self.host = host
         self.auth_token = token
+        self.get_organizations = lru_cache()(self._get_organizations)
+        self.get_projects = lru_cache()(self._get_projects)
+        self.get_users = lru_cache()(self._get_users)
 
     @retry()
     def _do_sentry_api_call(self, method, path, slugs, payload=None):
@@ -58,8 +61,7 @@ class SentryClient:  # pylint: disable=too-many-public-methods
         return all_results
 
     # Organization functions
-    @functools.lru_cache(maxsize=128)
-    def get_organizations(self):
+    def _get_organizations(self):
         response = self._do_sentry_api_call("get", "organizations", [])
         return response
 
@@ -68,8 +70,7 @@ class SentryClient:  # pylint: disable=too-many-public-methods
         return response
 
     # Project functions
-    @functools.lru_cache(maxsize=128)
-    def get_projects(self):
+    def _get_projects(self):
         response = self._do_sentry_api_call("get", "projects", [])
         return response
 
@@ -275,8 +276,7 @@ class SentryClient:  # pylint: disable=too-many-public-methods
         return response
 
     # User/Member functions
-    @functools.lru_cache(maxsize=128)
-    def get_users(self):
+    def _get_users(self):
         response = self._do_sentry_api_call(
             "get", "organizations", [self.ORGANIZATION, "members"]
         )

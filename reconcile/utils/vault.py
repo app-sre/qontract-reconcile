@@ -1,10 +1,10 @@
 import base64
-import functools
 import logging
 import os
 import threading
 import time
 from collections.abc import Mapping
+from functools import lru_cache
 from typing import Optional
 
 import hvac
@@ -92,6 +92,9 @@ class _VaultClient:
                 "/var/run/secrets/kubernetes.io/serviceaccount/token",
             )
             self.kube_auth_enabled = True
+
+        self._get_mount_version = lru_cache(maxsize=128)(self.__get_mount_version)
+        self._read_all_v2 = lru_cache(maxsize=2048)(self.__read_all_v2)
 
         # This is a threaded world. Let's define a big
         # connections pool to live in that world
@@ -207,8 +210,7 @@ class _VaultClient:
         mount_point = path_split[0]
         return self._get_mount_version(mount_point)
 
-    @functools.lru_cache(maxsize=128)
-    def _get_mount_version(self, mount_point):
+    def __get_mount_version(self, mount_point):
         try:
             self._client.secrets.kv.v2.read_configuration(mount_point)
             version = 2
@@ -217,8 +219,7 @@ class _VaultClient:
 
         return version
 
-    @functools.lru_cache(maxsize=2048)
-    def _read_all_v2(
+    def __read_all_v2(
         self, path: str, version: Optional[str]
     ) -> tuple[dict, Optional[str]]:
         path_split = path.split("/")
