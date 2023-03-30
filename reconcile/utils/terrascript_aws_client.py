@@ -5441,8 +5441,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 token_validity_units={
                     "access_token": "minutes",
                     "refresh_token": "hours",
-                }
-                ** pool_client_args,
+                },
+                **pool_client_args,
             )
             tf_resources.append(insights_cognito_user_pool_client)
 
