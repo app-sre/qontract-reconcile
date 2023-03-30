@@ -160,6 +160,8 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
     def cleanup(self) -> None:
         if hasattr(self, "state") and self.state is not None:
             self.state.cleanup()
+        if hasattr(self, "gitlab") and self.gitlab is not None:
+            self.gitlab.cleanup()
 
     def _register_error(self) -> None:
         self.error_registered = True

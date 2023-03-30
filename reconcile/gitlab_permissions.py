@@ -5,6 +5,7 @@ from typing import Any
 from sretoolbox.utils import threaded
 
 from reconcile import queries
+from reconcile.utils.defer import defer
 from reconcile.utils.gitlab_api import GitLabApi
 
 QONTRACT_INTEGRATION = "gitlab-permissions"
@@ -25,10 +26,13 @@ def get_members_to_add(repo, gl, app_sre):
     return members_to_add
 
 
-def run(dry_run, thread_pool_size=10):
+@defer
+def run(dry_run, thread_pool_size=10, defer=None):
     instance = queries.get_gitlab_instance()
     settings = queries.get_app_interface_settings()
     gl = GitLabApi(instance, settings=settings)
+    if defer:
+        defer(gl.cleanup)
     repos = queries.get_repos(server=gl.server)
     app_sre = gl.get_app_sre_group_users()
     results = threaded.run(

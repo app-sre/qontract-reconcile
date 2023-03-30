@@ -530,12 +530,12 @@ def run(
     participating_account_names = [a["name"] for a in participating_accounts]
     accounts = [a for a in accounts if a["name"] in participating_account_names]
 
-    ts = terrascript.TerrascriptClient(
+    with terrascript.TerrascriptClient(
         QONTRACT_INTEGRATION, "", thread_pool_size, accounts, settings=settings
-    )
-    ts.populate_additional_providers(participating_accounts)
-    ts.populate_vpc_peerings(desired_state)
-    working_dirs = ts.dump(print_to_file=print_to_file)
+    ) as ts:
+        ts.populate_additional_providers(participating_accounts)
+        ts.populate_vpc_peerings(desired_state)
+        working_dirs = ts.dump(print_to_file=print_to_file)
 
     if print_to_file:
         sys.exit(0 if dry_run else int(any(errors)))

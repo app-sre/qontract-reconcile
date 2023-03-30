@@ -614,20 +614,26 @@ def run(
                     cleanup = True
 
             if cleanup:
-                oc_map = OC_Map(
+                with OC_Map(
                     namespaces=[query["namespace"]],
                     integration=QONTRACT_INTEGRATION,
                     settings=settings,
-                )
-                openshift_delete_by_label(
-                    dry_run=dry_run,
-                    oc_map=oc_map,
-                    cluster=query["cluster"],
-                    namespace=query["namespace"]["name"],
-                    kinds=["Job", "CronJob", "ConfigMap", "Secret", "ServiceAccount"],
-                    labels=common_resource_labels,
-                    enable_deletion=enable_deletion,
-                )
+                ) as oc_map:
+                    openshift_delete_by_label(
+                        dry_run=dry_run,
+                        oc_map=oc_map,
+                        cluster=query["cluster"],
+                        namespace=query["namespace"]["name"],
+                        kinds=[
+                            "Job",
+                            "CronJob",
+                            "ConfigMap",
+                            "Secret",
+                            "ServiceAccount",
+                        ],
+                        labels=common_resource_labels,
+                        enable_deletion=enable_deletion,
+                    )
                 if not dry_run and enable_deletion:
                     state[query_name] = "DONE"
 
@@ -706,19 +712,18 @@ def run(
             )
         )
 
-        oc_map = OC_Map(
+        with OC_Map(
             namespaces=[query["namespace"]],
             integration=QONTRACT_INTEGRATION,
             settings=settings,
-        )
-
-        openshift_apply(
-            dry_run=dry_run,
-            oc_map=oc_map,
-            cluster=query["cluster"],
-            namespace=query["namespace"]["name"],
-            resources=openshift_resources,
-        )
+        ) as oc_map:
+            openshift_apply(
+                dry_run=dry_run,
+                oc_map=oc_map,
+                cluster=query["cluster"],
+                namespace=query["namespace"]["name"],
+                resources=openshift_resources,
+            )
 
         if not dry_run:
             state[query_name] = time.time()

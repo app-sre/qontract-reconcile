@@ -331,7 +331,9 @@ class TestRun(testslide.TestCase):
             integ, "build_desired_state_vpc_mesh"
         )
         self.terraform = testslide.StrictMock(terraform.TerraformClient)
-        self.terrascript = testslide.StrictMock(terrascript.TerrascriptClient)
+        self.terrascript = testslide.StrictMock(
+            terrascript.TerrascriptClient, default_context_manager=True
+        )
         self.mock_constructor(terraform, "TerraformClient").to_return_value(
             self.terraform
         )

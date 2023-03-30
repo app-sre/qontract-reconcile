@@ -2,15 +2,19 @@ import logging
 from typing import Any
 
 from reconcile import queries
+from reconcile.utils.defer import defer
 from reconcile.utils.gitlab_api import GitLabApi
 
 QONTRACT_INTEGRATION = "jenkins-webhooks-cleaner"
 
 
-def run(dry_run):
+@defer
+def run(dry_run, defer=None):
     instance = queries.get_gitlab_instance()
     settings = queries.get_app_interface_settings()
     gl = GitLabApi(instance, settings=settings)
+    if defer:
+        defer(gl.cleanup)
     previous_urls = queries.get_jenkins_instances_previous_urls()
     repos = queries.get_repos(server=gl.server)
 

@@ -3,6 +3,7 @@ import logging
 from sretoolbox.utils import retry
 
 from reconcile import queries
+from reconcile.utils.defer import defer
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.secret_reader import SecretReader
 
@@ -15,10 +16,13 @@ def get_repo_services(gl, repo_url):
     return project.services
 
 
-def run(dry_run):
+@defer
+def run(dry_run, defer=None):
     instance = queries.get_gitlab_instance()
     settings = queries.get_app_interface_settings()
     gl = GitLabApi(instance, settings=settings)
+    if defer:
+        defer(gl.cleanup)
     secret_reader = SecretReader(settings=settings)
 
     # Jira

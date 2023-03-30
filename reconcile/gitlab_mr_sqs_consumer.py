@@ -28,6 +28,7 @@ def run(dry_run, gitlab_project_id, defer=None):
     gitlab_cli = GitLabApi(
         instance, project_id=gitlab_project_id, secret_reader=secret_reader
     )
+    defer(gitlab_cli.cleanup)
 
     errors_occured = False
     while True:

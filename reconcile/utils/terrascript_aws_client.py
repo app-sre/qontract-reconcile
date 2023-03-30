@@ -417,6 +417,16 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             for schema in prefetch_resources_by_schemas:
                 self._resource_cache.update(self.prefetch_resources(schema))
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self.cleanup()
+
+    def cleanup(self):
+        if self.gitlab is not None:
+            self.gitlab.cleanup()
+
     @staticmethod
     def state_bucket_for_account(
         integration: str, account_name: str, config: dict[str, Any]

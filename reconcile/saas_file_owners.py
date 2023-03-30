@@ -9,6 +9,7 @@ from reconcile.openshift_saas_deploy_change_tester import (
     collect_state,
 )
 from reconcile.utils import throughput
+from reconcile.utils.defer import defer
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.mr.labels import (
     APPROVED,
@@ -187,12 +188,14 @@ def check_saas_files_changes_only(changed_paths, diffs):
     return len(non_saas_file_changed_paths) == 0 and len(changed_paths) != 0
 
 
+@defer
 def run(
     dry_run,
     gitlab_project_id=None,
     gitlab_merge_request_id=None,
     io_dir="throughput/",
     compare=True,
+    defer=None,
 ):
     if not compare:
         # baseline is the current state and the owners.
@@ -203,6 +206,8 @@ def run(
         return
 
     gl = init_gitlab(gitlab_project_id)
+    if defer:
+        defer(gl.cleanup)
     baseline = read_baseline_from_file(io_dir)
     owners = baseline["owners"]
     current_state = baseline["state"]
