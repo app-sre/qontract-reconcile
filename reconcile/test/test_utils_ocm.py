@@ -19,6 +19,7 @@ from reconcile.utils.ocm import (
     Sector,
     SectorConfigError,
 )
+from reconcile.utils.ocm_base_client import OCMBaseClient
 
 
 class OcmUrl(BaseModel):
@@ -91,7 +92,8 @@ def ocm(mocker: MockerFixture, ocm_url: str, cluster: str, cluster_id: str) -> O
     mocker.patch("reconcile.utils.ocm.OCM._init_clusters")
     mocker.patch("reconcile.utils.ocm.OCM._init_blocked_versions")
     mocker.patch("reconcile.utils.ocm.OCM._init_version_gates")
-    ocm = OCM("name", "url", "org_id", "tid", "turl", "ot")
+    ocm_client = OCMBaseClient("url", "tid", "turl", "cid")
+    ocm = OCM("name", "org_id", ocm_client)
     ocm._ocm_client._url = ocm_url
     ocm.cluster_ids = {cluster: cluster_id}
     return ocm

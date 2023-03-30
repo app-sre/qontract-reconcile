@@ -595,30 +595,18 @@ class OCM:  # pylint: disable=too-many-public-methods
     def __init__(
         self,
         name,
-        url,
         org_id,
-        access_token_client_id,
-        access_token_url,
-        access_token_client_secret,
+        ocm_client: OCMBaseClient,
         init_provision_shards=False,
         init_addons=False,
         init_version_gates=False,
         blocked_versions=None,
-        ocm_client: Optional[OCMBaseClient] = None,
         sectors: Optional[list[dict[str, Any]]] = None,
         inheritVersionData: Optional[list[dict[str, Any]]] = None,
     ):
         """Initiates access token and gets clusters information."""
         self.name = name
-        if not ocm_client:
-            self._init_ocm_client(
-                url=url,
-                access_token_client_secret=access_token_client_secret,
-                access_token_client_id=access_token_client_id,
-                access_token_url=access_token_url,
-            )
-        else:
-            self._ocm_client = ocm_client
+        self._ocm_client = ocm_client
         self.org_id = org_id
         self._init_clusters(init_provision_shards=init_provision_shards)
 
@@ -652,14 +640,14 @@ class OCM:  # pylint: disable=too-many-public-methods
             for dep in sector.get("dependencies") or []:
                 s.dependencies.append(self.sectors[dep["name"]])
 
+    @staticmethod
     def _init_ocm_client(
-        self,
         url: str,
         access_token_client_secret: str,
         access_token_url: str,
         access_token_client_id: str,
     ):
-        self._ocm_client = OCMBaseClient(
+        return OCMBaseClient(
             url=url,
             access_token_client_secret=access_token_client_secret,
             access_token_url=access_token_url,
@@ -1782,14 +1770,20 @@ class OCMMap:  # pylint: disable=too-many-public-methods
         org_id = ocm_info["orgId"]
         name = ocm_info["name"]
         secret_reader = SecretReader(settings=self.settings)
-        token = secret_reader.read(access_token_client_secret)
+        ocm_client = (
+            OCM._init_ocm_client(
+                url=url,
+                access_token_client_secret=secret_reader.read(
+                    access_token_client_secret
+                ),
+                access_token_url=access_token_url,
+                access_token_client_id=access_token_client_id,
+            ),
+        )
         self.ocm_map[ocm_name] = OCM(
             name,
-            url,
             org_id,
-            access_token_client_id,
-            access_token_url,
-            token,
+            ocm_client,
             init_provision_shards=init_provision_shards,
             init_addons=init_addons,
             blocked_versions=ocm_info.get("blockedVersions"),
