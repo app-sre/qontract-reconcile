@@ -29,21 +29,14 @@ def validate_no_cidr_overlap(
     for cluster in clusters:
         if cluster.peering:
             for peering in cluster.peering.connections:
+                logging.debug("peering var")
+                logging.debug(peering)
                 if peering.provider == "account-vpc":
+                    # peering.vpc.name
                     cidr_block = str(peering.vpc.cidr_block)  # type: ignore[union-attr]
-                    # some IPs are for VPCs like ci.int so we'll need to block it from the logic
-                    if cidr_block not in (
-                        "10.29.88.0/22",
-                        "172.32.0.0/16",
-                        "172.31.0.0/16",
-                        "192.168.0.0/20",
-                    ):
-                        cidr_block_entries[cluster.name] = cidr_block
-                    else:
-                        continue
+                    cidr_block_entries[cluster.name] = cidr_block
 
-    duplicates, overlaps = find_cidr_duplicates_and_overlap(cidr_block_entries)
-
+    duplicates, overlaps = find_cidr_duplicates_and_overlap_new(cidr_block_entries)
     if duplicates:
         valid = False
         return valid
@@ -53,33 +46,56 @@ def validate_no_cidr_overlap(
     return valid
 
 
-def find_cidr_duplicates_and_overlap(input_dict):
+def find_cidr_duplicates_and_overlap_new(input_dict):
     values = list(input_dict.values())
     duplicates = {
         key: value for key, value in input_dict.items() if values.count(value) > 1
     }
 
     network_list = [ipaddress.ip_network(value) for value in values]
-    overlaps = {}
+    # overlaps_list = {}
+    overlaps_list = []
 
-    for i in range(len(network_list)):
-        for j in range(i + 1, len(network_list)):
-            if network_list[i].overlaps(network_list[j]):
-                network1 = next(
-                    key
-                    for key, val in input_dict.items()
-                    if val == str(network_list[i])
+    for i, net1 in enumerate(values):
+        for _, net2 in enumerate(values[i + 1 :], start=i + 1):
+            if ipaddress.ip_network(net1).overlaps(ipaddress.ip_network(net2)):
+                logging.info(
+                    str(ipaddress.ip_network(net1))
+                    + " overlaps with "
+                    + str(ipaddress.ip_network(net2))
                 )
-                network2 = next(
-                    key
-                    for key, val in input_dict.items()
-                    if val == str(network_list[j])
-                )
+                overlaps_list.append(ipaddress.ip_network(net1))
 
-                if network1 in overlaps:
-                    overlaps[network1].append(network2)
+    return duplicates, overlaps_list
 
-    return duplicates, overlaps
+
+# def find_cidr_duplicates_and_overlap(input_dict):
+#     values = list(input_dict.values())
+#     duplicates = {
+#         key: value for key, value in input_dict.items() if values.count(value) > 1
+#     }
+
+#     network_list = [ipaddress.ip_network(value) for value in values]
+#     overlaps: dict = {}
+
+#     for i in range(len(network_list)):
+#         for j in range(i + 1, len(network_list)):
+#             if network_list[i].overlaps(network_list[j]):
+#                 network1 = next(
+#                     key
+#                     for key, val in input_dict.items()
+#                     if val == str(network_list[i])
+#                 )
+#                 network2 = next(
+#                     key
+#                     for key, val in input_dict.items()
+#                     if val == str(network_list[j])
+#                 )
+
+#                 if network1 in overlaps:
+#                     overlaps[network1].append(network2)
+
+#     return duplicates, overlaps
 
 
 def validate_no_internal_to_public_peerings(
