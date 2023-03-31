@@ -31,7 +31,7 @@ def validate_no_cidr_overlap(
             for peering in cluster.peering.connections:
                 if peering.provider == "account-vpc":
                     cidr_block = str(peering.vpc.cidr_block)  # type: ignore[union-attr]
-                    cidr_block_entries[peering.vpc.name] = cidr_block
+                    cidr_block_entries[peering.vpc.name] = cidr_block  # type: ignore[union-attr]
 
         duplicates, overlaps = find_cidr_duplicates_and_overlap(cidr_block_entries)
         if duplicates:
@@ -40,7 +40,7 @@ def validate_no_cidr_overlap(
         if overlaps:
             valid = False
             return valid
-        return valid
+    return valid
 
 
 def find_cidr_duplicates_and_overlap(input_dict: dict):

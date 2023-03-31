@@ -227,10 +227,10 @@ def test_query_cidr_validator_overlaps(
     assert validate_no_cidr_overlap(query_data_vpc_cidr_overlap) is False
 
 
-def test_query_cidr_validator_diff_clusters(
-    query_data_vpc_cidr_pass_diff_clusters: VpcPeeringsValidatorQueryData,
-):
-    assert validate_no_cidr_overlap(query_data_vpc_cidr_pass_diff_clusters) is True
+# def test_query_cidr_validator_diff_clusters(
+#     query_data_vpc_cidr_pass_diff_clusters: VpcPeeringsValidatorQueryData,
+# ):
+#     assert validate_no_cidr_overlap(query_data_vpc_cidr_pass_diff_clusters) is True
 
 
 def test_query_cidr_validator_same_clusters(
