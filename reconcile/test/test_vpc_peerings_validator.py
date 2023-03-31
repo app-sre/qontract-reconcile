@@ -107,7 +107,57 @@ def test_validate_no_public_to_public_peerings_valid(
 
 
 @pytest.fixture
-def query_data_vpc_cidr() -> VpcPeeringsValidatorQueryData:
+def query_data_vpc_cidr_duplicate() -> VpcPeeringsValidatorQueryData:
+    return VpcPeeringsValidatorQueryData(
+        clusters=[
+            ClusterV1(
+                name="clustertest",
+                spec=ClusterSpecV1(private=True),
+                internal=True,
+                peering=ClusterPeeringV1(
+                    connections=[
+                        ClusterPeeringConnectionAccountV1(
+                            provider="account-vpc",
+                            vpc=AWSVPCV1(cidr_block="10.20.0.0/20", name="vpc1"),
+                        ),
+                        ClusterPeeringConnectionAccountV1(
+                            provider="account-vpc",
+                            vpc=AWSVPCV1(cidr_block="10.20.0.0/20", name="vpc2"),
+                        ),
+                    ]
+                ),
+            ),
+        ]
+    )
+
+
+@pytest.fixture
+def query_data_vpc_cidr_overlap() -> VpcPeeringsValidatorQueryData:
+    return VpcPeeringsValidatorQueryData(
+        clusters=[
+            ClusterV1(
+                name="clustertest",
+                spec=ClusterSpecV1(private=True),
+                internal=True,
+                peering=ClusterPeeringV1(
+                    connections=[
+                        ClusterPeeringConnectionAccountV1(
+                            provider="account-vpc",
+                            vpc=AWSVPCV1(cidr_block="192.168.1.0/24", name="vpc1"),
+                        ),
+                        ClusterPeeringConnectionAccountV1(
+                            provider="account-vpc",
+                            vpc=AWSVPCV1(cidr_block="192.168.0.0/16", name="vpc2"),
+                        ),
+                    ]
+                ),
+            ),
+        ]
+    )
+
+
+@pytest.fixture
+def query_data_vpc_cidr_pass_diff_clusters() -> VpcPeeringsValidatorQueryData:
     return VpcPeeringsValidatorQueryData(
         clusters=[
             ClusterV1(
@@ -140,6 +190,42 @@ def query_data_vpc_cidr() -> VpcPeeringsValidatorQueryData:
     )
 
 
-def test_query_cidr_validator(query_data_vpc_cidr: VpcPeeringsValidatorQueryData):
-    if query_data_vpc_cidr.clusters[0].peering.connections[0].vpc.cidr_block == query_data_vpc_cidr.clusters[1].peering.connections[0].vpc.cidr_block:  # type: ignore[index,union-attr]
-        assert validate_no_cidr_overlap(query_data_vpc_cidr) is False
+@pytest.fixture
+def query_data_vpc_cidr_pass_same_cluster() -> VpcPeeringsValidatorQueryData:
+    return VpcPeeringsValidatorQueryData(
+        clusters=[
+            ClusterV1(
+                name="clustertest",
+                spec=ClusterSpecV1(private=True),
+                internal=True,
+                peering=ClusterPeeringV1(
+                    connections=[
+                        ClusterPeeringConnectionAccountV1(
+                            provider="account-vpc",
+                            vpc=AWSVPCV1(cidr_block="10.20.0.0/20", name="vpc1"),
+                        ),
+                        ClusterPeeringConnectionAccountV1(
+                            provider="account-vpc",
+                            vpc=AWSVPCV1(cidr_block="192.168.0.0/16", name="vpc2"),
+                        ),
+                    ]
+                ),
+            ),
+        ]
+    )
+
+
+def test_query_cidr_validator_duplicate(query_data_vpc_cidr_duplicate: VpcPeeringsValidatorQueryData):
+    assert validate_no_cidr_overlap(query_data_vpc_cidr_duplicate) is False
+
+
+def test_query_cidr_validator_overlaps(query_data_vpc_cidr_overlap: VpcPeeringsValidatorQueryData):
+    assert validate_no_cidr_overlap(query_data_vpc_cidr_overlap) is False
+
+
+def test_query_cidr_validator_diff_clusters(query_data_vpc_cidr_pass_diff_clusters: VpcPeeringsValidatorQueryData):
+    assert validate_no_cidr_overlap(query_data_vpc_cidr_pass_diff_clusters) is True
+
+
+def test_query_cidr_validator_same_clusters(query_data_vpc_cidr_pass_same_cluster: VpcPeeringsValidatorQueryData):
+    assert validate_no_cidr_overlap(query_data_vpc_cidr_pass_same_cluster) is True
