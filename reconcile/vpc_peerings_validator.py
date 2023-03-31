@@ -40,7 +40,7 @@ def validate_no_cidr_overlap(
         if overlaps:
             valid = False
             return valid
-    return valid
+        return valid
 
 
 def find_cidr_duplicates_and_overlap(input_dict: dict):
