@@ -1693,7 +1693,7 @@ def terraform_cloudflare_resources(
 @integration.command(short_help="Manage Cloudflare DNS using Terraform.")
 @print_to_file
 @enable_deletion(default=False)
-@threaded(default=20)
+@threaded(default=10)
 @binary(["terraform"])
 @binary_version("terraform", ["version"], TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
 @account_name
