@@ -1,8 +1,6 @@
 import json
-from typing import (
-    Callable,
-    Optional,
-)
+from collections.abc import Callable
+from typing import Optional
 
 import httpretty as httpretty_module
 from httpretty.core import HTTPrettyRequest
@@ -68,7 +66,7 @@ def test_get_cluster_groups(
 def test_add_user_to_cluster_group(
     ocm_api: OCMBaseClient,
     register_ocm_url_responses: Callable[[list[OcmUrl]], int],
-    find_http_request: Callable[[str, str], Optional[HTTPrettyRequest]],
+    find_ocm_http_request: Callable[[str, str], Optional[HTTPrettyRequest]],
 ) -> None:
     cluster_id = "cluster_id"
     user_name = "user-to-add"
@@ -83,7 +81,7 @@ def test_add_user_to_cluster_group(
         user_name=user_name,
     )
 
-    post_request = find_http_request("POST", add_user_url)
+    post_request = find_ocm_http_request("POST", add_user_url)
     assert isinstance(post_request, HTTPrettyRequest)
     assert json.loads(post_request.body).get("id") == user_name
 

@@ -1,7 +1,5 @@
-from typing import (
-    Callable,
-    Optional,
-)
+from collections.abc import Callable
+from typing import Optional
 
 from reconcile.test.ocm.fixtures import OcmUrl
 from reconcile.test.ocm.test_utils_ocm_labels import build_subscription_label

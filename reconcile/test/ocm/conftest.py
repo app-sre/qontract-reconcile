@@ -1,17 +1,28 @@
 import json
+from collections.abc import Callable
 from typing import (
-    Callable,
+    Any,
     Optional,
 )
-from urllib.parse import urljoin
+from urllib.parse import (
+    urljoin,
+    urlparse,
+)
 
 import httpretty as httpretty_module
 import pytest
 from httpretty.core import HTTPrettyRequest
 from pydantic.json import pydantic_encoder
 
-from reconcile.test.test_utils_ocm import OcmUrl
+from reconcile.test.fixtures import Fixtures
+from reconcile.test.ocm.fixtures import OcmUrl
+from reconcile.utils.ocm.ocm import OCM
 from reconcile.utils.ocm_base_client import OCMBaseClient
+
+
+@pytest.fixture
+def fx() -> Fixtures:
+    return Fixtures("ocm")
 
 
 @pytest.fixture
@@ -67,17 +78,75 @@ def register_ocm_url_responses(
 
 
 @pytest.fixture
-def find_http_request(
-    httpretty: httpretty_module,
-) -> Callable[[str, str], Optional[HTTPrettyRequest]]:
-    def find_request(method: str, url: str) -> Optional[HTTPrettyRequest]:
-        return next(
-            (
-                req
-                for req in httpretty.latest_requests()
-                if req.method == method and req.path == url
-            ),
-            None,
+def register_ocm_url_callback(
+    ocm_url: str, httpretty: httpretty_module
+) -> Callable[[str, str, Callable], None]:
+    def f(
+        method: str,
+        uri: str,
+        callback: Callable[
+            [HTTPrettyRequest, str, dict[str, str]], tuple[int, dict, str]
+        ],
+    ) -> None:
+        httpretty.register_uri(
+            method.upper(),
+            urljoin(ocm_url, uri),
+            body=callback,
+            content_type="text/json",
         )
 
+    return f
+
+
+@pytest.fixture
+def find_ocm_http_request(
+    ocm_url: str,
+    httpretty: httpretty_module,
+) -> Callable[[str, str], Optional[HTTPrettyRequest]]:
+    def find_request(method: str, path: str) -> Optional[HTTPrettyRequest]:
+        for req in httpretty.latest_requests():
+            if req.method != method:
+                continue
+
+            parsed_url = urlparse(req.url)
+            if f"{parsed_url.scheme}://{parsed_url.netloc}" != ocm_url:
+                continue
+
+            if parsed_url.path != path:
+                continue
+
+            return req
+
+        return None
+
     return find_request
+
+
+@pytest.fixture
+def clusters() -> list[dict[str, Any]]:
+    """
+    Provides cluster fixtures for the `ocm` fixture.
+    If a test module required actual clusters, it can override the `clusters`
+    fixture.
+    """
+    return []
+
+
+@pytest.fixture
+def ocm(
+    ocm_api: OCMBaseClient,
+    register_ocm_url_responses: Callable[[list[OcmUrl]], int],
+    clusters: list[dict[str, Any]],
+) -> OCM:
+    register_ocm_url_responses(
+        [
+            OcmUrl(
+                method="GET", uri="/api/clusters_mgmt/v1/clusters"
+            ).add_list_response(clusters)
+        ]
+    )
+    return OCM(
+        "my-org",
+        "org-id",
+        ocm_api,
+    )
