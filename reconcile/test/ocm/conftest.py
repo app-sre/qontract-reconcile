@@ -16,7 +16,7 @@ from pydantic.json import pydantic_encoder
 
 from reconcile.test.fixtures import Fixtures
 from reconcile.test.ocm.fixtures import OcmUrl
-from reconcile.utils.ocm.ocm import OCM
+from reconcile.utils.ocm import OCM
 from reconcile.utils.ocm_base_client import OCMBaseClient
 
 
@@ -111,6 +111,22 @@ def register_ocm_url_callback(
     return f
 
 
+def _request_matches(
+    req: HTTPrettyRequest, method: str, base_url: str, path: str
+) -> bool:
+    if req.method != method:
+        return False
+
+    parsed_url = urlparse(req.url)
+    if f"{parsed_url.scheme}://{parsed_url.netloc}" != base_url:
+        return False
+
+    if parsed_url.path != path:
+        return False
+
+    return True
+
+
 @pytest.fixture
 def find_ocm_http_request(
     ocm_url: str,
@@ -118,19 +134,26 @@ def find_ocm_http_request(
 ) -> Callable[[str, str], Optional[HTTPrettyRequest]]:
     def find_request(method: str, path: str) -> Optional[HTTPrettyRequest]:
         for req in httpretty.latest_requests():
-            if req.method != method:
-                continue
-
-            parsed_url = urlparse(req.url)
-            if f"{parsed_url.scheme}://{parsed_url.netloc}" != ocm_url:
-                continue
-
-            if parsed_url.path != path:
-                continue
-
-            return req
+            if _request_matches(req, method, ocm_url, path):
+                return req
 
         return None
+
+    return find_request
+
+
+@pytest.fixture
+def find_all_ocm_http_requests(
+    ocm_url: str,
+    httpretty: httpretty_module,
+) -> Callable[[str, str], list[HTTPrettyRequest]]:
+    def find_request(method: str, path: str) -> list[HTTPrettyRequest]:
+        matching_requests = []
+        for req in httpretty.latest_requests():
+            if _request_matches(req, method, ocm_url, path):
+                matching_requests.append(req)
+
+        return matching_requests
 
     return find_request
 

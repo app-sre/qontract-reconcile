@@ -1576,12 +1576,12 @@ class OCM:  # pylint: disable=too-many-public-methods
         return rs["kind"].endswith("List")
 
     def _get_json(
-        self, api: str, params: Optional[dict[str, Any]] = None
+        self, api: str, params: Optional[dict[str, Any]] = None, page_size: int = 100
     ) -> dict[str, Any]:
         responses = []
         if not params:
             params = {}
-        params["size"] = 100
+        params["size"] = page_size
         while True:
             rs = self._do_get_request(api, params=params)
             responses.append(rs)
