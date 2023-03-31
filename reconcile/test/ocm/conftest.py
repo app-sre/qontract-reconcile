@@ -46,7 +46,20 @@ def ocm_auth_mock(httpretty: httpretty_module, access_token_url: str) -> None:
 
 
 @pytest.fixture
-def ocm_api(ocm_auth_mock: None, access_token_url: str, ocm_url: str) -> OCMBaseClient:
+def ocm_api(
+    ocm_auth_mock: None,
+    access_token_url: str,
+    ocm_url: str,
+    register_ocm_url_responses: Callable[[list[OcmUrl]], int],
+    clusters: list[dict[str, Any]],
+) -> OCMBaseClient:
+    register_ocm_url_responses(
+        [
+            OcmUrl(
+                method="GET", uri="/api/clusters_mgmt/v1/clusters"
+            ).add_list_response(clusters)
+        ]
+    )
     return OCMBaseClient(
         access_token_client_id="some_client_id",
         access_token_client_secret="some_client_secret",
@@ -135,16 +148,7 @@ def clusters() -> list[dict[str, Any]]:
 @pytest.fixture
 def ocm(
     ocm_api: OCMBaseClient,
-    register_ocm_url_responses: Callable[[list[OcmUrl]], int],
-    clusters: list[dict[str, Any]],
 ) -> OCM:
-    register_ocm_url_responses(
-        [
-            OcmUrl(
-                method="GET", uri="/api/clusters_mgmt/v1/clusters"
-            ).add_list_response(clusters)
-        ]
-    )
     return OCM(
         "my-org",
         "org-id",
