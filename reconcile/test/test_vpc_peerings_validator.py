@@ -215,17 +215,25 @@ def query_data_vpc_cidr_pass_same_cluster() -> VpcPeeringsValidatorQueryData:
     )
 
 
-def test_query_cidr_validator_duplicate(query_data_vpc_cidr_duplicate: VpcPeeringsValidatorQueryData):
+def test_query_cidr_validator_duplicate(
+    query_data_vpc_cidr_duplicate: VpcPeeringsValidatorQueryData,
+):
     assert validate_no_cidr_overlap(query_data_vpc_cidr_duplicate) is False
 
 
-def test_query_cidr_validator_overlaps(query_data_vpc_cidr_overlap: VpcPeeringsValidatorQueryData):
+def test_query_cidr_validator_overlaps(
+    query_data_vpc_cidr_overlap: VpcPeeringsValidatorQueryData,
+):
     assert validate_no_cidr_overlap(query_data_vpc_cidr_overlap) is False
 
 
-def test_query_cidr_validator_diff_clusters(query_data_vpc_cidr_pass_diff_clusters: VpcPeeringsValidatorQueryData):
+def test_query_cidr_validator_diff_clusters(
+    query_data_vpc_cidr_pass_diff_clusters: VpcPeeringsValidatorQueryData,
+):
     assert validate_no_cidr_overlap(query_data_vpc_cidr_pass_diff_clusters) is True
 
 
-def test_query_cidr_validator_same_clusters(query_data_vpc_cidr_pass_same_cluster: VpcPeeringsValidatorQueryData):
+def test_query_cidr_validator_same_clusters(
+    query_data_vpc_cidr_pass_same_cluster: VpcPeeringsValidatorQueryData,
+):
     assert validate_no_cidr_overlap(query_data_vpc_cidr_pass_same_cluster) is True
