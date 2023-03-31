@@ -1,19 +1,37 @@
-import pytest
-from pytest_mock import MockerFixture
+from collections.abc import Callable
+from typing import Any
 
+import pytest
+
+from reconcile.test.fixtures import Fixtures
+from reconcile.test.ocm.fixtures import OcmUrl
 from reconcile.utils.ocm import OCM
 from reconcile.utils.ocm_base_client import OCMBaseClient
 
 
 @pytest.fixture
-def ocm(mocker: MockerFixture) -> OCM:
-    mocker.patch("reconcile.utils.ocm_base_client.OCMBaseClient._init_access_token")
-    mocker.patch("reconcile.utils.ocm_base_client.OCMBaseClient._init_request_headers")
-    mocker.patch("reconcile.utils.ocm.OCM.whoami")
-    mocker.patch("reconcile.utils.ocm.OCM._init_clusters")
-    mocker.patch("reconcile.utils.ocm.OCM._init_version_gates")
-    ocm_client = OCMBaseClient("url", "tid", "turl", "cid")
-    return OCM("name", "org_id", ocm_client)
+def ocm_osd_cluster_raw_spec() -> dict[str, Any]:
+    return Fixtures("clusters").get_anymarkup("osd_spec.json")
+
+
+@pytest.fixture
+def ocm(
+    ocm_api: OCMBaseClient,
+    register_ocm_url_responses: Callable[[list[OcmUrl]], int],
+    ocm_osd_cluster_raw_spec: dict[str, Any],
+) -> OCM:
+    register_ocm_url_responses(
+        [
+            OcmUrl(
+                method="GET", uri="/api/clusters_mgmt/v1/clusters"
+            ).add_list_response([ocm_osd_cluster_raw_spec])
+        ]
+    )
+    return OCM(
+        "my-org",
+        "org-id",
+        ocm_api,
+    )
 
 
 def test_no_blocked_versions(ocm: OCM) -> None:
