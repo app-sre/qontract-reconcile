@@ -8,6 +8,11 @@ from reconcile.utils.ocm import OCM
 
 @pytest.fixture
 def clusters() -> list[dict[str, Any]]:
+    """
+    This cluster fixture overrides the one in conftest.py
+    Clusters returned by this fixture are present in the
+    ocm fixture.
+    """
     return [Fixtures("clusters").get_anymarkup("osd_spec.json")]
 
 

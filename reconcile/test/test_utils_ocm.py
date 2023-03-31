@@ -1,18 +1,11 @@
 import json
-from collections.abc import Callable
 from copy import deepcopy
-from typing import Any
-from urllib.parse import urljoin
 
 import httpretty
 import pytest
 from httpretty.core import HTTPrettyRequest
-from pydantic import BaseModel
 from pytest_mock import MockerFixture
 
-from reconcile.ocm.types import OCMOidcIdp
-from reconcile.test.fixtures import Fixtures
-from reconcile.utils.exceptions import ParameterError
 from reconcile.utils.ocm import (
     OCM,
     OCMMap,
@@ -20,37 +13,6 @@ from reconcile.utils.ocm import (
     SectorConfigError,
 )
 from reconcile.utils.ocm_base_client import OCMBaseClient
-
-
-class OcmUrl(BaseModel):
-    name: str
-    uri: str
-    method: str = "POST"
-    responses: list[Any] = []
-
-
-@pytest.fixture
-def configure_httpretty(httpretty: httpretty, ocm_url: str) -> Callable:
-    def f(urls: list[OcmUrl]) -> int:
-        i = 0
-        for url in urls:
-            i += len(url.responses) or 1
-            httpretty.register_uri(
-                url.method.upper(),
-                urljoin(ocm_url, url.uri),
-                responses=[
-                    httpretty.Response(body=json.dumps(r)) for r in url.responses
-                ],
-                content_type="text/json",
-            )
-        return i
-
-    return f
-
-
-@pytest.fixture
-def fx():
-    return Fixtures("ocm")
 
 
 @pytest.fixture
@@ -66,22 +28,6 @@ def cluster() -> str:
 @pytest.fixture
 def cluster_id(cluster: str) -> str:
     return f"{cluster}-id"
-
-
-@pytest.fixture
-def oidc_idp(cluster: str) -> OCMOidcIdp:
-    return OCMOidcIdp(
-        id="idp-id",
-        cluster=cluster,
-        name="idp-name",
-        client_id="client-id",
-        client_secret="client-secret",
-        issuer="http://issuer.com",
-        email_claims=["email"],
-        name_claims=["name"],
-        username_claims=["username"],
-        groups_claims=["groups"],
-    )
 
 
 @pytest.fixture
@@ -343,140 +289,3 @@ def test_ocm_map_upgrade_policies_sector(ocm, mocker):
     # partial dependency definition, without ocm org. defaulting to sector's org
     s2 = Sector(name="s2", ocm=ocm1, dependencies=[s1], cluster_infos=[c2])
     assert ocm1.sectors["s2"] == s2
-
-
-@pytest.mark.parametrize("fixture_name", ["full", "minimal"])
-def test_ocm_get_oidc_idps(
-    fixture_name: str,
-    httpretty: httpretty,
-    configure_httpretty: Callable,
-    fx: Fixtures,
-    ocm: OCM,
-    cluster: str,
-) -> None:
-    fixture = fx.get_anymarkup(f"oidc/get_{fixture_name}.yml")
-    expected_return_value = OCMOidcIdp(**fixture["expected_return_value"])
-    request_count = configure_httpretty([OcmUrl(**i) for i in fixture["urls"]])
-
-    assert ocm.get_oidc_idps(cluster) == [expected_return_value]
-    assert len(httpretty.latest_requests()) == request_count
-
-
-@pytest.mark.parametrize(
-    "attr, bad_value",
-    [
-        ("client_secret", None),
-        ("email_claims", []),
-        ("name_claims", []),
-        ("username_claims", []),
-    ],
-)
-def test_ocm_create_oidc_idp_must_raise_an_error(
-    attr: str, bad_value: Any, ocm: OCM, oidc_idp: OCMOidcIdp
-) -> None:
-    setattr(oidc_idp, attr, bad_value)
-    with pytest.raises(ParameterError):
-        ocm.create_oidc_idp(oidc_idp)
-
-
-def test_ocm_create_oidc_idp(
-    httpretty: httpretty,
-    ocm: OCM,
-    ocm_url: str,
-    oidc_idp: OCMOidcIdp,
-    cluster_id: str,
-) -> None:
-    url = f"{ocm_url}/api/clusters_mgmt/v1/clusters/{cluster_id}/identity_providers"
-    request_data = {
-        "type": "OpenIDIdentityProvider",
-        "name": oidc_idp.name,
-        "mapping_method": "claim",
-        "open_id": {
-            "claims": {
-                "email": oidc_idp.email_claims,
-                "name": oidc_idp.name_claims,
-                "preferred_username": oidc_idp.username_claims,
-                "groups": oidc_idp.groups_claims,
-            },
-            "client_id": oidc_idp.client_id,
-            "client_secret": oidc_idp.client_secret,
-            "issuer": oidc_idp.issuer,
-        },
-    }
-
-    def request_callback(request, uri, response_headers):
-        assert request.headers.get("Content-Type") == "application/json"
-        assert json.loads(request.body) == request_data
-        return [201, response_headers, json.dumps({})]
-
-    httpretty.register_uri(
-        httpretty.POST, url, content_type="text/json", body=request_callback
-    )
-    ocm.create_oidc_idp(oidc_idp)
-
-
-@pytest.mark.parametrize(
-    "attr, bad_value",
-    [
-        ("client_secret", None),
-        ("email_claims", []),
-        ("name_claims", []),
-        ("username_claims", []),
-    ],
-)
-def test_ocm_update_oidc_idp_must_raise_an_error(
-    attr: str, bad_value: Any, ocm: OCM, oidc_idp: OCMOidcIdp
-) -> None:
-    setattr(oidc_idp, attr, bad_value)
-    with pytest.raises(ParameterError):
-        ocm.update_oidc_idp(id="1", oidc_idp=oidc_idp)
-
-
-def test_ocm_update_oidc_idp(
-    httpretty: httpretty,
-    ocm: OCM,
-    ocm_url: str,
-    oidc_idp: OCMOidcIdp,
-    cluster_id: str,
-) -> None:
-    url = f"{ocm_url}/api/clusters_mgmt/v1/clusters/{cluster_id}/identity_providers/idp-id-1"
-    request_data = {
-        "type": "OpenIDIdentityProvider",
-        "open_id": {
-            "claims": {
-                "email": oidc_idp.email_claims,
-                "name": oidc_idp.name_claims,
-                "preferred_username": oidc_idp.username_claims,
-                "groups": oidc_idp.groups_claims,
-            },
-            "client_id": oidc_idp.client_id,
-            "client_secret": oidc_idp.client_secret,
-            "issuer": oidc_idp.issuer,
-        },
-    }
-
-    def request_callback(request, uri, response_headers):
-        assert request.headers.get("Content-Type") == "application/json"
-        assert json.loads(request.body) == request_data
-        return [201, response_headers, json.dumps({})]
-
-    httpretty.register_uri(
-        httpretty.PATCH, url, content_type="text/json", body=request_callback
-    )
-    ocm.update_oidc_idp("idp-id-1", oidc_idp)
-
-
-def test_ocm_delete_idp(
-    httpretty: httpretty,
-    ocm: OCM,
-    ocm_url: str,
-    cluster: str,
-    cluster_id: str,
-) -> None:
-    url = f"{ocm_url}/api/clusters_mgmt/v1/clusters/{cluster_id}/identity_providers/idp-id-1"
-
-    def request_callback(request, uri, response_headers):
-        return [201, response_headers, json.dumps({})]
-
-    httpretty.register_uri(httpretty.DELETE, url, body=request_callback)
-    ocm.delete_idp(cluster, "idp-id-1")
