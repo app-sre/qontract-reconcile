@@ -169,6 +169,10 @@ def query_data_vpc_cidr_pass_diff_clusters() -> VpcPeeringsValidatorQueryData:
                         ClusterPeeringConnectionAccountV1(
                             provider="account-vpc",
                             vpc=AWSVPCV1(cidr_block="10.20.0.0/20", name="vpc1"),
+                        ),
+                        ClusterPeeringConnectionAccountV1(
+                            provider="account-vpc",
+                            vpc=AWSVPCV1(cidr_block="192.168.0.0/16", name="vpc2"),
                         )
                     ]
                 ),
@@ -182,6 +186,10 @@ def query_data_vpc_cidr_pass_diff_clusters() -> VpcPeeringsValidatorQueryData:
                         ClusterPeeringConnectionAccountV1(
                             provider="account-vpc",
                             vpc=AWSVPCV1(cidr_block="10.20.0.0/20", name="vpc2"),
+                        ),
+                        ClusterPeeringConnectionAccountV1(
+                            provider="account-vpc",
+                            vpc=AWSVPCV1(cidr_block="192.168.0.0/16", name="vpc2"),
                         )
                     ]
                 ),
@@ -227,10 +235,10 @@ def test_query_cidr_validator_overlaps(
     assert validate_no_cidr_overlap(query_data_vpc_cidr_overlap) is False
 
 
-# def test_query_cidr_validator_diff_clusters(
-#     query_data_vpc_cidr_pass_diff_clusters: VpcPeeringsValidatorQueryData,
-# ):
-#     assert validate_no_cidr_overlap(query_data_vpc_cidr_pass_diff_clusters) is True
+def test_query_cidr_validator_diff_clusters(
+    query_data_vpc_cidr_pass_diff_clusters: VpcPeeringsValidatorQueryData,
+):
+    assert validate_no_cidr_overlap(query_data_vpc_cidr_pass_diff_clusters) is True
 
 
 def test_query_cidr_validator_same_clusters(
