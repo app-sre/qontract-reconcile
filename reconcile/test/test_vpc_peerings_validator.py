@@ -173,7 +173,7 @@ def query_data_vpc_cidr_pass_diff_clusters() -> VpcPeeringsValidatorQueryData:
                         ClusterPeeringConnectionAccountV1(
                             provider="account-vpc",
                             vpc=AWSVPCV1(cidr_block="192.168.0.0/16", name="vpc2"),
-                        )
+                        ),
                     ]
                 ),
             ),
@@ -190,7 +190,7 @@ def query_data_vpc_cidr_pass_diff_clusters() -> VpcPeeringsValidatorQueryData:
                         ClusterPeeringConnectionAccountV1(
                             provider="account-vpc",
                             vpc=AWSVPCV1(cidr_block="192.168.0.0/16", name="vpc2"),
-                        )
+                        ),
                     ]
                 ),
             ),
