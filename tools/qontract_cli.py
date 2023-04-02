@@ -1178,7 +1178,9 @@ def ocm_login(ctx, org_name):
 
     client_secret = secret_reader.read(ocm["accessTokenClientSecret"])
     access_token_command = f'curl -s -X POST {ocm["accessTokenUrl"]} -d "grant_type=client_credentials" -d "client_id={ocm["accessTokenClientId"]}" -d "client_secret={client_secret}" | jq -r .access_token'
-    print(f'ocm login --url {ocm["url"]} --token $({access_token_command})')
+    print(
+        f'ocm login --url {ocm["environment"]["url"]} --token $({access_token_command})'
+    )
 
 
 @get.command(
