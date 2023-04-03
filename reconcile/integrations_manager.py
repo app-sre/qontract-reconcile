@@ -200,17 +200,22 @@ def values_set_shard_specifics(
                     override.update_shard_if_matched(shard)
 
 
-def get_image_tag_from_ref(ref: str) -> str:
+def get_image_tag_from_ref(ref: str, upstream: str) -> str:
+    gh_prefix = "https://github.com/"
+    if upstream.startswith(gh_prefix):
+        upstream = upstream[len(gh_prefix) :]
     settings = queries.get_app_interface_settings()
     gh_token = get_default_config()["token"]
     github = Github(gh_token, base_url=GH_BASE_URL)
-    commit_sha = github.get_repo("app-sre/qontract-reconcile").get_commit(sha=ref).sha
+    commit_sha = github.get_repo(upstream).get_commit(sha=ref).sha
     return commit_sha[: settings["hashLength"]]
 
 
 def collect_parameters(
     template: Mapping[str, Any],
     environment: Mapping[str, Any],
+    upstream: str,
+    image: str,
     image_tag_from_ref: Optional[Mapping[str, str]],
 ) -> dict[str, Any]:
     parameters: dict[str, Any] = {}
@@ -228,13 +233,16 @@ def collect_parameters(
     if image_tag_from_ref:
         for e, r in image_tag_from_ref.items():
             if environment["name"] == e:
-                parameters["IMAGE_TAG"] = get_image_tag_from_ref(r)
-
+                parameters["IMAGE_TAG"] = get_image_tag_from_ref(r, upstream)
+    if image:
+        parameters["IMAGE"] = image
     return parameters
 
 
 def construct_oc_resources(
     namespace_info: Mapping[str, Any],
+    upstream: str,
+    image: str,
     image_tag_from_ref: Optional[Mapping[str, str]],
     integration_overrides: Mapping[str, list[IntegrationShardSpecOverride]],
 ) -> list[OpenshiftResource]:
@@ -243,7 +251,7 @@ def construct_oc_resources(
     template = helm.template(values)
 
     parameters = collect_parameters(
-        template, namespace_info["environment"], image_tag_from_ref
+        template, namespace_info["environment"], upstream, image, image_tag_from_ref
     )
     resources = oc_process(template, parameters)
     return [
@@ -252,6 +260,7 @@ def construct_oc_resources(
             QONTRACT_INTEGRATION,
             QONTRACT_INTEGRATION_VERSION,
             error_details=r.get("metadata", {}).get("name"),
+            caller_name=upstream,
         )
         for r in resources
     ]
@@ -270,6 +279,8 @@ def initialize_shard_specs(
 def fetch_desired_state(
     namespaces: Iterable[Mapping[str, Any]],
     ri: ResourceInventory,
+    upstream: str,
+    image: str,
     image_tag_from_ref: Optional[Mapping[str, str]],
     environment_override_mapping: Mapping[
         str, Mapping[str, list[IntegrationShardSpecOverride]]
@@ -281,6 +292,8 @@ def fetch_desired_state(
         cluster = namespace_info["cluster"]["name"]
         oc_resources = construct_oc_resources(
             namespace_info,
+            upstream,
+            image,
             image_tag_from_ref,
             environment_override_mapping[environment_name],
         )
@@ -345,6 +358,15 @@ def initialize_environment_override_mapping(
     return environment_override_mapping
 
 
+def filter_integrations(
+    integrations: Iterable[Mapping[str, Any]], upstream: Optional[str] = None
+):
+    if upstream is None:
+        return integrations
+
+    return [i for i in integrations if i.get("upstream", "") == upstream]
+
+
 @defer
 def run(
     dry_run,
@@ -354,13 +376,18 @@ def run(
     internal=None,
     use_jump_host=True,
     image_tag_from_ref=None,
+    upstream=None,
+    image=None,
     defer=None,
 ):
     # Beware, environment_name can be empty! It's optional to set it!
     # If not set, all environments should be considered.
     all_integrations = queries.get_integrations(managed=True)
-    namespaces = collect_namespaces(all_integrations, environment_name)
-    managed_integrations = collect_managed_integrations(all_integrations, namespaces)
+    filtered_integrations = filter_integrations(all_integrations, upstream)
+    namespaces = collect_namespaces(filtered_integrations, environment_name)
+    managed_integrations = collect_managed_integrations(
+        filtered_integrations, namespaces
+    )
     environment_override_mapping = initialize_environment_override_mapping(
         namespaces, managed_integrations
     )
@@ -369,15 +396,28 @@ def run(
         logging.debug("Nothing to do, exiting.")
         sys.exit(ExitCodes.SUCCESS)
 
-    ri, oc_map = ob.fetch_current_state(
-        namespaces=namespaces,
-        thread_pool_size=thread_pool_size,
-        integration=QONTRACT_INTEGRATION,
-        integration_version=QONTRACT_INTEGRATION_VERSION,
-        override_managed_types=["Deployment", "StatefulSet", "CronJob", "Service"],
-        internal=internal,
-        use_jump_host=use_jump_host,
-    )
+    fetch_args = {
+        "namespaces": namespaces,
+        "thread_pool_size": thread_pool_size,
+        "integration": QONTRACT_INTEGRATION,
+        "integration_version": QONTRACT_INTEGRATION_VERSION,
+        "override_managed_types": ["Deployment", "StatefulSet", "CronJob", "Service"],
+        "internal": internal,
+        "use_jump_host": use_jump_host,
+    }
+
+    if not image:
+        image = "quay.io/app-sre/qontract-reconcile"
+
+    if upstream:
+        use_upstream = True
+        fetch_args["caller"] = upstream
+    else:
+        # Not set to fetch_args on purpose, fallback for cases where caller is not yet set
+        use_upstream = False
+        upstream = "https://github.com/app-sre/qontract-reconcile"
+
+    ri, oc_map = ob.fetch_current_state(**fetch_args)
     defer(oc_map.cleanup)
     shard_manager = IntegrationShardManager(
         strategies={
@@ -391,9 +431,18 @@ def run(
     )
     initialize_shard_specs(namespaces, shard_manager)
     fetch_desired_state(
-        namespaces, ri, image_tag_from_ref, environment_override_mapping
+        namespaces,
+        ri,
+        upstream,
+        image,
+        image_tag_from_ref,
+        environment_override_mapping,
     )
-    ob.realize_data(dry_run, oc_map, ri, thread_pool_size)
+
+    if use_upstream:
+        ob.realize_data(dry_run, oc_map, ri, thread_pool_size, caller=upstream)
+    else:
+        ob.realize_data(dry_run, oc_map, ri, thread_pool_size)
 
     if ri.has_error_registered():
         sys.exit(ExitCodes.ERROR)

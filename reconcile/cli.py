@@ -2445,6 +2445,21 @@ def vault_replication(ctx):
     help="git ref to use as IMAGE_TAG for given environment. example: '--image-tag-from-ref app-interface-dev=master'.",
     multiple=True,
     callback=parse_image_tag_from_ref,
+    envvar="INTEGRATIONS_MANAGER_IMAGE_TAG_FROM_REF",
+)
+@click.option(
+    "--upstream",
+    "-u",
+    help="specify upstream of managed integrations",
+    default=None,
+    envvar="INTEGRATIONS_MANAGER_UPSTREAM",
+)
+@click.option(
+    "--image",
+    "-i",
+    help="image to use for integrations",
+    default=None,
+    envvar="INTEGRATIONS_MANAGER_IMAGE",
 )
 @click.pass_context
 def integrations_manager(
@@ -2454,6 +2469,8 @@ def integrations_manager(
     internal,
     use_jump_host,
     image_tag_from_ref,
+    upstream,
+    image,
 ):
     import reconcile.integrations_manager
 
@@ -2466,6 +2483,8 @@ def integrations_manager(
         internal,
         use_jump_host,
         image_tag_from_ref,
+        upstream,
+        image,
     )
 
 
