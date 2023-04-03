@@ -173,6 +173,7 @@ def test_ocm_delete_idp(
     cluster_name: str,
     cluster_id: str,
     register_ocm_url_callback: Callable[[str, str, Callable], None],
+    find_ocm_http_request: Callable[[str, str], Optional[HTTPrettyRequest]],
 ) -> None:
     url = f"/api/clusters_mgmt/v1/clusters/{cluster_id}/identity_providers/idp-id-1"
 
@@ -183,3 +184,4 @@ def test_ocm_delete_idp(
 
     register_ocm_url_callback("DELETE", url, request_callback)
     ocm.delete_idp(cluster_name, "idp-id-1")
+    assert find_ocm_http_request("DELETE", url)
