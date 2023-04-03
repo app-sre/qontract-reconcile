@@ -48,6 +48,9 @@ from reconcile.utils.semver_helper import make_semver
 QONTRACT_INTEGRATION = "integrations-manager"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
+IMAGE_DEFAULT = "quay.io/app-sre/qontract-reconcile"
+UPSTREAM_DEFAULT = "https://github.com/app-sre/qontract-reconcile"
+
 
 class ShardingStrategy(ABC):
     @abstractmethod
@@ -407,7 +410,7 @@ def run(
     }
 
     if not image:
-        image = "quay.io/app-sre/qontract-reconcile"
+        image = IMAGE_DEFAULT
 
     if upstream:
         use_upstream = True
@@ -415,7 +418,7 @@ def run(
     else:
         # Not set to fetch_args on purpose, fallback for cases where caller is not yet set
         use_upstream = False
-        upstream = "https://github.com/app-sre/qontract-reconcile"
+        upstream = UPSTREAM_DEFAULT
 
     ri, oc_map = ob.fetch_current_state(**fetch_args)
     defer(oc_map.cleanup)
