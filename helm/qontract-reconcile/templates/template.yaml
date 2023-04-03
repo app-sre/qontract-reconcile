@@ -231,6 +231,10 @@ objects:
           {{- if eq $integration.name "integrations-manager" }}
           - name: MANAGER_DRY_RUN
             value: ${MANAGER_DRY_RUN}
+          - name: INTEGRATIONS_MANAGER_UPSTREAM
+            value: "${INTEGRATIONS_MANAGER_UPSTREAM}"
+          - name: INTEGRATIONS_MANAGER_IMAGE
+            value: "${INTEGRATIONS_MANAGER_IMAGE}"
           {{- end }}
           - name: INTEGRATION_NAME
             value: {{ $integration.name }}
@@ -312,10 +316,6 @@ objects:
             value: "${INTERNAL_CERTIFICATES_IMAGE_TAG}"
           - name: INTERNAL_CERTIFICATES_IMAGE_PULL_POLICY
             value: "${INTERNAL_CERTIFICATES_IMAGE_PULL_POLICY}"
-          - name: INTEGRATIONS_MANAGER_UPSTREAM
-            value: "${INTEGRATIONS_MANAGER_UPSTREAM}"
-          - name: INTEGRATIONS_MANAGER_IMAGE
-            value: "${INTEGRATIONS_MANAGER_IMAGE}"
           {{- end }}
           {{- with $integration.extraEnv }}
           {{- range $i, $env := . }}

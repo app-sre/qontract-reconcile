@@ -129,6 +129,10 @@ objects:
             value: ${DRY_RUN}
           - name: MANAGER_DRY_RUN
             value: ${MANAGER_DRY_RUN}
+          - name: INTEGRATIONS_MANAGER_UPSTREAM
+            value: "${INTEGRATIONS_MANAGER_UPSTREAM}"
+          - name: INTEGRATIONS_MANAGER_IMAGE
+            value: "${INTEGRATIONS_MANAGER_IMAGE}"
           - name: INTEGRATION_NAME
             value: integrations-manager
           - name: SLEEP_DURATION_SECS
@@ -179,10 +183,6 @@ objects:
             value: "${INTERNAL_CERTIFICATES_IMAGE_TAG}"
           - name: INTERNAL_CERTIFICATES_IMAGE_PULL_POLICY
             value: "${INTERNAL_CERTIFICATES_IMAGE_PULL_POLICY}"
-          - name: INTEGRATIONS_MANAGER_UPSTREAM
-            value: "${INTEGRATIONS_MANAGER_UPSTREAM}"
-          - name: INTEGRATIONS_MANAGER_IMAGE
-            value: "${INTEGRATIONS_MANAGER_IMAGE}"
           resources:
             limits:
               cpu: ${INTEGRATIONS_MANAGER_CPU_LIMIT}
