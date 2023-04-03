@@ -66,3 +66,12 @@ def test_version_not_blocked_regex(ocm: OCM) -> None:
 def test_version_invalid_regex(ocm: OCM) -> None:
     with pytest.raises(TypeError):
         OCM("name", "org_id", ocm._ocm_client, blocked_versions=["["])
+
+
+def test_available_upgrades_versions(ocm: OCM) -> None:
+    assert ocm.available_cluster_upgrades["test-cluster"] == [
+        "4.11.33",
+        "4.12.1",
+        "4.12.8",
+        "4.12.9",
+    ]
