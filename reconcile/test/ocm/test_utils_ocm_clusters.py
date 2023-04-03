@@ -1,11 +1,9 @@
-from typing import (
-    Any,
-    Callable,
-    Optional,
-)
+from collections.abc import Callable
+from typing import Optional
 
 from pytest_mock import MockerFixture
 
+from reconcile.test.ocm.fixtures import OcmUrl
 from reconcile.test.ocm.test_utils_ocm_labels import (
     build_organization_label,
     build_subscription_label,
@@ -140,7 +138,7 @@ def test_utils_ocm_discover_clusters_for_empty_organization_id_list(
 def test_discover_clusters_by_labels(
     mocker: MockerFixture,
     ocm_api: OCMBaseClient,
-    register_ocm_get_list_handler: Callable[[str, Optional[Any]], None],
+    register_ocm_url_responses: Callable[[list[OcmUrl]], int],
 ) -> None:
     """
     Tests that the discover_clusters_by_labels function discovers subscription and
@@ -152,19 +150,22 @@ def test_discover_clusters_by_labels(
         clusters, "get_cluster_details_for_subscriptions"
     )
 
-    register_ocm_get_list_handler(
-        "/api/accounts_mgmt/v1/labels",
+    register_ocm_url_responses(
         [
-            build_subscription_label("label", "subs_value", "sub_id").dict(
-                by_alias=True
-            ),
-            build_subscription_label("label", "subs_value", "sub_id_2").dict(
-                by_alias=True
-            ),
-            build_organization_label("label", "org_value", "org_id").dict(
-                by_alias=True
-            ),
-        ],
+            OcmUrl(method="GET", uri="/api/accounts_mgmt/v1/labels",).add_list_response(
+                [
+                    build_subscription_label("label", "subs_value", "sub_id").dict(
+                        by_alias=True
+                    ),
+                    build_subscription_label("label", "subs_value", "sub_id_2").dict(
+                        by_alias=True
+                    ),
+                    build_organization_label("label", "org_value", "org_id").dict(
+                        by_alias=True
+                    ),
+                ]
+            )
+        ]
     )
 
     # call discovery
@@ -178,7 +179,9 @@ def test_discover_clusters_by_labels(
     get_clusters_for_subscriptions_mock.assert_called_once_with(
         ocm_api=ocm_api,
         subscription_filter=(
-            Filter().is_in("id", ["sub_id", "sub_id_2"])
+            Filter().is_in(  # pylint: disable=unsupported-binary-operation
+                "id", ["sub_id", "sub_id_2"]
+            )
             | Filter().is_in("organization_id", ["org_id"])
         ),
     )
@@ -187,7 +190,7 @@ def test_discover_clusters_by_labels(
 def test_get_clusters_for_subscriptions(
     mocker: MockerFixture,
     ocm_api: OCMBaseClient,
-    register_ocm_get_list_handler: Callable[[str, Optional[Any]], None],
+    register_ocm_url_responses: Callable[[list[OcmUrl]], int],
 ) -> None:
     """
     Tests the subscription and organization labels are properly queried
@@ -212,14 +215,19 @@ def test_get_clusters_for_subscriptions(
         ]
     )
 
-    register_ocm_get_list_handler(
-        "/api/clusters_mgmt/v1/clusters",
+    register_ocm_url_responses(
         [
-            build_ocm_cluster(
-                name="cl1",
-                subs_id=subscription_id,
+            OcmUrl(
+                method="GET", uri="/api/clusters_mgmt/v1/clusters"
+            ).add_list_response(
+                [
+                    build_ocm_cluster(
+                        name="cl1",
+                        subs_id=subscription_id,
+                    )
+                ]
             )
-        ],
+        ]
     )
 
     subscription_filter = Filter().eq("id", subscription_id)

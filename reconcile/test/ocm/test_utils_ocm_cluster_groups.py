@@ -1,13 +1,11 @@
 import json
-from typing import (
-    Any,
-    Callable,
-    Optional,
-)
+from collections.abc import Callable
+from typing import Optional
 
 import httpretty as httpretty_module
 from httpretty.core import HTTPrettyRequest
 
+from reconcile.test.ocm.fixtures import OcmUrl
 from reconcile.utils.ocm.cluster_groups import (
     OCMClusterGroup,
     OCMClusterGroupId,
@@ -36,19 +34,24 @@ def build_ocm_cluster_group(
 
 def test_get_cluster_groups(
     ocm_api: OCMBaseClient,
-    register_ocm_get_list_handler: Callable[[str, Optional[Any]], None],
+    register_ocm_url_responses: Callable[[list[OcmUrl]], int],
 ) -> None:
     cluster_id = "cluster_id"
-    register_ocm_get_list_handler(
-        build_cluster_groups_url(cluster_id),
+    register_ocm_url_responses(
         [
-            build_ocm_cluster_group(
-                OCMClusterGroupId.DEDICATED_ADMINS, {"user-1", "user-2"}
+            OcmUrl(
+                method="GET", uri=build_cluster_groups_url(cluster_id)
+            ).add_list_response(
+                [
+                    build_ocm_cluster_group(
+                        OCMClusterGroupId.DEDICATED_ADMINS, {"user-1", "user-2"}
+                    ),
+                    build_ocm_cluster_group(
+                        OCMClusterGroupId.CLUSTER_ADMIN, {"user-3", "user-4"}
+                    ),
+                ],
             ),
-            build_ocm_cluster_group(
-                OCMClusterGroupId.CLUSTER_ADMIN, {"user-3", "user-4"}
-            ),
-        ],
+        ]
     )
     groups = get_cluster_groups(
         ocm_api=ocm_api,
@@ -62,14 +65,14 @@ def test_get_cluster_groups(
 
 def test_add_user_to_cluster_group(
     ocm_api: OCMBaseClient,
-    register_ocm_request_handler: Callable[[str, str, Optional[Any]], None],
-    find_http_request: Callable[[str, str], Optional[HTTPrettyRequest]],
+    register_ocm_url_responses: Callable[[list[OcmUrl]], int],
+    find_ocm_http_request: Callable[[str, str], Optional[HTTPrettyRequest]],
 ) -> None:
     cluster_id = "cluster_id"
     user_name = "user-to-add"
     group = OCMClusterGroupId.DEDICATED_ADMINS
     add_user_url = build_cluster_group_users_url(cluster_id, group)
-    register_ocm_request_handler("POST", add_user_url, None)
+    register_ocm_url_responses([OcmUrl(uri=add_user_url)])
 
     add_user_to_cluster_group(
         ocm_api=ocm_api,
@@ -78,21 +81,21 @@ def test_add_user_to_cluster_group(
         user_name=user_name,
     )
 
-    post_request = find_http_request("POST", add_user_url)
+    post_request = find_ocm_http_request("POST", add_user_url)
     assert isinstance(post_request, HTTPrettyRequest)
     assert json.loads(post_request.body).get("id") == user_name
 
 
 def test_delete_user_from_cluster_group(
     ocm_api: OCMBaseClient,
-    register_ocm_request_handler: Callable[[str, str, Optional[Any]], None],
+    register_ocm_url_responses: Callable[[list[OcmUrl]], int],
     httpretty: httpretty_module,
 ) -> None:
     cluster_id = "cluster_id"
     user_name = "user-to-delete"
     group = OCMClusterGroupId.DEDICATED_ADMINS
     user_delete_url = build_cluster_group_user_url(cluster_id, group, user_name)
-    register_ocm_request_handler("DELETE", user_delete_url, None)
+    register_ocm_url_responses([OcmUrl(method="DELETE", uri=user_delete_url)])
 
     delete_user_from_cluster_group(
         ocm_api=ocm_api,
