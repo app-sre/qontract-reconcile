@@ -10,6 +10,7 @@ from typing import (
     Union,
 )
 
+from pydantic import BaseModel
 from requests import (
     Session,
     codes,
@@ -151,7 +152,7 @@ class OCMBaseClient:
         r.raise_for_status()
 
 
-class OCMAPIClientConfiguration(Protocol):
+class OCMAPIClientConfigurationProtocol(Protocol):
     url: str
     access_token_client_id: str
     access_token_url: str
@@ -161,8 +162,15 @@ class OCMAPIClientConfiguration(Protocol):
         ...
 
 
+class OCMAPIClientConfiguration(BaseModel, arbitrary_types_allowed=True):
+    url: str
+    access_token_client_id: str
+    access_token_url: str
+    access_token_client_secret: HasSecret
+
+
 def init_ocm_base_client(
-    cfg: OCMAPIClientConfiguration,
+    cfg: OCMAPIClientConfigurationProtocol,
     secret_reader: SecretReaderBase,
     session: Optional[Session] = None,
 ) -> OCMBaseClient:

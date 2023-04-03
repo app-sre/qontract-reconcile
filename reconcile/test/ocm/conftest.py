@@ -35,7 +35,7 @@ def ocm_url() -> str:
     return "http://ocm"
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def ocm_auth_mock(httpretty: httpretty_module, access_token_url: str) -> None:
     httpretty.register_uri(
         httpretty.POST,
@@ -47,7 +47,6 @@ def ocm_auth_mock(httpretty: httpretty_module, access_token_url: str) -> None:
 
 @pytest.fixture
 def ocm_api(
-    ocm_auth_mock: None,
     access_token_url: str,
     ocm_url: str,
     register_ocm_url_responses: Callable[[list[OcmUrl]], int],

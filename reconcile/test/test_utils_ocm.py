@@ -1,14 +1,7 @@
-from copy import deepcopy
-
 import pytest
 from pytest_mock import MockerFixture
 
-from reconcile.utils.ocm import (
-    OCM,
-    OCMMap,
-    Sector,
-    SectorConfigError,
-)
+from reconcile.utils.ocm import OCM
 from reconcile.utils.ocm_base_client import OCMBaseClient
 
 
@@ -115,92 +108,3 @@ def test_get_version_gate(ocm):
     gates = ocm.get_version_gates("4.9", sts_only=True)
     assert gates == [{"version_raw_id_prefix": "4.9", "sts_only": True}]
     assert len(ocm.get_version_gates("4.8")) == 0
-
-
-def test_sector_validate_dependencies(ocm):
-    sector1 = Sector(name="sector1", ocm=ocm)
-    sector2 = Sector(name="sector2", ocm=ocm, dependencies=[sector1])
-    sector3 = Sector(name="sector3", ocm=ocm, dependencies=[sector2])
-    assert sector3.validate_dependencies()
-
-    # zero-level loop sector1 -> sector1
-    sector1 = Sector(name="sector1", ocm=ocm)
-    sector1.dependencies = [sector1]
-    with pytest.raises(SectorConfigError):
-        sector1.validate_dependencies()
-
-    # single-level loop sector2 -> sector1 -> sector2
-    sector1 = Sector(name="sector1", ocm=ocm)
-    sector2 = Sector(name="sector2", ocm=ocm, dependencies=[sector1])
-    sector1.dependencies = [sector2]
-    with pytest.raises(SectorConfigError):
-        sector2.validate_dependencies()
-
-    # greater-level loop sector3 -> sector2 -> sector1 -> sector3
-    sector1 = Sector(name="sector1", ocm=ocm)
-    sector2 = Sector(name="sector2", ocm=ocm, dependencies=[sector1])
-    sector3 = Sector(name="sector3", ocm=ocm, dependencies=[sector2])
-    sector1.dependencies = [sector3]
-    with pytest.raises(SectorConfigError):
-        sector3.validate_dependencies()
-
-
-def test_ocm_map_upgrade_policies_sector(ocm, mocker):
-    mocker.patch("reconcile.utils.ocm.ocm.SecretReader")
-    sectors = [
-        {"name": "s1"},
-        {"name": "s2", "dependencies": [{"name": "s1"}]},
-        {"name": "s3", "dependencies": [{"ocm": {"name": "ocm1"}, "name": "s1"}]},
-    ]
-    ocm1_info = {
-        "name": "ocm1",
-        "sectors": sectors,
-        "orgId": "orgId1",
-        "environment": {
-            "name": "name",
-            "url": "u",
-            "accessTokenClientId": "atci",
-            "accessTokenUrl": "atu",
-            "accessTokenClientSecret": "atcs",
-        },
-    }
-    c1 = {
-        "name": "c1",
-        "ocm": ocm1_info,
-        "upgradePolicy": {"workload": "w1"},
-    }
-    c2 = {
-        "name": "c2",
-        "ocm": ocm1_info,
-        "upgradePolicy": {"workload": "w1", "conditions": {"sector": "s2"}},
-    }
-
-    # second org, using the same sector names
-    ocm2_info = deepcopy(ocm1_info)
-    ocm2_info["name"] = "ocm2"
-    ocm2_info["orgId"] = ("orgId2",)
-    c3 = {
-        "name": "c3",
-        "ocm": ocm2_info,
-        "upgradePolicy": {"workload": "w1", "conditions": {"sector": "s3"}},
-    }
-
-    mocker.patch("reconcile.utils.ocm.OCM.is_ready").return_value = True
-    ocm_map = OCMMap(clusters=[c1, c2, c3])
-    assert "ocm1" in ocm_map.ocm_map
-    assert "ocm2" in ocm_map.ocm_map
-
-    # all sectors are reported, even the ones without clusters
-    ocm1 = ocm_map["ocm1"]
-    assert len(ocm1.sectors) == 3
-
-    ocm2 = ocm_map["ocm2"]
-    assert len(ocm2.sectors) == 3
-
-    # no dependencies
-    s1 = Sector(name="s1", ocm=ocm1)
-    assert ocm1.sectors["s1"] == s1
-
-    # partial dependency definition, without ocm org. defaulting to sector's org
-    s2 = Sector(name="s2", ocm=ocm1, dependencies=[s1], cluster_infos=[c2])
-    assert ocm1.sectors["s2"] == s2
