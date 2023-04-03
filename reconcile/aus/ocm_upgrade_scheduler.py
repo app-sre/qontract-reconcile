@@ -70,15 +70,17 @@ class OCMClusterUpgradeSchedulerIntegration(
             supported_product = (
                 cluster.spec and cluster.spec.product in SUPPORTED_OCM_PRODUCTS
             )
+            in_env_shard = cluster.ocm and ocm_env.name == cluster.ocm.environment.name
             in_org_shard = org_name is None or (
                 cluster.ocm and cluster.ocm.name == org_name
             )
+            in_shard = in_env_shard and in_org_shard
             if (
                 integration_is_enabled(self.name, cluster)
                 and cluster.ocm
                 and cluster.upgrade_policy
                 and supported_product
-                and in_org_shard
+                and in_shard
             ):
                 specs_per_org[cluster.ocm.name].append(
                     ClusterUpgradeSpec(

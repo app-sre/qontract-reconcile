@@ -78,7 +78,9 @@ class OCMAddonsUpgradeSchedulerOrgIntegration(
                 query_func=gql.get_api().query
             ).organizations
             or []
-            if org.addon_managed_upgrades and (org_name is None or org.name == org_name)
+            if org.environment.name == ocm_env.name
+            and org.addon_managed_upgrades
+            and (org_name is None or org.name == org_name)
         }
 
 
