@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -34,11 +35,13 @@ class CreateAppInterfaceNotificator(MergeRequestBase):
         notification: Notification,
         labels: Optional[list[str]] = None,
         email_base_path: Path = Path("data") / "app-interface" / "emails",
+        dry_run: bool = False,
     ):
         self._notification_as_dict = notification.dict()
         super().__init__()
         self._notification = notification
         self._email_base_path = email_base_path
+        self._dry_run = dry_run
         self.labels = labels if labels else [DO_NOT_MERGE_HOLD]
 
     @property
@@ -70,15 +73,21 @@ class CreateAppInterfaceNotificator(MergeRequestBase):
         content = app_interface_email(
             name=f"{self.name}-{ts}",
             subject=subject,
-            users=self._notification.recipients,
             body=self._notification.description,
+            users=self._notification.recipients,
+            apps=self._notification.services,
         )
 
         email_path = self._email_base_path / f"{ts}.yml"
         commit_message = f"[{self.name}] adding notification"
-        gitlab_cli.create_file(
-            branch_name=self.branch,
-            file_path=str(email_path),
-            commit_message=commit_message,
-            content=content,
-        )
+        if not self._dry_run:
+            logging.info(f"no-dry-run: creating gitlab file: {email_path}")
+            gitlab_cli.create_file(
+                branch_name=self.branch,
+                file_path=str(email_path),
+                commit_message=commit_message,
+                content=content,
+            )
+        else:
+            logging.info(f"dry-run: skipping gitlab file creation: {email_path}")
+            logging.info(f"email: {content}")

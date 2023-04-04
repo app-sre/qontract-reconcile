@@ -11,6 +11,7 @@
               role: member
           users:
             - org_username: SamanthaCristoforetti
+              name: Samantha Cristoforetti
     - name: esa-flight-control
       roles:
         - glitchtip_roles:
@@ -22,17 +23,22 @@
               role: owner
           users:
             - org_username: GlobalFlightDirector
+              name: Global  Fligh t Director
         - glitchtip_roles:
             - organization:
                 name: ESA
               role: member
           users:
             - org_username: MatthiasMaurer
+              name: Matthias Maurer
             - org_username: TimPeake
+              name: Tim Peake
   organization:
     name: ESA
     instance:
       name: glitchtip-dev
+  app:
+    path: /path/to/app
 - name: rosetta-flight-control
   platform: python
   namespaces: []
@@ -48,17 +54,22 @@
               role: owner
           users:
             - org_username: GlobalFlightDirector
+              name: Global Flight Director
         - glitchtip_roles:
             - organization:
                 name: ESA
               role: member
           users:
             - org_username: MatthiasMaurer
+              name: Matthias Maurer
             - org_username: TimPeake
+              name: Tim Peake
   organization:
     name: ESA
     instance:
       name: glitchtip-dev
+  app:
+    path: /path/to/app
 - name: apollo-11-spacecraft
   platform: python
   namespaces: []
@@ -71,7 +82,9 @@
               role: member
           users:
             - org_username: NeilArmstrong
+              name: Neil Armstrong
             - org_username: BuzzAldrin
+              name: Buzz Aldrin
     - name: nasa-flight-control
       roles:
         - glitchtip_roles:
@@ -83,16 +96,20 @@
               role: owner
           users:
             - org_username: GlobalFlightDirector
+              name: Global Flight Director
         - glitchtip_roles:
             - organization:
                 name: NASA
               role: member
           users:
             - org_username: MichaelCollins
+              name: Michael Collins
   organization:
     name: NASA
     instance:
       name: glitchtip-dev
+  app:
+    path: /path/to/app
 - name: apollo-11-flight-control
   platform: python
   namespaces: []
@@ -108,13 +125,17 @@
               role: owner
           users:
             - org_username: GlobalFlightDirector
+              name: Global Flight Director
         - glitchtip_roles:
             - organization:
                 name: NASA
               role: member
           users:
             - org_username: MichaelCollins
+              name: Michael Collins
   organization:
     name: NASA
     instance:
       name: glitchtip-dev
+  app:
+    path: /path/to/app

@@ -14,6 +14,7 @@ query Projects {
           role
         }
         users {
+          name
           org_username
         }
       }
@@ -51,6 +52,10 @@ query Projects {
           e2eTests
         }
       }
+    }
+    # for gltichtip access revalidation
+    app {
+      path
     }
   }
 }
