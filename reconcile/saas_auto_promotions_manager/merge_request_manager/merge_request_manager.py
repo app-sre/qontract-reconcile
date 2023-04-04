@@ -169,7 +169,13 @@ class MergeRequestManager:
         )
         description = self._renderer.render_description(subscriber=subscriber)
         title = self._renderer.render_title(subscriber=subscriber)
-        logging.info("Open MR for %s", subscriber.target_file_path)
+        logging.info(
+            "Open MR for path: %s namespace: %s ref: %s target_hashes: %s",
+            subscriber.target_file_path,
+            subscriber.namespace_file_path,
+            subscriber.desired_ref,
+            subscriber.desired_hashes,
+        )
         self._vcs.open_app_interface_merge_request(
             mr=SAPMMR(
                 sapm_label=SAPM_LABEL,

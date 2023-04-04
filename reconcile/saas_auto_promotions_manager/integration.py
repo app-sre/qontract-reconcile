@@ -112,6 +112,7 @@ def init_external_dependencies(
     - VCS -> Gitlab / Github queries
     - SaaSFileInventory -> qontract-server GQL query
     - DeploymentState -> S3 queries
+    - MergeRequestManager -> Managing SAPM MRs with app-interface
     """
     vault_settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
