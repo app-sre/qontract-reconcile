@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import base64
-import functools
 import json
 import os
 import re
@@ -75,10 +74,7 @@ from reconcile.utils.oc import (
     OCLogMsg,
 )
 from reconcile.utils.oc_map import init_oc_map_from_clusters
-from reconcile.utils.ocm import (
-    OCM,
-    OCMMap,
-)
+from reconcile.utils.ocm import OCMMap
 from reconcile.utils.output import print_output
 from reconcile.utils.secret_reader import (
     SecretReader,
@@ -370,7 +366,11 @@ def get_upgrade_policies_data(
             results.append(item)
             continue
 
-        upgrades = get_available_upgrades(ocm_org, version, channel)
+        upgrades = [
+            u
+            for u in c.get("available_upgrades") or []
+            if not ocm_org.version_blocked(u)
+        ]
 
         current = [c for c in current_state if c["cluster"] == cluster_name]
         upgrade_policy = {}
@@ -568,12 +568,6 @@ def generate_cluster_upgrade_policies_report(
         ]
         ctx.obj["options"]["to_string"] = True
         print_output(ctx.obj["options"], results, columns)
-
-
-@functools.lru_cache
-def get_available_upgrades(ocm: OCM, version: str, channel: str) -> list[str]:
-    upgrades = ocm.get_available_upgrades(version, channel)
-    return [u for u in upgrades if not ocm.version_blocked(u)]
 
 
 def inherit_version_data_text(ocm_org: str, ocm_specs: list[dict]) -> str:

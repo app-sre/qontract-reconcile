@@ -654,6 +654,7 @@ class OCM:  # pylint: disable=too-many-public-methods
         self.cluster_ids = {c["name"]: c["id"] for c in clusters}
 
         self.clusters: dict[str, OCMSpec] = {}
+        self.available_cluster_upgrades: dict[str, list[str]] = {}
         self.not_ready_clusters: set[str] = set()
 
         for c in clusters:
@@ -661,6 +662,9 @@ class OCM:  # pylint: disable=too-many-public-methods
             if self._ready_for_app_interface(c):
                 ocm_spec = self._get_cluster_ocm_spec(c, init_provision_shards)
                 self.clusters[cluster_name] = ocm_spec
+                self.available_cluster_upgrades[cluster_name] = c.get(
+                    "version", {}
+                ).get("available_upgrades")
             else:
                 self.not_ready_clusters.add(cluster_name)
 

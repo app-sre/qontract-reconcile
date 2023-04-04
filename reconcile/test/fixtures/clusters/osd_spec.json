@@ -96,6 +96,12 @@
     "href": "/api/clusters_mgmt/v1/versions/openshift-v4.10.6-candidate",
     "raw_id": "4.10.6",
     "channel_group": "candidate",
+    "available_upgrades": [
+      "4.11.33",
+      "4.12.1",
+      "4.12.8",
+      "4.12.9"
+    ],
     "end_of_life_timestamp": "2022-12-10T00:00:00Z"
   },
   "storage_quota": {
