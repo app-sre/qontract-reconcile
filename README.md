@@ -328,7 +328,9 @@ tox -e type -- reconcile/utils/slack_api.py
 
 ## Run reconcile loop for an integration locally in a container
 
- This is currently only tested with the docker container engine.
+This is currently only tested with the docker container engine.
+
+For more flexible way to run in container, please see [qontract-development-cli](https://github.com/app-sre/qontract-development-cli).
 
 ### Prepare config.toml
 
