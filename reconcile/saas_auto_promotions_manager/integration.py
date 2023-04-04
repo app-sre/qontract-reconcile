@@ -139,6 +139,8 @@ def run(
     thread_pool_size: int,
     defer: Optional[Callable] = None,
 ) -> None:
+    # TODO: We enforce dry-run for now for testing period
+    dry_run = True
     (
         deployment_state,
         vcs,
