@@ -5,11 +5,8 @@ import pytest
 
 from reconcile.gql_definitions.skupper_network.skupper_networks import SkupperNetworkV1
 from reconcile.skupper_network import integration as intg
-from reconcile.skupper_network.models import (
-    Defaults,
-    SkupperSite,
-)
-from reconcile.skupper_network.site_controller import CONFIG_NAME
+from reconcile.skupper_network.integration import CONFIG_NAME
+from reconcile.skupper_network.models import SkupperSite
 from reconcile.test.fixtures import Fixtures
 from reconcile.utils.oc_map import OCMap
 from reconcile.utils.openshift_resource import OpenshiftResource as OR

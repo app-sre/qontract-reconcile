@@ -36,6 +36,7 @@ def test_skupper_network_reconciler_delete_skupper_resources(
         oc_map,
         dry_run=dry_run,
         integration_managed_kinds=["ConfigMap"],
+        labels={},
     )
     if dry_run:
         assert oc.delete.call_count == 0
@@ -86,6 +87,7 @@ def test_skupper_network_reconciler_create_token(
         dry_run=dry_run,
         integration="fake-integration",
         integration_version="fake-version",
+        labels={},
     )
 
     if dry_run:
@@ -200,6 +202,7 @@ def test_skupper_network_reconciler_connect_sites(
         dry_run=dry_run,
         integration="fake-integration",
         integration_version="fake-version",
+        labels={},
     )
     if not local_site_exists:
         assert transfer_token.call_count == 0
