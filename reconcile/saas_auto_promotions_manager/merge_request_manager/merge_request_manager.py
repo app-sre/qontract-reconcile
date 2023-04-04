@@ -14,9 +14,7 @@ from reconcile.saas_auto_promotions_manager.merge_request_manager.renderer impor
 from reconcile.saas_auto_promotions_manager.subscriber import Subscriber
 from reconcile.saas_auto_promotions_manager.utils.vcs import VCS
 
-# The version allows us to easily remove
-# older MRs on breaking changes
-SAPM_LABEL = "SAPMv1"
+SAPM_LABEL = "SAPM"
 NAMESPACE_REF = "namespace_ref"
 CONTENT_HASH = "content_hash"
 TARGET_FILE_PATH = "target_file_path"
