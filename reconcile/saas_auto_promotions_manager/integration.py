@@ -99,6 +99,7 @@ class SaasAutoPromotionsManager:
         self._compute_desired_subscriber_states()
         subscribers_with_diff = self._get_subscribers_with_diff()
         self._merge_request_manager.fetch_sapm_managed_open_merge_requests()
+        self._merge_request_manager.housekeeping()
         for subscriber in subscribers_with_diff:
             self._merge_request_manager.process_subscriber(subscriber=subscriber)
 

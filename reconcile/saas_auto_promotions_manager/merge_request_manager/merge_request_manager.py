@@ -2,6 +2,7 @@ import logging
 import re
 from dataclasses import dataclass
 
+from gitlab.exceptions import GitlabGetError
 from gitlab.v4.objects import ProjectMergeRequest
 
 from reconcile.saas_auto_promotions_manager.merge_request_manager.merge_request import (
@@ -150,9 +151,18 @@ class MergeRequestManager:
                 self._vcs.close_app_interface_mr(mr=open_mr.raw)
         if has_open_mr_with_same_content:
             return
-        content_on_master = self._vcs.get_file_content_from_app_interface_master(
-            file_path=subscriber.target_file_path
-        )
+        try:
+            content_on_master = self._vcs.get_file_content_from_app_interface_master(
+                file_path=subscriber.target_file_path
+            )
+        except GitlabGetError as e:
+            if e.response_code == 404:
+                logging.info(
+                    "The saas file %s does not exist anylonger. qontract-server data not in synch, but should resolve soon on its own.",
+                    subscriber.target_file_path,
+                )
+                return
+            raise e
         content = self._renderer.render_merge_request_content(
             subscriber=subscriber,
             current_content=content_on_master,
