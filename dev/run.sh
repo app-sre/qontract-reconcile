@@ -34,4 +34,4 @@ if [ "$DEBUGGER" == "debugpy" ]; then
 fi
 
 # shellcheck disable=SC2086
-$COMMAND $COMMAD_EXTRA_ARGS
+exec $COMMAND $COMMAD_EXTRA_ARGS
