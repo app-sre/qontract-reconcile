@@ -25,13 +25,11 @@ from reconcile.gql_definitions.common.saas_files import (
     SaasFileV2,
     SaasResourceTemplateTargetImageV1,
     SaasResourceTemplateTargetPromotionV1,
-    SaasResourceTemplateTargetV2_SaasSecretParametersV1,
     SaasResourceTemplateV2,
 )
 from reconcile.utils.jjb_client import JJB
 from reconcile.utils.openshift_resource import ResourceInventory
 from reconcile.utils.saasherder import SaasHerder
-from reconcile.utils.saasherder.interfaces import SaasFile
 from reconcile.utils.saasherder.models import TriggerSpecMovingCommit
 from reconcile.utils.secret_reader import SecretReaderBase
 
@@ -939,119 +937,3 @@ class TestRemoveNoneAttributes(TestCase):
         expected: dict[Any, Any] = {}
         res = SaasHerder.remove_none_values(input)
         self.assertEqual(res, expected)
-
-
-def test_render_templated_parameters(
-    gql_class_factory: Callable[..., SaasFile]
-) -> None:
-    saas_file = gql_class_factory(
-        SaasFileV2,
-        Fixtures("saasherder").get_anymarkup("saas-templated-params.gql.yml"),
-    )
-    SaasHerder.resolve_templated_parameters([saas_file])
-    assert saas_file.resource_templates[0].targets[0].parameters == {
-        "no-template": "v1",
-        "ignore-go-template": "{{ .GO_PARAM }}-go",
-        "template-param-1": "test-namespace-ns",
-        "template-param-2": "appsres03ue1-cluster",
-    }
-    assert saas_file.resource_templates[0].targets[0].secret_parameters == [
-        SaasResourceTemplateTargetV2_SaasSecretParametersV1(
-            name="no-template",
-            secret=dict(
-                path="path/to/secret",
-                field="secret_key",
-                version=1,
-                format=None,
-            ),
-        ),
-        SaasResourceTemplateTargetV2_SaasSecretParametersV1(
-            name="ignore-go-template",
-            secret=dict(
-                path="path/{{ .GO_PARAM }}/secret",
-                field="{{ .GO_PARAM }}-secret_key",
-                version=1,
-                format=None,
-            ),
-        ),
-        SaasResourceTemplateTargetV2_SaasSecretParametersV1(
-            name="template-param-1",
-            secret=dict(
-                path="path/appsres03ue1/test-namespace/secret",
-                field="secret_key",
-                version=1,
-                format=None,
-            ),
-        ),
-        SaasResourceTemplateTargetV2_SaasSecretParametersV1(
-            name="template-param-2",
-            secret=dict(
-                path="path/appsres03ue1/test-namespace/secret",
-                field="App-SRE-stage-secret_key",
-                version=1,
-                format=None,
-            ),
-        ),
-    ]
-
-
-def test_render_templated_parameters_in_init(
-    gql_class_factory: Callable[..., SaasFile]
-) -> None:
-    saas_file = gql_class_factory(
-        SaasFileV2,
-        Fixtures("saasherder").get_anymarkup("saas-templated-params.gql.yml"),
-    )
-    SaasHerder(
-        [saas_file],
-        secret_reader=MockSecretReader(),
-        thread_pool_size=1,
-        integration="",
-        integration_version="",
-        hash_length=24,
-        repo_url="https://repo-url.com",
-    )
-    assert saas_file.resource_templates[0].targets[0].parameters == {
-        "no-template": "v1",
-        "ignore-go-template": "{{ .GO_PARAM }}-go",
-        "template-param-1": "test-namespace-ns",
-        "template-param-2": "appsres03ue1-cluster",
-    }
-    assert saas_file.resource_templates[0].targets[0].secret_parameters == [
-        SaasResourceTemplateTargetV2_SaasSecretParametersV1(
-            name="no-template",
-            secret=dict(
-                path="path/to/secret",
-                field="secret_key",
-                version=1,
-                format=None,
-            ),
-        ),
-        SaasResourceTemplateTargetV2_SaasSecretParametersV1(
-            name="ignore-go-template",
-            secret=dict(
-                path="path/{{ .GO_PARAM }}/secret",
-                field="{{ .GO_PARAM }}-secret_key",
-                version=1,
-                format=None,
-            ),
-        ),
-        SaasResourceTemplateTargetV2_SaasSecretParametersV1(
-            name="template-param-1",
-            secret=dict(
-                path="path/appsres03ue1/test-namespace/secret",
-                field="secret_key",
-                version=1,
-                format=None,
-            ),
-        ),
-        SaasResourceTemplateTargetV2_SaasSecretParametersV1(
-            name="template-param-2",
-            secret=dict(
-                path="path/appsres03ue1/test-namespace/secret",
-                field="App-SRE-stage-secret_key",
-                version=1,
-                format=None,
-            ),
-        ),
-    ]

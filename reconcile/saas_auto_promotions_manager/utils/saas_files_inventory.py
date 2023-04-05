@@ -94,9 +94,6 @@ class SaasFilesInventory:
                         continue
                     if not target.promotion.auto:
                         continue
-                    if not target.namespace:
-                        # this should never happen - it's just to make mypy happy
-                        raise RuntimeError("target.namespace is None")
                     subscriber = Subscriber(
                         saas_name=saas_file.name,
                         template_name=resource_template.name,

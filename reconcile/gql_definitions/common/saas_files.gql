@@ -103,15 +103,24 @@ query SaasFiles {
         path
         name
         namespace {
-          ...SaasTargetNamespace
-        }
-        namespaceSelector {
-          jsonPathSelectors {
-            include
-            exclude
+          name
+          environment {
+            name
+            parameters
+            secretParameters {
+              name
+              secret {
+                ...VaultSecret
+              }
+            }
+          }
+          app {
+            name
+          }
+          cluster {
+            ...OcConnectionCluster
           }
         }
-        provider
         ref
         promotion {
           auto

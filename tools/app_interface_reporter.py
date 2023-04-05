@@ -29,10 +29,6 @@ from reconcile.jenkins_job_builder import (
     get_openshift_saas_deploy_job_name,
     init_jjb,
 )
-from reconcile.typed_queries.saas_files import (
-    export_model,
-    get_saas_files,
-)
 from reconcile.utils.jjb_client import JJB
 from reconcile.utils.mr import CreateAppInterfaceReporter
 from reconcile.utils.runtime.environment import init_env
@@ -231,7 +227,7 @@ def get_apps_data(date, month_delta=1, thread_pool_size=10):
     secret_reader = SecretReader(settings)
 
     apps = queries.get_apps()
-    saas_files = [export_model(saas_file) for saas_file in get_saas_files()]
+    saas_files = queries.get_saas_files()
     jjb: JJB = init_jjb(secret_reader)
     jenkins_map = jenkins_base.get_jenkins_map()
     time_limit = date - relativedelta(months=month_delta)
