@@ -108,7 +108,7 @@ class SaasResourceTemplateTargetPromotionV1(ConfiguredBaseModel):
 class SaasResourceTemplateTargetV2(ConfiguredBaseModel):
     ref: str = Field(..., alias="ref")
     path: Optional[str] = Field(..., alias="path")
-    namespace: NamespaceV1 = Field(..., alias="namespace")
+    namespace: Optional[NamespaceV1] = Field(..., alias="namespace")
     promotion: Optional[SaasResourceTemplateTargetPromotionV1] = Field(
         ..., alias="promotion"
     )
