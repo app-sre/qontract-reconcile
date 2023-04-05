@@ -1,7 +1,0 @@
-# qenerate: plugin=pydantic_v1
-
-query SaasFileTargetNamespaces {
-  namespaces: namespaces_v1 {
-    ...SaasTargetNamespace
-  }
-}

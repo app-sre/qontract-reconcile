@@ -64,7 +64,6 @@ setup(
         "jsonpath-ng~=1.5",
         "networkx~=2.8",
         "mypy-boto3-s3~=1.24.94",
-        "rich>=13.3.0,<14.0.0",
         "dateparser~=1.1.7",
     ],
     test_suite="tests",

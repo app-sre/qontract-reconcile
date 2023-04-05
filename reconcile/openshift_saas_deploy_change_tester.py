@@ -9,10 +9,6 @@ from sretoolbox.utils import threaded
 
 import reconcile.openshift_saas_deploy as osd
 from reconcile import queries
-from reconcile.typed_queries.saas_files import (
-    export_model,
-    get_saas_files,
-)
 from reconcile.utils import gql
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.semver_helper import make_semver
@@ -210,13 +206,10 @@ def run(
 
     # find the differences in saas-file state
     comparison_saas_file_state = collect_state(
-        [
-            export_model(saas_file)
-            for saas_file in get_saas_files(query_func=comparison_gql_api.query)
-        ]
+        queries.get_saas_files(gqlapi=comparison_gql_api)
     )
     desired_saas_file_state = collect_state(
-        [export_model(saas_file) for saas_file in get_saas_files()]
+        queries.get_saas_files(gqlapi=gql.get_api())
     )
     saas_file_state_diffs = [
         s for s in desired_saas_file_state if s not in comparison_saas_file_state

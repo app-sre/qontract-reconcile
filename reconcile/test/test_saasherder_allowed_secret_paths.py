@@ -2,7 +2,7 @@ from collections.abc import Callable
 
 import pytest
 
-from reconcile.typed_queries.saas_files import SaasFile
+from reconcile.gql_definitions.common.saas_files import SaasFileV2
 from reconcile.utils.saasherder import SaasHerder
 from reconcile.utils.secret_reader import SecretReader
 
@@ -27,7 +27,7 @@ def test_saasherder_allowed_secret_paths(
     secret_reader: SecretReader,
     gql_class_factory: Callable[
         ...,
-        SaasFile,
+        SaasFileV2,
     ],
 ):
     """
@@ -35,7 +35,7 @@ def test_saasherder_allowed_secret_paths(
     """
     saas_files = [
         gql_class_factory(
-            SaasFile,
+            SaasFileV2,
             {
                 "path": "path1",
                 "name": "a1",
