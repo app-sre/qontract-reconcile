@@ -1717,6 +1717,22 @@ def cna_resources(
     )
 
 
+@integration.command(short_help="Manage auto-promotions defined in SaaS files")
+@threaded(default=10)
+@click.pass_context
+def saas_auto_promotions_manager(
+    ctx,
+    thread_pool_size,
+):
+    import reconcile.saas_auto_promotions_manager.integration
+
+    run_integration(
+        reconcile.saas_auto_promotions_manager.integration,
+        ctx.obj,
+        thread_pool_size,
+    )
+
+
 @integration.command(short_help="Manage AWS users using Terraform.")
 @print_to_file
 @threaded(default=20)

@@ -1,0 +1,39 @@
+# qenerate: plugin=pydantic_v1
+
+query SaasFilesForAutoPromotion {
+  saas_files: saas_files_v2 {
+    path
+    name
+    authentication {
+      code {
+        ... VaultSecret
+      }
+    }
+    resourceTemplates {
+      name
+      url
+      targets {
+        ref
+        path
+        namespace {
+          path
+        }
+        promotion {
+          auto
+          publish
+          subscribe
+          promotion_data {
+            channel
+            data {
+              type
+              ... on ParentSaasPromotion_v1 {
+                parent_saas
+                target_config_hash
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

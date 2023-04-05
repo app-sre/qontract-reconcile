@@ -1,0 +1,6 @@
+CUR_SUBSCRIBER_REF = "cur_subscriber_ref"
+REAL_WORLD_SHA = "real_world_sha"
+CONFIG_HASH = "config_hash"
+CHANNELS = "channels"
+SUCCESSFUL_DEPLOYMENT = "successful_deployment"
+CUR_CONFIG_HASHES = "cur_config_hashes"
