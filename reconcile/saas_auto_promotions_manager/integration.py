@@ -62,7 +62,7 @@ class SaasAutoPromotionsManager:
         self,
         publisher: Publisher,
     ) -> None:
-        publisher.fetch_real_world_state(
+        publisher.fetch_commit_shas_and_deployment_info(
             vcs=self._vcs,
             deployment_state=self._deployment_state,
         )

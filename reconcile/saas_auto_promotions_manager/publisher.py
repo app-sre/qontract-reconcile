@@ -22,7 +22,7 @@ class Publisher:
         self.commit_sha: str = ""
         self.deployment_info_by_channel: dict[str, Optional[DeploymentInfo]] = {}
 
-    def fetch_real_world_state(
+    def fetch_commit_shas_and_deployment_info(
         self, vcs: VCS, deployment_state: DeploymentState
     ) -> None:
         self.commit_sha = vcs.get_commit_sha(
