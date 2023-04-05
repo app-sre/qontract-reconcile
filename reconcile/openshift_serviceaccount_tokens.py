@@ -1,10 +1,20 @@
 import logging
 import sys
+from collections.abc import (
+    Callable,
+    Iterable,
+)
+from typing import Optional
 
 import reconcile.openshift_base as ob
-from reconcile import queries
+from reconcile.gql_definitions.service_account_tokens.service_account_tokens import (
+    NamespaceV1,
+)
+from reconcile.typed_queries.service_account_tokens import (
+    get_namespaces_with_service_account_tokens,
+)
 from reconcile.utils.defer import defer
-from reconcile.utils.oc import OC_Map
+from reconcile.utils.oc_map import OCMap
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.openshift_resource import ResourceInventory
 from reconcile.utils.semver_helper import make_semver
@@ -47,7 +57,7 @@ def get_tokens_for_service_account(
     return result
 
 
-def fetch_desired_state(namespaces: list[dict], ri: ResourceInventory, oc_map: OC_Map):
+def fetch_desired_state(namespaces: list[dict], ri: ResourceInventory, oc_map: OCMap):
     for namespace_info in namespaces:
         if not namespace_info.get("openshiftServiceAccountTokens"):
             continue
@@ -125,17 +135,23 @@ def write_outputs_to_vault(vault_path, ri):
             vault_client.write(secret)
 
 
-def canonicalize_namespaces(namespaces):
-    canonicalized_namespaces = []
+def canonicalize_namespaces(namespaces: Iterable[NamespaceV1]) -> list[dict]:
+    canonicalized_namespaces: list[dict] = []
     for namespace_info in namespaces:
-        if ob.is_namespace_deleted(namespace_info):
+        if ob.is_namespace_deleted(namespace_info=namespace_info):
             continue
-        ob.aggregate_shared_resources(namespace_info, "openshiftServiceAccountTokens")
-        openshift_serviceaccount_tokens = namespace_info.get(
+        # The following does in-place changes to the namespace map
+        # we must switch to a map from here on to stay backwards-compatible
+        namespace_dict = namespace_info.dict(by_alias=True)
+        ob.aggregate_shared_resources(
+            namespace_info=namespace_dict,
+            shared_resources_type="openshiftServiceAccountTokens",
+        )
+        openshift_serviceaccount_tokens = namespace_dict.get(
             "openshiftServiceAccountTokens"
         )
         if openshift_serviceaccount_tokens:
-            canonicalized_namespaces.append(namespace_info)
+            canonicalized_namespaces.append(namespace_dict)
             for sat in openshift_serviceaccount_tokens:
                 canonicalized_namespaces.append(sat["namespace"])
 
@@ -144,15 +160,16 @@ def canonicalize_namespaces(namespaces):
 
 @defer
 def run(
-    dry_run,
-    thread_pool_size=10,
-    internal=None,
-    use_jump_host=True,
-    vault_output_path="",
-    defer=None,
+    dry_run: bool,
+    thread_pool_size: int = 10,
+    internal: Optional[bool] = None,
+    use_jump_host: bool = True,
+    vault_output_path: str = "",
+    defer: Optional[Callable] = None,
 ):
-    namespaces = canonicalize_namespaces(queries.get_serviceaccount_tokens())
-    ri, oc_map = ob.fetch_current_state(
+    namespaces = get_namespaces_with_service_account_tokens()
+    namespace_dicts = canonicalize_namespaces(namespaces=namespaces)
+    ri, oc_map = ob.fetch_current_state_typed(
         namespaces=namespaces,
         thread_pool_size=thread_pool_size,
         integration=QONTRACT_INTEGRATION,
@@ -161,8 +178,9 @@ def run(
         internal=internal,
         use_jump_host=use_jump_host,
     )
-    defer(oc_map.cleanup)
-    fetch_desired_state(namespaces, ri, oc_map)
+    if defer:
+        defer(oc_map.cleanup)
+    fetch_desired_state(namespace_dicts, ri, oc_map)
     ob.realize_data(dry_run, oc_map, ri, thread_pool_size)
     if not dry_run and vault_output_path:
         write_outputs_to_vault(vault_output_path, ri)

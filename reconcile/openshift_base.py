@@ -24,6 +24,9 @@ from sretoolbox.utils import (
 )
 
 from reconcile import queries
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
 from reconcile.utils.oc import (
     DeploymentFieldIsImmutableError,
     FieldIsImmutableError,
@@ -39,8 +42,16 @@ from reconcile.utils.oc import (
     StatusCodeError,
     UnsupportedMediaTypeError,
 )
+from reconcile.utils.oc_connection_parameters import Cluster as OCMapCluster
+from reconcile.utils.oc_connection_parameters import Namespace as OCMapNamespace
+from reconcile.utils.oc_map import (
+    OCMap,
+    init_oc_map_from_clusters,
+    init_oc_map_from_namespaces,
+)
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.openshift_resource import ResourceInventory
+from reconcile.utils.secret_reader import create_secret_reader
 
 ACTION_APPLIED = "applied"
 ACTION_DELETED = "deleted"
@@ -307,6 +318,68 @@ def populate_current_state(
     except StatusCodeError as e:
         ri.register_error(cluster=spec.cluster)
         logging.error(f"[{spec.cluster}/{spec.namespace}] {str(e)}")
+
+
+def fetch_current_state_typed(
+    namespaces: Optional[Iterable[OCMapNamespace]] = None,
+    clusters: Optional[Iterable[OCMapCluster]] = None,
+    thread_pool_size: Optional[int] = None,
+    integration: Optional[str] = None,
+    integration_version: Optional[str] = None,
+    override_managed_types: Optional[Iterable[str]] = None,
+    internal: Optional[bool] = None,
+    use_jump_host: bool = True,
+    init_api_resources: bool = False,
+    cluster_admin: bool = False,
+) -> tuple[ResourceInventory, OCMap]:
+    """
+    This will replace fetch_current_state
+    """
+    ri = ResourceInventory()
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
+    if namespaces:
+        oc_map = init_oc_map_from_namespaces(
+            namespaces=namespaces,
+            init_api_resources=init_api_resources,
+            cluster_admin=cluster_admin,
+            thread_pool_size=thread_pool_size,
+            internal=internal,
+            use_jump_host=use_jump_host,
+            integration=integration,
+            secret_reader=secret_reader,
+        )
+    else:
+        oc_map = init_oc_map_from_clusters()
+
+    OC_Map(
+        namespaces=namespaces,
+        clusters=clusters,
+        integration=integration,
+        settings=settings,
+        internal=internal,
+        use_jump_host=use_jump_host,
+        thread_pool_size=thread_pool_size,
+        init_api_resources=init_api_resources,
+        cluster_admin=cluster_admin,
+    )
+    state_specs = init_specs_to_fetch(
+        ri,
+        oc_map,
+        namespaces=namespaces,
+        clusters=clusters,
+        override_managed_types=override_managed_types,
+    )
+    threaded.run(
+        populate_current_state,
+        state_specs,
+        thread_pool_size,
+        ri=ri,
+        integration=integration,
+        integration_version=integration_version,
+    )
+
+    return ri, oc_map
 
 
 def fetch_current_state(
@@ -1071,8 +1144,14 @@ def determine_user_keys_for_access(
     return user_keys
 
 
-def is_namespace_deleted(namespace_info: Mapping) -> bool:
-    return bool(namespace_info.get("delete"))
+class NamespaceWithDelete(Protocol):
+    delete: Optional[bool]
+
+
+def is_namespace_deleted(namespace_info: Union[NamespaceWithDelete, Mapping]) -> bool:
+    if isinstance(namespace_info, Mapping):
+        return bool(namespace_info.get("delete"))
+    return bool(namespace_info.delete)
 
 
 def user_has_cluster_access(
