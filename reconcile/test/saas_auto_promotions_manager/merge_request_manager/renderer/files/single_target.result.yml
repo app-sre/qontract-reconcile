@@ -1,0 +1,17 @@
+---
+$schema: /app-sre/saas-file-target-1.yml
+namespace:
+  $ref: /some-namespace.yml
+ref: new_sha
+promotion:
+  auto: true
+  subscribe:
+  - channel-a
+  promotion_data:
+  - channel: channel-a
+    data:
+    - parent_saas: parent_saas
+      target_config_hash: new_hash
+      type: parent_saas_config
+parameters:
+  PV_SIZE: 30Gi
