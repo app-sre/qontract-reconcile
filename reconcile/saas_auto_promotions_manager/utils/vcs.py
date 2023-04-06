@@ -132,8 +132,7 @@ class VCS:
             mr.submit_to_gitlab(gitlab_cli=self._app_interface_api)
 
     def cleanup(self) -> None:
-        for _ in self._gh_per_repo_url.values():
-            # TODO: gh_client.cleanup()
-            pass
+        for gh_client in self._gh_per_repo_url.values():
+            gh_client.cleanup()
         self._gitlab_instance.cleanup()
         self._app_interface_api.cleanup()
