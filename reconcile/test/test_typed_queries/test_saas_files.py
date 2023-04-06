@@ -238,7 +238,6 @@ PIPELINE_PROVIDER = {
     "provider": "tekton",
     "namespace": {
         "name": "namespace",
-        "path": "some-path",
         "cluster": {
             "name": "appint-ex-01",
             "serverUrl": "https://cluster-url",
@@ -564,7 +563,6 @@ def test_export_model(
                 "provider": "tekton",
                 "namespace": {
                     "name": "namespace",
-                    "path": "some-path",
                     "cluster": {
                         "name": "appint-ex-01",
                         "serverUrl": "https://cluster-url",
@@ -702,7 +700,6 @@ def test_export_model(
                 "provider": "tekton",
                 "namespace": {
                     "name": "namespace",
-                    "path": "some-path",
                     "cluster": {
                         "name": "appint-ex-01",
                         "serverUrl": "https://cluster-url",
@@ -840,7 +837,6 @@ def test_export_model(
                 "provider": "tekton",
                 "namespace": {
                     "name": "namespace",
-                    "path": "some-path",
                     "cluster": {
                         "name": "appint-ex-01",
                         "serverUrl": "https://cluster-url",
