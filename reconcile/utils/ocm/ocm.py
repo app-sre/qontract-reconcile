@@ -10,16 +10,14 @@ from collections.abc import (
     Iterable,
     Mapping,
 )
-from dataclasses import (
-    dataclass,
-    field,
-)
+from dataclasses import field
 from typing import (
     Any,
     Optional,
     Union,
 )
 
+from pydantic.dataclasses import dataclass
 from sretoolbox.utils import retry
 
 import reconcile.utils.aws_helper as awsh
@@ -529,49 +527,6 @@ OCM_PRODUCTS_IMPL = {
 
 class SectorConfigError(Exception):
     pass
-
-
-@dataclass
-class Sector:
-    name: str
-    ocm: OCM
-    dependencies: list[Sector] = field(default_factory=lambda: [])
-    cluster_infos: list[dict[Any, Any]] = field(default_factory=lambda: [])
-    _validated_dependencies: Optional[set[Sector]] = None
-
-    def __key(self):
-        return (self.ocm.name, self.name)
-
-    def __hash__(self) -> int:
-        return hash(self.__key())
-
-    def __str__(self) -> str:
-        return f"{self.ocm.name}/{self.name}"
-
-    def ocmspec(self, cluster_name: str) -> OCMSpec:
-        return self.ocm.clusters[cluster_name]
-
-    def _iter_dependencies(self) -> Iterable[Sector]:
-        """
-        iterate reccursively over all the sector dependencies
-        """
-        logging.debug(f"[{self}] checking dependencies")
-        for dep in self.dependencies or []:
-            if self == dep:
-                raise SectorConfigError(
-                    f"[{self}] infinite sector dependency loop detected: depending on itself"
-                )
-            yield dep
-            for d in dep._iter_dependencies():
-                if self == d:
-                    raise SectorConfigError(
-                        f"[{self}] infinite sector dependency loop detected under {dep} dependencies"
-                    )
-                yield d
-
-    def validate_dependencies(self) -> bool:
-        list(self._iter_dependencies())
-        return True
 
 
 class OCM:  # pylint: disable=too-many-public-methods
@@ -1615,6 +1570,53 @@ class OCM:  # pylint: disable=too-many-public-methods
         return self._ocm_client.delete(
             api_path=api,
         )
+
+
+class _SectorDataclassConfig:
+    arbitrary_types_allowed = True
+
+
+@dataclass(config=_SectorDataclassConfig)
+class Sector:
+    name: str
+    ocm: OCM
+    dependencies: list[Sector] = field(default_factory=lambda: [])
+    cluster_infos: list[dict[Any, Any]] = field(default_factory=lambda: [])
+    _validated_dependencies: Optional[set[Sector]] = None
+
+    def __key(self):
+        return (self.ocm.name, self.name)
+
+    def __hash__(self) -> int:
+        return hash(self.__key())
+
+    def __str__(self) -> str:
+        return f"{self.ocm.name}/{self.name}"
+
+    def ocmspec(self, cluster_name: str) -> OCMSpec:
+        return self.ocm.clusters[cluster_name]
+
+    def _iter_dependencies(self) -> Iterable[Sector]:
+        """
+        iterate reccursively over all the sector dependencies
+        """
+        logging.debug(f"[{self}] checking dependencies")
+        for dep in self.dependencies or []:
+            if self == dep:
+                raise SectorConfigError(
+                    f"[{self}] infinite sector dependency loop detected: depending on itself"
+                )
+            yield dep
+            for d in dep._iter_dependencies():
+                if self == d:
+                    raise SectorConfigError(
+                        f"[{self}] infinite sector dependency loop detected under {dep} dependencies"
+                    )
+                yield d
+
+    def validate_dependencies(self) -> bool:
+        list(self._iter_dependencies())
+        return True
 
 
 class OCMMap:  # pylint: disable=too-many-public-methods
