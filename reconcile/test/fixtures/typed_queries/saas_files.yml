@@ -9,6 +9,7 @@ saas_files:
     provider: tekton
     namespace:
       name: namespace
+      path: some-path
       cluster:
         name: appint-ex-01
         serverUrl: 'https://cluster-url'
@@ -34,6 +35,7 @@ saas_files:
     targets:
     - namespace:
         name: namespace-test
+        path: some-path
         environment:
           name: test
           parameters: |
@@ -73,6 +75,7 @@ saas_files:
     provider: tekton
     namespace:
       name: namespace
+      path: some-path
       cluster:
         name: appint-ex-01
         serverUrl: 'https://cluster-url'
@@ -94,6 +97,7 @@ saas_files:
     targets:
     - namespace:
         name: namespace-test
+        path: some-path
         environment:
           name: test
         app:
@@ -108,6 +112,7 @@ saas_files:
       ref: main
     - namespace:
         name: namespace-prod
+        path: some-path
         environment:
           name: prod
         app:
@@ -129,6 +134,7 @@ saas_files:
     provider: tekton
     namespace:
       name: namespace
+      path: some-path
       cluster:
         name: appint-ex-01
         serverUrl: 'https://cluster-url'
