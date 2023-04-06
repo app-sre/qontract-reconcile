@@ -1,0 +1,76 @@
+---
+path: /services/test-saas-deployment-pipelines/cicd/deploy.yml
+name: test-saas-deployments-deploy
+app:
+  name: app-interface
+
+pipelinesProvider:
+  name: tekton-app-sre-pipelines-appsres03ue1
+  provider: tekton
+  namespace:
+    name: app-sre-pipelines
+    cluster:
+      name: appsres03ue1
+      serverUrl: 'https://api.appsres03ue1.5nvu.p1.openshiftapps.com:6443'
+      consoleUrl: 'https://console.appsres03ue1.5nvu.p1.openshiftapps.com:6443'
+      internal: true
+  defaults:
+    pipelineTemplates:
+      openshiftSaasDeploy:
+        name: openshift-saas-deploy
+  pipelineTemplates:
+    openshiftSaasDeploy:
+      name: openshift-saas-deploy
+
+
+managedResourceTypes: []
+imagePatterns: []
+allowedSecretParameterPaths: []
+
+resourceTemplates:
+- name: test-saas-deployments
+  url: 'https://github.com/app-sre/test-saas-deployments'
+  path: /openshift/deploy-template.yml
+  parameters: '{"PARAM":"test"}'
+  targets:
+  - namespace:
+      name: test-namespace
+      environment:
+        name: App-SRE-stage
+        parameters: '{"CHANNEL":"staging"}'
+      app:
+        name: test-saas-deployments
+      cluster:
+        name: appsres03ue1
+        serverUrl: 'https://api.appsres03ue1.5nvu.p1.openshiftapps.com:6443'
+        internal: true
+    ref: main
+    path: openshift/deploy-template.yml
+    parameters: |
+      {
+        "no-template":"v1",
+        "ignore-go-template":"{{ .GO_PARAM }}-go",
+        "template-param-1":"{{{ resource.namespace.name }}}-ns",
+        "template-param-2":"{{{ resource.namespace.cluster.name }}}-cluster"
+      }
+    secretParameters:
+    - name: no-template
+      secret:
+        path: path/to/secret
+        field: secret_key
+        version: 1
+    - name: ignore-go-template
+      secret:
+        path: path/{{ .GO_PARAM }}/secret
+        field: "{{ .GO_PARAM }}-secret_key"
+        version: 1
+    - name: template-param-1
+      secret:
+        path: path/{{{ resource.namespace.cluster.name }}}/{{{ resource.namespace.name }}}/secret
+        field: secret_key
+        version: 1
+    - name: template-param-2
+      secret:
+        path: path/{{{ resource.namespace.cluster.name }}}/{{{ resource.namespace.name }}}/secret
+        field: "{{{ resource.namespace.environment.name }}}-secret_key"
+        version: 1
