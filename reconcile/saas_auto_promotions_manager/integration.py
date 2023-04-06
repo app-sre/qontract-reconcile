@@ -117,10 +117,12 @@ def init_external_dependencies(
     """
     vault_settings = get_app_interface_vault_settings()
     allow_deleting_mrs = get_feature_toggle_state(
-        integration_name=f"{QONTRACT_INTEGRATION}-allow-deleting-mrs"
+        integration_name=f"{QONTRACT_INTEGRATION}-allow-deleting-mrs",
+        default=False,
     )
     allow_opening_mrs = get_feature_toggle_state(
-        integration_name=f"{QONTRACT_INTEGRATION}-allow-opening-mrs"
+        integration_name=f"{QONTRACT_INTEGRATION}-allow-opening-mrs",
+        default=False,
     )
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     gitlab_instances = get_gitlab_instances()
