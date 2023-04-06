@@ -6,21 +6,26 @@ from reconcile.saas_auto_promotions_manager.subscriber import Subscriber
 PROMOTION_DATA_SEPARATOR = (
     "**SAPM Data - DO NOT MANUALLY CHANGE ANYTHING BELOW THIS LINE**"
 )
+SAPM_LABEL = "SAPM"
 CONTENT_HASH = "content_hash"
 NAMESPACE_REF = "namespace_ref"
 FILE_PATH = "file_path"
-SAPM_DESC = """
+SAPM_DESC = f"""
 THIS IS A TEST MR CREATED BY APP-INTERFACE.
 
-Part of [APPSRE-7367](https://issues.redhat.com/browse/APPSRE-7367).
-AppSRE will make sure to remove this MR soon.
+AppSRE will make sure to remove this MR.
+
+This is part of effort [APPSRE-7367](https://issues.redhat.com/browse/APPSRE-7367).
 
 **PLEASE DO NOT MERGE THIS!!!**
 
 This is an auto-promotion triggered by app-interface's [saas-auto-promotions-manager](https://github.com/app-sre/qontract-reconcile/tree/master/reconcile/saas_auto_promotions_manager) (SAPM).
 
+Please **do not remove the {SAPM_LABEL} label** from this MR.
+
 Parts of this description are used by SAPM to manage auto-promotions.
-Please do not modify or alter this description.
+
+Please **do not modify or alter this description**.
 """
 
 
@@ -97,7 +102,9 @@ class Renderer:
 {PROMOTION_DATA_SEPARATOR}
 
 {FILE_PATH}: {subscriber.target_file_path}
+
 {NAMESPACE_REF}: {subscriber.namespace_file_path}
+
 {CONTENT_HASH}: {subscriber.content_hash()}
         """
 

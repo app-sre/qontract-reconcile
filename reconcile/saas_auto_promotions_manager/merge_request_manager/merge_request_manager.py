@@ -9,16 +9,15 @@ from reconcile.saas_auto_promotions_manager.merge_request_manager.merge_request 
     SAPMMR,
 )
 from reconcile.saas_auto_promotions_manager.merge_request_manager.renderer import (
+    CONTENT_HASH,
+    FILE_PATH,
+    NAMESPACE_REF,
     PROMOTION_DATA_SEPARATOR,
+    SAPM_LABEL,
     Renderer,
 )
 from reconcile.saas_auto_promotions_manager.subscriber import Subscriber
 from reconcile.saas_auto_promotions_manager.utils.vcs import VCS
-
-SAPM_LABEL = "SAPM"
-NAMESPACE_REF = "namespace_ref"
-CONTENT_HASH = "content_hash"
-TARGET_FILE_PATH = "target_file_path"
 
 
 @dataclass
@@ -34,9 +33,7 @@ class MergeRequestManager:
         self._vcs = vcs
         self._renderer = renderer
         self._namespace_ref_regex = re.compile(rf"{NAMESPACE_REF}: (.*)$", re.MULTILINE)
-        self._target_file_path_regex = re.compile(
-            rf"{TARGET_FILE_PATH}: (.*)$", re.MULTILINE
-        )
+        self._target_file_path_regex = re.compile(rf"{FILE_PATH}: (.*)$", re.MULTILINE)
         self._content_hash_regex = re.compile(rf"{CONTENT_HASH}: (.*)$", re.MULTILINE)
         self._open_mrs: list[OpenMergeRequest] = []
         self._open_mrs_with_problems: list[OpenMergeRequest] = []
