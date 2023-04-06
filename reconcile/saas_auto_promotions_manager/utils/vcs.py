@@ -1,4 +1,3 @@
-import logging
 import re
 from collections.abc import Iterable
 from typing import Optional
@@ -36,6 +35,7 @@ class VCS:
         gitlab_instances: Iterable[GitlabInstanceV1],
         dry_run: bool,
         allow_deleting_mrs: bool,
+        allow_opening_mrs: bool,
     ):
         self._dry_run = dry_run
         self._secret_reader = secret_reader
@@ -47,6 +47,7 @@ class VCS:
         )
         self._is_commit_sha_regex = re.compile(r"^[0-9a-f]{40}$")
         self._allow_deleting_mrs = allow_deleting_mrs
+        self._allow_opening_mrs = allow_opening_mrs
 
     def _get_default_gh_token(
         self,
@@ -123,10 +124,8 @@ class VCS:
         return self._app_interface_api.get_merge_requests(state=MRState.OPENED)
 
     def open_app_interface_merge_request(self, mr: MergeRequestBase) -> None:
-        logging.debug("Make linters happy, %s", mr.branch)
-        # TODO: enable
-        # if not self._dry_run:
-        #     mr.submit_to_gitlab(gitlab_cli=self._app_interface_api)
+        if not self._dry_run and self._allow_opening_mrs:
+            mr.submit_to_gitlab(gitlab_cli=self._app_interface_api)
 
     def cleanup(self) -> None:
         for _ in self._gh_per_repo_url.values():

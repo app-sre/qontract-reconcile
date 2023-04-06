@@ -119,6 +119,9 @@ def init_external_dependencies(
     allow_deleting_mrs = get_feature_toggle_state(
         integration_name=f"{QONTRACT_INTEGRATION}-allow-deleting-mrs"
     )
+    allow_opening_mrs = get_feature_toggle_state(
+        integration_name=f"{QONTRACT_INTEGRATION}-allow-opening-mrs"
+    )
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     gitlab_instances = get_gitlab_instances()
     vcs = VCS(
@@ -127,6 +130,7 @@ def init_external_dependencies(
         gitlab_instances=gitlab_instances,
         dry_run=dry_run,
         allow_deleting_mrs=allow_deleting_mrs,
+        allow_opening_mrs=allow_opening_mrs,
     )
     merge_request_manager = MergeRequestManager(
         vcs=vcs,

@@ -80,8 +80,12 @@ def get_feature_toggle_default(feature_name, context):
     return True
 
 
+def get_feature_toggle_default_false(feature_name, context):
+    return False
+
+
 def get_feature_toggle_state(
-    integration_name: str, context: Optional[dict] = None
+    integration_name: str, context: Optional[dict] = None, default: bool = True
 ) -> bool:
     api_url = os.environ.get("UNLEASH_API_URL")
     client_access_token = os.environ.get("UNLEASH_CLIENT_ACCESS_TOKEN")
@@ -93,9 +97,18 @@ def get_feature_toggle_state(
         client_access_token,
     )
 
-    return c.is_enabled(
-        integration_name, context=context, fallback_function=get_feature_toggle_default
-    )
+    if default:
+        return c.is_enabled(
+            integration_name,
+            context=context,
+            fallback_function=get_feature_toggle_default,
+        )
+    else:
+        return c.is_enabled(
+            integration_name,
+            context=context,
+            fallback_function=get_feature_toggle_default_false,
+        )
 
 
 def get_feature_toggles(api_url: str, client_access_token: str) -> Mapping[str, str]:
