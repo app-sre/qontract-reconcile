@@ -41,7 +41,7 @@ RUN chown -R reconcile /work && \
 
 USER reconcile
 VOLUME ["/work"]
-CMD [ "/work/dev/run.sh" ]
+ENTRYPOINT ["/work/dev/run.sh"]
 
 
 FROM quay.io/app-sre/qontract-reconcile-base:0.8.12 as prod-image

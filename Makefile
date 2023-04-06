@@ -66,13 +66,17 @@ test: test-app test-container-image
 dev-reconcile-loop: build-dev ## Trigger the reconcile loop inside a container for an integration
 	@$(CONTAINER_ENGINE) run --rm -it \
 		--add-host=host.docker.internal:host-gateway \
-		-v $(CURDIR):/work \
+		-v "$(CURDIR)":/work \
 		-p 5678:5678 \
-		-e INTEGRATION_NAME=$(INTEGRATION_NAME) \
-		-e INTEGRATION_EXTRA_ARGS=$(INTEGRATION_EXTRA_ARGS) \
-		-e SLEEP_DURATION_SECS=$(SLEEP_DURATION_SECS) \
-		-e DRY_RUN=$(DRY_RUN) \
-		-e DEBUGGER=$(DEBUGGER) \
+		-e INTEGRATION_NAME="$(INTEGRATION_NAME)" \
+		-e INTEGRATION_EXTRA_ARGS="$(INTEGRATION_EXTRA_ARGS)" \
+		-e SLEEP_DURATION_SECS="$(SLEEP_DURATION_SECS)" \
+		-e APP_INTERFACE_STATE_BUCKET="$(APP_INTERFACE_STATE_BUCKET)" \
+		-e APP_INTERFACE_STATE_BUCKET_ACCOUNT="$(APP_INTERFACE_STATE_BUCKET_ACCOUNT)" \
+		-e gitlab_pr_submitter_queue_url="$(gitlab_pr_submitter_queue_url)" \
+		-e LOG_LEVEL="$(LOG_LEVEL)" \
+		-e DRY_RUN="$(DRY_RUN)" \
+		-e DEBUGGER="$(DEBUGGER)" \
 		-e CONFIG=/work/config.dev.toml \
 		$(IMAGE_NAME)-dev:latest
 
