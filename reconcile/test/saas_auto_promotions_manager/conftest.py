@@ -2,6 +2,7 @@ from collections.abc import (
     Callable,
     Iterable,
     Mapping,
+    MutableMapping,
 )
 from unittest.mock import (
     MagicMock,
@@ -10,20 +11,38 @@ from unittest.mock import (
 
 import pytest
 
-from reconcile.gql_definitions.saas_auto_promotions_manager.saas_files_for_auto_promotion import (
-    SaasFileV2,
-)
 from reconcile.saas_auto_promotions_manager.utils.vcs import VCS
+from reconcile.typed_queries.saas_files import SaasFile
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.state import State
 
 
 @pytest.fixture
 def saas_files_builder(
-    gql_class_factory: Callable[[type[SaasFileV2], Mapping], SaasFileV2]
-) -> Callable[[Iterable[Mapping]], list[SaasFileV2]]:
-    def builder(data: Iterable[Mapping]) -> list[SaasFileV2]:
-        return [gql_class_factory(SaasFileV2, d) for d in data]
+    gql_class_factory: Callable[[type[SaasFile], Mapping], SaasFile]
+) -> Callable[[Iterable[MutableMapping]], list[SaasFile]]:
+    def builder(data: Iterable[MutableMapping]) -> list[SaasFile]:
+        for d in data:
+            if "app" not in d:
+                d["app"] = {}
+            if "pipelinesProvider" not in d:
+                d["pipelinesProvider"] = {}
+            if "managedResourceTypes" not in d:
+                d["managedResourceTypes"] = []
+            if "imagePatterns" not in d:
+                d["imagePatterns"] = []
+            for rt in d.get("resourceTemplates", []):
+                for t in rt.get("targets", []):
+                    ns = t["namespace"]
+                    if "name" not in ns:
+                        ns["name"] = "some_name"
+                    if "environment" not in ns:
+                        ns["environment"] = {}
+                    if "app" not in ns:
+                        ns["app"] = {}
+                    if "cluster" not in ns:
+                        ns["cluster"] = {}
+        return [gql_class_factory(SaasFile, d) for d in data]
 
     return builder
 

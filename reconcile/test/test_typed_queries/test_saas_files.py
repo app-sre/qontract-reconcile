@@ -279,6 +279,7 @@ PIPELINE_PROVIDER = {
                                 {
                                     "namespace": {
                                         "name": "namespace-test",
+                                        "path": "some-path",
                                         "environment": {
                                             "name": "test",
                                             "parameters": '{"ENV_PARAM": "foobar"}',
@@ -292,6 +293,7 @@ PIPELINE_PROVIDER = {
                                 {
                                     "namespace": {
                                         "name": "namespace-prod",
+                                        "path": "some-path",
                                         "environment": {"name": "prod"},
                                         "app": {"name": "app-01"},
                                         "cluster": CLUSTER,
@@ -327,6 +329,7 @@ PIPELINE_PROVIDER = {
                                 {
                                     "namespace": {
                                         "name": "namespace-test",
+                                        "path": "some-path",
                                         "environment": {"name": "test"},
                                         "app": {"name": "app-02"},
                                         "cluster": CLUSTER,
@@ -336,6 +339,7 @@ PIPELINE_PROVIDER = {
                                 {
                                     "namespace": {
                                         "name": "namespace-prod",
+                                        "path": "some-path",
                                         "environment": {"name": "prod"},
                                         "app": {"name": "app-02"},
                                         "cluster": CLUSTER,
@@ -371,6 +375,7 @@ PIPELINE_PROVIDER = {
                                 {
                                     "namespace": {
                                         "name": "namespace-test",
+                                        "path": "some-path",
                                         "environment": {"name": "test"},
                                         "app": {"name": "app-02"},
                                         "cluster": CLUSTER,
@@ -407,6 +412,7 @@ PIPELINE_PROVIDER = {
                                 {
                                     "namespace": {
                                         "name": "namespace-test",
+                                        "path": "some-path",
                                         "environment": {
                                             "name": "test",
                                             "parameters": '{"ENV_PARAM": "foobar"}',
@@ -437,6 +443,7 @@ PIPELINE_PROVIDER = {
                                 {
                                     "namespace": {
                                         "name": "namespace-test",
+                                        "path": "some-path",
                                         "environment": {"name": "test"},
                                         "app": {"name": "app-02"},
                                         "cluster": CLUSTER,
@@ -472,6 +479,7 @@ PIPELINE_PROVIDER = {
                                 {
                                     "namespace": {
                                         "name": "example-01",
+                                        "path": "some-path",
                                         "environment": {"name": "production"},
                                         "app": {"name": "example"},
                                         "cluster": CLUSTER,
@@ -481,6 +489,7 @@ PIPELINE_PROVIDER = {
                                 {
                                     "namespace": {
                                         "name": "example-02",
+                                        "path": "some-path",
                                         "environment": {"name": "stage"},
                                         "app": {"name": "example"},
                                         "cluster": CLUSTER,
@@ -608,6 +617,7 @@ def test_export_model(
                             "name": None,
                             "namespace": {
                                 "name": "namespace-test",
+                                "path": "some-path",
                                 "environment": {
                                     "name": "test",
                                     "parameters": '{"ENV_PARAM": "foobar"}',
@@ -644,6 +654,7 @@ def test_export_model(
                             "name": None,
                             "namespace": {
                                 "name": "namespace-prod",
+                                "path": "some-path",
                                 "environment": {
                                     "name": "prod",
                                     "parameters": None,
@@ -743,6 +754,7 @@ def test_export_model(
                             "name": None,
                             "namespace": {
                                 "name": "namespace-test",
+                                "path": "some-path",
                                 "environment": {
                                     "name": "test",
                                     "parameters": None,
@@ -779,6 +791,7 @@ def test_export_model(
                             "name": None,
                             "namespace": {
                                 "name": "namespace-prod",
+                                "path": "some-path",
                                 "environment": {
                                     "name": "prod",
                                     "parameters": None,
@@ -878,6 +891,7 @@ def test_export_model(
                             "name": None,
                             "namespace": {
                                 "name": "example-01",
+                                "path": "some-path",
                                 "environment": {
                                     "name": "production",
                                     "parameters": None,
@@ -914,6 +928,7 @@ def test_export_model(
                             "name": None,
                             "namespace": {
                                 "name": "example-02",
+                                "path": "some-path",
                                 "environment": {
                                     "name": "stage",
                                     "parameters": None,

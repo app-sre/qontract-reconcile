@@ -29,9 +29,7 @@ from reconcile.typed_queries.app_interface_vault_settings import (
 )
 from reconcile.typed_queries.github_orgs import get_github_orgs
 from reconcile.typed_queries.gitlab_instances import get_gitlab_instances
-from reconcile.typed_queries.saas_files_for_auto_promotions import (
-    get_saas_files_for_auto_promotions,
-)
+from reconcile.typed_queries.saas_files import get_saas_files
 from reconcile.utils.defer import defer
 from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.semver_helper import make_semver
@@ -138,7 +136,7 @@ def init_external_dependencies(
         vcs=vcs,
         renderer=Renderer(),
     )
-    saas_files = get_saas_files_for_auto_promotions()
+    saas_files = get_saas_files()
     saas_inventory = SaasFilesInventory(saas_files=saas_files)
     deployment_state = DeploymentState(
         state=init_state(integration=OPENSHIFT_SAAS_DEPLOY, secret_reader=secret_reader)

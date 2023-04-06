@@ -1,16 +1,14 @@
 import logging
 from collections.abc import Iterable
 
-from reconcile.gql_definitions.saas_auto_promotions_manager.saas_files_for_auto_promotion import (
-    ParentSaasPromotionV1,
-    SaasFileV2,
-)
+from reconcile.gql_definitions.common.saas_files import ParentSaasPromotionV1
 from reconcile.saas_auto_promotions_manager.publisher import Publisher
 from reconcile.saas_auto_promotions_manager.subscriber import (
     Channel,
     ConfigHash,
     Subscriber,
 )
+from reconcile.typed_queries.saas_files import SaasFile
 
 
 class SaasFileInventoryError(Exception):
@@ -27,7 +25,7 @@ class SaasFilesInventory:
     This basically spans a directed graph, with subscribers as the root.
     """
 
-    def __init__(self, saas_files: Iterable[SaasFileV2]):
+    def __init__(self, saas_files: Iterable[SaasFile]):
         self._saas_files = saas_files
         self._channels_by_name: dict[str, Channel] = {}
         self.subscribers: list[Subscriber] = []
@@ -94,9 +92,6 @@ class SaasFilesInventory:
                         continue
                     if not target.promotion.auto:
                         continue
-                    if not target.namespace:
-                        # this should never happen - it's just to make mypy happy
-                        raise RuntimeError("target.namespace is None")
                     subscriber = Subscriber(
                         saas_name=saas_file.name,
                         template_name=resource_template.name,

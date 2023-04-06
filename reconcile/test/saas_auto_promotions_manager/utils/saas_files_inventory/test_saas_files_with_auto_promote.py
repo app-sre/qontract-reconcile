@@ -4,16 +4,14 @@ from collections.abc import (
     Mapping,
 )
 
-from reconcile.gql_definitions.saas_auto_promotions_manager.saas_files_for_auto_promotion import (
-    SaasFileV2,
-)
 from reconcile.saas_auto_promotions_manager.utils.saas_files_inventory import (
     SaasFilesInventory,
 )
+from reconcile.typed_queries.saas_files import SaasFile
 
 
 def test_single_channel(
-    saas_files_builder: Callable[[Iterable[Mapping]], list[SaasFileV2]]
+    saas_files_builder: Callable[[Iterable[Mapping]], list[SaasFile]]
 ):
     saas_files = saas_files_builder(
         [

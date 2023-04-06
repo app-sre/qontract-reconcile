@@ -48,6 +48,7 @@ class AppV1(ConfiguredBaseModel):
 
 class SaasTargetNamespace(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+    path: str = Field(..., alias="path")
     environment: EnvironmentV1 = Field(..., alias="environment")
     app: AppV1 = Field(..., alias="app")
     cluster: OcConnectionCluster = Field(..., alias="cluster")
