@@ -97,18 +97,15 @@ def get_feature_toggle_state(
         client_access_token,
     )
 
-    if default:
-        return c.is_enabled(
-            integration_name,
-            context=context,
-            fallback_function=get_feature_toggle_default,
-        )
-    else:
-        return c.is_enabled(
-            integration_name,
-            context=context,
-            fallback_function=get_feature_toggle_default_false,
-        )
+    fallback_func = (
+        get_feature_toggle_default if default else get_feature_toggle_default_false
+    )
+
+    return c.is_enabled(
+        integration_name,
+        context=context,
+        fallback_function=fallback_func,
+    )
 
 
 def get_feature_toggles(api_url: str, client_access_token: str) -> Mapping[str, str]:
