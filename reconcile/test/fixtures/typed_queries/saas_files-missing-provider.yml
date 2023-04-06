@@ -9,7 +9,6 @@ saas_files:
     provider: tekton
     namespace:
       name: namespace
-      path: some-path
       cluster:
         name: appint-ex-01
         serverUrl: 'https://cluster-url'

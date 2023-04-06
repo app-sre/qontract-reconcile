@@ -1,6 +1,5 @@
 namespaces:
 - name: example-01
-  path: some-path
   environment:
     name: production
   app:
@@ -14,7 +13,6 @@ namespaces:
       field: token
 
 - name: example-02
-  path: some-path
   environment:
     name: stage
   app:
@@ -28,7 +26,6 @@ namespaces:
       field: token
 
 - name: app-interface-integration
-  path: some-path
   environment:
     name: production
   app:
@@ -42,7 +39,6 @@ namespaces:
       field: token
 
 - name: app-interface-test-service-prod
-  path: some-path
   environment:
     name: stage
   app:
@@ -56,7 +52,6 @@ namespaces:
       field: token
 
 - name: app-interface-test-service-pipelines
-  path: some-path
   environment:
     name: production
   app:
@@ -70,7 +65,6 @@ namespaces:
       field: token
 
 - name: app-interface-test-service-stage
-  path: some-path
   environment:
     name: stage
   app:
