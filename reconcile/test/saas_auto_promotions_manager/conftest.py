@@ -24,29 +24,24 @@ def saas_files_builder(
     def builder(data: Iterable[MutableMapping]) -> list[SaasFile]:
         for d in data:
             if not "app" in d:
-                d["app"] = {"name": "app_name"}
+                d["app"] = {}
             if not "pipelinesProvider" in d:
-                d["pipelinesProvider"] = {
-                    "name": "pp",
-                    "provider": "some_provider",
-                }
+                d["pipelinesProvider"] = {}
             if not "managedResourceTypes" in d:
                 d["managedResourceTypes"] = []
             if not "imagePatterns" in d:
                 d["imagePatterns"] = []
             for rt in d.get("resourceTemplates", []):
-                if not "path" in rt:
-                    rt["path"] = "some/path.yml"
                 for t in rt.get("targets", []):
                     ns = t["namespace"]
                     if "name" not in ns:
                         ns["name"] = "some_name"
                     if "environment" not in ns:
-                        ns["environment"] = {"name": "some_name"}
+                        ns["environment"] = {}
                     if "app" not in ns:
-                        ns["app"] = {"name": "some_name"}
+                        ns["app"] = {}
                     if "cluster" not in ns:
-                        ns["cluster"] = {"name": "some_name", "serverUrl": "someUrl"}
+                        ns["cluster"] = {}
         return [gql_class_factory(SaasFile, d) for d in data]
 
     return builder

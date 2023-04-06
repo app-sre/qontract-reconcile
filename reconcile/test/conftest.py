@@ -57,8 +57,16 @@ def data_default_none(
             continue
 
         if field.alias not in data:
+            # Settings defaults
             if field.allow_none:
                 data[field.alias] = None
+            else:
+                if isinstance(field.type_, type) and issubclass(field.type_, str):
+                    data[field.alias] = "I was too lazy to define a string here"
+                elif isinstance(field.type_, type) and issubclass(field.type_, int):
+                    data[field.alias] = 42
+                elif isinstance(field.type_, type) and issubclass(field.type_, bool):
+                    data[field.alias] = False
         else:
             if isinstance(field.type_, type) and issubclass(field.type_, BaseModel):
                 if isinstance(data[field.alias], dict):
