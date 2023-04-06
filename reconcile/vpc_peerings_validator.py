@@ -33,10 +33,11 @@ def validate_no_cidr_overlap(
                     cidr_block = str(peering.vpc.cidr_block)  # type: ignore[union-attr]
                     cidr_block_entries[peering.vpc.name] = cidr_block  # type: ignore[union-attr]
 
-        duplicates, overlaps = find_cidr_duplicates_and_overlap(cidr_block_entries)
-        if duplicates:
-            valid = False
-            return valid
+        # duplicates, overlaps = find_cidr_duplicates_and_overlap(cidr_block_entries)
+        overlaps = find_cidr_duplicates_and_overlap(cidr_block_entries)
+        # if duplicates:
+        #     valid = False
+        #     return valid
         if overlaps:
             valid = False
             return valid
@@ -44,10 +45,10 @@ def validate_no_cidr_overlap(
 
 
 def find_cidr_duplicates_and_overlap(input_dict: dict):
-    values = list(input_dict.values())
-    duplicates = {
-        key: value for key, value in input_dict.items() if values.count(value) > 1
-    }
+    # values = list(input_dict.values())
+    # duplicates = {
+    #     key: value for key, value in input_dict.items() if values.count(value) > 1
+    # }
 
     # network_list = [ipaddress.ip_network(value) for value in values]
     # overlaps_list = {}
@@ -93,7 +94,8 @@ def find_cidr_duplicates_and_overlap(input_dict: dict):
                 )
             )
 
-    return duplicates, overlaps_list
+    # return duplicates, overlaps_list
+    return overlaps_list
 
 
 def validate_no_internal_to_public_peerings(
