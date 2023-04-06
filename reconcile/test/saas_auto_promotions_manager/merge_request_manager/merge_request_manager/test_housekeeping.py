@@ -4,14 +4,14 @@ from collections.abc import (
 )
 
 from reconcile.saas_auto_promotions_manager.merge_request_manager.merge_request_manager import (
-    CONTENT_HASH,
-    NAMESPACE_REF,
-    SAPM_LABEL,
-    TARGET_FILE_PATH,
     MergeRequestManager,
 )
 from reconcile.saas_auto_promotions_manager.merge_request_manager.renderer import (
+    CONTENT_HASH,
+    FILE_PATH,
+    NAMESPACE_REF,
     PROMOTION_DATA_SEPARATOR,
+    SAPM_LABEL,
     Renderer,
 )
 from reconcile.saas_auto_promotions_manager.utils.vcs import VCS
@@ -57,7 +57,7 @@ def test_valid_description(vcs_builder: Callable[[Mapping], VCS], renderer: Rend
                     Blabla
                     {PROMOTION_DATA_SEPARATOR}
                     {NAMESPACE_REF}: some_ref
-                    {TARGET_FILE_PATH}: some_target
+                    {FILE_PATH}: some_target
                     {CONTENT_HASH}: some_hash
                 """,
                 }
@@ -84,7 +84,7 @@ def test_bad_mrs(vcs_builder: Callable[[Mapping], VCS], renderer: Renderer):
                     Blabla
                     {PROMOTION_DATA_SEPARATOR}
                     missing-namespace-key: some_ref
-                    {TARGET_FILE_PATH}: some_target
+                    {FILE_PATH}: some_target
                     {CONTENT_HASH}: some_hash
                 """,
                 },
@@ -104,7 +104,7 @@ def test_bad_mrs(vcs_builder: Callable[[Mapping], VCS], renderer: Renderer):
                     Blabla
                     {PROMOTION_DATA_SEPARATOR}
                     {NAMESPACE_REF}: some_ref
-                    {TARGET_FILE_PATH}: some_target
+                    {FILE_PATH}: some_target
                     missing-content-hash-key: some_hash
                 """,
                 },
@@ -114,7 +114,7 @@ def test_bad_mrs(vcs_builder: Callable[[Mapping], VCS], renderer: Renderer):
                     Blabla
                     missing-data-separator
                     {NAMESPACE_REF}: some_ref
-                    {TARGET_FILE_PATH}: some_target
+                    {FILE_PATH}: some_target
                     {CONTENT_HASH}: some_hash
                 """,
                 },
@@ -124,7 +124,7 @@ def test_bad_mrs(vcs_builder: Callable[[Mapping], VCS], renderer: Renderer):
                     bad order
                     {NAMESPACE_REF}: some_ref
                     {PROMOTION_DATA_SEPARATOR}
-                    {TARGET_FILE_PATH}: some_target
+                    {FILE_PATH}: some_target
                     {CONTENT_HASH}: some_hash
                 """,
                 },
@@ -136,7 +136,7 @@ def test_bad_mrs(vcs_builder: Callable[[Mapping], VCS], renderer: Renderer):
                     Blabla
                     {PROMOTION_DATA_SEPARATOR}
                     {NAMESPACE_REF}: some_ref
-                    {TARGET_FILE_PATH}: some_target
+                    {FILE_PATH}: some_target
                     {CONTENT_HASH}: some_hash
                 """,
                 },

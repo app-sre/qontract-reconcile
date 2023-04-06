@@ -7,14 +7,12 @@ from unittest.mock import create_autospec
 import pytest
 from gitlab.v4.objects import ProjectMergeRequest
 
-from reconcile.saas_auto_promotions_manager.merge_request_manager.merge_request_manager import (
+from reconcile.saas_auto_promotions_manager.merge_request_manager.renderer import (
     CONTENT_HASH,
+    FILE_PATH,
     NAMESPACE_REF,
     PROMOTION_DATA_SEPARATOR,
     SAPM_LABEL,
-    TARGET_FILE_PATH,
-)
-from reconcile.saas_auto_promotions_manager.merge_request_manager.renderer import (
     Renderer,
 )
 from reconcile.saas_auto_promotions_manager.subscriber import Subscriber
@@ -44,7 +42,7 @@ def mr_builder() -> Callable[[Mapping], ProjectMergeRequest]:
                 "description": f"""
                 {PROMOTION_DATA_SEPARATOR}
                 {NAMESPACE_REF}: {data.get(SUBSCRIBER_NAMESPACE_REF, "namespace_ref")}
-                {TARGET_FILE_PATH}: {data.get(SUBSCRIBER_TARGET_PATH, "target_path")}
+                {FILE_PATH}: {data.get(SUBSCRIBER_TARGET_PATH, "target_path")}
                 {CONTENT_HASH}: {data.get(SUBSCRIBER_CONTENT_HASH, "content_hash")}
                 """,
                 "web_url": "http://localhost",
