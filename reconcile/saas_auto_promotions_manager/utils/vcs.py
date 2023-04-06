@@ -34,6 +34,8 @@ class VCS:
         github_orgs: Iterable[GithubOrgV1],
         gitlab_instances: Iterable[GitlabInstanceV1],
         dry_run: bool,
+        allow_deleting_mrs: bool,
+        allow_opening_mrs: bool,
     ):
         self._dry_run = dry_run
         self._secret_reader = secret_reader
@@ -44,6 +46,8 @@ class VCS:
             gitlab_instances=gitlab_instances
         )
         self._is_commit_sha_regex = re.compile(r"^[0-9a-f]{40}$")
+        self._allow_deleting_mrs = allow_deleting_mrs
+        self._allow_opening_mrs = allow_opening_mrs
 
     def _get_default_gh_token(
         self,
@@ -108,7 +112,7 @@ class VCS:
         raise RuntimeError(f"Unsupported Repo URL {repo_url}")
 
     def close_app_interface_mr(self, mr: ProjectMergeRequest) -> None:
-        if not self._dry_run:
+        if not self._dry_run and self._allow_deleting_mrs:
             self._app_interface_api.close(mr)
 
     def get_file_content_from_app_interface_master(self, file_path: str) -> str:
@@ -120,7 +124,7 @@ class VCS:
         return self._app_interface_api.get_merge_requests(state=MRState.OPENED)
 
     def open_app_interface_merge_request(self, mr: MergeRequestBase) -> None:
-        if not self._dry_run:
+        if not self._dry_run and self._allow_opening_mrs:
             mr.submit_to_gitlab(gitlab_cli=self._app_interface_api)
 
     def cleanup(self) -> None:

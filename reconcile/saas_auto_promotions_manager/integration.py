@@ -36,6 +36,7 @@ from reconcile.utils.defer import defer
 from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.state import init_state
+from reconcile.utils.unleash import get_feature_toggle_state
 
 QONTRACT_INTEGRATION = "saas-auto-promotions-manager"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
@@ -115,6 +116,14 @@ def init_external_dependencies(
     - MergeRequestManager -> Managing SAPM MRs with app-interface
     """
     vault_settings = get_app_interface_vault_settings()
+    allow_deleting_mrs = get_feature_toggle_state(
+        integration_name=f"{QONTRACT_INTEGRATION}-allow-deleting-mrs",
+        default=False,
+    )
+    allow_opening_mrs = get_feature_toggle_state(
+        integration_name=f"{QONTRACT_INTEGRATION}-allow-opening-mrs",
+        default=False,
+    )
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     gitlab_instances = get_gitlab_instances()
     vcs = VCS(
@@ -122,6 +131,8 @@ def init_external_dependencies(
         github_orgs=get_github_orgs(),
         gitlab_instances=gitlab_instances,
         dry_run=dry_run,
+        allow_deleting_mrs=allow_deleting_mrs,
+        allow_opening_mrs=allow_opening_mrs,
     )
     merge_request_manager = MergeRequestManager(
         vcs=vcs,
@@ -141,8 +152,6 @@ def run(
     thread_pool_size: int,
     defer: Optional[Callable] = None,
 ) -> None:
-    # TODO: We enforce dry-run for now for testing period
-    dry_run = True
     (
         deployment_state,
         vcs,
