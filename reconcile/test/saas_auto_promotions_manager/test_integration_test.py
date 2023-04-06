@@ -5,9 +5,6 @@ from collections.abc import (
 )
 from unittest.mock import create_autospec
 
-from reconcile.gql_definitions.saas_auto_promotions_manager.saas_files_for_auto_promotion import (
-    SaasFileV2,
-)
 from reconcile.saas_auto_promotions_manager.integration import SaasAutoPromotionsManager
 from reconcile.saas_auto_promotions_manager.merge_request_manager.merge_request_manager import (
     MergeRequestManager,
@@ -22,11 +19,12 @@ from reconcile.saas_auto_promotions_manager.utils.saas_files_inventory import (
     SaasFilesInventory,
 )
 from reconcile.saas_auto_promotions_manager.utils.vcs import VCS
+from reconcile.typed_queries.saas_files import SaasFile
 from reconcile.utils.state import State
 
 
 def test_integration_test(
-    saas_files_builder: Callable[[Iterable[Mapping]], list[SaasFileV2]],
+    saas_files_builder: Callable[[Iterable[Mapping]], list[SaasFile]],
     vcs_builder: Callable[..., VCS],
     s3_state_builder: Callable[[Mapping], State],
 ):

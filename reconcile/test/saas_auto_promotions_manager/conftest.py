@@ -2,6 +2,7 @@ from collections.abc import (
     Callable,
     Iterable,
     Mapping,
+    MutableMapping,
 )
 from unittest.mock import (
     MagicMock,
@@ -10,20 +11,43 @@ from unittest.mock import (
 
 import pytest
 
-from reconcile.gql_definitions.saas_auto_promotions_manager.saas_files_for_auto_promotion import (
-    SaasFileV2,
-)
 from reconcile.saas_auto_promotions_manager.utils.vcs import VCS
+from reconcile.typed_queries.saas_files import SaasFile
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.state import State
 
 
 @pytest.fixture
 def saas_files_builder(
-    gql_class_factory: Callable[[type[SaasFileV2], Mapping], SaasFileV2]
-) -> Callable[[Iterable[Mapping]], list[SaasFileV2]]:
-    def builder(data: Iterable[Mapping]) -> list[SaasFileV2]:
-        return [gql_class_factory(SaasFileV2, d) for d in data]
+    gql_class_factory: Callable[[type[SaasFile], Mapping], SaasFile]
+) -> Callable[[Iterable[MutableMapping]], list[SaasFile]]:
+    def builder(data: Iterable[MutableMapping]) -> list[SaasFile]:
+        for d in data:
+            if not "app" in d:
+                d["app"] = {"name": "app_name"}
+            if not "pipelinesProvider" in d:
+                d["pipelinesProvider"] = {
+                    "name": "pp",
+                    "provider": "some_provider",
+                }
+            if not "managedResourceTypes" in d:
+                d["managedResourceTypes"] = []
+            if not "imagePatterns" in d:
+                d["imagePatterns"] = []
+            for rt in d.get("resourceTemplates", []):
+                if not "path" in rt:
+                    rt["path"] = "some/path.yml"
+                for t in rt.get("targets", []):
+                    ns = t["namespace"]
+                    if "name" not in ns:
+                        ns["name"] = "some_name"
+                    if "environment" not in ns:
+                        ns["environment"] = {"name": "some_name"}
+                    if "app" not in ns:
+                        ns["app"] = {"name": "some_name"}
+                    if "cluster" not in ns:
+                        ns["cluster"] = {"name": "some_name", "serverUrl": "someUrl"}
+        return [gql_class_factory(SaasFile, d) for d in data]
 
     return builder
 

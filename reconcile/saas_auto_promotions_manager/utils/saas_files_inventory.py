@@ -2,13 +2,13 @@ import logging
 from collections.abc import Iterable
 
 from reconcile.gql_definitions.common.saas_files import ParentSaasPromotionV1
-from reconcile.typed_queries.saas_files import SaasFile
 from reconcile.saas_auto_promotions_manager.publisher import Publisher
 from reconcile.saas_auto_promotions_manager.subscriber import (
     Channel,
     ConfigHash,
     Subscriber,
 )
+from reconcile.typed_queries.saas_files import SaasFile
 
 
 class SaasFileInventoryError(Exception):
