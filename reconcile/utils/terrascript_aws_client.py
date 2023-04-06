@@ -94,7 +94,6 @@ from terrascript.resource import (
     aws_iam_user,
     aws_iam_user_group_membership,
     aws_iam_user_login_profile,
-    aws_iam_user_policy,
     aws_iam_user_policy_attachment,
     aws_kinesis_stream,
     aws_kms_alias,
