@@ -43,27 +43,30 @@ def validate_no_cidr_overlap(
 def find_cidr_duplicates_and_overlap(input_dict: dict):
     overlaps_list = []
 
-    keys = list(input_dict.keys())
-    for i, vpc1 in enumerate(keys):
-        for vpc2 in keys[i + 1 :]:
-            if input_dict[vpc1] == input_dict[vpc2]:
-                overlaps_list.append((vpc1, vpc2))
-            elif ipaddress.ip_network(input_dict[vpc1]).overlaps(
-                ipaddress.ip_network(input_dict[vpc2])
+    keys_for_dict = list(input_dict.keys())
+    for i, compared_vpc in enumerate(keys_for_dict):
+        for comparing_vpc in keys_for_dict[i + 1 :]:
+            if input_dict[compared_vpc] == input_dict[comparing_vpc]:
+                overlaps_list.append((compared_vpc, comparing_vpc))
+            elif ipaddress.ip_network(input_dict[compared_vpc]).overlaps(
+                ipaddress.ip_network(input_dict[comparing_vpc])
             ):
-                overlaps_list.append((vpc1, vpc2))
+                overlaps_list.append((compared_vpc, comparing_vpc))
 
-    for vpc1, vpc2 in overlaps_list:
-        if input_dict[vpc1] == input_dict[vpc2]:
+    for compared_vpc, comparing_vpc in overlaps_list:
+        if input_dict[compared_vpc] == input_dict[comparing_vpc]:
             logging.error(
                 "VPC {} with network {} has the same network as VPC {}".format(
-                    vpc1, input_dict[vpc1], vpc2
+                    compared_vpc, input_dict[compared_vpc], comparing_vpc
                 )
             )
         else:
             logging.error(
                 "VPC {} with network {} overlaps with VPC {} with network {}".format(
-                    vpc1, input_dict[vpc1], vpc2, input_dict[vpc2]
+                    compared_vpc,
+                    input_dict[compared_vpc],
+                    comparing_vpc,
+                    input_dict[comparing_vpc],
                 )
             )
 
