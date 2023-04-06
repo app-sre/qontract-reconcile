@@ -23,13 +23,13 @@ def saas_files_builder(
 ) -> Callable[[Iterable[MutableMapping]], list[SaasFile]]:
     def builder(data: Iterable[MutableMapping]) -> list[SaasFile]:
         for d in data:
-            if not "app" in d:
+            if "app" not in d:
                 d["app"] = {}
-            if not "pipelinesProvider" in d:
+            if "pipelinesProvider" not in d:
                 d["pipelinesProvider"] = {}
-            if not "managedResourceTypes" in d:
+            if "managedResourceTypes" not in d:
                 d["managedResourceTypes"] = []
-            if not "imagePatterns" in d:
+            if "imagePatterns" not in d:
                 d["imagePatterns"] = []
             for rt in d.get("resourceTemplates", []):
                 for t in rt.get("targets", []):
