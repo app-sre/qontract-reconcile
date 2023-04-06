@@ -209,6 +209,21 @@ APP_INT_BASE_URL = "https://gitlab.cee.redhat.com/service/app-interface"
 _log_lock = Lock()
 
 
+def _locked_info_log(msg: str):
+    with _log_lock:
+        logging.info(msg)
+
+
+def _locked_debug_log(msg: str):
+    with _log_lock:
+        logging.debug(msg)
+
+
+def _locked_error_log(msg: str):
+    with _log_lock:
+        logging.error(msg)
+
+
 class FetchSecretError(Exception):
     def __init__(self, msg):
         super().__init__("error fetching secret: " + str(msg))
@@ -538,8 +553,6 @@ def fetch_provider_vault_secret(
 
 
 def fetch_provider_route(resource: dict, tls_path, tls_version, settings=None) -> OR:
-    global _log_lock
-
     path = resource["path"]
     openshift_resource = fetch_provider_resource(resource)
 
@@ -568,9 +581,7 @@ def fetch_provider_route(resource: dict, tls_path, tls_version, settings=None) -
         msg = "Route secret '{}' key '{}' not in valid keys {}".format(
             tls_path, k, valid_keys
         )
-        _log_lock.acquire()  # pylint: disable=consider-using-with
-        logging.info(msg)
-        _log_lock.release()
+        _locked_info_log(msg)
 
     host = openshift_resource.body["spec"].get("host")
     certificate = openshift_resource.body["spec"]["tls"].get("certificate")
@@ -583,21 +594,13 @@ def fetch_provider_route(resource: dict, tls_path, tls_version, settings=None) -
     return openshift_resource
 
 
-def _locked_log(lock, msg):
-    lock.acquire()  # pylint: disable=consider-using-with
-    logging.debug(msg)
-    lock.release()
-
-
 def fetch_openshift_resource(
     resource, parent, settings=None, skip_validation=False
 ) -> OR:
-    global _log_lock
-
     provider = resource["provider"]
     if provider == "resource":
         path = resource["resource"]["path"]
-        _locked_log(_log_lock, "Processing {}: {}".format(provider, path))
+        _locked_debug_log("Processing {}: {}".format(provider, path))
         validate_json = resource.get("validate_json") or False
         add_path_to_prom_rules = resource.get("add_path_to_prom_rules", True)
         validate_alertmanager_config = (
@@ -617,7 +620,7 @@ def fetch_openshift_resource(
         )
     elif provider == "resource-template":
         path = resource["resource"]["path"]
-        _locked_log(_log_lock, "Processing {}: {}".format(provider, path))
+        _locked_debug_log("Processing {}: {}".format(provider, path))
         add_path_to_prom_rules = resource.get("add_path_to_prom_rules", True)
         validate_alertmanager_config = (
             resource.get("validate_alertmanager_config") or False
@@ -655,7 +658,7 @@ def fetch_openshift_resource(
     elif provider == "vault-secret":
         path = resource["path"]
         version = resource["version"]
-        _locked_log(_log_lock, "Processing {}: {} - {}".format(provider, path, version))
+        _locked_debug_log("Processing {}: {} - {}".format(provider, path, version))
         rn = resource["name"]
         name = path.split("/")[-1] if rn is None else rn
         rl = resource["labels"]
@@ -688,7 +691,7 @@ def fetch_openshift_resource(
             raise FetchSecretError(e)
     elif provider == "route":
         path = resource["resource"]["path"]
-        _locked_log(_log_lock, "Processing {}: {}".format(provider, path))
+        _locked_debug_log("Processing {}: {}".format(provider, path))
         tls_path = resource["vault_tls_secret_path"]
         tls_version = resource["vault_tls_secret_version"]
         openshift_resource = fetch_provider_route(
@@ -708,12 +711,7 @@ def fetch_current_state(
     kind: str,
     resource_names=Iterable[str],
 ):
-    global _log_lock
-
-    msg = f"Fetching {kind} from {cluster}/{namespace}"
-    _log_lock.acquire()  # pylint: disable=consider-using-with
-    logging.debug(msg)
-    _log_lock.release()
+    _locked_debug_log(f"Fetching {kind} from {cluster}/{namespace}")
     if not oc.is_kind_supported(kind):
         logging.warning(f"[{cluster}] cluster has no API resource {kind}.")
         return
@@ -740,8 +738,6 @@ def fetch_desired_state(
     privileged: bool,
     settings: Optional[Mapping[str, Any]] = None,
 ):
-    global _log_lock
-
     try:
         openshift_resource = fetch_openshift_resource(resource, parent, settings)
     except (
@@ -752,9 +748,7 @@ def fetch_desired_state(
     ) as e:
         ri.register_error()
         msg = "[{}/{}] {}".format(cluster, namespace, str(e))
-        _log_lock.acquire()  # pylint: disable=consider-using-with
-        logging.error(msg)
-        _log_lock.release()
+        _locked_error_log(msg)
         return
 
     # add to inventory
@@ -774,9 +768,7 @@ def fetch_desired_state(
         msg = "[{}/{}] unknown kind: {}. hint: is it missing from managedResourceTypes?".format(
             cluster, namespace, openshift_resource.kind
         )
-        _log_lock.acquire()  # pylint: disable=consider-using-with
-        logging.error(msg)
-        _log_lock.release()
+        _locked_error_log(msg)
         return
     except ResourceKeyExistsError:
         # This is failing because an attempt to add
@@ -786,9 +778,7 @@ def fetch_desired_state(
         msg = ("[{}/{}] desired item already exists: {}/{}.").format(
             cluster, namespace, openshift_resource.kind, openshift_resource.name
         )
-        _log_lock.acquire()  # pylint: disable=consider-using-with
-        logging.error(msg)
-        _log_lock.release()
+        _locked_error_log(msg)
         return
 
 

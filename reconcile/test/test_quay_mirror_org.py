@@ -36,7 +36,7 @@ class TestIsCompareTags:
         with open(os.path.join(self.tmp_dir.name, CONTROL_FILE_NAME), "w") as fh:
             fh.write(str(NOW - 100.0))
 
-    def teardown_mehtod(self):
+    def teardown_method(self):
         self.tmp_dir.cleanup()
 
     # Last run was in NOW - 100s, we run compare tags every 10s.
