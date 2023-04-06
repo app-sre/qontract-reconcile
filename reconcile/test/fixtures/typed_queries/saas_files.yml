@@ -54,6 +54,7 @@ saas_files:
         { "TARGET_PARAM": "foobar" }
     - namespace:
         name: namespace-prod
+        path: some-path
         environment:
           name: prod
         app:
