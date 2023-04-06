@@ -98,7 +98,9 @@ def get_state_for_org_spec(
         init_version_gates=True,
         init_addons=True,
     )
-    desired_state = aus.fetch_desired_state(cluster_like_objects, ocm_map, addons=True)
+    desired_state = aus.fetch_upgrade_policies(
+        cluster_like_objects, ocm_map, addons=True
+    )
     current_state: list[dict[str, Any]] = []
     if fetch_current_state:
         current_state = aus.fetch_current_state(

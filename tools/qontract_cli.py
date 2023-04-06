@@ -307,7 +307,7 @@ def get_upgrade_policies_data(
         init_version_gates=True,
     )
     current_state = aus.fetch_current_state(clusters, ocm_map)
-    desired_state = aus.fetch_desired_state(clusters, ocm_map)
+    desired_state = aus.fetch_upgrade_policies(clusters, ocm_map)
 
     version_data_map = aus.get_version_data_map(
         dry_run=True, upgrade_policies=[], ocm_map=ocm_map, integration=integration

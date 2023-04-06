@@ -1,7 +1,10 @@
 import copy
 import logging
 import sys
-from abc import abstractmethod
+from abc import (
+    ABC,
+    abstractmethod,
+)
 from collections.abc import (
     Iterable,
     Mapping,
@@ -14,6 +17,7 @@ from typing import (
 )
 
 from croniter import croniter
+from pydantic import BaseModel
 from semver import VersionInfo
 
 from reconcile.aus.models import OrganizationUpgradeSpec
@@ -95,6 +99,114 @@ class AdvancedUpgradeSchedulerBaseIntegration(
         ...
 
 
+class GateAgreement(BaseModel):
+    id: str
+
+    def create(self, ocm: OCM, cluster_name: str):
+        agreement = ocm.create_version_agreement(self.id, cluster_name)
+        if agreement.get("version_gate") is None:
+            logging.error(
+                f"Unexpected response while creating version "
+                f"agreement with id {self.id} for cluster {cluster_name}"
+            )
+
+
+class AbstractUpgradePolicy(ABC, BaseModel):
+    action: Optional[str]
+    cluster: str
+    gates_to_agree: Optional[list[GateAgreement]]
+    id: Optional[str]
+    next_run: Optional[str]
+    schedule: Optional[str]
+    schedule_type: str
+    version: str
+
+    @abstractmethod
+    def _create(self, ocm: OCM):
+        pass
+
+    @abstractmethod
+    def _delete(self, ocm: OCM):
+        pass
+
+    def _create_gate_agreements(self, ocm: OCM):
+        for gate in self.gates_to_agree:
+            action_log(
+                self.action,
+                ocm.name,
+                self.cluster,
+                self.version,
+                f"Creating version agreement for gate {gate.id}",
+            )
+            gate.create(ocm, self.cluster)
+
+    def act(self, dry_run: bool, ocm: OCM):
+        action_log(
+            self.action,
+            ocm.name,
+            self.cluster,
+            self.addon_id,
+            self.version,
+            self.next_run,
+        )
+        if dry_run:
+            return
+
+        if not self.action:
+            pass
+        elif self.action == "delete":
+            self._delete(ocm)
+        elif self.action == "create":
+            self._create_gate_agreements(ocm)
+            self._create(ocm)
+
+
+class AddonUpgradePolicy(AbstractUpgradePolicy):
+    addon_id: str
+
+    def _create(self, ocm: OCM):
+        item = {
+            "version": self.version,
+            "schedule_type": "manual",
+            "addon_id": self.addon_id,
+            "cluster_id": ocm.cluster_ids[self.cluster],
+            "upgrade_type": "ADDON",
+        }
+        ocm.create_addon_upgrade_policy(self.cluster, item)
+
+    def _delete(self, ocm: OCM):
+        item = {
+            "version": self.version,
+            "id": self.id,
+        }
+        ocm.delete_upgrade_policy(self.cluster, item)
+
+
+class ClusterUpgradePolicy(AbstractUpgradePolicy):
+    def _create(self, ocm: OCM):
+        policy = {
+            "version": self.version,
+            "schedule_type": "manual",
+            "next_run": self.next_run,
+        }
+        ocm.create_upgrade_policy(self.cluster, policy)
+
+    def _delete(self, ocm: OCM):
+        item = {
+            "version": self.version,
+            "id": self.id,
+        }
+        ocm.delete_upgrade_policy(self.cluster, item)
+
+
+class ControlPlaneUpgradePolicy(AbstractUpgradePolicy):
+    def _create(self, ocm: OCM):
+        raise NotImplemented("ControlPlaneUpgradePolicy creation is not supported yet")
+
+    def _delete(self, ocm: OCM):
+        raise NotImplemented("ControlPlaneUpgradePolicy deletion is not supported yet")
+
+
 # consider first lower versions and lower soakdays (when versions are equal)
 def sort_key(d: dict) -> tuple:
     return (
@@ -105,23 +217,26 @@ def sort_key(d: dict) -> tuple:
 
 def fetch_current_state(
     clusters: list[dict[str, Any]], ocm_map: OCMMap, addons: bool = False
-) -> list[dict[str, Any]]:
+) -> list[AbstractUpgradePolicy]:
     current_state = []
     for cluster in clusters:
         cluster_name = cluster["name"]
         ocm = ocm_map.get(cluster_name)
         if addons:
             upgrade_policies = ocm.get_addon_upgrade_policies(cluster_name)
+            for upgrade_policy in upgrade_policies:
+                upgrade_policy["cluster"] = cluster_name
+                current_state.append(AddonUpgradePolicy(**upgrade_policy))
         else:
             upgrade_policies = ocm.get_upgrade_policies(cluster_name)
-        for upgrade_policy in upgrade_policies:
-            upgrade_policy["cluster"] = cluster_name
-            current_state.append(upgrade_policy)
+            for upgrade_policy in upgrade_policies:
+                upgrade_policy["cluster"] = cluster_name
+                current_state.append(ClusterUpgradePolicy(**upgrade_policy))
 
     return current_state
 
 
-def fetch_desired_state(
+def fetch_upgrade_policies(
     clusters: list[dict[str, Any]], ocm_map: OCMMap, addons: bool = False
 ) -> list[dict[str, Any]]:
     desired_state = []
@@ -159,6 +274,7 @@ def fetch_desired_state(
     return sorted_desired_state
 
 
+# This does not look like it belongs here, perhaps cluster_version_data is more
 def update_history(
     version_data: VersionData, upgrade_policies: list[dict[str, Any]]
 ) -> None:
@@ -344,7 +460,7 @@ def gates_to_agree(
         ocm (OCM): used to fetch infos from OCM
 
     Returns:
-        bool: true on missing agreement
+        list[str]: list of gate ids to agree
     """
     agreements = {
         agreement["version_gate"]["id"]
@@ -364,6 +480,7 @@ def get_version_prefix(version: str) -> str:
     return f"{semver.major}.{semver.minor}"
 
 
+# rename to create upgrade policy and make it create the UpgradePolicy instances
 def upgradeable_version(
     policy: Mapping,
     version_data_map: dict[str, VersionData],
@@ -393,19 +510,112 @@ def cluster_mutexes(policy: dict) -> list[str]:
     return (policy.get("conditions") or {}).get("mutexes") or []
 
 
+def verify_current_should_skip(
+    current_state: list[AbstractUpgradePolicy],
+    cluster: str,
+    now,
+    ocm: OCM,
+    addon_id: str = "",
+) -> tuple[bool, Optional[AbstractUpgradePolicy]]:
+    c = [c for c in current_state if c.cluster == cluster]
+    if c:
+        # there can only be one upgrade policy per cluster
+        if len(c) != 1:
+            raise ValueError(f"[{cluster}] expected only one upgrade policy")
+        current = c[0]
+        version = current.version  # may not exist in automatic upgrades
+        if version and not addon_id and ocm.version_blocked(version):
+            next_run = current.next_run
+            if next_run and datetime.strptime(next_run, "%Y-%m-%dT%H:%M:%SZ") < now:
+                logging.warning(
+                    f"[{cluster}] currently upgrading to blocked version '{version}'"
+                )
+                return True, None
+            logging.debug(
+                f"[{ocm.name}/{cluster}] found planned upgrade policy "
+                + f"with blocked version {version}"
+            )
+            current.action = "delete"
+            return False, current
+        else:
+            logging.debug(
+                f"[{ocm.name}/{cluster}] skipping cluster with existing upgrade policy"
+            )
+            return True, None
+    return False, None
+
+
+def verify_schedule_should_skip(
+    d, cluster: str, now, ocm: OCM, addon_id: str = ""
+) -> tuple[bool, Optional[str]]:
+    schedule = d["schedule"]
+    next_schedule_in_seconds = 0
+    iter = croniter(schedule)
+    # ClusterService refuses scheduling upgrades less than 5m in advance
+    # Let's find the next schedule that is at least 5m ahead.
+    # We do not need that much delay for addon upgrades since they run
+    # immediately
+    delay_minutes = 1 if addon_id else 5
+    while next_schedule_in_seconds < delay_minutes * 60:
+        next_schedule = iter.get_next(datetime)
+        next_schedule_in_seconds = (next_schedule - now).total_seconds()
+    next_schedule_in_hours = next_schedule_in_seconds / 3600  # seconds in hour
+
+    # ignore clusters with an upgrade schedule not within the next 2 hours
+    within_upgrade_timeframe = next_schedule_in_hours <= 2
+    if addon_id:
+        # addons upgrade cannot be scheduled in advance as the "next_run" field
+        # is not supported. So we run this only 10min before schedule to be somewhat
+        # correct
+        within_upgrade_timeframe = next_schedule_in_seconds / 60 <= 10
+    if not within_upgrade_timeframe:
+        logging.debug(
+            f"[{ocm.name}/{cluster}] skipping cluster with no upcoming upgrade"
+        )
+        return True, None
+    return False, next_schedule
+
+
+def verify_lock_should_skip(d, locked, ocm: OCM, cluster: str) -> bool:
+    if any(lock in locked for lock in cluster_mutexes(d)):
+        locking = {lock: locked[lock] for lock in cluster_mutexes(d) if lock in locked}
+        logging.debug(
+            f"[{ocm.name}/{cluster}] skipping cluster: locked out by {locking}"
+        )
+        return True
+    return False
+
+
+def get_upgrades(addon_id, d, ocm):
+    # choose version that meets the conditions and add it to the diffs
+    if addon_id:
+        # an alternative is to find available upgrades for our current version from
+        # ${API_CLUSTERS_MGMT}/addons/${addon_id}/versions
+        # .items[] | select(.id == {current_version}) | .available_upgrades
+        # but we will always want to get the one that is currently published normally
+        upgrades = [
+            a["version"]["id"]
+            for a in ocm.addons
+            if a["id"] == addon_id and a["version"]["id"] != d["current_version"]
+        ]
+    else:
+        upgrades = ocm.get_available_upgrades(d["current_version"], d["channel"])
+    return upgrades
+
+
 def calculate_diff(
-    current_state: list[dict[str, Any]],
-    desired_state: list[dict[str, Any]],
+    current_state: list[AbstractUpgradePolicy],
+    upgrade_policies: list[dict[str, Any]],
     ocm_map: OCMMap,
     version_data_map: dict[str, VersionData],
     addon_id: str = "",
-) -> list[Any]:
+) -> list[AbstractUpgradePolicy]:
     """Check available upgrades for each cluster in the desired state
     according to upgrade conditions
 
     Args:
-        current_state (list): current state of upgrade policies
-        desired_state (list): desired state of upgrade policies
+        current_state (list): currently existing upgrade policies
+        upgrade_policies (list): upgradePolicy in app interface
         ocm_map (OCMMap): OCM clients per OCM instance
         version_data_map (dict): version data history per OCM instance
         addon_id (str): optional addonid to calculate diffs for
@@ -417,121 +627,68 @@ def calculate_diff(
 
     # all clusters with a current upgradePolicy are considered locked
     locked = {}
-    for policy in desired_state:
-        if policy["cluster"] in [s["cluster"] for s in current_state]:
+    for policy in upgrade_policies:
+        if policy["cluster"] in [s.cluster for s in current_state]:
             for mutex in cluster_mutexes(policy):
                 locked[mutex] = policy["cluster"]
 
     now = datetime.utcnow()
-    for d in desired_state:
+    for p in upgrade_policies:
         # ignore clusters with an existing upgrade policy
-        cluster = d["cluster"]
-        current_version = d["current_version"]
+        cluster = p["cluster"]
+        current_version = p["current_version"]
         ocm = ocm_map.get(cluster)
-        c = [c for c in current_state if c["cluster"] == cluster]
-        if c:
-            # there can only be one upgrade policy per cluster
-            if len(c) != 1:
-                raise ValueError(f"[{cluster}] expected only one upgrade policy")
-            current = c[0]
-            version = current.get("version")  # may not exist in automatic upgrades
-            if version and not addon_id and ocm.version_blocked(version):
-                next_run = current.get("next_run")
-                if next_run and datetime.strptime(next_run, "%Y-%m-%dT%H:%M:%SZ") < now:
-                    logging.warning(
-                        f"[{cluster}] currently upgrading to blocked version '{version}'"
-                    )
-                    continue
-                logging.debug(
-                    f"[{ocm.name}/{cluster}] found planned upgrade policy "
-                    + f"with blocked version {version}"
-                )
-                item = {
-                    "action": "delete",
-                    "cluster": cluster,
-                    "version": version,
-                    "id": current["id"],
-                }
-                diffs.append(item)
-            else:
-                logging.debug(
-                    f"[{ocm.name}/{cluster}] skipping cluster with existing upgrade policy"
-                )
-                continue
 
-        schedule = d["schedule"]
-        next_schedule_in_seconds = 0
-        iter = croniter(schedule)
-        # ClusterService refuses scheduling upgrades less than 5m in advance
-        # Let's find the next schedule that is at least 5m ahead.
-        # We do not need that much delay for addon upgrades since they run
-        # immediately
-        delay_minutes = 1 if addon_id else 5
-        while next_schedule_in_seconds < delay_minutes * 60:
-            next_schedule = iter.get_next(datetime)
-            next_schedule_in_seconds = (next_schedule - now).total_seconds()
-        next_schedule_in_hours = next_schedule_in_seconds / 3600  # seconds in hour
+        skip, delete_policy = verify_current_should_skip(
+            current_state, cluster, now, ocm, addon_id
+        )
+        if skip:
+            continue
+        if delete_policy:
+            diffs.append(delete_policy)
 
-        # ignore clusters with an upgrade schedule not within the next 2 hours
-        within_upgrade_timeframe = next_schedule_in_hours <= 2
-        if addon_id:
-            # addons upgrade cannot be scheduled in advance as the "next_run" field
-            # is not supported. So we run this only 10min before schedule to be somewhat
-            # correct
-            within_upgrade_timeframe = next_schedule_in_seconds / 60 <= 10
-        if not within_upgrade_timeframe:
-            logging.debug(
-                f"[{ocm.name}/{cluster}] skipping cluster with no upcoming upgrade"
-            )
+        skip, next_schedule = verify_schedule_should_skip(
+            p, cluster, now, ocm, addon_id
+        )
+        if skip:
             continue
 
-        if any(lock in locked for lock in cluster_mutexes(d)):
-            locking = {
-                lock: locked[lock] for lock in cluster_mutexes(d) if lock in locked
-            }
-            logging.debug(
-                f"[{ocm.name}/{cluster}] skipping cluster: locked out by {locking}"
-            )
+        if verify_lock_should_skip(p, locked, ocm, cluster):
             continue
 
-        # choose version that meets the conditions and add it to the diffs
-        if addon_id:
-            # an alternative is to find available upgrades for our current version from
-            # ${API_CLUSTERS_MGMT}/addons/${addon_id}/versions
-            # .items[] | select(.id == {current_version}) | .available_upgrades
-            # but we will always want to get the one that is currently published normally
-            upgrades = [
-                a["version"]["id"]
-                for a in ocm.addons
-                if a["id"] == addon_id and a["version"]["id"] != d["current_version"]
-            ]
-        else:
-            upgrades = ocm.get_available_upgrades(d["current_version"], d["channel"])
-        version = upgradeable_version(d, version_data_map, ocm, upgrades, addon_id)
+        upgrades = get_upgrades(addon_id, p, ocm)
+        version = upgradeable_version(p, version_data_map, ocm, upgrades, addon_id)
 
         if version:
-            item = {
-                "action": "create",
-                "cluster": cluster,
-                "version": version,
-                "schedule_type": "manual",
-            }
             if addon_id:
-                item["addon_id"] = addon_id
-                item["cluster_id"] = ocm.cluster_ids[cluster]
-                item["upgrade_type"] = "ADDON"
-                # next_run is not supported by addons
+                item = {
+                    "action": "create",
+                    "cluster": cluster,
+                    "version": version,
+                    "schedule_type": "manual",
+                    "addon_id": addon_id,
+                    "upgrade_type": "ADDON",
+                }
+                new_policy = AddonUpgradePolicy(**item)
             else:
-                item["next_run"] = next_schedule.strftime("%Y-%m-%dT%H:%M:%SZ")
-                item["gates_to_agree"] = gates_to_agree(
-                    get_version_prefix(version),
-                    cluster,
-                    current_version,
-                    ocm,
-                )
-            for mutex in cluster_mutexes(d):
+                item = {
+                    "action": "create",
+                    "cluster": cluster,
+                    "version": version,
+                    "schedule_type": "manual",
+                    "next_run": next_schedule.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                    "gates_to_agree": [
+                        GateAgreement(id=g)
+                        for g in gates_to_agree(
+                            get_version_prefix(version), cluster, current_version, ocm
+                        )
+                    ],
+                }
+                new_policy = ClusterUpgradePolicy(**item)
+
+            for mutex in cluster_mutexes(p):
                 locked[mutex] = cluster
-            diffs.append(item)
+            diffs.append(new_policy)
 
     return diffs
 
@@ -547,46 +704,9 @@ def action_log(*items: Optional[str]) -> None:
     logging.info([item for item in items if item])
 
 
-def act(dry_run: bool, diffs: list[dict], ocm_map: OCMMap, addon_id: str = "") -> None:
+def act(dry_run: bool, diffs: list[AbstractUpgradePolicy], ocm_map: OCMMap) -> None:
     diffs.sort(key=sort_diffs)
     for diff in diffs:
-        action = diff.pop("action")
         cluster = diff.pop("cluster")
         ocm = ocm_map.get(cluster)
-        if action == "create":
-            action_log(
-                action,
-                ocm.name,
-                cluster,
-                addon_id,
-                diff["version"],
-                diff.get("next_run"),
-            )
-            if not dry_run:
-                if addon_id:
-                    ocm.create_addon_upgrade_policy(cluster, diff)
-                else:
-                    gates_to_agree = diff.pop("gates_to_agree")
-                    for gate in gates_to_agree:
-                        action_log(
-                            action,
-                            ocm.name,
-                            cluster,
-                            addon_id,
-                            diff["version"],
-                            f"Creating version agreement for gate {gate}",
-                        )
-                        agreement = ocm.create_version_agreement(gate, cluster)
-                        if agreement.get("version_gate") is None:
-                            logging.error(
-                                f"Unexpected response while creating version "
-                                f"agreement with id {gate} for cluster {cluster}"
-                            )
-                    ocm.create_upgrade_policy(cluster, diff)
-        elif action == "delete":
-            action_log(action, ocm.name, cluster, addon_id, diff["version"])
-            if not dry_run:
-                if addon_id:
-                    ocm.delete_addon_upgrade_policy(cluster, diff)
-                else:
-                    ocm.delete_upgrade_policy(cluster, diff)
+        diff.act(dry_run, ocm)
