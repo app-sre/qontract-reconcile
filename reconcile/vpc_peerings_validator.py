@@ -33,11 +33,7 @@ def validate_no_cidr_overlap(
                     cidr_block = str(peering.vpc.cidr_block)  # type: ignore[union-attr]
                     cidr_block_entries[peering.vpc.name] = cidr_block  # type: ignore[union-attr]
 
-        # duplicates, overlaps = find_cidr_duplicates_and_overlap(cidr_block_entries)
         overlaps = find_cidr_duplicates_and_overlap(cidr_block_entries)
-        # if duplicates:
-        #     valid = False
-        #     return valid
         if overlaps:
             valid = False
             return valid
@@ -45,34 +41,11 @@ def validate_no_cidr_overlap(
 
 
 def find_cidr_duplicates_and_overlap(input_dict: dict):
-    # values = list(input_dict.values())
-    # duplicates = {
-    #     key: value for key, value in input_dict.items() if values.count(value) > 1
-    # }
-
-    # network_list = [ipaddress.ip_network(value) for value in values]
-    # overlaps_list = {}
-    # overlaps_list = []
-
-    # for i, net1 in enumerate(values):
-    #     for _, net2 in enumerate(values[i + 1 :], start=i + 1):
-    #         if ipaddress.ip_network(net1).overlaps(ipaddress.ip_network(net2)):
-    #             logging.info(
-    #                 str(ipaddress.ip_network(net1))
-    #                 + " overlaps with "
-    #                 + str(ipaddress.ip_network(net2))
-    #             )
-    #             overlaps_list.append(ipaddress.ip_network(net1))
-
     overlaps_list = []
 
     keys = list(input_dict.keys())
     for i, vpc1 in enumerate(keys):
         for vpc2 in keys[i + 1 :]:
-            print("vpc1 values value")
-            print(input_dict[vpc1])
-            print("vpc2 values value")
-            print(input_dict[vpc2])
             if input_dict[vpc1] == input_dict[vpc2]:
                 overlaps_list.append((vpc1, vpc2))
             elif ipaddress.ip_network(input_dict[vpc1]).overlaps(
@@ -82,13 +55,13 @@ def find_cidr_duplicates_and_overlap(input_dict: dict):
 
     for vpc1, vpc2 in overlaps_list:
         if input_dict[vpc1] == input_dict[vpc2]:
-            print(
+            logging.error(
                 "VPC {} with network {} has the same network as VPC {}".format(
                     vpc1, input_dict[vpc1], vpc2
                 )
             )
         else:
-            print(
+            logging.error(
                 "VPC {} with network {} overlaps with VPC {} with network {}".format(
                     vpc1, input_dict[vpc1], vpc2, input_dict[vpc2]
                 )
