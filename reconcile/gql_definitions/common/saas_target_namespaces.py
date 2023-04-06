@@ -56,6 +56,7 @@ fragment OcConnectionCluster on Cluster_v1 {
 
 fragment SaasTargetNamespace on Namespace_v1 {
   name
+  path
   environment {
     name
     parameters
