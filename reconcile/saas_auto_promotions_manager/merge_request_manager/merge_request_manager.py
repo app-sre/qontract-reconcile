@@ -182,5 +182,6 @@ class MergeRequestManager:
                 content=content,
                 title=title,
                 description=description,
+                file_path=subscriber.target_file_path,
             )
         )

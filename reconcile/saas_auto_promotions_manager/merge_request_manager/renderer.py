@@ -10,7 +10,17 @@ CONTENT_HASH = "content_hash"
 NAMESPACE_REF = "namespace_ref"
 FILE_PATH = "file_path"
 SAPM_DESC = """
-This is an auto-promotion triggered by app-interface.
+THIS IS A TEST MR CREATED BY APP-INTERFACE.
+
+Part of [APPSRE-7367](https://issues.redhat.com/browse/APPSRE-7367).
+AppSRE will make sure to remove this MR soon.
+
+**PLEASE DO NOT MERGE THIS!!!**
+
+This is an auto-promotion triggered by app-interface's [saas-auto-promotions-manager](https://github.com/app-sre/qontract-reconcile/tree/master/reconcile/saas_auto_promotions_manager) (SAPM).
+
+Parts of this description are used by SAPM to manage auto-promotions.
+Please do not modify or alter this description.
 """
 
 
@@ -82,14 +92,14 @@ class Renderer:
 
     def render_description(self, subscriber: Subscriber) -> str:
         return f"""
-    {SAPM_DESC}
+{SAPM_DESC}
 
-    {PROMOTION_DATA_SEPARATOR}
+{PROMOTION_DATA_SEPARATOR}
 
-    {FILE_PATH}: {subscriber.target_file_path}
-    {NAMESPACE_REF}: {subscriber.namespace_file_path}
-    {CONTENT_HASH}: {subscriber.content_hash()}
+{FILE_PATH}: {subscriber.target_file_path}
+{NAMESPACE_REF}: {subscriber.namespace_file_path}
+{CONTENT_HASH}: {subscriber.content_hash()}
         """
 
     def render_title(self, subscriber: Subscriber) -> str:
-        return "[SAPM] auto-promotion"
+        return f"Draft: [auto-promotion] for namespace {subscriber.namespace_file_path} in {subscriber.target_file_path}"
