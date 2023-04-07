@@ -152,3 +152,40 @@ def test_bad_mrs(vcs_builder: Callable[[Mapping], VCS], renderer: Renderer):
     # TODO: assert_has_calls()
     vcs.close_app_interface_mr.assert_called()  # type: ignore[attr-defined]
     assert len(merge_request_manager._open_mrs) == 0
+
+
+def test_remove_duplicates(vcs_builder: Callable[[Mapping], VCS], renderer: Renderer):
+    vcs = vcs_builder(
+        {
+            OPEN_MERGE_REQUESTS: [
+                {
+                    LABELS: [SAPM_LABEL],
+                    DESCRIPTION: f"""
+                    Blabla
+                    {PROMOTION_DATA_SEPARATOR}
+                    {NAMESPACE_REF}: same_ref
+                    {FILE_PATH}: same_target
+                    {CONTENT_HASH}: same_hash
+                """,
+                },
+                {
+                    LABELS: [SAPM_LABEL],
+                    DESCRIPTION: f"""
+                    Some other blabla
+                    {PROMOTION_DATA_SEPARATOR}
+                    {NAMESPACE_REF}: same_ref
+                    {FILE_PATH}: same_target
+                    {CONTENT_HASH}: same_hash
+                """,
+                },
+            ]
+        }
+    )
+    merge_request_manager = MergeRequestManager(
+        vcs=vcs,
+        renderer=renderer,
+    )
+    merge_request_manager.fetch_sapm_managed_open_merge_requests()
+    merge_request_manager.housekeeping()
+    vcs.close_app_interface_mr.assert_called_once()  # type: ignore[attr-defined]
+    assert len(merge_request_manager._open_mrs) == 1
