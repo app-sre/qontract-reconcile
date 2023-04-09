@@ -1,12 +1,14 @@
 import time
 from collections.abc import (
     Callable,
+    Mapping,
     MutableMapping,
 )
 from typing import (
     Any,
     Optional,
 )
+from unittest.mock import create_autospec
 
 import httpretty as _httpretty
 import pytest
@@ -14,6 +16,7 @@ from pydantic import BaseModel
 from pydantic.error_wrappers import ValidationError
 
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
+from reconcile.utils.state import State
 
 
 @pytest.fixture
@@ -36,6 +39,40 @@ def secret_reader(mocker) -> None:
     mock_secretreader.read.return_value = "secret"
     mock_secretreader.read_secret.return_value = "secret"
     return mock_secretreader
+
+
+@pytest.fixture
+def s3_state_builder() -> Callable[[Mapping], State]:
+    """
+    Example input data:
+    {
+        "get": {
+            # This maps data being returned by get
+            "path/to/item": {
+                "some_key": "content",
+                "other_content": "content",
+            },
+            "other/path": {
+                "other": "data",
+            },
+        },
+        "ls": [
+            "/path/item1",
+            "/path/item2",
+        ]
+    }
+    """
+
+    def builder(data: Mapping) -> State:
+        def get(key: str) -> dict:
+            return data["get"][key]
+
+        state = create_autospec(spec=State)
+        state.get = get
+        state.ls.side_effect = [data["ls"]]
+        return state
+
+    return builder
 
 
 @pytest.fixture

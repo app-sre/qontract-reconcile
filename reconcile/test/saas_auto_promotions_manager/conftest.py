@@ -59,20 +59,6 @@ def vcs_builder() -> Callable[..., VCS]:
 
 
 @pytest.fixture
-def s3_state_builder() -> Callable[[Mapping], State]:
-    def builder(data: Mapping) -> State:
-        def get(key: str) -> dict:
-            return data["get"][key]
-
-        state = create_autospec(spec=State)
-        state.get = get
-        state.ls.side_effect = [data["ls"]]
-        return state
-
-    return builder
-
-
-@pytest.fixture
 def gql_client_builder() -> Callable[..., GitLabApi]:
     def builder() -> GitLabApi:
         api = create_autospec(spec=GitLabApi)
