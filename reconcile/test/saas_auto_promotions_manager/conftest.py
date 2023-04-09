@@ -14,7 +14,6 @@ import pytest
 from reconcile.saas_auto_promotions_manager.utils.vcs import VCS
 from reconcile.typed_queries.saas_files import SaasFile
 from reconcile.utils.gitlab_api import GitLabApi
-from reconcile.utils.state import State
 
 
 @pytest.fixture
