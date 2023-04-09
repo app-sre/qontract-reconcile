@@ -65,7 +65,9 @@ class MergeRequestManager:
                     "Merge-conflict detected. Closing %s",
                     mr.attributes.get("web_url", "NO_WEBURL"),
                 )
-                self._vcs.close_app_interface_mr(mr)
+                self._vcs.close_app_interface_mr(
+                    mr, "Closing this MR because of a merge-conflict."
+                )
                 continue
             parts = desc.split(PROMOTION_DATA_SEPARATOR)
             if not len(parts) == 2:
@@ -73,7 +75,9 @@ class MergeRequestManager:
                     "Bad data separator format. Closing %s",
                     mr.attributes.get("web_url", "NO_WEBURL"),
                 )
-                self._vcs.close_app_interface_mr(mr)
+                self._vcs.close_app_interface_mr(
+                    mr, "Closing this MR because of bad data separator format."
+                )
                 continue
             promotion_data = parts[1]
 
@@ -86,7 +90,9 @@ class MergeRequestManager:
                     NAMESPACE_REF,
                     mr.attributes.get("web_url", "NO_WEBURL"),
                 )
-                self._vcs.close_app_interface_mr(mr)
+                self._vcs.close_app_interface_mr(
+                    mr, f"Closing this MR because of bad {NAMESPACE_REF} format."
+                )
                 continue
 
             target_file_path = self._apply_regex(
@@ -98,7 +104,9 @@ class MergeRequestManager:
                     FILE_PATH,
                     mr.attributes.get("web_url", "NO_WEBURL"),
                 )
-                self._vcs.close_app_interface_mr(mr)
+                self._vcs.close_app_interface_mr(
+                    mr, f"Closing this MR because of bad {FILE_PATH} format."
+                )
                 continue
 
             content_hash = self._apply_regex(
@@ -110,7 +118,9 @@ class MergeRequestManager:
                     CONTENT_HASH,
                     mr.attributes.get("web_url", "NO_WEBURL"),
                 )
-                self._vcs.close_app_interface_mr(mr)
+                self._vcs.close_app_interface_mr(
+                    mr, f"Closing this MR because of bad {CONTENT_HASH} format."
+                )
                 continue
 
             key = (target_file_path, namespace_ref, content_hash)
@@ -119,7 +129,10 @@ class MergeRequestManager:
                     "Duplicate MR detected. Closing %s",
                     mr.attributes.get("web_url", "NO_WEBURL"),
                 )
-                self._vcs.close_app_interface_mr(mr)
+                self._vcs.close_app_interface_mr(
+                    mr,
+                    "Closing this MR because there is already another MR open with identical content.",
+                )
                 continue
             seen.add(key)
 
@@ -153,7 +166,10 @@ class MergeRequestManager:
                     "Closing MR %s because it has out-dated content",
                     open_mr.raw.attributes.get("web_url", "NO_WEBURL"),
                 )
-                self._vcs.close_app_interface_mr(mr=open_mr.raw)
+                self._vcs.close_app_interface_mr(
+                    mr=open_mr.raw,
+                    comment="Closing this MR because it has out-dated content.",
+                )
             else:
                 has_open_mr_with_same_content = True
         if has_open_mr_with_same_content:
