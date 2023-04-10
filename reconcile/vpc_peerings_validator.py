@@ -35,9 +35,8 @@ def validate_no_cidr_overlap(
 
         overlaps = find_cidr_duplicates_and_overlap(cidr_block_entries)
         if overlaps:
-            valid = False
-            return valid
-    return valid
+            return False
+    return True
 
 
 def find_cidr_duplicates_and_overlap(input_dict: dict):
@@ -56,18 +55,18 @@ def find_cidr_duplicates_and_overlap(input_dict: dict):
     for compared_vpc, comparing_vpc in overlaps_list:
         if input_dict[compared_vpc] == input_dict[comparing_vpc]:
             logging.error(
-                "VPC {} with network {} has the same network as VPC {}".format(
-                    compared_vpc, input_dict[compared_vpc], comparing_vpc
-                )
+                "VPC %s with network %s has the same network as VPC %s",
+                compared_vpc,
+                input_dict[compared_vpc],
+                comparing_vpc,
             )
         else:
             logging.error(
-                "VPC {} with network {} overlaps with VPC {} with network {}".format(
-                    compared_vpc,
-                    input_dict[compared_vpc],
-                    comparing_vpc,
-                    input_dict[comparing_vpc],
-                )
+                "VPC %s with network %s overlaps with VPC %s with network %s",
+                compared_vpc,
+                input_dict[compared_vpc],
+                comparing_vpc,
+                input_dict[comparing_vpc],
             )
 
     # return duplicates, overlaps_list
