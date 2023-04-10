@@ -22,7 +22,6 @@ QONTRACT_INTEGRATION = "vpc-peerings-validator"
 def validate_no_cidr_overlap(
     query_data: VpcPeeringsValidatorQueryData,
 ) -> bool:
-    valid = True
     clusters: list[ClusterV1] = query_data.clusters or []
 
     cidr_block_entries = {}
