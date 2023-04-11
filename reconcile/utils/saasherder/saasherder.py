@@ -1717,17 +1717,16 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
             # was successfully published to the subscribed channel(s)
             if promotion.subscribe:
                 for channel in promotion.subscribe:
-                    state_key = f"promotions/{channel}/{promotion.commit_sha}"
-                    stateobj = self.state.get(state_key, {})
-                    success = stateobj.get("success")
-                    if not success:
+                    info = self._promotion_state.get_promotion_info(
+                        sha=promotion.commit_sha, channel=channel, local_lookup=False
+                    )
+                    if info and info.success:
                         logging.error(
                             f"Commit {promotion.commit_sha} was not "
                             + f"published with success to channel {channel}"
                         )
                         return False
-
-                    state_config_hash = stateobj.get(TARGET_CONFIG_HASH)
+                    state_config_hash = info.target_config_hash
 
                     # This code supports current saas targets that does
                     # not have promotion_data yet

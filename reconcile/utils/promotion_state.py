@@ -47,12 +47,17 @@ class PromotionState:
             _, _, channel_name, commit_sha = commit.split("/")
             self._commits_by_channel[channel_name].add(commit_sha)
 
-    def get_promotion_info(self, sha: str, channel: str) -> Optional[PromotionInfo]:
-        if sha not in self._commits_by_channel[channel]:
+    def get_promotion_info(
+        self, sha: str, channel: str, local_lookup: bool = True
+    ) -> Optional[PromotionInfo]:
+        if sha not in self._commits_by_channel[channel] and local_lookup:
             # Lets reduce unecessary calls to S3
             return None
         key = f"promotions/{channel}/{sha}"
-        data = self._state.get(key)
+        try:
+            data = self._state.get(key)
+        except KeyError:
+            return None
         return PromotionInfo(**data)
 
     def publish_promotion_info(
