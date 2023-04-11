@@ -12,6 +12,7 @@ from reconcile.saas_auto_promotions_manager.subscriber import (
 )
 
 from .data_keys import (
+    CHANNELS,
     CONFIG_HASHES,
     NAMESPACE_PATH,
     REF,
@@ -33,6 +34,7 @@ def test_content_single_namespace(
                     parent_saas="parent_saas",
                 )
             ],
+            CHANNELS: ["channel-a"],
         }
     )
     saas_content, expected = file_contents("single_namespace")
@@ -59,6 +61,7 @@ def test_content_single_namespace_no_hash(
                     parent_saas="parent_saas",
                 )
             ],
+            CHANNELS: ["channel-a"],
         }
     )
     saas_content, expected = file_contents("single_namespace_no_hash")

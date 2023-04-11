@@ -51,6 +51,12 @@ class Renderer:
                 target_promotion = target.get("promotion")
                 if not target_promotion:
                     continue
+                if not bool(target_promotion.get("auto", False)):
+                    continue
+                subscriber_channels = {ch.name for ch in subscriber.channels}
+                target_channels = set(target_promotion.get("subscribe", []))
+                if subscriber_channels != target_channels:
+                    continue
                 targets.append(target)
         return targets
 
