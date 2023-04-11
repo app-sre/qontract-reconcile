@@ -15,6 +15,7 @@ from .data_keys import (
     CONFIG_HASHES,
     NAMESPACE_PATH,
     REF,
+    CHANNELS,
 )
 
 
@@ -33,6 +34,7 @@ def test_content_multiple_namespaces(
                     parent_saas="parent_saas",
                 )
             ],
+            CHANNELS: ["channel-a"],
         }
     )
     saas_content, expected = file_contents("multiple_namespaces")
