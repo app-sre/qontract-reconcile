@@ -36,6 +36,7 @@ class SaasSecretParametersV1(ConfiguredBaseModel):
 
 class EnvironmentV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+    labels: Optional[Json] = Field(..., alias="labels")
     parameters: Optional[Json] = Field(..., alias="parameters")
     secret_parameters: Optional[list[SaasSecretParametersV1]] = Field(
         ..., alias="secretParameters"
@@ -44,11 +45,21 @@ class EnvironmentV1(ConfiguredBaseModel):
 
 class AppV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+    labels: Optional[Json] = Field(..., alias="labels")
+
+
+class NamespaceSkupperSiteConfigV1(ConfiguredBaseModel):
+    delete: Optional[bool] = Field(..., alias="delete")
 
 
 class SaasTargetNamespace(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+    labels: Optional[Json] = Field(..., alias="labels")
+    delete: Optional[bool] = Field(..., alias="delete")
     path: str = Field(..., alias="path")
     environment: EnvironmentV1 = Field(..., alias="environment")
     app: AppV1 = Field(..., alias="app")
     cluster: OcConnectionCluster = Field(..., alias="cluster")
+    skupper_site: Optional[NamespaceSkupperSiteConfigV1] = Field(
+        ..., alias="skupperSite"
+    )

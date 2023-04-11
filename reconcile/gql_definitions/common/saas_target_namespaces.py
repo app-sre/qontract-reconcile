@@ -56,9 +56,12 @@ fragment OcConnectionCluster on Cluster_v1 {
 
 fragment SaasTargetNamespace on Namespace_v1 {
   name
+  labels
+  delete
   path
   environment {
     name
+    labels
     parameters
     secretParameters {
       name
@@ -69,9 +72,13 @@ fragment SaasTargetNamespace on Namespace_v1 {
   }
   app {
     name
+    labels
   }
   cluster {
     ...OcConnectionCluster
+  }
+  skupperSite {
+    delete
   }
 }
 

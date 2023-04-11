@@ -129,14 +129,31 @@ def get_namespaces_by_selector(
     namespaces: list[SaasTargetNamespace],
     namespace_selector: SaasResourceTemplateTargetNamespaceSelectorV1,
 ) -> list[SaasTargetNamespace]:
-    namespaces_as_dict = {"namespace": [export_model(n) for n in namespaces]}
+    # json representation of all the namespaces to filter on
+    # remove all the None values to simplify the jsonpath expressions
+    namespaces_as_dict = {
+        "namespace": [ns.dict(by_alias=True, exclude_none=True) for ns in namespaces]
+    }
+
+    def _get_namespace_by_cluster_and_name(
+        cluster_name: str, name: str
+    ) -> SaasTargetNamespace:
+        for ns in namespaces:
+            if ns.cluster.name == cluster_name and ns.name == name:
+                return ns
+        # this should never ever happen - just make mypy happy
+        raise RuntimeError(f"namespace '{name}' not found in cluster '{cluster_name}'")
+
     filtered_namespaces: dict[str, Any] = {}
 
     try:
         for include in namespace_selector.json_path_selectors.include:
             for match in parser.parse(include).find(namespaces_as_dict):
-                ns = SaasTargetNamespace(**match.value)
-                filtered_namespaces[f"{ns.cluster.name}-{ns.name}"] = ns
+                cluster_name = match.value["cluster"]["name"]
+                ns_name = match.value["name"]
+                filtered_namespaces[
+                    f"{cluster_name}-{ns_name}"
+                ] = _get_namespace_by_cluster_and_name(cluster_name, ns_name)
     except JsonPathParserError as e:
         raise ParameterError(
             f"Invalid jsonpath expression in namespaceSelector '{include}' :{e}"
@@ -145,8 +162,9 @@ def get_namespaces_by_selector(
     try:
         for exclude in namespace_selector.json_path_selectors.exclude or []:
             for match in parser.parse(exclude).find(namespaces_as_dict):
-                ns = SaasTargetNamespace(**match.value)
-                filtered_namespaces.pop(f"{ns.cluster.name}-{ns.name}", None)
+                cluster_name = match.value["cluster"]["name"]
+                ns_name = match.value["name"]
+                filtered_namespaces.pop(f"{cluster_name}-{ns_name}", None)
     except JsonPathParserError as e:
         raise ParameterError(
             f"Invalid jsonpath expression in namespaceSelector '{exclude}' :{e}"
@@ -157,7 +175,7 @@ def get_namespaces_by_selector(
 def convert_parameters_to_json_string(root: dict[str, Any]) -> dict[str, Any]:
     """Find all parameter occurrences and convert them to a json string."""
     for key, value in root.items():
-        if key == "parameters":
+        if key in ["parameters", "labels"]:
             root[key] = json.dumps(value) if value is not None else None
         elif isinstance(value, dict):
             root[key] = convert_parameters_to_json_string(value)
