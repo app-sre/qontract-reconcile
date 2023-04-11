@@ -176,7 +176,7 @@ def close_item(
             + "Please run the integration manually "
             + "with the '--enable-deletion' flag."
         )
-        logging.warning(warning_message)
+        logging.debug(warning_message)
 
 
 def handle_stale_items(dry_run, gl, days_interval, enable_closing, item_type):
