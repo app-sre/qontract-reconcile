@@ -9,16 +9,15 @@ from reconcile.saas_auto_promotions_manager.merge_request_manager.merge_request 
     SAPMMR,
 )
 from reconcile.saas_auto_promotions_manager.merge_request_manager.renderer import (
+    CONTENT_HASH,
+    FILE_PATH,
+    NAMESPACE_REF,
     PROMOTION_DATA_SEPARATOR,
+    SAPM_LABEL,
     Renderer,
 )
 from reconcile.saas_auto_promotions_manager.subscriber import Subscriber
 from reconcile.saas_auto_promotions_manager.utils.vcs import VCS
-
-SAPM_LABEL = "SAPM"
-NAMESPACE_REF = "namespace_ref"
-CONTENT_HASH = "content_hash"
-TARGET_FILE_PATH = "target_file_path"
 
 
 @dataclass
@@ -34,9 +33,7 @@ class MergeRequestManager:
         self._vcs = vcs
         self._renderer = renderer
         self._namespace_ref_regex = re.compile(rf"{NAMESPACE_REF}: (.*)$", re.MULTILINE)
-        self._target_file_path_regex = re.compile(
-            rf"{TARGET_FILE_PATH}: (.*)$", re.MULTILINE
-        )
+        self._target_file_path_regex = re.compile(rf"{FILE_PATH}: (.*)$", re.MULTILINE)
         self._content_hash_regex = re.compile(rf"{CONTENT_HASH}: (.*)$", re.MULTILINE)
         self._open_mrs: list[OpenMergeRequest] = []
         self._open_mrs_with_problems: list[OpenMergeRequest] = []
@@ -58,24 +55,29 @@ class MergeRequestManager:
         ]
 
     def housekeeping(self) -> None:
+        seen: set[tuple[str, str, str]] = set()
         for mr in self._open_raw_mrs:
             attrs = mr.attributes
             desc = attrs.get("description")
             has_conflicts = attrs.get("has_conflicts", False)
             if has_conflicts:
                 logging.info(
-                    "merge-conflict detected. Closing %s",
+                    "Merge-conflict detected. Closing %s",
                     mr.attributes.get("web_url", "NO_WEBURL"),
                 )
-                self._vcs.close_app_interface_mr(mr)
+                self._vcs.close_app_interface_mr(
+                    mr, "Closing this MR because of a merge-conflict."
+                )
                 continue
             parts = desc.split(PROMOTION_DATA_SEPARATOR)
             if not len(parts) == 2:
                 logging.info(
-                    "bad description format. Closing %s",
+                    "Bad data separator format. Closing %s",
                     mr.attributes.get("web_url", "NO_WEBURL"),
                 )
-                self._vcs.close_app_interface_mr(mr)
+                self._vcs.close_app_interface_mr(
+                    mr, "Closing this MR because of bad data separator format."
+                )
                 continue
             promotion_data = parts[1]
 
@@ -84,10 +86,13 @@ class MergeRequestManager:
             )
             if not namespace_ref:
                 logging.info(
-                    "bad description format. Closing %s",
+                    "Bad %s format. Closing %s",
+                    NAMESPACE_REF,
                     mr.attributes.get("web_url", "NO_WEBURL"),
                 )
-                self._vcs.close_app_interface_mr(mr)
+                self._vcs.close_app_interface_mr(
+                    mr, f"Closing this MR because of bad {NAMESPACE_REF} format."
+                )
                 continue
 
             target_file_path = self._apply_regex(
@@ -95,10 +100,13 @@ class MergeRequestManager:
             )
             if not target_file_path:
                 logging.info(
-                    "bad description format. Closing %s",
+                    "Bad %s format. Closing %s",
+                    FILE_PATH,
                     mr.attributes.get("web_url", "NO_WEBURL"),
                 )
-                self._vcs.close_app_interface_mr(mr)
+                self._vcs.close_app_interface_mr(
+                    mr, f"Closing this MR because of bad {FILE_PATH} format."
+                )
                 continue
 
             content_hash = self._apply_regex(
@@ -106,11 +114,27 @@ class MergeRequestManager:
             )
             if not content_hash:
                 logging.info(
-                    "bad description format. Closing %s",
+                    "Bad %s format. Closing %s",
+                    CONTENT_HASH,
                     mr.attributes.get("web_url", "NO_WEBURL"),
                 )
-                self._vcs.close_app_interface_mr(mr)
+                self._vcs.close_app_interface_mr(
+                    mr, f"Closing this MR because of bad {CONTENT_HASH} format."
+                )
                 continue
+
+            key = (target_file_path, namespace_ref, content_hash)
+            if key in seen:
+                logging.info(
+                    "Duplicate MR detected. Closing %s",
+                    mr.attributes.get("web_url", "NO_WEBURL"),
+                )
+                self._vcs.close_app_interface_mr(
+                    mr,
+                    "Closing this MR because there is already another MR open with identical content.",
+                )
+                continue
+            seen.add(key)
 
             self._open_mrs.append(
                 OpenMergeRequest(
@@ -132,24 +156,30 @@ class MergeRequestManager:
         ]
 
     def process_subscriber(self, subscriber: Subscriber) -> None:
-        open_mrs = self._get_open_mrs_for_same_target(subscriber=subscriber)
+        open_mrs_for_same_target = self._get_open_mrs_for_same_target(
+            subscriber=subscriber
+        )
         has_open_mr_with_same_content = False
-        for open_mr in open_mrs:
-            if open_mr.content_hash == subscriber.content_hash():
-                if has_open_mr_with_same_content:
-                    logging.info(
-                        "Closing MR %s because there already is an open MR with same content for this target",
-                        open_mr.raw.attributes.get("web_url", "NO_WEBURL"),
-                    )
-                    self._vcs.close_app_interface_mr(mr=open_mr.raw)
-                has_open_mr_with_same_content = True
-            else:
+        for open_mr in open_mrs_for_same_target:
+            if open_mr.content_hash != subscriber.content_hash():
                 logging.info(
-                    "Closing MR %s because it has out-dated state",
+                    "Closing MR %s because it has out-dated content",
                     open_mr.raw.attributes.get("web_url", "NO_WEBURL"),
                 )
-                self._vcs.close_app_interface_mr(mr=open_mr.raw)
+                self._vcs.close_app_interface_mr(
+                    mr=open_mr.raw,
+                    comment="Closing this MR because it has out-dated content.",
+                )
+            else:
+                has_open_mr_with_same_content = True
         if has_open_mr_with_same_content:
+            logging.info(
+                "We already have an open MR for path: %s namespace: %s ref: %s target_hashes: %s - skipping",
+                subscriber.target_file_path,
+                subscriber.namespace_file_path,
+                subscriber.desired_ref,
+                subscriber.desired_hashes,
+            )
             return
         try:
             content_on_master = self._vcs.get_file_content_from_app_interface_master(
@@ -157,8 +187,8 @@ class MergeRequestManager:
             )
         except GitlabGetError as e:
             if e.response_code == 404:
-                logging.info(
-                    "The saas file %s does not exist anylonger. qontract-server data not in synch, but should resolve soon on its own.",
+                logging.error(
+                    "The saas file %s does not exist anylonger. qontract-server data not in synch. This should resolve soon on its own.",
                     subscriber.target_file_path,
                 )
                 return
@@ -182,5 +212,6 @@ class MergeRequestManager:
                 content=content,
                 title=title,
                 description=description,
+                file_path=subscriber.target_file_path,
             )
         )
