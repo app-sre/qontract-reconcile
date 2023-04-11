@@ -9,7 +9,7 @@ from pydantic import (
 from reconcile.utils.state import State
 
 
-class DeploymentInfo(BaseModel):
+class PromotionInfo(BaseModel):
     """
     A class that strictly corresponds to the json stored in S3
     """
@@ -23,29 +23,30 @@ class DeploymentInfo(BaseModel):
         extra = Extra.forbid
 
 
-class DeploymentState:
+class PromotionState:
     """
     A wrapper around a reconcile.utils.state.State object.
-    This is dedicated to retrieving information about
-    deployments from S3.
+    This is dedicated to storing and retrieving information
+    about promotions on S3.
     """
 
     def __init__(self, state: State):
         self._state = state
         self._commits_by_channel: dict[str, set[str]] = defaultdict(set)
-        self._fetch_deployment_list()
+        self._fetch_promotions_list()
 
-    def _fetch_deployment_list(self) -> None:
+    def _fetch_promotions_list(self) -> None:
         all_keys = self._state.ls()
         for commit in all_keys:
+            # Format: /promotions/{channel}/{commit-sha}
             if not commit.startswith("/promotions/"):
                 continue
-            parts = commit.split("/")
-            self._commits_by_channel[parts[2]].add(parts[3])
+            _, _, channel_name, commit_sha = commit.split("/")
+            self._commits_by_channel[channel_name].add(commit_sha)
 
-    def get_deployment_info(self, sha: str, channel: str) -> Optional[DeploymentInfo]:
+    def get_promotion_info(self, sha: str, channel: str) -> Optional[PromotionInfo]:
         if sha not in self._commits_by_channel[channel]:
             return None
         key = f"promotions/{channel}/{sha}"
         data = self._state.get(key)
-        return DeploymentInfo(**data)
+        return PromotionInfo(**data)

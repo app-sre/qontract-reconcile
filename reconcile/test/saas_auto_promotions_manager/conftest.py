@@ -14,7 +14,6 @@ import pytest
 from reconcile.saas_auto_promotions_manager.utils.vcs import VCS
 from reconcile.typed_queries.saas_files import SaasFile
 from reconcile.utils.gitlab_api import GitLabApi
-from reconcile.utils.state import State
 
 
 @pytest.fixture
@@ -54,20 +53,6 @@ def vcs_builder() -> Callable[..., VCS]:
         vcs.get_commit_sha.side_effect = ["new_sha"] * 100
         vcs._app_interface_api = MagicMock()
         return vcs
-
-    return builder
-
-
-@pytest.fixture
-def s3_state_builder() -> Callable[[Mapping], State]:
-    def builder(data: Mapping) -> State:
-        def get(key: str) -> dict:
-            return data["get"][key]
-
-        state = create_autospec(spec=State)
-        state.get = get
-        state.ls.side_effect = [data["ls"]]
-        return state
 
     return builder
 
