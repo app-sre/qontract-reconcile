@@ -13,6 +13,12 @@ from botocore.errorfactory import ClientError
 from jinja2 import Template
 from mypy_boto3_s3 import S3Client
 
+from reconcile.gql_definitions.common.app_interface_state_settings import (
+    AppInterfaceStateConfigurationS3V1,
+)
+from reconcile.typed_queries.app_interface_state_settings import (
+    get_app_interface_state_settings,
+)
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
@@ -53,16 +59,65 @@ def init_state(
         vault_settings = get_app_interface_vault_settings()
         secret_reader = create_secret_reader(use_vault=vault_settings.vault)
 
-    state_bucket_name = os.environ["APP_INTERFACE_STATE_BUCKET"]
-    state_bucket_account_name = os.environ["APP_INTERFACE_STATE_BUCKET_ACCOUNT"]
-    query = Template(STATE_ACCOUNT_QUERY).render(name=state_bucket_account_name)
-    aws_accounts = gql.get_api().query(query)["accounts"]
+    # if state settings are present via env variables, use them
+    state_bucket_name = os.environ.get("APP_INTERFACE_STATE_BUCKET")
+    state_bucket_account_name = os.environ.get("APP_INTERFACE_STATE_BUCKET_ACCOUNT")
+    if state_bucket_name and state_bucket_account_name:
+        query = Template(STATE_ACCOUNT_QUERY).render(name=state_bucket_account_name)
+        aws_accounts = gql.get_api().query(query)["accounts"]
+        return init_state_from_accounts(
+            integration=integration,
+            secret_reader=secret_reader,
+            bucket_name=state_bucket_name,
+            account_name=state_bucket_account_name,
+            accounts=aws_accounts,
+        )
+
+    # ... otherwise have a look if state settings are present in app-interface-settings-1.yml
+    state_settings = get_app_interface_state_settings()
+    if not state_settings:
+        raise StateInaccessibleException(
+            "app-interface state must be configured in order to use stateful integrations. "
+            "use one of the following options to provide state config: "
+            "* env vars APP_INTERFACE_STATE_BUCKET and APP_INTERFACE_STATE_BUCKET_ACCOUNT "
+            "* state settings in app-interface-settings-1.yml"
+        )
+
+    if isinstance(state_settings, AppInterfaceStateConfigurationS3V1):
+        return init_state_from_settings(
+            integration=integration,
+            secret_reader=secret_reader,
+            state_settings=state_settings,
+        )
+
+    raise StateInaccessibleException(
+        f"app-interface-settings-1.yml state provider {state_settings.provider} is not supported."
+    )
+
+
+def init_state_from_settings(
+    integration: str,
+    secret_reader: SecretReaderBase,
+    state_settings: AppInterfaceStateConfigurationS3V1,
+) -> "State":
+    """
+    Initializes a state object from the app-interface settings.
+
+    :raises StateInaccessibleException: if the bucket is missing
+    or not accessible
+    """
     return init_state_from_accounts(
         integration=integration,
         secret_reader=secret_reader,
-        bucket_name=state_bucket_name,
-        account_name=state_bucket_account_name,
-        accounts=aws_accounts,
+        bucket_name=state_settings.bucket,
+        account_name="settings-account",
+        accounts=[
+            {
+                "name": "settings-account",
+                "resourcesDefaultRegion": state_settings.region,
+                "automationToken": state_settings.credentials.dict(by_alias=True),
+            }
+        ],
     )
 
 
