@@ -363,7 +363,7 @@ def initialize_environment_override_mapping(
 
 def filter_integrations(
     integrations: Iterable[Mapping[str, Any]], upstream: Optional[str] = None
-):
+) -> Iterable[Mapping[str, Any]]:
     if upstream is None:
         return integrations
 

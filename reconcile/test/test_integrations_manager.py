@@ -802,6 +802,7 @@ def test_filter_with_upstream(integrations):
     upstream = "a"
     filtered_integrations = intop.filter_integrations(integrations, upstream)
 
+    assert isinstance(filtered_integrations, list)
     assert len(filtered_integrations) == 1
     assert filtered_integrations[0]["name"] == "integ1"
 
