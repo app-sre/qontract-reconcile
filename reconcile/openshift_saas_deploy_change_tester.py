@@ -217,8 +217,12 @@ def run(
         get_saas_files(query_func=comparison_gql_api.query)
     )
     desired_saas_file_state = collect_state(get_saas_files())
+    # compare dicts against dicts which is much faster than comparing BaseModel objects
+    comparison_saas_file_state_dicts = [s.dict() for s in comparison_saas_file_state]
     saas_file_state_diffs = [
-        s for s in desired_saas_file_state if s not in comparison_saas_file_state
+        s
+        for s in desired_saas_file_state
+        if s.dict() not in comparison_saas_file_state_dicts
     ]
     if not saas_file_state_diffs:
         return
