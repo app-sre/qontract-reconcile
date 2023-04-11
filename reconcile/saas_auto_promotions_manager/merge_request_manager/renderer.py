@@ -53,7 +53,7 @@ class Renderer:
                     continue
                 if not bool(target_promotion.get("auto", False)):
                     continue
-                subscriber_channels = set([ch.name for ch in subscriber.channels])
+                subscriber_channels = {ch.name for ch in subscriber.channels}
                 target_channels = set(target_promotion.get("subscribe", []))
                 if subscriber_channels != target_channels:
                     continue
