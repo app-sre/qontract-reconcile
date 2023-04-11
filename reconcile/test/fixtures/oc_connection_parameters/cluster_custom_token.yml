@@ -1,0 +1,91 @@
+---
+path: test.yml
+name: test-cluster
+additionalRouters: null
+addons: null
+auth: []
+automationToken:
+  field: automationToken
+  format: null
+  path: path/to/automation_token
+  version: null
+awsInfrastructureAccess: []
+awsInfrastructureManagementAccounts: []
+clusterAdmin: false
+clusterAdminAutomationToken:
+  field: token
+  format: null
+  path: path/to/cluster_admin_token
+  version: null
+consoleUrl: test-url
+disable: null
+elbFQDN: elb-url
+externalConfiguration: null
+insecureSkipTLSVerify: null
+internal: false
+jumpHost: null
+kibanaUrl: ''
+machinePools: null
+managedClusterRoles: true
+managedGroups: []
+
+network:
+  pod: 10.10.10.0/14
+  service: 10.10.0.0/16
+  type: OpenShiftSDN
+  vpc: 10.10.10.0/22
+ocm:
+  environment:
+    name: name
+    url: ocm-url
+    accessTokenClientId: client-id
+    accessTokenClientSecret:
+      field: client_secret
+      format: null
+      path: path/to/client_secret
+      version: null
+    accessTokenUrl: access-token-url
+  accessTokenClientId: client-id
+  accessTokenClientSecret:
+    field: client_secret
+    format: null
+    path: path/to/client_secret
+    version: null
+  accessTokenUrl: access-token-url
+  blockedVersions: []
+  inheritVersionData: null
+  name: ocm-production
+  sectors: null
+  orgId: org-id
+peering:
+  connections: []
+prometheusUrl: prom-url
+serverUrl: server-url
+spec:
+  autoscale:
+    max_replicas: 2
+    min_replicas: 1
+  channel: candidate
+  disable_user_workload_monitoring: true
+  external_id: some-id
+  hypershift: null
+  id: some-other-id
+  initial_version: 1.0.0
+  instance_type: m5.xlarge
+  load_balancers: 0
+  multi_az: true
+  nodes: null
+  private: true
+  product: osd
+  provider: aws
+  provision_shard_id: shard-id
+  region: us-east-1
+  storage: 100
+  version: 1.0.0
+upgradePolicy:
+  conditions:
+    mutexes: null
+    sector: null
+    soakDays: 7
+  schedule: 0 12 * * 1-5
+  workloads: []

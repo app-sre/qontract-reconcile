@@ -155,6 +155,24 @@ def test_wrong_server_url():
         assert parameters is None
 
 
+def test_custom_token_field():
+    test_cluster = load_cluster_for_connection_parameters("cluster_custom_token.yml")
+
+    secret_reader = create_autospec(SecretReaderBase)
+    secret_reader.read_secret.side_effect = ["secret2"]
+    secret_reader.read_all_secret.side_effect = [
+        {"server": "server-url", "automationToken": "secret1", "username": "foo"}
+    ]
+
+    parameters = OCConnectionParameters.from_cluster(
+        secret_reader=secret_reader,
+        cluster=test_cluster,
+        cluster_admin=False,
+        use_jump_host=False,
+    )
+    assert parameters.automation_token == "secret1"
+
+
 @dataclass
 class ExpectedConnection:
     cluster_name: str
