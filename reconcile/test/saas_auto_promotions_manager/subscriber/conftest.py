@@ -14,15 +14,17 @@ from reconcile.saas_auto_promotions_manager.subscriber import (
     ConfigHash,
     Subscriber,
 )
-from reconcile.saas_auto_promotions_manager.utils.deployment_state import DeploymentInfo
+from reconcile.utils.promotion_state import PromotionInfo
 
 from .data_keys import (
     CHANNELS,
     CONFIG_HASH,
     CUR_CONFIG_HASHES,
     CUR_SUBSCRIBER_REF,
+    NAMESPACE_REF,
     REAL_WORLD_SHA,
     SUCCESSFUL_DEPLOYMENT,
+    TARGET_FILE_PATH,
 )
 
 
@@ -56,7 +58,7 @@ def subscriber_builder() -> Callable[[Mapping[str, Any]], Subscriber]:
                     auth_code=None,
                 )
                 publisher.commit_sha = publisher_data[REAL_WORLD_SHA]
-                publisher.deployment_info_by_channel[channel_name] = DeploymentInfo(
+                publisher.deployment_info_by_channel[channel_name] = PromotionInfo(
                     success=publisher_data.get(SUCCESSFUL_DEPLOYMENT, True),
                     target_config_hash=publisher_data.get(CONFIG_HASH, ""),
                     saas_file=publisher_name,
@@ -64,7 +66,7 @@ def subscriber_builder() -> Callable[[Mapping[str, Any]], Subscriber]:
                 channel.publishers.append(publisher)
             channels.append(channel)
         cur_config_hashes_by_channel: dict[str, list[ConfigHash]] = defaultdict(list)
-        for cur_config_hash in data[CUR_CONFIG_HASHES]:
+        for cur_config_hash in data.get(CUR_CONFIG_HASHES, []):
             cur_config_hashes_by_channel[cur_config_hash[0]].append(
                 ConfigHash(
                     channel=cur_config_hash[0],
@@ -73,10 +75,10 @@ def subscriber_builder() -> Callable[[Mapping[str, Any]], Subscriber]:
                 )
             )
         subscriber = Subscriber(
-            namespace_file_path="",
-            ref=data[CUR_SUBSCRIBER_REF],
+            namespace_file_path=data.get(NAMESPACE_REF, ""),
+            ref=data.get(CUR_SUBSCRIBER_REF, ""),
             saas_name="",
-            target_file_path="",
+            target_file_path=data.get(TARGET_FILE_PATH, ""),
             template_name="",
         )
         subscriber.channels = channels

@@ -403,6 +403,12 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         note.delete()
 
+    def add_comment_on_merge_request(
+        self, merge_request: ProjectMergeRequest, comment: str
+    ) -> None:
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
+        merge_request.notes.create({"body": comment})
+
     def add_merge_request_comment(self, mr_id, comment):
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         merge_request = self.project.mergerequests.get(mr_id)

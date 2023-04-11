@@ -1,10 +1,11 @@
 import hashlib
 import logging
+from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Optional
 
 from reconcile.saas_auto_promotions_manager.publisher import Publisher
-from reconcile.saas_auto_promotions_manager.utils.deployment_state import DeploymentInfo
+from reconcile.utils.promotion_state import PromotionInfo
 
 CONTENT_HASH_LENGTH = 32
 
@@ -48,7 +49,7 @@ class Subscriber:
 
     def _validate_deployment(
         self, publisher: Publisher, channel: Channel
-    ) -> Optional[DeploymentInfo]:
+    ) -> Optional[PromotionInfo]:
         deployment_info = publisher.deployment_info_by_channel.get(channel.name)
         if not deployment_info:
             logging.info(
@@ -129,28 +130,30 @@ class Subscriber:
                     )
                 )
 
-    def content_hash(self) -> str:
+    @staticmethod
+    def combined_content_hash(subscribers: Iterable["Subscriber"]) -> str:
         """
-        Get a content hash for the attributes of this subscriber.
+        Get a deterministic content hash for the attributes of a collection
+        of subscribers.
         It is important that this is a deterministic operation, because
         SAPM uses this hash to compare the content of MRs.
         """
-        if self._content_hash:
-            return self._content_hash
-        sorted_hashes: list[ConfigHash] = sorted(
-            self.desired_hashes,
-            key=lambda a: (a.channel, a.parent_saas, a.target_config_hash),
+        sorted_subs = sorted(
+            subscribers,
+            key=lambda s: (s.target_file_path, s.template_name, s.namespace_file_path),
         )
         m = hashlib.sha256()
-        m.update(
-            f"""
-            target_file_path: {self.target_file_path}
-            namespace_file_path: {self.namespace_file_path}
-            desired_ref: {self.desired_ref}
-            desired_hashes: {[(h.channel, h.parent_saas, h.target_config_hash) for h in sorted_hashes]}
-            """.encode(
-                "utf-8"
+        msg = ""
+        for sub in sorted_subs:
+            sorted_hashes: list[ConfigHash] = sorted(
+                sub.desired_hashes,
+                key=lambda a: (a.channel, a.parent_saas, a.target_config_hash),
             )
-        )
-        self._content_hash = m.hexdigest()[:CONTENT_HASH_LENGTH]
-        return self._content_hash
+            msg += f"""
+            target_file_path: {sub.target_file_path}
+            namespace_file_path: {sub.namespace_file_path}
+            desired_ref: {sub.desired_ref}
+            desired_hashes: {[(h.channel, h.parent_saas, h.target_config_hash) for h in sorted_hashes]}
+            """
+        m.update(msg.encode("utf-8"))
+        return m.hexdigest()[:CONTENT_HASH_LENGTH]

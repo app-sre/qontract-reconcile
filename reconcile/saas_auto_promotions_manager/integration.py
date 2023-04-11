@@ -17,9 +17,6 @@ from reconcile.saas_auto_promotions_manager.subscriber import (
     ConfigHash,
     Subscriber,
 )
-from reconcile.saas_auto_promotions_manager.utils.deployment_state import (
-    DeploymentState,
-)
 from reconcile.saas_auto_promotions_manager.utils.saas_files_inventory import (
     SaasFilesInventory,
 )
@@ -31,6 +28,7 @@ from reconcile.typed_queries.github_orgs import get_github_orgs
 from reconcile.typed_queries.gitlab_instances import get_gitlab_instances
 from reconcile.typed_queries.saas_files import get_saas_files
 from reconcile.utils.defer import defer
+from reconcile.utils.promotion_state import PromotionState
 from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.state import init_state
@@ -43,7 +41,7 @@ QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 class SaasAutoPromotionsManager:
     def __init__(
         self,
-        deployment_state: DeploymentState,
+        deployment_state: PromotionState,
         vcs: VCS,
         saas_file_inventory: SaasFilesInventory,
         merge_request_manager: MergeRequestManager,
@@ -99,13 +97,14 @@ class SaasAutoPromotionsManager:
         subscribers_with_diff = self._get_subscribers_with_diff()
         self._merge_request_manager.fetch_sapm_managed_open_merge_requests()
         self._merge_request_manager.housekeeping()
-        for subscriber in subscribers_with_diff:
-            self._merge_request_manager.process_subscriber(subscriber=subscriber)
+        self._merge_request_manager.create_promotion_merge_requests(
+            subscribers=subscribers_with_diff
+        )
 
 
 def init_external_dependencies(
     dry_run: bool,
-) -> tuple[DeploymentState, VCS, SaasFilesInventory, MergeRequestManager]:
+) -> tuple[PromotionState, VCS, SaasFilesInventory, MergeRequestManager]:
     """
     Lets initialize everything that involves calls to external dependencies:
     - VCS -> Gitlab / Github queries
@@ -138,7 +137,7 @@ def init_external_dependencies(
     )
     saas_files = get_saas_files()
     saas_inventory = SaasFilesInventory(saas_files=saas_files)
-    deployment_state = DeploymentState(
+    deployment_state = PromotionState(
         state=init_state(integration=OPENSHIFT_SAAS_DEPLOY, secret_reader=secret_reader)
     )
     return deployment_state, vcs, saas_inventory, merge_request_manager

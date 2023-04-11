@@ -12,14 +12,12 @@ from reconcile.saas_auto_promotions_manager.merge_request_manager.merge_request_
 from reconcile.saas_auto_promotions_manager.merge_request_manager.renderer import (
     Renderer,
 )
-from reconcile.saas_auto_promotions_manager.utils.deployment_state import (
-    DeploymentState,
-)
 from reconcile.saas_auto_promotions_manager.utils.saas_files_inventory import (
     SaasFilesInventory,
 )
 from reconcile.saas_auto_promotions_manager.utils.vcs import VCS
 from reconcile.typed_queries.saas_files import SaasFile
+from reconcile.utils.promotion_state import PromotionState
 from reconcile.utils.state import State
 
 
@@ -88,7 +86,7 @@ def test_integration_test(
         ]
     )
     vcs = vcs_builder()
-    deployment_state = DeploymentState(
+    deployment_state = PromotionState(
         state=s3_state_builder(
             {
                 "ls": [

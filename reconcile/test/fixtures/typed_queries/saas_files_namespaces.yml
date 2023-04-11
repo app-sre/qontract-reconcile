@@ -12,6 +12,7 @@ namespaces:
     automationToken:
       path: creds
       field: token
+  skupperSite: null
 
 - name: example-02
   path: some-path
@@ -26,11 +27,13 @@ namespaces:
     automationToken:
       path: creds
       field: token
+  skupperSite: null
 
 - name: app-interface-integration
   path: some-path
   environment:
     name: production
+    labels: '{"type": "integration"}'
   app:
     name: app-interface
   cluster:
@@ -40,11 +43,13 @@ namespaces:
     automationToken:
       path: creds
       field: token
+  skupperSite: null
 
 - name: app-interface-test-service-prod
   path: some-path
   environment:
     name: stage
+    labels: '{"type": "stage"}'
   app:
     name: app-interface-test-service
   cluster:
@@ -54,6 +59,8 @@ namespaces:
     automationToken:
       path: creds
       field: token
+  skupperSite:
+    delete: null
 
 - name: app-interface-test-service-pipelines
   path: some-path
@@ -68,11 +75,14 @@ namespaces:
     automationToken:
       path: creds
       field: token
+  skupperSite:
+    delete: false
 
 - name: app-interface-test-service-stage
   path: some-path
   environment:
     name: stage
+    labels: '{"type": "stage"}'
   app:
     name: app-interface-test-service
   cluster:
@@ -82,3 +92,5 @@ namespaces:
     automationToken:
       path: creds
       field: token
+  skupperSite:
+    delete: true

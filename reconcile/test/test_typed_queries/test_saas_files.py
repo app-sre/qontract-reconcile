@@ -152,6 +152,64 @@ def namespaces(
                 "example-01",
             ],
         ),
+        # by label - this attribute is a Json object
+        (
+            {
+                "jsonPathSelectors": {
+                    "include": [
+                        'namespace[?@.environment.labels.type="integration"]',
+                    ],
+                    "exclude": [],
+                }
+            },
+            [
+                "app-interface-integration",
+            ],
+        ),
+        # skupper real life example
+        (
+            {
+                "jsonPathSelectors": {
+                    "include": [
+                        'namespace[?@.environment.labels.type="stage" & @.skupperSite]',
+                    ],
+                    "exclude": [],
+                }
+            },
+            [
+                "app-interface-test-service-prod",
+                "app-interface-test-service-stage",
+            ],
+        ),
+        (
+            {
+                "jsonPathSelectors": {
+                    "include": [
+                        "namespace[?@.skupperSite]",
+                    ],
+                    "exclude": [
+                        'namespace[?@.environment.labels.type="stage"]',
+                    ],
+                }
+            },
+            ["app-interface-test-service-pipelines"],
+        ),
+        (
+            {
+                "jsonPathSelectors": {
+                    "include": [
+                        "namespace[?@.skupperSite]",
+                    ],
+                    "exclude": [
+                        "namespace[?@.skupperSite.delete=true]",
+                    ],
+                }
+            },
+            [
+                "app-interface-test-service-pipelines",
+                "app-interface-test-service-prod",
+            ],
+        ),
         # bad json path
         pytest.param(
             {
@@ -185,7 +243,6 @@ def test_get_namespaces_by_selector(
     json_path_selectors: Mapping[str, Any],
     expected_namespaces: list[str],
 ) -> None:
-    Fixtures("saasherder").get_anymarkup("saas.gql.yml")
     items = get_namespaces_by_selector(
         namespaces=namespaces,
         namespace_selector=SaasResourceTemplateTargetNamespaceSelectorV1(
@@ -553,7 +610,8 @@ def test_export_model(
         query_func=query_func_from_fixture("saas_files.yml", SaasFileV2, "saas_files"),
         namespaces=namespaces,
     )
-    assert [export_model(item) for item in items] == [
+    saas_files = [export_model(item) for item in items]
+    assert saas_files == [
         {
             "path": "path1",
             "name": "saas-file-01",
@@ -617,13 +675,16 @@ def test_export_model(
                             "name": None,
                             "namespace": {
                                 "name": "namespace-test",
+                                "labels": None,
+                                "delete": None,
                                 "path": "some-path",
                                 "environment": {
                                     "name": "test",
+                                    "labels": None,
                                     "parameters": '{"ENV_PARAM": "foobar"}',
                                     "secretParameters": None,
                                 },
-                                "app": {"name": "app-01"},
+                                "app": {"name": "app-01", "labels": None},
                                 "cluster": {
                                     "name": "appint-ex-01",
                                     "serverUrl": "https://cluster-url",
@@ -639,6 +700,7 @@ def test_export_model(
                                     "clusterAdminAutomationToken": None,
                                     "disable": None,
                                 },
+                                "skupperSite": None,
                             },
                             "ref": "main",
                             "promotion": None,
@@ -654,13 +716,16 @@ def test_export_model(
                             "name": None,
                             "namespace": {
                                 "name": "namespace-prod",
+                                "labels": None,
+                                "delete": None,
                                 "path": "some-path",
                                 "environment": {
                                     "name": "prod",
+                                    "labels": None,
                                     "parameters": None,
                                     "secretParameters": None,
                                 },
-                                "app": {"name": "app-01"},
+                                "app": {"name": "app-01", "labels": None},
                                 "cluster": {
                                     "name": "appint-ex-01",
                                     "serverUrl": "https://cluster-url",
@@ -676,6 +741,7 @@ def test_export_model(
                                     "clusterAdminAutomationToken": None,
                                     "disable": None,
                                 },
+                                "skupperSite": None,
                             },
                             "ref": "1234567890123456789012345678901234567890",
                             "promotion": None,
@@ -754,13 +820,16 @@ def test_export_model(
                             "name": None,
                             "namespace": {
                                 "name": "namespace-test",
+                                "labels": None,
+                                "delete": None,
                                 "path": "some-path",
                                 "environment": {
                                     "name": "test",
+                                    "labels": None,
                                     "parameters": None,
                                     "secretParameters": None,
                                 },
-                                "app": {"name": "app-02"},
+                                "app": {"name": "app-02", "labels": None},
                                 "cluster": {
                                     "name": "appint-ex-01",
                                     "serverUrl": "https://cluster-url",
@@ -776,6 +845,7 @@ def test_export_model(
                                     "clusterAdminAutomationToken": None,
                                     "disable": None,
                                 },
+                                "skupperSite": None,
                             },
                             "ref": "main",
                             "promotion": None,
@@ -791,13 +861,16 @@ def test_export_model(
                             "name": None,
                             "namespace": {
                                 "name": "namespace-prod",
+                                "labels": None,
+                                "delete": None,
                                 "path": "some-path",
                                 "environment": {
                                     "name": "prod",
+                                    "labels": None,
                                     "parameters": None,
                                     "secretParameters": None,
                                 },
-                                "app": {"name": "app-02"},
+                                "app": {"name": "app-02", "labels": None},
                                 "cluster": {
                                     "name": "appint-ex-01",
                                     "serverUrl": "https://cluster-url",
@@ -813,6 +886,7 @@ def test_export_model(
                                     "clusterAdminAutomationToken": None,
                                     "disable": None,
                                 },
+                                "skupperSite": None,
                             },
                             "ref": "1234567890123456789012345678901234567890",
                             "promotion": None,
@@ -891,13 +965,16 @@ def test_export_model(
                             "name": None,
                             "namespace": {
                                 "name": "example-01",
+                                "labels": None,
+                                "delete": None,
                                 "path": "some-path",
                                 "environment": {
                                     "name": "production",
+                                    "labels": None,
                                     "parameters": None,
                                     "secretParameters": None,
                                 },
-                                "app": {"name": "example"},
+                                "app": {"name": "example", "labels": None},
                                 "cluster": {
                                     "name": "appint-ex-01",
                                     "serverUrl": "https://cluster-url",
@@ -913,6 +990,7 @@ def test_export_model(
                                     "clusterAdminAutomationToken": None,
                                     "disable": None,
                                 },
+                                "skupperSite": None,
                             },
                             "ref": "1234567890123456789012345678901234567890",
                             "promotion": None,
@@ -928,13 +1006,16 @@ def test_export_model(
                             "name": None,
                             "namespace": {
                                 "name": "example-02",
+                                "labels": None,
+                                "delete": None,
                                 "path": "some-path",
                                 "environment": {
                                     "name": "stage",
+                                    "labels": None,
                                     "parameters": None,
                                     "secretParameters": None,
                                 },
-                                "app": {"name": "example"},
+                                "app": {"name": "example", "labels": None},
                                 "cluster": {
                                     "name": "appint-ex-01",
                                     "serverUrl": "https://cluster-url",
@@ -950,6 +1031,7 @@ def test_export_model(
                                     "clusterAdminAutomationToken": None,
                                     "disable": None,
                                 },
+                                "skupperSite": None,
                             },
                             "ref": "1234567890123456789012345678901234567890",
                             "promotion": None,

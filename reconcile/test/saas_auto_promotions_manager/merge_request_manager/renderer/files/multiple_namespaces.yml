@@ -40,3 +40,20 @@ resourceTemplates:
         - parent_saas: parent_saas
           target_config_hash: current_hash
           type: parent_saas_config
+  - namespace:
+      $ref: /some/namespace.yml
+    ref: current_sha
+    parameters:
+      SOME: parameter
+    promotion:
+      auto: true
+      subscribe:
+      - channel-c
+  - namespace:
+      $ref: /some/namespace.yml
+    ref: current_sha
+    parameters:
+      SOME: parameter
+    promotion:
+      subscribe:
+      - channel-a

@@ -1,5 +1,7 @@
 import logging
 import re
+from collections import defaultdict
+from collections.abc import Iterable
 from dataclasses import dataclass
 
 from gitlab.exceptions import GitlabGetError
@@ -9,35 +11,32 @@ from reconcile.saas_auto_promotions_manager.merge_request_manager.merge_request 
     SAPMMR,
 )
 from reconcile.saas_auto_promotions_manager.merge_request_manager.renderer import (
+    CHANNELS_REF,
+    CONTENT_HASH,
     PROMOTION_DATA_SEPARATOR,
+    SAPM_LABEL,
+    SAPM_VERSION,
+    VERSION_REF,
     Renderer,
 )
 from reconcile.saas_auto_promotions_manager.subscriber import Subscriber
 from reconcile.saas_auto_promotions_manager.utils.vcs import VCS
-
-SAPM_LABEL = "SAPM"
-NAMESPACE_REF = "namespace_ref"
-CONTENT_HASH = "content_hash"
-TARGET_FILE_PATH = "target_file_path"
 
 
 @dataclass
 class OpenMergeRequest:
     raw: ProjectMergeRequest
     content_hash: str
-    target_file_path: str
-    namespace_ref: str
+    channels: str
 
 
 class MergeRequestManager:
     def __init__(self, vcs: VCS, renderer: Renderer):
         self._vcs = vcs
         self._renderer = renderer
-        self._namespace_ref_regex = re.compile(rf"{NAMESPACE_REF}: (.*)$", re.MULTILINE)
-        self._target_file_path_regex = re.compile(
-            rf"{TARGET_FILE_PATH}: (.*)$", re.MULTILINE
-        )
+        self._version_ref_regex = re.compile(rf"{VERSION_REF}: (.*)$", re.MULTILINE)
         self._content_hash_regex = re.compile(rf"{CONTENT_HASH}: (.*)$", re.MULTILINE)
+        self._channels_regex = re.compile(rf"{CHANNELS_REF}: (.*)$", re.MULTILINE)
         self._open_mrs: list[OpenMergeRequest] = []
         self._open_mrs_with_problems: list[OpenMergeRequest] = []
         self._open_raw_mrs: list[ProjectMergeRequest] = []
@@ -58,47 +57,56 @@ class MergeRequestManager:
         ]
 
     def housekeeping(self) -> None:
+        seen: set[tuple[str, str, str]] = set()
         for mr in self._open_raw_mrs:
             attrs = mr.attributes
             desc = attrs.get("description")
             has_conflicts = attrs.get("has_conflicts", False)
             if has_conflicts:
                 logging.info(
-                    "merge-conflict detected. Closing %s",
+                    "Merge-conflict detected. Closing %s",
                     mr.attributes.get("web_url", "NO_WEBURL"),
                 )
-                self._vcs.close_app_interface_mr(mr)
+                self._vcs.close_app_interface_mr(
+                    mr, "Closing this MR because of a merge-conflict."
+                )
                 continue
             parts = desc.split(PROMOTION_DATA_SEPARATOR)
             if not len(parts) == 2:
                 logging.info(
-                    "bad description format. Closing %s",
+                    "Bad data separator format. Closing %s",
                     mr.attributes.get("web_url", "NO_WEBURL"),
                 )
-                self._vcs.close_app_interface_mr(mr)
+                self._vcs.close_app_interface_mr(
+                    mr, "Closing this MR because of bad data separator format."
+                )
                 continue
             promotion_data = parts[1]
 
-            namespace_ref = self._apply_regex(
-                pattern=self._namespace_ref_regex, promotion_data=promotion_data
+            version_ref = self._apply_regex(
+                pattern=self._version_ref_regex, promotion_data=promotion_data
             )
-            if not namespace_ref:
+            if not version_ref:
                 logging.info(
-                    "bad description format. Closing %s",
+                    "Bad %s format. Closing %s",
+                    VERSION_REF,
                     mr.attributes.get("web_url", "NO_WEBURL"),
                 )
-                self._vcs.close_app_interface_mr(mr)
+                self._vcs.close_app_interface_mr(
+                    mr, f"Closing this MR because of bad {VERSION_REF} format."
+                )
                 continue
 
-            target_file_path = self._apply_regex(
-                pattern=self._target_file_path_regex, promotion_data=promotion_data
-            )
-            if not target_file_path:
+            if version_ref != SAPM_VERSION:
                 logging.info(
-                    "bad description format. Closing %s",
+                    "Old MR version detected: %s. Closing %s",
+                    version_ref,
                     mr.attributes.get("web_url", "NO_WEBURL"),
                 )
-                self._vcs.close_app_interface_mr(mr)
+                self._vcs.close_app_interface_mr(
+                    mr,
+                    f"Closing this MR because it has an outdated SAPM version {version_ref}",
+                )
                 continue
 
             content_hash = self._apply_regex(
@@ -106,81 +114,136 @@ class MergeRequestManager:
             )
             if not content_hash:
                 logging.info(
-                    "bad description format. Closing %s",
+                    "Bad %s format. Closing %s",
+                    CONTENT_HASH,
                     mr.attributes.get("web_url", "NO_WEBURL"),
                 )
-                self._vcs.close_app_interface_mr(mr)
+                self._vcs.close_app_interface_mr(
+                    mr, f"Closing this MR because of bad {CONTENT_HASH} format."
+                )
                 continue
+
+            channels_ref = self._apply_regex(
+                pattern=self._channels_regex, promotion_data=promotion_data
+            )
+            if not channels_ref:
+                logging.info(
+                    "Bad %s format. Closing %s",
+                    CHANNELS_REF,
+                    mr.attributes.get("web_url", "NO_WEBURL"),
+                )
+                self._vcs.close_app_interface_mr(
+                    mr, f"Closing this MR because of bad {CHANNELS_REF} format."
+                )
+                continue
+
+            key = (version_ref, channels_ref, content_hash)
+            if key in seen:
+                logging.info(
+                    "Duplicate MR detected. Closing %s",
+                    mr.attributes.get("web_url", "NO_WEBURL"),
+                )
+                self._vcs.close_app_interface_mr(
+                    mr,
+                    "Closing this MR because there is already another MR open with identical content.",
+                )
+                continue
+            seen.add(key)
 
             self._open_mrs.append(
                 OpenMergeRequest(
                     raw=mr,
                     content_hash=content_hash,
-                    target_file_path=target_file_path,
-                    namespace_ref=namespace_ref,
+                    channels=channels_ref,
                 )
             )
 
-    def _get_open_mrs_for_same_target(
-        self, subscriber: Subscriber
-    ) -> list[OpenMergeRequest]:
-        return [
-            mr
+    def _aggregate_subscribers_per_channel_combo(
+        self, subscribers: Iterable[Subscriber]
+    ) -> dict[str, list[Subscriber]]:
+        subscribers_per_channel_combo: dict[str, list[Subscriber]] = defaultdict(list)
+        for subscriber in subscribers:
+            channel_combo = ",".join([c.name for c in subscriber.channels])
+            subscribers_per_channel_combo[channel_combo].append(subscriber)
+        return subscribers_per_channel_combo
+
+    def _merge_request_already_exists(self, channels: str, content_hash: str) -> bool:
+        return any(
+            True
             for mr in self._open_mrs
-            if mr.namespace_ref == subscriber.namespace_file_path
-            and mr.target_file_path == subscriber.target_file_path
-        ]
+            if mr.content_hash == content_hash and mr.channels == channels
+        )
 
-    def process_subscriber(self, subscriber: Subscriber) -> None:
-        open_mrs = self._get_open_mrs_for_same_target(subscriber=subscriber)
-        has_open_mr_with_same_content = False
-        for open_mr in open_mrs:
-            if open_mr.content_hash == subscriber.content_hash():
-                if has_open_mr_with_same_content:
+    def create_promotion_merge_requests(
+        self, subscribers: Iterable[Subscriber]
+    ) -> None:
+        subscribers_per_channel_combo = self._aggregate_subscribers_per_channel_combo(
+            subscribers=subscribers
+        )
+        for channel_combo, subs in subscribers_per_channel_combo.items():
+            combined_content_hash = Subscriber.combined_content_hash(subscribers=subs)
+            if self._merge_request_already_exists(
+                content_hash=combined_content_hash, channels=channel_combo
+            ):
+                logging.info(
+                    "There is already an open merge request for channel(s) %s - skipping",
+                    channel_combo,
+                )
+                continue
+            for mr in self._open_mrs:
+                if mr.channels != channel_combo:
+                    continue
+                if mr.content_hash != combined_content_hash:
                     logging.info(
-                        "Closing MR %s because there already is an open MR with same content for this target",
-                        open_mr.raw.attributes.get("web_url", "NO_WEBURL"),
+                        "Closing MR %s because it has out-dated content",
+                        mr.raw.attributes.get("web_url", "NO_WEBURL"),
                     )
-                    self._vcs.close_app_interface_mr(mr=open_mr.raw)
-                has_open_mr_with_same_content = True
-            else:
-                logging.info(
-                    "Closing MR %s because it has out-dated state",
-                    open_mr.raw.attributes.get("web_url", "NO_WEBURL"),
+                    self._vcs.close_app_interface_mr(
+                        mr=mr.raw,
+                        comment="Closing this MR because it has out-dated content.",
+                    )
+            content_by_path: dict[str, str] = {}
+            has_error = False
+            for sub in subs:
+                if sub.target_file_path not in content_by_path:
+                    try:
+                        content_by_path[
+                            sub.target_file_path
+                        ] = self._vcs.get_file_content_from_app_interface_master(
+                            file_path=sub.target_file_path
+                        )
+                    except GitlabGetError as e:
+                        if e.response_code == 404:
+                            logging.error(
+                                "The saas file %s does not exist anylonger. Most likely qontract-server data not in synch. This should resolve soon on its own.",
+                                sub.target_file_path,
+                            )
+                            has_error = True
+                            break
+                        raise e
+                content_by_path[
+                    sub.target_file_path
+                ] = self._renderer.render_merge_request_content(
+                    subscriber=sub,
+                    current_content=content_by_path[sub.target_file_path],
                 )
-                self._vcs.close_app_interface_mr(mr=open_mr.raw)
-        if has_open_mr_with_same_content:
-            return
-        try:
-            content_on_master = self._vcs.get_file_content_from_app_interface_master(
-                file_path=subscriber.target_file_path
+            if has_error:
+                continue
+
+            description = self._renderer.render_description(
+                content_hash=combined_content_hash,
+                channels=channel_combo,
             )
-        except GitlabGetError as e:
-            if e.response_code == 404:
-                logging.info(
-                    "The saas file %s does not exist anylonger. qontract-server data not in synch, but should resolve soon on its own.",
-                    subscriber.target_file_path,
+            title = self._renderer.render_title(channels=channel_combo)
+            logging.info(
+                "Open MR for update in channel(s) %s",
+                channel_combo,
+            )
+            self._vcs.open_app_interface_merge_request(
+                mr=SAPMMR(
+                    sapm_label=SAPM_LABEL,
+                    content_by_path=content_by_path,
+                    title=title,
+                    description=description,
                 )
-                return
-            raise e
-        content = self._renderer.render_merge_request_content(
-            subscriber=subscriber,
-            current_content=content_on_master,
-        )
-        description = self._renderer.render_description(subscriber=subscriber)
-        title = self._renderer.render_title(subscriber=subscriber)
-        logging.info(
-            "Open MR for path: %s namespace: %s ref: %s target_hashes: %s",
-            subscriber.target_file_path,
-            subscriber.namespace_file_path,
-            subscriber.desired_ref,
-            subscriber.desired_hashes,
-        )
-        self._vcs.open_app_interface_merge_request(
-            mr=SAPMMR(
-                sapm_label=SAPM_LABEL,
-                content=content,
-                title=title,
-                description=description,
             )
-        )

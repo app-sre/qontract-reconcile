@@ -1,5 +1,10 @@
 ---
 $schema: /app-sre/saas-file-2.yml
+
+# Some comment
+imagePatterns:
+- some/pattern
+
 resourceTemplates:
 - name: template
   url: http://localhost/repo

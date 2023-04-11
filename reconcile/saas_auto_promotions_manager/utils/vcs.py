@@ -38,6 +38,8 @@ class VCS:
         allow_opening_mrs: bool,
     ):
         self._dry_run = dry_run
+        self._allow_deleting_mrs = allow_deleting_mrs
+        self._allow_opening_mrs = allow_opening_mrs
         self._secret_reader = secret_reader
         self._gh_per_repo_url: dict[str, GithubRepositoryApi] = {}
         self._default_gh_token = self._get_default_gh_token(github_orgs=github_orgs)
@@ -46,8 +48,6 @@ class VCS:
             gitlab_instances=gitlab_instances
         )
         self._is_commit_sha_regex = re.compile(r"^[0-9a-f]{40}$")
-        self._allow_deleting_mrs = allow_deleting_mrs
-        self._allow_opening_mrs = allow_opening_mrs
 
     def _get_default_gh_token(
         self,
@@ -111,8 +111,12 @@ class VCS:
             return self._gitlab_instance.get_commit_sha(ref=ref, repo_url=repo_url)
         raise RuntimeError(f"Unsupported Repo URL {repo_url}")
 
-    def close_app_interface_mr(self, mr: ProjectMergeRequest) -> None:
+    def close_app_interface_mr(self, mr: ProjectMergeRequest, comment: str) -> None:
         if not self._dry_run and self._allow_deleting_mrs:
+            self._app_interface_api.add_comment_on_merge_request(
+                merge_request=mr,
+                comment=comment,
+            )
             self._app_interface_api.close(mr)
 
     def get_file_content_from_app_interface_master(self, file_path: str) -> str:

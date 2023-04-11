@@ -123,7 +123,7 @@ class OCConnectionParameters:
         return OCConnectionParameters._get_token_verify_server_url(
             ClusterSecret(
                 server=secret_raw["server"],
-                token=secret_raw["token"],
+                token=secret_raw[secret.field],
                 username=secret_raw["username"],
             ),
             cluster,
