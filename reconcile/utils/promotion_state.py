@@ -33,9 +33,12 @@ class PromotionState:
     def __init__(self, state: State):
         self._state = state
         self._commits_by_channel: dict[str, set[str]] = defaultdict(set)
-        self._fetch_promotions_list()
 
-    def _fetch_promotions_list(self) -> None:
+    def cache_commit_shas_from_s3(self) -> None:
+        """
+        Caching commit shas locally - this is used
+        to lookup locally if a key exists on S3.
+        """
         all_keys = self._state.ls()
         for commit in all_keys:
             # Format: /promotions/{channel}/{commit-sha}
@@ -46,7 +49,14 @@ class PromotionState:
 
     def get_promotion_info(self, sha: str, channel: str) -> Optional[PromotionInfo]:
         if sha not in self._commits_by_channel[channel]:
+            # Lets reduce unecessary calls to S3
             return None
         key = f"promotions/{channel}/{sha}"
         data = self._state.get(key)
         return PromotionInfo(**data)
+
+    def publish_promotion_info(
+        self, sha: str, channel: str, data: PromotionInfo
+    ) -> None:
+        state_key = f"promotions/{channel}/{sha}"
+        self._state.add(state_key, data.dict(), force=True)

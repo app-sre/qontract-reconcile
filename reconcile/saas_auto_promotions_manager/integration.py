@@ -140,6 +140,7 @@ def init_external_dependencies(
     deployment_state = PromotionState(
         state=init_state(integration=OPENSHIFT_SAAS_DEPLOY, secret_reader=secret_reader)
     )
+    deployment_state.cache_commit_shas_from_s3()
     return deployment_state, vcs, saas_inventory, merge_request_manager
 
 
