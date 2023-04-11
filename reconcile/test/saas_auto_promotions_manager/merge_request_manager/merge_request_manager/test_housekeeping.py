@@ -7,6 +7,7 @@ from reconcile.saas_auto_promotions_manager.merge_request_manager.merge_request_
     MergeRequestManager,
 )
 from reconcile.saas_auto_promotions_manager.merge_request_manager.renderer import (
+    CHANNELS_REF,
     CONTENT_HASH,
     PROMOTION_DATA_SEPARATOR,
     SAPM_LABEL,
@@ -57,6 +58,7 @@ def test_valid_description(vcs_builder: Callable[[Mapping], VCS], renderer: Rend
                     Blabla
                     {PROMOTION_DATA_SEPARATOR}
                     {VERSION_REF}: {SAPM_VERSION}
+                    {CHANNELS_REF}: some-channel
                     {CONTENT_HASH}: some_hash
                 """,
                 }
@@ -83,6 +85,7 @@ def test_bad_mrs(vcs_builder: Callable[[Mapping], VCS], renderer: Renderer):
                     Blabla
                     {PROMOTION_DATA_SEPARATOR}
                     missing-version: some_version
+                    {CHANNELS_REF}: some-channel
                     {CONTENT_HASH}: hash_1
                 """,
                 },
@@ -92,6 +95,7 @@ def test_bad_mrs(vcs_builder: Callable[[Mapping], VCS], renderer: Renderer):
                     Blabla
                     {PROMOTION_DATA_SEPARATOR}
                     {VERSION_REF}: {SAPM_VERSION}
+                    {CHANNELS_REF}: some-channel
                     missing-content-hash-key: some_hash
                 """,
                 },
@@ -110,6 +114,7 @@ def test_bad_mrs(vcs_builder: Callable[[Mapping], VCS], renderer: Renderer):
                     bad order
                     {VERSION_REF}: {SAPM_VERSION}
                     {PROMOTION_DATA_SEPARATOR}
+                    {CHANNELS_REF}: some-channel
                     {CONTENT_HASH}: hash_4
                 """,
                 },
@@ -121,6 +126,7 @@ def test_bad_mrs(vcs_builder: Callable[[Mapping], VCS], renderer: Renderer):
                     Blabla
                     {PROMOTION_DATA_SEPARATOR}
                     {VERSION_REF}: {SAPM_VERSION}
+                    {CHANNELS_REF}: some-channel
                     {CONTENT_HASH}: hash_5
                 """,
                 },
@@ -130,7 +136,18 @@ def test_bad_mrs(vcs_builder: Callable[[Mapping], VCS], renderer: Renderer):
                     Blabla
                     {PROMOTION_DATA_SEPARATOR}
                     {VERSION_REF}: outdated-version
+                    {CHANNELS_REF}: some-channel
                     {CONTENT_HASH}: hash_6
+                """,
+                },
+                {
+                    LABELS: [SAPM_LABEL],
+                    DESCRIPTION: f"""
+                    Blabla
+                    {PROMOTION_DATA_SEPARATOR}
+                    {VERSION_REF}: {SAPM_VERSION}
+                    bad_channel_ref: some-channel
+                    {CONTENT_HASH}: hash_7
                 """,
                 },
             ]
@@ -142,7 +159,6 @@ def test_bad_mrs(vcs_builder: Callable[[Mapping], VCS], renderer: Renderer):
     )
     merge_request_manager.fetch_sapm_managed_open_merge_requests()
     merge_request_manager.housekeeping()
-    # TODO: assert_has_calls()
     vcs.close_app_interface_mr.assert_called()  # type: ignore[attr-defined]
     assert len(merge_request_manager._open_mrs) == 0
 
@@ -157,6 +173,7 @@ def test_remove_duplicates(vcs_builder: Callable[[Mapping], VCS], renderer: Rend
                     Blabla
                     {PROMOTION_DATA_SEPARATOR}
                     {VERSION_REF}: {SAPM_VERSION}
+                    {CHANNELS_REF}: some_channel
                     {CONTENT_HASH}: same_hash
                 """,
                 },
@@ -166,6 +183,7 @@ def test_remove_duplicates(vcs_builder: Callable[[Mapping], VCS], renderer: Rend
                     Some other blabla
                     {PROMOTION_DATA_SEPARATOR}
                     {VERSION_REF}: {SAPM_VERSION}
+                    {CHANNELS_REF}: some_channel
                     {CONTENT_HASH}: same_hash
                 """,
                 },

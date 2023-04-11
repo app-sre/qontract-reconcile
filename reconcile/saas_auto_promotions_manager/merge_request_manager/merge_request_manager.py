@@ -126,7 +126,7 @@ class MergeRequestManager:
             channels_ref = self._apply_regex(
                 pattern=self._channels_regex, promotion_data=promotion_data
             )
-            if not content_hash:
+            if not channels_ref:
                 logging.info(
                     "Bad %s format. Closing %s",
                     CHANNELS_REF,
