@@ -38,10 +38,11 @@ class PromotionState:
     def _fetch_promotions_list(self) -> None:
         all_keys = self._state.ls()
         for commit in all_keys:
+            # Format: /promotions/{channel}/{commit-sha}
             if not commit.startswith("/promotions/"):
                 continue
-            parts = commit.split("/")
-            self._commits_by_channel[parts[2]].add(parts[3])
+            _, _, channel_name, commit_sha = commit.split("/")
+            self._commits_by_channel[channel_name].add(commit_sha)
 
     def get_promotion_info(self, sha: str, channel: str) -> Optional[PromotionInfo]:
         if sha not in self._commits_by_channel[channel]:
