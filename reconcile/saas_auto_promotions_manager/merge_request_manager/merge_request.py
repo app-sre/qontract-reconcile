@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Mapping
 
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.mr.base import MergeRequestBase
@@ -13,17 +14,15 @@ class SAPMMR(MergeRequestBase):
 
     def __init__(
         self,
-        file_path: str,
-        content: str,
+        content_by_path: Mapping[str, str],
         description: str,
         title: str,
         sapm_label: str,
     ):
         super().__init__()
-        self._content = content
+        self._content_by_path = content_by_path
         self._title = title
         self._description = description
-        self._file_path = file_path
         # TODO: enable auto-merge again
         # self.labels = [AUTO_MERGE, sapm_label]
         self.labels = [sapm_label]
@@ -37,10 +36,11 @@ class SAPMMR(MergeRequestBase):
         return self._description
 
     def process(self, gitlab_cli: GitLabApi) -> None:
-        msg = self._title
-        gitlab_cli.update_file(
-            branch_name=self.branch,
-            file_path=f"data{self._file_path}",
-            commit_message=msg,
-            content=self._content,
-        )
+        for path, content in self._content_by_path.items():
+            msg = "auto-promote subscriber"
+            gitlab_cli.update_file(
+                branch_name=self.branch,
+                file_path=f"data{path}",
+                commit_message=msg,
+                content=content,
+            )

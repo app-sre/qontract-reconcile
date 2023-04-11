@@ -8,14 +8,18 @@ import pytest
 from gitlab.v4.objects import ProjectMergeRequest
 
 from reconcile.saas_auto_promotions_manager.merge_request_manager.renderer import (
+    CHANNELS_REF,
     CONTENT_HASH,
-    FILE_PATH,
-    NAMESPACE_REF,
     PROMOTION_DATA_SEPARATOR,
     SAPM_LABEL,
+    SAPM_VERSION,
+    VERSION_REF,
     Renderer,
 )
-from reconcile.saas_auto_promotions_manager.subscriber import Subscriber
+from reconcile.saas_auto_promotions_manager.subscriber import (
+    Channel,
+    Subscriber,
+)
 from reconcile.saas_auto_promotions_manager.utils.vcs import VCS
 
 from .data_keys import (
@@ -23,6 +27,7 @@ from .data_keys import (
     HAS_CONFLICTS,
     LABELS,
     OPEN_MERGE_REQUESTS,
+    SUBSCRIBER_CHANNELS,
     SUBSCRIBER_CONTENT_HASH,
     SUBSCRIBER_DESIRED_CONFIG_HASHES,
     SUBSCRIBER_DESIRED_REF,
@@ -41,8 +46,8 @@ def mr_builder() -> Callable[[Mapping], ProjectMergeRequest]:
                 "labels": [SAPM_LABEL],
                 "description": f"""
                 {PROMOTION_DATA_SEPARATOR}
-                {NAMESPACE_REF}: {data.get(SUBSCRIBER_NAMESPACE_REF, "namespace_ref")}
-                {FILE_PATH}: {data.get(SUBSCRIBER_TARGET_PATH, "target_path")}
+                {VERSION_REF}: {data.get(VERSION_REF, SAPM_VERSION)}
+                {CHANNELS_REF}: {data.get(SUBSCRIBER_CHANNELS, "some_channel")}
                 {CONTENT_HASH}: {data.get(SUBSCRIBER_CONTENT_HASH, "content_hash")}
                 """,
                 "web_url": "http://localhost",
@@ -87,6 +92,13 @@ def subscriber_builder() -> Callable[[Mapping], Subscriber]:
         )
         subscriber.desired_hashes = data.get(SUBSCRIBER_DESIRED_CONFIG_HASHES, [])
         subscriber.desired_ref = data.get(SUBSCRIBER_DESIRED_REF, "")
+        for channel in data.get(SUBSCRIBER_CHANNELS, []):
+            subscriber.channels.append(
+                Channel(
+                    name=channel,
+                    publishers=[],
+                )
+            )
         return subscriber
 
     return builder

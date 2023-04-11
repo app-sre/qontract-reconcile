@@ -6,10 +6,11 @@ from reconcile.saas_auto_promotions_manager.subscriber import Subscriber
 PROMOTION_DATA_SEPARATOR = (
     "**SAPM Data - DO NOT MANUALLY CHANGE ANYTHING BELOW THIS LINE**"
 )
+SAPM_VERSION = "0.1.0"
 SAPM_LABEL = "SAPM"
 CONTENT_HASH = "content_hash"
-NAMESPACE_REF = "namespace_ref"
-FILE_PATH = "file_path"
+CHANNELS_REF = "channels"
+VERSION_REF = "sapm_version"
 SAPM_DESC = f"""
 THIS IS A TEST MR CREATED BY APP-INTERFACE.
 
@@ -95,18 +96,18 @@ class Renderer:
             new_content += stream.getvalue() or ""
         return new_content
 
-    def render_description(self, subscriber: Subscriber) -> str:
+    def render_description(self, content_hash: str, channels: str) -> str:
         return f"""
 {SAPM_DESC}
 
 {PROMOTION_DATA_SEPARATOR}
 
-{FILE_PATH}: {subscriber.target_file_path}
+{CHANNELS_REF}: {channels}
 
-{NAMESPACE_REF}: {subscriber.namespace_file_path}
+{CONTENT_HASH}: {content_hash}
 
-{CONTENT_HASH}: {subscriber.content_hash()}
+{VERSION_REF}: {SAPM_VERSION}
         """
 
-    def render_title(self, subscriber: Subscriber) -> str:
-        return f"Draft: [auto-promotion] for namespace {subscriber.namespace_file_path} in {subscriber.target_file_path}"
+    def render_title(self, channels: str) -> str:
+        return f"Draft: [auto-promotion] update for channel(s) {channels}"
