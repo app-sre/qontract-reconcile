@@ -1,0 +1,132 @@
+# qenerate: plugin=pydantic_v1
+
+query Integrations {
+  integrations: integrations_v1 {
+    name
+    managed {
+      namespace {
+        path
+        name
+        environment {
+          name
+          parameters
+        }
+        cluster {
+          name
+          serverUrl
+          insecureSkipTLSVerify
+          jumpHost {
+            hostname
+            knownHosts
+            user
+            port
+            identity {
+                path
+                field
+                version
+                format
+            }
+          }
+          automationToken {
+            path
+            field
+            version
+            format
+          }
+        }
+      }
+      spec {
+        cache
+        command
+        disableUnleash
+        extraArgs
+        extraEnv {
+          secretName
+          secretKey
+          name
+          value
+        }
+        internalCertificates
+        logs {
+          slack
+          googleChat
+        }
+        resources {
+          ... DeployResourcesFields
+        }
+        fluentdResources {
+          ... DeployResourcesFields
+        }
+        sleepDurationSecs
+        state
+        storage
+        trigger
+        cron
+        dashdotdb
+        concurrencyPolicy
+        restartPolicy
+        successfulJobHistoryLimit
+        failedJobHistoryLimit
+        imageRef
+      }
+      sharding {
+        strategy
+
+        ... on StaticSharding_v1 {
+          shards
+        }
+
+        ... on OpenshiftClusterSharding_v1 {
+            shardSpecOverrides {
+                shard {
+                    name
+                }
+                imageRef
+                disabled
+                resources {
+                  ... DeployResourcesFields
+                }
+                subSharding {
+                  strategy
+                  ... on StaticSubSharding_v1 {
+                    shards
+                  }
+                }
+            }
+        }
+
+
+        ... on AWSAccountSharding_v1 {
+          shardSpecOverrides {
+            shard {
+              name
+              disable {
+                integrations
+              }
+            }
+            imageRef
+            disabled
+            resources {
+              ... DeployResourcesFields
+            }
+          }
+        }
+
+
+        ... on CloudflareDNSZoneSharding_v1 {
+          shardSpecOverrides {
+            shard {
+              zone
+              identifier
+            }
+            imageRef
+            disabled
+            resources {
+              ... DeployResourcesFields
+            }
+          }
+        }
+      }
+    }
+  }
+}

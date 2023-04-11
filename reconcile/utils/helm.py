@@ -7,6 +7,7 @@ from subprocess import (
     run,
 )
 from typing import Any
+from reconcile.utils.runtime.sharding import ShardSpec
 
 import yaml
 
@@ -15,10 +16,17 @@ class HelmTemplateError(Exception):
     pass
 
 
+class JSONEncoder(json.JSONEncoder):
+    def default(self, o: Any) -> Any:
+        if isinstance(o, ShardSpec):
+            return o.__dict__
+        return super().default(o)
+
+
 def template(values: Mapping[str, Any]) -> Mapping[str, Any]:
     try:
         with tempfile.NamedTemporaryFile(mode="w+") as values_file:
-            values_file.write(json.dumps(values))
+            values_file.write(json.dumps(values, cls=JSONEncoder))
             values_file.flush()
             cmd = [
                 "helm",
