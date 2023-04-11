@@ -6,13 +6,16 @@ from collections.abc import (
 
 import pytest
 
-from reconcile.saas_auto_promotions_manager.subscriber import Subscriber, Channel
+from reconcile.saas_auto_promotions_manager.subscriber import (
+    Channel,
+    Subscriber,
+)
 
 from .data_keys import (
+    CHANNELS,
     CONFIG_HASHES,
     NAMESPACE_PATH,
     REF,
-    CHANNELS,
 )
 
 
@@ -48,10 +51,12 @@ def subscriber_builder() -> Callable[[Mapping], Subscriber]:
         subscriber.desired_ref = data[REF]
         subscriber.desired_hashes = data[CONFIG_HASHES]
         for channel in data.get(CHANNELS, []):
-            subscriber.channels.append(Channel(
-                name=channel,
-                publishers=[],
-            ))
+            subscriber.channels.append(
+                Channel(
+                    name=channel,
+                    publishers=[],
+                )
+            )
         return subscriber
 
     return builder

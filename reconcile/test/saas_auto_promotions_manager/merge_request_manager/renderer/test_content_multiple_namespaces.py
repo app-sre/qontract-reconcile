@@ -12,10 +12,10 @@ from reconcile.saas_auto_promotions_manager.subscriber import (
 )
 
 from .data_keys import (
+    CHANNELS,
     CONFIG_HASHES,
     NAMESPACE_PATH,
     REF,
-    CHANNELS,
 )
 
 
