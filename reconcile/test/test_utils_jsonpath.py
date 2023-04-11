@@ -18,6 +18,7 @@ from reconcile.utils.jsonpath import (
     apply_constraint_to_path,
     jsonpath_parts,
     narrow_jsonpath_node,
+    parse_jsonpath,
     remove_prefix_from_path,
     sortable_jsonpath_string_repr,
 )
@@ -265,3 +266,21 @@ def test_sortable_jsonpath_string_repr(jsonpath: str, sortable_jsonpath: str):
 def test_remove_prefix_from_path(path: str, prefix: str, expected: Optional[str]):
     expected_path = parse(expected) if expected else None
     assert remove_prefix_from_path(parse(path), parse(prefix)) == expected_path
+
+
+#
+# P A R S I N G
+#
+
+
+@pytest.mark.parametrize(
+    "path, rendered",
+    [
+        # simple path for the regular parser
+        ("a.b.c", "a.b.c"),
+        # this one requires the extended parser
+        ("a[?(@.b=='b')]", "a.[?[Expression(Child(This(), Fields('b')) == 'b')]]"),
+    ],
+)
+def test_parse_jsonpath(path: str, rendered: str):
+    assert str(parse_jsonpath(path)) == rendered

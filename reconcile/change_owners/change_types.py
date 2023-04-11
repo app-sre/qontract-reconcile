@@ -23,7 +23,6 @@ import anymarkup
 import jinja2
 import jinja2.meta
 import jsonpath_ng
-import jsonpath_ng.ext
 import networkx
 
 from reconcile.change_owners.approver import (
@@ -49,6 +48,7 @@ from reconcile.gql_definitions.change_owners.queries.change_types import (
     ChangeTypeV1,
 )
 from reconcile.utils.jsonpath import (
+    parse_jsonpath,
     remove_prefix_from_path,
     sortable_jsonpath_string_repr,
 )
@@ -405,7 +405,7 @@ class PathExpression:
                 )
             self.template = env.from_string(self.jsonpath_expression)
         else:
-            self.parsed_jsonpath = jsonpath_ng.ext.parse(jsonpath_expression)
+            self.parsed_jsonpath = parse_jsonpath(jsonpath_expression)
 
     def jsonpath_for_context(self, ctx: "ChangeTypeContext") -> jsonpath_ng.JSONPath:
         if self.parsed_jsonpath:
@@ -416,7 +416,7 @@ class PathExpression:
                 self.CTX_FILE_PATH_VAR_NAME: ctx.context_file.path,
             }
         )
-        return jsonpath_ng.ext.parse(expr)
+        return parse_jsonpath(expr)
 
     def __eq__(self, obj):
         return (
@@ -815,9 +815,7 @@ def init_change_type_processors(
                 ownership_context = None
                 if change_detector.context:
                     ownership_context = OwnershipContext(
-                        selector=jsonpath_ng.ext.parse(
-                            change_detector.context.selector
-                        ),
+                        selector=parse_jsonpath(change_detector.context.selector),
                         when=change_detector.context.when,
                     )
                 processor.add_change_detector(
@@ -843,7 +841,7 @@ def init_change_type_processors(
                         ContextExpansion(
                             change_type=processor,
                             context=OwnershipContext(
-                                selector=jsonpath_ng.ext.parse(
+                                selector=parse_jsonpath(
                                     change_detector.ownership_context.selector
                                 ),
                                 when=change_detector.ownership_context.when,
