@@ -1,10 +1,7 @@
-import copy
 from collections.abc import Callable
-from typing import Any
 
 import pytest
 
-from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.openshift_saas_deploy_change_tester import (
     State,
     collect_compare_diffs,
