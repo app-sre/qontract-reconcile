@@ -65,7 +65,7 @@ def init_state(
     if state_bucket_name and state_bucket_account_name:
         query = Template(STATE_ACCOUNT_QUERY).render(name=state_bucket_account_name)
         aws_accounts = gql.get_api().query(query)["accounts"]
-        return init_state_from_accounts(
+        return _init_state_from_accounts(
             integration=integration,
             secret_reader=secret_reader,
             bucket_name=state_bucket_name,
@@ -84,7 +84,7 @@ def init_state(
         )
 
     if isinstance(state_settings, AppInterfaceStateConfigurationS3V1):
-        return init_state_from_settings(
+        return _init_state_from_settings(
             integration=integration,
             secret_reader=secret_reader,
             state_settings=state_settings,
@@ -95,7 +95,7 @@ def init_state(
     )
 
 
-def init_state_from_settings(
+def _init_state_from_settings(
     integration: str,
     secret_reader: SecretReaderBase,
     state_settings: AppInterfaceStateConfigurationS3V1,
@@ -106,7 +106,7 @@ def init_state_from_settings(
     :raises StateInaccessibleException: if the bucket is missing
     or not accessible
     """
-    return init_state_from_accounts(
+    return _init_state_from_accounts(
         integration=integration,
         secret_reader=secret_reader,
         bucket_name=state_settings.bucket,
@@ -121,7 +121,7 @@ def init_state_from_settings(
     )
 
 
-def init_state_from_accounts(
+def _init_state_from_accounts(
     integration: str,
     secret_reader: SecretReaderBase,
     bucket_name: str,
