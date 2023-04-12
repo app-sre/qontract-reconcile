@@ -4,7 +4,7 @@ from collections.abc import Mapping
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.mr.base import MergeRequestBase
 
-# from reconcile.utils.mr.labels import AUTO_MERGE
+from reconcile.utils.mr.labels import AUTO_MERGE
 
 LOG = logging.getLogger(__name__)
 
@@ -23,9 +23,7 @@ class SAPMMR(MergeRequestBase):
         self._content_by_path = content_by_path
         self._title = title
         self._description = description
-        # TODO: enable auto-merge again
-        # self.labels = [AUTO_MERGE, sapm_label]
-        self.labels = [sapm_label]
+        self.labels = [AUTO_MERGE, sapm_label]
 
     @property
     def title(self) -> str:

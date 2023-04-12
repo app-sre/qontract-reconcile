@@ -6,7 +6,7 @@ from reconcile.saas_auto_promotions_manager.subscriber import Subscriber
 PROMOTION_DATA_SEPARATOR = (
     "**SAPM Data - DO NOT MANUALLY CHANGE ANYTHING BELOW THIS LINE**"
 )
-SAPM_VERSION = "0.1.0"
+SAPM_VERSION = "1.0.0"
 SAPM_LABEL = "SAPM"
 CONTENT_HASH = "content_hash"
 CHANNELS_REF = "channels"
@@ -121,4 +121,4 @@ class Renderer:
         """
 
     def render_title(self, channels: str) -> str:
-        return f"Draft: [auto-promotion] event for channel(s) {channels}"
+        return f"[auto-promotion] event for channel(s) {channels}"
