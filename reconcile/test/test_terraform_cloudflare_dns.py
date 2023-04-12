@@ -13,6 +13,7 @@ from reconcile.terraform_cloudflare_dns import (
     DEFAULT_PROVIDER,
     DEFAULT_PROVISIONER_PROVIDER,
     cloudflare_dns_zone_to_external_resource,
+    ensure_record_number_not_exceed_max,
 )
 from reconcile.utils.external_resource_spec import ExternalResourceSpec
 
@@ -21,7 +22,7 @@ from reconcile.utils.external_resource_spec import ExternalResourceSpec
 def cloudflare_records():
     return [
         CloudflareDnsRecordV1(
-            identifier="id",
+            identifier="id0",
             name="subdomain",
             type="CNAME",
             ttl=10,
@@ -29,7 +30,17 @@ def cloudflare_records():
             priority=None,
             data=None,
             proxied=None,
-        )
+        ),
+        CloudflareDnsRecordV1(
+            identifier="id1",
+            name="subdomain1",
+            type="CNAME",
+            ttl=10,
+            value="foo1.com",
+            priority=None,
+            data=None,
+            proxied=None,
+        ),
     ]
 
 
@@ -44,6 +55,7 @@ def cloudflare_dns_zones(cloudflare_account, cloudflare_records):
             type="full",
             plan="free",
             delete=False,
+            max_records=1,
         )
     ]
 
@@ -81,7 +93,7 @@ def test_cloudflare_dns_zone_to_external_resource(cloudflare_dns_zones):
         provisioner={"name": "fakeaccount-zoneid"},
         namespace=DEFAULT_NAMESPACE,
         resource=cloudflare_dns_zones[0].dict(
-            by_alias=True, exclude={DEFAULT_EXCLUDE_KEY}
+            by_alias=True, exclude=DEFAULT_EXCLUDE_KEY
         ),
     )
     expected_external_resource.resource["provider"] = DEFAULT_PROVIDER
@@ -93,3 +105,13 @@ def test_cloudflare_dns_zone_to_external_resource(cloudflare_dns_zones):
     result = cloudflare_dns_zone_to_external_resource(cloudflare_dns_zones)
 
     assert result == expected_result
+
+
+def test_evaluate_record_number_too_many_raise_exception(cloudflare_dns_zones):
+    with pytest.raises(RuntimeError):
+        ensure_record_number_not_exceed_max(cloudflare_dns_zones, default_max_records=1)
+
+
+def test_evaluate_record_number_happy_path(cloudflare_dns_zones):
+    cloudflare_dns_zones[0].max_records = 2
+    ensure_record_number_not_exceed_max(cloudflare_dns_zones, default_max_records=1)
