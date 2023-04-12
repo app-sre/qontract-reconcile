@@ -64,7 +64,7 @@ def test_collect_parameters():
     environment = {
         "parameters": '{"env_param": "test"}',
     }
-    parameters = intop.collect_parameters(template, environment, None)
+    parameters = intop.collect_parameters(template, environment, "", "", None)
     expected = {
         "env_param": "test",
         "tplt_param": "override",
@@ -84,7 +84,7 @@ def test_collect_parameters_env_stronger():
     environment = {
         "parameters": '{"env_param": "override"}',
     }
-    parameters = intop.collect_parameters(template, environment, None)
+    parameters = intop.collect_parameters(template, environment, "", "", None)
     expected = {
         "env_param": "override",
     }
@@ -104,7 +104,7 @@ def test_collect_parameters_os_env_strongest():
     environment = {
         "parameters": '{"env_param": "override"}',
     }
-    parameters = intop.collect_parameters(template, environment, None)
+    parameters = intop.collect_parameters(template, environment, "", "", None)
     expected = {
         "env_param": "strongest",
     }
@@ -129,7 +129,9 @@ def test_collect_parameters_image_tag_from_ref(mocker):
     mocker.patch(
         "reconcile.integrations_manager.get_image_tag_from_ref", return_value="f44e417"
     )
-    parameters = intop.collect_parameters(template, environment, image_tag_from_ref)
+    parameters = intop.collect_parameters(
+        template, environment, "", "", image_tag_from_ref
+    )
     expected = {
         "IMAGE_TAG": "f44e417",
     }
@@ -158,6 +160,7 @@ def integrations(resources: dict[str, Any]) -> Iterable[Mapping[str, Any]]:
         },
         {
             "name": "integ1",
+            "upstream": "a",
             "managed": [
                 {
                     "namespace": {
@@ -175,6 +178,7 @@ def integrations(resources: dict[str, Any]) -> Iterable[Mapping[str, Any]]:
         },
         {
             "name": "integ2",
+            "upstream": "b",
             "managed": [
                 {
                     "namespace": {
@@ -666,6 +670,8 @@ def test_fetch_desired_state(
     intop.fetch_desired_state(
         namespaces=collected_namespaces_env_test1,
         ri=ri,
+        upstream="http://localhost",
+        image="image",
         image_tag_from_ref=None,
         environment_override_mapping={"test1": {}},
     )
@@ -678,6 +684,40 @@ def test_fetch_desired_state(
     assert len(resources) == 2
     assert ("cl1", "ns1", "Deployment", ["qontract-reconcile-integ1"]) in resources
     assert ("cl1", "ns1", "Service", ["qontract-reconcile"]) in resources
+
+
+def test_fetch_desired_state_upstream(
+    integrations: Iterable[Mapping[str, Any]],
+    shard_manager: intop.IntegrationShardManager,
+):
+    upstream = "a"
+    filtered_integrations = intop.filter_integrations(integrations, upstream)
+    cnetf = intop.collect_namespaces(filtered_integrations, "test1")
+
+    intop.initialize_shard_specs(cnetf, shard_manager)
+    ri = ResourceInventory()
+    ri.initialize_resource_type("cl1", "ns1", "Deployment")
+    ri.initialize_resource_type("cl1", "ns1", "Service")
+    intop.fetch_desired_state(
+        namespaces=cnetf,
+        ri=ri,
+        upstream=upstream,
+        image="image",
+        image_tag_from_ref=None,
+        environment_override_mapping={"test1": {}},
+    )
+
+    resources = [
+        (cluster, namespace, kind, list(data["desired"].keys()), data["desired"])
+        for cluster, namespace, kind, data in list(ri)
+    ]
+
+    assert len(resources) == 2
+    assert [
+        x[4]["qontract-reconcile-integ1"].caller
+        for x in resources
+        if x[3] == ["qontract-reconcile-integ1"]
+    ] == [upstream]
 
 
 def test_values_set_shard_specifics():
@@ -756,3 +796,18 @@ def test_collect_managed_integrations_all(integrations):
     assert "integ3" in found
 
     assert len([i for i in found if i == "integ2"]) == 2
+
+
+def test_filter_with_upstream(integrations):
+    upstream = "a"
+    filtered_integrations = intop.filter_integrations(integrations, upstream)
+
+    assert isinstance(filtered_integrations, list)
+    assert len(filtered_integrations) == 1
+    assert filtered_integrations[0]["name"] == "integ1"
+
+
+def test_filter_with_upstream_none(integrations):
+    filtered_integrations = intop.filter_integrations(integrations, None)
+
+    assert filtered_integrations == integrations

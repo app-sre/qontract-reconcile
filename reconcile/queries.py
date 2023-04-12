@@ -204,6 +204,7 @@ INTEGRATIONS_QUERY = """
 {
   integrations: integrations_v1 {
     name
+    upstream
     managed {
       namespace {
         path

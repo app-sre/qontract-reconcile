@@ -231,6 +231,10 @@ objects:
           {{- if eq $integration.name "integrations-manager" }}
           - name: MANAGER_DRY_RUN
             value: ${MANAGER_DRY_RUN}
+          - name: INTEGRATIONS_MANAGER_UPSTREAM
+            value: "${INTEGRATIONS_MANAGER_UPSTREAM}"
+          - name: INTEGRATIONS_MANAGER_IMAGE
+            value: "${INTEGRATIONS_MANAGER_IMAGE}"
           {{- end }}
           - name: INTEGRATION_NAME
             value: {{ $integration.name }}
@@ -648,6 +652,10 @@ parameters:
   value: latest
 - name: INTERNAL_CERTIFICATES_IMAGE_PULL_POLICY
   value: Always
+- name: INTEGRATIONS_MANAGER_UPSTREAM
+  value: ''
+- name: INTEGRATIONS_MANAGER_IMAGE
+  value: ''
 {{- range $i, $integration := .Values.integrations }}
 {{- if $integration.sleepDurationSecs }}
 - name: {{ $integration.name | upper | replace "-" "_" }}_SLEEP_DURATION_SECS
