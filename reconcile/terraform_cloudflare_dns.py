@@ -11,11 +11,7 @@ from typing import (
 )
 
 from reconcile.gql_definitions.terraform_cloudflare_dns import (
-    app_interface_cloudflare_dns_settings,
     terraform_cloudflare_zones,
-)
-from reconcile.gql_definitions.terraform_cloudflare_dns.app_interface_cloudflare_dns_settings import (
-    AppInterfaceSettingCloudflareDNSQueryData,
 )
 from reconcile.gql_definitions.terraform_cloudflare_dns.terraform_cloudflare_zones import (
     AWSAccountV1,
@@ -25,6 +21,9 @@ from reconcile.gql_definitions.terraform_cloudflare_dns.terraform_cloudflare_zon
     CloudflareDnsZoneV1,
 )
 from reconcile.status import ExitCodes
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
 from reconcile.utils import gql
 from reconcile.utils.defer import defer
 from reconcile.utils.exceptions import SecretIncompleteError
@@ -60,7 +59,6 @@ DEFAULT_NAMESPACE: Mapping[str, Any] = {
 DEFAULT_PROVISIONER_PROVIDER = "cloudflare"
 DEFAULT_PROVIDER = "zone"
 DEFAULT_EXCLUDE_KEY = "account"
-DEFAULT_CLOUDFLARE_ZONE_RECORDS_MAX = 500
 
 
 class TerraformCloudflareDNSIntegrationParams(PydanticRunParams):
@@ -89,33 +87,10 @@ class TerraformCloudflareDNSIntegration(
 
     @defer
     def run_with_defer(self, dry_run: bool, defer: Callable) -> None:
-
-        settings = self._get_app_interface_settings()
-
-        if not settings.settings:
-            raise RuntimeError("App interface setting undefined.")
-
-        if not settings.settings[0].vault:
-            raise RuntimeError("App interface vault setting undefined.")
-
-        default_max_records = (
-            settings.settings[0].cloudflare_dns_zone_max_records
-            or DEFAULT_CLOUDFLARE_ZONE_RECORDS_MAX
-        )
-
-        if not settings.settings[0].cloudflare_dns_zone_max_records:
-            logging.debug(
-                f"Setting the App Interface default Cloudflare DNS zone to the default {DEFAULT_CLOUDFLARE_ZONE_RECORDS_MAX}"
-            )
-
-        secret_reader = create_secret_reader(use_vault=settings.settings[0].vault)
+        vault_settings = get_app_interface_vault_settings()
+        secret_reader = create_secret_reader(use_vault=vault_settings.vault)
 
         query_zones = self._get_cloudflare_desired_state()
-
-        if not query_zones.zones:
-            sys.exit(ExitCodes.SUCCESS)
-
-        ensure_record_number_not_exceed_max(query_zones.zones, default_max_records)
 
         if are_record_identifiers_duplicated_within_zone(query_zones):
             logging.error("Duplicate DNS record identifier(s) detected.")
@@ -192,14 +167,6 @@ class TerraformCloudflareDNSIntegration(
 
         return query_zones
 
-    def _get_app_interface_settings(self) -> AppInterfaceSettingCloudflareDNSQueryData:
-        query_app_interface_settings = app_interface_cloudflare_dns_settings.query(
-            query_func=gql.get_api().query
-        )
-        logging.debug(query_app_interface_settings)
-
-        return query_app_interface_settings
-
     def get_early_exit_desired_state(
         self, *args: tuple, **kwargs: dict[str, Any]
     ) -> dict[str, Any]:
@@ -230,26 +197,6 @@ def are_record_identifiers_duplicated_within_zone(
                 logging.warning(f"{record_id} already exists in zone {zone.identifier}")
                 duplicate_exist = True
     return duplicate_exist
-
-
-def ensure_record_number_not_exceed_max(
-    zones: list[CloudflareDnsZoneV1], default_max_records: int
-) -> None:
-    for zone in zones:
-        if not zone.records:
-            continue
-        num_records = len(zone.records)
-        if not zone.max_records:
-            max_records = default_max_records
-            logging.debug(
-                f"Setting max_records for zone {zone.identifier} to the default max records {default_max_records}"
-            )
-        else:
-            max_records = zone.max_records
-        if max_records < num_records:
-            raise RuntimeError(
-                f"The number of records ({num_records}) in zone {zone.identifier} exceeds the configured max_items: {max_records}"
-            )
 
 
 def get_cloudflare_provider_rps(
