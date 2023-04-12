@@ -1,4 +1,6 @@
 ---
+# Multiple targets for same namespace/channel
+# Multiple targets for same namespace/channel across multiple resource templates
 $schema: /app-sre/saas-file-2.yml
 resourceTemplates:
 - name: template
@@ -57,3 +59,28 @@ resourceTemplates:
     promotion:
       subscribe:
       - channel-a
+
+- name: template-2
+  url: http://localhost/repo
+  path: /template.yaml
+  targets:
+  - namespace:
+      $ref: /some/namespace.yml
+    ref: current_sha
+    parameters:
+      SOME: parameter
+    promotion:
+      auto: true
+      subscribe:
+      - channel-a
+      promotion_data:
+      - channel: channel-a
+        data:
+        - parent_saas: parent_saas
+          target_config_hash: current_hash
+          type: parent_saas_config
+      - channel: channel-b
+        data:
+        - parent_saas: parent_saas
+          target_config_hash: current_hash
+          type: parent_saas_config
