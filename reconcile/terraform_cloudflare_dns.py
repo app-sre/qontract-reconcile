@@ -205,18 +205,14 @@ def get_cloudflare_provider_rps(
     """
     Setting Cloudlare Terraform provider's RPS based on the size of the zone to improve performance of MR checks.
     Specifically it was observed that 1000 records zone will result in around 250 seconds build time, and it become
-    problematic for MR merge throughput when exceeding 5 minutes. Therefore setting rps to 2 for smaller zone to
-    save throttle quota, and 6 for the large zones so MR checks won't take more than 250 seconds.
+    problematic for MR merge throughput when exceeding 5 minutes. Therefore setting rps lower for smaller zone to
+    save throttle quota, and higher for the large zones so MR checks won't take more than 250 seconds.
     """
 
     if not records:
         return DEFAULT_PROVIDER_RPS
     size = len(records)
-    if size <= 50:
-        return 2
-    if size <= 1000:
-        return DEFAULT_PROVIDER_RPS
-    return 6
+    return min(-(-size // 50), DEFAULT_PROVIDER_RPS)
 
 
 def create_backend_config(

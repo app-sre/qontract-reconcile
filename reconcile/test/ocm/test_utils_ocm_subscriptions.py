@@ -1,9 +1,7 @@
-from typing import (
-    Any,
-    Callable,
-    Optional,
-)
+from collections.abc import Callable
+from typing import Optional
 
+from reconcile.test.ocm.fixtures import OcmUrl
 from reconcile.test.ocm.test_utils_ocm_labels import build_subscription_label
 from reconcile.utils.ocm.search_filters import Filter
 from reconcile.utils.ocm.subscriptions import (
@@ -41,16 +39,19 @@ def build_ocm_subscription(
 
 def test_get_subscriptions(
     ocm_api: OCMBaseClient,
-    register_ocm_get_list_handler: Callable[[str, Optional[Any]], None],
+    register_ocm_url_responses: Callable[[list[OcmUrl]], int],
 ) -> None:
     sub = build_ocm_subscription(
         name="sub-1",
         labels=[("label-1", "value-1")],
         capabilities=[("capability-1", "value-1")],
     )
-    register_ocm_get_list_handler(
-        "/api/accounts_mgmt/v1/subscriptions",
-        [sub],
+    register_ocm_url_responses(
+        [
+            OcmUrl(
+                method="GET", uri="/api/accounts_mgmt/v1/subscriptions"
+            ).add_list_response([sub])
+        ]
     )
     subscriptions = get_subscriptions(ocm_api, Filter().eq("some", "condition"))
     assert len(subscriptions) == 1

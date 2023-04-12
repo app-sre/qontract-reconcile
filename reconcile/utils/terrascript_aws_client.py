@@ -488,8 +488,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             r = requests.get(zip_url, timeout=60)
             r.raise_for_status()
             os.makedirs(os.path.dirname(zip_file), exist_ok=True)
-            # pylint: disable=consider-using-with
-            open(zip_file, "wb").write(r.content)
+            with open(zip_file, "wb") as f:
+                f.write(r.content)
         return zip_file
 
     def get_logtoes_zip(self, release_url):
@@ -513,8 +513,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         if not os.path.exists(zip_file):
             r = requests.get(zip_url, timeout=60)
             r.raise_for_status()
-            # pylint: disable=consider-using-with
-            open(zip_file, "wb").write(r.content)
+            with open(zip_file, "wb") as f:
+                f.write(r.content)
         return zip_file
 
     def get_rosa_authenticator_zip(self, release_url):
@@ -542,8 +542,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         if not os.path.exists(zip_file):
             r = requests.get(zip_url, timeout=60)
             r.raise_for_status()
-            # pylint: disable=consider-using-with
-            open(zip_file, "wb").write(r.content)
+            with open(zip_file, "wb") as f:
+                f.write(r.content)
         return zip_file
 
     def init_github(self) -> Github:

@@ -23,6 +23,7 @@ from typing import (
 from sretoolbox.utils import retry
 
 import reconcile.utils.aws_helper as awsh
+from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.ocm.types import (
     OCMClusterAutoscale,
     OCMClusterNetwork,
@@ -35,7 +36,11 @@ from reconcile.ocm.types import (
     ROSAOcmAwsAttrs,
 )
 from reconcile.utils.exceptions import ParameterError
-from reconcile.utils.ocm_base_client import OCMBaseClient
+from reconcile.utils.ocm_base_client import (
+    OCMAPIClientConfiguration,
+    OCMBaseClient,
+    init_ocm_base_client,
+)
 from reconcile.utils.secret_reader import SecretReader
 
 STATUS_READY = "ready"
@@ -576,16 +581,10 @@ class OCM:  # pylint: disable=too-many-public-methods
     :param name: OCM instance name
     :param url: OCM instance URL
     :param org_id: OCM org ID
-    :param access_token_client_id: client-id to get access token
-    :param access_token_url: URL to get access token from
-    :param access_token_client_secret: client-secret to get access token
+    :param ocm_client: the OCM API client to talk to OCM
     :param init_provision_shards: should initiate provision shards
     :param init_addons: should initiate addons
     :param blocked_versions: versions to block upgrades for
-    :type url: string
-    :type access_token_client_id: string
-    :type access_token_url: string
-    :type access_token_client_secret: string
     :type init_provision_shards: bool
     :type init_addons: bool
     :type init_version_gates: bool
@@ -595,30 +594,18 @@ class OCM:  # pylint: disable=too-many-public-methods
     def __init__(
         self,
         name,
-        url,
         org_id,
-        access_token_client_id,
-        access_token_url,
-        access_token_client_secret,
+        ocm_client: OCMBaseClient,
         init_provision_shards=False,
         init_addons=False,
         init_version_gates=False,
         blocked_versions=None,
-        ocm_client: Optional[OCMBaseClient] = None,
         sectors: Optional[list[dict[str, Any]]] = None,
         inheritVersionData: Optional[list[dict[str, Any]]] = None,
     ):
         """Initiates access token and gets clusters information."""
         self.name = name
-        if not ocm_client:
-            self._init_ocm_client(
-                url=url,
-                access_token_client_secret=access_token_client_secret,
-                access_token_client_id=access_token_client_id,
-                access_token_url=access_token_url,
-            )
-        else:
-            self._ocm_client = ocm_client
+        self._ocm_client = ocm_client
         self.org_id = org_id
         self._init_clusters(init_provision_shards=init_provision_shards)
 
@@ -652,20 +639,6 @@ class OCM:  # pylint: disable=too-many-public-methods
             for dep in sector.get("dependencies") or []:
                 s.dependencies.append(self.sectors[dep["name"]])
 
-    def _init_ocm_client(
-        self,
-        url: str,
-        access_token_client_secret: str,
-        access_token_url: str,
-        access_token_client_id: str,
-    ):
-        self._ocm_client = OCMBaseClient(
-            url=url,
-            access_token_client_secret=access_token_client_secret,
-            access_token_url=access_token_url,
-            access_token_client_id=access_token_client_id,
-        )
-
     @staticmethod
     def _ready_for_app_interface(cluster: dict[str, Any]) -> bool:
         return (
@@ -681,6 +654,7 @@ class OCM:  # pylint: disable=too-many-public-methods
         self.cluster_ids = {c["name"]: c["id"] for c in clusters}
 
         self.clusters: dict[str, OCMSpec] = {}
+        self.available_cluster_upgrades: dict[str, list[str]] = {}
         self.not_ready_clusters: set[str] = set()
 
         for c in clusters:
@@ -688,6 +662,9 @@ class OCM:  # pylint: disable=too-many-public-methods
             if self._ready_for_app_interface(c):
                 ocm_spec = self._get_cluster_ocm_spec(c, init_provision_shards)
                 self.clusters[cluster_name] = ocm_spec
+                self.available_cluster_upgrades[cluster_name] = c.get(
+                    "version", {}
+                ).get("available_upgrades")
             else:
                 self.not_ready_clusters.add(cluster_name)
 
@@ -1588,12 +1565,12 @@ class OCM:  # pylint: disable=too-many-public-methods
         return rs["kind"].endswith("List")
 
     def _get_json(
-        self, api: str, params: Optional[dict[str, Any]] = None
+        self, api: str, params: Optional[dict[str, Any]] = None, page_size: int = 100
     ) -> dict[str, Any]:
         responses = []
         if not params:
             params = {}
-        params["size"] = 100
+        params["size"] = page_size
         while True:
             rs = self._do_get_request(api, params=params)
             responses.append(rs)
@@ -1781,15 +1758,20 @@ class OCMMap:  # pylint: disable=too-many-public-methods
         url = ocm_environment["url"]
         org_id = ocm_info["orgId"]
         name = ocm_info["name"]
-        secret_reader = SecretReader(settings=self.settings)
-        token = secret_reader.read(access_token_client_secret)
+        ocm_client = init_ocm_base_client(
+            cfg=OCMAPIClientConfiguration(
+                url=url,
+                access_token_url=access_token_url,
+                access_token_client_id=access_token_client_id,
+                access_token_client_secret=VaultSecret(**access_token_client_secret),
+            ),
+            secret_reader=SecretReader(settings=self.settings),
+        )
+
         self.ocm_map[ocm_name] = OCM(
             name,
-            url,
             org_id,
-            access_token_client_id,
-            access_token_url,
-            token,
+            ocm_client,
             init_provision_shards=init_provision_shards,
             init_addons=init_addons,
             blocked_versions=ocm_info.get("blockedVersions"),

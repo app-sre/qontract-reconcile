@@ -20,6 +20,8 @@ ocm:
     accessTokenClientSecret:
       path: "client-secret-path"
       field: "client_secret"
+      version: null
+      format: null
     accessTokenUrl: "https://sso.blah.com/token"
 spec:
   product: rosa

@@ -1,0 +1,23 @@
+---
+$schema: /app-sre/saas-file-2.yml
+
+resourceTemplates:
+- name: template
+  url: http://localhost/repo
+  path: /template.yaml
+  targets:
+  - namespace:
+      $ref: /some/namespace.yml
+    ref: new_sha
+    parameters:
+      SOME: parameter
+    promotion:
+      auto: true
+      subscribe:
+      - channel-a
+      promotion_data:
+      - channel: channel-a
+        data:
+        - parent_saas: parent_saas
+          target_config_hash: new_hash
+          type: parent_saas_config

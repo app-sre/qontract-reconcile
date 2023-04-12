@@ -1053,31 +1053,6 @@ def openshift_saas_deploy(
     )
 
 
-@integration.command(short_help="A wrapper around openshift-saas-deploy.")
-@environ(["APP_INTERFACE_STATE_BUCKET", "APP_INTERFACE_STATE_BUCKET_ACCOUNT"])
-@environ(["gitlab_pr_submitter_queue_url"])
-@gitlab_project_id
-@threaded()
-@binary(["oc", "ssh"])
-@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
-@throughput
-@use_jump_host()
-@click.pass_context
-def openshift_saas_deploy_wrapper(
-    ctx, thread_pool_size, io_dir, use_jump_host, gitlab_project_id
-):
-    import reconcile.openshift_saas_deploy_wrapper
-
-    run_integration(
-        reconcile.openshift_saas_deploy_wrapper,
-        ctx.obj,
-        thread_pool_size,
-        io_dir,
-        use_jump_host,
-        gitlab_project_id,
-    )
-
-
 @integration.command(
     short_help="Runs openshift-saas-deploy for each saas-file that changed within a bundle."
 )
@@ -1260,32 +1235,6 @@ def openshift_tekton_resources(
         internal,
         use_jump_host,
         saas_file_name,
-    )
-
-
-@integration.command(
-    short_help="Manages labels on merge requests "
-    "based on approver schema for saas files."
-)
-@throughput
-@click.argument("gitlab-project-id")
-@click.argument("gitlab-merge-request-id")
-@click.option(
-    "--compare/--no-compare",
-    default=True,
-    help="compare between current and desired state.",
-)
-@click.pass_context
-def saas_file_owners(ctx, gitlab_project_id, gitlab_merge_request_id, io_dir, compare):
-    import reconcile.saas_file_owners
-
-    run_integration(
-        reconcile.saas_file_owners,
-        ctx.obj,
-        gitlab_project_id,
-        gitlab_merge_request_id,
-        io_dir,
-        compare,
     )
 
 
@@ -1693,7 +1642,7 @@ def terraform_cloudflare_resources(
 @integration.command(short_help="Manage Cloudflare DNS using Terraform.")
 @print_to_file
 @enable_deletion(default=False)
-@threaded(default=20)
+@threaded(default=10)
 @binary(["terraform"])
 @binary_version("terraform", ["version"], TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
 @account_name
@@ -1768,6 +1717,22 @@ def cna_resources(
     )
 
 
+@integration.command(short_help="Manage auto-promotions defined in SaaS files")
+@threaded(default=10)
+@click.pass_context
+def saas_auto_promotions_manager(
+    ctx,
+    thread_pool_size,
+):
+    import reconcile.saas_auto_promotions_manager.integration
+
+    run_integration(
+        reconcile.saas_auto_promotions_manager.integration,
+        ctx.obj,
+        thread_pool_size,
+    )
+
+
 @integration.command(short_help="Manage AWS users using Terraform.")
 @print_to_file
 @threaded(default=20)
@@ -1800,7 +1765,9 @@ def terraform_users(
     )
 
 
-@integration.command()
+@integration.command(
+    short_help="Manage VPC peerings between OSD clusters and AWS accounts or other OSD clusters."
+)
 @print_to_file
 @threaded()
 @binary(["terraform", "git"])

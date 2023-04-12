@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import re
+import subprocess
 import tempfile
 import threading
 import time
@@ -14,10 +15,7 @@ from contextlib import suppress
 from dataclasses import dataclass
 from datetime import datetime
 from functools import wraps
-from subprocess import (
-    PIPE,
-    Popen,
-)
+from subprocess import Popen
 from threading import Lock
 from typing import (
     Any,
@@ -713,27 +711,33 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
         cmd = ["sa", "-n", namespace, "get-token", name]
         return self._run(cmd)
 
+    def _process_api_resources(self, results):
+        for line in results:
+            r = line.split()
+            kind = r[-1]
+            namespaced = r[-2].lower() == "true"
+            group_version = r[-3].split("/", 1)
+            # Core group (v1)
+            group = ""
+            api_version = group_version
+            if len(group_version) > 1:
+                # group/version
+                group = group_version[0]
+                api_version = group_version[1]
+            obj = OCDeprecatedApiResource(kind, group, api_version, namespaced)
+            d = self.api_resources.setdefault(kind, [])
+            d.append(obj)
+
     def get_api_resources(self):
         with self.api_resources_lock:
             if not self.api_resources:
                 cmd = ["api-resources", "--no-headers"]
-                results = self._run(cmd).decode("utf-8").split("\n")
-                for line in results:
-                    r = line.split()
-                    kind = r[-1]
-                    namespaced = r[-2].lower() == "true"
-                    group_version = r[-3].split("/", 1)
-                    # Core group (v1)
-                    group = ""
-                    api_version = group_version
-                    if len(group_version) > 1:
-                        # group/version
-                        group = group_version[0]
-                        api_version = group_version[1]
-                    obj = OCDeprecatedApiResource(kind, group, api_version, namespaced)
-                    d = self.api_resources.setdefault(kind, [])
-                    d.append(obj)
-
+                try:
+                    results = self._run(cmd).decode("utf-8").split("\n")
+                    self._process_api_resources(results)
+                except AttributeError:
+                    results = self._run(cmd).split("\n")
+                    self._process_api_resources(results)
         return self.api_resources
 
     def get_version(self):
@@ -1070,24 +1074,14 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
 
     @retry(exceptions=(StatusCodeError, NoOutputError), max_attempts=10)
     def _run(self, cmd, **kwargs):
-        if kwargs.get("stdin"):
-            stdin = PIPE
-            stdin_text = kwargs.get("stdin").encode()
-        else:
-            stdin = None
-            stdin_text = None
-
-        p = Popen(  # pylint: disable=consider-using-with
-            self.oc_base_cmd + cmd, stdin=stdin, stdout=PIPE, stderr=PIPE
+        stdin = kwargs.get("stdin")
+        stdin_text = stdin.encode() if stdin else None
+        result = subprocess.run(
+            self.oc_base_cmd + cmd, input=stdin_text, capture_output=True, check=False
         )
-        out, err = p.communicate(stdin_text)
-
-        code = p.returncode
-
+        err = result.stderr.decode("utf-8") if result.stderr else ""
         allow_not_found = kwargs.get("allow_not_found")
-
-        if code != 0:
-            err = err.decode("utf-8")
+        if result.returncode != 0:
             if "Unable to connect to the server" in err:
                 raise StatusCodeError(f"[{self.server}]: {err}")
             if kwargs.get("apply"):
@@ -1120,12 +1114,12 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
             if not (allow_not_found and "NotFound" in err):
                 raise StatusCodeError(f"[{self.server}]: {err}")
 
-        if not out:
+        if not result.stdout:
             if allow_not_found:
                 return "{}"
             raise NoOutputError(err)
 
-        return out.strip()
+        return result.stdout.decode("utf-8").strip()
 
     def _run_json(self, cmd, allow_not_found=False):
         out = self._run(cmd, allow_not_found=allow_not_found)

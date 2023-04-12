@@ -9,10 +9,7 @@ from reconcile import (
     mr_client_gateway,
     queries,
 )
-from reconcile.gql_definitions.common.saas_files import (
-    PipelinesProviderTektonV1,
-    SaasFileV2,
-)
+from reconcile.gql_definitions.common.saas_files import PipelinesProviderTektonV1
 from reconcile.openshift_tekton_resources import build_one_per_saas_file_tkn_object_name
 from reconcile.slack_base import slackapi_from_slack_workspace
 from reconcile.status import ExitCodes
@@ -27,6 +24,7 @@ from reconcile.utils.defer import defer
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.openshift_resource import ResourceInventory
 from reconcile.utils.saasherder import SaasHerder
+from reconcile.utils.saasherder.interfaces import SaasFile
 from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.slack_api import SlackApi
@@ -36,7 +34,7 @@ QONTRACT_INTEGRATION = "openshift-saas-deploy"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 
-def compose_console_url(saas_file: SaasFileV2, env_name: str) -> str:
+def compose_console_url(saas_file: SaasFile, env_name: str) -> str:
     if not isinstance(saas_file.pipelines_provider, PipelinesProviderTektonV1):
         raise ValueError(
             f"Unsupported pipelines_provider: {saas_file.pipelines_provider}"
@@ -234,6 +232,16 @@ def run(
     success = not ri.has_error_registered()
     # only publish promotions for deployment jobs (a single saas file)
     if notify:
+        # TODO: uncomment this to enable SAPM https://issues.redhat.com/browse/APPSRE-7367
+        # # Auto-promotions are now created by saas-auto-promotions-manager integration
+        # # However, we still need saas-herder to publish the state to S3, because
+        # # saas-auto-promotions-manager needs that information
+        # with mr_client_gateway.init(gitlab_project_id=gitlab_project_id) as mr_cli:
+        #     saasherder.publish_promotions(
+        #         success, all_saas_files, mr_cli, auto_promote=False
+        #     )
+
+        # TODO: remove this to enable SAPM https://issues.redhat.com/browse/APPSRE-7367
         # Auto-promote next stages only if there are changes in the
         # promoting stage. This prevents trigger promotions on job re-runs
         auto_promote = len(actions) > 0

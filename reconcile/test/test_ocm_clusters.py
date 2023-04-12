@@ -22,6 +22,7 @@ from reconcile.utils.ocm import (
     SPEC_ATTR_CONSOLE_URL,
     SPEC_ATTR_SERVER_URL,
     OCMMap,
+    ocm,
 )
 
 from .fixtures import Fixtures
@@ -313,7 +314,7 @@ def ocm_mock(ocm_secrets_reader):
     with patch.object(OCM, "_post", autospec=True) as _post:
         with patch.object(OCM, "_patch", autospec=True) as _patch:
             with patch.object(OCM, "whoami", autospec=True):
-                with patch.object(OCM, "_init_ocm_client", autospec=True):
+                with patch.object(ocm, "init_ocm_base_client"):
                     with patch.object(OCM, "get_provision_shard", autospec=True) as gps:
                         gps.return_value = {"id": "provision_shard_id"}
                         yield _post, _patch

@@ -403,6 +403,12 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         note.delete()
 
+    def add_comment_on_merge_request(
+        self, merge_request: ProjectMergeRequest, comment: str
+    ) -> None:
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
+        merge_request.notes.create({"body": comment})
+
     def add_merge_request_comment(self, mr_id, comment):
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         merge_request = self.project.mergerequests.get(mr_id)
@@ -665,6 +671,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         return None
 
     def get_commit_sha(self, ref: str, repo_url: str) -> str:
-        project = self.gl.get_project(repo_url)
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
+        project = self.get_project(repo_url)
         commits = project.commits.list(ref_name=ref, per_page=1)
         return commits[0].id
