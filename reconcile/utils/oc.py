@@ -711,33 +711,27 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
         cmd = ["sa", "-n", namespace, "get-token", name]
         return self._run(cmd)
 
-    def _process_api_resources(self, results):
-        for line in results:
-            r = line.split()
-            kind = r[-1]
-            namespaced = r[-2].lower() == "true"
-            group_version = r[-3].split("/", 1)
-            # Core group (v1)
-            group = ""
-            api_version = group_version
-            if len(group_version) > 1:
-                # group/version
-                group = group_version[0]
-                api_version = group_version[1]
-            obj = OCDeprecatedApiResource(kind, group, api_version, namespaced)
-            d = self.api_resources.setdefault(kind, [])
-            d.append(obj)
-
     def get_api_resources(self):
         with self.api_resources_lock:
             if not self.api_resources:
                 cmd = ["api-resources", "--no-headers"]
-                try:
-                    results = self._run(cmd).decode("utf-8").split("\n")
-                    self._process_api_resources(results)
-                except AttributeError:
-                    results = self._run(cmd).split("\n")
-                    self._process_api_resources(results)
+                results = self._run(cmd).decode("utf-8").split("\n")
+                for line in results:
+                    r = line.split()
+                    kind = r[-1]
+                    namespaced = r[-2].lower() == "true"
+                    group_version = r[-3].split("/", 1)
+                    # Core group (v1)
+                    group = ""
+                    api_version = group_version
+                    if len(group_version) > 1:
+                        # group/version
+                        group = group_version[0]
+                        api_version = group_version[1]
+                    obj = OCDeprecatedApiResource(kind, group, api_version, namespaced)
+                    d = self.api_resources.setdefault(kind, [])
+                    d.append(obj)
+
         return self.api_resources
 
     def get_version(self):
