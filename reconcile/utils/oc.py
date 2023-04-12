@@ -1067,7 +1067,7 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
         return resources
 
     @retry(exceptions=(StatusCodeError, NoOutputError), max_attempts=10)
-    def _run(self, cmd, **kwargs):
+    def _run(self, cmd, **kwargs) -> bytes:
         stdin = kwargs.get("stdin")
         stdin_text = stdin.encode() if stdin else None
         result = subprocess.run(
@@ -1110,10 +1110,10 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
 
         if not result.stdout:
             if allow_not_found:
-                return "{}"
+                return b"{}"
             raise NoOutputError(err)
 
-        return result.stdout.decode("utf-8").strip()
+        return result.stdout.strip()
 
     def _run_json(self, cmd, allow_not_found=False):
         out = self._run(cmd, allow_not_found=allow_not_found)
