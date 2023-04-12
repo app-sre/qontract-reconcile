@@ -29,6 +29,7 @@ from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.slack_api import SlackApi
 from reconcile.utils.state import init_state
+from reconcile.utils.unleash import get_feature_toggle_state
 
 QONTRACT_INTEGRATION = "openshift-saas-deploy"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
@@ -232,21 +233,26 @@ def run(
     success = not ri.has_error_registered()
     # only publish promotions for deployment jobs (a single saas file)
     if notify:
-        # TODO: uncomment this to enable SAPM https://issues.redhat.com/browse/APPSRE-7367
-        # # Auto-promotions are now created by saas-auto-promotions-manager integration
-        # # However, we still need saas-herder to publish the state to S3, because
-        # # saas-auto-promotions-manager needs that information
-        # with mr_client_gateway.init(gitlab_project_id=gitlab_project_id) as mr_cli:
-        #     saasherder.publish_promotions(
-        #         success, all_saas_files, mr_cli, auto_promote=False
-        #     )
-
-        # TODO: remove this to enable SAPM https://issues.redhat.com/browse/APPSRE-7367
-        # Auto-promote next stages only if there are changes in the
-        # promoting stage. This prevents trigger promotions on job re-runs
-        auto_promote = len(actions) > 0
-        with mr_client_gateway.init(gitlab_project_id=gitlab_project_id) as mr_cli:
-            saasherder.publish_promotions(success, all_saas_files, mr_cli, auto_promote)
+        disable_sqs_events = get_feature_toggle_state(
+            integration_name="saas-auto-promotions-manager-disable-sqs-events",
+            default=False,
+        )
+        if disable_sqs_events:
+            # Auto-promotions are now created by saas-auto-promotions-manager integration
+            # However, we still need saas-herder to publish the state to S3, because
+            # saas-auto-promotions-manager needs that information
+            with mr_client_gateway.init(gitlab_project_id=gitlab_project_id) as mr_cli:
+                saasherder.publish_promotions(
+                    success, all_saas_files, mr_cli, auto_promote=False
+                )
+        else:
+            # Auto-promote next stages only if there are changes in the
+            # promoting stage. This prevents trigger promotions on job re-runs
+            auto_promote = len(actions) > 0
+            with mr_client_gateway.init(gitlab_project_id=gitlab_project_id) as mr_cli:
+                saasherder.publish_promotions(
+                    success, all_saas_files, mr_cli, auto_promote
+                )
 
     if not success:
         sys.exit(ExitCodes.ERROR)
