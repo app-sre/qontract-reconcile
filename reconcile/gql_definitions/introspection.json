@@ -2824,18 +2824,6 @@
                             "deprecationReason": null
                         },
                         {
-                            "name": "cloudflareDNSZoneMaxRecords",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "SCALAR",
-                                "name": "Int",
-                                "ofType": null
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
                             "name": "state",
                             "description": null,
                             "args": [],
@@ -26298,18 +26286,6 @@
                                         "ofType": null
                                     }
                                 }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "max_records",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "SCALAR",
-                                "name": "Int",
-                                "ofType": null
                             },
                             "isDeprecated": false,
                             "deprecationReason": null
