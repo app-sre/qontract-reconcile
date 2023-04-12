@@ -12,14 +12,6 @@ CONTENT_HASH = "content_hash"
 CHANNELS_REF = "channels"
 VERSION_REF = "sapm_version"
 SAPM_DESC = f"""
-THIS IS A TEST MR CREATED BY APP-INTERFACE.
-
-AppSRE will make sure to remove this MR.
-
-This is part of effort [APPSRE-7367](https://issues.redhat.com/browse/APPSRE-7367).
-
-**PLEASE DO NOT MERGE THIS!!!**
-
 This is an auto-promotion triggered by app-interface's [saas-auto-promotions-manager](https://github.com/app-sre/qontract-reconcile/tree/master/reconcile/saas_auto_promotions_manager) (SAPM).
 The channel(s) mentioned in the MR title had an event.
 This MR promotes all subscribers with auto-promotions for these channel(s).
