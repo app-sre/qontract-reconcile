@@ -3,7 +3,6 @@ from collections.abc import Mapping
 
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.mr.base import MergeRequestBase
-
 from reconcile.utils.mr.labels import AUTO_MERGE
 
 LOG = logging.getLogger(__name__)
