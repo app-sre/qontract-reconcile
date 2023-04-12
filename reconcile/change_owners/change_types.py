@@ -667,7 +667,7 @@ class ChangeTypeProcessor:
         # direct context extraction
         # the changed file itself is giving the context for approver extraction
         # see doc string for more details
-        if self.context_schema == file_ref.schema:
+        if self.context_schema is None or self.context_schema == file_ref.schema:
             contexts.append(
                 ResolvedContext(
                     owned_file_ref=file_ref,
@@ -726,12 +726,36 @@ class ChangeTypeProcessor:
         the root element that can be changed
         """
         paths = []
+        paths.extend(
+            self._allowed_changed_paths_for_file_type_and_schema(
+                file_ref.file_type, file_ref.schema, file_content, ctx
+            )
+        )
+        if file_ref.schema is not None:
+            # if a file_ref has a schema set, we will still check for allowed paths
+            # regardless of any schemas. this is to allow for generic change types
+            # that don't care about schemas
+            paths.extend(
+                self._allowed_changed_paths_for_file_type_and_schema(
+                    file_ref.file_type, None, file_content, ctx
+                )
+            )
+        return paths
+
+    def _allowed_changed_paths_for_file_type_and_schema(
+        self,
+        file_type: BundleFileType,
+        file_schema: Optional[str],
+        file_content: Any,
+        ctx: "ChangeTypeContext",
+    ) -> list[jsonpath_ng.JSONPath]:
+        paths = []
         if (
-            file_ref.file_type,
-            file_ref.schema,
+            file_type,
+            file_schema,
         ) in self._expressions_by_file_type_schema:
             for change_type_path_expression in self._expressions_by_file_type_schema[
-                (file_ref.file_type, file_ref.schema)
+                (file_type, file_schema)
             ]:
                 paths.extend(
                     [
