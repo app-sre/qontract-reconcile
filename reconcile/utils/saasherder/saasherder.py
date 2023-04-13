@@ -1791,8 +1791,8 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
 
         if self.promotions and not auto_promote:
             logging.info(
-                "Auto-promotions to next stages are disabled. This could "
-                "happen if the current stage does not make any change"
+                "Auto-promotions to next stages are disabled. "
+                "Promotions are being handled by SAPM."
             )
 
         if not (self.state and self._promotion_state):
