@@ -124,13 +124,11 @@ def init_external_dependencies(
         default=False,
     )
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
-    gitlab_instances = get_gitlab_instances()
-    app_interface_repo_url = get_app_interface_repo_url()
     vcs = VCS(
         secret_reader=secret_reader,
         github_orgs=get_github_orgs(),
-        gitlab_instances=gitlab_instances,
-        app_interface_repo_url=app_interface_repo_url,
+        gitlab_instances=get_gitlab_instances(),
+        app_interface_repo_url=get_app_interface_repo_url(),
         dry_run=dry_run,
         allow_deleting_mrs=allow_deleting_mrs,
         allow_opening_mrs=allow_opening_mrs,
