@@ -111,9 +111,8 @@ class VCS:
         if "github.com" in repo_url:
             github = self._init_github(repo_url=repo_url, auth_code=auth_code)
             return github.get_commit_sha(ref=ref)
-        else:
-            # assume gitlab
-            return self._gitlab_instance.get_commit_sha(ref=ref, repo_url=repo_url)
+        # assume gitlab by default
+        return self._gitlab_instance.get_commit_sha(ref=ref, repo_url=repo_url)
 
     def close_app_interface_mr(self, mr: ProjectMergeRequest, comment: str) -> None:
         if not self._dry_run and self._allow_deleting_mrs:
