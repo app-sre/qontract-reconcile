@@ -49,4 +49,4 @@ def test_get_vault_settings(
     vault_settings = get_app_interface_vault_settings(
         query_func=query_func(data.dict(by_alias=True))
     )
-    assert vault_settings.vault == True
+    assert vault_settings.vault
