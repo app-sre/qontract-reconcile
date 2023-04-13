@@ -11,11 +11,19 @@ from croniter import croniter
 from dateutil import parser
 
 import reconcile.aus.base as aus
+from reconcile.aus.models import (
+    ConfiguredClusterUpgradePolicy,
+    ConfiguredUpgradePolicy,
+    ConfiguredUpgradePolicyConditions,
+)
 from reconcile.utils.cluster_version_data import (
     Stats,
     VersionData,
 )
-from reconcile.utils.ocm import Sector
+from reconcile.utils.ocm import (
+    OCM,
+    Sector,
+)
 
 
 class TestUpdateHistory(TestCase):
@@ -37,21 +45,33 @@ class TestUpdateHistory(TestCase):
         }
         aus.datetime.utcnow.return_value = parser.parse("2021-08-30T18:00:00.00000")
         upgrade_policies = [
-            {
-                "workloads": ["workload1"],
-                "cluster": "cluster1",
-                "current_version": "4.12.1",
-            },
-            {
-                "workloads": ["workload1"],
-                "cluster": "cluster2",
-                "current_version": "4.12.1",
-            },
-            {
-                "workloads": ["workload2"],
-                "cluster": "cluster3",
-                "current_version": "4.12.1",
-            },
+            aus.ConfiguredUpgradePolicy(
+                **{
+                    "workloads": ["workload1"],
+                    "cluster": "cluster1",
+                    "current_version": "4.12.1",
+                    "conditions": {},
+                    "schedule": "0 0 * * *",
+                }
+            ),
+            aus.ConfiguredUpgradePolicy(
+                **{
+                    "workloads": ["workload1"],
+                    "cluster": "cluster2",
+                    "current_version": "4.12.1",
+                    "conditions": {},
+                    "schedule": "0 0 * * *",
+                }
+            ),
+            aus.ConfiguredUpgradePolicy(
+                **{
+                    "workloads": ["workload2"],
+                    "cluster": "cluster3",
+                    "current_version": "4.12.1",
+                    "conditions": {},
+                    "schedule": "0 0 * * *",
+                }
+            ),
         ]
         version_data = VersionData(**history)
         aus.update_history(version_data, upgrade_policies)
@@ -101,7 +121,7 @@ class TestVersionConditionsMetSoakDays(TestCase):
         self.version_data_map = {self.ocm_name: version_data}
 
     def test_conditions_met_larger(self):
-        upgrade_conditions = {"soakDays": 1.0}
+        upgrade_conditions = ConfiguredUpgradePolicyConditions(**{"soakDays": 1.0})
 
         conditions_met = aus.version_conditions_met(
             self.version,
@@ -113,7 +133,7 @@ class TestVersionConditionsMetSoakDays(TestCase):
         self.assertTrue(conditions_met)
 
     def test_conditions_met_equal(self):
-        upgrade_conditions = {"soakDays": 2.0}
+        upgrade_conditions = ConfiguredUpgradePolicyConditions(**{"soakDays": 2.0})
 
         conditions_met = aus.version_conditions_met(
             self.version,
@@ -125,7 +145,7 @@ class TestVersionConditionsMetSoakDays(TestCase):
         self.assertTrue(conditions_met)
 
     def test_conditions_not_met(self):
-        upgrade_conditions = {"soakDays": 3.0}
+        upgrade_conditions = ConfiguredUpgradePolicyConditions(**{"soakDays": 3.0})
 
         conditions_met = aus.version_conditions_met(
             self.version,
@@ -137,7 +157,7 @@ class TestVersionConditionsMetSoakDays(TestCase):
         self.assertFalse(conditions_met)
 
     def test_soak_zero_for_new_version(self):
-        upgrade_conditions = {"soakDays": 0.0}
+        upgrade_conditions = ConfiguredUpgradePolicyConditions(**{"soakDays": 0.0})
 
         conditions_met = aus.version_conditions_met(
             "0.0.0",
@@ -168,27 +188,35 @@ class TestUpgradeLock:
         schedule.get_next.return_value = parser.parse("2021-08-30T19:00:00.00000")
         return True
 
-    current_cluster1 = {
-        "cluster": "cluster1",
-    }
+    current_cluster1 = aus.ClusterUpgradePolicy(
+        **{
+            "cluster": "cluster1",
+            "schedule_type": "manual",
+            "version": "4.3.5",
+        }
+    )
 
-    desired_cluster1 = {
-        "cluster": "cluster1",
-        "current_version": "4.3.0",
-        "channel": "stable",
-        "schedule": None,
-        "workloads": None,
-        "conditions": {"mutexes": ["mutex1"]},
-    }
+    desired_cluster1 = ConfiguredClusterUpgradePolicy(
+        **{
+            "cluster": "cluster1",
+            "current_version": "4.3.0",
+            "channel": "stable",
+            "schedule": "* * * * *",
+            "workloads": [],
+            "conditions": {"mutexes": ["mutex1"]},
+        }
+    )
 
-    expected_cluster1 = {
-        "action": "create",
-        "cluster": "cluster1",
-        "version": "4.3.6",
-        "schedule_type": "manual",
-        "gates_to_agree": [],
-        "next_run": "2021-08-30T19:00:00Z",
-    }
+    expected_cluster1 = aus.ClusterUpgradePolicy(
+        **{
+            "action": "create",
+            "cluster": "cluster1",
+            "version": "4.3.6",
+            "schedule_type": "manual",
+            "gates_to_agree": [],
+            "next_run": "2021-08-30T19:00:00Z",
+        }
+    )
 
     @patch.object(aus, "datetime", Mock(wraps=datetime))
     @patch.object(aus, "croniter", Mock(wraps=croniter))
@@ -209,7 +237,7 @@ class TestUpgradeLock:
     def test_calculate_diff_locked_out(self, ocm_map):
         current_state = [self.current_cluster1]
         desired_cluster2 = self.desired_cluster1.copy()
-        desired_cluster2["cluster"] = "cluster2"
+        desired_cluster2.cluster = "cluster2"
         desired_state = [self.desired_cluster1, desired_cluster2]
         self.set_upgradeable()
 
@@ -225,7 +253,7 @@ class TestUpgradeLock:
     def test_calculate_diff_inter_lock(self, ocm_map):
         current_state = []
         desired_cluster2 = self.desired_cluster1.copy()
-        desired_cluster2["cluster"] = "cluster2"
+        desired_cluster2.cluster = "cluster2"
         desired_state = [self.desired_cluster1, desired_cluster2]
         self.set_upgradeable()
 
@@ -242,28 +270,44 @@ class TestUpgradeableVersion:
     def ocm(mock_ocm_map):
         map = mock_ocm_map.return_value
         ocm = map.get.return_value
+        ocm.name = "foo"
         ocm.get_available_upgrades.return_value = ["4.3.5", "4.3.6", "4.4.1"]
         ocm.version_blocked.return_value = False
         return map.get("foo")
 
     @staticmethod
     @pytest.fixture
-    def ocm_gated(ocm):
-        ocm.get_version_gates.side_effect = (
-            lambda v: [{"id": 1, "version_raw_prefix": 4.4}] if v == "4.4" else []
+    def upgrade_policy() -> ConfiguredUpgradePolicy:
+        return ConfiguredUpgradePolicy(
+            **{
+                "current_version": "4.3.5",
+                "channel": "stable",
+                "cluster": "test",
+                "schedule": "manual",
+                "workloads": ["workload1"],
+                "conditions": ConfiguredUpgradePolicyConditions(soakDays=1),
+            }
         )
-        return ocm
 
     @staticmethod
     @pytest.fixture
-    def upgrade_policy() -> dict[str, Any]:
+    def version_data_map():
         return {
-            "current_version": "4.3.5",
-            "channel": "stable",
-            "workloads": "test",
-            "conditions": {
-                "soakdays": 1,
-            },
+            "foo": VersionData(
+                **{
+                    "check_in": "2021-08-29T18:00:00",
+                    "versions": {
+                        "4.4.1": {
+                            "workloads": {
+                                "workload1": {
+                                    "soak_days": 1.0,
+                                    "reporting": ["cluster1", "cluster2"],
+                                },
+                            }
+                        }
+                    },
+                }
+            )
         }
 
     @staticmethod
@@ -274,15 +318,9 @@ class TestUpgradeableVersion:
         assert x is None
 
     @staticmethod
-    def test_upgradeable_version_no_gate(upgrade_policy, ocm):
+    def test_upgradeable_version_no_gate(upgrade_policy, ocm, version_data_map):
         upgrades = ocm.get_available_upgrades()
-        x = aus.upgradeable_version(upgrade_policy, {}, ocm, upgrades)
-        assert x == "4.4.1"
-
-    @staticmethod
-    def test_upgradeable_version_requires_agreement(upgrade_policy, ocm_gated):
-        upgrades = ocm_gated.get_available_upgrades()
-        x = aus.upgradeable_version(upgrade_policy, {}, ocm_gated, upgrades)
+        x = aus.upgradeable_version(upgrade_policy, version_data_map, ocm, upgrades)
         assert x == "4.4.1"
 
 
@@ -318,15 +356,20 @@ class TestVersionGateAgreement:
 
 class TestUpgradePriority(TestCase):
     @staticmethod
-    def policy(name, version, soakDays):
-        return {
-            "cluster": name,
-            "current_version": version,
-            "channel": None,
-            "conditions": {
-                "soakDays": soakDays,
-            },
-        }
+    def policy(name: str, version: str, soakDays: int) -> ConfiguredUpgradePolicy:
+        return ConfiguredUpgradePolicy(
+            **{
+                "cluster": name,
+                "current_version": version,
+                "schedule": "",
+                "workloads": [],
+                "conditions": ConfiguredUpgradePolicyConditions(
+                    **{
+                        "soakDays": soakDays,
+                    }
+                ),
+            }
+        )
 
     # cluster upgrades are prioritized according to their current versions
     def test_sorted_version(self):
@@ -444,7 +487,7 @@ class TestVersionConditionsMetSector:
     def test_conditions_met_no_deps(
         self, sector1_ocm1: Sector, empty_version_data_map: dict[str, VersionData]
     ):
-        upgrade_conditions = {"sector": sector1_ocm1}
+        upgrade_conditions = ConfiguredUpgradePolicyConditions(sector=sector1_ocm1)
         assert aus.version_conditions_met(
             "1.2.3", empty_version_data_map, "ocm1", ["workload1"], upgrade_conditions
         )
@@ -452,7 +495,7 @@ class TestVersionConditionsMetSector:
     def test_conditions_met_single_deps_no_cluster(
         self, sector2_ocm1: Sector, empty_version_data_map: dict[str, VersionData]
     ):
-        upgrade_conditions = {"sector": sector2_ocm1}
+        upgrade_conditions = ConfiguredUpgradePolicyConditions(sector=sector2_ocm1)
         assert aus.version_conditions_met(
             "1.2.3", empty_version_data_map, "ocm1", ["workload1"], upgrade_conditions
         )
@@ -478,7 +521,7 @@ class TestVersionConditionsMetSector:
         cluster_high_version: dict[str, Any],
         empty_version_data_map: dict[str, VersionData],
     ):
-        upgrade_conditions = {"sector": sector2_ocm1}
+        upgrade_conditions = ConfiguredUpgradePolicyConditions(sector=sector2_ocm1)
         self.set_clusters(mocker, sector1_ocm1, [cluster_high_version])
         assert aus.version_conditions_met(
             "1.2.3", empty_version_data_map, "ocm1", ["workload1"], upgrade_conditions
@@ -492,7 +535,7 @@ class TestVersionConditionsMetSector:
         cluster_low_version: dict[str, Any],
         empty_version_data_map: dict[str, VersionData],
     ):
-        upgrade_conditions = {"sector": sector2_ocm1}
+        upgrade_conditions = ConfiguredUpgradePolicyConditions(sector=sector2_ocm1)
         self.set_clusters(mocker, sector1_ocm1, [cluster_low_version])
         assert not aus.version_conditions_met(
             "1.2.3", empty_version_data_map, "ocm1", ["workload1"], upgrade_conditions
@@ -507,7 +550,7 @@ class TestVersionConditionsMetSector:
         cluster_high_version: dict[str, Any],
         empty_version_data_map: dict[str, VersionData],
     ):
-        upgrade_conditions = {"sector": sector2_ocm1}
+        upgrade_conditions = ConfiguredUpgradePolicyConditions(sector=sector2_ocm1)
         self.set_clusters(
             mocker, sector1_ocm1, [cluster_low_version, cluster_high_version]
         )
@@ -527,7 +570,7 @@ class TestVersionConditionsMetSector:
         cluster_high_version: dict[str, Any],
         empty_version_data_map: dict[str, VersionData],
     ):
-        upgrade_conditions = {"sector": sector3_ocm1}
+        upgrade_conditions = ConfiguredUpgradePolicyConditions(sector=sector3_ocm1)
 
         # no clusters in deps: upgrade ok
         assert aus.version_conditions_met(
@@ -569,46 +612,33 @@ class TestAct:
         ocm.version_blocked.return_value = False
         return map
 
-    @staticmethod
-    @pytest.fixture
-    def diff_gated_version():
-        return [
-            {
-                "action": "create",
-                "cluster": "test1",
-                "version": "1.2.3",
-                "schedule_type": "manual",
-                "next_run": datetime.now(),
-                "gates_to_agree": ["uuid-1"],
-            }
-        ]
+    class TestPolicy(aus.AbstractUpgradePolicy):
+        created = False
+        deleted = False
 
-    @staticmethod
-    @pytest.fixture
-    def diff_with_delete(diff_gated_version):
-        diff_gated_version.append(
-            {
-                "action": "delete",
-                "cluster": "test2",
-                "version": "1.2.3",
-            }
-        )
-        return diff_gated_version
+        def _create(self, ocm: OCM):
+            self.created = True
 
-    @staticmethod
-    def test_act_gated_version(ocm_map, diff_gated_version):
-        aus.act(False, diff_gated_version, ocm_map)
-        ocm_map.get("test1").create_version_agreement.assert_called_once_with(
-            "uuid-1", "test1"
-        )
-        ocm_map.get("test1").create_upgrade_policy.assert_called_once_with(
-            "test1", diff_gated_version[0]
-        )
+        def _delete(self, ocm: OCM):
+            self.deleted = True
 
-    @staticmethod
-    def test_act_with_delete(ocm_map, diff_with_delete):
-        aus.act(False, diff_with_delete, ocm_map)
-        ocm_map.get("test1").create_upgrade_policy.assert_called_once_with(
-            "test1", diff_with_delete[1]
-        )
-        ocm_map.get("test2").delete_upgrade_policy("test2", diff_with_delete[0])
+        @classmethod
+        def create_with_action(cls, action: str):
+            return cls(
+                cluster="testing",
+                version="4.1.2",
+                schedule_type="manual",
+                action=action,
+            )
+
+    def test_act_with_diff(self, ocm_map):
+        policy = self.TestPolicy.create_with_action("create")
+        aus.act(dry_run=False, diffs=[policy], ocm_map=ocm_map)
+        assert policy.created
+        assert not policy.deleted
+
+    def test_act_delete(self, ocm_map):
+        policy = self.TestPolicy.create_with_action("delete")
+        aus.act(dry_run=False, diffs=[policy], ocm_map=ocm_map)
+        assert not policy.created
+        assert policy.deleted
