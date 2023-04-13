@@ -33,6 +33,7 @@ class VCS:
         secret_reader: SecretReaderBase,
         github_orgs: Iterable[GithubOrgV1],
         gitlab_instances: Iterable[GitlabInstanceV1],
+        app_interface_repo_url: str,
         dry_run: bool,
         allow_deleting_mrs: bool,
         allow_opening_mrs: bool,
@@ -45,7 +46,8 @@ class VCS:
         self._default_gh_token = self._get_default_gh_token(github_orgs=github_orgs)
         self._gitlab_instance = self._gitlab_api(gitlab_instances=gitlab_instances)
         self._app_interface_api = self._init_app_interface_api(
-            gitlab_instances=gitlab_instances
+            gitlab_instances=gitlab_instances,
+            app_interface_repo_url=app_interface_repo_url,
         )
         self._is_commit_sha_regex = re.compile(r"^[0-9a-f]{40}$")
 
@@ -91,13 +93,14 @@ class VCS:
         )
 
     def _init_app_interface_api(
-        self, gitlab_instances: Iterable[GitlabInstanceV1]
+        self,
+        gitlab_instances: Iterable[GitlabInstanceV1],
+        app_interface_repo_url: str,
     ) -> GitLabApi:
         return GitLabApi(
             list(gitlab_instances)[0].dict(by_alias=True),
             secret_reader=self._secret_reader,
-            # TODO: fetch from vault or have it in schema
-            project_url="https://gitlab.cee.redhat.com/service/app-interface",
+            project_url=app_interface_repo_url,
         )
 
     def get_commit_sha(

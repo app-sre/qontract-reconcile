@@ -21,6 +21,7 @@ from reconcile.saas_auto_promotions_manager.utils.saas_files_inventory import (
     SaasFilesInventory,
 )
 from reconcile.saas_auto_promotions_manager.utils.vcs import VCS
+from reconcile.typed_queries.app_interface_repo_url import get_app_interface_repo_url
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
@@ -124,10 +125,12 @@ def init_external_dependencies(
     )
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     gitlab_instances = get_gitlab_instances()
+    app_interface_repo_url = get_app_interface_repo_url()
     vcs = VCS(
         secret_reader=secret_reader,
         github_orgs=get_github_orgs(),
         gitlab_instances=gitlab_instances,
+        app_interface_repo_url=app_interface_repo_url,
         dry_run=dry_run,
         allow_deleting_mrs=allow_deleting_mrs,
         allow_opening_mrs=allow_opening_mrs,
