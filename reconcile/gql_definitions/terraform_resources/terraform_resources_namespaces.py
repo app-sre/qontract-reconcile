@@ -300,6 +300,13 @@ query TerraformResourcesNamespaces {
                                 }
                             }
                         }
+                        ... on NamespaceTerraformResourceALBActionFixedResponse_v1 {
+                            fixed_response {
+                                content_type
+                                message_body
+                                status_code
+                            }
+                        }
                     }
                 }
                 output_resource_name
@@ -768,10 +775,25 @@ class NamespaceTerraformResourceALBActionForwardV1(
     )
 
 
+class NamespaceTerraformResourceALBActionFixedResponseSettingsV1(ConfiguredBaseModel):
+    content_type: str = Field(..., alias="content_type")
+    message_body: str = Field(..., alias="message_body")
+    status_code: str = Field(..., alias="status_code")
+
+
+class NamespaceTerraformResourceALBActionFixedResponseV1(
+    NamespaceTerraformResourceALBActionV1
+):
+    fixed_response: NamespaceTerraformResourceALBActionFixedResponseSettingsV1 = Field(
+        ..., alias="fixed_response"
+    )
+
+
 class NamespaceTerraformResourceALBRulesV1(ConfiguredBaseModel):
     condition: NamespaceTerraformResourceALBConditonV1 = Field(..., alias="condition")
     action: Union[
         NamespaceTerraformResourceALBActionForwardV1,
+        NamespaceTerraformResourceALBActionFixedResponseV1,
         NamespaceTerraformResourceALBActionV1,
     ] = Field(..., alias="action")
 

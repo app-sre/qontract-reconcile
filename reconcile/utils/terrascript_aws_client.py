@@ -4906,6 +4906,16 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                         "sum of weights for a rule should be 100"
                         f" given: {weight_sum}"
                     )
+            elif action_type == "fixed-response":
+                fr_data = action.get("fixed_response", {})
+                action_values = {
+                    "type": "fixed-response",
+                    "fixed_response": {
+                        "content_type": fr_data.get("content_type"),
+                        "message_body": fr_data.get("message_body"),
+                        "status_code": fr_data.get("status_code"),
+                    },
+                }
             else:
                 raise KeyError(f"unknown alb rule action type {action_type}")
 

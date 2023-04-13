@@ -261,6 +261,13 @@ query TerraformResourcesNamespaces {
                                 }
                             }
                         }
+                        ... on NamespaceTerraformResourceALBActionFixedResponse_v1 {
+                            fixed_response {
+                                content_type
+                                message_body
+                                status_code
+                            }
+                        }
                     }
                 }
                 output_resource_name
