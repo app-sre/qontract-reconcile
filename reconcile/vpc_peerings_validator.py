@@ -15,6 +15,7 @@ from reconcile.gql_definitions.vpc_peerings_validator.vpc_peerings_validator imp
 )
 from reconcile.status import ExitCodes
 from reconcile.utils import gql
+from reconcile.utils.aws_api import AWSApi
 
 QONTRACT_INTEGRATION = "vpc-peerings-validator"
 
@@ -24,18 +25,58 @@ def validate_no_cidr_overlap(
 ) -> bool:
     clusters: list[ClusterV1] = query_data.clusters or []
 
-    cidr_block_entries = {}
+    cidr_block_entries_acount_vpc = {}
+    # cidr_block_entries_acount_vpc_mesh = {}
+    cidr_block_entries_cluster_vpc = {}
+    cidr_block_entries_requester = {}
+    cidr_block_entries_accepter = {}
     for cluster in clusters:
+        cidr_block = str(cluster.network.vpc)  # type: ignore[union-attr]
+        cidr_block_entries_cluster_vpc[cluster] = cidr_block  # type: ignore[union-attr]
         if cluster.peering:
             for peering in cluster.peering.connections:
                 if peering.provider == "account-vpc":
                     cidr_block = str(peering.vpc.cidr_block)  # type: ignore[union-attr]
-                    cidr_block_entries[peering.vpc.name] = cidr_block  # type: ignore[union-attr]
+                    cidr_block_entries_acount_vpc[peering.vpc.name] = cidr_block  # type: ignore[union-attr]
+                # if peering.provider == "account-vpc-mesh":
+                #     cidr_block = str(peering.vpc.cidr_block)  # type: ignore[union-attr]
+                #     cidr_block_entries_acount_vpc_mesh[peering.vpc.name] = cidr_block  # type: ignore[union-attr]
+                if peering.provider == "cluster-vpc-requester":
+                    cidr_block = str(peering.cluster.network.vpc)  # type: ignore[union-attr]
+                    cidr_block_entries_requester[peering.cluster.name] = cidr_block  # type: ignore[union-attr]
+                if peering.provider == "cluster-vpc-accepter":
+                    cidr_block = str(peering.cluster.network.vpc)  # type: ignore[union-attr]
+                    cidr_block_entries_accepter[peering.cluster.name] = cidr_block  # type: ignore[union-attr]
 
-        overlaps = find_cidr_duplicates_and_overlap(cidr_block_entries)
-        if overlaps:
+        overlaps_account_vpc = find_cidr_duplicates_and_overlap(
+            cidr_block_entries_acount_vpc
+        )
+        if overlaps_account_vpc:
+            return False
+        # overlaps_account_vpc_mesh = find_cidr_duplicates_and_overlap(cidr_block_entries_acount_vpc_mesh)
+        # if overlaps_account_vpc_mesh:
+        #     return False
+        overlaps_account_cluster_vpc = find_cidr_duplicates_and_overlap(
+            cidr_block_entries_cluster_vpc
+        )
+        if overlaps_account_cluster_vpc:
+            return False
+        overlaps_account_requester = find_cidr_duplicates_and_overlap(
+            cidr_block_entries_requester
+        )
+        if overlaps_account_requester:
+            return False
+        overlaps_account_accepter = find_cidr_duplicates_and_overlap(
+            cidr_block_entries_accepter
+        )
+        if overlaps_account_accepter:
             return False
     return True
+
+
+def cidr_mesh_finder(awsapi: AWSApi):
+    awsapi.create_route53_zone
+    return
 
 
 def find_cidr_duplicates_and_overlap(input_dict: dict):
