@@ -291,8 +291,15 @@ query TerraformResourcesNamespaces {
                         methods
                     }
                     action {
-                        target
-                        weight
+                        type
+                        ... on NamespaceTerraformResourceALBActionForward_v1 {
+                            forward {
+                                target_group {
+                                    target
+                                    weight
+                                }
+                            }
+                        }
                     }
                 }
                 output_resource_name
@@ -739,13 +746,34 @@ class NamespaceTerraformResourceALBConditonV1(ConfiguredBaseModel):
 
 
 class NamespaceTerraformResourceALBActionV1(ConfiguredBaseModel):
+    q_type: str = Field(..., alias="type")
+
+
+class NamespaceTerraformResourceALBTargetGroupV1(ConfiguredBaseModel):
     target: str = Field(..., alias="target")
     weight: int = Field(..., alias="weight")
 
 
+class NamespaceTerraformResourceALBActionForwardSettingsV1(ConfiguredBaseModel):
+    target_group: list[NamespaceTerraformResourceALBTargetGroupV1] = Field(
+        ..., alias="target_group"
+    )
+
+
+class NamespaceTerraformResourceALBActionForwardV1(
+    NamespaceTerraformResourceALBActionV1
+):
+    forward: NamespaceTerraformResourceALBActionForwardSettingsV1 = Field(
+        ..., alias="forward"
+    )
+
+
 class NamespaceTerraformResourceALBRulesV1(ConfiguredBaseModel):
     condition: NamespaceTerraformResourceALBConditonV1 = Field(..., alias="condition")
-    action: list[NamespaceTerraformResourceALBActionV1] = Field(..., alias="action")
+    action: Union[
+        NamespaceTerraformResourceALBActionForwardV1,
+        NamespaceTerraformResourceALBActionV1,
+    ] = Field(..., alias="action")
 
 
 class NamespaceTerraformResourceALBV1(NamespaceTerraformResourceAWSV1):

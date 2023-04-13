@@ -4871,11 +4871,13 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             action = rule["action"]
             config_methods = condition.get("methods", None)
 
-            values = {
-                "provider": provider,
-                "listener_arn": f"${{{forward_lbl_tf_resource.arn}}}",
-                "priority": rule_num + 1,
-                "action": {
+            action_values = {}
+
+            action_type = action.get("type")
+
+            # https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lb_listener_rule#type
+            if action_type == "forward":
+                action_values = {
                     "type": "forward",
                     "forward": {
                         "target_group": [],
@@ -4884,7 +4886,34 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                             "duration": 1,
                         },
                     },
-                },
+                }
+                # The sum of all target weights should equal 100
+                weight_sum = 0
+                for a in action.get("forward", {}).get("target_group", []):
+                    target_name = a["target"]
+                    if target_name not in valid_targets:
+                        raise KeyError(f"{target_name} not a valid target name")
+
+                    target_resource = valid_targets[target_name]
+
+                    action_values["forward"]["target_group"].append(
+                        {"arn": f"${{{target_resource.arn}}}", "weight": a["weight"]}
+                    )
+                    weight_sum += a["weight"]
+
+                if weight_sum != 100:
+                    raise ValueError(
+                        "sum of weights for a rule should be 100"
+                        f" given: {weight_sum}"
+                    )
+            else:
+                raise KeyError(f"unknown alb rule action type {action_type}")
+
+            values = {
+                "provider": provider,
+                "listener_arn": f"${{{forward_lbl_tf_resource.arn}}}",
+                "priority": rule_num + 1,
+                "action": action_values,
                 "condition": [{"path_pattern": {"values": [condition["path"]]}}],
                 "depends_on": self.get_dependencies([forward_lbl_tf_resource]),
             }
@@ -4892,24 +4921,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             if config_methods:
                 values["condition"].append(
                     {"http_request_method": {"values": config_methods}}
-                )
-
-            weight_sum = 0
-            for a in action:
-                target_name = a["target"]
-                if target_name not in valid_targets:
-                    raise KeyError(f"{target_name} not a valid target name")
-
-                target_resource = valid_targets[target_name]
-
-                values["action"]["forward"]["target_group"].append(
-                    {"arn": f"${{{target_resource.arn}}}", "weight": a["weight"]}
-                )
-                weight_sum += a["weight"]
-
-            if weight_sum != 100:
-                raise ValueError(
-                    "sum of weights for a rule should be 100" f" given: {weight_sum}"
                 )
 
             lblr_identifier = f"{identifier}-rule-{rule_num+1:02d}"

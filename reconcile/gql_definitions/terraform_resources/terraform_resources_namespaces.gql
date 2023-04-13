@@ -252,8 +252,15 @@ query TerraformResourcesNamespaces {
                         methods
                     }
                     action {
-                        target
-                        weight
+                        type
+                        ... on NamespaceTerraformResourceALBActionForward_v1 {
+                            forward {
+                                target_group {
+                                    target
+                                    weight
+                                }
+                            }
+                        }
                     }
                 }
                 output_resource_name
