@@ -11,7 +11,11 @@ from reconcile.utils.state import State
 
 class PromotionData(BaseModel):
     """
-    A class that strictly corresponds to the json stored in S3
+    A class that strictly corresponds to the json stored in S3.
+
+    Note, that currently we also accomodate for missing
+    saas_file and target_config_hash because of saasherder
+    requirements.
     """
 
     success: bool

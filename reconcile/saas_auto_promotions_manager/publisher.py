@@ -2,15 +2,18 @@ from dataclasses import dataclass
 from typing import Optional
 
 from reconcile.saas_auto_promotions_manager.utils.vcs import VCS
-from reconcile.utils.promotion_state import (
-    PromotionData,
-    PromotionState,
-)
+from reconcile.utils.promotion_state import PromotionState
 from reconcile.utils.secret_reader import HasSecret
 
 
 @dataclass
 class DeploymentInfo:
+    """
+    Isolate our logic from utils model.
+    Unlike utils, we strictly require saas_file
+    and target_config_hash to be set.
+    """
+
     success: bool
     saas_file: str
     target_config_hash: str
