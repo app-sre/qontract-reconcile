@@ -9,14 +9,18 @@ from pydantic import (
 from reconcile.utils.state import State
 
 
-class PromotionInfo(BaseModel):
+class PromotionData(BaseModel):
     """
-    A class that strictly corresponds to the json stored in S3
+    A class that strictly corresponds to the json stored in S3.
+
+    Note, that currently we also accomodate for missing
+    saas_file and target_config_hash because of saasherder
+    requirements.
     """
 
     success: bool
-    target_config_hash: str
-    saas_file: str
+    target_config_hash: Optional[str]
+    saas_file: Optional[str]
 
     class Config:
         smart_union = True
@@ -33,9 +37,13 @@ class PromotionState:
     def __init__(self, state: State):
         self._state = state
         self._commits_by_channel: dict[str, set[str]] = defaultdict(set)
-        self._fetch_promotions_list()
 
-    def _fetch_promotions_list(self) -> None:
+    def cache_commit_shas_from_s3(self) -> None:
+        """
+        Caching commit shas locally - this is used
+        to lookup locally if a key exists on S3
+        before querying.
+        """
         all_keys = self._state.ls()
         for commit in all_keys:
             # Format: /promotions/{channel}/{commit-sha}
@@ -44,9 +52,21 @@ class PromotionState:
             _, _, channel_name, commit_sha = commit.split("/")
             self._commits_by_channel[channel_name].add(commit_sha)
 
-    def get_promotion_info(self, sha: str, channel: str) -> Optional[PromotionInfo]:
-        if sha not in self._commits_by_channel[channel]:
+    def get_promotion_data(
+        self, sha: str, channel: str, local_lookup: bool = True
+    ) -> Optional[PromotionData]:
+        if local_lookup and sha not in self._commits_by_channel[channel]:
+            # Lets reduce unecessary calls to S3
             return None
         key = f"promotions/{channel}/{sha}"
-        data = self._state.get(key)
-        return PromotionInfo(**data)
+        try:
+            data = self._state.get(key)
+        except KeyError:
+            return None
+        return PromotionData(**data)
+
+    def publish_promotion_data(
+        self, sha: str, channel: str, data: PromotionData
+    ) -> None:
+        state_key = f"promotions/{channel}/{sha}"
+        self._state.add(state_key, data.dict(), force=True)

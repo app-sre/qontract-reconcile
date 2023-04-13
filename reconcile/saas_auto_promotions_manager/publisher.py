@@ -1,11 +1,22 @@
+from dataclasses import dataclass
 from typing import Optional
 
 from reconcile.saas_auto_promotions_manager.utils.vcs import VCS
-from reconcile.utils.promotion_state import (
-    PromotionInfo,
-    PromotionState,
-)
+from reconcile.utils.promotion_state import PromotionState
 from reconcile.utils.secret_reader import HasSecret
+
+
+@dataclass
+class DeploymentInfo:
+    """
+    Isolate our logic from utils model.
+    Unlike utils, we strictly require saas_file
+    and target_config_hash to be set.
+    """
+
+    success: bool
+    saas_file: str
+    target_config_hash: str
 
 
 class Publisher:
@@ -20,7 +31,7 @@ class Publisher:
         self._auth_code = auth_code
         self.channels: set[str] = set()
         self.commit_sha: str = ""
-        self.deployment_info_by_channel: dict[str, Optional[PromotionInfo]] = {}
+        self.deployment_info_by_channel: dict[str, Optional[DeploymentInfo]] = {}
 
     def fetch_commit_shas_and_deployment_info(
         self, vcs: VCS, deployment_state: PromotionState
@@ -32,8 +43,19 @@ class Publisher:
         )
         for channel in self.channels:
             self.deployment_info_by_channel[channel] = None
-            deployment_info = deployment_state.get_promotion_info(
+            promotion_data = deployment_state.get_promotion_data(
                 sha=self.commit_sha,
                 channel=channel,
             )
-            self.deployment_info_by_channel[channel] = deployment_info
+            if not (
+                promotion_data
+                and promotion_data.saas_file
+                and promotion_data.target_config_hash
+            ):
+                continue
+
+            self.deployment_info_by_channel[channel] = DeploymentInfo(
+                success=promotion_data.success,
+                saas_file=promotion_data.saas_file,
+                target_config_hash=promotion_data.target_config_hash,
+            )
