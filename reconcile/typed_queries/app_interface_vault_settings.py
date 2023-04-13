@@ -1,30 +1,21 @@
-import logging
-import sys
+from collections.abc import Callable
 from typing import Optional
 
 from reconcile.gql_definitions.common.app_interface_vault_settings import (
     AppInterfaceSettingsV1,
     query,
 )
-from reconcile.status import ExitCodes
 from reconcile.utils import gql
+from reconcile.utils.exceptions import AppInterfaceSettingsError
 
 
-def get_app_interface_vault_settings_optional() -> Optional[AppInterfaceSettingsV1]:
-    """Returns App Interface Settings"""
-    gqlapi = gql.get_api()
-    data = query(gqlapi.query)
-    if data.vault_settings:
-        # assuming a single settings file for now
+def get_app_interface_vault_settings(
+    query_func: Optional[Callable] = None,
+) -> AppInterfaceSettingsV1:
+    """Returns App Interface Settings and raises err if none are found"""
+    if not query_func:
+        query_func = gql.get_api().query
+    data = query(query_func=query_func)
+    if data.vault_settings and len(data.vault_settings) == 1:
         return data.vault_settings[0]
-    return None
-
-
-def get_app_interface_vault_settings() -> AppInterfaceSettingsV1:
-    """Returns App Interface Settings and exits if none are found"""
-    vault_settings = get_app_interface_vault_settings_optional()
-    if not vault_settings:
-        logging.error("Missing app-interface vault_settings")
-        # TODO: We should raise an exception https://issues.redhat.com/browse/APPSRE-7041
-        sys.exit(ExitCodes.ERROR)
-    return vault_settings
+    raise AppInterfaceSettingsError("vault settings not uniquely defined.")
