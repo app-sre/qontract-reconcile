@@ -86,6 +86,6 @@ def test_publish_info(s3_state_builder: Callable[[Mapping], State]):
         sha="sha",
         data=promotion_info,
     )
-    deployment_state._state.add.assert_called_once_with(
+    deployment_state._state.add.assert_called_once_with(  # type: ignore[attr-defined]
         "promotions/channel/sha", promotion_info.dict(), True
     )
