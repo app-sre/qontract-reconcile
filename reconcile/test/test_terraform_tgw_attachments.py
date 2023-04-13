@@ -1,5 +1,7 @@
 import pytest
 
+import reconcile.terraform_tgw_attachments as integ
+
 
 @pytest.fixture
 def account_tgw_connection():
@@ -114,22 +116,24 @@ def _setup_mocks(
     )
     mocker.patch("reconcile.queries.get_aws_accounts", return_value=accounts or [])
     mocked_aws_api = mocker.patch(
-        "reconcile.utils.aws_api.AWSApi", autospec=True
+        "reconcile.terraform_tgw_attachments.AWSApi", autospec=True
     ).return_value
     with mocked_aws_api as aws_api:
         aws_api.get_cluster_vpc_details.return_value = vpc or (None, None, None)
         aws_api.get_tgws_details.return_value = tgws or []
-    mocked_ocm = mocker.patch("reconcile.utils.ocm.OCMMap", autospec=True).return_value
+    mocked_ocm = mocker.patch(
+        "reconcile.terraform_tgw_attachments.OCMMap", autospec=True
+    ).return_value
     mocked_ocm.get.return_value.get_aws_infrastructure_access_terraform_assume_role.return_value = (
         assume_role
     )
     mocked_ts = mocker.patch(
-        "reconcile.utils.terrascript_aws_client.TerrascriptClient", autospec=True
+        "reconcile.terraform_tgw_attachments.Terrascript", autospec=True
     ).return_value
     mocked_ts.dump.return_value = []
 
     mocked_tf = mocker.patch(
-        "reconcile.utils.terraform_client.TerraformClient", autospec=True
+        "reconcile.terraform_tgw_attachments.Terraform", autospec=True
     ).return_value
     mocked_tf.plan.return_value = (False, False)
     mocked_tf.apply.return_value = False
@@ -142,9 +146,7 @@ def _setup_mocks(
 def test_dry_run(mocker):
     mocks = _setup_mocks(mocker)
 
-    from reconcile.terraform_tgw_attachments import run
-
-    run(True, enable_deletion=False)
+    integ.run(True, enable_deletion=False)
 
     mocks["tf"].plan.assert_called_once_with(False)
     mocks["tf"].apply.assert_not_called()
@@ -153,9 +155,7 @@ def test_dry_run(mocker):
 def test_non_dry_run(mocker):
     mocks = _setup_mocks(mocker)
 
-    from reconcile.terraform_tgw_attachments import run
-
-    run(False, enable_deletion=False)
+    integ.run(False, enable_deletion=False)
 
     mocks["tf"].plan.assert_called_once_with(False)
     mocks["tf"].apply.assert_called_once()
@@ -181,9 +181,7 @@ def test_run_when_cluster_with_tgw_connection(
         assume_role=assume_role,
     )
 
-    from reconcile.terraform_tgw_attachments import run
-
-    run(True)
+    integ.run(True)
 
     expected_tgw_account = {
         "name": account_tgw_connection["account"]["name"],
@@ -246,9 +244,7 @@ def test_run_when_cluster_with_mixed_connections(
         assume_role=assume_role,
     )
 
-    from reconcile.terraform_tgw_attachments import run
-
-    run(True)
+    integ.run(True)
 
     expected_tgw_account = {
         "name": account_tgw_connection["account"]["name"],
@@ -300,9 +296,7 @@ def test_run_when_cluster_with_vpc_connection_only(
         clusters=[cluster_with_vpc_connection],
     )
 
-    from reconcile.terraform_tgw_attachments import run
-
-    run(True)
+    integ.run(True)
 
     mocks["ts"].populate_additional_providers.assert_called_once_with([])
     mocks["ts"].populate_tgw_attachments.assert_called_once_with([])
