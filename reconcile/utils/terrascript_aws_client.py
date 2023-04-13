@@ -3156,7 +3156,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         es_identifier = common_values.get("es_identifier", None)
         if es_identifier is not None:
-
             assume_role_policy = {
                 "Version": "2012-10-17",
                 "Statement": [
@@ -4358,7 +4357,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         # TODO: @fishi0x01 remove after migration APPSRE-3409
         # ++++++++ START: REMOVE +++++++++
         else:
-
             advanced_security_options = values.get("advanced_security_options", {})
             if advanced_security_options:
                 es_values[
@@ -4900,7 +4898,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                         {"arn": f"${{{target_resource.arn}}}", "weight": a["weight"]}
                     )
                     weight_sum += a["weight"]
-
                 if weight_sum != 100:
                     raise ValueError(
                         "sum of weights for a rule should be 100"
