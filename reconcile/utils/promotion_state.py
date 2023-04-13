@@ -1,3 +1,4 @@
+import logging
 from collections import defaultdict
 from typing import Optional
 
@@ -70,3 +71,4 @@ class PromotionState:
     ) -> None:
         state_key = f"promotions/{channel}/{sha}"
         self._state.add(state_key, data.dict(), force=True)
+        logging.info("Uploaded %s to %s", data, state_key)
