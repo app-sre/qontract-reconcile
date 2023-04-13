@@ -6,7 +6,10 @@ from abc import (
     abstractmethod,
 )
 from collections.abc import Iterable
-from datetime import datetime
+from datetime import (
+    datetime,
+    timedelta,
+)
 from typing import (
     Any,
     Callable,
@@ -275,7 +278,7 @@ def fetch_upgrade_policies(
     return sorted(desired_state, key=sort_key)
 
 
-# This does not look like it belongs here, perhaps cluster_version_data is more
+# This does not look like it belongs here, perhaps cluster_version_data is a beter place?
 def update_history(
     version_data: VersionData, upgrade_policies: list[ConfiguredUpgradePolicy]
 ) -> None:
@@ -558,16 +561,16 @@ def verify_schedule_should_skip(
     addon_id: str = "",
 ) -> Optional[str]:
     schedule = d.schedule
-    next_schedule_in_seconds = 0
     iter = croniter(schedule)
     # ClusterService refuses scheduling upgrades less than 5m in advance
     # Let's find the next schedule that is at least 5m ahead.
     # We do not need that much delay for addon upgrades since they run
     # immediately
     delay_minutes = 1 if addon_id else 5
-    while next_schedule_in_seconds < delay_minutes * 60:
-        next_schedule = iter.get_next(datetime)
-        next_schedule_in_seconds = (next_schedule - now).total_seconds()
+    next_schedule = iter.get_next(
+        datetime, start_time=now + timedelta(minutes=delay_minutes)
+    )
+    next_schedule_in_seconds = (next_schedule - now).total_seconds()
     next_schedule_in_hours = next_schedule_in_seconds / 3600  # seconds in hour
 
     # ignore clusters with an upgrade schedule not within the next 2 hours
@@ -599,6 +602,7 @@ def verify_lock_should_skip(
 
 def get_upgrades(addon_id: str, d: ConfiguredUpgradePolicy, ocm: OCM) -> list[str]:
     # choose version that meets the conditions and add it to the diffs
+    upgrades = []
     if addon_id and isinstance(d, ConfiguredAddonUpgradePolicy):
         # an alternative is to find available upgrades for our current version from
         # ${API_CLUSTERS_MGMT}/addons/${addon_id}/versions

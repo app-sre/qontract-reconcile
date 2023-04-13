@@ -1,4 +1,7 @@
-from datetime import datetime
+from datetime import (
+    datetime,
+    timedelta,
+)
 from typing import Any
 from unittest import TestCase
 from unittest.mock import (
@@ -12,6 +15,7 @@ from dateutil import parser
 
 import reconcile.aus.base as aus
 from reconcile.aus.models import (
+    ConfiguredAddonUpgradePolicy,
     ConfiguredClusterUpgradePolicy,
     ConfiguredUpgradePolicy,
     ConfiguredUpgradePolicyConditions,
@@ -22,6 +26,7 @@ from reconcile.utils.cluster_version_data import (
 )
 from reconcile.utils.ocm import (
     OCM,
+    OCMMap,
     Sector,
 )
 
@@ -642,3 +647,175 @@ class TestAct:
         aus.act(dry_run=False, diffs=[policy], ocm_map=ocm_map)
         assert not policy.created
         assert policy.deleted
+
+
+class TestCalculateDiff:
+    # testing calculate_diff, not testing locking, see class TestUpgradeLock
+    # not testing addon code, see test_ocm_addons_upgrade_scheduler.py
+    @staticmethod
+    @pytest.fixture
+    def ocm_map(mocker):
+        mock_ocm_map = mocker.patch(
+            "reconcile.aus.ocm_upgrade_scheduler.OCMMap", autospec=True
+        )
+        map = mock_ocm_map.return_value
+        ocm = map.get.return_value
+        ocm.name = "foo"
+        map.instances.return_value = {"testing": ocm}.keys()
+        ocm.get_available_upgrades.return_value = ["4.9.5", "4.10.1"]
+        ocm.addons = [{"id": "addon1", "version": {"id": "4.9.5"}}]
+        ocm.version_blocked.return_value = False
+        return map
+
+    @staticmethod
+    @pytest.fixture
+    def ocm(ocm_map):
+        return ocm_map.get.return_value
+
+    @staticmethod
+    @pytest.fixture
+    def cluster_upgrade_policy() -> ConfiguredClusterUpgradePolicy:
+        return ConfiguredClusterUpgradePolicy(
+            **{
+                "cluster": "cluster1",
+                "current_version": "4.3.0",
+                "channel": "stable",
+                "schedule": "* * * * *",
+                "workloads": ["workload1"],
+                "conditions": {"soakDays": 10, "mutexes": ["mutex1"]},
+            }
+        )
+
+    @staticmethod
+    @pytest.fixture
+    def addon_upgrade_policy() -> ConfiguredAddonUpgradePolicy:
+        return ConfiguredAddonUpgradePolicy(
+            **{
+                "addon_id": "addon1",
+                "cluster": "cluster1",
+                "current_version": "4.3.0",
+                "schedule": "* * * * *",
+                "workloads": ["workload1"],
+                "conditions": {"soakDays": 10},
+            }
+        )
+
+    @staticmethod
+    def create_version_data_map(soakDays: int = 11) -> dict[str, Any]:
+        return {
+            "foo": VersionData(
+                **{
+                    "check_in": "2021-08-29T18:00:00",
+                    "versions": {
+                        "4.9.5": {
+                            "workloads": {
+                                "workload1": {
+                                    "soak_days": soakDays,
+                                    "reporting": ["cluster1", "cluster2"],
+                                },
+                            }
+                        }
+                    },
+                }
+            ),
+        }
+
+    def test_calculate_diff_empty(self, ocm_map: OCMMap):
+        x = aus.calculate_diff([], [], ocm_map, {})
+        assert not x
+
+    def test_calculate_simple(
+        self, cluster_upgrade_policy: ConfiguredClusterUpgradePolicy, ocm_map: OCMMap
+    ):
+        x = aus.calculate_diff(
+            [], [cluster_upgrade_policy], ocm_map, self.create_version_data_map()
+        )
+
+        assert len(x) == 1
+        cup = x[0]
+
+        assert cup.action == "create"
+        assert cup.cluster == "cluster1"
+        assert cup.version == "4.9.5"
+        assert cup.schedule_type == "manual"
+        assert cup.gates_to_agree == []
+
+    def test_calculate_not_soaked(
+        self, cluster_upgrade_policy: ConfiguredClusterUpgradePolicy, ocm_map: OCMMap
+    ):
+        x = aus.calculate_diff(
+            [], [cluster_upgrade_policy], ocm_map, self.create_version_data_map(1)
+        )
+
+        assert not x
+
+    def test_calculate_blocked(
+        self, cluster_upgrade_policy: ConfiguredClusterUpgradePolicy, ocm_map
+    ):
+        ocm = ocm_map.get("cluster1")
+        ocm.version_blocked.return_value = True
+        x = aus.calculate_diff(
+            [], [cluster_upgrade_policy], ocm_map, self.create_version_data_map()
+        )
+
+        assert not x
+
+    def test_get_upgrades_cluster(
+        self, cluster_upgrade_policy: ConfiguredClusterUpgradePolicy, ocm: OCM
+    ):
+        v = aus.get_upgrades("", cluster_upgrade_policy, ocm)
+        assert v == ["4.9.5", "4.10.1"]
+
+    def test_get_upgrades_addons(
+        self, addon_upgrade_policy: ConfiguredAddonUpgradePolicy, ocm: OCM
+    ):
+        v = aus.get_upgrades("addon1", addon_upgrade_policy, ocm)
+        assert v == ["4.9.5"]
+
+    def test_verify_lock_should_skip_false(
+        self, cluster_upgrade_policy: ConfiguredClusterUpgradePolicy, ocm: OCM
+    ):
+        locked = aus.verify_lock_should_skip(
+            cluster_upgrade_policy, {}, ocm, "cluster1"
+        )
+        assert locked is False
+
+    def test_verify_lock_should_skip_true(
+        self, cluster_upgrade_policy: ConfiguredClusterUpgradePolicy, ocm: OCM
+    ):
+        locked = aus.verify_lock_should_skip(
+            cluster_upgrade_policy, {"mutex1": "cluster1"}, ocm, "cluster1"
+        )
+        assert locked is True
+
+    def test_verify_schedule_should_skip_cluster_now(
+        self, cluster_upgrade_policy: ConfiguredClusterUpgradePolicy, ocm: OCM
+    ):
+        now = datetime.now()
+        expected = now + timedelta(minutes=6)
+        s = aus.verify_schedule_should_skip(
+            cluster_upgrade_policy, "cluster1", now, ocm
+        )
+        assert s == expected.strftime("%Y-%m-%dT%H:%M:00Z")
+
+    def test_verify_schedule_should_skip_addon_now(
+        self, addon_upgrade_policy: ConfiguredAddonUpgradePolicy, ocm: OCM
+    ):
+        now = datetime.now()
+        expected = now + timedelta(minutes=2)
+        s = aus.verify_schedule_should_skip(
+            addon_upgrade_policy, "cluster1", now, ocm, addon_id="addon1"
+        )
+        assert s == expected.strftime("%Y-%m-%dT%H:%M:00Z")
+
+    def test_verify_schedule_should_skip_cluster_future(
+        self, cluster_upgrade_policy: ConfiguredClusterUpgradePolicy, ocm: OCM
+    ):
+        now = datetime.now()
+        next_day = now + timedelta(hours=3)
+        cluster_upgrade_policy.schedule = f"* {next_day.hour} * * *"
+        s = aus.verify_schedule_should_skip(
+            cluster_upgrade_policy, "cluster1", now, ocm
+        )
+
+        assert s is None
