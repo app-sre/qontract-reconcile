@@ -8,13 +8,15 @@ from typing import Any
 
 import pytest
 
-from reconcile.saas_auto_promotions_manager.publisher import Publisher
+from reconcile.saas_auto_promotions_manager.publisher import (
+    DeploymentInfo,
+    Publisher,
+)
 from reconcile.saas_auto_promotions_manager.subscriber import (
     Channel,
     ConfigHash,
     Subscriber,
 )
-from reconcile.utils.promotion_state import PromotionInfo
 
 from .data_keys import (
     CHANNELS,
@@ -58,7 +60,7 @@ def subscriber_builder() -> Callable[[Mapping[str, Any]], Subscriber]:
                     auth_code=None,
                 )
                 publisher.commit_sha = publisher_data[REAL_WORLD_SHA]
-                publisher.deployment_info_by_channel[channel_name] = PromotionInfo(
+                publisher.deployment_info_by_channel[channel_name] = DeploymentInfo(
                     success=publisher_data.get(SUCCESSFUL_DEPLOYMENT, True),
                     target_config_hash=publisher_data.get(CONFIG_HASH, ""),
                     saas_file=publisher_name,

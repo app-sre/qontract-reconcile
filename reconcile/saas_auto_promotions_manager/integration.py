@@ -92,6 +92,7 @@ class SaasAutoPromotionsManager:
         return subscribers_with_diff
 
     def reconcile(self) -> None:
+        self._deployment_state.cache_commit_shas_from_s3()
         self._fetch_publisher_real_world_states()
         self._compute_desired_subscriber_states()
         subscribers_with_diff = self._get_subscribers_with_diff()
@@ -140,7 +141,6 @@ def init_external_dependencies(
     deployment_state = PromotionState(
         state=init_state(integration=OPENSHIFT_SAAS_DEPLOY, secret_reader=secret_reader)
     )
-    deployment_state.cache_commit_shas_from_s3()
     return deployment_state, vcs, saas_inventory, merge_request_manager
 
 

@@ -54,7 +54,7 @@ from reconcile.utils.openshift_resource import (
     fully_qualified_kind,
 )
 from reconcile.utils.promotion_state import (
-    PromotionInfo,
+    PromotionData,
     PromotionState,
 )
 from reconcile.utils.saasherder.interfaces import (
@@ -137,7 +137,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         self.jenkins_map = jenkins_map
         self.include_trigger_trace = include_trigger_trace
         self.state = state
-        self._promotion_state = PromotionState(state=state)
+        self._promotion_state = PromotionState(state=state) if state else None
 
         # each namespace is in fact a target,
         # so we can use it to calculate.
@@ -1707,7 +1707,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         """
         If there were promotion sections in the participating saas files
         validate that the conditions are met."""
-        if not self.state:
+        if not (self.state and self._promotion_state):
             raise Exception("state is not initialized")
 
         for promotion in self.promotions:
@@ -1717,10 +1717,10 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
             # was successfully published to the subscribed channel(s)
             if promotion.subscribe:
                 for channel in promotion.subscribe:
-                    info = self._promotion_state.get_promotion_info(
+                    info = self._promotion_state.get_promotion_data(
                         sha=promotion.commit_sha, channel=channel, local_lookup=False
                     )
-                    if info and info.success:
+                    if not (info and info.success):
                         logging.error(
                             f"Commit {promotion.commit_sha} was not "
                             + f"published with success to channel {channel}"
@@ -1795,7 +1795,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                 "happen if the current stage does not make any change"
             )
 
-        if not self.state:
+        if not (self.state and self._promotion_state):
             raise Exception("state is not initialized")
 
         for promotion in self.promotions:
@@ -1807,10 +1807,10 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                 all_subscribed_target_paths = set()
                 for channel in promotion.publish:
                     # publish to state to pass promotion gate
-                    self._promotion_state.publish_promotion_info(
+                    self._promotion_state.publish_promotion_data(
                         sha=promotion.commit_sha,
                         channel=channel,
-                        data=PromotionInfo(
+                        data=PromotionData(
                             saas_file=promotion.saas_file,
                             success=success,
                             target_config_hash=promotion.target_config_hash,

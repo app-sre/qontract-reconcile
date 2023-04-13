@@ -4,8 +4,10 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Optional
 
-from reconcile.saas_auto_promotions_manager.publisher import Publisher
-from reconcile.utils.promotion_state import PromotionInfo
+from reconcile.saas_auto_promotions_manager.publisher import (
+    DeploymentInfo,
+    Publisher,
+)
 
 CONTENT_HASH_LENGTH = 32
 
@@ -49,7 +51,7 @@ class Subscriber:
 
     def _validate_deployment(
         self, publisher: Publisher, channel: Channel
-    ) -> Optional[PromotionInfo]:
+    ) -> Optional[DeploymentInfo]:
         deployment_info = publisher.deployment_info_by_channel.get(channel.name)
         if not deployment_info:
             logging.info(

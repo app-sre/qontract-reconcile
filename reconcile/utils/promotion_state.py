@@ -9,14 +9,14 @@ from pydantic import (
 from reconcile.utils.state import State
 
 
-class PromotionInfo(BaseModel):
+class PromotionData(BaseModel):
     """
     A class that strictly corresponds to the json stored in S3
     """
 
     success: bool
-    target_config_hash: str
-    saas_file: str
+    target_config_hash: Optional[str]
+    saas_file: Optional[str]
 
     class Config:
         smart_union = True
@@ -37,7 +37,8 @@ class PromotionState:
     def cache_commit_shas_from_s3(self) -> None:
         """
         Caching commit shas locally - this is used
-        to lookup locally if a key exists on S3.
+        to lookup locally if a key exists on S3
+        before querying.
         """
         all_keys = self._state.ls()
         for commit in all_keys:
@@ -47,10 +48,10 @@ class PromotionState:
             _, _, channel_name, commit_sha = commit.split("/")
             self._commits_by_channel[channel_name].add(commit_sha)
 
-    def get_promotion_info(
+    def get_promotion_data(
         self, sha: str, channel: str, local_lookup: bool = True
-    ) -> Optional[PromotionInfo]:
-        if sha not in self._commits_by_channel[channel] and local_lookup:
+    ) -> Optional[PromotionData]:
+        if local_lookup and sha not in self._commits_by_channel[channel]:
             # Lets reduce unecessary calls to S3
             return None
         key = f"promotions/{channel}/{sha}"
@@ -58,10 +59,10 @@ class PromotionState:
             data = self._state.get(key)
         except KeyError:
             return None
-        return PromotionInfo(**data)
+        return PromotionData(**data)
 
-    def publish_promotion_info(
-        self, sha: str, channel: str, data: PromotionInfo
+    def publish_promotion_data(
+        self, sha: str, channel: str, data: PromotionData
     ) -> None:
         state_key = f"promotions/{channel}/{sha}"
         self._state.add(state_key, data.dict(), force=True)
