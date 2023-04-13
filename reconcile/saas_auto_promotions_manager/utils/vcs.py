@@ -96,6 +96,7 @@ class VCS:
         return GitLabApi(
             list(gitlab_instances)[0].dict(by_alias=True),
             secret_reader=self._secret_reader,
+            # TODO: fetch from vault or have it in schema
             project_url="https://gitlab.cee.redhat.com/service/app-interface",
         )
 
@@ -107,9 +108,9 @@ class VCS:
         if "github.com" in repo_url:
             github = self._init_github(repo_url=repo_url, auth_code=auth_code)
             return github.get_commit_sha(ref=ref)
-        if "gitlab.cee" in repo_url:
+        else:
+            # assume gitlab
             return self._gitlab_instance.get_commit_sha(ref=ref, repo_url=repo_url)
-        raise RuntimeError(f"Unsupported Repo URL {repo_url}")
 
     def close_app_interface_mr(self, mr: ProjectMergeRequest, comment: str) -> None:
         if not self._dry_run and self._allow_deleting_mrs:
