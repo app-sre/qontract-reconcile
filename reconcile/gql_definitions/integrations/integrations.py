@@ -35,6 +35,7 @@ fragment DeployResourcesFields on DeployResources_v1 {
 query Integrations {
   integrations: integrations_v1 {
     name
+    upstream
     managed {
       namespace {
         path
@@ -346,6 +347,7 @@ class IntegrationManagedV1(ConfiguredBaseModel):
 
 class IntegrationV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+    upstream: Optional[str] = Field(..., alias="upstream")
     managed: Optional[list[IntegrationManagedV1]] = Field(..., alias="managed")
 
 

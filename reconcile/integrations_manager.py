@@ -55,6 +55,9 @@ UPSTREAM_DEFAULT = "https://github.com/app-sre/qontract-reconcile"
 
 
 def get_image_tag_from_ref(ref: str, upstream: str) -> str:
+    gh_prefix = "https://github.com/"
+    if upstream.startswith(gh_prefix):
+        upstream = upstream[len(gh_prefix) :]
     settings = queries.get_app_interface_settings()
     gh_token = get_default_config()["token"]
     github = Github(gh_token, base_url=GH_BASE_URL)
@@ -205,12 +208,12 @@ def fetch_desired_state(
 
 
 def filter_integrations(
-    integrations: Iterable[Mapping[str, Any]], upstream: Optional[str] = None
-) -> Iterable[Mapping[str, Any]]:
+    integrations: Iterable[IntegrationV1], upstream: Optional[str] = None
+) -> list[IntegrationV1]:
     if upstream is None:
-        return integrations
+        return list(integrations)
 
-    return [i for i in integrations if i.get("upstream", "") == upstream]
+    return [i for i in integrations if i.upstream == upstream]
 
 
 @defer
