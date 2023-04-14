@@ -245,7 +245,7 @@ def test_run_when_cluster_with_tgw_connection(
     }
 
     mocks["ts"].populate_additional_providers.assert_called_once_with(
-        [expected_tgw_account, expected_tgw_account]
+        [expected_tgw_account]
     )
     mocks["ts"].populate_tgw_attachments.assert_called_once_with(
         [
@@ -308,7 +308,7 @@ def test_run_when_cluster_with_mixed_connections(
     }
 
     mocks["ts"].populate_additional_providers.assert_called_once_with(
-        [expected_tgw_account, expected_tgw_account]
+        [expected_tgw_account]
     )
     mocks["ts"].populate_tgw_attachments.assert_called_once_with(
         [
