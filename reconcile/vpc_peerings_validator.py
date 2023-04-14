@@ -32,7 +32,7 @@ def validate_no_cidr_overlap(
     cidr_block_entries_accepter = {}
     for cluster in clusters:
         cidr_block = str(cluster.network.vpc)  # type: ignore[union-attr]
-        cidr_block_entries_cluster_vpc[cluster.name] = cidr_block  # type: ignore[union-attr]
+        cidr_block_entries_cluster_vpc[cluster.name] = cidr_block
         if cluster.peering:
             for peering in cluster.peering.connections:
                 if peering.provider == "account-vpc":
@@ -75,9 +75,9 @@ def validate_no_cidr_overlap(
     return True
 
 
-def cidr_mesh_finder(awsapi: AWSApi):
-    awsapi.create_route53_zone
-    return
+# def cidr_mesh_finder(awsapi: AWSApi):
+#     awsapi.create_route53_zone
+#     return
 
 
 def find_cidr_duplicates_and_overlap(input_dict: dict):
