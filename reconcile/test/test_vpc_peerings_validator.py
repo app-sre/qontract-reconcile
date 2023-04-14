@@ -29,9 +29,7 @@ def query_data_i2p() -> VpcPeeringsValidatorQueryData:
         clusters=[
             ClusterV1(
                 name="cluster1",
-                network=ClusterNetworkV1(
-                    vpc="192.168.0.0/16"
-                ),
+                network=ClusterNetworkV1(vpc="192.168.0.0/16"),
                 spec=ClusterSpecV1(private=True),
                 internal=True,
                 peering=ClusterPeeringV1(
@@ -40,9 +38,7 @@ def query_data_i2p() -> VpcPeeringsValidatorQueryData:
                             provider="cluster-vpc-accepter",
                             cluster=VpcPeeringsValidatorPeeredCluster(
                                 name="cluster2",
-                                network=ClusterNetworkV1(
-                                    vpc="192.168.0.0/16"
-                                ),
+                                network=ClusterNetworkV1(vpc="192.168.0.0/16"),
                                 spec=PeeredClusterSpec(private=False),
                                 internal=False,
                             ),
@@ -82,9 +78,7 @@ def query_data_p2p() -> VpcPeeringsValidatorQueryData:
             ClusterV1(
                 name="cluster1",
                 spec=ClusterSpecV1(private=False),
-                network=ClusterNetworkV1(
-                    vpc="192.168.0.0/16"
-                ),
+                network=ClusterNetworkV1(vpc="192.168.0.0/16"),
                 internal=False,
                 peering=ClusterPeeringV1(
                     connections=[
@@ -92,9 +86,7 @@ def query_data_p2p() -> VpcPeeringsValidatorQueryData:
                             provider="cluster-vpc-accepter",
                             cluster=VpcPeeringsValidatorPeeredCluster(
                                 name="cluster2",
-                                network=ClusterNetworkV1(
-                                    vpc="192.168.0.0/16"
-                                ),
+                                network=ClusterNetworkV1(vpc="192.168.0.0/16"),
                                 spec=PeeredClusterSpec(private=False),
                                 internal=False,
                             ),
@@ -125,9 +117,7 @@ def query_data_vpc_cidr_duplicate() -> VpcPeeringsValidatorQueryData:
         clusters=[
             ClusterV1(
                 name="clustertest",
-                network=ClusterNetworkV1(
-                    vpc="192.168.0.0/16"
-                ),
+                network=ClusterNetworkV1(vpc="192.168.0.0/16"),
                 spec=ClusterSpecV1(private=True),
                 internal=True,
                 peering=ClusterPeeringV1(
@@ -153,9 +143,7 @@ def query_data_vpc_cidr_overlap() -> VpcPeeringsValidatorQueryData:
         clusters=[
             ClusterV1(
                 name="clustertest",
-                network=ClusterNetworkV1(
-                    vpc="10.20.0.0/20"
-                ),
+                network=ClusterNetworkV1(vpc="10.20.0.0/20"),
                 spec=ClusterSpecV1(private=True),
                 internal=True,
                 peering=ClusterPeeringV1(
@@ -181,9 +169,7 @@ def query_data_vpc_cidr_pass_diff_clusters() -> VpcPeeringsValidatorQueryData:
         clusters=[
             ClusterV1(
                 name="clustertest1",
-                network=ClusterNetworkV1(
-                    vpc="192.168.0.0/16"
-                ),
+                network=ClusterNetworkV1(vpc="192.168.0.0/16"),
                 spec=ClusterSpecV1(private=False),
                 internal=False,
                 peering=ClusterPeeringV1(
@@ -201,9 +187,7 @@ def query_data_vpc_cidr_pass_diff_clusters() -> VpcPeeringsValidatorQueryData:
             ),
             ClusterV1(
                 name="clustertest2",
-                network=ClusterNetworkV1(
-                    vpc="10.20.0.0/20"
-                ),
+                network=ClusterNetworkV1(vpc="10.20.0.0/20"),
                 spec=ClusterSpecV1(private=False),
                 internal=False,
                 peering=ClusterPeeringV1(
@@ -229,9 +213,7 @@ def query_data_vpc_cidr_pass_same_cluster() -> VpcPeeringsValidatorQueryData:
         clusters=[
             ClusterV1(
                 name="clustertest",
-                network=ClusterNetworkV1(
-                    vpc="192.168.0.0/16"
-                ),
+                network=ClusterNetworkV1(vpc="192.168.0.0/16"),
                 spec=ClusterSpecV1(private=True),
                 internal=True,
                 peering=ClusterPeeringV1(
@@ -257,9 +239,7 @@ def query_data_vpc_cidr_pass_cluster_same_vpc() -> VpcPeeringsValidatorQueryData
         clusters=[
             ClusterV1(
                 name="clustertest",
-                network=ClusterNetworkV1(
-                    vpc="192.168.0.0/16"
-                ),
+                network=ClusterNetworkV1(vpc="192.168.0.0/16"),
                 spec=ClusterSpecV1(private=True),
                 internal=True,
                 peering=ClusterPeeringV1(
@@ -277,9 +257,7 @@ def query_data_vpc_cidr_pass_cluster_same_vpc() -> VpcPeeringsValidatorQueryData
             ),
             ClusterV1(
                 name="clustertest2",
-                network=ClusterNetworkV1(
-                    vpc="192.168.0.0/16"
-                ),
+                network=ClusterNetworkV1(vpc="192.168.0.0/16"),
                 spec=ClusterSpecV1(private=True),
                 internal=True,
                 peering=ClusterPeeringV1(
@@ -294,7 +272,7 @@ def query_data_vpc_cidr_pass_cluster_same_vpc() -> VpcPeeringsValidatorQueryData
                         ),
                     ]
                 ),
-            )
+            ),
         ]
     )
 
@@ -305,9 +283,7 @@ def query_data_vpc_cidr_pass_cluster_overlap_vpc() -> VpcPeeringsValidatorQueryD
         clusters=[
             ClusterV1(
                 name="clustertest",
-                network=ClusterNetworkV1(
-                    vpc="192.168.0.0/16"
-                ),
+                network=ClusterNetworkV1(vpc="192.168.0.0/16"),
                 spec=ClusterSpecV1(private=True),
                 internal=True,
                 peering=ClusterPeeringV1(
@@ -325,9 +301,7 @@ def query_data_vpc_cidr_pass_cluster_overlap_vpc() -> VpcPeeringsValidatorQueryD
             ),
             ClusterV1(
                 name="clustertest2",
-                network=ClusterNetworkV1(
-                    vpc="192.168.1.0/24"
-                ),
+                network=ClusterNetworkV1(vpc="192.168.1.0/24"),
                 spec=ClusterSpecV1(private=True),
                 internal=True,
                 peering=ClusterPeeringV1(
@@ -342,7 +316,7 @@ def query_data_vpc_cidr_pass_cluster_overlap_vpc() -> VpcPeeringsValidatorQueryD
                         ),
                     ]
                 ),
-            )
+            ),
         ]
     )
 
@@ -353,9 +327,7 @@ def query_data_vpc_cidr_pass_cluster_diff_vpc() -> VpcPeeringsValidatorQueryData
         clusters=[
             ClusterV1(
                 name="clustertest",
-                network=ClusterNetworkV1(
-                    vpc="10.20.0.0/20"
-                ),
+                network=ClusterNetworkV1(vpc="10.20.0.0/20"),
                 spec=ClusterSpecV1(private=True),
                 internal=True,
                 peering=ClusterPeeringV1(
@@ -373,9 +345,7 @@ def query_data_vpc_cidr_pass_cluster_diff_vpc() -> VpcPeeringsValidatorQueryData
             ),
             ClusterV1(
                 name="clustertest2",
-                network=ClusterNetworkV1(
-                    vpc="192.168.1.0/24"
-                ),
+                network=ClusterNetworkV1(vpc="192.168.1.0/24"),
                 spec=ClusterSpecV1(private=True),
                 internal=True,
                 peering=ClusterPeeringV1(
@@ -390,7 +360,7 @@ def query_data_vpc_cidr_pass_cluster_diff_vpc() -> VpcPeeringsValidatorQueryData
                         ),
                     ]
                 ),
-            )
+            ),
         ]
     )
 
@@ -428,7 +398,9 @@ def test_query_cidr_validator_cluster_same_vpc(
 def test_query_cidr_validator_cluster_vpc_overlaps(
     query_data_vpc_cidr_pass_cluster_overlap_vpc: VpcPeeringsValidatorQueryData,
 ):
-    assert validate_no_cidr_overlap(query_data_vpc_cidr_pass_cluster_overlap_vpc) is False
+    assert (
+        validate_no_cidr_overlap(query_data_vpc_cidr_pass_cluster_overlap_vpc) is False
+    )
 
 
 def test_query_cidr_validator_cluster_vpc_diff(

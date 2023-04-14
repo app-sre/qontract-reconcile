@@ -71,7 +71,7 @@ def validate_no_cidr_overlap(
     )
     if overlaps_account_cluster_vpc:
         return False
-        
+
     return True
 
 
