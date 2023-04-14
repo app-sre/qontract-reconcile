@@ -4,80 +4,126 @@ import reconcile.terraform_tgw_attachments as integ
 
 
 @pytest.fixture
-def account_tgw_connection():
-    return {
-        "name": "account_tgw_connection",
-        "provider": "account-tgw",
-        "manageRoutes": True,
-        "account": {
-            "name": "tgw_account",
-            "uid": "a-uid",
-            "terraformUsername": "tf-user",
-        },
-        "assumeRole": None,
-        "cidrBlock": "172.16.0.0/16",
-        "deleted": False,
-    }
+def peering_connection_builder():
+    def builder(
+        name,
+        provider,
+        manage_routes=None,
+        account_name=None,
+        account_uid=None,
+        terraform_username=None,
+        assume_role=None,
+        cidr_block=None,
+        deleted=None,
+    ):
+        return {
+            "name": name,
+            "provider": provider,
+            "manageRoutes": manage_routes,
+            "account": {
+                "name": account_name,
+                "uid": account_uid,
+                "terraformUsername": terraform_username,
+            },
+            "assumeRole": assume_role,
+            "cidrBlock": cidr_block,
+            "deleted": deleted,
+        }
+
+    return builder
 
 
 @pytest.fixture
-def account_vpc_connection():
-    return {
-        "name": "account_vpc_connection",
-        "provider": "account-vpc",
-    }
+def account_tgw_connection(peering_connection_builder):
+    return peering_connection_builder(
+        name="account_tgw_connection",
+        provider="account-tgw",
+        manage_routes=True,
+        account_name="tgw_account",
+        account_uid="a-uid",
+        terraform_username="tf-user",
+        assume_role=None,
+        cidr_block="172.16.0.0/16",
+        deleted=False,
+    )
 
 
 @pytest.fixture
-def cluster_with_tgw_connection(account_tgw_connection):
-    return {
-        "name": "cluster_with_tgw_connection",
-        "ocm": {"name": "cluster_with_tgw_connection-ocm"},
-        "spec": {
-            "region": "us-east-1",
-        },
-        "network": {"vpc": "10.0.0.0/16"},
-        "peering": {
+def account_vpc_connection(peering_connection_builder):
+    return peering_connection_builder(
+        name="account_vpc_connection",
+        provider="account-vpc",
+    )
+
+
+@pytest.fixture
+def cluster_builder():
+    def builder(
+        name,
+        ocm,
+        region,
+        vpc_cidr,
+        peering,
+    ):
+        return {
+            "name": name,
+            "ocm": ocm,
+            "spec": {
+                "region": region,
+            },
+            "network": {"vpc": vpc_cidr},
+            "peering": peering,
+        }
+
+    return builder
+
+
+@pytest.fixture
+def cluster_with_tgw_connection(cluster_builder, account_tgw_connection):
+    return cluster_builder(
+        name="cluster_with_tgw_connection",
+        ocm={"name": "cluster_with_tgw_connection-ocm"},
+        region="us-east-1",
+        vpc_cidr="10.0.0.0/16",
+        peering={
             "connections": [
                 account_tgw_connection,
             ]
         },
-    }
+    )
 
 
 @pytest.fixture
-def cluster_with_vpc_connection(account_vpc_connection):
-    return {
-        "name": "cluster_with_vpc_connection",
-        "ocm": {"name": "cluster_with_vpc_connection-ocm"},
-        "spec": {
-            "region": "us-east-1",
-        },
-        "network": {"vpc": "10.0.0.1/16"},
-        "peering": {
+def cluster_with_vpc_connection(cluster_builder, account_vpc_connection):
+    return cluster_builder(
+        name="cluster_with_vpc_connection",
+        ocm={"name": "cluster_with_vpc_connection-ocm"},
+        region="us-east-1",
+        vpc_cidr="10.0.0.1/16",
+        peering={
             "connections": [
                 account_vpc_connection,
             ]
         },
-    }
+    )
 
 
 @pytest.fixture
-def cluster_with_mixed_connections(account_tgw_connection, account_vpc_connection):
-    return {
-        "name": "cluster_with_mixed_connections",
-        "ocm": {"name": "cluster_with_mixed_connections-ocm"},
-        "spec": {
-            "region": "us-east-1",
-        },
-        "network": {"vpc": "10.0.0.2/16"},
-        "peering": {
+def cluster_with_mixed_connections(
+    cluster_builder, account_tgw_connection, account_vpc_connection
+):
+    return cluster_builder(
+        name="cluster_with_mixed_connections",
+        ocm={"name": "cluster_with_mixed_connections-ocm"},
+        region="us-east-1",
+        vpc_cidr="10.0.0.2/16",
+        peering={
             "connections": [
                 account_tgw_connection,
                 account_vpc_connection,
             ]
         },
-    }
+    )
 
 
 @pytest.fixture
@@ -109,12 +155,18 @@ def assume_role():
 def _setup_mocks(
     mocker, clusters=None, accounts=None, vpc=None, tgws=None, assume_role=None
 ):
-    mocker.patch("reconcile.queries.get_secret_reader_settings", return_value={})
     mocker.patch(
-        "reconcile.queries.get_clusters_with_peering_settings",
+        "reconcile.terraform_tgw_attachments.queries.get_secret_reader_settings",
+        return_value={},
+    )
+    mocker.patch(
+        "reconcile.terraform_tgw_attachments.queries.get_clusters_with_peering_settings",
         return_value=clusters or [],
     )
-    mocker.patch("reconcile.queries.get_aws_accounts", return_value=accounts or [])
+    mocker.patch(
+        "reconcile.terraform_tgw_attachments.queries.get_aws_accounts",
+        return_value=accounts or [],
+    )
     mocked_aws_api = mocker.patch(
         "reconcile.terraform_tgw_attachments.AWSApi", autospec=True
     ).return_value
