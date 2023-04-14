@@ -72,7 +72,7 @@ def _build_desired_state_tgw_connection(
     cluster_region = cluster_info["spec"]["region"]
     cluster_cidr_block = cluster_info["network"]["vpc"]
 
-    account = _enrich_account(
+    account = _account_with_assume_role_data(
         peer_connection, cluster_name, cluster_region, cluster_cidr_block, ocm
     )
 
@@ -110,7 +110,7 @@ def _build_desired_state_tgw_connection(
         yield item
 
 
-def _enrich_account(
+def _account_with_assume_role_data(
     peer_connection: dict,
     cluster_name: str,
     region: str,
@@ -197,7 +197,7 @@ def _validate_vpc_connection_names(desired_state: list) -> None:
         sys.exit(1)
 
 
-def _get_filtered_accounts(accounts: list, participating_accounts: list) -> list:
+def _filter_accounts(accounts: list, participating_accounts: list) -> list:
     participating_account_names = {a["name"] for a in participating_accounts}
     return [a for a in accounts if a["name"] in participating_account_names]
 
@@ -248,7 +248,7 @@ def run(
     _validate_vpc_connection_names(desired_state)
 
     participating_accounts = [item["requester"]["account"] for item in desired_state]
-    filtered_accounts = _get_filtered_accounts(accounts, participating_accounts)
+    filtered_accounts = _filter_accounts(accounts, participating_accounts)
 
     working_dirs = _populate_tgw_attachments_working_dirs(
         desired_state,
