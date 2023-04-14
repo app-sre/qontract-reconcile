@@ -56,11 +56,6 @@ def validate_no_cidr_overlap(
         # overlaps_account_vpc_mesh = find_cidr_duplicates_and_overlap(cidr_block_entries_acount_vpc_mesh)
         # if overlaps_account_vpc_mesh:
         #     return False
-    overlaps_account_cluster_vpc = find_cidr_duplicates_and_overlap(
-        cidr_block_entries_cluster_vpc
-    )
-    if overlaps_account_cluster_vpc:
-        return False
         overlaps_account_requester = find_cidr_duplicates_and_overlap(
             cidr_block_entries_requester
         )
@@ -71,6 +66,12 @@ def validate_no_cidr_overlap(
         )
         if overlaps_account_accepter:
             return False
+    overlaps_account_cluster_vpc = find_cidr_duplicates_and_overlap(
+        cidr_block_entries_cluster_vpc
+    )
+    if overlaps_account_cluster_vpc:
+        return False
+        
     return True
 
 
