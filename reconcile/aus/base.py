@@ -118,7 +118,7 @@ class GateAgreement(BaseModel):
         agreement = ocm.create_version_agreement(self.id, cluster_name)
         if agreement.get("version_gate") is None:
             logging.error(
-                f"Unexpected response while creating version "
+                "Unexpected response while creating version "
                 f"agreement with id {self.id} for cluster {cluster_name}"
             )
 
@@ -232,7 +232,7 @@ def fetch_current_state(
 def sort_key(d: ConfiguredUpgradePolicy) -> tuple:
     return (
         parse_semver(d.current_version),
-        d.conditions.soakDays,
+        d.conditions.soakDays or 0,
     )
 
 
