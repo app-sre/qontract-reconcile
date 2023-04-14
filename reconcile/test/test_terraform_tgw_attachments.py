@@ -1,21 +1,25 @@
+from collections.abc import Callable
+from typing import Optional
+
 import pytest
+from pytest_mock import MockerFixture
 
 import reconcile.terraform_tgw_attachments as integ
 
 
 @pytest.fixture
-def peering_connection_builder():
+def peering_connection_builder() -> Callable[..., dict]:
     def builder(
-        name,
-        provider,
-        manage_routes=None,
-        account_name=None,
-        account_uid=None,
-        terraform_username=None,
-        assume_role=None,
-        cidr_block=None,
-        deleted=None,
-    ):
+        name: str,
+        provider: str,
+        manage_routes: bool = False,
+        account_name: Optional[str] = None,
+        account_uid: Optional[str] = None,
+        terraform_username: Optional[str] = None,
+        assume_role: Optional[str] = None,
+        cidr_block: Optional[str] = None,
+        deleted: Optional[bool] = None,
+    ) -> dict:
         return {
             "name": name,
             "provider": provider,
@@ -34,7 +38,7 @@ def peering_connection_builder():
 
 
 @pytest.fixture
-def account_tgw_connection(peering_connection_builder):
+def account_tgw_connection(peering_connection_builder: Callable[..., dict]) -> dict:
     return peering_connection_builder(
         name="account_tgw_connection",
         provider="account-tgw",
@@ -49,7 +53,7 @@ def account_tgw_connection(peering_connection_builder):
 
 
 @pytest.fixture
-def account_vpc_connection(peering_connection_builder):
+def account_vpc_connection(peering_connection_builder: Callable[..., dict]) -> dict:
     return peering_connection_builder(
         name="account_vpc_connection",
         provider="account-vpc",
@@ -57,14 +61,14 @@ def account_vpc_connection(peering_connection_builder):
 
 
 @pytest.fixture
-def cluster_builder():
+def cluster_builder() -> Callable[..., dict]:
     def builder(
-        name,
-        ocm,
-        region,
-        vpc_cidr,
-        peering,
-    ):
+        name: str,
+        ocm: dict,
+        region: str,
+        vpc_cidr: str,
+        peering: dict,
+    ) -> dict:
         return {
             "name": name,
             "ocm": ocm,
@@ -79,7 +83,10 @@ def cluster_builder():
 
 
 @pytest.fixture
-def cluster_with_tgw_connection(cluster_builder, account_tgw_connection):
+def cluster_with_tgw_connection(
+    cluster_builder: Callable[..., dict],
+    account_tgw_connection: dict,
+) -> dict:
     return cluster_builder(
         name="cluster_with_tgw_connection",
         ocm={"name": "cluster_with_tgw_connection-ocm"},
@@ -94,7 +101,10 @@ def cluster_with_tgw_connection(cluster_builder, account_tgw_connection):
 
 
 @pytest.fixture
-def cluster_with_vpc_connection(cluster_builder, account_vpc_connection):
+def cluster_with_vpc_connection(
+    cluster_builder: Callable[..., dict],
+    account_vpc_connection: dict,
+) -> dict:
     return cluster_builder(
         name="cluster_with_vpc_connection",
         ocm={"name": "cluster_with_vpc_connection-ocm"},
@@ -110,8 +120,10 @@ def cluster_with_vpc_connection(cluster_builder, account_vpc_connection):
 
 @pytest.fixture
 def cluster_with_mixed_connections(
-    cluster_builder, account_tgw_connection, account_vpc_connection
-):
+    cluster_builder: Callable[..., dict],
+    account_tgw_connection: dict,
+    account_vpc_connection: dict,
+) -> dict:
     return cluster_builder(
         name="cluster_with_mixed_connections",
         ocm={"name": "cluster_with_mixed_connections-ocm"},
@@ -127,7 +139,7 @@ def cluster_with_mixed_connections(
 
 
 @pytest.fixture
-def tgw():
+def tgw() -> dict:
     return {
         "tgw_id": "tgw-1",
         "tgw_arn": "tgw-arn-1",
@@ -139,7 +151,7 @@ def tgw():
 
 
 @pytest.fixture
-def vpc_details():
+def vpc_details() -> dict:
     return {
         "vpc_id": "vpc-id-1",
         "route_table_ids": ["rtb-1"],
@@ -148,13 +160,18 @@ def vpc_details():
 
 
 @pytest.fixture
-def assume_role():
+def assume_role() -> str:
     return "some-role"
 
 
 def _setup_mocks(
-    mocker, clusters=None, accounts=None, vpc=None, tgws=None, assume_role=None
-):
+    mocker: MockerFixture,
+    clusters: Optional[list] = None,
+    accounts: Optional[list] = None,
+    vpc: Optional[tuple[str, str, str]] = None,
+    tgws: Optional[list] = None,
+    assume_role: Optional[str] = None,
+) -> dict:
     mocked_queries = mocker.patch("reconcile.terraform_tgw_attachments.queries")
     mocked_queries.get_secret_reader_settings.return_value = {}
     mocked_queries.get_clusters_with_peering_settings.return_value = clusters or []
@@ -188,7 +205,7 @@ def _setup_mocks(
     }
 
 
-def test_dry_run(mocker):
+def test_dry_run(mocker: MockerFixture) -> None:
     mocks = _setup_mocks(mocker)
 
     integ.run(True, enable_deletion=False)
@@ -202,7 +219,7 @@ def test_dry_run(mocker):
     mocks["tf"].apply.assert_not_called()
 
 
-def test_non_dry_run(mocker):
+def test_non_dry_run(mocker: MockerFixture) -> None:
     mocks = _setup_mocks(mocker)
 
     integ.run(False, enable_deletion=False)
@@ -217,13 +234,13 @@ def test_non_dry_run(mocker):
 
 
 def test_run_when_cluster_with_tgw_connection(
-    mocker,
-    cluster_with_tgw_connection,
-    account_tgw_connection,
-    tgw,
-    vpc_details,
-    assume_role,
-):
+    mocker: MockerFixture,
+    cluster_with_tgw_connection: dict,
+    account_tgw_connection: dict,
+    tgw: dict,
+    vpc_details: dict,
+    assume_role: str,
+) -> None:
     mocks = _setup_mocks(
         mocker,
         clusters=[cluster_with_tgw_connection],
@@ -280,13 +297,13 @@ def test_run_when_cluster_with_tgw_connection(
 
 
 def test_run_when_cluster_with_mixed_connections(
-    mocker,
-    cluster_with_mixed_connections,
-    account_tgw_connection,
-    tgw,
-    vpc_details,
-    assume_role,
-):
+    mocker: MockerFixture,
+    cluster_with_mixed_connections: dict,
+    account_tgw_connection: dict,
+    tgw: dict,
+    vpc_details: dict,
+    assume_role: str,
+) -> None:
     mocks = _setup_mocks(
         mocker,
         clusters=[cluster_with_mixed_connections],
@@ -343,9 +360,9 @@ def test_run_when_cluster_with_mixed_connections(
 
 
 def test_run_when_cluster_with_vpc_connection_only(
-    mocker,
-    cluster_with_vpc_connection,
-):
+    mocker: MockerFixture,
+    cluster_with_vpc_connection: dict,
+) -> None:
     mocks = _setup_mocks(
         mocker,
         clusters=[cluster_with_vpc_connection],
