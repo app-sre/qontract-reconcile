@@ -1,0 +1,18 @@
+# qenerate: plugin=pydantic_v1
+
+query TerraformRepo {
+  repos: terraform_repo_v1 {
+    account {
+      name
+      uid
+      terraformUsername
+      automationToken {
+        ...VaultSecret
+      }
+    }
+    name
+    repository
+    ref
+    projectPath
+  }
+}
