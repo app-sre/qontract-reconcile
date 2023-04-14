@@ -155,18 +155,10 @@ def assume_role():
 def _setup_mocks(
     mocker, clusters=None, accounts=None, vpc=None, tgws=None, assume_role=None
 ):
-    mocker.patch(
-        "reconcile.terraform_tgw_attachments.queries.get_secret_reader_settings",
-        return_value={},
-    )
-    mocker.patch(
-        "reconcile.terraform_tgw_attachments.queries.get_clusters_with_peering_settings",
-        return_value=clusters or [],
-    )
-    mocker.patch(
-        "reconcile.terraform_tgw_attachments.queries.get_aws_accounts",
-        return_value=accounts or [],
-    )
+    mocked_queries = mocker.patch("reconcile.terraform_tgw_attachments.queries")
+    mocked_queries.get_secret_reader_settings.return_value = {}
+    mocked_queries.get_clusters_with_peering_settings.return_value = clusters or []
+    mocked_queries.get_aws_accounts.return_value = accounts or []
     mocked_aws_api = mocker.patch(
         "reconcile.terraform_tgw_attachments.AWSApi", autospec=True
     ).return_value
@@ -192,6 +184,7 @@ def _setup_mocks(
     return {
         "tf": mocked_tf,
         "ts": mocked_ts,
+        "queries": mocked_queries,
     }
 
 
@@ -200,6 +193,11 @@ def test_dry_run(mocker):
 
     integ.run(True, enable_deletion=False)
 
+    mocks["queries"].get_secret_reader_settings.assert_called_once_with()
+    mocks["queries"].get_clusters_with_peering_settings.assert_called_once_with()
+    mocks["queries"].get_aws_accounts.assert_called_once_with(
+        terraform_state=True, ecrs=False
+    )
     mocks["tf"].plan.assert_called_once_with(False)
     mocks["tf"].apply.assert_not_called()
 
@@ -209,6 +207,11 @@ def test_non_dry_run(mocker):
 
     integ.run(False, enable_deletion=False)
 
+    mocks["queries"].get_secret_reader_settings.assert_called_once_with()
+    mocks["queries"].get_clusters_with_peering_settings.assert_called_once_with()
+    mocks["queries"].get_aws_accounts.assert_called_once_with(
+        terraform_state=True, ecrs=False
+    )
     mocks["tf"].plan.assert_called_once_with(False)
     mocks["tf"].apply.assert_called_once()
 
