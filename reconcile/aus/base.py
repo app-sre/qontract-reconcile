@@ -511,32 +511,33 @@ def verify_current_should_skip(
     ocm: OCM,
     addon_id: str = "",
 ) -> tuple[bool, Optional[UpgradePolicyHandler]]:
-    c = [c for c in current_state if c.cluster == cluster]
-    if c:
-        # there can only be one upgrade policy per cluster
-        if len(c) != 1:
-            raise ValueError(f"[{cluster}] expected only one upgrade policy")
-        current = c[0]
-        version = current.version  # may not exist in automatic upgrades
-        if version and not addon_id and ocm.version_blocked(version):
-            next_run = current.next_run
-            if next_run and datetime.strptime(next_run, "%Y-%m-%dT%H:%M:%SZ") < now:
-                logging.warning(
-                    f"[{cluster}] currently upgrading to blocked version '{version}'"
-                )
-                return True, None
-            logging.debug(
-                f"[{ocm.name}/{cluster}] found planned upgrade policy "
-                + f"with blocked version {version}"
-            )
-            return False, UpgradePolicyHandler(action="delete", policy=current)
+    current_policies = [c for c in current_state if c.cluster == cluster]
+    if not current_policies:
+        return False, None
 
-        # else
+    # there can only be one upgrade policy per cluster
+    if len(current_policies) != 1:
+        raise ValueError(f"[{cluster}] expected only one upgrade policy")
+    current = current_policies[0]
+    version = current.version  # may not exist in automatic upgrades
+    if version and not addon_id and ocm.version_blocked(version):
+        next_run = current.next_run
+        if next_run and datetime.strptime(next_run, "%Y-%m-%dT%H:%M:%SZ") < now:
+            logging.warning(
+                f"[{cluster}] currently upgrading to blocked version '{version}'"
+            )
+            return True, None
         logging.debug(
-            f"[{ocm.name}/{cluster}] skipping cluster with existing upgrade policy"
+            f"[{ocm.name}/{cluster}] found planned upgrade policy "
+            + f"with blocked version {version}"
         )
-        return True, None
-    return False, None
+        return False, UpgradePolicyHandler(action="delete", policy=current)
+
+    # else
+    logging.debug(
+        f"[{ocm.name}/{cluster}] skipping cluster with existing upgrade policy"
+    )
+    return True, None
 
 
 def verify_schedule_should_skip(

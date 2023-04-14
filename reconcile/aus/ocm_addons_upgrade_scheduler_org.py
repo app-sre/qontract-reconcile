@@ -160,18 +160,22 @@ def calculate_diff(
         version_data_map,
         addon_id=addon_id,
     )
-    for c in [p for p in addon_current_state if isinstance(p, AddonUpgradePolicy)]:
-        if addon_id == c.addon_id and c.schedule_type == "automatic":
+    for current in addon_current_state:
+        if (
+            isinstance(current, AddonUpgradePolicy)
+            and addon_id == current.addon_id
+            and current.schedule_type == "automatic"
+        ):
             diffs.append(
                 aus.UpgradePolicyHandler(
                     action="delete",
                     policy=aus.AddonUpgradePolicy(
                         **{
-                            "cluster": c.cluster,
-                            "version": c.schedule_type,
-                            "id": c.id,
-                            "addon_id": c.addon_id,
-                            "schedule_type": c.schedule_type,
+                            "cluster": current.cluster,
+                            "version": current.schedule_type,
+                            "id": current.id,
+                            "addon_id": current.addon_id,
+                            "schedule_type": current.schedule_type,
                         }
                     ),
                 )
