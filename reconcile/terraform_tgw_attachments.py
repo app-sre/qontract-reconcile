@@ -144,7 +144,7 @@ def run(
         sys.exit(1)
 
     participating_accounts = [item["requester"]["account"] for item in desired_state]
-    participating_account_names = [a["name"] for a in participating_accounts]
+    participating_account_names = {a["name"] for a in participating_accounts}
     accounts = [a for a in accounts if a["name"] in participating_account_names]
 
     ts = Terrascript(
