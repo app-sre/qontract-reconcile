@@ -1,12 +1,21 @@
 import json
 import logging
 import sys
-from typing import Any
+from typing import (
+    Any,
+    Callable,
+    Generator,
+    Mapping,
+    Optional,
+)
 
 from reconcile import queries
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.defer import defer
-from reconcile.utils.ocm import OCMMap
+from reconcile.utils.ocm import (
+    OCM,
+    OCMMap,
+)
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.terraform_client import TerraformClient as Terraform
 from reconcile.utils.terrascript_aws_client import TerrascriptClient as Terrascript
@@ -14,8 +23,14 @@ from reconcile.utils.terrascript_aws_client import TerrascriptClient as Terrascr
 QONTRACT_INTEGRATION = "terraform_tgw_attachments"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
+TGW_CONNECTION_PROVIDER = "account-tgw"
 
-def build_desired_state_tgw_attachments(clusters, ocm_map: OCMMap, awsapi: AWSApi):
+
+def build_desired_state_tgw_attachments(
+    clusters: list[dict],
+    ocm_map: OCMMap,
+    awsapi: AWSApi,
+) -> tuple[list[dict], bool]:
     """
     Fetch state for TGW attachments between a cluster and all TGWs
     in an account in the same region as the cluster
@@ -23,110 +38,200 @@ def build_desired_state_tgw_attachments(clusters, ocm_map: OCMMap, awsapi: AWSAp
     desired_state = []
     error = False
 
-    for cluster_info in clusters:
-        cluster = cluster_info["name"]
-        ocm = ocm_map.get(cluster)
-        peering_info = cluster_info["peering"]
-        peer_connections = peering_info["connections"]
-        for peer_connection in peer_connections:
-            # We only care about account-tgw peering providers
-            peer_connection_provider = peer_connection["provider"]
-            if not peer_connection_provider == "account-tgw":
-                continue
-            # accepter is the cluster's AWS account
-            cluster_region = cluster_info["spec"]["region"]
-            cluster_cidr_block = cluster_info["network"]["vpc"]
-            accepter = {"cidr_block": cluster_cidr_block, "region": cluster_region}
-
-            account = peer_connection["account"]
-            # assume_role is the role to assume to provision the
-            # peering connection request, through the accepter AWS account.
-            provided_assume_role = peer_connection.get("assumeRole")
-            # if an assume_role is provided, it means we don't need
-            # to get the information from OCM. it likely means that
-            # there is no OCM at all.
-            if provided_assume_role:
-                account["assume_role"] = provided_assume_role
-            else:
-                account[
-                    "assume_role"
-                ] = ocm.get_aws_infrastructure_access_terraform_assume_role(
-                    cluster, account["uid"], account["terraformUsername"]
-                )
-            account["assume_region"] = accepter["region"]
-            account["assume_cidr"] = accepter["cidr_block"]
-            (
-                accepter_vpc_id,
-                accepter_route_table_ids,
-                accepter_subnets_id_az,
-            ) = awsapi.get_cluster_vpc_details(
-                account,
-                route_tables=peer_connection.get("manageRoutes"),
-                subnets=True,
-            )
-
-            if accepter_vpc_id is None:
-                logging.error(f"[{cluster} could not find VPC ID for cluster")
-                error = True
-                continue
-            accepter["vpc_id"] = accepter_vpc_id
-            accepter["route_table_ids"] = accepter_route_table_ids
-            accepter["subnets_id_az"] = accepter_subnets_id_az
-            accepter["account"] = account
-
-            account_tgws = awsapi.get_tgws_details(
-                account,
-                cluster_region,
-                cluster_cidr_block,
-                tags=json.loads(peer_connection.get("tags") or "{}"),
-                route_tables=peer_connection.get("manageRoutes"),
-                security_groups=peer_connection.get("manageSecurityGroups"),
-                route53_associations=peer_connection.get("manageRoute53Associations"),
-            )
-            for tgw in account_tgws:
-                tgw_id = tgw["tgw_id"]
-                connection_name = (
-                    f"{peer_connection['name']}_" + f"{account['name']}-{tgw_id}"
-                )
-                requester = {
-                    "tgw_id": tgw_id,
-                    "tgw_arn": tgw["tgw_arn"],
-                    "region": tgw["region"],
-                    "routes": tgw.get("routes"),
-                    "rules": tgw.get("rules"),
-                    "hostedzones": tgw.get("hostedzones"),
-                    "cidr_block": peer_connection.get("cidrBlock"),
-                    "account": account,
-                }
-                item = {
-                    "connection_provider": peer_connection_provider,
-                    "connection_name": connection_name,
-                    "requester": requester,
-                    "accepter": accepter,
-                    "deleted": peer_connection.get("delete", False),
-                }
-                desired_state.append(item)
-
+    for item in _build_desired_state_tgw_attachments(clusters, ocm_map, awsapi):
+        if item is None:
+            error = True
+        else:
+            desired_state.append(item)
     return desired_state, error
+
+
+def _build_desired_state_tgw_attachments(
+    clusters: list[dict],
+    ocm_map: OCMMap,
+    awsapi: AWSApi,
+) -> Generator[Optional[dict], Any, None]:
+    for cluster_info in clusters:
+        ocm = ocm_map.get(cluster_info["name"])
+        for peer_connection in cluster_info["peering"]["connections"]:
+            if peer_connection["provider"] == TGW_CONNECTION_PROVIDER:
+                yield from _build_desired_state_tgw_connection(
+                    peer_connection, cluster_info, ocm, awsapi
+                )
+
+
+def _build_desired_state_tgw_connection(
+    peer_connection: dict,
+    cluster_info: dict,
+    ocm: OCM,
+    awsapi: AWSApi,
+) -> Generator[Optional[dict], Any, None]:
+    cluster_name = cluster_info["name"]
+    cluster_region = cluster_info["spec"]["region"]
+    cluster_cidr_block = cluster_info["network"]["vpc"]
+
+    account = _enrich_account(
+        peer_connection, cluster_name, cluster_region, cluster_cidr_block, ocm
+    )
+
+    # accepter is the cluster's AWS account
+    accepter = _build_accepter(
+        peer_connection,
+        account,
+        cluster_region,
+        cluster_cidr_block,
+        awsapi,
+    )
+    if accepter["vpc_id"] is None:
+        logging.error(f"[{cluster_name}] could not find VPC ID for cluster")
+        yield None
+
+    account_tgws = awsapi.get_tgws_details(
+        account,
+        cluster_region,
+        cluster_cidr_block,
+        tags=json.loads(peer_connection.get("tags") or "{}"),
+        route_tables=peer_connection.get("manageRoutes"),
+        security_groups=peer_connection.get("manageSecurityGroups"),
+        route53_associations=peer_connection.get("manageRoute53Associations"),
+    )
+    for tgw in account_tgws:
+        connection_name = f"{peer_connection['name']}_{account['name']}-{tgw['tgw_id']}"
+        requester = _build_requester(peer_connection, account, tgw)
+        item = {
+            "connection_provider": TGW_CONNECTION_PROVIDER,
+            "connection_name": connection_name,
+            "requester": requester,
+            "accepter": accepter,
+            "deleted": peer_connection.get("delete", False),
+        }
+        yield item
+
+
+def _enrich_account(
+    peer_connection: dict,
+    cluster_name: str,
+    region: str,
+    cidr_block: str,
+    ocm: OCM,
+) -> dict[str, Any]:
+    account = peer_connection["account"]
+    # assume_role is the role to assume to provision the
+    # peering connection request, through the accepter AWS account.
+    provided_assume_role = peer_connection.get("assumeRole")
+    # if an assume_role is provided, it means we don't need
+    # to get the information from OCM. it likely means that
+    # there is no OCM at all.
+    account["assume_role"] = (
+        provided_assume_role
+        if provided_assume_role
+        else ocm.get_aws_infrastructure_access_terraform_assume_role(
+            cluster_name, account["uid"], account["terraformUsername"]
+        )
+    )
+    account["assume_region"] = region
+    account["assume_cidr"] = cidr_block
+    return account
+
+
+def _build_accepter(
+    peer_connection: dict,
+    account: dict,
+    region: str,
+    cidr_block: str,
+    awsapi: AWSApi,
+) -> dict:
+    (vpc_id, route_table_ids, subnets_id_az) = awsapi.get_cluster_vpc_details(
+        account,
+        route_tables=peer_connection.get("manageRoutes"),
+        subnets=True,
+    )
+    return {
+        "cidr_block": cidr_block,
+        "region": region,
+        "vpc_id": vpc_id,
+        "route_table_ids": route_table_ids,
+        "subnets_id_az": subnets_id_az,
+        "account": account,
+    }
+
+
+def _build_requester(
+    peer_connection: dict,
+    account: dict,
+    tgw: dict,
+) -> dict:
+    return {
+        "tgw_id": tgw["tgw_id"],
+        "tgw_arn": tgw["tgw_arn"],
+        "region": tgw["region"],
+        "routes": tgw.get("routes"),
+        "rules": tgw.get("rules"),
+        "hostedzones": tgw.get("hostedzones"),
+        "cidr_block": peer_connection.get("cidrBlock"),
+        "account": account,
+    }
+
+
+def _build_ocm_map(
+    clusters: list,
+    settings: Optional[Mapping[str, Any]],
+):
+    with_ocm = any(c.get("ocm") for c in clusters)
+    return (
+        OCMMap(clusters=clusters, integration=QONTRACT_INTEGRATION, settings=settings)
+        if with_ocm
+        # this is a case for an OCP cluster which is not provisioned
+        # through OCM. it is expected that an 'assume_role' is provided
+        # on the tgw definition in the cluster file.
+        else {}
+    )
+
+
+def _validate_vpc_connection_names(desired_state: list) -> None:
+    connection_names = [c["connection_name"] for c in desired_state]
+    if len(set(connection_names)) != len(connection_names):
+        logging.error("duplicate vpc connection names found")
+        sys.exit(1)
+
+
+def _get_filtered_accounts(accounts: list, participating_accounts: list) -> list:
+    participating_account_names = {a["name"] for a in participating_accounts}
+    return [a for a in accounts if a["name"] in participating_account_names]
+
+
+def _populate_tgw_attachments_working_dirs(
+    desired_state: list,
+    accounts: list,
+    settings: Optional[Mapping[str, Any]],
+    participating_accounts: list,
+    print_to_file: Optional[str],
+    thread_pool_size: int,
+) -> dict[str, str]:
+    ts = Terrascript(
+        QONTRACT_INTEGRATION, "", thread_pool_size, accounts, settings=settings
+    )
+    ts.populate_additional_providers(participating_accounts)
+    ts.populate_tgw_attachments(desired_state)
+    working_dirs = ts.dump(print_to_file=print_to_file)
+
+    if print_to_file:
+        sys.exit()
+
+    return working_dirs
 
 
 @defer
 def run(
-    dry_run, print_to_file=None, enable_deletion=False, thread_pool_size=10, defer=None
+    dry_run: bool,
+    print_to_file: Optional[str] = None,
+    enable_deletion: bool = False,
+    thread_pool_size: int = 10,
+    defer: Optional[Callable] = None,
 ):
     settings = queries.get_secret_reader_settings()
     clusters = queries.get_clusters_with_peering_settings()
-    with_ocm = any(c.get("ocm") for c in clusters)
-    if with_ocm:
-        ocm_map = OCMMap(
-            clusters=clusters, integration=QONTRACT_INTEGRATION, settings=settings
-        )
-    else:
-        # this is a case for an OCP cluster which is not provisioned
-        # through OCM. it is expected that an 'assume_role' is provided
-        # on the tgw defition in the cluster file.
-        ocm_map = {}
-
+    ocm_map = _build_ocm_map(clusters, settings)
     accounts = queries.get_aws_accounts(terraform_state=True, ecrs=False)
 
     # Fetch desired state for cluster-to-vpc(account) VPCs
@@ -138,32 +243,27 @@ def run(
         sys.exit(1)
 
     # check there are no repeated vpc connection names
-    connection_names = [c["connection_name"] for c in desired_state]
-    if len(set(connection_names)) != len(connection_names):
-        logging.error("duplicate vpc connection names found")
-        sys.exit(1)
+    _validate_vpc_connection_names(desired_state)
 
     participating_accounts = [item["requester"]["account"] for item in desired_state]
-    participating_account_names = {a["name"] for a in participating_accounts}
-    accounts = [a for a in accounts if a["name"] in participating_account_names]
+    filtered_accounts = _get_filtered_accounts(accounts, participating_accounts)
 
-    ts = Terrascript(
-        QONTRACT_INTEGRATION, "", thread_pool_size, accounts, settings=settings
+    working_dirs = _populate_tgw_attachments_working_dirs(
+        desired_state,
+        filtered_accounts,
+        settings,
+        participating_accounts,
+        print_to_file,
+        thread_pool_size,
     )
-    ts.populate_additional_providers(participating_accounts)
-    ts.populate_tgw_attachments(desired_state)
-    working_dirs = ts.dump(print_to_file=print_to_file)
 
-    if print_to_file:
-        sys.exit()
-
-    aws_api = AWSApi(1, accounts, settings=settings, init_users=False)
+    aws_api = AWSApi(1, filtered_accounts, settings=settings, init_users=False)
 
     tf = Terraform(
         QONTRACT_INTEGRATION,
         QONTRACT_INTEGRATION_VERSION,
         "",
-        accounts,
+        filtered_accounts,
         working_dirs,
         thread_pool_size,
         aws_api,
@@ -172,7 +272,8 @@ def run(
     if tf is None:
         sys.exit(1)
 
-    defer(tf.cleanup)
+    if defer:
+        defer(tf.cleanup)
 
     disabled_deletions_detected, err = tf.plan(enable_deletion)
     if err:
