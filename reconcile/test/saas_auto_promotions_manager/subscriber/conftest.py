@@ -27,6 +27,8 @@ from .data_keys import (
     REAL_WORLD_SHA,
     SUCCESSFUL_DEPLOYMENT,
     TARGET_FILE_PATH,
+    DESIRED_TARGET_HASHES,
+    DESIRED_REF,
 )
 
 
@@ -85,6 +87,8 @@ def subscriber_builder() -> Callable[[Mapping[str, Any]], Subscriber]:
         )
         subscriber.channels = channels
         subscriber.config_hashes_by_channel_name = cur_config_hashes_by_channel
+        subscriber.desired_ref = data.get(DESIRED_REF, "")
+        subscriber.desired_hashes = data.get(DESIRED_TARGET_HASHES, [])
         return subscriber
 
     return builder
