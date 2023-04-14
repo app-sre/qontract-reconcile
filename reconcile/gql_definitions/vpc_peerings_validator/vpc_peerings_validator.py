@@ -23,6 +23,9 @@ from reconcile.gql_definitions.vpc_peerings_validator.vpc_peerings_validator_pee
 DEFINITION = """
 fragment VpcPeeringsValidatorPeeredCluster on Cluster_v1 {
   name
+  network {
+    vpc
+  }
   spec {
     private
   }

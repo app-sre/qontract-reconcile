@@ -32,7 +32,7 @@ def validate_no_cidr_overlap(
     cidr_block_entries_accepter = {}
     for cluster in clusters:
         cidr_block = str(cluster.network.vpc)  # type: ignore[union-attr]
-        cidr_block_entries_cluster_vpc[cluster] = cidr_block  # type: ignore[union-attr]
+        cidr_block_entries_cluster_vpc[cluster.name] = cidr_block  # type: ignore[union-attr]
         if cluster.peering:
             for peering in cluster.peering.connections:
                 if peering.provider == "account-vpc":
@@ -56,11 +56,11 @@ def validate_no_cidr_overlap(
         # overlaps_account_vpc_mesh = find_cidr_duplicates_and_overlap(cidr_block_entries_acount_vpc_mesh)
         # if overlaps_account_vpc_mesh:
         #     return False
-        overlaps_account_cluster_vpc = find_cidr_duplicates_and_overlap(
-            cidr_block_entries_cluster_vpc
-        )
-        if overlaps_account_cluster_vpc:
-            return False
+    overlaps_account_cluster_vpc = find_cidr_duplicates_and_overlap(
+        cidr_block_entries_cluster_vpc
+    )
+    if overlaps_account_cluster_vpc:
+        return False
         overlaps_account_requester = find_cidr_duplicates_and_overlap(
             cidr_block_entries_requester
         )

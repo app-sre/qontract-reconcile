@@ -24,11 +24,16 @@ class ConfiguredBaseModel(BaseModel):
         extra=Extra.forbid
 
 
+class ClusterNetworkV1(ConfiguredBaseModel):
+    vpc: str = Field(..., alias="vpc")
+
+
 class ClusterSpecV1(ConfiguredBaseModel):
     private: bool = Field(..., alias="private")
 
 
 class VpcPeeringsValidatorPeeredCluster(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+    network: Optional[ClusterNetworkV1] = Field(..., alias="network")
     spec: Optional[ClusterSpecV1] = Field(..., alias="spec")
     internal: Optional[bool] = Field(..., alias="internal")
