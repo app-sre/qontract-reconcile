@@ -20,6 +20,7 @@ def delete_skupper_site(
     site: SkupperSite,
     oc_map: OCMap,
     dry_run: bool,
+    integration: str,
     integration_managed_kinds: Iterable[str],
     labels: Mapping[str, str],
 ) -> None:
@@ -49,7 +50,10 @@ def delete_skupper_site(
         )
 
     for item in to_delete.values():
-        if "qontract.integration" in item["metadata"].get("annotations", {}):
+        qontract_integration = (
+            item["metadata"].get("annotations", {}).get("qontract.integration", "")
+        )
+        if qontract_integration and qontract_integration != integration:
             # don't delete resources managed by other integrations
             continue
 
@@ -278,6 +282,7 @@ def reconcile(
         thread_pool_size,
         oc_map=oc_map,
         dry_run=dry_run,
+        integration=integration,
         integration_managed_kinds=list(integration_managed_kinds) + ["Secret"],
         labels=labels,
     )
