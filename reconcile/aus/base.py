@@ -109,6 +109,12 @@ class GateAgreement(BaseModel):
     id: str
 
     def create(self, ocm: OCM, cluster_name: str) -> None:
+        action_log(
+            "create",
+            ocm.name,
+            cluster_name,
+            f"Creating version agreement for gate {self.id}",
+        )
         agreement = ocm.create_version_agreement(self.id, cluster_name)
         if agreement.get("version_gate") is None:
             logging.error(
@@ -118,7 +124,6 @@ class GateAgreement(BaseModel):
 
 
 class AbstractUpgradePolicy(ABC, BaseModel):
-    action: Optional[str]
     cluster: str
     gates_to_agree: Optional[list[GateAgreement]]
     id: Optional[str]
@@ -128,48 +133,22 @@ class AbstractUpgradePolicy(ABC, BaseModel):
     version: str
 
     @abstractmethod
-    def _create(self, ocm: OCM) -> None:
+    def create(self, ocm: OCM) -> None:
         pass
 
     @abstractmethod
-    def _delete(self, ocm: OCM) -> None:
+    def delete(self, ocm: OCM) -> None:
         pass
 
-    def _create_gate_agreements(self, ocm: OCM) -> None:
+    def create_gate_agreements(self, ocm: OCM) -> None:
         for gate in self.gates_to_agree or []:
-            action_log(
-                self.action,
-                ocm.name,
-                self.cluster,
-                self.version,
-                f"Creating version agreement for gate {gate.id}",
-            )
             gate.create(ocm, self.cluster)
-
-    def act(self, dry_run: bool, ocm: OCM) -> None:
-        action_log(
-            self.action,
-            ocm.name,
-            self.cluster,
-            self.version,
-            self.next_run,
-        )
-        if dry_run:
-            return
-
-        if not self.action:
-            pass
-        elif self.action == "delete":
-            self._delete(ocm)
-        elif self.action == "create":
-            self._create_gate_agreements(ocm)
-            self._create(ocm)
 
 
 class AddonUpgradePolicy(AbstractUpgradePolicy):
     addon_id: str
 
-    def _create(self, ocm: OCM) -> None:
+    def create(self, ocm: OCM) -> None:
         item = {
             "version": self.version,
             "schedule_type": "manual",
@@ -179,7 +158,7 @@ class AddonUpgradePolicy(AbstractUpgradePolicy):
         }
         ocm.create_addon_upgrade_policy(self.cluster, item)
 
-    def _delete(self, ocm: OCM) -> None:
+    def delete(self, ocm: OCM) -> None:
         item = {
             "version": self.version,
             "id": self.id,
@@ -188,7 +167,7 @@ class AddonUpgradePolicy(AbstractUpgradePolicy):
 
 
 class ClusterUpgradePolicy(AbstractUpgradePolicy):
-    def _create(self, ocm: OCM) -> None:
+    def create(self, ocm: OCM) -> None:
         policy = {
             "version": self.version,
             "schedule_type": "manual",
@@ -196,7 +175,7 @@ class ClusterUpgradePolicy(AbstractUpgradePolicy):
         }
         ocm.create_upgrade_policy(self.cluster, policy)
 
-    def _delete(self, ocm: OCM) -> None:
+    def delete(self, ocm: OCM) -> None:
         item = {
             "version": self.version,
             "id": self.id,
@@ -204,12 +183,28 @@ class ClusterUpgradePolicy(AbstractUpgradePolicy):
         ocm.delete_upgrade_policy(self.cluster, item)
 
 
-# class ControlPlaneUpgradePolicy(AbstractUpgradePolicy):
-#     def _create(self, ocm: OCM) -> None:
-#         raise NotImplemented("ControlPlaneUpgradePolicy creation is not supported yet")
-#
-#     def _delete(self, ocm: OCM) -> None:
-#         raise NotImplemented("ControlPlaneUpgradePolicy deletion is not supported yet")
+class UpgradePolicyHandler(BaseModel):
+    action: str
+    policy: AbstractUpgradePolicy
+
+    def act(self, dry_run: bool, ocm: OCM) -> None:
+        action_log(
+            self.action,
+            ocm.name,
+            self.policy.cluster,
+            self.policy.version,
+            self.policy.next_run,
+        )
+        if dry_run:
+            return
+
+        if not self.action:
+            pass
+        elif self.action == "delete":
+            self.policy.delete(ocm)
+        elif self.action == "create":
+            self.policy.create_gate_agreements(ocm)
+            self.policy.create(ocm)
 
 
 def fetch_current_state(
@@ -523,7 +518,7 @@ def verify_current_should_skip(
     now: datetime,
     ocm: OCM,
     addon_id: str = "",
-) -> tuple[bool, Optional[AbstractUpgradePolicy]]:
+) -> tuple[bool, Optional[UpgradePolicyHandler]]:
     c = [c for c in current_state if c.cluster == cluster]
     if c:
         # there can only be one upgrade policy per cluster
@@ -542,8 +537,7 @@ def verify_current_should_skip(
                 f"[{ocm.name}/{cluster}] found planned upgrade policy "
                 + f"with blocked version {version}"
             )
-            current.action = "delete"
-            return False, current
+            return False, UpgradePolicyHandler(action="delete", policy=current)
 
         # else
         logging.debug(
@@ -624,7 +618,7 @@ def calculate_diff(
     ocm_map: OCMMap,
     version_data_map: dict[str, VersionData],
     addon_id: str = "",
-) -> list[AbstractUpgradePolicy]:
+) -> list[UpgradePolicyHandler]:
     """Check available upgrades for each cluster in the desired state
     according to upgrade conditions
 
@@ -638,7 +632,7 @@ def calculate_diff(
     Returns:
         list: upgrade policies to be applied
     """
-    diffs: list[AbstractUpgradePolicy] = []
+    diffs: list[UpgradePolicyHandler] = []
 
     # all clusters with a current upgradePolicy are considered locked
     locked = {}
@@ -672,36 +666,42 @@ def calculate_diff(
         if version:
             if addon_id:
                 diffs.append(
-                    AddonUpgradePolicy(
-                        **{
-                            "action": "create",
-                            "cluster": p.cluster,
-                            "version": version,
-                            "schedule_type": "manual",
-                            "addon_id": addon_id,
-                            "upgrade_type": "ADDON",
-                        }
+                    UpgradePolicyHandler(
+                        action="create",
+                        policy=AddonUpgradePolicy(
+                            **{
+                                "action": "create",
+                                "cluster": p.cluster,
+                                "version": version,
+                                "schedule_type": "manual",
+                                "addon_id": addon_id,
+                                "upgrade_type": "ADDON",
+                            }
+                        ),
                     )
                 )
             else:
                 diffs.append(
-                    ClusterUpgradePolicy(
-                        **{
-                            "action": "create",
-                            "cluster": p.cluster,
-                            "version": version,
-                            "schedule_type": "manual",
-                            "next_run": next_schedule,
-                            "gates_to_agree": [
-                                GateAgreement(id=g)
-                                for g in gates_to_agree(
-                                    get_version_prefix(version),
-                                    p.cluster,
-                                    p.current_version,
-                                    ocm,
-                                )
-                            ],
-                        }
+                    UpgradePolicyHandler(
+                        action="create",
+                        policy=ClusterUpgradePolicy(
+                            **{
+                                "action": "create",
+                                "cluster": p.cluster,
+                                "version": version,
+                                "schedule_type": "manual",
+                                "next_run": next_schedule,
+                                "gates_to_agree": [
+                                    GateAgreement(id=g)
+                                    for g in gates_to_agree(
+                                        get_version_prefix(version),
+                                        p.cluster,
+                                        p.current_version,
+                                        ocm,
+                                    )
+                                ],
+                            }
+                        ),
                     )
                 )
 
@@ -711,7 +711,7 @@ def calculate_diff(
     return diffs
 
 
-def sort_diffs(diff: AbstractUpgradePolicy) -> int:
+def sort_diffs(diff: UpgradePolicyHandler) -> int:
     if diff.action == "delete":
         return 1
     return 2
@@ -724,17 +724,18 @@ def action_log(*items: Optional[str]) -> None:
 
 def act(
     dry_run: bool,
-    diffs: list[AbstractUpgradePolicy],
+    diffs: list[UpgradePolicyHandler],
     ocm_map: OCMMap,
     addon_id: Optional[str] = None,
 ) -> None:
     diffs.sort(key=sort_diffs)
     for diff in diffs:
+        policy = diff.policy
         if (
             addon_id
-            and isinstance(diff, AddonUpgradePolicy)
-            and addon_id != diff.addon_id
+            and isinstance(policy, AddonUpgradePolicy)
+            and addon_id != policy.addon_id
         ):
             continue
-        ocm = ocm_map.get(diff.cluster)
+        ocm = ocm_map.get(policy.cluster)
         diff.act(dry_run, ocm)

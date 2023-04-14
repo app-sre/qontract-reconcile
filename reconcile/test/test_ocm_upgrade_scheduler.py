@@ -212,15 +212,17 @@ class TestUpgradeLock:
         }
     )
 
-    expected_cluster1 = aus.ClusterUpgradePolicy(
-        **{
-            "action": "create",
-            "cluster": "cluster1",
-            "version": "4.3.6",
-            "schedule_type": "manual",
-            "gates_to_agree": [],
-            "next_run": "2021-08-30T19:00:00Z",
-        }
+    expected_policy_handler = aus.UpgradePolicyHandler(
+        action="create",
+        policy=aus.ClusterUpgradePolicy(
+            **{
+                "cluster": "cluster1",
+                "version": "4.3.6",
+                "schedule_type": "manual",
+                "gates_to_agree": [],
+                "next_run": "2021-08-30T19:00:00Z",
+            }
+        ),
     )
 
     @patch.object(aus, "datetime", Mock(wraps=datetime))
@@ -232,7 +234,7 @@ class TestUpgradeLock:
         desired_state = [self.desired_cluster1]
         self.set_upgradeable()
         diffs = aus.calculate_diff(current_state, desired_state, ocm_map, {})
-        expected = [self.expected_cluster1]
+        expected = [self.expected_policy_handler]
         assert diffs == expected
 
     @patch.object(aus, "datetime", Mock(wraps=datetime))
@@ -264,7 +266,7 @@ class TestUpgradeLock:
 
         diffs = aus.calculate_diff(current_state, desired_state, ocm_map, {})
 
-        expected = [self.expected_cluster1]
+        expected = [self.expected_policy_handler]
         assert diffs == expected
 
 
@@ -621,30 +623,34 @@ class TestAct:
         created = False
         deleted = False
 
-        def _create(self, ocm: OCM):
+        def create(self, ocm: OCM):
             self.created = True
 
-        def _delete(self, ocm: OCM):
+        def delete(self, ocm: OCM):
             self.deleted = True
 
-        @classmethod
-        def create_with_action(cls, action: str):
-            return cls(
+    @staticmethod
+    def create_policy_with_action(action: str):
+        return aus.UpgradePolicyHandler(
+            policy=TestAct.TestPolicy(
                 cluster="testing",
                 version="4.1.2",
                 schedule_type="manual",
-                action=action,
-            )
+            ),
+            action=action,
+        )
 
     def test_act_with_diff(self, ocm_map):
-        policy = self.TestPolicy.create_with_action("create")
-        aus.act(dry_run=False, diffs=[policy], ocm_map=ocm_map)
+        handler = self.create_policy_with_action("create")
+        policy = handler.policy
+        aus.act(dry_run=False, diffs=[handler], ocm_map=ocm_map)
         assert policy.created
         assert not policy.deleted
 
     def test_act_delete(self, ocm_map):
-        policy = self.TestPolicy.create_with_action("delete")
-        aus.act(dry_run=False, diffs=[policy], ocm_map=ocm_map)
+        handler = self.create_policy_with_action("delete")
+        policy = handler.policy
+        aus.act(dry_run=False, diffs=[handler], ocm_map=ocm_map)
         assert not policy.created
         assert policy.deleted
 
@@ -732,9 +738,9 @@ class TestCalculateDiff:
         )
 
         assert len(x) == 1
-        cup = x[0]
+        cup = x[0].policy
 
-        assert cup.action == "create"
+        assert x[0].action == "create"
         assert cup.cluster == "cluster1"
         assert cup.version == "4.9.5"
         assert cup.schedule_type == "manual"

@@ -4,6 +4,10 @@ from pydantic import BaseModel
 
 from reconcile import queries
 from reconcile.aus import base as aus
+from reconcile.aus.base import (
+    AbstractUpgradePolicy,
+    AddonUpgradePolicy,
+)
 from reconcile.aus.models import (
     ClusterUpgradeSpec,
     OrganizationUpgradeSpec,
@@ -143,12 +147,12 @@ def get_state_for_org_spec_per_addon(
 
 
 def calculate_diff(
-    addon_current_state: list[aus.AbstractUpgradePolicy],
+    addon_current_state: list[AbstractUpgradePolicy],
     addon_upgrade_policies: list[aus.ConfiguredUpgradePolicy],
     ocm_map: OCMMap,
     version_data_map: dict[str, VersionData],
     addon_id: str = "",
-) -> list[aus.AbstractUpgradePolicy]:
+) -> list[aus.UpgradePolicyHandler]:
     diffs = aus.calculate_diff(
         addon_current_state,
         addon_upgrade_policies,
@@ -156,18 +160,20 @@ def calculate_diff(
         version_data_map,
         addon_id=addon_id,
     )
-    for c in [p for p in addon_current_state if isinstance(p, aus.AddonUpgradePolicy)]:
+    for c in [p for p in addon_current_state if isinstance(p, AddonUpgradePolicy)]:
         if addon_id == c.addon_id and c.schedule_type == "automatic":
             diffs.append(
-                aus.AddonUpgradePolicy(
-                    **{
-                        "action": "delete",
-                        "cluster": c.cluster,
-                        "version": c.schedule_type,
-                        "id": c.id,
-                        "addon_id": c.addon_id,
-                        "schedule_type": c.schedule_type,
-                    }
+                aus.UpgradePolicyHandler(
+                    action="delete",
+                    policy=aus.AddonUpgradePolicy(
+                        **{
+                            "cluster": c.cluster,
+                            "version": c.schedule_type,
+                            "id": c.id,
+                            "addon_id": c.addon_id,
+                            "schedule_type": c.schedule_type,
+                        }
+                    ),
                 )
             )
     return diffs
