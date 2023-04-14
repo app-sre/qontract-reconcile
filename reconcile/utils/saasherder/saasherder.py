@@ -53,6 +53,10 @@ from reconcile.utils.openshift_resource import (
     ResourceKeyExistsError,
     fully_qualified_kind,
 )
+from reconcile.utils.promotion_state import (
+    PromotionData,
+    PromotionState,
+)
 from reconcile.utils.saasherder.interfaces import (
     HasParameters,
     HasSecretParameters,
@@ -133,6 +137,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         self.jenkins_map = jenkins_map
         self.include_trigger_trace = include_trigger_trace
         self.state = state
+        self._promotion_state = PromotionState(state=state) if state else None
 
         # each namespace is in fact a target,
         # so we can use it to calculate.
@@ -1702,7 +1707,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         """
         If there were promotion sections in the participating saas files
         validate that the conditions are met."""
-        if not self.state:
+        if not (self.state and self._promotion_state):
             raise Exception("state is not initialized")
 
         for promotion in self.promotions:
@@ -1712,17 +1717,16 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
             # was successfully published to the subscribed channel(s)
             if promotion.subscribe:
                 for channel in promotion.subscribe:
-                    state_key = f"promotions/{channel}/{promotion.commit_sha}"
-                    stateobj = self.state.get(state_key, {})
-                    success = stateobj.get("success")
-                    if not success:
+                    info = self._promotion_state.get_promotion_data(
+                        sha=promotion.commit_sha, channel=channel, local_lookup=False
+                    )
+                    if not (info and info.success):
                         logging.error(
                             f"Commit {promotion.commit_sha} was not "
                             + f"published with success to channel {channel}"
                         )
                         return False
-
-                    state_config_hash = stateobj.get(TARGET_CONFIG_HASH)
+                    state_config_hash = info.target_config_hash
 
                     # This code supports current saas targets that does
                     # not have promotion_data yet
@@ -1787,11 +1791,11 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
 
         if self.promotions and not auto_promote:
             logging.info(
-                "Auto-promotions to next stages are disabled. This could "
-                "happen if the current stage does not make any change"
+                "Auto-promotions to next stages are disabled. "
+                "Promotions are being handled by SAPM."
             )
 
-        if not self.state:
+        if not (self.state and self._promotion_state):
             raise Exception("state is not initialized")
 
         for promotion in self.promotions:
@@ -1799,17 +1803,19 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                 continue
 
             if promotion.publish:
-                value = {
-                    "success": success,
-                    "saas_file": promotion.saas_file,
-                    "target_config_hash": promotion.target_config_hash,
-                }
                 all_subscribed_saas_file_paths = set()
                 all_subscribed_target_paths = set()
                 for channel in promotion.publish:
                     # publish to state to pass promotion gate
-                    state_key = f"promotions/{channel}/{promotion.commit_sha}"
-                    self.state.add(state_key, value, force=True)
+                    self._promotion_state.publish_promotion_data(
+                        sha=promotion.commit_sha,
+                        channel=channel,
+                        data=PromotionData(
+                            saas_file=promotion.saas_file,
+                            success=success,
+                            target_config_hash=promotion.target_config_hash,
+                        ),
+                    )
                     logging.info(
                         f"Commit {promotion.commit_sha} was published "
                         + f"with success {success} to channel {channel}"

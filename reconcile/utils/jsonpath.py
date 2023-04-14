@@ -1,9 +1,35 @@
-from functools import reduce
+import logging
+from functools import (
+    lru_cache,
+    reduce,
+)
 from itertools import zip_longest
 from typing import Optional
 
 import jsonpath_ng
 import jsonpath_ng.ext.filter
+
+
+@lru_cache(maxsize=256)
+def parse_jsonpath(jsonpath_expression: str) -> jsonpath_ng.JSONPath:
+    """
+    parses a JSONPath expression and returns a JSONPath object.
+    """
+    contains_filter = "?" in jsonpath_expression
+    if not contains_filter:
+        try:
+            # the regular parser is faster, but does not support filters
+            # we will success in this branch most of the time
+            return jsonpath_ng.parse(jsonpath_expression)
+        except Exception:
+            # something we did not cover in our prechecks prevented the use of the
+            # regular parser. we will try the extended parser, which supports filters
+            # and more
+            logging.warning(
+                f"Unable to parse '{jsonpath_expression}' with the regular parser"
+            )
+
+    return jsonpath_ng.ext.parse(jsonpath_expression)
 
 
 def narrow_jsonpath_node(

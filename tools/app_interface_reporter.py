@@ -531,7 +531,6 @@ def get_repo_url(job):
 @config_file
 @dry_run
 @log_level
-# TODO: @environ(['gitlab_pr_submitter_queue_url'])
 @gitlab_project_id
 @click.option("--reports-path", help="path to write reports")
 def main(

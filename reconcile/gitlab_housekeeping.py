@@ -171,12 +171,11 @@ def close_item(
         if not dry_run:
             gl.close(item)
     else:
-        warning_message = (
+        logging.debug(
             "'close_item' action is not enabled. "
             + "Please run the integration manually "
             + "with the '--enable-deletion' flag."
         )
-        logging.warning(warning_message)
 
 
 def handle_stale_items(dry_run, gl, days_interval, enable_closing, item_type):

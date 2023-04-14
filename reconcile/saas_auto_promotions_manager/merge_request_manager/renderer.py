@@ -6,20 +6,15 @@ from reconcile.saas_auto_promotions_manager.subscriber import Subscriber
 PROMOTION_DATA_SEPARATOR = (
     "**SAPM Data - DO NOT MANUALLY CHANGE ANYTHING BELOW THIS LINE**"
 )
+SAPM_VERSION = "1.0.0"
 SAPM_LABEL = "SAPM"
 CONTENT_HASH = "content_hash"
-NAMESPACE_REF = "namespace_ref"
-FILE_PATH = "file_path"
+CHANNELS_REF = "channels"
+VERSION_REF = "sapm_version"
 SAPM_DESC = f"""
-THIS IS A TEST MR CREATED BY APP-INTERFACE.
-
-AppSRE will make sure to remove this MR.
-
-This is part of effort [APPSRE-7367](https://issues.redhat.com/browse/APPSRE-7367).
-
-**PLEASE DO NOT MERGE THIS!!!**
-
 This is an auto-promotion triggered by app-interface's [saas-auto-promotions-manager](https://github.com/app-sre/qontract-reconcile/tree/master/reconcile/saas_auto_promotions_manager) (SAPM).
+The channel(s) mentioned in the MR title had an event.
+This MR promotes all subscribers with auto-promotions for these channel(s).
 
 Please **do not remove the {SAPM_LABEL} label** from this MR.
 
@@ -34,10 +29,13 @@ class Renderer:
     This class makes testing for MergeRequestManager easier.
     """
 
-    def _find_saas_file_target(self, subscriber: Subscriber, content: dict) -> dict:
+    def _find_saas_file_targets(
+        self, subscriber: Subscriber, content: dict
+    ) -> list[dict]:
+        targets: list[dict] = []
         # TODO: better type safety -> catch if schema name changes
         if content["$schema"] == "/app-sre/saas-file-target-1.yml":
-            return content
+            return [content]
         for rt in content["resourceTemplates"]:
             for target in rt["targets"]:
                 if target["namespace"]["$ref"] != subscriber.namespace_file_path:
@@ -45,9 +43,14 @@ class Renderer:
                 target_promotion = target.get("promotion")
                 if not target_promotion:
                     continue
-                return target
-        # TODO
-        raise RuntimeError("Target for promotion could not be found in file")
+                if not bool(target_promotion.get("auto", False)):
+                    continue
+                subscriber_channels = {ch.name for ch in subscriber.channels}
+                target_channels = set(target_promotion.get("subscribe", []))
+                if subscriber_channels != target_channels:
+                    continue
+                targets.append(target)
+        return targets
 
     def render_merge_request_content(
         self, subscriber: Subscriber, current_content: str
@@ -60,53 +63,54 @@ class Renderer:
         # this function is hell - but well tested
         yml = YAML(typ="rt", pure=True)
         content = yml.load(current_content)
-        target = self._find_saas_file_target(subscriber=subscriber, content=content)
-        target["ref"] = subscriber.desired_ref
-        cur_promotion_data = target["promotion"].get("promotion_data", [])
-        for desired_config_hash in subscriber.desired_hashes:
-            applied_desired_hash = False
-            for cur_hash in cur_promotion_data:
-                if cur_hash["channel"] != desired_config_hash.channel:
-                    continue
-                data = cur_hash.get("data", [])
-                for d in data:
-                    if d.get("parent_saas") != desired_config_hash.parent_saas:
+        targets = self._find_saas_file_targets(subscriber=subscriber, content=content)
+        for target in targets:
+            target["ref"] = subscriber.desired_ref
+            cur_promotion_data = target["promotion"].get("promotion_data", [])
+            for desired_config_hash in subscriber.desired_hashes:
+                applied_desired_hash = False
+                for cur_hash in cur_promotion_data:
+                    if cur_hash["channel"] != desired_config_hash.channel:
                         continue
-                    d["target_config_hash"] = desired_config_hash.target_config_hash
-                    applied_desired_hash = True
-            if not applied_desired_hash:
-                # This data block is not part of the promotion data yet -> add it
-                cur_promotion_data.append(
-                    {
-                        "channel": desired_config_hash.channel,
-                        "data": [
-                            {
-                                "parent_saas": desired_config_hash.parent_saas,
-                                "target_config_hash": desired_config_hash.target_config_hash,
-                                "type": "parent_saas_config",
-                            }
-                        ],
-                    }
-                )
-        target["promotion"]["promotion_data"] = cur_promotion_data
+                    data = cur_hash.get("data", [])
+                    for d in data:
+                        if d.get("parent_saas") != desired_config_hash.parent_saas:
+                            continue
+                        d["target_config_hash"] = desired_config_hash.target_config_hash
+                        applied_desired_hash = True
+                if not applied_desired_hash:
+                    # This data block is not part of the promotion data yet -> add it
+                    cur_promotion_data.append(
+                        {
+                            "channel": desired_config_hash.channel,
+                            "data": [
+                                {
+                                    "parent_saas": desired_config_hash.parent_saas,
+                                    "target_config_hash": desired_config_hash.target_config_hash,
+                                    "type": "parent_saas_config",
+                                }
+                            ],
+                        }
+                    )
+            target["promotion"]["promotion_data"] = cur_promotion_data
         new_content = "---\n"
         with StringIO() as stream:
             yml.dump(content, stream)
             new_content += stream.getvalue() or ""
         return new_content
 
-    def render_description(self, subscriber: Subscriber) -> str:
+    def render_description(self, content_hash: str, channels: str) -> str:
         return f"""
 {SAPM_DESC}
 
 {PROMOTION_DATA_SEPARATOR}
 
-{FILE_PATH}: {subscriber.target_file_path}
+{CHANNELS_REF}: {channels}
 
-{NAMESPACE_REF}: {subscriber.namespace_file_path}
+{CONTENT_HASH}: {content_hash}
 
-{CONTENT_HASH}: {subscriber.content_hash()}
+{VERSION_REF}: {SAPM_VERSION}
         """
 
-    def render_title(self, subscriber: Subscriber) -> str:
-        return f"Draft: [auto-promotion] for namespace {subscriber.namespace_file_path} in {subscriber.target_file_path}"
+    def render_title(self, channels: str) -> str:
+        return f"[auto-promotion] event for channel(s) {channels}"

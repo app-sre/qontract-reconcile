@@ -23,7 +23,6 @@ import anymarkup
 import jinja2
 import jinja2.meta
 import jsonpath_ng
-import jsonpath_ng.ext
 import networkx
 
 from reconcile.change_owners.approver import (
@@ -49,6 +48,7 @@ from reconcile.gql_definitions.change_owners.queries.change_types import (
     ChangeTypeV1,
 )
 from reconcile.utils.jsonpath import (
+    parse_jsonpath,
     remove_prefix_from_path,
     sortable_jsonpath_string_repr,
 )
@@ -405,7 +405,7 @@ class PathExpression:
                 )
             self.template = env.from_string(self.jsonpath_expression)
         else:
-            self.parsed_jsonpath = jsonpath_ng.ext.parse(jsonpath_expression)
+            self.parsed_jsonpath = parse_jsonpath(jsonpath_expression)
 
     def jsonpath_for_context(self, ctx: "ChangeTypeContext") -> jsonpath_ng.JSONPath:
         if self.parsed_jsonpath:
@@ -416,7 +416,7 @@ class PathExpression:
                 self.CTX_FILE_PATH_VAR_NAME: ctx.context_file.path,
             }
         )
-        return jsonpath_ng.ext.parse(expr)
+        return parse_jsonpath(expr)
 
     def __eq__(self, obj):
         return (
@@ -667,7 +667,7 @@ class ChangeTypeProcessor:
         # direct context extraction
         # the changed file itself is giving the context for approver extraction
         # see doc string for more details
-        if self.context_schema == file_ref.schema:
+        if self.context_schema is None or self.context_schema == file_ref.schema:
             contexts.append(
                 ResolvedContext(
                     owned_file_ref=file_ref,
@@ -725,13 +725,32 @@ class ChangeTypeProcessor:
         ChangeTypeV1. the paths are represented as jsonpath expressions pinpointing
         the root element that can be changed
         """
+        paths = self._allowed_changed_paths_for_file_type_and_schema(
+            file_ref.file_type, file_ref.schema, file_content, ctx
+        )
+
+        # lets also check for allowed paths that are not specific to a schema
+        for p in self._allowed_changed_paths_for_file_type_and_schema(
+            file_ref.file_type, None, file_content, ctx
+        ):
+            if p not in paths:
+                paths.append(p)
+        return paths
+
+    def _allowed_changed_paths_for_file_type_and_schema(
+        self,
+        file_type: BundleFileType,
+        file_schema: Optional[str],
+        file_content: Any,
+        ctx: "ChangeTypeContext",
+    ) -> list[jsonpath_ng.JSONPath]:
         paths = []
         if (
-            file_ref.file_type,
-            file_ref.schema,
+            file_type,
+            file_schema,
         ) in self._expressions_by_file_type_schema:
             for change_type_path_expression in self._expressions_by_file_type_schema[
-                (file_ref.file_type, file_ref.schema)
+                (file_type, file_schema)
             ]:
                 paths.extend(
                     [
@@ -796,9 +815,7 @@ def init_change_type_processors(
                 ownership_context = None
                 if change_detector.context:
                     ownership_context = OwnershipContext(
-                        selector=jsonpath_ng.ext.parse(
-                            change_detector.context.selector
-                        ),
+                        selector=parse_jsonpath(change_detector.context.selector),
                         when=change_detector.context.when,
                     )
                 processor.add_change_detector(
@@ -824,7 +841,7 @@ def init_change_type_processors(
                         ContextExpansion(
                             change_type=processor,
                             context=OwnershipContext(
-                                selector=jsonpath_ng.ext.parse(
+                                selector=parse_jsonpath(
                                     change_detector.ownership_context.selector
                                 ),
                                 when=change_detector.ownership_context.when,

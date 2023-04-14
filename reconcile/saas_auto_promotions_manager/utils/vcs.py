@@ -33,6 +33,7 @@ class VCS:
         secret_reader: SecretReaderBase,
         github_orgs: Iterable[GithubOrgV1],
         gitlab_instances: Iterable[GitlabInstanceV1],
+        app_interface_repo_url: str,
         dry_run: bool,
         allow_deleting_mrs: bool,
         allow_opening_mrs: bool,
@@ -45,7 +46,8 @@ class VCS:
         self._default_gh_token = self._get_default_gh_token(github_orgs=github_orgs)
         self._gitlab_instance = self._gitlab_api(gitlab_instances=gitlab_instances)
         self._app_interface_api = self._init_app_interface_api(
-            gitlab_instances=gitlab_instances
+            gitlab_instances=gitlab_instances,
+            app_interface_repo_url=app_interface_repo_url,
         )
         self._is_commit_sha_regex = re.compile(r"^[0-9a-f]{40}$")
 
@@ -91,12 +93,14 @@ class VCS:
         )
 
     def _init_app_interface_api(
-        self, gitlab_instances: Iterable[GitlabInstanceV1]
+        self,
+        gitlab_instances: Iterable[GitlabInstanceV1],
+        app_interface_repo_url: str,
     ) -> GitLabApi:
         return GitLabApi(
             list(gitlab_instances)[0].dict(by_alias=True),
             secret_reader=self._secret_reader,
-            project_url="https://gitlab.cee.redhat.com/service/app-interface",
+            project_url=app_interface_repo_url,
         )
 
     def get_commit_sha(
@@ -107,9 +111,8 @@ class VCS:
         if "github.com" in repo_url:
             github = self._init_github(repo_url=repo_url, auth_code=auth_code)
             return github.get_commit_sha(ref=ref)
-        if "gitlab.cee" in repo_url:
-            return self._gitlab_instance.get_commit_sha(ref=ref, repo_url=repo_url)
-        raise RuntimeError(f"Unsupported Repo URL {repo_url}")
+        # assume gitlab by default
+        return self._gitlab_instance.get_commit_sha(ref=ref, repo_url=repo_url)
 
     def close_app_interface_mr(self, mr: ProjectMergeRequest, comment: str) -> None:
         if not self._dry_run and self._allow_deleting_mrs:
@@ -132,8 +135,7 @@ class VCS:
             mr.submit_to_gitlab(gitlab_cli=self._app_interface_api)
 
     def cleanup(self) -> None:
-        for _ in self._gh_per_repo_url.values():
-            # TODO: gh_client.cleanup()
-            pass
+        for gh_client in self._gh_per_repo_url.values():
+            gh_client.cleanup()
         self._gitlab_instance.cleanup()
         self._app_interface_api.cleanup()

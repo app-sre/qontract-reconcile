@@ -50,18 +50,23 @@ from reconcile.gql_definitions.integrations.integrations import (
 QONTRACT_INTEGRATION = "integrations-manager"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
+IMAGE_DEFAULT = "quay.io/app-sre/qontract-reconcile"
+UPSTREAM_DEFAULT = "https://github.com/app-sre/qontract-reconcile"
 
-def get_image_tag_from_ref(ref: str) -> str:
+
+def get_image_tag_from_ref(ref: str, upstream: str) -> str:
     settings = queries.get_app_interface_settings()
     gh_token = get_default_config()["token"]
     github = Github(gh_token, base_url=GH_BASE_URL)
-    commit_sha = github.get_repo("app-sre/qontract-reconcile").get_commit(sha=ref).sha
+    commit_sha = github.get_repo(upstream).get_commit(sha=ref).sha
     return commit_sha[: settings["hashLength"]]
 
 
 def collect_parameters(
     template: Mapping[str, Any],
     environment: EnvironmentV1,
+    upstream: str,
+    image: str,
     image_tag_from_ref: Optional[Mapping[str, str]],
 ) -> dict[str, Any]:
     parameters: dict[str, Any] = {}
@@ -79,8 +84,9 @@ def collect_parameters(
     if image_tag_from_ref:
         for e, r in image_tag_from_ref.items():
             if environment.name == e:
-                parameters["IMAGE_TAG"] = get_image_tag_from_ref(r)
-
+                parameters["IMAGE_TAG"] = get_image_tag_from_ref(r, upstream)
+    if image:
+        parameters["IMAGE"] = image
     return parameters
 
 
@@ -152,6 +158,8 @@ def collect_integrations_environment(
 
 def construct_oc_resources(
     integrations_environment: IntegrationsEnvironment,
+    upstream: str,
+    image: str,
     image_tag_from_ref: Optional[Mapping[str, str]],
 ) -> list[OpenshiftResource]:
 
@@ -161,7 +169,11 @@ def construct_oc_resources(
     template = helm.template(values.dict(exclude_none=True))
 
     parameters = collect_parameters(
-        template, integrations_environment.namespace.environment, image_tag_from_ref
+        template,
+        integrations_environment.namespace.environment,
+        upstream,
+        image,
+        image_tag_from_ref,
     )
 
     resources = oc_process(template, parameters)
@@ -171,6 +183,7 @@ def construct_oc_resources(
             QONTRACT_INTEGRATION,
             QONTRACT_INTEGRATION_VERSION,
             error_details=r.get("metadata", {}).get("name"),
+            caller_name=upstream,
         )
         for r in resources
     ]
@@ -179,14 +192,25 @@ def construct_oc_resources(
 def fetch_desired_state(
     integrations_environments: Iterable[IntegrationsEnvironment],
     ri: ResourceInventory,
+    upstream: str,
+    image: str,
     image_tag_from_ref: Optional[Mapping[str, str]],
 ):
     for ie in integrations_environments:
-        oc_resources = construct_oc_resources(ie, image_tag_from_ref)
+        oc_resources = construct_oc_resources(ie, upstream, image, image_tag_from_ref)
         for r in oc_resources:
             ri.add_desired(
                 ie.namespace.cluster.name, ie.namespace.name, r.kind, r.name, r
             )
+
+
+def filter_integrations(
+    integrations: Iterable[Mapping[str, Any]], upstream: Optional[str] = None
+) -> Iterable[Mapping[str, Any]]:
+    if upstream is None:
+        return integrations
+
+    return [i for i in integrations if i.get("upstream", "") == upstream]
 
 
 @defer
@@ -198,6 +222,8 @@ def run(
     internal=None,
     use_jump_host=True,
     image_tag_from_ref=None,
+    upstream=None,
+    image=None,
     defer=None,
 ):
     # Beware, environment_name can be empty! It's optional to set it!
@@ -225,20 +251,40 @@ def run(
         logging.debug("Nothing to do, exiting.")
         sys.exit(ExitCodes.SUCCESS)
 
-    ri, oc_map = ob.fetch_current_state(
-        namespaces=[
+    fetch_args = {
+        "namespaces": [
             ie.namespace.dict(by_alias=True) for ie in integration_environments
         ],
-        thread_pool_size=thread_pool_size,
-        integration=QONTRACT_INTEGRATION,
-        integration_version=QONTRACT_INTEGRATION_VERSION,
-        override_managed_types=["Deployment", "StatefulSet", "CronJob", "Service"],
-        internal=internal,
-        use_jump_host=use_jump_host,
+        "thread_pool_size": thread_pool_size,
+        "integration": QONTRACT_INTEGRATION,
+        "integration_version": QONTRACT_INTEGRATION_VERSION,
+        "override_managed_types": ["Deployment", "StatefulSet", "CronJob", "Service"],
+        "internal": internal,
+        "use_jump_host": use_jump_host,
+    }
+
+    if not image:
+        image = IMAGE_DEFAULT
+
+    if upstream:
+        use_upstream = True
+        fetch_args["caller"] = upstream
+    else:
+        # Not set to fetch_args on purpose, fallback for cases where caller is not yet set
+        use_upstream = False
+        upstream = UPSTREAM_DEFAULT
+
+    ri, oc_map = ob.fetch_current_state(**fetch_args)
+    defer(oc_map.cleanup)
+
+    fetch_desired_state(
+        integration_environments, ri, upstream, image, image_tag_from_ref
     )
 
-    fetch_desired_state(integration_environments, ri, image_tag_from_ref)
-    ob.realize_data(dry_run, oc_map, ri, thread_pool_size)
+    if use_upstream:
+        ob.realize_data(dry_run, oc_map, ri, thread_pool_size, caller=upstream)
+    else:
+        ob.realize_data(dry_run, oc_map, ri, thread_pool_size)
 
     if ri.has_error_registered():
         sys.exit(ExitCodes.ERROR)

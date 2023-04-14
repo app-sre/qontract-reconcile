@@ -1,7 +1,5 @@
 import logging
 
-import jsonpath_ng.ext
-
 from reconcile.change_owners.approver import ApproverResolver
 from reconcile.change_owners.change_types import (
     BundleFileChange,
@@ -11,6 +9,7 @@ from reconcile.change_owners.change_types import (
 from reconcile.gql_definitions.change_owners.queries.change_types import (
     ChangeTypeImplicitOwnershipJsonPathProviderV1,
 )
+from reconcile.utils.jsonpath import parse_jsonpath
 
 
 def cover_changes_with_implicit_ownership(
@@ -96,7 +95,7 @@ def find_approvers_with_implicit_ownership_jsonpath_selector(
 
     return {
         owner_ref.value
-        for owner_ref in jsonpath_ng.ext.parse(
-            implicit_ownership.json_path_selector
-        ).find(context_file_content)
+        for owner_ref in parse_jsonpath(implicit_ownership.json_path_selector).find(
+            context_file_content
+        )
     }

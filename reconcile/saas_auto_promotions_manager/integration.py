@@ -21,6 +21,7 @@ from reconcile.saas_auto_promotions_manager.utils.saas_files_inventory import (
     SaasFilesInventory,
 )
 from reconcile.saas_auto_promotions_manager.utils.vcs import VCS
+from reconcile.typed_queries.app_interface_repo_url import get_app_interface_repo_url
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
@@ -92,13 +93,15 @@ class SaasAutoPromotionsManager:
         return subscribers_with_diff
 
     def reconcile(self) -> None:
+        self._deployment_state.cache_commit_shas_from_s3()
         self._fetch_publisher_real_world_states()
         self._compute_desired_subscriber_states()
         subscribers_with_diff = self._get_subscribers_with_diff()
         self._merge_request_manager.fetch_sapm_managed_open_merge_requests()
         self._merge_request_manager.housekeeping()
-        for subscriber in subscribers_with_diff:
-            self._merge_request_manager.process_subscriber(subscriber=subscriber)
+        self._merge_request_manager.create_promotion_merge_requests(
+            subscribers=subscribers_with_diff
+        )
 
 
 def init_external_dependencies(
@@ -121,11 +124,11 @@ def init_external_dependencies(
         default=False,
     )
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
-    gitlab_instances = get_gitlab_instances()
     vcs = VCS(
         secret_reader=secret_reader,
         github_orgs=get_github_orgs(),
-        gitlab_instances=gitlab_instances,
+        gitlab_instances=get_gitlab_instances(),
+        app_interface_repo_url=get_app_interface_repo_url(),
         dry_run=dry_run,
         allow_deleting_mrs=allow_deleting_mrs,
         allow_opening_mrs=allow_opening_mrs,

@@ -84,6 +84,7 @@ query CloudflareDnsZone {
     }
     type
     plan
+    max_records
     delete
   }
 }
@@ -165,6 +166,7 @@ class CloudflareDnsZoneV1(ConfiguredBaseModel):
     records: Optional[list[CloudflareDnsRecordV1]] = Field(..., alias="records")
     q_type: Optional[str] = Field(..., alias="type")
     plan: Optional[str] = Field(..., alias="plan")
+    max_records: Optional[int] = Field(..., alias="max_records")
     delete: Optional[bool] = Field(..., alias="delete")
 
 

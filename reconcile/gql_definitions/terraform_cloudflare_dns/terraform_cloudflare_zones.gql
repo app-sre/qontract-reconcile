@@ -56,6 +56,7 @@ query CloudflareDnsZone {
     }
     type
     plan
+    max_records
     delete
   }
 }

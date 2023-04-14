@@ -1,6 +1,6 @@
 import os
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from typing import Any
 import copy
 
@@ -74,7 +74,7 @@ def test_collect_parameters():
     os.environ["tplt_param"] = "override"
     environment = EnvironmentV1(name="e", parameters='{"env_param": "test"}')
 
-    parameters = intop.collect_parameters(template, environment, None)
+    parameters = intop.collect_parameters(template, environment, "", "", None)
     expected = {
         "env_param": "test",
         "tplt_param": "override",
@@ -92,7 +92,7 @@ def test_collect_parameters_env_stronger():
         ]
     }
     environment = EnvironmentV1(name="env", parameters='{"env_param": "override"}')
-    parameters = intop.collect_parameters(template, environment, None)
+    parameters = intop.collect_parameters(template, environment, "", "", None)
     expected = {
         "env_param": "override",
     }
@@ -110,7 +110,7 @@ def test_collect_parameters_os_env_strongest():
     }
     os.environ["env_param"] = "strongest"
     environment = EnvironmentV1(name="env", parameters='{"env_param": "override"}')
-    parameters = intop.collect_parameters(template, environment, None)
+    parameters = intop.collect_parameters(template, environment, "", "", None)
     expected = {
         "env_param": "strongest",
     }
@@ -132,7 +132,9 @@ def test_collect_parameters_image_tag_from_ref(mocker):
     mocker.patch(
         "reconcile.integrations_manager.get_image_tag_from_ref", return_value="f44e417"
     )
-    parameters = intop.collect_parameters(template, environment, image_tag_from_ref)
+    parameters = intop.collect_parameters(
+        template, environment, "", "", image_tag_from_ref
+    )
     expected = {
         "IMAGE_TAG": "f44e417",
     }
@@ -312,6 +314,7 @@ def cloudflare_dns_zones(cloudflare_account, cloudflare_records):
             type="full",
             plan="free",
             delete=False,
+            max_records=None,
         ),
         CloudflareDnsZoneV1(
             identifier="zone2",
@@ -321,6 +324,7 @@ def cloudflare_dns_zones(cloudflare_account, cloudflare_records):
             type="full",
             plan="free",
             delete=False,
+            max_records=None,
         ),
     ]
 
@@ -853,6 +857,8 @@ def test_fetch_desired_state(
     intop.fetch_desired_state(
         integrations_environments=integrations_environments,
         ri=ri,
+        upstream="http://localhost",
+        image="image",
         image_tag_from_ref=None,
     )
 
@@ -869,6 +875,83 @@ def test_fetch_desired_state(
         ["qontract-reconcile-basic-integration"],
     ) in resources
     assert ("cluster", "ns", "Service", ["qontract-reconcile"]) in resources
+
+
+def test_fetch_desired_state_upstream(
+    basic_integration: IntegrationV1,
+    shard_manager: intop.IntegrationShardManager,
+):
+    upstream = "a"
+    basic_integration.upstream = upstream
+
+    integrations_environments = intop.collect_integrations_environment(
+        [basic_integration], "test", shard_manager
+    )
+
+    ri = ResourceInventory()
+    ri.initialize_resource_type("cluster", "ns", "Deployment")
+    ri.initialize_resource_type("cluster", "ns", "Service")
+
+    intop.fetch_desired_state(
+        integrations_environments=integrations_environments,
+        ri=ri,
+        upstream=upstream,
+        image="image",
+        image_tag_from_ref=None,
+    )
+
+    resources = [
+        (cluster, namespace, kind, list(data["desired"].keys()), data["desired"])
+        for cluster, namespace, kind, data in list(ri)
+    ]
+
+    assert len(resources) == 2
+    assert [
+        x[4]["qontract-reconcile-basic-integration"].caller
+        for x in resources
+        if x[3] == ["qontract-reconcile-basic-integration"]
+    ] == [upstream]
+
+
+# def test_fetch_desired_state_upstream(
+#     basic_integration: IntegrationV1,
+#     shard_manager: intop.IntegrationShardManager,
+# ):
+#     upstream = "a"
+#     basic_integration.upstream = upstream
+
+#     integrations_environments = intop.collect_integrations_environment(
+#         [basic_integration], "test", shard_manager
+#     )
+
+#     upstream = "a"
+#     filtered_integrations = intop.filter_integrations(integrations, upstream)
+#     cnetf = intop.collect_namespaces(filtered_integrations, "test1")
+
+#     intop.initialize_shard_specs(cnetf, shard_manager)
+#     ri = ResourceInventory()
+#     ri.initialize_resource_type("cl1", "ns1", "Deployment")
+#     ri.initialize_resource_type("cl1", "ns1", "Service")
+#     intop.fetch_desired_state(
+#         namespaces=cnetf,
+#         ri=ri,
+#         upstream=upstream,
+#         image="image",
+#         image_tag_from_ref=None,
+#         environment_override_mapping={"test1": {}},
+#     )
+
+#     resources = [
+#         (cluster, namespace, kind, list(data["desired"].keys()), data["desired"])
+#         for cluster, namespace, kind, data in list(ri)
+#     ]
+
+#     assert len(resources) == 2
+#     assert [
+#         x[4]["qontract-reconcile-integ1"].caller
+#         for x in resources
+#         if x[3] == ["qontract-reconcile-integ1"]
+#     ] == [upstream]
 
 
 @pytest.fixture
@@ -899,3 +982,22 @@ def test_collect_ingegrations_environment_no_env(
 ):
     ie = intop.collect_integrations_environment(integrations, "", shard_manager)
     assert len(ie[0].integration_specs) == 4
+
+
+def test_filter_with_upstream(integrations: list[IntegrationV1]):
+    upstream = "an-upstream"
+    if integrations:
+        integrations[0].name = "integ-with-upstream"
+        integrations[0].upstream = upstream
+
+    filtered_integrations = intop.filter_integrations(integrations, upstream)
+
+    assert isinstance(filtered_integrations, list)
+    assert len(filtered_integrations) == 1
+    assert filtered_integrations[0].name == "integ-with-upstream"
+
+
+def test_filter_with_upstream_none(integrations: Iterable[IntegrationV1]):
+    filtered_integrations = intop.filter_integrations(integrations, None)
+
+    assert filtered_integrations == integrations
