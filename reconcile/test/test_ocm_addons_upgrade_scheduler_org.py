@@ -77,15 +77,18 @@ def test_delete_automatic_upgrade_policy(
         addon_id,
     )
     assert diffs == [
-        aus.AddonUpgradePolicy(
-            **{
-                "action": "delete",
-                "cluster": cluster,
-                "version": "automatic",
-                "id": automatic_upgrade_policy.id,
-                "schedule_type": automatic_upgrade_policy.schedule_type,
-                "addon_id": addon_id,
-            }
+        aus.UpgradePolicyHandler(
+            action="delete",
+            policy=aus.AddonUpgradePolicy(
+                **{
+                    "action": "delete",
+                    "cluster": cluster,
+                    "version": "automatic",
+                    "id": automatic_upgrade_policy.id,
+                    "schedule_type": automatic_upgrade_policy.schedule_type,
+                    "addon_id": addon_id,
+                }
+            ),
         )
     ]
 
@@ -131,16 +134,18 @@ def test_upgrade_needed(
         addon_id,
     )
     assert diffs == [
-        aus.AddonUpgradePolicy(
-            **{
-                "action": "create",
-                "cluster": cluster,
-                "version": ocm_addon_version,
-                "schedule_type": "manual",
-                "addon_id": addon_id,
-                "cluster_id": "clusterid",
-                "upgrade_type": "ADDON",
-            }
+        aus.UpgradePolicyHandler(
+            action="create",
+            policy=aus.AddonUpgradePolicy(
+                **{
+                    "cluster": cluster,
+                    "version": ocm_addon_version,
+                    "schedule_type": "manual",
+                    "addon_id": addon_id,
+                    "cluster_id": "clusterid",
+                    "upgrade_type": "ADDON",
+                }
+            ),
         )
     ]
 

@@ -631,7 +631,7 @@ def calculate_diff(
     locked = {}
     for policy in upgrade_policies:
         if policy.cluster in [s.cluster for s in current_state]:
-            for mutex in cluster_mutexes(policy):
+            for mutex in policy.conditions.get_mutexes():
                 locked[mutex] = policy.cluster
 
     now = datetime.utcnow()
@@ -698,7 +698,7 @@ def calculate_diff(
                     )
                 )
 
-            for mutex in cluster_mutexes(p):
+            for mutex in p.conditions.get_mutexes():
                 locked[mutex] = p.cluster
 
     return diffs
