@@ -504,14 +504,6 @@ def upgradeable_version(
     return None
 
 
-def cluster_mutexes(policy: ConfiguredUpgradePolicy) -> list[str]:
-    """List all mutex locks for the given cluster"""
-    m = policy.conditions.mutexes
-    if m:
-        return m
-    return []
-
-
 def verify_current_should_skip(
     current_state: list[AbstractUpgradePolicy],
     cluster: str,
@@ -585,8 +577,9 @@ def verify_schedule_should_skip(
 def verify_lock_should_skip(
     d: ConfiguredUpgradePolicy, locked: dict[str, Any], ocm: OCM, cluster: str
 ) -> bool:
-    if any(lock in locked for lock in cluster_mutexes(d)):
-        locking = {lock: locked[lock] for lock in cluster_mutexes(d) if lock in locked}
+    mutexes = d.conditions.get_mutexes()
+    if any(lock in locked for lock in mutexes):
+        locking = {lock: locked[lock] for lock in mutexes if lock in locked}
         logging.debug(
             f"[{ocm.name}/{cluster}] skipping cluster: locked out by {locking}"
         )

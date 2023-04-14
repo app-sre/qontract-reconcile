@@ -26,6 +26,9 @@ class ConfiguredUpgradePolicyConditions(BaseModel):
     soakDays: Optional[int]
     sector: Optional[Sector]
 
+    def get_mutexes(self) -> list[str]:
+        return self.mutexes or []
+
 
 class ConfiguredUpgradePolicy(BaseModel):
     cluster: str
