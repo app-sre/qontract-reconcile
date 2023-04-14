@@ -1,11 +1,13 @@
 import json
 import logging
 import sys
-from typing import (
-    Any,
+from collections.abc import (
     Callable,
     Generator,
     Mapping,
+)
+from typing import (
+    Any,
     Optional,
 )
 
