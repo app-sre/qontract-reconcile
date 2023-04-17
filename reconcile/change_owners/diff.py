@@ -11,10 +11,11 @@ from typing import (
 )
 
 import jsonpath_ng
-import jsonpath_ng.ext
 from deepdiff import DeepDiff
 from deepdiff.helper import CannotCompare
 from deepdiff.model import DiffLevel
+
+from reconcile.utils.jsonpath import parse_jsonpath
 
 
 class DiffType(Enum):
@@ -43,7 +44,7 @@ class Diff:
         if self.path == jsonpath_ng.Root():
             absolute_sub_path = sub_path
         elif sub_path_str.startswith(self.path_str()):
-            absolute_sub_path = jsonpath_ng.ext.parse(
+            absolute_sub_path = parse_jsonpath(
                 f"${sub_path_str[len(self.path_str()):]}"
             )
         else:
