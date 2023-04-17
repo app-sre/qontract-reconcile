@@ -16,7 +16,7 @@ class SiteController:
     @property
     def resources(self) -> list[dict[str, Any]]:
         """Return the list of site-controller resources."""
-        return [obj for obj in self.site.site_controller_objects]
+        return self.site.site_controller_objects
 
     def is_usable_connection_token(self, secret: dict[str, Any]) -> bool:
         """Check if secret is a finished connection token, not a token-request anymore."""
