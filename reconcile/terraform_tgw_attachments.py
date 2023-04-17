@@ -1,6 +1,5 @@
 import json
 import logging
-import sys
 from collections.abc import (
     Callable,
     Generator,
@@ -27,6 +26,10 @@ QONTRACT_INTEGRATION = "terraform_tgw_attachments"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 TGW_CONNECTION_PROVIDER = "account-tgw"
+
+
+class ValidationError(Exception):
+    pass
 
 
 def build_desired_state_tgw_attachments(
@@ -200,11 +203,10 @@ def _build_ocm_map(
     )
 
 
-def _validate_vpc_connection_names(desired_state: Iterable[Mapping]) -> None:
+def _validate_tgw_connection_names(desired_state: Iterable[Mapping]) -> None:
     connection_names = [c["connection_name"] for c in desired_state]
     if len(set(connection_names)) != len(connection_names):
-        logging.error("duplicate vpc connection names found")
-        sys.exit(1)
+        raise ValidationError("duplicate tgw connection names found")
 
 
 def _filter_accounts(
@@ -229,10 +231,6 @@ def _populate_tgw_attachments_working_dirs(
     ts.populate_additional_providers(participating_accounts)
     ts.populate_tgw_attachments(desired_state)
     working_dirs = ts.dump(print_to_file=print_to_file)
-
-    if print_to_file:
-        sys.exit()
-
     return working_dirs
 
 
@@ -255,10 +253,10 @@ def run(
             clusters, ocm_map, awsapi
         )
     if err:
-        sys.exit(1)
+        raise RuntimeError("Could not find VPC ID for cluster")
 
-    # check there are no repeated vpc connection names
-    _validate_vpc_connection_names(desired_state)
+    # check there are no repeated tgw connection names
+    _validate_tgw_connection_names(desired_state)
 
     participating_accounts = [item["requester"]["account"] for item in desired_state]
     filtered_accounts = _filter_accounts(accounts, participating_accounts)
@@ -272,6 +270,9 @@ def run(
         thread_pool_size,
     )
 
+    if print_to_file:
+        return
+
     aws_api = AWSApi(1, filtered_accounts, settings=settings, init_users=False)
 
     tf = Terraform(
@@ -284,24 +285,21 @@ def run(
         aws_api,
     )
 
-    if tf is None:
-        sys.exit(1)
-
     if defer:
         defer(tf.cleanup)
 
     disabled_deletions_detected, err = tf.plan(enable_deletion)
     if err:
-        sys.exit(1)
+        raise RuntimeError("Error running terraform plan")
     if disabled_deletions_detected:
-        sys.exit(1)
+        raise RuntimeError("Disabled deletions detected running terraform plan")
 
     if dry_run:
         return
 
     err = tf.apply()
     if err:
-        sys.exit(1)
+        raise RuntimeError("Error running terraform apply")
 
 
 def early_exit_desired_state(
