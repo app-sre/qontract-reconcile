@@ -13,6 +13,7 @@ from collections.abc import (
     Sequence,
 )
 from contextlib import suppress
+from dataclasses import dataclass
 from types import TracebackType
 from typing import (
     Any,
@@ -95,9 +96,18 @@ def is_commit_sha(ref: str) -> bool:
     return bool(re.search(r"^[0-9a-f]{40}$", ref))
 
 
-RtRef = tuple[str, str, str]
 Resource = dict[str, Any]
 Resources = list[Resource]
+
+
+@dataclass
+class PromotionRef:
+    """Utility class to identify a target in a saas file.
+    Used to make promotion validations"""
+
+    saas_file: SaasFile
+    resource_template: SaasResourceTemplate
+    resource_template_target: SaasResourceTemplateTarget
 
 
 class SaasHerder:  # pylint: disable=too-many-public-methods
@@ -236,8 +246,9 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         saas_file_name_path_map: dict[str, list[str]] = {}
         tkn_unique_pipelineruns: dict[str, str] = {}
 
-        publications: dict[str, RtRef] = {}
-        subscriptions: dict[str, list[RtRef]] = {}
+        # Pubs and Subs along all saas-files
+        publications: dict[str, PromotionRef] = {}
+        subscriptions: dict[str, list[PromotionRef]] = {}
 
         for saas_file in self.saas_files:
             saas_file_name_path_map.setdefault(saas_file.name, [])
@@ -306,16 +317,17 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                     )
 
                     if target.promotion:
-                        rt_ref = (
-                            saas_file.path,
-                            resource_template.name,
-                            resource_template.url,
+                        pref = PromotionRef(
+                            saas_file=saas_file,
+                            resource_template=resource_template,
+                            resource_template_target=target,
                         )
 
                         # Get publications and subscriptions for the target
                         self._get_promotion_pubs_and_subs(
-                            rt_ref, target.promotion, publications, subscriptions
+                            pref, target.promotion, publications, subscriptions
                         )
+
                     # validate target parameters
                     if not target.parameters:
                         continue
@@ -384,14 +396,14 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
             for saas_file_name, saas_file_paths in duplicates.items():
                 logging.error(msg.format(saas_file_name, saas_file_paths))
 
-        self._check_promotions_have_same_source(subscriptions, publications)
+        self._validate_promotions_configuration(subscriptions, publications)
 
     def _get_promotion_pubs_and_subs(
         self,
-        rt_ref: RtRef,
+        promotion_ref: PromotionRef,
         promotion: SaasResourceTemplateTargetPromotion,
-        publications: MutableMapping[str, RtRef],
-        subscriptions: MutableMapping[str, list[RtRef]],
+        publications: MutableMapping[str, PromotionRef],
+        subscriptions: MutableMapping[str, list[PromotionRef]],
     ) -> None:
         """
         Function to gather promotion publish and subscribe configurations
@@ -405,56 +417,62 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                     "is not unique: {}".format(channel)
                 )
                 continue
-            publications[channel] = rt_ref
+            publications[channel] = promotion_ref
 
         for channel in promotion.subscribe or []:
             subscriptions.setdefault(channel, [])
-            subscriptions[channel].append(rt_ref)
+            subscriptions[channel].append(promotion_ref)
 
-    def _check_promotions_have_same_source(
+    def _validate_promotions_configuration(
         self,
-        subscriptions: Mapping[str, list[RtRef]],
-        publications: Mapping[str, RtRef],
+        subscriptions: Mapping[str, Iterable[PromotionRef]],
+        publications: Mapping[str, PromotionRef],
     ) -> None:
         """
         Function to check that a promotion has the same repository
         in both publisher and subscriber targets.
         """
 
-        for sub_channel, sub_targets in subscriptions.items():
-            pub_channel_ref = publications.get(sub_channel)
-            if not pub_channel_ref:
+        for subs_channel, subs_promotion_refs in subscriptions.items():
+            pub_pr = publications.get(subs_channel)
+            if not pub_pr:
+                # A subscriber target must have a publisher target
                 self.valid = False
-            else:
-                (pub_saas, pub_rt_name, pub_rt_url) = pub_channel_ref
-
-            for sub_saas, sub_rt_name, sub_rt_url in sub_targets:
-                if not pub_channel_ref:
+            for subs_pr in subs_promotion_refs:
+                if not pub_pr:
                     logging.error(
-                        "Channel is not published by any target\n"
-                        "subscriber_saas: {}\n"
-                        "subscriber_rt: {}\n"
-                        "channel: {}".format(sub_saas, sub_rt_name, sub_channel)
+                        "The subscribed channel is not published by any target\n"
+                        f"subscriber_saas: {subs_pr.saas_file.path}\n"
+                        f"subscriber_rt: {subs_pr.resource_template.name}\n"
+                        f"channel: {subs_channel}"
                     )
                 else:
-                    if sub_rt_url != pub_rt_url:
+                    if subs_pr.resource_template.url != pub_pr.resource_template.url:
                         self.valid = False
                         logging.error(
                             "Subscriber and Publisher targets have different "
                             "source repositories\n"
-                            "publisher_saas: {}\n"
-                            "publisher_rt: {}\n"
-                            "publisher_repo: {}\n"
-                            "subscriber_saas: {}\n"
-                            "subscriber_rt: {}\n"
-                            "subscriber_repo: {}\n".format(
-                                pub_saas,
-                                pub_rt_name,
-                                pub_rt_url,
-                                sub_saas,
-                                sub_rt_name,
-                                sub_rt_url,
-                            )
+                            f"Publisher_saas: {pub_pr.saas_file.path}\n"
+                            f"Publisher_rt: {pub_pr.resource_template.name}\n"
+                            f"Publisher_repo: {pub_pr.resource_template.url}\n"
+                            f"Pubscriber_saas: {subs_pr.saas_file.path}\n"
+                            f"Pubscriber_rt: {subs_pr.resource_template.name}\n"
+                            f"Pubscriber_repo: {subs_pr.resource_template.url}\n"
+                        )
+                    elif (
+                        subs_pr.resource_template_target.namespace.environment
+                        == pub_pr.resource_template_target.namespace.environment
+                        and subs_pr.saas_file.path == pub_pr.saas_file.path
+                    ):
+                        self.valid = False
+                        logging.error(
+                            "Promotions can not happen between targets in the same Saas file "
+                            "and environment (namespace)\n"
+                            f"Saas file: {pub_pr.saas_file.path}\n"
+                            "Publisher  Rt/target: {pub_pr.resource_template.name}/"
+                            f"{pub_pr.resource_template_target.name}\n"
+                            f"Subscriber Rt/target: {subs_pr.resource_template.name}/"
+                            f"{subs_pr.resource_template_target.name}\n"
                         )
 
     def _check_saas_file_env_combo_unique(
