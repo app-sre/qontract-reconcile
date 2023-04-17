@@ -30,7 +30,7 @@ TGW_CONNECTION_PROVIDER = "account-tgw"
 
 def build_desired_state_tgw_attachments(
     clusters: list[dict],
-    ocm_map: OCMMap,
+    ocm_map: Optional[OCMMap],
     awsapi: AWSApi,
 ) -> tuple[list[dict], bool]:
     """
@@ -50,11 +50,15 @@ def build_desired_state_tgw_attachments(
 
 def _build_desired_state_tgw_attachments(
     clusters: list[dict],
-    ocm_map: OCMMap,
+    ocm_map: Optional[OCMMap],
     awsapi: AWSApi,
 ) -> Generator[Optional[dict], Any, None]:
     for cluster_info in clusters:
-        ocm = ocm_map.get(cluster_info["name"])
+        ocm = (
+            ocm_map.get(cluster_info["name"])
+            if ocm_map and cluster_info.get("ocm")
+            else None
+        )
         for peer_connection in cluster_info["peering"]["connections"]:
             if peer_connection["provider"] == TGW_CONNECTION_PROVIDER:
                 yield from _build_desired_state_tgw_connection(
@@ -65,7 +69,7 @@ def _build_desired_state_tgw_attachments(
 def _build_desired_state_tgw_connection(
     peer_connection: dict,
     cluster_info: dict,
-    ocm: OCM,
+    ocm: Optional[OCM],
     awsapi: AWSApi,
 ) -> Generator[Optional[dict], Any, None]:
     cluster_name = cluster_info["name"]
@@ -115,7 +119,7 @@ def _account_with_assume_role_data(
     cluster_name: str,
     region: str,
     cidr_block: str,
-    ocm: OCM,
+    ocm: Optional[OCM],
 ) -> dict[str, Any]:
     account = peer_connection["account"]
     # assume_role is the role to assume to provision the
@@ -124,13 +128,16 @@ def _account_with_assume_role_data(
     # if an assume_role is provided, it means we don't need
     # to get the information from OCM. it likely means that
     # there is no OCM at all.
-    account["assume_role"] = (
-        provided_assume_role
-        if provided_assume_role
-        else ocm.get_aws_infrastructure_access_terraform_assume_role(
+    if provided_assume_role:
+        account["assume_role"] = provided_assume_role
+    else:
+        if not ocm:
+            raise ValueError("OCM is required to get assume_role data")
+        account[
+            "assume_role"
+        ] = ocm.get_aws_infrastructure_access_terraform_assume_role(
             cluster_name, account["uid"], account["terraformUsername"]
         )
-    )
     account["assume_region"] = region
     account["assume_cidr"] = cidr_block
     return account
@@ -178,15 +185,17 @@ def _build_requester(
 def _build_ocm_map(
     clusters: list,
     settings: Optional[Mapping[str, Any]],
-):
-    with_ocm = any(c.get("ocm") for c in clusters)
+) -> Optional[OCMMap]:
+    ocm_clusters = [c for c in clusters if c.get("ocm")]
     return (
-        OCMMap(clusters=clusters, integration=QONTRACT_INTEGRATION, settings=settings)
-        if with_ocm
+        OCMMap(
+            clusters=ocm_clusters, integration=QONTRACT_INTEGRATION, settings=settings
+        )
+        if ocm_clusters
         # this is a case for an OCP cluster which is not provisioned
         # through OCM. it is expected that an 'assume_role' is provided
         # on the tgw definition in the cluster file.
-        else {}
+        else None
     )
 
 
@@ -230,7 +239,7 @@ def run(
     enable_deletion: bool = False,
     thread_pool_size: int = 10,
     defer: Optional[Callable] = None,
-):
+) -> None:
     settings = queries.get_secret_reader_settings()
     clusters = queries.get_clusters_with_peering_settings()
     ocm_map = _build_ocm_map(clusters, settings)
@@ -292,7 +301,9 @@ def run(
 
 
 def early_exit_desired_state(
-    print_to_file=None, enable_deletion=False, thread_pool_size=10
+    print_to_file: Optional[str] = None,
+    enable_deletion: bool = False,
+    thread_pool_size: int = 10,
 ) -> dict[str, Any]:
     return {
         "clusters": queries.get_clusters_with_peering_settings(),
