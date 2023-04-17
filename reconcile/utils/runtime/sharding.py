@@ -139,7 +139,7 @@ class AWSAccountShardingStrategy:
         else:
             self.aws_accounts = list(aws_accounts)
 
-    def filter_accounts(
+    def filter_objects(
         self, integration: str
     ) -> list[sharding_aws_accounts.AWSAccountV1]:
         return [
@@ -197,7 +197,7 @@ class AWSAccountShardingStrategy:
         self.check_integration_sharding_params(integration_meta)
         spos = self.get_shard_spec_overrides(integration_managed.sharding)
         shards = []
-        for c in self.filter_accounts(integration_meta.name):
+        for c in self.filter_objects(integration_meta.name):
             spo = spos.get(c.name)
             base_shard = self.build_shard_spec(c, integration_managed.spec, spo)
             shards.append(base_shard)
@@ -219,6 +219,19 @@ class OpenshiftClusterShardingStrategy:
         self.sub_sharding_strategies = {
             StaticShardingStrategy.IDENTIFIER: StaticShardingStrategy
         }
+
+    def filter_objects(self, integration: str) -> list[ClusterV1]:
+        return [
+            c
+            for c in self.clusters
+            if (
+                not c.disable
+                or not c.disable.integrations
+                or (
+                    c.disable.integrations and integration not in c.disable.integrations
+                )
+            )
+        ]
 
     def get_shard_spec_overrides(
         self, sharding: Optional[IntegrationShardingV1]
@@ -280,7 +293,7 @@ class OpenshiftClusterShardingStrategy:
         self.check_integration_sharding_params(integration_meta)
         spos = self.get_shard_spec_overrides(integration_managed.sharding)
         shards = []
-        for c in self.clusters or []:
+        for c in self.filter_objects(integration_meta.name):
             spo = spos.get(c.name)
             base_shard = self.build_shard_spec(c, integration_managed.spec, spo)
             sub_shards = self.build_sub_shards(base_shard, spo)
