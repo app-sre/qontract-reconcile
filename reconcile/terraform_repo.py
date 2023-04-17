@@ -28,14 +28,22 @@ QONTRACT_INTEGRATION = "terraform-repo"
 QONTRACT_INTEGRATION_VERSION = make_semver(1, 1, 0)
 
 
+class AWSAuthToken(BaseModel):
+    path: str
+    field: str
+    version: Optional[int]
+
+
 class AWSAccount(BaseModel):
     name: str
     uid: str
+    token: AWSAuthToken
 
 
 class RepoOutput(BaseModel):
     """This is what the integration outputs and is input for the executor to perform terraform operations"""
 
+    name: str
     git: str
     ref: str
     project_path: str
@@ -100,10 +108,19 @@ def diff_changed(
 def repo_action_plan(repo: TerraformRepoV1, dry_run: bool, destroy: bool) -> RepoOutput:
     """Converts the GQL/state representation of a Terraform repo to an action plan that the executor will act on"""
     return RepoOutput(
+        name=repo.name,
         git=repo.repository,
         ref=repo.ref,
         project_path=repo.project_path,
-        account=AWSAccount(name=repo.account.name, uid=repo.account.uid),
+        account=AWSAccount(
+            name=repo.account.name,
+            uid=repo.account.uid,
+            token=AWSAuthToken(
+                path=repo.account.automation_token.path,
+                field=repo.account.automation_token.field,
+                version=repo.account.automation_token.version,
+            ),
+        ),
         dry_run=dry_run,
         destroy=destroy,
     )
@@ -129,17 +146,36 @@ def merge_results(
     return output
 
 
+def update_state(
+    created: Mapping[str, TerraformRepoV1],
+    deleted: Mapping[str, TerraformRepoV1],
+    updated: Mapping[str, TerraformRepoV1],
+    state: State,
+):
+    """State represents TerraformRepoV1 data structures equivalent to their GQL representations"""
+    created_and_updated = created | updated
+    for cu_key, cu_val in created_and_updated.items():
+        state.add(cu_key, cu_val, True)
+    for d_key in deleted.keys():
+        state.rm(d_key)
+
+
 def diff(
     existing_state: list[TerraformRepoV1],
     desired_state: list[TerraformRepoV1],
     dry_run: bool,
+    state: State,
 ) -> list[RepoOutput]:
+    """Diffs existing and desired state as well as updates the state in S3 if this is not a dry-run operation"""
     existing_map = map_repos(existing_state)
     desired_map = map_repos(desired_state)
 
     to_be_created = diff_missing(existing_map, desired_map, dry_run)
     to_be_deleted = diff_missing(desired_map, existing_map, dry_run)
     to_be_updated = diff_changed(existing_map, desired_map, dry_run)
+
+    if not dry_run:
+        update_state(to_be_created, to_be_deleted, to_be_updated, state)
 
     return merge_results(to_be_created, to_be_deleted, to_be_updated)
 
@@ -160,7 +196,7 @@ def run(
     desired = get_repos(query_func=gqlapi.query)
     existing = get_existing_state(state)
 
-    action_plan = diff(existing, desired, dry_run)
+    action_plan = diff(existing, desired, dry_run, state)
 
     if print_to_file:
         try:
