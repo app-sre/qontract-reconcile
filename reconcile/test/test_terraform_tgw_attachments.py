@@ -1,4 +1,8 @@
-from collections.abc import Callable
+from collections.abc import (
+    Callable,
+    Iterable,
+    Mapping,
+)
 from typing import Optional
 
 import pytest
@@ -103,7 +107,7 @@ def cluster_with_tgw_connection(
 @pytest.fixture
 def cluster_with_vpc_connection(
     cluster_builder: Callable[..., dict],
-    account_vpc_connection: dict,
+    account_vpc_connection: Mapping,
 ) -> dict:
     return cluster_builder(
         name="cluster_with_vpc_connection",
@@ -121,8 +125,8 @@ def cluster_with_vpc_connection(
 @pytest.fixture
 def cluster_with_mixed_connections(
     cluster_builder: Callable[..., dict],
-    account_tgw_connection: dict,
-    account_vpc_connection: dict,
+    account_tgw_connection: Mapping,
+    account_vpc_connection: Mapping,
 ) -> dict:
     return cluster_builder(
         name="cluster_with_mixed_connections",
@@ -166,10 +170,10 @@ def assume_role() -> str:
 
 def _setup_mocks(
     mocker: MockerFixture,
-    clusters: Optional[list] = None,
-    accounts: Optional[list] = None,
+    clusters: Optional[Iterable] = None,
+    accounts: Optional[Iterable] = None,
     vpc: Optional[tuple[str, str, str]] = None,
-    tgws: Optional[list] = None,
+    tgws: Optional[Iterable] = None,
     assume_role: Optional[str] = None,
 ) -> dict:
     mocked_queries = mocker.patch("reconcile.terraform_tgw_attachments.queries")
@@ -235,10 +239,10 @@ def test_non_dry_run(mocker: MockerFixture) -> None:
 
 def test_run_when_cluster_with_tgw_connection(
     mocker: MockerFixture,
-    cluster_with_tgw_connection: dict,
-    account_tgw_connection: dict,
-    tgw: dict,
-    vpc_details: dict,
+    cluster_with_tgw_connection: Mapping,
+    account_tgw_connection: Mapping,
+    tgw: Mapping,
+    vpc_details: Mapping,
     assume_role: str,
 ) -> None:
     mocks = _setup_mocks(
@@ -298,10 +302,10 @@ def test_run_when_cluster_with_tgw_connection(
 
 def test_run_when_cluster_with_mixed_connections(
     mocker: MockerFixture,
-    cluster_with_mixed_connections: dict,
-    account_tgw_connection: dict,
-    tgw: dict,
-    vpc_details: dict,
+    cluster_with_mixed_connections: Mapping,
+    account_tgw_connection: Mapping,
+    tgw: Mapping,
+    vpc_details: Mapping,
     assume_role: str,
 ) -> None:
     mocks = _setup_mocks(
@@ -361,7 +365,7 @@ def test_run_when_cluster_with_mixed_connections(
 
 def test_run_when_cluster_with_vpc_connection_only(
     mocker: MockerFixture,
-    cluster_with_vpc_connection: dict,
+    cluster_with_vpc_connection: Mapping,
 ) -> None:
     mocks = _setup_mocks(
         mocker,

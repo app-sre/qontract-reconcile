@@ -328,7 +328,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         integration: str,
         integration_prefix: str,
         thread_pool_size: int,
-        accounts: list[dict[str, Any]],
+        accounts: Iterable[dict[str, Any]],
         settings: Optional[Mapping[str, Any]] = None,
         prefetch_resources_by_schemas: Optional[list[str]] = None,
     ) -> None:

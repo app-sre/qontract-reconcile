@@ -4,6 +4,7 @@ import sys
 from collections.abc import (
     Callable,
     Generator,
+    Iterable,
     Mapping,
 )
 from typing import (
@@ -29,7 +30,7 @@ TGW_CONNECTION_PROVIDER = "account-tgw"
 
 
 def build_desired_state_tgw_attachments(
-    clusters: list[dict],
+    clusters: Iterable[Mapping],
     ocm_map: Optional[OCMMap],
     awsapi: AWSApi,
 ) -> tuple[list[dict], bool]:
@@ -49,7 +50,7 @@ def build_desired_state_tgw_attachments(
 
 
 def _build_desired_state_tgw_attachments(
-    clusters: list[dict],
+    clusters: Iterable[Mapping],
     ocm_map: Optional[OCMMap],
     awsapi: AWSApi,
 ) -> Generator[Optional[dict], Any, None]:
@@ -67,8 +68,8 @@ def _build_desired_state_tgw_attachments(
 
 
 def _build_desired_state_tgw_connection(
-    peer_connection: dict,
-    cluster_info: dict,
+    peer_connection: Mapping,
+    cluster_info: Mapping,
     ocm: Optional[OCM],
     awsapi: AWSApi,
 ) -> Generator[Optional[dict], Any, None]:
@@ -115,7 +116,7 @@ def _build_desired_state_tgw_connection(
 
 
 def _account_with_assume_role_data(
-    peer_connection: dict,
+    peer_connection: Mapping,
     cluster_name: str,
     region: str,
     cidr_block: str,
@@ -144,12 +145,12 @@ def _account_with_assume_role_data(
 
 
 def _build_accepter(
-    peer_connection: dict,
-    account: dict,
+    peer_connection: Mapping,
+    account: Mapping,
     region: str,
     cidr_block: str,
     awsapi: AWSApi,
-) -> dict:
+) -> dict[str, Any]:
     (vpc_id, route_table_ids, subnets_id_az) = awsapi.get_cluster_vpc_details(
         account,
         route_tables=peer_connection.get("manageRoutes"),
@@ -166,10 +167,10 @@ def _build_accepter(
 
 
 def _build_requester(
-    peer_connection: dict,
-    account: dict,
-    tgw: dict,
-) -> dict:
+    peer_connection: Mapping,
+    account: Mapping,
+    tgw: Mapping,
+) -> dict[str, Any]:
     return {
         "tgw_id": tgw["tgw_id"],
         "tgw_arn": tgw["tgw_arn"],
@@ -183,7 +184,7 @@ def _build_requester(
 
 
 def _build_ocm_map(
-    clusters: list,
+    clusters: Iterable[Mapping],
     settings: Optional[Mapping[str, Any]],
 ) -> Optional[OCMMap]:
     ocm_clusters = [c for c in clusters if c.get("ocm")]
@@ -199,23 +200,26 @@ def _build_ocm_map(
     )
 
 
-def _validate_vpc_connection_names(desired_state: list) -> None:
+def _validate_vpc_connection_names(desired_state: Iterable[Mapping]) -> None:
     connection_names = [c["connection_name"] for c in desired_state]
     if len(set(connection_names)) != len(connection_names):
         logging.error("duplicate vpc connection names found")
         sys.exit(1)
 
 
-def _filter_accounts(accounts: list, participating_accounts: list) -> list:
+def _filter_accounts(
+    accounts: Iterable[Mapping],
+    participating_accounts: Iterable[Mapping],
+) -> list:
     participating_account_names = {a["name"] for a in participating_accounts}
     return [a for a in accounts if a["name"] in participating_account_names]
 
 
 def _populate_tgw_attachments_working_dirs(
-    desired_state: list,
-    accounts: list,
+    desired_state: Iterable,
+    accounts: Iterable,
     settings: Optional[Mapping[str, Any]],
-    participating_accounts: list,
+    participating_accounts: Iterable,
     print_to_file: Optional[str],
     thread_pool_size: int,
 ) -> dict[str, str]:
