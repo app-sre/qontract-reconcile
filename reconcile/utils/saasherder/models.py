@@ -17,7 +17,9 @@ from reconcile.utils.oc_connection_parameters import Cluster
 from reconcile.utils.saasherder.interfaces import (
     SaasApp,
     SaasEnvironment,
+    SaasFile,
     SaasPipelinesProviders,
+    SaasResourceTemplate,
     SaasResourceTemplateTarget,
 )
 
@@ -201,3 +203,13 @@ class TargetSpec:
     parameters: dict[str, str]
     github: Github
     target_config_hash: str
+
+
+@dataclass
+class PromotionRef:
+    """Utility class to identify a target in a saas file.
+    Used to make promotion validations"""
+
+    saas_file: SaasFile
+    resource_template: SaasResourceTemplate
+    resource_template_target: SaasResourceTemplateTarget

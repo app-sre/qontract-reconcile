@@ -13,7 +13,6 @@ from collections.abc import (
     Sequence,
 )
 from contextlib import suppress
-from dataclasses import dataclass
 from types import TracebackType
 from typing import (
     Any,
@@ -81,6 +80,7 @@ from reconcile.utils.saasherder.models import (
     TriggerSpecUpstreamJob,
     TriggerTypes,
     UpstreamJob,
+    PromotionRef,
 )
 from reconcile.utils.secret_reader import SecretReaderBase
 from reconcile.utils.state import State
@@ -98,16 +98,6 @@ def is_commit_sha(ref: str) -> bool:
 
 Resource = dict[str, Any]
 Resources = list[Resource]
-
-
-@dataclass
-class PromotionRef:
-    """Utility class to identify a target in a saas file.
-    Used to make promotion validations"""
-
-    saas_file: SaasFile
-    resource_template: SaasResourceTemplate
-    resource_template_target: SaasResourceTemplateTarget
 
 
 class SaasHerder:  # pylint: disable=too-many-public-methods
