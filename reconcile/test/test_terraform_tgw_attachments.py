@@ -10,6 +10,42 @@ from pytest_mock import MockerFixture
 
 import reconcile.terraform_tgw_attachments as integ
 
+QONTRACT_INTEGRATION = "terraform_tgw_attachments"
+
+
+@pytest.fixture
+def account_builder() -> Callable[..., dict]:
+    def builder(
+        name: str,
+        uid: str,
+        terraform_username: str,
+    ) -> dict:
+        return {
+            "name": name,
+            "uid": uid,
+            "terraformUsername": terraform_username,
+        }
+
+    return builder
+
+
+@pytest.fixture
+def tgw_account(account_builder: Callable[..., dict]) -> dict:
+    return account_builder(
+        name="tgw_account",
+        uid="tgw-account-uid",
+        terraform_username="tgw-account-terraform-username",
+    )
+
+
+@pytest.fixture
+def vpc_account(account_builder: Callable[..., dict]) -> dict:
+    return account_builder(
+        name="vpc_account",
+        uid="vpc-account-uid",
+        terraform_username="vpc-account-terraform-username",
+    )
+
 
 @pytest.fixture
 def peering_connection_builder() -> Callable[..., dict]:
@@ -17,9 +53,7 @@ def peering_connection_builder() -> Callable[..., dict]:
         name: str,
         provider: str,
         manage_routes: bool = False,
-        account_name: Optional[str] = None,
-        account_uid: Optional[str] = None,
-        terraform_username: Optional[str] = None,
+        account: Optional[Mapping] = None,
         assume_role: Optional[str] = None,
         cidr_block: Optional[str] = None,
         deleted: Optional[bool] = None,
@@ -28,11 +62,7 @@ def peering_connection_builder() -> Callable[..., dict]:
             "name": name,
             "provider": provider,
             "manageRoutes": manage_routes,
-            "account": {
-                "name": account_name,
-                "uid": account_uid,
-                "terraformUsername": terraform_username,
-            },
+            "account": account,
             "assumeRole": assume_role,
             "cidrBlock": cidr_block,
             "deleted": deleted,
@@ -42,14 +72,16 @@ def peering_connection_builder() -> Callable[..., dict]:
 
 
 @pytest.fixture
-def account_tgw_connection(peering_connection_builder: Callable[..., dict]) -> dict:
+def account_tgw_connection(
+    peering_connection_builder: Callable[..., dict],
+    tgw_account: Mapping,
+    account_builder: Callable[..., dict],
+) -> dict:
     return peering_connection_builder(
         name="account_tgw_connection",
         provider="account-tgw",
         manage_routes=True,
-        account_name="tgw_account",
-        account_uid="a-uid",
-        terraform_username="tf-user",
+        account=tgw_account,
         assume_role=None,
         cidr_block="172.16.0.0/16",
         deleted=False,
@@ -57,10 +89,14 @@ def account_tgw_connection(peering_connection_builder: Callable[..., dict]) -> d
 
 
 @pytest.fixture
-def account_vpc_connection(peering_connection_builder: Callable[..., dict]) -> dict:
+def account_vpc_connection(
+    peering_connection_builder: Callable[..., dict],
+    vpc_account: Mapping,
+) -> dict:
     return peering_connection_builder(
         name="account_vpc_connection",
         provider="account-vpc",
+        account=vpc_account,
     )
 
 
@@ -187,6 +223,53 @@ def assume_role() -> str:
     return "some-role"
 
 
+def build_expected_tgw_account(
+    cluster: Mapping,
+    connection: Mapping,
+    assume_role: str,
+) -> dict:
+    return {
+        "name": connection["account"]["name"],
+        "uid": connection["account"]["uid"],
+        "terraformUsername": connection["account"]["terraformUsername"],
+        "assume_role": assume_role,
+        "assume_region": cluster["spec"]["region"],
+        "assume_cidr": cluster["network"]["vpc"],
+    }
+
+
+def build_expected_desired_state_item(
+    cluster: Mapping,
+    connection: Mapping,
+    tgw: Mapping,
+    vpc_details: Mapping,
+    expected_tgw_account: Mapping,
+) -> dict:
+    return {
+        "connection_provider": "account-tgw",
+        "connection_name": f"{connection['name']}_{expected_tgw_account['name']}-{tgw['tgw_id']}",
+        "requester": {
+            "tgw_id": tgw["tgw_id"],
+            "tgw_arn": tgw["tgw_arn"],
+            "region": tgw["region"],
+            "routes": tgw["routes"],
+            "rules": tgw["rules"],
+            "hostedzones": tgw["hostedzones"],
+            "cidr_block": connection["cidrBlock"],
+            "account": expected_tgw_account,
+        },
+        "accepter": {
+            "vpc_id": vpc_details["vpc_id"],
+            "region": cluster["spec"]["region"],
+            "cidr_block": cluster["network"]["vpc"],
+            "route_table_ids": vpc_details["route_table_ids"],
+            "subnets_id_az": vpc_details["subnets_id_az"],
+            "account": expected_tgw_account,
+        },
+        "deleted": connection["deleted"],
+    }
+
+
 def _setup_mocks(
     mocker: MockerFixture,
     clusters: Optional[Iterable] = None,
@@ -201,8 +284,8 @@ def _setup_mocks(
     mocked_queries.get_aws_accounts.return_value = accounts or []
     mocked_aws_api = mocker.patch(
         "reconcile.terraform_tgw_attachments.AWSApi", autospec=True
-    ).return_value
-    with mocked_aws_api as aws_api:
+    )
+    with mocked_aws_api.return_value as aws_api:
         vpc = (
             (
                 vpc_details["vpc_id"],
@@ -216,8 +299,8 @@ def _setup_mocks(
         aws_api.get_tgws_details.return_value = tgws or []
     mocked_ocm = mocker.patch(
         "reconcile.terraform_tgw_attachments.OCMMap", autospec=True
-    ).return_value
-    mocked_ocm.get.return_value.get_aws_infrastructure_access_terraform_assume_role.return_value = (
+    )
+    mocked_ocm.return_value.get.return_value.get_aws_infrastructure_access_terraform_assume_role.return_value = (
         assume_role
     )
     mocked_ts = mocker.patch(
@@ -234,6 +317,8 @@ def _setup_mocks(
         "tf": mocked_tf,
         "ts": mocked_ts,
         "queries": mocked_queries,
+        "ocm": mocked_ocm,
+        "aws_api": mocked_aws_api,
     }
 
 
@@ -269,6 +354,7 @@ def test_run_when_cluster_with_tgw_connection(
     mocker: MockerFixture,
     cluster_with_tgw_connection: Mapping,
     account_tgw_connection: Mapping,
+    tgw_account: Mapping,
     tgw: Mapping,
     vpc_details: Mapping,
     assume_role: str,
@@ -276,6 +362,7 @@ def test_run_when_cluster_with_tgw_connection(
     mocks = _setup_mocks(
         mocker,
         clusters=[cluster_with_tgw_connection],
+        accounts=[tgw_account],
         vpc_details=vpc_details,
         tgws=[tgw],
         assume_role=assume_role,
@@ -283,44 +370,30 @@ def test_run_when_cluster_with_tgw_connection(
 
     integ.run(True)
 
-    expected_tgw_account = {
-        "name": account_tgw_connection["account"]["name"],
-        "uid": account_tgw_connection["account"]["uid"],
-        "terraformUsername": account_tgw_connection["account"]["terraformUsername"],
-        "assume_role": assume_role,
-        "assume_region": cluster_with_tgw_connection["spec"]["region"],
-        "assume_cidr": cluster_with_tgw_connection["network"]["vpc"],
-    }
+    expected_tgw_account = build_expected_tgw_account(
+        cluster=cluster_with_tgw_connection,
+        connection=account_tgw_connection,
+        assume_role=assume_role,
+    )
+    expected_desired_state_item = build_expected_desired_state_item(
+        cluster=cluster_with_tgw_connection,
+        connection=account_tgw_connection,
+        tgw=tgw,
+        vpc_details=vpc_details,
+        expected_tgw_account=expected_tgw_account,
+    )
 
+    mocks["aws_api"].assert_called()
+    mocks["ocm"].assert_called_once_with(
+        clusters=[cluster_with_tgw_connection],
+        integration=QONTRACT_INTEGRATION,
+        settings={},
+    )
     mocks["ts"].populate_additional_providers.assert_called_once_with(
         [expected_tgw_account]
     )
     mocks["ts"].populate_tgw_attachments.assert_called_once_with(
-        [
-            {
-                "connection_provider": "account-tgw",
-                "connection_name": f"{account_tgw_connection['name']}_{expected_tgw_account['name']}-{tgw['tgw_id']}",
-                "requester": {
-                    "tgw_id": tgw["tgw_id"],
-                    "tgw_arn": tgw["tgw_arn"],
-                    "region": tgw["region"],
-                    "routes": tgw["routes"],
-                    "rules": tgw["rules"],
-                    "hostedzones": tgw["hostedzones"],
-                    "cidr_block": account_tgw_connection["cidrBlock"],
-                    "account": expected_tgw_account,
-                },
-                "accepter": {
-                    "vpc_id": vpc_details["vpc_id"],
-                    "region": cluster_with_tgw_connection["spec"]["region"],
-                    "cidr_block": cluster_with_tgw_connection["network"]["vpc"],
-                    "route_table_ids": vpc_details["route_table_ids"],
-                    "subnets_id_az": vpc_details["subnets_id_az"],
-                    "account": expected_tgw_account,
-                },
-                "deleted": account_tgw_connection["deleted"],
-            }
-        ]
+        [expected_desired_state_item]
     )
 
 
@@ -328,6 +401,8 @@ def test_run_when_cluster_with_mixed_connections(
     mocker: MockerFixture,
     cluster_with_mixed_connections: Mapping,
     account_tgw_connection: Mapping,
+    tgw_account: Mapping,
+    vpc_account: Mapping,
     tgw: Mapping,
     vpc_details: Mapping,
     assume_role: str,
@@ -335,6 +410,7 @@ def test_run_when_cluster_with_mixed_connections(
     mocks = _setup_mocks(
         mocker,
         clusters=[cluster_with_mixed_connections],
+        accounts=[tgw_account, vpc_account],
         vpc_details=vpc_details,
         tgws=[tgw],
         assume_role=assume_role,
@@ -342,60 +418,104 @@ def test_run_when_cluster_with_mixed_connections(
 
     integ.run(True)
 
-    expected_tgw_account = {
-        "name": account_tgw_connection["account"]["name"],
-        "uid": account_tgw_connection["account"]["uid"],
-        "terraformUsername": account_tgw_connection["account"]["terraformUsername"],
-        "assume_role": assume_role,
-        "assume_region": cluster_with_mixed_connections["spec"]["region"],
-        "assume_cidr": cluster_with_mixed_connections["network"]["vpc"],
-    }
+    expected_tgw_account = build_expected_tgw_account(
+        cluster=cluster_with_mixed_connections,
+        connection=account_tgw_connection,
+        assume_role=assume_role,
+    )
+    expected_desired_state_item = build_expected_desired_state_item(
+        cluster=cluster_with_mixed_connections,
+        connection=account_tgw_connection,
+        tgw=tgw,
+        vpc_details=vpc_details,
+        expected_tgw_account=expected_tgw_account,
+    )
 
+    mocks["aws_api"].assert_called()
+    mocks["ocm"].assert_called_once_with(
+        clusters=[cluster_with_mixed_connections],
+        integration=QONTRACT_INTEGRATION,
+        settings={},
+    )
     mocks["ts"].populate_additional_providers.assert_called_once_with(
         [expected_tgw_account]
     )
     mocks["ts"].populate_tgw_attachments.assert_called_once_with(
-        [
-            {
-                "connection_provider": "account-tgw",
-                "connection_name": f"{account_tgw_connection['name']}_{expected_tgw_account['name']}-{tgw['tgw_id']}",
-                "requester": {
-                    "tgw_id": tgw["tgw_id"],
-                    "tgw_arn": tgw["tgw_arn"],
-                    "region": tgw["region"],
-                    "routes": tgw["routes"],
-                    "rules": tgw["rules"],
-                    "hostedzones": tgw["hostedzones"],
-                    "cidr_block": account_tgw_connection["cidrBlock"],
-                    "account": expected_tgw_account,
-                },
-                "accepter": {
-                    "vpc_id": vpc_details["vpc_id"],
-                    "region": cluster_with_mixed_connections["spec"]["region"],
-                    "cidr_block": cluster_with_mixed_connections["network"]["vpc"],
-                    "route_table_ids": vpc_details["route_table_ids"],
-                    "subnets_id_az": vpc_details["subnets_id_az"],
-                    "account": expected_tgw_account,
-                },
-                "deleted": account_tgw_connection["deleted"],
-            }
-        ]
+        [expected_desired_state_item]
     )
 
 
 def test_run_when_cluster_with_vpc_connection_only(
     mocker: MockerFixture,
     cluster_with_vpc_connection: Mapping,
+    vpc_account: Mapping,
 ) -> None:
     mocks = _setup_mocks(
         mocker,
         clusters=[cluster_with_vpc_connection],
+        accounts=[vpc_account],
     )
 
     integ.run(True)
 
+    mocks["aws_api"].assert_called()
+    mocks["ocm"].assert_called_once_with(
+        clusters=[cluster_with_vpc_connection],
+        integration=QONTRACT_INTEGRATION,
+        settings={},
+    )
     mocks["ts"].populate_additional_providers.assert_called_once_with([])
     mocks["ts"].populate_tgw_attachments.assert_called_once_with([])
+
+
+def test_run_with_multiple_clusters(
+    mocker: MockerFixture,
+    cluster_with_tgw_connection: Mapping,
+    cluster_with_vpc_connection: Mapping,
+    account_tgw_connection: Mapping,
+    account_vpc_connection: Mapping,
+    tgw_account: Mapping,
+    vpc_account: Mapping,
+    tgw: Mapping,
+    vpc_details: Mapping,
+    assume_role: str,
+) -> None:
+    mocks = _setup_mocks(
+        mocker,
+        clusters=[cluster_with_tgw_connection, cluster_with_vpc_connection],
+        accounts=[tgw_account, vpc_account],
+        vpc_details=vpc_details,
+        tgws=[tgw],
+        assume_role=assume_role,
+    )
+
+    integ.run(True)
+
+    expected_tgw_account = build_expected_tgw_account(
+        cluster=cluster_with_tgw_connection,
+        connection=account_tgw_connection,
+        assume_role=assume_role,
+    )
+    expected_desired_state_item = build_expected_desired_state_item(
+        cluster=cluster_with_tgw_connection,
+        connection=account_tgw_connection,
+        tgw=tgw,
+        vpc_details=vpc_details,
+        expected_tgw_account=expected_tgw_account,
+    )
+
+    mocks["aws_api"].assert_called()
+    mocks["ocm"].assert_called_once_with(
+        clusters=[cluster_with_tgw_connection, cluster_with_vpc_connection],
+        integration=QONTRACT_INTEGRATION,
+        settings={},
+    )
+    mocks["ts"].populate_additional_providers.assert_called_once_with(
+        [expected_tgw_account]
+    )
+    mocks["ts"].populate_tgw_attachments.assert_called_once_with(
+        [expected_desired_state_item]
+    )
 
 
 def test_duplicate_tgw_connection_names(
