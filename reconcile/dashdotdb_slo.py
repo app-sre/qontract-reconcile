@@ -100,7 +100,6 @@ class DashdotdbSLO(DashdotdbBase):
         result: list[ServiceSLO] = []
         for ns in slo_document.namespaces:
             promurl = ns.cluster.prometheus_url
-            ssl_verify = False if ns.cluster.spec and ns.cluster.spec.private else True
             if not ns.cluster.automation_token:
                 LOG.error(
                     "namespace does not have automation token set %s - skipping", ns
@@ -117,7 +116,6 @@ class DashdotdbSLO(DashdotdbBase):
                     url=promurl,
                     params={"query": (f"{promquery}")},
                     token=promtoken,
-                    ssl_verify=ssl_verify,
                 )
                 prom_result = prom_response["data"]["result"]
                 if not prom_result:

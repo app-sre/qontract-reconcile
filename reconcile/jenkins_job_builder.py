@@ -81,9 +81,7 @@ def init_jjb(
     print_only: bool = False,
 ) -> JJB:
     configs = collect_configs(instance_name, config_name)
-    return JJB(
-        configs, ssl_verify=False, secret_reader=secret_reader, print_only=print_only
-    )
+    return JJB(configs, secret_reader=secret_reader, print_only=print_only)
 
 
 def validate_repos_and_admins(jjb: JJB):

@@ -70,9 +70,7 @@ def get_jenkins_map() -> dict[str, JenkinsApi]:
             continue
 
         token = instance["token"]
-        jenkins = JenkinsApi.init_jenkins_from_secret(
-            secret_reader, token, ssl_verify=False
-        )
+        jenkins = JenkinsApi.init_jenkins_from_secret(secret_reader, token)
         jenkins_map[instance_name] = jenkins
 
     return jenkins_map
