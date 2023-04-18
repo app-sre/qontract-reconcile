@@ -1,13 +1,18 @@
 import logging
 import os
 import sys
-
-from typing import Any, Optional
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import (
+    Iterable,
+    Mapping,
+    Sequence,
+)
+from typing import (
+    Any,
+    Optional,
+)
 
 from github import Github
 from pydantic import BaseModel
-
 
 import reconcile.openshift_base as ob
 from reconcile import queries
@@ -15,8 +20,17 @@ from reconcile.github_org import (
     GH_BASE_URL,
     get_default_config,
 )
+from reconcile.gql_definitions.integrations import integrations
+from reconcile.gql_definitions.integrations.integrations import (
+    EnvironmentV1,
+    IntegrationManagedV1,
+    IntegrationSpecV1,
+    IntegrationV1,
+    NamespaceV1,
+)
 from reconcile.status import ExitCodes
 from reconcile.utils import (
+    gql,
     helm,
 )
 from reconcile.utils.defer import defer
@@ -27,24 +41,14 @@ from reconcile.utils.openshift_resource import (
 )
 from reconcile.utils.runtime.meta import IntegrationMeta
 from reconcile.utils.runtime.sharding import (
-    ShardSpec,
-    StaticShardingStrategy,
     AWSAccountShardingStrategy,
-    OpenshiftClusterShardingStrategy,
     CloudflareDnsZoneShardingStrategy,
     IntegrationShardManager,
+    OpenshiftClusterShardingStrategy,
+    ShardSpec,
+    StaticShardingStrategy,
 )
 from reconcile.utils.semver_helper import make_semver
-from reconcile.utils import gql
-
-from reconcile.gql_definitions.integrations import integrations
-from reconcile.gql_definitions.integrations.integrations import (
-    IntegrationV1,
-    NamespaceV1,
-    IntegrationSpecV1,
-    EnvironmentV1,
-    IntegrationManagedV1,
-)
 
 QONTRACT_INTEGRATION = "integrations-manager"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)

@@ -1,61 +1,50 @@
-import os
-
-from collections.abc import Callable, Iterable
-from typing import Any
 import copy
+import os
+from collections.abc import (
+    Callable,
+    Iterable,
+)
+from typing import Any
 
 import pytest
 
-from reconcile.utils.openshift_resource import ResourceInventory
-
 import reconcile.integrations_manager as intop
-from reconcile.integrations_manager import (
-    HelmIntegrationSpec,
-)
+from reconcile.gql_definitions.common.clusters_minimal import ClusterV1
+from reconcile.gql_definitions.fragments.deplopy_resources import DeployResourcesFields
+from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.gql_definitions.integrations.integrations import (
-    IntegrationV1,
-    IntegrationSpecV1,
-    EnvironmentV1,
     AWSAccountShardSpecOverrideV1,
+    EnvironmentV1,
+    IntegrationSpecV1,
+    IntegrationV1,
     OpenshiftClusterShardSpecOverrideV1,
     OpenshiftClusterShardSpecOverrideV1_ClusterV1,
     StaticSubShardingV1,
 )
-
 from reconcile.gql_definitions.sharding import aws_accounts as sharding_aws_accounts
-
-# from reconcile.gql_definitions.integrations import aws_accounts_sharding
-from reconcile.gql_definitions.fragments.deplopy_resources import DeployResourcesFields
-
-from reconcile.utils.runtime.sharding import (
-    ShardSpec,
-    StaticShardingStrategy,
-    AWSAccountShardingStrategy,
-    OpenshiftClusterShardingStrategy,
-    CloudflareDnsZoneShardingStrategy,
-    IntegrationShardManager,
-    StaticShardingV1,
-    AWSAccountShardingV1,
-    CloudflareDNSZoneShardingV1,
-    OpenshiftClusterShardingV1,
-)
-
-# from reconcile.gql_definitions.common.clusters import ClusterV1
-from reconcile.gql_definitions.common.clusters_minimal import ClusterV1
-
-
-# import reconcile.utils.runtime.integration_sharding as intsharding
-
-from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.gql_definitions.terraform_cloudflare_dns.terraform_cloudflare_zones import (
     AWSAccountV1 as AWSAccountV1_CloudFlare,
+)
+from reconcile.gql_definitions.terraform_cloudflare_dns.terraform_cloudflare_zones import (
     CloudflareAccountV1,
     CloudflareDnsRecordV1,
     CloudflareDnsZoneV1,
 )
-
-# from reconcile.utils.openshift_resource import ResourceInventory
+from reconcile.integrations_manager import HelmIntegrationSpec
+from reconcile.utils.openshift_resource import ResourceInventory
 from reconcile.utils.runtime.meta import IntegrationMeta
+from reconcile.utils.runtime.sharding import (
+    AWSAccountShardingStrategy,
+    AWSAccountShardingV1,
+    CloudflareDnsZoneShardingStrategy,
+    CloudflareDNSZoneShardingV1,
+    IntegrationShardManager,
+    OpenshiftClusterShardingStrategy,
+    OpenshiftClusterShardingV1,
+    ShardSpec,
+    StaticShardingStrategy,
+    StaticShardingV1,
+)
 
 AWS_INTEGRATION = "aws_integration"
 CLOUDFLARE_INTEGRATION = "cloudflare_integration"

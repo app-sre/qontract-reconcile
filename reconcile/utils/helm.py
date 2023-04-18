@@ -7,9 +7,10 @@ from subprocess import (
     run,
 )
 from typing import Any
-from reconcile.utils.runtime.sharding import ShardSpec
 
 import yaml
+
+from reconcile.utils.runtime.sharding import ShardSpec
 
 
 class HelmTemplateError(Exception):

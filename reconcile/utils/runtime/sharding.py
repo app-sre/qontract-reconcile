@@ -1,39 +1,39 @@
 import copy
-
-from dataclasses import dataclass
-from typing import Optional, Protocol, Union
 from collections.abc import Iterable
+from dataclasses import dataclass
+from typing import (
+    Optional,
+    Protocol,
+    Union,
+)
+
 from pydantic import BaseModel
-from reconcile.utils.runtime.meta import IntegrationMeta
-from reconcile.typed_queries.clusters_minimal import get_clusters_minimal
+
 from reconcile.gql_definitions.common.clusters_minimal import ClusterV1
-
+from reconcile.gql_definitions.integrations.integrations import (
+    AWSAccountShardingV1,
+    AWSAccountShardSpecOverrideV1,
+    CloudflareDNSZoneShardingV1,
+    CloudflareDNSZoneShardSpecOverrideV1,
+    IntegrationManagedV1,
+    IntegrationShardingV1,
+    IntegrationSpecV1,
+    OpenshiftClusterShardingV1,
+    OpenshiftClusterShardSpecOverrideV1,
+    StaticShardingV1,
+    StaticSubShardingV1,
+    SubShardingV1,
+)
 from reconcile.gql_definitions.sharding import aws_accounts as sharding_aws_accounts
-
-
 from reconcile.gql_definitions.terraform_cloudflare_dns import (
     terraform_cloudflare_zones,
 )
 from reconcile.gql_definitions.terraform_cloudflare_dns.terraform_cloudflare_zones import (
     CloudflareDnsZoneV1,
 )
-
+from reconcile.typed_queries.clusters_minimal import get_clusters_minimal
 from reconcile.utils import gql
-
-from reconcile.gql_definitions.integrations.integrations import (
-    IntegrationShardingV1,
-    IntegrationManagedV1,
-    IntegrationSpecV1,
-    OpenshiftClusterShardSpecOverrideV1,
-    AWSAccountShardSpecOverrideV1,
-    CloudflareDNSZoneShardSpecOverrideV1,
-    StaticShardingV1,
-    SubShardingV1,
-    StaticSubShardingV1,
-    OpenshiftClusterShardingV1,
-    AWSAccountShardingV1,
-    CloudflareDNSZoneShardingV1,
-)
+from reconcile.utils.runtime.meta import IntegrationMeta
 
 
 class ShardSpec(BaseModel):
@@ -105,23 +105,21 @@ class StaticShardingStrategy:
             raise ValueError(
                 "Static sub_sharding can only be applied to Key based sharding"
             )
-        else:
-            num_shards = 1
-            if isinstance(sub_sharding, StaticSubShardingV1):
-                num_shards = sub_sharding.shards
-            shards: list[ShardSpec] = []
-
-            for s in range(0, num_shards):
-                new_shard = copy.deepcopy(base_shard)
-                if new_shard.shard_spec_overrides and isinstance(
-                    new_shard.shard_spec_overrides, OpenshiftClusterShardSpecOverrideV1
-                ):
-                    new_shard.shard_spec_overrides.sub_sharding = None
-                new_shard.shard_id = str(s)
-                new_shard.shards = str(num_shards)
-                new_shard.shard_name_suffix += f"-{s}"
-                shards.append(new_shard)
-            return shards
+        num_shards = 1
+        if isinstance(sub_sharding, StaticSubShardingV1):
+            num_shards = sub_sharding.shards
+        shards: list[ShardSpec] = []
+        for s in range(0, num_shards):
+            new_shard = copy.deepcopy(base_shard)
+            if new_shard.shard_spec_overrides and isinstance(
+                new_shard.shard_spec_overrides, OpenshiftClusterShardSpecOverrideV1
+            ):
+                new_shard.shard_spec_overrides.sub_sharding = None
+            new_shard.shard_id = str(s)
+            new_shard.shards = str(num_shards)
+            new_shard.shard_name_suffix += f"-{s}"
+            shards.append(new_shard)
+        return shards
 
 
 class AWSAccountShardingStrategy:
@@ -278,9 +276,8 @@ class OpenshiftClusterShardingStrategy:
                 raise ValueError(
                     "Subsharding strategy not allowed by {self.__class__.__name__}"
                 )
-            else:
-                c = self.sub_sharding_strategies[spo.sub_sharding.strategy]
-                sub_shards = c.create_sub_shards(base_shard, spo.sub_sharding)
+            c = self.sub_sharding_strategies[spo.sub_sharding.strategy]
+            sub_shards = c.create_sub_shards(base_shard, spo.sub_sharding)
         return sub_shards
 
     def build_integration_shards(
