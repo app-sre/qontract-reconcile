@@ -892,6 +892,32 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         subnets = ec2.describe_subnets(Filters=[{"Name": "vpc-id", "Values": [vpc_id]}])
         return subnets.get("Subnets", [])
 
+    def get_mesh_vpc_peerings(vpc_key, vpc_value: str, ec2: EC2Client) -> dict:
+        mesh_vpc_dict = {}
+        response = ec2.describe_vpcs()
+        for vpc in response['Vpcs']:
+            if 'Tags' in vpc:
+                for tag in vpc['Tags']:
+                    if tag['Key'] == vpc_key and tag['Value'] == vpc_value:
+                        vpc_id = vpc["VpcId"]
+                        peerings = ec2.describe_vpc_peering_connections(
+                            Filters=[
+                                {
+                                    'Name': 'accepter-vpc-info.vpc-id',
+                                    'Values': [vpc_id]
+                                }
+                            ]
+                        )
+                        for peering in peerings['VpcPeeringConnections']:
+                            peering_name = None
+                            if 'Tags' in peering:
+                                for tag in peering['Tags']:
+                                    if tag['Key'] == 'Name':
+                                        peering_name = tag['Value']
+                                        mesh_vpc_dict[peering_name] = peering['RequesterVpcInfo']['CidrBlock']
+
+        return mesh_vpc_dict
+
     def get_cluster_vpc_details(self, account, route_tables=False, subnets=False):
         """
         Returns a cluster VPC details:

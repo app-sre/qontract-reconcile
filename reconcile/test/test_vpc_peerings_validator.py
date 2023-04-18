@@ -1,3 +1,4 @@
+from os import name
 import pytest
 
 from reconcile.gql_definitions.vpc_peerings_validator.vpc_peerings_validator import (
@@ -365,6 +366,51 @@ def query_data_vpc_cidr_pass_cluster_diff_vpc() -> VpcPeeringsValidatorQueryData
     )
 
 
+@pytest.fixture
+def query_data_vpc_cidr_same_accepter_vpc() -> VpcPeeringsValidatorQueryData:
+    return VpcPeeringsValidatorQueryData(
+        clusters=[
+            ClusterV1(
+                name="clustertest",
+                network=ClusterNetworkV1(vpc="10.20.0.0/20"),
+                spec=ClusterSpecV1(private=True),
+                internal=True,
+                peering=ClusterPeeringV1(
+                    connections=[
+                        ClusterPeeringConnectionClusterAccepterV1(
+                            provider="cluster-vpc-accepter",
+                            cluster= VpcPeeringsValidatorPeeredCluster(
+                                    name="clustertest2",
+                                    network=ClusterNetworkV1(vpc="10.20.0.0/20"),
+                                    spec=ClusterSpecV1(private=True),
+                                    internal=True,
+                                    ),
+                        ),
+                    ]
+                ),
+            ),
+            ClusterV1(
+                name="clustertest2",
+                network=ClusterNetworkV1(vpc="10.20.0.0/20"),
+                spec=ClusterSpecV1(private=True),
+                internal=True,
+                peering=ClusterPeeringV1(
+                    connections=[
+                        ClusterPeeringConnectionAccountV1(
+                            provider="account-vpc",
+                            vpc=AWSVPCV1(cidr_block="10.20.0.0/20", name="vpc1"),
+                        ),
+                        ClusterPeeringConnectionAccountV1(
+                            provider="account-vpc",
+                            vpc=AWSVPCV1(cidr_block="192.168.0.0/16", name="vpc2"),
+                        ),
+                    ]
+                ),
+            ),
+        ]
+    )
+
+
 def test_query_cidr_validator_duplicate(
     query_data_vpc_cidr_duplicate: VpcPeeringsValidatorQueryData,
 ):
@@ -407,3 +453,9 @@ def test_query_cidr_validator_cluster_vpc_diff(
     query_data_vpc_cidr_pass_cluster_diff_vpc: VpcPeeringsValidatorQueryData,
 ):
     assert validate_no_cidr_overlap(query_data_vpc_cidr_pass_cluster_diff_vpc) is True
+
+
+def test_query_data_vpc_cidr_same_accepter_vpc(
+    query_data_vpc_cidr_same_accepter_vpc: VpcPeeringsValidatorQueryData,
+):
+    assert validate_no_cidr_overlap(query_data_vpc_cidr_same_accepter_vpc) is False
