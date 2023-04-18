@@ -397,7 +397,7 @@ def test_shard_manager_aws_account_filtering(
 ):
     assert ["acc-1", "acc-2", "acc-3", "acc-4"] == [
         a.name
-        for a in aws_account_sharding_strategy.filter_accounts("another-integration")
+        for a in aws_account_sharding_strategy.filter_objects("another-integration")
     ]
 
 
@@ -406,7 +406,7 @@ def test_shard_manager_aws_account_filtering_disabled(
 ):
     # acc-4 is disabled for AWS_INTEGRATION
     assert ["acc-1", "acc-2", "acc-3"] == [
-        a.name for a in aws_account_sharding_strategy.filter_accounts(AWS_INTEGRATION)
+        a.name for a in aws_account_sharding_strategy.filter_objects(AWS_INTEGRATION)
     ]
 
 
