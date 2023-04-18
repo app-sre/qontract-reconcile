@@ -294,6 +294,11 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                         resource_template.name,
                         target,
                     )
+                    self._validate_dangling_target_config_hashes(
+                        saas_file.name,
+                        resource_template.name,
+                        target,
+                    )
                     self._validate_allowed_secret_parameter_paths(
                         saas_file.name,
                         target.secret_parameters or [],
@@ -556,6 +561,33 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                 "please remove the IMAGE_TAG parameter, it is automatically generated."
             )
             self.valid = False
+
+    def _validate_dangling_target_config_hashes(
+        self,
+        saas_file_name: str,
+        resource_template_name: str,
+        target: SaasResourceTemplateTarget,
+    ) -> None:
+        if not target.promotion:
+            return
+
+        if not target.promotion.auto:
+            return
+
+        if not target.promotion.subscribe:
+            return
+
+        sub_channels = set(target.promotion.subscribe)
+        for prom_data in target.promotion.promotion_data:
+            if prom_data.channel not in sub_channels:
+                self.valid = False
+                logging.error(
+                    f"[{saas_file_name}/{resource_template_name}] "
+                    "Promotion data detected for unsubscribed channel. "
+                    "Maybe a subscribed channel was removed and you forgot "
+                    "to remove its corresponding promotion_data block? "
+                    f"Please remove promotion_data for channel {prom_data.channel}."
+                )
 
     @staticmethod
     def _get_upstream_jobs(
