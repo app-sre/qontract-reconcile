@@ -84,9 +84,7 @@ def run(dry_run):
 
         token = instance["token"]
         instance_name = instance["name"]
-        jenkins = JenkinsApi.init_jenkins_from_secret(
-            secret_reader, token, ssl_verify=False
-        )
+        jenkins = JenkinsApi.init_jenkins_from_secret(secret_reader, token)
         all_job_names = jenkins.get_job_names()
 
         builds_todel = find_builds(jenkins, all_job_names, cleanup_rules)

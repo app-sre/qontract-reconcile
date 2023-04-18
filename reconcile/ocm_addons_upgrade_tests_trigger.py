@@ -90,7 +90,7 @@ def run(dry_run: bool, defer: Optional[Callable] = None) -> None:
                 )
                 if not dry_run:
                     jenkins = JenkinsApi.init_jenkins_from_secret(
-                        secret_reader, instance["token"], ssl_verify=False
+                        secret_reader, instance["token"]
                     )
                     jenkins.trigger_job(job_name)
 
