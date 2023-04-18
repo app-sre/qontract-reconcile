@@ -578,7 +578,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
             return
 
         sub_channels = set(target.promotion.subscribe)
-        for prom_data in target.promotion.promotion_data:
+        for prom_data in target.promotion.promotion_data or []:
             if prom_data.channel not in sub_channels:
                 self.valid = False
                 logging.error(
