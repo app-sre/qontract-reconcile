@@ -19,6 +19,13 @@ query VpcPeeringsValidator {
             name
           }
         }
+        ... on ClusterPeeringConnectionAccountVPCMesh_v1{
+          name
+          account {
+            name
+          }
+          tags
+        }
         ... on ClusterPeeringConnectionClusterRequester_v1 {
           cluster {
             ... VpcPeeringsValidatorPeeredCluster

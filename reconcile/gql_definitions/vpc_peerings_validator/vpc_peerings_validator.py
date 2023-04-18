@@ -17,9 +17,7 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
-from reconcile.gql_definitions.vpc_peerings_validator.vpc_peerings_validator_peered_cluster_fragment import (
-    VpcPeeringsValidatorPeeredCluster,
-)
+from reconcile.gql_definitions.vpc_peerings_validator.vpc_peerings_validator_peered_cluster_fragment import VpcPeeringsValidatorPeeredCluster
 
 
 DEFINITION = """
@@ -53,6 +51,13 @@ query VpcPeeringsValidator {
             name
           }
         }
+        ... on ClusterPeeringConnectionAccountVPCMesh_v1{
+          name
+          account {
+            name
+          }
+          tags
+        }
         ... on ClusterPeeringConnectionClusterRequester_v1 {
           cluster {
             ... VpcPeeringsValidatorPeeredCluster
@@ -78,8 +83,8 @@ query VpcPeeringsValidator {
 
 class ConfiguredBaseModel(BaseModel):
     class Config:
-        smart_union = True
-        extra = Extra.forbid
+        smart_union=True
+        extra=Extra.forbid
 
 
 class ClusterNetworkV1(ConfiguredBaseModel):
@@ -103,55 +108,42 @@ class ClusterPeeringConnectionAccountV1(ClusterPeeringConnectionV1):
     vpc: AWSVPCV1 = Field(..., alias="vpc")
 
 
-class ClusterPeeringConnectionClusterRequesterV1_ClusterV1_ClusterNetworkV1(
-    ConfiguredBaseModel
-):
+class AWSAccountV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+
+
+class ClusterPeeringConnectionAccountVPCMeshV1(ClusterPeeringConnectionV1):
+    name: str = Field(..., alias="name")
+    account: AWSAccountV1 = Field(..., alias="account")
+    tags: Optional[Json] = Field(..., alias="tags")
+
+
+class ClusterPeeringConnectionClusterRequesterV1_ClusterV1_ClusterNetworkV1(ConfiguredBaseModel):
     vpc: str = Field(..., alias="vpc")
 
 
-class ClusterPeeringConnectionClusterRequesterV1_ClusterV1(
-    VpcPeeringsValidatorPeeredCluster
-):
-    network: Optional[
-        ClusterPeeringConnectionClusterRequesterV1_ClusterV1_ClusterNetworkV1
-    ] = Field(..., alias="network")
+class ClusterPeeringConnectionClusterRequesterV1_ClusterV1(VpcPeeringsValidatorPeeredCluster):
+    network: Optional[ClusterPeeringConnectionClusterRequesterV1_ClusterV1_ClusterNetworkV1] = Field(..., alias="network")
 
 
 class ClusterPeeringConnectionClusterRequesterV1(ClusterPeeringConnectionV1):
-    cluster: ClusterPeeringConnectionClusterRequesterV1_ClusterV1 = Field(
-        ..., alias="cluster"
-    )
+    cluster: ClusterPeeringConnectionClusterRequesterV1_ClusterV1 = Field(..., alias="cluster")
 
 
-class ClusterPeeringConnectionClusterAccepterV1_ClusterV1_ClusterNetworkV1(
-    ConfiguredBaseModel
-):
+class ClusterPeeringConnectionClusterAccepterV1_ClusterV1_ClusterNetworkV1(ConfiguredBaseModel):
     vpc: str = Field(..., alias="vpc")
 
 
-class ClusterPeeringConnectionClusterAccepterV1_ClusterV1(
-    VpcPeeringsValidatorPeeredCluster
-):
-    network: Optional[
-        ClusterPeeringConnectionClusterAccepterV1_ClusterV1_ClusterNetworkV1
-    ] = Field(..., alias="network")
+class ClusterPeeringConnectionClusterAccepterV1_ClusterV1(VpcPeeringsValidatorPeeredCluster):
+    network: Optional[ClusterPeeringConnectionClusterAccepterV1_ClusterV1_ClusterNetworkV1] = Field(..., alias="network")
 
 
 class ClusterPeeringConnectionClusterAccepterV1(ClusterPeeringConnectionV1):
-    cluster: ClusterPeeringConnectionClusterAccepterV1_ClusterV1 = Field(
-        ..., alias="cluster"
-    )
+    cluster: ClusterPeeringConnectionClusterAccepterV1_ClusterV1 = Field(..., alias="cluster")
 
 
 class ClusterPeeringV1(ConfiguredBaseModel):
-    connections: list[
-        Union[
-            ClusterPeeringConnectionAccountV1,
-            ClusterPeeringConnectionClusterRequesterV1,
-            ClusterPeeringConnectionClusterAccepterV1,
-            ClusterPeeringConnectionV1,
-        ]
-    ] = Field(..., alias="connections")
+    connections: list[Union[ClusterPeeringConnectionAccountVPCMeshV1, ClusterPeeringConnectionAccountV1, ClusterPeeringConnectionClusterRequesterV1, ClusterPeeringConnectionClusterAccepterV1, ClusterPeeringConnectionV1]] = Field(..., alias="connections")
 
 
 class ClusterV1(ConfiguredBaseModel):
