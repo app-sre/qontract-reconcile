@@ -1,6 +1,5 @@
 from collections.abc import (
     Callable,
-    Iterable,
     Mapping,
 )
 from typing import Any
@@ -22,15 +21,16 @@ from .data_keys import (
 
 def test_no_change(
     subscriber_builder: Callable[[Mapping[str, Any]], Subscriber],
-    config_hashes_builder: Callable[
-        [Iterable[tuple[str, str, str]]], frozenset[ConfigHash]
-    ],
 ):
     subscriber = subscriber_builder(
         {
             CUR_SUBSCRIBER_REF: "current_sha",
             CUR_CONFIG_HASHES: [
-                ("channel-a", "publisher_a", "current_hash"),
+                ConfigHash(
+                    channel="channel-a",
+                    parent_saas="publisher_a",
+                    target_config_hash="current_hash",
+                ),
             ],
             CHANNELS: {
                 "channel-a": {
@@ -43,24 +43,29 @@ def test_no_change(
         }
     )
     subscriber.compute_desired_state()
-    expected_config_hashes = config_hashes_builder(
-        [("channel-a", "publisher_a", "current_hash")]
-    )
+    expected_config_hashes = [
+        ConfigHash(
+            channel="channel-a",
+            parent_saas="publisher_a",
+            target_config_hash="current_hash",
+        )
+    ]
     assert subscriber.desired_ref == "current_sha"
     assert subscriber.desired_hashes == expected_config_hashes
 
 
 def test_moving_ref(
     subscriber_builder: Callable[[Mapping[str, Any]], Subscriber],
-    config_hashes_builder: Callable[
-        [Iterable[tuple[str, str, str]]], frozenset[ConfigHash]
-    ],
 ):
     subscriber = subscriber_builder(
         {
             CUR_SUBSCRIBER_REF: "current_sha",
             CUR_CONFIG_HASHES: [
-                ("channel-a", "publisher_a", "current_hash"),
+                ConfigHash(
+                    channel="channel-a",
+                    parent_saas="publisher_a",
+                    target_config_hash="current_hash",
+                ),
             ],
             CHANNELS: {
                 "channel-a": {
@@ -73,24 +78,29 @@ def test_moving_ref(
         }
     )
     subscriber.compute_desired_state()
-    expected_config_hashes = config_hashes_builder(
-        [("channel-a", "publisher_a", "current_hash")]
-    )
+    expected_config_hashes = [
+        ConfigHash(
+            channel="channel-a",
+            parent_saas="publisher_a",
+            target_config_hash="current_hash",
+        )
+    ]
     assert subscriber.desired_ref == "new_sha"
     assert subscriber.desired_hashes == expected_config_hashes
 
 
 def test_moving_ref_bad_deployment(
     subscriber_builder: Callable[[Mapping[str, Any]], Subscriber],
-    config_hashes_builder: Callable[
-        [Iterable[tuple[str, str, str]]], frozenset[ConfigHash]
-    ],
 ):
     subscriber = subscriber_builder(
         {
             CUR_SUBSCRIBER_REF: "current_sha",
             CUR_CONFIG_HASHES: [
-                ("channel-a", "publisher_a", "current_hash"),
+                ConfigHash(
+                    channel="channel-a",
+                    parent_saas="publisher_a",
+                    target_config_hash="current_hash",
+                ),
             ],
             CHANNELS: {
                 "channel-a": {
@@ -104,24 +114,29 @@ def test_moving_ref_bad_deployment(
         }
     )
     subscriber.compute_desired_state()
-    expected_config_hashes = config_hashes_builder(
-        [("channel-a", "publisher_a", "current_hash")]
-    )
+    expected_config_hashes = [
+        ConfigHash(
+            channel="channel-a",
+            parent_saas="publisher_a",
+            target_config_hash="current_hash",
+        )
+    ]
     assert subscriber.desired_ref == "current_sha"
     assert subscriber.desired_hashes == expected_config_hashes
 
 
 def test_new_config_hash(
     subscriber_builder: Callable[[Mapping[str, Any]], Subscriber],
-    config_hashes_builder: Callable[
-        [Iterable[tuple[str, str, str]]], frozenset[ConfigHash]
-    ],
 ):
     subscriber = subscriber_builder(
         {
             CUR_SUBSCRIBER_REF: "current_sha",
             CUR_CONFIG_HASHES: [
-                ("channel-a", "publisher_a", "current_hash"),
+                ConfigHash(
+                    channel="channel-a",
+                    parent_saas="publisher_a",
+                    target_config_hash="current_hash",
+                ),
             ],
             CHANNELS: {
                 "channel-a": {
@@ -134,24 +149,29 @@ def test_new_config_hash(
         }
     )
     subscriber.compute_desired_state()
-    expected_config_hashes = config_hashes_builder(
-        [("channel-a", "publisher_a", "new_hash")]
-    )
+    expected_config_hashes = [
+        ConfigHash(
+            channel="channel-a",
+            parent_saas="publisher_a",
+            target_config_hash="new_hash",
+        )
+    ]
     assert subscriber.desired_ref == "current_sha"
     assert subscriber.desired_hashes == expected_config_hashes
 
 
 def test_new_config_hash_bad_deployment(
     subscriber_builder: Callable[[Mapping[str, Any]], Subscriber],
-    config_hashes_builder: Callable[
-        [Iterable[tuple[str, str, str]]], frozenset[ConfigHash]
-    ],
 ):
     subscriber = subscriber_builder(
         {
             CUR_SUBSCRIBER_REF: "current_sha",
             CUR_CONFIG_HASHES: [
-                ("channel-a", "publisher_a", "current_hash"),
+                ConfigHash(
+                    channel="channel-a",
+                    parent_saas="publisher_a",
+                    target_config_hash="current_hash",
+                ),
             ],
             CHANNELS: {
                 "channel-a": {
@@ -165,24 +185,29 @@ def test_new_config_hash_bad_deployment(
         }
     )
     subscriber.compute_desired_state()
-    expected_config_hashes = config_hashes_builder(
-        [("channel-a", "publisher_a", "current_hash")]
-    )
+    expected_config_hashes = [
+        ConfigHash(
+            channel="channel-a",
+            parent_saas="publisher_a",
+            target_config_hash="current_hash",
+        )
+    ]
     assert subscriber.desired_ref == "current_sha"
     assert subscriber.desired_hashes == expected_config_hashes
 
 
 def test_new_config_hash_and_moving_ref(
     subscriber_builder: Callable[[Mapping[str, Any]], Subscriber],
-    config_hashes_builder: Callable[
-        [Iterable[tuple[str, str, str]]], frozenset[ConfigHash]
-    ],
 ):
     subscriber = subscriber_builder(
         {
             CUR_SUBSCRIBER_REF: "current_sha",
             CUR_CONFIG_HASHES: [
-                ("channel-a", "publisher_a", "current_hash"),
+                ConfigHash(
+                    channel="channel-a",
+                    parent_saas="publisher_a",
+                    target_config_hash="current_hash",
+                ),
             ],
             CHANNELS: {
                 "channel-a": {
@@ -195,24 +220,29 @@ def test_new_config_hash_and_moving_ref(
         }
     )
     subscriber.compute_desired_state()
-    expected_config_hashes = config_hashes_builder(
-        [("channel-a", "publisher_a", "new_hash")]
-    )
+    expected_config_hashes = [
+        ConfigHash(
+            channel="channel-a",
+            parent_saas="publisher_a",
+            target_config_hash="new_hash",
+        )
+    ]
     assert subscriber.desired_ref == "new_sha"
     assert subscriber.desired_hashes == expected_config_hashes
 
 
 def test_new_config_hash_and_moving_ref_and_bad_deployment(
     subscriber_builder: Callable[[Mapping[str, Any]], Subscriber],
-    config_hashes_builder: Callable[
-        [Iterable[tuple[str, str, str]]], frozenset[ConfigHash]
-    ],
 ):
     subscriber = subscriber_builder(
         {
             CUR_SUBSCRIBER_REF: "current_sha",
             CUR_CONFIG_HASHES: [
-                ("channel-a", "publisher_a", "current_hash"),
+                ConfigHash(
+                    channel="channel-a",
+                    parent_saas="publisher_a",
+                    target_config_hash="current_hash",
+                ),
             ],
             CHANNELS: {
                 "channel-a": {
@@ -226,18 +256,19 @@ def test_new_config_hash_and_moving_ref_and_bad_deployment(
         }
     )
     subscriber.compute_desired_state()
-    expected_config_hashes = config_hashes_builder(
-        [("channel-a", "publisher_a", "current_hash")]
-    )
+    expected_config_hashes = [
+        ConfigHash(
+            channel="channel-a",
+            parent_saas="publisher_a",
+            target_config_hash="current_hash",
+        )
+    ]
     assert subscriber.desired_ref == "current_sha"
     assert subscriber.desired_hashes == expected_config_hashes
 
 
 def test_cur_config_hash_did_not_exist(
     subscriber_builder: Callable[[Mapping[str, Any]], Subscriber],
-    config_hashes_builder: Callable[
-        [Iterable[tuple[str, str, str]]], frozenset[ConfigHash]
-    ],
 ):
     subscriber = subscriber_builder(
         {
@@ -254,8 +285,12 @@ def test_cur_config_hash_did_not_exist(
         }
     )
     subscriber.compute_desired_state()
-    expected_config_hashes = config_hashes_builder(
-        [("channel-a", "publisher_a", "new_hash")]
-    )
+    expected_config_hashes = [
+        ConfigHash(
+            channel="channel-a",
+            parent_saas="publisher_a",
+            target_config_hash="new_hash",
+        )
+    ]
     assert subscriber.desired_ref == "current_sha"
     assert subscriber.desired_hashes == expected_config_hashes

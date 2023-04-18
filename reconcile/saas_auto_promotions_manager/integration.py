@@ -13,10 +13,7 @@ from reconcile.saas_auto_promotions_manager.merge_request_manager.renderer impor
     Renderer,
 )
 from reconcile.saas_auto_promotions_manager.publisher import Publisher
-from reconcile.saas_auto_promotions_manager.subscriber import (
-    ConfigHash,
-    Subscriber,
-)
+from reconcile.saas_auto_promotions_manager.subscriber import Subscriber
 from reconcile.saas_auto_promotions_manager.utils.saas_files_inventory import (
     SaasFilesInventory,
 )
@@ -77,20 +74,7 @@ class SaasAutoPromotionsManager:
             subscriber.compute_desired_state()
 
     def _get_subscribers_with_diff(self) -> list[Subscriber]:
-        subscribers_with_diff: list[Subscriber] = []
-        for subscriber in self._saas_file_inventory.subscribers:
-            current_hashes: list[ConfigHash] = []
-            for s in subscriber.config_hashes_by_channel_name.values():
-                for el in s:
-                    current_hashes.append(el)
-            if (
-                set(subscriber.desired_hashes) == set(current_hashes)
-                and subscriber.desired_ref == subscriber.ref
-            ):
-                # There is no change that requires a promotion
-                continue
-            subscribers_with_diff.append(subscriber)
-        return subscribers_with_diff
+        return [s for s in self._saas_file_inventory.subscribers if s.has_diff()]
 
     def reconcile(self) -> None:
         self._deployment_state.cache_commit_shas_from_s3()

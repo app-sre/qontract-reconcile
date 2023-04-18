@@ -1,7 +1,6 @@
 from collections import defaultdict
 from collections.abc import (
     Callable,
-    Iterable,
     Mapping,
 )
 from typing import Any
@@ -23,28 +22,13 @@ from .data_keys import (
     CONFIG_HASH,
     CUR_CONFIG_HASHES,
     CUR_SUBSCRIBER_REF,
+    DESIRED_REF,
+    DESIRED_TARGET_HASHES,
     NAMESPACE_REF,
     REAL_WORLD_SHA,
     SUCCESSFUL_DEPLOYMENT,
     TARGET_FILE_PATH,
 )
-
-
-@pytest.fixture
-def config_hashes_builder() -> Callable[
-    [Iterable[tuple[str, str, str]]], list[ConfigHash]
-]:
-    def builder(data: Iterable[tuple[str, str, str]]) -> list[ConfigHash]:
-        return [
-            ConfigHash(
-                channel=d[0],
-                parent_saas=d[1],
-                target_config_hash=d[2],
-            )
-            for d in data
-        ]
-
-    return builder
 
 
 @pytest.fixture
@@ -69,12 +53,8 @@ def subscriber_builder() -> Callable[[Mapping[str, Any]], Subscriber]:
             channels.append(channel)
         cur_config_hashes_by_channel: dict[str, list[ConfigHash]] = defaultdict(list)
         for cur_config_hash in data.get(CUR_CONFIG_HASHES, []):
-            cur_config_hashes_by_channel[cur_config_hash[0]].append(
-                ConfigHash(
-                    channel=cur_config_hash[0],
-                    parent_saas=cur_config_hash[1],
-                    target_config_hash=cur_config_hash[2],
-                )
+            cur_config_hashes_by_channel[cur_config_hash.channel].append(
+                cur_config_hash
             )
         subscriber = Subscriber(
             namespace_file_path=data.get(NAMESPACE_REF, ""),
@@ -85,6 +65,8 @@ def subscriber_builder() -> Callable[[Mapping[str, Any]], Subscriber]:
         )
         subscriber.channels = channels
         subscriber.config_hashes_by_channel_name = cur_config_hashes_by_channel
+        subscriber.desired_ref = data.get(DESIRED_REF, "")
+        subscriber.desired_hashes = data.get(DESIRED_TARGET_HASHES, [])
         return subscriber
 
     return builder
