@@ -1,0 +1,6 @@
+---
+settings:
+- alertingServices: 
+  - yak-shaver
+  - yak-shaver
+  - yak-trimmer

@@ -28,6 +28,7 @@ from sretoolbox.utils import threaded
 import reconcile.aus.base as aus
 import reconcile.openshift_base as ob
 import reconcile.openshift_resources_base as orb
+import reconcile.prometheus_rules_tester.integration as ptr
 import reconcile.terraform_resources as tfr
 import reconcile.terraform_users as tfu
 import reconcile.terraform_vpc_peerings as tfvpc
@@ -46,9 +47,13 @@ from reconcile.cli import (
     config_file,
     use_jump_host,
 )
+from reconcile.gql_definitions.common.app_interface_vault_settings import (
+    AppInterfaceSettingsV1,
+)
 from reconcile.jenkins_job_builder import init_jjb
-from reconcile.prometheus_rules_tester import get_data_from_jinja_test_template
+from reconcile.prometheus_rules_tester_old import get_data_from_jinja_test_template
 from reconcile.slack_base import slackapi_from_queries
+from reconcile.typed_queries.alerting_services_settings import get_alerting_services
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
@@ -2218,6 +2223,61 @@ def template(ctx, cluster, namespace, kind, name, path, secret_reader):
 )
 @click.pass_context
 def run_prometheus_test(ctx, path, cluster, namespace, secret_reader):
+    """Run prometheus tests for the rule associated with the test in the PATH from given
+    CLUSTER/NAMESPACE"""
+
+    if path.startswith("resources"):
+        path = path.replace("resources", "", 1)
+
+    namespace_with_prom_rules, _ = orb.get_namespaces(
+        ["prometheus-rule"],
+        cluster_name=cluster,
+        namespace_name=namespace,
+    )
+
+    rtf = None
+    for ns in namespace_with_prom_rules:
+        for resource in ns["openshiftResources"]:
+            tests = resource.get("tests", [])
+            if path not in tests:
+                continue
+
+            rtf = ptr.RuleToFetch(namespace=ns, resource=resource)
+            break
+
+    if not rtf:
+        print(f"No test found with {path} in {cluster}/{namespace}")
+        sys.exit(1)
+
+    use_vault = secret_reader == "vault"
+    vault_settings = AppInterfaceSettingsV1(vault=use_vault)
+    test = ptr.fetch_rule_and_tests(rule=rtf, vault_settings=vault_settings)
+    ptr.run_test(test=test, alerting_services=get_alerting_services())
+
+    print(test.result)
+    if not test.result:
+        sys.exit(1)
+
+
+@root.command()
+@click.argument("path")
+@click.argument("cluster")
+@click.option(
+    "-n",
+    "--namespace",
+    default="openshift-customer-monitoring",
+    help="Cluster namespace where the rules are deployed. It defaults to "
+    "openshift-customer-monitoring.",
+)
+@click.option(
+    "-s",
+    "--secret-reader",
+    default="vault",
+    help="Location to read secrets.",
+    type=click.Choice(["config", "vault"]),
+)
+@click.pass_context
+def run_prometheus_test_old(ctx, path, cluster, namespace, secret_reader):
     """Run prometheus tests in PATH loading associated rules from CLUSTER."""
     gqlapi = gql.get_api()
 
