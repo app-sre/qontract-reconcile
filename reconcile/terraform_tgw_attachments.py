@@ -234,6 +234,17 @@ def _populate_tgw_attachments_working_dirs(
     return working_dirs
 
 
+def _is_tgw_cluster(cluster: Mapping) -> bool:
+    return any(
+        pc["provider"] == TGW_CONNECTION_PROVIDER
+        for pc in cluster["peering"]["connections"]
+    )
+
+
+def _filter_tgw_clusters(clusters: Iterable[Mapping]) -> list:
+    return list(filter(_is_tgw_cluster, clusters))
+
+
 @defer
 def run(
     dry_run: bool,
@@ -244,13 +255,14 @@ def run(
 ) -> None:
     settings = queries.get_secret_reader_settings()
     clusters = queries.get_clusters_with_peering_settings()
-    ocm_map = _build_ocm_map(clusters, settings)
+    tgw_clusters = _filter_tgw_clusters(clusters)
+    ocm_map = _build_ocm_map(tgw_clusters, settings)
     accounts = queries.get_aws_accounts(terraform_state=True, ecrs=False)
 
     # Fetch desired state for cluster-to-vpc(account) VPCs
     with AWSApi(1, accounts, settings=settings, init_users=False) as awsapi:
         desired_state, err = build_desired_state_tgw_attachments(
-            clusters, ocm_map, awsapi
+            tgw_clusters, ocm_map, awsapi
         )
     if err:
         raise RuntimeError("Could not find VPC ID for cluster")

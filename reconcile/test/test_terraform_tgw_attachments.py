@@ -459,11 +459,7 @@ def test_run_when_cluster_with_vpc_connection_only(
     integ.run(True)
 
     mocks["aws_api"].assert_called()
-    mocks["ocm"].assert_called_once_with(
-        clusters=[cluster_with_vpc_connection],
-        integration=QONTRACT_INTEGRATION,
-        settings={},
-    )
+    mocks["ocm"].assert_not_called()
     mocks["ts"].populate_additional_providers.assert_called_once_with([])
     mocks["ts"].populate_tgw_attachments.assert_called_once_with([])
 
@@ -506,7 +502,7 @@ def test_run_with_multiple_clusters(
 
     mocks["aws_api"].assert_called()
     mocks["ocm"].assert_called_once_with(
-        clusters=[cluster_with_tgw_connection, cluster_with_vpc_connection],
+        clusters=[cluster_with_tgw_connection],
         integration=QONTRACT_INTEGRATION,
         settings={},
     )
