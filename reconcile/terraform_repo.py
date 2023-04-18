@@ -253,3 +253,8 @@ def run(
             )
     else:
         print(yaml.safe_dump(action_plan))
+
+
+def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
+    gqlapi = gql.get_api()
+    return {"repos": get_repos(query_func=gqlapi.query)}
