@@ -220,6 +220,23 @@ class TestSaasFileValid(TestCase):
 
         self.assertFalse(saasherder.valid)
 
+    def test_dangling_target_config_hash(self) -> None:
+        self.saas_file.resource_templates[0].targets[1].promotion.promotion_data[
+            0
+        ].channel = "does-not-exist"
+        saasherder = SaasHerder(
+            [self.saas_file],
+            secret_reader=MockSecretReader(),
+            thread_pool_size=1,
+            integration="",
+            integration_version="",
+            hash_length=7,
+            repo_url="https://repo-url.com",
+            validate=True,
+        )
+
+        self.assertFalse(saasherder.valid)
+
     def test_check_saas_file_upstream_used_with_image(self) -> None:
         self.saas_file.resource_templates[0].targets[
             0
