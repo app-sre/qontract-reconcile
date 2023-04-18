@@ -952,7 +952,13 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
             recycle_time = now.strftime("%d/%m/%Y %H:%M:%S")
 
             # get the object in case it was modified
-            obj = self.get(namespace, kind, name)
+            # if the resource is gone, there is nothing to recycle
+            obj = self.get(namespace, kind, name, allow_not_found=True)
+            if not obj:
+                logging.info(
+                    f"[{self.cluster_name}/{namespace}] {kind.lower()}/{name} not found."
+                )
+                return
             # honor update strategy by setting annotations to force
             # a new rollout
             a = obj["spec"]["template"]["metadata"].get("annotations", {})
