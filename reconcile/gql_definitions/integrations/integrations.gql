@@ -17,22 +17,10 @@ query Integrations {
           serverUrl
           insecureSkipTLSVerify
           jumpHost {
-            hostname
-            knownHosts
-            user
-            port
-            identity {
-                path
-                field
-                version
-                format
-            }
+            ...CommonJumphostFields
           }
           automationToken {
-            path
-            field
-            version
-            format
+            ... VaultSecret
           }
         }
       }

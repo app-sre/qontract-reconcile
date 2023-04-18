@@ -17,10 +17,25 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
+from reconcile.gql_definitions.fragments.jumphost_common_fields import (
+    CommonJumphostFields,
+)
 from reconcile.gql_definitions.fragments.deplopy_resources import DeployResourcesFields
+from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
 
 DEFINITION = """
+fragment CommonJumphostFields on ClusterJumpHost_v1 {
+  hostname
+  knownHosts
+  user
+  port
+  remotePort
+  identity {
+    ... VaultSecret
+  }
+}
+
 fragment DeployResourcesFields on DeployResources_v1 {
   requests {
     cpu
@@ -30,6 +45,13 @@ fragment DeployResourcesFields on DeployResources_v1 {
     cpu
     memory
   }
+}
+
+fragment VaultSecret on VaultSecret_v1 {
+    path
+    field
+    version
+    format
 }
 
 query Integrations {
@@ -49,22 +71,10 @@ query Integrations {
           serverUrl
           insecureSkipTLSVerify
           jumpHost {
-            hostname
-            knownHosts
-            user
-            port
-            identity {
-                path
-                field
-                version
-                format
-            }
+            ...CommonJumphostFields
           }
           automationToken {
-            path
-            field
-            version
-            format
+            ... VaultSecret
           }
         }
       }
@@ -177,36 +187,12 @@ class EnvironmentV1(ConfiguredBaseModel):
     parameters: Optional[Json] = Field(..., alias="parameters")
 
 
-class VaultSecretV1(ConfiguredBaseModel):
-    path: str = Field(..., alias="path")
-    field: str = Field(..., alias="field")
-    version: Optional[int] = Field(..., alias="version")
-    q_format: Optional[str] = Field(..., alias="format")
-
-
-class ClusterJumpHostV1(ConfiguredBaseModel):
-    hostname: str = Field(..., alias="hostname")
-    known_hosts: str = Field(..., alias="knownHosts")
-    user: str = Field(..., alias="user")
-    port: Optional[int] = Field(..., alias="port")
-    identity: VaultSecretV1 = Field(..., alias="identity")
-
-
-class ClusterV1_VaultSecretV1(ConfiguredBaseModel):
-    path: str = Field(..., alias="path")
-    field: str = Field(..., alias="field")
-    version: Optional[int] = Field(..., alias="version")
-    q_format: Optional[str] = Field(..., alias="format")
-
-
 class ClusterV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     server_url: str = Field(..., alias="serverUrl")
     insecure_skip_tls_verify: Optional[bool] = Field(..., alias="insecureSkipTLSVerify")
-    jump_host: Optional[ClusterJumpHostV1] = Field(..., alias="jumpHost")
-    automation_token: Optional[ClusterV1_VaultSecretV1] = Field(
-        ..., alias="automationToken"
-    )
+    jump_host: Optional[CommonJumphostFields] = Field(..., alias="jumpHost")
+    automation_token: Optional[VaultSecret] = Field(..., alias="automationToken")
 
 
 class NamespaceV1(ConfiguredBaseModel):
