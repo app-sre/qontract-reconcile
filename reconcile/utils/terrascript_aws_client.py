@@ -328,7 +328,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         integration: str,
         integration_prefix: str,
         thread_pool_size: int,
-        accounts: list[dict[str, Any]],
+        accounts: Iterable[dict[str, Any]],
         settings: Optional[Mapping[str, Any]] = None,
         prefetch_resources_by_schemas: Optional[list[str]] = None,
     ) -> None:
@@ -837,7 +837,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             alias = self.get_alias_name_from_assume_role(assume_role)
             ts = self.tss[account_name]
             config = self.configs[account_name]
-            existing_provider_aliases = [p.get("alias") for p in ts["provider"]["aws"]]
+            existing_provider_aliases = {p.get("alias") for p in ts["provider"]["aws"]}
             if alias not in existing_provider_aliases:
                 ts += provider.aws(
                     access_key=config["aws_access_key_id"],
