@@ -280,21 +280,19 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
                 if action == "no-op":
                     logging.debug([action, name, resource_type, resource_name])
                     continue
-                # Ignore RDS modifications that are going to occur during the next
-                # maintenance window. This can be up to 7 days away and will cause
-                # unnecessary Terraform state updates until they complete.
-                if (
-                    action == "update"
-                    and resource_type == "aws_db_instance"
-                    and self._can_skip_rds_modifications(
+                if action == "update" and resource_type == "aws_db_instance":
+                    self._validate_db_upgrade(name, resource_name, resource_change)
+                    # Ignore RDS modifications that are going to occur during the next
+                    # maintenance window. This can be up to 7 days away and will cause
+                    # unnecessary Terraform state updates until they complete.
+                    if self._can_skip_rds_modifications(
                         name, resource_name, resource_change
-                    )
-                ):
-                    logging.debug(
-                        f"Resource {resource_name} contains pending changes that "
-                        f"can be skipped, should_apply will not be set."
-                    )
-                    continue
+                    ):
+                        logging.debug(
+                            f"Resource {resource_name} contains pending changes that "
+                            f"can be skipped, should_apply will not be set."
+                        )
+                        continue
                 with self._log_lock:
                     logging.info(
                         [
@@ -684,6 +682,52 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
             # pending changes.
             return not set(changed_resource_arguments) - set(changed_values)
         return False
+
+    def _validate_db_upgrade(
+        self, account_name: str, resource_name: str, resource_change: Mapping[str, Any]
+    ):
+        """
+        Determine whether the RDS engine version upgrade is valid.
+
+        :param str account_name: Name of the AWS account.
+        :param str resource_name: Name of the RDS database instance.  This is the
+            unique database instance identifier.
+        :param resource_change: A dict that describes changes pending, before
+            and after, for the underlying resource.  Format of the data follows
+            Terraform's JSON-formatted output specification, see:
+              https://developer.hashicorp.com/terraform/internals/json-format
+        """
+
+        before = resource_change["before"]
+        engine = before["engine"]
+        before_version = before["engine_version"]
+        after = resource_change["after"]
+        after_version = after["engine_version"]
+        if after_version == before_version:
+            return
+
+        region_name = get_region_from_availability_zone(before["availability_zone"])
+        if self._aws_api is not None:
+            valid_upgrade_target = self._aws_api.get_db_valid_upgrade_target(
+                account_name, engine, before_version, region_name=region_name
+            )
+            found = False
+            for t in valid_upgrade_target:
+                if t["EngineVersion"] == after_version:
+                    found = True
+                    if t["IsMajorVersionUpgrade"] and not after.get(
+                        "allow_major_version_upgrade", False
+                    ):
+                        raise ValueError(
+                            "allow_major_version_upgrade is not enabled for upgrading RDS instance: "
+                            f"{resource_name} to a new major version."
+                        )
+
+            if not found:
+                raise ValueError(
+                    f"Cannot upgrade RDS instance: {resource_name} "
+                    f"from {before_version} to {after_version}"
+                )
 
 
 class TerraformPlanFailed(Exception):
