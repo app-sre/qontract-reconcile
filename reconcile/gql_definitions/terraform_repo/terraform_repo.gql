@@ -5,7 +5,6 @@ query TerraformRepo {
     account {
       name
       uid
-      terraformUsername
       automationToken {
         ...VaultSecret
       }
@@ -14,5 +13,6 @@ query TerraformRepo {
     repository
     ref
     projectPath
+    delete
   }
 }

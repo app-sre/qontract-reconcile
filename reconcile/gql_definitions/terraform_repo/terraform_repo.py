@@ -33,7 +33,6 @@ query TerraformRepo {
     account {
       name
       uid
-      terraformUsername
       automationToken {
         ...VaultSecret
       }
@@ -42,6 +41,7 @@ query TerraformRepo {
     repository
     ref
     projectPath
+    delete
   }
 }
 """
@@ -56,7 +56,6 @@ class ConfiguredBaseModel(BaseModel):
 class AWSAccountV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     uid: str = Field(..., alias="uid")
-    terraform_username: Optional[str] = Field(..., alias="terraformUsername")
     automation_token: VaultSecret = Field(..., alias="automationToken")
 
 
@@ -66,6 +65,7 @@ class TerraformRepoV1(ConfiguredBaseModel):
     repository: str = Field(..., alias="repository")
     ref: str = Field(..., alias="ref")
     project_path: str = Field(..., alias="projectPath")
+    delete: Optional[bool] = Field(..., alias="delete")
 
 
 class TerraformRepoQueryData(ConfiguredBaseModel):
