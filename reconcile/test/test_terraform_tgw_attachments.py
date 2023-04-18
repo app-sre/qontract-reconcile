@@ -285,18 +285,18 @@ def _setup_mocks(
     mocked_aws_api = mocker.patch(
         "reconcile.terraform_tgw_attachments.AWSApi", autospec=True
     )
-    with mocked_aws_api.return_value as aws_api:
-        vpc = (
-            (
-                vpc_details["vpc_id"],
-                vpc_details["route_table_ids"],
-                vpc_details["subnets_id_az"],
-            )
-            if vpc_details is not None
-            else (None, None, None)
+    aws_api = mocked_aws_api.return_value
+    vpc = (
+        (
+            vpc_details["vpc_id"],
+            vpc_details["route_table_ids"],
+            vpc_details["subnets_id_az"],
         )
-        aws_api.get_cluster_vpc_details.return_value = vpc
-        aws_api.get_tgws_details.return_value = tgws or []
+        if vpc_details is not None
+        else (None, None, None)
+    )
+    aws_api.get_cluster_vpc_details.return_value = vpc
+    aws_api.get_tgws_details.return_value = tgws or []
     mocked_ocm = mocker.patch(
         "reconcile.terraform_tgw_attachments.OCMMap", autospec=True
     )
@@ -383,7 +383,9 @@ def test_run_when_cluster_with_tgw_connection(
         expected_tgw_account=expected_tgw_account,
     )
 
-    mocks["aws_api"].assert_called()
+    mocks["aws_api"].assert_called_once_with(
+        1, [tgw_account], settings={}, init_users=False
+    )
     mocks["ocm"].assert_called_once_with(
         clusters=[cluster_with_tgw_connection],
         integration=QONTRACT_INTEGRATION,
@@ -431,7 +433,9 @@ def test_run_when_cluster_with_mixed_connections(
         expected_tgw_account=expected_tgw_account,
     )
 
-    mocks["aws_api"].assert_called()
+    mocks["aws_api"].assert_called_once_with(
+        1, [tgw_account], settings={}, init_users=False
+    )
     mocks["ocm"].assert_called_once_with(
         clusters=[cluster_with_mixed_connections],
         integration=QONTRACT_INTEGRATION,
@@ -458,7 +462,7 @@ def test_run_when_cluster_with_vpc_connection_only(
 
     integ.run(True)
 
-    mocks["aws_api"].assert_called()
+    mocks["aws_api"].assert_called_once_with(1, [], settings={}, init_users=False)
     mocks["ocm"].assert_not_called()
     mocks["ts"].populate_additional_providers.assert_called_once_with([])
     mocks["ts"].populate_tgw_attachments.assert_called_once_with([])
@@ -500,7 +504,9 @@ def test_run_with_multiple_clusters(
         expected_tgw_account=expected_tgw_account,
     )
 
-    mocks["aws_api"].assert_called()
+    mocks["aws_api"].assert_called_once_with(
+        1, [tgw_account], settings={}, init_users=False
+    )
     mocks["ocm"].assert_called_once_with(
         clusters=[cluster_with_tgw_connection],
         integration=QONTRACT_INTEGRATION,
