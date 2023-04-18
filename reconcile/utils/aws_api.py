@@ -892,7 +892,9 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         subnets = ec2.describe_subnets(Filters=[{"Name": "vpc-id", "Values": [vpc_id]}])
         return subnets.get("Subnets", [])
 
-    def get_mesh_vpc_peerings(vpc_key, vpc_value: str, ec2: EC2Client) -> dict:
+    def get_mesh_vpc_peerings(self,account, vpc_key, vpc_value: str) -> dict:
+        assumed_role_data = self._get_account_assume_data(account)
+        ec2 = self._get_assumed_role_client(*assumed_role_data, "ec2")
         mesh_vpc_dict = {}
         response = ec2.describe_vpcs()
         for vpc in response['Vpcs']:

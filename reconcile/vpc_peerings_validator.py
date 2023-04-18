@@ -31,8 +31,12 @@ def validate_no_cidr_overlap(
     cidr_block_entries_requester = {}
     cidr_block_entries_accepter = {}
     for cluster in clusters:
-        cidr_block = str(cluster.network.vpc)  # type: ignore[union-attr]
-        cidr_block_entries_cluster_vpc[cluster.name] = cidr_block
+        # This block shouldn't be here, need to fix
+        try:
+            cidr_block = str(cluster.network.vpc)  # type: ignore[union-attr]
+            cidr_block_entries_cluster_vpc[cluster.name] = cidr_block
+        except AttributeError:
+            continue
         if cluster.peering:
             for peering in cluster.peering.connections:
                 if peering.provider == "account-vpc":
@@ -41,6 +45,14 @@ def validate_no_cidr_overlap(
                 if peering.provider == "account-vpc-mesh":
                     logging.debug("this is what peering.tags looks like")
                     logging.debug(peering.tags)
+
+                    # FIX
+
+                    # tags_dict = peering.tags
+                    # logging.debug("this is the var I want to use in tags")
+                    # for tags_key, tags_value in tags_dict.items():
+                    #     cidr_mesh_finder(tags_key, tags_value)
+                    # logging.debug(tags_dict.keys())
                 #     cidr_block = str(peering.vpc.cidr_block)  # type: ignore[union-attr]
                 #     cidr_block_entries_acount_vpc_mesh[peering.vpc.name] = cidr_block  # type: ignore[union-attr]
                 if peering.provider == "cluster-vpc-requester":
@@ -77,9 +89,9 @@ def validate_no_cidr_overlap(
     return True
 
 
-def cidr_mesh_finder(awsapi: AWSApi):
+def cidr_mesh_finder(tag_key, tag_value: str, awsapi:AWSApi):
     # with AWSApi(1, mesh_account, settings=settings, init_users=False) as awsapi:
-    awsapi.get_mesh_vpc_peerings()
+    awsapi.get_mesh_vpc_peerings(aws_account,tag_key, tag_value)
 
     # awsapi.create_route53_zone
     # return
