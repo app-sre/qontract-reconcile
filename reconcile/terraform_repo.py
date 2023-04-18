@@ -1,5 +1,6 @@
 import logging
 from typing import (
+    Any,
     Callable,
     Mapping,
     Optional,
@@ -47,8 +48,12 @@ class RepoOutput(BaseModel):
     ref: str
     project_path: str
     account: AWSAccount
-    dry_run: bool
     destroy: bool
+
+
+class ActionPlan(BaseModel):
+    dry_run: bool
+    repos: list[RepoOutput]
 
 
 def get_repos(query_func: Callable) -> list[TerraformRepoV1]:
@@ -72,7 +77,7 @@ def map_repos(repos: list[TerraformRepoV1]) -> Mapping[str, TerraformRepoV1]:
     """Generate keys for each repo to more easily compare"""
     repo_map: Mapping[str, TerraformRepoV1] = dict()
     for repo in repos:
-        key = "{}_{}".format(repo.account.uid, repo.name)
+        key = "{}-{}".format(repo.account.uid, repo.name)
         repo_map[key] = repo
 
     return repo_map
@@ -131,7 +136,7 @@ def diff_changed(
     return changed
 
 
-def repo_action_plan(repo: TerraformRepoV1, dry_run: bool, destroy: bool) -> RepoOutput:
+def repo_action_plan(repo: TerraformRepoV1, destroy: bool) -> RepoOutput:
     """Converts the GQL/state representation of a Terraform repo to an action plan that the executor will act on"""
     return RepoOutput(
         name=repo.name,
@@ -147,15 +152,12 @@ def repo_action_plan(repo: TerraformRepoV1, dry_run: bool, destroy: bool) -> Rep
                 version=repo.account.automation_token.version,
             ),
         ),
-        dry_run=dry_run,
         destroy=destroy,
     )
 
 
 def merge_results(
-    created: Mapping[str, TerraformRepoV1],
-    updated: Mapping[str, TerraformRepoV1],
-    dry_run: bool,
+    created: Mapping[str, TerraformRepoV1], updated: Mapping[str, TerraformRepoV1]
 ) -> list[RepoOutput]:
     """
     Merges results into a RepoOutput dict which will be transformed to outputted YAML.
@@ -164,14 +166,14 @@ def merge_results(
     output: list[RepoOutput] = list()
     for c_value in created.values():
         logging.info(["create_repo", c_value.account.name, c_value.name])
-        output.append(repo_action_plan(c_value, dry_run, False))
+        output.append(repo_action_plan(c_value, False))
     for u_value in updated.values():
         if u_value.delete is True:
-            logging.info(["delete_repo", d_value.account.name, d_value.name])
-            output.append(repo_action_plan(u_value, dry_run, True))
+            logging.info(["delete_repo", u_value.account.name, u_value.name])
+            output.append(repo_action_plan(u_value, True))
         else:
             logging.info(["update_repo", u_value.account.name, u_value.name])
-            output.append(repo_action_plan(u_value, dry_run, False))
+            output.append(repo_action_plan(u_value, False))
     return output
 
 
@@ -210,12 +212,12 @@ def calculate_diff(
     existing_map = map_repos(existing_state)
     desired_map = map_repos(desired_state)
 
-    to_be_created = diff_missing(existing_map, desired_map)
+    to_be_created = diff_missing(desired_map, existing_map)
     to_be_updated = diff_changed(existing_map, desired_map)
 
     # indicates repos which have had their definitions deleted from App Interface
     # a pre-requisite to this step is setting the delete flag in the repo definition
-    to_be_deleted = diff_missing(desired_map, existing_map, True)
+    to_be_deleted = diff_missing(existing_map, desired_map, True)
 
     if not dry_run:
         update_state(to_be_created, to_be_deleted, to_be_updated, state)
@@ -228,7 +230,7 @@ def run(
     dry_run: bool = True,
     print_to_file: Optional[str] = None,
     defer: Optional[Callable] = None,
-) -> None:
+):
 
     gqlapi = gql.get_api()
 
@@ -239,12 +241,16 @@ def run(
     desired = get_repos(query_func=gqlapi.query)
     existing = get_existing_state(state)
 
-    action_plan = calculate_diff(existing, desired, dry_run, state)
+    action_plan = ActionPlan(
+        dry_run=dry_run, repos=calculate_diff(existing, desired, dry_run, state)
+    )
 
     if print_to_file:
         try:
             with open(print_to_file, "w") as output_file:
-                yaml.safe_dump(action_plan, output_file)
+                yaml.safe_dump(
+                    data=action_plan.dict(), stream=output_file, explicit_start=True
+                )
         except FileNotFoundError:
             raise ParameterError(
                 "Unable to write to specified 'print_to_file' location: {}".format(
@@ -252,7 +258,7 @@ def run(
                 )
             )
     else:
-        print(yaml.safe_dump(action_plan))
+        print(yaml.safe_dump(data=action_plan.dict(), explicit_start=True))
 
 
 def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:

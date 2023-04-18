@@ -1546,6 +1546,21 @@ def ldap_users(ctx, infra_project_id, app_interface_project_id):
     )
 
 
+@integration.command(short_help="Manages raw HCL Terraform from a separate repository.")
+@print_to_file
+@click.pass_context
+def terraform_repo(
+    ctx,
+    print_to_file,
+):
+    import reconcile.terraform_repo
+
+    if print_to_file and is_file_in_git_repo(print_to_file):
+        raise PrintToFileInGitRepositoryError(print_to_file)
+
+    run_integration(reconcile.terraform_repo, ctx.obj, print_to_file)
+
+
 @integration.command(short_help="Manage AWS Resources using Terraform.")
 @print_to_file
 @vault_output_path
