@@ -1,5 +1,4 @@
 import logging
-from audioop import add
 from typing import (
     Callable,
     Mapping,
@@ -80,13 +79,23 @@ def map_repos(repos: list[TerraformRepoV1]) -> Mapping[str, TerraformRepoV1]:
 
 
 def diff_missing(
-    a: Mapping[str, TerraformRepoV1], b: Mapping[str, TerraformRepoV1]
+    a: Mapping[str, TerraformRepoV1],
+    b: Mapping[str, TerraformRepoV1],
+    requireDelete: bool = False,
 ) -> Mapping[str, TerraformRepoV1]:
-    """Returns a mapping of repos that are present in mapping a but missing in mapping b"""
+    """
+    Returns a mapping of repos that are present in mapping a but missing in mapping b
+    When requireDelete = True, each repo from a is checked to ensure that the delete flag is set"""
     missing: Mapping[str, TerraformRepoV1] = dict()
     for a_key, a_repo in a.items():
         b_repo = b.get(a_key)
         if b_repo is None:
+            if requireDelete is True and a_repo.delete is not True:
+                raise ParameterError(
+                    'To delete the terraform repo "{}", you must set delete: true in the repo definition'.format(
+                        a_repo.name
+                    )
+                )
             missing[a_key] = a_repo
 
     return missing
@@ -95,12 +104,29 @@ def diff_missing(
 def diff_changed(
     a: Mapping[str, TerraformRepoV1], b: Mapping[str, TerraformRepoV1]
 ) -> Mapping[str, TerraformRepoV1]:
-    """Returns a mapping of repos that have changed between a and b in the form of returning their b values"""
+    """
+    Returns a mapping of repos that have changed between a and b in the form of returning their b values
+    In order for Terraform to work as expected, the tenant can only update the ref between MRs
+    Updating account, repo, or project_path can lead to unexpected behavior so we error
+    on that
+    """
     changed: Mapping[str, TerraformRepoV1] = dict()
     for a_key, a_repo in a.items():
         b_repo = b.get(a_key, a_repo)
         if not DeepHash(a_repo) == DeepHash(b_repo):
-            changed[a_key] = b_repo
+            if (
+                a_repo.account != b_repo.account
+                or a_repo.name != b_repo.name
+                or a_repo.project_path != b_repo.project_path
+                or a_repo.repository != b_repo.repository
+            ):
+                raise ParameterError(
+                    'Only the `ref` and `delete` parameters for a terraform repo may be updated in merge requests on repo: "{}"'.format(
+                        a_repo.name
+                    )
+                )
+            else:
+                changed[a_key] = b_repo
 
     return changed
 
@@ -128,21 +154,24 @@ def repo_action_plan(repo: TerraformRepoV1, dry_run: bool, destroy: bool) -> Rep
 
 def merge_results(
     created: Mapping[str, TerraformRepoV1],
-    deleted: Mapping[str, TerraformRepoV1],
     updated: Mapping[str, TerraformRepoV1],
     dry_run: bool,
 ) -> list[RepoOutput]:
-    """Merges results into a RepoOutput dict which will be transformed to outputted YAML"""
+    """
+    Merges results into a RepoOutput dict which will be transformed to outputted YAML.
+    This includes checking modified values for a delete flag
+    """
     output: list[RepoOutput] = list()
     for c_value in created.values():
         logging.info(["create_repo", c_value.account.name, c_value.name])
         output.append(repo_action_plan(c_value, dry_run, False))
-    for d_value in deleted.values():
-        logging.info(["delete_repo", d_value.account.name, d_value.name])
-        output.append(repo_action_plan(d_value, dry_run, True))
     for u_value in updated.values():
-        logging.info(["update_repo", u_value.account.name, u_value.name])
-        output.append(repo_action_plan(u_value, dry_run, False))
+        if u_value.delete is True:
+            logging.info(["delete_repo", d_value.account.name, d_value.name])
+            output.append(repo_action_plan(u_value, dry_run, True))
+        else:
+            logging.info(["update_repo", u_value.account.name, u_value.name])
+            output.append(repo_action_plan(u_value, dry_run, False))
     return output
 
 
@@ -152,15 +181,26 @@ def update_state(
     updated: Mapping[str, TerraformRepoV1],
     state: State,
 ):
-    """State represents TerraformRepoV1 data structures equivalent to their GQL representations"""
+    """
+    State represents TerraformRepoV1 data structures equivalent to their GQL representations.
+    In regards to deleting a Terraform Repo, when the delete flag is set to True, then
+    the state representation of this repo is also deleted even though the definition may
+    still exist in App Interface
+    """
     created_and_updated = created | updated
-    for cu_key, cu_val in created_and_updated.items():
-        state.add(cu_key, cu_val, True)
-    for d_key in deleted.keys():
-        state.rm(d_key)
+    try:
+        for cu_key, cu_val in created_and_updated.items():
+            if cu_val.delete is True:
+                state.rm(d_key)
+            else:
+                state.add(cu_key, cu_val, True)
+        for d_key in deleted.keys():
+            state.rm(d_key)
+    except KeyError:
+        pass
 
 
-def diff(
+def calculate_diff(
     existing_state: list[TerraformRepoV1],
     desired_state: list[TerraformRepoV1],
     dry_run: bool,
@@ -170,14 +210,17 @@ def diff(
     existing_map = map_repos(existing_state)
     desired_map = map_repos(desired_state)
 
-    to_be_created = diff_missing(existing_map, desired_map, dry_run)
-    to_be_deleted = diff_missing(desired_map, existing_map, dry_run)
-    to_be_updated = diff_changed(existing_map, desired_map, dry_run)
+    to_be_created = diff_missing(existing_map, desired_map)
+    to_be_updated = diff_changed(existing_map, desired_map)
+
+    # indicates repos which have had their definitions deleted from App Interface
+    # a pre-requisite to this step is setting the delete flag in the repo definition
+    to_be_deleted = diff_missing(desired_map, existing_map, True)
 
     if not dry_run:
         update_state(to_be_created, to_be_deleted, to_be_updated, state)
 
-    return merge_results(to_be_created, to_be_deleted, to_be_updated)
+    return merge_results(to_be_created, to_be_updated)
 
 
 @defer
@@ -196,7 +239,7 @@ def run(
     desired = get_repos(query_func=gqlapi.query)
     existing = get_existing_state(state)
 
-    action_plan = diff(existing, desired, dry_run, state)
+    action_plan = calculate_diff(existing, desired, dry_run, state)
 
     if print_to_file:
         try:
