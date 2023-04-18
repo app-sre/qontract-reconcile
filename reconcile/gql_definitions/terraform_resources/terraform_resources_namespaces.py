@@ -291,8 +291,22 @@ query TerraformResourcesNamespaces {
                         methods
                     }
                     action {
-                        target
-                        weight
+                        type
+                        ... on NamespaceTerraformResourceALBActionForward_v1 {
+                            forward {
+                                target_group {
+                                    target
+                                    weight
+                                }
+                            }
+                        }
+                        ... on NamespaceTerraformResourceALBActionFixedResponse_v1 {
+                            fixed_response {
+                                content_type
+                                message_body
+                                status_code
+                            }
+                        }
                     }
                 }
                 output_resource_name
@@ -739,13 +753,49 @@ class NamespaceTerraformResourceALBConditonV1(ConfiguredBaseModel):
 
 
 class NamespaceTerraformResourceALBActionV1(ConfiguredBaseModel):
+    q_type: str = Field(..., alias="type")
+
+
+class NamespaceTerraformResourceALBTargetGroupV1(ConfiguredBaseModel):
     target: str = Field(..., alias="target")
     weight: int = Field(..., alias="weight")
 
 
+class NamespaceTerraformResourceALBActionForwardSettingsV1(ConfiguredBaseModel):
+    target_group: list[NamespaceTerraformResourceALBTargetGroupV1] = Field(
+        ..., alias="target_group"
+    )
+
+
+class NamespaceTerraformResourceALBActionForwardV1(
+    NamespaceTerraformResourceALBActionV1
+):
+    forward: NamespaceTerraformResourceALBActionForwardSettingsV1 = Field(
+        ..., alias="forward"
+    )
+
+
+class NamespaceTerraformResourceALBActionFixedResponseSettingsV1(ConfiguredBaseModel):
+    content_type: str = Field(..., alias="content_type")
+    message_body: str = Field(..., alias="message_body")
+    status_code: str = Field(..., alias="status_code")
+
+
+class NamespaceTerraformResourceALBActionFixedResponseV1(
+    NamespaceTerraformResourceALBActionV1
+):
+    fixed_response: NamespaceTerraformResourceALBActionFixedResponseSettingsV1 = Field(
+        ..., alias="fixed_response"
+    )
+
+
 class NamespaceTerraformResourceALBRulesV1(ConfiguredBaseModel):
     condition: NamespaceTerraformResourceALBConditonV1 = Field(..., alias="condition")
-    action: list[NamespaceTerraformResourceALBActionV1] = Field(..., alias="action")
+    action: Union[
+        NamespaceTerraformResourceALBActionForwardV1,
+        NamespaceTerraformResourceALBActionFixedResponseV1,
+        NamespaceTerraformResourceALBActionV1,
+    ] = Field(..., alias="action")
 
 
 class NamespaceTerraformResourceALBV1(NamespaceTerraformResourceAWSV1):

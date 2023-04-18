@@ -45,6 +45,15 @@ class Subscriber:
         self.namespace_file_path = namespace_file_path
         self._content_hash = ""
 
+    def has_diff(self) -> bool:
+        current_hashes = {
+            el for s in self.config_hashes_by_channel_name.values() for el in s
+        }
+        return not (
+            set(self.desired_hashes) == set(current_hashes)
+            and self.desired_ref == self.ref
+        )
+
     def compute_desired_state(self) -> None:
         self._compute_desired_ref()
         self._compute_desired_config_hashes()

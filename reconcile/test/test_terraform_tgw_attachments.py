@@ -1,87 +1,168 @@
+from collections.abc import (
+    Callable,
+    Iterable,
+    Mapping,
+)
+from typing import Optional
+
 import pytest
+from pytest_mock import MockerFixture
 
 import reconcile.terraform_tgw_attachments as integ
 
 
 @pytest.fixture
-def account_tgw_connection():
-    return {
-        "name": "account_tgw_connection",
-        "provider": "account-tgw",
-        "manageRoutes": True,
-        "account": {
-            "name": "tgw_account",
-            "uid": "a-uid",
-            "terraformUsername": "tf-user",
-        },
-        "assumeRole": None,
-        "cidrBlock": "172.16.0.0/16",
-        "deleted": False,
-    }
+def peering_connection_builder() -> Callable[..., dict]:
+    def builder(
+        name: str,
+        provider: str,
+        manage_routes: bool = False,
+        account_name: Optional[str] = None,
+        account_uid: Optional[str] = None,
+        terraform_username: Optional[str] = None,
+        assume_role: Optional[str] = None,
+        cidr_block: Optional[str] = None,
+        deleted: Optional[bool] = None,
+    ) -> dict:
+        return {
+            "name": name,
+            "provider": provider,
+            "manageRoutes": manage_routes,
+            "account": {
+                "name": account_name,
+                "uid": account_uid,
+                "terraformUsername": terraform_username,
+            },
+            "assumeRole": assume_role,
+            "cidrBlock": cidr_block,
+            "deleted": deleted,
+        }
+
+    return builder
 
 
 @pytest.fixture
-def account_vpc_connection():
-    return {
-        "name": "account_vpc_connection",
-        "provider": "account-vpc",
-    }
+def account_tgw_connection(peering_connection_builder: Callable[..., dict]) -> dict:
+    return peering_connection_builder(
+        name="account_tgw_connection",
+        provider="account-tgw",
+        manage_routes=True,
+        account_name="tgw_account",
+        account_uid="a-uid",
+        terraform_username="tf-user",
+        assume_role=None,
+        cidr_block="172.16.0.0/16",
+        deleted=False,
+    )
 
 
 @pytest.fixture
-def cluster_with_tgw_connection(account_tgw_connection):
-    return {
-        "name": "cluster_with_tgw_connection",
-        "ocm": {"name": "cluster_with_tgw_connection-ocm"},
-        "spec": {
-            "region": "us-east-1",
-        },
-        "network": {"vpc": "10.0.0.0/16"},
-        "peering": {
+def account_vpc_connection(peering_connection_builder: Callable[..., dict]) -> dict:
+    return peering_connection_builder(
+        name="account_vpc_connection",
+        provider="account-vpc",
+    )
+
+
+@pytest.fixture
+def cluster_builder() -> Callable[..., dict]:
+    def builder(
+        name: str,
+        ocm: dict,
+        region: str,
+        vpc_cidr: str,
+        peering: dict,
+    ) -> dict:
+        return {
+            "name": name,
+            "ocm": ocm,
+            "spec": {
+                "region": region,
+            },
+            "network": {"vpc": vpc_cidr},
+            "peering": peering,
+        }
+
+    return builder
+
+
+@pytest.fixture
+def cluster_with_tgw_connection(
+    cluster_builder: Callable[..., dict],
+    account_tgw_connection: dict,
+) -> dict:
+    return cluster_builder(
+        name="cluster_with_tgw_connection",
+        ocm={"name": "cluster_with_tgw_connection-ocm"},
+        region="us-east-1",
+        vpc_cidr="10.0.0.0/16",
+        peering={
             "connections": [
                 account_tgw_connection,
             ]
         },
-    }
+    )
 
 
 @pytest.fixture
-def cluster_with_vpc_connection(account_vpc_connection):
-    return {
-        "name": "cluster_with_vpc_connection",
-        "ocm": {"name": "cluster_with_vpc_connection-ocm"},
-        "spec": {
-            "region": "us-east-1",
+def cluster_with_duplicate_tgw_connections(
+    cluster_builder: Callable[..., dict],
+    account_tgw_connection: dict,
+) -> dict:
+    return cluster_builder(
+        name="cluster_with_duplicate_tgw_connections",
+        ocm={"name": "cluster_with_duplicate_tgw_connections-ocm"},
+        region="us-east-1",
+        vpc_cidr="10.0.0.0/16",
+        peering={
+            "connections": [
+                account_tgw_connection,
+                account_tgw_connection,
+            ]
         },
-        "network": {"vpc": "10.0.0.1/16"},
-        "peering": {
+    )
+
+
+@pytest.fixture
+def cluster_with_vpc_connection(
+    cluster_builder: Callable[..., dict],
+    account_vpc_connection: Mapping,
+) -> dict:
+    return cluster_builder(
+        name="cluster_with_vpc_connection",
+        ocm={"name": "cluster_with_vpc_connection-ocm"},
+        region="us-east-1",
+        vpc_cidr="10.0.0.1/16",
+        peering={
             "connections": [
                 account_vpc_connection,
             ]
         },
-    }
+    )
 
 
 @pytest.fixture
-def cluster_with_mixed_connections(account_tgw_connection, account_vpc_connection):
-    return {
-        "name": "cluster_with_mixed_connections",
-        "ocm": {"name": "cluster_with_mixed_connections-ocm"},
-        "spec": {
-            "region": "us-east-1",
-        },
-        "network": {"vpc": "10.0.0.2/16"},
-        "peering": {
+def cluster_with_mixed_connections(
+    cluster_builder: Callable[..., dict],
+    account_tgw_connection: Mapping,
+    account_vpc_connection: Mapping,
+) -> dict:
+    return cluster_builder(
+        name="cluster_with_mixed_connections",
+        ocm={"name": "cluster_with_mixed_connections-ocm"},
+        region="us-east-1",
+        vpc_cidr="10.0.0.2/16",
+        peering={
             "connections": [
                 account_tgw_connection,
                 account_vpc_connection,
             ]
         },
-    }
+    )
 
 
 @pytest.fixture
-def tgw():
+def tgw() -> dict:
     return {
         "tgw_id": "tgw-1",
         "tgw_arn": "tgw-arn-1",
@@ -93,7 +174,7 @@ def tgw():
 
 
 @pytest.fixture
-def vpc_details():
+def vpc_details() -> dict:
     return {
         "vpc_id": "vpc-id-1",
         "route_table_ids": ["rtb-1"],
@@ -102,24 +183,36 @@ def vpc_details():
 
 
 @pytest.fixture
-def assume_role():
+def assume_role() -> str:
     return "some-role"
 
 
 def _setup_mocks(
-    mocker, clusters=None, accounts=None, vpc=None, tgws=None, assume_role=None
-):
-    mocker.patch("reconcile.queries.get_secret_reader_settings", return_value={})
-    mocker.patch(
-        "reconcile.queries.get_clusters_with_peering_settings",
-        return_value=clusters or [],
-    )
-    mocker.patch("reconcile.queries.get_aws_accounts", return_value=accounts or [])
+    mocker: MockerFixture,
+    clusters: Optional[Iterable] = None,
+    accounts: Optional[Iterable] = None,
+    vpc_details: Optional[Mapping] = None,
+    tgws: Optional[Iterable] = None,
+    assume_role: Optional[str] = None,
+) -> dict:
+    mocked_queries = mocker.patch("reconcile.terraform_tgw_attachments.queries")
+    mocked_queries.get_secret_reader_settings.return_value = {}
+    mocked_queries.get_clusters_with_peering_settings.return_value = clusters or []
+    mocked_queries.get_aws_accounts.return_value = accounts or []
     mocked_aws_api = mocker.patch(
         "reconcile.terraform_tgw_attachments.AWSApi", autospec=True
     ).return_value
     with mocked_aws_api as aws_api:
-        aws_api.get_cluster_vpc_details.return_value = vpc or (None, None, None)
+        vpc = (
+            (
+                vpc_details["vpc_id"],
+                vpc_details["route_table_ids"],
+                vpc_details["subnets_id_az"],
+            )
+            if vpc_details is not None
+            else (None, None, None)
+        )
+        aws_api.get_cluster_vpc_details.return_value = vpc
         aws_api.get_tgws_details.return_value = tgws or []
     mocked_ocm = mocker.patch(
         "reconcile.terraform_tgw_attachments.OCMMap", autospec=True
@@ -140,43 +233,50 @@ def _setup_mocks(
     return {
         "tf": mocked_tf,
         "ts": mocked_ts,
+        "queries": mocked_queries,
     }
 
 
-def test_dry_run(mocker):
+def test_dry_run(mocker: MockerFixture) -> None:
     mocks = _setup_mocks(mocker)
 
     integ.run(True, enable_deletion=False)
 
+    mocks["queries"].get_secret_reader_settings.assert_called_once_with()
+    mocks["queries"].get_clusters_with_peering_settings.assert_called_once_with()
+    mocks["queries"].get_aws_accounts.assert_called_once_with(
+        terraform_state=True, ecrs=False
+    )
     mocks["tf"].plan.assert_called_once_with(False)
     mocks["tf"].apply.assert_not_called()
 
 
-def test_non_dry_run(mocker):
+def test_non_dry_run(mocker: MockerFixture) -> None:
     mocks = _setup_mocks(mocker)
 
     integ.run(False, enable_deletion=False)
 
+    mocks["queries"].get_secret_reader_settings.assert_called_once_with()
+    mocks["queries"].get_clusters_with_peering_settings.assert_called_once_with()
+    mocks["queries"].get_aws_accounts.assert_called_once_with(
+        terraform_state=True, ecrs=False
+    )
     mocks["tf"].plan.assert_called_once_with(False)
     mocks["tf"].apply.assert_called_once()
 
 
 def test_run_when_cluster_with_tgw_connection(
-    mocker,
-    cluster_with_tgw_connection,
-    account_tgw_connection,
-    tgw,
-    vpc_details,
-    assume_role,
-):
+    mocker: MockerFixture,
+    cluster_with_tgw_connection: Mapping,
+    account_tgw_connection: Mapping,
+    tgw: Mapping,
+    vpc_details: Mapping,
+    assume_role: str,
+) -> None:
     mocks = _setup_mocks(
         mocker,
         clusters=[cluster_with_tgw_connection],
-        vpc=(
-            vpc_details["vpc_id"],
-            vpc_details["route_table_ids"],
-            vpc_details["subnets_id_az"],
-        ),
+        vpc_details=vpc_details,
         tgws=[tgw],
         assume_role=assume_role,
     )
@@ -193,7 +293,7 @@ def test_run_when_cluster_with_tgw_connection(
     }
 
     mocks["ts"].populate_additional_providers.assert_called_once_with(
-        [expected_tgw_account, expected_tgw_account]
+        [expected_tgw_account]
     )
     mocks["ts"].populate_tgw_attachments.assert_called_once_with(
         [
@@ -225,21 +325,17 @@ def test_run_when_cluster_with_tgw_connection(
 
 
 def test_run_when_cluster_with_mixed_connections(
-    mocker,
-    cluster_with_mixed_connections,
-    account_tgw_connection,
-    tgw,
-    vpc_details,
-    assume_role,
-):
+    mocker: MockerFixture,
+    cluster_with_mixed_connections: Mapping,
+    account_tgw_connection: Mapping,
+    tgw: Mapping,
+    vpc_details: Mapping,
+    assume_role: str,
+) -> None:
     mocks = _setup_mocks(
         mocker,
         clusters=[cluster_with_mixed_connections],
-        vpc=(
-            vpc_details["vpc_id"],
-            vpc_details["route_table_ids"],
-            vpc_details["subnets_id_az"],
-        ),
+        vpc_details=vpc_details,
         tgws=[tgw],
         assume_role=assume_role,
     )
@@ -256,7 +352,7 @@ def test_run_when_cluster_with_mixed_connections(
     }
 
     mocks["ts"].populate_additional_providers.assert_called_once_with(
-        [expected_tgw_account, expected_tgw_account]
+        [expected_tgw_account]
     )
     mocks["ts"].populate_tgw_attachments.assert_called_once_with(
         [
@@ -288,9 +384,9 @@ def test_run_when_cluster_with_mixed_connections(
 
 
 def test_run_when_cluster_with_vpc_connection_only(
-    mocker,
-    cluster_with_vpc_connection,
-):
+    mocker: MockerFixture,
+    cluster_with_vpc_connection: Mapping,
+) -> None:
     mocks = _setup_mocks(
         mocker,
         clusters=[cluster_with_vpc_connection],
@@ -300,3 +396,114 @@ def test_run_when_cluster_with_vpc_connection_only(
 
     mocks["ts"].populate_additional_providers.assert_called_once_with([])
     mocks["ts"].populate_tgw_attachments.assert_called_once_with([])
+
+
+def test_duplicate_tgw_connection_names(
+    mocker: MockerFixture,
+    cluster_with_duplicate_tgw_connections: Mapping,
+    tgw: Mapping,
+    vpc_details: Mapping,
+    assume_role: str,
+) -> None:
+    _setup_mocks(
+        mocker,
+        clusters=[cluster_with_duplicate_tgw_connections],
+        vpc_details=vpc_details,
+        tgws=[tgw],
+        assume_role=assume_role,
+    )
+
+    with pytest.raises(integ.ValidationError) as e:
+        integ.run(True)
+
+    assert "duplicate tgw connection names found" == str(e.value)
+
+
+def test_missing_vpc_id(
+    mocker: MockerFixture,
+    cluster_with_tgw_connection: Mapping,
+    tgw: Mapping,
+    vpc_details: Mapping,
+    assume_role: str,
+) -> None:
+    _setup_mocks(
+        mocker,
+        clusters=[cluster_with_tgw_connection],
+        vpc_details=None,
+        tgws=[tgw],
+        assume_role=assume_role,
+    )
+
+    with pytest.raises(RuntimeError) as e:
+        integ.run(True)
+
+    assert "Could not find VPC ID for cluster" == str(e.value)
+
+
+def test_error_in_tf_plan(
+    mocker: MockerFixture,
+    cluster_with_tgw_connection: Mapping,
+    account_tgw_connection: Mapping,
+    tgw: Mapping,
+    vpc_details: Mapping,
+    assume_role: str,
+) -> None:
+    mocks = _setup_mocks(
+        mocker,
+        clusters=[cluster_with_tgw_connection],
+        vpc_details=vpc_details,
+        tgws=[tgw],
+        assume_role=assume_role,
+    )
+    mocks["tf"].plan.return_value = (False, True)
+
+    with pytest.raises(RuntimeError) as e:
+        integ.run(True)
+
+    assert "Error running terraform plan" == str(e.value)
+
+
+def test_disabled_deletions_detected_in_tf_plan(
+    mocker: MockerFixture,
+    cluster_with_tgw_connection: Mapping,
+    account_tgw_connection: Mapping,
+    tgw: Mapping,
+    vpc_details: Mapping,
+    assume_role: str,
+) -> None:
+    mocks = _setup_mocks(
+        mocker,
+        clusters=[cluster_with_tgw_connection],
+        vpc_details=vpc_details,
+        tgws=[tgw],
+        assume_role=assume_role,
+    )
+    mocks["tf"].plan.return_value = (True, False)
+
+    with pytest.raises(RuntimeError) as e:
+        integ.run(True)
+
+    assert "Disabled deletions detected running terraform plan" == str(e.value)
+
+
+def test_error_in_terraform_apply(
+    mocker: MockerFixture,
+    cluster_with_tgw_connection: Mapping,
+    account_tgw_connection: Mapping,
+    tgw: Mapping,
+    vpc_details: Mapping,
+    assume_role: str,
+) -> None:
+    mocks = _setup_mocks(
+        mocker,
+        clusters=[cluster_with_tgw_connection],
+        vpc_details=vpc_details,
+        tgws=[tgw],
+        assume_role=assume_role,
+    )
+    mocks["tf"].apply.return_value = True
+
+    with pytest.raises(RuntimeError) as e:
+        integ.run(False)
+
+    assert "Error running terraform apply" == str(e.value)

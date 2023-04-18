@@ -1,0 +1,30 @@
+---
+$schema: /app-interface/prometheus-rule-test-1.yml
+
+rule_files:
+- bad-test.prometheusrules.yaml
+
+evaluation_interval: 1m
+
+tests:
+- interval: 1m
+  input_series:
+  - series: up{job="yak-shaver"}
+    values: 1 1 1 1 1 0 0 0 0 0
+  alert_rule_test:
+  # Test the no alert case
+  - eval_time: 5m
+    alertname: YakShaverIsDown
+    exp_alerts:
+  # Test the yak-shaver is down case
+  - eval_time: 10m
+    alertname: YakShaverIsDown
+    exp_alerts:
+    - exp_labels:
+        service: we-expect-here-yak-shaver-but-this-is-a-bad-test
+        severity: high
+        env: stage
+      exp_annotations:
+        dashboard: https://grafana.app-sre.devshift.net/d/DE29QJlWk/yak-shaver?orgId=1&refresh=5m
+        message: Yak Shaver has disappeared from Prometheus target discovery.
+        runbook: https://gitlab.cee.redhat.com/service/app-interface/blob/master/docs/app-sre/sop/YakShaverIsDown.md

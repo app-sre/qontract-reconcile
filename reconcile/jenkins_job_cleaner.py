@@ -38,9 +38,7 @@ def run(dry_run):
             continue
 
         instance_name = instance["name"]
-        jenkins = JenkinsApi.init_jenkins_from_secret(
-            secret_reader, instance["token"], ssl_verify=False
-        )
+        jenkins = JenkinsApi.init_jenkins_from_secret(secret_reader, instance["token"])
         all_job_names = jenkins.get_job_names()
         managed_job_names = get_managed_job_names(all_job_names, managed_projects)
         desired_job_names = get_desired_job_names(instance_name, secret_reader)
