@@ -46,10 +46,9 @@ class Subscriber:
         self._content_hash = ""
 
     def has_diff(self) -> bool:
-        current_hashes: list[ConfigHash] = []
-        for s in self.config_hashes_by_channel_name.values():
-            for el in s:
-                current_hashes.append(el)
+        current_hashes = {
+            el for s in self.config_hashes_by_channel_name.values() for el in s
+        }
         return not (
             set(self.desired_hashes) == set(current_hashes)
             and self.desired_ref == self.ref
