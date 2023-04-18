@@ -297,6 +297,29 @@ def test_cur_config_hash_did_not_exist(
     assert subscriber.desired_hashes == expected_config_hashes
 
 
+def test_cur_config_hash_did_not_exist_and_neglect(
+    subscriber_builder: Callable[[Mapping[str, Any]], Subscriber],
+):
+    subscriber = subscriber_builder(
+        {
+            USE_TARGET_CONFIG_HASH: False,
+            CUR_SUBSCRIBER_REF: "current_sha",
+            CUR_CONFIG_HASHES: [],
+            CHANNELS: {
+                "channel-a": {
+                    "publisher_a": {
+                        REAL_WORLD_SHA: "current_sha",
+                        CONFIG_HASH: "new_hash",
+                    }
+                },
+            },
+        }
+    )
+    subscriber.compute_desired_state()
+    assert subscriber.desired_ref == "current_sha"
+    assert subscriber.desired_hashes == []
+
+
 def test_neglect_config_hashes(
     subscriber_builder: Callable[[Mapping[str, Any]], Subscriber],
 ):

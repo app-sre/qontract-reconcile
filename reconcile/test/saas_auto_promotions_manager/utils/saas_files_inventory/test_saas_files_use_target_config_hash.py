@@ -10,7 +10,7 @@ from reconcile.saas_auto_promotions_manager.utils.saas_files_inventory import (
 from reconcile.typed_queries.saas_files import SaasFile
 
 
-def test_single_channel(
+def test_use_target_config_hash(
     saas_files_builder: Callable[[Iterable[Mapping]], list[SaasFile]]
 ):
     saas_files = saas_files_builder(
@@ -37,6 +37,7 @@ def test_single_channel(
             {
                 "path": "/saas2.yml",
                 "name": "saas_2",
+                "publishJobLogs": True,
                 "resourceTemplates": [
                     {
                         "name": "template_2",
@@ -48,18 +49,6 @@ def test_single_channel(
                                 "promotion": {
                                     "subscribe": ["channel-a"],
                                     "auto": True,
-                                    "promotion_data": [
-                                        {
-                                            "channel": "channel-a",
-                                            "data": [
-                                                {
-                                                    "target_config_hash": "channel-a-hash",
-                                                    "parent_saas": "saas_1",
-                                                    "type": "type",
-                                                }
-                                            ],
-                                        }
-                                    ],
                                 },
                             }
                         ],
@@ -71,4 +60,4 @@ def test_single_channel(
     inventory = SaasFilesInventory(saas_files=saas_files)
     assert len(inventory.publishers) == 1
     assert len(inventory.subscribers) == 1
-    assert not inventory.subscribers[0]._use_target_config_hash
+    assert inventory.subscribers[0]._use_target_config_hash
