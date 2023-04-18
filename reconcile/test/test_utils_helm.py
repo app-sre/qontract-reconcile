@@ -185,8 +185,6 @@ def test_template_aws_account_shard_disabled(values):
     ]
     template = helm.template(values)
     expected = yaml.safe_load(fxt.get("aws_account_shard_disabled.yml"))
-    import deepdiff
-
     assert template == expected
 
 

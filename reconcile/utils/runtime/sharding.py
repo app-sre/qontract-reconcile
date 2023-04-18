@@ -1,10 +1,11 @@
 import copy
 
 from dataclasses import dataclass
-from typing import Optional, Protocol, Iterable, Union
+from typing import Optional, Protocol, Union
+from collections.abc import Iterable
 from pydantic import BaseModel
 from reconcile.utils.runtime.meta import IntegrationMeta
-from reconcile.gql_definitions.common import clusters_minimal
+from reconcile.typed_queries.clusters_minimal import get_clusters_minimal
 from reconcile.gql_definitions.common.clusters_minimal import ClusterV1
 
 from reconcile.gql_definitions.sharding import aws_accounts as sharding_aws_accounts
@@ -210,9 +211,7 @@ class OpenshiftClusterShardingStrategy:
     def __init__(self, clusters: Optional[Iterable[ClusterV1]] = None):
 
         if not clusters:
-            self.results = (
-                clusters_minimal.query(query_func=gql.get_api().query).clusters or []
-            )
+            self.results = get_clusters_minimal()
         else:
             self.clusters = list(clusters)
 
@@ -406,117 +405,3 @@ class IntegrationShardManager:
             integration_meta, integration_spec
         )
         return shards
-
-
-# class KeyBasedSharding(ShardingStrategy):
-#     def __init__(
-#         self,
-#         objects: Optional[Sequence],
-#         integ_sharding_param: str,
-#         sub_sharding_strategies: Mapping[str, Type],
-#     ):
-#         self.objects = objects
-#         self.integ_sharding_param = integ_sharding_param
-#         self.sub_sharding_strategies = sub_sharding_strategies
-
-#     @abstractmethod
-#     def get_sharding_key(self, obj: Any) -> str:
-#         pass
-
-#     @abstractmethod
-#     def get_sharding_key_from_spo(self, spo: Any) -> str:
-#         pass
-
-#     def get_shard_name_suffix(self, obj: Any) -> str:
-#         return f"-{self.get_sharding_key(obj)}"
-
-#     def get_integation_sharding_params(self, obj: Any) -> str:
-#         return f"--{self.integ_sharding_param} {self.get_sharding_key(obj)}"
-
-#     def build_shard_spec(
-#         self, obj: Any, integration_spec: IntegrationSpecV1
-#     ) -> ShardSpec:
-
-#         return ShardSpec(
-#             shard_key=self.get_sharding_key(obj),
-#             shard_name_suffix=self.get_shard_name_suffix(obj),
-#             extra_args=(integration_spec.extra_args or "")
-#             + self.get_shard_integration_params(obj),
-#             # shard_spec_overrides=shard_spec_overrides,
-#         )
-
-#     # def get_spos(self, sharding: IntegrationShardingV1) -> dict[str, Any]:
-#     #     spos: dict[str, Any] = {}
-#     #     if (
-#     #         not isinstance(sharding, (IntegrationShardingV1, StaticShardingV1))
-#     #         and sharding.shard_spec_overrides
-#     #     ):
-
-#     #         for sp in sharding.shard_spec_overrides:
-#     #             spo_shard_id = self.get_shard_spec_override_shard_id(sp)
-#     #             spos[spo_shard_id] = sp
-#     #     return spos
-
-#     def build_integration_shards(
-#         self, integration_meta: IntegrationMeta, integration_spec: IntegrationManagedV1
-#     ) -> list[ShardSpec]:
-
-#         # Check if the integration have the necessary params for the sharding strategy
-#         # self.check_integration_sharding_params(integration_meta)
-
-#         # Get the shard spec overrides
-#         # spos = self.get_shard_spec_overrides(managed.sharding)
-
-#         if f"--{self.integ_sharding_param}" not in integration_meta.args:
-#             raise ValueError(
-#                 f"integration {integration_meta.name} does not support the provided argument. --{self.integ_sharding_param} is required by the {self.__class__.__name__} sharding strategy."
-#             )
-#         else:
-#             spos = self.get_shard_spec_overrides(integration_spec.sharding)
-#             obj_shards = []
-#             for obj in self.objects or []:
-#                 base_shard = self.build_shard_spec(obj, integration_spec.spec)
-
-#                 sharding_key = self.get_sharding_key(obj)
-#                 spo = spos.get(sharding_key)
-#                 sub_shards = self.build_sub_shards(base_shard, spo)
-#                 if sub_shards:
-#                     obj_shards.extend(sub_shards)
-#                 else:
-#                     obj_shards.append(base_shard)
-
-#             return obj_shards
-
-#     def _filter_objects(self, integration_name: str) -> list[Any]:
-#         """Generic function to filter which objects to use. Since the "disable" attribute
-#         is used widely, this function is used as a base
-
-#         :param integration_meta: _description_
-#         :param spec: _description_
-#         :return: Filtered list with the shard objects
-#         """
-#         filtered = []
-#         if self.objects:
-#             filtered = [
-#                 o
-#                 for o in self.objects
-#                 if not (o.get("disable") or {})
-#                 or "integrations" not in (o.get("disable") or {})
-#                 or integration_name not in (o["disable"]["integrations"] or [])
-#             ]
-#         return filtered
-
-#     @abstractmethod
-#     def build_sub_shards(self, base_shard: ShardSpec, spo: Any) -> list[ShardSpec]:
-#         pass
-
-#     def get_shard_spec_overrides(
-#         self, sharding: Optional[IntegrationShardingV1]
-#     ) -> dict[str, SPO]:
-
-#         spos: dict[str, SPO] = {}
-
-#         if isinstance(sharding, KBS) and sharding.shard_spec_override:
-#             for sp in sharding.shard_spec_overrides:
-#                 spos[sp.shard.name] = sp
-#         return spos

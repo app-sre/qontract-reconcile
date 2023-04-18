@@ -1,10 +1,9 @@
-# import json
 import logging
 import os
 import sys
 
-# from dataclasses import dataclass
-from typing import Any, Optional, Iterable, Mapping, Sequence
+from typing import Any, Optional
+from collections.abc import Iterable, Mapping, Sequence
 
 from github import Github
 from pydantic import BaseModel
