@@ -1,17 +1,22 @@
 from collections import defaultdict
 from enum import Enum
 from typing import (
+    Any,
     Generator,
     Optional,
 )
 
-from pydantic import BaseModel
+from pydantic import (
+    BaseModel,
+    PrivateAttr,
+)
 
 from reconcile.utils.ocm.base import OCMModelLink
 from reconcile.utils.ocm.labels import (
-    OCMLabel,
+    LabelContainer,
     OCMOrganizationLabel,
     OCMSubscriptionLabel,
+    build_label_container,
     get_labels,
     get_organization_labels,
 )
@@ -75,12 +80,18 @@ class ClusterDetails(BaseModel):
     subscription_labels: dict[str, OCMSubscriptionLabel]
     organization_labels: dict[str, OCMOrganizationLabel]
 
-    def get_label(self, name: str) -> Optional[OCMLabel]:
-        if name in self.subscription_labels:
-            return self.subscription_labels[name]
-        if name in self.organization_labels:
-            return self.organization_labels[name]
-        return None
+    _label_container: LabelContainer = PrivateAttr()
+
+    def __init__(self, **data: Any):
+        super().__init__(**data)
+        self._label_container = build_label_container(
+            self.organization_labels.values(),
+            self.subscription_labels.values(),
+        )
+
+    @property
+    def labels(self) -> LabelContainer:
+        return self._label_container
 
 
 def discover_clusters_by_labels(
@@ -97,6 +108,9 @@ def discover_clusters_by_labels(
             subscription_ids.add(label.subscription_id)
         elif isinstance(label, OCMOrganizationLabel):
             organization_ids.add(label.organization_id)
+    if not subscription_ids and not organization_ids:
+        return []
+
     sub_id_filter = Filter().is_in("id", subscription_ids)
     org_id_filter = Filter().is_in("organization_id", organization_ids)
     subscription_filter = (
