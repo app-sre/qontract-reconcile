@@ -51,6 +51,8 @@ class Subscriber:
         current_hashes = {
             el for s in self.config_hashes_by_channel_name.values() for el in s
         }
+        # We explicitly only care about subset - we do not care about
+        # dangling current hashses
         desired_hashes_are_in_current_hashes = (
             set(self.desired_hashes) <= current_hashes
         )
