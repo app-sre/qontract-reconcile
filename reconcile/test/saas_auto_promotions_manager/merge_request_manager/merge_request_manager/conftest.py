@@ -89,6 +89,7 @@ def subscriber_builder() -> Callable[[Mapping], Subscriber]:
             namespace_file_path=data.get(SUBSCRIBER_NAMESPACE_REF, ""),
             ref="",
             target_file_path=data.get(SUBSCRIBER_TARGET_PATH, ""),
+            use_target_config_hash=True,
         )
         subscriber.desired_hashes = data.get(SUBSCRIBER_DESIRED_CONFIG_HASHES, [])
         subscriber.desired_ref = data.get(SUBSCRIBER_DESIRED_REF, "")
