@@ -1,10 +1,17 @@
-from collections.abc import MutableMapping
+from collections.abc import (
+    Callable,
+    Generator,
+    MutableMapping,
+)
 from typing import Any
 
+from croniter import croniter
 from pydantic import (
     BaseModel,
     ValidationError,
 )
+from pydantic import errors as pydantic_errors
+from pydantic.fields import ModelField
 
 
 def data_default_none(
@@ -71,3 +78,48 @@ def data_default_none(
                                 continue
 
     return data
+
+
+class CSV(list[str]):
+    """
+    A pydantic custom type that converts a CSV into a list of strings. It
+    also supports basic validation of length constraints.
+    """
+
+    @classmethod
+    def __get_validators__(cls) -> Generator[Callable, None, None]:
+        yield cls.validate
+        yield cls.length_validator
+
+    @classmethod
+    def validate(cls, value: str) -> list[str]:
+        if not value:
+            items = []
+        else:
+            items = value.split(",")
+        return items
+
+    @classmethod
+    def length_validator(
+        cls, v: "list[str]", values: dict, field: ModelField
+    ) -> "list[str]":
+        min_items = field.field_info.extra.get("csv_min_items")
+        max_items = field.field_info.extra.get("csv_max_items")
+
+        v_len = len(v)
+        if min_items is not None and v_len < min_items:
+            raise pydantic_errors.ListMinLengthError(limit_value=min_items)
+        if max_items is not None and v_len > max_items:
+            raise pydantic_errors.ListMaxLengthError(limit_value=max_items)
+        return v
+
+
+def cron_validator(value: str) -> str:
+    """
+    A pydantic validator for a cron expression.
+    """
+    try:
+        croniter(value)
+        return value
+    except ValueError as e:
+        raise ValueError(f"Invalid cron expression: {e}")
