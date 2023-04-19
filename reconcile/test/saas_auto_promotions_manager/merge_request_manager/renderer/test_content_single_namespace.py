@@ -46,7 +46,7 @@ def test_content_single_namespace(
     assert result.strip() == expected.strip()
 
 
-def test_content_single_namespace_no_hash(
+def test_content_single_namespace_no_previous_hash(
     file_contents: Callable[[str], tuple[str, str]],
     subscriber_builder: Callable[[Mapping], Subscriber],
 ):
@@ -65,6 +65,27 @@ def test_content_single_namespace_no_hash(
         }
     )
     saas_content, expected = file_contents("single_namespace_no_hash")
+    renderer = Renderer()
+    result = renderer.render_merge_request_content(
+        subscriber=subscriber,
+        current_content=saas_content,
+    )
+    assert result.strip() == expected.strip()
+
+
+def test_content_single_namespace_no_desired_hash(
+    file_contents: Callable[[str], tuple[str, str]],
+    subscriber_builder: Callable[[Mapping], Subscriber],
+):
+    subscriber = subscriber_builder(
+        {
+            NAMESPACE_PATH: "/some/namespace.yml",
+            REF: "new_sha",
+            CONFIG_HASHES: [],
+            CHANNELS: ["channel-a"],
+        }
+    )
+    saas_content, expected = file_contents("single_namespace_ignore_hash")
     renderer = Renderer()
     result = renderer.render_merge_request_content(
         subscriber=subscriber,

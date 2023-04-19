@@ -92,7 +92,8 @@ class Renderer:
                             ],
                         }
                     )
-            target["promotion"]["promotion_data"] = cur_promotion_data
+            if cur_promotion_data:
+                target["promotion"]["promotion_data"] = cur_promotion_data
         new_content = "---\n"
         with StringIO() as stream:
             yml.dump(content, stream)
