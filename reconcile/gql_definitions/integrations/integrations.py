@@ -140,19 +140,19 @@ query Integrations {
 
 
         ... on AWSAccountSharding_v1 {
-          shardSpecOverrides {
-            shard {
-              name
-              disable {
-                integrations
+            shardSpecOverrides {
+              shard {
+                name
+                disable {
+                  integrations
+                }
+              }
+              imageRef
+              disabled
+              resources {
+                ... DeployResourcesFields
               }
             }
-            imageRef
-            disabled
-            resources {
-              ... DeployResourcesFields
-            }
-          }
         }
 
 
