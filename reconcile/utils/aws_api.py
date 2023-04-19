@@ -44,7 +44,10 @@ if TYPE_CHECKING:
     from mypy_boto3_iam import IAMClient
     from mypy_boto3_iam.type_defs import AccessKeyMetadataTypeDef
     from mypy_boto3_rds import RDSClient
-    from mypy_boto3_rds.type_defs import DBInstanceMessageTypeDef
+    from mypy_boto3_rds.type_defs import (
+        DBInstanceMessageTypeDef,
+        UpgradeTargetTypeDef,
+    )
     from mypy_boto3_route53 import Route53Client
     from mypy_boto3_route53.type_defs import (
         HostedZoneTypeDef,
@@ -82,7 +85,9 @@ else:
         ResourceRecordSetTypeDef
     ) = (
         ResourceRecordTypeDef
-    ) = HostedZoneTypeDef = RDSClient = DBInstanceMessageTypeDef = object
+    ) = (
+        HostedZoneTypeDef
+    ) = RDSClient = DBInstanceMessageTypeDef = UpgradeTargetTypeDef = object
 
 
 class InvalidResourceTypeError(Exception):
@@ -1465,3 +1470,29 @@ class AWSApi:  # pylint: disable=too-many-public-methods
 
         rds = self._account_rds_client(account_name, **optional_kwargs)
         return rds.describe_db_instances(DBInstanceIdentifier=db_instance_name)
+
+    def get_db_valid_upgrade_target(
+        self,
+        account_name: str,
+        engine: str,
+        engine_version: str,
+        region_name: Optional[str] = None,
+    ) -> list[UpgradeTargetTypeDef]:
+        """
+        Get a list version of the database engine that a DB instance can be upgraded to.
+        :param account_name: the name of the account in app-interface
+        :param engine: the database engine (ex. mysql, postgres)
+        :param engine_version: the database engine version
+        :param region_name: AWS region name for the resource, otherwise fallback to default
+
+        :return: https://docs.aws.amazon.com/AmazonRDS/latest/APIReference/API_UpgradeTarget.html
+        """
+        optional_kwargs = {}
+
+        if region_name:
+            optional_kwargs["region_name"] = region_name
+
+        rds = self._account_rds_client(account_name, **optional_kwargs)
+        return rds.describe_db_engine_versions(
+            Engine=engine, EngineVersion=engine_version
+        )["DBEngineVersions"][0]["ValidUpgradeTarget"]
