@@ -34,11 +34,7 @@ objects:
             storage: {{ default "1Gi" $integration.storage }}
     {{- end }}
     revisionHistoryLimit: 50
-    {{- if and ($shard.shard_spec_overrides) ($shard.shard_spec_overrides.disabled) }}
-    replicas: 0
-    {{- else }}
     replicas: 1
-    {{- end }}
     selector:
       matchLabels:
         app: qontract-reconcile-{{ $integration.name }}
@@ -209,8 +205,8 @@ objects:
             mountPath: /fluentd/etc/
         containers:
         - name: int
-          {{- if and ($shard.shard_spec_overrides) ($shard.shard_spec_overrides.image_ref) }}
-          image: ${IMAGE}:{{$shard.shard_spec_overrides.image_ref }}
+          {{- if $shard.imageRef }}
+          image: ${IMAGE}:{{$shard.imageRef}}
           {{- else if $integration.imageRef}}
           image: ${IMAGE}:{{$integration.imageRef}}
           {{- else }}
@@ -336,28 +332,7 @@ objects:
           {{- end }}
           {{- end }}
           {{- end }}
-
-          {{- if and ($shard.shard_spec_overrides) ($shard.shard_spec_overrides.resources) }}
-          resources:
-            {{- if $shard.shard_spec_overrides.resources.limits }}
-            limits:
-              {{- if $shard.shard_spec_overrides.resources.limits.cpu }}
-              cpu: {{ $shard.shard_spec_overrides.resources.limits.cpu }}
-              {{- end }}
-              {{- if $shard.shard_spec_overrides.resources.limits.memory }}
-              memory: {{ $shard.shard_spec_overrides.resources.limits.memory }}
-              {{- end }}
-            {{- end }}
-            {{- if $shard.shard_spec_overrides.resources.requests }}
-            requests:
-              {{- if $shard.shard_spec_overrides.resources.requests.cpu }}
-              cpu: {{ $shard.shard_spec_overrides.resources.requests.cpu }}
-              {{- end }}
-              {{- if $shard.shard_spec_overrides.resources.requests.memory }}
-              memory: {{$shard.shard_spec_overrides.resources.requests.memory }}
-              {{- end }}
-            {{- end }}
-          {{- else if $integration.resources }}
+          {{- if $integration.resources }}
           resources:
             {{- if $integration.resources.limits }}
             limits:
@@ -452,7 +427,7 @@ objects:
           {{- end }}
         volumes:
         - name: qontract-reconcile-sa-token
-          projected:
+          projected: 
             sources:
             - serviceAccountToken:
                 expirationSeconds: 1800
@@ -485,7 +460,7 @@ objects:
     name: e2e-tests-{{ $integration.name }}
         {{- else }}
       app: qontract-reconcile-{{ $integration.name }}
-    name: qontract-reconcile-{{ $integration.name }}
+    name: qontract-reconcile-{{ $integration.name }} 
         {{- end }}
       {{- else }}
       app: qontract-reconcile-{{ $integration.name }}
@@ -592,7 +567,7 @@ objects:
               secret:
                 secretName: qontract-reconcile-toml
             - name: qontract-reconcile-sa-token
-              projected:
+              projected: 
                 sources:
                 - serviceAccountToken:
                     expirationSeconds: 1800
@@ -708,7 +683,6 @@ parameters:
 {{- end }}
 {{- end }}
 {{- end }}
-
 {{- if $integration.fluentdResources }}
 {{- if $integration.fluentdResources.limits }}
 {{- if $integration.fluentdResources.limits.cpu }}
@@ -732,7 +706,6 @@ parameters:
 {{- end }}
 {{- end }}
 {{- end }}
-
 {{- range $i, $integration := .Values.cronjobs }}
 {{- if $integration.resources }}
 {{- if $integration.resources.limits }}
