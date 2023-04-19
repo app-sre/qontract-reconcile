@@ -4,10 +4,10 @@ from pydantic import (
     Field,
 )
 
+from reconcile.test.ocm.fixtures import build_label
 from reconcile.utils.models import CSV
 from reconcile.utils.ocm.labels import (
     LabelContainer,
-    OCMLabel,
     build_label_container,
 )
 from reconcile.utils.ocm.sre_capability_labels import (
@@ -21,19 +21,6 @@ def test_build_sre_capability_label_key() -> None:
     assert (
         sre_capability_label_key("my_capability", "option")
         == "sre-capabilities.my_capability.option"
-    )
-
-
-def build_label(key: str, value: str) -> OCMLabel:
-    return OCMLabel(
-        created_at="2021-09-01T00:00:00Z",
-        updated_at="2021-09-01T00:00:00Z",
-        id=f"{key}_id",
-        internal=False,
-        href=f"https://ocm/label/{key}_id",
-        key=key,
-        value=value,
-        type="Subscription",
     )
 
 

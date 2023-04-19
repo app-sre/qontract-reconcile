@@ -20,7 +20,17 @@ class ClusterUpgradeSpec(BaseModel):
 
 class OrganizationUpgradeSpec(BaseModel):
     org: AUSOCMOrganization
-    specs: list[ClusterUpgradeSpec]
+    specs: list[ClusterUpgradeSpec] = Field(default_factory=list)
+    cluster_errors: dict[str, list[str]] = Field(default_factory=dict)
+    org_errors: list[str] = Field(default_factory=list)
+
+    def add_cluster_error(self, cluster_id: str, message: str) -> None:
+        if cluster_id not in self.cluster_errors:
+            self.cluster_errors[cluster_id] = []
+        self.cluster_errors[cluster_id].append(message)
+
+    def add_org_error(self, message: str) -> None:
+        self.org_errors.append(message)
 
 
 class ConfiguredUpgradePolicyConditions(BaseModel):
