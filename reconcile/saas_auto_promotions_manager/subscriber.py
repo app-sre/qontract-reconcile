@@ -51,9 +51,9 @@ class Subscriber:
         current_hashes = {
             el for s in self.config_hashes_by_channel_name.values() for el in s
         }
-        desired_hashes_are_in_current_hashes = len(
-            current_hashes & set(self.desired_hashes)
-        ) == len(self.desired_hashes)
+        desired_hashes_are_in_current_hashes = (
+            set(self.desired_hashes) <= current_hashes
+        )
         return not (
             desired_hashes_are_in_current_hashes and self.desired_ref == self.ref
         )
