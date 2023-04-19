@@ -209,7 +209,7 @@ class OpenshiftClusterShardingStrategy:
     def __init__(self, clusters: Optional[Iterable[ClusterV1]] = None):
 
         if not clusters:
-            self.results = get_clusters_minimal()
+            self.clusters = get_clusters_minimal()
         else:
             self.clusters = list(clusters)
 
