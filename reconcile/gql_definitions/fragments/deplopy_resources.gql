@@ -1,0 +1,12 @@
+# qenerate: plugin=pydantic_v1
+
+fragment DeployResourcesFields on DeployResources_v1 {
+  requests {
+    cpu
+    memory
+  }
+  limits {
+    cpu
+    memory
+  }
+}
