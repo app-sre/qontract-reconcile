@@ -720,14 +720,12 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
                     r = line.split()
                     kind = r[-1]
                     namespaced = r[-2].lower() == "true"
+                    # r[-3] is APIVERSION column
+                    # it can be core group e.g. v1
+                    # or group/version e.g. apps/v1
                     group_version = r[-3].split("/", 1)
-                    # Core group (v1)
-                    group = ""
-                    api_version = group_version
-                    if len(group_version) > 1:
-                        # group/version
-                        group = group_version[0]
-                        api_version = group_version[1]
+                    group = "" if len(group_version) == 1 else group_version[0]
+                    api_version = group_version[-1]
                     obj = OCDeprecatedApiResource(kind, group, api_version, namespaced)
                     d = self.api_resources.setdefault(kind, [])
                     d.append(obj)
