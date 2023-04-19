@@ -232,7 +232,7 @@ objects:
             mountPath: /fluentd/buffer
         volumes:
         - name: qontract-reconcile-sa-token
-          projected:
+          projected: 
             sources:
             - serviceAccountToken:
                 expirationSeconds: 1800
