@@ -1790,8 +1790,15 @@ def vpc_peerings_validator(ctx):
 @binary(["terraform", "git"])
 @binary_version("terraform", ["version"], TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
 @enable_deletion(default=False)
+@account_name
 @click.pass_context
-def terraform_tgw_attachments(ctx, print_to_file, enable_deletion, thread_pool_size):
+def terraform_tgw_attachments(
+    ctx,
+    print_to_file,
+    enable_deletion,
+    thread_pool_size,
+    account_name,
+):
     import reconcile.terraform_tgw_attachments
 
     if print_to_file and is_file_in_git_repo(print_to_file):
@@ -1802,6 +1809,7 @@ def terraform_tgw_attachments(ctx, print_to_file, enable_deletion, thread_pool_s
         print_to_file,
         enable_deletion,
         thread_pool_size,
+        account_name,
     )
 
 
