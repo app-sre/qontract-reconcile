@@ -172,7 +172,7 @@ def construct_oc_resources(
     # Generate the openshift template with the helm chart. The resulting template
     # contains all the integrations in the environment
     values = build_helm_values(integrations_environment.integration_specs)
-    template = helm.template(values.dict(exclude_none=True))
+    template = helm.template(values.dict(exclude_none=True, by_alias=True))
 
     parameters = collect_parameters(
         template,
