@@ -7,10 +7,9 @@ from typing import (
 )
 
 import yaml
-from deepdiff import DeepHash
 from pydantic import BaseModel
-
 from reconcile import queries
+
 from reconcile.gql_definitions.terraform_repo.terraform_repo import (
     TerraformRepoV1,
     query,
@@ -18,6 +17,7 @@ from reconcile.gql_definitions.terraform_repo.terraform_repo import (
 from reconcile.utils import gql
 from reconcile.utils.defer import defer
 from reconcile.utils.exceptions import ParameterError
+from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.state import (
     State,
@@ -28,54 +28,55 @@ QONTRACT_INTEGRATION = "terraform-repo"
 QONTRACT_INTEGRATION_VERSION = make_semver(1, 1, 0)
 
 
-class AWSAuthToken(BaseModel):
+class AWSAuthSecret(BaseModel):
     path: str
-    field: str
     version: Optional[int]
 
 
 class AWSAccount(BaseModel):
     name: str
     uid: str
-    token: AWSAuthToken
+    secret: AWSAuthSecret
 
 
-class RepoOutput(BaseModel):
+class TFRepo(BaseModel):
     """This is what the integration outputs and is input for the executor to perform terraform operations"""
 
     name: str
-    git: str
+    repository: str
     ref: str
     project_path: str
     account: AWSAccount
-    destroy: bool
+    delete: Optional[bool]
 
 
 class ActionPlan(BaseModel):
     dry_run: bool
-    repos: list[RepoOutput]
+    repos: list[TFRepo]
 
 
-def get_repos(query_func: Callable) -> list[TerraformRepoV1]:
+def get_repos(query_func: Callable) -> list[TFRepo]:
     """Return all terraform repos defined in app-interface"""
-    return query(query_func=query_func).repos or []
+    return [gql_to_tf_repo(repo) for repo in query(query_func=query_func).repos] or []
 
 
-def get_existing_state(state: State) -> list[TerraformRepoV1]:
+def get_existing_state(state: State) -> list[TFRepo]:
     """Get the existing state of terraform repos from S3"""
-    repo_list: list[TerraformRepoV1] = list()
+    repo_list: list[TFRepo] = list()
     keys = state.ls()
     for key in keys:
-        value = state.get(key, None)
-        if not value == None:
-            repo_list.append(value)
+        value = state.get(key.lstrip("/"), None)
+        repo = TFRepo.parse_raw(value)
+
+        if repo is not None:
+            repo_list.append(repo)
 
     return repo_list
 
 
-def map_repos(repos: list[TerraformRepoV1]) -> Mapping[str, TerraformRepoV1]:
+def map_repos(repos: list[TFRepo]) -> Mapping[str, TFRepo]:
     """Generate keys for each repo to more easily compare"""
-    repo_map: Mapping[str, TerraformRepoV1] = dict()
+    repo_map: Mapping[str, TFRepo] = dict()
     for repo in repos:
         key = "{}-{}".format(repo.account.uid, repo.name)
         repo_map[key] = repo
@@ -83,15 +84,39 @@ def map_repos(repos: list[TerraformRepoV1]) -> Mapping[str, TerraformRepoV1]:
     return repo_map
 
 
+def check_ref(repo_url: str, ref: str, path: str):
+    """
+    Checks whether a Git ref is valid
+    and whether config.tf exists in the project path"""
+    instance = queries.get_gitlab_instance()
+    with GitLabApi(
+        instance, settings=queries.get_secret_reader_settings(), project_url=repo_url
+    ) as gl:
+        try:
+            gl.get_commit_sha(ref=ref, repo_url=repo_url)
+            retrieved_path = gl.get_file("{}/config.tf".format(path), ref)
+
+            if not retrieved_path:
+                raise ParameterError(
+                    'No config.tf found in path: "{}" on repo: "{}". Ensure that a config.tf file is present in this path.'.format(
+                        path, repo_url
+                    )
+                )
+        except (KeyError, AttributeError):
+            raise ParameterError(
+                'Invalid ref: "{}" on repo: "{}"'.format(ref, repo_url)
+            )
+
+
 def diff_missing(
-    a: Mapping[str, TerraformRepoV1],
-    b: Mapping[str, TerraformRepoV1],
+    a: Mapping[str, TFRepo],
+    b: Mapping[str, TFRepo],
     requireDelete: bool = False,
-) -> Mapping[str, TerraformRepoV1]:
+) -> Mapping[str, TFRepo]:
     """
     Returns a mapping of repos that are present in mapping a but missing in mapping b
     When requireDelete = True, each repo from a is checked to ensure that the delete flag is set"""
-    missing: Mapping[str, TerraformRepoV1] = dict()
+    missing: Mapping[str, TFRepo] = dict()
     for a_key, a_repo in a.items():
         b_repo = b.get(a_key)
         if b_repo is None:
@@ -101,86 +126,89 @@ def diff_missing(
                         a_repo.name
                     )
                 )
+            check_ref(a_repo.repository, a_repo.ref, a_repo.project_path)
             missing[a_key] = a_repo
 
     return missing
 
 
 def diff_changed(
-    a: Mapping[str, TerraformRepoV1], b: Mapping[str, TerraformRepoV1]
-) -> Mapping[str, TerraformRepoV1]:
+    a: Mapping[str, TFRepo], b: Mapping[str, TFRepo]
+) -> Mapping[str, TFRepo]:
     """
     Returns a mapping of repos that have changed between a and b in the form of returning their b values
     In order for Terraform to work as expected, the tenant can only update the ref between MRs
     Updating account, repo, or project_path can lead to unexpected behavior so we error
     on that
     """
-    changed: Mapping[str, TerraformRepoV1] = dict()
+    changed: Mapping[str, TFRepo] = dict()
     for a_key, a_repo in a.items():
         b_repo = b.get(a_key, a_repo)
-        if not DeepHash(a_repo) == DeepHash(b_repo):
-            if (
-                a_repo.account != b_repo.account
-                or a_repo.name != b_repo.name
-                or a_repo.project_path != b_repo.project_path
-                or a_repo.repository != b_repo.repository
-            ):
-                raise ParameterError(
-                    'Only the `ref` and `delete` parameters for a terraform repo may be updated in merge requests on repo: "{}"'.format(
-                        a_repo.name
-                    )
+        if (
+            a_repo.account != b_repo.account
+            or a_repo.name != b_repo.name
+            or a_repo.project_path != b_repo.project_path
+            or a_repo.repository != b_repo.repository
+        ):
+            raise ParameterError(
+                'Only the `ref` and `delete` parameters for a terraform repo may be updated in merge requests on repo: "{}"'.format(
+                    a_repo.name
                 )
-            else:
-                changed[a_key] = b_repo
+            )
+        elif (a_repo.ref != b_repo.ref) or (a_repo.delete != b_repo.delete):
+            check_ref(b_repo.repository, b_repo.ref, b_repo.project_path)
+            changed[a_key] = b_repo
 
     return changed
 
 
-def repo_action_plan(repo: TerraformRepoV1, destroy: bool) -> RepoOutput:
-    """Converts the GQL/state representation of a Terraform repo to an action plan that the executor will act on"""
-    return RepoOutput(
+def gql_to_tf_repo(repo: TerraformRepoV1) -> TFRepo:
+    """
+    Converts the GQL/state representation of a Terraform repo to a
+    TFRepo class that can be more easily marshalled/unmarshalled from state file
+    """
+    return TFRepo(
         name=repo.name,
-        git=repo.repository,
+        repository=repo.repository,
         ref=repo.ref,
         project_path=repo.project_path,
         account=AWSAccount(
             name=repo.account.name,
             uid=repo.account.uid,
-            token=AWSAuthToken(
+            secret=AWSAuthSecret(
                 path=repo.account.automation_token.path,
-                field=repo.account.automation_token.field,
                 version=repo.account.automation_token.version,
             ),
         ),
-        destroy=destroy,
+        delete=repo.delete,
     )
 
 
 def merge_results(
-    created: Mapping[str, TerraformRepoV1], updated: Mapping[str, TerraformRepoV1]
-) -> list[RepoOutput]:
+    created: Mapping[str, TFRepo], updated: Mapping[str, TFRepo]
+) -> list[TFRepo]:
     """
     Merges results into a RepoOutput dict which will be transformed to outputted YAML.
     This includes checking modified values for a delete flag
     """
-    output: list[RepoOutput] = list()
+    output: list[TFRepo] = list()
     for c_value in created.values():
         logging.info(["create_repo", c_value.account.name, c_value.name])
-        output.append(repo_action_plan(c_value, False))
+        output.append(c_value)
     for u_value in updated.values():
         if u_value.delete is True:
             logging.info(["delete_repo", u_value.account.name, u_value.name])
-            output.append(repo_action_plan(u_value, True))
+            output.append(u_value)
         else:
             logging.info(["update_repo", u_value.account.name, u_value.name])
-            output.append(repo_action_plan(u_value, False))
+            output.append(u_value)
     return output
 
 
 def update_state(
-    created: Mapping[str, TerraformRepoV1],
-    deleted: Mapping[str, TerraformRepoV1],
-    updated: Mapping[str, TerraformRepoV1],
+    created: Mapping[str, TFRepo],
+    deleted: Mapping[str, TFRepo],
+    updated: Mapping[str, TFRepo],
     state: State,
 ):
     """
@@ -193,9 +221,9 @@ def update_state(
     try:
         for cu_key, cu_val in created_and_updated.items():
             if cu_val.delete is True:
-                state.rm(d_key)
+                state.rm(cu_key)
             else:
-                state.add(cu_key, cu_val, True)
+                state.add(cu_key, cu_val.json(), True)
         for d_key in deleted.keys():
             state.rm(d_key)
     except KeyError:
@@ -203,11 +231,11 @@ def update_state(
 
 
 def calculate_diff(
-    existing_state: list[TerraformRepoV1],
-    desired_state: list[TerraformRepoV1],
+    existing_state: list[TFRepo],
+    desired_state: list[TFRepo],
     dry_run: bool,
     state: State,
-) -> list[RepoOutput]:
+) -> list[TFRepo]:
     """Diffs existing and desired state as well as updates the state in S3 if this is not a dry-run operation"""
     existing_map = map_repos(existing_state)
     desired_map = map_repos(desired_state)
