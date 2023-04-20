@@ -79,20 +79,20 @@ class StaticShardingStrategy:
     IDENTIFIER = "static"
 
     def build_integration_shards(
-        self, _: IntegrationMeta, integration_spec: IntegrationManagedV1
+        self, _: IntegrationMeta, integration_managed: IntegrationManagedV1
     ) -> list[ShardSpec]:
         shards = 1
-        if integration_spec.sharding and isinstance(
-            integration_spec.sharding, StaticShardingV1
+        if integration_managed.sharding and isinstance(
+            integration_managed.sharding, StaticShardingV1
         ):
-            shards = integration_spec.sharding.shards
+            shards = integration_managed.sharding.shards
 
         return [
             ShardSpec(
                 shard_id=str(s),
                 shards=str(shards),
                 shard_name_suffix=f"-{s}" if shards > 1 else "",
-                extra_args="",
+                extra_args=integration_managed.spec.extra_args or "",
             )
             for s in range(0, shards)
         ]

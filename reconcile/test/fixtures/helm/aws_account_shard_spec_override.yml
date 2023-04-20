@@ -186,7 +186,7 @@ objects:
             mountPath: /fluentd/etc/
         volumes:
         - name: qontract-reconcile-sa-token
-          projected: 
+          projected:
             sources:
             - serviceAccountToken:
                 expirationSeconds: 1800
@@ -334,11 +334,11 @@ objects:
             value: "${KUBE_SA_TOKEN_MOUNT_PATH}/${KUBE_SA_TOKEN_FILENAME}"
           resources:
             limits:
-              cpu: ${INTEG_CPU_LIMIT}
-              memory: ${INTEG_MEMORY_LIMIT}
+              cpu: 300m
+              memory: 300Mi
             requests:
-              cpu: ${INTEG_CPU_REQUEST}
-              memory: ${INTEG_MEMORY_REQUEST}
+              cpu: 200m
+              memory: 200Mi
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -379,7 +379,7 @@ objects:
             mountPath: /fluentd/etc/
         volumes:
         - name: qontract-reconcile-sa-token
-          projected: 
+          projected:
             sources:
             - serviceAccountToken:
                 expirationSeconds: 1800

@@ -145,11 +145,25 @@ def resources() -> dict[str, Any]:
 
 
 @pytest.fixture
+def resources_2() -> dict[str, Any]:
+    return {
+        "requests": {
+            "cpu": "200m",
+            "memory": "2Mi",
+        },
+        "limits": {
+            "cpu": "200m",
+            "memory": "2Mi",
+        },
+    }
+
+
+@pytest.fixture
 def basic_integration_spec(
     gql_class_factory: Callable[..., IntegrationSpecV1], resources: dict[str, Any]
 ) -> IntegrationSpecV1:
     return gql_class_factory(
-        IntegrationSpecV1, {"extraArgs": None, "resources": resources}
+        IntegrationSpecV1, {"extraArgs": "integ-extra-arg", "resources": resources}
     )
 
 
@@ -170,7 +184,9 @@ def basic_integration(
                         "cluster": {"name": "cluster"},
                         "environment": {"name": "test"},
                     },
-                    "spec": basic_integration_spec.dict(exclude_none=True),
+                    "spec": basic_integration_spec.dict(
+                        exclude_none=True, by_alias=True
+                    ),
                     "sharding": None,
                 }
             ],
@@ -210,10 +226,21 @@ def test_build_helm_values(
     integrations_specs: list[HelmIntegrationSpec] = [his1, his2]
     expected = {
         "integrations": [
-            {"name": "basic-integration", "resources": resources, "shard_specs": []},
+            {
+                "name": "basic-integration",
+                "extra_args": "integ-extra-arg",
+                "resources": resources,
+                "shard_specs": [],
+            },
         ],
         "cronjobs": [
-            {"name": "cron1", "cron": "yup", "resources": resources, "shard_specs": []},
+            {
+                "name": "cron1",
+                "cron": "yup",
+                "extra_args": "integ-extra-arg",
+                "resources": resources,
+                "shard_specs": [],
+            },
         ],
     }
     values = intop.build_helm_values(integrations_specs)
@@ -414,7 +441,7 @@ def test_build_helm_integration_spec_no_shards(
         shard_spec_overrides=None,
         shard_key="",
         shard_name_suffix="",
-        extra_args="",
+        extra_args="integ-extra-arg",
     )
 
     assert len(wr) == 1
@@ -439,8 +466,18 @@ def test_initialize_shard_specs_two_shards_explicit(
     )
 
     expected = [
-        ShardSpec(shard_id="0", shards="2", shard_name_suffix="-0", extra_args=""),
-        ShardSpec(shard_id="1", shards="2", shard_name_suffix="-1", extra_args=""),
+        ShardSpec(
+            shard_id="0",
+            shards="2",
+            shard_name_suffix="-0",
+            extra_args="integ-extra-arg",
+        ),
+        ShardSpec(
+            shard_id="1",
+            shards="2",
+            shard_name_suffix="-1",
+            extra_args="integ-extra-arg",
+        ),
     ]
     shards = wr[0].integration_specs[0].shard_specs or []
     assert expected == shards
@@ -471,17 +508,17 @@ def test_initialize_shard_specs_aws_account_shards(
         ShardSpec(
             shard_name_suffix="-acc-1",
             shard_key="acc-1",
-            extra_args=" --account-name acc-1",
+            extra_args="integ-extra-arg --account-name acc-1",
         ),
         ShardSpec(
             shard_name_suffix="-acc-2",
             shard_key="acc-2",
-            extra_args=" --account-name acc-2",
+            extra_args="integ-extra-arg --account-name acc-2",
         ),
         ShardSpec(
             shard_name_suffix="-acc-3",
             shard_key="acc-3",
-            extra_args=" --account-name acc-3",
+            extra_args="integ-extra-arg --account-name acc-3",
         ),
     ]
 
@@ -499,6 +536,11 @@ def aws_shard_overrides(
     o1 = AWSAccountShardSpecOverrideV1(
         shard=aws_accounts[0], imageRef="acc1-image", disabled=False, resources=None
     )
+    resources["requests"]["cpu"] = "200m"
+    resources["requests"]["memory"] = "2Mi"
+    resources["limits"]["cpu"] = "300m"
+    resources["limits"]["memory"] = "3Mi"
+
     deploy_resources = gql_class_factory(DeployResourcesFields, resources)
     o2 = AWSAccountShardSpecOverrideV1(
         shard=aws_accounts[1],
@@ -536,19 +578,19 @@ def test_initialize_shard_specs_aws_account_shards_with_overrides(
         ShardSpec(
             shard_name_suffix="-acc-1",
             shard_key="acc-1",
-            extra_args=" --account-name acc-1",
+            extra_args="integ-extra-arg --account-name acc-1",
             shard_spec_overrides=aws_shard_overrides[0],
         ),
         ShardSpec(
             shard_name_suffix="-acc-2",
             shard_key="acc-2",
-            extra_args=" --account-name acc-2",
+            extra_args="integ-extra-arg --account-name acc-2",
             shard_spec_overrides=aws_shard_overrides[1],
         ),
         ShardSpec(
             shard_name_suffix="-acc-3",
             shard_key="acc-3",
-            extra_args=" --account-name acc-3",
+            extra_args="integ-extra-arg --account-name acc-3",
             shard_spec_overrides=aws_shard_overrides[2],
         ),
     ]
@@ -628,12 +670,12 @@ def test_initialize_shard_specs_cloudflare_zone_shards(
         ShardSpec(
             shard_key="fakeaccount-zone1",
             shard_name_suffix="-fakeaccount-zone1",
-            extra_args=" --zone-name zone1",
+            extra_args="integ-extra-arg --zone-name zone1",
         ),
         ShardSpec(
             shard_key="fakeaccount-zone2",
             shard_name_suffix="-fakeaccount-zone2",
-            extra_args=" --zone-name zone2",
+            extra_args="integ-extra-arg --zone-name zone2",
         ),
     ]
 
@@ -673,7 +715,7 @@ def openshift_clusters_sharding() -> OpenshiftClusterShardingV1:
 
 @pytest.fixture
 def openshift_clusters_shard_spec_override(
-    openshift_clusters: list[ClusterV1],
+    openshift_clusters: list[ClusterV1], resources_2: dict[str, Any]
 ) -> OpenshiftClusterShardSpecOverrideV1:
     return OpenshiftClusterShardSpecOverrideV1(
         shard=OpenshiftClusterShardSpecOverrideV1_ClusterV1(
@@ -681,7 +723,7 @@ def openshift_clusters_shard_spec_override(
         ),
         imageRef=None,
         disabled=False,
-        resources=None,
+        resources=resources_2,
         subSharding=None,
     )
 
@@ -705,7 +747,7 @@ def test_initialize_shard_specs_openshift_clusters(
             shard_spec_overrides=None,
             shard_key="cluster-1",
             shard_name_suffix="-cluster-1",
-            extra_args=" --cluster-name cluster-1",
+            extra_args="integ-extra-arg --cluster-name cluster-1",
         ),
         ShardSpec(
             shards="",
@@ -713,7 +755,7 @@ def test_initialize_shard_specs_openshift_clusters(
             shard_spec_overrides=None,
             shard_key="cluster-2",
             shard_name_suffix="-cluster-2",
-            extra_args=" --cluster-name cluster-2",
+            extra_args="integ-extra-arg --cluster-name cluster-2",
         ),
     ]
     shards = wr[0].integration_specs[0].shard_specs or []
@@ -725,6 +767,7 @@ def test_initialize_shard_specs_openshift_clusters_subsharding_w_overrides(
     openshift_clusters_sharding: OpenshiftClusterShardingV1,
     openshift_clusters_shard_spec_override: OpenshiftClusterShardSpecOverrideV1,
     shard_manager: IntegrationShardManager,
+    resources_2: dict[str, Any],
 ):
 
     openshift_clusters_shard_spec_override.sub_sharding = StaticSubShardingV1(
@@ -751,12 +794,12 @@ def test_initialize_shard_specs_openshift_clusters_subsharding_w_overrides(
                 shard=OpenshiftClusterShardSpecOverrideV1_ClusterV1(name="cluster-1"),
                 imageRef="my-test-image",
                 disabled=False,
-                resources=None,
+                resources=resources_2,
                 subSharding=None,
             ),
             shard_key="cluster-1",
             shard_name_suffix="-cluster-1-0",
-            extra_args=" --cluster-name cluster-1",
+            extra_args="integ-extra-arg --cluster-name cluster-1",
         ),
         ShardSpec(
             shards="2",
@@ -765,12 +808,12 @@ def test_initialize_shard_specs_openshift_clusters_subsharding_w_overrides(
                 shard=OpenshiftClusterShardSpecOverrideV1_ClusterV1(name="cluster-1"),
                 imageRef="my-test-image",
                 disabled=False,
-                resources=None,
+                resources=resources_2,
                 subSharding=None,
             ),
             shard_key="cluster-1",
             shard_name_suffix="-cluster-1-1",
-            extra_args=" --cluster-name cluster-1",
+            extra_args="integ-extra-arg --cluster-name cluster-1",
         ),
         ShardSpec(
             shards="",
@@ -778,7 +821,7 @@ def test_initialize_shard_specs_openshift_clusters_subsharding_w_overrides(
             shard_spec_overrides=None,
             shard_key="cluster-2",
             shard_name_suffix="-cluster-2",
-            extra_args=" --cluster-name cluster-2",
+            extra_args="integ-extra-arg --cluster-name cluster-2",
         ),
     ]
     shards = wr[0].integration_specs[0].shard_specs or []
@@ -817,7 +860,7 @@ def test_initialize_shard_specs_openshift_clusters_disabled_shard(
             ),
             shard_key="cluster-1",
             shard_name_suffix="-cluster-1",
-            extra_args=" --cluster-name cluster-1",
+            extra_args="integ-extra-arg --cluster-name cluster-1",
         ),
         ShardSpec(
             shards="",
@@ -825,7 +868,7 @@ def test_initialize_shard_specs_openshift_clusters_disabled_shard(
             shard_spec_overrides=None,
             shard_key="cluster-2",
             shard_name_suffix="-cluster-2",
-            extra_args=" --cluster-name cluster-2",
+            extra_args="integ-extra-arg --cluster-name cluster-2",
         ),
     ]
     shards = wr[0].integration_specs[0].shard_specs or []
@@ -900,47 +943,6 @@ def test_fetch_desired_state_upstream(
         for x in resources
         if x[3] == ["qontract-reconcile-basic-integration"]
     ] == [upstream]
-
-
-# def test_fetch_desired_state_upstream(
-#     basic_integration: IntegrationV1,
-#     shard_manager: intop.IntegrationShardManager,
-# ):
-#     upstream = "a"
-#     basic_integration.upstream = upstream
-
-#     integrations_environments = intop.collect_integrations_environment(
-#         [basic_integration], "test", shard_manager
-#     )
-
-#     upstream = "a"
-#     filtered_integrations = intop.filter_integrations(integrations, upstream)
-#     cnetf = intop.collect_namespaces(filtered_integrations, "test1")
-
-#     intop.initialize_shard_specs(cnetf, shard_manager)
-#     ri = ResourceInventory()
-#     ri.initialize_resource_type("cl1", "ns1", "Deployment")
-#     ri.initialize_resource_type("cl1", "ns1", "Service")
-#     intop.fetch_desired_state(
-#         namespaces=cnetf,
-#         ri=ri,
-#         upstream=upstream,
-#         image="image",
-#         image_tag_from_ref=None,
-#         environment_override_mapping={"test1": {}},
-#     )
-
-#     resources = [
-#         (cluster, namespace, kind, list(data["desired"].keys()), data["desired"])
-#         for cluster, namespace, kind, data in list(ri)
-#     ]
-
-#     assert len(resources) == 2
-#     assert [
-#         x[4]["qontract-reconcile-integ1"].caller
-#         for x in resources
-#         if x[3] == ["qontract-reconcile-integ1"]
-#     ] == [upstream]
 
 
 @pytest.fixture

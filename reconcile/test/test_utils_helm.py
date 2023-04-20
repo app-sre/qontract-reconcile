@@ -159,7 +159,13 @@ def test_template_aws_account_shard_spec_override(values):
             "shards": "2",
             "shard_name_suffix": "-acc-2",
             "extra_args": "--account-name acc-2",
-            "shard_spec_overrides": {"image_ref": "foobar"},
+            "shard_spec_overrides": {
+                "image_ref": "foobar",
+                "resources": {
+                    "requests": {"cpu": "200m", "memory": "200Mi"},
+                    "limits": {"cpu": "300m", "memory": "300Mi"},
+                },
+            },
         },
     ]
     template = helm.template(values)
