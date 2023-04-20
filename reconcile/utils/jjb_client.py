@@ -33,7 +33,10 @@ JJB_INI = "[jenkins]\nurl = https://JENKINS_URL"
 
 
 class JJB:  # pylint: disable=too-many-public-methods
-    """Wrapper around Jenkins Jobs"""
+    """Wrapper around Jenkins Job Builder
+
+    https://opendev.org/jjb/jenkins-job-builder
+    """
 
     def __init__(self, configs, ssl_verify=True, secret_reader=None, print_only=False):
         self.print_only = print_only
@@ -185,11 +188,18 @@ class JJB:  # pylint: disable=too-many-public-methods
                 if equal:
                     continue
 
-            instance, item, _ = f.replace(replace_path + "/", "").split("/")
+            # 'item' is used in jenkins_job/builder.py to create the directory
+            # structure. If a branch name contains a '/' in it's name, replace
+            # it with an '_' to avoid nesting directories based on branch.
+            instance, *items, _ = f.replace(replace_path + "/", "").split("/")
+            item = "_".join(items)
+            orig_item = "/".join(items)
+
             item_type = et.parse(f).getroot().tag
             item_type = item_type.replace("hudson.model.ListView", "view")
             item_type = item_type.replace("project", "job")
-            logging.info([action, item_type, instance, item])
+            # log original branch name with 'orig_item'
+            logging.info([action, item_type, instance, orig_item])
 
             if action == "update":
                 with open(ft) as c, open(f) as d:
