@@ -893,31 +893,30 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         return subnets.get("Subnets", [])
 
     def get_mesh_vpc_peerings(self,account, vpc_key, vpc_value: str) -> dict:
-        assumed_role_data = self._get_account_assume_data(account)
-        ec2 = self._get_assumed_role_client(*assumed_role_data, "ec2")
-        mesh_vpc_dict = {}
-        response = ec2.describe_vpcs()
-        for vpc in response['Vpcs']:
-            if 'Tags' in vpc:
-                for tag in vpc['Tags']:
-                    if tag['Key'] == vpc_key and tag['Value'] == vpc_value:
-                        vpc_id = vpc["VpcId"]
-                        peerings = ec2.describe_vpc_peering_connections(
-                            Filters=[
-                                {
-                                    'Name': 'accepter-vpc-info.vpc-id',
-                                    'Values': [vpc_id]
-                                }
-                            ]
-                        )
-                        for peering in peerings['VpcPeeringConnections']:
-                            peering_name = None
-                            if 'Tags' in peering:
-                                for tag in peering['Tags']:
-                                    if tag['Key'] == 'Name':
-                                        peering_name = tag['Value']
-                                        mesh_vpc_dict[peering_name] = peering['RequesterVpcInfo']['CidrBlock']
-
+        for account_parse in account:
+            ec2 = self._account_ec2_client(account_parse["name"])
+            mesh_vpc_dict = {}
+            response = ec2.describe_vpcs()
+            for vpc in response['Vpcs']:
+                if 'Tags' in vpc:
+                    for tag in vpc['Tags']:
+                        if tag['Key'] == vpc_key and tag['Value'] == vpc_value:
+                            vpc_id = vpc["VpcId"]
+                            peerings = ec2.describe_vpc_peering_connections(
+                                Filters=[
+                                    {
+                                        'Name': 'accepter-vpc-info.vpc-id',
+                                        'Values': [vpc_id]
+                                    }
+                                ]
+                            )
+                            for peering in peerings['VpcPeeringConnections']:
+                                peering_name = None
+                                if 'Tags' in peering:
+                                    for tag in peering['Tags']:
+                                        if tag['Key'] == 'Name':
+                                            peering_name = tag['Value']
+                                            mesh_vpc_dict[peering_name] = peering['RequesterVpcInfo']['CidrBlock']
         return mesh_vpc_dict
 
     def get_cluster_vpc_details(self, account, route_tables=False, subnets=False):

@@ -1,6 +1,7 @@
 import ipaddress
 import logging
 import sys
+from reconcile import queries
 from typing import (
     Union,
     cast,
@@ -43,9 +44,13 @@ def validate_no_cidr_overlap(
                     cidr_block = str(peering.vpc.cidr_block)  # type: ignore[union-attr]
                     cidr_block_entries_acount_vpc[peering.vpc.name] = cidr_block  # type: ignore[union-attr]
                 if peering.provider == "account-vpc-mesh":
-                    logging.debug("this is what peering.tags looks like")
-                    logging.debug(peering.tags)
-
+                    tags_dict = peering.tags
+                    aws_account_uid = peering.account.uid
+                    # aws_account = peering.account
+                    # logging.debug("aws_account var")
+                    # logging.debug(aws_account)
+                    for tags_key, tags_value in tags_dict.items():
+                        cidr_mesh_finder(aws_account_uid,tags_key, tags_value)
                     # FIX
 
                     # tags_dict = peering.tags
@@ -89,9 +94,11 @@ def validate_no_cidr_overlap(
     return True
 
 
-def cidr_mesh_finder(tag_key, tag_value: str, awsapi:AWSApi):
-    # with AWSApi(1, mesh_account, settings=settings, init_users=False) as awsapi:
-    awsapi.get_mesh_vpc_peerings(aws_account,tag_key, tag_value)
+def cidr_mesh_finder(aws_account_uid, tag_key, tag_value: str):
+    settings = queries.get_secret_reader_settings()
+    accounts = queries.get_aws_accounts(uid=aws_account_uid)
+    awsapi = AWSApi(1, accounts, settings=settings, init_users=False)
+    awsapi.get_mesh_vpc_peerings(accounts,tag_key, tag_value)
 
     # awsapi.create_route53_zone
     # return

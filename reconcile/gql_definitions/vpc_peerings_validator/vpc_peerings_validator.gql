@@ -23,6 +23,7 @@ query VpcPeeringsValidator {
           name
           account {
             name
+            uid
           }
           tags
         }

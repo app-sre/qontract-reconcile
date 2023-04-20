@@ -55,6 +55,7 @@ query VpcPeeringsValidator {
           name
           account {
             name
+            uid
           }
           tags
         }
@@ -110,6 +111,7 @@ class ClusterPeeringConnectionAccountV1(ClusterPeeringConnectionV1):
 
 class AWSAccountV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+    uid: str = Field(..., alias="uid")
 
 
 class ClusterPeeringConnectionAccountVPCMeshV1(ClusterPeeringConnectionV1):
