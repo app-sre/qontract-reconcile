@@ -212,6 +212,19 @@ class AccountShardingStrategy(TerraformS3StateNamingStrategy):
         return f"{qr_integration.name}-{self.account.name}.tfstate"
 
 
+class DNSZoneShardingStrategy(TerraformS3StateNamingStrategy):
+    def __init__(self, account: CloudflareAccount, zone_identifier: str):
+        super().__init__()
+        self.account: CloudflareAccount = account
+        self.zone: str = zone_identifier
+
+    def get_object_key(self, qr_integration: Integration) -> str:
+        old_integration_key = qr_integration.name.replace(
+            "-", "_"
+        )  # This is because the state file was already created using this name before the refactoring
+        return f"{old_integration_key}-{self.account.name}-{self.zone}.tfstate"
+
+
 class TerrascriptCloudflareClientFactory:
     @staticmethod
     def _create_backend_config(
@@ -255,6 +268,7 @@ class TerrascriptCloudflareClientFactory:
         sharding_strategy: Optional[TerraformS3StateNamingStrategy],
         secret_reader: SecretReaderBase,
         is_managed_account: bool,
+        provider_rps: int = DEFAULT_PROVIDER_RPS,
     ) -> TerrascriptCloudflareClient:
         key = _get_terraform_s3_state_key_name(
             tf_state_s3.integration, sharding_strategy
@@ -265,6 +279,7 @@ class TerrascriptCloudflareClientFactory:
             cf_acct_config,
             backend_config,
             cf_acct.provider_version,
+            provider_rps=provider_rps,
             is_managed_account=is_managed_account,
         )
         client = TerrascriptCloudflareClient(ts_config)

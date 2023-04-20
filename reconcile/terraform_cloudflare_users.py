@@ -230,7 +230,7 @@ class TerraformCloudflareUsers(
             if not tf_state:
                 raise ValueError(
                     f"AWS account {role.account.terraform_state_account.name} cannot be used for Cloudflare "
-                    f"account {cf_account.name} because it does define a Terraform state "
+                    f"account {cf_account.name} because it does not define a Terraform state "
                 )
 
             bucket = tf_state.bucket
