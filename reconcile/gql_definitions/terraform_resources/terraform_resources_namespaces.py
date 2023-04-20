@@ -287,8 +287,19 @@ query TerraformResourcesNamespaces {
                 }
                 rules {
                     condition {
-                        path
-                        methods
+                        type
+                        ... on NamespaceTerraformResourceALBConditionHostHeader_v1 {
+                            host_header
+                        }
+                        ... on NamespaceTerraformResourceALBConditionHTTPRequestMethod_v1 {
+                            http_request_method
+                        }
+                        ... on NamespaceTerraformResourceALBConditionPathPattern_v1 {
+                            path_pattern
+                        }
+                        ... on NamespaceTerraformResourceALBConditionSourceIP_v1 {
+                            source_ip
+                        }
                     }
                     action {
                         type
@@ -747,9 +758,32 @@ class NamespaceTerraformResourceALBTargetsV1(ConfiguredBaseModel):
     openshift_service: Optional[str] = Field(..., alias="openshift_service")
 
 
-class NamespaceTerraformResourceALBConditonV1(ConfiguredBaseModel):
-    path: str = Field(..., alias="path")
-    methods: Optional[list[str]] = Field(..., alias="methods")
+class NamespaceTerraformResourceALBConditionV1(ConfiguredBaseModel):
+    q_type: str = Field(..., alias="type")
+
+
+class NamespaceTerraformResourceALBConditionHostHeaderV1(
+    NamespaceTerraformResourceALBConditionV1
+):
+    host_header: list[str] = Field(..., alias="host_header")
+
+
+class NamespaceTerraformResourceALBConditionHTTPRequestMethodV1(
+    NamespaceTerraformResourceALBConditionV1
+):
+    http_request_method: list[str] = Field(..., alias="http_request_method")
+
+
+class NamespaceTerraformResourceALBConditionPathPatternV1(
+    NamespaceTerraformResourceALBConditionV1
+):
+    path_pattern: list[str] = Field(..., alias="path_pattern")
+
+
+class NamespaceTerraformResourceALBConditionSourceIPV1(
+    NamespaceTerraformResourceALBConditionV1
+):
+    source_ip: list[str] = Field(..., alias="source_ip")
 
 
 class NamespaceTerraformResourceALBActionV1(ConfiguredBaseModel):
@@ -790,7 +824,15 @@ class NamespaceTerraformResourceALBActionFixedResponseV1(
 
 
 class NamespaceTerraformResourceALBRulesV1(ConfiguredBaseModel):
-    condition: NamespaceTerraformResourceALBConditonV1 = Field(..., alias="condition")
+    condition: list[
+        Union[
+            NamespaceTerraformResourceALBConditionHostHeaderV1,
+            NamespaceTerraformResourceALBConditionHTTPRequestMethodV1,
+            NamespaceTerraformResourceALBConditionPathPatternV1,
+            NamespaceTerraformResourceALBConditionSourceIPV1,
+            NamespaceTerraformResourceALBConditionV1,
+        ]
+    ] = Field(..., alias="condition")
     action: Union[
         NamespaceTerraformResourceALBActionForwardV1,
         NamespaceTerraformResourceALBActionFixedResponseV1,
