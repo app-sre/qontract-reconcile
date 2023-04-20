@@ -833,6 +833,7 @@ def test_initialize_shard_specs_openshift_clusters_disabled_shard(
     openshift_clusters_sharding: OpenshiftClusterShardingV1,
     openshift_clusters_shard_spec_override: OpenshiftClusterShardSpecOverrideV1,
     shard_manager: IntegrationShardManager,
+    resources_2: dict[str, Any],
 ):
 
     openshift_clusters_shard_spec_override.disabled = True
@@ -855,7 +856,7 @@ def test_initialize_shard_specs_openshift_clusters_disabled_shard(
                 shard=OpenshiftClusterShardSpecOverrideV1_ClusterV1(name="cluster-1"),
                 imageRef=None,
                 disabled=True,
-                resources=None,
+                resources=resources_2,
                 subSharding=None,
             ),
             shard_key="cluster-1",
