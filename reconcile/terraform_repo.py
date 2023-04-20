@@ -84,8 +84,8 @@ def map_repos(repos: list[TFRepo]) -> MutableMapping[str, TFRepo]:
     """Generate keys for each repo to more easily compare"""
     repo_map: MutableMapping[str, TFRepo] = dict()
     for repo in repos:
-        key = "{}-{}".format(repo.account.uid, repo.name)
-        repo_map[key] = repo
+        # repo names are unique per app interface instance as enforced in the schema
+        repo_map[repo.name] = repo
 
     return repo_map
 
