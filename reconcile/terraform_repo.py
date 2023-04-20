@@ -272,7 +272,6 @@ def run(
     if defer:
         defer(state.cleanup)
 
-    # taking inspiration from slack_usergroups.py
     desired = get_repos(query_func=gqlapi.query)
     existing = get_existing_state(state)
 
