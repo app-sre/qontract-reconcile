@@ -209,14 +209,6 @@ def _validate_tgw_connection_names(desired_state: Iterable[Mapping]) -> None:
         raise ValidationError("duplicate tgw connection names found")
 
 
-def _filter_accounts(
-    accounts: Iterable[Mapping],
-    participating_accounts: Iterable[Mapping],
-) -> list:
-    participating_account_names = {a["name"] for a in participating_accounts}
-    return [a for a in accounts if a["name"] in participating_account_names]
-
-
 def _populate_tgw_attachments_working_dirs(
     desired_state: Iterable,
     accounts: Iterable,
@@ -234,6 +226,29 @@ def _populate_tgw_attachments_working_dirs(
     return working_dirs
 
 
+def _is_tgw_cluster(cluster: Mapping) -> bool:
+    return any(
+        pc["provider"] == TGW_CONNECTION_PROVIDER
+        for pc in cluster["peering"]["connections"]
+    )
+
+
+def _filter_tgw_clusters(clusters: Iterable[Mapping]) -> list:
+    return list(filter(_is_tgw_cluster, clusters))
+
+
+def _filter_tgw_accounts(
+    accounts: Iterable[Mapping],
+    tgw_clusters: Iterable[Mapping],
+) -> list:
+    tgw_account_names = set()
+    for cluster in tgw_clusters:
+        for pc in cluster["peering"]["connections"]:
+            if pc["provider"] == TGW_CONNECTION_PROVIDER:
+                tgw_account_names.add(pc["account"]["name"])
+    return [a for a in accounts if a["name"] in tgw_account_names]
+
+
 @defer
 def run(
     dry_run: bool,
@@ -244,14 +259,19 @@ def run(
 ) -> None:
     settings = queries.get_secret_reader_settings()
     clusters = queries.get_clusters_with_peering_settings()
-    ocm_map = _build_ocm_map(clusters, settings)
+    tgw_clusters = _filter_tgw_clusters(clusters)
+    ocm_map = _build_ocm_map(tgw_clusters, settings)
     accounts = queries.get_aws_accounts(terraform_state=True, ecrs=False)
+    tgw_accounts = _filter_tgw_accounts(accounts, tgw_clusters)
+
+    aws_api = AWSApi(1, tgw_accounts, settings=settings, init_users=False)
+    if defer:
+        defer(aws_api.cleanup)
 
     # Fetch desired state for cluster-to-vpc(account) VPCs
-    with AWSApi(1, accounts, settings=settings, init_users=False) as awsapi:
-        desired_state, err = build_desired_state_tgw_attachments(
-            clusters, ocm_map, awsapi
-        )
+    desired_state, err = build_desired_state_tgw_attachments(
+        tgw_clusters, ocm_map, aws_api
+    )
     if err:
         raise RuntimeError("Could not find VPC ID for cluster")
 
@@ -259,11 +279,10 @@ def run(
     _validate_tgw_connection_names(desired_state)
 
     participating_accounts = [item["requester"]["account"] for item in desired_state]
-    filtered_accounts = _filter_accounts(accounts, participating_accounts)
 
     working_dirs = _populate_tgw_attachments_working_dirs(
         desired_state,
-        filtered_accounts,
+        tgw_accounts,
         settings,
         participating_accounts,
         print_to_file,
@@ -273,13 +292,11 @@ def run(
     if print_to_file:
         return
 
-    aws_api = AWSApi(1, filtered_accounts, settings=settings, init_users=False)
-
     tf = Terraform(
         QONTRACT_INTEGRATION,
         QONTRACT_INTEGRATION_VERSION,
         "",
-        filtered_accounts,
+        tgw_accounts,
         working_dirs,
         thread_pool_size,
         aws_api,

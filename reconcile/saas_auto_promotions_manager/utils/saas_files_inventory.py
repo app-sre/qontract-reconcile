@@ -98,6 +98,9 @@ class SaasFilesInventory:
                         target_file_path=file_path,
                         ref=target.ref,
                         namespace_file_path=target.namespace.path,
+                        # Note: this will be refactored at a later point.
+                        # https://issues.redhat.com/browse/APPSRE-7516
+                        use_target_config_hash=bool(saas_file.publish_job_logs),
                     )
                     self.subscribers.append(subscriber)
                     for prom_data in target.promotion.promotion_data or []:

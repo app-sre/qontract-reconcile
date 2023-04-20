@@ -33,6 +33,7 @@ class Subscriber:
         ref: str,
         target_file_path: str,
         namespace_file_path: str,
+        use_target_config_hash: bool,
     ):
         self.saas_name = saas_name
         self.template_name = template_name
@@ -44,14 +45,19 @@ class Subscriber:
         self.desired_hashes: list[ConfigHash] = []
         self.namespace_file_path = namespace_file_path
         self._content_hash = ""
+        self._use_target_config_hash = use_target_config_hash
 
     def has_diff(self) -> bool:
         current_hashes = {
             el for s in self.config_hashes_by_channel_name.values() for el in s
         }
+        # We explicitly only care about subset - we do not care about
+        # dangling current hashses
+        desired_hashes_are_in_current_hashes = (
+            set(self.desired_hashes) <= current_hashes
+        )
         return not (
-            set(self.desired_hashes) == set(current_hashes)
-            and self.desired_ref == self.ref
+            desired_hashes_are_in_current_hashes and self.desired_ref == self.ref
         )
 
     def compute_desired_state(self) -> None:
@@ -115,6 +121,11 @@ class Subscriber:
         target config hashes in the publishers. For any publisher with a bad
         deployment, we keep the current target config hash.
         """
+        # Note: this will be refactored at a later point.
+        # https://issues.redhat.com/browse/APPSRE-7516
+        if not self._use_target_config_hash:
+            # We do not care about config hashes
+            return
         for channel in self.channels:
             subscriber_config_hash = None
             if hashes := self.config_hashes_by_channel_name.get(channel.name, []):
