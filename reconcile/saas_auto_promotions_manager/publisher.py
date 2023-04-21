@@ -20,6 +20,11 @@ class DeploymentInfo:
 
 
 class Publisher:
+    """
+    Hold all information about a saas publisher target.
+    Contains logic to fetch the current state of a publisher.
+    """
+
     def __init__(
         self,
         ref: str,
