@@ -245,6 +245,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         except gitlab.exceptions.GitlabCreateError:
             member = project.members.get(user.id)
             member.access_level = access_level
+            member.save()
 
     def add_group_member(self, group_name, username, access):
         if not self.check_group_exists(group_name):
