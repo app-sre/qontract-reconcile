@@ -11,6 +11,7 @@ query AUSClusters($name: String) {
     }
     spec {
         product
+        external_id
     }
     disable {
         integrations

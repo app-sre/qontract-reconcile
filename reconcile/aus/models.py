@@ -1,10 +1,10 @@
 from __future__ import annotations
-
 from typing import Optional
 
 from pydantic import (
     BaseModel,
     Field,
+    PrivateAttr,
 )
 
 from reconcile.gql_definitions.fragments.aus_organization import AUSOCMOrganization
@@ -16,21 +16,34 @@ class ClusterUpgradeSpec(BaseModel):
     name: str
     ocm: AUSOCMOrganization
     upgrade_policy: ClusterUpgradePolicy = Field(..., alias="upgradePolicy")
+    cluster_uuid: Optional[str] = None
+
+
+class ClusterValidationError(BaseModel):
+    cluster_uuid: str
+    messages: list[str]
 
 
 class OrganizationUpgradeSpec(BaseModel):
     org: AUSOCMOrganization
     specs: list[ClusterUpgradeSpec] = Field(default_factory=list)
-    cluster_errors: dict[str, list[str]] = Field(default_factory=dict)
-    org_errors: list[str] = Field(default_factory=list)
+    _cluster_errors: dict[str, ClusterValidationError] = PrivateAttr(
+        default_factory=dict
+    )
 
-    def add_cluster_error(self, cluster_id: str, message: str) -> None:
-        if cluster_id not in self.cluster_errors:
-            self.cluster_errors[cluster_id] = []
-        self.cluster_errors[cluster_id].append(message)
+    def has_validation_errors(self) -> bool:
+        return len(self._cluster_errors) > 0
 
-    def add_org_error(self, message: str) -> None:
-        self.org_errors.append(message)
+    @property
+    def cluster_errors(self) -> list[ClusterValidationError]:
+        return list(self._cluster_errors.values())
+
+    def add_cluster_error(self, cluster_uuid: str, message: str) -> None:
+        if cluster_uuid not in self._cluster_errors:
+            self._cluster_errors[cluster_uuid] = ClusterValidationError(
+                cluster_uuid=cluster_uuid, messages=[]
+            )
+        self._cluster_errors[cluster_uuid].messages.append(message)
 
 
 class ConfiguredUpgradePolicyConditions(BaseModel):

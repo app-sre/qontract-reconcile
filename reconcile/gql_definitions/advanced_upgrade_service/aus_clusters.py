@@ -109,6 +109,7 @@ query AUSClusters($name: String) {
     }
     spec {
         product
+        external_id
     }
     disable {
         integrations
@@ -126,6 +127,7 @@ class ConfiguredBaseModel(BaseModel):
 
 class ClusterSpecV1(ConfiguredBaseModel):
     product: str = Field(..., alias="product")
+    external_id: Optional[str] = Field(..., alias="external_id")
 
 
 class DisableClusterAutomationsV1(ConfiguredBaseModel):

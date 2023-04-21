@@ -8,6 +8,8 @@ from reconcile.aus import advanced_upgrade_service
 from reconcile.aus.advanced_upgrade_service import (
     ClusterUpgradePolicyLabelSet,
     OrganizationLabelSet,
+    _expose_cluster_validation_errors_as_service_log,
+    _signal_validation_issues_for_org,
     aus_label_key,
     build_org_upgrade_spec,
     build_org_upgrade_specs_for_ocm_env,
@@ -15,6 +17,7 @@ from reconcile.aus.advanced_upgrade_service import (
     discover_clusters,
     get_org_labels,
 )
+from reconcile.aus.models import OrganizationUpgradeSpec
 from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.test.ocm.fixtures import (
@@ -29,6 +32,7 @@ from reconcile.utils.ocm.labels import (
 )
 from reconcile.utils.ocm.search_filters import Filter
 from reconcile.utils.ocm.sre_capability_labels import build_labelset
+from reconcile.utils.ocm_base_client import OCMBaseClient
 
 #
 # organization label set
@@ -209,7 +213,7 @@ def test_build_org_upgrade_spec(
 
 def test_build_org_upgrade_spec_with_cluster_error(
     ocm_env: OCMEnvironment, org_labels: LabelContainer
-):
+) -> None:
     org_upgrade_spec = build_org_upgrade_spec(
         ocm_env=ocm_env,
         org_id="org-id",
@@ -230,7 +234,7 @@ def test_build_org_upgrade_spec_with_cluster_error(
 #
 
 
-def test_build_org_upgrade_specs_for_ocm_env(ocm_env: OCMEnvironment):
+def test_build_org_upgrade_specs_for_ocm_env(ocm_env: OCMEnvironment) -> None:
     org_id = "org-id"
     soak_days = 10
     cluster_details = build_cluster_details(
@@ -257,7 +261,7 @@ def test_build_org_upgrade_specs_for_ocm_env(ocm_env: OCMEnvironment):
 
 def test_build_org_upgrade_specs_for_ocm_env_with_cluster_error(
     ocm_env: OCMEnvironment,
-):
+) -> None:
     org_id = "org-id"
     cluster_details = build_cluster_details(
         cluster_name="cluster-1",
@@ -287,7 +291,9 @@ def test_discover_clusters(mocker: MockerFixture) -> None:
     cluster_name = "cluster-1"
 
     discover_clusters_by_labels_mock = mocker.patch.object(
-        advanced_upgrade_service, "discover_clusters_by_labels"
+        advanced_upgrade_service,
+        "discover_clusters_by_labels",
+        autospec=True,
     )
     discover_clusters_by_labels_mock.return_value = [
         build_cluster_details(
@@ -313,7 +319,9 @@ def test_discover_clusters_with_org_filter(mocker: MockerFixture) -> None:
     cluster_name = "cluster-1"
 
     discover_clusters_by_labels_mock = mocker.patch.object(
-        advanced_upgrade_service, "discover_clusters_by_labels"
+        advanced_upgrade_service,
+        "discover_clusters_by_labels",
+        autospec=True,
     )
     discover_clusters_by_labels_mock.return_value = [
         build_cluster_details(
@@ -335,7 +343,9 @@ def test_discover_clusters_without_org_filter(mocker: MockerFixture) -> None:
     cluster_name = "cluster-1"
 
     discover_clusters_by_labels_mock = mocker.patch.object(
-        advanced_upgrade_service, "discover_clusters_by_labels"
+        advanced_upgrade_service,
+        "discover_clusters_by_labels",
+        autospec=True,
     )
     discover_clusters_by_labels_mock.return_value = [
         build_cluster_details(
@@ -355,38 +365,124 @@ def test_discover_clusters_without_org_filter(mocker: MockerFixture) -> None:
 #
 
 
-def test_org_labels(mocker: MockerFixture) -> None:
+def test_org_labels(ocm_api: OCMBaseClient, mocker: MockerFixture) -> None:
     get_organization_labels_mock = mocker.patch.object(
-        advanced_upgrade_service, "get_organization_labels"
+        advanced_upgrade_service,
+        "get_organization_labels",
+        autospec=True,
     )
     get_organization_labels_mock.return_value = iter(
         [build_organization_label("label", "value")]
     )
 
-    labels = get_org_labels(None, None)  # type: ignore
+    labels = get_org_labels(ocm_api, None)
 
     get_organization_labels_mock.assert_called_once_with(
-        None, Filter().like("key", aus_label_key("%"))
+        ocm_api, Filter().like("key", aus_label_key("%"))
     )
 
     assert len(labels) == 1
     assert labels["org-id"].get_label_value("label") == "value"
 
 
-def test_org_labels_with_org_filter(mocker: MockerFixture) -> None:
+def test_org_labels_with_org_filter(
+    ocm_api: OCMBaseClient, mocker: MockerFixture
+) -> None:
     org_id = "org-id"
     get_organization_labels_mock = mocker.patch.object(
-        advanced_upgrade_service, "get_organization_labels"
+        advanced_upgrade_service,
+        "get_organization_labels",
+        autospec=True,
     )
     get_organization_labels_mock.return_value = iter(
         [build_organization_label("label", "value", org_id)]
     )
 
-    get_org_labels(None, org_id)  # type: ignore
+    get_org_labels(ocm_api, org_id)
 
     get_organization_labels_mock.assert_called_once_with(
-        None, Filter().like("key", aus_label_key("%")).eq("organization_id", org_id)
+        ocm_api, Filter().like("key", aus_label_key("%")).eq("organization_id", org_id)
     )
+
+
+#
+# _signal_validation_issues
+#
+
+
+def build_org_upgrade_specs(
+    ocm_env: OCMEnvironment, cluster_error: bool = False
+) -> dict[str, OrganizationUpgradeSpec]:
+    org_id = "org-id"
+    cluster_details = build_cluster_details(
+        cluster_name="cluster-1",
+        labels=build_cluster_upgrade_policy_labels(
+            soak_days=(-1 if cluster_error else 1)
+        ),
+    )
+    return build_org_upgrade_specs_for_ocm_env(
+        ocm_env=ocm_env,
+        clusters_by_org={org_id: [cluster_details]},
+        labels_by_org={
+            org_id: build_org_config_labels(),
+        },
+    )
+
+
+def test_signal_validation_issues_no_errors(
+    ocm_env: OCMEnvironment, ocm_api: OCMBaseClient, mocker: MockerFixture
+) -> None:
+    service_log_mock = mocker.patch.object(
+        advanced_upgrade_service,
+        "_expose_cluster_validation_errors_as_service_log",
+        autospec=True,
+    )
+
+    org_upgrade_specs = build_org_upgrade_specs(ocm_env, cluster_error=False)
+    spec = org_upgrade_specs["org-id"]
+    assert not spec.has_validation_errors()
+    _signal_validation_issues_for_org(ocm_api, org_upgrade_spec=spec)
+
+    assert service_log_mock.call_count == 0
+
+
+def test_signal_validation_issues_cluster_validation_error(
+    ocm_env: OCMEnvironment, ocm_api: OCMBaseClient, mocker: MockerFixture
+) -> None:
+    service_log_mock = mocker.patch.object(
+        advanced_upgrade_service,
+        "_expose_cluster_validation_errors_as_service_log",
+        autospec=True,
+    )
+    org_upgrade_specs = build_org_upgrade_specs(ocm_env, cluster_error=True)
+    spec = org_upgrade_specs["org-id"]
+    assert spec.has_validation_errors()
+    _signal_validation_issues_for_org(ocm_api, org_upgrade_spec=spec)
+
+    assert service_log_mock.call_count == 1
+
+
+#
+# _expose_cluster_validation_error_to_service_log
+#
+
+
+def test_expose_cluster_validation_error_to_service_log(
+    ocm_api: OCMBaseClient, mocker: MockerFixture
+) -> None:
+    create_service_log_mock = mocker.patch.object(
+        advanced_upgrade_service,
+        "create_service_log",
+        autospec=True,
+    )
+
+    cluster_uuid = "cluster-uuid"
+    errors = ["sre-capabilities.aus.soak-days: must be greater than or equal to 0"]
+    _expose_cluster_validation_errors_as_service_log(
+        ocm_api=ocm_api, cluster_uuid=cluster_uuid, errors=errors
+    )
+
+    assert create_service_log_mock.call_count == 1
 
 
 #

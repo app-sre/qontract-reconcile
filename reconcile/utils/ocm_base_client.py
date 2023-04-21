@@ -7,7 +7,6 @@ from typing import (
     Any,
     Optional,
     Protocol,
-    Union,
 )
 
 from pydantic import BaseModel
@@ -111,7 +110,7 @@ class OCMBaseClient:
     def post(
         self,
         api_path: str,
-        data: Optional[Union[Mapping[str, Any], str]] = None,
+        data: Optional[Mapping[str, Any]] = None,
         params: Optional[Mapping[str, str]] = None,
     ) -> Any:
         r = self._session.post(

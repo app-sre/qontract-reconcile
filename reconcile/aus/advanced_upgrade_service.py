@@ -1,5 +1,6 @@
 import logging
 from collections import defaultdict
+from datetime import timedelta
 from typing import Optional
 
 from pydantic import (
@@ -42,6 +43,11 @@ from reconcile.utils.ocm.labels import (
     get_organization_labels,
 )
 from reconcile.utils.ocm.search_filters import Filter
+from reconcile.utils.ocm.service_log import (
+    OCMClusterServiceLogCreateModel,
+    OCMServiceLogSeverity,
+    create_service_log,
+)
 from reconcile.utils.ocm.sre_capability_labels import (
     build_labelset,
     labelset_groupfield,
@@ -70,32 +76,22 @@ class AdvancedUpgradeServiceIntegration(OCMClusterUpgradeSchedulerOrgIntegration
         clusters_by_org = discover_clusters(ocm_api=ocm_api, org_id=org_id)
         labels_by_org = get_org_labels(ocm_api=ocm_api, org_id=org_id)
 
-        org_upgrade_specs = build_org_upgrade_specs_for_ocm_env(
+        return build_org_upgrade_specs_for_ocm_env(
             ocm_env=ocm_env,
             clusters_by_org=clusters_by_org,
             labels_by_org=labels_by_org,
         )
-        for org_id, org_spec in org_upgrade_specs.items():
-            if org_spec.cluster_errors:
-                logging.error(
-                    f"Errors found in {ocm_env.name} org {org_id}: "
-                    f"{org_spec.cluster_errors}"
-                )
-                # todo create service logs
 
-            if org_spec.org_errors:
-                logging.error(
-                    f"Errors found in {ocm_env.name} org {org_id}: "
-                    f"{org_spec.org_errors}"
-                )
-                # todo create service logs
-
-        # return only flawless org specs
-        return {
-            org_id: org_spec
-            for org_id, org_spec in org_upgrade_specs.items()
-            if not org_spec.org_errors and not org_spec.cluster_errors
-        }
+    def signal_validation_issues(
+        self, dry_run: bool, org_upgrade_spec: OrganizationUpgradeSpec
+    ) -> None:
+        if not dry_run:
+            ocm_api = init_ocm_base_client(
+                org_upgrade_spec.org.environment, self.secret_reader
+            )
+            _signal_validation_issues_for_org(
+                ocm_api=ocm_api, org_upgrade_spec=org_upgrade_spec
+            )
 
 
 def discover_clusters(
@@ -135,21 +131,19 @@ def build_org_upgrade_specs_for_ocm_env(
     clusters_by_org: dict[str, list[ClusterDetails]],
     labels_by_org: dict[str, LabelContainer],
 ) -> dict[str, OrganizationUpgradeSpec]:
-    org_upgrade_specs = {}
-    for org_id, clusters in clusters_by_org.items():
-        org_spec = build_org_upgrade_spec(
+    """
+    Builds the cluster upgrade specs for the given OCM environment.
+    The specs are returned grouped by organization.
+    """
+    return {
+        org_id: build_org_upgrade_spec(
             ocm_env,
             org_id,
             clusters,
             labels_by_org.get(org_id) or build_label_container(),
         )
-
-        # if there is at least one valid cluster upgrade policy spec
-        # and no organization validation errors, the organization will
-        # be passed on
-        org_upgrade_specs[org_id] = org_spec
-
-    return org_upgrade_specs
+        for org_id, clusters in clusters_by_org.items()
+    }
 
 
 def aus_label_key(config_atom: str) -> str:
@@ -226,12 +220,14 @@ def build_org_upgrade_spec(
         )
     )
 
+    # init policy for each cluster
     for c in clusters:
         try:
             upgrade_policy = build_policy_from_labels(c.labels)
             org_upgrade_spec.specs.append(
                 ClusterUpgradeSpec(
                     name=c.ocm_cluster.name,
+                    cluster_uuid=c.ocm_cluster.external_id,
                     ocm=org_upgrade_spec.org,
                     upgradePolicy=upgrade_policy,
                 )
@@ -239,7 +235,7 @@ def build_org_upgrade_spec(
         except ValidationError as validation_error:
             for e in validation_error.errors():
                 org_upgrade_spec.add_cluster_error(
-                    c.ocm_cluster.id, f"label {e['loc'][0]}: {e['msg']}"
+                    c.ocm_cluster.external_id, f"label {e['loc'][0]}: {e['msg']}"
                 )
 
     return org_upgrade_spec
@@ -273,4 +269,53 @@ def build_policy_from_labels(labels: LabelContainer) -> ClusterUpgradePolicy:
             mutexes=policy_labelset.mutexes,
             sector=policy_labelset.sector,
         ),
+    )
+
+
+#
+# Feedback mechanism
+#
+
+
+def _signal_validation_issues_for_org(
+    ocm_api: OCMBaseClient,
+    org_upgrade_spec: OrganizationUpgradeSpec,
+) -> None:
+    """
+    Signal the validation errors of an organization to the users.
+    Right now it uses OCM service logs, but it could be extended to use
+    other mechanisms like slack etc.
+    """
+    org_id = org_upgrade_spec.org.org_id
+    ocm_env_name = org_upgrade_spec.org.environment.name
+    logging.error(
+        f"Errors found in {ocm_env_name} org {org_id}: "
+        f"{org_upgrade_spec.cluster_errors}"
+    )
+    for cluster_error in org_upgrade_spec.cluster_errors:
+        _expose_cluster_validation_errors_as_service_log(
+            ocm_api=ocm_api,
+            cluster_uuid=cluster_error.cluster_uuid,
+            errors=cluster_error.messages,
+        )
+
+
+def _expose_cluster_validation_errors_as_service_log(
+    ocm_api: OCMBaseClient, cluster_uuid: str, errors: list[str]
+) -> None:
+    """
+    Highlight cluster upgrade policy validation errors to the cluster
+    owners via OCM service logs.
+    """
+    description = "\n".join([f"- {e}" for e in errors])
+    create_service_log(
+        ocm_api=ocm_api,
+        service_log=OCMClusterServiceLogCreateModel(
+            cluster_uuid=cluster_uuid,
+            severity=OCMServiceLogSeverity.Warning,
+            summary="Cluster upgrade policy validation errors",
+            description=description,
+            service_name=QONTRACT_INTEGRATION,
+        ),
+        dedup_interval=timedelta(days=1),
     )
