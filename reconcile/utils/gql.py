@@ -1,5 +1,6 @@
 import logging
 import textwrap
+from collections.abc import Callable
 from datetime import (
     datetime,
     timezone,
@@ -23,8 +24,6 @@ from sretoolbox.utils import retry
 
 from reconcile.status import RunningState
 from reconcile.utils.config import get_config
-
-_gqlapi = None
 
 INTEGRATIONS_QUERY = """
 {
@@ -221,6 +220,9 @@ class GqlApi:
         return None
 
 
+_gqlapi: Optional[GqlApi] = None
+
+
 def init(
     url: str,
     token: Optional[str] = None,
@@ -323,13 +325,17 @@ def _get_gql_server_and_token(
     return server, token, None, None
 
 
-def get_api():
+def get_api() -> GqlApi:
     global _gqlapi
 
-    if not _gqlapi:
+    if _gqlapi is None:
         raise GqlApiError("gql module has not been initialized.")
 
     return _gqlapi
+
+
+def get_query_func() -> Callable:
+    return get_api().query
 
 
 def get_api_for_sha(

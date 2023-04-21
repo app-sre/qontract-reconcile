@@ -56,7 +56,7 @@ def _setup_gql_query_data(
 ) -> None:
     mocker.patch(
         "reconcile.typed_queries.clusters_with_peering.gql"
-    ).get_api.return_value.query = query_func(data.dict(by_alias=True))
+    ).get_query_func.return_value = query_func(data.dict(by_alias=True))
 
 
 def test_get_clusters_with_peering(
