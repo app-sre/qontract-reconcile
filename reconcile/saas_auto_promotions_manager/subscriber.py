@@ -27,7 +27,7 @@ class ConfigHash:
 
 class Subscriber:
     """
-    Hold all information about a saas publisher target.
+    Hold all information about a saas subscriber target.
     Contains logic to determine desired state.
     """
 
