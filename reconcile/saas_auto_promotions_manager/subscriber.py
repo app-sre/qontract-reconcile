@@ -26,6 +26,11 @@ class ConfigHash:
 
 
 class Subscriber:
+    """
+    Hold all information about a saas subscriber target.
+    Contains logic to determine desired state.
+    """
+
     def __init__(
         self,
         saas_name: str,
@@ -52,7 +57,8 @@ class Subscriber:
             el for s in self.config_hashes_by_channel_name.values() for el in s
         }
         # We explicitly only care about subset - we do not care about
-        # dangling current hashses
+        # dangling current hashes - these are checked in saasherder
+        # MR validation function.
         desired_hashes_are_in_current_hashes = (
             set(self.desired_hashes) <= current_hashes
         )
@@ -156,7 +162,7 @@ class Subscriber:
     def combined_content_hash(subscribers: Iterable["Subscriber"]) -> str:
         """
         Get a deterministic content hash for the attributes of a collection
-        of subscribers.
+        of subscribers. The order of subscribers must not matter for the hash.
         It is important that this is a deterministic operation, because
         SAPM uses this hash to compare the content of MRs.
         """
