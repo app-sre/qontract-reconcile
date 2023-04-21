@@ -1,6 +1,5 @@
 import logging
 import textwrap
-from collections.abc import Callable
 from datetime import (
     datetime,
     timezone,
@@ -332,10 +331,6 @@ def get_api() -> GqlApi:
         raise GqlApiError("gql module has not been initialized.")
 
     return _gqlapi
-
-
-def get_query_func() -> Callable:
-    return get_api().query
 
 
 def get_api_for_sha(

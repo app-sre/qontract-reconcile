@@ -1,13 +1,13 @@
 from collections.abc import Callable
 
 import pytest
-from pytest_mock import MockerFixture
 
 from reconcile.gql_definitions.common.clusters_with_peering import (
     ClusterPeeringV1,
     ClustersWithPeeringQueryData,
 )
 from reconcile.typed_queries.clusters_with_peering import get_clusters_with_peering
+from reconcile.utils.gql import GqlApi
 
 
 @pytest.fixture
@@ -49,35 +49,23 @@ def clusters_without_peering(
     )
 
 
-def _setup_gql_query_data(
-    data: ClustersWithPeeringQueryData,
-    mocker: MockerFixture,
-    query_func: Callable[..., Callable],
-) -> None:
-    mocker.patch(
-        "reconcile.typed_queries.clusters_with_peering.gql"
-    ).get_query_func.return_value = query_func(data.dict(by_alias=True))
-
-
 def test_get_clusters_with_peering(
-    mocker: MockerFixture,
-    query_func: Callable[..., Callable],
+    gql_api_builder: Callable[..., GqlApi],
     clusters_with_peering: ClustersWithPeeringQueryData,
 ) -> None:
-    _setup_gql_query_data(clusters_with_peering, mocker, query_func)
+    gql_api = gql_api_builder(clusters_with_peering.dict(by_alias=True))
 
-    clusters = get_clusters_with_peering()
+    clusters = get_clusters_with_peering(gql_api)
 
     assert clusters == clusters_with_peering.clusters
 
 
 def test_get_clusters_with_peering_when_clusters_without_peering(
-    mocker: MockerFixture,
-    query_func: Callable[..., Callable],
+    gql_api_builder: Callable[..., GqlApi],
     clusters_without_peering: ClustersWithPeeringQueryData,
 ) -> None:
-    _setup_gql_query_data(clusters_without_peering, mocker, query_func)
+    gql_api = gql_api_builder(clusters_without_peering.dict(by_alias=True))
 
-    clusters = get_clusters_with_peering()
+    clusters = get_clusters_with_peering(gql_api)
 
     assert clusters == []
