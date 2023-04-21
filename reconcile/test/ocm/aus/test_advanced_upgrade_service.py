@@ -8,14 +8,14 @@ from reconcile.aus import advanced_upgrade_service
 from reconcile.aus.advanced_upgrade_service import (
     ClusterUpgradePolicyLabelSet,
     OrganizationLabelSet,
+    _build_org_upgrade_spec,
+    _build_org_upgrade_specs_for_ocm_env,
+    _build_policy_from_labels,
+    _discover_clusters,
     _expose_cluster_validation_errors_as_service_log,
+    _get_org_labels,
     _signal_validation_issues_for_org,
     aus_label_key,
-    build_org_upgrade_spec,
-    build_org_upgrade_specs_for_ocm_env,
-    build_policy_from_labels,
-    discover_clusters,
-    get_org_labels,
 )
 from reconcile.aus.models import OrganizationUpgradeSpec
 from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
@@ -141,7 +141,7 @@ def test_cluster_upgrade_policy_label_set_invalid_schedule() -> None:
 
 
 def test_build_policy_from_labels() -> None:
-    policy = build_policy_from_labels(
+    policy = _build_policy_from_labels(
         build_cluster_upgrade_policy_labels(
             soak_days=5,
             workloads=["wl-1", "wl-2"],
@@ -196,7 +196,7 @@ def build_cluster_details(
 def test_build_org_upgrade_spec(
     ocm_env: OCMEnvironment, org_labels: LabelContainer
 ) -> None:
-    org_upgrade_spec = build_org_upgrade_spec(
+    org_upgrade_spec = _build_org_upgrade_spec(
         ocm_env=ocm_env,
         org_id="org-id",
         clusters=[
@@ -214,7 +214,7 @@ def test_build_org_upgrade_spec(
 def test_build_org_upgrade_spec_with_cluster_error(
     ocm_env: OCMEnvironment, org_labels: LabelContainer
 ) -> None:
-    org_upgrade_spec = build_org_upgrade_spec(
+    org_upgrade_spec = _build_org_upgrade_spec(
         ocm_env=ocm_env,
         org_id="org-id",
         clusters=[
@@ -241,7 +241,7 @@ def test_build_org_upgrade_specs_for_ocm_env(ocm_env: OCMEnvironment) -> None:
         cluster_name="cluster-1",
         labels=build_cluster_upgrade_policy_labels(soak_days=soak_days),
     )
-    upgrade_specs = build_org_upgrade_specs_for_ocm_env(
+    upgrade_specs = _build_org_upgrade_specs_for_ocm_env(
         ocm_env=ocm_env,
         clusters_by_org={org_id: [cluster_details]},
         labels_by_org={
@@ -267,7 +267,7 @@ def test_build_org_upgrade_specs_for_ocm_env_with_cluster_error(
         cluster_name="cluster-1",
         labels=build_cluster_upgrade_policy_labels(soak_days=-10),
     )
-    upgrade_specs = build_org_upgrade_specs_for_ocm_env(
+    upgrade_specs = _build_org_upgrade_specs_for_ocm_env(
         ocm_env=ocm_env,
         clusters_by_org={org_id: [cluster_details]},
         labels_by_org={
@@ -303,7 +303,7 @@ def test_discover_clusters(mocker: MockerFixture) -> None:
         )
     ]
 
-    clusters = discover_clusters(None, "org-id")  # type: ignore
+    clusters = _discover_clusters(None, "org-id")  # type: ignore
 
     discover_clusters_by_labels_mock.assert_called_once_with(
         ocm_api=None, label_filter=Filter().like("key", aus_label_key("%"))
@@ -331,10 +331,10 @@ def test_discover_clusters_with_org_filter(mocker: MockerFixture) -> None:
         )
     ]
 
-    clusters = discover_clusters(None, "org-id")  # type: ignore
+    clusters = _discover_clusters(None, "org-id")  # type: ignore
     assert org_id in clusters
 
-    clusters = discover_clusters(None, "another-org-id")  # type: ignore
+    clusters = _discover_clusters(None, "another-org-id")  # type: ignore
     assert org_id not in clusters
 
 
@@ -355,7 +355,7 @@ def test_discover_clusters_without_org_filter(mocker: MockerFixture) -> None:
         )
     ]
 
-    clusters = discover_clusters(None, None)  # type: ignore
+    clusters = _discover_clusters(None, None)  # type: ignore
 
     assert org_id in clusters
 
@@ -375,7 +375,7 @@ def test_org_labels(ocm_api: OCMBaseClient, mocker: MockerFixture) -> None:
         [build_organization_label("label", "value")]
     )
 
-    labels = get_org_labels(ocm_api, None)
+    labels = _get_org_labels(ocm_api, None)
 
     get_organization_labels_mock.assert_called_once_with(
         ocm_api, Filter().like("key", aus_label_key("%"))
@@ -398,7 +398,7 @@ def test_org_labels_with_org_filter(
         [build_organization_label("label", "value", org_id)]
     )
 
-    get_org_labels(ocm_api, org_id)
+    _get_org_labels(ocm_api, org_id)
 
     get_organization_labels_mock.assert_called_once_with(
         ocm_api, Filter().like("key", aus_label_key("%")).eq("organization_id", org_id)
@@ -420,7 +420,7 @@ def build_org_upgrade_specs(
             soak_days=(-1 if cluster_error else 1)
         ),
     )
-    return build_org_upgrade_specs_for_ocm_env(
+    return _build_org_upgrade_specs_for_ocm_env(
         ocm_env=ocm_env,
         clusters_by_org={org_id: [cluster_details]},
         labels_by_org={

@@ -73,10 +73,10 @@ class AdvancedUpgradeServiceIntegration(OCMClusterUpgradeSchedulerOrgIntegration
         # org_name parameter can still be used to filter by organization ID
         org_id = org_name
         ocm_api = init_ocm_base_client(ocm_env, self.secret_reader)
-        clusters_by_org = discover_clusters(ocm_api=ocm_api, org_id=org_id)
-        labels_by_org = get_org_labels(ocm_api=ocm_api, org_id=org_id)
+        clusters_by_org = _discover_clusters(ocm_api=ocm_api, org_id=org_id)
+        labels_by_org = _get_org_labels(ocm_api=ocm_api, org_id=org_id)
 
-        return build_org_upgrade_specs_for_ocm_env(
+        return _build_org_upgrade_specs_for_ocm_env(
             ocm_env=ocm_env,
             clusters_by_org=clusters_by_org,
             labels_by_org=labels_by_org,
@@ -94,9 +94,13 @@ class AdvancedUpgradeServiceIntegration(OCMClusterUpgradeSchedulerOrgIntegration
             )
 
 
-def discover_clusters(
+def _discover_clusters(
     ocm_api: OCMBaseClient, org_id: Optional[str] = None
 ) -> dict[str, list[ClusterDetails]]:
+    """
+    Discover all clusters that are part of the AUS service.
+    Discovery is driven by OCM cluster labels.
+    """
     clusters = discover_clusters_by_labels(
         ocm_api=ocm_api,
         label_filter=Filter().like("key", aus_label_key("%")),
@@ -111,9 +115,13 @@ def discover_clusters(
     return clusters_by_org
 
 
-def get_org_labels(
+def _get_org_labels(
     ocm_api: OCMBaseClient, org_id: Optional[str]
 ) -> dict[str, LabelContainer]:
+    """
+    Fetch all AUS OCM org labels from organizations. They hold config
+    parameters like blocked versions etc.
+    """
     filter = Filter().like("key", aus_label_key("%"))
     if org_id is not None:
         filter = filter.eq("organization_id", org_id)
@@ -126,7 +134,7 @@ def get_org_labels(
     }
 
 
-def build_org_upgrade_specs_for_ocm_env(
+def _build_org_upgrade_specs_for_ocm_env(
     ocm_env: OCMEnvironment,
     clusters_by_org: dict[str, list[ClusterDetails]],
     labels_by_org: dict[str, LabelContainer],
@@ -136,7 +144,7 @@ def build_org_upgrade_specs_for_ocm_env(
     The specs are returned grouped by organization.
     """
     return {
-        org_id: build_org_upgrade_spec(
+        org_id: _build_org_upgrade_spec(
             ocm_env,
             org_id,
             clusters,
@@ -192,7 +200,7 @@ class OrganizationLabelSet(BaseModel):
         ]
 
 
-def build_org_upgrade_spec(
+def _build_org_upgrade_spec(
     ocm_env: OCMEnvironment,
     org_id: str,
     clusters: list[ClusterDetails],
@@ -223,7 +231,7 @@ def build_org_upgrade_spec(
     # init policy for each cluster
     for c in clusters:
         try:
-            upgrade_policy = build_policy_from_labels(c.labels)
+            upgrade_policy = _build_policy_from_labels(c.labels)
             org_upgrade_spec.specs.append(
                 ClusterUpgradeSpec(
                     name=c.ocm_cluster.name,
@@ -254,7 +262,7 @@ class ClusterUpgradePolicyLabelSet(BaseModel):
     _schedule_validator = validator("schedule", allow_reuse=True)(cron_validator)
 
 
-def build_policy_from_labels(labels: LabelContainer) -> ClusterUpgradePolicy:
+def _build_policy_from_labels(labels: LabelContainer) -> ClusterUpgradePolicy:
     """
     Build a cluster upgrade policy object from a set of OCM labels. Parsing
     and validation of the labels is delegated to the pydantic dataclass
