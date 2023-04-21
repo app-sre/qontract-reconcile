@@ -3,7 +3,10 @@ import sys
 import traceback
 
 from reconcile import queries
-from reconcile.change_owners.approver import GqlApproverResolver
+from reconcile.change_owners.approver import (
+    Approver,
+    GqlApproverResolver,
+)
 from reconcile.change_owners.bundle import (
     BundleFileType,
     FileDiffResolver,
@@ -215,8 +218,21 @@ def write_coverage_report_to_mr(
     results = []
     approver_reachability = set()
     for d in change_decisions:
+
+        def format_approver_list(approvers: list[Approver]) -> str:
+            if approvers:
+                return " ".join(
+                    [
+                        f"@{a.org_username}"
+                        if a.tag_on_merge_requests
+                        else a.org_username
+                        for a in approvers
+                    ]
+                )
+            return "[- no approvers available -]"
+
         approvers = [
-            f"{ctctx.context} - { ' '.join([f'@{a.org_username}' if a.tag_on_merge_requests else a.org_username for a in ctctx.approvers]) }"
+            f"{ctctx.context} - { format_approver_list(ctctx.approvers) }"
             for ctctx in d.deduped_coverage()
         ]
         for cctx in d.deduped_coverage():

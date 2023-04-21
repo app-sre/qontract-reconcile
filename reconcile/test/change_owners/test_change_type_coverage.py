@@ -156,7 +156,7 @@ def test_diff_covered(saas_file_changetype: ChangeTypeV1):
                 change_type_processor=change_type_to_processor(saas_file_changetype),
                 context="RoleV1 - some-role",
                 origin="",
-                approvers=[],
+                approvers=[Approver(org_username="user", tag_on_merge_requests=False)],
                 context_file=None,  # type: ignore
             ),
         ],
@@ -176,14 +176,14 @@ def test_diff_covered_many(
                 change_type_processor=change_type_to_processor(saas_file_changetype),
                 context="RoleV1 - some-role",
                 origin="",
-                approvers=[],
+                approvers=[Approver(org_username="user", tag_on_merge_requests=False)],
                 context_file=None,  # type: ignore
             ),
             ChangeTypeContext(
                 change_type_processor=change_type_to_processor(role_member_change_type),
                 context="RoleV1 - some-role",
                 origin="",
-                approvers=[],
+                approvers=[Approver(org_username="user", tag_on_merge_requests=False)],
                 context_file=None,  # type: ignore
             ),
         ],
@@ -204,14 +204,14 @@ def test_diff_covered_partially_disabled(
                 change_type_processor=change_type_to_processor(saas_file_changetype),
                 context="RoleV1 - some-role",
                 origin="",
-                approvers=[],
+                approvers=[Approver(org_username="user", tag_on_merge_requests=False)],
                 context_file=None,  # type: ignore
             ),
             ChangeTypeContext(
                 change_type_processor=change_type_to_processor(role_member_change_type),
                 context="RoleV1 - some-role",
                 origin="",
-                approvers=[],
+                approvers=[Approver(org_username="user", tag_on_merge_requests=False)],
                 context_file=None,  # type: ignore
             ),
         ],
@@ -233,13 +233,32 @@ def test_diff_no_coverage_all_disabled(
                 change_type_processor=change_type_to_processor(saas_file_changetype),
                 context="RoleV1 - some-role",
                 origin="",
-                approvers=[],
+                approvers=[Approver(org_username="user", tag_on_merge_requests=False)],
                 context_file=None,  # type: ignore
             ),
             ChangeTypeContext(
                 change_type_processor=change_type_to_processor(role_member_change_type),
                 context="RoleV1 - some-role",
                 origin="",
+                approvers=[Approver(org_username="user", tag_on_merge_requests=False)],
+                context_file=None,  # type: ignore
+            ),
+        ],
+    )
+    assert not dc.is_covered()
+
+
+def test_diff_no_coverage_because_of_empty_role(saas_file_changetype: ChangeTypeV1):
+    dc = DiffCoverage(
+        diff=Diff(
+            diff_type=DiffType.ADDED, path=jsonpath_ng.parse("$"), new=None, old=None
+        ),
+        coverage=[
+            ChangeTypeContext(
+                change_type_processor=change_type_to_processor(saas_file_changetype),
+                context="RoleV1 - some-role",
+                origin="",
+                # no approvers
                 approvers=[],
                 context_file=None,  # type: ignore
             ),

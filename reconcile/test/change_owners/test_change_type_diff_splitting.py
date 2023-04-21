@@ -1,5 +1,6 @@
 import jsonpath_ng
 
+from reconcile.change_owners.approver import Approver
 from reconcile.change_owners.bundle import (
     BundleFileType,
     FileRef,
@@ -38,7 +39,7 @@ def test_root_diff_fully_covered_by_splits():
         context_file=FileRef(
             path="context_file.yml", file_type=BundleFileType.DATAFILE, schema=None
         ),
-        approvers=[],
+        approvers=[Approver("u", False)],
     )
 
     split_b = ChangeTypeContext(
@@ -48,7 +49,7 @@ def test_root_diff_fully_covered_by_splits():
         context_file=FileRef(
             path="context_file.yml", file_type=BundleFileType.DATAFILE, schema=None
         ),
-        approvers=[],
+        approvers=[Approver("u", False)],
     )
 
     bundle_change.cover_changes(split_a)
@@ -81,7 +82,7 @@ def test_root_diff_uncovered_fully_covered_by_splits():
         context_file=FileRef(
             path="context_file.yml", file_type=BundleFileType.DATAFILE, schema=None
         ),
-        approvers=[],
+        approvers=[Approver("u", False)],
     )
 
     split_b = ChangeTypeContext(
@@ -91,7 +92,7 @@ def test_root_diff_uncovered_fully_covered_by_splits():
         context_file=FileRef(
             path="context_file.yml", file_type=BundleFileType.DATAFILE, schema=None
         ),
-        approvers=[],
+        approvers=[Approver("u", False)],
     )
 
     bundle_change.cover_changes(split_a)
@@ -125,7 +126,7 @@ def test_root_diff_uncovered():
         context_file=FileRef(
             path="context_file.yml", file_type=BundleFileType.DATAFILE, schema=None
         ),
-        approvers=[],
+        approvers=[Approver("u", False)],
     )
 
     split_b = ChangeTypeContext(
@@ -135,7 +136,7 @@ def test_root_diff_uncovered():
         context_file=FileRef(
             path="context_file.yml", file_type=BundleFileType.DATAFILE, schema=None
         ),
-        approvers=[],
+        approvers=[Approver("u", False)],
     )
 
     bundle_change.cover_changes(split_a)
@@ -176,7 +177,7 @@ def test_nested_splits():
         context_file=FileRef(
             path="context_file.yml", file_type=BundleFileType.DATAFILE, schema=None
         ),
-        approvers=[],
+        approvers=[Approver("u", False)],
     )
 
     sub = ChangeTypeContext(
@@ -186,7 +187,7 @@ def test_nested_splits():
         context_file=FileRef(
             path="context_file.yml", file_type=BundleFileType.DATAFILE, schema=None
         ),
-        approvers=[],
+        approvers=[Approver("u", False)],
     )
 
     sub_sub = ChangeTypeContext(
@@ -196,7 +197,7 @@ def test_nested_splits():
         context_file=FileRef(
             path="context_file.yml", file_type=BundleFileType.DATAFILE, schema=None
         ),
-        approvers=[],
+        approvers=[Approver("u", False)],
     )
 
     # call the coverage function in this order is on purpose
@@ -273,7 +274,7 @@ def test_diff_splitting_empty_parent_coverage():
         context_file=FileRef(
             path="context_file.yml", file_type=BundleFileType.DATAFILE, schema=None
         ),
-        approvers=[],
+        approvers=[Approver("u", False)],
     )
     bundle_change.cover_changes(role_change_type)
 
@@ -328,7 +329,7 @@ def test_nested_diff_splitting_empty_parent_coverage():
         context_file=FileRef(
             path="context_file.yml", file_type=BundleFileType.DATAFILE, schema=None
         ),
-        approvers=[],
+        approvers=[Approver("u", False)],
     )
     bundle_change.cover_changes(role_change_type)
 
@@ -363,7 +364,7 @@ def test_diff_splitting_two_contexts_on_same_split():
         context_file=FileRef(
             path="context_file.yml", file_type=BundleFileType.DATAFILE, schema=None
         ),
-        approvers=[],
+        approvers=[Approver("u", False)],
     )
     ctx_2 = ChangeTypeContext(
         change_type_processor=build_change_type("roles", ["roles[*]"]),
@@ -372,7 +373,7 @@ def test_diff_splitting_two_contexts_on_same_split():
         context_file=FileRef(
             path="context_file.yml", file_type=BundleFileType.DATAFILE, schema=None
         ),
-        approvers=[],
+        approvers=[Approver("u", False)],
     )
     bundle_change.cover_changes(ctx_1)
     bundle_change.cover_changes(ctx_2)

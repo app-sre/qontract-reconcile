@@ -111,7 +111,7 @@ class DiffCoverage:
         return self.is_directly_covered() or self.is_covered_by_splits()
 
     def is_directly_covered(self) -> bool:
-        return any(not ctx.disabled for ctx in self.coverage)
+        return any(not ctx.disabled and ctx.approvers for ctx in self.coverage)
 
     def is_covered_by_splits(self) -> bool:
         """
