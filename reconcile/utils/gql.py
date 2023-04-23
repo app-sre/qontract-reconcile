@@ -24,8 +24,6 @@ from sretoolbox.utils import retry
 from reconcile.status import RunningState
 from reconcile.utils.config import get_config
 
-_gqlapi = None
-
 INTEGRATIONS_QUERY = """
 {
     integrations: integrations_v1 {
@@ -221,6 +219,9 @@ class GqlApi:
         return None
 
 
+_gqlapi: Optional[GqlApi] = None
+
+
 def init(
     url: str,
     token: Optional[str] = None,
@@ -323,10 +324,10 @@ def _get_gql_server_and_token(
     return server, token, None, None
 
 
-def get_api():
+def get_api() -> GqlApi:
     global _gqlapi
 
-    if not _gqlapi:
+    if _gqlapi is None:
         raise GqlApiError("gql module has not been initialized.")
 
     return _gqlapi
