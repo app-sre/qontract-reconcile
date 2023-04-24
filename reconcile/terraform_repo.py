@@ -132,7 +132,6 @@ def diff_missing(
                         a_repo.name
                     )
                 )
-            check_ref(a_repo.repository, a_repo.ref, a_repo.project_path)
             missing[a_key] = a_repo
 
     return missing
@@ -162,7 +161,6 @@ def diff_changed(
                 )
             )
         if (a_repo.ref != b_repo.ref) or (a_repo.delete != b_repo.delete):
-            check_ref(b_repo.repository, b_repo.ref, b_repo.project_path)
             changed[a_key] = b_repo
 
     return changed
@@ -240,7 +238,7 @@ def calculate_diff(
     existing_state: list[TFRepo],
     desired_state: list[TFRepo],
     dry_run: bool,
-    state: State,
+    state: Optional[State],
 ) -> list[TFRepo]:
     """Diffs existing and desired state as well as updates the state in S3 if this is not a dry-run operation"""
     existing_map = map_repos(existing_state)
@@ -253,7 +251,7 @@ def calculate_diff(
     # a pre-requisite to this step is setting the delete flag in the repo definition
     to_be_deleted = diff_missing(existing_map, desired_map, True)
 
-    if not dry_run:
+    if not dry_run and state:
         update_state(to_be_created, to_be_deleted, to_be_updated, state)
 
     return merge_results(to_be_created, to_be_updated)
@@ -275,9 +273,15 @@ def run(
     desired = get_repos(query_func=gqlapi.query)
     existing = get_existing_state(state)
 
-    action_plan = ActionPlan(
-        dry_run=dry_run, repos=calculate_diff(existing, desired, dry_run, state)
-    )
+    repo_diff = calculate_diff(existing, desired, dry_run, state)
+
+    # validate that each new/updated repo is pointing to a valid git ref and
+    # has config.tf in the project path
+    for repo in repo_diff:
+        if not repo.delete:
+            check_ref(repo.repository, repo.ref, repo.project_path)
+
+    action_plan = ActionPlan(dry_run=dry_run, repos=repo_diff)
 
     if print_to_file:
         try:
