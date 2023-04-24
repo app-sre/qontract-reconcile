@@ -87,12 +87,8 @@ class TerraformCloudflareDNSIntegration(
     def name(self) -> str:
         return self.qontract_integration.replace("_", "-")
 
-    def run(self, dry_run: bool) -> None:
-        self.run_with_defer(dry_run)  # pylint: disable=no-value-for-parameter
-
     @defer
-    def run_with_defer(self, dry_run: bool, defer: Callable) -> None:
-
+    def run(self, dry_run: bool, defer: Optional[Callable] = None) -> None:
         settings = self._get_app_interface_settings()
 
         if not settings.settings:
@@ -173,7 +169,8 @@ class TerraformCloudflareDNSIntegration(
             self.params.thread_pool_size,
         )
 
-        defer(tf.cleanup)
+        if defer:
+            defer(tf.cleanup)
 
         disabled_deletions_detected, err = tf.plan(self.params.enable_deletion)
         if err:
