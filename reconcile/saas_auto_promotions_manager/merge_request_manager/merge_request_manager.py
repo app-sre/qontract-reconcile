@@ -31,6 +31,22 @@ class OpenMergeRequest:
 
 
 class MergeRequestManager:
+    """
+    Manager for SAPM merge requests. This class
+    is responsible for housekeeping (closing old/bad MRs) and
+    opening new MRs for subscribers with a state diff.
+
+    The idea is that for every channel combination there exists
+    maximum one open MR in app-interface. I.e., all changes for
+    a channel combination are batched in a single MR. A content hash in the
+    description is used to identify the content of that MR. If a
+    channel combination receives new content before an already open MR
+    is merged, then the manager will first close the old MR and then
+    open a new MR with the new content. We might need to change this
+    batching approach in the future to have even less promotion MRs,
+    but for now this is sufficient.
+    """
+
     def __init__(self, vcs: VCS, renderer: Renderer):
         self._vcs = vcs
         self._renderer = renderer
@@ -57,6 +73,15 @@ class MergeRequestManager:
         ]
 
     def housekeeping(self) -> None:
+        """
+        Close bad MRs:
+        - bad description format
+        - old SAPM version
+        - merge conflict
+
+        --> if we bump the SAPM version, we automatically close
+        old open MRs and replace them with new ones.
+        """
         seen: set[tuple[str, str, str]] = set()
         for mr in self._open_raw_mrs:
             attrs = mr.attributes
@@ -177,6 +202,11 @@ class MergeRequestManager:
     def create_promotion_merge_requests(
         self, subscribers: Iterable[Subscriber]
     ) -> None:
+        """
+        Open new MR for channel combinations with new content.
+        If there is new content, close any existing MR for that
+        channel combination.
+        """
         subscribers_per_channel_combo = self._aggregate_subscribers_per_channel_combo(
             subscribers=subscribers
         )

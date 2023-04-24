@@ -248,8 +248,19 @@ query TerraformResourcesNamespaces {
                 }
                 rules {
                     condition {
-                        path
-                        methods
+                        type
+                        ... on NamespaceTerraformResourceALBConditionHostHeader_v1 {
+                            host_header
+                        }
+                        ... on NamespaceTerraformResourceALBConditionHTTPRequestMethod_v1 {
+                            http_request_method
+                        }
+                        ... on NamespaceTerraformResourceALBConditionPathPattern_v1 {
+                            path_pattern
+                        }
+                        ... on NamespaceTerraformResourceALBConditionSourceIP_v1 {
+                            source_ip
+                        }
                     }
                     action {
                         type

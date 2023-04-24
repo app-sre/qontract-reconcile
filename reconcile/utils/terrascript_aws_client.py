@@ -242,6 +242,14 @@ DEFAULT_S3_SSE_CONFIGURATION = {
     "rule": {"apply_server_side_encryption_by_default": {"sse_algorithm": "AES256"}}
 }
 
+# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lb_listener_rule#condition
+SUPPORTED_ALB_LISTENER_RULE_CONDITION_TYPE_MAPPING = {
+    "host-header": "host_header",
+    "http-request-method": "http_request_method",
+    "path-pattern": "path_pattern",
+    "source-ip": "source_ip",
+}
+
 
 class StateInaccessibleException(Exception):
     pass
@@ -4640,6 +4648,16 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         return ips
 
+    @staticmethod
+    def _get_alb_rule_condition_value(condition):
+        condition_type = condition["type"]
+        condition_type_key = SUPPORTED_ALB_LISTENER_RULE_CONDITION_TYPE_MAPPING.get(
+            condition_type, None
+        )
+        if condition_type_key is None:
+            raise KeyError(f"unknown alb rule condition type {condition_type}")
+        return {condition_type_key: {"values": condition[condition_type_key]}}
+
     def populate_tf_resource_alb(self, spec, ocm_map=None):
         account = spec.provisioner_name
         identifier = spec.identifier
@@ -4865,15 +4883,10 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         # https://www.terraform.io/docs/providers/aws/r/lb_listener_rule.html
         for rule_num, rule in enumerate(resource["rules"]):
-            condition = rule["condition"]
-            action = rule["action"]
-            config_methods = condition.get("methods", None)
-
-            action_values = {}
-
-            action_type = action.get("type")
-
             # https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lb_listener_rule#type
+            action = rule["action"]
+            action_values = {}
+            action_type = action.get("type")
             if action_type == "forward":
                 action_values = {
                     "type": "forward",
@@ -4921,14 +4934,12 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 "listener_arn": f"${{{forward_lbl_tf_resource.arn}}}",
                 "priority": rule_num + 1,
                 "action": action_values,
-                "condition": [{"path_pattern": {"values": [condition["path"]]}}],
+                "condition": [
+                    self._get_alb_rule_condition_value(c)
+                    for c in rule.get("condition", [])
+                ],
                 "depends_on": self.get_dependencies([forward_lbl_tf_resource]),
             }
-
-            if config_methods:
-                values["condition"].append(
-                    {"http_request_method": {"values": config_methods}}
-                )
 
             lblr_identifier = f"{identifier}-rule-{rule_num+1:02d}"
             lblr_tf_resource = aws_lb_listener_rule(lblr_identifier, **values)

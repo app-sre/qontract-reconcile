@@ -19,13 +19,13 @@ This MR promotes all subscribers with auto-promotions for these channel(s).
 Please **do not remove the {SAPM_LABEL} label** from this MR.
 
 Parts of this description are used by SAPM to manage auto-promotions.
-
-Please **do not modify or alter this description**.
 """
 
 
 class Renderer:
     """
+    This class is only concerned with rendering text for MRs.
+    Most logic evolves around ruamel yaml modification.
     This class makes testing for MergeRequestManager easier.
     """
 
@@ -92,7 +92,8 @@ class Renderer:
                             ],
                         }
                     )
-            target["promotion"]["promotion_data"] = cur_promotion_data
+            if cur_promotion_data:
+                target["promotion"]["promotion_data"] = cur_promotion_data
         new_content = "---\n"
         with StringIO() as stream:
             yml.dump(content, stream)

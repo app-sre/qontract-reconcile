@@ -92,7 +92,7 @@ objects:
             mountPath: /fluentd/etc/
         containers:
         - name: int
-          image: ${IMAGE}:oofrab
+          image: ${IMAGE}:${IMAGE_TAG}
           ports:
             - name: http
               containerPort: 9090
@@ -210,7 +210,7 @@ objects:
     name: qontract-reconcile-integ-acc-2
   spec:
     revisionHistoryLimit: 50
-    replicas: 1
+    replicas: 0
     selector:
       matchLabels:
         app: qontract-reconcile-integ
@@ -285,7 +285,7 @@ objects:
             mountPath: /fluentd/etc/
         containers:
         - name: int
-          image: ${IMAGE}:foobar
+          image: ${IMAGE}:${IMAGE_TAG}
           ports:
             - name: http
               containerPort: 9090
@@ -334,11 +334,11 @@ objects:
             value: "${KUBE_SA_TOKEN_MOUNT_PATH}/${KUBE_SA_TOKEN_FILENAME}"
           resources:
             limits:
-              cpu: 300m
-              memory: 300Mi
+              cpu: ${INTEG_CPU_LIMIT}
+              memory: ${INTEG_MEMORY_LIMIT}
             requests:
-              cpu: 200m
-              memory: 200Mi
+              cpu: ${INTEG_CPU_REQUEST}
+              memory: ${INTEG_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
