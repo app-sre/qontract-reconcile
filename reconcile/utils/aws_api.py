@@ -892,7 +892,10 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         subnets = ec2.describe_subnets(Filters=[{"Name": "vpc-id", "Values": [vpc_id]}])
         return subnets.get("Subnets", [])
 
-    def get_mesh_vpc_peerings(self,account, vpc_key, vpc_value: str) -> dict:
+    def get_mesh_vpc_peerings(self,account, vpc_key, vpc_value: str):
+        comparing_vpc_id = ""
+        comparing_vpc_cidr = ""
+        comparing_vpc_dict = {}
         for account_parse in account:
             ec2 = self._account_ec2_client(account_parse["name"])
             mesh_vpc_dict = {}
@@ -901,12 +904,14 @@ class AWSApi:  # pylint: disable=too-many-public-methods
                 if 'Tags' in vpc:
                     for tag in vpc['Tags']:
                         if tag['Key'] == vpc_key and tag['Value'] == vpc_value:
-                            vpc_id = vpc["VpcId"]
+                            comparing_vpc_id = vpc["VpcId"]
+                            comparing_vpc_cidr = vpc["CidrBlock"]
+                            comparing_vpc_dict[comparing_vpc_id] = comparing_vpc_cidr
                             peerings = ec2.describe_vpc_peering_connections(
                                 Filters=[
                                     {
                                         'Name': 'accepter-vpc-info.vpc-id',
-                                        'Values': [vpc_id]
+                                        'Values': [comparing_vpc_id]
                                     }
                                 ]
                             )
@@ -917,7 +922,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
                                         if tag['Key'] == 'Name':
                                             peering_name = tag['Value']
                                             mesh_vpc_dict[peering_name] = peering['RequesterVpcInfo']['CidrBlock']
-        return mesh_vpc_dict
+        return comparing_vpc_dict,mesh_vpc_dict
 
     def get_cluster_vpc_details(self, account, route_tables=False, subnets=False):
         """
