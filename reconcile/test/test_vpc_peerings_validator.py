@@ -1,4 +1,3 @@
-from os import name
 import pytest
 
 from reconcile.gql_definitions.vpc_peerings_validator.vpc_peerings_validator import (
