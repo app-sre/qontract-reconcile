@@ -239,6 +239,8 @@ def run(
         integrations.query(query_func=gql.get_api().query).integrations or []
     )
 
+    filtered_integrations = filter_integrations(all_integrations, upstream)
+
     shard_manager = IntegrationShardManager(
         strategies={
             StaticShardingStrategy.IDENTIFIER: StaticShardingStrategy(),
@@ -250,7 +252,7 @@ def run(
     )
 
     integration_environments = collect_integrations_environment(
-        all_integrations, environment_name, shard_manager
+        filtered_integrations, environment_name, shard_manager
     )
 
     if not integration_environments:
