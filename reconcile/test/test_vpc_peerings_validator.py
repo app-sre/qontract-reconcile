@@ -379,12 +379,12 @@ def query_data_vpc_cidr_same_accepter_vpc() -> VpcPeeringsValidatorQueryData:
                     connections=[
                         ClusterPeeringConnectionClusterAccepterV1(
                             provider="cluster-vpc-accepter",
-                            cluster= VpcPeeringsValidatorPeeredCluster(
-                                    name="clustertest2",
-                                    network=ClusterNetworkV1(vpc="10.20.0.0/20"),
-                                    spec=ClusterSpecV1(private=True),
-                                    internal=True,
-                                    ),
+                            cluster=VpcPeeringsValidatorPeeredCluster(
+                                name="clustertest2",
+                                network=ClusterNetworkV1(vpc="10.20.0.0/20"),
+                                spec=ClusterSpecV1(private=True),
+                                internal=True,
+                            ),
                         ),
                     ]
                 ),

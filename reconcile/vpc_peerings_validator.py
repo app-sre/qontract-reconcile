@@ -50,7 +50,9 @@ def validate_no_cidr_overlap(
                     # logging.debug("aws_account var")
                     # logging.debug(aws_account)
                     for tags_key, tags_value in tags_dict.items():
-                        cidr_block_entries_acount_vpc_mesh = cidr_mesh_finder(aws_account_uid,tags_key, tags_value)
+                        cidr_block_entries_acount_vpc_mesh = cidr_mesh_finder(
+                            aws_account_uid, tags_key, tags_value
+                        )
                     # FIX
 
                     # tags_dict = peering.tags
@@ -72,7 +74,9 @@ def validate_no_cidr_overlap(
         )
         if overlaps_account_vpc:
             return False
-        overlaps_account_vpc_mesh = find_cidr_duplicates_and_overlap(cidr_block_entries_acount_vpc_mesh)
+        overlaps_account_vpc_mesh = find_cidr_duplicates_and_overlap(
+            cidr_block_entries_acount_vpc_mesh
+        )
         if overlaps_account_vpc_mesh:
             return False
         overlaps_account_requester = find_cidr_duplicates_and_overlap(
@@ -98,7 +102,9 @@ def cidr_mesh_finder(aws_account_uid, tag_key, tag_value: str):
     settings = queries.get_secret_reader_settings()
     accounts = queries.get_aws_accounts(uid=aws_account_uid)
     awsapi = AWSApi(1, accounts, settings=settings, init_users=False)
-    comparing_vpc_dict, mesh_vpc_dict = awsapi.get_mesh_vpc_peerings(accounts,tag_key, tag_value)
+    comparing_vpc_dict, mesh_vpc_dict = awsapi.get_mesh_vpc_peerings(
+        accounts, tag_key, tag_value
+    )
     final_dict = compare_cidr_with_cidr_dict(comparing_vpc_dict, mesh_vpc_dict)
     # awsapi.create_route53_zone
     return final_dict
@@ -108,12 +114,20 @@ def compare_cidr_with_cidr_dict(compared_dict, comparing_dict):
     overlaps_list = []
     for compared_vpc, mesh_cidr_compared in compared_dict.items():
         for comparing_vpc, mesh_cidr_comparing in comparing_dict.items():
-            if ipaddress.ip_network(mesh_cidr_compared).overlaps(ipaddress.ip_network(mesh_cidr_comparing)):
-                overlaps_list.append((compared_vpc,comparing_vpc,mesh_cidr_compared))
+            if ipaddress.ip_network(mesh_cidr_compared).overlaps(
+                ipaddress.ip_network(mesh_cidr_comparing)
+            ):
+                overlaps_list.append((compared_vpc, comparing_vpc, mesh_cidr_compared))
     if overlaps_list:
         logging.error("Overlapping CIDR blocks found:")
         for compared_vpc, comparing_vpc, cidr_block in overlaps_list:
-            logging.error("VPC %s with CIDR block %s overlaps with VPC %s with CIDR block %s", compared_vpc, cidr_block, comparing_vpc, comparing_dict[comparing_vpc])
+            logging.error(
+                "VPC %s with CIDR block %s overlaps with VPC %s with CIDR block %s",
+                compared_vpc,
+                cidr_block,
+                comparing_vpc,
+                comparing_dict[comparing_vpc],
+            )
     return overlaps_list
 
 
