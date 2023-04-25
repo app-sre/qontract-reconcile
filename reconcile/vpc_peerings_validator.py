@@ -5,6 +5,7 @@ from typing import (
     Union,
     cast,
 )
+
 from reconcile import queries
 from reconcile.gql_definitions.vpc_peerings_validator import vpc_peerings_validator
 from reconcile.gql_definitions.vpc_peerings_validator.vpc_peerings_validator import (
