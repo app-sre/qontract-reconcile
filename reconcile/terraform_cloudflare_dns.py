@@ -323,7 +323,7 @@ def build_cloudflare_terraform_config_collection(
 
         if not integration:
             raise IntegrationUndefined(
-                "Must declare integration name under Terraform state in app-interface"
+                f"Must declare integration name under Terraform state in {zone.account.terraform_state_account.name} AWS account for {cf_account.name} Cloudflare account in app-interface"
             )
 
         tf_state_s3 = TerraformStateS3(
