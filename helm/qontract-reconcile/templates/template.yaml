@@ -239,6 +239,8 @@ objects:
             value: "${INTEGRATIONS_MANAGER_UPSTREAM}"
           - name: INTEGRATIONS_MANAGER_IMAGE
             value: "${INTEGRATIONS_MANAGER_IMAGE}"
+          - name: INTEGRATIONS_MANAGER_IMAGE_TAG_FROM_REF
+            value: "${INTEGRATIONS_MANAGER_IMAGE_TAG_FROM_REF}"
           {{- end }}
           - name: INTEGRATION_NAME
             value: {{ $integration.name }}
@@ -680,6 +682,8 @@ parameters:
 - name: INTEGRATIONS_MANAGER_UPSTREAM
   value: ''
 - name: INTEGRATIONS_MANAGER_IMAGE
+  value: ''
+- name: INTEGRATIONS_MANAGER_IMAGE_TAG_FROM_REF
   value: ''
 {{- range $i, $integration := .Values.integrations }}
 {{- if $integration.sleepDurationSecs }}
