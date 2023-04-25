@@ -7,65 +7,31 @@ from typing import Optional
 import pytest
 from pyparsing import Any
 
-from reconcile.gql_definitions.skupper_network.skupper_networks import (
-    NamespaceV1,
-    SkupperSiteConfigDefaultsV1,
-    SkupperSiteConfigV1,
-)
-from reconcile.skupper_network.models import (
-    Defaults,
-    SkupperConfig,
-    SkupperSite,
-)
-
-
-@pytest.fixture
-def network_config(
-    gql_class_factory: Callable[
-        [type[SkupperSiteConfigDefaultsV1], MutableMapping[str, Any]],
-        SkupperSiteConfigDefaultsV1,
-    ]
-) -> SkupperSiteConfigDefaultsV1:
-    """Network config fixture."""
-    return gql_class_factory(
-        SkupperSiteConfigDefaultsV1,
-        {
-            "skupperSiteController": "quay.io/skupper/site-controller:1.2.0",
-        },
-    )
-
-
-@pytest.fixture
-def site_config(
-    gql_class_factory: Callable[..., SkupperSiteConfigV1]
-) -> SkupperSiteConfigV1:
-    """Site config fixture."""
-    return gql_class_factory(SkupperSiteConfigV1)
-
+from reconcile.gql_definitions.skupper_network.skupper_networks import NamespaceV1
+from reconcile.skupper_network.models import SkupperSite
 
 SkupperSiteFactory = Callable[..., SkupperSite]
 NamespaceFactory = Callable[..., NamespaceV1]
 
 
 @pytest.fixture
-def skupper_site_factory(
-    network_config: SkupperSiteConfigDefaultsV1, site_config: SkupperSiteConfigV1
-) -> SkupperSiteFactory:
+def skupper_site_factory() -> SkupperSiteFactory:
     """Skupper site fixture."""
 
     def _skupper_site_factory(
         ns: NamespaceV1, edge: bool = False, delete: bool = False
     ) -> SkupperSite:
-        site_config.edge = edge
+
+        site_config = {
+            "kind": "ConfigMap",
+            "metadata": {"name": "skupper-site"},
+            "data": {"edge": "true" if edge else "false"},
+        }
         return SkupperSite(
+            name=f"{ns.cluster.name}-{ns.name}",
+            site_controller_objects=[site_config],
             namespace=ns,
-            skupper_site_controller="just-an-image",
             delete=delete,
-            config=SkupperConfig.init(
-                name=f"{ns.cluster.name}-{ns.name}",
-                defaults=network_config,
-                config=site_config,
-            ),
         )
 
     return _skupper_site_factory
@@ -109,50 +75,6 @@ def namespace_factory(
         )
 
     return _namespace_factory
-
-
-def test_skupper_network_model_skupper_config_init(
-    network_config: SkupperSiteConfigDefaultsV1, site_config: SkupperSiteConfigV1
-) -> None:
-    """Test SkupperConfig."""
-    # network_config only
-    network_config.console = False
-    # site_config only
-    site_config.router_cpu = "1000m"
-    # network_config & site_config
-    network_config.routers = 1
-    site_config.routers = 2
-    config = SkupperConfig.init(
-        name="test", defaults=network_config, config=site_config
-    )
-    assert config.name == "test"
-    # from network_config
-    assert config.console is False
-    # from site_config
-    assert config.router_cpu == "1000m"
-    # from site_config
-    assert config.routers == 2
-    # from defaults
-    assert config.ingress == Defaults.DEFAULT_INGRESS
-    assert (
-        config.router_service_annotations == Defaults.DEFAULT_ROUTER_SERVICE_ANNOTATIONS
-    )
-
-
-def test_skupper_network_model_skupper_config_as_configmap(
-    network_config: SkupperSiteConfigDefaultsV1, site_config: SkupperSiteConfigV1
-) -> None:
-    network_config.console = False
-    site_config.router_cpu = "1000m"
-    config = SkupperConfig.init(
-        name="test", defaults=network_config, config=site_config
-    )
-    data = config.as_configmap_data()
-    # test some values and underscored keys are converted to hyphenated)
-    assert data["console"] == "false"
-    assert data["router-cpu"] == "1000m"
-    assert data["name"] == "test"
-    assert data["router-logging"] == Defaults.DEFAULT_ROUTER_LOGGING
 
 
 def test_skupper_network_model_skupper_site_compute_connected_sites(

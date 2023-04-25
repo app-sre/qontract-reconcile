@@ -1,12 +1,15 @@
+import copy
 import logging
-from collections.abc import Iterable
+from collections.abc import (
+    Iterable,
+    Mapping,
+)
 from typing import Any
 
 from sretoolbox.utils import threaded
 
 import reconcile.openshift_base as ob
 from reconcile.skupper_network.models import SkupperSite
-from reconcile.skupper_network.site_controller import LABELS as SITE_CONTROLLER_LABELS
 from reconcile.skupper_network.site_controller import get_site_controller
 from reconcile.utils.oc_map import OCMap
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
@@ -17,7 +20,9 @@ def delete_skupper_site(
     site: SkupperSite,
     oc_map: OCMap,
     dry_run: bool,
+    integration: str,
     integration_managed_kinds: Iterable[str],
+    labels: Mapping[str, str],
 ) -> None:
     """Delete all skupper resources (leftovers not covered by ResourceInventory) starting with 'skupper-' in a namespace."""
     oc = oc_map.get_cluster(site.cluster.name)
@@ -31,7 +36,7 @@ def delete_skupper_site(
                 for item in oc.get_items(
                     kind=kind,
                     namespace=site.namespace.name,
-                    labels=SITE_CONTROLLER_LABELS,
+                    labels=labels,
                 )
             }
         )
@@ -45,7 +50,10 @@ def delete_skupper_site(
         )
 
     for item in to_delete.values():
-        if "qontract.integration" in item["metadata"].get("annotations", {}):
+        qontract_integration = (
+            item["metadata"].get("annotations", {}).get("qontract.integration", "")
+        )
+        if qontract_integration and qontract_integration != integration:
             # don't delete resources managed by other integrations
             continue
 
@@ -75,18 +83,19 @@ def _create_token(
     dry_run: bool,
     integration: str,
     integration_version: str,
+    labels: Mapping[str, str],
 ) -> None:
     """Create a connection token secret in the site's namespace."""
     oc = oc_map.get_cluster(connected_site.cluster.name)
     logging.info(f"{connected_site}: Creating new connection token for {site}")
     sc = get_site_controller(connected_site)
     if not dry_run:
+        _labels = copy.deepcopy(site.token_labels)
+        _labels.update(labels)
         oc.apply(
             connected_site.namespace.name,
             resource=OR(
-                body=sc.site_token(
-                    connected_site.unique_token_name(site), site.token_labels
-                ),
+                body=sc.site_token(connected_site.unique_token_name(site), _labels),
                 integration=integration,
                 integration_version=integration_version,
             ),
@@ -149,6 +158,7 @@ def connect_sites(
     dry_run: bool,
     integration: str,
     integration_version: str,
+    labels: Mapping[str, str],
 ) -> None:
     """Connect skupper sites together.
 
@@ -206,6 +216,7 @@ def connect_sites(
                     dry_run,
                     integration,
                     integration_version,
+                    labels,
                 )
 
 
@@ -236,6 +247,7 @@ def reconcile(
     integration_managed_kinds: Iterable[str],
     integration: str,
     integration_version: str,
+    labels: Mapping[str, str],
 ) -> None:
     """Realize all skupper resources and create skupper site connections."""
 
@@ -251,6 +263,7 @@ def reconcile(
         dry_run=dry_run,
         integration=integration,
         integration_version=integration_version,
+        labels=labels,
     )
 
     # delete unused skupper site connection tokens
@@ -269,5 +282,7 @@ def reconcile(
         thread_pool_size,
         oc_map=oc_map,
         dry_run=dry_run,
+        integration=integration,
         integration_managed_kinds=list(integration_managed_kinds) + ["Secret"],
+        labels=labels,
     )

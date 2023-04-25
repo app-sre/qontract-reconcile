@@ -20,6 +20,9 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
 from reconcile.gql_definitions.fragments.jumphost_common_fields import (
     CommonJumphostFields,
 )
+from reconcile.gql_definitions.skupper_network.site_controller_template import (
+    SkupperSiteControllerTemplate,
+)
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
 
@@ -35,6 +38,11 @@ fragment CommonJumphostFields on ClusterJumpHost_v1 {
   }
 }
 
+fragment SkupperSiteControllerTemplate on SkupperSiteControllerTemplate_v1 {
+  path
+  variables
+}
+
 fragment VaultSecret on VaultSecret_v1 {
     path
     field
@@ -45,61 +53,16 @@ fragment VaultSecret on VaultSecret_v1 {
 query SkupperNetworks {
   skupper_networks: skupper_network_v1 {
     identifier
-    siteConfigDefaults {
-      clusterLocal
-      console
-      consoleAuthentication
-      consoleIngress
-      controllerCpuLimit
-      controllerCpu
-      controllerMemoryLimit
-      controllerMemory
-      controllerPodAntiaffinity
-      controllerServiceAnnotations
-      edge
-      ingress
-      routerConsole
-      routerCpuLimit
-      routerCpu
-      routerMemoryLimit
-      routerMemory
-      routerLogging
-      routerPodAntiaffinity
-      routerServiceAnnotations
-      routers
-      serviceController
-      serviceSync
-      skupperSiteController
+    siteControllerTemplates {
+      ...SkupperSiteControllerTemplate
     }
     namespaces {
       name
       delete
       skupperSite {
         delete
-        config {
-          clusterLocal
-          console
-          consoleAuthentication
-          consoleIngress
-          controllerCpuLimit
-          controllerCpu
-          controllerMemoryLimit
-          controllerMemory
-          controllerPodAntiaffinity
-          controllerServiceAnnotations
-          edge
-          ingress
-          routerConsole
-          routerCpuLimit
-          routerCpu
-          routerMemoryLimit
-          routerMemory
-          routerLogging
-          routerPodAntiaffinity
-          routerServiceAnnotations
-          routers
-          serviceController
-          serviceSync
+        siteControllerTemplates {
+          ...SkupperSiteControllerTemplate
         }
       }
       clusterAdmin
@@ -152,74 +115,11 @@ class ConfiguredBaseModel(BaseModel):
         extra = Extra.forbid
 
 
-class SkupperSiteConfigDefaultsV1(ConfiguredBaseModel):
-    cluster_local: Optional[bool] = Field(..., alias="clusterLocal")
-    console: Optional[bool] = Field(..., alias="console")
-    console_authentication: Optional[str] = Field(..., alias="consoleAuthentication")
-    console_ingress: Optional[str] = Field(..., alias="consoleIngress")
-    controller_cpu_limit: Optional[str] = Field(..., alias="controllerCpuLimit")
-    controller_cpu: Optional[str] = Field(..., alias="controllerCpu")
-    controller_memory_limit: Optional[str] = Field(..., alias="controllerMemoryLimit")
-    controller_memory: Optional[str] = Field(..., alias="controllerMemory")
-    controller_pod_antiaffinity: Optional[str] = Field(
-        ..., alias="controllerPodAntiaffinity"
-    )
-    controller_service_annotations: Optional[str] = Field(
-        ..., alias="controllerServiceAnnotations"
-    )
-    edge: Optional[bool] = Field(..., alias="edge")
-    ingress: Optional[str] = Field(..., alias="ingress")
-    router_console: Optional[bool] = Field(..., alias="routerConsole")
-    router_cpu_limit: Optional[str] = Field(..., alias="routerCpuLimit")
-    router_cpu: Optional[str] = Field(..., alias="routerCpu")
-    router_memory_limit: Optional[str] = Field(..., alias="routerMemoryLimit")
-    router_memory: Optional[str] = Field(..., alias="routerMemory")
-    router_logging: Optional[str] = Field(..., alias="routerLogging")
-    router_pod_antiaffinity: Optional[str] = Field(..., alias="routerPodAntiaffinity")
-    router_service_annotations: Optional[str] = Field(
-        ..., alias="routerServiceAnnotations"
-    )
-    routers: Optional[int] = Field(..., alias="routers")
-    service_controller: Optional[bool] = Field(..., alias="serviceController")
-    service_sync: Optional[bool] = Field(..., alias="serviceSync")
-    skupper_site_controller: str = Field(..., alias="skupperSiteController")
-
-
-class SkupperSiteConfigV1(ConfiguredBaseModel):
-    cluster_local: Optional[bool] = Field(..., alias="clusterLocal")
-    console: Optional[bool] = Field(..., alias="console")
-    console_authentication: Optional[str] = Field(..., alias="consoleAuthentication")
-    console_ingress: Optional[str] = Field(..., alias="consoleIngress")
-    controller_cpu_limit: Optional[str] = Field(..., alias="controllerCpuLimit")
-    controller_cpu: Optional[str] = Field(..., alias="controllerCpu")
-    controller_memory_limit: Optional[str] = Field(..., alias="controllerMemoryLimit")
-    controller_memory: Optional[str] = Field(..., alias="controllerMemory")
-    controller_pod_antiaffinity: Optional[str] = Field(
-        ..., alias="controllerPodAntiaffinity"
-    )
-    controller_service_annotations: Optional[str] = Field(
-        ..., alias="controllerServiceAnnotations"
-    )
-    edge: Optional[bool] = Field(..., alias="edge")
-    ingress: Optional[str] = Field(..., alias="ingress")
-    router_console: Optional[bool] = Field(..., alias="routerConsole")
-    router_cpu_limit: Optional[str] = Field(..., alias="routerCpuLimit")
-    router_cpu: Optional[str] = Field(..., alias="routerCpu")
-    router_memory_limit: Optional[str] = Field(..., alias="routerMemoryLimit")
-    router_memory: Optional[str] = Field(..., alias="routerMemory")
-    router_logging: Optional[str] = Field(..., alias="routerLogging")
-    router_pod_antiaffinity: Optional[str] = Field(..., alias="routerPodAntiaffinity")
-    router_service_annotations: Optional[str] = Field(
-        ..., alias="routerServiceAnnotations"
-    )
-    routers: Optional[int] = Field(..., alias="routers")
-    service_controller: Optional[bool] = Field(..., alias="serviceController")
-    service_sync: Optional[bool] = Field(..., alias="serviceSync")
-
-
 class NamespaceSkupperSiteConfigV1(ConfiguredBaseModel):
     delete: Optional[bool] = Field(..., alias="delete")
-    config: Optional[SkupperSiteConfigV1] = Field(..., alias="config")
+    site_controller_templates: Optional[list[SkupperSiteControllerTemplate]] = Field(
+        ..., alias="siteControllerTemplates"
+    )
 
 
 class ClusterSpecV1(ConfiguredBaseModel):
@@ -292,8 +192,8 @@ class NamespaceV1(ConfiguredBaseModel):
 
 class SkupperNetworkV1(ConfiguredBaseModel):
     identifier: str = Field(..., alias="identifier")
-    site_config_defaults: SkupperSiteConfigDefaultsV1 = Field(
-        ..., alias="siteConfigDefaults"
+    site_controller_templates: list[SkupperSiteControllerTemplate] = Field(
+        ..., alias="siteControllerTemplates"
     )
     namespaces: list[NamespaceV1] = Field(..., alias="namespaces")
 
