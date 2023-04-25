@@ -1,14 +1,13 @@
 skupper_networks:
   - identifier: small
-    siteConfigDefaults:
-      routerMemoryLimit: "1Gi"
-      skupperSiteController: "quay.io/skupper/site-controller:1.2.0"
+    siteControllerTemplates:
+      - path: site-controller.yaml
+        variables: |
+          { "foo": "bar" }
     namespaces:
       - name: site-1
         skupperSite:
-          config:
-            routerMemoryLimit: "1Gi"
-            routers: 1
+          siteControllerTemplates: null
         cluster:
           name: small-1
           serverUrl: "https://api.small-1"
@@ -20,9 +19,7 @@ skupper_networks:
               - provider: account-vpc-mesh
       - name: site-2
         skupperSite:
-          config:
-            routerMemoryLimit: "1Gi"
-            routers: 1
+          siteControllerTemplates: null
         cluster:
           name: small-2
           serverUrl: "https://api.small-2"
@@ -34,15 +31,17 @@ skupper_networks:
               - provider: account-vpc-mesh
 
   - identifier: advanced
-    siteConfigDefaults:
-      routerMemoryLimit: "1Gi"
-      skupperSiteController: "quay.io/skupper/site-controller:1.2.0"
+    siteControllerTemplates:
+      - path: site-controller.yaml
+        variables: |
+          { "foo": "bar" }
     namespaces:
       - name: public-1
         skupperSite:
-          config:
-            routerMemoryLimit: "1Gi"
-            routers: 1
+          siteControllerTemplates:
+          - path: site-controller.yaml
+            variables: |
+              { "foo": "foo" }
         cluster:
           name: public-1
           serverUrl: "https://api.public-1"
@@ -55,9 +54,7 @@ skupper_networks:
 
       - name: public-2
         skupperSite:
-          config:
-            routerMemoryLimit: "1Gi"
-            routers: 1
+          siteControllerTemplates: null
         cluster:
           name: public-2
           serverUrl: "https://api.public-2"
@@ -70,10 +67,10 @@ skupper_networks:
 
       - name: edge-1
         skupperSite:
-          config:
-            edge: true
-            routerMemoryLimit: "1Gi"
-            routers: 2
+          siteControllerTemplates:
+          - path: site-controller.yaml
+            variables: |
+              { "edge": "true", "foo": "bar" }
         cluster:
           name: internal-1
           serverUrl: "https://api.internal-1"
@@ -86,10 +83,10 @@ skupper_networks:
 
       - name: edge-2
         skupperSite:
-          config:
-            edge: true
-            routerMemoryLimit: "1Gi"
-            routers: 1
+          siteControllerTemplates:
+          - path: site-controller.yaml
+            variables: |
+              { "edge": "true", "foo": "bar" }
         cluster:
           name: internal-2
           serverUrl: "https://api.internal-2"
@@ -102,9 +99,7 @@ skupper_networks:
 
       - name: private-1
         skupperSite:
-          config:
-            routerMemoryLimit: "1Gi"
-            routers: 1
+          siteControllerTemplates: null
         cluster:
           name: private-1
           serverUrl: "https://api.private-1"
@@ -117,9 +112,7 @@ skupper_networks:
 
       - name: private-2
         skupperSite:
-          config:
-            routerMemoryLimit: "1Gi"
-            routers: 1
+          siteControllerTemplates: null
         cluster:
           name: private-2
           serverUrl: "https://api.private-2"
@@ -136,9 +129,7 @@ skupper_networks:
       - name: delete-1
         delete: true
         skupperSite:
-          config:
-            routerMemoryLimit: "1Gi"
-            routers: 1
+          siteControllerTemplates: null
         cluster:
           name: public-1
           serverUrl: "https://api.public-1"
@@ -151,10 +142,7 @@ skupper_networks:
 
       - name: delete-2
         skupperSite:
-          delete: true
-          config:
-            routerMemoryLimit: "1Gi"
-            routers: 1
+          siteControllerTemplates: null
         cluster:
           name: public-1
           serverUrl: "https://api.public-1"
@@ -167,9 +155,7 @@ skupper_networks:
 
       - name: disabled-1
         skupperSite:
-          config:
-            routerMemoryLimit: "1Gi"
-            routers: 1
+          siteControllerTemplates: null
         cluster:
           name: disabled-1
           serverUrl: "https://api.disabled-1"
