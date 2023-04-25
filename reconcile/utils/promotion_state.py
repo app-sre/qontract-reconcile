@@ -47,28 +47,51 @@ class PromotionState:
         """
         all_keys = self._state.ls()
         for commit in all_keys:
-            # Format: /promotions/{channel}/{commit-sha}
-            if not commit.startswith("/promotions/"):
+            # for backwards compatibility - remove this after a while
+            if commit.startswith("/promotions/"):
+                # Format: /promotions/{channel}/{commit-sha}
+                _, _, channel_name, commit_sha = commit.split("/")
+                self._commits_by_channel[channel_name].add(commit_sha)
+            # / for backwards compatibility - remove this after a while
+
+            # Format: /deployments/{saas-target-uid}/{channel}/{commit-sha}
+            if not commit.startswith("/deployments/"):
                 continue
-            _, _, channel_name, commit_sha = commit.split("/")
-            self._commits_by_channel[channel_name].add(commit_sha)
+            _, _, saas_target_uid, channel_name, commit_sha = commit.split("/")
+            self._commits_by_channel[f"{saas_target_uid}/{channel_name}"].add(
+                commit_sha
+            )
 
     def get_promotion_data(
-        self, sha: str, channel: str, local_lookup: bool = True
+        self, sha: str, channel: str, saas_target_uid: str, local_lookup: bool = True
     ) -> Optional[PromotionData]:
-        if local_lookup and sha not in self._commits_by_channel[channel]:
+        if (
+            local_lookup
+            and sha not in self._commits_by_channel[channel]
+            and sha not in self._commits_by_channel[f"{saas_target_uid}/{channel}"]
+        ):
             # Lets reduce unecessary calls to S3
             return None
+
+        # for backwards compatibility - remove this after a while
         key = f"promotions/{channel}/{sha}"
         try:
             data = self._state.get(key)
+            return PromotionData(**data)
+        except KeyError:
+            pass
+        # / for backwards compatibility - remove this after a while
+
+        key = f"deployments/{saas_target_uid}/{channel}/{sha}"
+        try:
+            data = self._state.get(key)
+            return PromotionData(**data)
         except KeyError:
             return None
-        return PromotionData(**data)
 
     def publish_promotion_data(
-        self, sha: str, channel: str, data: PromotionData
+        self, sha: str, channel: str, saas_target_uid: str, data: PromotionData
     ) -> None:
-        state_key = f"promotions/{channel}/{sha}"
+        state_key = f"deployments/{saas_target_uid}/{channel}/{sha}"
         self._state.add(state_key, data.dict(), force=True)
         logging.info("Uploaded %s to %s", data, state_key)

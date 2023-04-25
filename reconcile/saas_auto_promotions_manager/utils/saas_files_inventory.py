@@ -30,6 +30,7 @@ class SaasFilesInventory:
         self._channels_by_name: dict[str, Channel] = {}
         self.subscribers: list[Subscriber] = []
         self.publishers: list[Publisher] = []
+        self._assemble_channels()
         self._assemble_subscribers_with_auto_promotions()
         self._assemble_publishers()
         self._remove_unsupported()
@@ -66,6 +67,7 @@ class SaasFilesInventory:
                     )
                     publisher = Publisher(
                         ref=target.ref,
+                        uid=target.uid(saas_file.name, resource_template.name),
                         repo_url=resource_template.url,
                         auth_code=auth_code,
                     )
@@ -149,13 +151,6 @@ class SaasFilesInventory:
         for subscriber in self.subscribers:
             is_supported = True
             for channel in subscriber.channels:
-                if len(channel.publishers) > 1:
-                    logging.error(
-                        "[%s] We do not support multiple publishers for a single channel - blocked by https://issues.redhat.com/browse/APPSRE-7414",
-                        channel.name,
-                    )
-                    is_supported = False
-                    break
                 if not channel.publishers:
                     logging.error(
                         "[%s] There must be at least one publisher per channel.",
@@ -163,18 +158,7 @@ class SaasFilesInventory:
                     )
                     is_supported = False
                     break
-                if (
-                    len(subscriber.config_hashes_by_channel_name.get(channel.name, []))
-                    > 1
-                ):
-                    logging.error(
-                        "[%s] We do not support multiple publishers for a single channel - blocked by https://issues.redhat.com/browse/APPSRE-7414",
-                        channel.name,
-                    )
-                    is_supported = False
-                    break
+
             if is_supported:
                 supported_subscribers.append(subscriber)
         self.subscribers = supported_subscribers
-        # Ideally we also remove the publishers that are left w/o subscriber.
-        # But lets solve APPSRE-7414 - then it wont be necessary in the first place.

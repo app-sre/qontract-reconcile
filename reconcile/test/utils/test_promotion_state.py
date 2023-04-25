@@ -10,7 +10,7 @@ from reconcile.utils.promotion_state import (
 from reconcile.utils.state import State
 
 
-def test_key_exists(s3_state_builder: Callable[[Mapping], State]):
+def test_key_exists_old_format(s3_state_builder: Callable[[Mapping], State]):
     state = s3_state_builder(
         {
             "ls": ["/promotions/channel/sha"],
@@ -25,7 +25,34 @@ def test_key_exists(s3_state_builder: Callable[[Mapping], State]):
     )
     deployment_state = PromotionState(state=state)
     deployment_state.cache_commit_shas_from_s3()
-    deployment_info = deployment_state.get_promotion_data(channel="channel", sha="sha")
+    deployment_info = deployment_state.get_promotion_data(
+        channel="channel", sha="sha", saas_target_uid="saas_target_uid"
+    )
+    assert deployment_info == PromotionData(
+        success=True,
+        target_config_hash="hash",
+        saas_file="saas_file",
+    )
+
+
+def test_key_exists(s3_state_builder: Callable[[Mapping], State]):
+    state = s3_state_builder(
+        {
+            "ls": ["/deployments/saas_target_uid/channel/sha"],
+            "get": {
+                "deployments/saas_target_uid/channel/sha": {
+                    "success": True,
+                    "target_config_hash": "hash",
+                    "saas_file": "saas_file",
+                }
+            },
+        }
+    )
+    deployment_state = PromotionState(state=state)
+    deployment_state.cache_commit_shas_from_s3()
+    deployment_info = deployment_state.get_promotion_data(
+        channel="channel", sha="sha", saas_target_uid="saas_target_uid"
+    )
     assert deployment_info == PromotionData(
         success=True,
         target_config_hash="hash",
@@ -42,11 +69,15 @@ def test_key_does_not_exist(s3_state_builder: Callable[[Mapping], State]):
     )
     deployment_state = PromotionState(state=state)
     deployment_state.cache_commit_shas_from_s3()
-    deployment_info = deployment_state.get_promotion_data(channel="channel", sha="sha")
+    deployment_info = deployment_state.get_promotion_data(
+        channel="channel", sha="sha", saas_target_uid="saas_target_uid"
+    )
     assert deployment_info is None
 
 
-def test_key_does_not_exist_locally(s3_state_builder: Callable[[Mapping], State]):
+def test_key_does_not_exist_locally_old_format(
+    s3_state_builder: Callable[[Mapping], State]
+):
     state = s3_state_builder(
         {
             "ls": [],
@@ -61,7 +92,35 @@ def test_key_does_not_exist_locally(s3_state_builder: Callable[[Mapping], State]
     )
     deployment_state = PromotionState(state=state)
     deployment_info = deployment_state.get_promotion_data(
-        channel="channel", sha="sha", local_lookup=False
+        channel="channel",
+        sha="sha",
+        saas_target_uid="saas_target_uid",
+        local_lookup=False,
+    )
+    assert deployment_info == PromotionData(
+        success=True, target_config_hash="hash", saas_file="saas_file"
+    )
+
+
+def test_key_does_not_exist_locally(s3_state_builder: Callable[[Mapping], State]):
+    state = s3_state_builder(
+        {
+            "ls": [],
+            "get": {
+                "deployments/saas_target_uid/channel/sha": {
+                    "success": True,
+                    "target_config_hash": "hash",
+                    "saas_file": "saas_file",
+                }
+            },
+        }
+    )
+    deployment_state = PromotionState(state=state)
+    deployment_info = deployment_state.get_promotion_data(
+        channel="channel",
+        sha="sha",
+        saas_target_uid="saas_target_uid",
+        local_lookup=False,
     )
     assert deployment_info == PromotionData(
         success=True, target_config_hash="hash", saas_file="saas_file"
@@ -84,8 +143,9 @@ def test_publish_info(s3_state_builder: Callable[[Mapping], State]):
     deployment_state.publish_promotion_data(
         channel="channel",
         sha="sha",
+        saas_target_uid="saas_target_uid",
         data=promotion_info,
     )
     deployment_state._state.add.assert_called_once_with(  # type: ignore[attr-defined]
-        "promotions/channel/sha", promotion_info.dict(), True
+        "deployments/saas_target_uid/channel/sha", promotion_info.dict(), True
     )
