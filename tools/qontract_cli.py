@@ -2238,7 +2238,7 @@ def run_prometheus_test(ctx, path, cluster, namespace, secret_reader):
     rtf = None
     for ns in namespace_with_prom_rules:
         for resource in ns["openshiftResources"]:
-            tests = resource.get("tests", [])
+            tests = resource.get("tests") or []
             if path not in tests:
                 continue
 
