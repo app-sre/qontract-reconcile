@@ -1,5 +1,9 @@
 import logging
-from collections.abc import Mapping, MutableMapping, Callable
+from collections.abc import (
+    Callable,
+    Mapping,
+    MutableMapping,
+)
 from typing import (
     Any,
     Optional,
