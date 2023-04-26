@@ -100,18 +100,14 @@ def check_ref(repo_url: str, ref: str, path: str) -> None:
     ) as gl:
         try:
             gl.get_commit_sha(ref=ref, repo_url=repo_url)
-            retrieved_path = gl.get_file("{}/config.tf".format(path), ref)
+            retrieved_path = gl.get_file(f"{path}/config.tf", ref)
 
             if not retrieved_path:
                 raise ParameterError(
-                    'No config.tf found in path: "{}" on repo: "{}". Ensure that a config.tf file is present in this path.'.format(
-                        path, repo_url
-                    )
+                    f'No config.tf found in path: "{path}" on repo: "{repo_url}". Ensure that a config.tf file is present in this path.'
                 )
         except (KeyError, AttributeError):
-            raise ParameterError(
-                'Invalid ref: "{}" on repo: "{}"'.format(ref, repo_url)
-            )
+            raise ParameterError(f'Invalid ref: "{ref}" on repo: "{repo_url}"')
 
 
 def diff_missing(
@@ -128,9 +124,7 @@ def diff_missing(
         if b_repo is None:
             if requireDelete is True and a_repo.delete is not True:
                 raise ParameterError(
-                    'To delete the terraform repo "{}", you must set delete: true in the repo definition'.format(
-                        a_repo.name
-                    )
+                    f'To delete the terraform repo "{a_repo.name}", you must set delete: true in the repo definition'
                 )
             missing[a_key] = a_repo
 
@@ -156,9 +150,7 @@ def diff_changed(
             or a_repo.repository != b_repo.repository
         ):
             raise ParameterError(
-                'Only the `ref` and `delete` parameters for a terraform repo may be updated in merge requests on repo: "{}"'.format(
-                    a_repo.name
-                )
+                f'Only the `ref` and `delete` parameters for a terraform repo may be updated in merge requests on repo: "{a_repo.name}"'
             )
         if (a_repo.ref != b_repo.ref) or (a_repo.delete != b_repo.delete):
             changed[a_key] = b_repo
@@ -291,9 +283,7 @@ def run(
                 )
         except FileNotFoundError:
             raise ParameterError(
-                "Unable to write to specified 'print_to_file' location: {}".format(
-                    print_to_file
-                )
+                f"Unable to write to specified 'print_to_file' location: {print_to_file}"
             )
     else:
         print(yaml.safe_dump(data=action_plan.dict(), explicit_start=True))
