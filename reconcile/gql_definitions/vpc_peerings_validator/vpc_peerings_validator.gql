@@ -30,17 +30,11 @@ query VpcPeeringsValidator {
         ... on ClusterPeeringConnectionClusterRequester_v1 {
           cluster {
             ... VpcPeeringsValidatorPeeredCluster
-            network {
-              vpc
-            }
           }
         }
         ... on ClusterPeeringConnectionClusterAccepter_v1 {
           cluster {
             ... VpcPeeringsValidatorPeeredCluster
-            network {
-              vpc
-            }
           }
         }
       }
