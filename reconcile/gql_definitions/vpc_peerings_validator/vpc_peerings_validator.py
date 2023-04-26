@@ -107,7 +107,7 @@ class AWSVPCV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
 
 
-class ClusterPeeringConnectionAccountV1(ConfiguredBaseModel):
+class ClusterPeeringConnectionAccountV1(ClusterPeeringConnectionV1):
     vpc: AWSVPCV1 = Field(..., alias="vpc")
 
 
@@ -116,7 +116,7 @@ class AWSAccountV1(ConfiguredBaseModel):
     uid: str = Field(..., alias="uid")
 
 
-class ClusterPeeringConnectionAccountVPCMeshV1(ConfiguredBaseModel):
+class ClusterPeeringConnectionAccountVPCMeshV1(ClusterPeeringConnectionV1):
     name: str = Field(..., alias="name")
     account: AWSAccountV1 = Field(..., alias="account")
     tags: Optional[Json] = Field(..., alias="tags")
@@ -129,14 +129,14 @@ class ClusterPeeringConnectionClusterRequesterV1_ClusterV1_ClusterNetworkV1(
 
 
 class ClusterPeeringConnectionClusterRequesterV1_ClusterV1(
-    ConfiguredBaseModel
+    ClusterPeeringConnectionV1
 ):
     network: Optional[
         ClusterPeeringConnectionClusterRequesterV1_ClusterV1_ClusterNetworkV1
     ] = Field(..., alias="network")
 
 
-class ClusterPeeringConnectionClusterRequesterV1(ConfiguredBaseModel):
+class ClusterPeeringConnectionClusterRequesterV1(ClusterPeeringConnectionV1):
     cluster: ClusterPeeringConnectionClusterRequesterV1_ClusterV1 = Field(
         ..., alias="cluster"
     )
@@ -149,14 +149,14 @@ class ClusterPeeringConnectionClusterAccepterV1_ClusterV1_ClusterNetworkV1(
 
 
 class ClusterPeeringConnectionClusterAccepterV1_ClusterV1(
-    ConfiguredBaseModel
+    ClusterPeeringConnectionV1
 ):
     network: Optional[
         ClusterPeeringConnectionClusterAccepterV1_ClusterV1_ClusterNetworkV1
     ] = Field(..., alias="network")
 
 
-class ClusterPeeringConnectionClusterAccepterV1(ConfiguredBaseModel):
+class ClusterPeeringConnectionClusterAccepterV1(ClusterPeeringConnectionV1):
     cluster: ClusterPeeringConnectionClusterAccepterV1_ClusterV1 = Field(
         ..., alias="cluster"
     )

@@ -40,13 +40,13 @@ def validate_no_cidr_overlap(
             continue
         if cluster.peering:
             for peering in cluster.peering.connections:
-                if peering.provider == "account-vpc":
+                if peering.provider == "account-vpc":  # type: ignore[union-attr]
                     cidr_block = str(peering.vpc.cidr_block)  # type: ignore[union-attr]
                     cidr_block_entries_acount_vpc[peering.vpc.name] = cidr_block  # type: ignore[union-attr]
-                if peering.provider == "account-vpc-mesh":
-                    tags_dict = peering.tags
-                    aws_account_uid = peering.account.uid
-                    for tags_key, tags_value in tags_dict.items():
+                if peering.provider == "account-vpc-mesh":  # type: ignore[union-attr]
+                    tags_dict = peering.tags  # type: ignore[union-attr]
+                    aws_account_uid = peering.account.uid  # type: ignore[union-attr]
+                    for tags_key, tags_value in tags_dict.items():  # type: ignore[union-attr]
                         settings = queries.get_secret_reader_settings()
                         accounts = queries.get_aws_accounts(uid=aws_account_uid)
                         awsapi = AWSApi(
@@ -55,10 +55,10 @@ def validate_no_cidr_overlap(
                         cidr_block_entries_acount_vpc_mesh = cidr_mesh_finder(
                             aws_account_uid, tags_key, tags_value, awsapi
                         )
-                if peering.provider == "cluster-vpc-requester":
+                if peering.provider == "cluster-vpc-requester":  # type: ignore[union-attr]
                     cidr_block = str(peering.cluster.network.vpc)  # type: ignore[union-attr]
                     cidr_block_entries_requester[peering.cluster.name] = cidr_block  # type: ignore[union-attr]
-                if peering.provider == "cluster-vpc-accepter":
+                if peering.provider == "cluster-vpc-accepter":  # type: ignore[union-attr]
                     cidr_block = str(peering.cluster.network.vpc)  # type: ignore[union-attr]
                     cidr_block_entries_accepter[peering.cluster.name] = cidr_block  # type: ignore[union-attr]
 
@@ -186,16 +186,16 @@ def validate_no_internal_to_public_peerings(
                 connection,
             )
             peer = connection.cluster
-            if peer.internal or (peer.spec and peer.spec.private):
+            if peer.internal or (peer.spec and peer.spec.private):  # type: ignore[union-attr]
                 continue
 
             valid = False
-            pair = {cluster.name, peer.name}
+            pair = {cluster.name, peer.name}  # type: ignore[union-attr]
             if pair in found_pairs:
                 continue
             found_pairs.append(pair)
             logging.error(
-                f"found internal to public vpc peering: {cluster.name} <-> {peer.name}"
+                f"found internal to public vpc peering: {cluster.name} <-> {peer.name}"  # type: ignore[union-attr]
             )
 
     return valid
@@ -229,16 +229,16 @@ def validate_no_public_to_public_peerings(
                 connection,
             )
             peer = connection.cluster
-            if peer.internal or (peer.spec and peer.spec.private):
+            if peer.internal or (peer.spec and peer.spec.private):  # type: ignore[union-attr]
                 continue
 
             valid = False
-            pair = {cluster.name, peer.name}
+            pair = {cluster.name, peer.name}  # type: ignore[union-attr]
             if pair in found_pairs:
                 continue
             found_pairs.append(pair)
             logging.error(
-                f"found public to public vpc peering: {cluster.name} <-> {peer.name}"
+                f"found public to public vpc peering: {cluster.name} <-> {peer.name}"  # type: ignore[union-attr]
             )
 
     return valid
