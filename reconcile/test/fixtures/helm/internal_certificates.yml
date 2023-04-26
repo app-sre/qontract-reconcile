@@ -298,6 +298,8 @@ parameters:
   value: ''
 - name: INTEGRATIONS_MANAGER_IMAGE
   value: ''
+- name: INTEGRATIONS_MANAGER_IMAGE_TAG_FROM_REF
+  value: ''
 - name: INTEG_CPU_LIMIT
   value: 678
 - name: INTEG_MEMORY_LIMIT

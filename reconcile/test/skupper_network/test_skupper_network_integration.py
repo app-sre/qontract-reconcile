@@ -1,15 +1,13 @@
 import copy
 from typing import Any
+from unittest.mock import MagicMock
 
 import pytest
 
 from reconcile.gql_definitions.skupper_network.skupper_networks import SkupperNetworkV1
 from reconcile.skupper_network import integration as intg
-from reconcile.skupper_network.models import (
-    Defaults,
-    SkupperSite,
-)
-from reconcile.skupper_network.site_controller import CONFIG_NAME
+from reconcile.skupper_network.integration import CONFIG_NAME
+from reconcile.skupper_network.models import SkupperSite
 from reconcile.test.fixtures import Fixtures
 from reconcile.utils.oc_map import OCMap
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
@@ -55,7 +53,9 @@ def test_skupper_network_intg_get_skupper_networks(
 
 
 @pytest.mark.xfail(raises=intg.SkupperNetworkExcpetion, strict=True)
-def test_skupper_network_intg_compile_skupper_sites_island(fx: Fixtures) -> None:
+def test_skupper_network_intg_compile_skupper_sites_island(
+    fx: Fixtures, fake_get_resource: MagicMock
+) -> None:
     def q(*args: Any, **kwargs: Any) -> dict[Any, Any]:
         return fx.get_anymarkup("skupper_networks-island.yml")
 
@@ -74,34 +74,22 @@ def test_skupper_network_intg_compile_skupper_sites(
     public_1 = skupper_sites[6]
     small_1 = skupper_sites[8]
 
+    assert edge_1.site_controller_objects[0]["data"]["namespace"] == "edge-1"
+    assert edge_1.site_controller_objects[0]["data"]["variable"] == "bar"
     assert edge_1.delete is False
-    assert edge_1.config.edge is True
-    assert edge_1.config.router_memory_limit == "1Gi"
-    assert edge_1.config.ingress == Defaults.DEFAULT_INGRESS
     assert edge_1.is_connected_to(public_1) is True
 
-    assert private_1.delete is False
-    assert private_1.config.edge is False
-    assert private_1.config.router_memory_limit == "1Gi"
-    assert private_1.config.ingress == Defaults.DEFAULT_INGRESS
     assert private_1.is_connected_to(public_1) is True
 
     assert delete_1.delete is True
-    assert delete_1.config.edge is False
-    assert delete_1.config.router_memory_limit == "1Gi"
-    assert delete_1.config.ingress == Defaults.DEFAULT_INGRESS
 
     assert public_1.delete is False
-    assert public_1.config.edge is False
-    assert public_1.config.router_memory_limit == "1Gi"
-    assert public_1.config.ingress == Defaults.DEFAULT_INGRESS
+    assert public_1.site_controller_objects[0]["data"]["namespace"] == "public-1"
+    assert public_1.site_controller_objects[0]["data"]["variable"] == "foo"
     # public_1 and small_1 are in different skupper networks
     assert public_1.is_connected_to(small_1) is False
 
     assert small_1.delete is False
-    assert small_1.config.edge is False
-    assert small_1.config.router_memory_limit == "1Gi"
-    assert small_1.config.ingress == Defaults.DEFAULT_INGRESS
     # public_1 and small_1 are in different skupper networks
     assert small_1.is_connected_to(public_1) is False
 
@@ -113,18 +101,12 @@ def test_skupper_network_intg_fetch_desired_state(
     integration_managed_kinds = intg.fetch_desired_state(
         ri=ri, skupper_sites=skupper_sites
     )
+    # ConfigMap is the only kind we receive in our fake_get_resource
     assert integration_managed_kinds == {
-        "Deployment",
         "ConfigMap",
-        "Role",
-        "RoleBinding",
-        "ServiceAccount",
     }
     # test some random resources
     assert ri.get_desired("internal-1", "edge-1", "ConfigMap", CONFIG_NAME)
-    assert ri.get_desired(
-        "public-1", "public-1", "Deployment", "skupper-site-controller"
-    )
     # deleted sites should not be present
     assert ri.get_desired("public-1", "delete-1", "ConfigMap", CONFIG_NAME) is None
 

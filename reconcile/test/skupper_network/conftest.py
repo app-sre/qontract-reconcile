@@ -3,6 +3,7 @@ from collections.abc import (
     MutableMapping,
 )
 from typing import Any
+from unittest.mock import MagicMock
 
 import pytest
 from pytest_mock import MockerFixture
@@ -10,7 +11,6 @@ from pytest_mock import MockerFixture
 from reconcile.gql_definitions.skupper_network.skupper_networks import SkupperNetworkV1
 from reconcile.skupper_network import integration as intg
 from reconcile.skupper_network.models import SkupperSite
-from reconcile.skupper_network.site_controller import CONFIG_NAME
 from reconcile.test.fixtures import Fixtures
 from reconcile.utils.oc import OCNative
 from reconcile.utils.oc_map import OCMap
@@ -41,7 +41,31 @@ def skupper_networks(
 
 
 @pytest.fixture
-def skupper_sites(skupper_networks: list[SkupperNetworkV1]) -> list[SkupperSite]:
+def fake_get_resource(mocker: MockerFixture) -> MagicMock:
+    gql_mock = mocker.patch("reconcile.utils.gql.get_api", autospec=True)
+    gql_mock.return_value.get_resource.return_value = {
+        "content": """
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: skupper-site
+  labels:
+    label1: value1
+
+data:
+  namespace: {{ resource.namespace.name }}
+  variable: "{{ foo }}"
+  edge: "{{ edge | default('false') }}"
+"""
+    }
+    return gql_mock
+
+
+@pytest.fixture
+def skupper_sites(
+    skupper_networks: list[SkupperNetworkV1], fake_get_resource: MagicMock
+) -> list[SkupperSite]:
     return sorted(intg.compile_skupper_sites(skupper_networks))
 
 
@@ -51,7 +75,7 @@ def fake_site_configmap() -> dict[str, Any]:
         "apiVersion": "v1",
         "kind": "ConfigMap",
         "metadata": {
-            "name": CONFIG_NAME,
+            "name": intg.CONFIG_NAME,
             "labels": {
                 "foo": "bar",
             },

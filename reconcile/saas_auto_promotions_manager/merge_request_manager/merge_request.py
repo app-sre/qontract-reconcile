@@ -9,6 +9,13 @@ LOG = logging.getLogger(__name__)
 
 
 class SAPMMR(MergeRequestBase):
+    """
+    Very thin wrapper around MergeRequestBase.
+    This class is not tested, thus logic in here
+    is kept to a minimum. Any rendering should
+    happen in renderer.py
+    """
+
     name = "SAPM"
 
     def __init__(
