@@ -186,16 +186,16 @@ def validate_no_internal_to_public_peerings(
                 connection,
             )
             peer = connection.cluster
-            if peer.internal or (peer.spec and peer.spec.private):  # type: ignore[union-attr]
+            if peer.internal or (peer.spec and peer.spec.private):
                 continue
 
             valid = False
-            pair = {cluster.name, peer.name}  # type: ignore[union-attr]
+            pair = {cluster.name, peer.name}
             if pair in found_pairs:
                 continue
             found_pairs.append(pair)
             logging.error(
-                f"found internal to public vpc peering: {cluster.name} <-> {peer.name}"  # type: ignore[union-attr]
+                f"found internal to public vpc peering: {cluster.name} <-> {peer.name}"
             )
 
     return valid
@@ -229,16 +229,16 @@ def validate_no_public_to_public_peerings(
                 connection,
             )
             peer = connection.cluster
-            if peer.internal or (peer.spec and peer.spec.private):  # type: ignore[union-attr]
+            if peer.internal or (peer.spec and peer.spec.private):
                 continue
 
             valid = False
-            pair = {cluster.name, peer.name}  # type: ignore[union-attr]
+            pair = {cluster.name, peer.name}
             if pair in found_pairs:
                 continue
             found_pairs.append(pair)
             logging.error(
-                f"found public to public vpc peering: {cluster.name} <-> {peer.name}"  # type: ignore[union-attr]
+                f"found public to public vpc peering: {cluster.name} <-> {peer.name}"
             )
 
     return valid
