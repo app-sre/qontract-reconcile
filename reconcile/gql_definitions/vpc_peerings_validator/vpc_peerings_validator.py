@@ -129,7 +129,7 @@ class ClusterPeeringConnectionClusterRequesterV1_ClusterV1_ClusterNetworkV1(
 
 
 class ClusterPeeringConnectionClusterRequesterV1_ClusterV1(
-    ClusterPeeringConnectionV1
+    VpcPeeringsValidatorPeeredCluster
 ):
     network: Optional[
         ClusterPeeringConnectionClusterRequesterV1_ClusterV1_ClusterNetworkV1
@@ -149,7 +149,7 @@ class ClusterPeeringConnectionClusterAccepterV1_ClusterV1_ClusterNetworkV1(
 
 
 class ClusterPeeringConnectionClusterAccepterV1_ClusterV1(
-    ClusterPeeringConnectionV1
+    VpcPeeringsValidatorPeeredCluster
 ):
     network: Optional[
         ClusterPeeringConnectionClusterAccepterV1_ClusterV1_ClusterNetworkV1
