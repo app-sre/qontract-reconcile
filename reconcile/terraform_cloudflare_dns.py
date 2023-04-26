@@ -18,8 +18,6 @@ from reconcile.gql_definitions.terraform_cloudflare_dns.app_interface_cloudflare
     AppInterfaceSettingCloudflareDNSQueryData,
 )
 from reconcile.gql_definitions.terraform_cloudflare_dns.terraform_cloudflare_zones import (
-    AWSAccountV1,
-    CloudflareAccountV1,
     CloudflareDnsRecordV1,
     CloudflareDnsZoneQueryData,
     CloudflareDnsZoneV1,
@@ -27,7 +25,6 @@ from reconcile.gql_definitions.terraform_cloudflare_dns.terraform_cloudflare_zon
 from reconcile.status import ExitCodes
 from reconcile.utils import gql
 from reconcile.utils.defer import defer
-from reconcile.utils.exceptions import SecretIncompleteError
 from reconcile.utils.external_resources import ExternalResourceSpec
 from reconcile.utils.runtime.integration import (
     DesiredStateShardConfig,
@@ -39,16 +36,22 @@ from reconcile.utils.secret_reader import (
     create_secret_reader,
 )
 from reconcile.utils.semver_helper import make_semver
-from reconcile.utils.terraform.config_client import TerraformConfigClientCollection
+from reconcile.utils.terraform.config_client import (
+    ClientAlreadyRegisteredError,
+    TerraformConfigClientCollection,
+)
 from reconcile.utils.terraform_client import TerraformClient
 from reconcile.utils.terrascript.cloudflare_client import (
-    DEFAULT_CLOUDFLARE_ACCOUNT_2FA,
-    DEFAULT_CLOUDFLARE_ACCOUNT_TYPE,
     DEFAULT_PROVIDER_RPS,
-    CloudflareAccountConfig,
-    TerraformS3BackendConfig,
-    TerrascriptCloudflareClient,
-    create_cloudflare_terrascript,
+    DNSZoneShardingStrategy,
+    IntegrationUndefined,
+    InvalidTerraformState,
+    TerrascriptCloudflareClientFactory,
+)
+from reconcile.utils.terrascript.models import (
+    CloudflareAccount,
+    Integration,
+    TerraformStateS3,
 )
 
 DEFAULT_NAMESPACE: Mapping[str, Any] = {
@@ -94,7 +97,7 @@ class TerraformCloudflareDNSIntegration(
         if not settings.settings:
             raise RuntimeError("App interface setting undefined.")
 
-        if not settings.settings[0].vault:
+        if settings.settings[0].vault is None:
             raise RuntimeError("App interface vault setting undefined.")
 
         default_max_records = (
@@ -121,17 +124,13 @@ class TerraformCloudflareDNSIntegration(
             sys.exit(ExitCodes.ERROR)
 
         # Build Cloudflare clients
-        cf_clients = TerraformConfigClientCollection()
-        zone_clients = build_clients(
+        cf_clients = build_cloudflare_terraform_config_collection(
             secret_reader,
             query_zones,
             self.qontract_integration,
             self.params.selected_account,
             self.params.selected_zone,
         )
-
-        for client in zone_clients:
-            cf_clients.register_client(*client)
 
         zone_external_resource_specs = cloudflare_dns_zone_to_external_resource(
             query_zones.zones
@@ -268,81 +267,15 @@ def get_cloudflare_provider_rps(
     return min(-(-size // 50), DEFAULT_PROVIDER_RPS)
 
 
-def create_backend_config(
-    secret_reader: SecretReaderBase,
-    aws_acct: AWSAccountV1,
-    cf_acct: CloudflareAccountV1,
-    zone: str,
-    integration_name: str,
-) -> TerraformS3BackendConfig:
-    aws_acct_creds = secret_reader.read_all_secret(aws_acct.automation_token)
-
-    # default from AWS account file
-    tf_state = aws_acct.terraform_state
-    if tf_state is None:
-        raise ValueError(
-            f"AWS account {aws_acct.name} cannot be used for Cloudflare "
-            f"account {cf_acct.name} because it doesn't define a terraform state "
-        )
-
-    integrations = tf_state.integrations or []
-    for i in integrations or []:
-        name = i.integration
-
-        bucket_key = bucket_name = bucket_region = None
-        if name.replace("-", "_") == integration_name:
-            # Currently terraform-state-1.yml can only have one bucket
-            # but multiple integrations, which means without schema changes
-            # we have to ensure the bucket key(file) is unique across
-            # all Cloudflare zones to support sharding per zone.
-
-            bucket_key = f"{integration_name}-{cf_acct.name}-{zone}.tfstate"
-            bucket_name = tf_state.bucket
-            bucket_region = tf_state.region
-            break
-
-    if bucket_name and bucket_key and bucket_region:
-        backend_config = TerraformS3BackendConfig(
-            aws_acct_creds["aws_access_key_id"],
-            aws_acct_creds["aws_secret_access_key"],
-            bucket_name,
-            bucket_key,
-            bucket_region,
-        )
-    else:
-        raise ValueError(f"No state bucket config found for account {aws_acct.name}")
-
-    return backend_config
-
-
-def get_cf_acct_config(
-    cf_acct: CloudflareAccountV1,
-    secret_reader: SecretReaderBase,
-) -> CloudflareAccountConfig:
-    cf_acct_creds = secret_reader.read_all_secret(cf_acct.api_credentials)
-    if not cf_acct_creds.get("api_token") or not cf_acct_creds.get("account_id"):
-        raise SecretIncompleteError(
-            f"secret {cf_acct.api_credentials.path} incomplete: api_token and/or account_id missing"
-        )
-    cf_acct_config = CloudflareAccountConfig(
-        cf_acct.name,
-        cf_acct_creds["api_token"],
-        cf_acct_creds["account_id"],
-        cf_acct.enforce_twofactor or DEFAULT_CLOUDFLARE_ACCOUNT_2FA,
-        cf_acct.q_type or DEFAULT_CLOUDFLARE_ACCOUNT_TYPE,
-    )
-    return cf_acct_config
-
-
-def build_clients(
+def build_cloudflare_terraform_config_collection(
     secret_reader: SecretReaderBase,
     query_zones: CloudflareDnsZoneQueryData,
-    integration_name: str,
-    selected_account: Optional[str] = None,
-    selected_zone: Optional[str] = None,
-) -> list[tuple[str, TerrascriptCloudflareClient]]:
-    clients = []
-    cf_acct_configs: dict[str, CloudflareAccountConfig] = {}
+    qontract_integration: str,
+    selected_account: Optional[str],
+    selected_zone: Optional[str],
+) -> TerraformConfigClientCollection:
+    cf_clients = TerraformConfigClientCollection()
+    cf_accounts: dict[str, CloudflareAccount] = {}
     for zone in query_zones.zones or []:
         cf_acct = zone.account
         cf_acct_name = cf_acct.name
@@ -351,34 +284,69 @@ def build_clients(
             continue
         if selected_zone and zone.identifier != selected_zone:
             continue
-        if cf_acct_name in cf_acct_configs:
-            cf_acct_config = cf_acct_configs[cf_acct_name]
+
+        if cf_acct_name in cf_accounts:
+            cf_account = cf_accounts[cf_acct_name]
         else:
-            cf_acct_config = get_cf_acct_config(cf_acct, secret_reader)
-            cf_acct_configs[cf_acct_name] = cf_acct_config
-        aws_acct = cf_acct.terraform_state_account
-        aws_backend_config = create_backend_config(
-            secret_reader,
-            aws_acct,
-            cf_acct,
-            zone.identifier,
-            integration_name=integration_name,
+            cf_account = CloudflareAccount(
+                cf_acct_name,
+                zone.account.api_credentials,
+                zone.account.enforce_twofactor,
+                zone.account.q_type,
+                zone.account.provider_version,
+            )
+            cf_accounts[cf_acct_name] = cf_account
+
+        tf_state = zone.account.terraform_state_account.terraform_state
+        if not tf_state:
+            raise ValueError(
+                f"AWS account {zone.account.terraform_state_account.name} cannot be used for Cloudflare "
+                f"account {cf_account.name} because it does not define a Terraform state "
+            )
+        bucket = tf_state.bucket
+        region = tf_state.region
+        integrations = tf_state.integrations
+
+        if not bucket:
+            raise InvalidTerraformState("Terraform state must have bucket defined")
+        if not region:
+            raise InvalidTerraformState("Terraform state must have region defined")
+
+        integration = None
+        for i in integrations:
+            if i.integration.replace("-", "_") == qontract_integration:
+                integration = i
+                break
+
+        if not integration:
+            raise IntegrationUndefined(
+                f"Must declare integration name under Terraform state in {zone.account.terraform_state_account.name} AWS account for {cf_account.name} Cloudflare account in app-interface"
+            )
+
+        tf_state_s3 = TerraformStateS3(
+            zone.account.terraform_state_account.automation_token,
+            bucket,
+            region,
+            Integration(integration.integration.replace("-", "_"), integration.key),
         )
 
         rps = get_cloudflare_provider_rps(zone.records)
 
-        ts_config = create_cloudflare_terrascript(
-            account_config=cf_acct_config,
-            backend_config=aws_backend_config,
-            provider_version=cf_acct.provider_version,
-            provider_rps=rps,
-            is_managed_account=False,
+        client = TerrascriptCloudflareClientFactory.get_client(
+            tf_state_s3,
+            cf_account,
+            DNSZoneShardingStrategy(cf_account, zone.identifier),
+            secret_reader,
+            False,
+            rps,
         )
 
-        ts_client = TerrascriptCloudflareClient(ts_config)
-        clients.append((f"{cf_acct.name}-{zone.identifier}", ts_client))
+        try:
+            cf_clients.register_client(f"{cf_account.name}-{zone.identifier}", client)
+        except ClientAlreadyRegisteredError:
+            pass
 
-    return clients
+    return cf_clients
 
 
 def cloudflare_dns_zone_to_external_resource(
