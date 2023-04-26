@@ -1,11 +1,7 @@
 import logging
-from collections.abc import (
-    Mapping,
-    MutableMapping,
-)
+from collections.abc import Mapping, MutableMapping, Callable
 from typing import (
     Any,
-    Callable,
     Optional,
 )
 
@@ -31,63 +27,36 @@ QONTRACT_INTEGRATION = "terraform-repo"
 QONTRACT_INTEGRATION_VERSION = make_semver(1, 1, 0)
 
 
-class AWSAuthSecret(BaseModel):
-    path: str
-    version: Optional[int]
-
-
-class AWSAccount(BaseModel):
-    name: str
-    uid: str
-    secret: AWSAuthSecret
-
-
-class TFRepo(BaseModel):
-    """This is what the integration outputs and is input for the executor to perform terraform operations"""
-
-    name: str
-    repository: str
-    ref: str
-    project_path: str
-    account: AWSAccount
-    delete: Optional[bool]
-
-
 class ActionPlan(BaseModel):
     dry_run: bool
-    repos: list[TFRepo]
+    repos: list[TerraformRepoV1]
 
 
-def get_repos(query_func: Callable) -> list[TFRepo]:
+def get_repos(query_func: Callable) -> list[TerraformRepoV1]:
     """Return all terraform repos defined in app-interface"""
     query_results = query(query_func=query_func).repos
     if query_results:
-        return [gql_to_tf_repo(repo) for repo in query_results]
+        return query_results
     return []
 
 
-def get_existing_state(state: State) -> list[TFRepo]:
+def get_existing_state(state: State) -> list[TerraformRepoV1]:
     """Get the existing state of terraform repos from S3"""
-    repo_list: list[TFRepo] = []
+    repo_list: list[TerraformRepoV1] = []
     keys = state.ls()
     for key in keys:
-        value = state.get(key.lstrip("/"), None)
-        repo = TFRepo.parse_raw(value)
+        if value := state.get(key.lstrip("/"), None):
+            repo = TerraformRepoV1.parse_raw(value)
 
-        if repo is not None:
-            repo_list.append(repo)
+            if repo is not None:
+                repo_list.append(repo)
 
     return repo_list
 
 
-def map_repos(repos: list[TFRepo]) -> MutableMapping[str, TFRepo]:
+def map_repos(repos: list[TerraformRepoV1]) -> MutableMapping[str, TerraformRepoV1]:
     """Generate keys for each repo to more easily compare"""
-    repo_map: MutableMapping[str, TFRepo] = dict()
-    for repo in repos:
-        # repo names are unique per app interface instance as enforced in the schema
-        repo_map[repo.name] = repo
-
-    return repo_map
+    return {repo.name: repo for repo in repos}
 
 
 def check_ref(repo_url: str, ref: str, path: str) -> None:
@@ -111,18 +80,17 @@ def check_ref(repo_url: str, ref: str, path: str) -> None:
 
 
 def diff_missing(
-    a: Mapping[str, TFRepo],
-    b: Mapping[str, TFRepo],
-    requireDelete: bool = False,
-) -> MutableMapping[str, TFRepo]:
+    a: Mapping[str, TerraformRepoV1],
+    b: Mapping[str, TerraformRepoV1],
+    require_delete: bool = False,
+) -> MutableMapping[str, TerraformRepoV1]:
     """
     Returns a mapping of repos that are present in mapping a but missing in mapping b
     When requireDelete = True, each repo from a is checked to ensure that the delete flag is set"""
-    missing: MutableMapping[str, TFRepo] = dict()
+    missing: MutableMapping[str, TerraformRepoV1] = dict()
     for a_key, a_repo in a.items():
-        b_repo = b.get(a_key)
-        if b_repo is None:
-            if requireDelete is True and a_repo.delete is not True:
+        if a_key not in b:
+            if require_delete and not a_repo.delete:
                 raise ParameterError(
                     f'To delete the terraform repo "{a_repo.name}", you must set delete: true in the repo definition'
                 )
@@ -132,15 +100,15 @@ def diff_missing(
 
 
 def diff_changed(
-    a: Mapping[str, TFRepo], b: Mapping[str, TFRepo]
-) -> MutableMapping[str, TFRepo]:
+    a: Mapping[str, TerraformRepoV1], b: Mapping[str, TerraformRepoV1]
+) -> MutableMapping[str, TerraformRepoV1]:
     """
     Returns a mapping of repos that have changed between a and b in the form of returning their b values
     In order for Terraform to work as expected, the tenant can only update the ref between MRs
     Updating account, repo, or project_path can lead to unexpected behavior so we error
     on that
     """
-    changed: MutableMapping[str, TFRepo] = dict()
+    changed: MutableMapping[str, TerraformRepoV1] = dict()
     for a_key, a_repo in a.items():
         b_repo = b.get(a_key, a_repo)
         if (
@@ -158,41 +126,19 @@ def diff_changed(
     return changed
 
 
-def gql_to_tf_repo(repo: TerraformRepoV1) -> TFRepo:
-    """
-    Converts the GQL/state representation of a Terraform repo to a
-    TFRepo class that can be more easily marshalled/unmarshalled from state file
-    """
-    return TFRepo(
-        name=repo.name,
-        repository=repo.repository,
-        ref=repo.ref,
-        project_path=repo.project_path,
-        account=AWSAccount(
-            name=repo.account.name,
-            uid=repo.account.uid,
-            secret=AWSAuthSecret(
-                path=repo.account.automation_token.path,
-                version=repo.account.automation_token.version,
-            ),
-        ),
-        delete=repo.delete,
-    )
-
-
 def merge_results(
-    created: Mapping[str, TFRepo], updated: Mapping[str, TFRepo]
-) -> list[TFRepo]:
+    created: Mapping[str, TerraformRepoV1], updated: Mapping[str, TerraformRepoV1]
+) -> list[TerraformRepoV1]:
     """
     Merges results into a RepoOutput dict which will be transformed to outputted YAML.
     This includes checking modified values for a delete flag
     """
-    output: list[TFRepo] = []
+    output: list[TerraformRepoV1] = []
     for c_value in created.values():
         logging.info(["create_repo", c_value.account.name, c_value.name])
         output.append(c_value)
     for u_value in updated.values():
-        if u_value.delete is True:
+        if u_value.delete:
             logging.info(["delete_repo", u_value.account.name, u_value.name])
             output.append(u_value)
         else:
@@ -202,9 +148,9 @@ def merge_results(
 
 
 def update_state(
-    created: Mapping[str, TFRepo],
-    deleted: Mapping[str, TFRepo],
-    updated: Mapping[str, TFRepo],
+    created: Mapping[str, TerraformRepoV1],
+    deleted: Mapping[str, TerraformRepoV1],
+    updated: Mapping[str, TerraformRepoV1],
     state: State,
 ) -> None:
     """
@@ -216,10 +162,10 @@ def update_state(
     created_and_updated = {**created, **updated}
     try:
         for cu_key, cu_val in created_and_updated.items():
-            if cu_val.delete is True:
+            if cu_val.delete:
                 state.rm(cu_key)
             else:
-                state.add(cu_key, cu_val.json(), True)
+                state.add(cu_key, cu_val.json(by_alias=True), True)
         for d_key in deleted.keys():
             state.rm(d_key)
     except KeyError:
@@ -227,11 +173,11 @@ def update_state(
 
 
 def calculate_diff(
-    existing_state: list[TFRepo],
-    desired_state: list[TFRepo],
+    existing_state: list[TerraformRepoV1],
+    desired_state: list[TerraformRepoV1],
     dry_run: bool,
     state: Optional[State],
-) -> list[TFRepo]:
+) -> list[TerraformRepoV1]:
     """Diffs existing and desired state as well as updates the state in S3 if this is not a dry-run operation"""
     existing_map = map_repos(existing_state)
     desired_map = map_repos(desired_state)
@@ -291,4 +237,4 @@ def run(
 
 def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
     gqlapi = gql.get_api()
-    return {"repos": get_repos(query_func=gqlapi.query)}
+    return {"repos": [repo.dict() for repo in get_repos(query_func=gqlapi.query)]}
