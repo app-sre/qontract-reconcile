@@ -40,10 +40,10 @@ def validate_no_cidr_overlap(
             continue
         if cluster.peering:
             for peering in cluster.peering.connections:
-                if peering.provider == "account-vpc":  # type: ignore[union-attr]
+                if peering.provider == "account-vpc":
                     cidr_block = str(peering.vpc.cidr_block)  # type: ignore[union-attr]
                     cidr_block_entries_acount_vpc[peering.vpc.name] = cidr_block  # type: ignore[union-attr]
-                if peering.provider == "account-vpc-mesh":  # type: ignore[union-attr]
+                if peering.provider == "account-vpc-mesh":
                     tags_dict = peering.tags  # type: ignore[union-attr]
                     aws_account_uid = peering.account.uid  # type: ignore[union-attr]
                     for tags_key, tags_value in tags_dict.items():  # type: ignore[union-attr]
@@ -55,10 +55,10 @@ def validate_no_cidr_overlap(
                         cidr_block_entries_acount_vpc_mesh = cidr_mesh_finder(
                             aws_account_uid, tags_key, tags_value, awsapi
                         )
-                if peering.provider == "cluster-vpc-requester":  # type: ignore[union-attr]
+                if peering.provider == "cluster-vpc-requester":
                     cidr_block = str(peering.cluster.network.vpc)  # type: ignore[union-attr]
                     cidr_block_entries_requester[peering.cluster.name] = cidr_block  # type: ignore[union-attr]
-                if peering.provider == "cluster-vpc-accepter":  # type: ignore[union-attr]
+                if peering.provider == "cluster-vpc-accepter":
                     cidr_block = str(peering.cluster.network.vpc)  # type: ignore[union-attr]
                     cidr_block_entries_accepter[peering.cluster.name] = cidr_block  # type: ignore[union-attr]
 
