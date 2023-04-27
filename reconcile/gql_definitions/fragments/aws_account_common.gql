@@ -1,0 +1,32 @@
+# qenerate: plugin=pydantic_v1
+
+fragment AWSAccountCommon on AWSAccount_v1 {
+  path
+  name
+  uid
+  terraformUsername
+  consoleUrl
+  resourcesDefaultRegion
+  supportedDeploymentRegions
+  providerVersion
+  accountOwners {
+    name
+    email
+  }
+  automationToken {
+    ... VaultSecret
+  }
+  garbageCollection
+  enableDeletion
+  deletionApprovals {
+    type
+    name
+    expiration
+  }
+  disable {
+    integrations
+  }
+  deleteKeys
+  premiumSupport
+  partition
+}
