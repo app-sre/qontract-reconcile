@@ -1553,12 +1553,17 @@ def terraform_repo(
     ctx,
     print_to_file,
 ):
-    import reconcile.terraform_repo
+    from reconcile import terraform_repo
 
     if print_to_file and is_file_in_git_repo(print_to_file):
         raise PrintToFileInGitRepositoryError(print_to_file)
 
-    run_integration(reconcile.terraform_repo, ctx.obj, print_to_file)
+    run_class_integration(
+        integration=terraform_repo.TerraformRepoIntegration(
+            terraform_repo.TerraformRepoIntegrationParams(print_to_file=print_to_file)
+        ),
+        ctx=ctx.obj,
+    )
 
 
 @integration.command(short_help="Manage AWS Resources using Terraform.")
