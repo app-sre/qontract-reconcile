@@ -1,0 +1,11 @@
+# qenerate: plugin=pydantic_v1
+
+fragment TerraformState on TerraformStateAWS_v1 {
+  provider
+  bucket
+  region
+  integrations {
+    key
+    integration
+  }
+}
