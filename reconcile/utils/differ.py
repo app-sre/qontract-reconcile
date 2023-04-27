@@ -9,45 +9,46 @@ from typing import (
     Generic,
     Optional,
     TypeVar,
+    cast,
 )
 
-C = TypeVar("C")
-D = TypeVar("D")
-K = TypeVar("K")
+Current = TypeVar("Current")
+Desired = TypeVar("Desired")
+Key = TypeVar("Key")
 
 
 @dataclass(frozen=True, eq=True)
-class DiffKeyedResult(Generic[C, D, K]):
-    add: dict[K, D]
-    delete: dict[K, C]
-    change: dict[K, tuple[C, D]]
+class DiffKeyedResult(Generic[Current, Desired, Key]):
+    add: dict[Key, Desired]
+    delete: dict[Key, Current]
+    change: dict[Key, tuple[Current, Desired]]
 
 
 @dataclass(frozen=True, eq=True)
-class DiffListsResult(Generic[C, D]):
-    add: list[D]
-    delete: list[C]
-    identical: list[tuple[C, D]]
+class DiffListsResult(Generic[Current, Desired]):
+    add: list[Desired]
+    delete: list[Current]
+    identical: list[tuple[Current, Desired]]
 
 
 def diff_mappings(
-    current: Mapping[K, C],
-    desired: Mapping[K, D],
-    equal: Optional[Callable[[C, D], bool]] = None,
-) -> DiffKeyedResult[C, D, K]:
+    current: Mapping[Key, Current],
+    desired: Mapping[Key, Desired],
+    equal: Optional[Callable[[Current, Desired], bool]] = None,
+) -> DiffKeyedResult[Current, Desired, Key]:
     """
     Compare two mappings and return a `DiffKeyedResult` instance containing the differences between them.
 
     :param current: The current mapping to compare.
-    :type current: Mapping[K, C]
+    :type current: Mapping[Key, Current]
     :param desired: The desired mapping to compare.
-    :type desired: Mapping[K, D]
+    :type desired: Mapping[Key, Desired]
     :param equal: An optional function that compares two elements in the mappings and returns True if they are equal.
         If not provided, the default behavior is to use the `==` operator.
-    :type equal: Optional[Callable[[C, D], bool]]
+    :type equal: Optional[Callable[[Current, Desired], bool]]
     :return: A `DiffResult` instance containing the differences between the `current` and `desired` mappings,
         including elements that were added, deleted, or changed.
-    :rtype: DiffKeyedResult[C, D, K]
+    :rtype: DiffKeyedResult[Current, Desired, Key]
     :raises: None
 
     Example:
@@ -68,29 +69,29 @@ def diff_mappings(
 
 
 def diff_by_key(
-    current: Iterable[C],
-    desired: Iterable[D],
-    current_key: Callable[[C], K],
-    desired_key: Callable[[D], K],
-    equal: Optional[Callable[[C, D], bool]] = None,
-) -> DiffKeyedResult[C, D, K]:
+    current: Iterable[Current],
+    desired: Iterable[Desired],
+    current_key: Callable[[Current], Key],
+    desired_key: Callable[[Desired], Key],
+    equal: Optional[Callable[[Current, Desired], bool]] = None,
+) -> DiffKeyedResult[Current, Desired, Key]:
     """
     Compare two iterables and return a `DiffKeyedResult` instance containing the differences between them.
 
     :param current: The current iterable to compare.
-    :type current: Iterable[C]
+    :type current: Iterable[Current]
     :param desired: The desired iterable to compare.
-    :type desired: Iterable[D]
+    :type desired: Iterable[Desired]
     :param current_key: A function that returns the key for an element in the `current` iterable.
-    :type current_key: Callable[[C], K]
+    :type current_key: Callable[[Current], Key]
     :param desired_key: A function that returns the key for an element in the `desired` iterable.
-    :type desired_key: Callable[[D], K]
+    :type desired_key: Callable[[Desired], Key]
     :param equal: An optional function that compares two elements in the iterables and returns True if they are equal.
         If not provided, the default behavior is to use the `==` operator.
-    :type equal: Optional[Callable[[C, D], bool]]
+    :type equal: Optional[Callable[[Current, Desired], bool]]
     :return: A `DiffKeyedResult` instance containing the differences between the `current` and `desired` mappings,
         including elements that were added, deleted, or changed.
-    :rtype: DiffKeyedResult[C, D, K]
+    :rtype: DiffKeyedResult[Current, Desired, Key]
     :raises: None
 
     Example:
@@ -117,25 +118,25 @@ def diff_by_key(
         change={'b': ({'name': 'b', 'value': 2}, {'name': 'b', 'value': 20}))
     )
     """
-    current_dict = {current_key(x): x for x in current}
-    desired_dict = {desired_key(x): x for x in desired}
+    current_dict = {current_key(c): c for c in current}
+    desired_dict = {desired_key(d): d for d in desired}
     return diff_mappings(current_dict, desired_dict, equal=equal)
 
 
 def diff_lists(
-    current: Sequence[C],
-    desired: Sequence[D],
-) -> DiffListsResult[C, D]:
+    current: Sequence[Current],
+    desired: Sequence[Desired],
+) -> DiffListsResult[Current, Desired]:
     """
     Compare two iterables and return a `DiffListsResult` instance containing the differences between them.
 
     :param current: The current sequence to compare.
-    :type current: Sequence[C]
+    :type current: Sequence[Current]
     :param desired: The desired sequence to compare.
-    :type desired: Sequence[D]
+    :type desired: Sequence[Desired]
     :return: A `DiffListsResult` instance containing the differences between the `current` and `desired` mappings,
         including elements that were added ,deleted or identical.
-    :rtype: DiffListsResult[C, D]
+    :rtype: DiffListsResult[Current, Desired]
     :raises: None
 
     Example:
@@ -144,16 +145,15 @@ def diff_lists(
     >>> result = diff_lists(current, desired)
     DiffListsResult(add=[3], delete=[2], identical=[(1, 1)])
     """
-    current_with_index = {x: idx for idx, x in enumerate(current)}
-    desired_with_index = {x: idx for idx, x in enumerate(desired)}
-    add = list(desired_with_index.keys() - current_with_index.keys())
-    delete = list(current_with_index.keys() - desired_with_index.keys())
+    current_to_index = {c: idx for idx, c in enumerate(current)}
+    desired_to_index = {d: idx for idx, d in enumerate(desired)}
+    add = list(desired_to_index.keys() - current_to_index.keys())
+    delete = list(current_to_index.keys() - desired_to_index.keys())
     identical = [
-        (current[current_with_index[k]], desired[desired_with_index[k]])
-        for k in current_with_index.keys() & desired_with_index.keys()
+        (
+            current[current_to_index[cast(Current, k)]],
+            desired[desired_to_index[cast(Desired, k)]],
+        )
+        for k in current_to_index.keys() & desired_to_index.keys()
     ]
-    return DiffListsResult(
-        add=add,
-        delete=delete,
-        identical=identical,
-    )
+    return DiffListsResult(add=add, delete=delete, identical=identical)
