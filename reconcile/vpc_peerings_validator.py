@@ -1,3 +1,4 @@
+from cmath import log
 import ipaddress
 import logging
 import sys
@@ -29,13 +30,20 @@ def validate_no_cidr_overlap(
     cidr_block_entries_acount_vpc = {}
     cidr_block_entries_acount_vpc_mesh = {}
     cidr_block_entries_cluster_vpc = {}
-    cidr_block_entries_requester = {}
-    cidr_block_entries_accepter = {}
     for cluster in clusters:
+        logging.debug("Testing this cluster")
+        logging.debug(cluster)
+        target_cidr_block_entries_requester = {}
+        cidr_block_entries_requester = {}
+        target_cidr_block_entries_accepter = {}
+        cidr_block_entries_accepter = {}
+
         # This block shouldn't be here, need to fix
         try:
             cidr_block = str(cluster.network.vpc)  # type: ignore[union-attr]
             cidr_block_entries_cluster_vpc[cluster.name] = cidr_block
+            # cidr_block_entries_requester[cluster.name] = cidr_block
+            target_cidr_block_entries_requester[cluster.name] = cidr_block
         except AttributeError:
             continue
         if cluster.peering:
@@ -43,46 +51,42 @@ def validate_no_cidr_overlap(
                 if peering.provider == "account-vpc":
                     cidr_block = str(peering.vpc.cidr_block)  # type: ignore[union-attr]
                     cidr_block_entries_acount_vpc[peering.vpc.name] = cidr_block  # type: ignore[union-attr]
-                if peering.provider == "account-vpc-mesh":
-                    tags_dict = peering.tags  # type: ignore[union-attr]
-                    aws_account_uid = peering.account.uid  # type: ignore[union-attr]
-                    for tags_key, tags_value in tags_dict.items():  # type: ignore[union-attr]
-                        settings = queries.get_secret_reader_settings()
-                        accounts = queries.get_aws_accounts(uid=aws_account_uid)
-                        awsapi = AWSApi(
-                            1, accounts, settings=settings, init_users=False
-                        )
-                        cidr_block_entries_acount_vpc_mesh = cidr_mesh_finder(
-                            aws_account_uid, tags_key, tags_value, awsapi
-                        )
+                # if peering.provider == "account-vpc-mesh":
+                #     tags_dict = peering.tags  # type: ignore[union-attr]
+                #     aws_account_uid = peering.account.uid  # type: ignore[union-attr]
+                #     for tags_key, tags_value in tags_dict.items():  # type: ignore[union-attr]
+                #         settings = queries.get_secret_reader_settings()
+                #         accounts = queries.get_aws_accounts(uid=aws_account_uid)
+                #         awsapi = AWSApi(
+                #             1, accounts, settings=settings, init_users=False
+                #         )
+                #         cidr_block_entries_acount_vpc_mesh = cidr_mesh_finder(
+                #             aws_account_uid, tags_key, tags_value, awsapi
+                #         )
                 if peering.provider == "cluster-vpc-requester":
                     cidr_block = str(peering.cluster.network.vpc)  # type: ignore[union-attr]
                     cidr_block_entries_requester[peering.cluster.name] = cidr_block  # type: ignore[union-attr]
-                if peering.provider == "cluster-vpc-accepter":
-                    cidr_block = str(peering.cluster.network.vpc)  # type: ignore[union-attr]
-                    cidr_block_entries_accepter[peering.cluster.name] = cidr_block  # type: ignore[union-attr]
+                # if peering.provider == "cluster-vpc-accepter":
+                #     cidr_block = str(peering.cluster.network.vpc)  # type: ignore[union-attr]
+                #     cidr_block_entries_accepter[peering.cluster.name] = cidr_block  # type: ignore[union-attr]
 
         overlaps_account_vpc = find_cidr_duplicates_and_overlap(
             cidr_block_entries_acount_vpc
         )
         if overlaps_account_vpc:
-            logging.error("VPC peering error for cluster %s", cluster)
+            logging.error("VPC peering error for cluster %s", cluster.name)
             return False
         overlaps_account_vpc_mesh = find_cidr_duplicates_and_overlap(
             cidr_block_entries_acount_vpc_mesh
         )
         if overlaps_account_vpc_mesh:
-            logging.error("VPC peering error for cluster %s", cluster)
+            logging.error("VPC peering error for cluster %s", cluster.name)
             return False
-        overlaps_account_requester = find_cidr_duplicates_and_overlap(
-            cidr_block_entries_requester
-        )
+        overlaps_account_requester = compare_cidr_with_cidr_dict(target_cidr_block_entries_requester,cidr_block_entries_requester)
         if overlaps_account_requester:
-            logging.error("VPC peering error for cluster %s", cluster)
+            logging.error("VPC peering error for cluster %s", cluster.name)
             return False
-        overlaps_account_accepter = find_cidr_duplicates_and_overlap(
-            cidr_block_entries_accepter
-        )
+        overlaps_account_accepter = compare_cidr_with_cidr_dict(target_cidr_block_entries_accepter,cidr_block_entries_accepter)
         if overlaps_account_accepter:
             logging.error("VPC peering error for cluster %s", cluster)
             return False
