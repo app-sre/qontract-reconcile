@@ -1,84 +1,94 @@
 from dataclasses import dataclass
+from typing import Any
 
 from reconcile.utils import differ
+from reconcile.utils.differ import DiffResult
 
 
-def test_diff_mappings_with_default_equal():
-    current = {"a": 1, "b": 2, "c": 3}
-    desired = {"a": 1, "b": 20, "d": 30}
+def test_diff_mappings_with_default_equal() -> None:
+    current = {"i": 1, "c": 2, "d": 3}
+    desired = {"i": 1, "c": 20, "a": 30}
 
     result = differ.diff_mappings(current, desired)
 
-    assert result == differ.DiffKeyedResult(
-        add={"d": 30},
-        delete={"c": 3},
-        change={"b": (2, 20)},
+    assert result == differ.DiffResult(
+        add={"a": 30},
+        delete={"d": 3},
+        change={"c": differ.DiffPair(2, 20)},
+        identical={"i": differ.DiffPair(1, 1)},
     )
 
 
-def test_diff_mappings_with_custom_equal():
-    current = {"a": 1, "b": 2, "c": 3}
-    desired = {"a": [1], "b": [20], "d": [30]}
+def test_diff_mappings_with_custom_equal() -> None:
+    current = {"i": 1, "c": 2, "d": 3}
+    desired = {"i": [1], "c": [20], "a": [30]}
 
     result = differ.diff_mappings(current, desired, equal=lambda c, d: c == d[0])
 
-    assert result == differ.DiffKeyedResult(
-        add={"d": [30]},
-        delete={"c": 3},
-        change={"b": (2, [20])},
+    assert result == differ.DiffResult(
+        add={"a": [30]},
+        delete={"d": 3},
+        change={"c": differ.DiffPair(2, [20])},
+        identical={"i": differ.DiffPair(1, [1])},
     )
 
 
-def test_diff_by_key_with_default_equal():
+def test_diff_any_iterables_with_default_equal() -> None:
     current = [
-        {"name": "a", "value": 1},
-        {"name": "b", "value": 2},
-        {"name": "c", "value": 3},
+        {"name": "i", "value": 1},
+        {"name": "c", "value": 2},
+        {"name": "d", "value": 3},
     ]
 
     desired = [
-        {"name": "a", "value": 1},
-        {"name": "b", "value": 20},
-        {"name": "d", "value": 30},
+        {"name": "i", "value": 1},
+        {"name": "c", "value": 20},
+        {"name": "a", "value": 30},
     ]
 
-    result = differ.diff_by_key(
+    result = differ.diff_any_iterables(
         current,
         desired,
         current_key=lambda c: c["name"],
         desired_key=lambda d: d["name"],
     )
 
-    assert result == differ.DiffKeyedResult(
+    assert result == differ.DiffResult(
         add={
-            "d": {"name": "d", "value": 30},
+            "a": {"name": "a", "value": 30},
         },
         delete={
-            "c": {"name": "c", "value": 3},
+            "d": {"name": "d", "value": 3},
         },
         change={
-            "b": (
-                {"name": "b", "value": 2},
-                {"name": "b", "value": 20},
+            "c": differ.DiffPair(
+                {"name": "c", "value": 2},
+                {"name": "c", "value": 20},
+            )
+        },
+        identical={
+            "i": differ.DiffPair(
+                {"name": "i", "value": 1},
+                {"name": "i", "value": 1},
             )
         },
     )
 
 
-def test_diff_by_key_with_custom_equal():
+def test_diff_any_iterables_with_custom_equal() -> None:
     current = [
-        {"name": "a", "value": 1},
-        {"name": "b", "value": 2},
-        {"name": "c", "value": 3},
+        {"name": "i", "value": 1},
+        {"name": "c", "value": 2},
+        {"name": "d", "value": 3},
     ]
 
     desired = [
-        {"name": "a", "value": [1]},
-        {"name": "b", "value": [20]},
-        {"name": "d", "value": [30]},
+        {"name": "i", "value": [1]},
+        {"name": "c", "value": [20]},
+        {"name": "a", "value": [30]},
     ]
 
-    result = differ.diff_by_key(
+    result = differ.diff_any_iterables(
         current,
         desired,
         current_key=lambda c: c["name"],
@@ -86,32 +96,38 @@ def test_diff_by_key_with_custom_equal():
         equal=lambda c, d: c["value"] == d["value"][0],
     )
 
-    assert result == differ.DiffKeyedResult(
+    assert result == differ.DiffResult(
         add={
-            "d": {"name": "d", "value": [30]},
+            "a": {"name": "a", "value": [30]},
         },
         delete={
-            "c": {"name": "c", "value": 3},
+            "d": {"name": "d", "value": 3},
         },
         change={
-            "b": (
-                {"name": "b", "value": 2},
-                {"name": "b", "value": [20]},
+            "c": differ.DiffPair(
+                {"name": "c", "value": 2},
+                {"name": "c", "value": [20]},
+            )
+        },
+        identical={
+            "i": differ.DiffPair(
+                {"name": "i", "value": 1},
+                {"name": "i", "value": [1]},
             )
         },
     )
 
 
-def test_diff_lists_with_scalar_types():
-    current = ["a", "b"]
-    desired = ["a", "c"]
+def test_diff_any_iterables_with_scalar_types() -> None:
+    current = ["i", "d"]
+    desired = ["i", "a"]
+    result = differ.diff_any_iterables(current, desired)  # type: ignore
 
-    result = differ.diff_lists(current, desired)
-
-    assert result == differ.DiffListsResult(
-        add=["c"],
-        delete=["b"],
-        identical=[("a", "a")],
+    assert result == differ.DiffResult(
+        add={"a": "a"},
+        delete={"d": "d"},
+        change={},
+        identical={"i": differ.DiffPair("i", "i")},
     )
 
 
@@ -130,28 +146,71 @@ class Foo:
         return hash(self.name)
 
 
-def test_diff_lists_with_custom_types():
+def test_diff_any_iterables_with_custom_types() -> None:
     current = [
-        Foo(name="a", value=1),
-        Foo(name="b", value=2),
+        Foo(name="i", value=1),
+        Foo(name="d", value=2),
     ]
     desired = [
-        Foo(name="a", value=10),
-        Foo(name="c", value=30),
+        Foo(name="i", value=10),
+        Foo(name="a", value=30),
     ]
 
-    result = differ.diff_lists(current, desired)
+    result: DiffResult[Foo, Foo, Foo] = differ.diff_any_iterables(current, desired)
 
     assert len(result.add) == 1
-    assert result.add[0].name == "c"
-    assert result.add[0].value == 30
+    assert result.add[Foo(name="a", value=30)].name == "a"
+    assert result.add[Foo(name="a", value=30)].value == 30
 
     assert len(result.delete) == 1
-    assert result.delete[0].name == "b"
-    assert result.delete[0].value == 2
+    assert result.delete[Foo(name="d", value=2)].name == "d"
+    assert result.delete[Foo(name="d", value=2)].value == 2
+
+    assert len(result.change) == 0
 
     assert len(result.identical) == 1
-    assert result.identical[0][0].name == "a"
-    assert result.identical[0][0].value == 1
-    assert result.identical[0][1].name == "a"
-    assert result.identical[0][1].value == 10
+    assert result.identical[Foo(name="i", value=10)].current.name == "i"
+    assert result.identical[Foo(name="i", value=10)].current.value == 1
+    assert result.identical[Foo(name="i", value=10)].desired.name == "i"
+    assert result.identical[Foo(name="i", value=10)].desired.value == 10
+
+
+def test_diff_iterables() -> None:
+    current = [
+        {"name": "i", "value": 1},
+        {"name": "c", "value": 2},
+        {"name": "d", "value": 3},
+    ]
+
+    desired = [
+        {"name": "i", "value": 1},
+        {"name": "c", "value": 20},
+        {"name": "a", "value": 30},
+    ]
+
+    result = differ.diff_iterables(
+        current,
+        desired,
+        key=lambda x: x["name"],
+    )
+
+    assert result == differ.DiffResult(
+        add={
+            "a": {"name": "a", "value": 30},
+        },
+        delete={
+            "d": {"name": "d", "value": 3},
+        },
+        change={
+            "c": differ.DiffPair(
+                {"name": "c", "value": 2},
+                {"name": "c", "value": 20},
+            ),
+        },
+        identical={
+            "i": differ.DiffPair(
+                {"name": "i", "value": 1},
+                {"name": "i", "value": 1},
+            ),
+        },
+    )
