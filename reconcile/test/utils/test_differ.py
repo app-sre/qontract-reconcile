@@ -1,8 +1,7 @@
+import typing
 from dataclasses import dataclass
-from typing import Any
 
 from reconcile.utils import differ
-from reconcile.utils.differ import DiffResult
 
 
 def test_diff_mappings_with_default_equal() -> None:
@@ -118,10 +117,11 @@ def test_diff_any_iterables_with_custom_equal() -> None:
     )
 
 
+@typing.no_type_check
 def test_diff_any_iterables_with_scalar_types() -> None:
     current = ["i", "d"]
     desired = ["i", "a"]
-    result = differ.diff_any_iterables(current, desired)  # type: ignore
+    result = differ.diff_any_iterables(current, desired)
 
     assert result == differ.DiffResult(
         add={"a": "a"},
@@ -146,6 +146,7 @@ class Foo:
         return hash(self.name)
 
 
+@typing.no_type_check
 def test_diff_any_iterables_with_custom_types() -> None:
     current = [
         Foo(name="i", value=1),
@@ -156,7 +157,7 @@ def test_diff_any_iterables_with_custom_types() -> None:
         Foo(name="a", value=30),
     ]
 
-    result: DiffResult[Foo, Foo, Foo] = differ.diff_any_iterables(current, desired)
+    result = differ.diff_any_iterables(current, desired)
 
     assert len(result.add) == 1
     assert result.add[Foo(name="a", value=30)].name == "a"
