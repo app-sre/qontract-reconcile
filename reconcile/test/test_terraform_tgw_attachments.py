@@ -4,6 +4,7 @@ from collections.abc import (
     Mapping,
 )
 from typing import Optional
+from unittest.mock import create_autospec
 
 import pytest
 from pytest_mock import MockerFixture
@@ -12,6 +13,7 @@ import reconcile.terraform_tgw_attachments as integ
 from reconcile.gql_definitions.common.app_interface_vault_settings import (
     AppInterfaceSettingsV1,
 )
+from reconcile.utils.secret_reader import SecretReaderBase
 
 QONTRACT_INTEGRATION = "terraform_tgw_attachments"
 
@@ -362,6 +364,11 @@ def _setup_mocks(
     )
     mocked_get_app_interface_vault_settings.return_value = vault_settings
 
+    mocked_secret_reader = create_autospec(SecretReaderBase)
+    mocker.patch(
+        "reconcile.terraform_tgw_attachments.create_secret_reader"
+    ).return_value = mocked_secret_reader
+
     mocked_aws_api = mocker.patch(
         "reconcile.terraform_tgw_attachments.AWSApi", autospec=True
     )
@@ -398,6 +405,7 @@ def _setup_mocks(
         "ts": mocked_ts,
         "queries": mocked_queries,
         "get_app_interface_vault_settings": mocked_get_app_interface_vault_settings,
+        "secret_reader": mocked_secret_reader,
         "ocm": mocked_ocm,
         "aws_api": mocked_aws_api,
     }
@@ -485,7 +493,7 @@ def test_run_when_cluster_with_tgw_connection(
     mocks["aws_api"].assert_called_once_with(
         1,
         [tgw_account],
-        settings=app_interface_vault_settings.dict(by_alias=True),
+        secret_reader=mocks["secret_reader"],
         init_users=False,
     )
     mocks["ocm"].assert_called_once_with(
@@ -540,7 +548,7 @@ def test_run_when_cluster_with_mixed_connections(
     mocks["aws_api"].assert_called_once_with(
         1,
         [tgw_account],
-        settings=app_interface_vault_settings.dict(by_alias=True),
+        secret_reader=mocks["secret_reader"],
         init_users=False,
     )
     mocks["ocm"].assert_called_once_with(
@@ -574,7 +582,7 @@ def test_run_when_cluster_with_vpc_connection_only(
     mocks["aws_api"].assert_called_once_with(
         1,
         [],
-        settings=app_interface_vault_settings.dict(by_alias=True),
+        secret_reader=mocks["secret_reader"],
         init_users=False,
     )
     mocks["ocm"].assert_not_called()
@@ -623,7 +631,7 @@ def test_run_with_multiple_clusters(
     mocks["aws_api"].assert_called_once_with(
         1,
         [tgw_account],
-        settings=app_interface_vault_settings.dict(by_alias=True),
+        secret_reader=mocks["secret_reader"],
         init_users=False,
     )
     mocks["ocm"].assert_called_once_with(
@@ -683,7 +691,7 @@ def test_run_with_account_name_for_multiple_clusters(
     mocks["aws_api"].assert_called_once_with(
         1,
         [tgw_account],
-        settings=app_interface_vault_settings.dict(by_alias=True),
+        secret_reader=mocks["secret_reader"],
         init_users=False,
     )
     mocks["ocm"].assert_called_once_with(
@@ -742,7 +750,7 @@ def test_run_with_account_name_for_multiple_connections(
     mocks["aws_api"].assert_called_once_with(
         1,
         [tgw_account],
-        settings=app_interface_vault_settings.dict(by_alias=True),
+        secret_reader=mocks["secret_reader"],
         init_users=False,
     )
     mocks["ocm"].assert_called_once_with(

@@ -24,6 +24,7 @@ from reconcile.utils.ocm import (
     OCM,
     OCMMap,
 )
+from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.terraform_client import TerraformClient as Terraform
 from reconcile.utils.terrascript_aws_client import TerrascriptClient as Terrascript
@@ -279,6 +280,7 @@ def run(
     defer: Optional[Callable] = None,
 ) -> None:
     vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(vault_settings.vault)
     clusters = queries.get_clusters_with_peering_settings()
     tgw_clusters = _filter_tgw_clusters(clusters, account_name)
     ocm_map = _build_ocm_map(tgw_clusters, vault_settings)
@@ -289,9 +291,7 @@ def run(
     )
     tgw_accounts = _filter_tgw_accounts(accounts, tgw_clusters)
 
-    aws_api = AWSApi(
-        1, tgw_accounts, settings=vault_settings.dict(by_alias=True), init_users=False
-    )
+    aws_api = AWSApi(1, tgw_accounts, secret_reader=secret_reader, init_users=False)
     if defer:
         defer(aws_api.cleanup)
 
