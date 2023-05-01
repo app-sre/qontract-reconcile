@@ -12,6 +12,12 @@ from typing import (
 )
 
 from reconcile import queries
+from reconcile.gql_definitions.common.app_interface_vault_settings import (
+    AppInterfaceSettingsV1,
+)
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.defer import defer
 from reconcile.utils.ocm import (
@@ -190,12 +196,14 @@ def _build_requester(
 
 def _build_ocm_map(
     clusters: Iterable[Mapping],
-    settings: Optional[Mapping[str, Any]],
+    vault_settings: AppInterfaceSettingsV1,
 ) -> Optional[OCMMap]:
     ocm_clusters = [c for c in clusters if c.get("ocm")]
     return (
         OCMMap(
-            clusters=ocm_clusters, integration=QONTRACT_INTEGRATION, settings=settings
+            clusters=ocm_clusters,
+            integration=QONTRACT_INTEGRATION,
+            settings=vault_settings.dict(by_alias=True),
         )
         if ocm_clusters
         # this is a case for an OCP cluster which is not provisioned
@@ -270,10 +278,10 @@ def run(
     account_name: Optional[str] = None,
     defer: Optional[Callable] = None,
 ) -> None:
-    settings = queries.get_secret_reader_settings()
+    vault_settings = get_app_interface_vault_settings()
     clusters = queries.get_clusters_with_peering_settings()
     tgw_clusters = _filter_tgw_clusters(clusters, account_name)
-    ocm_map = _build_ocm_map(tgw_clusters, settings)
+    ocm_map = _build_ocm_map(tgw_clusters, vault_settings)
     accounts = queries.get_aws_accounts(
         terraform_state=True,
         ecrs=False,
@@ -281,7 +289,9 @@ def run(
     )
     tgw_accounts = _filter_tgw_accounts(accounts, tgw_clusters)
 
-    aws_api = AWSApi(1, tgw_accounts, settings=settings, init_users=False)
+    aws_api = AWSApi(
+        1, tgw_accounts, settings=vault_settings.dict(by_alias=True), init_users=False
+    )
     if defer:
         defer(aws_api.cleanup)
 
@@ -301,7 +311,7 @@ def run(
         "",
         thread_pool_size,
         tgw_accounts,
-        settings=settings,
+        settings=vault_settings.dict(by_alias=True),
     )
     working_dirs = _populate_tgw_attachments_working_dirs(
         ts,

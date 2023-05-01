@@ -9,6 +9,9 @@ import pytest
 from pytest_mock import MockerFixture
 
 import reconcile.terraform_tgw_attachments as integ
+from reconcile.gql_definitions.common.app_interface_vault_settings import (
+    AppInterfaceSettingsV1,
+)
 
 QONTRACT_INTEGRATION = "terraform_tgw_attachments"
 
@@ -283,6 +286,16 @@ def assume_role() -> str:
     return "some-role"
 
 
+@pytest.fixture
+def app_interface_vault_settings(
+    gql_class_factory: Callable[..., AppInterfaceSettingsV1],
+) -> AppInterfaceSettingsV1:
+    return gql_class_factory(
+        AppInterfaceSettingsV1,
+        {"vault": True},
+    )
+
+
 def build_expected_tgw_account(
     cluster: Mapping,
     connection: Mapping,
@@ -332,6 +345,7 @@ def build_expected_desired_state_item(
 
 def _setup_mocks(
     mocker: MockerFixture,
+    vault_settings: AppInterfaceSettingsV1,
     clusters: Optional[Iterable] = None,
     accounts: Optional[Iterable] = None,
     vpc_details: Optional[Mapping] = None,
@@ -342,6 +356,12 @@ def _setup_mocks(
     mocked_queries.get_secret_reader_settings.return_value = {}
     mocked_queries.get_clusters_with_peering_settings.return_value = clusters or []
     mocked_queries.get_aws_accounts.return_value = accounts or []
+
+    mocked_get_app_interface_vault_settings = mocker.patch(
+        "reconcile.terraform_tgw_attachments.get_app_interface_vault_settings"
+    )
+    mocked_get_app_interface_vault_settings.return_value = vault_settings
+
     mocked_aws_api = mocker.patch(
         "reconcile.terraform_tgw_attachments.AWSApi", autospec=True
     )
@@ -377,17 +397,24 @@ def _setup_mocks(
         "tf": mocked_tf,
         "ts": mocked_ts,
         "queries": mocked_queries,
+        "get_app_interface_vault_settings": mocked_get_app_interface_vault_settings,
         "ocm": mocked_ocm,
         "aws_api": mocked_aws_api,
     }
 
 
-def test_dry_run(mocker: MockerFixture) -> None:
-    mocks = _setup_mocks(mocker)
+def test_dry_run(
+    mocker: MockerFixture,
+    app_interface_vault_settings: AppInterfaceSettingsV1,
+) -> None:
+    mocks = _setup_mocks(
+        mocker,
+        vault_settings=app_interface_vault_settings,
+    )
 
     integ.run(True, enable_deletion=False)
 
-    mocks["queries"].get_secret_reader_settings.assert_called_once_with()
+    mocks["get_app_interface_vault_settings"].assert_called_once_with()
     mocks["queries"].get_clusters_with_peering_settings.assert_called_once_with()
     mocks["queries"].get_aws_accounts.assert_called_once_with(
         terraform_state=True,
@@ -398,12 +425,18 @@ def test_dry_run(mocker: MockerFixture) -> None:
     mocks["tf"].apply.assert_not_called()
 
 
-def test_non_dry_run(mocker: MockerFixture) -> None:
-    mocks = _setup_mocks(mocker)
+def test_non_dry_run(
+    mocker: MockerFixture,
+    app_interface_vault_settings: AppInterfaceSettingsV1,
+) -> None:
+    mocks = _setup_mocks(
+        mocker,
+        vault_settings=app_interface_vault_settings,
+    )
 
     integ.run(False, enable_deletion=False)
 
-    mocks["queries"].get_secret_reader_settings.assert_called_once_with()
+    mocks["get_app_interface_vault_settings"].assert_called_once_with()
     mocks["queries"].get_clusters_with_peering_settings.assert_called_once_with()
     mocks["queries"].get_aws_accounts.assert_called_once_with(
         terraform_state=True,
@@ -416,6 +449,7 @@ def test_non_dry_run(mocker: MockerFixture) -> None:
 
 def test_run_when_cluster_with_tgw_connection(
     mocker: MockerFixture,
+    app_interface_vault_settings: AppInterfaceSettingsV1,
     cluster_with_tgw_connection: Mapping,
     account_tgw_connection: Mapping,
     tgw_account: Mapping,
@@ -425,6 +459,7 @@ def test_run_when_cluster_with_tgw_connection(
 ) -> None:
     mocks = _setup_mocks(
         mocker,
+        vault_settings=app_interface_vault_settings,
         clusters=[cluster_with_tgw_connection],
         accounts=[tgw_account],
         vpc_details=vpc_details,
@@ -448,12 +483,15 @@ def test_run_when_cluster_with_tgw_connection(
     )
 
     mocks["aws_api"].assert_called_once_with(
-        1, [tgw_account], settings={}, init_users=False
+        1,
+        [tgw_account],
+        settings=app_interface_vault_settings.dict(by_alias=True),
+        init_users=False,
     )
     mocks["ocm"].assert_called_once_with(
         clusters=[cluster_with_tgw_connection],
         integration=QONTRACT_INTEGRATION,
-        settings={},
+        settings=app_interface_vault_settings.dict(by_alias=True),
     )
     mocks["ts"].populate_additional_providers.assert_called_once_with(
         [expected_tgw_account]
@@ -465,6 +503,7 @@ def test_run_when_cluster_with_tgw_connection(
 
 def test_run_when_cluster_with_mixed_connections(
     mocker: MockerFixture,
+    app_interface_vault_settings: AppInterfaceSettingsV1,
     cluster_with_mixed_connections: Mapping,
     account_tgw_connection: Mapping,
     tgw_account: Mapping,
@@ -475,6 +514,7 @@ def test_run_when_cluster_with_mixed_connections(
 ) -> None:
     mocks = _setup_mocks(
         mocker,
+        vault_settings=app_interface_vault_settings,
         clusters=[cluster_with_mixed_connections],
         accounts=[tgw_account, vpc_account],
         vpc_details=vpc_details,
@@ -498,12 +538,15 @@ def test_run_when_cluster_with_mixed_connections(
     )
 
     mocks["aws_api"].assert_called_once_with(
-        1, [tgw_account], settings={}, init_users=False
+        1,
+        [tgw_account],
+        settings=app_interface_vault_settings.dict(by_alias=True),
+        init_users=False,
     )
     mocks["ocm"].assert_called_once_with(
         clusters=[cluster_with_mixed_connections],
         integration=QONTRACT_INTEGRATION,
-        settings={},
+        settings=app_interface_vault_settings.dict(by_alias=True),
     )
     mocks["ts"].populate_additional_providers.assert_called_once_with(
         [expected_tgw_account]
@@ -515,18 +558,25 @@ def test_run_when_cluster_with_mixed_connections(
 
 def test_run_when_cluster_with_vpc_connection_only(
     mocker: MockerFixture,
+    app_interface_vault_settings: AppInterfaceSettingsV1,
     cluster_with_vpc_connection: Mapping,
     vpc_account: Mapping,
 ) -> None:
     mocks = _setup_mocks(
         mocker,
+        vault_settings=app_interface_vault_settings,
         clusters=[cluster_with_vpc_connection],
         accounts=[vpc_account],
     )
 
     integ.run(True)
 
-    mocks["aws_api"].assert_called_once_with(1, [], settings={}, init_users=False)
+    mocks["aws_api"].assert_called_once_with(
+        1,
+        [],
+        settings=app_interface_vault_settings.dict(by_alias=True),
+        init_users=False,
+    )
     mocks["ocm"].assert_not_called()
     mocks["ts"].populate_additional_providers.assert_called_once_with([])
     mocks["ts"].populate_tgw_attachments.assert_called_once_with([])
@@ -534,6 +584,7 @@ def test_run_when_cluster_with_vpc_connection_only(
 
 def test_run_with_multiple_clusters(
     mocker: MockerFixture,
+    app_interface_vault_settings: AppInterfaceSettingsV1,
     cluster_with_tgw_connection: Mapping,
     cluster_with_vpc_connection: Mapping,
     account_tgw_connection: Mapping,
@@ -546,6 +597,7 @@ def test_run_with_multiple_clusters(
 ) -> None:
     mocks = _setup_mocks(
         mocker,
+        vault_settings=app_interface_vault_settings,
         clusters=[cluster_with_tgw_connection, cluster_with_vpc_connection],
         accounts=[tgw_account, vpc_account],
         vpc_details=vpc_details,
@@ -569,12 +621,15 @@ def test_run_with_multiple_clusters(
     )
 
     mocks["aws_api"].assert_called_once_with(
-        1, [tgw_account], settings={}, init_users=False
+        1,
+        [tgw_account],
+        settings=app_interface_vault_settings.dict(by_alias=True),
+        init_users=False,
     )
     mocks["ocm"].assert_called_once_with(
         clusters=[cluster_with_tgw_connection],
         integration=QONTRACT_INTEGRATION,
-        settings={},
+        settings=app_interface_vault_settings.dict(by_alias=True),
     )
     mocks["ts"].populate_additional_providers.assert_called_once_with(
         [expected_tgw_account]
@@ -586,6 +641,7 @@ def test_run_with_multiple_clusters(
 
 def test_run_with_account_name_for_multiple_clusters(
     mocker: MockerFixture,
+    app_interface_vault_settings: AppInterfaceSettingsV1,
     cluster_with_tgw_connection: Mapping,
     additional_cluster_with_tgw_connection: Mapping,
     account_tgw_connection: Mapping,
@@ -596,6 +652,7 @@ def test_run_with_account_name_for_multiple_clusters(
 ) -> None:
     mocks = _setup_mocks(
         mocker,
+        vault_settings=app_interface_vault_settings,
         clusters=[cluster_with_tgw_connection, additional_cluster_with_tgw_connection],
         accounts=[tgw_account],
         vpc_details=vpc_details,
@@ -624,12 +681,15 @@ def test_run_with_account_name_for_multiple_clusters(
         name=tgw_account["name"],
     )
     mocks["aws_api"].assert_called_once_with(
-        1, [tgw_account], settings={}, init_users=False
+        1,
+        [tgw_account],
+        settings=app_interface_vault_settings.dict(by_alias=True),
+        init_users=False,
     )
     mocks["ocm"].assert_called_once_with(
         clusters=[cluster_with_tgw_connection],
         integration=QONTRACT_INTEGRATION,
-        settings={},
+        settings=app_interface_vault_settings.dict(by_alias=True),
     )
     mocks["ts"].populate_additional_providers.assert_called_once_with(
         [expected_tgw_account]
@@ -641,6 +701,7 @@ def test_run_with_account_name_for_multiple_clusters(
 
 def test_run_with_account_name_for_multiple_connections(
     mocker: MockerFixture,
+    app_interface_vault_settings: AppInterfaceSettingsV1,
     cluster_with_2_tgw_connections: Mapping,
     account_tgw_connection: Mapping,
     tgw_account: Mapping,
@@ -650,6 +711,7 @@ def test_run_with_account_name_for_multiple_connections(
 ) -> None:
     mocks = _setup_mocks(
         mocker,
+        vault_settings=app_interface_vault_settings,
         clusters=[cluster_with_2_tgw_connections],
         accounts=[tgw_account],
         vpc_details=vpc_details,
@@ -678,12 +740,15 @@ def test_run_with_account_name_for_multiple_connections(
         name=tgw_account["name"],
     )
     mocks["aws_api"].assert_called_once_with(
-        1, [tgw_account], settings={}, init_users=False
+        1,
+        [tgw_account],
+        settings=app_interface_vault_settings.dict(by_alias=True),
+        init_users=False,
     )
     mocks["ocm"].assert_called_once_with(
         clusters=[cluster_with_2_tgw_connections],
         integration=QONTRACT_INTEGRATION,
-        settings={},
+        settings=app_interface_vault_settings.dict(by_alias=True),
     )
     mocks["ts"].populate_additional_providers.assert_called_once_with(
         [expected_tgw_account]
@@ -695,6 +760,7 @@ def test_run_with_account_name_for_multiple_connections(
 
 def test_duplicate_tgw_connection_names(
     mocker: MockerFixture,
+    app_interface_vault_settings: AppInterfaceSettingsV1,
     cluster_with_duplicate_tgw_connections: Mapping,
     tgw: Mapping,
     vpc_details: Mapping,
@@ -702,6 +768,7 @@ def test_duplicate_tgw_connection_names(
 ) -> None:
     _setup_mocks(
         mocker,
+        vault_settings=app_interface_vault_settings,
         clusters=[cluster_with_duplicate_tgw_connections],
         vpc_details=vpc_details,
         tgws=[tgw],
@@ -716,6 +783,7 @@ def test_duplicate_tgw_connection_names(
 
 def test_missing_vpc_id(
     mocker: MockerFixture,
+    app_interface_vault_settings: AppInterfaceSettingsV1,
     cluster_with_tgw_connection: Mapping,
     tgw: Mapping,
     vpc_details: Mapping,
@@ -723,6 +791,7 @@ def test_missing_vpc_id(
 ) -> None:
     _setup_mocks(
         mocker,
+        vault_settings=app_interface_vault_settings,
         clusters=[cluster_with_tgw_connection],
         vpc_details=None,
         tgws=[tgw],
@@ -737,6 +806,7 @@ def test_missing_vpc_id(
 
 def test_error_in_tf_plan(
     mocker: MockerFixture,
+    app_interface_vault_settings: AppInterfaceSettingsV1,
     cluster_with_tgw_connection: Mapping,
     account_tgw_connection: Mapping,
     tgw: Mapping,
@@ -745,6 +815,7 @@ def test_error_in_tf_plan(
 ) -> None:
     mocks = _setup_mocks(
         mocker,
+        vault_settings=app_interface_vault_settings,
         clusters=[cluster_with_tgw_connection],
         vpc_details=vpc_details,
         tgws=[tgw],
@@ -760,6 +831,7 @@ def test_error_in_tf_plan(
 
 def test_disabled_deletions_detected_in_tf_plan(
     mocker: MockerFixture,
+    app_interface_vault_settings: AppInterfaceSettingsV1,
     cluster_with_tgw_connection: Mapping,
     account_tgw_connection: Mapping,
     tgw: Mapping,
@@ -768,6 +840,7 @@ def test_disabled_deletions_detected_in_tf_plan(
 ) -> None:
     mocks = _setup_mocks(
         mocker,
+        vault_settings=app_interface_vault_settings,
         clusters=[cluster_with_tgw_connection],
         vpc_details=vpc_details,
         tgws=[tgw],
@@ -783,6 +856,7 @@ def test_disabled_deletions_detected_in_tf_plan(
 
 def test_error_in_terraform_apply(
     mocker: MockerFixture,
+    app_interface_vault_settings: AppInterfaceSettingsV1,
     cluster_with_tgw_connection: Mapping,
     account_tgw_connection: Mapping,
     tgw: Mapping,
@@ -791,6 +865,7 @@ def test_error_in_terraform_apply(
 ) -> None:
     mocks = _setup_mocks(
         mocker,
+        vault_settings=app_interface_vault_settings,
         clusters=[cluster_with_tgw_connection],
         vpc_details=vpc_details,
         tgws=[tgw],
