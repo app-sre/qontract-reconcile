@@ -31,8 +31,8 @@ from reconcile.utils.oc import (
     MayNotChangeOnceSetError,
     MetaDataAnnotationsTooLongApplyError,
     OC_Map,
+    OCCli,
     OCClient,
-    OCDeprecated,
     OCLogMsg,
     PrimaryClusterIPCanNotBeUnsetError,
     StatefulSetUpdateForbidden,
@@ -104,12 +104,10 @@ class HasOrgAndGithubUsername(Protocol):
 class ClusterMap(Protocol):
     """An OCMap protocol."""
 
-    def get(
-        self, cluster: str, privileged: bool = False
-    ) -> Union[OCDeprecated, OCLogMsg]:
+    def get(self, cluster: str, privileged: bool = False) -> Union[OCCli, OCLogMsg]:
         ...
 
-    def get_cluster(self, cluster: str, privileged: bool = False) -> OCDeprecated:
+    def get_cluster(self, cluster: str, privileged: bool = False) -> OCCli:
         ...
 
     def clusters(
@@ -775,7 +773,7 @@ def realize_data(
 
 def _validate_resources_used_exist(
     ri: ResourceInventory,
-    oc: OCDeprecated,
+    oc: OCCli,
     spec: dict[str, Any],
     cluster: str,
     namespace: str,
