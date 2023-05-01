@@ -61,6 +61,7 @@ def slack_notify(
     ri: ResourceInventory,
     console_url: str,
     in_progress: bool,
+    trigger_reason: Optional[str] = None,
 ) -> None:
     success = not ri.has_error_registered()
     if in_progress:
@@ -77,6 +78,8 @@ def slack_notify(
         + f"deployment to environment *{env_name}*: "
         + f"{description} (<{console_url}|Open>)"
     )
+    if trigger_reason:
+        message += f". Reason: {trigger_reason}"
     slack.chat_post_message(message)
 
 
@@ -89,6 +92,7 @@ def run(
     saas_file_name: Optional[str] = None,
     env_name: Optional[str] = None,
     gitlab_project_id: Optional[str] = None,
+    trigger_reason: Optional[str] = None,
     defer: Optional[Callable] = None,
 ) -> None:
     vault_settings = get_app_interface_vault_settings()
@@ -134,6 +138,7 @@ def run(
                         ri,
                         console_url,
                         in_progress=False,
+                        trigger_reason=trigger_reason,
                     )
                 )
             # deployment start notification
@@ -145,6 +150,7 @@ def run(
                     ri,
                     console_url,
                     in_progress=True,
+                    trigger_reason=trigger_reason,
                 )
 
     jenkins_map = jenkins_base.get_jenkins_map()
