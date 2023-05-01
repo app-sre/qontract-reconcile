@@ -159,6 +159,7 @@ Additional tools that use the libraries created by the reconciliations are also 
   openshift-users                 Deletion of users from OpenShift clusters.
   openshift-vault-secrets         Manages OpenShift Secrets from Vault.
   prometheus-rules-tester         Tests prometheus rules using promtool.
+  prometheus-rules-tester-old     Tests prometheus rules using promtool.
   quay-membership                 Configures the teams and members in Quay.
   quay-mirror                     Mirrors external images into Quay.
   quay-mirror-org                 Mirrors entire Quay orgs.
@@ -170,6 +171,7 @@ Additional tools that use the libraries created by the reconciliations are also 
                                   submitted to app-interface.
   resource-scraper                Get resources from clusters and store in
                                   Vault.
+  saas-auto-promotions-manager    Manage auto-promotions defined in SaaS files
   saas-file-validator             Validates Saas files.
   sendgrid-teammates              Manages SendGrid teammates for a given
                                   account.
