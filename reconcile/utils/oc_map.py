@@ -11,7 +11,7 @@ from sretoolbox.utils import threaded
 from reconcile.utils.jump_host import JumpHostSSH
 from reconcile.utils.oc import (
     OC,
-    OCDeprecated,
+    OCCli,
     OCLogMsg,
     StatusCodeError,
 )
@@ -49,8 +49,8 @@ class OCMap:
         init_api_resources: bool = False,
         oc_cls: Optional[type[OC]] = None,
     ):
-        self._oc_map: dict[str, Union[OCDeprecated, OCLogMsg]] = {}
-        self._privileged_oc_map: dict[str, Union[OCDeprecated, OCLogMsg]] = {}
+        self._oc_map: dict[str, Union[OCCli, OCLogMsg]] = {}
+        self._privileged_oc_map: dict[str, Union[OCCli, OCLogMsg]] = {}
         self._calling_integration = integration
         self._calling_e2e_test = e2e_test
         self._internal = internal
@@ -128,7 +128,7 @@ class OCMap:
                     connection_parameters=connection_parameters
                 )
             try:
-                oc_client: Union[OCDeprecated, OCLogMsg] = self._oc_cls(
+                oc_client: Union[OCCli, OCLogMsg] = self._oc_cls(
                     connection_parameters=connection_parameters,
                     init_projects=self._init_projects,
                     init_api_resources=self._init_api_resources,
@@ -145,7 +145,7 @@ class OCMap:
                 )
 
     def _set_oc(
-        self, cluster: str, value: Union[OCDeprecated, OCLogMsg], privileged: bool
+        self, cluster: str, value: Union[OCCli, OCLogMsg], privileged: bool
     ) -> None:
         with self._lock:
             if privileged:
@@ -169,16 +169,14 @@ class OCMap:
             pass
         return False
 
-    def get(
-        self, cluster: str, privileged: bool = False
-    ) -> Union[OCDeprecated, OCLogMsg]:
+    def get(self, cluster: str, privileged: bool = False) -> Union[OCCli, OCLogMsg]:
         cluster_map = self._privileged_oc_map if privileged else self._oc_map
         return cluster_map.get(
             cluster,
             OCLogMsg(log_level=logging.DEBUG, message=f"[{cluster}] cluster skipped"),
         )
 
-    def get_cluster(self, cluster: str, privileged: bool = False) -> OCDeprecated:
+    def get_cluster(self, cluster: str, privileged: bool = False) -> OCCli:
         result = self.get(cluster, privileged)
         if isinstance(result, OCLogMsg):
             raise result
@@ -200,10 +198,10 @@ class OCMap:
 
     def cleanup(self) -> None:
         for oc in self._oc_map.values():
-            if oc and isinstance(oc, OCDeprecated):
+            if oc and isinstance(oc, OCCli):
                 oc.cleanup()
         for oc in self._privileged_oc_map.values():
-            if oc and isinstance(oc, OCDeprecated):
+            if oc and isinstance(oc, OCCli):
                 oc.cleanup()
 
 

@@ -32,10 +32,11 @@ class ValidationError(Exception):
     pass
 
 
-def build_desired_state_tgw_attachments(
+def _build_desired_state_tgw_attachments(
     clusters: Iterable[Mapping],
     ocm_map: Optional[OCMMap],
     awsapi: AWSApi,
+    account_name: Optional[str] = None,
 ) -> tuple[list[dict], bool]:
     """
     Fetch state for TGW attachments between a cluster and all TGWs
@@ -44,7 +45,7 @@ def build_desired_state_tgw_attachments(
     desired_state = []
     error = False
 
-    for item in _build_desired_state_tgw_attachments(clusters, ocm_map, awsapi):
+    for item in _build_desired_state_items(clusters, ocm_map, awsapi, account_name):
         if item is None:
             error = True
         else:
@@ -52,10 +53,11 @@ def build_desired_state_tgw_attachments(
     return desired_state, error
 
 
-def _build_desired_state_tgw_attachments(
+def _build_desired_state_items(
     clusters: Iterable[Mapping],
     ocm_map: Optional[OCMMap],
     awsapi: AWSApi,
+    account_name: Optional[str] = None,
 ) -> Generator[Optional[dict], Any, None]:
     for cluster_info in clusters:
         ocm = (
@@ -64,7 +66,7 @@ def _build_desired_state_tgw_attachments(
             else None
         )
         for peer_connection in cluster_info["peering"]["connections"]:
-            if peer_connection["provider"] == TGW_CONNECTION_PROVIDER:
+            if _is_tgw_peer_connection(peer_connection, account_name):
                 yield from _build_desired_state_tgw_connection(
                     peer_connection, cluster_info, ocm, awsapi
                 )
@@ -210,31 +212,41 @@ def _validate_tgw_connection_names(desired_state: Iterable[Mapping]) -> None:
 
 
 def _populate_tgw_attachments_working_dirs(
+    ts: Terrascript,
     desired_state: Iterable,
-    accounts: Iterable,
-    settings: Optional[Mapping[str, Any]],
-    participating_accounts: Iterable,
     print_to_file: Optional[str],
-    thread_pool_size: int,
 ) -> dict[str, str]:
-    ts = Terrascript(
-        QONTRACT_INTEGRATION, "", thread_pool_size, accounts, settings=settings
-    )
+    participating_accounts = [item["requester"]["account"] for item in desired_state]
     ts.populate_additional_providers(participating_accounts)
     ts.populate_tgw_attachments(desired_state)
     working_dirs = ts.dump(print_to_file=print_to_file)
     return working_dirs
 
 
-def _is_tgw_cluster(cluster: Mapping) -> bool:
+def _is_tgw_peer_connection(
+    peer_connection: Mapping,
+    account_name: Optional[str],
+) -> bool:
+    return peer_connection["provider"] == TGW_CONNECTION_PROVIDER and (
+        account_name is None or account_name == peer_connection["account"]["name"]
+    )
+
+
+def _is_tgw_cluster(
+    cluster: Mapping,
+    account_name: Optional[str] = None,
+) -> bool:
     return any(
-        pc["provider"] == TGW_CONNECTION_PROVIDER
+        _is_tgw_peer_connection(pc, account_name)
         for pc in cluster["peering"]["connections"]
     )
 
 
-def _filter_tgw_clusters(clusters: Iterable[Mapping]) -> list:
-    return list(filter(_is_tgw_cluster, clusters))
+def _filter_tgw_clusters(
+    clusters: Iterable[Mapping],
+    account_name: Optional[str] = None,
+) -> list:
+    return [c for c in clusters if _is_tgw_cluster(c, account_name)]
 
 
 def _filter_tgw_accounts(
@@ -255,38 +267,46 @@ def run(
     print_to_file: Optional[str] = None,
     enable_deletion: bool = False,
     thread_pool_size: int = 10,
+    account_name: Optional[str] = None,
     defer: Optional[Callable] = None,
 ) -> None:
     settings = queries.get_secret_reader_settings()
     clusters = queries.get_clusters_with_peering_settings()
-    tgw_clusters = _filter_tgw_clusters(clusters)
+    tgw_clusters = _filter_tgw_clusters(clusters, account_name)
     ocm_map = _build_ocm_map(tgw_clusters, settings)
-    accounts = queries.get_aws_accounts(terraform_state=True, ecrs=False)
+    accounts = queries.get_aws_accounts(
+        terraform_state=True,
+        ecrs=False,
+        name=account_name,
+    )
     tgw_accounts = _filter_tgw_accounts(accounts, tgw_clusters)
 
     aws_api = AWSApi(1, tgw_accounts, settings=settings, init_users=False)
     if defer:
         defer(aws_api.cleanup)
 
-    # Fetch desired state for cluster-to-vpc(account) VPCs
-    desired_state, err = build_desired_state_tgw_attachments(
-        tgw_clusters, ocm_map, aws_api
+    desired_state, err = _build_desired_state_tgw_attachments(
+        tgw_clusters,
+        ocm_map,
+        aws_api,
+        account_name,
     )
     if err:
         raise RuntimeError("Could not find VPC ID for cluster")
 
-    # check there are no repeated tgw connection names
     _validate_tgw_connection_names(desired_state)
 
-    participating_accounts = [item["requester"]["account"] for item in desired_state]
-
-    working_dirs = _populate_tgw_attachments_working_dirs(
-        desired_state,
-        tgw_accounts,
-        settings,
-        participating_accounts,
-        print_to_file,
+    ts = Terrascript(
+        QONTRACT_INTEGRATION,
+        "",
         thread_pool_size,
+        tgw_accounts,
+        settings=settings,
+    )
+    working_dirs = _populate_tgw_attachments_working_dirs(
+        ts,
+        desired_state,
+        print_to_file,
     )
 
     if print_to_file:

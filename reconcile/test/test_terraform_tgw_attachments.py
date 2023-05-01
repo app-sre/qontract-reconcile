@@ -48,6 +48,15 @@ def vpc_account(account_builder: Callable[..., dict]) -> dict:
 
 
 @pytest.fixture
+def additional_tgw_account(account_builder: Callable[..., dict]) -> dict:
+    return account_builder(
+        name="additional_tgw_account",
+        uid="additional_tgw-account-uid",
+        terraform_username="additional_tgw-account-terraform-username",
+    )
+
+
+@pytest.fixture
 def peering_connection_builder() -> Callable[..., dict]:
     def builder(
         name: str,
@@ -82,6 +91,23 @@ def account_tgw_connection(
         provider="account-tgw",
         manage_routes=True,
         account=tgw_account,
+        assume_role=None,
+        cidr_block="172.16.0.0/16",
+        deleted=False,
+    )
+
+
+@pytest.fixture
+def additional_account_tgw_connection(
+    peering_connection_builder: Callable[..., dict],
+    additional_tgw_account: Mapping,
+    account_builder: Callable[..., dict],
+) -> dict:
+    return peering_connection_builder(
+        name="additional_account_tgw_connection",
+        provider="account-tgw",
+        manage_routes=True,
+        account=additional_tgw_account,
         assume_role=None,
         cidr_block="172.16.0.0/16",
         deleted=False,
@@ -137,6 +163,40 @@ def cluster_with_tgw_connection(
                 account_tgw_connection,
             ]
         },
+    )
+
+
+@pytest.fixture
+def cluster_with_2_tgw_connections(
+    cluster_builder: Callable[..., dict],
+    account_tgw_connection: dict,
+    additional_account_tgw_connection: dict,
+) -> dict:
+    return cluster_builder(
+        name="cluster_with_2_tgw_connections",
+        ocm={"name": "cluster_with_2_tgw_connections-ocm"},
+        region="us-east-1",
+        vpc_cidr="10.0.0.0/16",
+        peering={
+            "connections": [
+                account_tgw_connection,
+                additional_account_tgw_connection,
+            ]
+        },
+    )
+
+
+@pytest.fixture
+def additional_cluster_with_tgw_connection(
+    cluster_builder: Callable[..., dict],
+    additional_account_tgw_connection: dict,
+) -> dict:
+    return cluster_builder(
+        name="additional_cluster_with_tgw_connection",
+        ocm={"name": "additional_cluster_with_tgw_connection-ocm"},
+        region="us-east-1",
+        vpc_cidr="10.0.0.0/16",
+        peering={"connections": [additional_account_tgw_connection]},
     )
 
 
@@ -330,7 +390,9 @@ def test_dry_run(mocker: MockerFixture) -> None:
     mocks["queries"].get_secret_reader_settings.assert_called_once_with()
     mocks["queries"].get_clusters_with_peering_settings.assert_called_once_with()
     mocks["queries"].get_aws_accounts.assert_called_once_with(
-        terraform_state=True, ecrs=False
+        terraform_state=True,
+        ecrs=False,
+        name=None,
     )
     mocks["tf"].plan.assert_called_once_with(False)
     mocks["tf"].apply.assert_not_called()
@@ -344,7 +406,9 @@ def test_non_dry_run(mocker: MockerFixture) -> None:
     mocks["queries"].get_secret_reader_settings.assert_called_once_with()
     mocks["queries"].get_clusters_with_peering_settings.assert_called_once_with()
     mocks["queries"].get_aws_accounts.assert_called_once_with(
-        terraform_state=True, ecrs=False
+        terraform_state=True,
+        ecrs=False,
+        name=None,
     )
     mocks["tf"].plan.assert_called_once_with(False)
     mocks["tf"].apply.assert_called_once()
@@ -509,6 +573,115 @@ def test_run_with_multiple_clusters(
     )
     mocks["ocm"].assert_called_once_with(
         clusters=[cluster_with_tgw_connection],
+        integration=QONTRACT_INTEGRATION,
+        settings={},
+    )
+    mocks["ts"].populate_additional_providers.assert_called_once_with(
+        [expected_tgw_account]
+    )
+    mocks["ts"].populate_tgw_attachments.assert_called_once_with(
+        [expected_desired_state_item]
+    )
+
+
+def test_run_with_account_name_for_multiple_clusters(
+    mocker: MockerFixture,
+    cluster_with_tgw_connection: Mapping,
+    additional_cluster_with_tgw_connection: Mapping,
+    account_tgw_connection: Mapping,
+    tgw_account: Mapping,
+    tgw: Mapping,
+    vpc_details: Mapping,
+    assume_role: str,
+) -> None:
+    mocks = _setup_mocks(
+        mocker,
+        clusters=[cluster_with_tgw_connection, additional_cluster_with_tgw_connection],
+        accounts=[tgw_account],
+        vpc_details=vpc_details,
+        tgws=[tgw],
+        assume_role=assume_role,
+    )
+
+    integ.run(True, account_name=tgw_account["name"])
+
+    expected_tgw_account = build_expected_tgw_account(
+        cluster=cluster_with_tgw_connection,
+        connection=account_tgw_connection,
+        assume_role=assume_role,
+    )
+    expected_desired_state_item = build_expected_desired_state_item(
+        cluster=cluster_with_tgw_connection,
+        connection=account_tgw_connection,
+        tgw=tgw,
+        vpc_details=vpc_details,
+        expected_tgw_account=expected_tgw_account,
+    )
+
+    mocks["queries"].get_aws_accounts.assert_called_once_with(
+        terraform_state=True,
+        ecrs=False,
+        name=tgw_account["name"],
+    )
+    mocks["aws_api"].assert_called_once_with(
+        1, [tgw_account], settings={}, init_users=False
+    )
+    mocks["ocm"].assert_called_once_with(
+        clusters=[cluster_with_tgw_connection],
+        integration=QONTRACT_INTEGRATION,
+        settings={},
+    )
+    mocks["ts"].populate_additional_providers.assert_called_once_with(
+        [expected_tgw_account]
+    )
+    mocks["ts"].populate_tgw_attachments.assert_called_once_with(
+        [expected_desired_state_item]
+    )
+
+
+def test_run_with_account_name_for_multiple_connections(
+    mocker: MockerFixture,
+    cluster_with_2_tgw_connections: Mapping,
+    account_tgw_connection: Mapping,
+    tgw_account: Mapping,
+    tgw: Mapping,
+    vpc_details: Mapping,
+    assume_role: str,
+) -> None:
+    mocks = _setup_mocks(
+        mocker,
+        clusters=[cluster_with_2_tgw_connections],
+        accounts=[tgw_account],
+        vpc_details=vpc_details,
+        tgws=[tgw],
+        assume_role=assume_role,
+    )
+
+    integ.run(True, account_name=tgw_account["name"])
+
+    expected_tgw_account = build_expected_tgw_account(
+        cluster=cluster_with_2_tgw_connections,
+        connection=account_tgw_connection,
+        assume_role=assume_role,
+    )
+    expected_desired_state_item = build_expected_desired_state_item(
+        cluster=cluster_with_2_tgw_connections,
+        connection=account_tgw_connection,
+        tgw=tgw,
+        vpc_details=vpc_details,
+        expected_tgw_account=expected_tgw_account,
+    )
+
+    mocks["queries"].get_aws_accounts.assert_called_once_with(
+        terraform_state=True,
+        ecrs=False,
+        name=tgw_account["name"],
+    )
+    mocks["aws_api"].assert_called_once_with(
+        1, [tgw_account], settings={}, init_users=False
+    )
+    mocks["ocm"].assert_called_once_with(
+        clusters=[cluster_with_2_tgw_connections],
         integration=QONTRACT_INTEGRATION,
         settings={},
     )
