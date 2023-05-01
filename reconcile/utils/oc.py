@@ -242,9 +242,9 @@ def equal_spec_template(t1: dict, t2: dict) -> bool:
 
 
 @dataclass
-class OCDeprecatedApiResource:
+class OCCliApiResource:
     """This class mimics kubernetes.dynamic.resource.Resource and it's used
-    To get Api Resources with the OCDeprecated client"""
+    To get Api Resources with the OCCli client"""
 
     kind: str
     group: str
@@ -258,7 +258,7 @@ class OCDeprecatedApiResource:
         return self.api_version
 
 
-class OCDeprecated:  # pylint: disable=too-many-public-methods
+class OCCli:  # pylint: disable=too-many-public-methods
     def __init__(
         self,
         cluster_name: Optional[str],
@@ -725,7 +725,7 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
                     group_version = r[-3].split("/", 1)
                     group = "" if len(group_version) == 1 else group_version[0]
                     api_version = group_version[-1]
-                    obj = OCDeprecatedApiResource(kind, group, api_version, namespaced)
+                    obj = OCCliApiResource(kind, group, api_version, namespaced)
                     d = self.api_resources.setdefault(kind, [])
                     d.append(obj)
 
@@ -1194,7 +1194,7 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
         return kind_resources[0].namespaced
 
 
-class OCNative(OCDeprecated):
+class OCNative(OCCli):
     def __init__(
         self,
         cluster_name: Optional[str],
@@ -1361,10 +1361,10 @@ class OCNative(OCDeprecated):
             raise StatusCodeError(f"[{self.server}]: {e}")
 
 
-OCClient = Union[OCNative, OCDeprecated]
+OCClient = Union[OCNative, OCCli]
 
 
-class OCLocal(OCDeprecated):
+class OCLocal(OCCli):
     def __init__(
         self,
         cluster_name,
@@ -1428,7 +1428,7 @@ class OC:
             )
 
         OC.client_status.labels(cluster_name=cluster_name, native_client=False).inc()
-        return OCDeprecated(
+        return OCCli(
             cluster_name=cluster_name,
             server=server,
             token=token,
