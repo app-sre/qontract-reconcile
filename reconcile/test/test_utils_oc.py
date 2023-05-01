@@ -15,7 +15,7 @@ from reconcile.utils.oc import (
     LABEL_MAX_VALUE_LENGTH,
     OC,
     OC_Map,
-    OCDeprecated,
+    OCCli,
     OCLogMsg,
     OCNative,
     PodNotReadyError,
@@ -32,8 +32,8 @@ from reconcile.utils.secret_reader import (
 
 @patch.dict(os.environ, {"USE_NATIVE_CLIENT": "False"}, clear=True)
 class TestGetOwnedPods(TestCase):
-    @patch.object(OCDeprecated, "get")
-    @patch.object(OCDeprecated, "get_obj_root_owner")
+    @patch.object(OCCli, "get")
+    @patch.object(OCCli, "get_obj_root_owner")
     def test_get_owned_pods(self, oc_get_obj_root_owner, oc_get):
         owner_body = {"kind": "ownerkind", "metadata": {"name": "ownername"}}
         owner_resource = OR(owner_body, "", "")
@@ -95,7 +95,7 @@ class TestGetOwnedPods(TestCase):
 
 @patch.dict(os.environ, {"USE_NATIVE_CLIENT": "False"}, clear=True)
 class TestValidatePodReady(TestCase):
-    @patch.object(OCDeprecated, "get")
+    @patch.object(OCCli, "get")
     def test_validate_pod_ready_all_good(self, oc_get):
         oc_get.return_value = {
             "status": {
@@ -111,7 +111,7 @@ class TestValidatePodReady(TestCase):
         oc = OC("cluster", "server", "token", local=True)
         oc.validate_pod_ready("namespace", "podname")
 
-    @patch.object(OCDeprecated, "get")
+    @patch.object(OCCli, "get")
     def test_validate_pod_ready_one_missing(self, oc_get):
         oc_get.return_value = {
             "status": {
@@ -133,7 +133,7 @@ class TestValidatePodReady(TestCase):
 
 @patch.dict(os.environ, {"USE_NATIVE_CLIENT": "False"}, clear=True)
 class TestGetObjRootOwner(TestCase):
-    @patch.object(OCDeprecated, "get")
+    @patch.object(OCCli, "get")
     def test_owner(self, oc_get):
         obj = {
             "metadata": {
@@ -170,7 +170,7 @@ class TestGetObjRootOwner(TestCase):
         result_obj = oc.get_obj_root_owner("namespace", obj)
         self.assertEqual(result_obj, obj)
 
-    @patch.object(OCDeprecated, "get")
+    @patch.object(OCCli, "get")
     def test_controller_false_return_controller(self, oc_get):
         """Returns owner if all ownerReferences have controller set to false
         and allow_not_controller is set to True
@@ -190,7 +190,7 @@ class TestGetObjRootOwner(TestCase):
         result_obj = oc.get_obj_root_owner("namespace", obj, allow_not_controller=True)
         self.assertEqual(result_obj, owner_obj)
 
-    @patch.object(OCDeprecated, "get")
+    @patch.object(OCCli, "get")
     def test_cont_true_allow_true_ref_not_found_return_obj(self, oc_get):
         """Returns obj if controller is true, allow_not_found is true,
         but referenced object does not exist '{}'
@@ -211,7 +211,7 @@ class TestGetObjRootOwner(TestCase):
         result_obj = oc.get_obj_root_owner("namespace", obj, allow_not_found=True)
         self.assertEqual(result_obj, obj)
 
-    @patch.object(OCDeprecated, "get")
+    @patch.object(OCCli, "get")
     def test_controller_true_allow_false_ref_not_found_raise(self, oc_get):
         """Throws an exception if controller is true, allow_not_found false,
         but referenced object does not exist
@@ -961,9 +961,7 @@ def api_resources():
 @pytest.fixture
 def oc_api_resources(monkeypatch, mocker, api_resources):
     monkeypatch.setenv("USE_NATIVE_CLIENT", "False")
-    get_api_resources = mocker.patch.object(
-        OCDeprecated, "get_api_resources", autospec=True
-    )
+    get_api_resources = mocker.patch.object(OCCli, "get_api_resources", autospec=True)
     get_api_resources.return_value = api_resources
     return OC("cluster", "server", "token", local=True, init_api_resources=True)
 
