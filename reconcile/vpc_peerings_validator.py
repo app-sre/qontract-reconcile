@@ -27,7 +27,7 @@ def validate_no_cidr_overlap(
 ) -> bool:
     clusters: list[ClusterV1] = query_data.clusters or []
 
-    peerings_enteries_dict: dict[ClusterV1, ClusterPeeringV1] = {}
+    peerings_enteries_dict: dict[ClusterV1] = {}
 
     for cluster in clusters:
         if cluster.peering:
@@ -53,7 +53,7 @@ def validate_no_cidr_overlap(
                         }
                         if cluster.name not in peerings_enteries_dict:
                             peerings_enteries_dict[cluster.name] = {
-                                "cidr_block": cluster.network.vpc,
+                                "cidr_block": cluster.network.vpc,  # type: ignore[union-attr]
                                 "providers": [],
                             }
                         peerings_enteries_dict[cluster.name]["providers"].append(
@@ -63,13 +63,13 @@ def validate_no_cidr_overlap(
                     cidr_block = str(peering.vpc.cidr_block)  # type: ignore[union-attr]
                     vpc_peering_info = {
                         "provider": peering.provider,
-                        "vpc_name": peering.vpc.name,
-                        "region": peering.vpc.region,
+                        "vpc_name": peering.vpc.name,  # type: ignore[union-attr]
+                        "region": peering.vpc.region,  # type: ignore[union-attr]
                         "cidr_block": cidr_block,
                     }
                     if cluster.name not in peerings_enteries_dict:
                         peerings_enteries_dict[cluster.name] = {
-                            "cidr_block": cluster.network.vpc,
+                            "cidr_block": cluster.network.vpc,  # type: ignore[union-attr]
                             "providers": [],
                         }
                     peerings_enteries_dict[cluster.name]["providers"].append(
@@ -82,13 +82,13 @@ def validate_no_cidr_overlap(
                     vpc_peering_info = {
                         "provider": peering.provider,
                         "vpc_peering": {
-                            "vpc_name": peering.cluster.name,
-                            "cidr_block": peering.cluster.network.vpc,
+                            "vpc_name": peering.cluster.name,  # type: ignore[union-attr]
+                            "cidr_block": peering.cluster.network.vpc,  # type: ignore[union-attr]
                         },
                     }
                     if cluster.name not in peerings_enteries_dict:
                         peerings_enteries_dict[cluster.name] = {
-                            "cidr_block": cluster.network.vpc,
+                            "cidr_block": cluster.network.vpc,  # type: ignore[union-attr]
                             "providers": [],
                         }
                     peerings_enteries_dict[cluster.name]["providers"].append(
