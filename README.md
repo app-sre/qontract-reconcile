@@ -175,10 +175,6 @@ Additional tools that use the libraries created by the reconciliations are also 
   saas-file-validator             Validates Saas files.
   sendgrid-teammates              Manages SendGrid teammates for a given
                                   account.
-  sentry-config                   Configure and enforce sentry instance
-                                  configuration.
-  sentry-helper                   Watch for Sentry access requests and notify
-                                  on Slack.
   service-dependencies            Validate dependencies are defined for each
                                   service.
   signalfx-prometheus-endpoint-monitoring
