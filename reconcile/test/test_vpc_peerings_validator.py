@@ -17,8 +17,8 @@ from reconcile.gql_definitions.vpc_peerings_validator.vpc_peerings_validator_pee
     VpcPeeringsValidatorPeeredCluster,
 )
 from reconcile.vpc_peerings_validator import (
-    validate_no_cidr_overlap,
     find_cidr_duplicates_and_overlap,
+    validate_no_cidr_overlap,
     validate_no_internal_to_public_peerings,
     validate_no_public_to_public_peerings,
 )
