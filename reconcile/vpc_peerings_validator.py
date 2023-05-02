@@ -26,7 +26,7 @@ def validate_no_cidr_overlap(
 ) -> bool:
     clusters: list[ClusterV1] = query_data.clusters or []
 
-    peerings_enteries_dict = {}
+    peerings_enteries_dict = {}  # type: ignore[var-annotated]
 
     for cluster in clusters:
         if cluster.peering:
