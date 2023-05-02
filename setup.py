@@ -39,7 +39,7 @@ setup(
         "Jinja2>=2.10.1,<3.2.0",
         "jira~=3.1",
         "pyOpenSSL~=23.0",
-        "ruamel.yaml>=0.16.5,<0.18.0",
+        "ruamel.yaml>=0.17.22,<0.18.0",
         "terrascript==0.9.0",
         "tabulate>=0.8.6,<0.9.0",
         "UnleashClient~=5.3",
