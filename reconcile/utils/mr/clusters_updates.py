@@ -6,7 +6,7 @@ from reconcile.change_owners.decision import DecisionCommand
 from reconcile.utils.mr.base import MergeRequestBase
 
 yaml = YAML()
-yaml.explicit_start = True  # type: ignore
+yaml.explicit_start = True
 
 
 class CreateClustersUpdates(MergeRequestBase):
