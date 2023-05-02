@@ -3,7 +3,10 @@ from collections.abc import (
     Iterable,
     Mapping,
 )
-from typing import Optional
+from typing import (
+    Optional,
+    Union,
+)
 from unittest.mock import create_autospec
 
 import pytest
@@ -13,6 +16,17 @@ import reconcile.terraform_tgw_attachments as integ
 from reconcile.gql_definitions.common.app_interface_vault_settings import (
     AppInterfaceSettingsV1,
 )
+from reconcile.gql_definitions.common.clusters_with_peering import (
+    ClusterPeeringConnectionAccountTGWV1,
+    ClusterPeeringConnectionAccountTGWV1_AWSAccountV1,
+    ClusterPeeringConnectionAccountV1,
+    ClusterPeeringConnectionAccountVPCMeshV1,
+    ClusterPeeringConnectionClusterRequesterV1,
+    ClusterPeeringConnectionV1,
+    ClusterPeeringV1,
+    ClusterV1,
+)
+from reconcile.utils.gql import GqlApi
 from reconcile.utils.secret_reader import SecretReaderBase
 
 QONTRACT_INTEGRATION = "terraform_tgw_attachments"
@@ -29,7 +43,30 @@ def account_builder() -> Callable[..., dict]:
             "name": name,
             "uid": uid,
             "terraformUsername": terraform_username,
+            "automationToken": {},
         }
+
+    return builder
+
+
+@pytest.fixture
+def connection_account_builder(
+    gql_class_factory: Callable[..., ClusterPeeringConnectionAccountTGWV1_AWSAccountV1],
+) -> Callable[..., ClusterPeeringConnectionAccountTGWV1_AWSAccountV1]:
+    def builder(
+        name: str,
+        uid: str,
+        terraform_username: str,
+    ) -> ClusterPeeringConnectionAccountTGWV1_AWSAccountV1:
+        return gql_class_factory(
+            ClusterPeeringConnectionAccountTGWV1_AWSAccountV1,
+            {
+                "name": name,
+                "uid": uid,
+                "terraformUsername": terraform_username,
+                "automationToken": {},
+            },
+        )
 
     return builder
 
@@ -44,11 +81,39 @@ def tgw_account(account_builder: Callable[..., dict]) -> dict:
 
 
 @pytest.fixture
+def tgw_connection_account(
+    connection_account_builder: Callable[
+        ..., ClusterPeeringConnectionAccountTGWV1_AWSAccountV1
+    ],
+    tgw_account: Mapping,
+) -> ClusterPeeringConnectionAccountTGWV1_AWSAccountV1:
+    return connection_account_builder(
+        name=tgw_account["name"],
+        uid=tgw_account["uid"],
+        terraform_username=tgw_account["terraformUsername"],
+    )
+
+
+@pytest.fixture
 def vpc_account(account_builder: Callable[..., dict]) -> dict:
     return account_builder(
         name="vpc_account",
         uid="vpc-account-uid",
         terraform_username="vpc-account-terraform-username",
+    )
+
+
+@pytest.fixture
+def vpc_connection_account(
+    connection_account_builder: Callable[
+        ..., ClusterPeeringConnectionAccountTGWV1_AWSAccountV1
+    ],
+    vpc_account: Mapping,
+) -> ClusterPeeringConnectionAccountTGWV1_AWSAccountV1:
+    return connection_account_builder(
+        name=vpc_account["name"],
+        uid=vpc_account["uid"],
+        terraform_username=vpc_account["terraformUsername"],
     )
 
 
@@ -62,203 +127,278 @@ def additional_tgw_account(account_builder: Callable[..., dict]) -> dict:
 
 
 @pytest.fixture
-def peering_connection_builder() -> Callable[..., dict]:
+def additional_tgw_connection_account(
+    connection_account_builder: Callable[
+        ..., ClusterPeeringConnectionAccountTGWV1_AWSAccountV1
+    ],
+    additional_tgw_account: Mapping,
+) -> ClusterPeeringConnectionAccountTGWV1_AWSAccountV1:
+    return connection_account_builder(
+        name=additional_tgw_account["name"],
+        uid=additional_tgw_account["uid"],
+        terraform_username=additional_tgw_account["terraformUsername"],
+    )
+
+
+@pytest.fixture
+def peering_connection_builder(
+    gql_class_factory: Callable[..., ClusterPeeringConnectionAccountTGWV1],
+) -> Callable[..., ClusterPeeringConnectionAccountTGWV1]:
     def builder(
         name: str,
         provider: str,
         manage_routes: bool = False,
-        account: Optional[Mapping] = None,
+        account: Optional[ClusterPeeringConnectionAccountTGWV1_AWSAccountV1] = None,
         assume_role: Optional[str] = None,
         cidr_block: Optional[str] = None,
-        deleted: Optional[bool] = None,
-    ) -> dict:
-        return {
-            "name": name,
-            "provider": provider,
-            "manageRoutes": manage_routes,
-            "account": account,
-            "assumeRole": assume_role,
-            "cidrBlock": cidr_block,
-            "deleted": deleted,
-        }
+        delete: Optional[bool] = None,
+    ) -> ClusterPeeringConnectionAccountTGWV1:
+        return gql_class_factory(
+            ClusterPeeringConnectionAccountTGWV1,
+            {
+                "name": name,
+                "provider": provider,
+                "manageRoutes": manage_routes,
+                "account": account.dict(by_alias=True),
+                "assumeRole": assume_role,
+                "cidrBlock": cidr_block,
+                "delete": delete,
+            },
+        )
 
     return builder
 
 
 @pytest.fixture
 def account_tgw_connection(
-    peering_connection_builder: Callable[..., dict],
-    tgw_account: Mapping,
-    account_builder: Callable[..., dict],
-) -> dict:
+    peering_connection_builder: Callable[..., ClusterPeeringConnectionAccountTGWV1],
+    tgw_connection_account: ClusterPeeringConnectionAccountTGWV1_AWSAccountV1,
+) -> ClusterPeeringConnectionAccountTGWV1:
     return peering_connection_builder(
         name="account_tgw_connection",
         provider="account-tgw",
         manage_routes=True,
-        account=tgw_account,
+        account=tgw_connection_account,
         assume_role=None,
         cidr_block="172.16.0.0/16",
-        deleted=False,
+        delete=False,
     )
 
 
 @pytest.fixture
 def additional_account_tgw_connection(
-    peering_connection_builder: Callable[..., dict],
-    additional_tgw_account: Mapping,
-    account_builder: Callable[..., dict],
-) -> dict:
+    peering_connection_builder: Callable[..., ClusterPeeringConnectionAccountTGWV1],
+    additional_tgw_connection_account: ClusterPeeringConnectionAccountTGWV1_AWSAccountV1,
+) -> ClusterPeeringConnectionAccountTGWV1:
     return peering_connection_builder(
         name="additional_account_tgw_connection",
         provider="account-tgw",
         manage_routes=True,
-        account=additional_tgw_account,
+        account=additional_tgw_connection_account,
         assume_role=None,
         cidr_block="172.16.0.0/16",
-        deleted=False,
+        delete=False,
     )
 
 
 @pytest.fixture
 def account_vpc_connection(
-    peering_connection_builder: Callable[..., dict],
-    vpc_account: Mapping,
-) -> dict:
+    peering_connection_builder: Callable[..., ClusterPeeringConnectionAccountTGWV1],
+    vpc_connection_account: ClusterPeeringConnectionAccountTGWV1_AWSAccountV1,
+) -> ClusterPeeringConnectionAccountTGWV1:
     return peering_connection_builder(
         name="account_vpc_connection",
         provider="account-vpc",
-        account=vpc_account,
+        account=vpc_connection_account,
     )
 
 
 @pytest.fixture
-def cluster_builder() -> Callable[..., dict]:
+def cluster_builder(
+    gql_class_factory: Callable[..., ClusterV1],
+) -> Callable[..., ClusterV1]:
     def builder(
         name: str,
         ocm: dict,
         region: str,
         vpc_cidr: str,
-        peering: dict,
-    ) -> dict:
-        return {
-            "name": name,
-            "ocm": ocm,
-            "spec": {
-                "region": region,
+        peering: ClusterPeeringV1,
+    ) -> ClusterV1:
+        return gql_class_factory(
+            ClusterV1,
+            {
+                "name": name,
+                "ocm": ocm,
+                "spec": {
+                    "region": region,
+                },
+                "network": {"vpc": vpc_cidr},
+                "peering": peering,
             },
-            "network": {"vpc": vpc_cidr},
-            "peering": peering,
-        }
+        )
+
+    return builder
+
+
+@pytest.fixture
+def peering_builder(
+    gql_class_factory: Callable[..., ClusterPeeringV1],
+) -> Callable[..., ClusterPeeringV1]:
+    def builder(
+        connections: list[
+            Union[
+                ClusterPeeringConnectionAccountTGWV1,
+                ClusterPeeringConnectionAccountV1,
+                ClusterPeeringConnectionAccountVPCMeshV1,
+                ClusterPeeringConnectionClusterRequesterV1,
+                ClusterPeeringConnectionV1,
+            ]
+        ]
+    ) -> ClusterPeeringV1:
+        return gql_class_factory(
+            ClusterPeeringV1,
+            {
+                "connections": connections,
+            },
+        )
 
     return builder
 
 
 @pytest.fixture
 def cluster_with_tgw_connection(
-    cluster_builder: Callable[..., dict],
-    account_tgw_connection: dict,
-) -> dict:
+    cluster_builder: Callable[..., ClusterV1],
+    peering_builder: Callable[..., ClusterPeeringV1],
+    account_tgw_connection: ClusterPeeringConnectionAccountTGWV1,
+) -> ClusterV1:
     return cluster_builder(
         name="cluster_with_tgw_connection",
-        ocm={"name": "cluster_with_tgw_connection-ocm"},
+        ocm={
+            "name": "cluster_with_tgw_connection-ocm",
+            "environment": {"accessTokenClientSecret": {}},
+        },
         region="us-east-1",
         vpc_cidr="10.0.0.0/16",
-        peering={
-            "connections": [
+        peering=peering_builder(
+            [
                 account_tgw_connection,
             ]
-        },
+        ),
     )
 
 
 @pytest.fixture
 def cluster_with_2_tgw_connections(
-    cluster_builder: Callable[..., dict],
-    account_tgw_connection: dict,
-    additional_account_tgw_connection: dict,
-) -> dict:
+    cluster_builder: Callable[..., ClusterV1],
+    peering_builder: Callable[..., ClusterPeeringV1],
+    account_tgw_connection: ClusterPeeringConnectionAccountTGWV1,
+    additional_account_tgw_connection: ClusterPeeringConnectionAccountTGWV1,
+) -> ClusterV1:
     return cluster_builder(
         name="cluster_with_2_tgw_connections",
-        ocm={"name": "cluster_with_2_tgw_connections-ocm"},
+        ocm={
+            "name": "cluster_with_2_tgw_connections-ocm",
+            "environment": {"accessTokenClientSecret": {}},
+        },
         region="us-east-1",
         vpc_cidr="10.0.0.0/16",
-        peering={
-            "connections": [
+        peering=peering_builder(
+            [
                 account_tgw_connection,
                 additional_account_tgw_connection,
             ]
-        },
+        ),
     )
 
 
 @pytest.fixture
 def additional_cluster_with_tgw_connection(
-    cluster_builder: Callable[..., dict],
-    additional_account_tgw_connection: dict,
-) -> dict:
+    cluster_builder: Callable[..., ClusterV1],
+    peering_builder: Callable[..., ClusterPeeringV1],
+    additional_account_tgw_connection: ClusterPeeringConnectionAccountTGWV1,
+) -> ClusterV1:
     return cluster_builder(
         name="additional_cluster_with_tgw_connection",
-        ocm={"name": "additional_cluster_with_tgw_connection-ocm"},
+        ocm={
+            "name": "additional_cluster_with_tgw_connection-ocm",
+            "environment": {"accessTokenClientSecret": {}},
+        },
         region="us-east-1",
         vpc_cidr="10.0.0.0/16",
-        peering={"connections": [additional_account_tgw_connection]},
+        peering=peering_builder(
+            [
+                additional_account_tgw_connection,
+            ]
+        ),
     )
 
 
 @pytest.fixture
 def cluster_with_duplicate_tgw_connections(
-    cluster_builder: Callable[..., dict],
-    account_tgw_connection: dict,
-) -> dict:
+    cluster_builder: Callable[..., ClusterV1],
+    peering_builder: Callable[..., ClusterPeeringV1],
+    account_tgw_connection: ClusterPeeringConnectionAccountTGWV1,
+) -> ClusterV1:
     return cluster_builder(
         name="cluster_with_duplicate_tgw_connections",
-        ocm={"name": "cluster_with_duplicate_tgw_connections-ocm"},
+        ocm={
+            "name": "cluster_with_duplicate_tgw_connections-ocm",
+            "environment": {"accessTokenClientSecret": {}},
+        },
         region="us-east-1",
         vpc_cidr="10.0.0.0/16",
-        peering={
-            "connections": [
+        peering=peering_builder(
+            [
                 account_tgw_connection,
                 account_tgw_connection,
             ]
-        },
+        ),
     )
 
 
 @pytest.fixture
 def cluster_with_vpc_connection(
-    cluster_builder: Callable[..., dict],
-    account_vpc_connection: Mapping,
-) -> dict:
+    cluster_builder: Callable[..., ClusterV1],
+    peering_builder: Callable[..., ClusterPeeringV1],
+    account_vpc_connection: ClusterPeeringConnectionAccountTGWV1,
+) -> ClusterV1:
     return cluster_builder(
         name="cluster_with_vpc_connection",
-        ocm={"name": "cluster_with_vpc_connection-ocm"},
+        ocm={
+            "name": "cluster_with_vpc_connection-ocm",
+            "environment": {"accessTokenClientSecret": {}},
+        },
         region="us-east-1",
         vpc_cidr="10.0.0.1/16",
-        peering={
-            "connections": [
+        peering=peering_builder(
+            [
                 account_vpc_connection,
             ]
-        },
+        ),
     )
 
 
 @pytest.fixture
 def cluster_with_mixed_connections(
-    cluster_builder: Callable[..., dict],
-    account_tgw_connection: Mapping,
-    account_vpc_connection: Mapping,
-) -> dict:
+    cluster_builder: Callable[..., ClusterV1],
+    peering_builder: Callable[..., ClusterPeeringV1],
+    account_tgw_connection: ClusterPeeringConnectionAccountTGWV1,
+    account_vpc_connection: ClusterPeeringConnectionAccountTGWV1,
+) -> ClusterV1:
     return cluster_builder(
         name="cluster_with_mixed_connections",
-        ocm={"name": "cluster_with_mixed_connections-ocm"},
+        ocm={
+            "name": "cluster_with_mixed_connections-ocm",
+            "environment": {"accessTokenClientSecret": {}},
+        },
         region="us-east-1",
         vpc_cidr="10.0.0.2/16",
-        peering={
-            "connections": [
+        peering=peering_builder(
+            [
                 account_tgw_connection,
                 account_vpc_connection,
             ]
-        },
+        ),
     )
 
 
@@ -299,30 +439,27 @@ def app_interface_vault_settings(
 
 
 def build_expected_tgw_account(
-    cluster: Mapping,
-    connection: Mapping,
+    cluster: ClusterV1,
+    connection: ClusterPeeringConnectionAccountTGWV1,
     assume_role: str,
 ) -> dict:
-    return {
-        "name": connection["account"]["name"],
-        "uid": connection["account"]["uid"],
-        "terraformUsername": connection["account"]["terraformUsername"],
+    return connection.account.dict(by_alias=True) | {
         "assume_role": assume_role,
-        "assume_region": cluster["spec"]["region"],
-        "assume_cidr": cluster["network"]["vpc"],
+        "assume_region": cluster.spec.region,
+        "assume_cidr": cluster.network.vpc,
     }
 
 
 def build_expected_desired_state_item(
-    cluster: Mapping,
-    connection: Mapping,
+    cluster: ClusterV1,
+    connection: ClusterPeeringConnectionAccountTGWV1,
     tgw: Mapping,
     vpc_details: Mapping,
     expected_tgw_account: Mapping,
 ) -> dict:
     return {
         "connection_provider": "account-tgw",
-        "connection_name": f"{connection['name']}_{expected_tgw_account['name']}-{tgw['tgw_id']}",
+        "connection_name": f"{connection.name}_{expected_tgw_account['name']}-{tgw['tgw_id']}",
         "requester": {
             "tgw_id": tgw["tgw_id"],
             "tgw_arn": tgw["tgw_arn"],
@@ -330,18 +467,18 @@ def build_expected_desired_state_item(
             "routes": tgw["routes"],
             "rules": tgw["rules"],
             "hostedzones": tgw["hostedzones"],
-            "cidr_block": connection["cidrBlock"],
+            "cidr_block": connection.cidr_block,
             "account": expected_tgw_account,
         },
         "accepter": {
             "vpc_id": vpc_details["vpc_id"],
-            "region": cluster["spec"]["region"],
-            "cidr_block": cluster["network"]["vpc"],
+            "region": cluster.spec.region,
+            "cidr_block": cluster.network.vpc,
             "route_table_ids": vpc_details["route_table_ids"],
             "subnets_id_az": vpc_details["subnets_id_az"],
             "account": expected_tgw_account,
         },
-        "deleted": connection["deleted"],
+        "deleted": connection.delete,
     }
 
 
@@ -354,6 +491,15 @@ def _setup_mocks(
     tgws: Optional[Iterable] = None,
     assume_role: Optional[str] = None,
 ) -> dict:
+    mocked_gql_api = create_autospec(GqlApi)
+    mocker.patch(
+        "reconcile.terraform_tgw_attachments.gql"
+    ).get_api.return_value = mocked_gql_api
+    mocked_get_clusters_with_peering = mocker.patch(
+        "reconcile.terraform_tgw_attachments.get_clusters_with_peering"
+    )
+    mocked_get_clusters_with_peering.return_value = clusters or []
+
     mocked_queries = mocker.patch("reconcile.terraform_tgw_attachments.queries")
     mocked_queries.get_secret_reader_settings.return_value = {}
     mocked_queries.get_clusters_with_peering_settings.return_value = clusters or []
@@ -405,9 +551,11 @@ def _setup_mocks(
         "ts": mocked_ts,
         "queries": mocked_queries,
         "get_app_interface_vault_settings": mocked_get_app_interface_vault_settings,
+        "get_clusters_with_peering": mocked_get_clusters_with_peering,
         "secret_reader": mocked_secret_reader,
         "ocm": mocked_ocm,
         "aws_api": mocked_aws_api,
+        "gql_api": mocked_gql_api,
     }
 
 
@@ -423,7 +571,7 @@ def test_dry_run(
     integ.run(True, enable_deletion=False)
 
     mocks["get_app_interface_vault_settings"].assert_called_once_with()
-    mocks["queries"].get_clusters_with_peering_settings.assert_called_once_with()
+    mocks["get_clusters_with_peering"].assert_called_once_with(mocks["gql_api"])
     mocks["queries"].get_aws_accounts.assert_called_once_with(
         terraform_state=True,
         ecrs=False,
@@ -445,7 +593,7 @@ def test_non_dry_run(
     integ.run(False, enable_deletion=False)
 
     mocks["get_app_interface_vault_settings"].assert_called_once_with()
-    mocks["queries"].get_clusters_with_peering_settings.assert_called_once_with()
+    mocks["get_clusters_with_peering"].assert_called_once_with(mocks["gql_api"])
     mocks["queries"].get_aws_accounts.assert_called_once_with(
         terraform_state=True,
         ecrs=False,
@@ -458,8 +606,8 @@ def test_non_dry_run(
 def test_run_when_cluster_with_tgw_connection(
     mocker: MockerFixture,
     app_interface_vault_settings: AppInterfaceSettingsV1,
-    cluster_with_tgw_connection: Mapping,
-    account_tgw_connection: Mapping,
+    cluster_with_tgw_connection: ClusterV1,
+    account_tgw_connection: ClusterPeeringConnectionAccountTGWV1,
     tgw_account: Mapping,
     tgw: Mapping,
     vpc_details: Mapping,
@@ -497,7 +645,7 @@ def test_run_when_cluster_with_tgw_connection(
         init_users=False,
     )
     mocks["ocm"].assert_called_once_with(
-        clusters=[cluster_with_tgw_connection],
+        clusters=[cluster_with_tgw_connection.dict(by_alias=True)],
         integration=QONTRACT_INTEGRATION,
         settings=app_interface_vault_settings.dict(by_alias=True),
     )
@@ -512,8 +660,8 @@ def test_run_when_cluster_with_tgw_connection(
 def test_run_when_cluster_with_mixed_connections(
     mocker: MockerFixture,
     app_interface_vault_settings: AppInterfaceSettingsV1,
-    cluster_with_mixed_connections: Mapping,
-    account_tgw_connection: Mapping,
+    cluster_with_mixed_connections: ClusterV1,
+    account_tgw_connection: ClusterPeeringConnectionAccountTGWV1,
     tgw_account: Mapping,
     vpc_account: Mapping,
     tgw: Mapping,
@@ -552,7 +700,7 @@ def test_run_when_cluster_with_mixed_connections(
         init_users=False,
     )
     mocks["ocm"].assert_called_once_with(
-        clusters=[cluster_with_mixed_connections],
+        clusters=[cluster_with_mixed_connections.dict(by_alias=True)],
         integration=QONTRACT_INTEGRATION,
         settings=app_interface_vault_settings.dict(by_alias=True),
     )
@@ -567,7 +715,7 @@ def test_run_when_cluster_with_mixed_connections(
 def test_run_when_cluster_with_vpc_connection_only(
     mocker: MockerFixture,
     app_interface_vault_settings: AppInterfaceSettingsV1,
-    cluster_with_vpc_connection: Mapping,
+    cluster_with_vpc_connection: ClusterV1,
     vpc_account: Mapping,
 ) -> None:
     mocks = _setup_mocks(
@@ -593,10 +741,10 @@ def test_run_when_cluster_with_vpc_connection_only(
 def test_run_with_multiple_clusters(
     mocker: MockerFixture,
     app_interface_vault_settings: AppInterfaceSettingsV1,
-    cluster_with_tgw_connection: Mapping,
-    cluster_with_vpc_connection: Mapping,
-    account_tgw_connection: Mapping,
-    account_vpc_connection: Mapping,
+    cluster_with_tgw_connection: ClusterV1,
+    cluster_with_vpc_connection: ClusterV1,
+    account_tgw_connection: ClusterPeeringConnectionAccountTGWV1,
+    account_vpc_connection: ClusterPeeringConnectionAccountTGWV1,
     tgw_account: Mapping,
     vpc_account: Mapping,
     tgw: Mapping,
@@ -635,7 +783,7 @@ def test_run_with_multiple_clusters(
         init_users=False,
     )
     mocks["ocm"].assert_called_once_with(
-        clusters=[cluster_with_tgw_connection],
+        clusters=[cluster_with_tgw_connection.dict(by_alias=True)],
         integration=QONTRACT_INTEGRATION,
         settings=app_interface_vault_settings.dict(by_alias=True),
     )
@@ -650,9 +798,9 @@ def test_run_with_multiple_clusters(
 def test_run_with_account_name_for_multiple_clusters(
     mocker: MockerFixture,
     app_interface_vault_settings: AppInterfaceSettingsV1,
-    cluster_with_tgw_connection: Mapping,
-    additional_cluster_with_tgw_connection: Mapping,
-    account_tgw_connection: Mapping,
+    cluster_with_tgw_connection: ClusterV1,
+    additional_cluster_with_tgw_connection: ClusterPeeringConnectionAccountTGWV1,
+    account_tgw_connection: ClusterPeeringConnectionAccountTGWV1,
     tgw_account: Mapping,
     tgw: Mapping,
     vpc_details: Mapping,
@@ -695,7 +843,7 @@ def test_run_with_account_name_for_multiple_clusters(
         init_users=False,
     )
     mocks["ocm"].assert_called_once_with(
-        clusters=[cluster_with_tgw_connection],
+        clusters=[cluster_with_tgw_connection.dict(by_alias=True)],
         integration=QONTRACT_INTEGRATION,
         settings=app_interface_vault_settings.dict(by_alias=True),
     )
@@ -710,8 +858,8 @@ def test_run_with_account_name_for_multiple_clusters(
 def test_run_with_account_name_for_multiple_connections(
     mocker: MockerFixture,
     app_interface_vault_settings: AppInterfaceSettingsV1,
-    cluster_with_2_tgw_connections: Mapping,
-    account_tgw_connection: Mapping,
+    cluster_with_2_tgw_connections: ClusterV1,
+    account_tgw_connection: ClusterPeeringConnectionAccountTGWV1,
     tgw_account: Mapping,
     tgw: Mapping,
     vpc_details: Mapping,
@@ -754,7 +902,7 @@ def test_run_with_account_name_for_multiple_connections(
         init_users=False,
     )
     mocks["ocm"].assert_called_once_with(
-        clusters=[cluster_with_2_tgw_connections],
+        clusters=[cluster_with_2_tgw_connections.dict(by_alias=True)],
         integration=QONTRACT_INTEGRATION,
         settings=app_interface_vault_settings.dict(by_alias=True),
     )
@@ -769,7 +917,7 @@ def test_run_with_account_name_for_multiple_connections(
 def test_duplicate_tgw_connection_names(
     mocker: MockerFixture,
     app_interface_vault_settings: AppInterfaceSettingsV1,
-    cluster_with_duplicate_tgw_connections: Mapping,
+    cluster_with_duplicate_tgw_connections: ClusterV1,
     tgw: Mapping,
     vpc_details: Mapping,
     assume_role: str,
@@ -792,7 +940,7 @@ def test_duplicate_tgw_connection_names(
 def test_missing_vpc_id(
     mocker: MockerFixture,
     app_interface_vault_settings: AppInterfaceSettingsV1,
-    cluster_with_tgw_connection: Mapping,
+    cluster_with_tgw_connection: ClusterV1,
     tgw: Mapping,
     vpc_details: Mapping,
     assume_role: str,
@@ -815,7 +963,7 @@ def test_missing_vpc_id(
 def test_error_in_tf_plan(
     mocker: MockerFixture,
     app_interface_vault_settings: AppInterfaceSettingsV1,
-    cluster_with_tgw_connection: Mapping,
+    cluster_with_tgw_connection: ClusterV1,
     account_tgw_connection: Mapping,
     tgw: Mapping,
     vpc_details: Mapping,
