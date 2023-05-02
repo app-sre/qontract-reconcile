@@ -118,7 +118,6 @@ def find_cidr_duplicates_and_overlap(input_dict: dict):
                     logging.error(f"{cluster_name} overlaps with cidr block {vpc_peering_compare['cidr_block']}")
         for compared_cidr_block, comparing_cidr_blocks in zip(account_vpc_list,account_vpc_list[1:]):
             if ipaddress.ip_network(compared_cidr_block).overlaps(comparing_cidr_blocks):
-                print("cidrs overlap! %s, %s", compared_cidr_block, comparing_cidr_blocks)
                 logging.error(f"VPC peering error in cluster {cluster_name}")
                 logging.error(f"cidr block {compared_cidr_block} overlaps with another account-vpc with cidr block {comparing_cidr_blocks}")
                 return False

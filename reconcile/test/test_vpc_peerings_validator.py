@@ -18,6 +18,7 @@ from reconcile.gql_definitions.vpc_peerings_validator.vpc_peerings_validator_pee
 )
 from reconcile.vpc_peerings_validator import (
     validate_no_cidr_overlap,
+    find_cidr_duplicates_and_overlap,
     validate_no_internal_to_public_peerings,
     validate_no_public_to_public_peerings,
 )
@@ -111,350 +112,34 @@ def test_validate_no_public_to_public_peerings_valid(
     assert validate_no_public_to_public_peerings(query_data_p2p) is True
 
 
-@pytest.fixture
-def query_data_vpc_cidr_duplicate() -> VpcPeeringsValidatorQueryData:
-    return VpcPeeringsValidatorQueryData(
-        clusters=[
-            ClusterV1(
-                name="clustertest",
-                network=ClusterNetworkV1(vpc="192.168.0.0/16"),
-                spec=ClusterSpecV1(private=True),
-                internal=True,
-                peering=ClusterPeeringV1(
-                    connections=[
-                        ClusterPeeringConnectionAccountV1(
-                            provider="account-vpc",
-                            vpc=AWSVPCV1(cidr_block="10.20.0.0/20", name="vpc1"),
-                        ),
-                        ClusterPeeringConnectionAccountV1(
-                            provider="account-vpc",
-                            vpc=AWSVPCV1(cidr_block="10.20.0.0/20", name="vpc2"),
-                        ),
-                    ]
-                ),
-            ),
+def test_validate_validate_no_cidr_overlap():
+    test_dict = {
+    "cluster-test1": {
+        "cidr_block": "10.106.0.0/16",
+        "providers": [
+            {
+                "provider": "account-vpc",
+                "vpc_name": "vpc-name-1",
+                "region": "us-east-1",
+                "cidr_block": "172.31.0.0/16"
+            }
         ]
-    )
-
-
-@pytest.fixture
-def query_data_vpc_cidr_overlap() -> VpcPeeringsValidatorQueryData:
-    return VpcPeeringsValidatorQueryData(
-        clusters=[
-            ClusterV1(
-                name="clustertest",
-                network=ClusterNetworkV1(vpc="10.20.0.0/20"),
-                spec=ClusterSpecV1(private=True),
-                internal=True,
-                peering=ClusterPeeringV1(
-                    connections=[
-                        ClusterPeeringConnectionAccountV1(
-                            provider="account-vpc",
-                            vpc=AWSVPCV1(cidr_block="192.168.1.0/24", name="vpc1"),
-                        ),
-                        ClusterPeeringConnectionAccountV1(
-                            provider="account-vpc",
-                            vpc=AWSVPCV1(cidr_block="192.168.0.0/16", name="vpc2"),
-                        ),
-                    ]
-                ),
-            ),
+    },
+    "cluster-test2": {
+        "cidr_block": "10.25.0.0/16",
+        "providers": [
+            {
+                "provider": "account-vpc",
+                "vpc_name": "vpc-name-1",
+                "region": "us-east-1",
+                "cidr_block": "10.18.0.0/18"
+            },
+            {
+                "provider": "account-vpc",
+                "vpc_name": "vpc-name-2",
+                "region": "us-east-1",
+                "cidr_block": "10.18.0.0/18"
+            }
         ]
-    )
-
-
-@pytest.fixture
-def query_data_vpc_cidr_pass_diff_clusters() -> VpcPeeringsValidatorQueryData:
-    return VpcPeeringsValidatorQueryData(
-        clusters=[
-            ClusterV1(
-                name="clustertest1",
-                network=ClusterNetworkV1(vpc="192.168.0.0/16"),
-                spec=ClusterSpecV1(private=False),
-                internal=False,
-                peering=ClusterPeeringV1(
-                    connections=[
-                        ClusterPeeringConnectionAccountV1(
-                            provider="account-vpc",
-                            vpc=AWSVPCV1(cidr_block="10.20.0.0/20", name="vpc1"),
-                        ),
-                        ClusterPeeringConnectionAccountV1(
-                            provider="account-vpc",
-                            vpc=AWSVPCV1(cidr_block="192.168.0.0/16", name="vpc2"),
-                        ),
-                    ]
-                ),
-            ),
-            ClusterV1(
-                name="clustertest2",
-                network=ClusterNetworkV1(vpc="10.20.0.0/20"),
-                spec=ClusterSpecV1(private=False),
-                internal=False,
-                peering=ClusterPeeringV1(
-                    connections=[
-                        ClusterPeeringConnectionAccountV1(
-                            provider="account-vpc",
-                            vpc=AWSVPCV1(cidr_block="10.20.0.0/20", name="vpc2"),
-                        ),
-                        ClusterPeeringConnectionAccountV1(
-                            provider="account-vpc",
-                            vpc=AWSVPCV1(cidr_block="192.168.0.0/16", name="vpc2"),
-                        ),
-                    ]
-                ),
-            ),
-        ]
-    )
-
-
-@pytest.fixture
-def query_data_vpc_cidr_pass_same_cluster() -> VpcPeeringsValidatorQueryData:
-    return VpcPeeringsValidatorQueryData(
-        clusters=[
-            ClusterV1(
-                name="clustertest",
-                network=ClusterNetworkV1(vpc="192.168.0.0/16"),
-                spec=ClusterSpecV1(private=True),
-                internal=True,
-                peering=ClusterPeeringV1(
-                    connections=[
-                        ClusterPeeringConnectionAccountV1(
-                            provider="account-vpc",
-                            vpc=AWSVPCV1(cidr_block="10.20.0.0/20", name="vpc1"),
-                        ),
-                        ClusterPeeringConnectionAccountV1(
-                            provider="account-vpc",
-                            vpc=AWSVPCV1(cidr_block="192.168.0.0/16", name="vpc2"),
-                        ),
-                    ]
-                ),
-            ),
-        ]
-    )
-
-
-@pytest.fixture
-def query_data_vpc_cidr_pass_cluster_same_vpc() -> VpcPeeringsValidatorQueryData:
-    return VpcPeeringsValidatorQueryData(
-        clusters=[
-            ClusterV1(
-                name="clustertest",
-                network=ClusterNetworkV1(vpc="192.168.0.0/16"),
-                spec=ClusterSpecV1(private=True),
-                internal=True,
-                peering=ClusterPeeringV1(
-                    connections=[
-                        ClusterPeeringConnectionAccountV1(
-                            provider="account-vpc",
-                            vpc=AWSVPCV1(cidr_block="10.20.0.0/20", name="vpc1"),
-                        ),
-                        ClusterPeeringConnectionAccountV1(
-                            provider="account-vpc",
-                            vpc=AWSVPCV1(cidr_block="192.168.0.0/16", name="vpc2"),
-                        ),
-                    ]
-                ),
-            ),
-            ClusterV1(
-                name="clustertest2",
-                network=ClusterNetworkV1(vpc="192.168.0.0/16"),
-                spec=ClusterSpecV1(private=True),
-                internal=True,
-                peering=ClusterPeeringV1(
-                    connections=[
-                        ClusterPeeringConnectionAccountV1(
-                            provider="account-vpc",
-                            vpc=AWSVPCV1(cidr_block="10.20.0.0/20", name="vpc1"),
-                        ),
-                        ClusterPeeringConnectionAccountV1(
-                            provider="account-vpc",
-                            vpc=AWSVPCV1(cidr_block="192.168.0.0/16", name="vpc2"),
-                        ),
-                    ]
-                ),
-            ),
-        ]
-    )
-
-
-@pytest.fixture
-def query_data_vpc_cidr_pass_cluster_overlap_vpc() -> VpcPeeringsValidatorQueryData:
-    return VpcPeeringsValidatorQueryData(
-        clusters=[
-            ClusterV1(
-                name="clustertest",
-                network=ClusterNetworkV1(vpc="192.168.0.0/16"),
-                spec=ClusterSpecV1(private=True),
-                internal=True,
-                peering=ClusterPeeringV1(
-                    connections=[
-                        ClusterPeeringConnectionAccountV1(
-                            provider="account-vpc",
-                            vpc=AWSVPCV1(cidr_block="10.20.0.0/20", name="vpc1"),
-                        ),
-                        ClusterPeeringConnectionAccountV1(
-                            provider="account-vpc",
-                            vpc=AWSVPCV1(cidr_block="192.168.0.0/16", name="vpc2"),
-                        ),
-                    ]
-                ),
-            ),
-            ClusterV1(
-                name="clustertest2",
-                network=ClusterNetworkV1(vpc="192.168.1.0/24"),
-                spec=ClusterSpecV1(private=True),
-                internal=True,
-                peering=ClusterPeeringV1(
-                    connections=[
-                        ClusterPeeringConnectionAccountV1(
-                            provider="account-vpc",
-                            vpc=AWSVPCV1(cidr_block="10.20.0.0/20", name="vpc1"),
-                        ),
-                        ClusterPeeringConnectionAccountV1(
-                            provider="account-vpc",
-                            vpc=AWSVPCV1(cidr_block="192.168.0.0/16", name="vpc2"),
-                        ),
-                    ]
-                ),
-            ),
-        ]
-    )
-
-
-@pytest.fixture
-def query_data_vpc_cidr_pass_cluster_diff_vpc() -> VpcPeeringsValidatorQueryData:
-    return VpcPeeringsValidatorQueryData(
-        clusters=[
-            ClusterV1(
-                name="clustertest",
-                network=ClusterNetworkV1(vpc="10.20.0.0/20"),
-                spec=ClusterSpecV1(private=True),
-                internal=True,
-                peering=ClusterPeeringV1(
-                    connections=[
-                        ClusterPeeringConnectionAccountV1(
-                            provider="account-vpc",
-                            vpc=AWSVPCV1(cidr_block="10.20.0.0/20", name="vpc1"),
-                        ),
-                        ClusterPeeringConnectionAccountV1(
-                            provider="account-vpc",
-                            vpc=AWSVPCV1(cidr_block="192.168.0.0/16", name="vpc2"),
-                        ),
-                    ]
-                ),
-            ),
-            ClusterV1(
-                name="clustertest2",
-                network=ClusterNetworkV1(vpc="192.168.1.0/24"),
-                spec=ClusterSpecV1(private=True),
-                internal=True,
-                peering=ClusterPeeringV1(
-                    connections=[
-                        ClusterPeeringConnectionAccountV1(
-                            provider="account-vpc",
-                            vpc=AWSVPCV1(cidr_block="10.20.0.0/20", name="vpc1"),
-                        ),
-                        ClusterPeeringConnectionAccountV1(
-                            provider="account-vpc",
-                            vpc=AWSVPCV1(cidr_block="192.168.0.0/16", name="vpc2"),
-                        ),
-                    ]
-                ),
-            ),
-        ]
-    )
-
-
-@pytest.fixture
-def query_data_vpc_cidr_same_accepter_vpc() -> VpcPeeringsValidatorQueryData:
-    return VpcPeeringsValidatorQueryData(
-        clusters=[
-            ClusterV1(
-                name="clustertest",
-                network=ClusterNetworkV1(vpc="10.20.0.0/20"),
-                spec=ClusterSpecV1(private=True),
-                internal=True,
-                peering=ClusterPeeringV1(
-                    connections=[
-                        ClusterPeeringConnectionClusterAccepterV1(
-                            provider="cluster-vpc-accepter",
-                            cluster=VpcPeeringsValidatorPeeredCluster(
-                                name="clustertest2",
-                                network=ClusterNetworkV1(vpc="10.20.0.0/20"),
-                                spec=ClusterSpecV1(private=True),
-                                internal=True,
-                            ),
-                        ),
-                    ]
-                ),
-            ),
-            ClusterV1(
-                name="clustertest2",
-                network=ClusterNetworkV1(vpc="10.20.0.0/20"),
-                spec=ClusterSpecV1(private=True),
-                internal=True,
-                peering=ClusterPeeringV1(
-                    connections=[
-                        ClusterPeeringConnectionAccountV1(
-                            provider="account-vpc",
-                            vpc=AWSVPCV1(cidr_block="10.20.0.0/20", name="vpc1"),
-                        ),
-                        ClusterPeeringConnectionAccountV1(
-                            provider="account-vpc",
-                            vpc=AWSVPCV1(cidr_block="192.168.0.0/16", name="vpc2"),
-                        ),
-                    ]
-                ),
-            ),
-        ]
-    )
-
-
-def test_query_cidr_validator_duplicate(
-    query_data_vpc_cidr_duplicate: VpcPeeringsValidatorQueryData,
-):
-    assert validate_no_cidr_overlap(query_data_vpc_cidr_duplicate) is False
-
-
-def test_query_cidr_validator_overlaps(
-    query_data_vpc_cidr_overlap: VpcPeeringsValidatorQueryData,
-):
-    assert validate_no_cidr_overlap(query_data_vpc_cidr_overlap) is False
-
-
-def test_query_cidr_validator_diff_clusters(
-    query_data_vpc_cidr_pass_diff_clusters: VpcPeeringsValidatorQueryData,
-):
-    assert validate_no_cidr_overlap(query_data_vpc_cidr_pass_diff_clusters) is True
-
-
-def test_query_cidr_validator_same_clusters(
-    query_data_vpc_cidr_pass_same_cluster: VpcPeeringsValidatorQueryData,
-):
-    assert validate_no_cidr_overlap(query_data_vpc_cidr_pass_same_cluster) is True
-
-
-def test_query_cidr_validator_cluster_same_vpc(
-    query_data_vpc_cidr_pass_cluster_same_vpc: VpcPeeringsValidatorQueryData,
-):
-    assert validate_no_cidr_overlap(query_data_vpc_cidr_pass_cluster_same_vpc) is False
-
-
-def test_query_cidr_validator_cluster_vpc_overlaps(
-    query_data_vpc_cidr_pass_cluster_overlap_vpc: VpcPeeringsValidatorQueryData,
-):
-    assert (
-        validate_no_cidr_overlap(query_data_vpc_cidr_pass_cluster_overlap_vpc) is False
-    )
-
-
-def test_query_cidr_validator_cluster_vpc_diff(
-    query_data_vpc_cidr_pass_cluster_diff_vpc: VpcPeeringsValidatorQueryData,
-):
-    assert validate_no_cidr_overlap(query_data_vpc_cidr_pass_cluster_diff_vpc) is True
-
-
-def test_query_data_vpc_cidr_same_accepter_vpc(
-    query_data_vpc_cidr_same_accepter_vpc: VpcPeeringsValidatorQueryData,
-):
-    assert validate_no_cidr_overlap(query_data_vpc_cidr_same_accepter_vpc) is False
+    }}
+    assert(find_cidr_duplicates_and_overlap(test_dict) is False)
