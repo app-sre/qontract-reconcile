@@ -416,7 +416,9 @@ class OCMProductRosa(OCMProduct):
         )
 
         ocm_spec = OCMSpec(
-            console_url=cluster["console"]["url"],
+            # Hosted control plane clusters can reach a Ready State without having the console
+            # Endpoint
+            console_url=cluster.get("console", {}).get("url", ""),
             server_url=cluster["api"]["url"],
             domain=cluster["dns"]["base_domain"],
             spec=spec,
