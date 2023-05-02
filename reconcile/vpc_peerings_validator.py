@@ -26,7 +26,7 @@ def validate_no_cidr_overlap(
 ) -> bool:
     clusters: list[ClusterV1] = query_data.clusters or []
 
-    peerings_enteries_dict: dict[ClusterV1] = {}
+    peerings_enteries_dict = {}
 
     for cluster in clusters:
         if cluster.peering:
@@ -74,9 +74,9 @@ def validate_no_cidr_overlap(
                     peerings_enteries_dict[cluster.name]["providers"].append(
                         vpc_peering_info
                     )
-                if (
-                    peering.provider == "cluster-vpc-requester"
-                    or peering.provider == "cluster-vpc-accepter"
+                if peering.provider in (
+                    "cluster-vpc-requester",
+                    "cluster-vpc-accepter",
                 ):
                     vpc_peering_info = {
                         "provider": peering.provider,
