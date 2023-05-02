@@ -202,7 +202,7 @@ class AutoPromoter(MergeRequestBase):
                 content = yaml.load(raw_file.decode(), Loader=yaml.RoundTripLoader)
                 if self.process_target(content, promotion):
                     new_content = "---\n"
-                    new_content += yaml.dump(content, Dumper=yaml.RoundTripDumper)  # type: ignore
+                    new_content += yaml.dump(content, Dumper=yaml.RoundTripDumper)
                     msg = f"auto promote {promotion.commit_sha} in {target_path}"
                     gitlab_cli.update_file(
                         branch_name=self.branch,
