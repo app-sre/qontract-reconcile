@@ -30,7 +30,7 @@ def validate_no_cidr_overlap(
     clusters: list[ClusterV1] = query_data.clusters or []
 
     peerings_enteries_dict = {}
-    
+
     for cluster in clusters:
         if cluster.peering:
             for peering in cluster.peering.connections:
@@ -43,31 +43,59 @@ def validate_no_cidr_overlap(
                         awsapi = AWSApi(
                             1, accounts, settings=settings, init_users=False
                         )
-                        comparing_vpc_dict, mesh_vpc_dict = cidr_mesh_finder(aws_account_uid, tags_key, tags_value, awsapi)
-                        vpc_peering_info = {"provider":peering.provider,"vpc_peering":{"comparing_vpc_dict":comparing_vpc_dict,"mesh_vpc_dict":mesh_vpc_dict}}
+                        comparing_vpc_dict, mesh_vpc_dict = cidr_mesh_finder(
+                            aws_account_uid, tags_key, tags_value, awsapi
+                        )
+                        vpc_peering_info = {
+                            "provider": peering.provider,
+                            "vpc_peering": {
+                                "comparing_vpc_dict": comparing_vpc_dict,
+                                "mesh_vpc_dict": mesh_vpc_dict,
+                            },
+                        }
                         if cluster.name not in peerings_enteries_dict:
                             peerings_enteries_dict[cluster.name] = {
-                                'cidr_block': cluster.network.vpc,
-                                'providers': []
+                                "cidr_block": cluster.network.vpc,
+                                "providers": [],
                             }
-                        peerings_enteries_dict[cluster.name]['providers'].append(vpc_peering_info)
+                        peerings_enteries_dict[cluster.name]["providers"].append(
+                            vpc_peering_info
+                        )
                 if peering.provider == "account-vpc":
                     cidr_block = str(peering.vpc.cidr_block)  # type: ignore[union-attr]
-                    vpc_peering_info = {"provider":peering.provider,"vpc_name":peering.vpc.name,"region":peering.vpc.region,"cidr_block":cidr_block}
+                    vpc_peering_info = {
+                        "provider": peering.provider,
+                        "vpc_name": peering.vpc.name,
+                        "region": peering.vpc.region,
+                        "cidr_block": cidr_block,
+                    }
                     if cluster.name not in peerings_enteries_dict:
                         peerings_enteries_dict[cluster.name] = {
-                            'cidr_block': cluster.network.vpc,
-                            'providers': []
+                            "cidr_block": cluster.network.vpc,
+                            "providers": [],
                         }
-                    peerings_enteries_dict[cluster.name]['providers'].append(vpc_peering_info)
-                if peering.provider == "cluster-vpc-requester" or peering.provider == "cluster-vpc-accepter":
-                    vpc_peering_info = {"provider":peering.provider,"vpc_peering":{"vpc_name":peering.cluster.name,"cidr_block":peering.cluster.network.vpc}}
+                    peerings_enteries_dict[cluster.name]["providers"].append(
+                        vpc_peering_info
+                    )
+                if (
+                    peering.provider == "cluster-vpc-requester"
+                    or peering.provider == "cluster-vpc-accepter"
+                ):
+                    vpc_peering_info = {
+                        "provider": peering.provider,
+                        "vpc_peering": {
+                            "vpc_name": peering.cluster.name,
+                            "cidr_block": peering.cluster.network.vpc,
+                        },
+                    }
                     if cluster.name not in peerings_enteries_dict:
                         peerings_enteries_dict[cluster.name] = {
-                            'cidr_block': cluster.network.vpc,
-                            'providers': []
+                            "cidr_block": cluster.network.vpc,
+                            "providers": [],
                         }
-                    peerings_enteries_dict[cluster.name]['providers'].append(vpc_peering_info)
+                    peerings_enteries_dict[cluster.name]["providers"].append(
+                        vpc_peering_info
+                    )
 
     overlaps_peering_entries_dict = find_cidr_duplicates_and_overlap(
         peerings_enteries_dict
@@ -95,31 +123,54 @@ def find_cidr_duplicates_and_overlap(input_dict: dict):
         cluster_cidr_blocks.append(ipaddress.ip_network(cluster_cidr))
         for cidr_block in cluster_cidr_blocks[:-1]:
             if ipaddress.ip_network(cluster_cidr).overlaps(cidr_block):
-                logging.error(f"Cluster {cluster_name} overlaps with CIDR block {cidr_block}")
+                logging.error(
+                    f"Cluster {cluster_name} overlaps with CIDR block {cidr_block}"
+                )
                 return False
         cluster_providers = cluster_data.get("providers")
         for provider in cluster_providers:
             if provider.get("provider") == "account-vpc":
-                account_vpc_list.append(ipaddress.ip_network(provider.get("cidr_block")))
+                account_vpc_list.append(
+                    ipaddress.ip_network(provider.get("cidr_block"))
+                )
             if provider.get("provider") == "account-vpc-mesh":
-                vpc_peering_compare = provider.get('vpc_peering')
-                comparing_dict = vpc_peering_compare.get('comparing_vpc_dict')
-                mesh_dict = vpc_peering_compare.get('mesh_vpc_dict')
+                vpc_peering_compare = provider.get("vpc_peering")
+                comparing_dict = vpc_peering_compare.get("comparing_vpc_dict")
+                mesh_dict = vpc_peering_compare.get("mesh_vpc_dict")
                 for vpc_name_comparing, cidr_block_comparing in comparing_dict.items():
                     for vpc_name_mesh, cidr_block_mesh in mesh_dict.items():
-                        if ipaddress.ip_network(cidr_block_comparing).overlaps(ipaddress.ip_network(cidr_block_mesh)):
-                            logging.error(f"VPC peering error in cluster {cluster_name}")
-                            logging.error(f"VPC {vpc_name_comparing} with cidr block {cidr_block_comparing} overlaps with VPC {vpc_name_mesh} with cidr block {cidr_block_mesh}")
+                        if ipaddress.ip_network(cidr_block_comparing).overlaps(
+                            ipaddress.ip_network(cidr_block_mesh)
+                        ):
+                            logging.error(
+                                f"VPC peering error in cluster {cluster_name}"
+                            )
+                            logging.error(
+                                f"VPC {vpc_name_comparing} with cidr block {cidr_block_comparing} overlaps with VPC {vpc_name_mesh} with cidr block {cidr_block_mesh}"
+                            )
                             return False
-            if provider.get("provider") == "cluster-vpc-requester" or provider.get("provider") == "cluster-vpc-accepter":
-                vpc_peering_compare = provider.get('vpc_peering')
-                if ipaddress.ip_network(cluster_cidr).overlaps(ipaddress.ip_network(vpc_peering_compare['cidr_block'])):
+            if (
+                provider.get("provider") == "cluster-vpc-requester"
+                or provider.get("provider") == "cluster-vpc-accepter"
+            ):
+                vpc_peering_compare = provider.get("vpc_peering")
+                if ipaddress.ip_network(cluster_cidr).overlaps(
+                    ipaddress.ip_network(vpc_peering_compare["cidr_block"])
+                ):
                     logging.error(f"VPC peering error in cluster {cluster_name}")
-                    logging.error(f"{cluster_name} overlaps with cidr block {vpc_peering_compare['cidr_block']}")
-        for compared_cidr_block, comparing_cidr_blocks in zip(account_vpc_list,account_vpc_list[1:]):
-            if ipaddress.ip_network(compared_cidr_block).overlaps(comparing_cidr_blocks):
+                    logging.error(
+                        f"{cluster_name} overlaps with cidr block {vpc_peering_compare['cidr_block']}"
+                    )
+        for compared_cidr_block, comparing_cidr_blocks in zip(
+            account_vpc_list, account_vpc_list[1:]
+        ):
+            if ipaddress.ip_network(compared_cidr_block).overlaps(
+                comparing_cidr_blocks
+            ):
                 logging.error(f"VPC peering error in cluster {cluster_name}")
-                logging.error(f"cidr block {compared_cidr_block} overlaps with another account-vpc with cidr block {comparing_cidr_blocks}")
+                logging.error(
+                    f"cidr block {compared_cidr_block} overlaps with another account-vpc with cidr block {comparing_cidr_blocks}"
+                )
                 return False
     return True
 
