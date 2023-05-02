@@ -11,6 +11,7 @@ from reconcile.gql_definitions.vpc_peerings_validator import vpc_peerings_valida
 from reconcile.gql_definitions.vpc_peerings_validator.vpc_peerings_validator import (
     ClusterPeeringConnectionClusterAccepterV1,
     ClusterPeeringConnectionClusterRequesterV1,
+    ClusterPeeringV1,
     ClusterV1,
     VpcPeeringsValidatorQueryData,
 )
@@ -26,7 +27,7 @@ def validate_no_cidr_overlap(
 ) -> bool:
     clusters: list[ClusterV1] = query_data.clusters or []
 
-    peerings_enteries_dict = {}
+    peerings_enteries_dict: dict[ClusterV1, ClusterPeeringV1] = {}
 
     for cluster in clusters:
         if cluster.peering:
