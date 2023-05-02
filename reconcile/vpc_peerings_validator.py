@@ -1,8 +1,5 @@
-from calendar import c
-from cmath import log
 import ipaddress
 import logging
-from math import lgamma
 import sys
 from typing import (
     Union,
@@ -100,7 +97,7 @@ def validate_no_cidr_overlap(
     overlaps_peering_entries_dict = find_cidr_duplicates_and_overlap(
         peerings_enteries_dict
     )
-    if overlaps_peering_entries_dict == False:
+    if overlaps_peering_entries_dict is False:
         return False
     return True
 

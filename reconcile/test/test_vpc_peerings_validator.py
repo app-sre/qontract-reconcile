@@ -159,11 +159,19 @@ def query_data_vpc_cidr_overlap() -> VpcPeeringsValidatorQueryData:
                     connections=[
                         ClusterPeeringConnectionAccountV1(
                             provider="account-vpc",
-                            vpc=AWSVPCV1(cidr_block="192.168.1.0/24", name="vpc1", region="us-east-1"),
+                            vpc=AWSVPCV1(
+                                cidr_block="192.168.1.0/24",
+                                name="vpc1",
+                                region="us-east-1",
+                            ),
                         ),
                         ClusterPeeringConnectionAccountV1(
                             provider="account-vpc",
-                            vpc=AWSVPCV1(cidr_block="192.168.0.0/16", name="vpc2", region="us-east-1"),
+                            vpc=AWSVPCV1(
+                                cidr_block="192.168.0.0/16",
+                                name="vpc2",
+                                region="us-east-1",
+                            ),
                         ),
                     ]
                 ),
