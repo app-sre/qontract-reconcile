@@ -1,4 +1,3 @@
-import copy
 import logging
 import sys
 from abc import (
@@ -21,6 +20,7 @@ from pydantic import BaseModel
 from semver import VersionInfo
 
 from reconcile.aus.models import (
+    ClusterUpgradeSpec,
     ConfiguredAddonUpgradePolicy,
     ConfiguredClusterUpgradePolicy,
     ConfiguredUpgradePolicy,
@@ -208,11 +208,11 @@ class UpgradePolicyHandler(BaseModel):
 
 
 def fetch_current_state(
-    clusters: list[dict[str, Any]], ocm_map: OCMMap, addons: bool = False
+    clusters: list[ClusterUpgradeSpec], ocm_map: OCMMap, addons: bool = False
 ) -> list[AbstractUpgradePolicy]:
     current_state: list[AbstractUpgradePolicy] = []
     for cluster in clusters:
-        cluster_name = cluster["name"]
+        cluster_name = cluster.name
         ocm = ocm_map.get(cluster_name)
         if addons:
             upgrade_policies = ocm.get_addon_upgrade_policies(cluster_name)
@@ -237,38 +237,40 @@ def sort_key(d: ConfiguredUpgradePolicy) -> tuple:
 
 
 def fetch_upgrade_policies(
-    clusters: list[dict[str, Any]], ocm_map: OCMMap, addons: bool = False
+    clusters: list[ClusterUpgradeSpec], ocm_map: OCMMap, addons: bool = False
 ) -> list[ConfiguredUpgradePolicy]:
     desired_state: list[ConfiguredUpgradePolicy] = []
     for cluster in clusters:
-        cluster_name = cluster["name"]
-        upgrade_policy = cluster["upgradePolicy"]
-        upgrade_policy["cluster"] = cluster_name
+        cluster_name = cluster.name
         ocm: OCM = ocm_map.get(cluster_name)
         if not ocm.is_ready(cluster_name):
             # cluster has been deleted in OCM or is not ready yet
             continue
         # Replace sector names by their related OCM Sector object, including dependencies
-        sector_name = upgrade_policy["conditions"].get("sector")
-        if sector_name:
-            upgrade_policy["conditions"]["sector"] = ocm.sectors[sector_name]
+        sector = None
+        if cluster.upgrade_policy.conditions.sector:
+            sector = ocm.sectors[cluster.upgrade_policy.conditions.sector]
 
         if addons:
             cluster_addons = ocm.get_cluster_addons(cluster_name, with_version=True)
             for addon in cluster_addons:
-                policy = copy.deepcopy(upgrade_policy)
-                policy["addon_id"] = addon["id"]
-                policy["current_version"] = addon["version"]
-
-                desired_state.append(ConfiguredAddonUpgradePolicy(**policy))
+                ccaup = ConfiguredAddonUpgradePolicy.from_cluster_upgrade_spec(
+                    cluster,
+                    current_version=addon["version"],
+                    addon_id=addon["id"],
+                    sector=sector,
+                )
+                desired_state.append(ccaup)
         else:
             spec = ocm.clusters[cluster_name].spec
-            upgrade_policy["current_version"] = spec.version
-            upgrade_policy["channel"] = spec.channel
-            upgrade_policy["available_upgrades"] = ocm.available_cluster_upgrades.get(
-                cluster_name
+            ccup = ConfiguredClusterUpgradePolicy.from_cluster_upgrade_spec(
+                cluster,
+                current_version=spec.version,
+                channel=spec.channel,
+                available_upgrades=ocm.available_cluster_upgrades.get(cluster_name),
+                sector=sector,
             )
-            desired_state.append(ConfiguredClusterUpgradePolicy(**upgrade_policy))
+            desired_state.append(ccup)
 
     return sorted(desired_state, key=sort_key)
 

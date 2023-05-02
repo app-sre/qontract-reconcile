@@ -44,10 +44,10 @@ class OCMClusterUpgradeSchedulerIntegration(
             init_version_gates=True,
         )
         current_state = aus.fetch_current_state(
-            clusters=cluster_like_objects, ocm_map=ocm_map
+            clusters=org_upgrade_spec.specs, ocm_map=ocm_map
         )
         upgrade_policies = aus.fetch_upgrade_policies(
-            clusters=cluster_like_objects, ocm_map=ocm_map
+            clusters=org_upgrade_spec.specs, ocm_map=ocm_map
         )
         version_data_map = aus.get_version_data_map(
             dry_run=dry_run,

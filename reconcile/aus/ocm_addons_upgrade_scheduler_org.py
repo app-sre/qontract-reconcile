@@ -100,12 +100,12 @@ def get_state_for_org_spec(
         init_addons=True,
     )
     desired_state = aus.fetch_upgrade_policies(
-        cluster_like_objects, ocm_map, addons=True
+        org_upgrade_spec.specs, ocm_map, addons=True
     )
     current_state: list[aus.AbstractUpgradePolicy] = []
     if fetch_current_state:
         current_state = aus.fetch_current_state(
-            cluster_like_objects,
+            org_upgrade_spec.specs,
             ocm_map,
             addons=True,
         )
