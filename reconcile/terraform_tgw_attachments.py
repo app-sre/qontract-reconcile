@@ -24,10 +24,16 @@ from reconcile.gql_definitions.common.clusters_with_peering import (
     ClusterPeeringConnectionV1,
     ClusterV1,
 )
+from reconcile.gql_definitions.terraform_tgw_attachments.aws_accounts import (
+    AWSAccountV1,
+)
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
 from reconcile.typed_queries.clusters_with_peering import get_clusters_with_peering
+from reconcile.typed_queries.terraform_tgw_attachments.aws_accounts import (
+    get_aws_accounts,
+)
 from reconcile.utils import gql
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.defer import defer
@@ -272,15 +278,15 @@ def _filter_tgw_clusters(
 
 
 def _filter_tgw_accounts(
-    accounts: Iterable[Mapping],
+    accounts: Iterable[AWSAccountV1],
     tgw_clusters: Iterable[ClusterV1],
-) -> list:
+) -> list[AWSAccountV1]:
     tgw_account_names = set()
     for cluster in tgw_clusters:
         for pc in cluster.peering.connections:
             if pc.provider == TGW_CONNECTION_PROVIDER:
                 tgw_account_names.add(pc.account.name)
-    return [a for a in accounts if a["name"] in tgw_account_names]
+    return [a for a in accounts if a.name in tgw_account_names]
 
 
 @defer
@@ -297,12 +303,10 @@ def run(
     clusters = get_clusters_with_peering(gql.get_api())
     tgw_clusters = _filter_tgw_clusters(clusters, account_name)
     ocm_map = _build_ocm_map(tgw_clusters, vault_settings)
-    accounts = queries.get_aws_accounts(
-        terraform_state=True,
-        ecrs=False,
-        name=account_name,
-    )
-    tgw_accounts = _filter_tgw_accounts(accounts, tgw_clusters)
+    accounts = get_aws_accounts(gql.get_api(), name=account_name)
+    tgw_accounts = [
+        a.dict(by_alias=True) for a in _filter_tgw_accounts(accounts, tgw_clusters)
+    ]
 
     aws_api = AWSApi(1, tgw_accounts, secret_reader=secret_reader, init_users=False)
     if defer:
