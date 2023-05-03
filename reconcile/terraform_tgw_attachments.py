@@ -9,6 +9,7 @@ from typing import (
     Any,
     Optional,
     Union,
+    cast,
 )
 
 from pydantic import BaseModel
@@ -121,10 +122,13 @@ def _build_desired_state_items(
 ) -> Generator[Optional[DesiredStateItem], Any, None]:
     for cluster_info in clusters:
         ocm = ocm_map.get(cluster_info.name) if ocm_map and cluster_info.ocm else None
-        for peer_connection in cluster_info.peering.connections:
+        for peer_connection in cluster_info.peering.connections:  # type: ignore[union-attr]
             if _is_tgw_peer_connection(peer_connection, account_name):
                 yield from _build_desired_state_tgw_connection(
-                    peer_connection, cluster_info, ocm, awsapi
+                    cast(ClusterPeeringConnectionAccountTGWV1, peer_connection),
+                    cluster_info,
+                    ocm,
+                    awsapi,
                 )
 
 
@@ -135,8 +139,10 @@ def _build_desired_state_tgw_connection(
     awsapi: AWSApi,
 ) -> Generator[Optional[DesiredStateItem], Any, None]:
     cluster_name = cluster_info.name
-    cluster_region = cluster_info.spec.region
-    cluster_cidr_block = cluster_info.network.vpc
+    cluster_region = cluster_info.spec.region if cluster_info.spec is not None else ""
+    cluster_cidr_block = (
+        cluster_info.network.vpc if cluster_info.network is not None else ""
+    )
 
     account = _build_account_with_assume_role(
         peer_connection, cluster_name, cluster_region, cluster_cidr_block, ocm
@@ -292,9 +298,12 @@ def _is_tgw_peer_connection(
     ],
     account_name: Optional[str],
 ) -> bool:
-    return peer_connection.provider == TGW_CONNECTION_PROVIDER and (
-        account_name is None or account_name == peer_connection.account.name
-    )
+    if peer_connection.provider != TGW_CONNECTION_PROVIDER:
+        return False
+    if account_name is None:
+        return True
+    tgw_peer_connection = cast(ClusterPeeringConnectionAccountTGWV1, peer_connection)
+    return tgw_peer_connection.account.name == account_name
 
 
 def _is_tgw_cluster(
@@ -302,7 +311,7 @@ def _is_tgw_cluster(
     account_name: Optional[str] = None,
 ) -> bool:
     return any(
-        _is_tgw_peer_connection(pc, account_name) for pc in cluster.peering.connections
+        _is_tgw_peer_connection(pc, account_name) for pc in cluster.peering.connections  # type: ignore[union-attr]
     )
 
 
@@ -319,9 +328,12 @@ def _filter_tgw_accounts(
 ) -> list[AWSAccountV1]:
     tgw_account_names = set()
     for cluster in tgw_clusters:
-        for pc in cluster.peering.connections:
-            if pc.provider == TGW_CONNECTION_PROVIDER:
-                tgw_account_names.add(pc.account.name)
+        for peer_connection in cluster.peering.connections:  # type: ignore[union-attr]
+            if peer_connection.provider == TGW_CONNECTION_PROVIDER:
+                tgw_peer_connection = cast(
+                    ClusterPeeringConnectionAccountTGWV1, peer_connection
+                )
+                tgw_account_names.add(tgw_peer_connection.account.name)
     return [a for a in accounts if a.name in tgw_account_names]
 
 

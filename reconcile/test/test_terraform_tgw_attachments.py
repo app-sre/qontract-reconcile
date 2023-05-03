@@ -171,7 +171,7 @@ def peering_connection_builder(
                 "name": name,
                 "provider": provider,
                 "manageRoutes": manage_routes,
-                "account": account.dict(by_alias=True),
+                "account": account.dict(by_alias=True) if account is not None else None,
                 "assumeRole": assume_role,
                 "cidrBlock": cidr_block,
                 "delete": delete,
@@ -457,8 +457,8 @@ def build_expected_tgw_account(
 ) -> dict:
     return connection.account.dict(by_alias=True) | {
         "assume_role": assume_role,
-        "assume_region": cluster.spec.region,
-        "assume_cidr": cluster.network.vpc,
+        "assume_region": cluster.spec.region if cluster.spec is not None else "",
+        "assume_cidr": cluster.network.vpc if cluster.network is not None else "",
     }
 
 
@@ -484,8 +484,8 @@ def build_expected_desired_state_item(
         },
         "accepter": {
             "vpc_id": vpc_details["vpc_id"],
-            "region": cluster.spec.region,
-            "cidr_block": cluster.network.vpc,
+            "region": cluster.spec.region if cluster.spec is not None else "",
+            "cidr_block": cluster.network.vpc if cluster.network is not None else "",
             "route_table_ids": vpc_details["route_table_ids"],
             "subnets_id_az": vpc_details["subnets_id_az"],
             "account": expected_tgw_account,
@@ -803,7 +803,7 @@ def test_run_with_account_name_for_multiple_clusters(
     mocker: MockerFixture,
     app_interface_vault_settings: AppInterfaceSettingsV1,
     cluster_with_tgw_connection: ClusterV1,
-    additional_cluster_with_tgw_connection: ClusterPeeringConnectionAccountTGWV1,
+    additional_cluster_with_tgw_connection: ClusterV1,
     account_tgw_connection: ClusterPeeringConnectionAccountTGWV1,
     tgw_account: AWSAccountV1,
     tgw: Mapping,
