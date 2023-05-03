@@ -128,7 +128,6 @@ class AbstractUpgradePolicy(ABC, BaseModel):
     Used to create and delete upgrade policies in OCM."""
 
     cluster: str
-    gates_to_agree: Optional[list[GateAgreement]]
     id: Optional[str]
     next_run: Optional[str]
     schedule: Optional[str]
@@ -142,10 +141,6 @@ class AbstractUpgradePolicy(ABC, BaseModel):
     @abstractmethod
     def delete(self, ocm: OCM) -> None:
         pass
-
-    def create_gate_agreements(self, ocm: OCM) -> None:
-        for gate in self.gates_to_agree or []:
-            gate.create(ocm, self.cluster)
 
 
 class AddonUpgradePolicy(AbstractUpgradePolicy):
@@ -174,7 +169,14 @@ class AddonUpgradePolicy(AbstractUpgradePolicy):
 class ClusterUpgradePolicy(AbstractUpgradePolicy):
     """Class to create and delete ClusterUpgradePolicies in OCM"""
 
+    gates_to_agree: Optional[list[GateAgreement]]
+
+    def _create_gate_agreements(self, ocm: OCM) -> None:
+        for gate in self.gates_to_agree or []:
+            gate.create(ocm, self.cluster)
+
     def create(self, ocm: OCM) -> None:
+        self._create_gate_agreements(ocm)
         policy = {
             "version": self.version,
             "schedule_type": "manual",
@@ -212,7 +214,6 @@ class UpgradePolicyHandler(BaseModel):
         elif self.action == "delete":
             self.policy.delete(ocm)
         elif self.action == "create":
-            self.policy.create_gate_agreements(ocm)
             self.policy.create(ocm)
 
 

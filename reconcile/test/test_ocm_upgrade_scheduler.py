@@ -744,6 +744,7 @@ class TestCalculateDiff:
         assert cup.cluster == "cluster1"
         assert cup.version == "4.9.5"
         assert cup.schedule_type == "manual"
+        assert isinstance(cup, aus.ClusterUpgradePolicy)
         assert cup.gates_to_agree == []
 
     def test_calculate_not_soaked(
