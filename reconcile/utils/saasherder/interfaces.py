@@ -374,6 +374,7 @@ class SaasFile(HasParameters, HasSecretParameters, Protocol):
     image_patterns: list[str]
     allowed_secret_parameter_paths: Optional[list[str]]
     use_channel_in_image_tag: Optional[bool]
+    validate_targets_in_app: Optional[bool]
 
     @property
     def app(self) -> SaasApp:
