@@ -267,7 +267,6 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         always_enabled_deletions = {
             "random_id",
             "aws_lb_target_group_attachment",
-            "aws_iam_user_policy",
             "cloudflare_record",  # This is because a zone can contain up to one thousand records and it's not practical to require adding each record to deletionApprovals
         }
 
