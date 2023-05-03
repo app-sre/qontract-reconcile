@@ -24,6 +24,8 @@ class OrganizationUpgradeSpec(BaseModel):
 
 
 class ConfiguredUpgradePolicyConditions(BaseModel):
+    """This class is used to represent the conditions of upgrade policies."""
+
     mutexes: Optional[list[str]]
     soakDays: Optional[int]
     sector: Optional[Sector]
@@ -33,6 +35,12 @@ class ConfiguredUpgradePolicyConditions(BaseModel):
 
 
 class ConfiguredUpgradePolicy(BaseModel):
+    """This class is used to represent the configuration for upgrade policies.
+    It is a reflection of the configuration done in GraphQL.
+    It is more specific than the generated dataclasses, as it supports
+    additional attributes.
+    """
+
     cluster: str
     conditions: ConfiguredUpgradePolicyConditions
     current_version: str
@@ -41,6 +49,9 @@ class ConfiguredUpgradePolicy(BaseModel):
 
 
 class ConfiguredAddonUpgradePolicy(ConfiguredUpgradePolicy):
+    """A class to represent the configuration for addon upgrade policies.
+    See also description of baseclass ConfiguredUpgradePolicy."""
+
     addon_id: str
 
     @classmethod
@@ -69,6 +80,9 @@ class ConfiguredAddonUpgradePolicy(ConfiguredUpgradePolicy):
 
 
 class ConfiguredClusterUpgradePolicy(ConfiguredUpgradePolicy):
+    """A class to represent the configuration for cluster upgrade policies.
+    See also description of baseclass ConfiguredUpgradePolicy."""
+
     available_upgrades: Optional[list[str]]
     channel: str
 

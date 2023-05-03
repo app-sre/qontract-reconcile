@@ -124,6 +124,9 @@ class GateAgreement(BaseModel):
 
 
 class AbstractUpgradePolicy(ABC, BaseModel):
+    """Abstract class for upgrade policies
+    Used to create and delete upgrade policies in OCM."""
+
     cluster: str
     gates_to_agree: Optional[list[GateAgreement]]
     id: Optional[str]
@@ -146,6 +149,8 @@ class AbstractUpgradePolicy(ABC, BaseModel):
 
 
 class AddonUpgradePolicy(AbstractUpgradePolicy):
+    """Class to create and delete Addon upgrade policies in OCM"""
+
     addon_id: str
 
     def create(self, ocm: OCM) -> None:
@@ -167,6 +172,8 @@ class AddonUpgradePolicy(AbstractUpgradePolicy):
 
 
 class ClusterUpgradePolicy(AbstractUpgradePolicy):
+    """Class to create and delete ClusterUpgradePolicies in OCM"""
+
     def create(self, ocm: OCM) -> None:
         policy = {
             "version": self.version,
@@ -184,6 +191,8 @@ class ClusterUpgradePolicy(AbstractUpgradePolicy):
 
 
 class UpgradePolicyHandler(BaseModel):
+    """Class to handle upgrade policy actions"""
+
     action: str
     policy: AbstractUpgradePolicy
 
@@ -275,7 +284,6 @@ def fetch_upgrade_policies(
     return sorted(desired_state, key=sort_key)
 
 
-# This does not look like it belongs here, perhaps cluster_version_data is a beter place?
 def update_history(
     version_data: VersionData, upgrade_policies: list[ConfiguredUpgradePolicy]
 ) -> None:
@@ -481,7 +489,6 @@ def get_version_prefix(version: str) -> str:
     return f"{semver.major}.{semver.minor}"
 
 
-# rename to create upgrade policy and make it create the UpgradePolicy instances
 def upgradeable_version(
     policy: ConfiguredUpgradePolicy,
     version_data_map: dict[str, VersionData],
