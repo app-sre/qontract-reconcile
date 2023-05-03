@@ -339,11 +339,7 @@ def run(
         raise RuntimeError("Error running terraform apply")
 
 
-def early_exit_desired_state(
-    print_to_file: Optional[str] = None,
-    enable_deletion: bool = False,
-    thread_pool_size: int = 10,
-) -> dict[str, Any]:
+def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
     return {
         "clusters": queries.get_clusters_with_peering_settings(),
         "accounts": queries.get_aws_accounts(terraform_state=True, ecrs=False),
