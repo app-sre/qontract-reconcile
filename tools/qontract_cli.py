@@ -302,7 +302,7 @@ def get_upgrade_policies_data(
 
     settings = queries.get_app_interface_settings()
     ocm_map = OCMMap(
-        clusters=clusters,
+        clusters=[policy.dict(by_alias=True) for policy in clusters],
         settings=settings,
         init_version_gates=True,
     )
@@ -316,8 +316,12 @@ def get_upgrade_policies_data(
     results = []
 
     def soaking_str(soaking, upgrade_policy, upgradeable_version):
-        upgrade_version = upgrade_policy.get("version")
-        upgrade_next_run = upgrade_policy.get("next_run")
+        if upgrade_policy:
+            upgrade_version = upgrade_policy.version
+            upgrade_next_run = upgrade_policy.next_run
+        else:
+            upgrade_version = None
+            upgrade_next_run = None
         upgrade_emoji = "💫"
         if upgrade_next_run:
             dt = datetime.strptime(upgrade_next_run, "%Y-%m-%dT%H:%M:%SZ")
@@ -338,13 +342,13 @@ def get_upgrade_policies_data(
         return ", ".join([f"{v} ({s})" for v, s in sorted_soaking])
 
     for c in desired_state:
-        cluster_name, version = c["cluster"], c["current_version"]
-        channel, schedule = c["channel"], c.get("schedule")
-        soakdays = c.get("conditions", {}).get("soakDays")
-        mutexes = c.get("conditions", {}).get("mutexes") or []
+        cluster_name, version = c.cluster, c.current_version
+        channel, schedule = c.channel, c.schedule
+        soakdays = c.conditions.soakDays
+        mutexes = c.conditions.mutexes or []
         sector = ""
-        if c.get("conditions", {}).get("sector"):
-            sector = c["conditions"]["sector"].name
+        if c.conditions.sector:
+            sector = c.conditions.sector.name
         ocm_org = ocm_map.get(cluster_name)
         ocm_spec = ocm_org.clusters[cluster_name]
         item = {
@@ -362,19 +366,17 @@ def get_upgrade_policies_data(
             "mutexes": ", ".join(mutexes),
         }
 
-        if "workloads" not in c:
+        if not c.workloads:
             results.append(item)
             continue
 
         upgrades = [
-            u
-            for u in c.get("available_upgrades") or []
-            if not ocm_org.version_blocked(u)
+            u for u in c.available_upgrades or [] if not ocm_org.version_blocked(u)
         ]
 
-        current = [c for c in current_state if c["cluster"] == cluster_name]
-        upgrade_policy = {}
-        if current and current[0]["schedule_type"] == "manual":
+        current = [c for c in current_state if c.cluster == cluster_name]
+        upgrade_policy = None
+        if current and current[0].schedule_type == "manual":
             upgrade_policy = current[0]
 
         upgradeable_version = aus.upgradeable_version(
@@ -382,7 +384,7 @@ def get_upgrade_policies_data(
         )
 
         workload_soaking_upgrades = {}
-        for w in c.get("workloads", []):
+        for w in c.workloads or []:
             if not workload or workload == w:
                 s = soaking_days(
                     version_data_map, upgrades, w, show_only_soaking_upgrades
@@ -402,7 +404,7 @@ def get_upgrade_policies_data(
                 )
                 results.append(i)
         else:
-            workloads = sorted(c.get("workloads", []))
+            workloads = sorted(c.workloads or [])
             w = ", ".join(workloads)
             soaking = {}
             for v in upgrades:
@@ -505,18 +507,16 @@ def generate_cluster_upgrade_policies_report(
 
     upgrade_specs = integration.get_upgrade_specs()
     clusters = [
-        s.dict(by_alias=True)
+        s
         for org_upgrade_specs in upgrade_specs.values()
         for org_upgrade_spec in org_upgrade_specs.values()
         for s in org_upgrade_spec.specs
     ]
 
     if cluster:
-        clusters = [c for c in clusters if cluster == c["name"]]
+        clusters = [c for c in clusters if cluster == c.name]
     if workload:
-        clusters = [
-            c for c in clusters if workload in c["upgradePolicy"].get("workloads", [])
-        ]
+        clusters = [c for c in clusters if workload in c.upgrade_policy.workloads]
 
     results = get_upgrade_policies_data(
         clusters,
@@ -622,7 +622,7 @@ def generate_fleet_upgrade_policices_report(
 
     upgrade_specs = aus_integration.get_upgrade_specs()
     upgrade_policies = [
-        s.dict(by_alias=True)
+        s
         for org_upgrade_specs in upgrade_specs.values()
         for org_upgrade_spec in org_upgrade_specs.values()
         for s in org_upgrade_spec.specs
@@ -717,22 +717,22 @@ def ocm_addon_upgrade_policies(ctx):
             for addon_state in addon_states:
                 next_version = ocm.get_addon_version(addon_state.addon_id)
                 ocm_output = output.setdefault(org_name, [])
-                for d in addon_state.desired_state:
+                for d in addon_state.upgrade_policies:
                     sector = ""
-                    conditions = d.get("conditions") or {}
-                    if conditions.get("sector"):
-                        sector = conditions["sector"].name
-                    version = d["current_version"]
+                    conditions = d.conditions
+                    if conditions.sector:
+                        sector = conditions.sector.name
+                    version = d.current_version
                     ocm_output.append(
                         {
-                            "cluster": d["cluster"],
+                            "cluster": d.cluster,
                             "addon_id": addon_state.addon_id,
                             "current_version": version,
-                            "schedule": d["schedule"],
+                            "schedule": d.schedule,
                             "sector": sector,
-                            "mutexes": ", ".join(conditions.get("mutexes") or []),
-                            "soak_days": conditions.get("soakDays"),
-                            "workloads": ", ".join(d["workloads"]),
+                            "mutexes": ", ".join(conditions.mutexes or []),
+                            "soak_days": conditions.soakDays,
+                            "workloads": ", ".join(d.workloads or []),
                             "next_version": next_version
                             if next_version != version
                             else "",
