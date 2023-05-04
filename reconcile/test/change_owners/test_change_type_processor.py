@@ -6,6 +6,10 @@ from reconcile.change_owners.change_types import (
     ChangeTypeContext,
     ChangeTypeProcessor,
 )
+from reconcile.change_owners.diff import (
+    PATH_FIELD_NAME,
+    SHA256SUM_FIELD_NAME,
+)
 from reconcile.gql_definitions.change_owners.queries.change_types import ChangeTypeV1
 from reconcile.test.change_owners.fixtures import (
     StubFile,
@@ -53,7 +57,7 @@ def test_change_type_processor_allowed_paths_simple(
         ),
     )
 
-    assert [str(p) for p in paths] == ["roles"]
+    assert {str(p) for p in paths} == {"roles", SHA256SUM_FIELD_NAME, PATH_FIELD_NAME}
 
 
 def test_change_type_processor_allowed_paths_conditions(
@@ -75,7 +79,11 @@ def test_change_type_processor_allowed_paths_conditions(
         ),
     )
 
-    assert [str(p) for p in paths] == ["openshiftResources.[1].version"]
+    assert {str(p) for p in paths} == {
+        "openshiftResources.[1].version",
+        SHA256SUM_FIELD_NAME,
+        PATH_FIELD_NAME,
+    }
 
 
 @pytest.fixture
@@ -111,7 +119,11 @@ def test_change_type_processor_allowed_paths_conditions_ct_without_schema_file_w
         ),
     )
 
-    assert [str(p) for p in paths] == ["$"]
+    assert {str(p) for p in paths} == {
+        "$",
+        SHA256SUM_FIELD_NAME,
+        PATH_FIELD_NAME,
+    }
 
 
 def test_change_type_processor_allowed_paths_conditions_ct_without_schema_file_without_schema(
@@ -135,4 +147,8 @@ def test_change_type_processor_allowed_paths_conditions_ct_without_schema_file_w
         ),
     )
 
-    assert [str(p) for p in paths] == ["$"]
+    assert {str(p) for p in paths} == {
+        "$",
+        SHA256SUM_FIELD_NAME,
+        PATH_FIELD_NAME,
+    }

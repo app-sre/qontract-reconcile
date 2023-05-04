@@ -1,6 +1,7 @@
 import logging
 import sys
 import traceback
+from collections import defaultdict
 
 from reconcile import queries
 from reconcile.change_owners.approver import GqlApproverResolver
@@ -120,7 +121,71 @@ def fetch_bundle_changes(comparison_sha: str) -> list[BundleFileChange]:
     explicitely passed comparision bundle - usually the state of the master branch).
     """
     changes = gql.get_diff(comparison_sha)
-    return _parse_bundle_changes(changes)
+    bundle_changes = _parse_bundle_changes(changes)
+    try:
+        return _aggregate_file_moves(bundle_changes)
+    except Exception as e:
+        logging.error(f"Failed to post process bundle changes: {e}")
+        # if any post processing action fails, we want the raw bundle changes
+        # to be reviewed
+        return bundle_changes
+
+
+def _aggregate_file_moves(
+    bundle_changes: list[BundleFileChange],
+) -> list[BundleFileChange]:
+    """
+    This function tries to detect file moves by looking at the bundle changes. If an
+    add and remove file change with the same content is detected, those changes are
+    replaced with a single move change where the only difference is the path.
+    """
+    move_candidates: dict[str, list[BundleFileChange]] = defaultdict(list)
+    new_bundle_changes = []
+    for c in bundle_changes:
+        potential_move_sha = None
+        if c.is_file_creation():
+            potential_move_sha = c.new_content_sha()
+        elif c.is_file_deletion():
+            potential_move_sha = c.old_content_sha()
+        if potential_move_sha:
+            move_candidates[potential_move_sha].append(c)
+        else:
+            new_bundle_changes.append(c)
+
+    for candidates in move_candidates.values():
+        if len(candidates) == 2:
+            # if there are two candidates, they could represent a file move.
+            # lets check if that is the case
+            deletion = (
+                candidates[0] if candidates[0].is_file_deletion() else candidates[1]
+            )
+            addition = (
+                candidates[0] if candidates[0].is_file_creation() else candidates[1]
+            )
+            if (
+                deletion != addition
+                and deletion.fileref.file_type == addition.fileref.file_type
+                and deletion.fileref.path != addition.fileref.path
+            ):
+                # the candidates represent a file move. let's add a new
+                # change that represents the move
+                move_change = create_bundle_file_change(
+                    deletion.fileref.path,
+                    deletion.fileref.schema,
+                    deletion.fileref.file_type,
+                    deletion.old,
+                    addition.new,
+                )
+                if move_change:
+                    # move_change will always be present. this check is just to
+                    # satisfy mypy
+                    new_bundle_changes.append(move_change)
+                    continue
+
+        # the candidates turned out to be unrelated changes. lets add them back
+        # to the list of changes
+        new_bundle_changes.extend(candidates)
+    return new_bundle_changes
 
 
 def _parse_bundle_changes(bundle_changes) -> list[BundleFileChange]:

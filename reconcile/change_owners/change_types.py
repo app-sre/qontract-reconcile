@@ -35,6 +35,7 @@ from reconcile.change_owners.bundle import (
     FileRef,
 )
 from reconcile.change_owners.diff import (
+    PATH_FIELD_NAME,
     SHA256SUM_FIELD_NAME,
     SHA256SUM_PATH,
     Diff,
@@ -216,6 +217,12 @@ class DiffCoverage:
         return coverages
 
 
+class InvalidBundleFileChangeError(Exception):
+    """
+    Raised when an invalid BundleFileChange is detected.
+    """
+
+
 @dataclass
 class BundleFileChange:
     """
@@ -232,6 +239,30 @@ class BundleFileChange:
 
     def __post_init__(self) -> None:
         self._diff_coverage = {d.path_str(): DiffCoverage(d, []) for d in self.diffs}
+
+    def old_content_sha(self) -> Optional[str]:
+        if self.old is None:
+            return None
+        if SHA256SUM_FIELD_NAME not in self.old:
+            raise InvalidBundleFileChangeError(
+                f"The detected change for {self.fileref} does not contain a {SHA256SUM_FIELD_NAME} for the previous state."
+            )
+        return self.old[SHA256SUM_FIELD_NAME]
+
+    def new_content_sha(self) -> Optional[str]:
+        if self.new is None:
+            return None
+        if SHA256SUM_FIELD_NAME not in self.new:
+            raise InvalidBundleFileChangeError(
+                f"The detected change for {self.fileref} does not contain a {SHA256SUM_FIELD_NAME} for the new state."
+            )
+        return self.new[SHA256SUM_FIELD_NAME]
+
+    def is_file_deletion(self) -> bool:
+        return self.old is not None and self.new is None
+
+    def is_file_creation(self) -> bool:
+        return self.old is None and self.new is not None
 
     def cover_changes(self, change_type_context: "ChangeTypeContext") -> list[Diff]:
         """
@@ -549,7 +580,7 @@ class JsonPathChangeDetector(ChangeDetector):
         self._json_path_expressions = [
             PathExpression(jsonpath_expression)
             for jsonpath_expression in self.json_path_selectors
-            + [f"'{SHA256SUM_FIELD_NAME}'"]
+            + [f"'{SHA256SUM_FIELD_NAME}'", PATH_FIELD_NAME]
         ]
 
     @property
