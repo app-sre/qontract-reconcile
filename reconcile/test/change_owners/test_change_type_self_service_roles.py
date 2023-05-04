@@ -5,7 +5,11 @@ from reconcile.change_owners.approver import (
     SlackGroupApproverReachability,
 )
 from reconcile.change_owners.change_owners import validate_self_service_role
-from reconcile.change_owners.self_service_roles import approver_reachability_from_role
+from reconcile.change_owners.self_service_roles import (
+    EmptySelfServiceRoleError,
+    approver_reachability_from_role,
+    change_type_contexts_for_self_service_roles,
+)
 from reconcile.gql_definitions.change_owners.queries.self_service_roles import (
     ChangeTypeV1,
     DatafileObjectV1,
@@ -106,3 +110,26 @@ def test_self_service_role_gitlab_user_group_approver_reachability():
     assert reachability == [
         GitlabGroupApproverReachability(gitlab_group=g) for g in gitlab_groups
     ]
+
+
+#
+# test change_type_contexts_for_self_service_roles
+#
+
+
+def test_change_type_contexts_for_self_service_roles_no_approvers():
+    with pytest.raises(EmptySelfServiceRoleError):
+        role = build_role(
+            name="team-role",
+            change_type_name="change-type-name",
+            datafiles=[
+                DatafileObjectV1(datafileSchema="/access/role-1.yml", path="path")
+            ],
+            users=[],
+        )
+
+        change_type_contexts_for_self_service_roles(
+            roles=[role],
+            change_type_processors=[],
+            bundle_changes=[],
+        )
