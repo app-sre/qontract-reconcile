@@ -68,8 +68,8 @@ def change_type_contexts_for_self_service_roles(
                         ].append(r)
     if orphaned_roles:
         raise EmptySelfServiceRoleError(
-            f"The roles {', '.join([r.name for r in orphaned_roles])} has no users or bots "
-            "to drive the self-service process. A approvers to the role."
+            f"The roles {', '.join([r.name for r in orphaned_roles])} have no users or bots "
+            "to drive the self-service process. Add approvers to the roles."
         )
 
     # match every BundleChange with every relevant ChangeTypeV1
