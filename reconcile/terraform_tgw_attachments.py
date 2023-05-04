@@ -161,7 +161,7 @@ def _build_desired_state_tgw_connection(
         yield None
 
     account_tgws = awsapi.get_tgws_details(
-        account,
+        account.dict(by_alias=True),
         cluster_region,
         cluster_cidr_block,
         tags=peer_connection.tags or {},
@@ -218,7 +218,7 @@ def _build_accepter(
     awsapi: AWSApi,
 ) -> Accepter:
     (vpc_id, route_table_ids, subnets_id_az) = awsapi.get_cluster_vpc_details(
-        account,
+        account.dict(by_alias=True),
         route_tables=peer_connection.manage_routes,
         subnets=True,
     )
