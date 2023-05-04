@@ -26,9 +26,8 @@ def validate_no_cidr_overlap(
 ) -> bool:
     clusters: list[ClusterV1] = query_data.clusters or []
 
-    peerings_enteries_dict = {}  # type: ignore[var-annotated]
-
     for cluster in clusters:
+        peerings_enteries_dict = {}  # type: ignore[var-annotated]
         if cluster.peering:
             for peering in cluster.peering.connections:
                 if peering.provider == "account-vpc-mesh":
