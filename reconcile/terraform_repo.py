@@ -1,7 +1,5 @@
 import logging
-from collections.abc import (
-    Callable
-)
+from collections.abc import Callable
 from typing import (
     Any,
     Optional,
@@ -17,7 +15,10 @@ from reconcile.gql_definitions.terraform_repo.terraform_repo import (
 )
 from reconcile.utils import gql
 from reconcile.utils.defer import defer
-from reconcile.utils.differ import DiffResult, diff_iterables
+from reconcile.utils.differ import (
+    DiffResult,
+    diff_iterables,
+)
 from reconcile.utils.exceptions import ParameterError
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.runtime.integration import (
@@ -41,6 +42,7 @@ class ActionPlan(BaseModel):
 
 class TerraformRepoIntegrationParams(PydanticRunParams):
     print_to_file: Optional[str]
+    validate_git: bool
 
 
 class TerraformRepoIntegration(
@@ -137,12 +139,16 @@ class TerraformRepoIntegration(
             logging.info(["create_repo", add_val.account.name, add_key])
             output.append(add_val)
         for change_key, change_val in diff.change.items():
-            if change_val.delete:
-                logging.info(["delete_repo", change_val.account.name, change_key])
-                output.append(change_val)
+            if change_val.desired.delete:
+                logging.info(
+                    ["delete_repo", change_val.desired.account.name, change_key]
+                )
+                output.append(change_val.desired)
             else:
-                logging.info(["update_repo", change_val.account.name, change_key])
-                output.append(change_val)
+                logging.info(
+                    ["update_repo", change_val.desired.account.name, change_key]
+                )
+                output.append(change_val.desired)
         return output
 
     def update_state(
@@ -181,9 +187,10 @@ class TerraformRepoIntegration(
         """Diffs existing and desired state as well as updates the state in S3 if this is not a dry-run operation"""
         diff = diff_iterables(existing_state, desired_state, lambda x: x.name)
 
-        # added repos: do standard validation that SHA is valid
-        for add_repo in diff.add.values():
-            self.check_ref(add_repo.repository, add_repo.ref)
+        if self.params.validate_git:
+            # added repos: do standard validation that SHA is valid
+            for add_repo in diff.add.values():
+                self.check_ref(add_repo.repository, add_repo.ref)
         # removed repos: ensure that delete = true already
         for delete_repo in diff.delete.values():
             if not delete_repo.delete:
@@ -203,13 +210,16 @@ class TerraformRepoIntegration(
                 raise ParameterError(
                     f'Only the `ref` and `delete` parameters for a terraform repo may be updated in merge requests on repo: "{d.name}"'
                 )
-            self.check_ref(d.repository, d.ref)
+            if self.params.validate_git:
+                self.check_ref(d.repository, d.ref)
 
         if not dry_run and state:
             self.update_state(diff, state)
 
         return self.merge_results(diff)
 
-    def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
+    def early_exit_desired_state(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
         gqlapi = gql.get_api()
-        return {"repos": [repo.dict() for repo in get_repos(query_func=gqlapi.query)]}
+        return {
+            "repos": [repo.dict() for repo in self.get_repos(query_func=gqlapi.query)]
+        }

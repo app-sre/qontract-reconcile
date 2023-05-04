@@ -5,7 +5,10 @@ from reconcile.gql_definitions.terraform_repo.terraform_repo import (
     AWSAccountV1,
     TerraformRepoV1,
 )
-from reconcile.terraform_repo import calculate_diff
+from reconcile.terraform_repo import (
+    TerraformRepoIntegration,
+    TerraformRepoIntegrationParams,
+)
 from reconcile.utils.exceptions import ParameterError
 
 
@@ -49,25 +52,33 @@ def aws_account(automation_token) -> AWSAccountV1:
     )
 
 
-def test_addition_to_existing_repo(existing_repo, new_repo):
+@pytest.fixture
+def int_params() -> TerraformRepoIntegrationParams:
+    return TerraformRepoIntegrationParams(print_to_file=None, validate_git=False)
+
+
+def test_addition_to_existing_repo(existing_repo, new_repo, int_params):
     existing = [existing_repo]
     desired = [existing_repo, new_repo]
-    diff = calculate_diff(existing, desired, True, None)
+
+    integration = TerraformRepoIntegration(params=int_params)
+    diff = integration.calculate_diff(existing, desired, True, None)
 
     assert diff == [new_repo]
 
 
-def test_updating_repo_ref(existing_repo):
+def test_updating_repo_ref(existing_repo, int_params):
     existing = [existing_repo]
     updated_repo = TerraformRepoV1.copy(existing_repo)
     updated_repo.ref = "94edb90815e502b387c25358f5ec602e52d0bfbb"
 
-    diff = calculate_diff(existing, [updated_repo], True, None)
+    integration = TerraformRepoIntegration(params=int_params)
+    diff = integration.calculate_diff(existing, [updated_repo], True, None)
 
     assert diff == [updated_repo]
 
 
-def test_fail_on_update_invalid_repo_params(existing_repo):
+def test_fail_on_update_invalid_repo_params(existing_repo, int_params):
     existing = [existing_repo]
     updated_repo = TerraformRepoV1.copy(existing_repo)
     updated_repo.name = "c_repo"
@@ -75,22 +86,29 @@ def test_fail_on_update_invalid_repo_params(existing_repo):
     updated_repo.repository = "https://gitlab.cee.redhat.com/rywallac/tf-repo-example-2"
     updated_repo.ref = "94edb90815e502b387c25358f5ec602e52d0bfbb"
     updated_repo.delete = True
+
+    integration = TerraformRepoIntegration(params=int_params)
+
     with pytest.raises(ParameterError):
-        calculate_diff(existing, [updated_repo], True, None)
+        integration.calculate_diff(existing, [updated_repo], True, None)
 
 
-def test_delete_repo(existing_repo):
+def test_delete_repo(existing_repo, int_params):
     existing = [existing_repo]
     updated_repo = TerraformRepoV1.copy(existing_repo)
     updated_repo.delete = True
 
-    diff = calculate_diff(existing, [updated_repo], True, None)
+    integration = TerraformRepoIntegration(params=int_params)
+
+    diff = integration.calculate_diff(existing, [updated_repo], True, None)
 
     assert diff == [updated_repo]
 
 
-def test_delete_repo_without_flag(existing_repo):
+def test_delete_repo_without_flag(existing_repo, int_params):
     existing = [existing_repo]
 
+    integration = TerraformRepoIntegration(params=int_params)
+
     with pytest.raises(ParameterError):
-        calculate_diff(existing, [], True, None)
+        integration.calculate_diff(existing, [], True, None)
