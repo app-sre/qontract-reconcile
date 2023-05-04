@@ -290,16 +290,15 @@ def version_history(ctx):
 
 
 def soaking_days(
-    version_data_map: dict[str, VersionData],
+    version_data: VersionData,
     upgrades: list[str],
     workload: str,
     only_soaking: bool,
 ) -> dict[str, float]:
     soaking = {}
     for version in upgrades:
-        for h in version_data_map.values():
-            workload_history = h.workload_history(version, workload)
-            soaking[version] = round(workload_history.soak_days, 2)
+        workload_history = version_data.workload_history(version, workload)
+        soaking[version] = round(workload_history.soak_days, 2)
         if not only_soaking and version not in soaking:
             soaking[version] = 0
     return soaking
@@ -401,7 +400,10 @@ def get_upgrade_policies_data(
         for w in c.get("workloads", []):
             if not workload or workload == w:
                 s = soaking_days(
-                    version_data_map, upgrades, w, show_only_soaking_upgrades
+                    version_data_map[ocm_org.name],
+                    upgrades,
+                    w,
+                    show_only_soaking_upgrades,
                 )
                 workload_soaking_upgrades[w] = s
 
