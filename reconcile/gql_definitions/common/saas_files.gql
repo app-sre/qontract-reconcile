@@ -86,6 +86,7 @@ query SaasFiles {
         ...VaultSecret
       }
     }
+    validateTargetsInApp
     resourceTemplates {
       name
       url

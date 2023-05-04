@@ -119,6 +119,7 @@ class SaasFile(ConfiguredBaseModel):
     secret_parameters: Optional[list[SaasSecretParametersV1]] = Field(
         ..., alias="secretParameters"
     )
+    validate_targets_in_app: Optional[bool] = Field(..., alias="validateTargetsInApp")
     resource_templates: list[SaasResourceTemplate] = Field(
         ..., alias="resourceTemplates"
     )
