@@ -1,4 +1,3 @@
-import json
 import logging
 from collections.abc import (
     Callable,
@@ -9,15 +8,42 @@ from collections.abc import (
 from typing import (
     Any,
     Optional,
+    Union,
+    cast,
 )
 
+from pydantic import BaseModel
+
 from reconcile import queries
+from reconcile.gql_definitions.common.app_interface_vault_settings import (
+    AppInterfaceSettingsV1,
+)
+from reconcile.gql_definitions.common.clusters_with_peering import (
+    ClusterPeeringConnectionAccountTGWV1,
+    ClusterPeeringConnectionAccountV1,
+    ClusterPeeringConnectionAccountVPCMeshV1,
+    ClusterPeeringConnectionClusterRequesterV1,
+    ClusterPeeringConnectionV1,
+    ClusterV1,
+)
+from reconcile.gql_definitions.terraform_tgw_attachments.aws_accounts import (
+    AWSAccountV1,
+)
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
+from reconcile.typed_queries.clusters_with_peering import get_clusters_with_peering
+from reconcile.typed_queries.terraform_tgw_attachments.aws_accounts import (
+    get_aws_accounts,
+)
+from reconcile.utils import gql
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.defer import defer
 from reconcile.utils.ocm import (
     OCM,
     OCMMap,
 )
+from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.terraform_client import TerraformClient as Terraform
 from reconcile.utils.terrascript_aws_client import TerrascriptClient as Terrascript
@@ -32,12 +58,48 @@ class ValidationError(Exception):
     pass
 
 
+class AccountWithAssumeRole(BaseModel):
+    name: str
+    uid: str
+    assume_role: str
+    assume_region: str
+    assume_cidr: str
+
+
+class Requester(BaseModel):
+    tgw_id: str
+    tgw_arn: str
+    region: str
+    routes: Optional[list[dict]]
+    rules: Optional[list[dict]]
+    hostedzones: Optional[list[str]]
+    cidr_block: str
+    account: AccountWithAssumeRole
+
+
+class Accepter(BaseModel):
+    cidr_block: str
+    region: str
+    vpc_id: Optional[str]
+    route_table_ids: Optional[list[str]]
+    subnets_id_az: Optional[list[dict]]
+    account: AccountWithAssumeRole
+
+
+class DesiredStateItem(BaseModel):
+    connection_provider: str
+    connection_name: str
+    requester: Requester
+    accepter: Accepter
+    deleted: bool
+
+
 def _build_desired_state_tgw_attachments(
-    clusters: Iterable[Mapping],
+    clusters: Iterable[ClusterV1],
     ocm_map: Optional[OCMMap],
     awsapi: AWSApi,
     account_name: Optional[str] = None,
-) -> tuple[list[dict], bool]:
+) -> tuple[list[DesiredStateItem], bool]:
     """
     Fetch state for TGW attachments between a cluster and all TGWs
     in an account in the same region as the cluster
@@ -54,35 +116,36 @@ def _build_desired_state_tgw_attachments(
 
 
 def _build_desired_state_items(
-    clusters: Iterable[Mapping],
+    clusters: Iterable[ClusterV1],
     ocm_map: Optional[OCMMap],
     awsapi: AWSApi,
     account_name: Optional[str] = None,
-) -> Generator[Optional[dict], Any, None]:
+) -> Generator[Optional[DesiredStateItem], Any, None]:
     for cluster_info in clusters:
-        ocm = (
-            ocm_map.get(cluster_info["name"])
-            if ocm_map and cluster_info.get("ocm")
-            else None
-        )
-        for peer_connection in cluster_info["peering"]["connections"]:
+        ocm = ocm_map.get(cluster_info.name) if ocm_map and cluster_info.ocm else None
+        for peer_connection in cluster_info.peering.connections:  # type: ignore[union-attr]
             if _is_tgw_peer_connection(peer_connection, account_name):
                 yield from _build_desired_state_tgw_connection(
-                    peer_connection, cluster_info, ocm, awsapi
+                    cast(ClusterPeeringConnectionAccountTGWV1, peer_connection),
+                    cluster_info,
+                    ocm,
+                    awsapi,
                 )
 
 
 def _build_desired_state_tgw_connection(
-    peer_connection: Mapping,
-    cluster_info: Mapping,
+    peer_connection: ClusterPeeringConnectionAccountTGWV1,
+    cluster_info: ClusterV1,
     ocm: Optional[OCM],
     awsapi: AWSApi,
-) -> Generator[Optional[dict], Any, None]:
-    cluster_name = cluster_info["name"]
-    cluster_region = cluster_info["spec"]["region"]
-    cluster_cidr_block = cluster_info["network"]["vpc"]
+) -> Generator[Optional[DesiredStateItem], Any, None]:
+    cluster_name = cluster_info.name
+    cluster_region = cluster_info.spec.region if cluster_info.spec is not None else ""
+    cluster_cidr_block = (
+        cluster_info.network.vpc if cluster_info.network is not None else ""
+    )
 
-    account = _account_with_assume_role_data(
+    account = _build_account_with_assume_role(
         peer_connection, cluster_name, cluster_region, cluster_cidr_block, ocm
     )
 
@@ -94,108 +157,110 @@ def _build_desired_state_tgw_connection(
         cluster_cidr_block,
         awsapi,
     )
-    if accepter["vpc_id"] is None:
+    if accepter.vpc_id is None:
         logging.error(f"[{cluster_name}] could not find VPC ID for cluster")
         yield None
 
     account_tgws = awsapi.get_tgws_details(
-        account,
+        account.dict(by_alias=True),
         cluster_region,
         cluster_cidr_block,
-        tags=json.loads(peer_connection.get("tags") or "{}"),
-        route_tables=peer_connection.get("manageRoutes"),
-        security_groups=peer_connection.get("manageSecurityGroups"),
-        route53_associations=peer_connection.get("manageRoute53Associations"),
+        tags=peer_connection.tags or {},
+        route_tables=peer_connection.manage_routes,
+        security_groups=peer_connection.manage_security_groups,
+        route53_associations=peer_connection.manage_route53_associations,
     )
     for tgw in account_tgws:
-        connection_name = f"{peer_connection['name']}_{account['name']}-{tgw['tgw_id']}"
+        connection_name = f"{peer_connection.name}_{account.name}-{tgw['tgw_id']}"
         requester = _build_requester(peer_connection, account, tgw)
-        item = {
-            "connection_provider": TGW_CONNECTION_PROVIDER,
-            "connection_name": connection_name,
-            "requester": requester,
-            "accepter": accepter,
-            "deleted": peer_connection.get("delete", False),
-        }
+        item = DesiredStateItem(
+            connection_provider=TGW_CONNECTION_PROVIDER,
+            connection_name=connection_name,
+            requester=requester,
+            accepter=accepter,
+            deleted=peer_connection.delete or False,
+        )
         yield item
 
 
-def _account_with_assume_role_data(
-    peer_connection: Mapping,
+def _build_account_with_assume_role(
+    peer_connection: ClusterPeeringConnectionAccountTGWV1,
     cluster_name: str,
     region: str,
     cidr_block: str,
     ocm: Optional[OCM],
-) -> dict[str, Any]:
-    account = peer_connection["account"]
+) -> AccountWithAssumeRole:
+    account = peer_connection.account
     # assume_role is the role to assume to provision the
     # peering connection request, through the accepter AWS account.
-    provided_assume_role = peer_connection.get("assumeRole")
+    assume_role = peer_connection.assume_role
     # if an assume_role is provided, it means we don't need
     # to get the information from OCM. it likely means that
     # there is no OCM at all.
-    if provided_assume_role:
-        account["assume_role"] = provided_assume_role
-    else:
+    if not assume_role:
         if not ocm:
             raise ValueError("OCM is required to get assume_role data")
-        account[
-            "assume_role"
-        ] = ocm.get_aws_infrastructure_access_terraform_assume_role(
-            cluster_name, account["uid"], account["terraformUsername"]
+        assume_role = ocm.get_aws_infrastructure_access_terraform_assume_role(
+            cluster_name, account.uid, account.terraform_username
         )
-    account["assume_region"] = region
-    account["assume_cidr"] = cidr_block
-    return account
+    return AccountWithAssumeRole(
+        name=account.name,
+        uid=account.uid,
+        assume_role=assume_role,
+        assume_region=region,
+        assume_cidr=cidr_block,
+    )
 
 
 def _build_accepter(
-    peer_connection: Mapping,
-    account: Mapping,
+    peer_connection: ClusterPeeringConnectionAccountTGWV1,
+    account: AccountWithAssumeRole,
     region: str,
     cidr_block: str,
     awsapi: AWSApi,
-) -> dict[str, Any]:
+) -> Accepter:
     (vpc_id, route_table_ids, subnets_id_az) = awsapi.get_cluster_vpc_details(
-        account,
-        route_tables=peer_connection.get("manageRoutes"),
+        account.dict(by_alias=True),
+        route_tables=peer_connection.manage_routes,
         subnets=True,
     )
-    return {
-        "cidr_block": cidr_block,
-        "region": region,
-        "vpc_id": vpc_id,
-        "route_table_ids": route_table_ids,
-        "subnets_id_az": subnets_id_az,
-        "account": account,
-    }
+    return Accepter(
+        cidr_block=cidr_block,
+        region=region,
+        vpc_id=vpc_id,
+        route_table_ids=route_table_ids,
+        subnets_id_az=subnets_id_az,
+        account=account,
+    )
 
 
 def _build_requester(
-    peer_connection: Mapping,
-    account: Mapping,
+    peer_connection: ClusterPeeringConnectionAccountTGWV1,
+    account: AccountWithAssumeRole,
     tgw: Mapping,
-) -> dict[str, Any]:
-    return {
-        "tgw_id": tgw["tgw_id"],
-        "tgw_arn": tgw["tgw_arn"],
-        "region": tgw["region"],
-        "routes": tgw.get("routes"),
-        "rules": tgw.get("rules"),
-        "hostedzones": tgw.get("hostedzones"),
-        "cidr_block": peer_connection.get("cidrBlock"),
-        "account": account,
-    }
+) -> Requester:
+    return Requester(
+        tgw_id=tgw["tgw_id"],
+        tgw_arn=tgw["tgw_arn"],
+        region=tgw["region"],
+        routes=tgw.get("routes"),
+        rules=tgw.get("rules"),
+        hostedzones=tgw.get("hostedzones"),
+        cidr_block=peer_connection.cidr_block,
+        account=account,
+    )
 
 
 def _build_ocm_map(
-    clusters: Iterable[Mapping],
-    settings: Optional[Mapping[str, Any]],
+    clusters: Iterable[ClusterV1],
+    vault_settings: AppInterfaceSettingsV1,
 ) -> Optional[OCMMap]:
-    ocm_clusters = [c for c in clusters if c.get("ocm")]
+    ocm_clusters = [c.dict(by_alias=True) for c in clusters if c.ocm]
     return (
         OCMMap(
-            clusters=ocm_clusters, integration=QONTRACT_INTEGRATION, settings=settings
+            clusters=ocm_clusters,
+            integration=QONTRACT_INTEGRATION,
+            settings=vault_settings.dict(by_alias=True),
         )
         if ocm_clusters
         # this is a case for an OCP cluster which is not provisioned
@@ -205,60 +270,73 @@ def _build_ocm_map(
     )
 
 
-def _validate_tgw_connection_names(desired_state: Iterable[Mapping]) -> None:
-    connection_names = [c["connection_name"] for c in desired_state]
+def _validate_tgw_connection_names(desired_state: Iterable[DesiredStateItem]) -> None:
+    connection_names = [c.connection_name for c in desired_state]
     if len(set(connection_names)) != len(connection_names):
         raise ValidationError("duplicate tgw connection names found")
 
 
 def _populate_tgw_attachments_working_dirs(
     ts: Terrascript,
-    desired_state: Iterable,
+    desired_state: Iterable[DesiredStateItem],
     print_to_file: Optional[str],
 ) -> dict[str, str]:
-    participating_accounts = [item["requester"]["account"] for item in desired_state]
+    participating_accounts = [
+        item.requester.account.dict(by_alias=True) for item in desired_state
+    ]
     ts.populate_additional_providers(participating_accounts)
-    ts.populate_tgw_attachments(desired_state)
+    ts.populate_tgw_attachments([item.dict(by_alias=True) for item in desired_state])
     working_dirs = ts.dump(print_to_file=print_to_file)
     return working_dirs
 
 
 def _is_tgw_peer_connection(
-    peer_connection: Mapping,
+    peer_connection: Union[
+        ClusterPeeringConnectionAccountTGWV1,
+        ClusterPeeringConnectionAccountV1,
+        ClusterPeeringConnectionAccountVPCMeshV1,
+        ClusterPeeringConnectionClusterRequesterV1,
+        ClusterPeeringConnectionV1,
+    ],
     account_name: Optional[str],
 ) -> bool:
-    return peer_connection["provider"] == TGW_CONNECTION_PROVIDER and (
-        account_name is None or account_name == peer_connection["account"]["name"]
-    )
+    if peer_connection.provider != TGW_CONNECTION_PROVIDER:
+        return False
+    if account_name is None:
+        return True
+    tgw_peer_connection = cast(ClusterPeeringConnectionAccountTGWV1, peer_connection)
+    return tgw_peer_connection.account.name == account_name
 
 
 def _is_tgw_cluster(
-    cluster: Mapping,
+    cluster: ClusterV1,
     account_name: Optional[str] = None,
 ) -> bool:
     return any(
-        _is_tgw_peer_connection(pc, account_name)
-        for pc in cluster["peering"]["connections"]
+        _is_tgw_peer_connection(pc, account_name) for pc in cluster.peering.connections  # type: ignore[union-attr]
     )
 
 
 def _filter_tgw_clusters(
-    clusters: Iterable[Mapping],
+    clusters: Iterable[ClusterV1],
     account_name: Optional[str] = None,
-) -> list:
+) -> list[ClusterV1]:
     return [c for c in clusters if _is_tgw_cluster(c, account_name)]
 
 
 def _filter_tgw_accounts(
-    accounts: Iterable[Mapping],
-    tgw_clusters: Iterable[Mapping],
-) -> list:
+    accounts: Iterable[AWSAccountV1],
+    tgw_clusters: Iterable[ClusterV1],
+) -> list[AWSAccountV1]:
     tgw_account_names = set()
     for cluster in tgw_clusters:
-        for pc in cluster["peering"]["connections"]:
-            if pc["provider"] == TGW_CONNECTION_PROVIDER:
-                tgw_account_names.add(pc["account"]["name"])
-    return [a for a in accounts if a["name"] in tgw_account_names]
+        for peer_connection in cluster.peering.connections:  # type: ignore[union-attr]
+            if peer_connection.provider == TGW_CONNECTION_PROVIDER:
+                tgw_peer_connection = cast(
+                    ClusterPeeringConnectionAccountTGWV1, peer_connection
+                )
+                tgw_account_names.add(tgw_peer_connection.account.name)
+    return [a for a in accounts if a.name in tgw_account_names]
 
 
 @defer
@@ -270,18 +348,17 @@ def run(
     account_name: Optional[str] = None,
     defer: Optional[Callable] = None,
 ) -> None:
-    settings = queries.get_secret_reader_settings()
-    clusters = queries.get_clusters_with_peering_settings()
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(vault_settings.vault)
+    clusters = get_clusters_with_peering(gql.get_api())
     tgw_clusters = _filter_tgw_clusters(clusters, account_name)
-    ocm_map = _build_ocm_map(tgw_clusters, settings)
-    accounts = queries.get_aws_accounts(
-        terraform_state=True,
-        ecrs=False,
-        name=account_name,
-    )
-    tgw_accounts = _filter_tgw_accounts(accounts, tgw_clusters)
+    ocm_map = _build_ocm_map(tgw_clusters, vault_settings)
+    accounts = get_aws_accounts(gql.get_api(), name=account_name)
+    tgw_accounts = [
+        a.dict(by_alias=True) for a in _filter_tgw_accounts(accounts, tgw_clusters)
+    ]
 
-    aws_api = AWSApi(1, tgw_accounts, settings=settings, init_users=False)
+    aws_api = AWSApi(1, tgw_accounts, secret_reader=secret_reader, init_users=False)
     if defer:
         defer(aws_api.cleanup)
 
@@ -301,7 +378,7 @@ def run(
         "",
         thread_pool_size,
         tgw_accounts,
-        settings=settings,
+        settings=vault_settings.dict(by_alias=True),
     )
     working_dirs = _populate_tgw_attachments_working_dirs(
         ts,
