@@ -327,8 +327,7 @@ class UpgradePolicyHandler(BaseModel):
         elif self.action == "delete":
             self.policy.delete(ocm)
         elif self.action == "create":
-            if self.gates_to_agree:
-                self._create_gate_agreements(ocm)
+            self._create_gate_agreements(ocm)
             self.policy.create(ocm)
 
 
