@@ -129,18 +129,14 @@ def find_cidr_duplicates_and_overlap(input_dict: dict):
 
 
 def cidr_block_comparison(input_dict, cluster_name):
-    for compared_cidr_block, comparing_cidr_blocks in zip(
-            input_dict, input_dict[1:]
-        ):
-            if ipaddress.ip_network(input_dict).overlaps(
-                comparing_cidr_blocks
-            ):
-                logging.error(f"VPC peering error in cluster {cluster_name}")
-                logging.error(
-                    f"cidr block {compared_cidr_block} overlaps with another account-vpc with cidr block {comparing_cidr_blocks}"
-                )
-                return False
-            return True
+    for compared_cidr_block, comparing_cidr_blocks in zip(input_dict, input_dict[1:]):
+        if ipaddress.ip_network(input_dict).overlaps(comparing_cidr_blocks):
+            logging.error(f"VPC peering error in cluster {cluster_name}")
+            logging.error(
+                f"cidr block {compared_cidr_block} overlaps with another account-vpc with cidr block {comparing_cidr_blocks}"
+            )
+            return False
+        return True
 
 
 def validate_no_internal_to_public_peerings(
