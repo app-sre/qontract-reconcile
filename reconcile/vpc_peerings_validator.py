@@ -34,16 +34,14 @@ def validate_no_cidr_overlap(
                     aws_account_uid = peering.account.uid  # type: ignore[union-attr]
                     settings = queries.get_secret_reader_settings()
                     accounts = queries.get_aws_accounts(uid=aws_account_uid)
-                    awsapi = AWSApi(
-                        1, accounts, settings=settings, init_users=False
-                    )
+                    awsapi = AWSApi(1, accounts, settings=settings, init_users=False)
                     mesh_results = awsapi.get_vpcs_details(accounts[0])
                     for mesh_result in mesh_results:
                         vpc_peering_info = {
                             "provider": peering.provider,
                             "vpc_peering": {
-                                "vpc_name": mesh_result['vpc_id'],
-                                "cidr_block": mesh_result['cidr_block'],
+                                "vpc_name": mesh_result["vpc_id"],
+                                "cidr_block": mesh_result["cidr_block"],
                             },
                         }
                         if cluster.name not in peerings_enteries_dict:

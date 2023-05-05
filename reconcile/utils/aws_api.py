@@ -892,7 +892,6 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         subnets = ec2.describe_subnets(Filters=[{"Name": "vpc-id", "Values": [vpc_id]}])
         return subnets.get("Subnets", [])
 
-
     def get_cluster_vpc_details(self, account, route_tables=False, subnets=False):
         """
         Returns a cluster VPC details:
