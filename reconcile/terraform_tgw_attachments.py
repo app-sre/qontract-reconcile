@@ -20,7 +20,6 @@ from reconcile.gql_definitions.common.app_interface_vault_settings import (
 )
 from reconcile.gql_definitions.common.clusters_with_peering import (
     ClusterPeeringConnectionAccountTGWV1,
-    ClusterPeeringConnectionAccountTGWV1_AWSAccountV1,
     ClusterPeeringConnectionAccountV1,
     ClusterPeeringConnectionAccountVPCMeshV1,
     ClusterPeeringConnectionClusterRequesterV1,
@@ -59,7 +58,9 @@ class ValidationError(Exception):
     pass
 
 
-class AccountWithAssumeRole(ClusterPeeringConnectionAccountTGWV1_AWSAccountV1):
+class AccountWithAssumeRole(BaseModel):
+    name: str
+    uid: str
     assume_role: str
     assume_region: str
     assume_cidr: str
@@ -203,10 +204,11 @@ def _build_account_with_assume_role(
             cluster_name, account.uid, account.terraform_username
         )
     return AccountWithAssumeRole(
+        name=account.name,
+        uid=account.uid,
         assume_role=assume_role,
         assume_region=region,
         assume_cidr=cidr_block,
-        **peer_connection.account.dict(by_alias=True),
     )
 
 

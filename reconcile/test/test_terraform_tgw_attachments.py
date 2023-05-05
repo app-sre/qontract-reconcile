@@ -455,7 +455,9 @@ def build_expected_tgw_account(
     connection: ClusterPeeringConnectionAccountTGWV1,
     assume_role: str,
 ) -> dict:
-    return connection.account.dict(by_alias=True) | {
+    return {
+        "name": connection.account.name,
+        "uid": connection.account.uid,
         "assume_role": assume_role,
         "assume_region": cluster.spec.region if cluster.spec is not None else "",
         "assume_cidr": cluster.network.vpc if cluster.network is not None else "",
