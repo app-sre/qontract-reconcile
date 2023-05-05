@@ -9,6 +9,8 @@ from typing import (
     Optional,
 )
 
+from pydantic import BaseModel
+
 from reconcile import queries
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.defer import defer
@@ -34,6 +36,12 @@ def account_in_roles(roles: Iterable[Mapping[str, Any]], aws_account: str) -> bo
     return False
 
 
+class AwsProfileToReset(BaseModel):
+    account: Mapping[str, Any]
+    user_name: str
+    state_key: str
+
+
 @defer
 def run(dry_run, defer=None):
     accounts = queries.get_aws_accounts(reset_passwords=True)
@@ -42,13 +50,13 @@ def run(dry_run, defer=None):
     state = init_state(integration=QONTRACT_INTEGRATION)
     defer(state.cleanup)
 
+    accounts_to_reset: list[AwsProfileToReset] = []
+
     for a in accounts:
         account_name = a["name"]
         reset_passwords = a.get("resetPasswords")
         if not reset_passwords:
             continue
-
-        aws_api: Optional[AWSApi] = None
 
         for r in reset_passwords:
             user_name = r["user"]["org_username"]
@@ -66,16 +74,28 @@ def run(dry_run, defer=None):
                 logging.error(f"User {user_name} is not in account {account_name}")
                 sys.exit(1)
 
-            logging.info(["reset_password", account_name, user_name])
+            accounts_to_reset.append(
+                AwsProfileToReset(
+                    **{
+                        "account": a,
+                        "user_name": user_name,
+                        "state_key": state_key,
+                    }
+                )
+            )
+
+    for a in accounts_to_reset:
+        with AWSApi(1, [a.account], settings=settings) as aws_api:
+            user_name = a.user_name
+            state_key = a.state_key
+
+            account_name = a.account["name"]
+
+            logging.info(["reset_password", account_name, a.user_name])
+
             if dry_run:
                 continue
-
-            if aws_api is None:
-                aws_api = AWSApi(1, [a], settings=settings)
 
             aws_api.reset_password(account_name, user_name)
             aws_api.reset_mfa(account_name, user_name)
             state.add(state_key)
-
-        if aws_api:
-            aws_api.cleanup()
