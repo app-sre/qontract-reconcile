@@ -163,7 +163,7 @@ class QontractReconcileIntegration(ABC, Generic[RunParamsTypeVar]):
     @property
     def secret_reader(self) -> SecretReaderBase:
         """
-        Returns a function that can be used to read secrets from the vault.
+        Returns a function that can be used to read secrets from the vault or another secret reader.
         """
         if self._secret_reader is None:
             vault_settings = get_app_interface_vault_settings()

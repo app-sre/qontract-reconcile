@@ -62,6 +62,11 @@ QONTRACT_INTEGRATION = "advanced-upgrade-scheduler"
 
 
 class AdvancedUpgradeServiceIntegration(OCMClusterUpgradeSchedulerOrgIntegration):
+    """
+    A flavour of the OCM organization based upgrade scheduler, that uses
+    OCM labels to discover clusters and their upgrade policies.
+    """
+
     @property
     def name(self) -> str:
         return QONTRACT_INTEGRATION

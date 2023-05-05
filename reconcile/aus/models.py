@@ -13,6 +13,10 @@ from reconcile.utils.ocm import Sector
 
 
 class ClusterUpgradeSpec(BaseModel):
+    """
+    An upgrade spec for a cluster.
+    """
+
     name: str
     ocm: AUSOCMOrganization
     upgrade_policy: ClusterUpgradePolicy = Field(..., alias="upgradePolicy")
@@ -20,11 +24,19 @@ class ClusterUpgradeSpec(BaseModel):
 
 
 class ClusterValidationError(BaseModel):
+    """
+    A validation error for a cluster.
+    """
+
     cluster_uuid: str
     messages: list[str]
 
 
 class OrganizationUpgradeSpec(BaseModel):
+    """
+    Represents all cluster upgrade specs for an OCM organization.
+    """
+
     org: AUSOCMOrganization
     specs: list[ClusterUpgradeSpec] = Field(default_factory=list)
     _cluster_errors: dict[str, ClusterValidationError] = PrivateAttr(
