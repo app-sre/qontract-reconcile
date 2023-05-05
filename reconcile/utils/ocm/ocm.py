@@ -1582,7 +1582,6 @@ class Sector:
     ocm: OCM
     dependencies: list[Sector] = field(default_factory=lambda: [])
     cluster_infos: list[dict[Any, Any]] = field(default_factory=lambda: [])
-    _validated_dependencies: Optional[set[Sector]] = None
 
     def __key(self):
         return (self.ocm.name, self.name)
