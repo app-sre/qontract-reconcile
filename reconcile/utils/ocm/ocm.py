@@ -1205,6 +1205,19 @@ class OCM:  # pylint: disable=too-many-public-methods
 
         return results
 
+    def create_control_plane_upgrade_policy(self, cluster, spec):
+        """Creates a new Upgrade Policy for the control plane
+
+        :param cluster: cluster name
+        :param spec: required information for creation
+
+        :type cluster: string
+        :type spec: dictionary
+        """
+        cluster_id = self.cluster_ids[cluster]
+        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/control_plane/upgrade_policies"
+        self._post(api, spec)
+
     def create_upgrade_policy(self, cluster, spec):
         """Creates a new Upgrade Policy
 
@@ -1217,6 +1230,23 @@ class OCM:  # pylint: disable=too-many-public-methods
         cluster_id = self.cluster_ids[cluster]
         api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/upgrade_policies"
         self._post(api, spec)
+
+    def delete_control_plane_upgrade_policy(self, cluster, spec):
+        """Deletes an existing Control Plane Upgrade Policy
+
+        :param cluster: cluster name
+        :param spec: required information for update
+
+        :type cluster: string
+        :type spec: dictionary
+        """
+        cluster_id = self.cluster_ids[cluster]
+        upgrade_policy_id = spec["id"]
+        api = (
+            f"{CS_API_BASE}/v1/clusters/{cluster_id}/"
+            + f"control_plane/upgrade_policies/{upgrade_policy_id}"
+        )
+        self._delete(api)
 
     def delete_upgrade_policy(self, cluster, spec):
         """Deletes an existing Upgrade Policy
