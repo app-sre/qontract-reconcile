@@ -1,12 +1,13 @@
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Optional
 
 from pydantic import BaseModel
 
 from reconcile import queries
 from reconcile.aus import base as aus
+from reconcile.aus.base import (
+    AbstractUpgradePolicy,
+    AddonUpgradePolicy,
+)
 from reconcile.aus.models import (
     ClusterUpgradeSpec,
     OrganizationUpgradeSpec,
@@ -25,8 +26,8 @@ QONTRACT_INTEGRATION = "ocm-addons-upgrade-scheduler-org"
 class AUSOrgAddonUpgradeState(BaseModel):
 
     addon_id: str
-    current_state: list[dict[str, Any]]
-    desired_state: list[dict[str, Any]]
+    current_state: list[aus.AbstractUpgradePolicy]
+    upgrade_policies: list[aus.ConfiguredUpgradePolicy]
 
 
 class OCMAddonsUpgradeSchedulerOrgIntegration(
@@ -45,14 +46,14 @@ class OCMAddonsUpgradeSchedulerOrgIntegration(
         for addon_state in addon_states:
             version_data_map = aus.get_version_data_map(
                 dry_run=dry_run,
-                upgrade_policies=addon_state.desired_state,
+                upgrade_policies=addon_state.upgrade_policies,
                 ocm_map=ocm_map,
                 addon_id=addon_state.addon_id,
                 integration=self.name,
             )
             diffs = calculate_diff(
                 addon_state.current_state,
-                addon_state.desired_state,
+                addon_state.upgrade_policies,
                 ocm_map,
                 version_data_map,
                 addon_id=addon_state.addon_id,
@@ -86,7 +87,7 @@ class OCMAddonsUpgradeSchedulerOrgIntegration(
 
 def get_state_for_org_spec(
     org_upgrade_spec: OrganizationUpgradeSpec, fetch_current_state: bool
-) -> tuple[OCMMap, list[dict[str, Any]], list[dict[str, Any]]]:
+) -> tuple[OCMMap, list[aus.AbstractUpgradePolicy], list[aus.ConfiguredUpgradePolicy]]:
     settings = queries.get_app_interface_settings()
     cluster_like_objects = [
         policy.dict(by_alias=True) for policy in org_upgrade_spec.specs
@@ -98,11 +99,13 @@ def get_state_for_org_spec(
         init_version_gates=True,
         init_addons=True,
     )
-    desired_state = aus.fetch_desired_state(cluster_like_objects, ocm_map, addons=True)
-    current_state: list[dict[str, Any]] = []
+    desired_state = aus.fetch_upgrade_policies(
+        org_upgrade_spec.specs, ocm_map, addons=True
+    )
+    current_state: list[aus.AbstractUpgradePolicy] = []
     if fetch_current_state:
         current_state = aus.fetch_current_state(
-            cluster_like_objects,
+            org_upgrade_spec.specs,
             ocm_map,
             addons=True,
         )
@@ -117,41 +120,64 @@ def get_state_for_org_spec_per_addon(
         org_upgrade_spec, fetch_current_state
     )
     result = []
-    for addon_id in set(a["addon_id"] for a in desired_state):
-        addon_current_state = [c for c in current_state if c["addon_id"] == addon_id]
-        addon_desired_state = [d for d in desired_state if d["addon_id"] == addon_id]
+    for addon_id in set(
+        a.addon_id
+        for a in desired_state
+        if isinstance(a, aus.ConfiguredAddonUpgradePolicy)
+    ):
+        addon_current_state = [
+            c
+            for c in current_state
+            if isinstance(c, aus.AddonUpgradePolicy) and c.addon_id == addon_id
+        ]
+        addon_desired_state = [
+            d
+            for d in desired_state
+            if isinstance(d, aus.ConfiguredAddonUpgradePolicy)
+            and d.addon_id == addon_id
+        ]
         result.append(
             AUSOrgAddonUpgradeState(
                 addon_id=addon_id,
                 current_state=addon_current_state,
-                desired_state=addon_desired_state,
+                upgrade_policies=addon_desired_state,
             )
         )
     return ocm_map, result
 
 
 def calculate_diff(
-    addon_current_state: list[dict[str, Any]],
-    addon_desired_state: list[dict[str, Any]],
+    addon_current_state: list[AbstractUpgradePolicy],
+    addon_upgrade_policies: list[aus.ConfiguredUpgradePolicy],
     ocm_map: OCMMap,
     version_data_map: dict[str, VersionData],
     addon_id: str = "",
-) -> list[dict[str, str]]:
+) -> list[aus.UpgradePolicyHandler]:
     diffs = aus.calculate_diff(
         addon_current_state,
-        addon_desired_state,
+        addon_upgrade_policies,
         ocm_map,
         version_data_map,
         addon_id=addon_id,
     )
-    for c in addon_current_state:
-        if addon_id == c["addon_id"] and c["schedule_type"] == "automatic":
+    for current in addon_current_state:
+        if (
+            isinstance(current, AddonUpgradePolicy)
+            and addon_id == current.addon_id
+            and current.schedule_type == "automatic"
+        ):
             diffs.append(
-                {
-                    "action": "delete",
-                    "cluster": c["cluster"],
-                    "version": c["schedule_type"],
-                    "id": c["id"],
-                }
+                aus.UpgradePolicyHandler(
+                    action="delete",
+                    policy=aus.AddonUpgradePolicy(
+                        **{
+                            "cluster": current.cluster,
+                            "version": current.schedule_type,
+                            "id": current.id,
+                            "addon_id": current.addon_id,
+                            "schedule_type": current.schedule_type,
+                        }
+                    ),
+                )
             )
     return diffs

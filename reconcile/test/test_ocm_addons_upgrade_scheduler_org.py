@@ -27,27 +27,31 @@ def ocm_addon_version():
 
 @pytest.fixture
 def automatic_upgrade_policy(addon_id, cluster):
-    return {
-        "id": "automatic-policy-id",
-        "schedule": "0,15,30,45 * * * *",
-        "schedule_type": "automatic",
-        "version": "",
-        "next_run": "2023-01-13T09:45:00Z",
-        "addon_id": addon_id,
-        "cluster": cluster,
-    }
+    return aus.AddonUpgradePolicy(
+        **{
+            "id": "automatic-policy-id",
+            "schedule": "0,15,30,45 * * * *",
+            "schedule_type": "automatic",
+            "version": "",
+            "next_run": "2023-01-13T09:45:00Z",
+            "addon_id": addon_id,
+            "cluster": cluster,
+        }
+    )
 
 
 @pytest.fixture
 def desired_state(addon_id, cluster):
-    return {
-        "workloads": ["workload"],
-        "schedule": "0 * * * 1-5",
-        "conditions": {"soakDays": 0},
-        "addon_id": addon_id,
-        "cluster": cluster,
-        "current_version": "2.0.0",
-    }
+    return aus.ConfiguredAddonUpgradePolicy(
+        **{
+            "workloads": ["workload"],
+            "schedule": "0 * * * 1-5",
+            "conditions": {"soakDays": 0},
+            "addon_id": addon_id,
+            "cluster": cluster,
+            "current_version": "2.0.0",
+        }
+    )
 
 
 @pytest.fixture
@@ -73,12 +77,19 @@ def test_delete_automatic_upgrade_policy(
         addon_id,
     )
     assert diffs == [
-        {
-            "action": "delete",
-            "cluster": cluster,
-            "version": "automatic",
-            "id": automatic_upgrade_policy["id"],
-        }
+        aus.UpgradePolicyHandler(
+            action="delete",
+            policy=aus.AddonUpgradePolicy(
+                **{
+                    "action": "delete",
+                    "cluster": cluster,
+                    "version": "automatic",
+                    "id": automatic_upgrade_policy.id,
+                    "schedule_type": automatic_upgrade_policy.schedule_type,
+                    "addon_id": addon_id,
+                }
+            ),
+        )
     ]
 
 
@@ -101,7 +112,7 @@ def set_upgradeable(monkeypatch):
 
 
 def test_noop(desired_state, ocm_map, addon_id, ocm_addon_version, set_upgradeable):
-    desired_state["current_version"] = ocm_addon_version
+    desired_state.current_version = ocm_addon_version
     diffs = oauso.calculate_diff(
         [],
         [desired_state],
@@ -123,15 +134,19 @@ def test_upgrade_needed(
         addon_id,
     )
     assert diffs == [
-        {
-            "action": "create",
-            "cluster": cluster,
-            "version": ocm_addon_version,
-            "schedule_type": "manual",
-            "addon_id": addon_id,
-            "cluster_id": "clusterid",
-            "upgrade_type": "ADDON",
-        }
+        aus.UpgradePolicyHandler(
+            action="create",
+            policy=aus.AddonUpgradePolicy(
+                **{
+                    "cluster": cluster,
+                    "version": ocm_addon_version,
+                    "schedule_type": "manual",
+                    "addon_id": addon_id,
+                    "cluster_id": "clusterid",
+                    "upgrade_type": "ADDON",
+                }
+            ),
+        )
     ]
 
 
