@@ -1035,3 +1035,28 @@ def test_error_in_terraform_apply(
         integ.run(False)
 
     assert "Error running terraform apply" == str(e.value)
+
+
+def test_early_exit_desired_state(
+    mocker: MockerFixture,
+    app_interface_vault_settings: AppInterfaceSettingsV1,
+    cluster_with_tgw_connection: ClusterV1,
+    cluster_with_vpc_connection: ClusterV1,
+    tgw_account: AWSAccountV1,
+    vpc_account: AWSAccountV1,
+) -> None:
+    _setup_mocks(
+        mocker,
+        vault_settings=app_interface_vault_settings,
+        clusters=[cluster_with_tgw_connection, cluster_with_vpc_connection],
+        accounts=[tgw_account, vpc_account],
+    )
+
+    desired_state = integ.early_exit_desired_state()
+
+    expected_early_exit_desired_state = {
+        "clusters": [cluster_with_tgw_connection.dict(by_alias=True)],
+        "accounts": [tgw_account.dict(by_alias=True)],
+    }
+
+    assert desired_state == expected_early_exit_desired_state

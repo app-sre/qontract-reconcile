@@ -14,7 +14,6 @@ from typing import (
 
 from pydantic import BaseModel
 
-from reconcile import queries
 from reconcile.gql_definitions.common.app_interface_vault_settings import (
     AppInterfaceSettingsV1,
 )
@@ -92,6 +91,11 @@ class DesiredStateItem(BaseModel):
     requester: Requester
     accepter: Accepter
     deleted: bool
+
+
+class DesiredStateDataSource(BaseModel):
+    clusters: list[ClusterV1]
+    accounts: list[AWSAccountV1]
 
 
 def _build_desired_state_tgw_attachments(
@@ -339,6 +343,19 @@ def _filter_tgw_accounts(
     return [a for a in accounts if a.name in tgw_account_names]
 
 
+def _fetch_desired_state_data_source(
+    account_name: Optional[str] = None,
+) -> DesiredStateDataSource:
+    clusters = get_clusters_with_peering(gql.get_api())
+    tgw_clusters = _filter_tgw_clusters(clusters, account_name)
+    accounts = get_aws_accounts(gql.get_api(), name=account_name)
+    tgw_accounts = _filter_tgw_accounts(accounts, tgw_clusters)
+    return DesiredStateDataSource(
+        clusters=tgw_clusters,
+        accounts=tgw_accounts,
+    )
+
+
 @defer
 def run(
     dry_run: bool,
@@ -348,22 +365,18 @@ def run(
     account_name: Optional[str] = None,
     defer: Optional[Callable] = None,
 ) -> None:
+    desired_state_data_source = _fetch_desired_state_data_source(account_name)
+    accounts = [a.dict(by_alias=True) for a in desired_state_data_source.accounts]
+
     vault_settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(vault_settings.vault)
-    clusters = get_clusters_with_peering(gql.get_api())
-    tgw_clusters = _filter_tgw_clusters(clusters, account_name)
-    ocm_map = _build_ocm_map(tgw_clusters, vault_settings)
-    accounts = get_aws_accounts(gql.get_api(), name=account_name)
-    tgw_accounts = [
-        a.dict(by_alias=True) for a in _filter_tgw_accounts(accounts, tgw_clusters)
-    ]
-
-    aws_api = AWSApi(1, tgw_accounts, secret_reader=secret_reader, init_users=False)
+    aws_api = AWSApi(1, accounts, secret_reader=secret_reader, init_users=False)
     if defer:
         defer(aws_api.cleanup)
 
+    ocm_map = _build_ocm_map(desired_state_data_source.clusters, vault_settings)
     desired_state, err = _build_desired_state_tgw_attachments(
-        tgw_clusters,
+        desired_state_data_source.clusters,
         ocm_map,
         aws_api,
         account_name,
@@ -377,7 +390,7 @@ def run(
         QONTRACT_INTEGRATION,
         "",
         thread_pool_size,
-        tgw_accounts,
+        accounts,
         settings=vault_settings.dict(by_alias=True),
     )
     working_dirs = _populate_tgw_attachments_working_dirs(
@@ -393,7 +406,7 @@ def run(
         QONTRACT_INTEGRATION,
         QONTRACT_INTEGRATION_VERSION,
         "",
-        tgw_accounts,
+        accounts,
         working_dirs,
         thread_pool_size,
         aws_api,
@@ -416,8 +429,8 @@ def run(
         raise RuntimeError("Error running terraform apply")
 
 
-def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
-    return {
-        "clusters": queries.get_clusters_with_peering_settings(),
-        "accounts": queries.get_aws_accounts(terraform_state=True, ecrs=False),
-    }
+def early_exit_desired_state(
+    *args: Any,
+    **kwargs: Any,
+) -> dict[str, Any]:
+    return _fetch_desired_state_data_source().dict(by_alias=True)
