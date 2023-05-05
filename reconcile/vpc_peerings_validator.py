@@ -96,11 +96,20 @@ def validate_no_cidr_overlap(
 
 
 def find_cidr_duplicates_and_overlap(input_dict: dict):
+    cluster_cidr_blocks = []
+
     items_for_dict = list(input_dict.items())
     for cluster_name, cluster_data in items_for_dict:
         account_vpc_list = []
         account_vpc_mesh_list = []
         cluster_cidr = cluster_data.get("cidr_block")
+        cluster_cidr_blocks.append(ipaddress.ip_network(cluster_cidr))
+        for cidr_block in cluster_cidr_blocks[:-1]:
+            if ipaddress.ip_network(cluster_cidr).overlaps(cidr_block):
+                logging.error(
+                    f"Cluster {cluster_name} overlaps with CIDR block {cidr_block}"
+                )
+                return False
         cluster_providers = cluster_data.get("providers")
         for provider in cluster_providers:
             if provider.get("provider") == "account-vpc":
@@ -123,20 +132,29 @@ def find_cidr_duplicates_and_overlap(input_dict: dict):
                     logging.error(
                         f"{cluster_name} overlaps with cidr block {vpc_peering_compare['cidr_block']}"
                     )
-        cidr_block_comparison(account_vpc_list, cluster_name)
-        cidr_block_comparison(account_vpc_mesh_list, cluster_name)
+        for compared_cidr_block, comparing_cidr_blocks in zip(
+            account_vpc_list, account_vpc_list[1:]
+        ):
+            if ipaddress.ip_network(compared_cidr_block).overlaps(
+                comparing_cidr_blocks
+            ):
+                logging.error(f"VPC peering error in cluster {cluster_name}")
+                logging.error(
+                    f"cidr block {compared_cidr_block} overlaps with another account-vpc with cidr block {comparing_cidr_blocks}"
+                )
+                return False
+        for compared_cidr_block, comparing_cidr_blocks in zip(
+            account_vpc_mesh_list, account_vpc_mesh_list[1:]
+        ):
+            if ipaddress.ip_network(account_vpc_mesh_list).overlaps(
+                comparing_cidr_blocks
+            ):
+                logging.error(f"VPC peering error in cluster {cluster_name}")
+                logging.error(
+                    f"cidr block {compared_cidr_block} overlaps with another account-vpc with cidr block {comparing_cidr_blocks}"
+                )
+                return False
     return True
-
-
-def cidr_block_comparison(input_dict, cluster_name):
-    for compared_cidr_block, comparing_cidr_blocks in zip(input_dict, input_dict[1:]):
-        if ipaddress.ip_network(input_dict).overlaps(comparing_cidr_blocks):
-            logging.error(f"VPC peering error in cluster {cluster_name}")
-            logging.error(
-                f"cidr block {compared_cidr_block} overlaps with another account-vpc with cidr block {comparing_cidr_blocks}"
-            )
-            return False
-        return True
 
 
 def validate_no_internal_to_public_peerings(
