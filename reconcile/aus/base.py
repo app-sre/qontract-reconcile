@@ -802,9 +802,7 @@ def calculate_diff(
                         ),
                     )
                 )
-            elif (
-                cluster.spec.hypershift is not None and cluster.spec.hypershift is True
-            ):
+            elif cluster.spec.hypershift:
                 diffs.append(
                     UpgradePolicyHandler(
                         action="create",
