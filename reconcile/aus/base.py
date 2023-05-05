@@ -169,17 +169,29 @@ class AddonUpgradePolicy(AbstractUpgradePolicy):
 class ClusterUpgradePolicy(AbstractUpgradePolicy):
     """Class to create and delete ClusterUpgradePolicies in OCM"""
 
-    gates_to_agree: Optional[list[GateAgreement]]
-
-    def _create_gate_agreements(self, ocm: OCM) -> None:
-        for gate in self.gates_to_agree or []:
-            gate.create(ocm, self.cluster)
-
     def create(self, ocm: OCM) -> None:
-        self._create_gate_agreements(ocm)
         policy = {
             "version": self.version,
             "schedule_type": "manual",
+            "next_run": self.next_run,
+        }
+        ocm.create_control_plane_upgrade_policy(self.cluster, policy)
+
+    def delete(self, ocm: OCM) -> None:
+        item = {
+            "id": self.id,
+        }
+        ocm.delete_control_plane_upgrade_policy(self.cluster, item)
+
+
+class ControlPlaneUpgradePolicy(AbstractUpgradePolicy):
+    """Class to create and delete ControlPlanUpgradePolicies in OCM"""
+
+    def create(self, ocm: OCM) -> None:
+        policy = {
+            "version": self.version,
+            "schedule_type": "manual",
+            "upgrade_type": "ControlPlane",
             "next_run": self.next_run,
         }
         ocm.create_upgrade_policy(self.cluster, policy)
@@ -198,6 +210,12 @@ class UpgradePolicyHandler(BaseModel):
     action: str
     policy: AbstractUpgradePolicy
 
+    gates_to_agree: Optional[list[GateAgreement]]
+
+    def _create_gate_agreements(self, ocm: OCM) -> None:
+        for gate in self.gates_to_agree or []:
+            gate.create(ocm, self.policy.cluster)
+
     def act(self, dry_run: bool, ocm: OCM) -> None:
         action_log(
             self.action,
@@ -214,6 +232,8 @@ class UpgradePolicyHandler(BaseModel):
         elif self.action == "delete":
             self.policy.delete(ocm)
         elif self.action == "create":
+            if self.gates_to_agree:
+                self._create_gate_agreements(ocm)
             self.policy.create(ocm)
 
 
@@ -665,6 +685,10 @@ def calculate_diff(
         if verify_lock_should_skip(p, locked, ocm, p.cluster):
             continue
 
+        cluster = ocm.clusters.get(p.cluster)
+        if not cluster:
+            continue
+
         upgrades = get_upgrades(addon_id, p, ocm)
         version = upgradeable_version(p, version_data_map, ocm, upgrades, addon_id)
         if version:
@@ -684,6 +708,32 @@ def calculate_diff(
                         ),
                     )
                 )
+            elif (
+                cluster.spec.hypershift is not None and cluster.spec.hypershift is True
+            ):
+                diffs.append(
+                    UpgradePolicyHandler(
+                        action="create",
+                        policy=ControlPlaneUpgradePolicy(
+                            **{
+                                "action": "create",
+                                "cluster": p.cluster,
+                                "version": version,
+                                "schedule_type": "manual",
+                                "next_run": next_schedule,
+                            }
+                        ),
+                        gates_to_agree=[
+                            GateAgreement(id=g)
+                            for g in gates_to_agree(
+                                get_version_prefix(version),
+                                p.cluster,
+                                p.current_version,
+                                ocm,
+                            )
+                        ],
+                    )
+                )
             else:
                 diffs.append(
                     UpgradePolicyHandler(
@@ -695,17 +745,17 @@ def calculate_diff(
                                 "version": version,
                                 "schedule_type": "manual",
                                 "next_run": next_schedule,
-                                "gates_to_agree": [
-                                    GateAgreement(id=g)
-                                    for g in gates_to_agree(
-                                        get_version_prefix(version),
-                                        p.cluster,
-                                        p.current_version,
-                                        ocm,
-                                    )
-                                ],
                             }
                         ),
+                        gates_to_agree=[
+                            GateAgreement(id=g)
+                            for g in gates_to_agree(
+                                get_version_prefix(version),
+                                p.cluster,
+                                p.current_version,
+                                ocm,
+                            )
+                        ],
                     )
                 )
 
