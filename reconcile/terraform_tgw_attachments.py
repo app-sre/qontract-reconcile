@@ -42,6 +42,7 @@ from reconcile.utils.ocm import (
     OCM,
     OCMMap,
 )
+from reconcile.utils.runtime.integration import DesiredStateShardConfig
 from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.terraform_client import TerraformClient as Terraform
@@ -429,8 +430,16 @@ def run(
         raise RuntimeError("Error running terraform apply")
 
 
-def early_exit_desired_state(
-    *args: Any,
-    **kwargs: Any,
-) -> dict[str, Any]:
+def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
     return _fetch_desired_state_data_source().dict(by_alias=True)
+
+
+def desired_state_shard_config() -> DesiredStateShardConfig:
+    return DesiredStateShardConfig(
+        shard_arg_name="account_name",
+        shard_path_selectors={
+            "accounts[*].name",
+            "clusters[*].peering.connections[*].account.name",
+        },
+        sharded_run_review=lambda proposal: len(proposal.proposed_shards) <= 2,
+    )

@@ -30,6 +30,7 @@ from reconcile.gql_definitions.terraform_tgw_attachments.aws_accounts import (
     AWSAccountV1,
 )
 from reconcile.utils.gql import GqlApi
+from reconcile.utils.runtime.integration import ShardedRunProposal
 from reconcile.utils.secret_reader import SecretReaderBase
 
 QONTRACT_INTEGRATION = "terraform_tgw_attachments"
@@ -1060,3 +1061,36 @@ def test_early_exit_desired_state(
     }
 
     assert desired_state == expected_early_exit_desired_state
+
+
+def test_desired_state_shard_config() -> None:
+    proposal_with_1_shard = ShardedRunProposal(
+        proposed_shards={
+            "account1",
+        }
+    )
+    proposal_with_2_shards = ShardedRunProposal(
+        proposed_shards={
+            "account1",
+            "account2",
+        }
+    )
+    proposal_with_3_shards = ShardedRunProposal(
+        proposed_shards={
+            "account1",
+            "account2",
+            "account3",
+        }
+    )
+
+    config = integ.desired_state_shard_config()
+
+    assert config.shard_arg_name == "account_name"
+    assert config.shard_path_selectors == {
+        "accounts[*].name",
+        "clusters[*].peering.connections[*].account.name",
+    }
+    assert config.shard_arg_is_collection is False
+    assert config.sharded_run_review(proposal_with_1_shard) is True
+    assert config.sharded_run_review(proposal_with_2_shards) is True
+    assert config.sharded_run_review(proposal_with_3_shards) is False
