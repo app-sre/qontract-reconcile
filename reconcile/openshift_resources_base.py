@@ -125,6 +125,17 @@ provider
   vault_tls_secret_path
   vault_tls_secret_version
 }
+... on NamespaceOpenshiftResourcePrometheusRule_v1 {
+  resource: path {
+    content
+    path
+    schema
+  }
+  type
+  variables
+  enable_query_support
+  tests
+}
 """
 
 NAMESPACES_QUERY = """
@@ -207,6 +218,21 @@ QONTRACT_BASE64_SUFFIX = "_qb64"
 APP_INT_BASE_URL = "https://gitlab.cee.redhat.com/service/app-interface"
 
 _log_lock = Lock()
+
+
+def _locked_info_log(msg: str):
+    with _log_lock:
+        logging.info(msg)
+
+
+def _locked_debug_log(msg: str):
+    with _log_lock:
+        logging.debug(msg)
+
+
+def _locked_error_log(msg: str):
+    with _log_lock:
+        logging.error(msg)
 
 
 class FetchSecretError(Exception):
@@ -538,8 +564,6 @@ def fetch_provider_vault_secret(
 
 
 def fetch_provider_route(resource: dict, tls_path, tls_version, settings=None) -> OR:
-    global _log_lock
-
     path = resource["path"]
     openshift_resource = fetch_provider_resource(resource)
 
@@ -568,9 +592,7 @@ def fetch_provider_route(resource: dict, tls_path, tls_version, settings=None) -
         msg = "Route secret '{}' key '{}' not in valid keys {}".format(
             tls_path, k, valid_keys
         )
-        _log_lock.acquire()  # pylint: disable=consider-using-with
-        logging.info(msg)
-        _log_lock.release()
+        _locked_info_log(msg)
 
     host = openshift_resource.body["spec"].get("host")
     certificate = openshift_resource.body["spec"]["tls"].get("certificate")
@@ -583,21 +605,13 @@ def fetch_provider_route(resource: dict, tls_path, tls_version, settings=None) -
     return openshift_resource
 
 
-def _locked_log(lock, msg):
-    lock.acquire()  # pylint: disable=consider-using-with
-    logging.debug(msg)
-    lock.release()
-
-
 def fetch_openshift_resource(
     resource, parent, settings=None, skip_validation=False
 ) -> OR:
-    global _log_lock
-
     provider = resource["provider"]
     if provider == "resource":
         path = resource["resource"]["path"]
-        _locked_log(_log_lock, "Processing {}: {}".format(provider, path))
+        _locked_debug_log("Processing {}: {}".format(provider, path))
         validate_json = resource.get("validate_json") or False
         add_path_to_prom_rules = resource.get("add_path_to_prom_rules", True)
         validate_alertmanager_config = (
@@ -617,7 +631,7 @@ def fetch_openshift_resource(
         )
     elif provider == "resource-template":
         path = resource["resource"]["path"]
-        _locked_log(_log_lock, "Processing {}: {}".format(provider, path))
+        _locked_debug_log("Processing {}: {}".format(provider, path))
         add_path_to_prom_rules = resource.get("add_path_to_prom_rules", True)
         validate_alertmanager_config = (
             resource.get("validate_alertmanager_config") or False
@@ -655,7 +669,7 @@ def fetch_openshift_resource(
     elif provider == "vault-secret":
         path = resource["path"]
         version = resource["version"]
-        _locked_log(_log_lock, "Processing {}: {} - {}".format(provider, path, version))
+        _locked_debug_log("Processing {}: {} - {}".format(provider, path, version))
         rn = resource["name"]
         name = path.split("/")[-1] if rn is None else rn
         rl = resource["labels"]
@@ -688,12 +702,45 @@ def fetch_openshift_resource(
             raise FetchSecretError(e)
     elif provider == "route":
         path = resource["resource"]["path"]
-        _locked_log(_log_lock, "Processing {}: {}".format(provider, path))
+        _locked_debug_log("Processing {}: {}".format(provider, path))
         tls_path = resource["vault_tls_secret_path"]
         tls_version = resource["vault_tls_secret_version"]
         openshift_resource = fetch_provider_route(
             resource["resource"], tls_path, tls_version, settings
         )
+    elif provider == "prometheus-rule":
+        path = resource["resource"]["path"]
+        _locked_debug_log("Processing {}: {}".format(provider, path))
+        add_path_to_prom_rules = resource.get("add_path_to_prom_rules", True)
+        tv = {}
+        if resource["variables"]:
+            tv = anymarkup.parse(resource["variables"], force_types=None)
+        tv["resource"] = resource
+        tv["resource"]["namespace"] = parent
+
+        tt = resource["type"]
+        if tt == "resource":
+            tfunc = None
+            tv = None
+        elif tt == "resource-template-jinja2":
+            tfunc = process_jinja2_template
+        elif tt == "resource-template-extracurlyjinja2":
+            tfunc = process_extracurlyjinja2_template
+        else:
+            raise UnknownTemplateTypeError(tt)
+        try:
+            openshift_resource = fetch_provider_resource(
+                resource["resource"],
+                tfunc=tfunc,
+                tvars=tv,
+                add_path_to_prom_rules=add_path_to_prom_rules,
+                skip_validation=skip_validation,
+                settings=settings,
+            )
+        except Exception as e:
+            msg = "could not render template at path {}\n{}".format(path, e)
+            raise ResourceTemplateRenderError(msg)
+
     else:
         raise UnknownProviderError(provider)
 
@@ -708,12 +755,7 @@ def fetch_current_state(
     kind: str,
     resource_names=Iterable[str],
 ):
-    global _log_lock
-
-    msg = f"Fetching {kind} from {cluster}/{namespace}"
-    _log_lock.acquire()  # pylint: disable=consider-using-with
-    logging.debug(msg)
-    _log_lock.release()
+    _locked_debug_log(f"Fetching {kind} from {cluster}/{namespace}")
     if not oc.is_kind_supported(kind):
         logging.warning(f"[{cluster}] cluster has no API resource {kind}.")
         return
@@ -740,8 +782,6 @@ def fetch_desired_state(
     privileged: bool,
     settings: Optional[Mapping[str, Any]] = None,
 ):
-    global _log_lock
-
     try:
         openshift_resource = fetch_openshift_resource(resource, parent, settings)
     except (
@@ -752,9 +792,7 @@ def fetch_desired_state(
     ) as e:
         ri.register_error()
         msg = "[{}/{}] {}".format(cluster, namespace, str(e))
-        _log_lock.acquire()  # pylint: disable=consider-using-with
-        logging.error(msg)
-        _log_lock.release()
+        _locked_error_log(msg)
         return
 
     # add to inventory
@@ -774,9 +812,7 @@ def fetch_desired_state(
         msg = "[{}/{}] unknown kind: {}. hint: is it missing from managedResourceTypes?".format(
             cluster, namespace, openshift_resource.kind
         )
-        _log_lock.acquire()  # pylint: disable=consider-using-with
-        logging.error(msg)
-        _log_lock.release()
+        _locked_error_log(msg)
         return
     except ResourceKeyExistsError:
         # This is failing because an attempt to add
@@ -786,9 +822,7 @@ def fetch_desired_state(
         msg = ("[{}/{}] desired item already exists: {}/{}.").format(
             cluster, namespace, openshift_resource.kind, openshift_resource.name
         )
-        _log_lock.acquire()  # pylint: disable=consider-using-with
-        logging.error(msg)
-        _log_lock.release()
+        _locked_error_log(msg)
         return
 
 
@@ -890,6 +924,7 @@ def canonicalize_namespaces(
                 override = ["Secret"]
             elif providers[0] == "route":
                 override = ["Route"]
+
             namespace_info["openshiftResources"] = ors
             canonicalized_namespaces.append(namespace_info)
     logging.debug(f"Overriding {override}")
@@ -1169,7 +1204,7 @@ def early_exit_desired_state(
     # to ignore data that is not part of the desired state in app-interface.
     # the context manager also ensures this function patching is
     # reverted afterwards
-    with _early_exit_monkey_patch():
+    with early_exit_monkey_patch():
         resources = threaded.run(
             _early_exit_fetch_resource,
             fetch_specs,
@@ -1218,7 +1253,7 @@ def _early_exit_fetch_resource(spec, settings):
 
 
 @contextmanager
-def _early_exit_monkey_patch():
+def early_exit_monkey_patch():
     """Avoid looking outside of app-interface on early-exit pr-check."""
     orig_lookup_secret = lookup_secret
     orig_lookup_github_file_content = lookup_github_file_content

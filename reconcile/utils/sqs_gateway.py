@@ -13,7 +13,13 @@ class SQSGateway:
     """Wrapper around SQS AWS SDK"""
 
     def __init__(self, accounts, secret_reader: SecretReader):
-        queue_url = os.environ["gitlab_pr_submitter_queue_url"]
+        queue_url = os.environ.get("gitlab_pr_submitter_queue_url")
+        if not queue_url:
+            raise SQSGatewayInitError(
+                "when /app-interface/app-interface-settings-1.yml#mergeRequestGateway "
+                "is set to 'sqs', an ENV variable 'gitlab_pr_submitter_queue_url' needs "
+                "to be provided"
+            )
         account = self.get_queue_account(accounts, queue_url)
         accounts = [a for a in accounts if a["name"] == account]
         self._aws_api = AWSApi(

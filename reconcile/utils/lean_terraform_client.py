@@ -1,38 +1,27 @@
 import json
 import logging
-from subprocess import (
-    PIPE,
-    Popen,
-)
+import subprocess
 
 
 def state_rm_access_key(working_dirs, account, user):
-    # pylint: disable=consider-using-with
     wd = working_dirs[account]
-    proc = Popen(["terraform", "init"], cwd=wd, stdout=PIPE, stderr=PIPE)
-    proc.communicate()
-    if proc.returncode:
+    init_result = subprocess.run(["terraform", "init"], check=False, cwd=wd)
+    if init_result.returncode != 0:
         return False
     resource = "aws_iam_access_key.{}".format(user)
-    proc = Popen(
-        ["terraform", "state", "rm", resource], cwd=wd, stdout=PIPE, stderr=PIPE
-    )
-    proc.communicate()
-    return proc.returncode == 0
+    result = subprocess.run(["terraform", "state", "rm", resource], check=False, cwd=wd)
+    return result.returncode == 0
 
 
 def show_json(working_dir, out_file):
-    # pylint: disable=consider-using-with
-    proc = Popen(
+    result = subprocess.run(
         ["terraform", "show", "-no-color", "-json", out_file],
+        capture_output=True,
+        check=False,
         cwd=working_dir,
-        stdout=PIPE,
-        stderr=PIPE,
     )
-    out, err = proc.communicate()
-    if proc.returncode:
-        # out_file is the name of the account as well
-        msg = f"[{out_file}] terraform show failed: {str(err)}"
+    if result.returncode != 0:
+        msg = f"[{out_file}] terraform show failed: {result.stderr.decode('utf-8')}"
         logging.warning(msg)
         raise Exception(msg)
-    return json.loads(out)
+    return json.loads(result.stdout)

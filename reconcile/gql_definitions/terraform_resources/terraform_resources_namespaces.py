@@ -287,12 +287,37 @@ query TerraformResourcesNamespaces {
                 }
                 rules {
                     condition {
-                        path
-                        methods
+                        type
+                        ... on NamespaceTerraformResourceALBConditionHostHeader_v1 {
+                            host_header
+                        }
+                        ... on NamespaceTerraformResourceALBConditionHTTPRequestMethod_v1 {
+                            http_request_method
+                        }
+                        ... on NamespaceTerraformResourceALBConditionPathPattern_v1 {
+                            path_pattern
+                        }
+                        ... on NamespaceTerraformResourceALBConditionSourceIP_v1 {
+                            source_ip
+                        }
                     }
                     action {
-                        target
-                        weight
+                        type
+                        ... on NamespaceTerraformResourceALBActionForward_v1 {
+                            forward {
+                                target_group {
+                                    target
+                                    weight
+                                }
+                            }
+                        }
+                        ... on NamespaceTerraformResourceALBActionFixedResponse_v1 {
+                            fixed_response {
+                                content_type
+                                message_body
+                                status_code
+                            }
+                        }
                     }
                 }
                 output_resource_name
@@ -733,19 +758,86 @@ class NamespaceTerraformResourceALBTargetsV1(ConfiguredBaseModel):
     openshift_service: Optional[str] = Field(..., alias="openshift_service")
 
 
-class NamespaceTerraformResourceALBConditonV1(ConfiguredBaseModel):
-    path: str = Field(..., alias="path")
-    methods: Optional[list[str]] = Field(..., alias="methods")
+class NamespaceTerraformResourceALBConditionV1(ConfiguredBaseModel):
+    q_type: str = Field(..., alias="type")
+
+
+class NamespaceTerraformResourceALBConditionHostHeaderV1(
+    NamespaceTerraformResourceALBConditionV1
+):
+    host_header: list[str] = Field(..., alias="host_header")
+
+
+class NamespaceTerraformResourceALBConditionHTTPRequestMethodV1(
+    NamespaceTerraformResourceALBConditionV1
+):
+    http_request_method: list[str] = Field(..., alias="http_request_method")
+
+
+class NamespaceTerraformResourceALBConditionPathPatternV1(
+    NamespaceTerraformResourceALBConditionV1
+):
+    path_pattern: list[str] = Field(..., alias="path_pattern")
+
+
+class NamespaceTerraformResourceALBConditionSourceIPV1(
+    NamespaceTerraformResourceALBConditionV1
+):
+    source_ip: list[str] = Field(..., alias="source_ip")
 
 
 class NamespaceTerraformResourceALBActionV1(ConfiguredBaseModel):
+    q_type: str = Field(..., alias="type")
+
+
+class NamespaceTerraformResourceALBTargetGroupV1(ConfiguredBaseModel):
     target: str = Field(..., alias="target")
     weight: int = Field(..., alias="weight")
 
 
+class NamespaceTerraformResourceALBActionForwardSettingsV1(ConfiguredBaseModel):
+    target_group: list[NamespaceTerraformResourceALBTargetGroupV1] = Field(
+        ..., alias="target_group"
+    )
+
+
+class NamespaceTerraformResourceALBActionForwardV1(
+    NamespaceTerraformResourceALBActionV1
+):
+    forward: NamespaceTerraformResourceALBActionForwardSettingsV1 = Field(
+        ..., alias="forward"
+    )
+
+
+class NamespaceTerraformResourceALBActionFixedResponseSettingsV1(ConfiguredBaseModel):
+    content_type: str = Field(..., alias="content_type")
+    message_body: str = Field(..., alias="message_body")
+    status_code: str = Field(..., alias="status_code")
+
+
+class NamespaceTerraformResourceALBActionFixedResponseV1(
+    NamespaceTerraformResourceALBActionV1
+):
+    fixed_response: NamespaceTerraformResourceALBActionFixedResponseSettingsV1 = Field(
+        ..., alias="fixed_response"
+    )
+
+
 class NamespaceTerraformResourceALBRulesV1(ConfiguredBaseModel):
-    condition: NamespaceTerraformResourceALBConditonV1 = Field(..., alias="condition")
-    action: list[NamespaceTerraformResourceALBActionV1] = Field(..., alias="action")
+    condition: list[
+        Union[
+            NamespaceTerraformResourceALBConditionHostHeaderV1,
+            NamespaceTerraformResourceALBConditionHTTPRequestMethodV1,
+            NamespaceTerraformResourceALBConditionPathPatternV1,
+            NamespaceTerraformResourceALBConditionSourceIPV1,
+            NamespaceTerraformResourceALBConditionV1,
+        ]
+    ] = Field(..., alias="condition")
+    action: Union[
+        NamespaceTerraformResourceALBActionForwardV1,
+        NamespaceTerraformResourceALBActionFixedResponseV1,
+        NamespaceTerraformResourceALBActionV1,
+    ] = Field(..., alias="action")
 
 
 class NamespaceTerraformResourceALBV1(NamespaceTerraformResourceAWSV1):

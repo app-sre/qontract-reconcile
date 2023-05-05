@@ -1,0 +1,96 @@
+namespaces:
+- name: example-01
+  path: some-path
+  environment:
+    name: production
+  app:
+    name: example
+  cluster:
+    name: appint-ex-01
+    serverUrl: 'https://cluster-url'
+    internal: false
+    automationToken:
+      path: creds
+      field: token
+  skupperSite: null
+
+- name: example-02
+  path: some-path
+  environment:
+    name: stage
+  app:
+    name: example
+  cluster:
+    name: appint-ex-01
+    serverUrl: 'https://cluster-url'
+    internal: false
+    automationToken:
+      path: creds
+      field: token
+  skupperSite: null
+
+- name: app-interface-integration
+  path: some-path
+  environment:
+    name: production
+    labels: '{"type": "integration"}'
+  app:
+    name: app-interface
+  cluster:
+    name: app-interface-infra
+    serverUrl: 'https://cluster-url'
+    internal: false
+    automationToken:
+      path: creds
+      field: token
+  skupperSite: null
+
+- name: app-interface-test-service-prod
+  path: some-path
+  environment:
+    name: stage
+    labels: '{"type": "stage"}'
+  app:
+    name: app-interface-test-service
+  cluster:
+    name: appint-ex-01
+    serverUrl: 'https://cluster-url'
+    internal: false
+    automationToken:
+      path: creds
+      field: token
+  skupperSite:
+    delete: null
+
+- name: app-interface-test-service-pipelines
+  path: some-path
+  environment:
+    name: production
+  app:
+    name: app-interface-test-service
+  cluster:
+    name: appint-ex-01
+    serverUrl: 'https://cluster-url'
+    internal: false
+    automationToken:
+      path: creds
+      field: token
+  skupperSite:
+    delete: false
+
+- name: app-interface-test-service-stage
+  path: some-path
+  environment:
+    name: stage
+    labels: '{"type": "stage"}'
+  app:
+    name: app-interface-test-service
+  cluster:
+    name: appint-ex-01
+    serverUrl: 'https://cluster-url'
+    internal: false
+    automationToken:
+      path: creds
+      field: token
+  skupperSite:
+    delete: true

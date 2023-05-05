@@ -212,7 +212,7 @@ class DashdotdbDVO(DashdotdbBase):
             return None
         return PrometheusInfo(
             url=cluster.prometheus_url,
-            ssl_verify=((cluster.spec or False) and cluster.spec.private),
+            ssl_verify=True,
             token=self._get_automation_token(cluster.automation_token),
         )
 

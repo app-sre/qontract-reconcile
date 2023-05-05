@@ -22,7 +22,6 @@ from reconcile.utils.binary import (
     binary,
     binary_version,
 )
-from reconcile.utils.environ import environ
 from reconcile.utils.exceptions import PrintToFileInGitRepositoryError
 from reconcile.utils.git import is_file_in_git_repo
 from reconcile.utils.runtime.environment import init_env
@@ -446,6 +445,16 @@ def include_trigger_trace(function):
     return function
 
 
+def trigger_reason(function):
+    function = click.option(
+        "--trigger-reason",
+        help="reason deployment was triggered.",
+        default=None,
+    )(function)
+
+    return function
+
+
 def register_faulthandler(fileobj=sys.__stderr__):
     if fileobj:
         if not faulthandler.is_enabled():
@@ -613,7 +622,6 @@ def github_owners(ctx):
 
 
 @integration.command(short_help="Validate compliance of GitHub user profiles.")
-@environ(["gitlab_pr_submitter_queue_url"])
 @gitlab_project_id
 @threaded()
 @enable_deletion(default=False)
@@ -636,7 +644,6 @@ def github_users(ctx, gitlab_project_id, thread_pool_size, enable_deletion, send
     short_help="Scan GitHub repositories for leaked keys "
     "and remove them (only submits PR)."
 )
-@environ(["gitlab_pr_submitter_queue_url"])
 @gitlab_project_id
 @threaded()
 @binary(["git", "git-secrets"])
@@ -777,7 +784,6 @@ def jenkins_worker_fleets(ctx):
 @integration.command(
     short_help="Manage Jenkins jobs configurations using jenkins-jobs."
 )
-@environ(["APP_INTERFACE_STATE_BUCKET", "APP_INTERFACE_STATE_BUCKET_ACCOUNT"])
 @print_only
 @config_name
 @job_name
@@ -831,7 +837,6 @@ def jenkins_webhooks_cleaner(ctx):
 
 
 @integration.command(short_help="Watch for changes in Jira boards and notify on Slack.")
-@environ(["APP_INTERFACE_STATE_BUCKET", "APP_INTERFACE_STATE_BUCKET_ACCOUNT"])
 @click.pass_context
 def jira_watcher(ctx):
     import reconcile.jira_watcher
@@ -842,7 +847,6 @@ def jira_watcher(ctx):
 @integration.command(
     short_help="Watch for changes in Unleah feature toggles " "and notify on Slack."
 )
-@environ(["APP_INTERFACE_STATE_BUCKET", "APP_INTERFACE_STATE_BUCKET_ACCOUNT"])
 @click.pass_context
 def unleash_watcher(ctx):
     import reconcile.unleash_watcher
@@ -853,7 +857,6 @@ def unleash_watcher(ctx):
 @integration.command(
     short_help="Watches for OpenShift upgrades and sends notifications."
 )
-@environ(["APP_INTERFACE_STATE_BUCKET", "APP_INTERFACE_STATE_BUCKET_ACCOUNT"])
 @binary(["oc", "ssh"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
 @threaded()
@@ -918,7 +921,6 @@ def gitlab_housekeeping(ctx, wait_for_pipeline):
 
 
 @integration.command(short_help="Listen to SQS and creates MRs out of the messages.")
-@environ(["gitlab_pr_submitter_queue_url"])
 @click.argument("gitlab-project-id")
 @click.pass_context
 def gitlab_mr_sqs_consumer(ctx, gitlab_project_id):
@@ -939,7 +941,6 @@ def aws_garbage_collector(ctx, thread_pool_size):
 @integration.command(short_help="Delete IAM access keys by access key ID.")
 @threaded()
 @account_name
-@environ(["APP_INTERFACE_STATE_BUCKET", "APP_INTERFACE_STATE_BUCKET_ACCOUNT"])
 @click.pass_context
 def aws_iam_keys(ctx, thread_pool_size, account_name):
     import reconcile.aws_iam_keys
@@ -950,7 +951,6 @@ def aws_iam_keys(ctx, thread_pool_size, account_name):
 
 
 @integration.command(short_help="Reset IAM user password by user reference.")
-@environ(["APP_INTERFACE_STATE_BUCKET", "APP_INTERFACE_STATE_BUCKET_ACCOUNT"])
 @click.pass_context
 def aws_iam_password_reset(ctx):
     import reconcile.aws_iam_password_reset
@@ -981,7 +981,6 @@ def aws_ecr_image_pull_secrets(ctx, vault_output_path):
     short_help="Scan AWS support cases for reports of leaked keys and "
     "remove them (only submits PR)"
 )
-@environ(["gitlab_pr_submitter_queue_url"])
 @gitlab_project_id
 @threaded()
 @click.pass_context
@@ -1019,8 +1018,6 @@ def openshift_resources(
 
 
 @integration.command(short_help="Manage OpenShift resources defined in Saas files.")
-@environ(["APP_INTERFACE_STATE_BUCKET", "APP_INTERFACE_STATE_BUCKET_ACCOUNT"])
-@environ(["gitlab_pr_submitter_queue_url"])
 @gitlab_project_id
 @threaded()
 @throughput
@@ -1029,6 +1026,7 @@ def openshift_resources(
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
 @click.option("--saas-file-name", default=None, help="saas-file to act on.")
 @click.option("--env-name", default=None, help="environment to deploy to.")
+@trigger_reason
 @click.pass_context
 def openshift_saas_deploy(
     ctx,
@@ -1038,6 +1036,7 @@ def openshift_saas_deploy(
     saas_file_name,
     env_name,
     gitlab_project_id,
+    trigger_reason,
 ):
     import reconcile.openshift_saas_deploy
 
@@ -1050,31 +1049,7 @@ def openshift_saas_deploy(
         saas_file_name=saas_file_name,
         env_name=env_name,
         gitlab_project_id=gitlab_project_id,
-    )
-
-
-@integration.command(short_help="A wrapper around openshift-saas-deploy.")
-@environ(["APP_INTERFACE_STATE_BUCKET", "APP_INTERFACE_STATE_BUCKET_ACCOUNT"])
-@environ(["gitlab_pr_submitter_queue_url"])
-@gitlab_project_id
-@threaded()
-@binary(["oc", "ssh"])
-@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
-@throughput
-@use_jump_host()
-@click.pass_context
-def openshift_saas_deploy_wrapper(
-    ctx, thread_pool_size, io_dir, use_jump_host, gitlab_project_id
-):
-    import reconcile.openshift_saas_deploy_wrapper
-
-    run_integration(
-        reconcile.openshift_saas_deploy_wrapper,
-        ctx.obj,
-        thread_pool_size,
-        io_dir,
-        use_jump_host,
-        gitlab_project_id,
+        trigger_reason=trigger_reason,
     )
 
 
@@ -1083,8 +1058,6 @@ def openshift_saas_deploy_wrapper(
 )
 @click.argument("gitlab-project-id")
 @click.argument("gitlab-merge-request-id")
-@environ(["APP_INTERFACE_STATE_BUCKET", "APP_INTERFACE_STATE_BUCKET_ACCOUNT"])
-@environ(["gitlab_pr_submitter_queue_url"])  # do we need this???
 @threaded()
 @click.option(
     "--comparison-sha",
@@ -1124,7 +1097,6 @@ def saas_file_validator(ctx):
 
 
 @integration.command(short_help="Trigger deployments when a commit changed for a ref.")
-@environ(["APP_INTERFACE_STATE_BUCKET", "APP_INTERFACE_STATE_BUCKET_ACCOUNT"])
 @threaded()
 @binary(["oc", "ssh"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
@@ -1148,7 +1120,6 @@ def openshift_saas_deploy_trigger_moving_commits(
 
 
 @integration.command(short_help="Trigger deployments when upstream job runs.")
-@environ(["APP_INTERFACE_STATE_BUCKET", "APP_INTERFACE_STATE_BUCKET_ACCOUNT"])
 @threaded()
 @binary(["oc", "ssh"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
@@ -1172,7 +1143,6 @@ def openshift_saas_deploy_trigger_upstream_jobs(
 
 
 @integration.command(short_help="Trigger deployments when images are pushed.")
-@environ(["APP_INTERFACE_STATE_BUCKET", "APP_INTERFACE_STATE_BUCKET_ACCOUNT"])
 @threaded()
 @binary(["oc", "ssh"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
@@ -1196,7 +1166,6 @@ def openshift_saas_deploy_trigger_images(
 
 
 @integration.command(short_help="Trigger deployments when configuration changes.")
-@environ(["APP_INTERFACE_STATE_BUCKET", "APP_INTERFACE_STATE_BUCKET_ACCOUNT"])
 @threaded()
 @binary(["oc", "ssh"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
@@ -1264,32 +1233,6 @@ def openshift_tekton_resources(
 
 
 @integration.command(
-    short_help="Manages labels on merge requests "
-    "based on approver schema for saas files."
-)
-@throughput
-@click.argument("gitlab-project-id")
-@click.argument("gitlab-merge-request-id")
-@click.option(
-    "--compare/--no-compare",
-    default=True,
-    help="compare between current and desired state.",
-)
-@click.pass_context
-def saas_file_owners(ctx, gitlab_project_id, gitlab_merge_request_id, io_dir, compare):
-    import reconcile.saas_file_owners
-
-    run_integration(
-        reconcile.saas_file_owners,
-        ctx.obj,
-        gitlab_project_id,
-        gitlab_merge_request_id,
-        io_dir,
-        compare,
-    )
-
-
-@integration.command(
     short_help="Guesses and adds labels to merge requests "
     "according to changed paths."
 )
@@ -1306,7 +1249,6 @@ def gitlab_labeler(ctx, gitlab_project_id, gitlab_merge_request_id):
 
 @integration.command(short_help="Manages labels on OpenShift namespaces.")
 @threaded()
-@environ(["APP_INTERFACE_STATE_BUCKET", "APP_INTERFACE_STATE_BUCKET_ACCOUNT"])
 @binary(["oc", "ssh"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
 @internal()
@@ -1611,7 +1553,6 @@ def ldap_users(ctx, infra_project_id, app_interface_project_id):
 @binary(["terraform", "oc", "git"])
 @binary_version("terraform", ["version"], TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
-@environ(["APP_INTERFACE_STATE_BUCKET", "APP_INTERFACE_STATE_BUCKET_ACCOUNT"])
 @internal()
 @use_jump_host()
 @enable_deletion(default=False)
@@ -1768,6 +1709,22 @@ def cna_resources(
     )
 
 
+@integration.command(short_help="Manage auto-promotions defined in SaaS files")
+@threaded(default=10)
+@click.pass_context
+def saas_auto_promotions_manager(
+    ctx,
+    thread_pool_size,
+):
+    import reconcile.saas_auto_promotions_manager.integration
+
+    run_integration(
+        reconcile.saas_auto_promotions_manager.integration,
+        ctx.obj,
+        thread_pool_size,
+    )
+
+
 @integration.command(short_help="Manage AWS users using Terraform.")
 @print_to_file
 @threaded(default=20)
@@ -1800,7 +1757,9 @@ def terraform_users(
     )
 
 
-@integration.command()
+@integration.command(
+    short_help="Manage VPC peerings between OSD clusters and AWS accounts or other OSD clusters."
+)
 @print_to_file
 @threaded()
 @binary(["terraform", "git"])
@@ -1844,8 +1803,15 @@ def vpc_peerings_validator(ctx):
 @binary(["terraform", "git"])
 @binary_version("terraform", ["version"], TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
 @enable_deletion(default=False)
+@account_name
 @click.pass_context
-def terraform_tgw_attachments(ctx, print_to_file, enable_deletion, thread_pool_size):
+def terraform_tgw_attachments(
+    ctx,
+    print_to_file,
+    enable_deletion,
+    thread_pool_size,
+    account_name,
+):
     import reconcile.terraform_tgw_attachments
 
     if print_to_file and is_file_in_git_repo(print_to_file):
@@ -1856,6 +1822,7 @@ def terraform_tgw_attachments(ctx, print_to_file, enable_deletion, thread_pool_s
         print_to_file,
         enable_deletion,
         thread_pool_size,
+        account_name,
     )
 
 
@@ -1904,7 +1871,6 @@ def ocm_groups(ctx, thread_pool_size):
 
 
 @integration.command(short_help="Manages clusters via OCM.")
-@environ(["gitlab_pr_submitter_queue_url"])
 @gitlab_project_id
 @threaded()
 @click.pass_context
@@ -1936,7 +1902,6 @@ def ocm_cluster_admin(ctx):
 
 
 @integration.command(short_help="Trigger jenkins jobs following Addon upgrades.")
-@environ(["APP_INTERFACE_STATE_BUCKET", "APP_INTERFACE_STATE_BUCKET_ACCOUNT"])
 @click.pass_context
 def ocm_addons_upgrade_tests_trigger(ctx):
     import reconcile.ocm_addons_upgrade_tests_trigger
@@ -1954,7 +1919,6 @@ def ocm_machine_pools(ctx, thread_pool_size):
 
 
 @integration.command(short_help="Manage Upgrade Policy schedules in OCM.")
-@environ(["APP_INTERFACE_STATE_BUCKET", "APP_INTERFACE_STATE_BUCKET_ACCOUNT"])
 @click.pass_context
 def ocm_upgrade_scheduler(ctx):
     from reconcile.aus.base import AdvancedUpgradeSchedulerBaseIntegrationParams
@@ -1971,7 +1935,6 @@ def ocm_upgrade_scheduler(ctx):
 
 
 @integration.command(short_help="Manage Upgrade Policy schedules in OCM organizations.")
-@environ(["APP_INTERFACE_STATE_BUCKET", "APP_INTERFACE_STATE_BUCKET_ACCOUNT"])
 @click.pass_context
 def ocm_upgrade_scheduler_org(ctx):
     from reconcile.aus.base import AdvancedUpgradeSchedulerBaseIntegrationParams
@@ -1990,7 +1953,6 @@ def ocm_upgrade_scheduler_org(ctx):
 
 
 @integration.command(short_help="Update Upgrade Policy schedules in OCM organizations.")
-@environ(["gitlab_pr_submitter_queue_url"])
 @gitlab_project_id
 @click.pass_context
 def ocm_upgrade_scheduler_org_updater(ctx, gitlab_project_id):
@@ -2004,7 +1966,6 @@ def ocm_upgrade_scheduler_org_updater(ctx, gitlab_project_id):
 @integration.command(
     short_help="Manage Addons Upgrade Policy schedules in OCM organizations."
 )
-@environ(["APP_INTERFACE_STATE_BUCKET", "APP_INTERFACE_STATE_BUCKET_ACCOUNT"])
 @click.pass_context
 def ocm_addons_upgrade_scheduler_org(ctx):
 
@@ -2024,7 +1985,6 @@ def ocm_addons_upgrade_scheduler_org(ctx):
 @integration.command(
     short_help="Manage Cluster Upgrade Policy schedules in OCM organizations based on OCM labels."
 )
-@environ(["APP_INTERFACE_STATE_BUCKET", "APP_INTERFACE_STATE_BUCKET_ACCOUNT"])
 @click.pass_context
 def aus_upgrade_scheduler_org(ctx):
 
@@ -2040,7 +2000,6 @@ def aus_upgrade_scheduler_org(ctx):
 
 
 @integration.command(short_help="Update recommended version for OCM orgs")
-@environ(["gitlab_pr_submitter_queue_url"])
 @gitlab_project_id
 @click.pass_context
 def ocm_update_recommended_version(ctx, gitlab_project_id):
@@ -2097,7 +2056,6 @@ def ocm_additional_routers(ctx):
 
 
 @integration.command(short_help="Send email notifications to app-interface audience.")
-@environ(["APP_INTERFACE_STATE_BUCKET", "APP_INTERFACE_STATE_BUCKET_ACCOUNT"])
 @click.pass_context
 def email_sender(ctx):
     import reconcile.email_sender
@@ -2106,7 +2064,6 @@ def email_sender(ctx):
 
 
 @integration.command(short_help="Watch for Sentry access requests and notify on Slack.")
-@environ(["APP_INTERFACE_STATE_BUCKET", "APP_INTERFACE_STATE_BUCKET_ACCOUNT"])
 @click.pass_context
 def sentry_helper(ctx):
     import reconcile.sentry_helper
@@ -2117,7 +2074,6 @@ def sentry_helper(ctx):
 @integration.command(
     short_help="Send emails to users based on " "requests submitted to app-interface."
 )
-@environ(["APP_INTERFACE_STATE_BUCKET", "APP_INTERFACE_STATE_BUCKET_ACCOUNT"])
 @click.pass_context
 def requests_sender(ctx):
     import reconcile.requests_sender
@@ -2142,7 +2098,6 @@ def sentry_config(ctx):
 
 
 @integration.command(short_help="Runs SQL Queries against app-interface RDS resources.")
-@environ(["APP_INTERFACE_STATE_BUCKET", "APP_INTERFACE_STATE_BUCKET_ACCOUNT"])
 @enable_deletion(default=False)
 @click.pass_context
 def sql_query(ctx, enable_deletion):
@@ -2278,11 +2233,27 @@ def integrations_validator(ctx):
 @binary(["promtool"])
 @cluster_name
 @click.pass_context
-def prometheus_rules_tester(ctx, thread_pool_size, cluster_name):
-    import reconcile.prometheus_rules_tester
+def prometheus_rules_tester_old(ctx, thread_pool_size, cluster_name):
+    import reconcile.prometheus_rules_tester_old
 
     run_integration(
-        reconcile.prometheus_rules_tester, ctx.obj, thread_pool_size, cluster_name
+        reconcile.prometheus_rules_tester_old, ctx.obj, thread_pool_size, cluster_name
+    )
+
+
+@integration.command(short_help="Tests prometheus rules using promtool.")
+@threaded(default=5)
+@binary(["promtool"])
+@cluster_name
+@click.pass_context
+def prometheus_rules_tester(ctx, thread_pool_size, cluster_name):
+    import reconcile.prometheus_rules_tester.integration
+
+    run_integration(
+        reconcile.prometheus_rules_tester.integration,
+        ctx.obj,
+        thread_pool_size,
+        cluster_name=cluster_name,
     )
 
 
@@ -2445,6 +2416,21 @@ def vault_replication(ctx):
     help="git ref to use as IMAGE_TAG for given environment. example: '--image-tag-from-ref app-interface-dev=master'.",
     multiple=True,
     callback=parse_image_tag_from_ref,
+    envvar="INTEGRATIONS_MANAGER_IMAGE_TAG_FROM_REF",
+)
+@click.option(
+    "--upstream",
+    "-u",
+    help="specify upstream of managed integrations",
+    default=None,
+    envvar="INTEGRATIONS_MANAGER_UPSTREAM",
+)
+@click.option(
+    "--image",
+    "-i",
+    help="image to use for integrations",
+    default=None,
+    envvar="INTEGRATIONS_MANAGER_IMAGE",
 )
 @click.pass_context
 def integrations_manager(
@@ -2454,6 +2440,8 @@ def integrations_manager(
     internal,
     use_jump_host,
     image_tag_from_ref,
+    upstream,
+    image,
 ):
     import reconcile.integrations_manager
 
@@ -2466,6 +2454,8 @@ def integrations_manager(
         internal,
         use_jump_host,
         image_tag_from_ref,
+        upstream,
+        image,
     )
 
 

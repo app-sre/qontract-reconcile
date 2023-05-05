@@ -1,0 +1,16 @@
+# qenerate: plugin=pydantic_v1
+
+query AppInterfaceStateSettings {
+  settings: app_interface_settings_v1 {
+    state {
+      provider
+      ... on AppInterfaceStateConfigurationS3_v1 {
+        bucket
+        region
+        credentials {
+          ... VaultSecret
+        }
+      }
+    }
+  }
+}

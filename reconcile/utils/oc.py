@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import re
+import subprocess
 import tempfile
 import threading
 import time
@@ -14,10 +15,7 @@ from contextlib import suppress
 from dataclasses import dataclass
 from datetime import datetime
 from functools import wraps
-from subprocess import (
-    PIPE,
-    Popen,
-)
+from subprocess import Popen
 from threading import Lock
 from typing import (
     Any,
@@ -30,7 +28,6 @@ from kubernetes.client import (
     ApiClient,
     Configuration,
 )
-from kubernetes.client.exceptions import ApiException
 from kubernetes.dynamic.client import DynamicClient
 from kubernetes.dynamic.discovery import (
     LazyDiscoverer,
@@ -245,9 +242,9 @@ def equal_spec_template(t1: dict, t2: dict) -> bool:
 
 
 @dataclass
-class OCDeprecatedApiResource:
+class OCCliApiResource:
     """This class mimics kubernetes.dynamic.resource.Resource and it's used
-    To get Api Resources with the OCDeprecated client"""
+    To get Api Resources with the OCCli client"""
 
     kind: str
     group: str
@@ -261,7 +258,7 @@ class OCDeprecatedApiResource:
         return self.api_version
 
 
-class OCDeprecated:  # pylint: disable=too-many-public-methods
+class OCCli:  # pylint: disable=too-many-public-methods
     def __init__(
         self,
         cluster_name: Optional[str],
@@ -722,15 +719,13 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
                     r = line.split()
                     kind = r[-1]
                     namespaced = r[-2].lower() == "true"
+                    # r[-3] is APIVERSION column
+                    # it can be core group e.g. v1
+                    # or group/version e.g. apps/v1
                     group_version = r[-3].split("/", 1)
-                    # Core group (v1)
-                    group = ""
-                    api_version = group_version
-                    if len(group_version) > 1:
-                        # group/version
-                        group = group_version[0]
-                        api_version = group_version[1]
-                    obj = OCDeprecatedApiResource(kind, group, api_version, namespaced)
+                    group = "" if len(group_version) == 1 else group_version[0]
+                    api_version = group_version[-1]
+                    obj = OCCliApiResource(kind, group, api_version, namespaced)
                     d = self.api_resources.setdefault(kind, [])
                     d.append(obj)
 
@@ -1069,25 +1064,15 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
         return resources
 
     @retry(exceptions=(StatusCodeError, NoOutputError), max_attempts=10)
-    def _run(self, cmd, **kwargs):
-        if kwargs.get("stdin"):
-            stdin = PIPE
-            stdin_text = kwargs.get("stdin").encode()
-        else:
-            stdin = None
-            stdin_text = None
-
-        p = Popen(  # pylint: disable=consider-using-with
-            self.oc_base_cmd + cmd, stdin=stdin, stdout=PIPE, stderr=PIPE
+    def _run(self, cmd, **kwargs) -> bytes:
+        stdin = kwargs.get("stdin")
+        stdin_text = stdin.encode() if stdin else None
+        result = subprocess.run(
+            self.oc_base_cmd + cmd, input=stdin_text, capture_output=True, check=False
         )
-        out, err = p.communicate(stdin_text)
-
-        code = p.returncode
-
+        err = result.stderr.decode("utf-8") if result.stderr else ""
         allow_not_found = kwargs.get("allow_not_found")
-
-        if code != 0:
-            err = err.decode("utf-8")
+        if result.returncode != 0:
             if "Unable to connect to the server" in err:
                 raise StatusCodeError(f"[{self.server}]: {err}")
             if kwargs.get("apply"):
@@ -1120,12 +1105,12 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
             if not (allow_not_found and "NotFound" in err):
                 raise StatusCodeError(f"[{self.server}]: {err}")
 
-        if not out:
+        if not result.stdout:
             if allow_not_found:
-                return "{}"
+                return b"{}"
             raise NoOutputError(err)
 
-        return out.strip()
+        return result.stdout.strip()
 
     def _run_json(self, cmd, allow_not_found=False):
         out = self._run(cmd, allow_not_found=allow_not_found)
@@ -1209,7 +1194,7 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
         return kind_resources[0].namespaced
 
 
-class OCNative(OCDeprecated):
+class OCNative(OCCli):
     def __init__(
         self,
         cluster_name: Optional[str],
@@ -1309,46 +1294,6 @@ class OCNative(OCDeprecated):
             )
         return self.object_clients[key]
 
-    # this function returns a kind:Resource for each kind on the
-    # cluster
-    def get_api_resources(self):
-        c_res = self.client.resources
-        # this returns a prefix:apis map
-        apis = c_res.parse_api_groups(request_resources=False, update=True)
-        api_resources = {}
-        for prefix, api_groups in apis.items():
-            # each api prefix consists of api:versions map
-            for group, versions in api_groups.items():
-                if prefix == "apis" and len(group) == 0:
-                    # the apis group has an entry with an empty api, but
-                    # querying the apis group with a blank api produces an
-                    # error.  We skip that condition with this hack
-                    continue
-                # each version is a version:resource_group map, where resource_group
-                # contains if this api version is preferred and optionally a list of
-                # kinds that are part of that apigroup/version.
-                for version, resource_group in versions.items():
-                    try:
-                        resource_list = c_res.get_resources_for_api_version(
-                            prefix, group, version, True
-                        )
-                    except ApiException:
-                        # there may be apigroups/versions that require elevated
-                        # permisions, so go to the next one
-                        continue
-                    # resources is a map containing kind:Resource and
-                    # {kind}List:ResourceList where a Resource contains the api
-                    # group_version (group/api_version) and a ResourceList
-                    # represents a list of API objects
-                    for kind, resources in resource_list.items():
-                        for r in resources:
-                            if isinstance(r, ResourceList):
-                                continue
-                            api_resources = self.add_api_resource(
-                                kind, api_resources, resource_group.preferred, r
-                            )
-        return api_resources
-
     @retry(max_attempts=5, exceptions=(ServerTimeoutError))
     def get_items(self, kind, **kwargs):
         k, group_version = self._parse_kind(kind)
@@ -1415,47 +1360,11 @@ class OCNative(OCDeprecated):
         except NotFoundError as e:
             raise StatusCodeError(f"[{self.server}]: {e}")
 
-    @staticmethod
-    def add_api_resource(kind, api_resources, preferred, resource):
-        new_api_resources = copy.copy(api_resources)
 
-        if kind not in api_resources:
-            # this is a new kind so add it
-            new_api_resources[kind] = [resource]
-        else:
-            # this kind already exists, so check if this apigroup has
-            # already been added as an option.  If this apigroup/version is the
-            # preferred one, then replace the apigroup/version so that the
-            # preferred apigroup/version is used instead of a non-preferred one
-            # group = resource.group_version.split("/", 1)[0]
-            new_group = True
-            for pos in range(len(api_resources[kind])):
-                if resource.group == api_resources[kind][pos].group:
-                    new_group = False
-                    if preferred:
-                        new_api_resources[kind][pos] = resource
-                    break
-
-            if new_group:
-                # this is a new apigroup
-                new_api_resources[kind].append(resource)
-        return new_api_resources
-
-    def is_kind_supported(self, kind: str) -> bool:
-        if "." in kind:
-            try:
-                self._parse_kind(kind)
-                return True
-            except StatusCodeError:
-                return False
-        else:
-            return kind in (self.api_resources or {})
+OCClient = Union[OCNative, OCCli]
 
 
-OCClient = Union[OCNative, OCDeprecated]
-
-
-class OCLocal(OCDeprecated):
+class OCLocal(OCCli):
     def __init__(
         self,
         cluster_name,
@@ -1519,7 +1428,7 @@ class OC:
             )
 
         OC.client_status.labels(cluster_name=cluster_name, native_client=False).inc()
-        return OCDeprecated(
+        return OCCli(
             cluster_name=cluster_name,
             server=server,
             token=token,

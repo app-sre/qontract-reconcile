@@ -44,7 +44,7 @@ from reconcile.gql_definitions.change_owners.queries.self_service_roles import (
 @dataclass
 class StubFile:
     filepath: str
-    fileschema: str
+    fileschema: Optional[str]
     filetype: str
     content: dict[str, Any]
 
@@ -83,6 +83,19 @@ def build_test_datafile(
         filepath=filepath or "datafile.yaml",
         fileschema=schema or "schema-1.yml",
         filetype=BundleFileType.DATAFILE.value,
+        content=content,
+    )
+
+
+def build_test_resourcefile(
+    content: dict[str, Any],
+    filepath: Optional[str] = None,
+    schema: Optional[str] = None,
+) -> StubFile:
+    return StubFile(
+        filepath=filepath or "path.yaml",
+        fileschema=schema,
+        filetype=BundleFileType.RESOURCEFILE.value,
         content=content,
     )
 
@@ -171,12 +184,13 @@ def build_change_type(
     change_selectors: list[str],
     change_schema: Optional[str] = None,
     context_schema: Optional[str] = None,
+    context_type: BundleFileType = BundleFileType.DATAFILE,
 ) -> ChangeTypeProcessor:
     return change_type_to_processor(
         ChangeTypeV1(
             name=name,
             description=name,
-            contextType=BundleFileType.DATAFILE.value,
+            contextType=context_type.value,
             contextSchema=context_schema,
             changes=[
                 build_jsonpath_change(

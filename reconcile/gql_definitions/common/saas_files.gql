@@ -86,6 +86,7 @@ query SaasFiles {
         ...VaultSecret
       }
     }
+    validateTargetsInApp
     resourceTemplates {
       name
       url
@@ -103,24 +104,15 @@ query SaasFiles {
         path
         name
         namespace {
-          name
-          environment {
-            name
-            parameters
-            secretParameters {
-              name
-              secret {
-                ...VaultSecret
-              }
-            }
-          }
-          app {
-            name
-          }
-          cluster {
-            ...OcConnectionCluster
+          ...SaasTargetNamespace
+        }
+        namespaceSelector {
+          jsonPathSelectors {
+            include
+            exclude
           }
         }
+        provider
         ref
         promotion {
           auto

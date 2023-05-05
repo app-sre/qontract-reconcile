@@ -8,17 +8,27 @@ import sys
 from collections import defaultdict
 from datetime import datetime
 from operator import itemgetter
-from typing import Optional
+from typing import (
+    Any,
+    Optional,
+)
 
 import click
 import requests
 import yaml
+from rich import box
+from rich.console import (
+    Console,
+    Group,
+)
+from rich.table import Table
+from rich.tree import Tree
 from sretoolbox.utils import threaded
 
 import reconcile.aus.base as aus
-import reconcile.gitlab_housekeeping as glhk
 import reconcile.openshift_base as ob
 import reconcile.openshift_resources_base as orb
+import reconcile.prometheus_rules_tester.integration as ptr
 import reconcile.terraform_resources as tfr
 import reconcile.terraform_users as tfu
 import reconcile.terraform_vpc_peerings as tfvpc
@@ -37,13 +47,18 @@ from reconcile.cli import (
     config_file,
     use_jump_host,
 )
+from reconcile.gql_definitions.common.app_interface_vault_settings import (
+    AppInterfaceSettingsV1,
+)
 from reconcile.jenkins_job_builder import init_jjb
-from reconcile.prometheus_rules_tester import get_data_from_jinja_test_template
+from reconcile.prometheus_rules_tester_old import get_data_from_jinja_test_template
 from reconcile.slack_base import slackapi_from_queries
+from reconcile.typed_queries.alerting_services_settings import get_alerting_services
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
 from reconcile.typed_queries.clusters import get_clusters
+from reconcile.typed_queries.saas_files import get_saas_files
 from reconcile.utils import (
     amtool,
     config,
@@ -76,6 +91,7 @@ from reconcile.utils.oc import (
 from reconcile.utils.oc_map import init_oc_map_from_clusters
 from reconcile.utils.ocm import OCMMap
 from reconcile.utils.output import print_output
+from reconcile.utils.saasherder.saasherder import SaasHerder
 from reconcile.utils.secret_reader import (
     SecretReader,
     create_secret_reader,
@@ -274,16 +290,15 @@ def version_history(ctx):
 
 
 def soaking_days(
-    version_data_map: dict[str, VersionData],
+    version_data: VersionData,
     upgrades: list[str],
     workload: str,
     only_soaking: bool,
 ) -> dict[str, float]:
     soaking = {}
     for version in upgrades:
-        for h in version_data_map.values():
-            workload_history = h.workload_history(version, workload)
-            soaking[version] = round(workload_history.soak_days, 2)
+        workload_history = version_data.workload_history(version, workload)
+        soaking[version] = round(workload_history.soak_days, 2)
         if not only_soaking and version not in soaking:
             soaking[version] = 0
     return soaking
@@ -387,7 +402,10 @@ def get_upgrade_policies_data(
         for w in c.workloads or []:
             if not workload or workload == w:
                 s = soaking_days(
-                    version_data_map, upgrades, w, show_only_soaking_upgrades
+                    version_data_map[ocm_org.name],
+                    upgrades,
+                    w,
+                    show_only_soaking_upgrades,
                 )
                 workload_soaking_upgrades[w] = s
 
@@ -1643,6 +1661,8 @@ def sre_checkpoints(ctx):
 @get.command()
 @click.pass_context
 def app_interface_merge_queue(ctx):
+    import reconcile.gitlab_housekeeping as glhk
+
     settings = queries.get_app_interface_settings()
     instance = queries.get_gitlab_instance()
     gl = GitLabApi(instance, project_url=settings["repoUrl"], settings=settings)
@@ -1682,6 +1702,8 @@ def app_interface_merge_queue(ctx):
 @get.command()
 @click.pass_context
 def app_interface_review_queue(ctx) -> None:
+    import reconcile.gitlab_housekeeping as glhk
+
     settings = queries.get_app_interface_settings()
     instance = queries.get_gitlab_instance()
     secret_reader = SecretReader(settings=settings)
@@ -2203,6 +2225,61 @@ def template(ctx, cluster, namespace, kind, name, path, secret_reader):
 )
 @click.pass_context
 def run_prometheus_test(ctx, path, cluster, namespace, secret_reader):
+    """Run prometheus tests for the rule associated with the test in the PATH from given
+    CLUSTER/NAMESPACE"""
+
+    if path.startswith("resources"):
+        path = path.replace("resources", "", 1)
+
+    namespace_with_prom_rules, _ = orb.get_namespaces(
+        ["prometheus-rule"],
+        cluster_name=cluster,
+        namespace_name=namespace,
+    )
+
+    rtf = None
+    for ns in namespace_with_prom_rules:
+        for resource in ns["openshiftResources"]:
+            tests = resource.get("tests") or []
+            if path not in tests:
+                continue
+
+            rtf = ptr.RuleToFetch(namespace=ns, resource=resource)
+            break
+
+    if not rtf:
+        print(f"No test found with {path} in {cluster}/{namespace}")
+        sys.exit(1)
+
+    use_vault = secret_reader == "vault"
+    vault_settings = AppInterfaceSettingsV1(vault=use_vault)
+    test = ptr.fetch_rule_and_tests(rule=rtf, vault_settings=vault_settings)
+    ptr.run_test(test=test, alerting_services=get_alerting_services())
+
+    print(test.result)
+    if not test.result:
+        sys.exit(1)
+
+
+@root.command()
+@click.argument("path")
+@click.argument("cluster")
+@click.option(
+    "-n",
+    "--namespace",
+    default="openshift-customer-monitoring",
+    help="Cluster namespace where the rules are deployed. It defaults to "
+    "openshift-customer-monitoring.",
+)
+@click.option(
+    "-s",
+    "--secret-reader",
+    default="vault",
+    help="Location to read secrets.",
+    type=click.Choice(["config", "vault"]),
+)
+@click.pass_context
+def run_prometheus_test_old(ctx, path, cluster, namespace, secret_reader):
     """Run prometheus tests in PATH loading associated rules from CLUSTER."""
     gqlapi = gql.get_api()
 
@@ -2454,36 +2531,26 @@ def alert_to_receiver(
 @click.option("--saas-file-name", default=None, help="saas-file to act on.")
 @click.option("--env-name", default=None, help="environment to use for parameters.")
 @click.pass_context
-def saas_dev(ctx, app_name=None, saas_file_name=None, env_name=None):
+def saas_dev(ctx, app_name=None, saas_file_name=None, env_name=None) -> None:
     if env_name in [None, ""]:
         print("env-name must be defined")
         return
-    saas_files = queries.get_saas_files(saas_file_name, env_name, app_name)
+    saas_files = get_saas_files(saas_file_name, env_name, app_name)
     if not saas_files:
         print("no saas files found")
         sys.exit(1)
+
     for saas_file in saas_files:
-        saas_file_parameters = json.loads(saas_file.get("parameters") or "{}")
-        for rt in saas_file["resourceTemplates"]:
-            url = rt["url"]
-            path = rt["path"]
-            rt_parameters = json.loads(rt.get("parameters") or "{}")
-            for target in rt["targets"]:
-                target_parameters = json.loads(target.get("parameters") or "{}")
-                namespace = target["namespace"]
-                namespace_name = namespace["name"]
-                environment = namespace["environment"]
-                if environment["name"] != env_name:
+        for rt in saas_file.resource_templates:
+            for target in rt.targets:
+                if target.namespace.environment.name != env_name:
                     continue
-                ref = target["ref"]
-                environment_parameters = json.loads(
-                    environment.get("parameters") or "{}"
-                )
-                parameters = {}
-                parameters.update(environment_parameters)
-                parameters.update(saas_file_parameters)
-                parameters.update(rt_parameters)
-                parameters.update(target_parameters)
+
+                parameters: dict[str, Any] = {}
+                parameters.update(target.namespace.environment.parameters or {})
+                parameters.update(saas_file.parameters or {})
+                parameters.update(rt.parameters or {})
+                parameters.update(target.parameters or {})
 
                 for replace_key, replace_value in parameters.items():
                     if not isinstance(replace_value, str):
@@ -2498,17 +2565,77 @@ def saas_dev(ctx, app_name=None, saas_file_name=None, env_name=None):
                 parameters_cmd = ""
                 for k, v in parameters.items():
                     parameters_cmd += f' -p {k}="{v}"'
-                raw_url = url.replace("github.com", "raw.githubusercontent.com")
+                raw_url = rt.url.replace("github.com", "raw.githubusercontent.com")
                 if "gitlab" in raw_url:
                     raw_url += "/raw"
-                raw_url += "/" + ref
-                raw_url += path
+                raw_url += "/" + target.ref
+                raw_url += rt.path
                 cmd = (
                     "oc process --local --ignore-unknown-parameters"
                     + f"{parameters_cmd} -f {raw_url}"
-                    + f" | oc apply -n {namespace_name} -f - --dry-run"
+                    + f" | oc apply -n {target.namespace.name} -f - --dry-run"
                 )
                 print(cmd)
+
+
+@root.command()
+@click.option("--saas-file-name", default=None, help="saas-file to act on.")
+@click.option("--app-name", default=None, help="app to act on.")
+@click.pass_context
+def saas_targets(
+    ctx, saas_file_name: Optional[str] = None, app_name: Optional[str] = None
+) -> None:
+    """Resolve namespaceSelectors and print all resulting targets of a saas file."""
+    console = Console()
+    if not saas_file_name and not app_name:
+        console.print("[b red]saas-file-name or app-name must be given")
+        sys.exit(1)
+
+    saas_files = get_saas_files(name=saas_file_name, app_name=app_name)
+    if not saas_files:
+        console.print("[b red]no saas files found")
+        sys.exit(1)
+
+    SaasHerder.resolve_templated_parameters(saas_files)
+    root = Tree("Saas Files", highlight=True, hide_root=True)
+    for saas_file in saas_files:
+        saas_file_node = root.add(f":notebook: Saas File: [b green]{saas_file.name}")
+        for rt in saas_file.resource_templates:
+            rt_node = saas_file_node.add(
+                f":page_with_curl: Resource Template: [b blue]{rt.name}"
+            )
+            for target in rt.targets:
+                info = Table("Key", "Value")
+                info.add_row("Ref", target.ref)
+                info.add_row(
+                    "Cluster/Namespace",
+                    f"{target.namespace.cluster.name}/{target.namespace.name}",
+                )
+
+                if target.parameters:
+                    param_table = Table("Key", "Value", box=box.MINIMAL)
+                    for k, v in target.parameters.items():
+                        param_table.add_row(k, v)
+                    info.add_row("Parameters", param_table)
+
+                if target.secret_parameters:
+                    param_table = Table(
+                        "Name", "Path", "Field", "Version", box=box.MINIMAL
+                    )
+                    for secret in target.secret_parameters:
+                        param_table.add_row(
+                            secret.name,
+                            secret.secret.path,
+                            secret.secret.field,
+                            str(secret.secret.version),
+                        )
+                    info.add_row("Secret Parameters", param_table)
+
+                rt_node.add(
+                    Group(f"🎯 Target: [b yellow]{target.name or 'No name'}", info)
+                )
+
+    console.print(root)
 
 
 @root.command()

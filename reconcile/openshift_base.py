@@ -31,8 +31,8 @@ from reconcile.utils.oc import (
     MayNotChangeOnceSetError,
     MetaDataAnnotationsTooLongApplyError,
     OC_Map,
+    OCCli,
     OCClient,
-    OCDeprecated,
     OCLogMsg,
     PrimaryClusterIPCanNotBeUnsetError,
     StatefulSetUpdateForbidden,
@@ -56,7 +56,6 @@ class ValidationErrorJobFailed(Exception):
 
 @dataclass
 class BaseStateSpec:
-
     oc: OCClient = field(compare=False, repr=False)
     cluster: str
     namespace: str
@@ -64,14 +63,12 @@ class BaseStateSpec:
 
 @dataclass
 class CurrentStateSpec(BaseStateSpec):
-
     kind: str
     resource_names: Optional[Iterable[str]]
 
 
 @dataclass
 class DesiredStateSpec(BaseStateSpec):
-
     resource: Mapping[str, Any]
     parent: Mapping[Any, Any] = field(repr=False)
     privileged: bool = False
@@ -107,12 +104,10 @@ class HasOrgAndGithubUsername(Protocol):
 class ClusterMap(Protocol):
     """An OCMap protocol."""
 
-    def get(
-        self, cluster: str, privileged: bool = False
-    ) -> Union[OCDeprecated, OCLogMsg]:
+    def get(self, cluster: str, privileged: bool = False) -> Union[OCCli, OCLogMsg]:
         ...
 
-    def get_cluster(self, cluster: str, privileged: bool = False) -> OCDeprecated:
+    def get_cluster(self, cluster: str, privileged: bool = False) -> OCCli:
         ...
 
     def clusters(
@@ -285,6 +280,7 @@ def populate_current_state(
     ri: ResourceInventory,
     integration: str,
     integration_version: str,
+    caller: Optional[str] = None,
 ):
     # if spec.oc is None: - oc can't be none because init_namespace_specs_to_fetch does not create specs if oc is none
     #    return
@@ -297,6 +293,10 @@ def populate_current_state(
             spec.kind, namespace=spec.namespace, resource_names=spec.resource_names
         ):
             openshift_resource = OR(item, integration, integration_version)
+
+            if caller and openshift_resource.caller != caller:
+                continue
+
             ri.add_current(
                 spec.cluster,
                 spec.namespace,
@@ -320,6 +320,7 @@ def fetch_current_state(
     use_jump_host: bool = True,
     init_api_resources: bool = False,
     cluster_admin: bool = False,
+    caller: Optional[str] = None,
 ) -> tuple[ResourceInventory, OC_Map]:
     ri = ResourceInventory()
     settings = queries.get_app_interface_settings()
@@ -348,6 +349,7 @@ def fetch_current_state(
         ri=ri,
         integration=integration,
         integration_version=integration_version,
+        caller=caller,
     )
 
     return ri, oc_map
@@ -771,7 +773,7 @@ def realize_data(
 
 def _validate_resources_used_exist(
     ri: ResourceInventory,
-    oc: OCDeprecated,
+    oc: OCCli,
     spec: dict[str, Any],
     cluster: str,
     namespace: str,
@@ -791,7 +793,7 @@ def _validate_resources_used_exist(
         if not resource and used_kind == "Secret":
             # consider only Service resources that are in the same cluster & namespace
             service_resources = []
-            for (cname, nname, restype, res) in ri:
+            for cname, nname, restype, res in ri:
                 if cname == cluster and nname == namespace and restype == "Service":
                     service_resources.extend(res["desired"].values())
             # Check serving-cert-secret-name annotation on every considered resource
@@ -823,7 +825,7 @@ def _validate_resources_used_exist(
             resource = oc.get(
                 namespace, used_kind, name=used_name, allow_not_found=True
             )
-        err_base = f"[{kind}/{name}] {used_kind} {used_name}"
+        err_base = f"[{cluster}/{namespace}] [{kind}/{name}] {used_kind} {used_name}"
         if not resource:
             # no. where is used resource hiding? we can't find it anywhere
             logging.error(f"{err_base} does not exist")

@@ -12,6 +12,8 @@ Additional tools that use the libraries created by the reconciliations are also 
 ### qontract-reconcile
 
 ```
+  aus-upgrade-scheduler-org       Manage Cluster Upgrade Policy schedules in
+                                  OCM organizations based on OCM labels.
   aws-ami-share                   Share AMI and AMI tags between accounts.
   aws-ecr-image-pull-secrets      Generate AWS ECR image pull secrets and
                                   store them in Vault.
@@ -147,7 +149,6 @@ Additional tools that use the libraries created by the reconciliations are also 
                                   for a ref.
   openshift-saas-deploy-trigger-upstream-jobs
                                   Trigger deployments when upstream job runs.
-  openshift-saas-deploy-wrapper   A wrapper around openshift-saas-deploy.
   openshift-serviceaccount-tokens
                                   Use OpenShift ServiceAccount tokens across
                                   namespaces/clusters.
@@ -158,6 +159,7 @@ Additional tools that use the libraries created by the reconciliations are also 
   openshift-users                 Deletion of users from OpenShift clusters.
   openshift-vault-secrets         Manages OpenShift Secrets from Vault.
   prometheus-rules-tester         Tests prometheus rules using promtool.
+  prometheus-rules-tester-old     Tests prometheus rules using promtool.
   quay-membership                 Configures the teams and members in Quay.
   quay-mirror                     Mirrors external images into Quay.
   quay-mirror-org                 Mirrors entire Quay orgs.
@@ -169,8 +171,7 @@ Additional tools that use the libraries created by the reconciliations are also 
                                   submitted to app-interface.
   resource-scraper                Get resources from clusters and store in
                                   Vault.
-  saas-file-owners                Manages labels on merge requests based on
-                                  approver schema for saas files.
+  saas-auto-promotions-manager    Manage auto-promotions defined in SaaS files
   saas-file-validator             Validates Saas files.
   sendgrid-teammates              Manages SendGrid teammates for a given
                                   account.
@@ -195,12 +196,12 @@ Additional tools that use the libraries created by the reconciliations are also 
                                   Terraform.
   terraform-cloudflare-dns        Manage Cloudflare DNS using Terraform.
   terraform-cloudflare-resources  Manage Cloudflare Resources using Terraform.
+  terraform-cloudflare-users      Manage Cloudflare Users using Terraform.
   terraform-resources             Manage AWS Resources using Terraform.
   terraform-tgw-attachments       Manages Transit Gateway attachments.
   terraform-users                 Manage AWS users using Terraform.
   terraform-vpc-peerings          Manage VPC peerings between OSD clusters and
                                   AWS accounts or other OSD clusters.
-  terraform-cloudflare-users      Manage user access to Cloudflare accounts.
   unleash-watcher                 Watch for changes in Unleah feature toggles
                                   and notify on Slack.
   vault-replication               Allow vault to replicate secrets to other
@@ -329,7 +330,9 @@ tox -e type -- reconcile/utils/slack_api.py
 
 ## Run reconcile loop for an integration locally in a container
 
- This is currently only tested with the docker container engine.
+This is currently only tested with the docker container engine.
+
+For more flexible way to run in container, please see [qontract-development-cli](https://github.com/app-sre/qontract-development-cli).
 
 ### Prepare config.toml
 

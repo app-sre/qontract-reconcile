@@ -53,6 +53,10 @@ from reconcile.utils.openshift_resource import (
     ResourceKeyExistsError,
     fully_qualified_kind,
 )
+from reconcile.utils.promotion_state import (
+    PromotionData,
+    PromotionState,
+)
 from reconcile.utils.saasherder.interfaces import (
     HasParameters,
     HasSecretParameters,
@@ -117,6 +121,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         self.error_registered = False
         self.saas_files = saas_files
         self.repo_urls = self._collect_repo_urls()
+        self.resolve_templated_parameters(self.saas_files)
         if validate:
             self._validate_saas_files()
             if not self.valid:
@@ -132,6 +137,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         self.jenkins_map = jenkins_map
         self.include_trigger_trace = include_trigger_trace
         self.state = state
+        self._promotion_state = PromotionState(state=state) if state else None
 
         # each namespace is in fact a target,
         # so we can use it to calculate.
@@ -288,6 +294,11 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                         resource_template.name,
                         target,
                     )
+                    self._validate_dangling_target_config_hashes(
+                        saas_file.name,
+                        resource_template.name,
+                        target,
+                    )
                     self._validate_allowed_secret_parameter_paths(
                         saas_file.name,
                         target.secret_parameters or [],
@@ -298,6 +309,12 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                         target.namespace.environment.secret_parameters or [],
                         saas_file.allowed_secret_parameter_paths or [],
                     )
+                    if saas_file.validate_targets_in_app:
+                        if saas_file.app.name != target.namespace.app.name:
+                            logging.error(
+                                f"[{saas_file.name}] targets must be within app {saas_file.app.name}"
+                            )
+                            self.valid = False
 
                     if target.promotion:
                         rt_ref = (
@@ -550,6 +567,33 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                 "please remove the IMAGE_TAG parameter, it is automatically generated."
             )
             self.valid = False
+
+    def _validate_dangling_target_config_hashes(
+        self,
+        saas_file_name: str,
+        resource_template_name: str,
+        target: SaasResourceTemplateTarget,
+    ) -> None:
+        if not target.promotion:
+            return
+
+        if not target.promotion.auto:
+            return
+
+        if not target.promotion.subscribe:
+            return
+
+        sub_channels = set(target.promotion.subscribe)
+        for prom_data in target.promotion.promotion_data or []:
+            if prom_data.channel not in sub_channels:
+                self.valid = False
+                logging.error(
+                    f"[{saas_file_name}/{resource_template_name}] "
+                    "Promotion data detected for unsubscribed channel. "
+                    "Maybe a subscribed channel was removed and you forgot "
+                    "to remove its corresponding promotion_data block? "
+                    f"Please remove promotion_data for channel {prom_data.channel}."
+                )
 
     @staticmethod
     def _get_upstream_jobs(
@@ -1701,7 +1745,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         """
         If there were promotion sections in the participating saas files
         validate that the conditions are met."""
-        if not self.state:
+        if not (self.state and self._promotion_state):
             raise Exception("state is not initialized")
 
         for promotion in self.promotions:
@@ -1711,17 +1755,16 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
             # was successfully published to the subscribed channel(s)
             if promotion.subscribe:
                 for channel in promotion.subscribe:
-                    state_key = f"promotions/{channel}/{promotion.commit_sha}"
-                    stateobj = self.state.get(state_key, {})
-                    success = stateobj.get("success")
-                    if not success:
+                    info = self._promotion_state.get_promotion_data(
+                        sha=promotion.commit_sha, channel=channel, local_lookup=False
+                    )
+                    if not (info and info.success):
                         logging.error(
                             f"Commit {promotion.commit_sha} was not "
                             + f"published with success to channel {channel}"
                         )
                         return False
-
-                    state_config_hash = stateobj.get(TARGET_CONFIG_HASH)
+                    state_config_hash = info.target_config_hash
 
                     # This code supports current saas targets that does
                     # not have promotion_data yet
@@ -1786,11 +1829,11 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
 
         if self.promotions and not auto_promote:
             logging.info(
-                "Auto-promotions to next stages are disabled. This could "
-                "happen if the current stage does not make any change"
+                "Auto-promotions to next stages are disabled. "
+                "Promotions are being handled by SAPM."
             )
 
-        if not self.state:
+        if not (self.state and self._promotion_state):
             raise Exception("state is not initialized")
 
         for promotion in self.promotions:
@@ -1798,17 +1841,19 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                 continue
 
             if promotion.publish:
-                value = {
-                    "success": success,
-                    "saas_file": promotion.saas_file,
-                    "target_config_hash": promotion.target_config_hash,
-                }
                 all_subscribed_saas_file_paths = set()
                 all_subscribed_target_paths = set()
                 for channel in promotion.publish:
                     # publish to state to pass promotion gate
-                    state_key = f"promotions/{channel}/{promotion.commit_sha}"
-                    self.state.add(state_key, value, force=True)
+                    self._promotion_state.publish_promotion_data(
+                        sha=promotion.commit_sha,
+                        channel=channel,
+                        data=PromotionData(
+                            saas_file=promotion.saas_file,
+                            success=success,
+                            target_config_hash=promotion.target_config_hash,
+                        ),
+                    )
                     logging.info(
                         f"Commit {promotion.commit_sha} was published "
                         + f"with success {success} to channel {channel}"
@@ -1874,3 +1919,32 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                             subscribe_target_path_map[channel].add(target.path)
 
         return subscribe_saas_file_path_map, subscribe_target_path_map
+
+    @staticmethod
+    def resolve_templated_parameters(saas_files: Iterable[SaasFile]) -> None:
+        """Resolve templated target parameters in saas files."""
+        from reconcile.openshift_resources_base import (
+            compile_jinja2_template,  # avoid circular import
+        )
+
+        for saas_file in saas_files:
+            for rt in saas_file.resource_templates:
+                for target in rt.targets:
+                    template_vars = {
+                        "resource": {"namespace": target.namespace.dict(by_alias=True)}
+                    }
+                    if target.parameters:
+                        for param in target.parameters:
+                            if not isinstance(target.parameters[param], str):
+                                continue
+                            target.parameters[param] = compile_jinja2_template(
+                                target.parameters[param], extra_curly=True
+                            ).render(template_vars)
+                    if target.secret_parameters:
+                        for secret_param in target.secret_parameters:
+                            secret_param.secret.field = compile_jinja2_template(
+                                secret_param.secret.field, extra_curly=True
+                            ).render(template_vars)
+                            secret_param.secret.path = compile_jinja2_template(
+                                secret_param.secret.path, extra_curly=True
+                            ).render(template_vars)

@@ -248,12 +248,37 @@ query TerraformResourcesNamespaces {
                 }
                 rules {
                     condition {
-                        path
-                        methods
+                        type
+                        ... on NamespaceTerraformResourceALBConditionHostHeader_v1 {
+                            host_header
+                        }
+                        ... on NamespaceTerraformResourceALBConditionHTTPRequestMethod_v1 {
+                            http_request_method
+                        }
+                        ... on NamespaceTerraformResourceALBConditionPathPattern_v1 {
+                            path_pattern
+                        }
+                        ... on NamespaceTerraformResourceALBConditionSourceIP_v1 {
+                            source_ip
+                        }
                     }
                     action {
-                        target
-                        weight
+                        type
+                        ... on NamespaceTerraformResourceALBActionForward_v1 {
+                            forward {
+                                target_group {
+                                    target
+                                    weight
+                                }
+                            }
+                        }
+                        ... on NamespaceTerraformResourceALBActionFixedResponse_v1 {
+                            fixed_response {
+                                content_type
+                                message_body
+                                status_code
+                            }
+                        }
                     }
                 }
                 output_resource_name

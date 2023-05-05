@@ -242,6 +242,14 @@ DEFAULT_S3_SSE_CONFIGURATION = {
     "rule": {"apply_server_side_encryption_by_default": {"sse_algorithm": "AES256"}}
 }
 
+# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lb_listener_rule#condition
+SUPPORTED_ALB_LISTENER_RULE_CONDITION_TYPE_MAPPING = {
+    "host-header": "host_header",
+    "http-request-method": "http_request_method",
+    "path-pattern": "path_pattern",
+    "source-ip": "source_ip",
+}
+
 
 class StateInaccessibleException(Exception):
     pass
@@ -328,7 +336,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         integration: str,
         integration_prefix: str,
         thread_pool_size: int,
-        accounts: list[dict[str, Any]],
+        accounts: Iterable[dict[str, Any]],
         settings: Optional[Mapping[str, Any]] = None,
         prefetch_resources_by_schemas: Optional[list[str]] = None,
     ) -> None:
@@ -488,8 +496,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             r = requests.get(zip_url, timeout=60)
             r.raise_for_status()
             os.makedirs(os.path.dirname(zip_file), exist_ok=True)
-            # pylint: disable=consider-using-with
-            open(zip_file, "wb").write(r.content)
+            with open(zip_file, "wb") as f:
+                f.write(r.content)
         return zip_file
 
     def get_logtoes_zip(self, release_url):
@@ -513,8 +521,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         if not os.path.exists(zip_file):
             r = requests.get(zip_url, timeout=60)
             r.raise_for_status()
-            # pylint: disable=consider-using-with
-            open(zip_file, "wb").write(r.content)
+            with open(zip_file, "wb") as f:
+                f.write(r.content)
         return zip_file
 
     def get_rosa_authenticator_zip(self, release_url):
@@ -542,8 +550,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         if not os.path.exists(zip_file):
             r = requests.get(zip_url, timeout=60)
             r.raise_for_status()
-            # pylint: disable=consider-using-with
-            open(zip_file, "wb").write(r.content)
+            with open(zip_file, "wb") as f:
+                f.write(r.content)
         return zip_file
 
     def init_github(self) -> Github:
@@ -837,7 +845,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             alias = self.get_alias_name_from_assume_role(assume_role)
             ts = self.tss[account_name]
             config = self.configs[account_name]
-            existing_provider_aliases = [p.get("alias") for p in ts["provider"]["aws"]]
+            existing_provider_aliases = {p.get("alias") for p in ts["provider"]["aws"]}
             if alias not in existing_provider_aliases:
                 ts += provider.aws(
                     access_key=config["aws_access_key_id"],
@@ -3156,7 +3164,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         es_identifier = common_values.get("es_identifier", None)
         if es_identifier is not None:
-
             assume_role_policy = {
                 "Version": "2012-10-17",
                 "Statement": [
@@ -4358,7 +4365,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         # TODO: @fishi0x01 remove after migration APPSRE-3409
         # ++++++++ START: REMOVE +++++++++
         else:
-
             advanced_security_options = values.get("advanced_security_options", {})
             if advanced_security_options:
                 es_values[
@@ -4642,6 +4648,16 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         return ips
 
+    @staticmethod
+    def _get_alb_rule_condition_value(condition):
+        condition_type = condition["type"]
+        condition_type_key = SUPPORTED_ALB_LISTENER_RULE_CONDITION_TYPE_MAPPING.get(
+            condition_type, None
+        )
+        if condition_type_key is None:
+            raise KeyError(f"unknown alb rule condition type {condition_type}")
+        return {condition_type_key: {"values": condition[condition_type_key]}}
+
     def populate_tf_resource_alb(self, spec, ocm_map=None):
         account = spec.provisioner_name
         identifier = spec.identifier
@@ -4867,15 +4883,12 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         # https://www.terraform.io/docs/providers/aws/r/lb_listener_rule.html
         for rule_num, rule in enumerate(resource["rules"]):
-            condition = rule["condition"]
+            # https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lb_listener_rule#type
             action = rule["action"]
-            config_methods = condition.get("methods", None)
-
-            values = {
-                "provider": provider,
-                "listener_arn": f"${{{forward_lbl_tf_resource.arn}}}",
-                "priority": rule_num + 1,
-                "action": {
+            action_values = {}
+            action_type = action.get("type")
+            if action_type == "forward":
+                action_values = {
                     "type": "forward",
                     "forward": {
                         "target_group": [],
@@ -4884,33 +4897,49 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                             "duration": 1,
                         },
                     },
-                },
-                "condition": [{"path_pattern": {"values": [condition["path"]]}}],
+                }
+                # The sum of all target weights should equal 100
+                weight_sum = 0
+                for a in action.get("forward", {}).get("target_group", []):
+                    target_name = a["target"]
+                    if target_name not in valid_targets:
+                        raise KeyError(f"{target_name} not a valid target name")
+
+                    target_resource = valid_targets[target_name]
+
+                    action_values["forward"]["target_group"].append(
+                        {"arn": f"${{{target_resource.arn}}}", "weight": a["weight"]}
+                    )
+                    weight_sum += a["weight"]
+                if weight_sum != 100:
+                    raise ValueError(
+                        "sum of weights for a rule should be 100"
+                        f" given: {weight_sum}"
+                    )
+            elif action_type == "fixed-response":
+                fr_data = action.get("fixed_response", {})
+                action_values = {
+                    "type": "fixed-response",
+                    "fixed_response": {
+                        "content_type": fr_data.get("content_type"),
+                        "message_body": fr_data.get("message_body"),
+                        "status_code": fr_data.get("status_code"),
+                    },
+                }
+            else:
+                raise KeyError(f"unknown alb rule action type {action_type}")
+
+            values = {
+                "provider": provider,
+                "listener_arn": f"${{{forward_lbl_tf_resource.arn}}}",
+                "priority": rule_num + 1,
+                "action": action_values,
+                "condition": [
+                    self._get_alb_rule_condition_value(c)
+                    for c in rule.get("condition", [])
+                ],
                 "depends_on": self.get_dependencies([forward_lbl_tf_resource]),
             }
-
-            if config_methods:
-                values["condition"].append(
-                    {"http_request_method": {"values": config_methods}}
-                )
-
-            weight_sum = 0
-            for a in action:
-                target_name = a["target"]
-                if target_name not in valid_targets:
-                    raise KeyError(f"{target_name} not a valid target name")
-
-                target_resource = valid_targets[target_name]
-
-                values["action"]["forward"]["target_group"].append(
-                    {"arn": f"${{{target_resource.arn}}}", "weight": a["weight"]}
-                )
-                weight_sum += a["weight"]
-
-            if weight_sum != 100:
-                raise ValueError(
-                    "sum of weights for a rule should be 100" f" given: {weight_sum}"
-                )
 
             lblr_identifier = f"{identifier}-rule-{rule_num+1:02d}"
             lblr_tf_resource = aws_lb_listener_rule(lblr_identifier, **values)
