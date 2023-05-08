@@ -69,6 +69,8 @@ def ocm_map(mock_ocm_map, addon_id, cluster, ocm_addon_version):
 def test_delete_automatic_upgrade_policy(
     automatic_upgrade_policy, desired_state, ocm_map, addon_id, cluster
 ):
+    ocm = ocm_map.get(cluster)
+
     diffs = oauso.calculate_diff(
         [automatic_upgrade_policy],
         [desired_state],
@@ -76,6 +78,8 @@ def test_delete_automatic_upgrade_policy(
         {},
         addon_id,
     )
+    diffs[0].act(dry_run=False, ocm=ocm)
+
     assert diffs == [
         aus.UpgradePolicyHandler(
             action="delete",
@@ -91,6 +95,13 @@ def test_delete_automatic_upgrade_policy(
             ),
         )
     ]
+    ocm.delete_addon_upgrade_policy.assert_called_once_with(
+        cluster,
+        {
+            "version": "automatic",
+            "id": automatic_upgrade_policy.id,
+        },
+    )
 
 
 @pytest.fixture
