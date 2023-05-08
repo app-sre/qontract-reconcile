@@ -37,9 +37,13 @@ def account_in_roles(roles: Iterable[Mapping[str, Any]], aws_account: str) -> bo
 
 
 class AwsProfileToReset(BaseModel):
-    account: Mapping[str, Any]
     user_name: str
     state_key: str
+
+
+class AwsAccountWithResets(BaseModel):
+    account: Mapping[str, Any]
+    resetPasswords: list[AwsProfileToReset]
 
 
 @defer
@@ -50,13 +54,19 @@ def run(dry_run, defer=None):
     state = init_state(integration=QONTRACT_INTEGRATION)
     defer(state.cleanup)
 
-    accounts_to_reset: list[AwsProfileToReset] = []
+    accounts_to_reset: list[AwsAccountWithResets] = []
 
     for a in accounts:
         account_name = a["name"]
         reset_passwords = a.get("resetPasswords")
         if not reset_passwords:
             continue
+
+        account_reset = AwsAccountWithResets(
+            account=a,
+            resetPasswords=[],
+        )
+        accounts_to_reset.append(account_reset)
 
         for r in reset_passwords:
             user_name = r["user"]["org_username"]
@@ -74,28 +84,29 @@ def run(dry_run, defer=None):
                 logging.error(f"User {user_name} is not in account {account_name}")
                 sys.exit(1)
 
-            accounts_to_reset.append(
+            account_reset.resetPasswords.append(
                 AwsProfileToReset(
-                    **{
-                        "account": a,
-                        "user_name": user_name,
-                        "state_key": state_key,
-                    }
+                    user_name=user_name,
+                    state_key=state_key,
                 )
             )
 
     for a in accounts_to_reset:
+        if not a.resetPasswords:
+            continue
+
         with AWSApi(1, [a.account], settings=settings) as aws_api:
-            user_name = a.user_name
-            state_key = a.state_key
+            for r in a.resetPasswords:
+                user_name = r.user_name
+                state_key = r.state_key
 
-            account_name = a.account["name"]
+                account_name = a.account["name"]
 
-            logging.info(["reset_password", account_name, a.user_name])
+                logging.info(["reset_password", account_name, user_name])
 
-            if dry_run:
-                continue
+                if dry_run:
+                    continue
 
-            aws_api.reset_password(account_name, user_name)
-            aws_api.reset_mfa(account_name, user_name)
-            state.add(state_key)
+                aws_api.reset_password(account_name, user_name)
+                aws_api.reset_mfa(account_name, user_name)
+                state.add(state_key)
