@@ -711,6 +711,7 @@ def test_build_external_resource_spec_from_cloudflare_users(
             "provider": "account_member",
             "identifier": "user1",
             "email_address": "user1@redhat.com",
+            "status": "accepted",
             "account_id": "${var.account_id}",
             "role_ids": [
                 '%{ for role in data.cloudflare_account_roles.cloudflare-account.roles ~}  %{if role.name == "Administrator" ~}${role.id}%{ endif ~}  %{ endfor ~}',
