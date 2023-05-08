@@ -15,6 +15,7 @@ import urllib3
 from gitlab.v4.objects import (
     CurrentUser,
     ProjectMergeRequest,
+    ProjectMergeRequestNote,
 )
 from sretoolbox.utils import retry
 
@@ -245,6 +246,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         except gitlab.exceptions.GitlabCreateError:
             member = project.members.get(user.id)
             member.access_level = access_level
+            member.save()
 
     def add_group_member(self, group_name, username, access):
         if not self.check_group_exists(group_name):
@@ -391,17 +393,21 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
                     "body": note.body,
                     "created_at": note.created_at,
                     "id": note.id,
+                    "note": note,
                 }
             )
         return comments
 
-    def delete_gitlab_comment(self, mr_id, comment_id):
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-        merge_request = self.project.mergerequests.get(mr_id)
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-        note = merge_request.notes.get(comment_id)
+    def delete_gitlab_comment(self, note: ProjectMergeRequestNote) -> None:
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         note.delete()
+
+    def delete_merge_request_comments(self, mr_id: int, startswith: str) -> None:
+        comments = self.get_merge_request_comments(mr_id)
+        for c in comments:
+            body = c["body"] or ""
+            if c["username"] == self.user.username and body.startswith(startswith):
+                self.delete_gitlab_comment(c["note"])
 
     def add_comment_on_merge_request(
         self, merge_request: ProjectMergeRequest, comment: str

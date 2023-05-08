@@ -660,6 +660,7 @@ def test_export_model(
             "authentication": None,
             "parameters": '{"SAAS_PARAM": "foobar"}',
             "secretParameters": None,
+            "validateTargetsInApp": None,
             "resourceTemplates": [
                 {
                     "name": "deploy-app",
@@ -805,6 +806,7 @@ def test_export_model(
             "authentication": None,
             "parameters": None,
             "secretParameters": None,
+            "validateTargetsInApp": None,
             "resourceTemplates": [
                 {
                     "name": "deploy-app",
@@ -950,6 +952,7 @@ def test_export_model(
             "authentication": None,
             "parameters": None,
             "secretParameters": None,
+            "validateTargetsInApp": None,
             "resourceTemplates": [
                 {
                     "name": "deploy-app",

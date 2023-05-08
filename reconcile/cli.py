@@ -445,6 +445,16 @@ def include_trigger_trace(function):
     return function
 
 
+def trigger_reason(function):
+    function = click.option(
+        "--trigger-reason",
+        help="reason deployment was triggered.",
+        default=None,
+    )(function)
+
+    return function
+
+
 def register_faulthandler(fileobj=sys.__stderr__):
     if fileobj:
         if not faulthandler.is_enabled():
@@ -1016,6 +1026,7 @@ def openshift_resources(
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
 @click.option("--saas-file-name", default=None, help="saas-file to act on.")
 @click.option("--env-name", default=None, help="environment to deploy to.")
+@trigger_reason
 @click.pass_context
 def openshift_saas_deploy(
     ctx,
@@ -1025,6 +1036,7 @@ def openshift_saas_deploy(
     saas_file_name,
     env_name,
     gitlab_project_id,
+    trigger_reason,
 ):
     import reconcile.openshift_saas_deploy
 
@@ -1037,6 +1049,7 @@ def openshift_saas_deploy(
         saas_file_name=saas_file_name,
         env_name=env_name,
         gitlab_project_id=gitlab_project_id,
+        trigger_reason=trigger_reason,
     )
 
 
@@ -1790,8 +1803,15 @@ def vpc_peerings_validator(ctx):
 @binary(["terraform", "git"])
 @binary_version("terraform", ["version"], TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
 @enable_deletion(default=False)
+@account_name
 @click.pass_context
-def terraform_tgw_attachments(ctx, print_to_file, enable_deletion, thread_pool_size):
+def terraform_tgw_attachments(
+    ctx,
+    print_to_file,
+    enable_deletion,
+    thread_pool_size,
+    account_name,
+):
     import reconcile.terraform_tgw_attachments
 
     if print_to_file and is_file_in_git_repo(print_to_file):
@@ -1802,6 +1822,7 @@ def terraform_tgw_attachments(ctx, print_to_file, enable_deletion, thread_pool_s
         print_to_file,
         enable_deletion,
         thread_pool_size,
+        account_name,
     )
 
 

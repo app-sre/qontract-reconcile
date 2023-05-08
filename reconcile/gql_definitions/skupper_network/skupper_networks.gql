@@ -3,61 +3,16 @@
 query SkupperNetworks {
   skupper_networks: skupper_network_v1 {
     identifier
-    siteConfigDefaults {
-      clusterLocal
-      console
-      consoleAuthentication
-      consoleIngress
-      controllerCpuLimit
-      controllerCpu
-      controllerMemoryLimit
-      controllerMemory
-      controllerPodAntiaffinity
-      controllerServiceAnnotations
-      edge
-      ingress
-      routerConsole
-      routerCpuLimit
-      routerCpu
-      routerMemoryLimit
-      routerMemory
-      routerLogging
-      routerPodAntiaffinity
-      routerServiceAnnotations
-      routers
-      serviceController
-      serviceSync
-      skupperSiteController
+    siteControllerTemplates {
+      ...SkupperSiteControllerTemplate
     }
     namespaces {
       name
       delete
       skupperSite {
         delete
-        config {
-          clusterLocal
-          console
-          consoleAuthentication
-          consoleIngress
-          controllerCpuLimit
-          controllerCpu
-          controllerMemoryLimit
-          controllerMemory
-          controllerPodAntiaffinity
-          controllerServiceAnnotations
-          edge
-          ingress
-          routerConsole
-          routerCpuLimit
-          routerCpu
-          routerMemoryLimit
-          routerMemory
-          routerLogging
-          routerPodAntiaffinity
-          routerServiceAnnotations
-          routers
-          serviceController
-          serviceSync
+        siteControllerTemplates {
+          ...SkupperSiteControllerTemplate
         }
       }
       clusterAdmin

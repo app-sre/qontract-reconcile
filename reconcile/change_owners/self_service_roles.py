@@ -19,6 +19,10 @@ from reconcile.gql_definitions.change_owners.queries.self_service_roles import (
 )
 
 
+class EmptySelfServiceRoleError(Exception):
+    pass
+
+
 def cover_changes_with_self_service_roles(
     roles: list[RoleV1],
     change_type_processors: list[ChangeTypeProcessor],
@@ -44,9 +48,13 @@ def change_type_contexts_for_self_service_roles(
 
     # role lookup enables fast lookup roles for (filetype, filepath, changetype-name)
     role_lookup: dict[tuple[BundleFileType, str, str], list[RoleV1]] = defaultdict(list)
+    orphaned_roles: list[RoleV1] = []
     for r in roles:
         # build role lookup for self_service section of a role
         if r.self_service:
+            if not r.users and not r.bots:
+                orphaned_roles.append(r)
+                continue
             for ss in r.self_service:
                 if ss.datafiles:
                     for df in ss.datafiles:
@@ -58,6 +66,11 @@ def change_type_contexts_for_self_service_roles(
                         role_lookup[
                             (BundleFileType.RESOURCEFILE, res, ss.change_type.name)
                         ].append(r)
+    if orphaned_roles:
+        raise EmptySelfServiceRoleError(
+            f"The roles {', '.join([r.name for r in orphaned_roles])} have no users or bots "
+            "to drive the self-service process. Add approvers to the roles."
+        )
 
     # match every BundleChange with every relevant ChangeTypeV1
     change_type_contexts = []

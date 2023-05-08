@@ -179,6 +179,7 @@ query SaasFiles {
         ...VaultSecret
       }
     }
+    validateTargetsInApp
     resourceTemplates {
       name
       url
@@ -524,6 +525,7 @@ class SaasFileV2(ConfiguredBaseModel):
     secret_parameters: Optional[list[SaasSecretParametersV1]] = Field(
         ..., alias="secretParameters"
     )
+    validate_targets_in_app: Optional[bool] = Field(..., alias="validateTargetsInApp")
     resource_templates: list[SaasResourceTemplateV2] = Field(
         ..., alias="resourceTemplates"
     )

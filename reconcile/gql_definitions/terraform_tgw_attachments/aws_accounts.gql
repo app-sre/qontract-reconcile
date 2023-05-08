@@ -1,0 +1,14 @@
+# qenerate: plugin=pydantic_v1
+
+query AWSAccounts($name: String) {
+  accounts: awsaccounts_v1
+  (
+    name: $name
+  )
+  {
+    ... AWSAccountCommon
+    terraformState {
+      ... TerraformState
+    }
+  }
+}

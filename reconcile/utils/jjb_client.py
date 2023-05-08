@@ -293,7 +293,10 @@ class JJB:  # pylint: disable=too-many-public-methods
                     project_url = project_url_raw.strip("/").replace(".git", "")
                     gitlab_triggers = job["triggers"][0]["gitlab"]
                     mr_trigger = gitlab_triggers["trigger-merge-request"]
-                    trigger = "mr" if mr_trigger else "push"
+                    push_trigger = gitlab_triggers["trigger-push"]
+                    trigger = "mr" if mr_trigger else "push" if push_trigger else None
+                    if trigger is None:
+                        continue
                     hook = {
                         "job_url": job_url,
                         "trigger": trigger,

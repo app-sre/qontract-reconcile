@@ -9,6 +9,8 @@ from typing import (
     Optional,
 )
 
+import jinja2
+import yaml
 from sretoolbox.utils import threaded
 
 from reconcile.gql_definitions.skupper_network.skupper_networks import SkupperNetworkV1
@@ -16,12 +18,7 @@ from reconcile.gql_definitions.skupper_network.skupper_networks import (
     query as skupper_networks_query,
 )
 from reconcile.skupper_network import reconciler
-from reconcile.skupper_network.models import (
-    SkupperConfig,
-    SkupperSite,
-)
-from reconcile.skupper_network.site_controller import CONFIG_NAME
-from reconcile.skupper_network.site_controller import LABELS as SITE_CONTROLLER_LABELS
+from reconcile.skupper_network.models import SkupperSite
 from reconcile.skupper_network.site_controller import get_site_controller
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
@@ -40,10 +37,29 @@ from reconcile.utils.semver_helper import make_semver
 
 QONTRACT_INTEGRATION = "skupper-network"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
+SITE_CONTROLLER_LABELS = {
+    "app": "skupper-site-controller",
+    "managed-by": "qontract-reconcile",
+}
+CONFIG_NAME = "skupper-site"
 
 
 class SkupperNetworkExcpetion(Exception):
     """Base exception for Skupper Network integration."""
+
+
+def load_site_controller_template(
+    path: str, variables: dict[str, str]
+) -> dict[str, Any]:
+    """Fetches a yaml resource from qontract-server and parses it"""
+    resource = gql.get_api().get_resource(path)
+    try:
+        body = jinja2.Template(
+            resource["content"], undefined=jinja2.StrictUndefined
+        ).render(variables)
+    except jinja2.exceptions.UndefinedError as e:
+        raise SkupperNetworkExcpetion(f"Failed to render template {path}: {e.message}")
+    return yaml.safe_load(body)
 
 
 def compile_skupper_sites(
@@ -63,18 +79,30 @@ def compile_skupper_sites(
                 # integration is disabled for this cluster
                 continue
 
+            site_controller_objects = []
+            for tmpl in (
+                ns.skupper_site.site_controller_templates
+                or skupper_network.site_controller_templates
+            ):
+                tmpl_vars = tmpl.variables or {}
+                tmpl_vars["resource"] = {"namespace": ns.dict(by_alias=True)}
+
+                site_controller_objects.append(
+                    load_site_controller_template(tmpl.path, tmpl_vars)
+                )
+
+            # inject integration labels
+            for obj in site_controller_objects:
+                obj["metadata"].setdefault("labels", {}).update(SITE_CONTROLLER_LABELS)
+
             # create a skupper site with the skupper network defaults overridden by the namespace site config and our own defaults
             network_sites.append(
                 SkupperSite(
+                    name=f"{skupper_network.identifier}-{ns.cluster.name}-{ns.name}",
+                    site_controller_objects=site_controller_objects,
                     namespace=ns,
-                    skupper_site_controller=skupper_network.site_config_defaults.skupper_site_controller,
                     # delete skupper site if the skupper site is marked for deletion or the namespace is marked for deletion
                     delete=bool(ns.skupper_site.delete or ns.delete),
-                    config=SkupperConfig.init(
-                        name=f"{skupper_network.identifier}-{ns.cluster.name}-{ns.name}",
-                        defaults=skupper_network.site_config_defaults,
-                        config=ns.skupper_site.config,
-                    ),
                 )
             )
 
@@ -171,8 +199,8 @@ def skupper_site_config_changes(ri: ResourceInventory) -> bool:
             and CONFIG_NAME in resource["current"]
             and CONFIG_NAME in resource["desired"]
         ):
-            current = SkupperConfig(**resource["current"][CONFIG_NAME].body["data"])
-            desired = SkupperConfig(**resource["desired"][CONFIG_NAME].body["data"])
+            current = resource["current"][CONFIG_NAME].body["data"]
+            desired = resource["desired"][CONFIG_NAME].body["data"]
             if current != desired:
                 changes = True
                 logging.error(f"{cluster}/{ns}: Skupper site config has changed")
@@ -207,6 +235,7 @@ def act(
         integration_managed_kinds=integration_managed_kinds,
         integration=QONTRACT_INTEGRATION,
         integration_version=QONTRACT_INTEGRATION_VERSION,
+        labels=SITE_CONTROLLER_LABELS,
     )
 
 
