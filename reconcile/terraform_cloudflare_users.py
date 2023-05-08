@@ -347,6 +347,11 @@ def build_external_resource_spec_from_cloudflare_users(
                 "provider": "account_member",
                 "identifier": safe_resource_id(cf_user.org_username),
                 "email_address": cf_user.email_address,
+                # Setting status to 'accepted' skips the need for the user to accept
+                # all the invites for the accounts that they're added to. This only
+                # works if the Cloudflare user account already exists, which seems to be
+                # acceptable for now.
+                "status": "accepted",
                 "account_id": "${var.account_id}",
                 "role_ids": [
                     # I know this is ugly :(
