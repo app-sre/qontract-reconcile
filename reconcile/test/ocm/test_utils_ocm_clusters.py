@@ -285,19 +285,19 @@ def test_ocm_cluster_get_label() -> None:
         subs_labels=[("subs_label", "subs_value"), ("label", "subs_value")],
     )
 
-    org_label = cluster.labels.get_label("org_label")
+    org_label = cluster.labels.get("org_label")
     assert isinstance(org_label, OCMOrganizationLabel)
     assert org_label.key == "org_label"
     assert org_label.value == "org_value"
 
-    subs_label = cluster.labels.get_label("subs_label")
+    subs_label = cluster.labels.get("subs_label")
     assert isinstance(subs_label, OCMSubscriptionLabel)
     assert subs_label.key == "subs_label"
     assert subs_label.value == "subs_value"
 
-    label = cluster.labels.get_label("label")
+    label = cluster.labels.get("label")
     assert isinstance(label, OCMSubscriptionLabel)
     assert label.key == "label"
     assert label.value == "subs_value"
 
-    assert cluster.labels.get_label("missing-label") is None
+    assert cluster.labels.get("missing-label") is None

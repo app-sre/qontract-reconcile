@@ -256,11 +256,11 @@ def label_container() -> LabelContainer:
 
 
 def test_label_container_get_label(label_container: LabelContainer) -> None:
-    existing_label = label_container.get_label("a.a")
+    existing_label = label_container.get("a.a")
     assert existing_label
     assert existing_label.key == "a.a"
 
-    missing_label = label_container.get_label("missing")
+    missing_label = label_container.get("missing")
     assert missing_label is None
 
 
@@ -289,7 +289,7 @@ def test_label_container_get_values_dict(label_container: LabelContainer) -> Non
 def test_build_label_container_for_prefix(label_container: LabelContainer) -> None:
     sub_container = label_container.build_container_for_prefix("a.")
     assert len(sub_container) == 3
-    label_a_a = sub_container.get_label("a.a")
+    label_a_a = sub_container.get("a.a")
     assert label_a_a
     assert label_a_a.key == "a.a"
     assert sub_container.get_values_dict() == {"a.a": "a", "a.b": "b", "a.c": "c"}
@@ -302,7 +302,7 @@ def test_build_label_container_for_prefix_strip_prefix(
         "a.", strip_key_prefix=True
     )
     assert len(sub_container) == 3
-    label_a = sub_container.get_label("a")
+    label_a = sub_container.get("a")
     assert label_a
     assert label_a.key == "a"
     assert sub_container.get_values_dict() == {"a": "a", "b": "b", "c": "c"}

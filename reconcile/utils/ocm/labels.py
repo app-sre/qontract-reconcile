@@ -122,17 +122,17 @@ class LabelContainer(BaseModel):
     def __len__(self) -> int:
         return len(self.labels)
 
-    def get_label(self, name: str) -> Optional[OCMLabel]:
+    def get(self, name: str) -> Optional[OCMLabel]:
         return self.labels.get(name)
 
     def get_required_label(self, name: str) -> OCMLabel:
-        label = self.get_label(name)
+        label = self.get(name)
         if not label:
             raise ValueError(f"Required label '{name}' does not exist.")
         return label
 
     def get_label_value(self, name: str) -> Optional[str]:
-        label = self.get_label(name)
+        label = self.get(name)
         if label:
             return label.value
         return None
