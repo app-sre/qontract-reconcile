@@ -192,16 +192,17 @@ class ControlPlaneUpgradePolicy(AbstractUpgradePolicy):
             "version": self.version,
             "schedule_type": "manual",
             "upgrade_type": "ControlPlane",
+            "cluster_id": ocm.cluster_ids[self.cluster],
             "next_run": self.next_run,
         }
-        ocm.create_upgrade_policy(self.cluster, policy)
+        ocm.create_control_plane_upgrade_policy(self.cluster, policy)
 
     def delete(self, ocm: OCM) -> None:
         item = {
             "version": self.version,
             "id": self.id,
         }
-        ocm.delete_upgrade_policy(self.cluster, item)
+        ocm.delete_control_plane_upgrade_policy(self.cluster, item)
 
 
 class UpgradePolicyHandler(BaseModel):
@@ -242,12 +243,20 @@ def fetch_current_state(
     current_state: list[AbstractUpgradePolicy] = []
     for cluster in clusters:
         cluster_name = cluster.name
+        is_hypershift = (
+            ocm_map.get(cluster_name).clusters.get(cluster_name).spec.hypershift
+        )
         ocm = ocm_map.get(cluster_name)
         if addons:
             upgrade_policies = ocm.get_addon_upgrade_policies(cluster_name)
             for upgrade_policy in upgrade_policies:
                 upgrade_policy["cluster"] = cluster_name
                 current_state.append(AddonUpgradePolicy(**upgrade_policy))
+        elif is_hypershift:
+            upgrade_policies = ocm.get_control_plan_upgrade_policies(cluster_name)
+            for upgrade_policy in upgrade_policies:
+                upgrade_policy["cluster"] = cluster_name
+                current_state.append(ControlPlaneUpgradePolicy(**upgrade_policy))
         else:
             upgrade_policies = ocm.get_upgrade_policies(cluster_name)
             for upgrade_policy in upgrade_policies:
