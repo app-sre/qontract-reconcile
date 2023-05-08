@@ -30,6 +30,7 @@ from reconcile.gql_definitions.terraform_tgw_attachments.aws_accounts import (
     AWSAccountV1,
 )
 from reconcile.utils.gql import GqlApi
+from reconcile.utils.runtime.integration import ShardedRunProposal
 from reconcile.utils.secret_reader import SecretReaderBase
 
 QONTRACT_INTEGRATION = "terraform_tgw_attachments"
@@ -1035,3 +1036,61 @@ def test_error_in_terraform_apply(
         integ.run(False)
 
     assert "Error running terraform apply" == str(e.value)
+
+
+def test_early_exit_desired_state(
+    mocker: MockerFixture,
+    app_interface_vault_settings: AppInterfaceSettingsV1,
+    cluster_with_tgw_connection: ClusterV1,
+    cluster_with_vpc_connection: ClusterV1,
+    tgw_account: AWSAccountV1,
+    vpc_account: AWSAccountV1,
+) -> None:
+    _setup_mocks(
+        mocker,
+        vault_settings=app_interface_vault_settings,
+        clusters=[cluster_with_tgw_connection, cluster_with_vpc_connection],
+        accounts=[tgw_account, vpc_account],
+    )
+
+    desired_state = integ.early_exit_desired_state()
+
+    expected_early_exit_desired_state = {
+        "clusters": [cluster_with_tgw_connection.dict(by_alias=True)],
+        "accounts": [tgw_account.dict(by_alias=True)],
+    }
+
+    assert desired_state == expected_early_exit_desired_state
+
+
+def test_desired_state_shard_config() -> None:
+    proposal_with_1_shard = ShardedRunProposal(
+        proposed_shards={
+            "account1",
+        }
+    )
+    proposal_with_2_shards = ShardedRunProposal(
+        proposed_shards={
+            "account1",
+            "account2",
+        }
+    )
+    proposal_with_3_shards = ShardedRunProposal(
+        proposed_shards={
+            "account1",
+            "account2",
+            "account3",
+        }
+    )
+
+    config = integ.desired_state_shard_config()
+
+    assert config.shard_arg_name == "account_name"
+    assert config.shard_path_selectors == {
+        "accounts[*].name",
+        "clusters[*].peering.connections[*].account.name",
+    }
+    assert config.shard_arg_is_collection is False
+    assert config.sharded_run_review(proposal_with_1_shard) is True
+    assert config.sharded_run_review(proposal_with_2_shards) is True
+    assert config.sharded_run_review(proposal_with_3_shards) is False
