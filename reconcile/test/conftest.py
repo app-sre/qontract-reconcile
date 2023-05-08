@@ -65,8 +65,13 @@ def s3_state_builder() -> Callable[[Mapping], State]:
     """
 
     def builder(data: Mapping) -> State:
-        def get(key: str) -> dict:
-            return data["get"][key]
+        def get(key: str, *args) -> dict:
+            try:
+                return data["get"][key]
+            except KeyError:
+                if args:
+                    return args[0]
+                raise
 
         state = create_autospec(spec=State)
         state.get = get

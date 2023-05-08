@@ -150,9 +150,9 @@ class TerraformRepoIntegration(
                 try:
                     repo = TerraformRepoV1.parse_raw(value)
                     repo_list.append(repo)
-                except ValidationError:
+                except ValidationError as err:
                     logging.error(
-                        f"Unable to parse existing state for repo: '{key}', ignoring"
+                        f"{err}\nUnable to parse existing state for repo: '{key}', skipping"
                     )
 
         return repo_list
@@ -223,7 +223,9 @@ class TerraformRepoIntegration(
         """
         try:
             for add_key, add_val in diff_result.add.items():
-                state.add(add_key, add_val.json(by_alias=True), force=True)
+                # state.add already performs a json.dumps(key) so we export the
+                # pydantic model as a dict to avoid a double json dump with extra quotes
+                state.add(add_key, add_val.dict(by_alias=True), force=True)
             for delete_key in diff_result.delete.keys():
                 state.rm(delete_key)
             for change_key, change_val in diff_result.change.items():
@@ -231,7 +233,7 @@ class TerraformRepoIntegration(
                     state.rm(change_key)
                 else:
                     state.add(
-                        change_key, change_val.desired.json(by_alias=True), force=True
+                        change_key, change_val.desired.dict(by_alias=True), force=True
                     )
         except KeyError:
             pass
