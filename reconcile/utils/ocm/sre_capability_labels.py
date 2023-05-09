@@ -11,7 +11,10 @@ from pydantic import (
 )
 from pydantic.fields import ModelField
 
-from reconcile.utils.ocm.labels import LabelContainer
+from reconcile.utils.ocm.labels import (
+    LabelContainer,
+    build_container_for_prefix,
+)
 
 
 def sre_capability_label_key(sre_capability: str, config_atom: str) -> str:
@@ -48,7 +51,7 @@ def build_labelset(
 def _labelset_field_value(labels: LabelContainer, field: ModelField) -> Optional[Any]:
     key_prefix = field.field_info.extra.get("group_by_prefix")
     if key_prefix:
-        return labels.build_container_for_prefix(
-            key_prefix, strip_key_prefix=True
+        return build_container_for_prefix(
+            labels, key_prefix, strip_key_prefix=True
         ).get_values_dict()
     return labels.get_label_value(field.alias)

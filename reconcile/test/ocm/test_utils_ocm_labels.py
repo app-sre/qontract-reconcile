@@ -10,6 +10,7 @@ from reconcile.utils.ocm.labels import (
     OCMAccountLabel,
     OCMOrganizationLabel,
     OCMSubscriptionLabel,
+    build_container_for_prefix,
     build_label_container,
     build_label_from_dict,
     get_organization_labels,
@@ -287,7 +288,7 @@ def test_label_container_get_values_dict(label_container: LabelContainer) -> Non
 
 
 def test_build_label_container_for_prefix(label_container: LabelContainer) -> None:
-    sub_container = label_container.build_container_for_prefix("a.")
+    sub_container = build_container_for_prefix(label_container, "a.")
     assert len(sub_container) == 3
     label_a_a = sub_container.get("a.a")
     assert label_a_a
@@ -298,8 +299,8 @@ def test_build_label_container_for_prefix(label_container: LabelContainer) -> No
 def test_build_label_container_for_prefix_strip_prefix(
     label_container: LabelContainer,
 ) -> None:
-    sub_container = label_container.build_container_for_prefix(
-        "a.", strip_key_prefix=True
+    sub_container = build_container_for_prefix(
+        label_container, "a.", strip_key_prefix=True
     )
     assert len(sub_container) == 3
     label_a = sub_container.get("a")

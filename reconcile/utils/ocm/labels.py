@@ -140,28 +140,6 @@ class LabelContainer(BaseModel):
     def get_values_dict(self) -> dict[str, str]:
         return {label.key: label.value for label in self.labels.values()}
 
-    def build_container_for_prefix(
-        self, key_prefix: str, strip_key_prefix: bool = False
-    ) -> "LabelContainer":
-        """
-        Builds a new label container with all labels that have the given prefix.
-        """
-
-        def strip_prefix_if_needed(key: str) -> str:
-            if strip_key_prefix:
-                return key[len(key_prefix) :]
-            return key
-
-        return LabelContainer(
-            labels={
-                strip_prefix_if_needed(label.key): label.copy(
-                    update={"key": strip_prefix_if_needed(label.key)}
-                )
-                for label in self.labels.values()
-                if label.key.startswith(key_prefix)
-            }
-        )
-
 
 def build_label_container(
     *label_iterables: Optional[Iterable[OCMLabel]],
@@ -174,6 +152,29 @@ def build_label_container(
         for label in labels or []:
             merged_labels[label.key] = label
     return LabelContainer(labels=merged_labels)
+
+
+def build_container_for_prefix(
+    container: LabelContainer, key_prefix: str, strip_key_prefix: bool = False
+) -> "LabelContainer":
+    """
+    Builds a new label container with all labels that have the given prefix.
+    """
+
+    def strip_prefix_if_needed(key: str) -> str:
+        if strip_key_prefix:
+            return key[len(key_prefix) :]
+        return key
+
+    return LabelContainer(
+        labels={
+            strip_prefix_if_needed(label.key): label.copy(
+                update={"key": strip_prefix_if_needed(label.key)}
+            )
+            for label in container.labels.values()
+            if label.key.startswith(key_prefix)
+        }
+    )
 
 
 def label_filter(key: str, value: Optional[str] = None) -> Filter:
