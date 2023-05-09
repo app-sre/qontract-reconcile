@@ -8,10 +8,10 @@ from reconcile.change_owners.approver import (
 from reconcile.change_owners.bundle import BundleFileType
 from reconcile.change_owners.change_types import (
     Approver,
-    BundleFileChange,
     ChangeTypeContext,
     ChangeTypeProcessor,
 )
+from reconcile.change_owners.changes import BundleFileChange
 from reconcile.gql_definitions.change_owners.queries.self_service_roles import (
     PermissionGitlabGroupMembershipV1,
     PermissionSlackUsergroupV1,

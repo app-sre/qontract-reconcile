@@ -1,6 +1,6 @@
 import pytest
 
-from reconcile.change_owners.change_owners import _aggregate_file_moves
+from reconcile.change_owners.changes import aggregate_file_moves
 from reconcile.change_owners.diff import (
     PATH_FIELD_NAME,
     DiffType,
@@ -18,7 +18,7 @@ def test_aggregate_file_moves() -> None:
         content={"foo": "bar"},
         schema="/my/schema.yml",
     )
-    result = _aggregate_file_moves(list(file.move("/new/path.yml")))
+    result = aggregate_file_moves(list(file.move("/new/path.yml")))
     assert len(result) == 1
     file_change = result[0]
     assert len(file_change.diffs) == 1
@@ -37,7 +37,7 @@ def test_aggregate_file_moves_additional_changes() -> None:
         content={"foo": "bar"},
         schema="/my/schema.yml",
     )
-    result = _aggregate_file_moves(list(file.move("/new/path.yml", {"foo": "baz"})))
+    result = aggregate_file_moves(list(file.move("/new/path.yml", {"foo": "baz"})))
     assert len(result) == 2
     for c in result:
         if c.fileref.path == "/old/path.yml":
@@ -72,7 +72,7 @@ def test_aggregate_file_moves_mixed() -> None:
             schema="/my/schema.yml",
         ).create_bundle_change({"hey": "you"})
     )
-    result = _aggregate_file_moves(changes)
+    result = aggregate_file_moves(changes)
     assert len(result) == 2
     for c in result:
         if c.fileref.path == "/old/path.yml":

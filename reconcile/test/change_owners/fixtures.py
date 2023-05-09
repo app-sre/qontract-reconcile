@@ -17,10 +17,12 @@ from reconcile.change_owners.bundle import (
     FileRef,
 )
 from reconcile.change_owners.change_types import (
-    BundleFileChange,
     ChangeTypeProcessor,
-    create_bundle_file_change,
     init_change_type_processors,
+)
+from reconcile.change_owners.changes import (
+    BundleFileChange,
+    create_bundle_file_change,
 )
 from reconcile.change_owners.diff import (
     PATH_FIELD_NAME,
