@@ -301,7 +301,7 @@ def _signal_validation_issues_for_org(
     """
     org_id = org_upgrade_spec.org.org_id
     ocm_env_name = org_upgrade_spec.org.environment.name
-    logging.error(
+    logging.warning(
         f"Errors found in {ocm_env_name} org {org_id}: "
         f"{org_upgrade_spec.cluster_errors}"
     )
