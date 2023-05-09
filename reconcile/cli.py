@@ -1968,7 +1968,6 @@ def ocm_upgrade_scheduler_org_updater(ctx, gitlab_project_id):
 )
 @click.pass_context
 def ocm_addons_upgrade_scheduler_org(ctx):
-
     from reconcile.aus.base import AdvancedUpgradeSchedulerBaseIntegrationParams
     from reconcile.aus.ocm_addons_upgrade_scheduler_org import (
         OCMAddonsUpgradeSchedulerOrgIntegration,
@@ -1987,7 +1986,6 @@ def ocm_addons_upgrade_scheduler_org(ctx):
 )
 @click.pass_context
 def aus_upgrade_scheduler_org(ctx):
-
     from reconcile.aus.advanced_upgrade_service import AdvancedUpgradeServiceIntegration
     from reconcile.aus.base import AdvancedUpgradeSchedulerBaseIntegrationParams
 
@@ -2063,14 +2061,6 @@ def email_sender(ctx):
     run_integration(reconcile.email_sender, ctx.obj)
 
 
-@integration.command(short_help="Watch for Sentry access requests and notify on Slack.")
-@click.pass_context
-def sentry_helper(ctx):
-    import reconcile.sentry_helper
-
-    run_integration(reconcile.sentry_helper, ctx.obj)
-
-
 @integration.command(
     short_help="Send emails to users based on " "requests submitted to app-interface."
 )
@@ -2087,14 +2077,6 @@ def service_dependencies(ctx):
     import reconcile.service_dependencies
 
     run_integration(reconcile.service_dependencies, ctx.obj)
-
-
-@integration.command(short_help="Configure and enforce sentry instance configuration.")
-@click.pass_context
-def sentry_config(ctx):
-    import reconcile.sentry_config
-
-    run_integration(reconcile.sentry_config, ctx.obj)
 
 
 @integration.command(short_help="Runs SQL Queries against app-interface RDS resources.")
