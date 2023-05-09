@@ -338,9 +338,10 @@ def fetch_current_state(
     current_state: list[AbstractUpgradePolicy] = []
     for cluster in clusters:
         cluster_name = cluster.name
-        is_hypershift = (
-            ocm_map.get(cluster_name).clusters.get(cluster_name).spec.hypershift
-        )
+        cluster_spec = ocm_map.get(cluster_name).clusters.get(cluster_name)
+        if cluster_spec:
+            # None is fine, we only care if hypershift is true
+            is_hypershift = cluster_spec.spec.hypershift
         ocm = ocm_map.get(cluster_name)
         if addons:
             upgrade_policies = ocm.get_addon_upgrade_policies(cluster_name)
