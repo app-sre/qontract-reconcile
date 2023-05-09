@@ -100,8 +100,8 @@ print-files-modified-in-last-30-days:
 	@git log --since '$(shell date --date='-30 day' +"%m/%d/%y")' --until '$(shell date +"%m/%d/%y")' --oneline --name-only --pretty=format: | sort | uniq | grep -E '.py$$'
 
 format:
-	@$(VENV_CMD) isort reconcile tools release e2e_tests dockerfiles/hack setup.py
-	@$(VENV_CMD) black reconcile/ tools/ e2e_tests/
+	@$(VENV_CMD) isort reconcile tools release dockerfiles/hack setup.py
+	@$(VENV_CMD) black reconcile/ tools/
 
 gql-introspection:
 	# TODO: make url configurable

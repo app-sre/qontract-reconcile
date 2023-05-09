@@ -50,7 +50,6 @@ fragment OcConnectionCluster on Cluster_v1 {
   }
   disable {
     integrations
-    e2eTests
   }
 }
 
