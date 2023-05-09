@@ -22,7 +22,6 @@ query TerraformCloudflareResources {
       internal
       disable {
         integrations
-        e2eTests
       }
     }
     managedExternalResources

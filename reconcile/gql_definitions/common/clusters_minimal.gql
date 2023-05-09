@@ -28,7 +28,6 @@ query ClustersMinimal($name: String) {
     internal
     disable {
       integrations
-      e2eTests
     }
     auth {
       service

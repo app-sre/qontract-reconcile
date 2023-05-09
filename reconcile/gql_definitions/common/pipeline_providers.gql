@@ -54,7 +54,6 @@ query PipelineProviders {
           internal
           disable {
             integrations
-            e2eTests
           }
         }
       }

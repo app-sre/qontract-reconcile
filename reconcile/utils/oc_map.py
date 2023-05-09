@@ -41,7 +41,6 @@ class OCMap:
         self,
         connection_parameters: Iterable[OCConnectionParameters],
         integration: str = "",
-        e2e_test: str = "",
         internal: Optional[bool] = None,
         use_jump_host: bool = True,
         thread_pool_size: int = 1,
@@ -52,7 +51,6 @@ class OCMap:
         self._oc_map: dict[str, Union[OCCli, OCLogMsg]] = {}
         self._privileged_oc_map: dict[str, Union[OCCli, OCLogMsg]] = {}
         self._calling_integration = integration
-        self._calling_e2e_test = e2e_test
         self._internal = internal
         self._use_jump_host = use_jump_host
         self._thread_pool_size = thread_pool_size
@@ -160,13 +158,6 @@ class OCMap:
                 return True
         except (KeyError, TypeError):
             pass
-
-        try:
-            tests = cluster_info.disabled_e2e_tests or []
-            if self._calling_e2e_test.replace("_", "-") in tests:
-                return True
-        except (KeyError, TypeError):
-            pass
         return False
 
     def get(self, cluster: str, privileged: bool = False) -> Union[OCCli, OCLogMsg]:
@@ -209,7 +200,6 @@ def init_oc_map_from_clusters(
     clusters: Iterable[Cluster],
     secret_reader: SecretReaderBase,
     integration: str = "",
-    e2e_test: str = "",
     internal: Optional[bool] = None,
     use_jump_host: bool = True,
     thread_pool_size: int = 1,
@@ -229,7 +219,6 @@ def init_oc_map_from_clusters(
     return OCMap(
         connection_parameters=connection_parameters,
         integration=integration,
-        e2e_test=e2e_test,
         internal=internal,
         use_jump_host=use_jump_host,
         thread_pool_size=thread_pool_size,
@@ -242,7 +231,6 @@ def init_oc_map_from_namespaces(
     namespaces: Iterable[Namespace],
     secret_reader: SecretReaderBase,
     integration: str = "",
-    e2e_test: str = "",
     internal: Optional[bool] = None,
     use_jump_host: bool = True,
     thread_pool_size: int = 1,
@@ -264,7 +252,6 @@ def init_oc_map_from_namespaces(
     return OCMap(
         connection_parameters=connection_parameters,
         integration=integration,
-        e2e_test=e2e_test,
         internal=internal,
         use_jump_host=use_jump_host,
         thread_pool_size=thread_pool_size,

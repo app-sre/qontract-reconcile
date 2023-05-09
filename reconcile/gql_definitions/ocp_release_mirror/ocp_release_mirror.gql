@@ -32,7 +32,6 @@ query OCPReleaseMirror {
       internal
       disable {
         integrations
-        e2eTests
       }
       auth {
         service

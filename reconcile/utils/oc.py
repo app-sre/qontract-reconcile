@@ -1460,7 +1460,6 @@ class OC_Map:
         clusters=None,
         namespaces=None,
         integration="",
-        e2e_test="",
         settings=None,
         internal=None,
         use_jump_host=True,
@@ -1472,7 +1471,6 @@ class OC_Map:
         self.oc_map = {}
         self.privileged_oc_map = {}
         self.calling_integration = integration
-        self.calling_e2e_test = e2e_test
         self.settings = settings
         self.internal = internal
         self.use_jump_host = use_jump_host
@@ -1651,12 +1649,6 @@ class OC_Map:
         try:
             integrations = cluster_info["disable"]["integrations"]
             if self.calling_integration.replace("_", "-") in integrations:
-                return True
-        except (KeyError, TypeError):
-            pass
-        try:
-            tests = cluster_info["disable"]["e2eTests"]
-            if self.calling_e2e_test.replace("_", "-") in tests:
                 return True
         except (KeyError, TypeError):
             pass

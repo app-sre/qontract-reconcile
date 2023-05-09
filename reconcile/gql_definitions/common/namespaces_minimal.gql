@@ -21,7 +21,6 @@ query NamespacesMinimal {
       }
       internal
       disable {
-        e2eTests
         integrations
       }
     }
