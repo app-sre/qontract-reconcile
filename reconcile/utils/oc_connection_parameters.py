@@ -23,7 +23,6 @@ class OCConnectionError(Exception):
 
 class Disable(Protocol):
     integrations: Optional[list[str]]
-    e2e_tests: Optional[list[str]]
 
 
 class Jumphost(Protocol):
@@ -93,7 +92,6 @@ class OCConnectionParameters:
     automation_token: Optional[str]
     cluster_admin_automation_token: Optional[str]
     disabled_integrations: list[str]
-    disabled_e2e_tests: list[str]
     jumphost_hostname: Optional[str]
     jumphost_known_hosts: Optional[str]
     jumphost_user: Optional[str]
@@ -175,10 +173,8 @@ class OCConnectionParameters:
                 logging.debug(f"No automation token for cluster '{cluster.name}'.")
 
         disabled_integrations = []
-        disabled_e2e_tests = []
         if cluster.disable:
             disabled_integrations = cluster.disable.integrations or []
-            disabled_e2e_tests = cluster.disable.e2e_tests or []
 
         jumphost_hostname = None
         jumphost_known_hosts = None
@@ -207,7 +203,6 @@ class OCConnectionParameters:
             server_url=cluster.server_url,
             is_internal=cluster.internal,
             skip_tls_verify=cluster.insecure_skip_tls_verify,
-            disabled_e2e_tests=disabled_e2e_tests,
             disabled_integrations=disabled_integrations,
             automation_token=automation_token,
             jumphost_hostname=jumphost_hostname,

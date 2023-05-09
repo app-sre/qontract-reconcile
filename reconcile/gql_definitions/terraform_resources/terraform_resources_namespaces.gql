@@ -410,7 +410,6 @@ query TerraformResourcesNamespaces {
       internal
       disable {
         integrations
-        e2eTests
       }
     }
   }

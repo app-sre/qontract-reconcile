@@ -104,7 +104,6 @@ query PipelineProviders {
           internal
           disable {
             integrations
-            e2eTests
           }
         }
       }
@@ -207,7 +206,6 @@ class PipelinesProviderTektonProviderDefaultsV1(ConfiguredBaseModel):
 
 class DisableClusterAutomationsV1(ConfiguredBaseModel):
     integrations: Optional[list[str]] = Field(..., alias="integrations")
-    e2e_tests: Optional[list[str]] = Field(..., alias="e2eTests")
 
 
 class ClusterV1(ConfiguredBaseModel):

@@ -63,7 +63,6 @@ query Namespaces {
       internal
       disable {
         integrations
-        e2eTests
       }
     }
     managedResourceNames {

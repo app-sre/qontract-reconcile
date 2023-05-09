@@ -35,7 +35,6 @@ def make_connection_parameter(data: Mapping[str, Any]) -> OCConnectionParameters
         server_url=data.get("server_url", ""),
         skip_tls_verify=data.get("skip_tls_verify", None),
         disabled_integrations=data.get("disabled_integrations", []),
-        disabled_e2e_tests=data.get("disabled_e2e_tests", []),
     )
 
 

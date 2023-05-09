@@ -50,7 +50,7 @@ def test_template_cache(values):
 
 
 def test_template_command(values):
-    values["integrations"][0]["command"] = "e2e-tests"
+    values["integrations"][0]["command"] = "app-interface-reporter"
     template = helm.template(values)
     expected = yaml.safe_load(fxt.get("command.yml"))
     assert template == expected

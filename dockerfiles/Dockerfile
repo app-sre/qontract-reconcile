@@ -3,7 +3,6 @@ FROM quay.io/app-sre/qontract-reconcile-builder:0.3.12 as build-image
 WORKDIR /work
 
 COPY helm helm
-COPY e2e_tests e2e_tests
 COPY reconcile reconcile
 COPY release release
 COPY tools tools
