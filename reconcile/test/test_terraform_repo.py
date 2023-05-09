@@ -1,3 +1,5 @@
+from unittest.mock import MagicMock
+
 import pytest
 
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
@@ -10,6 +12,7 @@ from reconcile.terraform_repo import (
     TerraformRepoIntegrationParams,
 )
 from reconcile.utils.exceptions import ParameterError
+from reconcile.utils.state import State
 
 A_REPO = "https://git-example/tf-repo-example"
 A_REPO_SHA = "a390f5cb20322c90861d6d80e9b70c6a579be1d0"
@@ -62,25 +65,70 @@ def int_params() -> TerraformRepoIntegrationParams:
     return TerraformRepoIntegrationParams(print_to_file=None, validate_git=False)
 
 
-def test_addition_to_existing_repo(existing_repo, new_repo, int_params):
+@pytest.fixture()
+def a_repo_json() -> str:
+    # terraform repo expects a JSON string not a dict so we have to encode a multi-line JSON string
+    return f"""
+            {{
+                "name": "a_repo",
+                "repository": "{A_REPO}",
+                "ref": "{A_REPO_SHA}",
+                "projectPath": "tf",
+                "delete": false,
+                "account": {{
+                    "name": "foo",
+                    "uid": "{AWS_UID}",
+                    "automationToken": {{
+                        "path": "{AUTOMATION_TOKEN_PATH}",
+                        "field": "all",
+                        "version": 1,
+                        "format": null
+                    }}
+                }}
+            }}
+            """
+
+
+@pytest.fixture()
+def state_mock() -> MagicMock:
+    return MagicMock(spec=State)
+
+
+def test_addition_to_existing_repo(existing_repo, new_repo, int_params, state_mock):
     existing = [existing_repo]
     desired = [existing_repo, new_repo]
 
     integration = TerraformRepoIntegration(params=int_params)
-    diff = integration.calculate_diff(existing, desired, True, None)
+    diff = integration.calculate_diff(
+        existing_state=existing, desired_state=desired, dry_run=False, state=state_mock
+    )
 
     assert diff == [new_repo]
 
+    # ensure that the state is saved for the new repo
+    state_mock.add.assert_called_once_with(
+        new_repo.name, new_repo.dict(by_alias=True), force=True
+    )
 
-def test_updating_repo_ref(existing_repo, int_params):
+
+def test_updating_repo_ref(existing_repo, int_params, state_mock):
     existing = [existing_repo]
     updated_repo = TerraformRepoV1.copy(existing_repo)
     updated_repo.ref = B_REPO_SHA
 
     integration = TerraformRepoIntegration(params=int_params)
-    diff = integration.calculate_diff(existing, [updated_repo], True, None)
+    diff = integration.calculate_diff(
+        existing_state=existing,
+        desired_state=[updated_repo],
+        dry_run=False,
+        state=state_mock,
+    )
 
     assert diff == [updated_repo]
+
+    state_mock.add.assert_called_once_with(
+        updated_repo.name, updated_repo.dict(by_alias=True), force=True
+    )
 
 
 def test_fail_on_update_invalid_repo_params(existing_repo, int_params):
@@ -95,19 +143,31 @@ def test_fail_on_update_invalid_repo_params(existing_repo, int_params):
     integration = TerraformRepoIntegration(params=int_params)
 
     with pytest.raises(ParameterError):
-        integration.calculate_diff(existing, [updated_repo], True, None)
+        integration.calculate_diff(
+            existing_state=existing,
+            desired_state=[updated_repo],
+            dry_run=True,
+            state=None,
+        )
 
 
-def test_delete_repo(existing_repo, int_params):
+def test_delete_repo(existing_repo, int_params, state_mock):
     existing = [existing_repo]
     updated_repo = TerraformRepoV1.copy(existing_repo)
     updated_repo.delete = True
 
     integration = TerraformRepoIntegration(params=int_params)
 
-    diff = integration.calculate_diff(existing, [updated_repo], True, None)
+    diff = integration.calculate_diff(
+        existing_state=existing,
+        desired_state=[updated_repo],
+        dry_run=False,
+        state=state_mock,
+    )
 
     assert diff == [updated_repo]
+
+    state_mock.rm.assert_called_once_with(updated_repo.name)
 
 
 def test_delete_repo_without_flag(existing_repo, int_params):
@@ -116,37 +176,18 @@ def test_delete_repo_without_flag(existing_repo, int_params):
     integration = TerraformRepoIntegration(params=int_params)
 
     with pytest.raises(ParameterError):
-        integration.calculate_diff(existing, [], True, None)
+        integration.calculate_diff(
+            existing_state=existing, desired_state=[], dry_run=True, state=None
+        )
 
 
-def test_get_repo_state(s3_state_builder, int_params, existing_repo):
+def test_get_repo_state(s3_state_builder, int_params, existing_repo, a_repo_json):
     state = s3_state_builder(
         {
             "ls": [
                 "/a_repo",
             ],
-            "get": {
-                # terraform repo expects a JSON string not a dict so we have to encode a multi-line JSON string
-                "a_repo": f"""
-                {{
-                    "name": "a_repo",
-                    "repository": "{A_REPO}",
-                    "ref": "{A_REPO_SHA}",
-                    "projectPath": "tf",
-                    "delete": false,
-                    "account": {{
-                        "name": "foo",
-                        "uid": "{AWS_UID}",
-                        "automationToken": {{
-                            "path": "{AUTOMATION_TOKEN_PATH}",
-                            "field": "all",
-                            "version": 1,
-                            "format": null
-                        }}
-                    }}
-                }}
-                """
-            },
+            "get": {"a_repo": a_repo_json},
         }
     )
 
@@ -154,3 +195,21 @@ def test_get_repo_state(s3_state_builder, int_params, existing_repo):
 
     existing_state = integration.get_existing_state(state=state)
     assert existing_state == [existing_repo]
+
+
+def test_update_repo_state(int_params, existing_repo, state_mock):
+    integration = TerraformRepoIntegration(params=int_params)
+
+    existing_state: list = []
+    desired_state = [existing_repo]
+
+    integration.calculate_diff(
+        existing_state=existing_state,
+        desired_state=desired_state,
+        dry_run=False,
+        state=state_mock,
+    )
+
+    state_mock.add.assert_called_once_with(
+        existing_repo.name, existing_repo.dict(by_alias=True), force=True
+    )
