@@ -1,8 +1,12 @@
 import pytest
 
-from reconcile.change_owners.changes import aggregate_file_moves
+from reconcile.change_owners.changes import (
+    InvalidBundleFileMetadataError,
+    aggregate_file_moves,
+)
 from reconcile.change_owners.diff import (
     PATH_FIELD_NAME,
+    SHA256SUM_FIELD_NAME,
     DiffType,
 )
 from reconcile.test.change_owners.fixtures import build_test_datafile
@@ -87,3 +91,26 @@ def test_aggregate_file_moves_mixed() -> None:
             )
         else:
             pytest.fail("Unexpected change")
+
+
+def test_aggregate_file_moves_with_metadata_error() -> None:
+    """
+    Test that an InvalidBundleFileMetadataError prevents the aggregation of
+    changes.
+    """
+    changes = list(
+        build_test_datafile(
+            filepath="/old/path.yml",
+            content={"foo": "bar"},
+            schema="/my/schema.yml",
+        ).move("/new/path.yml")
+    )
+    # make the change invalid from a metadata perspective
+    for c in changes:
+        if c.old:
+            del c.old[SHA256SUM_FIELD_NAME]
+        if c.new:
+            del c.new[SHA256SUM_FIELD_NAME]
+
+    with pytest.raises(InvalidBundleFileMetadataError):
+        aggregate_file_moves(changes)

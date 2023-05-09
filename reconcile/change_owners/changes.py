@@ -1,10 +1,11 @@
-from collections.abc import Sequence
+import itertools
+import logging
 from collections import defaultdict
+from collections.abc import Sequence
 from dataclasses import (
     dataclass,
     field,
 )
-import logging
 from typing import (
     Any,
     Optional,
@@ -55,18 +56,30 @@ class BundleFileChange:
     def __post_init__(self) -> None:
         self._diff_coverage = {d.path_str(): DiffCoverage(d, []) for d in self.diffs}
 
-    def old_content_sha(self) -> Optional[str]:
+    def old_content_sha(self) -> str:
+        """
+        Returns the SHA256SUM of the old state of the file. The checksum is provided by the
+        qontract-server and is not calculated locally. If the file has no old content
+        (a.k.a. is currently created), this function returns an empty string. It is the responsibility
+        of the caller to check if the file is created or not, e.g. via `is_file_creation()`.
+        """
         if self.old is None:
-            return None
+            return ""
         if SHA256SUM_FIELD_NAME not in self.old:
             raise InvalidBundleFileMetadataError(
                 f"The detected change for {self.fileref} does not contain a {SHA256SUM_FIELD_NAME} for the previous state."
             )
         return self.old[SHA256SUM_FIELD_NAME]
 
-    def new_content_sha(self) -> Optional[str]:
+    def new_content_sha(self) -> str:
+        """
+        Returns the SHA256SUM of the new state of the file. The checksum is provided by the
+        qontract-server and is not calculated locally. If the file has no new content
+        (a.k.a. is currently deleted), this function returns an empty string. It is the responsibility
+        of the caller to check if the file is deleted or not, e.g. via `is_file_deletion()`.
+        """
         if self.new is None:
-            return None
+            return ""
         if SHA256SUM_FIELD_NAME not in self.new:
             raise InvalidBundleFileMetadataError(
                 f"The detected change for {self.fileref} does not contain a {SHA256SUM_FIELD_NAME} for the new state."
@@ -253,13 +266,34 @@ def fetch_bundle_changes(comparison_sha: str) -> list[BundleFileChange]:
     """
     changes = gql.get_diff(comparison_sha)
     bundle_changes = _parse_bundle_changes(changes)
-    try:
-        return aggregate_file_moves(bundle_changes)
-    except Exception as e:
-        logging.error(f"Failed to post process bundle changes: {e}")
-        # if any post processing action fails, we want the raw bundle changes
-        # to be reviewed
-        return bundle_changes
+    return aggregate_file_moves(bundle_changes)
+
+
+@dataclass
+class _MoveCandidates:
+    creations: list[BundleFileChange] = field(default_factory=list)
+    deletions: list[BundleFileChange] = field(default_factory=list)
+
+    def changes(self) -> list[BundleFileChange]:
+        if len(self.creations) == 1 and len(self.deletions) == 1:
+            creation = self.creations[0]
+            deletion = self.deletions[0]
+            if (
+                creation != deletion
+                and deletion.fileref.file_type == creation.fileref.file_type
+                and deletion.fileref.path != creation.fileref.path
+            ):
+                move_change = create_bundle_file_change(
+                    deletion.fileref.path,
+                    deletion.fileref.schema,
+                    deletion.fileref.file_type,
+                    deletion.old,
+                    creation.new,
+                )
+                if move_change:
+                    return [move_change]
+
+        return self.creations + self.deletions
 
 
 def aggregate_file_moves(
@@ -270,52 +304,19 @@ def aggregate_file_moves(
     add and remove file change with the same content is detected, those changes are
     replaced with a single move change where the only difference is the path.
     """
-    move_candidates: dict[str, list[BundleFileChange]] = defaultdict(list)
+    move_candidates: dict[str, _MoveCandidates] = defaultdict(_MoveCandidates)
     new_bundle_changes = []
     for c in bundle_changes:
-        potential_move_sha = None
         if c.is_file_creation():
-            potential_move_sha = c.new_content_sha()
+            move_candidates[c.new_content_sha()].creations.append(c)
         elif c.is_file_deletion():
-            potential_move_sha = c.old_content_sha()
-        if potential_move_sha:
-            move_candidates[potential_move_sha].append(c)
+            move_candidates[c.old_content_sha()].deletions.append(c)
         else:
             new_bundle_changes.append(c)
-
-    for candidates in move_candidates.values():
-        if len(candidates) == 2:
-            # if there are two candidates, they could represent a file move.
-            # lets check if that is the case
-            deletion = (
-                candidates[0] if candidates[0].is_file_deletion() else candidates[1]
-            )
-            addition = (
-                candidates[0] if candidates[0].is_file_creation() else candidates[1]
-            )
-            if (
-                deletion != addition
-                and deletion.fileref.file_type == addition.fileref.file_type
-                and deletion.fileref.path != addition.fileref.path
-            ):
-                # the candidates represent a file move. let's add a new
-                # change that represents the move
-                move_change = create_bundle_file_change(
-                    deletion.fileref.path,
-                    deletion.fileref.schema,
-                    deletion.fileref.file_type,
-                    deletion.old,
-                    addition.new,
-                )
-                if move_change:
-                    # move_change will always be present. this check is just to
-                    # satisfy mypy
-                    new_bundle_changes.append(move_change)
-                    continue
-
-        # the candidates turned out to be unrelated changes. lets add them back
-        # to the list of changes
-        new_bundle_changes.extend(candidates)
+    move_candidate_changes = itertools.chain.from_iterable(
+        c.changes() for c in move_candidates.values()
+    )
+    new_bundle_changes.extend(move_candidate_changes)
     return new_bundle_changes
 
 
