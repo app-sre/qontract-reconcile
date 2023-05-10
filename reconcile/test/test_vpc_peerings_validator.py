@@ -119,9 +119,11 @@ def test_validate_validate_no_cidr_overlap():
             "providers": [
                 {
                     "provider": "account-vpc",
-                    "vpc_name": "vpc-name-1",
-                    "region": "us-east-1",
-                    "cidr_block": "172.31.0.0/16",
+                    "vpc_peering": {
+                        "vpc_name": "vpc-name-1",
+                        "region": "us-east-1",
+                        "cidr_block": "172.31.0.0/16",
+                    },
                 }
             ],
         },
@@ -130,15 +132,19 @@ def test_validate_validate_no_cidr_overlap():
             "providers": [
                 {
                     "provider": "account-vpc",
-                    "vpc_name": "vpc-name-1",
-                    "region": "us-east-1",
-                    "cidr_block": "10.18.0.0/18",
+                    "vpc_peering": {
+                        "vpc_name": "vpc-name-1",
+                        "region": "us-east-1",
+                        "cidr_block": "10.18.0.0/18",
+                    },
                 },
                 {
                     "provider": "account-vpc",
-                    "vpc_name": "vpc-name-2",
-                    "region": "us-east-1",
-                    "cidr_block": "10.18.0.0/18",
+                    "vpc_peering": {
+                        "vpc_name": "vpc-name-2",
+                        "region": "us-east-1",
+                        "cidr_block": "10.18.0.0/18",
+                    },
                 },
             ],
         },
@@ -168,7 +174,7 @@ def query_data_vpc_cidr_overlap() -> VpcPeeringsValidatorQueryData:
                         ClusterPeeringConnectionAccountV1(
                             provider="account-vpc",
                             vpc=AWSVPCV1(
-                                cidr_block="192.168.0.0/16",
+                                cidr_block="192.168.1.0/24",
                                 name="vpc2",
                                 region="us-east-1",
                             ),
