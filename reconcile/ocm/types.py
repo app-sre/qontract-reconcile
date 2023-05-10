@@ -58,7 +58,7 @@ class ROSAOcmAwsAttrs(BaseModel):
     creator_role_arn: str
     installer_role_arn: str
     support_role_arn: str
-    controlplane_role_arn: str
+    controlplane_role_arn: Optional[str]
     worker_role_arn: str
 
     class Config:

@@ -374,9 +374,9 @@ class OCMProductRosa(OCMProduct):
                 creator_role_arn=cluster["properties"]["rosa_creator_arn"],
                 installer_role_arn=cluster["aws"]["sts"]["role_arn"],
                 support_role_arn=cluster["aws"]["sts"]["support_role_arn"],
-                controlplane_role_arn=cluster["aws"]["sts"]["instance_iam_roles"][
-                    "master_role_arn"
-                ],
+                controlplane_role_arn=cluster["aws"]["sts"]["instance_iam_roles"].get(
+                    "master_role_arn", None
+                ),
                 worker_role_arn=cluster["aws"]["sts"]["instance_iam_roles"][
                     "worker_role_arn"
                 ],
