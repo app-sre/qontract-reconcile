@@ -169,8 +169,8 @@ class AWSApi:  # pylint: disable=too-many-public-methods
             secret_key = secret["aws_secret_access_key"]
             region_name = account["resourcesDefaultRegion"]
             session = Session(
-                aws_access_key_id=access_key,
-                aws_secret_access_key=secret_key,
+                aws_access_key_id="AKIAZAP3LFING6SRUXHM",
+                aws_secret_access_key="mak1ngth1sup+thi5i5fak3",
                 region_name=region_name,
             )
             self.sessions[account_name] = session
