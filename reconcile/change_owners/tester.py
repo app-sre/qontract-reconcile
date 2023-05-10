@@ -1,10 +1,10 @@
 import os
 import sys
+from collections.abc import Generator
 from dataclasses import dataclass
 from typing import (
     Any,
     Optional,
-    Tuple,
 )
 
 import jsonpath_ng
@@ -35,7 +35,7 @@ from reconcile.utils import gql
 
 def test_change_type_in_context(
     change_type_name: str, role_name: str, app_interface_path: str
-):
+) -> None:
     print(f"Sections marked with '{SELF_SERVICABLE_MARKER}' are self serviceable\n\n")
 
     role = get_self_service_role_by_name(role_name)
@@ -83,7 +83,7 @@ SELF_SERVICABLE_MARKER = "self-serviceable"
 
 def print_annotated_file(
     file: BundleFileChange, self_serviceable_paths: list[jsonpath_ng.JSONPath]
-):
+) -> None:
     # add a markers to the data to indicate which parts are self serviceable
     for path_expression in self_serviceable_paths:
         for self_serviceable_data in path_expression.find(file.new):
@@ -177,6 +177,8 @@ class AppInterfaceRepo:
                     ),
                     old=parsed_yaml,
                     new=parsed_yaml,
+                    old_content_sha="",
+                    new_content_sha="",
                     diffs=[],
                 )
         elif file_type == BundleFileType.RESOURCEFILE:
@@ -191,6 +193,8 @@ class AppInterfaceRepo:
                     ),
                     old=parsed_content,
                     new=parsed_content,
+                    old_content_sha="",
+                    new_content_sha="",
                     diffs=[],
                 )
         else:
@@ -203,11 +207,11 @@ class SelfServiceableHighlighter(Filter):
     in a structured file.
     """
 
-    def __init__(self, self_serviceable_marker: str):
+    def __init__(self, self_serviceable_marker: str) -> None:
         Filter.__init__(self)
         self.self_serviceable_marker = self_serviceable_marker
 
-    def filter(self, _, stream):
+    def filter(self, _: Any, stream: Any) -> Generator[tuple[Any, Any], None, None]:
         for ttype, value in stream:
             if value != self.self_serviceable_marker:
                 ttype = Name
@@ -215,12 +219,12 @@ class SelfServiceableHighlighter(Filter):
 
 
 class FilesystemFileDiffResolver:
-    def __init__(self, app_interface_repo: AppInterfaceRepo):
+    def __init__(self, app_interface_repo: AppInterfaceRepo) -> None:
         self.app_interface_repo = app_interface_repo
 
     def lookup_file_diff(
         self, file_ref: FileRef
-    ) -> Tuple[Optional[dict[str, Any]], Optional[dict[str, Any]]]:
+    ) -> tuple[Optional[dict[str, Any]], Optional[dict[str, Any]]]:
         file = self.app_interface_repo.bundle_file_for_path(
             file_type=file_ref.file_type, path=file_ref.path
         )

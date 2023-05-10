@@ -2,10 +2,10 @@ from reconcile.change_owners.bundle import (
     BundleFileType,
     FileRef,
 )
-from reconcile.change_owners.changes import create_bundle_file_change
 from reconcile.gql_definitions.change_owners.queries.change_types import ChangeTypeV1
 from reconcile.test.change_owners.fixtures import (
     StubFile,
+    build_bundle_datafile_change,
     change_type_to_processor,
 )
 
@@ -16,7 +16,7 @@ from reconcile.test.change_owners.fixtures import (
 
 def test_extract_context_file_refs_from_bundle_change(
     saas_file_changetype: ChangeTypeV1, saas_file: StubFile
-):
+) -> None:
     """
     in this testcase, a changed datafile matches directly the context schema
     of the change type, so the change type is directly relevant for the changed
@@ -34,7 +34,7 @@ def test_extract_context_file_refs_from_bundle_change(
 
 def test_extract_context_file_refs_from_bundle_change_schema_mismatch(
     saas_file_changetype: ChangeTypeV1, saas_file: StubFile
-):
+) -> None:
     """
     in this testcase, the schema of the bundle change and the schema of the
     change types do not match and hence no file context is extracted.
@@ -52,23 +52,22 @@ def test_extract_context_file_refs_from_bundle_change_schema_mismatch(
 
 def test_extract_context_file_refs_selector(
     cluster_owner_change_type: ChangeTypeV1,
-):
+) -> None:
     """
     this testcase extracts the context file based on the change types context
     selector
     """
     cluster = "/my/cluster.yml"
-    namespace_change = create_bundle_file_change(
+    namespace_change = build_bundle_datafile_change(
         path="/my/namespace.yml",
         schema="/openshift/namespace-1.yml",
-        file_type=BundleFileType.DATAFILE,
-        old_file_content={
+        old_content={
             "the_change": "does not matter in this test",
             "cluster": {
                 "$ref": cluster,
             },
         },
-        new_file_content={
+        new_content={
             "cluster": {
                 "$ref": cluster,
             },
@@ -90,7 +89,7 @@ def test_extract_context_file_refs_selector(
 
 def test_extract_context_file_refs_in_list_added_selector(
     role_member_change_type: ChangeTypeV1,
-):
+) -> None:
     """
     in this testcase, a changed datafile does not directly belong to the change
     type, because the context schema does not match (change type reacts to roles,
@@ -100,14 +99,13 @@ def test_extract_context_file_refs_in_list_added_selector(
     roles.
     """
     new_role = "/role/new.yml"
-    user_change = create_bundle_file_change(
+    user_change = build_bundle_datafile_change(
         path="/somepath.yml",
         schema="/access/user-1.yml",
-        file_type=BundleFileType.DATAFILE,
-        old_file_content={
+        old_content={
             "roles": [{"$ref": "/role/existing.yml"}],
         },
-        new_file_content={
+        new_content={
             "roles": [{"$ref": "/role/existing.yml"}, {"$ref": new_role}],
         },
     )
@@ -127,7 +125,7 @@ def test_extract_context_file_refs_in_list_added_selector(
 
 def test_extract_context_file_refs_in_list_removed_selector(
     role_member_change_type: ChangeTypeV1,
-):
+) -> None:
     """
     this testcase is similar to previous one, but detects removed contexts (e.g
     roles in this example) as the relevant context to extract.
@@ -135,14 +133,13 @@ def test_extract_context_file_refs_in_list_removed_selector(
     role_member_change_type.changes[0].context.when = "removed"  # type: ignore
     existing_role = "/role/existing.yml"
     new_role = "/role/new.yml"
-    user_change = create_bundle_file_change(
+    user_change = build_bundle_datafile_change(
         path="/somepath.yml",
         schema="/access/user-1.yml",
-        file_type=BundleFileType.DATAFILE,
-        old_file_content={
+        old_content={
             "roles": [{"$ref": existing_role}],
         },
-        new_file_content={
+        new_content={
             "roles": [{"$ref": new_role}],
         },
     )
@@ -162,17 +159,16 @@ def test_extract_context_file_refs_in_list_removed_selector(
 
 def test_extract_context_file_refs_in_list_selector_change_schema_mismatch(
     role_member_change_type: ChangeTypeV1,
-):
+) -> None:
     """
     in this testcase, the changeSchema section of the change types changes does
     not match the bundle change.
     """
-    datafile_change = create_bundle_file_change(
+    datafile_change = build_bundle_datafile_change(
         path="/somepath.yml",
         schema="/some/other/schema.yml",
-        file_type=BundleFileType.DATAFILE,
-        old_file_content={"field": "old-value"},
-        new_file_content={"field": "new-value"},
+        old_content={"field": "old-value"},
+        new_content={"field": "new-value"},
     )
     assert datafile_change
     ctp = change_type_to_processor(role_member_change_type)

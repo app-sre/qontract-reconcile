@@ -1,7 +1,6 @@
 import copy
 import json
 import re
-from collections.abc import MutableMapping
 from dataclasses import dataclass
 from enum import Enum
 from functools import reduce
@@ -62,25 +61,10 @@ class Diff:
 
     def get_context_data_copy(self) -> Optional[Any]:
         if self.diff_type in [DiffType.ADDED, DiffType.CHANGED]:
-            data_copy = copy.deepcopy(self.new)
-        elif self.diff_type == DiffType.REMOVED:
-            data_copy = copy.deepcopy(self.old)
-        else:
-            raise Exception(f"Unknown diff type {self.diff_type}")
-
-        # remove file metadata
-        if (
-            data_copy
-            and isinstance(data_copy, MutableMapping)
-            and self.path == jsonpath_ng.Root()
-        ):
-            if SCHEMA_FIELD in data_copy:
-                del data_copy[SCHEMA_FIELD]
-            if PATH_FIELD in data_copy:
-                del data_copy[PATH_FIELD]
-            if SHA256SUM_FIELD_NAME in data_copy:
-                del data_copy[SHA256SUM_FIELD_NAME]
-        return data_copy
+            return copy.deepcopy(self.new)
+        if self.diff_type == DiffType.REMOVED:
+            return copy.deepcopy(self.old)
+        raise Exception(f"Unknown diff type {self.diff_type}")
 
     def path_str(self) -> str:
         return str(self.path)
@@ -148,13 +132,6 @@ def compare_object_ctx_identifier(
     # detecting if two objects without identifiers are the same, is beyond this
     # functions capability, hence it tells deepdiff to figure it out on its own
     raise CannotCompare() from None
-
-
-SCHEMA_FIELD = "$schema"
-PATH_FIELD = "path"
-SHA256SUM_FIELD_NAME = "$file_sha256sum"
-PATH_FIELD_NAME = "path"
-SHA256SUM_PATH = jsonpath_ng.parse(f"'{SHA256SUM_FIELD_NAME}'")
 
 
 def extract_diffs(old_file_content: Any, new_file_content: Any) -> list[Diff]:
@@ -230,11 +207,6 @@ def extract_diffs(old_file_content: Any, new_file_content: Any) -> list[Diff]:
                 for path, change in deep_diff.get("iterable_item_removed", {}).items()
             ]
         )
-
-        # if real changes have been detected, we are going to delete the
-        # diff for the checksum field
-        if len(diffs) > 1:
-            diffs = [d for d in diffs if str(d.path) != SHA256SUM_FIELD_NAME]
 
     elif old_file_content:
         # file was deleted

@@ -1,7 +1,6 @@
 import copy
 import hashlib
 import json
-from dataclasses import dataclass
 from typing import (
     Any,
     Optional,
@@ -10,11 +9,19 @@ from typing import (
 
 import jsonpath_ng
 import jsonpath_ng.ext
+from pydantic.dataclasses import dataclass
 
 from reconcile.change_owners.bundle import (
+    DATAFILE_PATH_FIELD_NAME,
+    DATAFILE_SCHEMA_FIELD_NAME,
+    DATAFILE_SHA256SUM_FIELD_NAME,
     BundleFileType,
     FileDiffResolver,
     FileRef,
+    QontractServerDatafileDiff,
+    QontractServerDiff,
+    QontractServerResourcefileDiff,
+    QontractServerResourcefileDiffState,
 )
 from reconcile.change_owners.change_types import (
     ChangeTypeProcessor,
@@ -22,11 +29,7 @@ from reconcile.change_owners.change_types import (
 )
 from reconcile.change_owners.changes import (
     BundleFileChange,
-    create_bundle_file_change,
-)
-from reconcile.change_owners.diff import (
-    PATH_FIELD_NAME,
-    SHA256SUM_FIELD_NAME,
+    parse_bundle_changes,
 )
 from reconcile.gql_definitions.change_owners.queries import self_service_roles
 from reconcile.gql_definitions.change_owners.queries.change_types import (
@@ -55,70 +58,193 @@ def _sha256_sum(content: dict[str, Any]) -> str:
     return m.hexdigest()
 
 
+class QontractServerBundleDiffDataBuilder:
+    def __init__(self) -> None:
+        self._diff: QontractServerDiff = QontractServerDiff(
+            datafiles={},
+            resources={},
+        )
+
+    @property
+    def diff(self) -> QontractServerDiff:
+        return self._diff
+
+    def add_datafile(
+        self,
+        path: str,
+        schema: str,
+        old_content: Optional[dict[str, Any]],
+        new_content: Optional[dict[str, Any]],
+        old_sha_override: Optional[str] = None,
+        new_sha_override: Optional[str] = None,
+    ) -> "QontractServerBundleDiffDataBuilder":
+        old = copy.deepcopy(old_content)
+        if old:
+            old[DATAFILE_SHA256SUM_FIELD_NAME] = old_sha_override or _sha256_sum(old)
+            old[DATAFILE_SCHEMA_FIELD_NAME] = schema
+            old[DATAFILE_PATH_FIELD_NAME] = path
+        new = copy.deepcopy(new_content)
+        if new:
+            new[DATAFILE_SHA256SUM_FIELD_NAME] = new_sha_override or _sha256_sum(new)
+            new[DATAFILE_SCHEMA_FIELD_NAME] = schema
+            new[DATAFILE_PATH_FIELD_NAME] = path
+        self._diff.datafiles[path] = QontractServerDatafileDiff(
+            datafilepath=path, datafileschema=schema, old=old, new=new
+        )
+        return self
+
+    def add_resource_file(
+        self,
+        path: str,
+        old_content: Any,
+        new_content: Any,
+        schema: Optional[str] = None,
+    ) -> "QontractServerBundleDiffDataBuilder":
+
+        entry = QontractServerResourcefileDiff(resourcepath=path)
+        if old_content:
+            entry.old = QontractServerResourcefileDiffState(
+                **{
+                    "path": path,
+                    "content": old_content,
+                    "$schema": schema,
+                    "sha256sum": _sha256_sum(old_content),
+                }
+            )
+        if new_content:
+            entry.new = QontractServerResourcefileDiffState(
+                **{
+                    "path": path,
+                    "content": new_content,
+                    "$schema": schema,
+                    "sha256sum": _sha256_sum(new_content),
+                }
+            )
+        self._diff.resources[path] = entry
+
+        return self
+
+
+def build_bundle_datafile_change(
+    path: str,
+    schema: str,
+    old_content: Optional[dict[str, Any]],
+    new_content: Optional[dict[str, Any]],
+    old_sha_override: Optional[str] = None,
+    new_sha_override: Optional[str] = None,
+) -> Optional[BundleFileChange]:
+    builder = QontractServerBundleDiffDataBuilder().add_datafile(
+        path=path,
+        schema=schema,
+        old_content=old_content,
+        new_content=new_content,
+        old_sha_override=old_sha_override,
+        new_sha_override=new_sha_override,
+    )
+    parsed_changes = parse_bundle_changes(builder.diff)
+    bundle_file_change = parsed_changes[0] if parsed_changes else None
+    return bundle_file_change
+
+
+def build_bundle_resourcefile_change(
+    path: str,
+    schema: Optional[str],
+    old_content: Optional[str],
+    new_content: Optional[str],
+) -> Optional[BundleFileChange]:
+    builder = QontractServerBundleDiffDataBuilder().add_resource_file(
+        path=path,
+        schema=schema,
+        old_content=json.dumps(old_content)
+        if old_content and isinstance(old_content, dict)
+        else old_content,
+        new_content=json.dumps(new_content)
+        if new_content and isinstance(new_content, dict)
+        else new_content,
+    )
+    parsed_changes = parse_bundle_changes(builder.diff)
+    bundle_file_change = parsed_changes[0] if parsed_changes else None
+    return bundle_file_change
+
+
 @dataclass
 class StubFile:
     filepath: str
     fileschema: Optional[str]
-    filetype: str
+    filetype: BundleFileType
     content: dict[str, Any]
 
     def file_ref(self) -> FileRef:
         return FileRef(
             path=self.filepath,
             schema=self.fileschema,
-            file_type=BundleFileType[self.filetype.upper()],
+            file_type=self.filetype,
         )
+
+    def _build_bundle_file_change(
+        self,
+        old_content: Optional[dict[str, Any]],
+        new_content: Optional[dict[str, Any]],
+        path_override: Optional[str] = None,
+    ) -> BundleFileChange:
+        if self.filetype == BundleFileType.DATAFILE:
+            if self.fileschema is None:
+                raise ValueError(
+                    "Cannot create bundle change for datafile without a schema"
+                )
+            change = build_bundle_datafile_change(
+                path=path_override or self.filepath,
+                schema=self.fileschema,
+                old_content=old_content,
+                new_content=new_content,
+            )
+        elif self.filetype == BundleFileType.RESOURCEFILE:
+            change = build_bundle_resourcefile_change(
+                path=path_override or self.filepath,
+                schema=self.fileschema,
+                old_content=json.dumps(old_content) if old_content else None,
+                new_content=json.dumps(new_content) if new_content else None,
+            )
+        assert change
+        return change
 
     def create_bundle_change(
         self, jsonpath_patches: dict[str, Any]
     ) -> BundleFileChange:
-        bundle_file_change = create_bundle_file_change(
-            path=self.filepath,
-            schema=self.fileschema,
-            file_type=BundleFileType[self.filetype.upper()],
-            old_file_content=StubFile._prepare_content(self.content, self.filepath, {}),
-            new_file_content=StubFile._prepare_content(
-                self.content, self.filepath, jsonpath_patches
-            ),
+        return self._build_bundle_file_change(
+            self.content, StubFile._patch_content(self.content, jsonpath_patches)
         )
-        assert bundle_file_change
-        return bundle_file_change
+
+    def create_bundle_change_with_new_content(
+        self, new_content: dict[str, Any]
+    ) -> BundleFileChange:
+        return self._build_bundle_file_change(self.content, new_content)
+
+    def file_creation(self) -> BundleFileChange:
+        return self._build_bundle_file_change(None, self.content)
+
+    def file_deletion(self) -> BundleFileChange:
+        return self._build_bundle_file_change(self.content, None)
+
+    def file_move(self, new_path: str) -> tuple[BundleFileChange, BundleFileChange]:
+        deletion = self.file_deletion()
+        creation = self._build_bundle_file_change(
+            old_content=None,
+            new_content=self.content,
+            path_override=new_path,
+        )
+        return deletion, creation
 
     @staticmethod
-    def _prepare_content(
-        content: dict[str, Any], path: str, jsonpath_patches: dict[str, Any]
+    def _patch_content(
+        content: dict[str, Any], jsonpath_patches: dict[str, Any]
     ) -> dict[str, Any]:
         new_content = copy.deepcopy(content)
         if jsonpath_patches:
             for jp, v in jsonpath_patches.items():
                 e = jsonpath_ng.ext.parse(jp)
                 e.update(new_content, v)
-        new_content[SHA256SUM_FIELD_NAME] = _sha256_sum(new_content)
-        new_content[PATH_FIELD_NAME] = path
         return new_content
-
-    def move(
-        self, new_path: str, jsonpath_patches: Optional[dict[str, Any]] = None
-    ) -> tuple[BundleFileChange, BundleFileChange]:
-        old_bundle_change = create_bundle_file_change(
-            path=self.filepath,
-            schema=self.fileschema,
-            file_type=BundleFileType[self.filetype.upper()],
-            old_file_content=StubFile._prepare_content(self.content, self.filepath, {}),
-            new_file_content=None,
-        )
-        new_bundle_change = create_bundle_file_change(
-            path=new_path,
-            schema=self.fileschema,
-            file_type=BundleFileType[self.filetype.upper()],
-            old_file_content=None,
-            new_file_content=StubFile._prepare_content(
-                self.content, new_path, jsonpath_patches or {}
-            ),
-        )
-        assert old_bundle_change
-        assert new_bundle_change
-        return (old_bundle_change, new_bundle_change)
 
 
 def build_test_datafile(
@@ -129,7 +255,7 @@ def build_test_datafile(
     return StubFile(
         filepath=filepath or "datafile.yaml",
         fileschema=schema or "schema-1.yml",
-        filetype=BundleFileType.DATAFILE.value,
+        filetype=BundleFileType.DATAFILE,
         content=content,
     )
 
@@ -142,7 +268,7 @@ def build_test_resourcefile(
     return StubFile(
         filepath=filepath or "path.yaml",
         fileschema=schema,
-        filetype=BundleFileType.RESOURCEFILE.value,
+        filetype=BundleFileType.RESOURCEFILE,
         content=content,
     )
 

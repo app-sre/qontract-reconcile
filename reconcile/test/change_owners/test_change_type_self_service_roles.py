@@ -23,7 +23,7 @@ from reconcile.test.change_owners.fixtures import build_role
 #
 
 
-def test_valid_self_service_role():
+def test_valid_self_service_role() -> None:
     role = RoleV1(
         name="role",
         path="/role.yaml",
@@ -49,7 +49,7 @@ def test_valid_self_service_role():
     validate_self_service_role(role)
 
 
-def test_invalid_self_service_role_schema_mismatch():
+def test_invalid_self_service_role_schema_mismatch() -> None:
     role = RoleV1(
         name="role",
         path="/role.yaml",
@@ -81,7 +81,7 @@ def test_invalid_self_service_role_schema_mismatch():
 #
 
 
-def test_self_service_role_slack_user_group_approver_reachability():
+def test_self_service_role_slack_user_group_approver_reachability() -> None:
     slack_groups = ["slack-group-1", "slack-group-2"]
     slack_workspace = "slack-workspace"
     role = build_role(
@@ -98,7 +98,7 @@ def test_self_service_role_slack_user_group_approver_reachability():
     ]
 
 
-def test_self_service_role_gitlab_user_group_approver_reachability():
+def test_self_service_role_gitlab_user_group_approver_reachability() -> None:
     gitlab_groups = ["slack-group-1", "slack-group-2"]
     role = build_role(
         name="role",
@@ -117,7 +117,7 @@ def test_self_service_role_gitlab_user_group_approver_reachability():
 #
 
 
-def test_change_type_contexts_for_self_service_roles_no_approvers():
+def test_change_type_contexts_for_self_service_roles_no_approvers() -> None:
     with pytest.raises(EmptySelfServiceRoleError):
         role = build_role(
             name="team-role",

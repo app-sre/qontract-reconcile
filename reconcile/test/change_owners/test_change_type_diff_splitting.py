@@ -8,21 +8,22 @@ from reconcile.change_owners.change_types import (
     ChangeTypeContext,
     DiffCoverage,
 )
-from reconcile.change_owners.changes import create_bundle_file_change
 from reconcile.change_owners.diff import (
     Diff,
     DiffType,
 )
-from reconcile.test.change_owners.fixtures import build_change_type
+from reconcile.test.change_owners.fixtures import (
+    build_bundle_datafile_change,
+    build_change_type,
+)
 
 
-def test_root_diff_fully_covered_by_splits():
-    bundle_change = create_bundle_file_change(
+def test_root_diff_fully_covered_by_splits() -> None:
+    bundle_change = build_bundle_datafile_change(
         path="path",
-        schema=None,
-        file_type=BundleFileType.DATAFILE,
-        old_file_content=None,
-        new_file_content={"split-a": "a", "split-b": "b"},
+        schema="/my/schema-1.yml",
+        old_content=None,
+        new_content={"split-a": "a", "split-b": "b"},
     )
 
     assert bundle_change
@@ -61,13 +62,12 @@ def test_root_diff_fully_covered_by_splits():
         assert d.is_covered()
 
 
-def test_root_diff_uncovered_fully_covered_by_splits():
-    bundle_change = create_bundle_file_change(
+def test_root_diff_uncovered_fully_covered_by_splits() -> None:
+    bundle_change = build_bundle_datafile_change(
         path="path",
-        schema=None,
-        file_type=BundleFileType.DATAFILE,
-        old_file_content=None,
-        new_file_content={"split-a": "a", "split-b": "b"},
+        schema="/my/schema-1.yml",
+        old_content=None,
+        new_content={"split-a": "a", "split-b": "b"},
     )
 
     assert bundle_change
@@ -105,13 +105,12 @@ def test_root_diff_uncovered_fully_covered_by_splits():
         assert d.is_covered()
 
 
-def test_root_diff_uncovered():
-    bundle_change = create_bundle_file_change(
+def test_root_diff_uncovered() -> None:
+    bundle_change = build_bundle_datafile_change(
         path="path",
-        schema=None,
-        file_type=BundleFileType.DATAFILE,
-        old_file_content=None,
-        new_file_content={"split-a": "a", "split-b": "b", "split-c": "c"},
+        schema="/my/schema-1.yml",
+        old_content=None,
+        new_content={"split-a": "a", "split-b": "b", "split-c": "c"},
     )
 
     assert bundle_change
@@ -156,13 +155,12 @@ def test_root_diff_uncovered():
     assert diffs["split-b"].is_covered()
 
 
-def test_nested_splits():
-    bundle_change = create_bundle_file_change(
+def test_nested_splits() -> None:
+    bundle_change = build_bundle_datafile_change(
         path="path",
-        schema=None,
-        file_type=BundleFileType.DATAFILE,
-        old_file_content=None,
-        new_file_content={"top": {"sub": {"sub-sub": "value"}}},
+        schema="/my/schema-1.yml",
+        old_content=None,
+        new_content={"top": {"sub": {"sub-sub": "value"}}},
     )
 
     assert bundle_change
@@ -246,19 +244,19 @@ def test_nested_splits():
     }
 
 
-def test_diff_splitting_empty_parent_coverage():
+def test_diff_splitting_empty_parent_coverage() -> None:
     """
     If splits cover all fields or list elements of a parent diff, the parent diff
     is considered covered, even if there is not explicit coverage on the parent element
     ifself.
     """
 
-    bundle_change = create_bundle_file_change(
+    schema = "/my/schema-1.yml"
+    bundle_change = build_bundle_datafile_change(
         path="path",
-        schema=None,
-        file_type=BundleFileType.DATAFILE,
-        old_file_content=None,
-        new_file_content={"roles": ["role1", "role2"]},
+        schema=schema,
+        old_content=None,
+        new_content={"roles": ["role1", "role2"]},
     )
 
     assert bundle_change
@@ -267,11 +265,17 @@ def test_diff_splitting_empty_parent_coverage():
 
     # this change-type only coveres entries of the `roles` list but not the list itself
     role_change_type = ChangeTypeContext(
-        change_type_processor=build_change_type("roles", ["roles[*]"]),
+        change_type_processor=build_change_type(
+            name="roles",
+            change_selectors=["roles[*]"],
+            change_schema=schema,
+        ),
         context="context",
         origin="",
         context_file=FileRef(
-            path="context_file.yml", file_type=BundleFileType.DATAFILE, schema=None
+            path="context_file.yml",
+            file_type=BundleFileType.DATAFILE,
+            schema=schema,
         ),
         approvers=[],
     )
@@ -283,23 +287,22 @@ def test_diff_splitting_empty_parent_coverage():
     assert diffs["roles.[1]"].is_directly_covered()
 
 
-def test_nested_diff_splitting_empty_parent_coverage():
+def test_nested_diff_splitting_empty_parent_coverage() -> None:
     """
     Same as test_diff_splitting_empty_parent_coverage but with a diff that is nested deeper
     """
 
-    bundle_change = create_bundle_file_change(
+    bundle_change = build_bundle_datafile_change(
         path="path",
-        schema=None,
-        file_type=BundleFileType.DATAFILE,
-        old_file_content={
+        schema="/my/schema-1.yml",
+        old_content={
             "top": {
                 "middle": {
                     "some": "value",
                 },
             }
         },
-        new_file_content={
+        new_content={
             "top": {
                 "middle": {
                     "some": "value",
@@ -338,17 +341,16 @@ def test_nested_diff_splitting_empty_parent_coverage():
     assert diffs["top.middle.self_serviceable.b"].is_directly_covered()
 
 
-def test_diff_splitting_two_contexts_on_same_split():
+def test_diff_splitting_two_contexts_on_same_split() -> None:
     """
     Test that a split can be covered by multiple contexts.
     """
 
-    bundle_change = create_bundle_file_change(
+    bundle_change = build_bundle_datafile_change(
         path="path",
-        schema=None,
-        file_type=BundleFileType.DATAFILE,
-        old_file_content=None,
-        new_file_content={"something": "else", "roles": ["role"]},
+        schema="/my/schema-1.yml",
+        old_content=None,
+        new_content={"something": "else", "roles": ["role"]},
     )
 
     assert bundle_change
@@ -390,7 +392,7 @@ def test_diff_splitting_two_contexts_on_same_split():
 #
 
 
-def test_diff_coverage_path_under_root_changed_path():
+def test_diff_coverage_path_under_root_changed_path() -> None:
     dc = DiffCoverage(
         diff=Diff(
             diff_type=DiffType.ADDED, path=jsonpath_ng.parse("$"), new=None, old=None
@@ -401,7 +403,7 @@ def test_diff_coverage_path_under_root_changed_path():
     assert dc.path_under_changed_path(jsonpath_ng.parse("some.path"))
 
 
-def test_diff_coverage_path_under_changed_path():
+def test_diff_coverage_path_under_changed_path() -> None:
     dc = DiffCoverage(
         diff=Diff(
             diff_type=DiffType.ADDED, path=jsonpath_ng.parse("path"), new=None, old=None
@@ -412,7 +414,7 @@ def test_diff_coverage_path_under_changed_path():
     assert dc.path_under_changed_path(jsonpath_ng.parse("path.subpath"))
 
 
-def test_diff_coverage_path_not_under_changed_path():
+def test_diff_coverage_path_not_under_changed_path() -> None:
     dc = DiffCoverage(
         diff=Diff(
             diff_type=DiffType.ADDED, path=jsonpath_ng.parse("path"), new=None, old=None
@@ -423,7 +425,7 @@ def test_diff_coverage_path_not_under_changed_path():
     assert not dc.path_under_changed_path(jsonpath_ng.parse("anotherpath"))
 
 
-def test_diff_coverage_path_is_changed_path():
+def test_diff_coverage_path_is_changed_path() -> None:
     dc = DiffCoverage(
         diff=Diff(
             diff_type=DiffType.ADDED, path=jsonpath_ng.parse("path"), new=None, old=None

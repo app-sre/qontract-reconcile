@@ -1,11 +1,9 @@
 import pytest
 
-from reconcile.change_owners.bundle import BundleFileType
 from reconcile.change_owners.change_types import (
     Approver,
     ChangeTypeContext,
 )
-from reconcile.change_owners.changes import create_bundle_file_change
 from reconcile.change_owners.decision import (
     Decision,
     DecisionCommand,
@@ -13,14 +11,17 @@ from reconcile.change_owners.decision import (
     get_approver_decisions_from_mr_comments,
 )
 from reconcile.gql_definitions.change_owners.queries.change_types import ChangeTypeV1
-from reconcile.test.change_owners.fixtures import change_type_to_processor
+from reconcile.test.change_owners.fixtures import (
+    build_bundle_datafile_change,
+    change_type_to_processor,
+)
 
 #
 # test MR decision comment parsing
 #
 
 
-def test_get_approver_decisions_from_mr_comments():
+def test_get_approver_decisions_from_mr_comments() -> None:
     comments = [
         {
             "username": "user-1",
@@ -51,7 +52,7 @@ def test_get_approver_decisions_from_mr_comments():
     ]
 
 
-def test_get_approver_decisions_from_mr_comments_unordered():
+def test_get_approver_decisions_from_mr_comments_unordered() -> None:
     comments = [
         {
             "username": "user-1",
@@ -70,7 +71,7 @@ def test_get_approver_decisions_from_mr_comments_unordered():
     ]
 
 
-def test_approval_comments_none_body():
+def test_approval_comments_none_body() -> None:
     comments = [
         {
             "username": "user-1",
@@ -81,7 +82,7 @@ def test_approval_comments_none_body():
     assert not get_approver_decisions_from_mr_comments(comments)
 
 
-def test_approver_decision_leading_trailing_spaces():
+def test_approver_decision_leading_trailing_spaces() -> None:
     comments = [
         {
             "username": "user-1",
@@ -117,18 +118,17 @@ def test_change_decision(
     disable_change_type: bool,
     expected_approve: bool,
     expected_hold: bool,
-):
+) -> None:
     saas_file_changetype.disabled = disable_change_type
 
     yea_user = "yea-sayer"
     nay_sayer = "nay-sayer"
     bot_user = "i-am-a-bot"
-    change = create_bundle_file_change(
-        file_type=BundleFileType.DATAFILE,
+    change = build_bundle_datafile_change(
         path="/my/file.yml",
         schema="/my/schema.yml",
-        old_file_content={"foo": "bar"},
-        new_file_content={"foo": "baz"},
+        old_content={"foo": "bar"},
+        new_content={"foo": "baz"},
     )
     assert change and len(change.diff_coverage) == 1
     change.diff_coverage[0].coverage = [
@@ -221,13 +221,12 @@ def test_change_decision_one_change_multiple_groups(
     decisions: list[Decision],
     expected_approve: bool,
     expected_hold: bool,
-):
-    change = create_bundle_file_change(
-        file_type=BundleFileType.DATAFILE,
+) -> None:
+    change = build_bundle_datafile_change(
         path="/my/file.yml",
         schema="/my/schema.yml",
-        old_file_content={"foo": "bar"},
-        new_file_content={"foo": "baz"},
+        old_content={"foo": "bar"},
+        new_content={"foo": "baz"},
     )
     assert change and len(change.diff_coverage) == 1
     change.diff_coverage[0].coverage = [
@@ -267,14 +266,15 @@ def test_change_decision_one_change_multiple_groups(
     assert change_decision[0].file == change.fileref
 
 
-def test_change_decision_auto_approve_only_approver(saas_file_changetype: ChangeTypeV1):
+def test_change_decision_auto_approve_only_approver(
+    saas_file_changetype: ChangeTypeV1,
+) -> None:
     bot_user = "i-am-a-bot"
-    change = create_bundle_file_change(
-        file_type=BundleFileType.DATAFILE,
+    change = build_bundle_datafile_change(
         path="/my/file.yml",
         schema="/my/schema.yml",
-        old_file_content={"foo": "bar"},
-        new_file_content={"foo": "baz"},
+        old_content={"foo": "bar"},
+        new_content={"foo": "baz"},
     )
     assert change and len(change.diff_coverage) == 1
     change.diff_coverage[0].coverage = [
@@ -300,15 +300,14 @@ def test_change_decision_auto_approve_only_approver(saas_file_changetype: Change
 
 def test_change_decision_auto_approve_not_only_approver(
     saas_file_changetype: ChangeTypeV1,
-):
+) -> None:
     nothing_sayer = "nothing-sayer"
     bot_user = "i-am-a-bot"
-    change = create_bundle_file_change(
-        file_type=BundleFileType.DATAFILE,
+    change = build_bundle_datafile_change(
         path="/my/file.yml",
         schema="/my/schema.yml",
-        old_file_content={"foo": "bar"},
-        new_file_content={"foo": "baz"},
+        old_content={"foo": "bar"},
+        new_content={"foo": "baz"},
     )
     assert change and len(change.diff_coverage) == 1
     change.diff_coverage[0].coverage = [
@@ -335,15 +334,14 @@ def test_change_decision_auto_approve_not_only_approver(
 
 def test_change_decision_auto_approve_with_approval(
     saas_file_changetype: ChangeTypeV1,
-):
+) -> None:
     nothing_sayer = "nothing-sayer"
     bot_user = "i-am-a-bot"
-    change = create_bundle_file_change(
-        file_type=BundleFileType.DATAFILE,
+    change = build_bundle_datafile_change(
         path="/my/file.yml",
         schema="/my/schema.yml",
-        old_file_content={"foo": "bar"},
-        new_file_content={"foo": "baz"},
+        old_content={"foo": "bar"},
+        new_content={"foo": "baz"},
     )
     assert change and len(change.diff_coverage) == 1
     change.diff_coverage[0].coverage = [

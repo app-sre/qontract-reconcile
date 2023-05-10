@@ -2,14 +2,15 @@ import jsonpath_ng
 import jsonpath_ng.ext
 import pytest
 
-from reconcile.change_owners.bundle import BundleFileType
 from reconcile.change_owners.change_types import DiffCoverage
-from reconcile.change_owners.changes import create_bundle_file_change
 from reconcile.change_owners.diff import (
-    SHA256SUM_FIELD_NAME,
     Diff,
     DiffType,
     deepdiff_path_to_jsonpath,
+)
+from reconcile.test.change_owners.fixtures import (
+    build_bundle_datafile_change,
+    build_bundle_resourcefile_change,
 )
 
 #
@@ -28,16 +29,18 @@ from reconcile.change_owners.diff import (
         ("root", "$"),
     ],
 )
-def test_deepdiff_path_to_jsonpath(deep_diff_path, expected_json_path):
+def test_deepdiff_path_to_jsonpath(
+    deep_diff_path: str, expected_json_path: str
+) -> None:
     assert str(deepdiff_path_to_jsonpath(deep_diff_path)) == expected_json_path
 
 
-def test_deepdiff_invalid():
+def test_deepdiff_invalid() -> None:
     with pytest.raises(ValueError):
         deepdiff_path_to_jsonpath("something_invalid")
 
 
-def test_deepdiff_path_element_with_dot():
+def test_deepdiff_path_element_with_dot() -> None:
     assert (
         str(deepdiff_path_to_jsonpath("root['data']['main.yaml']"))
         == "data.'main.yaml'"
@@ -49,16 +52,15 @@ def test_deepdiff_path_element_with_dot():
 #
 
 
-def test_bundle_change_diff_value_changed():
+def test_bundle_change_diff_value_changed() -> None:
     """
     detect a change on a top level field
     """
-    bundle_change = create_bundle_file_change(
+    bundle_change = build_bundle_datafile_change(
         path="path",
         schema="schema",
-        file_type=BundleFileType.DATAFILE,
-        old_file_content={"field": "old_value"},
-        new_file_content={"field": "new_value"},
+        old_content={"field": "old_value"},
+        new_content={"field": "new_value"},
     )
 
     assert bundle_change
@@ -69,16 +71,15 @@ def test_bundle_change_diff_value_changed():
     assert bundle_change.diff_coverage[0].diff.new == "new_value"
 
 
-def test_bundle_change_diff_value_changed_deep():
+def test_bundle_change_diff_value_changed_deep() -> None:
     """
     detect a change deeper in the object tree
     """
-    bundle_change = create_bundle_file_change(
+    bundle_change = build_bundle_datafile_change(
         path="path",
         schema="schema",
-        file_type=BundleFileType.DATAFILE,
-        old_file_content={"parent": {"children": [{"age": 1}]}},
-        new_file_content={"parent": {"children": [{"age": 2}]}},
+        old_content={"parent": {"children": [{"age": 1}]}},
+        new_content={"parent": {"children": [{"age": 2}]}},
     )
 
     assert bundle_change
@@ -89,16 +90,15 @@ def test_bundle_change_diff_value_changed_deep():
     assert bundle_change.diff_coverage[0].diff.new == 2
 
 
-def test_bundle_change_diff_value_changed_multiple_in_iterable():
+def test_bundle_change_diff_value_changed_multiple_in_iterable() -> None:
     """
     this testscenario shows how changes can be detected in a list,
     when objects with identifiers and objects without are mixed and shuffled
     """
-    bundle_change = create_bundle_file_change(
+    bundle_change = build_bundle_datafile_change(
         path="path",
         schema="/openshift/namespace-1.yml",
-        file_type=BundleFileType.DATAFILE,
-        old_file_content={
+        old_content={
             "$schema": "/openshift/namespace-1.yml",
             "openshiftResources": [
                 {
@@ -125,7 +125,7 @@ def test_bundle_change_diff_value_changed_multiple_in_iterable():
                 },
             ],
         },
-        new_file_content={
+        new_content={
             "$schema": "/openshift/namespace-1.yml",
             "openshiftResources": [
                 {
@@ -187,16 +187,15 @@ def test_bundle_change_diff_value_changed_multiple_in_iterable():
     assert bundle_change.diff_coverage == expected
 
 
-def test_bundle_change_diff_property_added():
+def test_bundle_change_diff_property_added() -> None:
     """
     this test scenario show how a newly added property is correctly
     detected if the containing object has a clear identity.
     """
-    bundle_change = create_bundle_file_change(
+    bundle_change = build_bundle_datafile_change(
         path="path",
         schema="/openshift/namespace-1.yml",
-        file_type=BundleFileType.DATAFILE,
-        old_file_content={
+        old_content={
             "$schema": "/openshift/namespace-1.yml",
             "openshiftResources": [
                 {
@@ -207,7 +206,7 @@ def test_bundle_change_diff_property_added():
                 },
             ],
         },
-        new_file_content={
+        new_content={
             "$schema": "/openshift/namespace-1.yml",
             "openshiftResources": [
                 {
@@ -236,16 +235,15 @@ def test_bundle_change_diff_property_added():
     assert bundle_change.diff_coverage == expected
 
 
-def test_bundle_change_diff_property_removed():
+def test_bundle_change_diff_property_removed() -> None:
     """
     this test scenario show how a removed property is correctly
     detected if the containing object has a clear identity.
     """
-    bundle_change = create_bundle_file_change(
+    bundle_change = build_bundle_datafile_change(
         path="path",
         schema="/openshift/namespace-1.yml",
-        file_type=BundleFileType.DATAFILE,
-        old_file_content={
+        old_content={
             "$schema": "/openshift/namespace-1.yml",
             "openshiftResources": [
                 {
@@ -257,7 +255,7 @@ def test_bundle_change_diff_property_removed():
                 },
             ],
         },
-        new_file_content={
+        new_content={
             "$schema": "/openshift/namespace-1.yml",
             "openshiftResources": [
                 {
@@ -285,12 +283,11 @@ def test_bundle_change_diff_property_removed():
     assert bundle_change.diff_coverage == expected
 
 
-def test_bundle_change_diff_item_added():
-    bundle_change = create_bundle_file_change(
+def test_bundle_change_diff_item_added() -> None:
+    bundle_change = build_bundle_datafile_change(
         path="path",
         schema="/openshift/namespace-1.yml",
-        file_type=BundleFileType.DATAFILE,
-        old_file_content={
+        old_content={
             "$schema": "/openshift/namespace-1.yml",
             "openshiftResources": [
                 {
@@ -301,7 +298,7 @@ def test_bundle_change_diff_item_added():
                 },
             ],
         },
-        new_file_content={
+        new_content={
             "$schema": "/openshift/namespace-1.yml",
             "openshiftResources": [
                 {
@@ -340,12 +337,11 @@ def test_bundle_change_diff_item_added():
     assert bundle_change.diff_coverage == expected
 
 
-def test_bundle_change_diff_item_removed():
-    bundle_change = create_bundle_file_change(
+def test_bundle_change_diff_item_removed() -> None:
+    bundle_change = build_bundle_datafile_change(
         path="path",
         schema="/openshift/namespace-1.yml",
-        file_type=BundleFileType.DATAFILE,
-        old_file_content={
+        old_content={
             "$schema": "/openshift/namespace-1.yml",
             "openshiftResources": [
                 {
@@ -362,7 +358,7 @@ def test_bundle_change_diff_item_removed():
                 },
             ],
         },
-        new_file_content={
+        new_content={
             "$schema": "/openshift/namespace-1.yml",
             "openshiftResources": [
                 {
@@ -395,12 +391,11 @@ def test_bundle_change_diff_item_removed():
     assert bundle_change.diff_coverage == expected
 
 
-def test_bundle_change_diff_item_replaced():
-    bundle_change = create_bundle_file_change(
+def test_bundle_change_diff_item_replaced() -> None:
+    bundle_change = build_bundle_datafile_change(
         path="path",
         schema="/access/user-1.yml",
-        file_type=BundleFileType.DATAFILE,
-        old_file_content={
+        old_content={
             "$schema": "/access/user-1.yml",
             "roles": [
                 {"$ref": "an_item"},
@@ -408,7 +403,7 @@ def test_bundle_change_diff_item_replaced():
                 {"$ref": "another_item"},
             ],
         },
-        new_file_content={
+        new_content={
             "$schema": "/access/user-1.yml",
             "roles": [
                 {"$ref": "an_item"},
@@ -433,12 +428,11 @@ def test_bundle_change_diff_item_replaced():
     assert bundle_change.diff_coverage == expected
 
 
-def test_bundle_change_diff_ref_item_multiple_consecutive_replaced():
-    bundle_change = create_bundle_file_change(
+def test_bundle_change_diff_ref_item_multiple_consecutive_replaced() -> None:
+    bundle_change = build_bundle_datafile_change(
         path="path",
         schema="/access/user-1.yml",
-        file_type=BundleFileType.DATAFILE,
-        old_file_content={
+        old_content={
             "$schema": "/access/user-1.yml",
             "roles": [
                 {"$ref": "1"},
@@ -449,7 +443,7 @@ def test_bundle_change_diff_ref_item_multiple_consecutive_replaced():
                 {"$ref": "6"},
             ],
         },
-        new_file_content={
+        new_content={
             "$schema": "/access/user-1.yml",
             "roles": [
                 {"$ref": "1"},
@@ -488,12 +482,11 @@ def test_bundle_change_diff_ref_item_multiple_consecutive_replaced():
     assert diffs == expected
 
 
-def test_bundle_change_diff_ref_item_multiple_replaced():
-    bundle_change = create_bundle_file_change(
+def test_bundle_change_diff_ref_item_multiple_replaced() -> None:
+    bundle_change = build_bundle_datafile_change(
         path="path",
         schema="/access/user-1.yml",
-        file_type=BundleFileType.DATAFILE,
-        old_file_content={
+        old_content={
             "$schema": "/access/user-1.yml",
             "roles": [
                 {"$ref": "1"},
@@ -505,7 +498,7 @@ def test_bundle_change_diff_ref_item_multiple_replaced():
                 {"$ref": "7"},
             ],
         },
-        new_file_content={
+        new_content={
             "$schema": "/access/user-1.yml",
             "roles": [
                 {"$ref": "1"},
@@ -545,12 +538,11 @@ def test_bundle_change_diff_ref_item_multiple_replaced():
     assert diffs == expected
 
 
-def test_bundle_change_diff_item_reorder():
-    bundle_change = create_bundle_file_change(
+def test_bundle_change_diff_item_reorder() -> None:
+    bundle_change = build_bundle_datafile_change(
         path="path",
         schema="/access/user-1.yml",
-        file_type=BundleFileType.DATAFILE,
-        old_file_content={
+        old_content={
             "$schema": "/access/user-1.yml",
             "roles": [
                 {"$ref": "an_item"},
@@ -558,7 +550,7 @@ def test_bundle_change_diff_item_reorder():
                 {"$ref": "another_item"},
             ],
         },
-        new_file_content={
+        new_content={
             "$schema": "/access/user-1.yml",
             "roles": [
                 {"$ref": "an_item"},
@@ -568,16 +560,20 @@ def test_bundle_change_diff_item_reorder():
         },
     )
 
-    assert not bundle_change
+    # there is a bundle change ...
+    assert bundle_change
+    # ... but it has no diffs ...
+    assert not bundle_change.diffs
+    # ... but it has different SHAs
+    assert bundle_change.old_content_sha != bundle_change.new_content_sha
 
 
-def test_bundle_change_diff_resourcefile_without_schema_unparsable():
-    bundle_change = create_bundle_file_change(
+def test_bundle_change_diff_resourcefile_without_schema_unparsable() -> None:
+    bundle_change = build_bundle_resourcefile_change(
         path="path",
         schema=None,
-        file_type=BundleFileType.RESOURCEFILE,
-        old_file_content="something_old",
-        new_file_content="something_new",
+        old_content="something_old",
+        new_content="something_new",
     )
 
     assert bundle_change
@@ -588,13 +584,12 @@ def test_bundle_change_diff_resourcefile_without_schema_unparsable():
     assert bundle_change.diff_coverage[0].diff.new == "something_new"
 
 
-def test_bundle_change_diff_resourcefile_without_schema_parsable():
-    bundle_change = create_bundle_file_change(
+def test_bundle_change_diff_resourcefile_without_schema_parsable() -> None:
+    bundle_change = build_bundle_resourcefile_change(
         path="path",
         schema=None,
-        file_type=BundleFileType.RESOURCEFILE,
-        old_file_content="field: old_value",
-        new_file_content="field: new_value",
+        old_content="field: old_value",
+        new_content="field: new_value",
     )
 
     assert bundle_change
@@ -607,15 +602,14 @@ def test_bundle_change_diff_resourcefile_without_schema_parsable():
     assert bundle_change.diff_coverage[0].diff.new == "new_value"
 
 
-def test_bundle_change_diff_resourcefile_with_schema():
-    bundle_change = create_bundle_file_change(
+def test_bundle_change_diff_resourcefile_with_schema() -> None:
+    bundle_change = build_bundle_resourcefile_change(
         path="path",
         schema="schema",
-        file_type=BundleFileType.RESOURCEFILE,
-        old_file_content="""
+        old_content="""
         field: old_value
         """,
-        new_file_content="""
+        new_content="""
         field: new_value
         """,
     )
@@ -628,13 +622,12 @@ def test_bundle_change_diff_resourcefile_with_schema():
     assert bundle_change.diff_coverage[0].diff.new == "new_value"
 
 
-def test_bundle_change_diff_resourcefile_with_schema_unparsable():
-    bundle_change = create_bundle_file_change(
+def test_bundle_change_diff_resourcefile_with_schema_unparsable() -> None:
+    bundle_change = build_bundle_resourcefile_change(
         path="path",
         schema="schema",
-        file_type=BundleFileType.RESOURCEFILE,
-        old_file_content="somethingsomething",
-        new_file_content="somethingsomething_different",
+        old_content="somethingsomething",
+        new_content="somethingsomething_different",
     )
 
     assert bundle_change
@@ -645,13 +638,12 @@ def test_bundle_change_diff_resourcefile_with_schema_unparsable():
     assert bundle_change.diff_coverage[0].diff.new == "somethingsomething_different"
 
 
-def test_bundle_change_resource_file_added():
-    bundle_change = create_bundle_file_change(
+def test_bundle_change_resource_file_added() -> None:
+    bundle_change = build_bundle_resourcefile_change(
         path="path",
         schema="schema",
-        file_type=BundleFileType.RESOURCEFILE,
-        old_file_content=None,
-        new_file_content="new content",
+        old_content=None,
+        new_content="new content",
     )
 
     assert bundle_change
@@ -662,13 +654,12 @@ def test_bundle_change_resource_file_added():
     assert bundle_change.diff_coverage[0].diff.new == "new content"
 
 
-def test_bundle_change_resource_file_removed():
-    bundle_change = create_bundle_file_change(
+def test_bundle_change_resource_file_removed() -> None:
+    bundle_change = build_bundle_resourcefile_change(
         path="path",
         schema="schema",
-        file_type=BundleFileType.RESOURCEFILE,
-        old_file_content="old content",
-        new_file_content=None,
+        old_content="old content",
+        new_content=None,
     )
 
     assert bundle_change
@@ -679,13 +670,12 @@ def test_bundle_change_resource_file_removed():
     assert bundle_change.diff_coverage[0].diff.new is None
 
 
-def test_bundle_change_resource_file_dict_value_added():
-    bundle_change = create_bundle_file_change(
+def test_bundle_change_resource_file_dict_value_added() -> None:
+    bundle_change = build_bundle_resourcefile_change(
         path="path",
         schema="schema",
-        file_type=BundleFileType.RESOURCEFILE,
-        old_file_content='{"field": {}}',
-        new_file_content='{"field": {"new_field": "new_value"}}',
+        old_content='{"field": {}}',
+        new_content='{"field": {"new_field": "new_value"}}',
     )
 
     assert bundle_change
@@ -694,43 +684,3 @@ def test_bundle_change_resource_file_dict_value_added():
     assert bundle_change.diff_coverage[0].diff.diff_type == DiffType.ADDED
     assert bundle_change.diff_coverage[0].diff.old is None
     assert bundle_change.diff_coverage[0].diff.new == "new_value"
-
-
-def test_only_checksum_changed():
-    """
-    only the checksum changed
-    """
-    bundle_change = create_bundle_file_change(
-        path="path",
-        schema="schema",
-        file_type=BundleFileType.DATAFILE,
-        old_file_content={"field": "value", SHA256SUM_FIELD_NAME: "old_checksum"},
-        new_file_content={"field": "value", SHA256SUM_FIELD_NAME: "new_checksum"},
-    )
-
-    assert bundle_change
-    assert len(bundle_change.diff_coverage) == 1
-    assert str(bundle_change.diff_coverage[0].diff.path) == SHA256SUM_FIELD_NAME
-    assert bundle_change.diff_coverage[0].diff.diff_type == DiffType.CHANGED
-    assert bundle_change.diff_coverage[0].diff.old == "old_checksum"
-    assert bundle_change.diff_coverage[0].diff.new == "new_checksum"
-
-
-def test_checksum_and_content_changed():
-    """
-    the checksum changed because a real field changed
-    """
-    bundle_change = create_bundle_file_change(
-        path="path",
-        schema="schema",
-        file_type=BundleFileType.DATAFILE,
-        old_file_content={"field": "value1", SHA256SUM_FIELD_NAME: "old_checksum"},
-        new_file_content={"field": "value2", SHA256SUM_FIELD_NAME: "new_checksum"},
-    )
-
-    assert bundle_change
-    assert len(bundle_change.diff_coverage) == 1
-    assert str(bundle_change.diff_coverage[0].diff.path) == "field"
-    assert bundle_change.diff_coverage[0].diff.diff_type == DiffType.CHANGED
-    assert bundle_change.diff_coverage[0].diff.old == "value1"
-    assert bundle_change.diff_coverage[0].diff.new == "value2"

@@ -19,7 +19,7 @@ def test_change_coverage(
     namespace_file: StubFile,
     role_member_change_type: ChangeTypeV1,
     user_file: StubFile,
-):
+) -> None:
     role_approver_user = "the-one-that-approves-roles"
     team_role_path = "/team-role.yml"
     role_approval_role = build_role(
@@ -62,6 +62,7 @@ def test_change_coverage(
 
     for bc in bundle_changes:
         for d in bc.diff_coverage:
+            expected_approver = None
             if str(d.diff.path) == "roles.[0].$ref":
                 expected_approver = role_approver_user
             elif str(d.diff.path) == "openshiftResources.[1].version":
