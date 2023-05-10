@@ -107,7 +107,7 @@ def find_cidr_duplicates_and_overlap(input_dict: dict):
     for cluster_name, cluster_data in items_for_dict:
         cluster_cidr = cluster_data.get("cidr_block")
         account_vpc_list = []
-        account_vpc_mesh_list = []  # type: ignore[var-annotated]
+        account_vpc_mesh_list = []
         cluster_providers = cluster_data.get("providers")
         for provider in cluster_providers:
             vpc_peering_compare = provider.get("vpc_peering")
