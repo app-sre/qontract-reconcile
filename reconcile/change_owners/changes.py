@@ -279,8 +279,7 @@ class _MoveCandidates:
             creation = self.creations[0]
             deletion = self.deletions[0]
             if (
-                creation != deletion
-                and deletion.fileref.file_type == creation.fileref.file_type
+                deletion.fileref.file_type == creation.fileref.file_type
                 and deletion.fileref.path != creation.fileref.path
             ):
                 move_change = create_bundle_file_change(
@@ -291,8 +290,11 @@ class _MoveCandidates:
                     creation.new,
                 )
                 if move_change:
+                    # make mypy happy
                     return [move_change]
 
+        # the candidates turned out to be not a file move, so we
+        # will use the original changes as is
         return self.creations + self.deletions
 
 
