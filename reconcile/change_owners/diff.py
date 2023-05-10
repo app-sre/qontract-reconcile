@@ -153,6 +153,7 @@ def compare_object_ctx_identifier(
 SCHEMA_FIELD = "$schema"
 PATH_FIELD = "path"
 SHA256SUM_FIELD_NAME = "$file_sha256sum"
+PATH_FIELD_NAME = "path"
 SHA256SUM_PATH = jsonpath_ng.parse(f"'{SHA256SUM_FIELD_NAME}'")
 
 

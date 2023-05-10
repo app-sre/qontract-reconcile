@@ -3,10 +3,8 @@ import jsonpath_ng.ext
 import pytest
 
 from reconcile.change_owners.bundle import BundleFileType
-from reconcile.change_owners.change_types import (
-    DiffCoverage,
-    create_bundle_file_change,
-)
+from reconcile.change_owners.change_types import DiffCoverage
+from reconcile.change_owners.changes import create_bundle_file_change
 from reconcile.change_owners.diff import (
     SHA256SUM_FIELD_NAME,
     Diff,
