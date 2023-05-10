@@ -44,14 +44,12 @@ def validate_no_cidr_overlap(
                                 "cidr_block": mesh_result["cidr_block"],
                             },
                         }
-                        if cluster.name not in peerings_enteries_dict:
-                            peerings_enteries_dict[cluster.name] = {
-                                "cidr_block": cluster.network.vpc,  # type: ignore[union-attr]
-                                "providers": [],
-                            }
-                            peerings_enteries_dict[cluster.name]["providers"].append(
-                                vpc_peering_info
-                            )
+                        create_vpc_peering_dict(
+                            vpc_peering_info,
+                            peerings_enteries_dict,
+                            cluster.name,
+                            cluster.network.vpc,  # type: ignore[union-attr]
+                        )
                 if peering.provider == "account-vpc":
                     cidr_block = str(peering.vpc.cidr_block)  # type: ignore[union-attr]
                     vpc_peering_info = {
