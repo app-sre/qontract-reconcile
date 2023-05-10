@@ -19,7 +19,6 @@ from typing import (
     Tuple,
 )
 
-import anymarkup
 import jinja2
 import jinja2.meta
 import jsonpath_ng
@@ -35,11 +34,9 @@ from reconcile.change_owners.bundle import (
     FileRef,
 )
 from reconcile.change_owners.diff import (
+    PATH_FIELD_NAME,
     SHA256SUM_FIELD_NAME,
-    SHA256SUM_PATH,
     Diff,
-    DiffType,
-    extract_diffs,
 )
 from reconcile.gql_definitions.change_owners.queries.change_types import (
     ChangeTypeChangeDetectorChangeTypeProviderV1,
@@ -216,172 +213,6 @@ class DiffCoverage:
         return coverages
 
 
-@dataclass
-class BundleFileChange:
-    """
-    Represents a file within an app-interface bundle that changed during an MR.
-    It holds the old and new state of that file, along with precise differences
-    between those states.
-    """
-
-    fileref: FileRef
-    old: Optional[dict[str, Any]]
-    new: Optional[dict[str, Any]]
-    diffs: list[Diff]
-    _diff_coverage: dict[str, DiffCoverage] = field(init=False, default_factory=dict)
-
-    def __post_init__(self) -> None:
-        self._diff_coverage = {d.path_str(): DiffCoverage(d, []) for d in self.diffs}
-
-    def cover_changes(self, change_type_context: "ChangeTypeContext") -> list[Diff]:
-        """
-        Figure out if a ChangeTypeV1 covers detected changes within the BundleFile.
-        Base idea:
-
-        - a ChangeTypeV1 defines path patterns that are considered self-approvable
-        - if a change (diff) is located under one of the allowed paths of the
-          ChangeTypeV1, it is considered "covered" by that ChangeTypeV1 in a certain
-          context (e.g. a RoleV1) and allows the approvers of that context (e.g.
-          the members of that role) to approve that particular change.
-
-        The change-type contexts that cover a change, are registered in the
-        `DiffCoverage.coverage` list right next to the Diff that is covered.
-        """
-        covered_diffs = {}
-        # observe the new state for added fields or list items or entire object sutrees
-        covered_diffs.update(
-            self._cover_changes_for_diffs(
-                self._filter_diffs([DiffType.ADDED, DiffType.CHANGED]),
-                self.new,
-                change_type_context,
-            )
-        )
-        # look at the old state for removed fields or list items or object subtrees
-        covered_diffs.update(
-            self._cover_changes_for_diffs(
-                self._filter_diffs([DiffType.REMOVED]), self.old, change_type_context
-            )
-        )
-        return list(covered_diffs.values())
-
-    def _cover_changes_for_diffs(
-        self,
-        diffs: list[DiffCoverage],
-        file_content: Any,
-        change_type_context: "ChangeTypeContext",
-    ) -> dict[str, Diff]:
-
-        covered_diffs = {}
-        if diffs:
-            for (
-                allowed_path
-            ) in change_type_context.change_type_processor.allowed_changed_paths(
-                self.fileref, file_content, change_type_context
-            ):
-                for dc in diffs:
-                    if dc.changed_path_covered_by_path(allowed_path):
-                        covered_diffs[dc.diff.path_str()] = dc.diff
-                        dc.coverage.append(change_type_context)
-                    elif SHA256SUM_PATH != allowed_path and dc.path_under_changed_path(
-                        allowed_path
-                    ):
-                        # the self-service path allowed by the change-type is covering
-                        # only parts of the diff. we will split the diff into a
-                        # smaller part, that can be covered by the change-type.
-                        # but the rest of the diff needs to be covered by another
-                        # change-type, either in full or again as a split.
-                        sub_dc = dc.split(allowed_path, change_type_context)
-                        if not sub_dc:
-                            raise Exception(
-                                f"unable to create a subdiff for path {allowed_path} on diff {dc.diff.path_str()}"
-                            )
-                        covered_diffs[str(allowed_path)] = sub_dc.diff
-
-        return covered_diffs
-
-    def _filter_diffs(self, diff_types: list[DiffType]) -> list[DiffCoverage]:
-        return [
-            d for d in self._diff_coverage.values() if d.diff.diff_type in diff_types
-        ]
-
-    def all_changes_covered(self) -> bool:
-        return all(d.is_covered() for d in self.diff_coverage)
-
-    def raw_diff_count(self) -> int:
-        return len(self._diff_coverage)
-
-    @property
-    def diff_coverage(self) -> Sequence[DiffCoverage]:
-        """
-        returns the meaningful set of diffs, potentially more fine grained than
-        what was originally detected for to the BundleFileChange.
-        """
-        coverages: list[DiffCoverage] = []
-        for dc in self._diff_coverage.values():
-            coverages.extend(dc.fine_grained_diff_coverages().values())
-        return coverages
-
-    def involved_change_types(self) -> list["ChangeTypeProcessor"]:
-        """
-        returns all the change-types that are involved in the coverage
-        of all changes
-        """
-        change_types = []
-        for dc in self.diff_coverage:
-            for ctx in dc.coverage:
-                change_types.append(ctx.change_type_processor)
-        return change_types
-
-
-def parse_resource_file_content(content: Optional[Any]) -> tuple[Any, Optional[str]]:
-    if content:
-        try:
-            data = anymarkup.parse(content, force_types=None)
-            return data, data.get("$schema")
-        except Exception:
-            # not parsable content - we will just deal with the plain content
-            return content, None
-    else:
-        return None, None
-
-
-def create_bundle_file_change(
-    path: str,
-    schema: Optional[str],
-    file_type: BundleFileType,
-    old_file_content: Any,
-    new_file_content: Any,
-) -> Optional[BundleFileChange]:
-    """
-    this is a factory method that creates a BundleFileChange object based
-    on the old and new content of a file from app-interface. it detects differences
-    within the old and new state of the file and represents them as instances
-    of the Diff dataclass. for diff detection, the amazing `deepdiff` python
-    library is used.
-    """
-    fileref = FileRef(path=path, schema=schema, file_type=file_type)
-
-    # try to parse the content of a resourcefile
-    # it falls back to the plain file content if parsing does not work
-    if file_type == BundleFileType.RESOURCEFILE:
-        old_file_content, _ = parse_resource_file_content(old_file_content)
-        new_file_content, _ = parse_resource_file_content(new_file_content)
-
-    diffs = extract_diffs(
-        old_file_content=old_file_content,
-        new_file_content=new_file_content,
-    )
-
-    if diffs:
-        return BundleFileChange(
-            fileref=fileref,
-            old=old_file_content,
-            new=new_file_content,
-            diffs=diffs,
-        )
-    return None
-
-
 class PathExpression:
     """
     PathExpression is a wrapper around a JSONPath expression that can contain
@@ -549,7 +380,7 @@ class JsonPathChangeDetector(ChangeDetector):
         self._json_path_expressions = [
             PathExpression(jsonpath_expression)
             for jsonpath_expression in self.json_path_selectors
-            + [f"'{SHA256SUM_FIELD_NAME}'"]
+            + [f"'{SHA256SUM_FIELD_NAME}'", PATH_FIELD_NAME]
         ]
 
     @property
@@ -927,20 +758,3 @@ JSON_PATH_ROOT = "$"
 
 def change_path_covered_by_allowed_path(changed_path: str, allowed_path: str) -> bool:
     return changed_path.startswith(allowed_path) or allowed_path == JSON_PATH_ROOT
-
-
-def get_priority_for_changes(
-    bundle_file_changes: list[BundleFileChange],
-) -> Optional[ChangeTypePriority]:
-    """
-    Finds the lowest priority of all change types involved in the provided bundle file changes.
-    """
-    priorities: set[ChangeTypePriority] = set()
-    for bfc in bundle_file_changes:
-        for ct in bfc.involved_change_types():
-            priorities.add(ct.priority)
-    # get the lowest priority
-    for p in reversed(ChangeTypePriority):
-        if p in priorities:
-            return p
-    return None

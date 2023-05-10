@@ -8,10 +8,8 @@ from enum import Enum
 from typing import Any
 
 from reconcile.change_owners.bundle import FileRef
-from reconcile.change_owners.change_types import (
-    BundleFileChange,
-    ChangeTypeContext,
-)
+from reconcile.change_owners.change_types import ChangeTypeContext
+from reconcile.change_owners.changes import BundleFileChange
 from reconcile.change_owners.diff import Diff
 
 

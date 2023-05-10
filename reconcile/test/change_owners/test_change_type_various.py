@@ -9,8 +9,8 @@ from reconcile.change_owners.change_owners import manage_conditional_label
 from reconcile.change_owners.change_types import (
     ChangeTypeContext,
     PathExpression,
-    parse_resource_file_content,
 )
+from reconcile.change_owners.changes import parse_resource_file_content
 
 #
 # label management tests

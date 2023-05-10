@@ -9,10 +9,10 @@ from reconcile.change_owners.bundle import (
     FileRef,
 )
 from reconcile.change_owners.change_types import (
-    BundleFileChange,
     ChangeTypeProcessor,
     OwnershipContext,
 )
+from reconcile.change_owners.changes import BundleFileChange
 from reconcile.change_owners.implicit_ownership import (
     change_type_contexts_for_implicit_ownership,
     find_approvers_with_implicit_ownership_jsonpath_selector,

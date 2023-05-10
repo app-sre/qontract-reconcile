@@ -2,7 +2,7 @@ from reconcile.change_owners.bundle import (
     BundleFileType,
     FileRef,
 )
-from reconcile.change_owners.change_types import create_bundle_file_change
+from reconcile.change_owners.changes import create_bundle_file_change
 from reconcile.gql_definitions.change_owners.queries.change_types import ChangeTypeV1
 from reconcile.test.change_owners.fixtures import (
     StubFile,

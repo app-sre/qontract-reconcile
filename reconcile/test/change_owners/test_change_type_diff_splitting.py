@@ -7,8 +7,8 @@ from reconcile.change_owners.bundle import (
 from reconcile.change_owners.change_types import (
     ChangeTypeContext,
     DiffCoverage,
-    create_bundle_file_change,
 )
+from reconcile.change_owners.changes import create_bundle_file_change
 from reconcile.change_owners.diff import (
     Diff,
     DiffType,

@@ -17,10 +17,12 @@ from pygments.token import Name
 
 from reconcile.change_owners.change_owners import fetch_change_type_processors
 from reconcile.change_owners.change_types import (
-    BundleFileChange,
     BundleFileType,
     ChangeTypeProcessor,
     FileRef,
+)
+from reconcile.change_owners.changes import (
+    BundleFileChange,
     parse_resource_file_content,
 )
 from reconcile.change_owners.self_service_roles import (

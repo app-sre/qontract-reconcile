@@ -5,17 +5,18 @@ import traceback
 from reconcile import queries
 from reconcile.change_owners.approver import GqlApproverResolver
 from reconcile.change_owners.bundle import (
-    BundleFileType,
     FileDiffResolver,
     QontractServerFileDiffResolver,
 )
 from reconcile.change_owners.change_types import (
-    BundleFileChange,
     ChangeTypePriority,
     ChangeTypeProcessor,
-    create_bundle_file_change,
-    get_priority_for_changes,
     init_change_type_processors,
+)
+from reconcile.change_owners.changes import (
+    BundleFileChange,
+    fetch_bundle_changes,
+    get_priority_for_changes,
 )
 from reconcile.change_owners.decision import (
     ChangeDecision,
@@ -111,60 +112,6 @@ def fetch_change_type_processors(
     return list(
         init_change_type_processors(change_type_list, file_diff_resolver).values()
     )
-
-
-def fetch_bundle_changes(comparison_sha: str) -> list[BundleFileChange]:
-    """
-    reaches out to the qontract-server diff endpoint to find the files that
-    changed within two bundles (the current one representing the MR and the
-    explicitely passed comparision bundle - usually the state of the master branch).
-    """
-    changes = gql.get_diff(comparison_sha)
-    return _parse_bundle_changes(changes)
-
-
-def _parse_bundle_changes(bundle_changes) -> list[BundleFileChange]:
-    """
-    parses the output of the qontract-server /diff endpoint
-    """
-    datafiles = bundle_changes["datafiles"].values()
-    resourcefiles = bundle_changes["resources"].values()
-    logging.debug(
-        f"bundle contains {len(datafiles)} changed datafiles and {len(resourcefiles)} changed resourcefiles"
-    )
-
-    change_list = []
-    for c in datafiles:
-        bc = create_bundle_file_change(
-            path=c.get("datafilepath"),
-            schema=c.get("datafileschema"),
-            file_type=BundleFileType.DATAFILE,
-            old_file_content=c.get("old"),
-            new_file_content=c.get("new"),
-        )
-        if bc is not None:
-            change_list.append(bc)
-        else:
-            logging.debug(
-                f"skipping datafile {c.get('datafilepath')} - no changes detected"
-            )
-
-    for c in resourcefiles:
-        bc = create_bundle_file_change(
-            path=c.get("resourcepath"),
-            schema=c.get("new", {}).get("$schema", c.get("old", {}).get("$schema")),
-            file_type=BundleFileType.RESOURCEFILE,
-            old_file_content=c.get("old", {}).get("content"),
-            new_file_content=c.get("new", {}).get("content"),
-        )
-        if bc is not None:
-            change_list.append(bc)
-        else:
-            logging.debug(
-                f"skipping resourcefile {c.get('resourcepath')} - no changes detected"
-            )
-
-    return change_list
 
 
 CHANGE_TYPE_PROCESSING_MODE_LIMITED = "limited"

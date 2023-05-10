@@ -1,4 +1,6 @@
 import copy
+import hashlib
+import json
 from dataclasses import dataclass
 from typing import (
     Any,
@@ -15,10 +17,16 @@ from reconcile.change_owners.bundle import (
     FileRef,
 )
 from reconcile.change_owners.change_types import (
-    BundleFileChange,
     ChangeTypeProcessor,
-    create_bundle_file_change,
     init_change_type_processors,
+)
+from reconcile.change_owners.changes import (
+    BundleFileChange,
+    create_bundle_file_change,
+)
+from reconcile.change_owners.diff import (
+    PATH_FIELD_NAME,
+    SHA256SUM_FIELD_NAME,
 )
 from reconcile.gql_definitions.change_owners.queries import self_service_roles
 from reconcile.gql_definitions.change_owners.queries.change_types import (
@@ -41,6 +49,12 @@ from reconcile.gql_definitions.change_owners.queries.self_service_roles import (
 )
 
 
+def _sha256_sum(content: dict[str, Any]) -> str:
+    m = hashlib.sha256()
+    m.update(json.dumps(content, sort_keys=True).encode("utf-8"))
+    return m.hexdigest()
+
+
 @dataclass
 class StubFile:
     filepath: str
@@ -58,20 +72,53 @@ class StubFile:
     def create_bundle_change(
         self, jsonpath_patches: dict[str, Any]
     ) -> BundleFileChange:
-        new_content = copy.deepcopy(self.content)
-        if jsonpath_patches:
-            for jp, v in jsonpath_patches.items():
-                e = jsonpath_ng.ext.parse(jp)
-                e.update(new_content, v)
         bundle_file_change = create_bundle_file_change(
             path=self.filepath,
             schema=self.fileschema,
             file_type=BundleFileType[self.filetype.upper()],
-            old_file_content=self.content,
-            new_file_content=new_content,
+            old_file_content=StubFile._prepare_content(self.content, self.filepath, {}),
+            new_file_content=StubFile._prepare_content(
+                self.content, self.filepath, jsonpath_patches
+            ),
         )
         assert bundle_file_change
         return bundle_file_change
+
+    @staticmethod
+    def _prepare_content(
+        content: dict[str, Any], path: str, jsonpath_patches: dict[str, Any]
+    ) -> dict[str, Any]:
+        new_content = copy.deepcopy(content)
+        if jsonpath_patches:
+            for jp, v in jsonpath_patches.items():
+                e = jsonpath_ng.ext.parse(jp)
+                e.update(new_content, v)
+        new_content[SHA256SUM_FIELD_NAME] = _sha256_sum(new_content)
+        new_content[PATH_FIELD_NAME] = path
+        return new_content
+
+    def move(
+        self, new_path: str, jsonpath_patches: Optional[dict[str, Any]] = None
+    ) -> tuple[BundleFileChange, BundleFileChange]:
+        old_bundle_change = create_bundle_file_change(
+            path=self.filepath,
+            schema=self.fileschema,
+            file_type=BundleFileType[self.filetype.upper()],
+            old_file_content=StubFile._prepare_content(self.content, self.filepath, {}),
+            new_file_content=None,
+        )
+        new_bundle_change = create_bundle_file_change(
+            path=new_path,
+            schema=self.fileschema,
+            file_type=BundleFileType[self.filetype.upper()],
+            old_file_content=None,
+            new_file_content=StubFile._prepare_content(
+                self.content, new_path, jsonpath_patches or {}
+            ),
+        )
+        assert old_bundle_change
+        assert new_bundle_change
+        return (old_bundle_change, new_bundle_change)
 
 
 def build_test_datafile(

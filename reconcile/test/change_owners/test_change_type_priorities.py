@@ -1,8 +1,8 @@
 from unittest.mock import MagicMock
 
-from reconcile.change_owners.change_types import (
+from reconcile.change_owners.change_types import ChangeTypePriority
+from reconcile.change_owners.changes import (
     BundleFileChange,
-    ChangeTypePriority,
     get_priority_for_changes,
 )
 from reconcile.gql_definitions.change_owners.queries.change_types import ChangeTypeV1
