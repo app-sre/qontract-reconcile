@@ -119,8 +119,8 @@ def find_cidr_duplicates_and_overlap(input_dict: dict):
                 )
             account_vpc_bool = vpc_peering_list_compare(account_vpc_list, cluster_name)
             if provider.get("provider") == "account-vpc-mesh":
-                account_vpc_mesh_list.append(  # type: ignore[call-arg]
-                    vpc_peering_name, ipaddress.ip_network(vpc_peering_cidr)
+                account_vpc_mesh_list.append(
+                    (vpc_peering_name, ipaddress.ip_network(vpc_peering_cidr))
                 )
             vpc_mesh_bool = vpc_peering_list_compare(
                 account_vpc_mesh_list, cluster_name
