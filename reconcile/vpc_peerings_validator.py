@@ -1,4 +1,3 @@
-from cmath import log
 import ipaddress
 import logging
 import sys
@@ -67,7 +66,7 @@ def validate_no_cidr_overlap(
                         vpc_peering_info,
                         peerings_enteries_dict,
                         cluster.name,
-                        cluster.network.vpc,
+                        cluster.network.vpc,  # type: ignore[union-attr]
                     )
                 if peering.provider in (
                     "cluster-vpc-requester",
@@ -84,7 +83,7 @@ def validate_no_cidr_overlap(
                         vpc_peering_info,
                         peerings_enteries_dict,
                         cluster.name,
-                        cluster.network.vpc,
+                        cluster.network.vpc,  # type: ignore[union-attr]
                     )
         overlaps_peering_entries_dict = find_cidr_duplicates_and_overlap(
             peerings_enteries_dict
@@ -99,7 +98,7 @@ def create_vpc_peering_dict(
 ):
     if cluster_name not in peerings_enteries_dict:
         peerings_enteries_dict[cluster_name] = {
-            "cidr_block": cluster_cidr,  # type: ignore[union-attr]
+            "cidr_block": cluster_cidr,
             "providers": [],
         }
     peerings_enteries_dict[cluster_name]["providers"].append(vpc_peering_info)
@@ -110,7 +109,7 @@ def find_cidr_duplicates_and_overlap(input_dict: dict):
     for cluster_name, cluster_data in items_for_dict:
         cluster_cidr = cluster_data.get("cidr_block")
         account_vpc_list = []
-        account_vpc_mesh_list = []
+        account_vpc_mesh_list = []  # type: ignore[var-annotated]
         cluster_providers = cluster_data.get("providers")
         for provider in cluster_providers:
             vpc_peering_compare = provider.get("vpc_peering")
