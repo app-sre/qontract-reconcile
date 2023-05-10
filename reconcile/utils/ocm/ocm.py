@@ -481,13 +481,17 @@ class OCMProductRosa(OCMProduct):
                         "role_arn": cluster.spec.account.rosa.installer_role_arn,
                         "support_role_arn": cluster.spec.account.rosa.support_role_arn,
                         "instance_iam_roles": {
-                            "master_role_arn": cluster.spec.account.rosa.controlplane_role_arn,
                             "worker_role_arn": cluster.spec.account.rosa.worker_role_arn,
                         },
                         "operator_role_prefix": f"{cluster_name}-{operator_roles_prefix}",
                     },
                 },
             }
+
+            if cluster.spec.account.rosa.controlplane_role_arn:
+                rosa_spec["aws"]["sts"]["instance_iam_roles"][
+                    "master_role_arn"
+                ] = cluster.spec.account.rosa.controlplane_role_arn
 
             if cluster.spec.hypershift:
                 ocm_spec["nodes"][
