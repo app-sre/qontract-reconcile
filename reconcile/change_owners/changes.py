@@ -265,8 +265,7 @@ def fetch_bundle_changes(comparison_sha: str) -> list[BundleFileChange]:
     explicitely passed comparision bundle - usually the state of the master branch).
     """
     changes = gql.get_diff(comparison_sha)
-    bundle_changes = _parse_bundle_changes(changes)
-    return aggregate_file_moves(bundle_changes)
+    return _parse_bundle_changes(changes)
 
 
 @dataclass
