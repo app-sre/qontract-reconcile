@@ -1174,6 +1174,33 @@ class OCM:  # pylint: disable=too-many-public-methods
         api = f"{CS_API_BASE}/v1/versions/{version_id}"
         return self._get_json(api).get("available_upgrades", [])
 
+    def get_control_plan_upgrade_policies(
+        self, cluster, schedule_type=None
+    ) -> list[dict[str, Any]]:
+        """Returns a list of details of Upgrade Policies
+
+        :param cluster: cluster name
+
+        :type cluster: string
+        """
+        results: list[dict[str, Any]] = []
+        cluster_id = self.cluster_ids.get(cluster)
+        if not cluster_id:
+            return results
+
+        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/control_plane/upgrade_policies"
+        items = self._get_json(api).get("items")
+        if not items:
+            return results
+
+        for item in items:
+            if schedule_type and item["schedule_type"] != schedule_type:
+                continue
+            result = {k: v for k, v in item.items() if k in UPGRADE_POLICY_DESIRED_KEYS}
+            results.append(result)
+
+        return results
+
     def get_upgrade_policies(self, cluster, schedule_type=None) -> list[dict[str, Any]]:
         """Returns a list of details of Upgrade Policies
 
@@ -1198,6 +1225,19 @@ class OCM:  # pylint: disable=too-many-public-methods
 
         return results
 
+    def create_control_plane_upgrade_policy(self, cluster, spec):
+        """Creates a new Upgrade Policy for the control plane
+
+        :param cluster: cluster name
+        :param spec: required information for creation
+
+        :type cluster: string
+        :type spec: dictionary
+        """
+        cluster_id = self.cluster_ids[cluster]
+        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/control_plane/upgrade_policies"
+        self._post(api, spec)
+
     def create_upgrade_policy(self, cluster, spec):
         """Creates a new Upgrade Policy
 
@@ -1210,6 +1250,23 @@ class OCM:  # pylint: disable=too-many-public-methods
         cluster_id = self.cluster_ids[cluster]
         api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/upgrade_policies"
         self._post(api, spec)
+
+    def delete_control_plane_upgrade_policy(self, cluster, spec):
+        """Deletes an existing Control Plane Upgrade Policy
+
+        :param cluster: cluster name
+        :param spec: required information for update
+
+        :type cluster: string
+        :type spec: dictionary
+        """
+        cluster_id = self.cluster_ids[cluster]
+        upgrade_policy_id = spec["id"]
+        api = (
+            f"{CS_API_BASE}/v1/clusters/{cluster_id}/"
+            + f"control_plane/upgrade_policies/{upgrade_policy_id}"
+        )
+        self._delete(api)
 
     def delete_upgrade_policy(self, cluster, spec):
         """Deletes an existing Upgrade Policy
