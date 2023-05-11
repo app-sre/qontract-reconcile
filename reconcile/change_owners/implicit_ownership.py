@@ -2,10 +2,10 @@ import logging
 
 from reconcile.change_owners.approver import ApproverResolver
 from reconcile.change_owners.change_types import (
-    BundleFileChange,
     ChangeTypeContext,
     ChangeTypeProcessor,
 )
+from reconcile.change_owners.changes import BundleFileChange
 from reconcile.gql_definitions.change_owners.queries.change_types import (
     ChangeTypeImplicitOwnershipJsonPathProviderV1,
 )

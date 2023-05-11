@@ -4,8 +4,8 @@ from reconcile.change_owners.bundle import BundleFileType
 from reconcile.change_owners.change_types import (
     Approver,
     ChangeTypeContext,
-    create_bundle_file_change,
 )
+from reconcile.change_owners.changes import create_bundle_file_change
 from reconcile.change_owners.decision import (
     Decision,
     DecisionCommand,

@@ -63,7 +63,6 @@ query NamespacesMinimal {
       }
       internal
       disable {
-        e2eTests
         integrations
       }
     }
@@ -79,7 +78,6 @@ class ConfiguredBaseModel(BaseModel):
 
 
 class DisableClusterAutomationsV1(ConfiguredBaseModel):
-    e2e_tests: Optional[list[str]] = Field(..., alias="e2eTests")
     integrations: Optional[list[str]] = Field(..., alias="integrations")
 
 

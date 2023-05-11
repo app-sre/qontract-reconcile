@@ -35,7 +35,6 @@ query SkupperNetworks {
         internal
         disable {
           integrations
-          e2eTests
         }
         peering {
           connections {

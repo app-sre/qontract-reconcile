@@ -49,7 +49,6 @@ query Projects {
         internal
         disable {
           integrations
-          e2eTests
         }
       }
     }

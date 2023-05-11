@@ -4,7 +4,6 @@
 # qontract-reconcile
 
 A tool to reconcile services with their desired state as defined in App-Interface.
-In addition, e2e tests are available to detect potential problems reconciling services with their desired state.
 Additional tools that use the libraries created by the reconciliations are also hosted here.
 
 ## Subcommands
@@ -175,10 +174,6 @@ Additional tools that use the libraries created by the reconciliations are also 
   saas-file-validator             Validates Saas files.
   sendgrid-teammates              Manages SendGrid teammates for a given
                                   account.
-  sentry-config                   Configure and enforce sentry instance
-                                  configuration.
-  sentry-helper                   Watch for Sentry access requests and notify
-                                  on Slack.
   service-dependencies            Validate dependencies are defined for each
                                   service.
   signalfx-prometheus-endpoint-monitoring
@@ -209,11 +204,6 @@ Additional tools that use the libraries created by the reconciliations are also 
   vpc-peerings-validator          Validates that VPC peerings do not exist
                                   between public and internal clusters.
 ```
-
-### e2e-tests
-
-- `create-namespace`: A test to create a namespace and verify that required `RoleBinding`s are created as well to be able to reconcile them.
-- `dedicated-admin-rolebindings`: A test to verify that all required namespaces have the required `RoleBinding`s to be able to reconcile them.
 
 ### tools
 

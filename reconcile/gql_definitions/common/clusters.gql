@@ -266,7 +266,6 @@ query Clusters($name: String) {
     }
     internal
     disable {
-      e2eTests
       integrations
     }
   }

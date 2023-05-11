@@ -163,7 +163,7 @@ class AddonUpgradePolicy(AbstractUpgradePolicy):
             "version": self.version,
             "id": self.id,
         }
-        ocm.delete_upgrade_policy(self.cluster, item)
+        ocm.delete_addon_upgrade_policy(self.cluster, item)
 
 
 class ClusterUpgradePolicy(AbstractUpgradePolicy):
