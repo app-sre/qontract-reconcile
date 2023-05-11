@@ -242,7 +242,6 @@ class AddonUpgradePolicy(AbstractUpgradePolicy):
 
     def delete(self, ocm: OCM) -> None:
         item = {
-            "version": self.version,
             "id": self.id,
         }
         ocm.delete_addon_upgrade_policy(self.cluster, item)
@@ -267,13 +266,13 @@ class ClusterUpgradePolicy(AbstractUpgradePolicy):
             "schedule_type": "manual",
             "next_run": self.next_run,
         }
-        ocm.create_control_plane_upgrade_policy(self.cluster, policy)
+        ocm.create_upgrade_policy(self.cluster, policy)
 
     def delete(self, ocm: OCM) -> None:
         item = {
             "id": self.id,
         }
-        ocm.delete_control_plane_upgrade_policy(self.cluster, item)
+        ocm.delete_upgrade_policy(self.cluster, item)
 
 
 class ControlPlaneUpgradePolicy(AbstractUpgradePolicy):
@@ -291,7 +290,6 @@ class ControlPlaneUpgradePolicy(AbstractUpgradePolicy):
 
     def delete(self, ocm: OCM) -> None:
         item = {
-            "version": self.version,
             "id": self.id,
         }
         ocm.delete_control_plane_upgrade_policy(self.cluster, item)
