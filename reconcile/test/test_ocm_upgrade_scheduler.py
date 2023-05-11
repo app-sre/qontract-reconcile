@@ -782,7 +782,7 @@ class TestPolicyHandler:
             ),
         )
         aus.act(dry_run=False, diffs=[handler], ocm_map=ocm_map)
-        ocm_map.get.return_value.delete_upgrade_policy.assert_called_once_with(
+        ocm_map.get.return_value.delete_addon_upgrade_policy.assert_called_once_with(
             "test", {"id": "test"}
         )
 
