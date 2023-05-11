@@ -15,12 +15,11 @@ from reconcile.utils import gql
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.ocm import (
     OCM_PRODUCT_OSD,
-    OCM_PRODUCT_ROSA,
     OCMMap,
 )
 
 QONTRACT_INTEGRATION = "ocm-upgrade-scheduler"
-SUPPORTED_OCM_PRODUCTS = [OCM_PRODUCT_OSD, OCM_PRODUCT_ROSA]
+SUPPORTED_OCM_PRODUCTS = [OCM_PRODUCT_OSD]
 
 
 class OCMClusterUpgradeSchedulerIntegration(
