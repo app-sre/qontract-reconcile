@@ -6,6 +6,7 @@ from typing import Any
 from unittest import TestCase
 from unittest.mock import (
     Mock,
+    NonCallableMagicMock,
     patch,
 )
 
@@ -219,10 +220,10 @@ class TestUpgradeLock:
                 "cluster": "cluster1",
                 "version": "4.3.6",
                 "schedule_type": "manual",
-                "gates_to_agree": [],
                 "next_run": "2021-08-30T19:00:00Z",
             }
         ),
+        gates_to_agree=[],
     )
 
     @patch.object(aus, "datetime", Mock(wraps=datetime))
@@ -671,6 +672,10 @@ class TestCalculateDiff:
         ocm.get_available_upgrades.return_value = ["4.9.5", "4.10.1"]
         ocm.addons = [{"id": "addon1", "version": {"id": "4.9.5"}}]
         ocm.version_blocked.return_value = False
+        cluster = mocker.patch("reconcile.ocm.types.OCMSpec")
+        cluster.spec.hypershift = False
+        ocm = map.get.return_value
+        ocm.clusters.get.return_value = cluster
         return map
 
     @staticmethod
@@ -745,7 +750,28 @@ class TestCalculateDiff:
         assert cup.version == "4.9.5"
         assert cup.schedule_type == "manual"
         assert isinstance(cup, aus.ClusterUpgradePolicy)
-        assert cup.gates_to_agree == []
+        assert x[0].gates_to_agree == []
+
+    def test_calculate_control_plane(
+        self,
+        cluster_upgrade_policy: ConfiguredClusterUpgradePolicy,
+        ocm_map: NonCallableMagicMock,
+    ):
+        ocm_map.get.return_value.clusters.get.return_value.spec.hypershift = True
+
+        x = aus.calculate_diff(
+            [], [cluster_upgrade_policy], ocm_map, self.create_version_data_map()
+        )
+
+        assert len(x) == 1
+        cup = x[0].policy
+
+        assert x[0].action == "create"
+        assert cup.cluster == "cluster1"
+        assert cup.version == "4.9.5"
+        assert cup.schedule_type == "manual"
+        assert isinstance(cup, aus.ControlPlaneUpgradePolicy)
+        assert x[0].gates_to_agree == []
 
     def test_calculate_not_soaked(
         self, cluster_upgrade_policy: ConfiguredClusterUpgradePolicy, ocm_map: OCMMap
