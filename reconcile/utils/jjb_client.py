@@ -189,17 +189,20 @@ class JJB:  # pylint: disable=too-many-public-methods
                     continue
 
             # 'item' is used in jenkins_job/builder.py to create the directory
-            # structure. If a branch name contains a '/' in it's name, replace
-            # it with an '_' to avoid nesting directories based on branch.
+            # structure. If a branch name contains a '/' in it's name, raise an
+            # error.
             instance, *items, _ = f.replace(replace_path + "/", "").split("/")
-            item = "_".join(items)
-            orig_item = "/".join(items)
+            if len(items) > 1:
+                raise ValueError(
+                    f"Invalid branch name: {items}.  Branch names cannot contain a '/'"
+                )
+            else:
+                item = "".join(items)
 
             item_type = et.parse(f).getroot().tag
             item_type = item_type.replace("hudson.model.ListView", "view")
             item_type = item_type.replace("project", "job")
-            # log original branch name with 'orig_item'
-            logging.info([action, item_type, instance, orig_item])
+            logging.info([action, item_type, instance, item])
 
             if action == "update":
                 with open(ft) as c, open(f) as d:
