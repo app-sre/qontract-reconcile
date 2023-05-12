@@ -68,7 +68,7 @@ class AdvancedUpgradeSchedulerBaseIntegration(
         upgrade_specs = self.get_upgrade_specs()
         for ocm_env, env_upgrade_specs in upgrade_specs.items():
             for org_name, org_upgrade_spec in env_upgrade_specs.items():
-                if org_upgrade_spec.has_validation_errors():
+                if org_upgrade_spec.has_validation_errors:
                     self.signal_validation_issues(dry_run, org_upgrade_spec)
                 elif org_upgrade_spec.specs:
                     self.process_upgrade_policies_in_org(dry_run, org_upgrade_spec)

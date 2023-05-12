@@ -44,6 +44,7 @@ class OrganizationUpgradeSpec(BaseModel):
         default_factory=dict
     )
 
+    @property
     def has_validation_errors(self) -> bool:
         return len(self._cluster_errors) > 0
 

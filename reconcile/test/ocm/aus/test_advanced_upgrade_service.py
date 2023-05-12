@@ -440,7 +440,7 @@ def test_signal_validation_issues_no_errors(
 
     org_upgrade_specs = build_org_upgrade_specs(ocm_env, cluster_error=False)
     spec = org_upgrade_specs["org-id"]
-    assert not spec.has_validation_errors()
+    assert not spec.has_validation_errors
     _signal_validation_issues_for_org(ocm_api, org_upgrade_spec=spec)
 
     assert service_log_mock.call_count == 0
@@ -456,7 +456,7 @@ def test_signal_validation_issues_cluster_validation_error(
     )
     org_upgrade_specs = build_org_upgrade_specs(ocm_env, cluster_error=True)
     spec = org_upgrade_specs["org-id"]
-    assert spec.has_validation_errors()
+    assert spec.has_validation_errors
     _signal_validation_issues_for_org(ocm_api, org_upgrade_spec=spec)
 
     assert service_log_mock.call_count == 1
