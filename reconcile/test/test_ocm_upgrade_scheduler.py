@@ -629,6 +629,9 @@ class TestAct:
         def delete(self, ocm: OCM):
             self.deleted = True
 
+        def summarize(self, ocm_org_name: str) -> str:
+            return "do-something"
+
     @staticmethod
     def create_policy_with_action(action: str):
         return aus.UpgradePolicyHandler(

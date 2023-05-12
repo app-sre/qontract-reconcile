@@ -38,6 +38,7 @@ from reconcile.utils.cluster_version_data import (
     get_version_data,
 )
 from reconcile.utils.defer import defer
+from reconcile.utils.filtering import remove_none_values_from_dict
 from reconcile.utils.ocm import (
     OCM,
     OCMMap,
@@ -109,11 +110,8 @@ class GateAgreement(BaseModel):
     id: str
 
     def create(self, ocm: OCM, cluster_name: str) -> None:
-        action_log(
-            "create",
-            ocm.name,
-            cluster_name,
-            f"Creating version agreement for gate {self.id}",
+        logging.info(
+            f"create agreement for gate {self.id} on cluster {cluster_name} in OCM org {ocm.name}"
         )
         agreement = ocm.create_version_agreement(self.id, cluster_name)
         if agreement.get("version_gate") is None:
@@ -142,6 +140,10 @@ class AbstractUpgradePolicy(ABC, BaseModel):
     def delete(self, ocm: OCM) -> None:
         pass
 
+    @abstractmethod
+    def summarize(self, ocm_org_name: str) -> str:
+        pass
+
 
 class AddonUpgradePolicy(AbstractUpgradePolicy):
     """Class to create and delete Addon upgrade policies in OCM"""
@@ -164,6 +166,16 @@ class AddonUpgradePolicy(AbstractUpgradePolicy):
             "id": self.id,
         }
         ocm.delete_addon_upgrade_policy(self.cluster, item)
+
+    def summarize(self, ocm_org_name: str) -> str:
+        details = {
+            "cluster": self.cluster,
+            "ocm_org": ocm_org_name,
+            "version": self.version,
+            "next_run": self.next_run,
+            "addon_id": self.addon_id,
+        }
+        return f"addon upgrade policy - {remove_none_values_from_dict(details)}"
 
 
 class ClusterUpgradePolicy(AbstractUpgradePolicy):
@@ -191,6 +203,15 @@ class ClusterUpgradePolicy(AbstractUpgradePolicy):
         }
         ocm.delete_upgrade_policy(self.cluster, item)
 
+    def summarize(self, ocm_org_name: str) -> str:
+        details = {
+            "cluster": self.cluster,
+            "ocm_org": ocm_org_name,
+            "version": self.version,
+            "next_run": self.next_run,
+        }
+        return f"cluster upgrade policy - {remove_none_values_from_dict(details)}"
+
 
 class UpgradePolicyHandler(BaseModel):
     """Class to handle upgrade policy actions"""
@@ -199,13 +220,7 @@ class UpgradePolicyHandler(BaseModel):
     policy: AbstractUpgradePolicy
 
     def act(self, dry_run: bool, ocm: OCM) -> None:
-        action_log(
-            self.action,
-            ocm.name,
-            self.policy.cluster,
-            self.policy.version,
-            self.policy.next_run,
-        )
+        logging.info(f"{self.action} {self.policy.summarize(ocm.name)}")
         if dry_run:
             return
 
@@ -719,11 +734,6 @@ def sort_diffs(diff: UpgradePolicyHandler) -> int:
     if diff.action == "delete":
         return 1
     return 2
-
-
-def action_log(*items: Optional[str]) -> None:
-    # log all non-empty, non-null items
-    logging.info([item for item in items if item])
 
 
 def act(
