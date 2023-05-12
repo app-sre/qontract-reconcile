@@ -13,6 +13,9 @@ from pydantic import (
 from pydantic import errors as pydantic_errors
 from pydantic.fields import ModelField
 
+DEFAULT_STRING = "I was too lazy to define a string here"
+DEFAULT_INT = 42
+
 
 def data_default_none(
     klass: type[BaseModel], data: MutableMapping[str, Any]
@@ -28,11 +31,11 @@ def data_default_none(
                 data[field.alias] = None
             else:
                 if isinstance(field.type_, type) and issubclass(field.type_, str):
-                    data[field.alias] = "I was too lazy to define a string here"
-                elif isinstance(field.type_, type) and issubclass(field.type_, int):
-                    data[field.alias] = 42
+                    data[field.alias] = DEFAULT_STRING
                 elif isinstance(field.type_, type) and issubclass(field.type_, bool):
                     data[field.alias] = False
+                elif isinstance(field.type_, type) and issubclass(field.type_, int):
+                    data[field.alias] = DEFAULT_INT
         else:
             if isinstance(field.type_, type) and issubclass(field.type_, BaseModel):
                 if isinstance(data[field.alias], dict):
