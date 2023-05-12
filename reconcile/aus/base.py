@@ -170,7 +170,7 @@ class AddonUpgradePolicy(AbstractUpgradePolicy):
     def summarize(self, ocm_org_name: str) -> str:
         details = {
             "cluster": self.cluster,
-            "ocm-org": ocm_org_name,
+            "ocm_org": ocm_org_name,
             "version": self.version,
             "next_run": self.next_run,
             "addon_id": self.addon_id,
@@ -206,7 +206,7 @@ class ClusterUpgradePolicy(AbstractUpgradePolicy):
     def summarize(self, ocm_org_name: str) -> str:
         details = {
             "cluster": self.cluster,
-            "ocm-org": ocm_org_name,
+            "ocm_org": ocm_org_name,
             "version": self.version,
             "next_run": self.next_run,
         }
