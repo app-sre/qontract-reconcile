@@ -1708,6 +1708,13 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                     if rt.parameters is not None
                     else None
                 )
+
+                # include secret parameters from resource template and saas file
+                desired_target_config["rt_secretparameters"] = rt.secret_parameters
+                desired_target_config[
+                    "saas_file_secretparameters"
+                ] = saas_file.secret_parameters
+
                 # Convert to dict, ChainMap is not JSON serializable
                 # desired_target_config needs to be serialized to generate
                 # its config hash and to be stored in S3
@@ -1739,6 +1746,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                 "cluster": {"name": True, "server_url": True},
                 "app": {"name": True},
             },
+            # TODO: add environment.parameters to the include list!?!?
         )
 
     def validate_promotions(self) -> bool:
