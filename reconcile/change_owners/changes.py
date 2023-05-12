@@ -243,7 +243,7 @@ def _create_bundle_file_change(
         # - the SHA of the file: the SHA can change even when no diffs are detected.
         #   this can be happen in case something undetectable has changed, e.g. comments
         #   in a YAML file are invisible to YAML parsers
-        # - item reodering in lists: we ignore reordering of elements in lists right now
+        # - item reordering in lists: we ignore change or order for list items for now,
         #   but also in this cases the SHA changes without any reported diffs
         # - the path of a file has changed a.k.a. the file was moved. in such a case
         #   the content of the file is the same but the path is different.
