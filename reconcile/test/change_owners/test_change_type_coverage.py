@@ -1,4 +1,5 @@
 import jsonpath_ng
+import pytest
 
 from reconcile.change_owners.change_types import (
     Approver,
@@ -92,10 +93,9 @@ def test_partially_covered_change_one_file(
 ) -> None:
     ref_update_path = "resourceTemplates.[0].targets.[0].ref"
     saas_file_change = saas_file.create_bundle_change(
+        # the ref update is covered by the saas_file change type
+        # but the name update is not
         {ref_update_path: "new-ref", "name": "new-name"}
-    )
-    ref_update_diff = next(
-        d for d in saas_file_change.diff_coverage if str(d.diff.path) == ref_update_path
     )
     ctx = ChangeTypeContext(
         change_type_processor=change_type_to_processor(saas_file_changetype),
@@ -105,8 +105,15 @@ def test_partially_covered_change_one_file(
         context_file=saas_file.file_ref(),
     )
 
-    covered_diffs = saas_file_change.cover_changes(ctx)
-    assert [ref_update_diff.diff] == covered_diffs
+    saas_file_change.cover_changes(ctx)
+    for coverage in saas_file_change.diff_coverage:
+        if coverage.diff.path_str() == "name":
+            assert not coverage.is_covered()
+        elif coverage.diff.path_str() == ref_update_path:
+            assert coverage.is_covered()
+            assert coverage.coverage == [ctx]
+        else:
+            pytest.fail("unexpected changed path")
 
 
 def test_root_change_type(
@@ -142,8 +149,9 @@ def test_root_change_type(
         context_file=saas_file.file_ref(),
     )
 
-    covered_diffs = namespace_change.cover_changes(ctx)
-    assert covered_diffs
+    namespace_change.cover_changes(ctx)
+    coverage = namespace_change.diff_coverage[0]
+    assert coverage.is_covered()
 
 
 def test_diff_no_coverage() -> None:
