@@ -26,6 +26,14 @@ class SaasFileSecretParameters(Protocol):
     def secret(self) -> HasSecret:
         ...
 
+    def dict(
+        self,
+        *,
+        by_alias: bool = False,
+        include: Optional[Union[AbstractSetIntStr, MappingIntStrAny]] = None,
+    ) -> dict[str, Any]:
+        ...
+
 
 SaasSecretParameters = Optional[Sequence[SaasFileSecretParameters]]
 # Taken from pydantic.typing

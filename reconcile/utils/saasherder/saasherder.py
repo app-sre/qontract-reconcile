@@ -1710,10 +1710,14 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                 )
 
                 # include secret parameters from resource template and saas file
-                desired_target_config["rt_secretparameters"] = rt.secret_parameters
-                desired_target_config[
-                    "saas_file_secretparameters"
-                ] = saas_file.secret_parameters
+                if rt.secret_parameters:
+                    desired_target_config["rt_secretparameters"] = [
+                        p.dict() for p in rt.secret_parameters
+                    ]
+                if saas_file.secret_parameters:
+                    desired_target_config["saas_file_secretparameters"] = [
+                        p.dict() for p in saas_file.secret_parameters
+                    ]
 
                 # Convert to dict, ChainMap is not JSON serializable
                 # desired_target_config needs to be serialized to generate
