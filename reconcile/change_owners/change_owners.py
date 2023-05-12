@@ -317,7 +317,9 @@ def run(
         #
         changes = fetch_bundle_changes(comparison_sha)
         logging.info(
-            f"detected {len(changes)} changed files with {sum(c.raw_diff_count() for c in changes)} differences"
+            f"detected {len(changes)} changed files "
+            f"with {sum(c.raw_diff_count() for c in changes)} differences "
+            f"and {len([c for c in changes if c.metadata_only_change])} metadata-only changes"
         )
         cover_changes(
             changes,

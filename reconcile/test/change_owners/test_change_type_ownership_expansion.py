@@ -109,7 +109,7 @@ def test_change_type_ownership_resolve(
     namespace_change_type: ChangeTypeV1,
     app_change_type: ChangeTypeV1,
     saas_file_change_type: ChangeTypeV1,
-):
+) -> None:
     namespace_change = build_test_datafile(
         filepath="my-namespace.yml",
         schema=namespace_change_type.context_schema,
@@ -142,7 +142,7 @@ def test_change_type_ownership_expansion_with_context_selector(
     namespace_change_type: ChangeTypeV1,
     app_change_type: ChangeTypeV1,
     saas_file_change_type: ChangeTypeV1,
-):
+) -> None:
     """
     test the interaction of a context lookup in one change-type that is used
     for ownership expansion.
@@ -195,7 +195,7 @@ def test_change_type_ownership_expansion_with_context_selector(
 
 def test_change_type_expansion_hierarchy(
     app_hierarchy_change_type: ChangeTypeV1,
-):
+) -> None:
     app_change = build_test_datafile(
         filepath="app.yml",
         schema="app-1.yml",
@@ -246,7 +246,7 @@ def test_change_type_expansion_hierarchy(
 
 def test_change_type_expansion_hierarchy_cycle_prevention(
     app_hierarchy_change_type: ChangeTypeV1,
-):
+) -> None:
     app_change = build_test_datafile(
         filepath="app.yml",
         schema="app-1.yml",

@@ -6,10 +6,6 @@ from reconcile.change_owners.change_types import (
     ChangeTypeContext,
     ChangeTypeProcessor,
 )
-from reconcile.change_owners.diff import (
-    PATH_FIELD_NAME,
-    SHA256SUM_FIELD_NAME,
-)
 from reconcile.gql_definitions.change_owners.queries.change_types import ChangeTypeV1
 from reconcile.test.change_owners.fixtures import (
     StubFile,
@@ -25,7 +21,7 @@ from reconcile.test.change_owners.fixtures import (
 
 def test_change_type_processor_building_invalid_jsonpaths(
     secret_promoter_change_type: ChangeTypeV1,
-):
+) -> None:
     secret_promoter_change_type.changes[0].json_path_selectors[  # type: ignore
         0
     ] = "invalid-jsonpath/selector"
@@ -40,7 +36,7 @@ def test_change_type_processor_building_invalid_jsonpaths(
 
 def test_change_type_processor_allowed_paths_simple(
     role_member_change_type: ChangeTypeV1, user_file: StubFile
-):
+) -> None:
     changed_user_file = user_file.create_bundle_change(
         {"roles[0]": {"$ref": "some-role"}}
     )
@@ -57,12 +53,12 @@ def test_change_type_processor_allowed_paths_simple(
         ),
     )
 
-    assert {str(p) for p in paths} == {"roles", SHA256SUM_FIELD_NAME, PATH_FIELD_NAME}
+    assert {str(p) for p in paths} == {"roles"}
 
 
 def test_change_type_processor_allowed_paths_conditions(
     secret_promoter_change_type: ChangeTypeV1, namespace_file: StubFile
-):
+) -> None:
     changed_namespace_file = namespace_file.create_bundle_change(
         {"openshiftResources[1].version": 2}
     )
@@ -79,11 +75,7 @@ def test_change_type_processor_allowed_paths_conditions(
         ),
     )
 
-    assert {str(p) for p in paths} == {
-        "openshiftResources.[1].version",
-        SHA256SUM_FIELD_NAME,
-        PATH_FIELD_NAME,
-    }
+    assert {str(p) for p in paths} == {"openshiftResources.[1].version"}
 
 
 @pytest.fixture
@@ -99,7 +91,7 @@ def resource_owner_change_type_processor() -> ChangeTypeProcessor:
 
 def test_change_type_processor_allowed_paths_conditions_ct_without_schema_file_with_schema(
     resource_owner_change_type_processor: ChangeTypeProcessor,
-):
+) -> None:
     """
     test that a change-type that does not enforce a context-schema can still be used by files with schemas
     """
@@ -119,16 +111,12 @@ def test_change_type_processor_allowed_paths_conditions_ct_without_schema_file_w
         ),
     )
 
-    assert {str(p) for p in paths} == {
-        "$",
-        SHA256SUM_FIELD_NAME,
-        PATH_FIELD_NAME,
-    }
+    assert {str(p) for p in paths} == {"$"}
 
 
 def test_change_type_processor_allowed_paths_conditions_ct_without_schema_file_without_schema(
     resource_owner_change_type_processor: ChangeTypeProcessor,
-):
+) -> None:
     """
     test that a change-type that does not enforce a context-schema behaves correctly with
     file that do not have a schema.
@@ -147,8 +135,4 @@ def test_change_type_processor_allowed_paths_conditions_ct_without_schema_file_w
         ),
     )
 
-    assert {str(p) for p in paths} == {
-        "$",
-        SHA256SUM_FIELD_NAME,
-        PATH_FIELD_NAME,
-    }
+    assert {str(p) for p in paths} == {"$"}

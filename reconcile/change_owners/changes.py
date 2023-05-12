@@ -16,6 +16,7 @@ import anymarkup
 from reconcile.change_owners.bundle import (
     BundleFileType,
     FileRef,
+    QontractServerDiff,
 )
 from reconcile.change_owners.change_types import (
     ChangeTypeContext,
@@ -24,19 +25,17 @@ from reconcile.change_owners.change_types import (
     DiffCoverage,
 )
 from reconcile.change_owners.diff import (
-    SHA256SUM_FIELD_NAME,
-    SHA256SUM_PATH,
     Diff,
     DiffType,
     extract_diffs,
 )
 from reconcile.utils import gql
+from reconcile.utils.jsonpath import parse_jsonpath
 
-
-class InvalidBundleFileMetadataError(Exception):
-    """
-    Raised when invalid or missing metadata in a bundle file is detected.
-    """
+METADATA_CHANGE_PATH = "_metadata_"
+"""
+The path used to represent a metadata only change.
+"""
 
 
 @dataclass
@@ -50,41 +49,31 @@ class BundleFileChange:
     fileref: FileRef
     old: Optional[dict[str, Any]]
     new: Optional[dict[str, Any]]
+    old_content_sha: str
+    new_content_sha: str
     diffs: list[Diff]
+    metadata_only_change: bool = False
     _diff_coverage: dict[str, DiffCoverage] = field(init=False, default_factory=dict)
 
     def __post_init__(self) -> None:
         self._diff_coverage = {d.path_str(): DiffCoverage(d, []) for d in self.diffs}
 
-    def old_content_sha(self) -> str:
-        """
-        Returns the SHA256SUM of the old state of the file. The checksum is provided by the
-        qontract-server and is not calculated locally. If the file has no old content
-        (a.k.a. is currently created), this function returns an empty string. It is the responsibility
-        of the caller to check if the file is created or not, e.g. via `is_file_creation()`.
-        """
-        if self.old is None:
-            return ""
-        if SHA256SUM_FIELD_NAME not in self.old:
-            raise InvalidBundleFileMetadataError(
-                f"The detected change for {self.fileref} does not contain a {SHA256SUM_FIELD_NAME} for the previous state."
+    def _metadata_only_diff_coverage(self) -> DiffCoverage:
+        if not self.metadata_only_change:
+            raise ValueError("not a metadata only change")
+        if METADATA_CHANGE_PATH not in self._diff_coverage:
+            # create an artificial diff coverage for metadata only changes
+            # which can hold all the change type contexts that cover it
+            self._diff_coverage[METADATA_CHANGE_PATH] = DiffCoverage(
+                Diff(
+                    path=parse_jsonpath(METADATA_CHANGE_PATH),
+                    diff_type=DiffType.CHANGED,
+                    old=None,
+                    new=None,
+                ),
+                [],
             )
-        return self.old[SHA256SUM_FIELD_NAME]
-
-    def new_content_sha(self) -> str:
-        """
-        Returns the SHA256SUM of the new state of the file. The checksum is provided by the
-        qontract-server and is not calculated locally. If the file has no new content
-        (a.k.a. is currently deleted), this function returns an empty string. It is the responsibility
-        of the caller to check if the file is deleted or not, e.g. via `is_file_deletion()`.
-        """
-        if self.new is None:
-            return ""
-        if SHA256SUM_FIELD_NAME not in self.new:
-            raise InvalidBundleFileMetadataError(
-                f"The detected change for {self.fileref} does not contain a {SHA256SUM_FIELD_NAME} for the new state."
-            )
-        return self.new[SHA256SUM_FIELD_NAME]
+        return self._diff_coverage[METADATA_CHANGE_PATH]
 
     def is_file_deletion(self) -> bool:
         return self.old is not None and self.new is None
@@ -92,7 +81,7 @@ class BundleFileChange:
     def is_file_creation(self) -> bool:
         return self.old is None and self.new is not None
 
-    def cover_changes(self, change_type_context: ChangeTypeContext) -> list[Diff]:
+    def cover_changes(self, change_type_context: ChangeTypeContext) -> None:
         """
         Figure out if a ChangeTypeV1 covers detected changes within the BundleFile.
         Base idea:
@@ -106,6 +95,13 @@ class BundleFileChange:
         The change-type contexts that cover a change, are registered in the
         `DiffCoverage.coverage` list right next to the Diff that is covered.
         """
+
+        # if this is a metadata only change, register the change type context
+        # as a source of approvers
+        if self.metadata_only_change and not self.diffs:
+            self._metadata_only_diff_coverage().coverage.append(change_type_context)
+            return
+
         covered_diffs = {}
         # observe the new state for added fields or list items or entire object sutrees
         covered_diffs.update(
@@ -121,7 +117,6 @@ class BundleFileChange:
                 self._filter_diffs([DiffType.REMOVED]), self.old, change_type_context
             )
         )
-        return list(covered_diffs.values())
 
     def _cover_changes_for_diffs(
         self,
@@ -141,9 +136,7 @@ class BundleFileChange:
                     if dc.changed_path_covered_by_path(allowed_path):
                         covered_diffs[dc.diff.path_str()] = dc.diff
                         dc.coverage.append(change_type_context)
-                    elif SHA256SUM_PATH != allowed_path and dc.path_under_changed_path(
-                        allowed_path
-                    ):
+                    elif dc.path_under_changed_path(allowed_path):
                         # the self-service path allowed by the change-type is covering
                         # only parts of the diff. we will split the diff into a
                         # smaller part, that can be covered by the change-type.
@@ -204,12 +197,16 @@ def parse_resource_file_content(content: Optional[Any]) -> tuple[Any, Optional[s
         return None, None
 
 
-def create_bundle_file_change(
+def _create_bundle_file_change(
     path: str,
     schema: Optional[str],
     file_type: BundleFileType,
     old_file_content: Any,
     new_file_content: Any,
+    old_content_sha: str,
+    new_content_sha: str,
+    old_path: str,
+    new_path: str,
 ) -> Optional[BundleFileChange]:
     """
     this is a factory method that creates a BundleFileChange object based
@@ -236,8 +233,33 @@ def create_bundle_file_change(
             fileref=fileref,
             old=old_file_content,
             new=new_file_content,
+            old_content_sha=old_content_sha,
+            new_content_sha=new_content_sha,
             diffs=diffs,
         )
+
+    if old_content_sha != new_content_sha or old_path != new_path:
+        # there were no diffs but the content of the file has changed, e.g.
+        # - the SHA of the file: the SHA can change even when no diffs are detected.
+        #   this can be happen in case something undetectable has changed, e.g. comments
+        #   in a YAML file are invisible to YAML parsers
+        # - item reordering in lists: we ignore change or order for list items for now,
+        #   but also in this cases the SHA changes without any reported diffs
+        # - the path of a file has changed a.k.a. the file was moved. in such a case
+        #   the content of the file is the same but the path is different.
+        # in these scenarios we will still create a BundleFileChange object, but
+        # with without diffs. instead we mark it as an metadata only change.
+        return BundleFileChange(
+            fileref=fileref,
+            old=old_file_content,
+            new=new_file_content,
+            old_content_sha=old_content_sha,
+            new_content_sha=new_content_sha,
+            metadata_only_change=True,
+            diffs=[],
+        )
+
+    # no diffs and no change in metadata
     return None
 
 
@@ -264,8 +286,12 @@ def fetch_bundle_changes(comparison_sha: str) -> list[BundleFileChange]:
     changed within two bundles (the current one representing the MR and the
     explicitely passed comparision bundle - usually the state of the master branch).
     """
-    changes = gql.get_diff(comparison_sha)
-    return _parse_bundle_changes(changes)
+    qontract_server_diff = QontractServerDiff(**gql.get_diff(comparison_sha))
+    bundle_changes = parse_bundle_changes(qontract_server_diff)
+
+    # post process bundle changes to aggregate delete/create pairs into pure
+    # metadata change
+    return aggregate_file_moves(bundle_changes)
 
 
 @dataclass
@@ -281,12 +307,16 @@ class _MoveCandidates:
                 deletion.fileref.file_type == creation.fileref.file_type
                 and deletion.fileref.path != creation.fileref.path
             ):
-                move_change = create_bundle_file_change(
-                    deletion.fileref.path,
-                    deletion.fileref.schema,
-                    deletion.fileref.file_type,
-                    deletion.old,
-                    creation.new,
+                move_change = _create_bundle_file_change(
+                    path=deletion.fileref.path,
+                    schema=deletion.fileref.schema,
+                    file_type=deletion.fileref.file_type,
+                    new_file_content=deletion.old,
+                    old_file_content=creation.new,
+                    old_content_sha=deletion.old_content_sha,
+                    new_content_sha=creation.new_content_sha,
+                    old_path=deletion.fileref.path,
+                    new_path=creation.fileref.path,
                 )
                 if move_change:
                     # make mypy happy
@@ -309,9 +339,9 @@ def aggregate_file_moves(
     new_bundle_changes = []
     for c in bundle_changes:
         if c.is_file_creation():
-            move_candidates[c.new_content_sha()].creations.append(c)
+            move_candidates[c.new_content_sha].creations.append(c)
         elif c.is_file_deletion():
-            move_candidates[c.old_content_sha()].deletions.append(c)
+            move_candidates[c.old_content_sha].deletions.append(c)
         else:
             new_bundle_changes.append(c)
     move_candidate_changes = itertools.chain.from_iterable(
@@ -321,45 +351,51 @@ def aggregate_file_moves(
     return new_bundle_changes
 
 
-def _parse_bundle_changes(bundle_changes: Any) -> list[BundleFileChange]:
+def parse_bundle_changes(
+    qontract_server_diff: QontractServerDiff,
+) -> list[BundleFileChange]:
     """
     parses the output of the qontract-server /diff endpoint
     """
-    datafiles = bundle_changes["datafiles"].values()
-    resourcefiles = bundle_changes["resources"].values()
     logging.debug(
-        f"bundle contains {len(datafiles)} changed datafiles and {len(resourcefiles)} changed resourcefiles"
+        f"bundle contains {len(qontract_server_diff.datafiles)} changed datafiles and {len(qontract_server_diff.resources)} changed resourcefiles"
     )
 
     change_list = []
-    for c in datafiles:
-        bc = create_bundle_file_change(
-            path=c.get("datafilepath"),
-            schema=c.get("datafileschema"),
+    for df in qontract_server_diff.datafiles.values():
+        bc = _create_bundle_file_change(
+            path=df.datafilepath,
+            schema=df.datafileschema,
             file_type=BundleFileType.DATAFILE,
-            old_file_content=c.get("old"),
-            new_file_content=c.get("new"),
+            old_file_content=df.cleaned_old_data,
+            new_file_content=df.cleaned_new_data,
+            old_content_sha=df.old_data_sha or "",
+            new_content_sha=df.new_data_sha or "",
+            old_path=df.old_datafilepath or "",
+            new_path=df.new_datafilepath or "",
         )
         if bc is not None:
             change_list.append(bc)
         else:
-            logging.debug(
-                f"skipping datafile {c.get('datafilepath')} - no changes detected"
-            )
+            logging.debug(f"skipping datafile {df.datafilepath} - no changes detected")
 
-    for c in resourcefiles:
-        bc = create_bundle_file_change(
-            path=c.get("resourcepath"),
-            schema=c.get("new", {}).get("$schema", c.get("old", {}).get("$schema")),
+    for rf in qontract_server_diff.resources.values():
+        bc = _create_bundle_file_change(
+            path=rf.resourcepath,
+            schema=rf.resourcefileschema,
             file_type=BundleFileType.RESOURCEFILE,
-            old_file_content=c.get("old", {}).get("content"),
-            new_file_content=c.get("new", {}).get("content"),
+            old_file_content=rf.old.content if rf.old else None,
+            new_file_content=rf.new.content if rf.new else None,
+            old_content_sha=rf.old.sha256sum if rf.old else "",
+            new_content_sha=rf.new.sha256sum if rf.new else "",
+            old_path=rf.old.path if rf.old else "",
+            new_path=rf.new.path if rf.new else "",
         )
         if bc is not None:
             change_list.append(bc)
         else:
             logging.debug(
-                f"skipping resourcefile {c.get('resourcepath')} - no changes detected"
+                f"skipping resourcefile {rf.resourcepath} - no changes detected"
             )
 
     return change_list

@@ -33,11 +33,7 @@ from reconcile.change_owners.bundle import (
     FileDiffResolver,
     FileRef,
 )
-from reconcile.change_owners.diff import (
-    PATH_FIELD_NAME,
-    SHA256SUM_FIELD_NAME,
-    Diff,
-)
+from reconcile.change_owners.diff import Diff
 from reconcile.gql_definitions.change_owners.queries.change_types import (
     ChangeTypeChangeDetectorChangeTypeProviderV1,
     ChangeTypeChangeDetectorJsonPathProviderV1,
@@ -189,7 +185,7 @@ class DiffCoverage:
 
         return None
 
-    def add_covering_context(self, ctx: "ChangeTypeContext"):
+    def add_covering_context(self, ctx: "ChangeTypeContext") -> None:
         self.coverage.append(ctx)
         for s in self._split_into:
             s.add_covering_context(ctx)
@@ -249,7 +245,7 @@ class PathExpression:
         )
         return parse_jsonpath(expr)
 
-    def __eq__(self, obj):
+    def __eq__(self, obj: object) -> bool:
         return (
             isinstance(obj, PathExpression)
             and obj.jsonpath_expression == self.jsonpath_expression
@@ -376,11 +372,10 @@ class ChangeDetector(ABC):
 class JsonPathChangeDetector(ChangeDetector):
     json_path_selectors: list[str]
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         self._json_path_expressions = [
             PathExpression(jsonpath_expression)
             for jsonpath_expression in self.json_path_selectors
-            + [f"'{SHA256SUM_FIELD_NAME}'", PATH_FIELD_NAME]
         ]
 
     @property
@@ -415,7 +410,7 @@ class ChangeTypeProcessor:
     disabled: bool
     implicit_ownership: list[ChangeTypeImplicitOwnershipV1]
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         self._expressions_by_file_type_schema: dict[
             tuple[BundleFileType, Optional[str]], list[PathExpression]
         ] = defaultdict(list)
@@ -611,7 +606,7 @@ class ChangeTypeProcessor:
                 f"{type(detector)} is not a supported change detection provider within ChangeTypes"
             )
 
-    def add_context_expansion(self, context_expansion: ContextExpansion):
+    def add_context_expansion(self, context_expansion: ContextExpansion) -> None:
         self._context_expansions.append(context_expansion)
 
 

@@ -31,7 +31,7 @@ from reconcile.test.change_owners.fixtures import (
 #
 
 
-def test_find_implict_single_approver_with_jsonpath():
+def test_find_implict_single_approver_with_jsonpath() -> None:
     bc = BundleFileChange(
         fileref=FileRef(
             file_type=BundleFileType.DATAFILE,
@@ -40,6 +40,8 @@ def test_find_implict_single_approver_with_jsonpath():
         ),
         old=None,
         new={"approver": "/user/approver.yml"},
+        old_content_sha="",
+        new_content_sha="new",
         diffs=[],
     )
     approver = find_approvers_with_implicit_ownership_jsonpath_selector(
@@ -53,7 +55,7 @@ def test_find_implict_single_approver_with_jsonpath():
     assert approver == {"/user/approver.yml"}
 
 
-def test_find_implict_multiple_approvers_with_jsonpath():
+def test_find_implict_multiple_approvers_with_jsonpath() -> None:
     bc = BundleFileChange(
         fileref=FileRef(
             file_type=BundleFileType.DATAFILE,
@@ -62,6 +64,8 @@ def test_find_implict_multiple_approvers_with_jsonpath():
         ),
         old=None,
         new={"approvers": ["/user/approver-1.yml", "/user/approver-2.yml"]},
+        old_content_sha="",
+        new_content_sha="new",
         diffs=[],
     )
     approvers = find_approvers_with_implicit_ownership_jsonpath_selector(
@@ -75,7 +79,7 @@ def test_find_implict_multiple_approvers_with_jsonpath():
     assert approvers == {"/user/approver-1.yml", "/user/approver-2.yml"}
 
 
-def test_find_implict_approver_with_jsonpath_no_data():
+def test_find_implict_approver_with_jsonpath_no_data() -> None:
     """
     in this test, no approvers should be found because no data is provided
     """
@@ -87,6 +91,8 @@ def test_find_implict_approver_with_jsonpath_no_data():
         ),
         old=None,
         new=None,
+        old_content_sha="",
+        new_content_sha="",
         diffs=[],
     )
     approver = find_approvers_with_implicit_ownership_jsonpath_selector(
@@ -127,7 +133,7 @@ def change_type() -> ChangeTypeProcessor:
 
 def test_find_implict_change_type_context_jsonpath_provider(
     change_type: ChangeTypeProcessor,
-):
+) -> None:
     approver_path = "/user/approver.yml"
     approver = Approver("approver", False)
 
@@ -154,7 +160,7 @@ def test_find_implict_change_type_context_jsonpath_provider(
 
 def test_find_implict_change_type_context_jsonpath_provider_invalid_context_file(
     change_type: ChangeTypeProcessor,
-):
+) -> None:
     """
     the jsonpath provider for implicit ownership only supports change-types
     that don't try to find the ownership context in a datafile different from
@@ -190,7 +196,7 @@ def test_find_implict_change_type_context_jsonpath_provider_invalid_context_file
 
 def test_find_implict_change_type_context_unknown_provider(
     change_type: ChangeTypeProcessor,
-):
+) -> None:
     change_type.implicit_ownership = [
         ChangeTypeImplicitOwnershipV1(
             provider="unknown-provider",
@@ -213,7 +219,7 @@ def test_find_implict_change_type_context_unknown_provider(
 
 def test_find_implict_change_type_context_jsonpath_provider_unresolvable_approvers(
     change_type: ChangeTypeProcessor,
-):
+) -> None:
     bc = build_test_datafile(
         filepath="file.yml",
         schema=change_type.context_schema,

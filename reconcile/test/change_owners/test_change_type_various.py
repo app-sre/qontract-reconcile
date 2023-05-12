@@ -17,7 +17,7 @@ from reconcile.change_owners.changes import parse_resource_file_content
 #
 
 
-def test_label_management_add():
+def test_label_management_add() -> None:
     assert [
         "existing-label",
         "true-label",
@@ -44,7 +44,7 @@ def test_label_management_add():
     )
 
 
-def test_label_management_remove():
+def test_label_management_remove() -> None:
     assert ["existing-label"] == manage_conditional_label(
         current_labels=["existing-label", "false-label"],
         conditional_labels={
@@ -63,7 +63,7 @@ def test_label_management_remove():
     )
 
 
-def test_label_management_add_and_remove():
+def test_label_management_add_and_remove() -> None:
     assert ["existing-label", "true-label"] == manage_conditional_label(
         current_labels=["existing-label", "false-label"],
         conditional_labels={
@@ -79,7 +79,7 @@ def test_label_management_add_and_remove():
 #
 
 
-def test_normal_path_expression():
+def test_normal_path_expression() -> None:
     jsonpath_expression = "path.to.some.value"
     pe = PathExpression(
         jsonpath_expression=jsonpath_expression,
@@ -98,7 +98,7 @@ def test_normal_path_expression():
     assert jsonpath_expression == str(jsonpath)
 
 
-def test_templated_path_expression():
+def test_templated_path_expression() -> None:
     jsonpath_expression = "path.to.some.value[?(@.name == '{{ ctx_file_path }}')]"
     pe = PathExpression(
         jsonpath_expression=jsonpath_expression,
@@ -120,20 +120,20 @@ def test_templated_path_expression():
     )
 
 
-def test_template_path_expression_unsupported_variable():
+def test_template_path_expression_unsupported_variable() -> None:
     with pytest.raises(ValueError):
         PathExpression(
             jsonpath_expression="path[?(@.name == '{{ unsupported_variable }}')]"
         )
 
 
-def test_path_expression_equals():
+def test_path_expression_equals() -> None:
     a = PathExpression(jsonpath_expression="path")
     b = PathExpression(jsonpath_expression="path")
     assert a == b
 
 
-def test_path_expression_not_equals():
+def test_path_expression_not_equals() -> None:
     a = PathExpression(jsonpath_expression="path")
     b = PathExpression(jsonpath_expression="other_path")
     assert a != b
@@ -144,28 +144,28 @@ def test_path_expression_not_equals():
 #
 
 
-def test_parse_resource_file_content_structured_with_schema():
+def test_parse_resource_file_content_structured_with_schema() -> None:
     expected_content = {"$schema": "schema-1.yml", "some_field": "some_value"}
     content, schema = parse_resource_file_content(yaml.dump(expected_content))
     assert schema == expected_content["$schema"]
     assert content == expected_content
 
 
-def test_parse_resource_file_content_structured_no_schema():
+def test_parse_resource_file_content_structured_no_schema() -> None:
     expected_content = {"some_field": "some_value"}
     content, schema = parse_resource_file_content(yaml.dump(expected_content))
     assert schema is None
     assert content == expected_content
 
 
-def test_parse_resource_file_content_unstructured():
+def test_parse_resource_file_content_unstructured() -> None:
     expected_content = "something something"
     content, schema = parse_resource_file_content(expected_content)
     assert schema is None
     assert content == expected_content
 
 
-def test_parse_resource_file_content_none():
+def test_parse_resource_file_content_none() -> None:
     content, schema = parse_resource_file_content(None)
     assert schema is None
     assert content is None

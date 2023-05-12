@@ -352,7 +352,7 @@ def get_api_for_sha(
 @retry(exceptions=requests.exceptions.HTTPError, max_attempts=5)
 def get_diff(
     old_sha: str, file_type: Optional[str] = None, file_path: Optional[str] = None
-):
+) -> dict[str, Any]:
     config = get_config()
 
     server_url = urlparse(config["graphql"]["server"])

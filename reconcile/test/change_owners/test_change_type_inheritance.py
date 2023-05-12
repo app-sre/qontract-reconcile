@@ -48,7 +48,7 @@ def build_def_change_type(
     )
 
 
-def test_change_type_no_inheritance():
+def test_change_type_no_inheritance() -> None:
     ct_1 = build_def_change_type("change-type-1")
     ct_2 = build_def_change_type("change-type-2")
 
@@ -59,7 +59,7 @@ def test_change_type_no_inheritance():
     assert len(processors) == 2
 
 
-def test_change_type_inheritance_cycle():
+def test_change_type_inheritance_cycle() -> None:
     ct_1 = build_def_change_type("change-type-1", inherit=["change-type-2"])
     ct_2 = build_def_change_type("change-type-2", inherit=["change-type-3"])
     ct_3 = build_def_change_type("change-type-3", inherit=["change-type-1"])
@@ -73,7 +73,7 @@ def test_change_type_inheritance_cycle():
     assert set(e.value.args[1][0]) == {ct_1.name, ct_2.name, ct_3.name}
 
 
-def test_change_type_inheritance_context_schema_mismatch():
+def test_change_type_inheritance_context_schema_mismatch() -> None:
     """
     a mismatch in context schema in an inheritance chain should be detected
     """
@@ -89,7 +89,7 @@ def test_change_type_inheritance_context_schema_mismatch():
         )
 
 
-def test_change_type_inhertiance_no_context_schema():
+def test_change_type_inhertiance_no_context_schema() -> None:
     """
     missing context schema is ok as long as both change types
     in an inheritance chain miss it
@@ -105,7 +105,7 @@ def test_change_type_inhertiance_no_context_schema():
     )
 
 
-def test_change_type_inheritance_context_type_mismatch():
+def test_change_type_inheritance_context_type_mismatch() -> None:
     """
     all change types in an inheritance chain must have the same context type
     """
@@ -120,7 +120,7 @@ def test_change_type_inheritance_context_type_mismatch():
         )
 
 
-def test_change_type_single_level_inheritance():
+def test_change_type_single_level_inheritance() -> None:
     ct_1 = build_def_change_type(
         "change-type-1", inherit=["change-type-2", "change-type-3"]
     )
@@ -145,7 +145,7 @@ def test_change_type_single_level_inheritance():
     )
 
 
-def test_change_type_multi_level_inheritance():
+def test_change_type_multi_level_inheritance() -> None:
     ct_1 = build_def_change_type("change-type-1", inherit=["change-type-2"])
     ct_2 = build_def_change_type("change-type-2", inherit=["change-type-3"])
     ct_3 = build_def_change_type("change-type-3")
@@ -168,7 +168,7 @@ def test_change_type_multi_level_inheritance():
     )
 
 
-def test_change_type_multi_level_inheritance_multiple_paths():
+def test_change_type_multi_level_inheritance_multiple_paths() -> None:
     ct_1 = build_def_change_type(
         "change-type-1", inherit=["change-type-2", "change-type-3"]
     )

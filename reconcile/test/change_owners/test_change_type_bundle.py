@@ -25,7 +25,7 @@ from reconcile.change_owners.bundle import (
 )
 def test_qontract_server_file_diff_resolver(
     mocker: MockerFixture, old: Optional[dict[str, Any]], new: Optional[dict[str, Any]]
-):
+) -> None:
     get_diff_mock = mocker.patch.object(bundle, "get_diff")
     resolved_data = {}
     if old is not None:
