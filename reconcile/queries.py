@@ -1748,7 +1748,7 @@ def get_repos_gitlab_owner(server=""):
     """
     code_components = get_code_components()
     return [
-        c["url"]
+        {"url": c["url"], "gitlabRepoOwners": c["gitlabRepoOwners"]}
         for c in code_components
         if c["url"].startswith(server)
         and c["gitlabRepoOwners"]
