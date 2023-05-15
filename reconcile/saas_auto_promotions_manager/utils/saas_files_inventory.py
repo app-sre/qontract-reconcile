@@ -30,29 +30,9 @@ class SaasFilesInventory:
         self._channels_by_name: dict[str, Channel] = {}
         self.subscribers: list[Subscriber] = []
         self.publishers: list[Publisher] = []
-        self._assemble_channels()
         self._assemble_subscribers_with_auto_promotions()
         self._assemble_publishers()
         self._remove_unsupported()
-
-    def _assemble_channels(self) -> None:
-        for saas_file in self._saas_files:
-            for resource_template in saas_file.resource_templates:
-                for target in resource_template.targets:
-                    if not target.promotion:
-                        continue
-                    for publish_channel in target.promotion.publish or []:
-                        if publish_channel not in self._channels_by_name:
-                            self._channels_by_name[publish_channel] = Channel(
-                                name=publish_channel,
-                                publishers=[],
-                            )
-                    for subscribe_channel in target.promotion.subscribe or []:
-                        if subscribe_channel not in self._channels_by_name:
-                            self._channels_by_name[subscribe_channel] = Channel(
-                                name=subscribe_channel,
-                                publishers=[],
-                            )
 
     def _assemble_publishers(self) -> None:
         for saas_file in self._saas_files:
