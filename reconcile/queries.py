@@ -1661,6 +1661,7 @@ APPS_QUERY = """
       showInReviewQueue
       gitlabRepoOwners {
         enabled
+        persistentLgtm
       }
       gitlabHousekeeping {
         enabled
