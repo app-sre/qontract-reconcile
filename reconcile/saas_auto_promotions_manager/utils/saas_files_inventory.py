@@ -47,7 +47,7 @@ class SaasFilesInventory:
                     )
                     publisher = Publisher(
                         ref=target.ref,
-                        uid=target.uid(saas_file.name, resource_template.name),
+                        uid=target.uid,
                         repo_url=resource_template.url,
                         auth_code=auth_code,
                     )

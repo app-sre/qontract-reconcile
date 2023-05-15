@@ -12,6 +12,7 @@ from reconcile.gql_definitions.common.saas_files import (
     SaasResourceTemplateTargetNamespaceSelectorV1,
     SaasResourceTemplateTargetV2,
 )
+from reconcile.gql_definitions.common.saas_files import query as saas_files_query
 from reconcile.gql_definitions.common.saasherder_settings import AppInterfaceSettingsV1
 from reconcile.gql_definitions.fragments.saas_target_namespace import (
     SaasTargetNamespace,
@@ -19,7 +20,7 @@ from reconcile.gql_definitions.fragments.saas_target_namespace import (
 from reconcile.test.fixtures import Fixtures
 from reconcile.typed_queries.saas_files import (
     SaasFile,
-    SaasResourceTemplateTarget,
+    convert_saas_file_v2_to_saas_file,
     create_targets_for_namespace_selector,
     export_model,
     get_namespaces_by_selector,
@@ -347,6 +348,8 @@ PIPELINE_PROVIDER = {
                                     },
                                     "ref": "main",
                                     "parameters": '{ "TARGET_PARAM": "foobar" }',
+                                    "parent_saas_file_name": "saas-file-01",
+                                    "parent_resource_template_name": "deploy-app",
                                 },
                                 {
                                     "namespace": {
@@ -358,6 +361,8 @@ PIPELINE_PROVIDER = {
                                     },
                                     "provider": "static",
                                     "ref": "1234567890123456789012345678901234567890",
+                                    "parent_saas_file_name": "saas-file-01",
+                                    "parent_resource_template_name": "deploy-app",
                                 },
                             ],
                         }
@@ -393,6 +398,8 @@ PIPELINE_PROVIDER = {
                                         "cluster": CLUSTER,
                                     },
                                     "ref": "main",
+                                    "parent_saas_file_name": "saas-file-02",
+                                    "parent_resource_template_name": "deploy-app",
                                 },
                                 {
                                     "namespace": {
@@ -404,6 +411,8 @@ PIPELINE_PROVIDER = {
                                     },
                                     "provider": "static",
                                     "ref": "1234567890123456789012345678901234567890",
+                                    "parent_saas_file_name": "saas-file-02",
+                                    "parent_resource_template_name": "deploy-app",
                                 },
                             ],
                         }
@@ -439,6 +448,8 @@ PIPELINE_PROVIDER = {
                                         "cluster": CLUSTER,
                                     },
                                     "ref": "main",
+                                    "parent_saas_file_name": "saas-file-02",
+                                    "parent_resource_template_name": "deploy-app",
                                 },
                             ],
                         }
@@ -480,6 +491,8 @@ PIPELINE_PROVIDER = {
                                     },
                                     "ref": "main",
                                     "parameters": '{ "TARGET_PARAM": "foobar" }',
+                                    "parent_saas_file_name": "saas-file-01",
+                                    "parent_resource_template_name": "deploy-app",
                                 }
                             ],
                         }
@@ -507,6 +520,8 @@ PIPELINE_PROVIDER = {
                                         "cluster": CLUSTER,
                                     },
                                     "ref": "main",
+                                    "parent_saas_file_name": "saas-file-02",
+                                    "parent_resource_template_name": "deploy-app",
                                 },
                             ],
                         }
@@ -543,6 +558,8 @@ PIPELINE_PROVIDER = {
                                         "cluster": CLUSTER,
                                     },
                                     "ref": "1234567890123456789012345678901234567890",
+                                    "parent_saas_file_name": "saas-file-03",
+                                    "parent_resource_template_name": "deploy-app",
                                 },
                                 {
                                     "namespace": {
@@ -553,6 +570,8 @@ PIPELINE_PROVIDER = {
                                         "cluster": CLUSTER,
                                     },
                                     "ref": "1234567890123456789012345678901234567890",
+                                    "parent_saas_file_name": "saas-file-03",
+                                    "parent_resource_template_name": "deploy-app",
                                 },
                             ],
                         }
@@ -601,30 +620,6 @@ def test_get_saasherder_settings(
     )
     assert setting.repo_url == "https://repo-url"
     assert setting.hash_length == 42
-
-
-def test_saas_target_uid(gql_class_factory: Callable) -> None:
-    target = gql_class_factory(
-        SaasResourceTemplateTarget,
-        {
-            "namespace": {
-                "name": "namespace-test",
-                "path": "some-path",
-                "environment": {
-                    "name": "test",
-                    "parameters": '{"ENV_PARAM": "foobar"}',
-                },
-                "app": {"name": "app-01"},
-                "cluster": CLUSTER,
-            },
-            "ref": "main",
-            "parameters": '{ "TARGET_PARAM": "foobar" }',
-        },
-    )
-    assert (
-        target.uid(saas_file_name="saas-file-01", resource_template_name="resource")
-        == "da117fd8c723f33f707012fc1317daf90d63013d"
-    )
 
 
 def test_export_model(
@@ -736,6 +731,8 @@ def test_export_model(
                             "image": None,
                             "disable": None,
                             "delete": None,
+                            "parent_saas_file_name": "saas-file-01",
+                            "parent_resource_template_name": "deploy-app",
                         },
                         {
                             "path": None,
@@ -777,6 +774,8 @@ def test_export_model(
                             "image": None,
                             "disable": None,
                             "delete": None,
+                            "parent_saas_file_name": "saas-file-01",
+                            "parent_resource_template_name": "deploy-app",
                         },
                     ],
                 }
@@ -882,6 +881,8 @@ def test_export_model(
                             "image": None,
                             "disable": None,
                             "delete": None,
+                            "parent_saas_file_name": "saas-file-02",
+                            "parent_resource_template_name": "deploy-app",
                         },
                         {
                             "path": None,
@@ -923,6 +924,8 @@ def test_export_model(
                             "image": None,
                             "disable": None,
                             "delete": None,
+                            "parent_saas_file_name": "saas-file-02",
+                            "parent_resource_template_name": "deploy-app",
                         },
                     ],
                 }
@@ -1028,6 +1031,8 @@ def test_export_model(
                             "image": None,
                             "disable": None,
                             "delete": None,
+                            "parent_saas_file_name": "saas-file-03",
+                            "parent_resource_template_name": "deploy-app",
                         },
                         {
                             "path": None,
@@ -1069,6 +1074,8 @@ def test_export_model(
                             "image": None,
                             "disable": None,
                             "delete": None,
+                            "parent_saas_file_name": "saas-file-03",
+                            "parent_resource_template_name": "deploy-app",
                         },
                     ],
                 }
@@ -1076,3 +1083,38 @@ def test_export_model(
             "selfServiceRoles": None,
         },
     ]
+
+
+def test_convert_saas_file_v2_to_saas_file(
+    query_func_from_fixture: Callable[..., Callable],
+) -> None:
+    data = saas_files_query(
+        query_func=query_func_from_fixture("saas_files.yml", SaasFileV2, "saas_files")
+    )
+    if not data.saas_files:
+        raise AssertionError("No data loaded")
+
+    saas_file = convert_saas_file_v2_to_saas_file(data.saas_files[0])
+    assert len(saas_file.resource_templates) >= 1
+    for rt in saas_file.resource_templates:
+        assert len(rt.targets) >= 1
+        for t in rt.targets:
+            assert t.parent_saas_file_name
+            assert t.parent_resource_template_name
+
+
+def test_saas_target_uid(
+    query_func_from_fixture: Callable[..., Callable],
+) -> None:
+    data = saas_files_query(
+        query_func=query_func_from_fixture("saas_files.yml", SaasFileV2, "saas_files")
+    )
+    if not data.saas_files:
+        raise AssertionError("No data loaded")
+
+    saas_file = convert_saas_file_v2_to_saas_file(data.saas_files[0])
+
+    assert (
+        saas_file.resource_templates[0].targets[0].uid
+        == "b30e3297c8e3c7c94bd7264f80386cf042b0285d"
+    )
