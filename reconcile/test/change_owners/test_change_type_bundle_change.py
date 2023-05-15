@@ -16,6 +16,7 @@ from reconcile.change_owners.changes import (
 )
 from reconcile.test.change_owners.fixtures import (
     QontractServerBundleDiffDataBuilder,
+    build_bundle_datafile_change,
     build_test_datafile,
 )
 
@@ -316,3 +317,52 @@ def test_aggregate_file_moves_mixed() -> None:
     )
     result = aggregate_file_moves(changes)
     assert len(result) == 2
+
+
+#
+# content with metadata
+#
+
+
+def test_get_new_content_with_metadata() -> None:
+    path = "/my/path.yml"
+    schema = "/my/schema.yml"
+    bc = build_bundle_datafile_change(
+        path=path,
+        schema=schema,
+        old_content=None,
+        new_content={
+            "field": "new",
+        },
+    )
+    assert bc
+
+    assert bc.old_content_with_metadata is None
+
+    assert bc.new_content_with_metadata == {
+        "path": path,
+        "$schema": schema,
+        "field": "new",
+    }
+
+
+def test_get_old_content_with_metadata() -> None:
+    path = "/my/path.yml"
+    schema = "/my/schema.yml"
+    bc = build_bundle_datafile_change(
+        path=path,
+        schema=schema,
+        old_content={
+            "field": "old",
+        },
+        new_content=None,
+    )
+    assert bc
+
+    assert bc.old_content_with_metadata == {
+        "path": path,
+        "$schema": schema,
+        "field": "old",
+    }
+
+    assert bc.new_content_with_metadata is None

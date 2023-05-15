@@ -87,7 +87,7 @@ def find_approvers_with_implicit_ownership_jsonpath_selector(
     implicit_ownership: ChangeTypeImplicitOwnershipJsonPathProviderV1,
 ) -> set[str]:
 
-    context_file_content = bc.old or bc.new
+    context_file_content = bc.old_content_with_metadata or bc.new_content_with_metadata
     if context_file_content is None:
         # this can't happen. either bc.old or bc.new is set
         # but to make mypy happy, we need to check for None

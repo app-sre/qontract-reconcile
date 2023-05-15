@@ -1,3 +1,4 @@
+import copy
 import itertools
 import logging
 from collections import defaultdict
@@ -14,6 +15,8 @@ from typing import (
 import anymarkup
 
 from reconcile.change_owners.bundle import (
+    DATAFILE_PATH_FIELD_NAME,
+    DATAFILE_SCHEMA_FIELD_NAME,
     BundleFileType,
     FileRef,
     QontractServerDiff,
@@ -74,6 +77,25 @@ class BundleFileChange:
                 [],
             )
         return self._diff_coverage[METADATA_CHANGE_PATH]
+
+    @property
+    def old_content_with_metadata(self) -> Optional[dict[str, Any]]:
+        return self._content_with_metadata(self.old)
+
+    @property
+    def new_content_with_metadata(self) -> Optional[dict[str, Any]]:
+        return self._content_with_metadata(self.new)
+
+    def _content_with_metadata(
+        self, content: Optional[dict[str, Any]]
+    ) -> Optional[dict[str, Any]]:
+        if content and self.fileref.file_type == BundleFileType.DATAFILE:
+            content_copy = copy.deepcopy(content)
+            content_copy[DATAFILE_PATH_FIELD_NAME] = self.fileref.path
+            content_copy[DATAFILE_SCHEMA_FIELD_NAME] = self.fileref.schema
+            return content_copy
+
+        return content
 
     def is_file_deletion(self) -> bool:
         return self.old is not None and self.new is None
