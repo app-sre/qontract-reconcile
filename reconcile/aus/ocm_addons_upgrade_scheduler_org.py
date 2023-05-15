@@ -61,7 +61,7 @@ class OCMAddonsUpgradeSchedulerOrgIntegration(
             aus.act(dry_run, diffs, ocm_map, addon_id=addon_state.addon_id)
 
     def get_ocm_env_upgrade_specs(
-        self, ocm_env: OCMEnvironment, org_name: Optional[str] = None
+        self, ocm_env: OCMEnvironment, org_ids: Optional[set[str]]
     ) -> dict[str, OrganizationUpgradeSpec]:
         return {
             org.name: OrganizationUpgradeSpec(
@@ -81,7 +81,7 @@ class OCMAddonsUpgradeSchedulerOrgIntegration(
             or []
             if org.environment.name == ocm_env.name
             and org.addon_managed_upgrades
-            and (org_name is None or org.name == org_name)
+            and (org_ids is None or org.org_id in org_ids)
         }
 
 

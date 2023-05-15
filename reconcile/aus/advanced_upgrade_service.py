@@ -72,14 +72,11 @@ class AdvancedUpgradeServiceIntegration(OCMClusterUpgradeSchedulerOrgIntegration
         return QONTRACT_INTEGRATION
 
     def get_ocm_env_upgrade_specs(
-        self, ocm_env: OCMEnvironment, org_name: Optional[str] = None
+        self, ocm_env: OCMEnvironment, org_ids: Optional[set[str]]
     ) -> dict[str, OrganizationUpgradeSpec]:
-        # organizations have no name in OCM (just in app-interface), but the
-        # org_name parameter can still be used to filter by organization ID
-        org_id = org_name
         ocm_api = init_ocm_base_client(ocm_env, self.secret_reader)
-        clusters_by_org = _discover_clusters(ocm_api=ocm_api, org_id=org_id)
-        labels_by_org = _get_org_labels(ocm_api=ocm_api, org_id=org_id)
+        clusters_by_org = _discover_clusters(ocm_api=ocm_api, org_ids=org_ids)
+        labels_by_org = _get_org_labels(ocm_api=ocm_api, org_ids=org_ids)
 
         return _build_org_upgrade_specs_for_ocm_env(
             ocm_env=ocm_env,
@@ -100,7 +97,7 @@ class AdvancedUpgradeServiceIntegration(OCMClusterUpgradeSchedulerOrgIntegration
 
 
 def _discover_clusters(
-    ocm_api: OCMBaseClient, org_id: Optional[str] = None
+    ocm_api: OCMBaseClient, org_ids: Optional[set[str]] = None
 ) -> dict[str, list[ClusterDetails]]:
     """
     Discover all clusters that are part of the AUS service.
@@ -114,22 +111,20 @@ def _discover_clusters(
     # group by org and filter if org_id is specified
     clusters_by_org: dict[str, list[ClusterDetails]] = defaultdict(list)
     for c in clusters:
-        if org_id is None or c.organization_id == org_id:
+        if org_ids is None or c.organization_id in org_ids:
             clusters_by_org[c.organization_id].append(c)
 
     return clusters_by_org
 
 
 def _get_org_labels(
-    ocm_api: OCMBaseClient, org_id: Optional[str]
+    ocm_api: OCMBaseClient, org_ids: Optional[set[str]]
 ) -> dict[str, LabelContainer]:
     """
     Fetch all AUS OCM org labels from organizations. They hold config
     parameters like blocked versions etc.
     """
-    filter = Filter().like("key", aus_label_key("%"))
-    if org_id is not None:
-        filter = filter.eq("organization_id", org_id)
+    filter = Filter().like("key", aus_label_key("%")).is_in("organization_id", org_ids)
     labels_by_org: dict[str, list[OCMOrganizationLabel]] = defaultdict(list)
     for label in get_organization_labels(ocm_api, filter):
         labels_by_org[label.organization_id].append(label)

@@ -1984,14 +1984,30 @@ def ocm_addons_upgrade_scheduler_org(ctx):
 @integration.command(
     short_help="Manage Cluster Upgrade Policy schedules in OCM organizations based on OCM labels."
 )
+@click.option(
+    "--ocm-env",
+    help="The OCM environment AUS should operator on. If none is specified, all environments will be operated on.",
+    required=False,
+    envvar="AUS_OCM_ENV",
+)
+@click.option(
+    "--ocm-org-ids",
+    help="A comma seperated list of OCM organization IDs AUS should operator on. If none is specified, all organizations are considered.",
+    required=False,
+    envvar="AUS_OCM_ORG_IDS",
+)
 @click.pass_context
-def aus_upgrade_scheduler_org(ctx):
+def aus_upgrade_scheduler_org(ctx, ocm_env, ocm_org_ids):
     from reconcile.aus.advanced_upgrade_service import AdvancedUpgradeServiceIntegration
     from reconcile.aus.base import AdvancedUpgradeSchedulerBaseIntegrationParams
 
+    parsed_ocm_org_ids = set(ocm_org_ids.split(",")) if ocm_org_ids else None
     run_class_integration(
         integration=AdvancedUpgradeServiceIntegration(
-            AdvancedUpgradeSchedulerBaseIntegrationParams()
+            AdvancedUpgradeSchedulerBaseIntegrationParams(
+                ocm_environment=ocm_env,
+                ocm_organization_ids=parsed_ocm_org_ids,
+            )
         ),
         ctx=ctx.obj,
     )

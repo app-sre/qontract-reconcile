@@ -58,7 +58,7 @@ from reconcile.utils.state import init_state
 class AdvancedUpgradeSchedulerBaseIntegrationParams(PydanticRunParams):
 
     ocm_environment: Optional[str] = None
-    ocm_organization: Optional[str] = None
+    ocm_organization_ids: Optional[set[str]] = None
 
 
 class AdvancedUpgradeSchedulerBaseIntegration(
@@ -82,7 +82,7 @@ class AdvancedUpgradeSchedulerBaseIntegration(
         return {
             ocm_env.name: self.get_ocm_env_upgrade_specs(
                 ocm_env,
-                self.params.ocm_organization,
+                self.params.ocm_organization_ids,
             )
             for ocm_env in self.get_ocm_environments()
         }
@@ -103,7 +103,7 @@ class AdvancedUpgradeSchedulerBaseIntegration(
 
     @abstractmethod
     def get_ocm_env_upgrade_specs(
-        self, ocm_env: OCMEnvironment, org_name: Optional[str] = None
+        self, ocm_env: OCMEnvironment, org_ids: Optional[set[str]]
     ) -> dict[str, OrganizationUpgradeSpec]:
         ...
 
