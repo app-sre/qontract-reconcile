@@ -4,15 +4,10 @@ import jsonpath_ng.ext
 import pytest
 
 from reconcile.change_owners.approver import Approver
-from reconcile.change_owners.bundle import (
-    BundleFileType,
-    FileRef,
-)
 from reconcile.change_owners.change_types import (
     ChangeTypeProcessor,
     OwnershipContext,
 )
-from reconcile.change_owners.changes import BundleFileChange
 from reconcile.change_owners.implicit_ownership import (
     change_type_contexts_for_implicit_ownership,
     find_approvers_with_implicit_ownership_jsonpath_selector,
@@ -22,6 +17,7 @@ from reconcile.gql_definitions.change_owners.queries.change_types import (
     ChangeTypeImplicitOwnershipV1,
 )
 from reconcile.test.change_owners.fixtures import (
+    build_bundle_datafile_change,
     build_change_type,
     build_test_datafile,
 )
@@ -32,18 +28,16 @@ from reconcile.test.change_owners.fixtures import (
 
 
 def test_find_implict_single_approver_with_jsonpath() -> None:
-    bc = BundleFileChange(
-        fileref=FileRef(
-            file_type=BundleFileType.DATAFILE,
-            path="/file.yml",
-            schema="some-schema",
-        ),
-        old=None,
-        new={"approver": "/user/approver.yml"},
-        old_content_sha="",
-        new_content_sha="new",
-        diffs=[],
+    bc = build_bundle_datafile_change(
+        path="/file.yml",
+        schema="some-schema",
+        old_content=None,
+        new_content={
+            "approver": "/user/approver.yml",
+            "another_field": "some-value",
+        },
     )
+    assert bc
     approver = find_approvers_with_implicit_ownership_jsonpath_selector(
         bc=bc,
         implicit_ownership=ChangeTypeImplicitOwnershipJsonPathProviderV1(
@@ -56,18 +50,16 @@ def test_find_implict_single_approver_with_jsonpath() -> None:
 
 
 def test_find_implict_multiple_approvers_with_jsonpath() -> None:
-    bc = BundleFileChange(
-        fileref=FileRef(
-            file_type=BundleFileType.DATAFILE,
-            path="/file.yml",
-            schema="some-schema",
-        ),
-        old=None,
-        new={"approvers": ["/user/approver-1.yml", "/user/approver-2.yml"]},
-        old_content_sha="",
-        new_content_sha="new",
-        diffs=[],
+    bc = build_bundle_datafile_change(
+        path="/file.yml",
+        schema="some-schema",
+        old_content=None,
+        new_content={
+            "approvers": ["/user/approver-1.yml", "/user/approver-2.yml"],
+            "another_field": "some-value",
+        },
     )
+    assert bc
     approvers = find_approvers_with_implicit_ownership_jsonpath_selector(
         bc=bc,
         implicit_ownership=ChangeTypeImplicitOwnershipJsonPathProviderV1(
@@ -83,18 +75,15 @@ def test_find_implict_approver_with_jsonpath_no_data() -> None:
     """
     in this test, no approvers should be found because no data is provided
     """
-    bc = BundleFileChange(
-        fileref=FileRef(
-            file_type=BundleFileType.DATAFILE,
-            path="/file.yml",
-            schema="some-schema",
-        ),
-        old=None,
-        new=None,
-        old_content_sha="",
-        new_content_sha="",
-        diffs=[],
+    bc = build_bundle_datafile_change(
+        path="/file.yml",
+        schema="some-schema",
+        old_content=None,
+        new_content={
+            "another_field": "some-value",
+        },
     )
+    assert bc
     approver = find_approvers_with_implicit_ownership_jsonpath_selector(
         bc=bc,
         implicit_ownership=ChangeTypeImplicitOwnershipJsonPathProviderV1(
@@ -104,6 +93,27 @@ def test_find_implict_approver_with_jsonpath_no_data() -> None:
     )
 
     assert not approver
+
+
+def test_find_implict_approver_self_reference_with_jsonpath() -> None:
+    bc = build_bundle_datafile_change(
+        path="/user/approver.yml",
+        schema="some-schema",
+        old_content=None,
+        new_content={
+            "another_field": "some-value",
+        },
+    )
+    assert bc
+    approver = find_approvers_with_implicit_ownership_jsonpath_selector(
+        bc=bc,
+        implicit_ownership=ChangeTypeImplicitOwnershipJsonPathProviderV1(
+            provider="jsonPath",
+            jsonPathSelector="$.path",
+        ),
+    )
+
+    assert approver == {"/user/approver.yml"}
 
 
 #
