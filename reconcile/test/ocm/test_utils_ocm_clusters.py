@@ -3,7 +3,10 @@ from typing import Optional
 
 from pytest_mock import MockerFixture
 
-from reconcile.test.ocm.fixtures import OcmUrl
+from reconcile.test.ocm.fixtures import (
+    OcmUrl,
+    build_ocm_cluster,
+)
 from reconcile.test.ocm.test_utils_ocm_labels import (
     build_organization_label,
     build_subscription_label,
@@ -13,11 +16,9 @@ from reconcile.utils.ocm import (
     clusters,
     subscriptions,
 )
-from reconcile.utils.ocm.base import OCMModelLink
 from reconcile.utils.ocm.clusters import (
     ClusterDetails,
     OCMCluster,
-    OCMClusterState,
     discover_clusters_by_labels,
     discover_clusters_for_organizations,
     discover_clusters_for_subscriptions,
@@ -26,29 +27,11 @@ from reconcile.utils.ocm.clusters import (
 from reconcile.utils.ocm.labels import (
     OCMOrganizationLabel,
     OCMSubscriptionLabel,
+    build_label_container,
     label_filter,
 )
 from reconcile.utils.ocm.search_filters import Filter
 from reconcile.utils.ocm_base_client import OCMBaseClient
-
-
-def build_ocm_cluster(
-    name: str,
-    subs_id: str = "subs_id",
-) -> OCMCluster:
-    return OCMCluster(
-        id=f"{name}_id",
-        external_id=f"{name}_external_id",
-        name=name,
-        display_name=f"{name}_display_name",
-        subscription=OCMModelLink(id=subs_id),
-        region=OCMModelLink(id="us-east-1"),
-        product=OCMModelLink(id="OCP"),
-        cloud_provider=OCMModelLink(id="aws"),
-        state=OCMClusterState.READY,
-        openshift_version="4.12.0",
-        managed=True,
-    )
 
 
 def build_cluster_details(
@@ -60,13 +43,13 @@ def build_cluster_details(
     return ClusterDetails(
         ocm_cluster=ocm_cluster,
         organization_id=org_id,
-        organization_labels={
-            k: build_organization_label(k, v, org_id) for k, v in org_labels or []
-        },
-        subscription_labels={
-            k: build_subscription_label(k, v, ocm_cluster.subscription.id)
-            for k, v in subs_labels or []
-        },
+        labels=build_label_container(
+            [build_organization_label(k, v, org_id) for k, v in org_labels or []],
+            [
+                build_subscription_label(k, v, ocm_cluster.subscription.id)
+                for k, v in subs_labels or []
+            ],
+        ),
         capabilities=[],
     )
 
@@ -146,21 +129,31 @@ def test_discover_clusters_by_labels(
     an appropriate subscription and organization filter.
     """
     # prepare mocks
+    org_id = "org_id"
+    sub_id = "sub_id"
     get_clusters_for_subscriptions_mock = mocker.patch.object(
         clusters, "get_cluster_details_for_subscriptions"
+    )
+    get_clusters_for_subscriptions_mock.return_value = iter(
+        [
+            build_cluster_details(
+                ocm_cluster=build_ocm_cluster("cluster_id", sub_id),
+                org_id=org_id,
+            )
+        ]
     )
 
     register_ocm_url_responses(
         [
             OcmUrl(method="GET", uri="/api/accounts_mgmt/v1/labels",).add_list_response(
                 [
-                    build_subscription_label("label", "subs_value", "sub_id").dict(
+                    build_subscription_label("label", "subs_value", sub_id).dict(
                         by_alias=True
                     ),
                     build_subscription_label("label", "subs_value", "sub_id_2").dict(
                         by_alias=True
                     ),
-                    build_organization_label("label", "org_value", "org_id").dict(
+                    build_organization_label("label", "org_value", org_id).dict(
                         by_alias=True
                     ),
                 ]
@@ -169,9 +162,16 @@ def test_discover_clusters_by_labels(
     )
 
     # call discovery
-    discover_clusters_by_labels(
+    discovered_clusters = discover_clusters_by_labels(
         ocm_api,
         label_filter=label_filter(key="label"),
+    )
+
+    # validate cluster composition
+    assert len(discovered_clusters) == 1
+    assert len(discovered_clusters[0].labels) == 1
+    assert (
+        discovered_clusters[0].labels.get_required_label("label").value == "subs_value"
     )
 
     # check that get_clusters_for_subscriptions was called with a proper
@@ -233,8 +233,7 @@ def test_get_clusters_for_subscriptions(
     subscription_filter = Filter().eq("id", subscription_id)
     discoverd_clusters = list(
         get_cluster_details_for_subscriptions(
-            ocm_api=ocm_api,
-            subscription_filter=subscription_filter,
+            ocm_api=ocm_api, subscription_filter=subscription_filter, init_labels=True
         )
     )
     assert len(discoverd_clusters) == 1
@@ -247,12 +246,13 @@ def test_get_clusters_for_subscriptions(
         ocm_api=ocm_api, filter=Filter().is_in("organization_id", [organization_id])
     )
 
-    assert discoverd_clusters[0].organization_labels == {
-        organization_label.key: organization_label
-    }
-    assert discoverd_clusters[0].subscription_labels == {
-        sl.key: sl for sl in subscription.labels or []
-    }
+    assert (
+        discoverd_clusters[0].labels.get_label_value(organization_label.key)
+        == organization_label.value
+    )
+
+    for sl in subscription.labels or []:
+        assert discoverd_clusters[0].labels.get_label_value(sl.key) == sl.value
 
 
 def test_get_clusters_for_subscriptions_none_found(
@@ -285,19 +285,19 @@ def test_ocm_cluster_get_label() -> None:
         subs_labels=[("subs_label", "subs_value"), ("label", "subs_value")],
     )
 
-    org_label = cluster.get_label("org_label")
+    org_label = cluster.labels.get("org_label")
     assert isinstance(org_label, OCMOrganizationLabel)
     assert org_label.key == "org_label"
     assert org_label.value == "org_value"
 
-    subs_label = cluster.get_label("subs_label")
+    subs_label = cluster.labels.get("subs_label")
     assert isinstance(subs_label, OCMSubscriptionLabel)
     assert subs_label.key == "subs_label"
     assert subs_label.value == "subs_value"
 
-    label = cluster.get_label("label")
+    label = cluster.labels.get("label")
     assert isinstance(label, OCMSubscriptionLabel)
     assert label.key == "label"
     assert label.value == "subs_value"
 
-    assert cluster.get_label("missing-label") is None
+    assert cluster.labels.get("missing-label") is None

@@ -14,7 +14,7 @@ from reconcile.utils.ocm.search_filters import Filter
 from reconcile.utils.ocm_base_client import OCMBaseClient
 
 
-class OCMServiceLogSeverity(Enum):
+class OCMServiceLogSeverity(str, Enum):
     """
     Represents the severity of a service log.
     """
@@ -100,10 +100,9 @@ def create_service_log(
         ):
             return previous_log
 
-    # no similar service log record found... create a new one
     return OCMClusterServiceLog(
         **ocm_api.post(
             api_path="/api/service_logs/v1/cluster_logs",
-            data=service_log.json(by_alias=True),
+            data=service_log.dict(by_alias=True),
         )
     )

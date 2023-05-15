@@ -14,6 +14,14 @@ from typing import (
 
 from pydantic import BaseModel
 
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
+from reconcile.utils.secret_reader import (
+    SecretReaderBase,
+    create_secret_reader,
+)
+
 
 @dataclass
 class ShardedRunProposal:
@@ -145,11 +153,22 @@ class QontractReconcileIntegration(ABC, Generic[RunParamsTypeVar]):
 
     def __init__(self, params: RunParamsTypeVar) -> None:
         self.params: RunParamsTypeVar = params
+        self._secret_reader: Optional[SecretReaderBase] = None
 
     @property
     @abstractmethod
     def name(self) -> str:
         ...
+
+    @property
+    def secret_reader(self) -> SecretReaderBase:
+        """
+        Returns a function that can be used to read secrets from the vault or another secret reader.
+        """
+        if self._secret_reader is None:
+            vault_settings = get_app_interface_vault_settings()
+            self._secret_reader = create_secret_reader(use_vault=vault_settings.vault)
+        return self._secret_reader
 
     def get_early_exit_desired_state(self) -> Optional[dict[str, Any]]:
         """

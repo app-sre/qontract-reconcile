@@ -6,9 +6,12 @@ from pytest_mock import MockerFixture
 from reconcile.test.ocm.fixtures import OcmUrl
 from reconcile.utils.ocm import labels
 from reconcile.utils.ocm.labels import (
+    LabelContainer,
     OCMAccountLabel,
     OCMOrganizationLabel,
     OCMSubscriptionLabel,
+    build_container_for_prefix,
+    build_label_container,
     build_label_from_dict,
     get_organization_labels,
     get_subscription_labels,
@@ -211,3 +214,96 @@ def test_build_label_filter_for_key() -> None:
 def test_build_label_filter_for_key_and_value() -> None:
     filter = labels.label_filter("foo", "bar")
     assert filter == Filter().eq("key", "foo").eq("value", "bar")
+
+
+#
+# LabelContainer tests
+#
+
+
+def test_build_label_container_list_override() -> None:
+    list_a = [
+        build_organization_label(key="1", value="a", org_id="org_id"),
+        build_organization_label(key="2", value="a", org_id="org_id"),
+    ]
+    list_b = [
+        build_organization_label(key="2", value="b", org_id="org_id"),
+        build_organization_label(key="3", value="b", org_id="org_id"),
+    ]
+    lc = build_label_container(list_a, list_b)
+
+    assert len(lc) == 3
+    assert lc.get_label_value("1") == "a"
+    assert lc.get_label_value("2") == "b"  # overwritten by list_b
+    assert lc.get_label_value("3") == "b"
+
+
+def test_build_label_container_empty() -> None:
+    assert len(build_label_container()) == 0
+    assert len(build_label_container([])) == 0
+    assert len(build_label_container(None)) == 0
+
+
+@pytest.fixture
+def label_container() -> LabelContainer:
+    return build_label_container(
+        [
+            build_organization_label(key="a.a", value="a", org_id="org_id"),
+            build_organization_label(key="a.b", value="b", org_id="org_id"),
+            build_organization_label(key="a.c", value="c", org_id="org_id"),
+            build_organization_label(key="another_label", value="v", org_id="org_id"),
+        ]
+    )
+
+
+def test_label_container_get_label(label_container: LabelContainer) -> None:
+    existing_label = label_container.get("a.a")
+    assert existing_label
+    assert existing_label.key == "a.a"
+
+    missing_label = label_container.get("missing")
+    assert missing_label is None
+
+
+def test_label_container_get_required_label(label_container: LabelContainer) -> None:
+    existing_label = label_container.get_required_label("a.a")
+    assert existing_label.key == "a.a"
+
+    with pytest.raises(ValueError):
+        label_container.get_required_label("missing")
+
+
+def test_label_container_get_label_value(label_container: LabelContainer) -> None:
+    assert label_container.get_label_value("a.a") == "a"
+    assert label_container.get_label_value("missing") is None
+
+
+def test_label_container_get_values_dict(label_container: LabelContainer) -> None:
+    assert label_container.get_values_dict() == {
+        "a.a": "a",
+        "a.b": "b",
+        "a.c": "c",
+        "another_label": "v",
+    }
+
+
+def test_build_label_container_for_prefix(label_container: LabelContainer) -> None:
+    sub_container = build_container_for_prefix(label_container, "a.")
+    assert len(sub_container) == 3
+    label_a_a = sub_container.get("a.a")
+    assert label_a_a
+    assert label_a_a.key == "a.a"
+    assert sub_container.get_values_dict() == {"a.a": "a", "a.b": "b", "a.c": "c"}
+
+
+def test_build_label_container_for_prefix_strip_prefix(
+    label_container: LabelContainer,
+) -> None:
+    sub_container = build_container_for_prefix(
+        label_container, "a.", strip_key_prefix=True
+    )
+    assert len(sub_container) == 3
+    label_a = sub_container.get("a")
+    assert label_a
+    assert label_a.key == "a"
+    assert sub_container.get_values_dict() == {"a": "a", "b": "b", "c": "c"}

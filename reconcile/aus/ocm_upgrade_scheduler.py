@@ -85,6 +85,7 @@ class OCMClusterUpgradeSchedulerIntegration(
                 specs_per_org[cluster.ocm.name].append(
                     ClusterUpgradeSpec(
                         name=cluster.name,
+                        cluster_uuid=cluster.spec.external_id if cluster.spec else None,
                         ocm=cluster.ocm,
                         upgradePolicy=cluster.upgrade_policy,
                     )

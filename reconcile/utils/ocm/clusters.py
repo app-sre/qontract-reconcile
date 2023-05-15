@@ -9,9 +9,10 @@ from pydantic import BaseModel
 
 from reconcile.utils.ocm.base import OCMModelLink
 from reconcile.utils.ocm.labels import (
-    OCMLabel,
+    LabelContainer,
     OCMOrganizationLabel,
     OCMSubscriptionLabel,
+    build_label_container,
     get_labels,
     get_organization_labels,
 )
@@ -72,15 +73,7 @@ class ClusterDetails(BaseModel):
     found on the subscription of a cluster.
     """
 
-    subscription_labels: dict[str, OCMSubscriptionLabel]
-    organization_labels: dict[str, OCMOrganizationLabel]
-
-    def get_label(self, name: str) -> Optional[OCMLabel]:
-        if name in self.subscription_labels:
-            return self.subscription_labels[name]
-        if name in self.organization_labels:
-            return self.organization_labels[name]
-        return None
+    labels: LabelContainer
 
 
 def discover_clusters_by_labels(
@@ -90,25 +83,39 @@ def discover_clusters_by_labels(
     Discover clusters in OCM by their subscription and organization labels.
     The discovery labels are defined via the label_filter argument.
     """
-    subscription_ids = set()
-    organization_ids = set()
+    subscription_labels: dict[str, list[OCMSubscriptionLabel]] = defaultdict(list)
+    organization_labels: dict[str, list[OCMOrganizationLabel]] = defaultdict(list)
+
     for label in get_labels(ocm_api=ocm_api, filter=label_filter):
         if isinstance(label, OCMSubscriptionLabel):
-            subscription_ids.add(label.subscription_id)
+            subscription_labels[label.subscription_id].append(label)
         elif isinstance(label, OCMOrganizationLabel):
-            organization_ids.add(label.organization_id)
-    sub_id_filter = Filter().is_in("id", subscription_ids)
-    org_id_filter = Filter().is_in("organization_id", organization_ids)
+            organization_labels[label.organization_id].append(label)
+    if not subscription_labels and not organization_labels:
+        return []
+
+    sub_id_filter = Filter().is_in("id", subscription_labels.keys())
+    org_id_filter = Filter().is_in("organization_id", organization_labels.keys())
     subscription_filter = (
         sub_id_filter | org_id_filter  # pylint: disable=unsupported-binary-operation
     )
     # the pylint ignore above is because of a bug in pylint - https://github.com/PyCQA/pylint/issues/7381
-    return list(
+
+    clusters = list(
         get_cluster_details_for_subscriptions(
             ocm_api=ocm_api,
             subscription_filter=subscription_filter,
         )
     )
+
+    # fill in labels
+    for cluster in clusters:
+        cluster.labels = build_label_container(
+            organization_labels[cluster.organization_id],
+            subscription_labels[cluster.ocm_cluster.subscription.id],
+        )
+
+    return clusters
 
 
 def discover_clusters_for_subscriptions(
@@ -171,6 +178,7 @@ def get_cluster_details_for_subscriptions(
     ocm_api: OCMBaseClient,
     subscription_filter: Optional[Filter] = None,
     cluster_filter: Optional[Filter] = None,
+    init_labels: bool = False,
 ) -> Generator[ClusterDetails, None, None]:
     """
     Discover clusters by filtering on their subscriptions. The subscription_filter
@@ -187,14 +195,15 @@ def get_cluster_details_for_subscriptions(
 
     # get organization labels
     organization_labels: dict[str, list[OCMOrganizationLabel]] = defaultdict(list)
-    for label in get_organization_labels(
-        ocm_api=ocm_api,
-        filter=Filter().is_in(
-            "organization_id",
-            {s.organization_id for s in subscriptions.values()},
-        ),
-    ):
-        organization_labels[label.organization_id].append(label)
+    if init_labels:
+        for label in get_organization_labels(
+            ocm_api=ocm_api,
+            filter=Filter().is_in(
+                "organization_id",
+                {s.organization_id for s in subscriptions.values()},
+            ),
+        ):
+            organization_labels[label.organization_id].append(label)
 
     cluster_search_filter = (cluster_ready_for_app_interface() & cluster_filter).is_in(
         "subscription.id", subscriptions.keys()
@@ -211,14 +220,12 @@ def get_cluster_details_for_subscriptions(
                     capability.name: capability
                     for capability in subscription.capabilities or []
                 },
-                subscription_labels={
-                    label.key: label for label in subscription.labels or []
-                },
-                organization_labels={
-                    label.key: label
-                    for label in organization_labels.get(subscription.organization_id)
-                    or []
-                },
+                labels=build_label_container(
+                    # first org labels...#
+                    organization_labels.get(subscription.organization_id) or [],
+                    # ... then the subscription labels
+                    (subscription.labels or []) if init_labels else [],
+                ),
             )
 
 

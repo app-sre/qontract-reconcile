@@ -5,6 +5,7 @@ from typing import Optional
 from pydantic import (
     BaseModel,
     Field,
+    PrivateAttr,
 )
 
 from reconcile.gql_definitions.fragments.aus_organization import AUSOCMOrganization
@@ -13,14 +14,50 @@ from reconcile.utils.ocm import Sector
 
 
 class ClusterUpgradeSpec(BaseModel):
+    """
+    An upgrade spec for a cluster.
+    """
+
     name: str
     ocm: AUSOCMOrganization
     upgrade_policy: ClusterUpgradePolicy = Field(..., alias="upgradePolicy")
+    cluster_uuid: Optional[str] = None
+
+
+class ClusterValidationError(BaseModel):
+    """
+    A validation error for a cluster.
+    """
+
+    cluster_uuid: str
+    messages: list[str]
 
 
 class OrganizationUpgradeSpec(BaseModel):
+    """
+    Represents all cluster upgrade specs for an OCM organization.
+    """
+
     org: AUSOCMOrganization
-    specs: list[ClusterUpgradeSpec]
+    specs: list[ClusterUpgradeSpec] = Field(default_factory=list)
+    _cluster_errors: dict[str, ClusterValidationError] = PrivateAttr(
+        default_factory=dict
+    )
+
+    @property
+    def has_validation_errors(self) -> bool:
+        return len(self._cluster_errors) > 0
+
+    @property
+    def cluster_errors(self) -> list[ClusterValidationError]:
+        return list(self._cluster_errors.values())
+
+    def add_cluster_error(self, cluster_uuid: str, message: str) -> None:
+        if cluster_uuid not in self._cluster_errors:
+            self._cluster_errors[cluster_uuid] = ClusterValidationError(
+                cluster_uuid=cluster_uuid, messages=[]
+            )
+        self._cluster_errors[cluster_uuid].messages.append(message)
 
 
 class ConfiguredUpgradePolicyConditions(BaseModel):
