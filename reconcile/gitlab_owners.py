@@ -325,7 +325,7 @@ def act(repo, dry_run, instance, settings, defer=None):
             merge_request=mr,
             owners=project_owners,
             dry_run=dry_run,
-            persistent_lgtm=repo.get("persistentLgtm", False),
+            persistent_lgtm=repo["gitlabRepoOwners"]["persistentLgtm"] or False,
         )
 
         if mr_approval.top_commit_created_at is None:
