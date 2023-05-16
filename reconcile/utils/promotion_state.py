@@ -54,11 +54,11 @@ class PromotionState:
                 self._commits_by_channel[channel_name].add(commit_sha)
             # / for backwards compatibility - remove this after a while
 
-            # Format: /deployments/{saas-target-uid}/{channel}/{commit-sha}
+            # Format: /deployments/{channel}/{saas-target-uid}/{commit-sha}
             if not commit.startswith("/deployments/"):
                 continue
-            _, _, saas_target_uid, channel_name, commit_sha = commit.split("/")
-            self._commits_by_channel[f"{saas_target_uid}/{channel_name}"].add(
+            _, _, channel_name, saas_target_uid, commit_sha = commit.split("/")
+            self._commits_by_channel[f"{channel_name}/{saas_target_uid}"].add(
                 commit_sha
             )
 
@@ -68,7 +68,7 @@ class PromotionState:
         if (
             local_lookup
             and sha not in self._commits_by_channel[channel]
-            and sha not in self._commits_by_channel[f"{saas_target_uid}/{channel}"]
+            and sha not in self._commits_by_channel[f"{channel}/{saas_target_uid}"]
         ):
             # Lets reduce unecessary calls to S3
             return None
@@ -82,7 +82,7 @@ class PromotionState:
             pass
         # / for backwards compatibility - remove this after a while
 
-        key = f"deployments/{saas_target_uid}/{channel}/{sha}"
+        key = f"deployments/{channel}/{saas_target_uid}/{sha}"
         try:
             data = self._state.get(key)
             return PromotionData(**data)
@@ -92,6 +92,6 @@ class PromotionState:
     def publish_promotion_data(
         self, sha: str, channel: str, saas_target_uid: str, data: PromotionData
     ) -> None:
-        state_key = f"deployments/{saas_target_uid}/{channel}/{sha}"
+        state_key = f"deployments/{channel}/{saas_target_uid}/{sha}"
         self._state.add(state_key, data.dict(), force=True)
         logging.info("Uploaded %s to %s", data, state_key)
