@@ -618,16 +618,30 @@ def ocm_fleet_upgrade_policies(
 
 
 @get.command()
+@click.option(
+    "--ocm-env",
+    help="The OCM environment AUS should operator on. If none is specified, all environments will be operated on.",
+    required=False,
+    envvar="AUS_OCM_ENV",
+)
+@click.option(
+    "--ocm-org-ids",
+    help="A comma seperated list of OCM organization IDs AUS should operator on. If none is specified, all organizations are considered.",
+    required=False,
+    envvar="AUS_OCM_ORG_IDS",
+)
 @click.pass_context
-def aus_fleet_upgrade_policies(
-    ctx,
-):
+def aus_fleet_upgrade_policies(ctx, ocm_env, ocm_org_ids):
     from reconcile.aus.advanced_upgrade_service import AdvancedUpgradeServiceIntegration
 
+    parsed_ocm_org_ids = set(ocm_org_ids.split(",")) if ocm_org_ids else None
     generate_fleet_upgrade_policices_report(
         ctx,
         AdvancedUpgradeServiceIntegration(
-            AdvancedUpgradeSchedulerBaseIntegrationParams()
+            AdvancedUpgradeSchedulerBaseIntegrationParams(
+                ocm_environment=ocm_env,
+                ocm_organization_ids=parsed_ocm_org_ids,
+            )
         ),
     )
 
@@ -2045,14 +2059,14 @@ def selectorsyncset_managed_hypershift_resources(ctx, use_jump_host):
     print_output(ctx.obj["options"], data, columns)
 
 
-@root.group()
+@root.group(name="set")
 @output
 @click.pass_context
-def set(ctx, output):
+def set_command(ctx, output):
     ctx.obj["output"] = output
 
 
-@set.command()
+@set_command.command()
 @click.argument("workspace")
 @click.argument("usergroup")
 @click.argument("username")
@@ -2073,7 +2087,7 @@ def slack_usergroup(ctx, workspace, usergroup, username):
     slack.update_usergroup_users(ugid, users)
 
 
-@set.command()
+@set_command.command()
 @click.argument("org_name")
 @click.argument("cluster_name")
 @click.pass_context
@@ -2135,12 +2149,12 @@ def add(ctx, integration, key):
     state.add(key)
 
 
-@state.command()  # type: ignore
+@state.command(name="set")
 @click.argument("integration")
 @click.argument("key")
 @click.argument("value")
 @click.pass_context
-def set(ctx, integration, key, value):
+def state_set(ctx, integration, key, value):
     state = init_state(integration=integration)
     state.add(key, value=value, force=True)
 

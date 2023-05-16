@@ -331,10 +331,10 @@ def test_discover_clusters_with_org_filter(mocker: MockerFixture) -> None:
         )
     ]
 
-    clusters = _discover_clusters(None, "org-id")  # type: ignore
+    clusters = _discover_clusters(None, {"org-id"})  # type: ignore
     assert org_id in clusters
 
-    clusters = _discover_clusters(None, "another-org-id")  # type: ignore
+    clusters = _discover_clusters(None, {"another-org-id"})  # type: ignore
     assert org_id not in clusters
 
 
@@ -398,7 +398,7 @@ def test_org_labels_with_org_filter(
         [build_organization_label("label", "value", org_id)]
     )
 
-    _get_org_labels(ocm_api, org_id)
+    _get_org_labels(ocm_api, {org_id})
 
     get_organization_labels_mock.assert_called_once_with(
         ocm_api, Filter().like("key", aus_label_key("%")).eq("organization_id", org_id)

@@ -61,7 +61,7 @@ class OCMClusterUpgradeSchedulerIntegration(
         aus.act(dry_run, diffs, ocm_map)
 
     def get_ocm_env_upgrade_specs(
-        self, ocm_env: OCMEnvironment, org_name: Optional[str] = None
+        self, ocm_env: OCMEnvironment, org_ids: Optional[set[str]]
     ) -> dict[str, OrganizationUpgradeSpec]:
         specs_per_org: dict[str, list[ClusterUpgradeSpec]] = defaultdict(list)
         for cluster in (
@@ -71,8 +71,8 @@ class OCMClusterUpgradeSchedulerIntegration(
                 cluster.spec and cluster.spec.product in SUPPORTED_OCM_PRODUCTS
             )
             in_env_shard = cluster.ocm and ocm_env.name == cluster.ocm.environment.name
-            in_org_shard = org_name is None or (
-                cluster.ocm and cluster.ocm.name == org_name
+            in_org_shard = org_ids is None or (
+                cluster.ocm and cluster.ocm.org_id in org_ids
             )
             in_shard = in_env_shard and in_org_shard
             if (
