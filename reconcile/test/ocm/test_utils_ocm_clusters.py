@@ -17,6 +17,7 @@ from reconcile.utils.ocm import (
     subscriptions,
 )
 from reconcile.utils.ocm.clusters import (
+    ACTIVE_SUBSCRIPTION_STATES,
     ClusterDetails,
     OCMCluster,
     discover_clusters_by_labels,
@@ -240,7 +241,8 @@ def test_get_clusters_for_subscriptions(
 
     get_subscriptions_mock.assert_called_once_with(
         ocm_api=ocm_api,
-        filter=subscription_filter & subscriptions.build_subscription_filter(),
+        filter=subscription_filter
+        & subscriptions.build_subscription_filter(states=ACTIVE_SUBSCRIPTION_STATES),
     )
     get_organization_labels_mock.assert_called_once_with(
         ocm_api=ocm_api, filter=Filter().is_in("organization_id", [organization_id])
@@ -274,7 +276,8 @@ def test_get_clusters_for_subscriptions_none_found(
 
     get_subscriptions_mock.assert_called_once_with(
         ocm_api=ocm_api,
-        filter=subscription_filter & subscriptions.build_subscription_filter(),
+        filter=subscription_filter
+        & subscriptions.build_subscription_filter(states=ACTIVE_SUBSCRIPTION_STATES),
     )
 
 

@@ -24,6 +24,8 @@ from reconcile.utils.ocm.subscriptions import (
 )
 from reconcile.utils.ocm_base_client import OCMBaseClient
 
+ACTIVE_SUBSCRIPTION_STATES = {"Active", "Reserved"}
+
 
 class OCMClusterState(Enum):
     ERROR = "error"
@@ -39,6 +41,19 @@ class OCMClusterState(Enum):
     WAITING = "waiting"
 
 
+class OCMClusterFlag(BaseModel):
+
+    enabled: bool
+
+
+class OCMClusterAWSSettings(BaseModel):
+    sts: Optional[OCMClusterFlag]
+
+    @property
+    def sts_enabled(self) -> bool:
+        return self.sts is not None and self.sts.enabled
+
+
 class OCMCluster(BaseModel):
 
     kind: str = "Cluster"
@@ -52,14 +67,14 @@ class OCMCluster(BaseModel):
     display_name: str
 
     managed: bool
-
-    openshift_version: str
     state: OCMClusterState
 
     subscription: OCMModelLink
     region: OCMModelLink
     cloud_provider: OCMModelLink
     product: OCMModelLink
+
+    aws: Optional[OCMClusterAWSSettings]
 
 
 class ClusterDetails(BaseModel):
@@ -188,7 +203,8 @@ def get_cluster_details_for_subscriptions(
     # get subscription details
     subscriptions = get_subscriptions(
         ocm_api=ocm_api,
-        filter=(subscription_filter or Filter()) & build_subscription_filter(),
+        filter=(subscription_filter or Filter())
+        & build_subscription_filter(states=ACTIVE_SUBSCRIPTION_STATES, managed=True),
     )
     if not subscriptions:
         return

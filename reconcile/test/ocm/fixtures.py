@@ -16,6 +16,8 @@ from pydantic import (
 from reconcile.utils.ocm.base import OCMModelLink
 from reconcile.utils.ocm.clusters import (
     OCMCluster,
+    OCMClusterAWSSettings,
+    OCMClusterFlag,
     OCMClusterState,
 )
 from reconcile.utils.ocm.labels import (
@@ -88,7 +90,12 @@ def build_organization_label(key: str, value: str, org_id: str = "org-id") -> OC
 def build_ocm_cluster(
     name: str,
     subs_id: str = "subs_id",
+    aws_cluster: bool = True,
+    sts_cluster: bool = False,
 ) -> OCMCluster:
+    aws_config = None
+    if aws_cluster:
+        aws_config = OCMClusterAWSSettings(sts=OCMClusterFlag(enabled=sts_cluster))
     return OCMCluster(
         id=f"{name}_id",
         external_id=f"{name}_external_id",
@@ -99,6 +106,6 @@ def build_ocm_cluster(
         product=OCMModelLink(id="OCP"),
         cloud_provider=OCMModelLink(id="aws"),
         state=OCMClusterState.READY,
-        openshift_version="4.12.0",
         managed=True,
+        aws=aws_config,
     )

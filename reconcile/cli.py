@@ -1996,8 +1996,14 @@ def ocm_addons_upgrade_scheduler_org(ctx):
     required=False,
     envvar="AUS_OCM_ORG_IDS",
 )
+@click.option(
+    "--ignore-sts-clusters",
+    is_flag=True,
+    default=os.environ.get("IGNORE_STS_CLUSTERS", False),
+    help="Defines is STS clusters should be ignored.",
+)
 @click.pass_context
-def aus_upgrade_scheduler_org(ctx, ocm_env, ocm_org_ids):
+def aus_upgrade_scheduler_org(ctx, ocm_env, ocm_org_ids, ignore_sts_clusters):
     from reconcile.aus.advanced_upgrade_service import AdvancedUpgradeServiceIntegration
     from reconcile.aus.base import AdvancedUpgradeSchedulerBaseIntegrationParams
 
@@ -2007,6 +2013,7 @@ def aus_upgrade_scheduler_org(ctx, ocm_env, ocm_org_ids):
             AdvancedUpgradeSchedulerBaseIntegrationParams(
                 ocm_environment=ocm_env,
                 ocm_organization_ids=parsed_ocm_org_ids,
+                ignore_sts_clusters=ignore_sts_clusters,
             )
         ),
         ctx=ctx.obj,

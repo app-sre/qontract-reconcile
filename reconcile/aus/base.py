@@ -59,6 +59,7 @@ class AdvancedUpgradeSchedulerBaseIntegrationParams(PydanticRunParams):
 
     ocm_environment: Optional[str] = None
     ocm_organization_ids: Optional[set[str]] = None
+    ignore_sts_clusters: bool = False
 
 
 class AdvancedUpgradeSchedulerBaseIntegration(

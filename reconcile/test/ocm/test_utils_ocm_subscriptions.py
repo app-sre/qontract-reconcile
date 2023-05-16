@@ -60,15 +60,15 @@ def test_get_subscriptions(
 
 
 def test_build_subscription_filter() -> None:
-    filter = build_subscription_filter()
+    filter = build_subscription_filter(states={"Active"})
     assert filter.render() == "managed='true' and status='Active'"
 
 
 def test_build_subscription_filter_unmanaged() -> None:
     filter = build_subscription_filter(managed=False)
-    assert filter.render() == "managed='false' and status='Active'"
+    assert filter.render() == "managed='false'"
 
 
-def test_build_subscription_filter_state() -> None:
-    filter = build_subscription_filter(state="Stale")
-    assert filter.render() == "managed='true' and status='Stale'"
+def test_build_subscription_filter_multiple_states() -> None:
+    filter = build_subscription_filter(states={"Active", "Reserved"})
+    assert filter.render() == "managed='true' and status in ('Active','Reserved')"
