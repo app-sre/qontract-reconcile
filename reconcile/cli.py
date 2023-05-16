@@ -2000,7 +2000,7 @@ def ocm_addons_upgrade_scheduler_org(ctx):
     "--ignore-sts-clusters",
     is_flag=True,
     default=os.environ.get("IGNORE_STS_CLUSTERS", False),
-    help="Defines is STS clusters should be ignored.",
+    help="Ignore STS clusters",
 )
 @click.pass_context
 def aus_upgrade_scheduler_org(ctx, ocm_env, ocm_org_ids, ignore_sts_clusters):
