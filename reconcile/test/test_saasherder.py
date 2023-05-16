@@ -28,7 +28,10 @@ from reconcile.gql_definitions.common.saas_files import (
     SaasResourceTemplateTargetV2_SaasSecretParametersV1,
     SaasResourceTemplateV2,
 )
-from reconcile.typed_queries.saas_files import SaasFile
+from reconcile.typed_queries.saas_files import (
+    SaasFile,
+    convert_saas_file_v2_to_saas_file,
+)
 from reconcile.utils.jjb_client import JJB
 from reconcile.utils.openshift_resource import ResourceInventory
 from reconcile.utils.saasherder import SaasHerder
@@ -762,8 +765,9 @@ class TestConfigHashPromotionsValidation(TestCase):
 
     def setUp(self) -> None:
         self.saas_file = self.gql_class_factory(  # type: ignore[attr-defined] # it's set in the fixture
-            SaasFile, Fixtures("saasherder").get_anymarkup("saas.gql.yml")
+            SaasFileV2, Fixtures("saasherder").get_anymarkup("saas.gql.yml")
         )
+        self.saas_file = convert_saas_file_v2_to_saas_file(self.saas_file)
         self.all_saas_files = [self.saas_file]
 
         self.state_patcher = patch("reconcile.utils.state.State", autospec=True)

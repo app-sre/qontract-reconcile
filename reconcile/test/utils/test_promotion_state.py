@@ -38,9 +38,9 @@ def test_key_exists_old_format(s3_state_builder: Callable[[Mapping], State]):
 def test_key_exists(s3_state_builder: Callable[[Mapping], State]):
     state = s3_state_builder(
         {
-            "ls": ["/deployments/saas_target_uid/channel/sha"],
+            "ls": ["/deployments/channel/saas_target_uid/sha"],
             "get": {
-                "deployments/saas_target_uid/channel/sha": {
+                "deployments/channel/saas_target_uid/sha": {
                     "success": True,
                     "target_config_hash": "hash",
                     "saas_file": "saas_file",
@@ -107,7 +107,7 @@ def test_key_does_not_exist_locally(s3_state_builder: Callable[[Mapping], State]
         {
             "ls": [],
             "get": {
-                "deployments/saas_target_uid/channel/sha": {
+                "deployments/channel/saas_target_uid/sha": {
                     "success": True,
                     "target_config_hash": "hash",
                     "saas_file": "saas_file",
@@ -147,5 +147,5 @@ def test_publish_info(s3_state_builder: Callable[[Mapping], State]):
         data=promotion_info,
     )
     deployment_state._state.add.assert_called_once_with(  # type: ignore[attr-defined]
-        "deployments/saas_target_uid/channel/sha", promotion_info.dict(), True
+        "deployments/channel/saas_target_uid/sha", promotion_info.dict(), True
     )
