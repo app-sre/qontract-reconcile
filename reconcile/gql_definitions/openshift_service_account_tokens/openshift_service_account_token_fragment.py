@@ -17,10 +17,9 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
-from reconcile.gql_definitions.fragments.jumphost_common_fields import (
-    CommonJumphostFields,
+from reconcile.gql_definitions.fragments.oc_connection_cluster import (
+    OcConnectionCluster,
 )
-from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
 
 class ConfiguredBaseModel(BaseModel):
@@ -29,23 +28,9 @@ class ConfiguredBaseModel(BaseModel):
         extra = Extra.forbid
 
 
-class DisableClusterAutomationsV1(ConfiguredBaseModel):
-    integrations: Optional[list[str]] = Field(..., alias="integrations")
-
-
-class ClusterV1(ConfiguredBaseModel):
-    name: str = Field(..., alias="name")
-    server_url: str = Field(..., alias="serverUrl")
-    insecure_skip_tls_verify: Optional[bool] = Field(..., alias="insecureSkipTLSVerify")
-    jump_host: Optional[CommonJumphostFields] = Field(..., alias="jumpHost")
-    automation_token: Optional[VaultSecret] = Field(..., alias="automationToken")
-    internal: Optional[bool] = Field(..., alias="internal")
-    disable: Optional[DisableClusterAutomationsV1] = Field(..., alias="disable")
-
-
 class NamespaceV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
-    cluster: ClusterV1 = Field(..., alias="cluster")
+    cluster: OcConnectionCluster = Field(..., alias="cluster")
 
 
 class OpenshiftServiceAccountToken(ConfiguredBaseModel):

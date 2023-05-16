@@ -11,8 +11,10 @@ from dataclasses import (
 )
 from typing import (
     Any,
+    Generic,
     Optional,
     Protocol,
+    TypeVar,
     Union,
     runtime_checkable,
 )
@@ -39,6 +41,8 @@ from reconcile.utils.oc import (
     StatusCodeError,
     UnsupportedMediaTypeError,
 )
+from reconcile.utils.oc_map import Namespace as OCMapNamespace
+from reconcile.utils.oc_map import OCMap
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.openshift_resource import ResourceInventory
 
@@ -353,6 +357,37 @@ def fetch_current_state(
     )
 
     return ri, oc_map
+
+
+def get_resource_inventory(
+    oc_map: OCMap,
+    namespaces: Optional[Iterable[Mapping]] = None,
+    clusters: Optional[Iterable[Mapping]] = None,
+    thread_pool_size: Optional[int] = None,
+    integration: Optional[str] = None,
+    integration_version: Optional[str] = None,
+    override_managed_types: Optional[Iterable[str]] = None,
+    caller: Optional[str] = None,
+) -> ResourceInventory:
+    ri = ResourceInventory()
+    state_specs = init_specs_to_fetch(
+        ri,
+        oc_map,
+        namespaces=namespaces,
+        clusters=clusters,
+        override_managed_types=override_managed_types,
+    )
+    threaded.run(
+        populate_current_state,
+        state_specs,
+        thread_pool_size,
+        ri=ri,
+        integration=integration,
+        integration_version=integration_version,
+        caller=caller,
+    )
+
+    return ri
 
 
 @retry(max_attempts=30)
@@ -1036,6 +1071,45 @@ def aggregate_shared_resources(namespace_info, shared_resources_type):
             namespace_info[shared_resources_type] = namespace_type_resources
 
 
+class ServiceAccountToken(Protocol):
+    ...
+
+
+SA = TypeVar("SA", covariant=True, bound=ServiceAccountToken)
+
+
+class SharedResourcesServiceAccountTokens(Generic[SA], Protocol):
+    @property
+    def openshift_service_account_tokens(self) -> Optional[Sequence[SA]]:
+        ...
+
+
+class NamespaceWithSharedServiceAccountToken(Generic[SA], Protocol):
+    @property
+    def openshift_service_account_tokens(self) -> Optional[Sequence[SA]]:
+        ...
+
+    @property
+    def shared_resources(
+        self,
+    ) -> Optional[Sequence[SharedResourcesServiceAccountTokens[SA]]]:
+        ...
+
+
+def get_shared_service_account_tokens(
+    namespace: NamespaceWithSharedServiceAccountToken[SA],
+) -> list[SA]:
+    if not namespace.shared_resources:
+        return []
+    items: list[SA] = []
+    for shared_resource in namespace.shared_resources or []:
+        if shared_resource.openshift_service_account_tokens:
+            items += shared_resource.openshift_service_account_tokens
+    if namespace.openshift_service_account_tokens:
+        items += namespace.openshift_service_account_tokens
+    return items
+
+
 def determine_user_keys_for_access(
     cluster_name: str,
     auth_list: Sequence[Union[dict[str, str], HasService]],
@@ -1075,6 +1149,14 @@ def determine_user_keys_for_access(
 
 def is_namespace_deleted(namespace_info: Mapping) -> bool:
     return bool(namespace_info.get("delete"))
+
+
+class NamespaceWithDeleteInfo(Protocol):
+    delete: Optional[bool]
+
+
+def is_namespace_marked_for_deletion(namespace: NamespaceWithDeleteInfo) -> bool:
+    return bool(namespace.delete)
 
 
 def user_has_cluster_access(

@@ -17,13 +17,12 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
-from reconcile.gql_definitions.fragments.jumphost_common_fields import (
-    CommonJumphostFields,
+from reconcile.gql_definitions.fragments.oc_connection_cluster import (
+    OcConnectionCluster,
 )
 from reconcile.gql_definitions.openshift_service_account_tokens.openshift_service_account_token_fragment import (
     OpenshiftServiceAccountToken,
 )
-from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
 
 DEFINITION = """
@@ -38,24 +37,31 @@ fragment CommonJumphostFields on ClusterJumpHost_v1 {
   }
 }
 
+fragment OcConnectionCluster on Cluster_v1 {
+  name
+  serverUrl
+  internal
+  insecureSkipTLSVerify
+  jumpHost {
+    ...CommonJumphostFields
+  }
+  automationToken {
+    ...VaultSecret
+  }
+  clusterAdminAutomationToken {
+    ...VaultSecret
+  }
+  disable {
+    integrations
+  }
+}
+
 fragment OpenshiftServiceAccountToken on ServiceAccountTokenSpec_v1 {
     name
     namespace {
         name
         cluster {
-            name
-            serverUrl
-            insecureSkipTLSVerify
-            jumpHost {
-                ... CommonJumphostFields
-            }
-            automationToken {
-                ... VaultSecret
-            }
-            internal
-            disable {
-                integrations
-            }
+            ... OcConnectionCluster
         }
     }
     serviceAccountName
@@ -71,20 +77,9 @@ fragment VaultSecret on VaultSecret_v1 {
 query ServiceAccountTokens {
   namespaces: namespaces_v1 {
     name
+    delete
     cluster {
-      name
-      serverUrl
-      insecureSkipTLSVerify
-      jumpHost {
-        ... CommonJumphostFields
-      }
-      automationToken {
-        ... VaultSecret
-      }
-      internal
-      disable {
-        integrations
-      }
+      ... OcConnectionCluster
     }
     sharedResources {
       openshiftServiceAccountTokens {
@@ -105,20 +100,6 @@ class ConfiguredBaseModel(BaseModel):
         extra = Extra.forbid
 
 
-class DisableClusterAutomationsV1(ConfiguredBaseModel):
-    integrations: Optional[list[str]] = Field(..., alias="integrations")
-
-
-class ClusterV1(ConfiguredBaseModel):
-    name: str = Field(..., alias="name")
-    server_url: str = Field(..., alias="serverUrl")
-    insecure_skip_tls_verify: Optional[bool] = Field(..., alias="insecureSkipTLSVerify")
-    jump_host: Optional[CommonJumphostFields] = Field(..., alias="jumpHost")
-    automation_token: Optional[VaultSecret] = Field(..., alias="automationToken")
-    internal: Optional[bool] = Field(..., alias="internal")
-    disable: Optional[DisableClusterAutomationsV1] = Field(..., alias="disable")
-
-
 class SharedResourcesV1(ConfiguredBaseModel):
     openshift_service_account_tokens: Optional[
         list[OpenshiftServiceAccountToken]
@@ -127,7 +108,8 @@ class SharedResourcesV1(ConfiguredBaseModel):
 
 class NamespaceV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
-    cluster: ClusterV1 = Field(..., alias="cluster")
+    delete: Optional[bool] = Field(..., alias="delete")
+    cluster: OcConnectionCluster = Field(..., alias="cluster")
     shared_resources: Optional[list[SharedResourcesV1]] = Field(
         ..., alias="sharedResources"
     )
