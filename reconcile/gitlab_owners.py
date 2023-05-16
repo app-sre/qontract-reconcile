@@ -31,18 +31,19 @@ class MRApproval:
     between the approval messages the the project owners.
     """
 
-    def __init__(self, gitlab_client, merge_request, owners, dry_run):
+    def __init__(self, gitlab_client, merge_request, owners, dry_run, persistent_lgtm):
         self.gitlab = gitlab_client
         self.mr = merge_request
         self.owners = owners
         self.dry_run = dry_run
+        self.persistent_lgtm = persistent_lgtm
 
+        # Get the date of the most recent commit (top commit) in the MR, but avoid comparing against None
+        self.top_commit_created_at = dateparser.parse("2000-01-01")
         commits = self.mr.commits()
         if commits:
             top_commit = next(commits)
             self.top_commit_created_at = dateparser.parse(top_commit.created_at)
-        else:
-            self.top_commit_created_at = None
 
     def get_change_owners_map(self):
         """
@@ -77,7 +78,6 @@ class MRApproval:
         lgtms = []
         comments = self.gitlab.get_merge_request_comments(self.mr.iid)
         for comment in comments:
-
             # Only interested in '/lgtm' comments
             if comment["body"] != "/lgtm":
                 continue
@@ -85,7 +85,10 @@ class MRApproval:
             # Only interested in comments created after the top commit
             # creation time
             comment_created_at = dateparser.parse(comment["created_at"])
-            if comment_created_at < self.top_commit_created_at:
+            if (
+                comment_created_at < self.top_commit_created_at
+                and not self.persistent_lgtm
+            ):
                 continue
 
             lgtms.append(comment["username"])
@@ -218,7 +221,6 @@ class MRApproval:
                 closest_approvers.append(new_group)
 
         if closest_approvers:
-
             if len(closest_approvers) == 1:
                 markdown_report += (
                     f"{COMMENT_PREFIX} You will need a "
@@ -263,7 +265,6 @@ class MRApproval:
                 continue
 
             for closest_reviewer in owners["closest_reviewers"]:
-
                 there = False
                 for group in closest_approvers:
                     if closest_reviewer in group:
@@ -285,7 +286,6 @@ class MRApproval:
                 continue
 
             for reviewer in owners["reviewers"]:
-
                 there = False
                 for group in closest_approvers:
                     if reviewer in group:
@@ -313,7 +313,7 @@ class MRApproval:
 
 @defer
 def act(repo, dry_run, instance, settings, defer=None):
-    gitlab_cli = GitLabApi(instance, project_url=repo, settings=settings)
+    gitlab_cli = GitLabApi(instance, project_url=repo["url"], settings=settings)
     defer(gitlab_cli.cleanup)
     project_owners = RepoOwners(
         git_cli=gitlab_cli, ref=gitlab_cli.project.default_branch
@@ -325,6 +325,8 @@ def act(repo, dry_run, instance, settings, defer=None):
             merge_request=mr,
             owners=project_owners,
             dry_run=dry_run,
+            persistent_lgtm=repo.get("gitlabRepoOwners", {}).get("persistentLgtm", None)
+            or False,
         )
 
         if mr_approval.top_commit_created_at is None:
