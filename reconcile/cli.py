@@ -1552,21 +1552,14 @@ def ldap_users(ctx, infra_project_id, app_interface_project_id):
     "--output-dir",
     help="Specify a directory to individually output each repo plan to for the executor",
 )
-@click.option(
-    "-g",
-    "--validate-git",
-    help="Validate Git projects and refs",
-    is_flag=True,
-    default=True,
-)
 @click.pass_context
-def terraform_repo(ctx, output_dir, validate_git):
+def terraform_repo(ctx, output_dir):
     from reconcile import terraform_repo
 
     run_class_integration(
         integration=terraform_repo.TerraformRepoIntegration(
             terraform_repo.TerraformRepoIntegrationParams(
-                output_dir=output_dir, validate_git=validate_git
+                output_dir=output_dir, validate_git=True
             )
         ),
         ctx=ctx.obj,
