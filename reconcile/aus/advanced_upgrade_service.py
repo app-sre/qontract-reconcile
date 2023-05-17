@@ -75,7 +75,11 @@ class AdvancedUpgradeServiceIntegration(OCMClusterUpgradeSchedulerOrgIntegration
         self, ocm_env: OCMEnvironment, org_ids: Optional[set[str]]
     ) -> dict[str, OrganizationUpgradeSpec]:
         ocm_api = init_ocm_base_client(ocm_env, self.secret_reader)
-        clusters_by_org = _discover_clusters(ocm_api=ocm_api, org_ids=org_ids)
+        clusters_by_org = discover_clusters(
+            ocm_api=ocm_api,
+            org_ids=org_ids,
+            ignore_sts_clusters=self.params.ignore_sts_clusters,
+        )
         labels_by_org = _get_org_labels(ocm_api=ocm_api, org_ids=org_ids)
 
         return _build_org_upgrade_specs_for_ocm_env(
@@ -96,8 +100,10 @@ class AdvancedUpgradeServiceIntegration(OCMClusterUpgradeSchedulerOrgIntegration
             )
 
 
-def _discover_clusters(
-    ocm_api: OCMBaseClient, org_ids: Optional[set[str]] = None
+def discover_clusters(
+    ocm_api: OCMBaseClient,
+    org_ids: Optional[set[str]] = None,
+    ignore_sts_clusters: bool = False,
 ) -> dict[str, list[ClusterDetails]]:
     """
     Discover all clusters that are part of the AUS service.
@@ -111,7 +117,10 @@ def _discover_clusters(
     # group by org and filter if org_id is specified
     clusters_by_org: dict[str, list[ClusterDetails]] = defaultdict(list)
     for c in clusters:
-        if org_ids is None or c.organization_id in org_ids:
+        is_sts_cluster = c.ocm_cluster.aws and c.ocm_cluster.aws.sts_enabled
+        passed_sts_filter = not ignore_sts_clusters or not is_sts_cluster
+        passed_ocm_filters = org_ids is None or c.organization_id in org_ids
+        if passed_ocm_filters and passed_sts_filter:
             clusters_by_org[c.organization_id].append(c)
 
     return clusters_by_org

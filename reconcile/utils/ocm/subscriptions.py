@@ -77,9 +77,11 @@ def get_subscriptions(
     return subscriptions
 
 
-def build_subscription_filter(state: str = "Active", managed: bool = True) -> Filter:
+def build_subscription_filter(
+    states: Optional[set[str]] = None, managed: bool = True
+) -> Filter:
     """
     Helper function to create a subscription search filer for two very common
     fields: status and managed.
     """
-    return Filter().eq("status", state).eq("managed", str(managed).lower())
+    return Filter().is_in("status", states).eq("managed", str(managed).lower())

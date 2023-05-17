@@ -11,11 +11,11 @@ from reconcile.aus.advanced_upgrade_service import (
     _build_org_upgrade_spec,
     _build_org_upgrade_specs_for_ocm_env,
     _build_policy_from_labels,
-    _discover_clusters,
     _expose_cluster_validation_errors_as_service_log,
     _get_org_labels,
     _signal_validation_issues_for_org,
     aus_label_key,
+    discover_clusters,
 )
 from reconcile.aus.models import OrganizationUpgradeSpec
 from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
@@ -181,11 +181,18 @@ def org_labels() -> LabelContainer:
 
 
 def build_cluster_details(
-    cluster_name: str, labels: LabelContainer, org_id: str = "org-id"
+    cluster_name: str,
+    labels: LabelContainer,
+    org_id: str = "org-id",
+    aws_cluster: bool = True,
+    sts_cluster: bool = False,
 ) -> ClusterDetails:
     return ClusterDetails(
         ocm_cluster=build_ocm_cluster(
-            name=cluster_name, subs_id=f"{cluster_name}_subs_id"
+            name=cluster_name,
+            subs_id=f"{cluster_name}_subs_id",
+            aws_cluster=aws_cluster,
+            sts_cluster=sts_cluster,
         ),
         organization_id=org_id,
         capabilities={},
@@ -303,7 +310,7 @@ def test_discover_clusters(mocker: MockerFixture) -> None:
         )
     ]
 
-    clusters = _discover_clusters(None, "org-id")  # type: ignore
+    clusters = discover_clusters(None, "org-id")  # type: ignore
 
     discover_clusters_by_labels_mock.assert_called_once_with(
         ocm_api=None, label_filter=Filter().like("key", aus_label_key("%"))
@@ -331,10 +338,10 @@ def test_discover_clusters_with_org_filter(mocker: MockerFixture) -> None:
         )
     ]
 
-    clusters = _discover_clusters(None, {"org-id"})  # type: ignore
+    clusters = discover_clusters(None, {"org-id"})  # type: ignore
     assert org_id in clusters
 
-    clusters = _discover_clusters(None, {"another-org-id"})  # type: ignore
+    clusters = discover_clusters(None, {"another-org-id"})  # type: ignore
     assert org_id not in clusters
 
 
@@ -355,9 +362,38 @@ def test_discover_clusters_without_org_filter(mocker: MockerFixture) -> None:
         )
     ]
 
-    clusters = _discover_clusters(None, None)  # type: ignore
+    clusters = discover_clusters(None, None)  # type: ignore
 
     assert org_id in clusters
+
+
+def test_discover_clusters_ignore_sts_clusters(mocker: MockerFixture) -> None:
+    org_id = "org-id"
+
+    discover_clusters_by_labels_mock = mocker.patch.object(
+        advanced_upgrade_service,
+        "discover_clusters_by_labels",
+        autospec=True,
+    )
+    discover_clusters_by_labels_mock.return_value = [
+        build_cluster_details(
+            cluster_name="cluster-with-sts",
+            labels=build_cluster_upgrade_policy_labels(),
+            org_id=org_id,
+            sts_cluster=True,
+        ),
+        build_cluster_details(
+            cluster_name="cluster-without-sts",
+            labels=build_cluster_upgrade_policy_labels(),
+            org_id=org_id,
+            sts_cluster=False,
+        ),
+    ]
+
+    clusters = discover_clusters(ocm_api=None, ignore_sts_clusters=True)  # type: ignore
+
+    assert len(clusters[org_id]) == 1
+    assert clusters[org_id][0].ocm_cluster.name == "cluster-without-sts"
 
 
 #
