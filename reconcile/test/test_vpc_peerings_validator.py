@@ -114,27 +114,12 @@ def test_validate_no_public_to_public_peerings_valid(
 
 def test_validate_validate_no_cidr_overlap():
     test_dict = {
-        "cluster-test1": {
-            "cidr_block": "10.106.0.0/16",
-            "providers": [
-                {
-                    "provider": "account-vpc",
-                    "vpc_peering": {
-                        "vpc_name": "vpc-name-1",
-                        "region": "us-east-1",
-                        "cidr_block": "172.31.0.0/16",
-                    },
-                }
-            ],
-        },
-        "cluster-test2": {
             "cidr_block": "10.25.0.0/16",
             "providers": [
                 {
                     "provider": "account-vpc",
                     "vpc_peering": {
                         "vpc_name": "vpc-name-1",
-                        "region": "us-east-1",
                         "cidr_block": "10.18.0.0/18",
                     },
                 },
@@ -142,14 +127,13 @@ def test_validate_validate_no_cidr_overlap():
                     "provider": "account-vpc",
                     "vpc_peering": {
                         "vpc_name": "vpc-name-2",
-                        "region": "us-east-1",
                         "cidr_block": "10.18.0.0/18",
                     },
                 },
             ],
-        },
     }
-    assert find_cidr_duplicates_and_overlap(test_dict) is False
+    cluster_name = "clustertest1"
+    assert find_cidr_duplicates_and_overlap(cluster_name, test_dict) is False
 
 
 @pytest.fixture
@@ -168,7 +152,6 @@ def query_data_vpc_cidr_overlap() -> VpcPeeringsValidatorQueryData:
                             vpc=AWSVPCV1(
                                 cidr_block="192.168.1.0/24",
                                 name="vpc1",
-                                region="us-east-1",
                             ),
                         ),
                         ClusterPeeringConnectionAccountV1(
@@ -176,7 +159,6 @@ def query_data_vpc_cidr_overlap() -> VpcPeeringsValidatorQueryData:
                             vpc=AWSVPCV1(
                                 cidr_block="192.168.1.0/24",
                                 name="vpc2",
-                                region="us-east-1",
                             ),
                         ),
                     ]
