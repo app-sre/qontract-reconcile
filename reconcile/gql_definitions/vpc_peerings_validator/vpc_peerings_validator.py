@@ -51,7 +51,6 @@ query VpcPeeringsValidator {
           vpc {
             cidr_block
             name
-            region
           }
         }
         ... on ClusterPeeringConnectionAccountVPCMesh_v1{
