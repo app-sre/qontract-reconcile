@@ -78,6 +78,7 @@ query ServiceAccountTokens {
   namespaces: namespaces_v1 {
     name
     delete
+    clusterAdmin
     cluster {
       ... OcConnectionCluster
     }
@@ -109,6 +110,7 @@ class SharedResourcesV1(ConfiguredBaseModel):
 class NamespaceV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     delete: Optional[bool] = Field(..., alias="delete")
+    cluster_admin: Optional[bool] = Field(..., alias="clusterAdmin")
     cluster: OcConnectionCluster = Field(..., alias="cluster")
     shared_resources: Optional[list[SharedResourcesV1]] = Field(
         ..., alias="sharedResources"

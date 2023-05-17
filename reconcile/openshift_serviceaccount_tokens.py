@@ -26,7 +26,6 @@ from reconcile.typed_queries.openshift_service_account_tokens import (
 from reconcile.utils import gql
 from reconcile.utils.defer import defer
 from reconcile.utils.oc_map import (
-    Namespace,
     OCLogMsg,
     OCMap,
     init_oc_map_from_namespaces,
@@ -35,10 +34,19 @@ from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.openshift_resource import ResourceInventory
 from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.semver_helper import make_semver
-from reconcile.utils.vault import VaultClient
+from reconcile.utils.vault import (
+    VaultClient,
+    _VaultClient,
+)
 
 QONTRACT_INTEGRATION = "openshift-serviceaccount-tokens"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
+
+
+class SANamespaceV2(SANamespace):
+    """We need this to comply with OCMap protocol standards"""
+
+    cluster_admin: Optional[bool] = None
 
 
 def construct_sa_token_oc_resource(name: str, sa_token: Mapping) -> OR:
@@ -75,7 +83,7 @@ def get_tokens_for_service_account(
 
 
 def fetch_desired_state(
-    namespaces: Iterable[Union[NamespaceV1, SANamespace]],
+    namespaces: Iterable[Union[NamespaceV1, SANamespaceV2]],
     ri: ResourceInventory,
     oc_map: OCMap,
 ) -> None:
@@ -143,7 +151,8 @@ def fetch_desired_state(
 
 def write_outputs_to_vault(vault_path: str, ri: ResourceInventory) -> None:
     integration_name = QONTRACT_INTEGRATION.replace("_", "-")
-    vault_client = VaultClient()
+    # cast to make mypy happy
+    vault_client = cast(_VaultClient, VaultClient())
     for cluster, namespace, _, data in ri:
         for name, d_item in data["desired"].items():
             body_data = d_item.body["data"]
@@ -152,28 +161,32 @@ def write_outputs_to_vault(vault_path: str, ri: ResourceInventory) -> None:
                 f"{vault_path}/{integration_name}/" + f"{cluster}/{namespace}/{name}"
             )
             secret = {"path": secret_path, "data": body_data}
-            vault_client.write(secret)  # type: ignore[attr-defined]
+            vault_client.write(secret)
             # write secret to shared-resources location
             secret_path = (
                 f"{vault_path}/{integration_name}/" + f"shared-resources/{name}"
             )
             secret = {"path": secret_path, "data": body_data}
-            vault_client.write(secret)  # type: ignore[attr-defined]
+            vault_client.write(secret)
 
 
 def canonicalize_namespaces(
     namespaces: Iterable[NamespaceV1],
-) -> list[Union[NamespaceV1, SANamespace]]:
-    canonicalized_namespaces: list[Union[NamespaceV1, SANamespace]] = []
+) -> list[Union[NamespaceV1, SANamespaceV2]]:
+    canonicalized_namespaces: list[Union[NamespaceV1, SANamespaceV2]] = []
     for namespace_info in namespaces:
         if ob.is_namespace_marked_for_deletion(namespace_info):
             continue
-        aggregated = ob.get_shared_service_account_tokens(namespace_info)
+        aggregated = ob.aggregate_shared_service_account_token_namespaces(
+            namespace_info
+        )
         namespace_info.openshift_service_account_tokens = aggregated
         if namespace_info.openshift_service_account_tokens:
             canonicalized_namespaces.append(namespace_info)
             for sat in namespace_info.openshift_service_account_tokens:
-                canonicalized_namespaces.append(sat.namespace)
+                canonicalized_namespaces.append(
+                    SANamespaceV2(**sat.namespace.dict(by_alias=True))
+                )
 
     return canonicalized_namespaces
 
@@ -192,23 +205,23 @@ def run(
     all_namespaces = get_openshift_service_account_tokens(gql.get_api())
     namespaces = canonicalize_namespaces(all_namespaces)
     oc_map = init_oc_map_from_namespaces(
-        namespaces=cast(list[Namespace], namespaces),
+        namespaces=namespaces,
         secret_reader=secret_reader,
         thread_pool_size=thread_pool_size,
         integration=QONTRACT_INTEGRATION,
         internal=internal,
         use_jump_host=use_jump_host,
     )
+    if defer:
+        defer(oc_map.cleanup)
     ri = ob.get_resource_inventory(
         oc_map=oc_map,
-        namespaces=[d.dict(by_alias=True) for d in namespaces],
+        namespaces=namespaces,
         thread_pool_size=thread_pool_size,
         integration=QONTRACT_INTEGRATION,
         integration_version=QONTRACT_INTEGRATION_VERSION,
         override_managed_types=["Secret"],
     )
-    if defer:
-        defer(oc_map.cleanup)
     fetch_desired_state(namespaces, ri, oc_map)
     ob.realize_data(dry_run, oc_map, ri, thread_pool_size)
     if not dry_run and vault_output_path:

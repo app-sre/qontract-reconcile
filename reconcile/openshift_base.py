@@ -20,6 +20,7 @@ from typing import (
 )
 
 import yaml
+from pydantic import BaseModel
 from sretoolbox.utils import (
     retry,
     threaded,
@@ -41,7 +42,6 @@ from reconcile.utils.oc import (
     StatusCodeError,
     UnsupportedMediaTypeError,
 )
-from reconcile.utils.oc_map import Namespace as OCMapNamespace
 from reconcile.utils.oc_map import OCMap
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.openshift_resource import ResourceInventory
@@ -361,8 +361,8 @@ def fetch_current_state(
 
 def get_resource_inventory(
     oc_map: OCMap,
-    namespaces: Optional[Iterable[Mapping]] = None,
-    clusters: Optional[Iterable[Mapping]] = None,
+    namespaces: Optional[Iterable[BaseModel]] = None,
+    clusters: Optional[Iterable[BaseModel]] = None,
     thread_pool_size: Optional[int] = None,
     integration: Optional[str] = None,
     integration_version: Optional[str] = None,
@@ -373,8 +373,10 @@ def get_resource_inventory(
     state_specs = init_specs_to_fetch(
         ri,
         oc_map,
-        namespaces=namespaces,
-        clusters=clusters,
+        namespaces=[ns.dict(by_alias=True) for ns in namespaces]
+        if namespaces
+        else None,
+        clusters=[c.dict(by_alias=True) for c in clusters] if clusters else None,
         override_managed_types=override_managed_types,
     )
     threaded.run(
@@ -1072,36 +1074,41 @@ def aggregate_shared_resources(namespace_info, shared_resources_type):
 
 
 class ServiceAccountToken(Protocol):
-    ...
+    """
+    Needed to make sure sequences in shared_resources and
+    openshift_service_account_tokens refer to the same type.
+    """
 
 
-SA = TypeVar("SA", covariant=True, bound=ServiceAccountToken)
+# We want to make sure that the caller gets the input type
+# returned without the need to cast.
+SA_co = TypeVar("SA_co", covariant=True, bound=ServiceAccountToken)
 
 
-class SharedResourcesServiceAccountTokens(Generic[SA], Protocol):
+class SharedResourcesServiceAccountTokens(Generic[SA_co], Protocol):
     @property
-    def openshift_service_account_tokens(self) -> Optional[Sequence[SA]]:
+    def openshift_service_account_tokens(self) -> Optional[Sequence[SA_co]]:
         ...
 
 
-class NamespaceWithSharedServiceAccountToken(Generic[SA], Protocol):
+class NamespaceWithSharedServiceAccountToken(Generic[SA_co], Protocol):
     @property
-    def openshift_service_account_tokens(self) -> Optional[Sequence[SA]]:
+    def openshift_service_account_tokens(self) -> Optional[Sequence[SA_co]]:
         ...
 
     @property
     def shared_resources(
         self,
-    ) -> Optional[Sequence[SharedResourcesServiceAccountTokens[SA]]]:
+    ) -> Optional[Sequence[SharedResourcesServiceAccountTokens[SA_co]]]:
         ...
 
 
-def get_shared_service_account_tokens(
-    namespace: NamespaceWithSharedServiceAccountToken[SA],
-) -> list[SA]:
+def aggregate_shared_service_account_token_namespaces(
+    namespace: NamespaceWithSharedServiceAccountToken[SA_co],
+) -> list[SA_co]:
+    items: list[SA_co] = []
     if not namespace.shared_resources:
-        return []
-    items: list[SA] = []
+        return items
     for shared_resource in namespace.shared_resources or []:
         if shared_resource.openshift_service_account_tokens:
             items += shared_resource.openshift_service_account_tokens
