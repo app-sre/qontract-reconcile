@@ -1546,6 +1546,26 @@ def ldap_users(ctx, infra_project_id, app_interface_project_id):
     )
 
 
+@integration.command(short_help="Manages raw HCL Terraform from a separate repository.")
+@click.option(
+    "-d",
+    "--output-dir",
+    help="Specify a directory to individually output each repo plan to for the executor",
+)
+@click.pass_context
+def terraform_repo(ctx, output_dir):
+    from reconcile import terraform_repo
+
+    run_class_integration(
+        integration=terraform_repo.TerraformRepoIntegration(
+            terraform_repo.TerraformRepoIntegrationParams(
+                output_dir=output_dir, validate_git=True
+            )
+        ),
+        ctx=ctx.obj,
+    )
+
+
 @integration.command(short_help="Manage AWS Resources using Terraform.")
 @print_to_file
 @vault_output_path
