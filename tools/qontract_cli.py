@@ -1261,7 +1261,7 @@ def sshuttle_command(
             jh_clusters = [c for c in jh_clusters if c.name == cluster_name]
 
         vpc_cidr_blocks = [c.network.vpc for c in jh_clusters if c.network]
-        cmd = f"sshuttle -r {jh.hostname} {' '.join(vpc_cidr_blocks)}"
+        cmd = f"sshuttle -r {jh.hostname} -l 0.0.0.0 {' '.join(vpc_cidr_blocks)}"
         print(cmd)
 
 
