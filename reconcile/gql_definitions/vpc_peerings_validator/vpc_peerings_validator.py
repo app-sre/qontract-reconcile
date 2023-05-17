@@ -17,9 +17,7 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
-from reconcile.gql_definitions.vpc_peerings_validator.vpc_peerings_validator_peered_cluster_fragment import (
-    VpcPeeringsValidatorPeeredCluster,
-)
+from reconcile.gql_definitions.vpc_peerings_validator.vpc_peerings_validator_peered_cluster_fragment import VpcPeeringsValidatorPeeredCluster
 
 
 DEFINITION = """
@@ -80,8 +78,8 @@ query VpcPeeringsValidator {
 
 class ConfiguredBaseModel(BaseModel):
     class Config:
-        smart_union = True
-        extra = Extra.forbid
+        smart_union=True
+        extra=Extra.forbid
 
 
 class ClusterNetworkV1(ConfiguredBaseModel):
@@ -99,7 +97,6 @@ class ClusterPeeringConnectionV1(ConfiguredBaseModel):
 class AWSVPCV1(ConfiguredBaseModel):
     cidr_block: str = Field(..., alias="cidr_block")
     name: str = Field(..., alias="name")
-    region: str = Field(..., alias="region")
 
 
 class ClusterPeeringConnectionAccountV1(ClusterPeeringConnectionV1):
@@ -126,15 +123,7 @@ class ClusterPeeringConnectionClusterAccepterV1(ClusterPeeringConnectionV1):
 
 
 class ClusterPeeringV1(ConfiguredBaseModel):
-    connections: list[
-        Union[
-            ClusterPeeringConnectionAccountVPCMeshV1,
-            ClusterPeeringConnectionAccountV1,
-            ClusterPeeringConnectionClusterRequesterV1,
-            ClusterPeeringConnectionClusterAccepterV1,
-            ClusterPeeringConnectionV1,
-        ]
-    ] = Field(..., alias="connections")
+    connections: list[Union[ClusterPeeringConnectionAccountVPCMeshV1, ClusterPeeringConnectionAccountV1, ClusterPeeringConnectionClusterRequesterV1, ClusterPeeringConnectionClusterAccepterV1, ClusterPeeringConnectionV1]] = Field(..., alias="connections")
 
 
 class ClusterV1(ConfiguredBaseModel):
