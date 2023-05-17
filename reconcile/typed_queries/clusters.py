@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from typing import Optional
 
 from reconcile.gql_definitions.common.clusters import (
@@ -7,10 +8,14 @@ from reconcile.gql_definitions.common.clusters import (
 from reconcile.utils import gql
 
 
-def get_clusters(name: Optional[str] = None) -> list[ClusterV1]:
+def get_clusters(
+    name: Optional[str] = None,
+    query_func: Optional[Callable] = None,
+) -> list[ClusterV1]:
     variables = {}
     if name:
         variables["name"] = name
-    gqlapi = gql.get_api()
-    data = query(gqlapi.query, variables=variables)
+    if not query_func:
+        query_func = gql.get_api().query
+    data = query(query_func=query_func, variables=variables)
     return list(data.clusters or [])
