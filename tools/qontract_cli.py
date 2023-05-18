@@ -2523,28 +2523,26 @@ def alert_to_receiver(
     for group in rule_spec["groups"]:
         for rule in group["rules"]:
             try:
+                # alertname label is added automatically by Prometheus.
                 alert_labels.append(
-                    {
-                        "name": rule["alert"],
-                        "labels": rule["labels"] | additional_labels,
-                    }
+                    {"alertname": rule["alert"]} | rule["labels"] | additional_labels
                 )
             except KeyError:
                 print("Skipping rule with no alert and/or labels", file=sys.stderr)
 
     if alert_name:
-        alert_labels = [al for al in alert_labels if al["name"] == alert_name]
+        alert_labels = [al for al in alert_labels if al["alertname"] == alert_name]
 
         if not alert_labels:
             print(f"Cannot find alert {alert_name} in rules {rules_path}")
             sys.exit(1)
 
     for al in alert_labels:
-        result = amtool.config_routes_test(am_config, al["labels"])
+        result = amtool.config_routes_test(am_config, al)
         if not result:
             print(f"Error running amtool: {result}")
             sys.exit(1)
-        print("|".join([al["name"], str(result)]))
+        print("|".join([al["alertname"], str(result)]))
 
 
 @root.command()
