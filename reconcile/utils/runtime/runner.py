@@ -10,7 +10,10 @@ from typing import (
 from sretoolbox.utils import threaded as sretoolbox_threaded
 
 from reconcile.status import ExitCodes
-from reconcile.utils import gql
+from reconcile.utils import (
+    gql,
+    metrics,
+)
 from reconcile.utils.runtime.desired_state_diff import (
     DesiredStateDiff,
     build_desired_state_diff,
@@ -161,13 +164,25 @@ def run_integration_cfg(run_cfg: IntegrationRunConfiguration) -> None:
         _integration_wet_run(run_cfg.integration)
 
 
+def _integration_metric_scope_name(
+    integration_name: str, shard: Optional[str] = None
+) -> str:
+    scope = f"integration-runner-scope-{integration_name}"
+    if shard:
+        scope += f"-{shard}"
+    return scope
+
+
 def _integration_wet_run(
     integration: QontractReconcileIntegration[RunParamsTypeVar],
 ) -> None:
     """
     Runs an integration in wet mode, i.e. not in dry-run mode.
     """
-    integration.run(False)
+    with metrics.transactional_metrics(
+        _integration_metric_scope_name(integration.name)
+    ):
+        integration.run(False)
 
 
 def _integration_dry_run(
@@ -206,7 +221,10 @@ def _integration_dry_run(
             sharded_integration = integration.build_integration_instance_for_shard(
                 shard
             )
-            sharded_integration.run(True)
+            with metrics.transactional_metrics(
+                _integration_metric_scope_name(integration.name, shard)
+            ):
+                sharded_integration.run(True)
 
         # run all shards
         results = sretoolbox_threaded.run(
@@ -226,7 +244,10 @@ def _integration_dry_run(
             return
 
     # if not, we run the integration in full
-    integration.run(True)
+    with metrics.transactional_metrics(
+        _integration_metric_scope_name(integration.name)
+    ):
+        integration.run(True)
 
 
 def _is_task_result_an_error(result: Any) -> bool:

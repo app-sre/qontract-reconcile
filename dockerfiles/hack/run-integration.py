@@ -36,6 +36,7 @@ DRY_RUN = (
 )
 INTEGRATION_EXTRA_ARGS = os.environ.get("INTEGRATION_EXTRA_ARGS")
 CONFIG = os.environ.get("CONFIG", "/config/config.toml")
+PROMETHEUS_PORT = os.environ.get("PROMETHEUS_PORT", 9090)
 
 LOG_FILE = os.environ.get("LOG_FILE")
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO")
@@ -149,7 +150,7 @@ def main():
         $INTEGRATION_EXTRA_ARGS
     """
 
-    start_http_server(9090)
+    start_http_server(int(PROMETHEUS_PORT))
 
     command = build_entry_point_func(COMMAND_NAME)
     while True:
