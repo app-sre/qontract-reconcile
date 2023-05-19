@@ -629,6 +629,13 @@ class OCM:  # pylint: disable=too-many-public-methods
             else:
                 self.not_ready_clusters.add(cluster_name)
 
+    @property
+    def non_blocked_cluster_upgrades(self) -> dict[str, list[str]]:
+        return {
+            cluster: [v for v in versions or [] if not self.version_blocked(v)]
+            for cluster, versions in self.available_cluster_upgrades.items()
+        }
+
     def is_ready(self, cluster):
         return cluster in self.clusters
 

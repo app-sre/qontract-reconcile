@@ -84,6 +84,17 @@ class OCMAddonsUpgradeSchedulerOrgIntegration(
             and (org_ids is None or org.org_id in org_ids)
         }
 
+    def expose_org_upgrade_spec_metrics(
+        self, ocm_env: str, org_upgrade_spec: OrganizationUpgradeSpec
+    ) -> None:
+        metrics.inc_counter(
+            AUSOrganizationReconcileCounter(
+                integration=self.name,
+                ocm_env=ocm_env,
+                org_id=org_upgrade_spec.org.org_id,
+            )
+        )
+
 
 def get_state_for_org_spec(
     org_upgrade_spec: OrganizationUpgradeSpec, fetch_current_state: bool

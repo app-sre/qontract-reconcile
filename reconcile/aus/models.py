@@ -46,7 +46,11 @@ class OrganizationUpgradeSpec(BaseModel):
 
     @property
     def has_validation_errors(self) -> bool:
-        return len(self._cluster_errors) > 0
+        return self.nr_of_validation_errors > 0
+
+    @property
+    def nr_of_validation_errors(self) -> int:
+        return len(self._cluster_errors)
 
     @property
     def cluster_errors(self) -> list[ClusterValidationError]:
@@ -64,7 +68,7 @@ class ConfiguredUpgradePolicyConditions(BaseModel):
     """This class is used to represent the conditions of upgrade policies."""
 
     mutexes: Optional[list[str]]
-    soakDays: Optional[int]
+    soakDays: int
     sector: Optional[Sector]
 
     def get_mutexes(self) -> list[str]:
@@ -79,6 +83,7 @@ class ConfiguredUpgradePolicy(BaseModel):
     """
 
     cluster: str
+    cluster_uuid: str
     conditions: ConfiguredUpgradePolicyConditions
     current_version: str
     schedule: str
@@ -101,6 +106,7 @@ class ConfiguredAddonUpgradePolicy(ConfiguredUpgradePolicy):
     ) -> ConfiguredAddonUpgradePolicy:
         created_instance = cls(
             cluster=ous.name,
+            cluster_uuid=ous.cluster_uuid,
             conditions=ConfiguredUpgradePolicyConditions(
                 mutexes=ous.upgrade_policy.conditions.mutexes,
                 soakDays=ous.upgrade_policy.conditions.soak_days,
@@ -134,6 +140,7 @@ class ConfiguredClusterUpgradePolicy(ConfiguredUpgradePolicy):
     ) -> ConfiguredClusterUpgradePolicy:
         created_instance = cls(
             cluster=ous.name,
+            cluster_uuid=ous.cluster_uuid,
             conditions=ConfiguredUpgradePolicyConditions(
                 mutexes=ous.upgrade_policy.conditions.mutexes,
                 soakDays=ous.upgrade_policy.conditions.soak_days,

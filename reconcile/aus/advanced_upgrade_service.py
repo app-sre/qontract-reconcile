@@ -99,6 +99,17 @@ class AdvancedUpgradeServiceIntegration(OCMClusterUpgradeSchedulerOrgIntegration
                 ocm_api=ocm_api, org_upgrade_spec=org_upgrade_spec
             )
 
+    def signal_reconcile_issues(
+        self,
+        dry_run: bool,
+        org_upgrade_spec: OrganizationUpgradeSpec,
+        exception: Exception,
+    ) -> None:
+        logging.error(
+            f"Failed to reconcile cluster upgrades in OCM organization {org_upgrade_spec.org.org_id}",
+            exc_info=exception,
+        )
+
 
 def discover_clusters(
     ocm_api: OCMBaseClient,
