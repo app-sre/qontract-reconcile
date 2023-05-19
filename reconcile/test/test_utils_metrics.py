@@ -45,7 +45,7 @@ class DemoInfoMetric(InfoMetric):
 
     @classmethod
     def name(cls) -> str:
-        return "demo_info"
+        return "some_demo_info_metric"
 
 
 @pytest.fixture
@@ -82,9 +82,56 @@ def test_counter_metric_family() -> None:
 def test_info_metric_family() -> None:
     metric_family = DemoInfoMetric.metric_family()
     assert isinstance(metric_family, GaugeMetricFamily)
-    assert metric_family.name == "demo_info"
+    assert metric_family.name == "some_demo_info_metric"
     assert metric_family.documentation == "demo info metric"
     assert set(metric_family._labelnames) == {"string_field", "int_field", "bool_field"}
+
+
+#
+# metric names
+#
+
+
+def test_default_counter_metric_name() -> None:
+    class AppErrors(CounterMetric):
+        field: str
+
+    assert AppErrors.name() == "app_errors"
+
+
+def test_default_counter_metric_name_remove_metric_suffix() -> None:
+    class AppErrorsMetric(CounterMetric):
+        field: str
+
+    assert AppErrorsMetric.name() == "app_errors"
+
+
+def test_default_counter_metric_name_remove_counter_suffix() -> None:
+    class AppErrorsCounter(CounterMetric):
+        field: str
+
+    assert AppErrorsCounter.name() == "app_errors"
+
+
+def test_default_gauge_metric_name_remove_metric_suffix() -> None:
+    class AppRuntimeMetric(GaugeMetric):
+        field: str
+
+    assert AppRuntimeMetric.name() == "app_runtime"
+
+
+def test_default_gauge_metric_name_remove_gauge_suffix() -> None:
+    class AppRuntimeGauge(GaugeMetric):
+        field: str
+
+    assert AppRuntimeGauge.name() == "app_runtime"
+
+
+def test_default_info_metric_name_remove_metric_suffix() -> None:
+    class AppInfoMetric(InfoMetric):
+        field: str
+
+    assert AppInfoMetric.name() == "app_info"
 
 
 #

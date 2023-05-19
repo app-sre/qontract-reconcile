@@ -1,9 +1,7 @@
 import copy
+import re
 import threading
-from abc import (
-    ABC,
-    abstractmethod,
-)
+from abc import ABC
 from collections import defaultdict
 from collections.abc import (
     Generator,
@@ -99,11 +97,15 @@ gitlab_request = Counter(
 
 class BaseMetric(ABC, BaseModel):
     @classmethod
-    @abstractmethod
     def name(cls) -> str:
         """
-        Returns the prometheus metric name.
+        Returns the prometheus metric name. Defaults to a snake case version of the
+        class name. Removes the suffix `_metric` is present. Subclasses can override this.
         """
+        metric_name = re.sub(r"(?<!^)(?=[A-Z])", "_", cls.__name__).lower()
+        if metric_name.endswith("_metric"):
+            metric_name = metric_name[:-7]
+        return metric_name
 
 
 class GaugeMetric(BaseMetric):
@@ -115,6 +117,13 @@ class GaugeMetric(BaseMetric):
     def metric_family(cls) -> GaugeMetricFamily:
         labels = [f.alias for f in cls.__fields__.values()]
         return GaugeMetricFamily(cls.name(), cls.__doc__ or "", labels=labels)
+
+    @classmethod
+    def name(cls) -> str:
+        metric_name = super().name()
+        if metric_name.endswith("_gauge"):
+            metric_name = metric_name[:-6]
+        return metric_name
 
 
 class InfoMetric(GaugeMetric):
@@ -132,6 +141,13 @@ class CounterMetric(BaseMetric):
     def metric_family(cls) -> CounterMetricFamily:
         labels = [f.alias for f in cls.__fields__.values()]
         return CounterMetricFamily(cls.name(), cls.__doc__ or "", labels=labels)
+
+    @classmethod
+    def name(cls) -> str:
+        metric_name = super().name()
+        if metric_name.endswith("_counter"):
+            metric_name = metric_name[:-8]
+        return metric_name
 
 
 class MetricsContainer:
