@@ -23,7 +23,6 @@ from reconcile.typed_queries.app_interface_vault_settings import (
 from reconcile.typed_queries.openshift_service_account_tokens import (
     get_openshift_service_account_tokens,
 )
-from reconcile.utils import gql
 from reconcile.utils.defer import defer
 from reconcile.utils.oc_map import (
     OCLogMsg,
@@ -202,7 +201,7 @@ def run(
 ) -> None:
     vault_settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
-    all_namespaces = get_openshift_service_account_tokens(gql.get_api())
+    all_namespaces = get_openshift_service_account_tokens()
     namespaces = canonicalize_namespaces(all_namespaces)
     oc_map = init_oc_map_from_namespaces(
         namespaces=namespaces,

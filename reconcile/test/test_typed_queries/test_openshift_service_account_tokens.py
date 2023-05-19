@@ -1,6 +1,7 @@
 from collections.abc import Callable
 
 from reconcile.gql_definitions.openshift_service_account_tokens.openshift_service_account_tokens import (
+    DEFINITION,
     ServiceAccountTokensQueryData,
 )
 from reconcile.typed_queries.openshift_service_account_tokens import (
@@ -15,10 +16,10 @@ def test_no_data(
 ) -> None:
     data = gql_class_factory(ServiceAccountTokensQueryData, {})
     gql_api = gql_api_builder(data.dict(by_alias=True))
-    result = get_openshift_service_account_tokens(gql_api)
+    result = get_openshift_service_account_tokens(gql_api=gql_api)
 
     assert len(result) == 0
-    gql_api.query.assert_called_once()
+    gql_api.query.assert_called_once_with(DEFINITION)
 
 
 def test_get_openshift_service_account_tokens(
@@ -32,7 +33,7 @@ def test_get_openshift_service_account_tokens(
         },
     )
     gql_api = gql_api_builder(data.dict(by_alias=True))
-    result = get_openshift_service_account_tokens(gql_api)
+    result = get_openshift_service_account_tokens(gql_api=gql_api)
 
     assert len(result) == 1
-    gql_api.query.assert_called_once()
+    gql_api.query.assert_called_once_with(DEFINITION)
