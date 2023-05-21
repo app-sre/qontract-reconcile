@@ -60,13 +60,19 @@ def _get_default_management_account(
 
 
 def _build_infrastructure_assume_role(
-    account: dict[str, Any], cluster: dict[str, Any], ocm: OCM
+    account: dict[str, Any],
+    cluster: dict[str, Any],
+    ocm: OCM,
+    provided_assume_role: Optional[str],
 ) -> Optional[dict[str, Any]]:
-    assume_role = ocm.get_aws_infrastructure_access_terraform_assume_role(
-        cluster["name"],
-        account["uid"],
-        account["terraformUsername"],
-    )
+    if provided_assume_role:
+        assume_role = provided_assume_role
+    elif ocm is not None:
+        assume_role = ocm.get_aws_infrastructure_access_terraform_assume_role(
+            cluster["name"],
+            account["uid"],
+            account["terraformUsername"],
+        )
     if assume_role:
         return {
             "name": account["name"],
@@ -81,6 +87,7 @@ def _build_infrastructure_assume_role(
 
 
 def aws_assume_roles_for_cluster_vpc_peering(
+    requester_connection: dict[str, Any],
     requester_cluster: dict[str, Any],
     accepter_connection: dict[str, Any],
     accepter_cluster: dict[str, Any],
@@ -119,14 +126,18 @@ def aws_assume_roles_for_cluster_vpc_peering(
 
     # a dedicated infra account was found on the accepter side
     # let's use it for both legs
-    req_aws = _build_infrastructure_assume_role(account, requester_cluster, ocm)
+    req_aws = _build_infrastructure_assume_role(
+        account, requester_cluster, ocm, requester_connection.get("assumeRole")
+    )
     if req_aws is None:
         raise BadTerraformPeeringState(
             f"[assume_role_not_found] unable to find assume role "
             f"on cluster-vpc-requester for account {account['name']} and "
             f"cluster {requester_cluster['name']} "
         )
-    acc_aws = _build_infrastructure_assume_role(account, accepter_cluster, ocm)
+    acc_aws = _build_infrastructure_assume_role(
+        account, accepter_cluster, ocm, accepter_connection.get("assumeRole")
+    )
     if acc_aws is None:
         raise BadTerraformPeeringState(
             f"[assume_role_not_found] unable to find assume role "
@@ -170,7 +181,7 @@ def build_desired_state_single_cluster(
         accepter_manage_routes = peer_info.get("manageRoutes")
 
         req_aws, acc_aws = aws_assume_roles_for_cluster_vpc_peering(
-            cluster_info, peer_info, peer_cluster, ocm
+            peer_connection, cluster_info, peer_info, peer_cluster, ocm
         )
 
         # filter on account
@@ -510,14 +521,11 @@ def run(
         logging.debug("account-vpc-mesh is not yet supported without OCM")
 
     # Fetch desired state for cluster-to-cluster VPCs
-    if ocm_map is not None:
-        desired_state_cluster, err = build_desired_state_all_clusters(
-            clusters, ocm_map, awsapi, account_name
-        )
-        desired_state.extend(desired_state_cluster)
-        errors.append(err)
-    else:
-        logging.debug("cluster-vpc is not yet supported without OCM")
+    desired_state_cluster, err = build_desired_state_all_clusters(
+        clusters, ocm_map, awsapi, account_name
+    )
+    desired_state.extend(desired_state_cluster)
+    errors.append(err)
 
     # check there are no repeated vpc connection names
     connection_names = [c["connection_name"] for c in desired_state]

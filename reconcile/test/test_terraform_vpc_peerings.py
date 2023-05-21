@@ -167,6 +167,9 @@ def test_c2c_vpc_peering_assume_role_accepter_connection_acc_overwrite(mocker):
     when available. in this test, the overwrite is also allowed
     """
     requester_cluster = build_cluster(name="r_c")
+    requester_connection = build_accepter_connection(
+        name="r_c", cluster="r_c", aws_infra_acc="req_overwrite"
+    )
     accepter_cluster = build_cluster(
         name="a_c", network_mgmt_accounts=["acc", "acc_overwrite"]
     )
@@ -183,7 +186,11 @@ def test_c2c_vpc_peering_assume_role_accepter_connection_acc_overwrite(mocker):
         .auto_speced_mock(mocker)
     )
     req_aws, acc_aws = integ.aws_assume_roles_for_cluster_vpc_peering(
-        requester_cluster, accepter_connection, accepter_cluster, ocm
+        requester_connection,
+        requester_cluster,
+        accepter_connection,
+        accepter_cluster,
+        ocm,
     )
 
     expected_req_aws = {
@@ -215,6 +222,9 @@ def test_c2c_vpc_peering_assume_role_acc_overwrite_fail(mocker):
     account not listed on the accepter cluster
     """
     requester_cluster = build_cluster(name="r_c")
+    requester_connection = build_accepter_connection(
+        name="r_c", cluster="r_c", aws_infra_acc="req_overwrite"
+    )
     accepter_cluster = build_cluster(name="a_c", network_mgmt_accounts=["acc"])
     accepter_connection = build_accepter_connection(
         name="a_c", cluster="a_c", aws_infra_acc="acc_overwrite"
@@ -228,7 +238,11 @@ def test_c2c_vpc_peering_assume_role_acc_overwrite_fail(mocker):
     )
     with pytest.raises(BadTerraformPeeringState) as ex:
         integ.aws_assume_roles_for_cluster_vpc_peering(
-            requester_cluster, accepter_connection, accepter_cluster, ocm
+            requester_connection,
+            requester_cluster,
+            accepter_connection,
+            accepter_cluster,
+            ocm,
         )
     assert str(ex.value).startswith("[account_not_allowed]")
 
@@ -239,6 +253,7 @@ def test_c2c_vpc_peering_assume_role_accepter_cluster_account(mocker):
     connection overwrite exists
     """
     requester_cluster = build_cluster(name="r_c")
+    requester_connection = build_accepter_connection(name="r_c", cluster="r_c")
     accepter_cluster = build_cluster(
         name="a_c", network_mgmt_accounts=["default_acc", "other_acc"]
     )
@@ -253,7 +268,11 @@ def test_c2c_vpc_peering_assume_role_accepter_cluster_account(mocker):
         .auto_speced_mock(mocker)
     )
     req_aws, acc_aws = integ.aws_assume_roles_for_cluster_vpc_peering(
-        requester_cluster, accepter_connection, accepter_cluster, ocm
+        requester_connection,
+        requester_cluster,
+        accepter_connection,
+        accepter_cluster,
+        ocm,
     )
 
     expected_req_aws = {
@@ -285,6 +304,7 @@ def test_c2c_vpc_peering_missing_ocm_assume_role(mocker):
     overwrite exists
     """
     requester_cluster = build_cluster(name="r_c")
+    requester_connection = build_accepter_connection(name="r_c", cluster="r_c")
     accepter_cluster = build_cluster(name="a_c", network_mgmt_accounts=["acc"])
     accepter_connection = build_accepter_connection(name="a_c", cluster="a_c")
 
@@ -292,7 +312,11 @@ def test_c2c_vpc_peering_missing_ocm_assume_role(mocker):
 
     with pytest.raises(BadTerraformPeeringState) as ex:
         integ.aws_assume_roles_for_cluster_vpc_peering(
-            requester_cluster, accepter_connection, accepter_cluster, ocm
+            requester_connection,
+            requester_cluster,
+            accepter_connection,
+            accepter_cluster,
+            ocm,
         )
     assert str(ex.value).startswith("[assume_role_not_found]")
 
@@ -302,6 +326,7 @@ def test_c2c_vpc_peering_missing_account(mocker):
     test the fallback logic, looking for network-mgmt groups accounts
     """
     requester_cluster = build_cluster(name="r_c")
+    requester_connection = build_accepter_connection(name="r_c", cluster="r_c")
     accepter_cluster = build_cluster(name="a_c")
     accepter_connection = build_accepter_connection(name="a_c", cluster="a_c")
 
@@ -309,7 +334,11 @@ def test_c2c_vpc_peering_missing_account(mocker):
 
     with pytest.raises(BadTerraformPeeringState) as ex:
         integ.aws_assume_roles_for_cluster_vpc_peering(
-            requester_cluster, accepter_connection, accepter_cluster, ocm
+            requester_connection,
+            requester_cluster,
+            accepter_connection,
+            accepter_cluster,
+            ocm,
         )
     assert str(ex.value).startswith("[no_account_available]")
 

@@ -1131,6 +1131,7 @@ CLUSTER_PEERING_QUERY = """
                   cluster {
                     name
                   }
+                  assumeRole
                   awsInfrastructureManagementAccount {
                     name
                     uid
@@ -1146,6 +1147,7 @@ CLUSTER_PEERING_QUERY = """
               }
             }
           }
+          assumeRole
         }
       }
     }
