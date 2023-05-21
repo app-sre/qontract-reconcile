@@ -90,17 +90,19 @@ class OCMClusterUpgradeSchedulerIntegration(
                 cluster.ocm and cluster.ocm.org_id in org_ids
             )
             in_shard = in_env_shard and in_org_shard
+            cluster_uuid = cluster.spec.external_id if cluster.spec else None
             if (
-                integration_is_enabled(self.name, cluster)
+                integration_is_enabled(self.name, cluster)  # pylint: disable=R0916
                 and cluster.ocm
                 and cluster.upgrade_policy
                 and supported_product
+                and cluster_uuid
                 and in_shard
             ):
                 specs_per_org[cluster.ocm.name].append(
                     ClusterUpgradeSpec(
                         name=cluster.name,
-                        cluster_uuid=cluster.spec.external_id if cluster.spec else None,
+                        cluster_uuid=cluster_uuid,
                         ocm=cluster.ocm,
                         upgradePolicy=cluster.upgrade_policy,
                     )

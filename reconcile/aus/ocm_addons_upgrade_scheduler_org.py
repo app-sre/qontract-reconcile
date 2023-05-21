@@ -8,6 +8,7 @@ from reconcile.aus.base import (
     AbstractUpgradePolicy,
     AddonUpgradePolicy,
 )
+from reconcile.aus.metrics import AUSOrganizationReconcileCounter
 from reconcile.aus.models import (
     ClusterUpgradeSpec,
     OrganizationUpgradeSpec,
@@ -15,10 +16,16 @@ from reconcile.aus.models import (
 from reconcile.gql_definitions.advanced_upgrade_service.aus_organization import (
     query as aus_organizations_query,
 )
+from reconcile.gql_definitions.fragments.aus_organization import AUSOCMOrganization
 from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
-from reconcile.utils import gql
+from reconcile.utils import (
+    gql,
+    metrics,
+)
 from reconcile.utils.cluster_version_data import VersionData
 from reconcile.utils.ocm import OCMMap
+from reconcile.utils.ocm.clusters import discover_clusters_for_organizations
+from reconcile.utils.ocm_base_client import init_ocm_base_client
 
 QONTRACT_INTEGRATION = "ocm-addons-upgrade-scheduler-org"
 
@@ -63,18 +70,9 @@ class OCMAddonsUpgradeSchedulerOrgIntegration(
     def get_ocm_env_upgrade_specs(
         self, ocm_env: OCMEnvironment, org_ids: Optional[set[str]]
     ) -> dict[str, OrganizationUpgradeSpec]:
-        return {
-            org.name: OrganizationUpgradeSpec(
-                org=org,
-                specs=[
-                    ClusterUpgradeSpec(
-                        name=cluster.name,
-                        ocm=org,
-                        upgradePolicy=cluster.upgrade_policy,
-                    )
-                    for cluster in org.upgrade_policy_clusters or []
-                ],
-            )
+        # query all OCM organizations from app-interface and filter by and orgs
+        organizations = [
+            org
             for org in aus_organizations_query(
                 query_func=gql.get_api().query
             ).organizations
@@ -82,7 +80,44 @@ class OCMAddonsUpgradeSchedulerOrgIntegration(
             if org.environment.name == ocm_env.name
             and org.addon_managed_upgrades
             and (org_ids is None or org.org_id in org_ids)
+        ]
+        if not organizations:
+            return {}
+
+        # lookup cluster in OCM to figure out if they exist
+        # and to get their UUID
+        ocm_api = init_ocm_base_client(ocm_env, self.secret_reader)
+        clusters = discover_clusters_for_organizations(
+            ocm_api, [org.org_id for org in organizations]
+        )
+
+        return {
+            org.name: OrganizationUpgradeSpec(
+                org=org,
+                specs=self._build_addon_upgrade_spec(
+                    org,
+                    {
+                        c.ocm_cluster.name: c.ocm_cluster.external_id
+                        for c in clusters
+                        if c.organization_id == org.org_id
+                    },
+                ),
+            )
+            for org in organizations
         }
+
+    def _build_addon_upgrade_spec(
+        self, org: AUSOCMOrganization, cluster_name_to_uuid: dict[str, str]
+    ) -> list[ClusterUpgradeSpec]:
+        return [
+            ClusterUpgradeSpec(
+                name=cluster.name,
+                cluster_uuid=cluster_name_to_uuid[cluster.name],
+                ocm=org,
+                upgradePolicy=cluster.upgrade_policy,
+            )
+            for cluster in org.upgrade_policy_clusters or []
+        ]
 
     def expose_org_upgrade_spec_metrics(
         self, ocm_env: str, org_upgrade_spec: OrganizationUpgradeSpec
