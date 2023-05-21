@@ -105,6 +105,10 @@ class AdvancedUpgradeServiceIntegration(OCMClusterUpgradeSchedulerOrgIntegration
         org_upgrade_spec: OrganizationUpgradeSpec,
         exception: Exception,
     ) -> None:
+        """
+        AUS will not fail on a reconcile issue. If issues should be noticed by an SRE team,
+        alerts based on the metrics in the `reconcile.aus.metrics` module should be set up.
+        """
         logging.error(
             f"Failed to reconcile cluster upgrades in OCM organization {org_upgrade_spec.org.org_id}",
             exc_info=exception,
