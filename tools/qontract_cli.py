@@ -922,7 +922,10 @@ def clusters_network(ctx, name):
         cluster_name = cluster["name"]
         management_account = tfvpc._get_default_management_account(cluster)
         account = tfvpc._build_infrastructure_assume_role(
-            management_account, cluster, ocm_map.get(cluster_name)
+            management_account,
+            cluster,
+            ocm_map.get(cluster_name),
+            provided_assume_role=None,
         )
         if not account:
             continue
@@ -1013,7 +1016,10 @@ def clusters_egress_ips(ctx):
         cluster_name = cluster["name"]
         management_account = tfvpc._get_default_management_account(cluster)
         account = tfvpc._build_infrastructure_assume_role(
-            management_account, cluster, ocm_map.get(cluster_name)
+            management_account,
+            cluster,
+            ocm_map.get(cluster_name),
+            provided_assume_role=None,
         )
         if not account:
             continue
