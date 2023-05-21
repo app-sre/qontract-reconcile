@@ -62,7 +62,7 @@ def _get_default_management_account(
 def _build_infrastructure_assume_role(
     account: dict[str, Any],
     cluster: dict[str, Any],
-    ocm: OCM,
+    ocm: Optional[OCM],
     provided_assume_role: Optional[str],
 ) -> Optional[dict[str, Any]]:
     if provided_assume_role:
@@ -91,7 +91,7 @@ def aws_assume_roles_for_cluster_vpc_peering(
     requester_cluster: dict[str, Any],
     accepter_connection: dict[str, Any],
     accepter_cluster: dict[str, Any],
-    ocm: OCM,
+    ocm: Optional[OCM],
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     # check if dedicated infra accounts have been declared on the
     # accepters peering connection or on the accepters cluster
@@ -149,7 +149,7 @@ def aws_assume_roles_for_cluster_vpc_peering(
 
 
 def build_desired_state_single_cluster(
-    cluster_info, ocm: OCM, awsapi: AWSApi, account_filter: Optional[str]
+    cluster_info, ocm: Optional[OCM], awsapi: AWSApi, account_filter: Optional[str]
 ):
     cluster_name = cluster_info["name"]
 
@@ -256,7 +256,7 @@ def build_desired_state_all_clusters(
     for cluster_info in clusters:
         try:
             cluster = cluster_info["name"]
-            ocm = ocm_map.get(cluster)
+            ocm = None if ocm_map is None else ocm_map.get(cluster)
             items = build_desired_state_single_cluster(
                 cluster_info, ocm, awsapi, account_filter
             )
