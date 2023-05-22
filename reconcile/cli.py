@@ -2023,7 +2023,7 @@ def ocm_addons_upgrade_scheduler_org(ctx):
     help="Ignore STS clusters",
 )
 @click.pass_context
-def aus_upgrade_scheduler(ctx, ocm_env, ocm_org_ids, ignore_sts_clusters):
+def advanced_upgrade_scheduler(ctx, ocm_env, ocm_org_ids, ignore_sts_clusters):
     from reconcile.aus.advanced_upgrade_service import AdvancedUpgradeServiceIntegration
     from reconcile.aus.base import AdvancedUpgradeSchedulerBaseIntegrationParams
 
