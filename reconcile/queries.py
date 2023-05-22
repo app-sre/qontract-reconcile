@@ -1043,6 +1043,7 @@ CLUSTER_PEERING_QUERY = """
         provider
         manageRoutes
         delete
+        assumeRole
         ... on ClusterPeeringConnectionAccount_v1 {
           vpc {
             account {
@@ -1060,7 +1061,6 @@ CLUSTER_PEERING_QUERY = """
             cidr_block
             region
           }
-          assumeRole
           manageAccountRoutes
         }
         ... on ClusterPeeringConnectionAccountVPCMesh_v1 {
@@ -1076,7 +1076,6 @@ CLUSTER_PEERING_QUERY = """
             }
           }
           tags
-          assumeRole
         }
         ... on ClusterPeeringConnectionAccountTGW_v1 {
           account {
@@ -1094,7 +1093,6 @@ CLUSTER_PEERING_QUERY = """
           cidrBlock
           manageSecurityGroups
           manageRoute53Associations
-          assumeRole
         }
         ... on ClusterPeeringConnectionClusterRequester_v1 {
           cluster {
@@ -1127,12 +1125,12 @@ CLUSTER_PEERING_QUERY = """
                 name
                 provider
                 manageRoutes
+                assumeRole
                 ... on ClusterPeeringConnectionClusterAccepter_v1 {
                   name
                   cluster {
                     name
                   }
-                  assumeRole
                   awsInfrastructureManagementAccount {
                     name
                     uid
@@ -1148,7 +1146,6 @@ CLUSTER_PEERING_QUERY = """
               }
             }
           }
-          assumeRole
         }
       }
     }
