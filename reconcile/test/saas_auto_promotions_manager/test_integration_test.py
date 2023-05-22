@@ -92,8 +92,6 @@ def test_integration_test(
                 "ls": [
                     "/promotions/channel-1/new_sha",
                     "/promotions/channel-2/new_sha",
-                    "/deployments/channel-3/target-uid/new_sha",
-                    "/deployments/channel-4/target-uid/new_sha",
                 ],
                 "get": {
                     "promotions/channel-1/new_sha": {
@@ -102,16 +100,6 @@ def test_integration_test(
                         "saas_file": "saas_1",
                     },
                     "promotions/channel-2/new_sha": {
-                        "success": True,
-                        "target_config_hash": "new_hash",
-                        "saas_file": "saas_1",
-                    },
-                    "/deployments/channel-3/target-uid/new_sha": {
-                        "success": True,
-                        "target_config_hash": "new_hash",
-                        "saas_file": "saas_1",
-                    },
-                    "/deployments/channel-4/target-uid/new_sha": {
                         "success": True,
                         "target_config_hash": "new_hash",
                         "saas_file": "saas_1",
