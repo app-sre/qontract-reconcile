@@ -49,6 +49,7 @@ def desired_state(addon_id, cluster):
             "conditions": {"soakDays": 0},
             "addon_id": addon_id,
             "cluster": cluster,
+            "cluster_uuid": f"{cluster}-uuid",
             "current_version": "2.0.0",
         }
     )

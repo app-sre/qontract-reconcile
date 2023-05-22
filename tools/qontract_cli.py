@@ -67,7 +67,6 @@ from reconcile.utils import (
     promtool,
 )
 from reconcile.utils.aws_api import AWSApi
-from reconcile.utils.cluster_version_data import VersionData
 from reconcile.utils.environ import environ
 from reconcile.utils.external_resources import (
     PROVIDER_AWS,
@@ -289,21 +288,6 @@ def version_history(ctx):
     print_output(ctx.obj["options"], results, columns)
 
 
-def soaking_days(
-    version_data: VersionData,
-    upgrades: list[str],
-    workload: str,
-    only_soaking: bool,
-) -> dict[str, float]:
-    soaking = {}
-    for version in upgrades:
-        workload_history = version_data.workload_history(version, workload)
-        soaking[version] = round(workload_history.soak_days, 2)
-        if not only_soaking and version not in soaking:
-            soaking[version] = 0
-    return soaking
-
-
 def get_upgrade_policies_data(
     clusters,
     md_output,
@@ -401,7 +385,7 @@ def get_upgrade_policies_data(
         workload_soaking_upgrades = {}
         for w in c.workloads or []:
             if not workload or workload == w:
-                s = soaking_days(
+                s = aus.soaking_days(
                     version_data_map[ocm_org.name],
                     upgrades,
                     w,

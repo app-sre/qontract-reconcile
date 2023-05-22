@@ -54,8 +54,9 @@ class TestUpdateHistory(TestCase):
                 **{
                     "workloads": ["workload1"],
                     "cluster": "cluster1",
+                    "cluster_uuid": "cluster1_uuid",
                     "current_version": "4.12.1",
-                    "conditions": {},
+                    "conditions": {"soakDays": 0},
                     "schedule": "0 0 * * *",
                 }
             ),
@@ -63,8 +64,9 @@ class TestUpdateHistory(TestCase):
                 **{
                     "workloads": ["workload1"],
                     "cluster": "cluster2",
+                    "cluster_uuid": "cluster1_uuid",
                     "current_version": "4.12.1",
-                    "conditions": {},
+                    "conditions": {"soakDays": 0},
                     "schedule": "0 0 * * *",
                 }
             ),
@@ -72,8 +74,9 @@ class TestUpdateHistory(TestCase):
                 **{
                     "workloads": ["workload2"],
                     "cluster": "cluster3",
+                    "cluster_uuid": "cluster1_uuid",
                     "current_version": "4.12.1",
-                    "conditions": {},
+                    "conditions": {"soakDays": 0},
                     "schedule": "0 0 * * *",
                 }
             ),
@@ -204,11 +207,12 @@ class TestUpgradeLock:
     desired_cluster1 = ConfiguredClusterUpgradePolicy(
         **{
             "cluster": "cluster1",
+            "cluster_uuid": "cluster1_uuid",
             "current_version": "4.3.0",
             "channel": "stable",
             "schedule": "* * * * *",
             "workloads": [],
-            "conditions": {"mutexes": ["mutex1"]},
+            "conditions": {"mutexes": ["mutex1"], "soakDays": 0},
         }
     )
 
@@ -290,6 +294,7 @@ class TestUpgradeableVersion:
                 "current_version": "4.3.5",
                 "channel": "stable",
                 "cluster": "test",
+                "cluster_uuid": "test_uuid",
                 "schedule": "manual",
                 "workloads": ["workload1"],
                 "conditions": ConfiguredUpgradePolicyConditions(soakDays=1),
@@ -367,6 +372,7 @@ class TestUpgradePriority(TestCase):
         return ConfiguredUpgradePolicy(
             **{
                 "cluster": name,
+                "cluster_uuid": "test_uuid",
                 "current_version": version,
                 "schedule": "",
                 "workloads": [],
@@ -494,7 +500,9 @@ class TestVersionConditionsMetSector:
     def test_conditions_met_no_deps(
         self, sector1_ocm1: Sector, empty_version_data_map: dict[str, VersionData]
     ):
-        upgrade_conditions = ConfiguredUpgradePolicyConditions(sector=sector1_ocm1)
+        upgrade_conditions = ConfiguredUpgradePolicyConditions(
+            sector=sector1_ocm1, soakDays=0
+        )
         assert aus.version_conditions_met(
             "1.2.3", empty_version_data_map, "ocm1", ["workload1"], upgrade_conditions
         )
@@ -502,7 +510,9 @@ class TestVersionConditionsMetSector:
     def test_conditions_met_single_deps_no_cluster(
         self, sector2_ocm1: Sector, empty_version_data_map: dict[str, VersionData]
     ):
-        upgrade_conditions = ConfiguredUpgradePolicyConditions(sector=sector2_ocm1)
+        upgrade_conditions = ConfiguredUpgradePolicyConditions(
+            sector=sector2_ocm1, soakDays=0
+        )
         assert aus.version_conditions_met(
             "1.2.3", empty_version_data_map, "ocm1", ["workload1"], upgrade_conditions
         )
@@ -528,7 +538,9 @@ class TestVersionConditionsMetSector:
         cluster_high_version: dict[str, Any],
         empty_version_data_map: dict[str, VersionData],
     ):
-        upgrade_conditions = ConfiguredUpgradePolicyConditions(sector=sector2_ocm1)
+        upgrade_conditions = ConfiguredUpgradePolicyConditions(
+            sector=sector2_ocm1, soakDays=0
+        )
         self.set_clusters(mocker, sector1_ocm1, [cluster_high_version])
         assert aus.version_conditions_met(
             "1.2.3", empty_version_data_map, "ocm1", ["workload1"], upgrade_conditions
@@ -542,7 +554,9 @@ class TestVersionConditionsMetSector:
         cluster_low_version: dict[str, Any],
         empty_version_data_map: dict[str, VersionData],
     ):
-        upgrade_conditions = ConfiguredUpgradePolicyConditions(sector=sector2_ocm1)
+        upgrade_conditions = ConfiguredUpgradePolicyConditions(
+            sector=sector2_ocm1, soakDays=0
+        )
         self.set_clusters(mocker, sector1_ocm1, [cluster_low_version])
         assert not aus.version_conditions_met(
             "1.2.3", empty_version_data_map, "ocm1", ["workload1"], upgrade_conditions
@@ -557,7 +571,9 @@ class TestVersionConditionsMetSector:
         cluster_high_version: dict[str, Any],
         empty_version_data_map: dict[str, VersionData],
     ):
-        upgrade_conditions = ConfiguredUpgradePolicyConditions(sector=sector2_ocm1)
+        upgrade_conditions = ConfiguredUpgradePolicyConditions(
+            sector=sector2_ocm1, soakDays=0
+        )
         self.set_clusters(
             mocker, sector1_ocm1, [cluster_low_version, cluster_high_version]
         )
@@ -577,7 +593,9 @@ class TestVersionConditionsMetSector:
         cluster_high_version: dict[str, Any],
         empty_version_data_map: dict[str, VersionData],
     ):
-        upgrade_conditions = ConfiguredUpgradePolicyConditions(sector=sector3_ocm1)
+        upgrade_conditions = ConfiguredUpgradePolicyConditions(
+            sector=sector3_ocm1, soakDays=0
+        )
 
         # no clusters in deps: upgrade ok
         assert aus.version_conditions_met(
@@ -687,6 +705,7 @@ class TestCalculateDiff:
         return ConfiguredClusterUpgradePolicy(
             **{
                 "cluster": "cluster1",
+                "cluster_uuid": "cluster1_uuid",
                 "current_version": "4.3.0",
                 "channel": "stable",
                 "schedule": "* * * * *",
@@ -702,6 +721,7 @@ class TestCalculateDiff:
             **{
                 "addon_id": "addon1",
                 "cluster": "cluster1",
+                "cluster_uuid": "cluster1_uuid",
                 "current_version": "4.3.0",
                 "schedule": "* * * * *",
                 "workloads": ["workload1"],

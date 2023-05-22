@@ -2,7 +2,10 @@ from datetime import datetime
 from enum import Enum
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import (
+    BaseModel,
+    ValidationError,
+)
 
 from reconcile.utils.ocm.labels import OCMSubscriptionLabel
 from reconcile.utils.ocm.search_filters import Filter
@@ -70,10 +73,15 @@ def get_subscriptions(
             params={"search": filter_chunk.render()},
             max_page_size=chunk_size,
         ):
-            sub = OCMSubscription(
-                **subscription_dict,
-            )
-            subscriptions[sub.id] = sub
+            try:
+                sub = OCMSubscription(
+                    **subscription_dict,
+                )
+                subscriptions[sub.id] = sub
+            except ValidationError:
+                pass
+                # ignore subscriptions that fail to validate
+                # against the OCMSubscription, since the lack important fields
     return subscriptions
 
 

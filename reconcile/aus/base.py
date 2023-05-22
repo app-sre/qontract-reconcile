@@ -19,6 +19,12 @@ from croniter import croniter
 from pydantic import BaseModel
 from semver import VersionInfo
 
+from reconcile.aus.metrics import (
+    AUSClusterUpgradePolicyInfoMetric,
+    AUSOrganizationReconcileCounter,
+    AUSOrganizationReconcileErrorCounter,
+    AUSOrganizationValidationErrorsGauge,
+)
 from reconcile.aus.models import (
     ClusterUpgradeSpec,
     ConfiguredAddonUpgradePolicy,
@@ -31,7 +37,10 @@ from reconcile.gql_definitions.common.ocm_environments import (
     query as ocm_environment_query,
 )
 from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
-from reconcile.utils import gql
+from reconcile.utils import (
+    gql,
+    metrics,
+)
 from reconcile.utils.cluster_version_data import (
     VersionData,
     WorkloadHistory,
@@ -66,17 +75,31 @@ class AdvancedUpgradeSchedulerBaseIntegration(
     QontractReconcileIntegration[AdvancedUpgradeSchedulerBaseIntegrationParams]
 ):
     def run(self, dry_run: bool) -> None:
-        upgrade_specs = self.get_upgrade_specs()
-        for ocm_env, env_upgrade_specs in upgrade_specs.items():
-            for org_name, org_upgrade_spec in env_upgrade_specs.items():
-                if org_upgrade_spec.has_validation_errors:
-                    self.signal_validation_issues(dry_run, org_upgrade_spec)
-                elif org_upgrade_spec.specs:
-                    self.process_upgrade_policies_in_org(dry_run, org_upgrade_spec)
-                else:
-                    logging.debug(
-                        f"Skip org {org_name} in {ocm_env} because it defines no upgrade policies"
-                    )
+        with metrics.transactional_metrics(self.name):
+            upgrade_specs = self.get_upgrade_specs()
+            for ocm_env, env_upgrade_specs in upgrade_specs.items():
+                for org_name, org_upgrade_spec in env_upgrade_specs.items():
+                    self.expose_org_upgrade_spec_metrics(ocm_env, org_upgrade_spec)
+                    if org_upgrade_spec.has_validation_errors:
+                        self.signal_validation_issues(dry_run, org_upgrade_spec)
+                    elif org_upgrade_spec.specs:
+                        try:
+                            self.process_upgrade_policies_in_org(
+                                dry_run, org_upgrade_spec
+                            )
+                        except Exception as e:
+                            metrics.inc_counter(
+                                AUSOrganizationReconcileErrorCounter(
+                                    integration=self.name,
+                                    ocm_env=ocm_env,
+                                    org_id=org_upgrade_spec.org.org_id,
+                                )
+                            )
+                            self.signal_reconcile_issues(dry_run, org_upgrade_spec, e)
+                    else:
+                        logging.debug(
+                            f"Skip org {org_name} in {ocm_env} because it defines no upgrade policies"
+                        )
         sys.exit(0)
 
     def get_upgrade_specs(self) -> dict[str, dict[str, OrganizationUpgradeSpec]]:
@@ -112,6 +135,55 @@ class AdvancedUpgradeSchedulerBaseIntegration(
         self, dry_run: bool, org_upgrade_spec: OrganizationUpgradeSpec
     ) -> None:
         ...
+
+    def signal_reconcile_issues(
+        self,
+        dry_run: bool,
+        org_upgrade_spec: OrganizationUpgradeSpec,
+        exception: Exception,
+    ) -> None:
+        """
+        The default behaviour is to reraise the exception again so it is handled
+        high up in the stack, potentially also failing the integration.
+        """
+        raise exception
+
+    def expose_org_upgrade_spec_metrics(
+        self, ocm_env: str, org_upgrade_spec: OrganizationUpgradeSpec
+    ) -> None:
+        metrics.inc_counter(
+            AUSOrganizationReconcileCounter(
+                integration=self.name,
+                ocm_env=ocm_env,
+                org_id=org_upgrade_spec.org.org_id,
+            )
+        )
+        metrics.set_gauge(
+            AUSOrganizationValidationErrorsGauge(
+                integration=self.name,
+                ocm_env=ocm_env,
+                org_id=org_upgrade_spec.org.org_id,
+            ),
+            org_upgrade_spec.nr_of_validation_errors,
+        )
+        for cluster_upgrade_spec in org_upgrade_spec.specs:
+            mutexes = cluster_upgrade_spec.upgrade_policy.conditions.mutexes
+            metrics.set_info(
+                AUSClusterUpgradePolicyInfoMetric(
+                    integration=self.name,
+                    ocm_env=ocm_env,
+                    cluster_uuid=cluster_upgrade_spec.cluster_uuid,
+                    org_id=cluster_upgrade_spec.ocm.org_id,
+                    cluster_name=cluster_upgrade_spec.name,
+                    schedule=cluster_upgrade_spec.upgrade_policy.schedule,
+                    sector=cluster_upgrade_spec.upgrade_policy.conditions.sector or "",
+                    mutexes=",".join(mutexes) if mutexes else "",
+                    soak_days=str(
+                        cluster_upgrade_spec.upgrade_policy.conditions.soak_days or 0
+                    ),
+                    workloads=",".join(cluster_upgrade_spec.upgrade_policy.workloads),
+                ),
+            )
 
 
 class GateAgreement(BaseModel):
@@ -761,3 +833,18 @@ def act(
             continue
         ocm = ocm_map.get(policy.cluster)
         diff.act(dry_run, ocm)
+
+
+def soaking_days(
+    version_data: VersionData,
+    upgrades: list[str],
+    workload: str,
+    only_soaking: bool,
+) -> dict[str, float]:
+    soaking = {}
+    for version in upgrades:
+        workload_history = version_data.workload_history(version, workload)
+        soaking[version] = round(workload_history.soak_days, 2)
+        if not only_soaking and version not in soaking:
+            soaking[version] = 0
+    return soaking
