@@ -1076,6 +1076,7 @@ CLUSTER_PEERING_QUERY = """
             }
           }
           tags
+          assumeRole
         }
         ... on ClusterPeeringConnectionAccountTGW_v1 {
           account {
