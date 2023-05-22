@@ -167,6 +167,7 @@ class Promotion(BaseModel):
     commit_sha: str
     saas_file: str
     target_config_hash: str
+    saas_target_uid: str
     auto: Optional[bool] = None
     publish: Optional[list[str]] = None
     subscribe: Optional[list[str]] = None

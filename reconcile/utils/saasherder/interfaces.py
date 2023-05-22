@@ -332,7 +332,11 @@ class SaasResourceTemplateTarget(HasParameters, HasSecretParameters, Protocol):
         ...
 
     def dict(self, *, by_alias: bool = False) -> dict[str, Any]:
-        ...
+        """Return a dictionary representation of the model."""
+
+    @property
+    def uid(self) -> str:
+        """Return a unique identifier for the target."""
 
 
 class SaasResourceTemplate(HasParameters, HasSecretParameters, Protocol):

@@ -996,6 +996,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                 commit_sha=commit_sha,
                 saas_file=saas_file_name,
                 target_config_hash=target_config_hash,
+                saas_target_uid=target.uid,
             )
         return resources, html_url, target_promotion
 
@@ -1768,7 +1769,10 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
             if promotion.subscribe:
                 for channel in promotion.subscribe:
                     info = self._promotion_state.get_promotion_data(
-                        sha=promotion.commit_sha, channel=channel, local_lookup=False
+                        sha=promotion.commit_sha,
+                        channel=channel,
+                        saas_target_uid=promotion.saas_target_uid,
+                        local_lookup=False,
                     )
                     if not (info and info.success):
                         logging.error(
@@ -1860,6 +1864,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                     self._promotion_state.publish_promotion_data(
                         sha=promotion.commit_sha,
                         channel=channel,
+                        saas_target_uid=promotion.saas_target_uid,
                         data=PromotionData(
                             saas_file=promotion.saas_file,
                             success=success,
