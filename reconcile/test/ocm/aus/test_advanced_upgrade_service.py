@@ -29,6 +29,7 @@ from reconcile.utils.ocm.clusters import ClusterDetails
 from reconcile.utils.ocm.labels import (
     LabelContainer,
     build_label_container,
+    subscription_label_filter,
 )
 from reconcile.utils.ocm.search_filters import Filter
 from reconcile.utils.ocm.sre_capability_labels import build_labelset
@@ -313,7 +314,8 @@ def test_discover_clusters(mocker: MockerFixture) -> None:
     clusters = discover_clusters(None, "org-id")  # type: ignore
 
     discover_clusters_by_labels_mock.assert_called_once_with(
-        ocm_api=None, label_filter=Filter().like("key", aus_label_key("%"))
+        ocm_api=None,
+        label_filter=subscription_label_filter().like("key", aus_label_key("%")),
     )
 
     assert org_id in clusters
