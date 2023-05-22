@@ -41,6 +41,7 @@ from reconcile.utils.ocm.labels import (
     OCMOrganizationLabel,
     build_label_container,
     get_organization_labels,
+    subscription_label_filter,
 )
 from reconcile.utils.ocm.search_filters import Filter
 from reconcile.utils.ocm.service_log import (
@@ -126,7 +127,7 @@ def discover_clusters(
     """
     clusters = discover_clusters_by_labels(
         ocm_api=ocm_api,
-        label_filter=Filter().like("key", aus_label_key("%")),
+        label_filter=subscription_label_filter().like("key", aus_label_key("%")),
     )
 
     # group by org and filter if org_id is specified

@@ -21,10 +21,17 @@ def get_subscription_labels(
     Finds all subscription labels that match the given filter.
     """
     for subscription_label in get_labels(
-        ocm_api=ocm_api, filter=filter.eq("type", "Subscription")
+        ocm_api=ocm_api, filter=filter & subscription_label_filter()
     ):
         if isinstance(subscription_label, OCMSubscriptionLabel):
             yield subscription_label
+
+
+def subscription_label_filter() -> Filter:
+    """
+    Returns a filter that can be used to find only subscription labels.
+    """
+    return Filter().eq("type", "Subscription")
 
 
 def get_organization_labels(
@@ -34,10 +41,17 @@ def get_organization_labels(
     Finds all organization labels that match the given filter.
     """
     for org_label in get_labels(
-        ocm_api=ocm_api, filter=filter.eq("type", "Organization")
+        ocm_api=ocm_api, filter=filter & organization_label_filter()
     ):
         if isinstance(org_label, OCMOrganizationLabel):
             yield org_label
+
+
+def organization_label_filter() -> Filter:
+    """
+    Returns a filter that can be used to find only organization labels.
+    """
+    return Filter().eq("type", "Organization")
 
 
 def get_labels(
