@@ -19,6 +19,7 @@ from reconcile.utils.external_resources import (
     get_external_resource_specs,
 )
 from reconcile.utils.semver_helper import make_semver
+from reconcile.utils.state import State, init_state
 from reconcile.utils.terraform_client import TerraformClient as Terraform
 from reconcile.utils.terrascript_aws_client import TerrascriptClient as Terrascript
 
@@ -203,6 +204,25 @@ def build_desired_state(
     return desired_state
 
 
+def should_run(state: State, zones: Iterable[Mapping]) -> bool:
+    for z in zones:
+        zone_name = z["name"]
+        account_name = z["account"]["name"]
+        state_key = f"{account_name}/{zone_name}"
+        if state.get(state_key) != z:
+            return True
+    return False
+
+
+def update_state(state: State, zones: Iterable[Mapping]):
+    for z in zones:
+        zone_name = z["name"]
+        account_name = z["account"]["name"]
+        state_key = f"{account_name}/{zone_name}"
+        if state.get(state_key) != z:
+            state.add(state_key, value=z, force=True)
+
+
 @defer
 def run(
     dry_run: bool = False,
@@ -214,6 +234,13 @@ def run(
 ):
     settings = queries.get_app_interface_settings()
     zones = queries.get_dns_zones(account_name=account_name)
+    state = init_state(integration=QONTRACT_INTEGRATION)
+    defer(state.cleanup)
+    if not should_run(state, zones):
+        logging.debug("nothing to do here")
+        # using return because terraform-resources
+        # may be the calling entity, and has more to do
+        return
 
     all_accounts = queries.get_aws_accounts(terraform_state=True)
     participating_account_names = [z["account"]["name"] for z in zones]
@@ -263,6 +290,8 @@ def run(
     err = tf.apply()
     if err:
         sys.exit(ExitCodes.ERROR)
+
+    update_state(state, zones)
 
 
 def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
