@@ -996,7 +996,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                 commit_sha=commit_sha,
                 saas_file=saas_file_name,
                 target_config_hash=target_config_hash,
-                saas_target_uid=target.uid,
+                saas_target_uid=target.uid(saas_file_name, resource_template_name),
             )
         return resources, html_url, target_promotion
 
