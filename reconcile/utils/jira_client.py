@@ -31,20 +31,30 @@ class JiraClient:
         token_auth = self.secret_reader.read(token)
         read_timeout = 60
         connect_timeout = 60
-        if settings and settings["jiraWatcher"]:
-            read_timeout = settings["jiraWatcher"]["readTimeout"]
-            connect_timeout = settings["jiraWatcher"]["connectTimeout"]
+        options = {}
+        if settings:
+            if settings["jiraWatcher"]:
+                read_timeout = settings["jiraWatcher"]["readTimeout"]
+                connect_timeout = settings["jiraWatcher"]["connectTimeout"]
+            if settings["jiraOptions"]:
+                options = settings["jiraOptions"]
 
         self.jira = JIRA(
-            self.server, token_auth=token_auth, timeout=(read_timeout, connect_timeout)
+            self.server, token_auth=token_auth, timeout=(read_timeout, connect_timeout), options=options
         )
 
-    def get_issues(self, fields: Optional[Mapping] = None) -> list[Issue]:
+    def get_issues(
+        self, fields: Optional[Mapping] = None, custom_jql: Optional[str] = None
+    ) -> list[Issue]:
         block_size = 100
         block_num = 0
 
         all_issues: list[Issue] = []
-        jql = "project={}".format(self.project)
+
+        jql = f"project={self.project}"
+        if custom_jql:
+            jql = f"{jql} AND {custom_jql}"
+
         kwargs: dict[str, Any] = {}
         if fields:
             kwargs["fields"] = ",".join(fields)
@@ -74,14 +84,19 @@ class JiraClient:
         body: str,
         labels: Optional[Iterable[str]] = None,
         links: Iterable[str] = (),
+        issuetype: Optional[Mapping[str, str]] = None,
+        assignee: Optional[Mapping[str, str]] = None,
     ) -> Issue:
         """Create an issue in our project with the given labels."""
+        if not issuetype:
+            issuetype = {"name": "Task"}
         issue = self.jira.create_issue(
             project=self.project,
             summary=summary,
             description=body,
             labels=labels,
-            issuetype={"name": "Task"},
+            issuetype=issuetype,
+            assignee=assignee,
         )
         for ln in links:
             self.jira.create_issue_link(
