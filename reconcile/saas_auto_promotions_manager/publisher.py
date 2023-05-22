@@ -28,19 +28,10 @@ class Publisher:
     def __init__(
         self,
         ref: str,
-        uid: str,
         repo_url: str,
         auth_code: Optional[HasSecret],
     ):
-        """Init.
-
-        ref: The target git ref to fetch the commit sha from.
-        uid: The uid of the saas publisher target.
-        repo_url: The git repo url of the saas publisher target.
-        auth_code: The auth code to use to fetch the commit sha.
-        """
         self._ref = ref
-        self._uid = uid
         self._repo_url = repo_url
         self._auth_code = auth_code
         self.channels: set[str] = set()
@@ -60,7 +51,6 @@ class Publisher:
             promotion_data = deployment_state.get_promotion_data(
                 sha=self.commit_sha,
                 channel=channel,
-                saas_target_uid=self._uid,
             )
             if not (
                 promotion_data

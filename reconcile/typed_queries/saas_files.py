@@ -1,4 +1,3 @@
-import hashlib
 import json
 from collections.abc import Callable
 from typing import (
@@ -24,7 +23,6 @@ from reconcile.gql_definitions.common.saas_files import (
     PipelinesProviderV1,
     RoleV1,
     SaasFileAuthenticationV1,
-    SaasFileV2,
     SaasResourceTemplateTargetImageV1,
     SaasResourceTemplateTargetNamespaceSelectorV1,
     SaasResourceTemplateTargetPromotionV1,
@@ -72,26 +70,10 @@ class SaasResourceTemplateTarget(ConfiguredBaseModel):
     image: Optional[SaasResourceTemplateTargetImageV1] = Field(..., alias="image")
     disable: Optional[bool] = Field(..., alias="disable")
     delete: Optional[bool] = Field(..., alias="delete")
-    parent_saas_file_name: Optional[str] = None
-    parent_resource_template_name: Optional[str] = None
 
     class Config:
         # ignore `namespaceSelector` and 'provider' fields from the GQL schema
         extra = Extra.ignore
-
-    @property
-    def uid(self) -> str:
-        """Returns a unique identifier for a target."""
-        if not self.parent_resource_template_name:
-            raise ValueError(
-                "parent_resource_template_name must be set before calling uid()"
-            )
-        if not self.parent_saas_file_name:
-            raise ValueError("parent_saas_file_name must be set before calling uid()")
-        return hashlib.blake2s(
-            f"{self.parent_saas_file_name}:{self.parent_resource_template_name}:{self.name if self.name else 'default'}:{self.namespace.cluster.name}:{self.namespace.name}".encode(),
-            digest_size=20,
-        ).hexdigest()
 
 
 class SaasResourceTemplate(ConfiguredBaseModel):
@@ -223,16 +205,6 @@ def create_targets_for_namespace_selector(
     return targets
 
 
-def convert_saas_file_v2_to_saas_file(saas_file_gql: SaasFileV2) -> SaasFile:
-    """Convert a SaasFileV2 to a SaasFile and inject the parent objects."""
-    saas_file = SaasFile(**export_model(saas_file_gql))
-    for tmpl in saas_file.resource_templates:
-        for target in tmpl.targets:
-            target.parent_saas_file_name = saas_file.name
-            target.parent_resource_template_name = tmpl.name
-    return saas_file
-
-
 def get_saas_files(
     name: Optional[str] = None,
     env_name: Optional[str] = None,
@@ -273,7 +245,7 @@ def get_saas_files(
                     )
         # convert SaasFileV2 (with optional resource_templates.targets.namespace field)
         # to SaasFile (with required resource_templates.targets.namespace field)
-        saas_files.append(convert_saas_file_v2_to_saas_file(saas_file_gql))
+        saas_files.append(SaasFile(**export_model(saas_file_gql)))
 
     if name is None and env_name is None and app_name is None:
         return saas_files
