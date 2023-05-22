@@ -34,25 +34,6 @@ class SaasFilesInventory:
         self._assemble_publishers()
         self._remove_unsupported()
 
-    def _assemble_channels(self) -> None:
-        for saas_file in self._saas_files:
-            for resource_template in saas_file.resource_templates:
-                for target in resource_template.targets:
-                    if not target.promotion:
-                        continue
-                    for publish_channel in target.promotion.publish or []:
-                        if publish_channel not in self._channels_by_name:
-                            self._channels_by_name[publish_channel] = Channel(
-                                name=publish_channel,
-                                publishers=[],
-                            )
-                    for subscribe_channel in target.promotion.subscribe or []:
-                        if subscribe_channel not in self._channels_by_name:
-                            self._channels_by_name[subscribe_channel] = Channel(
-                                name=subscribe_channel,
-                                publishers=[],
-                            )
-
     def _assemble_publishers(self) -> None:
         for saas_file in self._saas_files:
             for resource_template in saas_file.resource_templates:
@@ -66,6 +47,7 @@ class SaasFilesInventory:
                     )
                     publisher = Publisher(
                         ref=target.ref,
+                        uid=target.uid,
                         repo_url=resource_template.url,
                         auth_code=auth_code,
                     )
@@ -149,13 +131,6 @@ class SaasFilesInventory:
         for subscriber in self.subscribers:
             is_supported = True
             for channel in subscriber.channels:
-                if len(channel.publishers) > 1:
-                    logging.error(
-                        "[%s] We do not support multiple publishers for a single channel - blocked by https://issues.redhat.com/browse/APPSRE-7414",
-                        channel.name,
-                    )
-                    is_supported = False
-                    break
                 if not channel.publishers:
                     logging.error(
                         "[%s] There must be at least one publisher per channel.",
@@ -163,18 +138,7 @@ class SaasFilesInventory:
                     )
                     is_supported = False
                     break
-                if (
-                    len(subscriber.config_hashes_by_channel_name.get(channel.name, []))
-                    > 1
-                ):
-                    logging.error(
-                        "[%s] We do not support multiple publishers for a single channel - blocked by https://issues.redhat.com/browse/APPSRE-7414",
-                        channel.name,
-                    )
-                    is_supported = False
-                    break
+
             if is_supported:
                 supported_subscribers.append(subscriber)
         self.subscribers = supported_subscribers
-        # Ideally we also remove the publishers that are left w/o subscriber.
-        # But lets solve APPSRE-7414 - then it wont be necessary in the first place.
