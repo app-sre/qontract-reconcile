@@ -241,9 +241,7 @@ def run(
     defer(state.cleanup)
     if not should_run(state, zones):
         logging.debug("nothing to do here")
-        # using return because terraform-resources
-        # may be the calling entity, and has more to do
-        return
+        sys.exit(ExitCodes.SUCCESS)
 
     all_accounts = queries.get_aws_accounts(terraform_state=True)
     participating_account_names = [z["account"]["name"] for z in zones]
