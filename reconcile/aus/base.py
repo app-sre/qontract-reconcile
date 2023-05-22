@@ -23,7 +23,7 @@ from reconcile.aus.metrics import (
     AUSClusterUpgradePolicyInfoMetric,
     AUSOrganizationReconcileCounter,
     AUSOrganizationReconcileErrorCounter,
-    AUSOrganizationValidationErrorMetric,
+    AUSOrganizationValidationErrorsGauge,
 )
 from reconcile.aus.models import (
     ClusterUpgradeSpec,
@@ -159,7 +159,7 @@ class AdvancedUpgradeSchedulerBaseIntegration(
             )
         )
         metrics.set_gauge(
-            AUSOrganizationValidationErrorMetric(
+            AUSOrganizationValidationErrorsGauge(
                 integration=self.name,
                 ocm_env=ocm_env,
                 org_id=org_upgrade_spec.org.org_id,

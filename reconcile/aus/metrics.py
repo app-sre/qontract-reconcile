@@ -14,7 +14,7 @@ class AUSBaseMetric(BaseModel):
     ocm_env: str
 
 
-class AUSClusterVersionRemainingSoakDaysMetric(AUSBaseMetric, GaugeMetric):
+class AUSClusterVersionRemainingSoakDaysGauge(AUSBaseMetric, GaugeMetric):
     "Remaining days a version needs to soak for a cluster"
 
     cluster_uuid: str
@@ -42,7 +42,7 @@ class AUSClusterUpgradePolicyInfoMetric(AUSBaseMetric, InfoMetric):
         return "aus_cluster_upgrade_policy_info"
 
 
-class AUSOrganizationValidationErrorMetric(AUSBaseMetric, GaugeMetric):
+class AUSOrganizationValidationErrorsGauge(AUSBaseMetric, GaugeMetric):
     "Current validation errors within an OCM organization"
 
     org_id: str
@@ -69,4 +69,4 @@ class AUSOrganizationReconcileErrorCounter(AUSBaseMetric, CounterMetric):
 
     @classmethod
     def name(cls) -> str:
-        return "aus_organization_reconcile_error"
+        return "aus_organization_reconcile_errors"

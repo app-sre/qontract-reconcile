@@ -3,7 +3,7 @@ from typing import Optional
 
 from reconcile import queries
 from reconcile.aus import base as aus
-from reconcile.aus.metrics import AUSClusterVersionRemainingSoakDaysMetric
+from reconcile.aus.metrics import AUSClusterVersionRemainingSoakDaysGauge
 from reconcile.aus.models import (
     ClusterUpgradeSpec,
     ConfiguredUpgradePolicy,
@@ -131,7 +131,7 @@ class OCMClusterUpgradeSchedulerIntegration(
             for version in upgrades or []:
                 soaks = [s.get(version, 0) for s in workload_soaking_upgrades]
                 metrics.set_gauge(
-                    AUSClusterVersionRemainingSoakDaysMetric(
+                    AUSClusterVersionRemainingSoakDaysGauge(
                         integration=self.name,
                         ocm_env=ocm_env,
                         cluster_uuid=up.cluster_uuid,
