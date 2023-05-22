@@ -5,12 +5,16 @@ from reconcile.gql_definitions.common.clusters import (
     query,
 )
 from reconcile.utils import gql
+from reconcile.utils.gql import GqlApi
 
 
-def get_clusters(name: Optional[str] = None) -> list[ClusterV1]:
+def get_clusters(
+    gql_api: Optional[GqlApi] = None,
+    name: Optional[str] = None,
+) -> list[ClusterV1]:
     variables = {}
     if name:
         variables["name"] = name
-    gqlapi = gql.get_api()
-    data = query(gqlapi.query, variables=variables)
+    api = gql_api if gql_api else gql.get_api()
+    data = query(query_func=api.query, variables=variables)
     return list(data.clusters or [])
