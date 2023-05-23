@@ -32,11 +32,6 @@ def saas_files_builder(
                 d["imagePatterns"] = []
             for rt in d.get("resourceTemplates", []):
                 for t in rt.get("targets", []):
-                    if "parent_saas_file_name" not in t:
-                        t["parent_saas_file_name"] = "saas-file-name"
-                    if "parent_resource_template_name" not in t:
-                        t["parent_resource_template_name"] = "resource-template-name"
-
                     ns = t["namespace"]
                     if "name" not in ns:
                         ns["name"] = "some_name"
