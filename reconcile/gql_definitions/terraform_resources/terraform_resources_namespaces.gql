@@ -45,6 +45,9 @@ query TerraformResourcesNamespaces {
                     source_type
                     event_categories
                 }
+                data_classification {
+                    loss_impact
+                }
             }
             ... on NamespaceTerraformResourceS3_v1 {
                 region
