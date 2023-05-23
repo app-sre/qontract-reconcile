@@ -65,6 +65,4 @@ def test_multiple_publishers_for_single_channel(
     )
     inventory = SaasFilesInventory(saas_files=saas_files)
     assert len(inventory.publishers) == 2
-    # As of now we do not support this, i.e., all
-    # subscribers should be removed from the inventory
-    assert len(inventory.subscribers) == 0
+    assert len(inventory.subscribers) == 1

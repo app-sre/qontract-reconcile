@@ -41,6 +41,7 @@ def subscriber_builder() -> Callable[[Mapping[str, Any]], Subscriber]:
             for publisher_name, publisher_data in channel_data.items():
                 publisher = Publisher(
                     ref="",
+                    uid="",
                     repo_url="",
                     auth_code=None,
                 )

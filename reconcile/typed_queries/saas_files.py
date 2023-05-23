@@ -1,3 +1,4 @@
+import hashlib
 import json
 from collections.abc import Callable
 from typing import (
@@ -74,6 +75,13 @@ class SaasResourceTemplateTarget(ConfiguredBaseModel):
     class Config:
         # ignore `namespaceSelector` and 'provider' fields from the GQL schema
         extra = Extra.ignore
+
+    def uid(self, saas_file_name: str, resource_template_name: str) -> str:
+        """Returns a unique identifier for a target."""
+        return hashlib.blake2s(
+            f"{saas_file_name}:{resource_template_name}:{self.name if self.name else 'default'}:{self.namespace.cluster.name}:{self.namespace.name}".encode(),
+            digest_size=20,
+        ).hexdigest()
 
 
 class SaasResourceTemplate(ConfiguredBaseModel):

@@ -19,6 +19,7 @@ from reconcile.gql_definitions.fragments.saas_target_namespace import (
 from reconcile.test.fixtures import Fixtures
 from reconcile.typed_queries.saas_files import (
     SaasFile,
+    SaasResourceTemplateTarget,
     create_targets_for_namespace_selector,
     export_model,
     get_namespaces_by_selector,
@@ -600,6 +601,30 @@ def test_get_saasherder_settings(
     )
     assert setting.repo_url == "https://repo-url"
     assert setting.hash_length == 42
+
+
+def test_saas_target_uid(gql_class_factory: Callable) -> None:
+    target = gql_class_factory(
+        SaasResourceTemplateTarget,
+        {
+            "namespace": {
+                "name": "namespace-test",
+                "path": "some-path",
+                "environment": {
+                    "name": "test",
+                    "parameters": '{"ENV_PARAM": "foobar"}',
+                },
+                "app": {"name": "app-01"},
+                "cluster": CLUSTER,
+            },
+            "ref": "main",
+            "parameters": '{ "TARGET_PARAM": "foobar" }',
+        },
+    )
+    assert (
+        target.uid(saas_file_name="saas-file-01", resource_template_name="resource")
+        == "da117fd8c723f33f707012fc1317daf90d63013d"
+    )
 
 
 def test_export_model(

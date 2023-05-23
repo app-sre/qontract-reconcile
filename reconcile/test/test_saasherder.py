@@ -28,10 +28,11 @@ from reconcile.gql_definitions.common.saas_files import (
     SaasResourceTemplateTargetV2_SaasSecretParametersV1,
     SaasResourceTemplateV2,
 )
+from reconcile.typed_queries.saas_files import SaasFile
 from reconcile.utils.jjb_client import JJB
 from reconcile.utils.openshift_resource import ResourceInventory
 from reconcile.utils.saasherder import SaasHerder
-from reconcile.utils.saasherder.interfaces import SaasFile
+from reconcile.utils.saasherder.interfaces import SaasFile as SaasFileInterface
 from reconcile.utils.saasherder.models import TriggerSpecMovingCommit
 from reconcile.utils.secret_reader import SecretReaderBase
 
@@ -607,7 +608,7 @@ class TestPopulateDesiredState(TestCase):
         self.saasherder.populate_desired_state(ri)
 
         cnt = 0
-        for (cluster, namespace, resource_type, data) in ri:
+        for cluster, namespace, resource_type, data in ri:
             for _, d_item in data["desired"].items():
                 expected = yaml.safe_load(
                     self.fxts.get(
@@ -761,7 +762,7 @@ class TestConfigHashPromotionsValidation(TestCase):
 
     def setUp(self) -> None:
         self.saas_file = self.gql_class_factory(  # type: ignore[attr-defined] # it's set in the fixture
-            SaasFileV2, Fixtures("saasherder").get_anymarkup("saas.gql.yml")
+            SaasFile, Fixtures("saasherder").get_anymarkup("saas.gql.yml")
         )
         self.all_saas_files = [self.saas_file]
 
@@ -959,7 +960,7 @@ class TestRemoveNoneAttributes(TestCase):
 
 
 def test_render_templated_parameters(
-    gql_class_factory: Callable[..., SaasFile]
+    gql_class_factory: Callable[..., SaasFileInterface]
 ) -> None:
     saas_file = gql_class_factory(
         SaasFileV2,
