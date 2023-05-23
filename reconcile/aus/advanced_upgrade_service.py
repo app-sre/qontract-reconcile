@@ -30,7 +30,6 @@ from reconcile.gql_definitions.fragments.upgrade_policy import (
 from reconcile.utils.models import (
     CSV,
     cron_validator,
-    data_default_none,
 )
 from reconcile.utils.ocm.clusters import (
     ClusterDetails,
@@ -239,17 +238,19 @@ def _build_org_upgrade_spec(
     org_labelset = build_labelset(org_labels, OrganizationLabelSet)
     org_upgrade_spec = OrganizationUpgradeSpec(
         org=AUSOCMOrganization(
-            **data_default_none(
-                AUSOCMOrganization,
-                dict(
-                    name=org_id,
-                    orgId=org_id,
-                    blockedVersions=org_labelset.blocked_versions,
-                    environment=ocm_env,
-                    addonManagedUpgrades=False,
-                    sectors=org_labelset.sector_dependencies(),
-                ),
-            )
+            name=org_id,
+            orgId=org_id,
+            blockedVersions=org_labelset.blocked_versions,
+            environment=ocm_env,
+            addonManagedUpgrades=False,
+            sectors=org_labelset.sector_dependencies(),
+            accessTokenClientId=None,
+            accessTokenClientSecret=None,
+            accessTokenUrl=None,
+            addonUpgradeTests=None,
+            inheritVersionData=None,
+            upgradePolicyAllowedWorkloads=None,
+            upgradePolicyClusters=None,
         )
     )
 
