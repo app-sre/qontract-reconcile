@@ -309,7 +309,6 @@ class OCMProductRosa(OCMProduct):
     ALLOWED_SPEC_UPDATE_FIELDS = {
         SPEC_ATTR_CHANNEL,
         SPEC_ATTR_AUTOSCALE,
-        SPEC_ATTR_NODES,
         SPEC_ATTR_DISABLE_UWM,
     }
 
