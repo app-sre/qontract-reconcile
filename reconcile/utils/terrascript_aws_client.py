@@ -147,6 +147,9 @@ from reconcile.utils.aws_api import (
     AmiTag,
     AWSApi,
 )
+from reconcile.utils.cloud_resource_best_practice.aws_rds import (
+    verify_rds_best_practices,
+)
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.elasticsearch_exceptions import (
     ElasticSearchResourceMissingSubnetIdError,
@@ -1642,6 +1645,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         # rds instance
         # Ref: https://www.terraform.io/docs/providers/aws/r/db_instance.html
         tf_resource = aws_db_instance(identifier, **values)
+        verify_rds_best_practices(tf_resource, spec.resource["data_classification"])
         tf_resources.append(tf_resource)
 
         # rds outputs

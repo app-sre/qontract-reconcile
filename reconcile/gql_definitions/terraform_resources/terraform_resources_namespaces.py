@@ -84,6 +84,9 @@ query TerraformResourcesNamespaces {
                     source_type
                     event_categories
                 }
+                data_classification {
+                    loss_impact
+                }
             }
             ... on NamespaceTerraformResourceS3_v1 {
                 region
@@ -497,6 +500,10 @@ class AWSRDSEventNotificationV1(ConfiguredBaseModel):
     event_categories: Optional[list[str]] = Field(..., alias="event_categories")
 
 
+class AWSRDSDataClassificationV1(ConfiguredBaseModel):
+    loss_impact: Optional[str] = Field(..., alias="loss_impact")
+
+
 class NamespaceTerraformResourceRDSV1(NamespaceTerraformResourceAWSV1):
     region: Optional[str] = Field(..., alias="region")
     identifier: str = Field(..., alias="identifier")
@@ -514,6 +521,9 @@ class NamespaceTerraformResourceRDSV1(NamespaceTerraformResourceAWSV1):
     annotations: Optional[str] = Field(..., alias="annotations")
     event_notifications: Optional[list[AWSRDSEventNotificationV1]] = Field(
         ..., alias="event_notifications"
+    )
+    data_classification: Optional[AWSRDSDataClassificationV1] = Field(
+        ..., alias="data_classification"
     )
 
 
