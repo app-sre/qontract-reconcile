@@ -2,29 +2,60 @@ import json
 import logging
 import sys
 from collections.abc import Mapping
-from typing import Any
+from typing import (
+    Any,
+    Iterable,
+)
+
+from pydantic import BaseModel
 
 from reconcile import queries
+from reconcile.gql_definitions.common.clusters import ClusterV1
+from reconcile.gql_definitions.common.clusters import query as clusters_query
+from reconcile.utils import gql
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.ocm import OCMMap
 
 QONTRACT_INTEGRATION = "ocm-machine-pools"
 
 
-def fetch_current_state(clusters):
+class CurrentMachinePool(BaseModel):
+    # Abstract class for machine pools, abstracts OSD/Hypershift
+    id: str
+    replicas: int
+    instance_type: str
+    taints: list[Mapping[str, str]]
+    labels: Mapping[str, str]
+    cluster: str
+
+
+def fetch_current_state(
+    clusters: Iterable[ClusterV1],
+) -> tuple[OCMMap, list[CurrentMachinePool]]:
     settings = queries.get_app_interface_settings()
+    cluster_like_objects = [cluster.dict(by_alias=True) for cluster in clusters]
     ocm_map = OCMMap(
-        clusters=clusters, integration=QONTRACT_INTEGRATION, settings=settings
+        clusters=cluster_like_objects,
+        integration=QONTRACT_INTEGRATION,
+        settings=settings,
     )
 
     current_state = []
     for cluster in clusters:
-        cluster_name = cluster["name"]
-        ocm = ocm_map.get(cluster_name)
-        machine_pools = ocm.get_machine_pools(cluster_name)
+        ocm = ocm_map.get(cluster.name)
+        machine_pools = ocm.get_machine_pools(cluster.name)
         for machine_pool in machine_pools:
-            machine_pool["cluster"] = cluster_name
-            current_state.append(machine_pool)
+            machine_pool["cluster"] = cluster.name
+            current_state.append(
+                CurrentMachinePool(
+                    id=machine_pool["id"],
+                    replicas=machine_pool["replicas"],
+                    instance_type=machine_pool["instance_type"],
+                    taints=machine_pool["taints"],
+                    labels=machine_pool["labels"],
+                    cluster=machine_pool["cluster"],
+                )
+            )
 
     return ocm_map, current_state
 
@@ -113,23 +144,28 @@ def act(dry_run, diffs, ocm_map):
                 ocm.delete_machine_pool(cluster, diff)
 
 
-def _cluster_is_compatible(cluster: Mapping[str, Any]) -> bool:
-    return cluster.get("ocm") is not None and cluster.get("machinePools") is not None
+def _cluster_is_compatible(cluster: ClusterV1) -> bool:
+    return (
+        cluster.ocm is not None
+        and cluster.machine_pools is not None
+        and not cluster.spec.hypershift
+    )
 
 
 def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
-    clusters = queries.get_clusters()
-    clusters = [
+    clusters = clusters_query(query_func=gql.get_api().query).clusters or []
+
+    filtered_clusters = [
         c
         for c in clusters
         if integration_is_enabled(QONTRACT_INTEGRATION, c) and _cluster_is_compatible(c)
     ]
-    if not clusters:
+    if not filtered_clusters:
         logging.debug("No machinePools definitions found in app-interface")
         sys.exit(0)
 
-    ocm_map, current_state = fetch_current_state(clusters)
-    desired_state = fetch_desired_state(clusters)
+    ocm_map, current_state = fetch_current_state(filtered_clusters)
+    desired_state = fetch_desired_state(filtered_clusters)
     diffs, err = calculate_diff(current_state, desired_state)
     act(dry_run, diffs, ocm_map)
 
