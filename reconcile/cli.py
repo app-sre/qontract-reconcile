@@ -966,6 +966,15 @@ def aws_ami_share(ctx):
     run_integration(reconcile.aws_ami_share, ctx.obj)
 
 
+@integration.command(short_help="Cleanup old and unused AMIs.")
+@threaded()
+@click.pass_context
+def aws_ami_cleanup(ctx, thread_pool_size):
+    import reconcile.aws_ami_cleanup.integration
+
+    run_integration(reconcile.aws_ami_cleanup.integration, ctx.obj, thread_pool_size)
+
+
 @integration.command(
     short_help="Generate AWS ECR image pull secrets and store them in Vault."
 )
