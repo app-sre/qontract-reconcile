@@ -46,7 +46,7 @@ __loss_impact_none = [(backup_retention_period, 0, OPERATOR_GREATER_THAN_OR_EQUA
 
 
 # Keeping this method here for now, we can re-evaluate if this needs to go to separate util once more
-# use-cases are built.
+# use-cases are built. We could also couple operator with the operations, but keeping that for future iteration.
 def _check(aws_db_instance: aws_db_instance, checks: list) -> None:
     rds_fields_not_complied = []
     for field, expected_value, operator in checks:
