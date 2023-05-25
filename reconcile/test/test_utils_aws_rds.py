@@ -10,8 +10,8 @@ from reconcile.utils.cloud_resource_best_practice.aws_rds import (
 def test_rds_best_practices_compliant_db():
     db = aws_db_instance(
         "my-db",
-        delete_automated_backups="no",
-        skip_final_snapshot="no",
+        delete_automated_backups=False,
+        skip_final_snapshot=False,
         backup_retention_period=7,
     )
 
@@ -22,8 +22,8 @@ def test_rds_best_practices_non_compliant_db():
 
     db = aws_db_instance(
         "my-db",
-        delete_automated_backups="yes",
-        skip_final_snapshot="yes",
+        delete_automated_backups=True,
+        skip_final_snapshot=True,
         backup_retention_period=7,
     )
     with pytest.raises(RDSBestPracticesNotComplied) as e:
@@ -31,5 +31,5 @@ def test_rds_best_practices_non_compliant_db():
     assert (
         e.value.message
         == "AWS RDS instance my-db does not comply with best practices\nExpected field delete_automated_backups with "
-        'value "no", found "yes" \nExpected field skip_final_snapshot with value "no", found "yes" \n'
+        'value "False", found "True" \nExpected field skip_final_snapshot with value "False", found "True" \n'
     )

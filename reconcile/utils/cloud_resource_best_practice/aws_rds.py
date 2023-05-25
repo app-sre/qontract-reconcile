@@ -26,41 +26,40 @@ class RDSBestPracticesNotComplied(Exception):
         super().__init__(self.message)
 
 
-__loss_impact_high = {
-    delete_automated_backups: "no",
-    skip_final_snapshot: "no",
-    backup_retention_period: 7,
-}
+OPERATOR_EQUAL_TO = "EQUAL_TO"
+OPERATOR_GREATER_THAN_OR_EQUAL_TO = "GREATER_THAN_OR_EQUAL_TO"
 
-__loss_impact_medium = {
-    delete_automated_backups: "yes",
-    skip_final_snapshot: "no",
-    backup_retention_period: 7,
-}
 
-__loss_impact_low = {
-    delete_automated_backups: "yes",
-    skip_final_snapshot: "yes",
-    backup_retention_period: 3,
-}
+__loss_impact_high = [
+    (delete_automated_backups, False, OPERATOR_EQUAL_TO),
+    (skip_final_snapshot, False, OPERATOR_EQUAL_TO),
+    (backup_retention_period, 7, OPERATOR_GREATER_THAN_OR_EQUAL_TO),
+]
 
-__loss_impact_none = {
-    delete_automated_backups: "yes",
-    skip_final_snapshot: "yes",
-    backup_retention_period: 0,
-}
+__loss_impact_medium = [
+    (skip_final_snapshot, False, OPERATOR_EQUAL_TO),
+    (backup_retention_period, 7, OPERATOR_GREATER_THAN_OR_EQUAL_TO),
+]
+__loss_impact_low = [(backup_retention_period, 3, OPERATOR_GREATER_THAN_OR_EQUAL_TO)]
+
+__loss_impact_none = [(backup_retention_period, 0, OPERATOR_GREATER_THAN_OR_EQUAL_TO)]
 
 
 # Keeping this method here for now, we can re-evaluate if this needs to go to separate util once more
 # use-cases are built.
-def _check(aws_db_instance: aws_db_instance, d: dict) -> None:
+def _check(aws_db_instance: aws_db_instance, checks: list) -> None:
     rds_fields_not_complied = []
-    for k, v in d.items():
-        if k in aws_db_instance:
-            if v != aws_db_instance[k]:
-                rds_fields_not_complied.append((k, aws_db_instance[k], v))
-        else:
-            rds_fields_not_complied.append((k, None, v))
+    for field, expected_value, operator in checks:
+        if operator == OPERATOR_EQUAL_TO:
+            if not aws_db_instance.get(field) == expected_value:
+                rds_fields_not_complied.append(
+                    (field, aws_db_instance.get(field), expected_value)
+                )
+        elif operator == OPERATOR_GREATER_THAN_OR_EQUAL_TO:
+            if not aws_db_instance.get(field) >= expected_value:
+                rds_fields_not_complied.append(
+                    (field, aws_db_instance.get(field), expected_value)
+                )
 
     if len(rds_fields_not_complied) > 0:
         raise RDSBestPracticesNotComplied(
@@ -71,11 +70,11 @@ def _check(aws_db_instance: aws_db_instance, d: dict) -> None:
 def _verify_loss_impact(aws_db_instance: aws_db_instance, loss_impact: str) -> None:
     if loss_impact == "high":
         _check(aws_db_instance, __loss_impact_high)
-    if loss_impact == "medium":
+    elif loss_impact == "medium":
         _check(aws_db_instance, __loss_impact_medium)
-    if loss_impact == "low":
+    elif loss_impact == "low":
         _check(aws_db_instance, __loss_impact_low)
-    if loss_impact == "none":
+    elif loss_impact == "none":
         _check(aws_db_instance, __loss_impact_none)
 
 
