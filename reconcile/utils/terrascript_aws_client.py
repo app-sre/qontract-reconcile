@@ -4739,7 +4739,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         tf_resources.append(sg_tf_resource)
 
         # https://www.terraform.io/docs/providers/aws/r/lb.html
-        values = {
+        lb_values = {
             "provider": provider,
             "name": identifier,
             "internal": False,
@@ -4753,13 +4753,33 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         idle_timeout = resource.get("idle_timeout")
         if idle_timeout:
-            values["idle_timeout"] = idle_timeout
+            lb_values["idle_timeout"] = idle_timeout
 
         enable_http2 = resource.get("enable_http2")
         if enable_http2 is False:
-            values["enable_http2"] = False
+            lb_values["enable_http2"] = False
 
-        lb_tf_resource = aws_lb(identifier, **values)
+        if resource.get("access_logs"):
+            # https://www.terraform.io/docs/providers/aws/r/lb.html#access_logs
+            bucket_identifier = f"{identifier}-lb-access-logs"
+            lb_access_logs_s3_bucket_values = {
+                "provider": provider,
+                "bucket": bucket_identifier,
+            }
+            lb_access_logs_s3_bucket_tf_resource = aws_s3_bucket(
+                bucket_identifier, **lb_access_logs_s3_bucket_values
+            )
+            tf_resources.append(lb_access_logs_s3_bucket_tf_resource)
+
+            lb_values["access_logs"] = {
+                "enabled": True,
+                "bucket": f"${{{lb_access_logs_s3_bucket_tf_resource.id}}}",
+            }
+            lb_values["depends_on"].extend(
+                self.get_dependencies([lb_access_logs_s3_bucket_tf_resource])
+            )
+
+        lb_tf_resource = aws_lb(identifier, **lb_values)
         tf_resources.append(lb_tf_resource)
 
         default_target = None

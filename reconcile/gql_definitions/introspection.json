@@ -35831,6 +35831,18 @@
                             "deprecationReason": null
                         },
                         {
+                            "name": "access_logs",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "Boolean",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
                             "name": "targets",
                             "description": null,
                             "args": [],
