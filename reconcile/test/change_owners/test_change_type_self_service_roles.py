@@ -4,17 +4,18 @@ from reconcile.change_owners.approver import (
     GitlabGroupApproverReachability,
     SlackGroupApproverReachability,
 )
-from reconcile.change_owners.change_owners import validate_self_service_role
 from reconcile.change_owners.self_service_roles import (
-    EmptySelfServiceRoleError,
+    DatafileIncompatibleWithChangeTypeError,
+    NoApproversInSelfServiceRoleError,
     approver_reachability_from_role,
-    change_type_contexts_for_self_service_roles,
+    validate_self_service_role,
 )
 from reconcile.gql_definitions.change_owners.queries.self_service_roles import (
     ChangeTypeV1,
     DatafileObjectV1,
     RoleV1,
     SelfServiceConfigV1,
+    UserV1,
 )
 from reconcile.test.change_owners.fixtures import build_role
 
@@ -42,7 +43,7 @@ def test_valid_self_service_role() -> None:
                 resources=None,
             )
         ],
-        users=[],
+        users=[UserV1(org_username="u", tag_on_merge_requests=False)],
         bots=[],
         permissions=[],
     )
@@ -68,11 +69,24 @@ def test_invalid_self_service_role_schema_mismatch() -> None:
                 resources=None,
             )
         ],
-        users=[],
+        users=[UserV1(org_username="u", tag_on_merge_requests=False)],
         bots=[],
         permissions=[],
     )
-    with pytest.raises(ValueError):
+    with pytest.raises(DatafileIncompatibleWithChangeTypeError):
+        validate_self_service_role(role)
+
+
+def test_invalid_self_service_role_no_approvers() -> None:
+    with pytest.raises(NoApproversInSelfServiceRoleError):
+        role = build_role(
+            name="team-role",
+            change_type_name="change-type-name",
+            datafiles=[
+                DatafileObjectV1(datafileSchema="/access/role-1.yml", path="path")
+            ],
+            users=[],
+        )
         validate_self_service_role(role)
 
 
@@ -110,26 +124,3 @@ def test_self_service_role_gitlab_user_group_approver_reachability() -> None:
     assert reachability == [
         GitlabGroupApproverReachability(gitlab_group=g) for g in gitlab_groups
     ]
-
-
-#
-# test change_type_contexts_for_self_service_roles
-#
-
-
-def test_change_type_contexts_for_self_service_roles_no_approvers() -> None:
-    with pytest.raises(EmptySelfServiceRoleError):
-        role = build_role(
-            name="team-role",
-            change_type_name="change-type-name",
-            datafiles=[
-                DatafileObjectV1(datafileSchema="/access/role-1.yml", path="path")
-            ],
-            users=[],
-        )
-
-        change_type_contexts_for_self_service_roles(
-            roles=[role],
-            change_type_processors=[],
-            bundle_changes=[],
-        )
