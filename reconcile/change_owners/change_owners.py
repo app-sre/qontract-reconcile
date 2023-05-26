@@ -29,12 +29,9 @@ from reconcile.change_owners.implicit_ownership import (
 )
 from reconcile.change_owners.self_service_roles import (
     cover_changes_with_self_service_roles,
+    fetch_self_service_roles,
 )
-from reconcile.gql_definitions.change_owners.queries import (
-    change_types,
-    self_service_roles,
-)
-from reconcile.gql_definitions.change_owners.queries.self_service_roles import RoleV1
+from reconcile.gql_definitions.change_owners.queries import change_types
 from reconcile.utils import gql
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.mr.labels import (
@@ -76,33 +73,6 @@ def cover_changes(
         ],
         approver_resolver=GqlApproverResolver([comparision_gql_api, gql.get_api()]),
     )
-
-
-def validate_self_service_role(role: RoleV1) -> None:
-    for ssc in role.self_service or []:
-        if ssc.change_type.context_schema:
-            # check that all referenced datafiles have a schema that
-            # is compatible with the change-type
-            incompatible_datafiles = [
-                df.path
-                for df in ssc.datafiles or []
-                if df.datafile_schema != ssc.change_type.context_schema
-            ]
-            if incompatible_datafiles:
-                raise ValueError(
-                    f"The datafiles {incompatible_datafiles} are not compatible with the "
-                    f"{ssc.change_type.name} change-types contextSchema {ssc.change_type.context_schema}"
-                )
-
-
-def fetch_self_service_roles(gql_api: gql.GqlApi) -> list[RoleV1]:
-    roles: list[RoleV1] = []
-    for r in self_service_roles.query(gql_api.query).roles or []:
-        if not r.self_service:
-            continue
-        validate_self_service_role(r)
-        roles.append(r)
-    return roles
 
 
 def fetch_change_type_processors(
