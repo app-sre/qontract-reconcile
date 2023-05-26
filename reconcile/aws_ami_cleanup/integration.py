@@ -259,8 +259,9 @@ def run(dry_run: bool, thread_pool_size: int, defer: Optional[Callable] = None) 
                         )
                         continue
                 except CannotCompareTagsError as e:
-                    exit_code = ExitCodes.ERROR
                     logging.error(e)
+                    if not dry_run:
+                        exit_code = ExitCodes.ERROR
                     continue
 
                 logging.info(
