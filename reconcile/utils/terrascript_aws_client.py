@@ -108,6 +108,8 @@ from terrascript.resource import (
     aws_lb_listener_rule,
     aws_lb_target_group,
     aws_lb_target_group_attachment,
+    aws_msk_cluster,
+    aws_msk_configuration,
     aws_ram_principal_association,
     aws_ram_resource_association,
     aws_ram_resource_share,
@@ -1347,6 +1349,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             self.populate_tf_resource_rosa_authenticator(spec)
         elif provider == "rosa-authenticator-vpce":
             self.populate_tf_resource_rosa_authenticator_vpce(spec)
+        elif provider == "msk":
+            self.populate_tf_resource_msk(spec)
         else:
             raise UnknownProviderError(provider)
 
@@ -6144,4 +6148,97 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             )
             tf_resources.append(aws_vpc_endpoint_subnet_association_resource)
 
+        self.add_resources(account, tf_resources)
+
+    def populate_tf_resource_msk(self, spec):
+        account = spec.provisioner_name
+        values = self.init_values(spec)
+        output_prefix = spec.output_prefix
+        tf_resources = []
+
+        del values["identifier"]
+        values.setdefault("cluster_name", spec.identifier)
+
+        # common
+        self.init_common_outputs(tf_resources, spec)
+
+        # validations
+        if (
+            values["number_of_broker_nodes"]
+            % len(values["broker_node_group_info"]["client_subnets"])
+            != 0
+        ):
+            raise ValueError(
+                "number_of_broker_nodes must be a multiple of the number of specified client subnets."
+            )
+
+        # resources
+        # resource - msk config
+        msk_config = aws_msk_configuration(
+            "msk-configuration",
+            name=f"{spec.identifier}-msk-config",
+            kafka_versions=[values["kafka_version"]],
+            server_properties=values["server_properties"],
+        )
+        tf_resources.append(msk_config)
+        values.pop("server_properties", None)
+
+        # resource - cluster
+        values["configuration_info"] = {
+            "arn": "${" + msk_config.arn + "}",
+            "revision": "${" + msk_config.latest_revision + "}",
+        }
+        msk_cluster = aws_msk_cluster("msk-cluster", **values)
+        tf_resources.append(msk_cluster)
+
+        # resource - cloudwatch
+        if (
+            values.get("logging_info", {})
+            .get("broker_logs", {})
+            .get("cloudwatch_logs", {})
+            .get("enabled", False)
+        ):
+            log_group_values = {
+                "name": f"{spec.identifier}-msk-broker-logs",
+                "tags": values["tags"],
+                "retention_in_days": values["logging_info"]["broker_logs"][
+                    "cloudwatch_logs"
+                ]["retention_in_days"],
+            }
+            log_group_tf_resource = aws_cloudwatch_log_group(
+                "msk-broker-logs", **log_group_values
+            )
+            tf_resources.append(log_group_tf_resource)
+            del values["logging_info"]["broker_logs"]["cloudwatch_logs"][
+                "retention_in_days"
+            ]
+            values["logging_info"]["broker_logs"]["cloudwatch_logs"][
+                "log_group"
+            ] = log_group_tf_resource.name
+
+        # outputs
+        tf_resources.append(
+            Output(
+                output_prefix + "__zookeeper_connect_string",
+                value="${" + msk_cluster.zookeeper_connect_string + "}",
+            )
+        )
+        tf_resources.append(
+            Output(
+                output_prefix + "__zookeeper_connect_string_tls",
+                value="${" + msk_cluster.zookeeper_connect_string_tls + "}",
+            )
+        )
+        tf_resources.append(
+            Output(
+                output_prefix + "__bootstrap_brokers",
+                value="${" + msk_cluster.bootstrap_brokers + "}",
+            )
+        )
+        tf_resources.append(
+            Output(
+                output_prefix + "__bootstrap_brokers_tls",
+                value="${" + msk_cluster.bootstrap_brokers_tls + "}",
+            )
+        )
         self.add_resources(account, tf_resources)

@@ -387,6 +387,13 @@ query TerraformResourcesNamespaces {
                 annotations
                 defaults
             }
+            ... on NamespaceTerraformResourceMsk_v1 {
+                region
+                identifier
+                output_resource_name
+                defaults
+                annotations
+            }
         }
       }
     }

@@ -426,6 +426,13 @@ query TerraformResourcesNamespaces {
                 annotations
                 defaults
             }
+            ... on NamespaceTerraformResourceMsk_v1 {
+                region
+                identifier
+                output_resource_name
+                defaults
+                annotations
+            }
         }
       }
     }
@@ -999,6 +1006,14 @@ class NamespaceTerraformResourceRosaAuthenticatorVPCEV1(
     defaults: str = Field(..., alias="defaults")
 
 
+class NamespaceTerraformResourceMskV1(NamespaceTerraformResourceAWSV1):
+    region: Optional[str] = Field(..., alias="region")
+    identifier: str = Field(..., alias="identifier")
+    output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
+    defaults: str = Field(..., alias="defaults")
+    annotations: Optional[str] = Field(..., alias="annotations")
+
+
 class NamespaceTerraformProviderResourceAWSV1(NamespaceExternalResourceV1):
     resources: list[
         Union[
@@ -1025,6 +1040,7 @@ class NamespaceTerraformProviderResourceAWSV1(NamespaceExternalResourceV1):
             NamespaceTerraformResourceECRV1,
             NamespaceTerraformResourceS3CloudFrontPublicKeyV1,
             NamespaceTerraformResourceSecretsManagerV1,
+            NamespaceTerraformResourceMskV1,
             NamespaceTerraformResourceSecretsManagerServiceAccountV1,
             NamespaceTerraformResourceAWSV1,
         ]
