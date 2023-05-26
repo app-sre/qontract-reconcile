@@ -1,0 +1,39 @@
+namespaces:
+- externalResources:
+  - provider: aws
+    provisioner:
+      name: insights-perf
+    resources: []
+  name: historical-system-profiles-perf
+- externalResources:
+  - provider: aws
+    provisioner:
+      name: app-sre-ci
+    resources:
+    - provider: aws-iam-service-account
+  - provider: aws
+    provisioner:
+      name: app-sre
+    resources:
+    - provider: aws-iam-service-account
+    - identifier: ci-int-jenkins-worker-app-sre
+      image:
+      - provider: git
+        ref: c08e55a28257302604f37f2be4190517f68e185a
+        tag_name: infra_commit
+        url: https://gitlab.cee.redhat.com/app-sre/infra
+      - provider: static
+        tag_name: type
+        value: ci-int-jenkins-worker-app-sre
+      provider: asg
+    - identifier: ci-int-jenkins-worker-app-interface
+      image:
+      - provider: git
+        ref: c08e55a28257302604f37f2be4190517f68e185a
+        tag_name: infra_commit
+        url: https://gitlab.cee.redhat.com/app-sre/infra
+      - provider: static
+        tag_name: type
+        value: ci-int-jenkins-worker-app-interface
+      provider: asg
+  name: app-sre-ci

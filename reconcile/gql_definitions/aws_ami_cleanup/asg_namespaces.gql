@@ -1,0 +1,33 @@
+# qenerate: plugin=pydantic_v1
+
+query ASGNamespaces {
+  namespaces: namespaces_v1 {
+    name
+    externalResources {
+      provider
+      provisioner {
+        name
+      }
+      ... on NamespaceTerraformProviderResourceAWS_v1 {
+        resources {
+            provider
+            ... on NamespaceTerraformResourceASG_v1 {
+                identifier
+                image {
+                    provider
+                    ... on ASGImageGit_v1 {
+                       tag_name
+                       url
+                       ref
+                    }
+                    ... on ASGImageStatic_v1 {
+                        tag_name
+                        value
+                    }
+                }
+            }
+        }
+      }
+    }
+  }
+}
