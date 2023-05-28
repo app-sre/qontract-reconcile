@@ -14,6 +14,7 @@ from typing import (
     Any,
     Optional,
     Type,
+    TypeVar,
 )
 
 from prometheus_client.core import (
@@ -185,7 +186,8 @@ class MetricsContainer:
         """
         Increases the value of the given counter by the given amount.
         """
-        label_values = tuple(counter.dict(by_alias=True).values())
+        # all label values need to be strings, so lets convert them
+        label_values = tuple(str(v) for v in counter.dict(by_alias=True).values())
         current_value = self._counters[counter.__class__].get(label_values) or 0
         self._counters[counter.__class__][label_values] = current_value + by
 
@@ -200,6 +202,64 @@ class MetricsContainer:
         Collects all metrics from this container and all its scopes.
         """
         return self._aggregate_scopes()._collect_local()
+
+    T = TypeVar("T", bound=BaseMetric)
+
+    def get_metric_value(self, metric_class: Type[T], **kwargs: Any) -> Optional[float]:
+        """
+        Finds a unique match for the metrics class and labels, and returns its value.
+        If more than one match is found, a ValueError is raised.
+        If no match is found, None is returned.
+        """
+        found = self.get_metrics(metric_class, **kwargs)
+        if len(found) == 1:
+            return found[0][1]
+        if len(found) > 1:
+            raise ValueError(
+                f"More than one metric found for {metric_class} and labels {kwargs}"
+            )
+        return None
+
+    def get_metrics(
+        self, metric_class: Type[T], **kwargs: Any
+    ) -> list[tuple[T, float]]:
+        """
+        Returns all metrics of the given class from this container and all its scopes,
+        that match (or partially match) the given labels.
+        """
+        mc = self._aggregate_scopes()
+        metrics = {}
+        if issubclass(metric_class, CounterMetric):
+            metrics = mc._counters.get(metric_class, {})
+        elif issubclass(metric_class, GaugeMetric):
+            metrics = mc._gauges.get(metric_class, {})
+        else:
+            raise ValueError(f"Unknown metric class {metric_class}")
+
+        def match_labels_predicate(metric: BaseMetric, **match_labels: Any) -> bool:
+            for key, value in match_labels.items():
+                if getattr(metric, key) != value:
+                    return False
+            return True
+
+        unfiltered_results = [
+            (
+                metric_class(
+                    **{
+                        key: labels[i]
+                        for i, key in enumerate(metric_class.__fields__.keys())
+                    }
+                ),
+                value,
+            )
+            for labels, value in metrics.items()
+        ]
+
+        return [
+            (metric, value)
+            for metric, value in unfiltered_results
+            if match_labels_predicate(metric, **kwargs)
+        ]
 
     def _collect_local(self) -> Generator[Metric, None, None]:
         """

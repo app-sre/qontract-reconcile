@@ -12,7 +12,7 @@ class OCMClusterGroupId(Enum):
     """
 
     DEDICATED_ADMINS = "dedicated-admins"
-    CLUSTER_ADMIN = "cluster-admins"
+    CLUSTER_ADMINS = "cluster-admins"
 
 
 class OCMClusterUser(BaseModel):
