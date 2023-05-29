@@ -535,6 +535,16 @@ AWS_ACCOUNTS_QUERY = """
       }
     }
     {% endif %}
+    {% if cleanup %}
+    cleanup {
+      provider
+      ... on AWSAccountCleanupOptionAMI_v1 {
+        regex
+        age
+        region
+      }
+    }
+    {% endif %}
   }
 }
 """
@@ -547,6 +557,7 @@ def get_aws_accounts(
     sharing=False,
     terraform_state=False,
     ecrs=True,
+    cleanup=False,
 ):
     """Returns all AWS accounts"""
     gqlapi = gql.get_api()
@@ -559,6 +570,7 @@ def get_aws_accounts(
         sharing=sharing,
         terraform_state=terraform_state,
         ecrs=ecrs,
+        cleanup=cleanup,
     )
     return gqlapi.query(query)["accounts"]
 
