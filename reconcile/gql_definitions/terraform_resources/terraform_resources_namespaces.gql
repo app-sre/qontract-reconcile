@@ -240,6 +240,7 @@ query TerraformResourcesNamespaces {
                 idle_timeout
                 enable_http2
                 ip_address_type
+                access_logs
                 targets {
                     name
                     default
