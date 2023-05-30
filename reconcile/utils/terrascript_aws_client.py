@@ -4788,6 +4788,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             target_name = t["name"]
             t_openshift_service = t.get("openshift_service")
             t_ips = t.get("ips")
+            t_protocol = t.get("protocol") or "HTTPS"
+            t_protocol_version = t.get("protocol_version") or "HTTP1"
+
             if t_openshift_service:
                 target_ips = self._get_alb_target_ips_by_openshift_service(
                     identifier, t_openshift_service, account, namespace_info, ocm_map
@@ -4818,8 +4821,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 "provider": provider,
                 "name": f"{target_name}-${{{lbt_random_id.hex}}}",
                 "port": 443,
-                "protocol": "HTTPS",
-                "protocol_version": "HTTP1",
+                "protocol": t_protocol,
+                "protocol_version": t_protocol_version,
                 "target_type": "ip",
                 "vpc_id": vpc_id,
                 "health_check": {

@@ -246,6 +246,8 @@ query TerraformResourcesNamespaces {
                     default
                     ips
                     openshift_service
+                    protocol
+                    protocol_version
                 }
                 rules {
                     condition {
