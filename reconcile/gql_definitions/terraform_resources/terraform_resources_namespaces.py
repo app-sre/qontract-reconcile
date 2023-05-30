@@ -285,6 +285,8 @@ query TerraformResourcesNamespaces {
                     default
                     ips
                     openshift_service
+                    protocol
+                    protocol_version
                 }
                 rules {
                     condition {
@@ -756,6 +758,8 @@ class NamespaceTerraformResourceALBTargetsV1(ConfiguredBaseModel):
     default: bool = Field(..., alias="default")
     ips: Optional[list[str]] = Field(..., alias="ips")
     openshift_service: Optional[str] = Field(..., alias="openshift_service")
+    protocol: Optional[str] = Field(..., alias="protocol")
+    protocol_version: Optional[str] = Field(..., alias="protocol_version")
 
 
 class NamespaceTerraformResourceALBConditionV1(ConfiguredBaseModel):
