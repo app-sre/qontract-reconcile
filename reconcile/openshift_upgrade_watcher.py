@@ -127,7 +127,7 @@ def run(
     if defer:
         defer(state.cleanup)
 
-    clusters = [c for c in get_clusters() if c.ocm]
+    clusters = [c for c in get_clusters() if c.ocm and c.spec and not c.spec.hypershift]
 
     slack: Optional[SlackApi] = None
     if not dry_run:
