@@ -27,7 +27,6 @@ data:
       "editable": true,
       "fiscalYearStartMonth": 0,
       "graphTooltip": 0,
-      "id": 119492,
       "links": [],
       "liveNow": false,
       "panels": [
@@ -246,6 +245,7 @@ data:
               },
               "editorMode": "code",
               "expr": "min by (cluster_name, cluster_uuid, workloads, org_id) (aus_cluster_version_remaining_soak_days * on (cluster_uuid) group_left(cluster_name, workloads, schedule, sector, org_id) aus_cluster_upgrade_policy_info{workloads=~\".*$workloads.*\", org_id=~\".*$org_id.*\"})",
+              "interval": "3m",
               "legendFormat": "{{cluster_name}} - {{org_id}}",
               "range": true,
               "refId": "A"
@@ -311,10 +311,12 @@ data:
                 "uid": "P2C3F6ECC774D80E6"
               },
               "editorMode": "code",
+              "exemplar": false,
               "expr": "aus_cluster_version_remaining_soak_days * on (cluster_uuid) group_left(cluster_name, workloads, schedule, sector) aus_cluster_upgrade_policy_info{workloads=~\".*$workloads.*\", org_id=~\".*$org_id.*\"}",
               "format": "table",
+              "instant": true,
               "legendFormat": "__auto",
-              "range": true,
+              "range": false,
               "refId": "A"
             }
           ],
@@ -420,7 +422,7 @@ data:
       "timezone": "",
       "title": "AUS Cluster Upgrade Overview",
       "uid": "ukLXCSwVz",
-      "version": 15,
+      "version": 16,
       "weekStart": ""
     }
 kind: ConfigMap
