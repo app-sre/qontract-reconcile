@@ -274,6 +274,15 @@ class ClusterUpgradePolicy(AbstractUpgradePolicy):
         }
         ocm.delete_upgrade_policy(self.cluster, item)
 
+    def summarize(self, ocm_org_name: str) -> str:
+        details = {
+            "cluster": self.cluster,
+            "ocm_org": ocm_org_name,
+            "version": self.version,
+            "next_run": self.next_run,
+        }
+        return f"cluster upgrade policy - {remove_none_values_from_dict(details)}"
+
 
 class ControlPlaneUpgradePolicy(AbstractUpgradePolicy):
     """Class to create and delete ControlPlanUpgradePolicies in OCM"""
