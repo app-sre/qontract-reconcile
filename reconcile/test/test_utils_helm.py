@@ -304,3 +304,10 @@ def test_template_cron_failure_history(values_cron):
     template = helm.template(values_cron)
     expected = yaml.safe_load(fxt.get("failure_history.yml"))
     assert template == expected
+
+
+def test_template_cron_enable_pushgateway(values_cron):
+    values_cron["cronjobs"][0]["enablePushgateway"] = True
+    template = helm.template(values_cron)
+    expected = yaml.safe_load(fxt.get("enable_pushgateway.yml"))
+    assert template == expected

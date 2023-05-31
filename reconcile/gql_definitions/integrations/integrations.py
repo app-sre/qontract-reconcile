@@ -111,6 +111,7 @@ query Integrations {
         successfulJobHistoryLimit
         failedJobHistoryLimit
         imageRef
+        enablePushgateway
       }
       sharding {
         strategy
@@ -239,6 +240,7 @@ class IntegrationSpecV1(ConfiguredBaseModel):
     )
     failed_job_history_limit: Optional[int] = Field(..., alias="failedJobHistoryLimit")
     image_ref: Optional[str] = Field(..., alias="imageRef")
+    enable_pushgateway: Optional[bool] = Field(..., alias="enablePushgateway")
 
 
 class IntegrationShardingV1(ConfiguredBaseModel):

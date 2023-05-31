@@ -285,6 +285,7 @@ INTEGRATIONS_QUERY = """
         successfulJobHistoryLimit
         failedJobHistoryLimit
         imageRef
+        enablePushgateway
       }
     }
   }

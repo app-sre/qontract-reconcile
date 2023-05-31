@@ -26,8 +26,13 @@ from prometheus_client.core import (
     Histogram,
     Metric,
 )
-from prometheus_client.registry import Collector
+from prometheus_client.registry import (
+    Collector,
+    CollectorRegistry,
+)
 from pydantic import BaseModel
+
+pushgateway_registry = CollectorRegistry()
 
 run_time = Gauge(
     name="qontract_reconcile_last_run_seconds",
@@ -35,10 +40,24 @@ run_time = Gauge(
     labelnames=["integration", "shards", "shard_id"],
 )
 
+pushgateway_run_time = Gauge(
+    name="qontract_reconcile_last_run_seconds",
+    documentation="Last run duration in seconds",
+    labelnames=["integration", "shards", "shard_id"],
+    registry=pushgateway_registry,
+)
+
 run_status = Gauge(
     name="qontract_reconcile_last_run_status",
     documentation="Last run status",
     labelnames=["integration", "shards", "shard_id"],
+)
+
+pushgateway_run_status = Gauge(
+    name="qontract_reconcile_last_run_status",
+    documentation="Last run status",
+    labelnames=["integration", "shards", "shard_id"],
+    registry=pushgateway_registry,
 )
 
 execution_counter = Counter(
