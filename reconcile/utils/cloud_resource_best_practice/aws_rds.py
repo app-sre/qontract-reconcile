@@ -46,8 +46,8 @@ __loss_impact_levels = {
 # use-cases are built.
 def _check(aws_db_instance: aws_db_instance, checks: list) -> None:
     rds_fields_not_complied = []
-    for field, expected_value, operator in checks:
-        if not operator(aws_db_instance.get(field), expected_value):
+    for field, expected_value, op in checks:
+        if not op(aws_db_instance.get(field), expected_value):
             rds_fields_not_complied.append(
                 (field, aws_db_instance.get(field), expected_value)
             )
