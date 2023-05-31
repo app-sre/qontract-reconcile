@@ -99,7 +99,6 @@ def test_delete_automatic_upgrade_policy(
     ocm.delete_addon_upgrade_policy.assert_called_once_with(
         cluster,
         {
-            "version": "automatic",
             "id": automatic_upgrade_policy.id,
         },
     )

@@ -2,10 +2,14 @@ from datetime import (
     datetime,
     timedelta,
 )
-from typing import Any
+from typing import (
+    Any,
+    Optional,
+)
 from unittest import TestCase
 from unittest.mock import (
     Mock,
+    NonCallableMagicMock,
     patch,
 )
 
@@ -223,10 +227,10 @@ class TestUpgradeLock:
                 "cluster": "cluster1",
                 "version": "4.3.6",
                 "schedule_type": "manual",
-                "gates_to_agree": [],
                 "next_run": "2021-08-30T19:00:00Z",
             }
         ),
+        gates_to_agree=[],
     )
 
     @patch.object(aus, "datetime", Mock(wraps=datetime))
@@ -623,7 +627,7 @@ class TestVersionConditionsMetSector:
         )
 
 
-class TestAct:
+class TestPolicyHandler:
     @staticmethod
     @pytest.fixture
     def ocm_map(mocker):
@@ -635,6 +639,7 @@ class TestAct:
         map.instances.return_value = {"testing": ocm}.keys()
         ocm.get_available_upgrades.return_value = ["4.9.5", "4.10.1"]
         ocm.version_blocked.return_value = False
+        ocm.cluster_ids = {"test": "foo"}
         return map
 
     class TestPolicy(aus.AbstractUpgradePolicy):
@@ -651,29 +656,135 @@ class TestAct:
             return "do-something"
 
     @staticmethod
-    def create_policy_with_action(action: str):
-        return aus.UpgradePolicyHandler(
-            policy=TestAct.TestPolicy(
+    def create_handler(action: str, policy: Optional[aus.AbstractUpgradePolicy] = None):
+        p: Optional[aus.AbstractUpgradePolicy] = policy
+        if not policy:
+            p = TestPolicyHandler.TestPolicy(
                 cluster="testing",
                 version="4.1.2",
                 schedule_type="manual",
-            ),
+            )
+        return aus.UpgradePolicyHandler(
+            policy=p,
             action=action,
         )
 
     def test_act_with_diff(self, ocm_map):
-        handler = self.create_policy_with_action("create")
+        handler = self.create_handler("create")
         policy = handler.policy
         aus.act(dry_run=False, diffs=[handler], ocm_map=ocm_map)
         assert policy.created
         assert not policy.deleted
 
     def test_act_delete(self, ocm_map):
-        handler = self.create_policy_with_action("delete")
+        handler = self.create_handler("delete")
         policy = handler.policy
         aus.act(dry_run=False, diffs=[handler], ocm_map=ocm_map)
         assert not policy.created
         assert policy.deleted
+
+    def test_act_create_cluster_upgrade(self, ocm_map):
+        handler = self.create_handler(
+            "create",
+            policy=aus.ClusterUpgradePolicy(
+                cluster="test",
+                schedule_type="manual",
+                version="4.1.2",
+            ),
+        )
+        aus.act(dry_run=False, diffs=[handler], ocm_map=ocm_map)
+        ocm_map.get.return_value.create_upgrade_policy.assert_called_once_with(
+            "test", {"version": "4.1.2", "schedule_type": "manual", "next_run": None}
+        )
+
+    def test_act_delete_cluster_upgrade(self, ocm_map):
+        handler = self.create_handler(
+            "delete",
+            policy=aus.ClusterUpgradePolicy(
+                id="test",
+                cluster="test",
+                schedule_type="manual",
+                version="4.1.2",
+            ),
+        )
+        aus.act(dry_run=False, diffs=[handler], ocm_map=ocm_map)
+        ocm_map.get.return_value.delete_upgrade_policy.assert_called_once_with(
+            "test", {"id": "test"}
+        )
+
+    def test_act_create_control_plane_upgrade(self, ocm_map):
+        handler = self.create_handler(
+            "create",
+            policy=aus.ControlPlaneUpgradePolicy(
+                cluster="test",
+                schedule_type="manual",
+                version="4.1.2",
+            ),
+        )
+        aus.act(dry_run=False, diffs=[handler], ocm_map=ocm_map)
+        ocm_map.get.return_value.create_control_plane_upgrade_policy.assert_called_once_with(
+            "test",
+            {
+                "cluster_id": "foo",
+                "version": "4.1.2",
+                "schedule_type": "manual",
+                "upgrade_type": "ControlPlane",
+                "next_run": None,
+            },
+        )
+
+    def test_act_delete_control_plane_upgrade(self, ocm_map):
+        handler = self.create_handler(
+            "delete",
+            policy=aus.ControlPlaneUpgradePolicy(
+                id="test",
+                cluster="test",
+                schedule_type="manual",
+                version="4.1.2",
+            ),
+        )
+        aus.act(dry_run=False, diffs=[handler], ocm_map=ocm_map)
+        ocm_map.get.return_value.delete_control_plane_upgrade_policy.assert_called_once_with(
+            "test", {"id": "test"}
+        )
+
+    def test_act_create_addon_upgrade(self, ocm_map):
+        handler = self.create_handler(
+            "create",
+            policy=aus.AddonUpgradePolicy(
+                cluster="test",
+                schedule_type="manual",
+                version="4.1.2",
+                addon_id="test-addon",
+            ),
+        )
+        aus.act(dry_run=False, diffs=[handler], ocm_map=ocm_map)
+        ocm_map.get.return_value.create_addon_upgrade_policy.assert_called_once_with(
+            "test",
+            {
+                "addon_id": "test-addon",
+                "cluster_id": "foo",
+                "schedule_type": "manual",
+                "upgrade_type": "ADDON",
+                "version": "4.1.2",
+            },
+        )
+
+    def test_act_delete_addon_upgrade(self, ocm_map):
+        handler = self.create_handler(
+            "delete",
+            policy=aus.AddonUpgradePolicy(
+                id="test",
+                cluster="test",
+                schedule_type="manual",
+                version="4.1.2",
+                addon_id="test-addon",
+            ),
+        )
+        aus.act(dry_run=False, diffs=[handler], ocm_map=ocm_map)
+        ocm_map.get.return_value.delete_addon_upgrade_policy.assert_called_once_with(
+            "test", {"id": "test"}
+        )
 
 
 class TestCalculateDiff:
@@ -692,6 +803,10 @@ class TestCalculateDiff:
         ocm.get_available_upgrades.return_value = ["4.9.5", "4.10.1"]
         ocm.addons = [{"id": "addon1", "version": {"id": "4.9.5"}}]
         ocm.version_blocked.return_value = False
+        cluster = mocker.patch("reconcile.ocm.types.OCMSpec")
+        cluster.spec.hypershift = False
+        ocm = map.get.return_value
+        ocm.clusters.get.return_value = cluster
         return map
 
     @staticmethod
@@ -768,7 +883,28 @@ class TestCalculateDiff:
         assert cup.version == "4.9.5"
         assert cup.schedule_type == "manual"
         assert isinstance(cup, aus.ClusterUpgradePolicy)
-        assert cup.gates_to_agree == []
+        assert x[0].gates_to_agree == []
+
+    def test_calculate_control_plane(
+        self,
+        cluster_upgrade_policy: ConfiguredClusterUpgradePolicy,
+        ocm_map: NonCallableMagicMock,
+    ):
+        ocm_map.get.return_value.clusters.get.return_value.spec.hypershift = True
+
+        x = aus.calculate_diff(
+            [], [cluster_upgrade_policy], ocm_map, self.create_version_data_map()
+        )
+
+        assert len(x) == 1
+        cup = x[0].policy
+
+        assert x[0].action == "create"
+        assert cup.cluster == "cluster1"
+        assert cup.version == "4.9.5"
+        assert cup.schedule_type == "manual"
+        assert isinstance(cup, aus.ControlPlaneUpgradePolicy)
+        assert x[0].gates_to_agree == []
 
     def test_calculate_not_soaked(
         self, cluster_upgrade_policy: ConfiguredClusterUpgradePolicy, ocm_map: OCMMap
