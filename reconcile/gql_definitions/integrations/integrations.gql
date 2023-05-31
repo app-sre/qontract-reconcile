@@ -66,41 +66,55 @@ query Integrations {
         }
 
         ... on OpenshiftClusterSharding_v1 {
-            shardSpecOverrides {
-                shard {
-                    name
-                }
-                imageRef
-                disabled
-                resources {
-                  ... DeployResourcesFields
-                }
-                subSharding {
-                  strategy
-                  ... on StaticSubSharding_v1 {
-                    shards
-                  }
-                }
+          shardSpecOverrides {
+            shard {
+              name
             }
+            imageRef
+            disabled
+            resources {
+              ... DeployResourcesFields
+            }
+            subSharding {
+              strategy
+              ... on StaticSubSharding_v1 {
+                shards
+              }
+            }
+          }
         }
-
 
         ... on AWSAccountSharding_v1 {
-            shardSpecOverrides {
-              shard {
-                name
-                disable {
-                  integrations
-                }
-              }
-              imageRef
-              disabled
-              resources {
-                ... DeployResourcesFields
+          shardSpecOverrides {
+            shard {
+              name
+              disable {
+                integrations
               }
             }
+            imageRef
+            disabled
+            resources {
+              ... DeployResourcesFields
+            }
+          }
         }
 
+        ... on AWSTGWAccountSharding_v1 {
+          shardSpecOverrides {
+            shard {
+              name
+              disable {
+                integrations
+              }
+            }
+            imageRef
+            disabled
+            resources {
+              ... DeployResourcesFields
+            }
+          }
+        }
 
         ... on CloudflareDNSZoneSharding_v1 {
           shardSpecOverrides {

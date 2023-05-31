@@ -120,41 +120,55 @@ query Integrations {
         }
 
         ... on OpenshiftClusterSharding_v1 {
-            shardSpecOverrides {
-                shard {
-                    name
-                }
-                imageRef
-                disabled
-                resources {
-                  ... DeployResourcesFields
-                }
-                subSharding {
-                  strategy
-                  ... on StaticSubSharding_v1 {
-                    shards
-                  }
-                }
+          shardSpecOverrides {
+            shard {
+              name
             }
+            imageRef
+            disabled
+            resources {
+              ... DeployResourcesFields
+            }
+            subSharding {
+              strategy
+              ... on StaticSubSharding_v1 {
+                shards
+              }
+            }
+          }
         }
-
 
         ... on AWSAccountSharding_v1 {
-            shardSpecOverrides {
-              shard {
-                name
-                disable {
-                  integrations
-                }
-              }
-              imageRef
-              disabled
-              resources {
-                ... DeployResourcesFields
+          shardSpecOverrides {
+            shard {
+              name
+              disable {
+                integrations
               }
             }
+            imageRef
+            disabled
+            resources {
+              ... DeployResourcesFields
+            }
+          }
         }
 
+        ... on AWSTGWAccountSharding_v1 {
+          shardSpecOverrides {
+            shard {
+              name
+              disable {
+                integrations
+              }
+            }
+            imageRef
+            disabled
+            resources {
+              ... DeployResourcesFields
+            }
+          }
+        }
 
         ... on CloudflareDNSZoneSharding_v1 {
           shardSpecOverrides {
@@ -299,6 +313,32 @@ class AWSAccountShardingV1(IntegrationShardingV1):
     )
 
 
+class AWSTGWAccountShardSpecOverrideV1_AWSAccountV1_DisableClusterAutomationsV1(
+    ConfiguredBaseModel
+):
+    integrations: Optional[list[str]] = Field(..., alias="integrations")
+
+
+class AWSTGWAccountShardSpecOverrideV1_AWSAccountV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+    disable: Optional[
+        AWSTGWAccountShardSpecOverrideV1_AWSAccountV1_DisableClusterAutomationsV1
+    ] = Field(..., alias="disable")
+
+
+class AWSTGWAccountShardSpecOverrideV1(ConfiguredBaseModel):
+    shard: AWSTGWAccountShardSpecOverrideV1_AWSAccountV1 = Field(..., alias="shard")
+    image_ref: Optional[str] = Field(..., alias="imageRef")
+    disabled: Optional[bool] = Field(..., alias="disabled")
+    resources: Optional[DeployResourcesFields] = Field(..., alias="resources")
+
+
+class AWSTGWAccountShardingV1(IntegrationShardingV1):
+    shard_spec_overrides: Optional[list[AWSTGWAccountShardSpecOverrideV1]] = Field(
+        ..., alias="shardSpecOverrides"
+    )
+
+
 class CloudflareDnsZoneV1(ConfiguredBaseModel):
     zone: str = Field(..., alias="zone")
     identifier: str = Field(..., alias="identifier")
@@ -325,6 +365,7 @@ class IntegrationManagedV1(ConfiguredBaseModel):
             StaticShardingV1,
             OpenshiftClusterShardingV1,
             AWSAccountShardingV1,
+            AWSTGWAccountShardingV1,
             CloudflareDNSZoneShardingV1,
             IntegrationShardingV1,
         ]
