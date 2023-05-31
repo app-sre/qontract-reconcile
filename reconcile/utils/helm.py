@@ -1,6 +1,7 @@
 import json
 import tempfile
 from collections.abc import Mapping
+from os.path import dirname
 from subprocess import (
     PIPE,
     CalledProcessError,
@@ -29,6 +30,7 @@ def template(values: Mapping[str, Any]) -> Mapping[str, Any]:
         with tempfile.NamedTemporaryFile(mode="w+") as values_file:
             values_file.write(json.dumps(values, cls=JSONEncoder))
             values_file.flush()
+            repo_root = dirname(dirname(dirname(__file__)))
             cmd = [
                 "helm",
                 "template",
@@ -38,7 +40,7 @@ def template(values: Mapping[str, Any]) -> Mapping[str, Any]:
                 "-f",
                 values_file.name,
             ]
-            result = run(cmd, stdout=PIPE, stderr=PIPE, check=True)
+            result = run(cmd, stdout=PIPE, stderr=PIPE, check=True, cwd=repo_root)
     except CalledProcessError as e:
         msg = f'Error running helm template [{" ".join(cmd)}]'
         if e.stdout:
