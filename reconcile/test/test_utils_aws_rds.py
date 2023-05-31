@@ -2,7 +2,7 @@ import pytest
 from terrascript.resource import aws_db_instance
 
 from reconcile.utils.cloud_resource_best_practice.aws_rds import (
-    RDSBestPracticesNotComplied,
+    RDSResourceComplianceError,
     verify_rds_best_practices,
 )
 
@@ -26,7 +26,7 @@ def test_rds_best_practices_non_compliant_db():
         skip_final_snapshot=True,
         backup_retention_period=7,
     )
-    with pytest.raises(RDSBestPracticesNotComplied) as e:
+    with pytest.raises(RDSResourceComplianceError) as e:
         verify_rds_best_practices(db, {"loss_impact": "high"})
     assert (
         e.value.message

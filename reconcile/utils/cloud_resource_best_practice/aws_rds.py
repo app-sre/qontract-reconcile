@@ -9,7 +9,7 @@ backup_retention_period = "backup_retention_period"
 
 # Keeping the exception specific now, we can build a generic exception and refactor later
 # as more cases arise in the future.
-class RDSBestPracticesNotComplied(Exception):
+class RDSResourceComplianceError(Exception):
     def __init__(
         self, field_expected_actual: list[tuple[str, Any, Any]], db_identifier: str
     ):
@@ -29,20 +29,20 @@ class RDSBestPracticesNotComplied(Exception):
 OPERATOR_EQUAL_TO = "EQUAL_TO"
 OPERATOR_GREATER_THAN_OR_EQUAL_TO = "GREATER_THAN_OR_EQUAL_TO"
 
-
-__loss_impact_high = [
+__loss_impact_levels = {
+    "high": [
     (delete_automated_backups, False, OPERATOR_EQUAL_TO),
     (skip_final_snapshot, False, OPERATOR_EQUAL_TO),
     (backup_retention_period, 7, OPERATOR_GREATER_THAN_OR_EQUAL_TO),
-]
-
-__loss_impact_medium = [
+],
+    "medium": [
     (skip_final_snapshot, False, OPERATOR_EQUAL_TO),
     (backup_retention_period, 7, OPERATOR_GREATER_THAN_OR_EQUAL_TO),
-]
-__loss_impact_low = [(backup_retention_period, 3, OPERATOR_GREATER_THAN_OR_EQUAL_TO)]
+],
+    "low": [(backup_retention_period, 3, OPERATOR_GREATER_THAN_OR_EQUAL_TO)],
+    "none": [(backup_retention_period, 0, OPERATOR_GREATER_THAN_OR_EQUAL_TO)]
+}
 
-__loss_impact_none = [(backup_retention_period, 0, OPERATOR_GREATER_THAN_OR_EQUAL_TO)]
 
 
 # Keeping this method here for now, we can re-evaluate if this needs to go to separate util once more
@@ -62,20 +62,10 @@ def _check(aws_db_instance: aws_db_instance, checks: list) -> None:
                 )
 
     if len(rds_fields_not_complied) > 0:
-        raise RDSBestPracticesNotComplied(
+        raise RDSResourceComplianceError(
             rds_fields_not_complied, aws_db_instance._name
         )
 
-
-def _verify_loss_impact(aws_db_instance: aws_db_instance, loss_impact: str) -> None:
-    if loss_impact == "high":
-        _check(aws_db_instance, __loss_impact_high)
-    elif loss_impact == "medium":
-        _check(aws_db_instance, __loss_impact_medium)
-    elif loss_impact == "low":
-        _check(aws_db_instance, __loss_impact_low)
-    elif loss_impact == "none":
-        _check(aws_db_instance, __loss_impact_none)
 
 
 def verify_rds_best_practices(
@@ -83,4 +73,5 @@ def verify_rds_best_practices(
 ) -> None:
     if data_classification is None:
         return
-    _verify_loss_impact(aws_db_instance, data_classification["loss_impact"])
+    _check(aws_db_instance, __loss_impact_levels[data_classification["loss_impact"]])
+
