@@ -1,3 +1,4 @@
+import operator
 from typing import Any
 
 from terrascript.resource import aws_db_instance
@@ -26,46 +27,33 @@ class RDSResourceComplianceError(Exception):
         super().__init__(self.message)
 
 
-OPERATOR_EQUAL_TO = "EQUAL_TO"
-OPERATOR_GREATER_THAN_OR_EQUAL_TO = "GREATER_THAN_OR_EQUAL_TO"
-
 __loss_impact_levels = {
     "high": [
-    (delete_automated_backups, False, OPERATOR_EQUAL_TO),
-    (skip_final_snapshot, False, OPERATOR_EQUAL_TO),
-    (backup_retention_period, 7, OPERATOR_GREATER_THAN_OR_EQUAL_TO),
-],
+        (delete_automated_backups, False, operator.__eq__),
+        (skip_final_snapshot, False, operator.__eq__),
+        (backup_retention_period, 7, operator.__ge__),
+    ],
     "medium": [
-    (skip_final_snapshot, False, OPERATOR_EQUAL_TO),
-    (backup_retention_period, 7, OPERATOR_GREATER_THAN_OR_EQUAL_TO),
-],
-    "low": [(backup_retention_period, 3, OPERATOR_GREATER_THAN_OR_EQUAL_TO)],
-    "none": [(backup_retention_period, 0, OPERATOR_GREATER_THAN_OR_EQUAL_TO)]
+        (skip_final_snapshot, False, operator.__eq__),
+        (backup_retention_period, 7, operator.__ge__),
+    ],
+    "low": [(backup_retention_period, 3, operator.__ge__)],
+    "none": [(backup_retention_period, 0, operator.__ge__)],
 }
 
 
-
 # Keeping this method here for now, we can re-evaluate if this needs to go to separate util once more
-# use-cases are built. We could also couple operator with the operations, but keeping that for future iteration.
+# use-cases are built.
 def _check(aws_db_instance: aws_db_instance, checks: list) -> None:
     rds_fields_not_complied = []
     for field, expected_value, operator in checks:
-        if operator == OPERATOR_EQUAL_TO:
-            if not aws_db_instance.get(field) == expected_value:
-                rds_fields_not_complied.append(
-                    (field, aws_db_instance.get(field), expected_value)
-                )
-        elif operator == OPERATOR_GREATER_THAN_OR_EQUAL_TO:
-            if not aws_db_instance.get(field) >= expected_value:
-                rds_fields_not_complied.append(
-                    (field, aws_db_instance.get(field), expected_value)
-                )
+        if not operator(aws_db_instance.get(field), expected_value):
+            rds_fields_not_complied.append(
+                (field, aws_db_instance.get(field), expected_value)
+            )
 
     if len(rds_fields_not_complied) > 0:
-        raise RDSResourceComplianceError(
-            rds_fields_not_complied, aws_db_instance._name
-        )
-
+        raise RDSResourceComplianceError(rds_fields_not_complied, aws_db_instance._name)
 
 
 def verify_rds_best_practices(
@@ -74,4 +62,3 @@ def verify_rds_best_practices(
     if data_classification is None:
         return
     _check(aws_db_instance, __loss_impact_levels[data_classification["loss_impact"]])
-
