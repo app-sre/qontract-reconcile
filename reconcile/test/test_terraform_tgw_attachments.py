@@ -29,6 +29,7 @@ from reconcile.gql_definitions.common.clusters_with_peering import (
 from reconcile.gql_definitions.terraform_tgw_attachments.aws_accounts import (
     AWSAccountV1,
 )
+from reconcile.utils.aws_tgw_repository import AWSTGWClustersAndAccounts
 from reconcile.utils.gql import GqlApi
 from reconcile.utils.runtime.integration import ShardedRunProposal
 from reconcile.utils.secret_reader import SecretReaderBase
@@ -106,54 +107,6 @@ def tgw_connection_account(
 
 
 @pytest.fixture
-def vpc_account(account_builder: Callable[..., AWSAccountV1]) -> AWSAccountV1:
-    return account_builder(
-        name="vpc_account",
-        uid="vpc-account-uid",
-        terraform_username="vpc-account-terraform-username",
-    )
-
-
-@pytest.fixture
-def vpc_connection_account(
-    connection_account_builder: Callable[
-        ..., ClusterPeeringConnectionAccountTGWV1_AWSAccountV1
-    ],
-    vpc_account: AWSAccountV1,
-) -> ClusterPeeringConnectionAccountTGWV1_AWSAccountV1:
-    return connection_account_builder(
-        name=vpc_account.name,
-        uid=vpc_account.uid,
-        terraform_username=vpc_account.terraform_username,
-    )
-
-
-@pytest.fixture
-def additional_tgw_account(
-    account_builder: Callable[..., AWSAccountV1]
-) -> AWSAccountV1:
-    return account_builder(
-        name="additional_tgw_account",
-        uid="additional_tgw-account-uid",
-        terraform_username="additional_tgw-account-terraform-username",
-    )
-
-
-@pytest.fixture
-def additional_tgw_connection_account(
-    connection_account_builder: Callable[
-        ..., ClusterPeeringConnectionAccountTGWV1_AWSAccountV1
-    ],
-    additional_tgw_account: AWSAccountV1,
-) -> ClusterPeeringConnectionAccountTGWV1_AWSAccountV1:
-    return connection_account_builder(
-        name=additional_tgw_account.name,
-        uid=additional_tgw_account.uid,
-        terraform_username=additional_tgw_account.terraform_username,
-    )
-
-
-@pytest.fixture
 def peering_connection_builder(
     gql_class_factory: Callable[..., ClusterPeeringConnectionAccountTGWV1],
 ) -> Callable[..., ClusterPeeringConnectionAccountTGWV1]:
@@ -195,34 +148,6 @@ def account_tgw_connection(
         assume_role=None,
         cidr_block="172.16.0.0/16",
         delete=False,
-    )
-
-
-@pytest.fixture
-def additional_account_tgw_connection(
-    peering_connection_builder: Callable[..., ClusterPeeringConnectionAccountTGWV1],
-    additional_tgw_connection_account: ClusterPeeringConnectionAccountTGWV1_AWSAccountV1,
-) -> ClusterPeeringConnectionAccountTGWV1:
-    return peering_connection_builder(
-        name="additional_account_tgw_connection",
-        provider="account-tgw",
-        manage_routes=True,
-        account=additional_tgw_connection_account,
-        assume_role=None,
-        cidr_block="172.16.0.0/16",
-        delete=False,
-    )
-
-
-@pytest.fixture
-def account_vpc_connection(
-    peering_connection_builder: Callable[..., ClusterPeeringConnectionAccountTGWV1],
-    vpc_connection_account: ClusterPeeringConnectionAccountTGWV1_AWSAccountV1,
-) -> ClusterPeeringConnectionAccountTGWV1:
-    return peering_connection_builder(
-        name="account_vpc_connection",
-        provider="account-vpc",
-        account=vpc_connection_account,
     )
 
 
@@ -301,52 +226,6 @@ def cluster_with_tgw_connection(
 
 
 @pytest.fixture
-def cluster_with_2_tgw_connections(
-    cluster_builder: Callable[..., ClusterV1],
-    peering_builder: Callable[..., ClusterPeeringV1],
-    account_tgw_connection: ClusterPeeringConnectionAccountTGWV1,
-    additional_account_tgw_connection: ClusterPeeringConnectionAccountTGWV1,
-) -> ClusterV1:
-    return cluster_builder(
-        name="cluster_with_2_tgw_connections",
-        ocm={
-            "name": "cluster_with_2_tgw_connections-ocm",
-            "environment": {"accessTokenClientSecret": {}},
-        },
-        region="us-east-1",
-        vpc_cidr="10.0.0.0/16",
-        peering=peering_builder(
-            [
-                account_tgw_connection,
-                additional_account_tgw_connection,
-            ]
-        ),
-    )
-
-
-@pytest.fixture
-def additional_cluster_with_tgw_connection(
-    cluster_builder: Callable[..., ClusterV1],
-    peering_builder: Callable[..., ClusterPeeringV1],
-    additional_account_tgw_connection: ClusterPeeringConnectionAccountTGWV1,
-) -> ClusterV1:
-    return cluster_builder(
-        name="additional_cluster_with_tgw_connection",
-        ocm={
-            "name": "additional_cluster_with_tgw_connection-ocm",
-            "environment": {"accessTokenClientSecret": {}},
-        },
-        region="us-east-1",
-        vpc_cidr="10.0.0.0/16",
-        peering=peering_builder(
-            [
-                additional_account_tgw_connection,
-            ]
-        ),
-    )
-
-
-@pytest.fixture
 def cluster_with_duplicate_tgw_connections(
     cluster_builder: Callable[..., ClusterV1],
     peering_builder: Callable[..., ClusterPeeringV1],
@@ -364,52 +243,6 @@ def cluster_with_duplicate_tgw_connections(
             [
                 account_tgw_connection,
                 account_tgw_connection,
-            ]
-        ),
-    )
-
-
-@pytest.fixture
-def cluster_with_vpc_connection(
-    cluster_builder: Callable[..., ClusterV1],
-    peering_builder: Callable[..., ClusterPeeringV1],
-    account_vpc_connection: ClusterPeeringConnectionAccountTGWV1,
-) -> ClusterV1:
-    return cluster_builder(
-        name="cluster_with_vpc_connection",
-        ocm={
-            "name": "cluster_with_vpc_connection-ocm",
-            "environment": {"accessTokenClientSecret": {}},
-        },
-        region="us-east-1",
-        vpc_cidr="10.0.0.1/16",
-        peering=peering_builder(
-            [
-                account_vpc_connection,
-            ]
-        ),
-    )
-
-
-@pytest.fixture
-def cluster_with_mixed_connections(
-    cluster_builder: Callable[..., ClusterV1],
-    peering_builder: Callable[..., ClusterPeeringV1],
-    account_tgw_connection: ClusterPeeringConnectionAccountTGWV1,
-    account_vpc_connection: ClusterPeeringConnectionAccountTGWV1,
-) -> ClusterV1:
-    return cluster_builder(
-        name="cluster_with_mixed_connections",
-        ocm={
-            "name": "cluster_with_mixed_connections-ocm",
-            "environment": {"accessTokenClientSecret": {}},
-        },
-        region="us-east-1",
-        vpc_cidr="10.0.0.2/16",
-        peering=peering_builder(
-            [
-                account_tgw_connection,
-                account_vpc_connection,
             ]
         ),
     )
@@ -510,20 +343,19 @@ def _setup_mocks(
     mocker.patch(
         "reconcile.terraform_tgw_attachments.gql"
     ).get_api.return_value = mocked_gql_api
-    mocked_get_clusters_with_peering = mocker.patch(
-        "reconcile.terraform_tgw_attachments.get_clusters_with_peering"
+
+    mocked_aws_tgw_repository = mocker.patch(
+        "reconcile.terraform_tgw_attachments.AWSTGWRepository", autospec=True
     )
-    mocked_get_clusters_with_peering.return_value = clusters or []
+    mocked_aws_tgw_repository.return_value.get_tgw_clusters_and_accounts.return_value = AWSTGWClustersAndAccounts(
+        clusters=clusters or [],
+        accounts=accounts or [],
+    )
 
     mocked_get_app_interface_vault_settings = mocker.patch(
         "reconcile.terraform_tgw_attachments.get_app_interface_vault_settings"
     )
     mocked_get_app_interface_vault_settings.return_value = vault_settings
-
-    mocked_get_aws_accounts = mocker.patch(
-        "reconcile.terraform_tgw_attachments.get_aws_accounts"
-    )
-    mocked_get_aws_accounts.return_value = accounts or []
 
     mocked_secret_reader = create_autospec(SecretReaderBase)
     mocker.patch(
@@ -565,8 +397,7 @@ def _setup_mocks(
         "tf": mocked_tf,
         "ts": mocked_ts,
         "get_app_interface_vault_settings": mocked_get_app_interface_vault_settings,
-        "get_aws_accounts": mocked_get_aws_accounts,
-        "get_clusters_with_peering": mocked_get_clusters_with_peering,
+        "aws_tgw_repository": mocked_aws_tgw_repository,
         "secret_reader": mocked_secret_reader,
         "ocm": mocked_ocm,
         "aws_api": mocked_aws_api,
@@ -586,8 +417,12 @@ def test_dry_run(
     integ.run(True, enable_deletion=False)
 
     mocks["get_app_interface_vault_settings"].assert_called_once_with()
-    mocks["get_clusters_with_peering"].assert_called_once_with(mocks["gql_api"])
-    mocks["get_aws_accounts"].assert_called_once_with(mocks["gql_api"], name=None)
+    mocks["aws_tgw_repository"].assert_called_once_with(mocks["gql_api"])
+    mocks[
+        "aws_tgw_repository"
+    ].return_value.get_tgw_clusters_and_accounts.assert_called_once_with(
+        account_name=None
+    )
     mocks["tf"].plan.assert_called_once_with(False)
     mocks["tf"].apply.assert_not_called()
 
@@ -604,8 +439,12 @@ def test_non_dry_run(
     integ.run(False, enable_deletion=False)
 
     mocks["get_app_interface_vault_settings"].assert_called_once_with()
-    mocks["get_clusters_with_peering"].assert_called_once_with(mocks["gql_api"])
-    mocks["get_aws_accounts"].assert_called_once_with(mocks["gql_api"], name=None)
+    mocks["aws_tgw_repository"].assert_called_once_with(mocks["gql_api"])
+    mocks[
+        "aws_tgw_repository"
+    ].return_value.get_tgw_clusters_and_accounts.assert_called_once_with(
+        account_name=None
+    )
     mocks["tf"].plan.assert_called_once_with(False)
     mocks["tf"].apply.assert_called_once()
 
@@ -664,72 +503,15 @@ def test_run_when_cluster_with_tgw_connection(
     )
 
 
-def test_run_when_cluster_with_mixed_connections(
+def test_run_when_no_tgw_clusters(
     mocker: MockerFixture,
     app_interface_vault_settings: AppInterfaceSettingsV1,
-    cluster_with_mixed_connections: ClusterV1,
-    account_tgw_connection: ClusterPeeringConnectionAccountTGWV1,
-    tgw_account: AWSAccountV1,
-    vpc_account: AWSAccountV1,
-    tgw: Mapping,
-    vpc_details: Mapping,
-    assume_role: str,
 ) -> None:
     mocks = _setup_mocks(
         mocker,
         vault_settings=app_interface_vault_settings,
-        clusters=[cluster_with_mixed_connections],
-        accounts=[tgw_account, vpc_account],
-        vpc_details=vpc_details,
-        tgws=[tgw],
-        assume_role=assume_role,
-    )
-
-    integ.run(True)
-
-    expected_tgw_account = build_expected_tgw_account(
-        cluster=cluster_with_mixed_connections,
-        connection=account_tgw_connection,
-        assume_role=assume_role,
-    )
-    expected_desired_state_item = build_expected_desired_state_item(
-        cluster=cluster_with_mixed_connections,
-        connection=account_tgw_connection,
-        tgw=tgw,
-        vpc_details=vpc_details,
-        expected_tgw_account=expected_tgw_account,
-    )
-
-    mocks["aws_api"].assert_called_once_with(
-        1,
-        [tgw_account.dict(by_alias=True)],
-        secret_reader=mocks["secret_reader"],
-        init_users=False,
-    )
-    mocks["ocm"].assert_called_once_with(
-        clusters=[cluster_with_mixed_connections.dict(by_alias=True)],
-        integration=QONTRACT_INTEGRATION,
-        settings=app_interface_vault_settings.dict(by_alias=True),
-    )
-    mocks["ts"].populate_additional_providers.assert_called_once_with(
-        [expected_tgw_account]
-    )
-    mocks["ts"].populate_tgw_attachments.assert_called_once_with(
-        [expected_desired_state_item]
-    )
-
-
-def test_run_when_cluster_with_vpc_connection_only(
-    mocker: MockerFixture,
-    app_interface_vault_settings: AppInterfaceSettingsV1,
-    cluster_with_vpc_connection: ClusterV1,
-    vpc_account: AWSAccountV1,
-) -> None:
-    mocks = _setup_mocks(
-        mocker,
-        vault_settings=app_interface_vault_settings,
-        clusters=[cluster_with_vpc_connection],
-        accounts=[vpc_account],
+        clusters=[],
+        accounts=[],
     )
 
     integ.run(True)
@@ -743,178 +525,6 @@ def test_run_when_cluster_with_vpc_connection_only(
     mocks["ocm"].assert_not_called()
     mocks["ts"].populate_additional_providers.assert_called_once_with([])
     mocks["ts"].populate_tgw_attachments.assert_called_once_with([])
-
-
-def test_run_with_multiple_clusters(
-    mocker: MockerFixture,
-    app_interface_vault_settings: AppInterfaceSettingsV1,
-    cluster_with_tgw_connection: ClusterV1,
-    cluster_with_vpc_connection: ClusterV1,
-    account_tgw_connection: ClusterPeeringConnectionAccountTGWV1,
-    account_vpc_connection: ClusterPeeringConnectionAccountTGWV1,
-    tgw_account: AWSAccountV1,
-    vpc_account: AWSAccountV1,
-    tgw: Mapping,
-    vpc_details: Mapping,
-    assume_role: str,
-) -> None:
-    mocks = _setup_mocks(
-        mocker,
-        vault_settings=app_interface_vault_settings,
-        clusters=[cluster_with_tgw_connection, cluster_with_vpc_connection],
-        accounts=[tgw_account, vpc_account],
-        vpc_details=vpc_details,
-        tgws=[tgw],
-        assume_role=assume_role,
-    )
-
-    integ.run(True)
-
-    expected_tgw_account = build_expected_tgw_account(
-        cluster=cluster_with_tgw_connection,
-        connection=account_tgw_connection,
-        assume_role=assume_role,
-    )
-    expected_desired_state_item = build_expected_desired_state_item(
-        cluster=cluster_with_tgw_connection,
-        connection=account_tgw_connection,
-        tgw=tgw,
-        vpc_details=vpc_details,
-        expected_tgw_account=expected_tgw_account,
-    )
-
-    mocks["aws_api"].assert_called_once_with(
-        1,
-        [tgw_account.dict(by_alias=True)],
-        secret_reader=mocks["secret_reader"],
-        init_users=False,
-    )
-    mocks["ocm"].assert_called_once_with(
-        clusters=[cluster_with_tgw_connection.dict(by_alias=True)],
-        integration=QONTRACT_INTEGRATION,
-        settings=app_interface_vault_settings.dict(by_alias=True),
-    )
-    mocks["ts"].populate_additional_providers.assert_called_once_with(
-        [expected_tgw_account]
-    )
-    mocks["ts"].populate_tgw_attachments.assert_called_once_with(
-        [expected_desired_state_item]
-    )
-
-
-def test_run_with_account_name_for_multiple_clusters(
-    mocker: MockerFixture,
-    app_interface_vault_settings: AppInterfaceSettingsV1,
-    cluster_with_tgw_connection: ClusterV1,
-    additional_cluster_with_tgw_connection: ClusterV1,
-    account_tgw_connection: ClusterPeeringConnectionAccountTGWV1,
-    tgw_account: AWSAccountV1,
-    tgw: Mapping,
-    vpc_details: Mapping,
-    assume_role: str,
-) -> None:
-    mocks = _setup_mocks(
-        mocker,
-        vault_settings=app_interface_vault_settings,
-        clusters=[cluster_with_tgw_connection, additional_cluster_with_tgw_connection],
-        accounts=[tgw_account],
-        vpc_details=vpc_details,
-        tgws=[tgw],
-        assume_role=assume_role,
-    )
-
-    integ.run(True, account_name=tgw_account.name)
-
-    expected_tgw_account = build_expected_tgw_account(
-        cluster=cluster_with_tgw_connection,
-        connection=account_tgw_connection,
-        assume_role=assume_role,
-    )
-    expected_desired_state_item = build_expected_desired_state_item(
-        cluster=cluster_with_tgw_connection,
-        connection=account_tgw_connection,
-        tgw=tgw,
-        vpc_details=vpc_details,
-        expected_tgw_account=expected_tgw_account,
-    )
-
-    mocks["get_aws_accounts"].assert_called_once_with(
-        mocks["gql_api"], name=tgw_account.name
-    )
-    mocks["aws_api"].assert_called_once_with(
-        1,
-        [tgw_account.dict(by_alias=True)],
-        secret_reader=mocks["secret_reader"],
-        init_users=False,
-    )
-    mocks["ocm"].assert_called_once_with(
-        clusters=[cluster_with_tgw_connection.dict(by_alias=True)],
-        integration=QONTRACT_INTEGRATION,
-        settings=app_interface_vault_settings.dict(by_alias=True),
-    )
-    mocks["ts"].populate_additional_providers.assert_called_once_with(
-        [expected_tgw_account]
-    )
-    mocks["ts"].populate_tgw_attachments.assert_called_once_with(
-        [expected_desired_state_item]
-    )
-
-
-def test_run_with_account_name_for_multiple_connections(
-    mocker: MockerFixture,
-    app_interface_vault_settings: AppInterfaceSettingsV1,
-    cluster_with_2_tgw_connections: ClusterV1,
-    account_tgw_connection: ClusterPeeringConnectionAccountTGWV1,
-    tgw_account: AWSAccountV1,
-    tgw: Mapping,
-    vpc_details: Mapping,
-    assume_role: str,
-) -> None:
-    mocks = _setup_mocks(
-        mocker,
-        vault_settings=app_interface_vault_settings,
-        clusters=[cluster_with_2_tgw_connections],
-        accounts=[tgw_account],
-        vpc_details=vpc_details,
-        tgws=[tgw],
-        assume_role=assume_role,
-    )
-
-    integ.run(True, account_name=tgw_account.name)
-
-    expected_tgw_account = build_expected_tgw_account(
-        cluster=cluster_with_2_tgw_connections,
-        connection=account_tgw_connection,
-        assume_role=assume_role,
-    )
-    expected_desired_state_item = build_expected_desired_state_item(
-        cluster=cluster_with_2_tgw_connections,
-        connection=account_tgw_connection,
-        tgw=tgw,
-        vpc_details=vpc_details,
-        expected_tgw_account=expected_tgw_account,
-    )
-
-    mocks["get_aws_accounts"].assert_called_once_with(
-        mocks["gql_api"], name=tgw_account.name
-    )
-    mocks["aws_api"].assert_called_once_with(
-        1,
-        [tgw_account.dict(by_alias=True)],
-        secret_reader=mocks["secret_reader"],
-        init_users=False,
-    )
-    mocks["ocm"].assert_called_once_with(
-        clusters=[cluster_with_2_tgw_connections.dict(by_alias=True)],
-        integration=QONTRACT_INTEGRATION,
-        settings=app_interface_vault_settings.dict(by_alias=True),
-    )
-    mocks["ts"].populate_additional_providers.assert_called_once_with(
-        [expected_tgw_account]
-    )
-    mocks["ts"].populate_tgw_attachments.assert_called_once_with(
-        [expected_desired_state_item]
-    )
 
 
 def test_duplicate_tgw_connection_names(
@@ -1042,15 +652,13 @@ def test_early_exit_desired_state(
     mocker: MockerFixture,
     app_interface_vault_settings: AppInterfaceSettingsV1,
     cluster_with_tgw_connection: ClusterV1,
-    cluster_with_vpc_connection: ClusterV1,
     tgw_account: AWSAccountV1,
-    vpc_account: AWSAccountV1,
 ) -> None:
     _setup_mocks(
         mocker,
         vault_settings=app_interface_vault_settings,
-        clusters=[cluster_with_tgw_connection, cluster_with_vpc_connection],
-        accounts=[tgw_account, vpc_account],
+        clusters=[cluster_with_tgw_connection],
+        accounts=[tgw_account],
     )
 
     desired_state = integ.early_exit_desired_state()

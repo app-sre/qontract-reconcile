@@ -8,7 +8,6 @@ from collections.abc import (
 from typing import (
     Any,
     Optional,
-    Union,
     cast,
 )
 
@@ -19,24 +18,18 @@ from reconcile.gql_definitions.common.app_interface_vault_settings import (
 )
 from reconcile.gql_definitions.common.clusters_with_peering import (
     ClusterPeeringConnectionAccountTGWV1,
-    ClusterPeeringConnectionAccountV1,
-    ClusterPeeringConnectionAccountVPCMeshV1,
-    ClusterPeeringConnectionClusterRequesterV1,
-    ClusterPeeringConnectionV1,
     ClusterV1,
-)
-from reconcile.gql_definitions.terraform_tgw_attachments.aws_accounts import (
-    AWSAccountV1,
 )
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
-from reconcile.typed_queries.clusters_with_peering import get_clusters_with_peering
-from reconcile.typed_queries.terraform_tgw_attachments.aws_accounts import (
-    get_aws_accounts,
-)
 from reconcile.utils import gql
 from reconcile.utils.aws_api import AWSApi
+from reconcile.utils.aws_tgw_repository import (
+    TGW_CONNECTION_PROVIDER,
+    AWSTGWClustersAndAccounts,
+    AWSTGWRepository,
+)
 from reconcile.utils.defer import defer
 from reconcile.utils.ocm import (
     OCM,
@@ -50,8 +43,6 @@ from reconcile.utils.terrascript_aws_client import TerrascriptClient as Terrascr
 
 QONTRACT_INTEGRATION = "terraform_tgw_attachments"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
-
-TGW_CONNECTION_PROVIDER = "account-tgw"
 
 
 class ValidationError(Exception):
@@ -94,11 +85,6 @@ class DesiredStateItem(BaseModel):
     deleted: bool
 
 
-class DesiredStateDataSource(BaseModel):
-    clusters: list[ClusterV1]
-    accounts: list[AWSAccountV1]
-
-
 def _build_desired_state_tgw_attachments(
     clusters: Iterable[ClusterV1],
     ocm_map: Optional[OCMMap],
@@ -129,7 +115,7 @@ def _build_desired_state_items(
     for cluster_info in clusters:
         ocm = ocm_map.get(cluster_info.name) if ocm_map and cluster_info.ocm else None
         for peer_connection in cluster_info.peering.connections:  # type: ignore[union-attr]
-            if _is_tgw_peer_connection(peer_connection, account_name):
+            if AWSTGWRepository.is_tgw_peer_connection(peer_connection, account_name):
                 yield from _build_desired_state_tgw_connection(
                     cast(ClusterPeeringConnectionAccountTGWV1, peer_connection),
                     cluster_info,
@@ -295,66 +281,11 @@ def _populate_tgw_attachments_working_dirs(
     return working_dirs
 
 
-def _is_tgw_peer_connection(
-    peer_connection: Union[
-        ClusterPeeringConnectionAccountTGWV1,
-        ClusterPeeringConnectionAccountV1,
-        ClusterPeeringConnectionAccountVPCMeshV1,
-        ClusterPeeringConnectionClusterRequesterV1,
-        ClusterPeeringConnectionV1,
-    ],
-    account_name: Optional[str],
-) -> bool:
-    if peer_connection.provider != TGW_CONNECTION_PROVIDER:
-        return False
-    if account_name is None:
-        return True
-    tgw_peer_connection = cast(ClusterPeeringConnectionAccountTGWV1, peer_connection)
-    return tgw_peer_connection.account.name == account_name
-
-
-def _is_tgw_cluster(
-    cluster: ClusterV1,
-    account_name: Optional[str] = None,
-) -> bool:
-    return any(
-        _is_tgw_peer_connection(pc, account_name) for pc in cluster.peering.connections  # type: ignore[union-attr]
-    )
-
-
-def _filter_tgw_clusters(
-    clusters: Iterable[ClusterV1],
-    account_name: Optional[str] = None,
-) -> list[ClusterV1]:
-    return [c for c in clusters if _is_tgw_cluster(c, account_name)]
-
-
-def _filter_tgw_accounts(
-    accounts: Iterable[AWSAccountV1],
-    tgw_clusters: Iterable[ClusterV1],
-) -> list[AWSAccountV1]:
-    tgw_account_names = set()
-    for cluster in tgw_clusters:
-        for peer_connection in cluster.peering.connections:  # type: ignore[union-attr]
-            if peer_connection.provider == TGW_CONNECTION_PROVIDER:
-                tgw_peer_connection = cast(
-                    ClusterPeeringConnectionAccountTGWV1, peer_connection
-                )
-                tgw_account_names.add(tgw_peer_connection.account.name)
-    return [a for a in accounts if a.name in tgw_account_names]
-
-
 def _fetch_desired_state_data_source(
     account_name: Optional[str] = None,
-) -> DesiredStateDataSource:
-    clusters = get_clusters_with_peering(gql.get_api())
-    tgw_clusters = _filter_tgw_clusters(clusters, account_name)
-    accounts = get_aws_accounts(gql.get_api(), name=account_name)
-    tgw_accounts = _filter_tgw_accounts(accounts, tgw_clusters)
-    return DesiredStateDataSource(
-        clusters=tgw_clusters,
-        accounts=tgw_accounts,
-    )
+) -> AWSTGWClustersAndAccounts:
+    repo = AWSTGWRepository(gql.get_api())
+    return repo.get_tgw_clusters_and_accounts(account_name=account_name)
 
 
 @defer
