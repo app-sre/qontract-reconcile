@@ -137,6 +137,7 @@ class OCMClusterUpgradeSchedulerIntegration(
                         ocm_env=ocm_env,
                         cluster_uuid=up.cluster_uuid,
                         soaking_version=version,
+                        current_version=up.current_version,
                     ),
                     max(up.conditions.soakDays - (min(soaks) or 0), 0),
                 )

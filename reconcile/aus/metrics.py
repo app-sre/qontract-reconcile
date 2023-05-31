@@ -19,6 +19,7 @@ class AUSClusterVersionRemainingSoakDaysGauge(AUSBaseMetric, GaugeMetric):
 
     cluster_uuid: str
     soaking_version: str
+    current_version: str
 
     @classmethod
     def name(cls) -> str:
