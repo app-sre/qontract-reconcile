@@ -42,6 +42,11 @@ query TerraformRepo {
     ref
     projectPath
     delete
+    modules {
+      name
+      url
+      ref
+    }
   }
 }
 """
@@ -59,6 +64,12 @@ class AWSAccountV1(ConfiguredBaseModel):
     automation_token: VaultSecret = Field(..., alias="automationToken")
 
 
+class TerraformRepoModuleV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+    url: str = Field(..., alias="url")
+    ref: str = Field(..., alias="ref")
+
+
 class TerraformRepoV1(ConfiguredBaseModel):
     account: AWSAccountV1 = Field(..., alias="account")
     name: str = Field(..., alias="name")
@@ -66,6 +77,7 @@ class TerraformRepoV1(ConfiguredBaseModel):
     ref: str = Field(..., alias="ref")
     project_path: str = Field(..., alias="projectPath")
     delete: Optional[bool] = Field(..., alias="delete")
+    modules: Optional[list[TerraformRepoModuleV1]] = Field(..., alias="modules")
 
 
 class TerraformRepoQueryData(ConfiguredBaseModel):
