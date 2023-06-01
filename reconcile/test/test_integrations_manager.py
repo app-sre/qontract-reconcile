@@ -19,14 +19,14 @@ from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.gql_definitions.integrations.integrations import (
     AWSAccountShardSpecOverrideV1,
     AWSTGWAccountShardingV1,
+    AWSTGWAccountShardSpecOverrideV1,
+    AWSTGWAccountShardSpecOverrideV1_AWSAccountV1,
     EnvironmentV1,
     IntegrationSpecV1,
     IntegrationV1,
     OpenshiftClusterShardSpecOverrideV1,
     OpenshiftClusterShardSpecOverrideV1_ClusterV1,
     StaticSubShardingV1,
-    AWSTGWAccountShardSpecOverrideV1,
-    AWSTGWAccountShardSpecOverrideV1_AWSAccountV1,
 )
 from reconcile.gql_definitions.sharding import aws_accounts as sharding_aws_accounts
 from reconcile.gql_definitions.terraform_cloudflare_dns.terraform_cloudflare_zones import (
@@ -352,7 +352,7 @@ def aws_tgw_account_with_disable_integration(
 
 
 @pytest.fixture
-def mock_aws_tgw_repository() -> AWSTGWRepository:
+def mock_aws_tgw_repository() -> Any:
     return create_autospec(AWSTGWRepository)
 
 
@@ -505,7 +505,7 @@ def test_shard_manager_aws_account_filtering(
 ):
     assert ["acc-1", "acc-2", "acc-3", "acc-4"] == [
         a.name
-        for a in aws_account_sharding_strategy.filter_objects("another-integration")
+        for a in aws_account_sharding_strategy.filter_accounts("another-integration")
     ]
 
 
@@ -514,7 +514,7 @@ def test_shard_manager_aws_account_filtering_disabled(
 ):
     # acc-4 is disabled for AWS_INTEGRATION
     assert ["acc-1", "acc-2", "acc-3"] == [
-        a.name for a in aws_account_sharding_strategy.filter_objects(AWS_INTEGRATION)
+        a.name for a in aws_account_sharding_strategy.filter_accounts(AWS_INTEGRATION)
     ]
 
 
@@ -971,7 +971,7 @@ def test_initialize_shard_specs_openshift_clusters_disabled_shard(
 def test_initialize_shard_specs_aws_tgw_account_shards(
     basic_integration: IntegrationV1,
     shard_manager: IntegrationShardManager,
-    mock_aws_tgw_repository: AWSTGWRepository,
+    mock_aws_tgw_repository: Any,
     aws_tgw_account_with_no_disable: aws_tgw_accounts.AWSAccountV1,
     aws_tgw_account_with_disable_none: aws_tgw_accounts.AWSAccountV1,
     aws_tgw_account_with_disable_empty: aws_tgw_accounts.AWSAccountV1,
@@ -980,7 +980,6 @@ def test_initialize_shard_specs_aws_tgw_account_shards(
     aws_tgw_acc_sharding = AWSTGWAccountShardingV1(
         strategy="per-aws-tgw-account", shardSpecOverrides=None
     )
-
     mock_aws_tgw_repository.get_tgw_clusters_and_accounts.return_value = (
         AWSTGWClustersAndAccounts(
             clusters=[],
@@ -1082,7 +1081,7 @@ def aws_tgw_account_with_disable_empty_shard_overrides(
 def test_initialize_shard_specs_aws_tgw_account_shards_with_overrides(
     basic_integration: IntegrationV1,
     shard_manager: IntegrationShardManager,
-    mock_aws_tgw_repository: AWSTGWRepository,
+    mock_aws_tgw_repository: Any,
     aws_tgw_account_with_no_disable: aws_tgw_accounts.AWSAccountV1,
     aws_tgw_account_with_disable_none: aws_tgw_accounts.AWSAccountV1,
     aws_tgw_account_with_disable_empty: aws_tgw_accounts.AWSAccountV1,

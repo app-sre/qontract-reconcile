@@ -13,6 +13,7 @@ from reconcile.gql_definitions.common.clusters_minimal import ClusterV1
 from reconcile.gql_definitions.integrations.integrations import (
     AWSAccountShardingV1,
     AWSAccountShardSpecOverrideV1,
+    AWSTGWAccountShardingV1,
     AWSTGWAccountShardSpecOverrideV1,
     CloudflareDNSZoneShardingV1,
     CloudflareDNSZoneShardSpecOverrideV1,
@@ -24,7 +25,6 @@ from reconcile.gql_definitions.integrations.integrations import (
     StaticShardingV1,
     StaticSubShardingV1,
     SubShardingV1,
-    AWSTGWAccountShardingV1,
 )
 from reconcile.gql_definitions.sharding import aws_accounts as sharding_aws_accounts
 from reconcile.gql_definitions.terraform_cloudflare_dns import (
@@ -145,47 +145,46 @@ class AWSAccountShardingStrategy:
         else:
             self.aws_accounts = list(aws_accounts)
 
-    def filter_objects(
+    @staticmethod
+    def _is_enabled(
+        aws_account: sharding_aws_accounts.AWSAccountV1,
+        integration: str,
+    ) -> bool:
+        if aws_account.disable is None or aws_account.disable.integrations is None:
+            return True
+        return integration not in aws_account.disable.integrations
+
+    def filter_accounts(
         self, integration: str
     ) -> list[sharding_aws_accounts.AWSAccountV1]:
-        return [
-            a
-            for a in self.aws_accounts
-            if (
-                not a.disable
-                or not a.disable.integrations
-                or (
-                    a.disable.integrations and integration not in a.disable.integrations
-                )
-            )
-        ]
+        return [a for a in self.aws_accounts if self._is_enabled(a, integration)]
 
+    @staticmethod
     def get_shard_spec_overrides(
-        self, sharding: Optional[IntegrationShardingV1]
+        sharding: Optional[IntegrationShardingV1],
     ) -> dict[str, AWSAccountShardSpecOverrideV1]:
+        if (
+            isinstance(sharding, AWSAccountShardingV1)
+            and sharding.shard_spec_overrides is not None
+        ):
+            return {sp.shard.name: sp for sp in sharding.shard_spec_overrides}
+        return {}
 
-        spos: dict[str, AWSAccountShardSpecOverrideV1] = {}
-
-        if isinstance(sharding, AWSAccountShardingV1) and sharding.shard_spec_overrides:
-            for sp in sharding.shard_spec_overrides:
-                spos[sp.shard.name] = sp
-        return spos
-
-    def check_integration_sharding_params(self, meta: IntegrationMeta) -> None:
+    @staticmethod
+    def check_integration_sharding_params(meta: IntegrationMeta) -> None:
         if "--account-name" not in meta.args:
             raise ValueError(
                 f"integration {meta.name} does not support the provided argument. "
-                " --account-name is required by the 'per-aws-account' sharding "
+                "--account-name is required by the 'per-aws-account' sharding "
                 "strategy."
             )
 
+    @staticmethod
     def build_shard_spec(
-        self,
         aws_account: sharding_aws_accounts.AWSAccountV1,
         integration_spec: IntegrationSpecV1,
         spo: Optional[AWSAccountShardSpecOverrideV1],
     ) -> ShardSpec:
-
         return ShardSpec(
             shard_key=aws_account.name,
             shard_name_suffix=f"-{aws_account.name}",
@@ -199,15 +198,13 @@ class AWSAccountShardingStrategy:
         integration_meta: IntegrationMeta,
         integration_managed: IntegrationManagedV1,
     ) -> list[ShardSpec]:
-
         self.check_integration_sharding_params(integration_meta)
         spos = self.get_shard_spec_overrides(integration_managed.sharding)
-        shards = []
-        for c in self.filter_objects(integration_meta.name):
-            spo = spos.get(c.name)
-            base_shard = self.build_shard_spec(c, integration_managed.spec, spo)
-            shards.append(base_shard)
-        return shards
+        enabled_accounts = self.filter_accounts(integration_meta.name)
+        return [
+            self.build_shard_spec(a, integration_managed.spec, spos.get(a.name))
+            for a in enabled_accounts
+        ]
 
 
 class AWSTGWAccountShardingStrategy:
@@ -235,8 +232,8 @@ class AWSTGWAccountShardingStrategy:
     def check_integration_sharding_params(meta: IntegrationMeta) -> None:
         if "--account-name" not in meta.args:
             raise ValueError(
-                f"integration {meta.name} does not support the provided argument."
-                " --account-name is required by the 'per-aws-tgw-account' sharding "
+                f"integration {meta.name} does not support the provided argument. "
+                "--account-name is required by the 'per-aws-tgw-account' sharding "
                 "strategy."
             )
 
@@ -245,11 +242,11 @@ class AWSTGWAccountShardingStrategy:
         sharding: Optional[IntegrationShardingV1],
     ) -> dict[str, AWSTGWAccountShardSpecOverrideV1]:
         if (
-            not isinstance(sharding, AWSTGWAccountShardingV1)
-            or sharding.shard_spec_overrides is None
+            isinstance(sharding, AWSTGWAccountShardingV1)
+            and sharding.shard_spec_overrides is not None
         ):
-            return {}
-        return {sp.shard.name: sp for sp in sharding.shard_spec_overrides}
+            return {sp.shard.name: sp for sp in sharding.shard_spec_overrides}
+        return {}
 
     @staticmethod
     def _is_enabled(
@@ -267,7 +264,7 @@ class AWSTGWAccountShardingStrategy:
         self,
         integration_meta: IntegrationMeta,
         integration_managed: IntegrationManagedV1,
-    ):
+    ) -> list[ShardSpec]:
         self.check_integration_sharding_params(integration_meta)
         spos = self.get_shard_spec_overrides(integration_managed.sharding)
         accounts = self.aws_tgw_repository.get_tgw_clusters_and_accounts().accounts
@@ -325,7 +322,7 @@ class OpenshiftClusterShardingStrategy:
         if "--cluster-name" not in meta.args:
             raise ValueError(
                 f"integration {meta.name} does not support the provided argument. "
-                " --cluster-name is required by the 'per-openshift-cluster' sharding "
+                "--cluster-name is required by the 'per-openshift-cluster' sharding "
                 "strategy."
             )
 
