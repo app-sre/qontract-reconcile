@@ -13,6 +13,7 @@ from reconcile.gql_definitions.common.clusters_minimal import ClusterV1
 from reconcile.gql_definitions.integrations.integrations import (
     AWSAccountShardingV1,
     AWSAccountShardSpecOverrideV1,
+    AWSTGWAccountShardSpecOverrideV1,
     CloudflareDNSZoneShardingV1,
     CloudflareDNSZoneShardSpecOverrideV1,
     IntegrationManagedV1,
@@ -31,8 +32,12 @@ from reconcile.gql_definitions.terraform_cloudflare_dns import (
 from reconcile.gql_definitions.terraform_cloudflare_dns.terraform_cloudflare_zones import (
     CloudflareDnsZoneV1,
 )
+from reconcile.gql_definitions.terraform_tgw_attachments import (
+    aws_accounts as tgw_aws_accounts,
+)
 from reconcile.typed_queries.clusters_minimal import get_clusters_minimal
 from reconcile.utils import gql
+from reconcile.utils.aws_tgw_repository import AWSTGWRepository
 from reconcile.utils.runtime.meta import IntegrationMeta
 
 
@@ -201,6 +206,64 @@ class AWSAccountShardingStrategy:
             base_shard = self.build_shard_spec(c, integration_managed.spec, spo)
             shards.append(base_shard)
         return shards
+
+
+class AWSTGWAccountShardingStrategy:
+    IDENTIFIER = "per-aws-tgw-account"
+
+    def __init__(self, aws_tgw_repository: AWSTGWRepository):
+        self.aws_tgw_repository = aws_tgw_repository
+
+    @staticmethod
+    def build_shard_spec(
+        aws_account: tgw_aws_accounts.AWSAccountV1,
+        integration_spec: IntegrationSpecV1,
+        spo: Optional[AWSTGWAccountShardSpecOverrideV1],
+    ) -> ShardSpec:
+
+        return ShardSpec(
+            shard_key=aws_account.name,
+            shard_name_suffix=f"-{aws_account.name}",
+            extra_args=(integration_spec.extra_args or "")
+            + f" --account-name {aws_account.name}",
+            shard_spec_overrides=spo,
+        )
+
+    @staticmethod
+    def check_integration_sharding_params(meta: IntegrationMeta) -> None:
+        if "--account-name" not in meta.args:
+            raise ValueError(
+                f"integration {meta.name} does not support the provided argument."
+                " --account-name is required by the 'per-aws-tgw-account' sharding "
+                "strategy."
+            )
+
+    @staticmethod
+    def _is_enabled(
+        tgw_aws_account: tgw_aws_accounts.AWSAccountV1,
+        integration: str,
+    ) -> bool:
+        if (
+            tgw_aws_account.disable is None
+            or tgw_aws_account.disable.integrations is None
+        ):
+            return True
+        return integration not in tgw_aws_account.disable.integrations
+
+    def build_integration_shards(
+        self,
+        integration_meta: IntegrationMeta,
+        integration_managed: IntegrationManagedV1,
+    ):
+        self.check_integration_sharding_params(integration_meta)
+        accounts = self.aws_tgw_repository.get_tgw_clusters_and_accounts().accounts
+        active_accounts = (
+            a for a in accounts if self._is_enabled(a, integration_meta.name)
+        )
+        return [
+            self.build_shard_spec(a, integration_managed.spec, None)
+            for a in active_accounts
+        ]
 
 
 class OpenshiftClusterShardingStrategy:

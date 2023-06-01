@@ -4,7 +4,11 @@ from collections.abc import (
     Callable,
     Iterable,
 )
-from typing import Any
+from typing import (
+    Any,
+    Optional,
+)
+from unittest.mock import create_autospec
 
 import pytest
 
@@ -14,6 +18,7 @@ from reconcile.gql_definitions.fragments.deplopy_resources import DeployResource
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.gql_definitions.integrations.integrations import (
     AWSAccountShardSpecOverrideV1,
+    AWSTGWAccountShardingV1,
     EnvironmentV1,
     IntegrationSpecV1,
     IntegrationV1,
@@ -30,12 +35,20 @@ from reconcile.gql_definitions.terraform_cloudflare_dns.terraform_cloudflare_zon
     CloudflareDnsRecordV1,
     CloudflareDnsZoneV1,
 )
+from reconcile.gql_definitions.terraform_tgw_attachments import (
+    aws_accounts as terraform_tgw_attachments_aws_accounts,
+)
 from reconcile.integrations_manager import HelmIntegrationSpec
+from reconcile.utils.aws_tgw_repository import (
+    AWSTGWClustersAndAccounts,
+    AWSTGWRepository,
+)
 from reconcile.utils.openshift_resource import ResourceInventory
 from reconcile.utils.runtime.meta import IntegrationMeta
 from reconcile.utils.runtime.sharding import (
     AWSAccountShardingStrategy,
     AWSAccountShardingV1,
+    AWSTGWAccountShardingStrategy,
     CloudflareDnsZoneShardingStrategy,
     CloudflareDNSZoneShardingV1,
     IntegrationShardManager,
@@ -47,6 +60,7 @@ from reconcile.utils.runtime.sharding import (
 )
 
 AWS_INTEGRATION = "aws_integration"
+AWS_TGW_INTEGRATION = "aws_tgw_integration"
 CLOUDFLARE_INTEGRATION = "cloudflare_integration"
 OPENSHIFT_INTEGRATION = "openshift_integration"
 
@@ -277,6 +291,87 @@ def aws_account_sharding_strategy(
 
 
 @pytest.fixture
+def tgw_account_builder(
+    gql_class_factory: Callable[
+        ..., terraform_tgw_attachments_aws_accounts.AWSAccountV1
+    ],
+) -> Callable[..., terraform_tgw_attachments_aws_accounts.AWSAccountV1]:
+    def builder(
+        name: str,
+        disable: Optional[dict],
+    ) -> terraform_tgw_attachments_aws_accounts.AWSAccountV1:
+        return gql_class_factory(
+            terraform_tgw_attachments_aws_accounts.AWSAccountV1,
+            {
+                "name": name,
+                "disable": disable,
+                "accountOwners": [],
+                "automationToken": {},
+                "premiumSupport": False,
+            },
+        )
+
+    return builder
+
+
+@pytest.fixture
+def aws_tgw_account_with_no_disable(
+    tgw_account_builder: Callable[
+        ..., terraform_tgw_attachments_aws_accounts.AWSAccountV1
+    ]
+) -> terraform_tgw_attachments_aws_accounts.AWSAccountV1:
+    return tgw_account_builder("acc-1", None)
+
+
+@pytest.fixture
+def aws_tgw_account_with_disable_none(
+    tgw_account_builder: Callable[
+        ..., terraform_tgw_attachments_aws_accounts.AWSAccountV1
+    ]
+) -> terraform_tgw_attachments_aws_accounts.AWSAccountV1:
+    return tgw_account_builder(
+        "acc-2",
+        {"integrations": None},
+    )
+
+
+@pytest.fixture
+def aws_tgw_account_with_disable_empty(
+    tgw_account_builder: Callable[
+        ..., terraform_tgw_attachments_aws_accounts.AWSAccountV1
+    ]
+) -> terraform_tgw_attachments_aws_accounts.AWSAccountV1:
+    return tgw_account_builder(
+        "acc-3",
+        {"integrations": []},
+    )
+
+
+@pytest.fixture
+def aws_tgw_account_with_disable_integration(
+    tgw_account_builder: Callable[
+        ..., terraform_tgw_attachments_aws_accounts.AWSAccountV1
+    ]
+) -> terraform_tgw_attachments_aws_accounts.AWSAccountV1:
+    return tgw_account_builder(
+        "acc-4",
+        {"integrations": [AWS_TGW_INTEGRATION]},
+    )
+
+
+@pytest.fixture
+def mock_aws_tgw_repository() -> AWSTGWRepository:
+    return create_autospec(AWSTGWRepository)
+
+
+@pytest.fixture
+def aws_tgw_account_sharding_strategy(
+    mock_aws_tgw_repository: AWSTGWRepository,
+) -> AWSTGWAccountShardingStrategy:
+    return AWSTGWAccountShardingStrategy(mock_aws_tgw_repository)
+
+
+@pytest.fixture
 def cloudflare_records():
     return [
         CloudflareDnsRecordV1(
@@ -376,6 +471,7 @@ def openshift_cluster_sharding_strategy(
 @pytest.fixture
 def shard_manager(
     aws_account_sharding_strategy: AWSAccountShardingStrategy,
+    aws_tgw_account_sharding_strategy: AWSTGWAccountShardingStrategy,
     cloudflare_zone_sharding_strategy: CloudflareDnsZoneShardingStrategy,
     openshift_cluster_sharding_strategy: OpenshiftClusterShardingStrategy,
 ) -> IntegrationShardManager:
@@ -384,6 +480,7 @@ def shard_manager(
         strategies={
             StaticShardingStrategy.IDENTIFIER: StaticShardingStrategy(),
             aws_account_sharding_strategy.IDENTIFIER: aws_account_sharding_strategy,
+            aws_tgw_account_sharding_strategy.IDENTIFIER: aws_tgw_account_sharding_strategy,
             openshift_cluster_sharding_strategy.IDENTIFIER: openshift_cluster_sharding_strategy,
             cloudflare_zone_sharding_strategy.IDENTIFIER: cloudflare_zone_sharding_strategy,
         },
@@ -395,6 +492,9 @@ def shard_manager(
             ),
             AWS_INTEGRATION: IntegrationMeta(
                 name=AWS_INTEGRATION, short_help="", args=["--account-name"]
+            ),
+            AWS_TGW_INTEGRATION: IntegrationMeta(
+                name=AWS_TGW_INTEGRATION, short_help="", args=["--account-name"]
             ),
             CLOUDFLARE_INTEGRATION: IntegrationMeta(
                 name=CLOUDFLARE_INTEGRATION, short_help="", args=["--zone-name"]
@@ -874,6 +974,84 @@ def test_initialize_shard_specs_openshift_clusters_disabled_shard(
     ]
     shards = wr[0].integration_specs[0].shard_specs or []
     assert shards == expected
+
+
+def test_initialize_shard_specs_aws_tgw_account_shards(
+    basic_integration: IntegrationV1,
+    shard_manager: IntegrationShardManager,
+    mock_aws_tgw_repository: AWSTGWRepository,
+    aws_tgw_account_with_no_disable: terraform_tgw_attachments_aws_accounts.AWSAccountV1,
+    aws_tgw_account_with_disable_none: terraform_tgw_attachments_aws_accounts.AWSAccountV1,
+    aws_tgw_account_with_disable_empty: terraform_tgw_attachments_aws_accounts.AWSAccountV1,
+    aws_tgw_account_with_disable_integration: terraform_tgw_attachments_aws_accounts.AWSAccountV1,
+):
+    aws_tgw_acc_sharding = AWSTGWAccountShardingV1(
+        strategy="per-aws-tgw-account", shardSpecOverrides=None
+    )
+
+    mock_aws_tgw_repository.get_tgw_clusters_and_accounts.return_value = (
+        AWSTGWClustersAndAccounts(
+            clusters=[],
+            accounts=[
+                aws_tgw_account_with_no_disable,
+                aws_tgw_account_with_disable_none,
+                aws_tgw_account_with_disable_empty,
+                aws_tgw_account_with_disable_integration,
+            ],
+        )
+    )
+
+    basic_integration.name = AWS_TGW_INTEGRATION
+    if basic_integration.managed:
+        basic_integration.managed[0].sharding = aws_tgw_acc_sharding
+
+    wr = intop.collect_integrations_environment(
+        [basic_integration], "test", shard_manager
+    )
+
+    expected = [
+        ShardSpec(
+            shard_name_suffix="-acc-1",
+            shard_key="acc-1",
+            extra_args="integ-extra-arg --account-name acc-1",
+        ),
+        ShardSpec(
+            shard_name_suffix="-acc-2",
+            shard_key="acc-2",
+            extra_args="integ-extra-arg --account-name acc-2",
+        ),
+        ShardSpec(
+            shard_name_suffix="-acc-3",
+            shard_key="acc-3",
+            extra_args="integ-extra-arg --account-name acc-3",
+        ),
+    ]
+
+    shards = wr[0].integration_specs[0].shard_specs or []
+    assert expected == shards
+
+
+def test_initialize_shard_specs_aws_tgw_account_shards_raise_exception(
+    basic_integration: IntegrationV1,
+    shard_manager: IntegrationShardManager,
+):
+    aws_tgw_acc_sharding = AWSTGWAccountShardingV1(
+        strategy="per-aws-tgw-account", shardSpecOverrides=None
+    )
+    if basic_integration.managed:
+        basic_integration.managed[0].sharding = aws_tgw_acc_sharding
+    shard_manager.integration_runtime_meta[AWS_TGW_INTEGRATION].args = []
+
+    with pytest.raises(ValueError) as e:
+        intop.collect_integrations_environment(
+            [basic_integration], "test", shard_manager
+        )
+
+    assert (
+        e.value.args[0]
+        == "integration basic-integration does not support the provided argument. --account-name is required by the "
+        "'per-aws-tgw-account' sharding strategy."
+    )
 
 
 def test_fetch_desired_state(

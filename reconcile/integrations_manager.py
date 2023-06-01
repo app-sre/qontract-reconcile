@@ -33,6 +33,7 @@ from reconcile.utils import (
     gql,
     helm,
 )
+from reconcile.utils.aws_tgw_repository import AWSTGWRepository
 from reconcile.utils.defer import defer
 from reconcile.utils.oc import oc_process
 from reconcile.utils.openshift_resource import (
@@ -42,6 +43,7 @@ from reconcile.utils.openshift_resource import (
 from reconcile.utils.runtime.meta import IntegrationMeta
 from reconcile.utils.runtime.sharding import (
     AWSAccountShardingStrategy,
+    AWSTGWAccountShardingStrategy,
     CloudflareDnsZoneShardingStrategy,
     IntegrationShardManager,
     OpenshiftClusterShardingStrategy,
@@ -235,9 +237,8 @@ def run(
     # Beware, environment_name can be empty! It's optional to set it!
     # If not set, all environments should be considered.
 
-    all_integrations = (
-        integrations.query(query_func=gql.get_api().query).integrations or []
-    )
+    gql_api = gql.get_api()
+    all_integrations = integrations.query(query_func=gql_api.query).integrations or []
 
     filtered_integrations = filter_integrations(all_integrations, upstream)
 
@@ -245,6 +246,9 @@ def run(
         strategies={
             StaticShardingStrategy.IDENTIFIER: StaticShardingStrategy(),
             AWSAccountShardingStrategy.IDENTIFIER: AWSAccountShardingStrategy(),
+            AWSTGWAccountShardingStrategy.IDENTIFIER: AWSTGWAccountShardingStrategy(
+                AWSTGWRepository(gql_api)
+            ),
             OpenshiftClusterShardingStrategy.IDENTIFIER: OpenshiftClusterShardingStrategy(),
             CloudflareDnsZoneShardingStrategy.IDENTIFIER: CloudflareDnsZoneShardingStrategy(),
         },
