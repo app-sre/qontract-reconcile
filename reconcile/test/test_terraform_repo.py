@@ -6,6 +6,7 @@ from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.gql_definitions.terraform_repo.terraform_repo import (
     AWSAccountV1,
     TerraformRepoV1,
+    TerraformRepoModuleV1,
 )
 from reconcile.terraform_repo import (
     TerraformRepoIntegration,
@@ -18,12 +19,17 @@ A_REPO = "https://git-example/tf-repo-example"
 A_REPO_SHA = "a390f5cb20322c90861d6d80e9b70c6a579be1d0"
 B_REPO = "https://git-example/tf-repo-example2"
 B_REPO_SHA = "94edb90815e502b387c25358f5ec602e52d0bfbb"
+A_REPO_MODULE_ONE = "https://git-example/tf-repo-remote-module"
+A_REPO_MODULE_ONE_REF = "0841c608d3e15f310d8fc583ec293137d482fd48"
+A_REPO_MODULE_ONE_REF_ALT = "ef518f4612435b7762a149776ce67747af36cb41"
+A_REPO_MODULE_TWO = "https://git-example/tf-repo-remote-module2"
+A_REPO_MODULE_TWO_REF = "aa05bb770dabe70e317ec8bb2c10b5c8f7b8c369"
 AWS_UID = "000000000000"
 AUTOMATION_TOKEN_PATH = "aws-secrets/terraform/foo"
 
 
 @pytest.fixture
-def existing_repo(aws_account) -> TerraformRepoV1:
+def existing_repo(aws_account, repo_modules) -> TerraformRepoV1:
     return TerraformRepoV1(
         name="a_repo",
         repository=A_REPO,
@@ -31,6 +37,7 @@ def existing_repo(aws_account) -> TerraformRepoV1:
         account=aws_account,
         projectPath="tf",
         delete=False,
+        modules=repo_modules,
     )
 
 
@@ -58,6 +65,22 @@ def aws_account(automation_token) -> AWSAccountV1:
         uid="000000000000",
         automationToken=automation_token,
     )
+
+
+@pytest.fixture
+def repo_modules() -> list[TerraformRepoModuleV1]:
+    return [
+        TerraformRepoModuleV1(
+            name="foo",
+            url=A_REPO_MODULE_ONE,
+            ref=A_REPO_MODULE_ONE_REF,
+        ),
+        TerraformRepoModuleV1(
+            name="bar",
+            url=A_REPO_MODULE_TWO,
+            ref=A_REPO_MODULE_TWO_REF,
+        ),
+    ]
 
 
 @pytest.fixture
@@ -131,6 +154,26 @@ def test_updating_repo_ref(existing_repo, int_params, state_mock):
     )
 
 
+def test_updating_repo_module_ref(existing_repo, int_params, state_mock):
+    existing = [existing_repo]
+    updated_repo = TerraformRepoV1.copy(existing_repo)
+    updated_repo.modules[0].ref = A_REPO_MODULE_ONE_REF_ALT
+
+    integration = TerraformRepoIntegration(params=int_params)
+    diff = integration.calculate_diff(
+        existing_state=existing,
+        desired_state=[updated_repo],
+        dry_run=False,
+        state=state_mock,
+    )
+
+    assert diff == [updated_repo]
+
+    state_mock.add.assert_called_once_with(
+        updated_repo.name, updated_repo.dict(by_alias=True), force=True
+    )
+
+
 def test_fail_on_update_invalid_repo_params(existing_repo, int_params):
     existing = [existing_repo]
     updated_repo = TerraformRepoV1.copy(existing_repo)
@@ -139,6 +182,22 @@ def test_fail_on_update_invalid_repo_params(existing_repo, int_params):
     updated_repo.repository = B_REPO
     updated_repo.ref = B_REPO_SHA
     updated_repo.delete = True
+
+    integration = TerraformRepoIntegration(params=int_params)
+
+    with pytest.raises(ParameterError):
+        integration.calculate_diff(
+            existing_state=existing,
+            desired_state=[updated_repo],
+            dry_run=True,
+            state=None,
+        )
+
+
+def test_fail_on_update_duplicate_module_names(existing_repo, int_params):
+    existing = [existing_repo]
+    updated_repo = TerraformRepoV1.copy(existing_repo)
+    updated_repo.modules[1].name = "foo"
 
     integration = TerraformRepoIntegration(params=int_params)
 
