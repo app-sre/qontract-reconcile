@@ -25,6 +25,8 @@ from reconcile.gql_definitions.integrations.integrations import (
     OpenshiftClusterShardSpecOverrideV1,
     OpenshiftClusterShardSpecOverrideV1_ClusterV1,
     StaticSubShardingV1,
+    AWSTGWAccountShardSpecOverrideV1,
+    AWSTGWAccountShardSpecOverrideV1_AWSAccountV1,
 )
 from reconcile.gql_definitions.sharding import aws_accounts as sharding_aws_accounts
 from reconcile.gql_definitions.terraform_cloudflare_dns.terraform_cloudflare_zones import (
@@ -36,7 +38,7 @@ from reconcile.gql_definitions.terraform_cloudflare_dns.terraform_cloudflare_zon
     CloudflareDnsZoneV1,
 )
 from reconcile.gql_definitions.terraform_tgw_attachments import (
-    aws_accounts as terraform_tgw_attachments_aws_accounts,
+    aws_accounts as aws_tgw_accounts,
 )
 from reconcile.integrations_manager import HelmIntegrationSpec
 from reconcile.utils.aws_tgw_repository import (
@@ -292,16 +294,14 @@ def aws_account_sharding_strategy(
 
 @pytest.fixture
 def tgw_account_builder(
-    gql_class_factory: Callable[
-        ..., terraform_tgw_attachments_aws_accounts.AWSAccountV1
-    ],
-) -> Callable[..., terraform_tgw_attachments_aws_accounts.AWSAccountV1]:
+    gql_class_factory: Callable[..., aws_tgw_accounts.AWSAccountV1],
+) -> Callable[..., aws_tgw_accounts.AWSAccountV1]:
     def builder(
         name: str,
         disable: Optional[dict],
-    ) -> terraform_tgw_attachments_aws_accounts.AWSAccountV1:
+    ) -> aws_tgw_accounts.AWSAccountV1:
         return gql_class_factory(
-            terraform_tgw_attachments_aws_accounts.AWSAccountV1,
+            aws_tgw_accounts.AWSAccountV1,
             {
                 "name": name,
                 "disable": disable,
@@ -316,19 +316,15 @@ def tgw_account_builder(
 
 @pytest.fixture
 def aws_tgw_account_with_no_disable(
-    tgw_account_builder: Callable[
-        ..., terraform_tgw_attachments_aws_accounts.AWSAccountV1
-    ]
-) -> terraform_tgw_attachments_aws_accounts.AWSAccountV1:
+    tgw_account_builder: Callable[..., aws_tgw_accounts.AWSAccountV1]
+) -> aws_tgw_accounts.AWSAccountV1:
     return tgw_account_builder("acc-1", None)
 
 
 @pytest.fixture
 def aws_tgw_account_with_disable_none(
-    tgw_account_builder: Callable[
-        ..., terraform_tgw_attachments_aws_accounts.AWSAccountV1
-    ]
-) -> terraform_tgw_attachments_aws_accounts.AWSAccountV1:
+    tgw_account_builder: Callable[..., aws_tgw_accounts.AWSAccountV1]
+) -> aws_tgw_accounts.AWSAccountV1:
     return tgw_account_builder(
         "acc-2",
         {"integrations": None},
@@ -337,10 +333,8 @@ def aws_tgw_account_with_disable_none(
 
 @pytest.fixture
 def aws_tgw_account_with_disable_empty(
-    tgw_account_builder: Callable[
-        ..., terraform_tgw_attachments_aws_accounts.AWSAccountV1
-    ]
-) -> terraform_tgw_attachments_aws_accounts.AWSAccountV1:
+    tgw_account_builder: Callable[..., aws_tgw_accounts.AWSAccountV1]
+) -> aws_tgw_accounts.AWSAccountV1:
     return tgw_account_builder(
         "acc-3",
         {"integrations": []},
@@ -349,10 +343,8 @@ def aws_tgw_account_with_disable_empty(
 
 @pytest.fixture
 def aws_tgw_account_with_disable_integration(
-    tgw_account_builder: Callable[
-        ..., terraform_tgw_attachments_aws_accounts.AWSAccountV1
-    ]
-) -> terraform_tgw_attachments_aws_accounts.AWSAccountV1:
+    tgw_account_builder: Callable[..., aws_tgw_accounts.AWSAccountV1]
+) -> aws_tgw_accounts.AWSAccountV1:
     return tgw_account_builder(
         "acc-4",
         {"integrations": [AWS_TGW_INTEGRATION]},
@@ -980,10 +972,10 @@ def test_initialize_shard_specs_aws_tgw_account_shards(
     basic_integration: IntegrationV1,
     shard_manager: IntegrationShardManager,
     mock_aws_tgw_repository: AWSTGWRepository,
-    aws_tgw_account_with_no_disable: terraform_tgw_attachments_aws_accounts.AWSAccountV1,
-    aws_tgw_account_with_disable_none: terraform_tgw_attachments_aws_accounts.AWSAccountV1,
-    aws_tgw_account_with_disable_empty: terraform_tgw_attachments_aws_accounts.AWSAccountV1,
-    aws_tgw_account_with_disable_integration: terraform_tgw_attachments_aws_accounts.AWSAccountV1,
+    aws_tgw_account_with_no_disable: aws_tgw_accounts.AWSAccountV1,
+    aws_tgw_account_with_disable_none: aws_tgw_accounts.AWSAccountV1,
+    aws_tgw_account_with_disable_empty: aws_tgw_accounts.AWSAccountV1,
+    aws_tgw_account_with_disable_integration: aws_tgw_accounts.AWSAccountV1,
 ):
     aws_tgw_acc_sharding = AWSTGWAccountShardingV1(
         strategy="per-aws-tgw-account", shardSpecOverrides=None
@@ -1024,6 +1016,125 @@ def test_initialize_shard_specs_aws_tgw_account_shards(
             shard_name_suffix="-acc-3",
             shard_key="acc-3",
             extra_args="integ-extra-arg --account-name acc-3",
+        ),
+    ]
+
+    shards = wr[0].integration_specs[0].shard_specs or []
+    assert expected == shards
+
+
+@pytest.fixture
+def aws_tgw_account_with_no_disable_shard_overrides(
+    gql_class_factory: Callable[..., DeployResourcesFields],
+    resources: dict[str, Any],
+    aws_tgw_account_with_no_disable: aws_tgw_accounts.AWSAccountV1,
+) -> AWSTGWAccountShardSpecOverrideV1:
+    return AWSTGWAccountShardSpecOverrideV1(
+        shard=AWSTGWAccountShardSpecOverrideV1_AWSAccountV1(
+            name=aws_tgw_account_with_no_disable.name,
+            disable=aws_tgw_account_with_no_disable.disable,
+        ),
+        imageRef="acc1-image",
+        disabled=False,
+        resources=None,
+    )
+
+
+@pytest.fixture
+def aws_tgw_account_with_disable_none_shard_overrides(
+    gql_class_factory: Callable[..., DeployResourcesFields],
+    resources: dict[str, Any],
+    aws_tgw_account_with_disable_none: aws_tgw_accounts.AWSAccountV1,
+) -> AWSTGWAccountShardSpecOverrideV1:
+    resources["requests"]["cpu"] = "200m"
+    resources["requests"]["memory"] = "2Mi"
+    resources["limits"]["cpu"] = "300m"
+    resources["limits"]["memory"] = "3Mi"
+
+    deploy_resources = gql_class_factory(DeployResourcesFields, resources)
+    return AWSTGWAccountShardSpecOverrideV1(
+        shard=AWSTGWAccountShardSpecOverrideV1_AWSAccountV1(
+            name=aws_tgw_account_with_disable_none.name,
+            disable=aws_tgw_account_with_disable_none.disable,
+        ),
+        imageRef=None,
+        resources=deploy_resources,
+        disabled=False,
+    )
+
+
+@pytest.fixture
+def aws_tgw_account_with_disable_empty_shard_overrides(
+    gql_class_factory: Callable[..., DeployResourcesFields],
+    aws_tgw_account_with_disable_empty: aws_tgw_accounts.AWSAccountV1,
+) -> AWSTGWAccountShardSpecOverrideV1:
+    return AWSTGWAccountShardSpecOverrideV1(
+        shard=AWSTGWAccountShardSpecOverrideV1_AWSAccountV1(
+            name=aws_tgw_account_with_disable_empty.name,
+            disable=aws_tgw_account_with_disable_empty.disable,
+        ),
+        resources=None,
+        imageRef=None,
+        disabled=True,
+    )
+
+
+def test_initialize_shard_specs_aws_tgw_account_shards_with_overrides(
+    basic_integration: IntegrationV1,
+    shard_manager: IntegrationShardManager,
+    mock_aws_tgw_repository: AWSTGWRepository,
+    aws_tgw_account_with_no_disable: aws_tgw_accounts.AWSAccountV1,
+    aws_tgw_account_with_disable_none: aws_tgw_accounts.AWSAccountV1,
+    aws_tgw_account_with_disable_empty: aws_tgw_accounts.AWSAccountV1,
+    aws_tgw_account_with_no_disable_shard_overrides: AWSTGWAccountShardSpecOverrideV1,
+    aws_tgw_account_with_disable_none_shard_overrides: AWSTGWAccountShardSpecOverrideV1,
+    aws_tgw_account_with_disable_empty_shard_overrides: AWSTGWAccountShardSpecOverrideV1,
+):
+    aws_tgw_acc_sharding = AWSTGWAccountShardingV1(
+        strategy=AWSTGWAccountShardingStrategy.IDENTIFIER,
+        shardSpecOverrides=[
+            aws_tgw_account_with_no_disable_shard_overrides,
+            aws_tgw_account_with_disable_none_shard_overrides,
+            aws_tgw_account_with_disable_empty_shard_overrides,
+        ],
+    )
+    mock_aws_tgw_repository.get_tgw_clusters_and_accounts.return_value = (
+        AWSTGWClustersAndAccounts(
+            clusters=[],
+            accounts=[
+                aws_tgw_account_with_no_disable,
+                aws_tgw_account_with_disable_none,
+                aws_tgw_account_with_disable_empty,
+            ],
+        )
+    )
+
+    basic_integration.name = AWS_TGW_INTEGRATION
+    if basic_integration.managed:
+        basic_integration.managed[0].sharding = aws_tgw_acc_sharding
+
+    wr = intop.collect_integrations_environment(
+        [basic_integration], "test", shard_manager
+    )
+
+    expected = [
+        ShardSpec(
+            shard_name_suffix="-acc-1",
+            shard_key="acc-1",
+            extra_args="integ-extra-arg --account-name acc-1",
+            shard_spec_overrides=aws_tgw_account_with_no_disable_shard_overrides,
+        ),
+        ShardSpec(
+            shard_name_suffix="-acc-2",
+            shard_key="acc-2",
+            extra_args="integ-extra-arg --account-name acc-2",
+            shard_spec_overrides=aws_tgw_account_with_disable_none_shard_overrides,
+        ),
+        ShardSpec(
+            shard_name_suffix="-acc-3",
+            shard_key="acc-3",
+            extra_args="integ-extra-arg --account-name acc-3",
+            shard_spec_overrides=aws_tgw_account_with_disable_empty_shard_overrides,
         ),
     ]
 

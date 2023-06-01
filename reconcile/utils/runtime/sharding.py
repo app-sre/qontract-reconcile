@@ -24,6 +24,7 @@ from reconcile.gql_definitions.integrations.integrations import (
     StaticShardingV1,
     StaticSubShardingV1,
     SubShardingV1,
+    AWSTGWAccountShardingV1,
 )
 from reconcile.gql_definitions.sharding import aws_accounts as sharding_aws_accounts
 from reconcile.gql_definitions.terraform_cloudflare_dns import (
@@ -48,6 +49,7 @@ class ShardSpec(BaseModel):
     shard_spec_overrides: Optional[
         Union[
             AWSAccountShardSpecOverrideV1,
+            AWSTGWAccountShardSpecOverrideV1,
             OpenshiftClusterShardSpecOverrideV1,
             CloudflareDNSZoneShardSpecOverrideV1,
         ]
@@ -239,6 +241,17 @@ class AWSTGWAccountShardingStrategy:
             )
 
     @staticmethod
+    def get_shard_spec_overrides(
+        sharding: Optional[IntegrationShardingV1],
+    ) -> dict[str, AWSTGWAccountShardSpecOverrideV1]:
+        if (
+            not isinstance(sharding, AWSTGWAccountShardingV1)
+            or sharding.shard_spec_overrides is None
+        ):
+            return {}
+        return {sp.shard.name: sp for sp in sharding.shard_spec_overrides}
+
+    @staticmethod
     def _is_enabled(
         tgw_aws_account: tgw_aws_accounts.AWSAccountV1,
         integration: str,
@@ -256,13 +269,14 @@ class AWSTGWAccountShardingStrategy:
         integration_managed: IntegrationManagedV1,
     ):
         self.check_integration_sharding_params(integration_meta)
+        spos = self.get_shard_spec_overrides(integration_managed.sharding)
         accounts = self.aws_tgw_repository.get_tgw_clusters_and_accounts().accounts
-        active_accounts = (
+        enabled_accounts = (
             a for a in accounts if self._is_enabled(a, integration_meta.name)
         )
         return [
-            self.build_shard_spec(a, integration_managed.spec, None)
-            for a in active_accounts
+            self.build_shard_spec(a, integration_managed.spec, spos.get(a.name))
+            for a in enabled_accounts
         ]
 
 
