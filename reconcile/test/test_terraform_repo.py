@@ -108,7 +108,19 @@ def a_repo_json() -> str:
                         "version": 1,
                         "format": null
                     }}
-                }}
+                }},
+                "modules": [
+                    {{
+                    "name": "foo",
+                    "url": "{A_REPO_MODULE_ONE}",
+                    "ref": "{A_REPO_MODULE_ONE_REF}"
+                    }},
+                    {{
+                    "name": "bar",
+                    "url": "{A_REPO_MODULE_TWO}",
+                    "ref": "{A_REPO_MODULE_TWO_REF}"
+                    }}
+                ]
             }}
             """
 
@@ -157,7 +169,7 @@ def test_updating_repo_ref(existing_repo, int_params, state_mock):
 
 def test_updating_repo_module_ref(existing_repo, int_params, state_mock):
     existing = [existing_repo]
-    updated_repo = TerraformRepoV1.copy(existing_repo)
+    updated_repo = TerraformRepoV1.copy(existing_repo, deep=True)
     updated_repo.modules[0].ref = A_REPO_MODULE_ONE_REF_ALT
 
     integration = TerraformRepoIntegration(params=int_params)
@@ -197,7 +209,7 @@ def test_fail_on_update_invalid_repo_params(existing_repo, int_params):
 
 def test_fail_on_update_duplicate_module_names(existing_repo, int_params):
     existing = [existing_repo]
-    updated_repo = TerraformRepoV1.copy(existing_repo)
+    updated_repo = TerraformRepoV1.copy(existing_repo, deep=True)
     updated_repo.modules[1].name = "foo"
 
     integration = TerraformRepoIntegration(params=int_params)
