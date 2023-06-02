@@ -117,6 +117,9 @@ class OCMAddonsUpgradeSchedulerOrgIntegration(
                 upgradePolicy=cluster.upgrade_policy,
             )
             for cluster in org.upgrade_policy_clusters or []
+            # clusters that are not in the UUID dict will be ignored because
+            # they don't exist in the OCM organization (or have been deprovisioned)
+            if cluster.name in cluster_name_to_uuid
         ]
 
     def expose_org_upgrade_spec_metrics(
