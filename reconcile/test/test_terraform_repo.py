@@ -42,7 +42,7 @@ def existing_repo(aws_account, repo_modules) -> TerraformRepoV1:
 
 
 @pytest.fixture
-def new_repo(aws_account, repo_modules) -> TerraformRepoV1:
+def new_repo(aws_account) -> TerraformRepoV1:
     return TerraformRepoV1(
         name="b_repo",
         repository=B_REPO,
@@ -50,6 +50,7 @@ def new_repo(aws_account, repo_modules) -> TerraformRepoV1:
         account=aws_account,
         projectPath="tf",
         delete=False,
+        modules=None,
     )
 
 
