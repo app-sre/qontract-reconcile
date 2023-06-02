@@ -14,6 +14,7 @@ from pydantic import (
 from reconcile import queries
 from reconcile.gql_definitions.terraform_repo.terraform_repo import (
     TerraformRepoV1,
+    TerraformRepoModuleV1,
     query,
 )
 from reconcile.utils import gql
@@ -191,7 +192,7 @@ class TerraformRepoIntegration(
                     f'Invalid ref: "{ref}" on repo: "{repo_url}". Or the project repo is not reachable'
                 )
 
-    def module_name_uniqueness(self, modules: list[RepoModule]) -> None:
+    def module_name_uniqueness(self, modules: list[TerraformRepoModuleV1]) -> None:
         """Validates that all module names defined for a repo target are unique.
         This facilitates process performed by executor to retrieve dependency modules"""
         unique_names = set()
