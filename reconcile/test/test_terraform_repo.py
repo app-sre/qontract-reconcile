@@ -5,8 +5,8 @@ import pytest
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.gql_definitions.terraform_repo.terraform_repo import (
     AWSAccountV1,
-    TerraformRepoV1,
     TerraformRepoModuleV1,
+    TerraformRepoV1,
 )
 from reconcile.terraform_repo import (
     TerraformRepoIntegration,

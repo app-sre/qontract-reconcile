@@ -13,8 +13,8 @@ from pydantic import (
 
 from reconcile import queries
 from reconcile.gql_definitions.terraform_repo.terraform_repo import (
-    TerraformRepoV1,
     TerraformRepoModuleV1,
+    TerraformRepoV1,
     query,
 )
 from reconcile.utils import gql
