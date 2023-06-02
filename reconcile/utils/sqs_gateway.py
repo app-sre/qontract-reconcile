@@ -54,9 +54,15 @@ class SQSGateway:
     def send_message(self, body):
         self.sqs.send_message(QueueUrl=self.queue_url, MessageBody=json.dumps(body))
 
-    def receive_messages(self, visibility_timeout=30):
+    def receive_messages(
+        self,
+        visibility_timeout=30,
+        wait_time_seconds=20,
+    ):
         messages = self.sqs.receive_message(
-            QueueUrl=self.queue_url, VisibilityTimeout=visibility_timeout
+            QueueUrl=self.queue_url,
+            VisibilityTimeout=visibility_timeout,
+            WaitTimeSeconds=wait_time_seconds,
         ).get("Messages", [])
         return [(m["ReceiptHandle"], json.loads(m["Body"])) for m in messages]
 
