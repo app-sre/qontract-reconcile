@@ -408,7 +408,7 @@ def fetch_upgrade_policies(
                 cluster,
                 current_version=spec.version,
                 channel=spec.channel,
-                available_upgrades=ocm.available_cluster_upgrades.get(cluster_name),
+                available_upgrades=ocm.get_available_upgrades(cluster_name),
                 sector=sector,
             )
             desired_state.append(ccup)
@@ -743,7 +743,7 @@ def get_upgrades(addon_id: str, d: ConfiguredUpgradePolicy, ocm: OCM) -> list[st
             if a["id"] == addon_id and a["version"]["id"] != d.current_version
         ]
     elif isinstance(d, ConfiguredClusterUpgradePolicy):
-        upgrades = ocm.get_available_upgrades(d.current_version, d.channel)
+        upgrades = ocm.get_available_upgrades(d.cluster) or []
     return upgrades
 
 
