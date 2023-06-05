@@ -101,7 +101,7 @@ print-files-modified-in-last-30-days:
 
 format:
 	@$(VENV_CMD) isort reconcile tools release dockerfiles/hack setup.py
-	@$(VENV_CMD) black reconcile/ tools/
+	@$(VENV_CMD) black reconcile tools release dockerfiles/hack setup.py
 
 gql-introspection:
 	# TODO: make url configurable
