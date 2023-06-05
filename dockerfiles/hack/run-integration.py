@@ -116,7 +116,7 @@ def build_entry_point_func(command_name: str) -> click.Command:
     )
 
 
-def main():
+def main() -> None:
     """
     This entry point script expects certain env variables
     * COMMAND_NAME (optional, defaults to qontract-reconcile)
@@ -172,7 +172,7 @@ def main():
         # This is for when the integration explicitly
         # calls sys.exit(N)
         except SystemExit as exc_obj:
-            return_code = int(exc_obj.code)
+            return_code = int(exc_obj.code)  # type: ignore[arg-type]
         # We have to be generic since we don't know what can happen
         # in the integrations, but we want to continue the loop anyway
         except Exception:
