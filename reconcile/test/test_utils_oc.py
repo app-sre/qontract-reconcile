@@ -575,13 +575,7 @@ class TestOCMapGetClusters(TestCase):
 @pytest.fixture
 def oc_cli(monkeypatch) -> OCCli:
     monkeypatch.setenv("USE_NATIVE_CLIENT", "False")
-    return OC("cluster", "server", "token", local=True)
-
-
-@pytest.fixture
-def oc_native(monkeypatch) -> OCNative:
-    monkeypatch.setenv("USE_NATIVE_CLIENT", "True")
-    return OC("cluster", "server", "token", local=True)
+    return OC("cluster", "server", "token", local=True)  # type: ignore[return-value]
 
 
 @pytest.fixture
@@ -989,7 +983,7 @@ def oc_api_resources(monkeypatch, mocker, api_resources) -> OCCli:
     monkeypatch.setenv("USE_NATIVE_CLIENT", "False")
     get_api_resources = mocker.patch.object(OCCli, "get_api_resources", autospec=True)
     get_api_resources.return_value = api_resources
-    return OC("cluster", "server", "token", local=True, init_api_resources=True)
+    return OC("cluster", "server", "token", local=True, init_api_resources=True)  # type: ignore[return-value]
 
 
 def test_is_kind_namespaced(oc_api_resources):
@@ -1006,3 +1000,71 @@ def test_is_kind_not_namespaced(oc_api_resources):
 
 def test_is_kind_not_namespaced_full_name(oc_api_resources):
     assert not oc_api_resources.is_kind_namespaced("kind2.group2")
+
+
+@pytest.fixture
+def oc_native(
+    monkeypatch,
+    mocker,
+    api_resources: dict,
+) -> OCNative:
+    monkeypatch.setenv("USE_NATIVE_CLIENT", "True")
+    get_api_resources = mocker.patch.object(OCCli, "get_api_resources", autospec=True)
+    get_api_resources.return_value = api_resources
+    mocker.patch.object(OCNative, "_get_client", autospec=True)
+    return OC("cluster", "server", "token", local=True)  # type: ignore[return-value]
+
+
+def test_oc_native_get(oc_native: OCNative) -> None:
+    oc_native.get("namespace", "kind1", "name")
+
+    oc_native.client.resources.get.assert_called_once_with(
+        api_version="group1/v1",
+        kind="kind1",
+    )
+    oc_native.client.resources.get.return_value.get.assert_called_once_with(
+        namespace="namespace",
+        name="name",
+        _request_time=60,
+    )
+
+
+def test_oc_native_get_items(oc_native: OCNative) -> None:
+    oc_native.get_items("kind1", labels={"label1": "value1"})
+
+    oc_native.client.resources.get.assert_called_once_with(
+        api_version="group1/v1",
+        kind="kind1",
+    )
+    oc_native.client.resources.get.return_value.get.assert_called_once_with(
+        namespace="",
+        label_selector="label1=value1",
+        _request_time=60,
+    )
+
+
+def test_oc_native_get_items_with_resource_names(oc_native: OCNative) -> None:
+    oc_native.get_items("kind1", labels={"label1": "value1"}, resource_names=["name"])
+
+    oc_native.client.resources.get.assert_called_once_with(
+        api_version="group1/v1",
+        kind="kind1",
+    )
+    oc_native.client.resources.get.return_value.get.assert_called_once_with(
+        namespace="",
+        name="name",
+        label_selector="label1=value1",
+        _request_time=60,
+    )
+
+
+def test_oc_native_get_all(oc_native: OCNative) -> None:
+    oc_native.get_all("kind1")
+
+    oc_native.client.resources.get.assert_called_once_with(
+        api_version="group1/v1",
+        kind="kind1",
+    )
+    oc_native.client.resources.get.return_value.get.assert_called_once_with(
+        _request_time=60,
+    )

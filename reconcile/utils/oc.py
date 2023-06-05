@@ -1194,6 +1194,9 @@ class OCCli:  # pylint: disable=too-many-public-methods
         return kind_resources[0].namespaced
 
 
+REQUEST_TIMEOUT = 60
+
+
 class OCNative(OCCli):
     def __init__(
         self,
@@ -1322,7 +1325,10 @@ class OCNative(OCCli):
             for resource_name in resource_names:
                 try:
                     item = obj_client.get(
-                        name=resource_name, namespace=namespace, label_selector=labels
+                        name=resource_name,
+                        namespace=namespace,
+                        label_selector=labels,
+                        _request_time=REQUEST_TIMEOUT,
                     )
                     if item:
                         items.append(item.to_dict())
@@ -1331,7 +1337,9 @@ class OCNative(OCCli):
             items_list = {"items": items}
         else:
             items_list = obj_client.get(
-                namespace=namespace, label_selector=labels
+                namespace=namespace,
+                label_selector=labels,
+                _request_time=REQUEST_TIMEOUT,
             ).to_dict()
 
         items = items_list.get("items")
@@ -1345,7 +1353,11 @@ class OCNative(OCCli):
         k, group_version = self._parse_kind(kind)
         obj_client = self._get_obj_client(group_version=group_version, kind=k)
         try:
-            obj = obj_client.get(name=name, namespace=namespace)
+            obj = obj_client.get(
+                name=name,
+                namespace=namespace,
+                _request_time=REQUEST_TIMEOUT,
+            )
             return obj.to_dict()
         except NotFoundError as e:
             if allow_not_found:
@@ -1356,7 +1368,7 @@ class OCNative(OCCli):
         k, group_version = self._parse_kind(kind)
         obj_client = self._get_obj_client(group_version=group_version, kind=k)
         try:
-            return obj_client.get().to_dict()
+            return obj_client.get(_request_time=REQUEST_TIMEOUT).to_dict()
         except NotFoundError as e:
             raise StatusCodeError(f"[{self.server}]: {e}")
 
