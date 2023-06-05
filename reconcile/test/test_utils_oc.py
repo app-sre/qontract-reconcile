@@ -573,9 +573,9 @@ class TestOCMapGetClusters(TestCase):
 
 
 @pytest.fixture
-def oc(monkeypatch):
+def oc_cli(monkeypatch) -> OCCli:
     monkeypatch.setenv("USE_NATIVE_CLIENT", "False")
-    return OC("cluster", "server", "token", local=True)
+    return OC("cluster", "server", "token", local=True)  # type: ignore[return-value]
 
 
 @pytest.fixture
@@ -620,44 +620,44 @@ def pod():
     }
 
 
-def test_get_resources_used_in_pod_spec_unsupported_kind(oc):
+def test_get_resources_used_in_pod_spec_unsupported_kind(oc_cli):
     with pytest.raises(KeyError):
-        oc.get_resources_used_in_pod_spec({}, "Deployment")
+        oc_cli.get_resources_used_in_pod_spec({}, "Deployment")
 
 
-def test_get_resources_used_in_pod_spec_secret(oc, pod):
+def test_get_resources_used_in_pod_spec_secret(oc_cli, pod):
     expected = {"secret1": set(), "secret2": set(), "secret3": {"secretkey3"}}
-    results = oc.get_resources_used_in_pod_spec(pod["spec"], "Secret")
+    results = oc_cli.get_resources_used_in_pod_spec(pod["spec"], "Secret")
     assert results == expected
 
 
-def test_get_resources_used_in_pod_spec_configmap(oc, pod):
+def test_get_resources_used_in_pod_spec_configmap(oc_cli, pod):
     expected = {
         "configmap1": set(),
         "configmap2": set(),
         "configmap3": {"configmapkey3"},
     }
-    results = oc.get_resources_used_in_pod_spec(pod["spec"], "ConfigMap")
+    results = oc_cli.get_resources_used_in_pod_spec(pod["spec"], "ConfigMap")
     assert results == expected
 
 
-def test_secret_used_in_pod_true(oc, pod):
-    result = oc.secret_used_in_pod("secret1", pod)
+def test_secret_used_in_pod_true(oc_cli, pod):
+    result = oc_cli.secret_used_in_pod("secret1", pod)
     assert result is True
 
 
-def test_secret_used_in_pod_false(oc, pod):
-    result = oc.secret_used_in_pod("secret9999", pod)
+def test_secret_used_in_pod_false(oc_cli, pod):
+    result = oc_cli.secret_used_in_pod("secret9999", pod)
     assert result is False
 
 
-def test_configmap_used_in_pod_true(oc, pod):
-    result = oc.configmap_used_in_pod("configmap1", pod)
+def test_configmap_used_in_pod_true(oc_cli, pod):
+    result = oc_cli.configmap_used_in_pod("configmap1", pod)
     assert result is True
 
 
-def test_configmap_used_in_pod_false(oc, pod):
-    result = oc.configmap_used_in_pod("configmap9999", pod)
+def test_configmap_used_in_pod_false(oc_cli, pod):
+    result = oc_cli.configmap_used_in_pod("configmap9999", pod)
     assert result is False
 
 
@@ -897,10 +897,14 @@ def replicasets(deployment):
     ]
 
 
-def test_get_owned_replicasets(mocker, oc: OCNative, deployment):
-    oc__get = mocker.patch.object(oc, "get", autospec=True)
+def test_get_owned_replicasets(
+    mocker,
+    oc_cli: OCCli,
+    deployment,
+):
+    oc__get = mocker.patch.object(oc_cli, "get", autospec=True)
     oc__get_obj_root_owner = mocker.patch.object(
-        oc, "get_obj_root_owner", autospec=True
+        oc_cli, "get_obj_root_owner", autospec=True
     )
     oc__get.return_value = {"items": ["stub1", "stub2", "stub3"]}
     oc__get_obj_root_owner.side_effect = [
@@ -908,40 +912,56 @@ def test_get_owned_replicasets(mocker, oc: OCNative, deployment):
         deployment,
         {"kind": "ownerkind", "metadata": {"name": "notownername"}},
     ]
-    owned_replicasets = oc.get_owned_replicasets("namespace", deployment)
+    owned_replicasets = oc_cli.get_owned_replicasets("namespace", deployment)
     assert len(owned_replicasets) == 2
 
 
-def test_get_replicaset(patch_sleep, mocker, oc: OCNative, deployment, replicasets):
+def test_get_replicaset(
+    patch_sleep,
+    mocker,
+    oc_cli: OCCli,
+    deployment,
+    replicasets,
+):
     oc__get_owned_replicasets = mocker.patch.object(
-        oc, "get_owned_replicasets", autospec=True
+        oc_cli, "get_owned_replicasets", autospec=True
     )
     oc__get_owned_replicasets.return_value = replicasets
 
     assert (
-        oc.get_replicaset("namespace", deployment)["metadata"]["name"]
+        oc_cli.get_replicaset("namespace", deployment)["metadata"]["name"]
         == "busybox-current"
     )
 
 
-def test_get_replicaset_fail(patch_sleep, mocker, oc: OCNative, deployment):
+def test_get_replicaset_fail(
+    patch_sleep,
+    mocker,
+    oc_cli: OCCli,
+    deployment,
+):
     oc__get_owned_replicasets = mocker.patch.object(
-        oc, "get_owned_replicasets", autospec=True
+        oc_cli, "get_owned_replicasets", autospec=True
     )
     oc__get_owned_replicasets.return_value = []
 
     with pytest.raises(ResourceNotFoundError):
         # pylint: disable-next=expression-not-assigned
-        oc.get_replicaset("namespace", deployment)["metadata"]["name"]
+        oc_cli.get_replicaset("namespace", deployment)["metadata"]["name"]
     assert oc__get_owned_replicasets.call_count == GET_REPLICASET_MAX_ATTEMPTS
 
 
-def test_get_replicaset_allow_empty(patch_sleep, mocker, oc: OCNative, deployment):
+def test_get_replicaset_allow_empty(
+    patch_sleep,
+    mocker,
+    oc_cli: OCCli,
+    deployment,
+):
     oc__get_owned_replicasets = mocker.patch.object(
-        oc, "get_owned_replicasets", autospec=True
+        oc_cli, "get_owned_replicasets", autospec=True
     )
     oc__get_owned_replicasets.return_value = []
-    assert oc.get_replicaset("namespace", deployment, allow_empty=True) == {}
+    assert oc_cli.get_replicaset("namespace", deployment, allow_empty=True) == {}
 
 
 @pytest.fixture
@@ -959,11 +979,11 @@ def api_resources():
 
 
 @pytest.fixture
-def oc_api_resources(monkeypatch, mocker, api_resources):
+def oc_api_resources(monkeypatch, mocker, api_resources) -> OCCli:
     monkeypatch.setenv("USE_NATIVE_CLIENT", "False")
     get_api_resources = mocker.patch.object(OCCli, "get_api_resources", autospec=True)
     get_api_resources.return_value = api_resources
-    return OC("cluster", "server", "token", local=True, init_api_resources=True)
+    return OC("cluster", "server", "token", local=True, init_api_resources=True)  # type: ignore[return-value]
 
 
 def test_is_kind_namespaced(oc_api_resources):
@@ -980,3 +1000,71 @@ def test_is_kind_not_namespaced(oc_api_resources):
 
 def test_is_kind_not_namespaced_full_name(oc_api_resources):
     assert not oc_api_resources.is_kind_namespaced("kind2.group2")
+
+
+@pytest.fixture
+def oc_native(
+    monkeypatch,
+    mocker,
+    api_resources: dict,
+) -> OCNative:
+    monkeypatch.setenv("USE_NATIVE_CLIENT", "True")
+    get_api_resources = mocker.patch.object(OCCli, "get_api_resources", autospec=True)
+    get_api_resources.return_value = api_resources
+    mocker.patch.object(OCNative, "_get_client", autospec=True)
+    return OC("cluster", "server", "token", local=True)  # type: ignore[return-value]
+
+
+def test_oc_native_get(oc_native: OCNative) -> None:
+    oc_native.get("namespace", "kind1", "name")
+
+    oc_native.client.resources.get.assert_called_once_with(
+        api_version="group1/v1",
+        kind="kind1",
+    )
+    oc_native.client.resources.get.return_value.get.assert_called_once_with(
+        namespace="namespace",
+        name="name",
+        _request_timeout=60,
+    )
+
+
+def test_oc_native_get_items(oc_native: OCNative) -> None:
+    oc_native.get_items("kind1", labels={"label1": "value1"})
+
+    oc_native.client.resources.get.assert_called_once_with(
+        api_version="group1/v1",
+        kind="kind1",
+    )
+    oc_native.client.resources.get.return_value.get.assert_called_once_with(
+        namespace="",
+        label_selector="label1=value1",
+        _request_timeout=60,
+    )
+
+
+def test_oc_native_get_items_with_resource_names(oc_native: OCNative) -> None:
+    oc_native.get_items("kind1", labels={"label1": "value1"}, resource_names=["name"])
+
+    oc_native.client.resources.get.assert_called_once_with(
+        api_version="group1/v1",
+        kind="kind1",
+    )
+    oc_native.client.resources.get.return_value.get.assert_called_once_with(
+        namespace="",
+        name="name",
+        label_selector="label1=value1",
+        _request_timeout=60,
+    )
+
+
+def test_oc_native_get_all(oc_native: OCNative) -> None:
+    oc_native.get_all("kind1")
+
+    oc_native.client.resources.get.assert_called_once_with(
+        api_version="group1/v1",
+        kind="kind1",
+    )
+    oc_native.client.resources.get.return_value.get.assert_called_once_with(
+        _request_timeout=60,
+    )
