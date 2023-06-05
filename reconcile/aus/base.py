@@ -743,7 +743,7 @@ def get_upgrades(addon_id: str, d: ConfiguredUpgradePolicy, ocm: OCM) -> list[st
             if a["id"] == addon_id and a["version"]["id"] != d.current_version
         ]
     elif isinstance(d, ConfiguredClusterUpgradePolicy):
-        upgrades = ocm.get_available_upgrades(d.cluster) or []
+        upgrades = ocm.get_available_upgrades(d.cluster)
     return upgrades
 
 
