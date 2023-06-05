@@ -139,8 +139,10 @@ query TerraformResourcesNamespaces {
                 assume_role {
                     AWS
                     Service
+                    Federated
                 }
                 assume_condition
+                assume_action
                 inline_policy
                 output_resource_name
                 annotations
@@ -590,12 +592,14 @@ class NamespaceTerraformResourceSecretsManagerServiceAccountV1(
 class AssumeRoleV1(ConfiguredBaseModel):
     aws: Optional[list[str]] = Field(..., alias="AWS")
     service: Optional[list[str]] = Field(..., alias="Service")
+    federated: Optional[str] = Field(..., alias="Federated")
 
 
 class NamespaceTerraformResourceRoleV1(NamespaceTerraformResourceAWSV1):
     identifier: str = Field(..., alias="identifier")
     assume_role: AssumeRoleV1 = Field(..., alias="assume_role")
     assume_condition: Optional[str] = Field(..., alias="assume_condition")
+    assume_action: Optional[str] = Field(..., alias="assume_action")
     inline_policy: Optional[str] = Field(..., alias="inline_policy")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
     annotations: Optional[str] = Field(..., alias="annotations")
@@ -1006,10 +1010,10 @@ class NamespaceTerraformProviderResourceAWSV1(NamespaceExternalResourceV1):
             NamespaceTerraformResourceSNSTopicV1,
             NamespaceTerraformResourceElastiCacheV1,
             NamespaceTerraformResourceServiceAccountV1,
+            NamespaceTerraformResourceRoleV1,
             NamespaceTerraformResourceS3SQSV1,
             NamespaceTerraformResourceCloudWatchV1,
             NamespaceTerraformResourceRosaAuthenticatorVPCEV1,
-            NamespaceTerraformResourceRoleV1,
             NamespaceTerraformResourceS3CloudFrontV1,
             NamespaceTerraformResourceKMSV1,
             NamespaceTerraformResourceElasticSearchV1,

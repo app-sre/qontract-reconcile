@@ -218,6 +218,7 @@ VARIABLE_KEYS = [
     "assume_role",
     "inline_policy",
     "assume_condition",
+    "assume_action",
     "api_proxy_uri",
     "cognito_callback_bucket_name",
     "openshift_ingress_load_balancer_arn",
@@ -2365,12 +2366,13 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         assume_role = common_values["assume_role"]
         assume_role = {k: v for k, v in assume_role.items() if v is not None}
+        assume_action = common_values.get("assume_action") or "AssumeRole"
         # assume role policy
         assume_role_policy = {
             "Version": "2012-10-17",
             "Statement": [
                 {
-                    "Action": "sts:AssumeRole",
+                    "Action": f"sts:{assume_action}",
                     "Effect": "Allow",
                     "Principal": assume_role,
                 }
