@@ -27,7 +27,6 @@ data:
       "editable": true,
       "fiscalYearStartMonth": 0,
       "graphTooltip": 0,
-      "id": 119713,
       "links": [],
       "liveNow": false,
       "panels": [
@@ -283,7 +282,7 @@ data:
                 "scaleDistribution": {
                   "type": "linear"
                 },
-                "showPoints": "auto",
+                "showPoints": "never",
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -338,6 +337,7 @@ data:
               },
               "editorMode": "code",
               "expr": "sum(aus_cluster_upgrade_policy_info{integration=\"$aus_integration\"}) by (org_id) ",
+              "interval": "5m",
               "legendFormat": "__auto",
               "range": true,
               "refId": "A"
@@ -485,7 +485,7 @@ data:
       "timezone": "",
       "title": "AUS Ops Dashboard",
       "uid": "bqA9EFwVk",
-      "version": 10,
+      "version": 11,
       "weekStart": ""
     }
 kind: ConfigMap
