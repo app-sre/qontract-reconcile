@@ -242,7 +242,7 @@ data:
                 "uid": "P2C3F6ECC774D80E6"
               },
               "editorMode": "code",
-              "expr": "sum(increase(aus_organization_reconcile_errors_total{integration=\"$aus_integration\"}[5m])) by (org_id)",
+              "expr": "sum(increase(aus_organization_reconcile_errors_total{integration=\"$aus_integration\"}[5m])) by (org_id) > 0",
               "legendFormat": "__auto",
               "range": true,
               "refId": "A"
