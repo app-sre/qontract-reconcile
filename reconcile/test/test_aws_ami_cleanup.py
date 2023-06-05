@@ -252,6 +252,7 @@ def test_check_aws_ami_in_use(ai_amis_fxt: list[AIAmi]) -> None:
             AmiTag(key="infra_commit", value="sha-0123"),
             AmiTag(key="type", value="ci-int-jenkins-worker-app-sre"),
         },
+        snapshot_ids=[],
     )
     assert check_aws_ami_in_use(aws_ami, ai_amis_fxt) == "ci-int-jenkins-worker-app-sre"
 
@@ -263,6 +264,7 @@ def test_check_aws_ami_in_use(ai_amis_fxt: list[AIAmi]) -> None:
             AmiTag(key="type", value="ci-int-jenkins-worker-app-interface"),
             AmiTag(key="infra_commit", value="sha-4567"),
         },
+        snapshot_ids=[],
     )
     assert (
         check_aws_ami_in_use(aws_ami, ai_amis_fxt)
@@ -277,6 +279,7 @@ def test_check_aws_ami_in_use(ai_amis_fxt: list[AIAmi]) -> None:
             AmiTag(key="type", value="ci-int-jenkins-worker-app-interface"),
             AmiTag(key="infra_commit", value="a-different-sha"),
         },
+        snapshot_ids=[],
     )
 
     assert not check_aws_ami_in_use(aws_ami, ai_amis_fxt)
@@ -288,6 +291,7 @@ def test_check_aws_ami_in_use(ai_amis_fxt: list[AIAmi]) -> None:
         tags={
             AmiTag(key="type", value="ci-int-jenkins-worker-app-interface"),
         },
+        snapshot_ids=[],
     )
 
     with pytest.raises(CannotCompareTagsError) as excinfo:
