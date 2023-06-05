@@ -1025,7 +1025,7 @@ def test_oc_native_get(oc_native: OCNative) -> None:
     oc_native.client.resources.get.return_value.get.assert_called_once_with(
         namespace="namespace",
         name="name",
-        _request_time=60,
+        _request_timeout=60,
     )
 
 
@@ -1039,7 +1039,7 @@ def test_oc_native_get_items(oc_native: OCNative) -> None:
     oc_native.client.resources.get.return_value.get.assert_called_once_with(
         namespace="",
         label_selector="label1=value1",
-        _request_time=60,
+        _request_timeout=60,
     )
 
 
@@ -1054,7 +1054,7 @@ def test_oc_native_get_items_with_resource_names(oc_native: OCNative) -> None:
         namespace="",
         name="name",
         label_selector="label1=value1",
-        _request_time=60,
+        _request_timeout=60,
     )
 
 
@@ -1066,5 +1066,5 @@ def test_oc_native_get_all(oc_native: OCNative) -> None:
         kind="kind1",
     )
     oc_native.client.resources.get.return_value.get.assert_called_once_with(
-        _request_time=60,
+        _request_timeout=60,
     )
