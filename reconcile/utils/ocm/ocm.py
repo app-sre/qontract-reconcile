@@ -1159,27 +1159,16 @@ class OCM:  # pylint: disable=too-many-public-methods
         """
         return any(re.search(b, version) for b in self.blocked_versions)
 
-    def get_available_upgrades(self, version, channel):
-        """Get available versions to upgrade from specified version
-        in the specified channel
+    def get_available_upgrades(self, cluster_name: str) -> list[str]:
+        """Get available versions to upgrade for a specific cluster.
 
         Args:
-            version (string): OpenShift version ID
-            channel (string): Upgrade channel
-
-        Raises:
-            KeyError: if specified channel is not valid
+            cluster_name (string): cluster display name to get available upgrades for
 
         Returns:
-            list: available versions to upgrade to
+            list: a non-null but potentially empty list of available versions to upgrade to
         """
-        if channel not in UPGRADE_CHANNELS:
-            raise KeyError(f"channel should be one of {UPGRADE_CHANNELS}")
-        version_id = f"openshift-v{version}"
-        if channel != "stable":
-            version_id = f"{version_id}-{channel}"
-        api = f"{CS_API_BASE}/v1/versions/{version_id}"
-        return self._get_json(api).get("available_upgrades", [])
+        return self.available_cluster_upgrades.get(cluster_name) or []
 
     def get_control_plan_upgrade_policies(
         self, cluster, schedule_type=None
