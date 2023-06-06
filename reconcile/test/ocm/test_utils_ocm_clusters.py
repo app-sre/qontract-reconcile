@@ -44,8 +44,10 @@ def build_cluster_details(
     return ClusterDetails(
         ocm_cluster=ocm_cluster,
         organization_id=org_id,
-        labels=build_label_container(
-            [build_organization_label(k, v, org_id) for k, v in org_labels or []],
+        organization_labels=build_label_container(
+            [build_organization_label(k, v, org_id) for k, v in org_labels or []]
+        ),
+        subscription_labels=build_label_container(
             [
                 build_subscription_label(k, v, ocm_cluster.subscription.id)
                 for k, v in subs_labels or []
