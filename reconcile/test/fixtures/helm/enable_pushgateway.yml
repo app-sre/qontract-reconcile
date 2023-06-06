@@ -46,13 +46,25 @@ objects:
                   secretKeyRef:
                     name: unleash
                     key: CLIENT_ACCESS_TOKEN
-              - name: DASHDOTDB_SECRET
-                valueFrom:
-                  secretKeyRef:
-                    name: dashdotdb
-                    key: AUTH_VAULT_PATH
               - name: KUBE_SA_TOKEN_PATH
                 value: "${KUBE_SA_TOKEN_MOUNT_PATH}/${KUBE_SA_TOKEN_FILENAME}"
+              - name: PUSHGATEWAY_ENABLED
+                value: 'true'
+              - name: PUSHGATEWAY_URL
+                valueFrom:
+                  secretKeyRef:
+                    name: ${PUSHGATEWAY_SECRET_NAME}
+                    key: server
+              - name: PUSHGATEWAY_USER
+                valueFrom:
+                  secretKeyRef:
+                    name: ${PUSHGATEWAY_SECRET_NAME}
+                    key: user
+              - name: PUSHGATEWAY_PASSWORD
+                valueFrom:
+                  secretKeyRef:
+                    name: ${PUSHGATEWAY_SECRET_NAME}
+                    key: password
               volumeMounts:
               - name: qontract-reconcile-toml
                 mountPath: /config

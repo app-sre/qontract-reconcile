@@ -552,6 +552,25 @@ objects:
               {{- end }}
               - name: KUBE_SA_TOKEN_PATH
                 value: "${KUBE_SA_TOKEN_MOUNT_PATH}/${KUBE_SA_TOKEN_FILENAME}"
+              {{- if $integration.enablePushgateway }}
+              - name: PUSHGATEWAY_ENABLED
+                value: 'true'
+              - name: PUSHGATEWAY_URL
+                valueFrom:
+                  secretKeyRef:
+                    name: ${PUSHGATEWAY_SECRET_NAME}
+                    key: server
+              - name: PUSHGATEWAY_USER
+                valueFrom:
+                  secretKeyRef:
+                    name: ${PUSHGATEWAY_SECRET_NAME}
+                    key: user
+              - name: PUSHGATEWAY_PASSWORD
+                valueFrom:
+                  secretKeyRef:
+                    name: ${PUSHGATEWAY_SECRET_NAME}
+                    key: password
+              {{- end }}
               volumeMounts:
               - name: qontract-reconcile-toml
                 mountPath: /config
@@ -675,6 +694,8 @@ parameters:
   value: ''
 - name: INTEGRATIONS_MANAGER_IMAGE_TAG_FROM_REF
   value: ''
+- name: PUSHGATEWAY_SECRET_NAME
+  value: push-gateway-auth-url
 {{- range $i, $integration := .Values.integrations }}
 {{- if $integration.sleepDurationSecs }}
 - name: {{ $integration.name | upper | replace "-" "_" }}_SLEEP_DURATION_SECS
