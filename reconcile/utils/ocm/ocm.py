@@ -306,6 +306,8 @@ class OCMProductOsd(OCMProduct):
 
 
 class OCMProductRosa(OCMProduct):
+    DEFAULT_NODE_POOL = "workers"
+
     ALLOWED_SPEC_UPDATE_FIELDS = {
         SPEC_ATTR_CHANNEL,
         SPEC_ATTR_AUTOSCALE,
@@ -341,12 +343,30 @@ class OCMProductRosa(OCMProduct):
         ocm._post(api, ocm_spec, params)
 
     @staticmethod
+    def _scale_default_node_pool(ocm: OCM, cluster_name: str, node_count: int):
+        cluster_id = ocm.cluster_ids.get(cluster_name)
+        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/node_pools/{OCMProductRosa.DEFAULT_NODE_POOL}"
+        params = {
+            "kind": "NodePool",
+            "id": OCMProductRosa.DEFAULT_NODE_POOL,
+            "replicas": node_count,
+        }
+        ocm._patch(api, params)
+
+    @staticmethod
     def update_cluster(ocm: OCM, cluster_name: str, update_spec: Mapping[str, Any]):
         ocm_spec = OCMProductRosa._get_update_cluster_spec(update_spec)
         cluster_id = ocm.cluster_ids.get(cluster_name)
         api = f"{CS_API_BASE}/v1/clusters/{cluster_id}"
         params: dict[str, Any] = {}
-        ocm._patch(api, ocm_spec, params)
+        nodes = ocm_spec.get("nodes", {}).get("compute")
+        if nodes and ocm.clusters[cluster_name].spec.hypershift:
+            OCMProductRosa._scale_default_node_pool(ocm, cluster_name, nodes)
+            ocm_spec.get("nodes").pop("compute")
+            if len(ocm_spec.get("nodes")) == 0:
+                ocm_spec.pop("nodes")
+        if len(ocm_spec) > 0:
+            ocm._patch(api, ocm_spec, params)
 
     @staticmethod
     def get_ocm_spec(
