@@ -393,6 +393,9 @@ query TerraformResourcesNamespaces {
                 output_resource_name
                 defaults
                 annotations
+                secret {
+                    ... VaultSecret
+                }
             }
         }
       }

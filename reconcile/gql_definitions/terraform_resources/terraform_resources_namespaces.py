@@ -432,6 +432,9 @@ query TerraformResourcesNamespaces {
                 output_resource_name
                 defaults
                 annotations
+                secret {
+                    ... VaultSecret
+                }
             }
         }
       }
@@ -1012,6 +1015,7 @@ class NamespaceTerraformResourceMskV1(NamespaceTerraformResourceAWSV1):
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
     defaults: str = Field(..., alias="defaults")
     annotations: Optional[str] = Field(..., alias="annotations")
+    secret: Optional[VaultSecret] = Field(..., alias="secret")
 
 
 class NamespaceTerraformProviderResourceAWSV1(NamespaceExternalResourceV1):
@@ -1035,12 +1039,12 @@ class NamespaceTerraformProviderResourceAWSV1(NamespaceExternalResourceV1):
             NamespaceTerraformResourceACMV1,
             NamespaceTerraformResourceKinesisV1,
             NamespaceTerraformResourceRoute53ZoneV1,
+            NamespaceTerraformResourceMskV1,
             NamespaceTerraformResourceSQSV1,
             NamespaceTerraformResourceDynamoDBV1,
             NamespaceTerraformResourceECRV1,
             NamespaceTerraformResourceS3CloudFrontPublicKeyV1,
             NamespaceTerraformResourceSecretsManagerV1,
-            NamespaceTerraformResourceMskV1,
             NamespaceTerraformResourceSecretsManagerServiceAccountV1,
             NamespaceTerraformResourceAWSV1,
         ]
