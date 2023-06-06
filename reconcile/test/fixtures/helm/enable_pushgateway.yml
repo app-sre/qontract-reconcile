@@ -55,11 +55,11 @@ objects:
                   secretKeyRef:
                     name: ${PUSHGATEWAY_SECRET_NAME}
                     key: server
-              - name: PUSHGATEWAY_USER
+              - name: PUSHGATEWAY_USERNAME
                 valueFrom:
                   secretKeyRef:
                     name: ${PUSHGATEWAY_SECRET_NAME}
-                    key: user
+                    key: username
               - name: PUSHGATEWAY_PASSWORD
                 valueFrom:
                   secretKeyRef:

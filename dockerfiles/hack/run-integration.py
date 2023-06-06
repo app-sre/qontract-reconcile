@@ -133,7 +133,7 @@ def build_entry_point_func(command_name: str) -> click.Command:
 def _get_pushgateway_env_vars() -> dict[str, str]:
     env = {}
     missing_vars = []
-    for var in ["PUSHGATEWAY_USER", "PUSHGATEWAY_PASSWORD", "PUSHGATEWAY_URL"]:
+    for var in ["PUSHGATEWAY_USERNAME", "PUSHGATEWAY_PASSWORD", "PUSHGATEWAY_URL"]:
         value = os.environ.get(var)
         if not value:
             missing_vars.append(var)
@@ -157,7 +157,7 @@ def _push_gateway_basic_auth_handler(
     headers: list[tuple[str, str]],
     data: bytes,
 ) -> Callable[[], None]:
-    username = os.environ.get("PUSHGATEWAY_USER")
+    username = os.environ.get("PUSHGATEWAY_USERNAME")
     password = os.environ.get("PUSHGATEWAY_PASSWORD")
 
     # We should not get here, but this will make mypy happy
@@ -199,7 +199,7 @@ def main() -> None:
       amount of seconds to sleep before another integration run is started
     * PUSHGATEWAY_ENABLED (defaults to false)
       send metrics to a Prometheus Pushgateway after the run. In expects
-      "PUSHGATEWAY_USER", "PUSHGATEWAY_PASSWORD" and "PUSHGATEWAY_URL" to be defined.
+      "PUSHGATEWAY_USERNAME", "PUSHGATEWAY_PASSWORD" and "PUSHGATEWAY_URL" to be defined.
 
 
     Based on those variables, the following command will be executed
