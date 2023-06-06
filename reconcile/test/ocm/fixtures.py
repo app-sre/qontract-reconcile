@@ -15,12 +15,15 @@ from pydantic import (
 
 from reconcile.utils.ocm.base import OCMModelLink
 from reconcile.utils.ocm.clusters import (
+    ClusterDetails,
+    OCMCapability,
     OCMCluster,
     OCMClusterAWSSettings,
     OCMClusterFlag,
     OCMClusterState,
 )
 from reconcile.utils.ocm.labels import (
+    LabelContainer,
     OCMLabel,
     OCMOrganizationLabel,
 )
@@ -108,4 +111,33 @@ def build_ocm_cluster(
         state=OCMClusterState.READY,
         managed=True,
         aws=aws_config,
+    )
+
+
+def build_cluster_details(
+    cluster_name: str,
+    subscription_labels: Optional[LabelContainer] = None,
+    organization_labels: Optional[LabelContainer] = None,
+    org_id: str = "org-id",
+    aws_cluster: bool = True,
+    sts_cluster: bool = False,
+    capabilitites: Optional[dict[str, str]] = None,
+) -> ClusterDetails:
+    return ClusterDetails(
+        ocm_cluster=build_ocm_cluster(
+            name=cluster_name,
+            subs_id=f"{cluster_name}_subs_id",
+            aws_cluster=aws_cluster,
+            sts_cluster=sts_cluster,
+        ),
+        organization_id=org_id,
+        capabilities={
+            name: OCMCapability(
+                name=name,
+                value=value,
+            )
+            for name, value in (capabilitites or {}).items()
+        },
+        subscription_labels=subscription_labels or LabelContainer(),
+        organization_labels=organization_labels or LabelContainer(),
     )

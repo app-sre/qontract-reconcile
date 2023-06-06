@@ -2373,6 +2373,44 @@ def status_page_components(ctx):
 
 
 @integration.command(
+    short_help="Manages OCM cluster usergroups and notifications via OCM labels."
+)
+@click.option(
+    "--ocm-env",
+    help="The OCM environment the integration should operator on. If none is specified, all environments will be operated on.",
+    required=False,
+    envvar="OCM_ENV",
+)
+@click.option(
+    "--ocm-org-ids",
+    help="A comma seperated list of OCM organization IDs the integration should operator on. If none is specified, all organizations are considered.",
+    required=False,
+    envvar="OCM_ORG_IDS",
+)
+@click.option(
+    "--group-provider",
+    help="A group provider spec is the form of <provider-name>:<provider-type>:<provider-args>.",
+    required=False,
+    multiple=True,
+)
+@click.pass_context
+def ocm_standalone_user_management(ctx, ocm_env, ocm_org_ids, group_provider):
+    from reconcile.oum.base import OCMUserManagementIntegrationParams
+    from reconcile.oum.standalone import OCMStandaloneUserManagementIntegration
+
+    run_class_integration(
+        OCMStandaloneUserManagementIntegration(
+            OCMUserManagementIntegrationParams(
+                ocm_environment=ocm_env,
+                ocm_org_ids=ocm_org_ids,
+                group_provider_specs=group_provider,
+            ),
+        ),
+        ctx.obj,
+    )
+
+
+@integration.command(
     short_help="Manages Prometheus Probe resources for blackbox-exporter"
 )
 @threaded()

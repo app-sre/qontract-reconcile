@@ -13,7 +13,6 @@ from pydantic import (
 
 from reconcile import queries
 from reconcile.gql_definitions.terraform_repo.terraform_repo import (
-    TerraformRepoModuleV1,
     TerraformRepoV1,
     query,
 )
@@ -41,12 +40,6 @@ class RepoSecret(BaseModel):
     version: Optional[int]
 
 
-class RepoModule(BaseModel):
-    name: str
-    url: str
-    ref: str
-
-
 class RepoOutput(BaseModel):
     """
     Output of the QR terraform-repo integration and input to the executor
@@ -60,7 +53,6 @@ class RepoOutput(BaseModel):
     project_path: str
     delete: bool
     secret: RepoSecret
-    modules: list[RepoModule]
 
 
 class TerraformRepoIntegrationParams(PydanticRunParams):
@@ -114,11 +106,6 @@ class TerraformRepoIntegration(
                     path=repo.account.automation_token.path,
                     version=repo.account.automation_token.version,
                 ),
-                modules=[
-                    RepoModule(name=m.name, url=m.url, ref=m.ref) for m in repo.modules
-                ]
-                if repo.modules is not None
-                else [],
             )
 
             if self.params.output_dir:
@@ -190,18 +177,6 @@ class TerraformRepoIntegration(
             except (KeyError, AttributeError):
                 raise ParameterError(
                     f'Invalid ref: "{ref}" on repo: "{repo_url}". Or the project repo is not reachable'
-                )
-
-    def module_name_uniqueness(self, modules: list[TerraformRepoModuleV1]) -> None:
-        """Validates that all module names defined for a repo target are unique.
-        This facilitates process performed by executor to retrieve dependency modules"""
-        unique_names = set()
-        for module in modules:
-            if module.name not in unique_names:
-                unique_names.add(module.name)
-            else:
-                raise ParameterError(
-                    f'The `name` parameter must be unique for each module dependency in a terraform repo. DUPLICATE: "{module.name}"'
                 )
 
     def merge_results(
@@ -292,12 +267,6 @@ class TerraformRepoIntegration(
         if self.params.validate_git:
             for add_repo in diff.add.values():
                 self.check_ref(add_repo.repository, add_repo.ref)
-                if add_repo.modules is not None:
-                    for module in add_repo.modules:
-                        self.check_ref(module.url, module.ref)
-        for add_repo in diff.add.values():
-            if add_repo.modules is not None:
-                self.module_name_uniqueness(add_repo.modules)
         # removed repos: ensure that delete = true already
         for delete_repo in diff.delete.values():
             if not delete_repo.delete:
@@ -320,12 +289,7 @@ class TerraformRepoIntegration(
                 )
             if self.params.validate_git:
                 self.check_ref(d.repository, d.ref)
-                if d.modules is not None:
-                    for module in d.modules:
-                        self.check_ref(module.url, module.ref)
-        for change_repo in diff.change.values():
-            if change_repo.desired.modules is not None:
-                self.module_name_uniqueness(change_repo.desired.modules)
+
         if not dry_run and state:
             self.update_state(diff, state)
 
