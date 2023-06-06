@@ -70,6 +70,7 @@ class AWSAmi(BaseModel):
     image_id: str
     tags: set[AmiTag]
     creation_date: datetime
+    snapshot_ids: list[str]
 
     class Config:
         frozen = True
@@ -116,6 +117,15 @@ def get_aws_amis(
         if not i.get("Tags"):
             continue
 
+        snapshot_ids = []
+        for bdv in i["BlockDeviceMappings"]:
+            ebs = bdv.get("Ebs")
+            if not ebs:
+                continue
+
+            if sid := ebs.get("SnapshotId"):
+                snapshot_ids.append(sid)
+
         tags = {AmiTag(**tag) for tag in i.get("Tags")}
         results.append(
             AWSAmi(
@@ -123,6 +133,7 @@ def get_aws_amis(
                 image_id=i["ImageId"],
                 tags=tags,
                 creation_date=creation_date,
+                snapshot_ids=snapshot_ids,
             )
         )
 
@@ -278,7 +289,27 @@ def run(dry_run: bool, thread_pool_size: int, defer: Optional[Callable] = None) 
                 except ClientError as e:
                     if "DryRunOperation" in str(e):
                         logging.info(e)
-                        continue
-                    raise
+                    else:
+                        raise
+
+                if not aws_ami.snapshot_ids:
+                    continue
+
+                for snapshot_id in aws_ami.snapshot_ids:
+                    logging.info(
+                        "Deleting associated snapshot %s from image %s",
+                        snapshot_id,
+                        aws_ami.image_id,
+                    )
+
+                    try:
+                        ec2_client.delete_snapshot(
+                            SnapshotId=snapshot_id, DryRun=dry_run
+                        )
+                    except ClientError as e:
+                        if "DryRunOperation" in str(e):
+                            logging.info(e)
+                        else:
+                            raise
 
     sys.exit(exit_code)

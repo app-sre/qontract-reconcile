@@ -21,11 +21,10 @@ from reconcile.aus.models import OrganizationUpgradeSpec
 from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.test.ocm.fixtures import (
+    build_cluster_details,
     build_label,
-    build_ocm_cluster,
     build_organization_label,
 )
-from reconcile.utils.ocm.clusters import ClusterDetails
 from reconcile.utils.ocm.labels import (
     LabelContainer,
     build_label_container,
@@ -181,26 +180,6 @@ def org_labels() -> LabelContainer:
     return build_org_config_labels(with_blocked_versions=True)
 
 
-def build_cluster_details(
-    cluster_name: str,
-    labels: LabelContainer,
-    org_id: str = "org-id",
-    aws_cluster: bool = True,
-    sts_cluster: bool = False,
-) -> ClusterDetails:
-    return ClusterDetails(
-        ocm_cluster=build_ocm_cluster(
-            name=cluster_name,
-            subs_id=f"{cluster_name}_subs_id",
-            aws_cluster=aws_cluster,
-            sts_cluster=sts_cluster,
-        ),
-        organization_id=org_id,
-        capabilities={},
-        labels=labels,
-    )
-
-
 def test_build_org_upgrade_spec(
     ocm_env: OCMEnvironment, org_labels: LabelContainer
 ) -> None:
@@ -247,7 +226,7 @@ def test_build_org_upgrade_specs_for_ocm_env(ocm_env: OCMEnvironment) -> None:
     soak_days = 10
     cluster_details = build_cluster_details(
         cluster_name="cluster-1",
-        labels=build_cluster_upgrade_policy_labels(soak_days=soak_days),
+        subscription_labels=build_cluster_upgrade_policy_labels(soak_days=soak_days),
     )
     upgrade_specs = _build_org_upgrade_specs_for_ocm_env(
         ocm_env=ocm_env,
@@ -273,7 +252,7 @@ def test_build_org_upgrade_specs_for_ocm_env_with_cluster_error(
     org_id = "org-id"
     cluster_details = build_cluster_details(
         cluster_name="cluster-1",
-        labels=build_cluster_upgrade_policy_labels(soak_days=-10),
+        subscription_labels=build_cluster_upgrade_policy_labels(soak_days=-10),
     )
     upgrade_specs = _build_org_upgrade_specs_for_ocm_env(
         ocm_env=ocm_env,
@@ -306,7 +285,7 @@ def test_discover_clusters(mocker: MockerFixture) -> None:
     discover_clusters_by_labels_mock.return_value = [
         build_cluster_details(
             cluster_name=cluster_name,
-            labels=build_cluster_upgrade_policy_labels(),
+            subscription_labels=build_cluster_upgrade_policy_labels(),
             org_id=org_id,
         )
     ]
@@ -335,7 +314,7 @@ def test_discover_clusters_with_org_filter(mocker: MockerFixture) -> None:
     discover_clusters_by_labels_mock.return_value = [
         build_cluster_details(
             cluster_name=cluster_name,
-            labels=build_cluster_upgrade_policy_labels(),
+            subscription_labels=build_cluster_upgrade_policy_labels(),
             org_id=org_id,
         )
     ]
@@ -359,7 +338,7 @@ def test_discover_clusters_without_org_filter(mocker: MockerFixture) -> None:
     discover_clusters_by_labels_mock.return_value = [
         build_cluster_details(
             cluster_name=cluster_name,
-            labels=build_cluster_upgrade_policy_labels(),
+            subscription_labels=build_cluster_upgrade_policy_labels(),
             org_id=org_id,
         )
     ]
@@ -380,13 +359,13 @@ def test_discover_clusters_ignore_sts_clusters(mocker: MockerFixture) -> None:
     discover_clusters_by_labels_mock.return_value = [
         build_cluster_details(
             cluster_name="cluster-with-sts",
-            labels=build_cluster_upgrade_policy_labels(),
+            subscription_labels=build_cluster_upgrade_policy_labels(),
             org_id=org_id,
             sts_cluster=True,
         ),
         build_cluster_details(
             cluster_name="cluster-without-sts",
-            labels=build_cluster_upgrade_policy_labels(),
+            subscription_labels=build_cluster_upgrade_policy_labels(),
             org_id=org_id,
             sts_cluster=False,
         ),
@@ -454,7 +433,7 @@ def build_org_upgrade_specs(
     org_id = "org-id"
     cluster_details = build_cluster_details(
         cluster_name="cluster-1",
-        labels=build_cluster_upgrade_policy_labels(
+        subscription_labels=build_cluster_upgrade_policy_labels(
             soak_days=(-1 if cluster_error else 1)
         ),
     )
