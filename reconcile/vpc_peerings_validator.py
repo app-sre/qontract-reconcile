@@ -87,7 +87,7 @@ def create_vpc_peering_dict(vpc_peering_info, peerings_enteries_dict, cluster_ci
 
 
 def find_cidr_duplicates_and_overlap(cluster_name: str, input_list: list):
-    for i in range(len(input_list)):
+    for i in range(len(input_list)):  # pylint: disable=consider-using-enumerate
         compared_vpc = input_list[i]
         for j in range(i + 1, len(input_list)):
             comparing_vpc = input_list[j]
