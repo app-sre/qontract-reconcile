@@ -10,7 +10,6 @@ from reconcile import (
     queries,
 )
 from reconcile.gql_definitions.common.saas_files import PipelinesProviderTektonV1
-from reconcile.openshift_saas_deploy_trigger_base import build_pipeline_run_name_prefix
 from reconcile.openshift_tekton_resources import build_one_per_saas_file_tkn_object_name
 from reconcile.slack_base import slackapi_from_slack_workspace
 from reconcile.status import ExitCodes
@@ -48,13 +47,12 @@ def compose_console_url(saas_file: SaasFile, env_name: str) -> str:
     pipeline_name = build_one_per_saas_file_tkn_object_name(
         pipeline_template_name, saas_file.name
     )
-
-    pipeline_run_name = build_pipeline_run_name_prefix(saas_file.name, env_name)
+    tkn_name, _ = SaasHerder.build_saas_file_env_combo(saas_file.name, env_name)
 
     return (
         f"{saas_file.pipelines_provider.namespace.cluster.console_url}/k8s/ns/"
         f"{saas_file.pipelines_provider.namespace.name}/tekton.dev~v1beta1~Pipeline/"
-        f"{pipeline_name}/Runs?name={pipeline_run_name}"
+        f"{pipeline_name}/Runs?name={tkn_name}"
     )
 
 
