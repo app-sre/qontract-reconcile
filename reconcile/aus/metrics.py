@@ -2,6 +2,7 @@ from pydantic import BaseModel
 
 from reconcile.utils.metrics import (
     CounterMetric,
+    ErrorRateMetricSet,
     GaugeMetric,
     InfoMetric,
 )
@@ -70,3 +71,21 @@ class AUSOrganizationReconcileErrorCounter(AUSBaseMetric, CounterMetric):
     @classmethod
     def name(cls) -> str:
         return "aus_organization_reconcile_errors"
+
+
+class AUSOrganizationErrorRate(ErrorRateMetricSet):
+    "Collection of AUS metrics for an OCM organization"
+
+    def __init__(self, integration: str, org_id: str, ocm_env: str) -> None:
+        super().__init__(
+            counter=AUSOrganizationReconcileCounter(
+                integration=integration,
+                ocm_env=ocm_env,
+                org_id=org_id,
+            ),
+            error_counter=AUSOrganizationReconcileErrorCounter(
+                integration=integration,
+                ocm_env=ocm_env,
+                org_id=org_id,
+            ),
+        )
