@@ -6327,4 +6327,16 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 value="${" + msk_cluster.bootstrap_brokers_tls + "}",
             )
         )
+        tf_resources.append(
+            Output(
+                output_prefix + "bootstrap_brokers_sasl_iam",
+                value="${" + msk_cluster.bootstrap_brokers_sasl_iam + "}",
+            )
+        )
+        tf_resources.append(
+            Output(
+                output_prefix + "bootstrap_brokers_sasl_scram",
+                value="${" + msk_cluster.bootstrap_brokers_sasl_scram + "}",
+            )
+        )
         self.add_resources(account, tf_resources)
