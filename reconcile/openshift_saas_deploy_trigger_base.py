@@ -321,6 +321,22 @@ def _pipeline_exists(
     return False
 
 
+def _build_pipeline_run_long_name(
+    saas_file_name: str,
+    env_name: str,
+) -> str:
+    return f"{saas_file_name}-{env_name}".lower()
+
+
+def build_pipeline_run_name_prefix(
+    saas_file_name: str,
+    env_name: str,
+) -> str:
+    return _build_pipeline_run_long_name(saas_file_name, env_name)[
+        :UNIQUE_SAAS_FILE_ENV_COMBO_LEN
+    ]
+
+
 def _construct_tekton_trigger_resource(
     saas_file_name: str,
     env_name: str,
@@ -350,13 +366,13 @@ def _construct_tekton_trigger_resource(
     Returns:
         OpenshiftResource: OpenShift resource to be applied
     """
-    long_name = f"{saas_file_name}-{env_name}".lower()
+    name_prefix = build_pipeline_run_name_prefix(saas_file_name, env_name)
     # using a timestamp to make the resource name unique.
     # we may want to revisit traceability, but this is compatible
     # with what we currently have in Jenkins.
     ts = datetime.datetime.utcnow().strftime("%Y%m%d%H%M")  # len 12
     # max name length can be 63. leaving 12 for the timestamp - 51
-    name = f"{long_name[:UNIQUE_SAAS_FILE_ENV_COMBO_LEN]}-{ts}"
+    name = f"{name_prefix}-{ts}"
 
     parameters = [
         {"name": "saas_file_name", "value": saas_file_name},
@@ -395,6 +411,7 @@ def _construct_tekton_trigger_resource(
 
         body["spec"]["timeout"] = timeout
 
+    long_name = _build_pipeline_run_long_name(saas_file_name, env_name)
     return OR(body, integration, integration_version, error_details=name), long_name
 
 

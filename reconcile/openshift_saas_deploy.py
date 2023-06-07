@@ -10,6 +10,7 @@ from reconcile import (
     queries,
 )
 from reconcile.gql_definitions.common.saas_files import PipelinesProviderTektonV1
+from reconcile.openshift_saas_deploy_trigger_base import build_pipeline_run_name_prefix
 from reconcile.openshift_tekton_resources import build_one_per_saas_file_tkn_object_name
 from reconcile.slack_base import slackapi_from_slack_workspace
 from reconcile.status import ExitCodes
@@ -17,6 +18,7 @@ from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
 from reconcile.typed_queries.saas_files import (
+    SaasFile,
     get_saas_files,
     get_saasherder_settings,
 )
@@ -24,7 +26,6 @@ from reconcile.utils.defer import defer
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.openshift_resource import ResourceInventory
 from reconcile.utils.saasherder import SaasHerder
-from reconcile.utils.saasherder.interfaces import SaasFile
 from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.slack_api import SlackApi
@@ -47,10 +48,13 @@ def compose_console_url(saas_file: SaasFile, env_name: str) -> str:
     pipeline_name = build_one_per_saas_file_tkn_object_name(
         pipeline_template_name, saas_file.name
     )
+
+    pipeline_run_name = build_pipeline_run_name_prefix(saas_file.name, env_name)
+
     return (
-        f"{saas_file.pipelines_provider.namespace.cluster.console_url}/k8s/ns/{saas_file.pipelines_provider.namespace.name}/"
-        + "tekton.dev~v1beta1~Pipeline/"
-        + f"{pipeline_name}/Runs?name={saas_file.name}-{env_name}"
+        f"{saas_file.pipelines_provider.namespace.cluster.console_url}/k8s/ns/"
+        f"{saas_file.pipelines_provider.namespace.name}/tekton.dev~v1beta1~Pipeline/"
+        f"{pipeline_name}/Runs?name={pipeline_run_name}"
     )
 
 
