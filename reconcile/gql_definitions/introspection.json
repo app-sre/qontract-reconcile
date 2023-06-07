@@ -30386,6 +30386,29 @@
                 },
                 {
                     "kind": "OBJECT",
+                    "name": "AWSRDSDataClassification_v1",
+                    "description": null,
+                    "fields": [
+                        {
+                            "name": "loss_impact",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "String",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        }
+                    ],
+                    "inputFields": null,
+                    "interfaces": [],
+                    "enumValues": null,
+                    "possibleTypes": null
+                },
+                {
+                    "kind": "OBJECT",
                     "name": "ACMDomain_v1",
                     "description": null,
                     "fields": [
@@ -33816,6 +33839,18 @@
                                         "ofType": null
                                     }
                                 }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "data_classification",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "OBJECT",
+                                "name": "AWSRDSDataClassification_v1",
+                                "ofType": null
                             },
                             "isDeprecated": false,
                             "deprecationReason": null
