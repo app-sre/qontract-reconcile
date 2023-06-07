@@ -113,27 +113,25 @@ def test_validate_no_public_to_public_peerings_valid(
 
 
 def test_validate_validate_no_cidr_overlap():
-    test_dict = {
-        "cidr_block": "10.25.0.0/16",
-        "providers": [
-            {
-                "provider": "account-vpc",
-                "vpc_peering": {
-                    "vpc_name": "vpc-name-1",
-                    "cidr_block": "10.18.0.0/18",
-                },
-            },
-            {
-                "provider": "account-vpc",
-                "vpc_peering": {
-                    "vpc_name": "vpc-name-2",
-                    "cidr_block": "10.18.0.0/18",
-                },
-            },
-        ],
-    }
-    cluster_name = "clustertest1"
-    assert find_cidr_duplicates_and_overlap(cluster_name, test_dict) is False
+    test_list = [
+        {
+            "provider": "cluster-self-vpc",
+            "vpc_name": "cluster-name",
+            "cidr_block": "10.25.0.0/16",
+        },
+        {
+            "provider": "account-vpc",
+            "vpc_name": "vpc-name-1",
+            "cidr_block": "10.18.0.0/18",
+        },
+        {
+            "provider": "account-vpc",
+            "vpc_name": "vpc-name-2",
+            "cidr_block": "10.18.0.0/18",
+        },
+    ]
+    cluster_name = "cluster-name"
+    assert find_cidr_duplicates_and_overlap(cluster_name, test_list) is True
 
 
 @pytest.fixture
