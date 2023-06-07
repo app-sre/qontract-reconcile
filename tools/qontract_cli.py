@@ -51,7 +51,6 @@ from reconcile.gql_definitions.common.app_interface_vault_settings import (
     AppInterfaceSettingsV1,
 )
 from reconcile.jenkins_job_builder import init_jjb
-from reconcile.prometheus_rules_tester_old import get_data_from_jinja_test_template
 from reconcile.slack_base import slackapi_from_queries
 from reconcile.typed_queries.alerting_services_settings import get_alerting_services
 from reconcile.typed_queries.app_interface_vault_settings import (
@@ -64,7 +63,6 @@ from reconcile.utils import (
     config,
     dnsutils,
     gql,
-    promtool,
 )
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.environ import environ
@@ -2269,113 +2267,6 @@ def run_prometheus_test(ctx, path, cluster, namespace, secret_reader):
 
     print(test.result)
     if not test.result:
-        sys.exit(1)
-
-
-@root.command()
-@click.argument("path")
-@click.argument("cluster")
-@click.option(
-    "-n",
-    "--namespace",
-    default="openshift-customer-monitoring",
-    help="Cluster namespace where the rules are deployed. It defaults to "
-    "openshift-customer-monitoring.",
-)
-@click.option(
-    "-s",
-    "--secret-reader",
-    default="vault",
-    help="Location to read secrets.",
-    type=click.Choice(["config", "vault"]),
-)
-@click.pass_context
-def run_prometheus_test_old(ctx, path, cluster, namespace, secret_reader):
-    """Run prometheus tests in PATH loading associated rules from CLUSTER."""
-    gqlapi = gql.get_api()
-
-    if path.startswith("resources"):
-        path = path.replace("resources", "", 1)
-
-    try:
-        resource = gqlapi.get_resource(path)
-    except gql.GqlGetResourceError as e:
-        print(f"Error in provided PATH: {e}.")
-        sys.exit(1)
-
-    test = resource["content"]
-    data = get_data_from_jinja_test_template(test, ["rule_files", "target_clusters"])
-    target_clusters = data["target_clusters"]
-    if len(target_clusters) > 0 and cluster not in target_clusters:
-        print(
-            f"Skipping test: {path}, cluster {cluster} not in target_clusters {target_clusters}"
-        )
-    rule_files = data["rule_files"]
-    if not rule_files:
-        print(f"Cannot parse test in {path}.")
-        sys.exit(1)
-
-    if len(rule_files) > 1:
-        print("Only 1 rule file per test")
-        sys.exit(1)
-
-    rule_file_path = rule_files[0]
-
-    namespace_info = [
-        n
-        for n in gqlapi.query(orb.NAMESPACES_QUERY)["namespaces"]
-        if n["cluster"]["name"] == cluster and n["name"] == namespace
-    ]
-    if len(namespace_info) != 1:
-        print(f"{cluster}/{namespace} does not exist.")
-        sys.exit(1)
-
-    settings = queries.get_app_interface_settings()
-    settings["vault"] = secret_reader == "vault"
-
-    ni = namespace_info[0]
-    ob.aggregate_shared_resources(ni, "openshiftResources")
-    openshift_resources = ni.get("openshiftResources")
-    rule_spec = {}
-    for r in openshift_resources:
-        resource_path = r.get("resource", {}).get("path")
-        if resource_path != rule_file_path:
-            continue
-
-        if "add_path_to_prom_rules" not in r:
-            r["add_path_to_prom_rules"] = False
-
-        openshift_resource = orb.fetch_openshift_resource(r, ni, settings)
-        if openshift_resource.kind.lower() != "prometheusrule":
-            print(f"Object in {rule_file_path} is not a PrometheusRule.")
-            sys.exit(1)
-
-        rule_spec = openshift_resource.body["spec"]
-        variables = json.loads(r.get("variables") or "{}")
-        variables["resource"] = r
-        break
-
-    if not rule_spec:
-        print(
-            f"Rules file referenced in {path} does not exist in namespace "
-            f"{namespace} from cluster {cluster}."
-        )
-        sys.exit(1)
-
-    test_yaml_spec = yaml.safe_load(
-        orb.process_extracurlyjinja2_template(
-            body=test, vars=variables, settings=settings
-        )
-    )
-    test_yaml_spec.pop("$schema")
-
-    result = promtool.run_test(
-        test_yaml_spec=test_yaml_spec, rule_files={rule_file_path: rule_spec}
-    )
-
-    print(result)
-
-    if not result:
         sys.exit(1)
 
 

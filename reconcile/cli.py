@@ -2263,19 +2263,6 @@ def integrations_validator(ctx):
 
 
 @integration.command(short_help="Tests prometheus rules using promtool.")
-@threaded()
-@binary(["promtool"])
-@cluster_name
-@click.pass_context
-def prometheus_rules_tester_old(ctx, thread_pool_size, cluster_name):
-    import reconcile.prometheus_rules_tester_old
-
-    run_integration(
-        reconcile.prometheus_rules_tester_old, ctx.obj, thread_pool_size, cluster_name
-    )
-
-
-@integration.command(short_help="Tests prometheus rules using promtool.")
 @threaded(default=5)
 @binary(["promtool"])
 @cluster_name
