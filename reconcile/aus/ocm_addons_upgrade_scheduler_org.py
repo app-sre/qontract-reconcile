@@ -24,7 +24,10 @@ from reconcile.utils import (
 )
 from reconcile.utils.cluster_version_data import VersionData
 from reconcile.utils.ocm import OCMMap
-from reconcile.utils.ocm.clusters import discover_clusters_for_organizations
+from reconcile.utils.ocm.clusters import (
+    OCMCluster,
+    discover_clusters_for_organizations,
+)
 from reconcile.utils.ocm_base_client import init_ocm_base_client
 
 QONTRACT_INTEGRATION = "ocm-addons-upgrade-scheduler-org"
@@ -97,7 +100,7 @@ class OCMAddonsUpgradeSchedulerOrgIntegration(
                 specs=self._build_addon_upgrade_spec(
                     org,
                     {
-                        c.ocm_cluster.name: c.ocm_cluster.external_id
+                        c.ocm_cluster.name: c.ocm_cluster
                         for c in clusters
                         if c.organization_id == org.org_id
                     },
@@ -107,19 +110,20 @@ class OCMAddonsUpgradeSchedulerOrgIntegration(
         }
 
     def _build_addon_upgrade_spec(
-        self, org: AUSOCMOrganization, cluster_name_to_uuid: dict[str, str]
+        self, org: AUSOCMOrganization, clusters_by_name: dict[str, OCMCluster]
     ) -> list[ClusterUpgradeSpec]:
         return [
             ClusterUpgradeSpec(
                 name=cluster.name,
-                cluster_uuid=cluster_name_to_uuid[cluster.name],
+                cluster_uuid=clusters_by_name[cluster.name].external_id,
+                current_version=clusters_by_name[cluster.name].version.raw_id,
                 ocm=org,
                 upgradePolicy=cluster.upgrade_policy,
             )
             for cluster in org.upgrade_policy_clusters or []
             # clusters that are not in the UUID dict will be ignored because
             # they don't exist in the OCM organization (or have been deprovisioned)
-            if cluster.name in cluster_name_to_uuid
+            if cluster.name in clusters_by_name
         ]
 
     def expose_org_upgrade_spec_metrics(

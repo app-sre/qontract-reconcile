@@ -517,6 +517,7 @@ class ErrorRateMetricSet:
     for a code block. The code block within the contextmanager is considered
     failed if an exception is raised of if the `fail` method is called.
     """
+
     def __init__(
         self: ERMS, counter: CounterMetric, error_counter: CounterMetric
     ) -> None:

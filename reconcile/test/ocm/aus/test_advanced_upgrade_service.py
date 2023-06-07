@@ -25,6 +25,7 @@ from reconcile.test.ocm.fixtures import (
     build_label,
     build_organization_label,
 )
+from reconcile.utils.ocm.subscriptions import OCMOrganization
 from reconcile.utils.ocm.labels import (
     LabelContainer,
     build_label_container,
@@ -185,7 +186,10 @@ def test_build_org_upgrade_spec(
 ) -> None:
     org_upgrade_spec = _build_org_upgrade_spec(
         ocm_env=ocm_env,
-        org_id="org-id",
+        org=OCMOrganization(
+            id="org-id",
+            name="org-name",
+        ),
         clusters=[
             build_cluster_details(
                 "cluster-1",
@@ -203,7 +207,10 @@ def test_build_org_upgrade_spec_with_cluster_error(
 ) -> None:
     org_upgrade_spec = _build_org_upgrade_spec(
         ocm_env=ocm_env,
-        org_id="org-id",
+        org=OCMOrganization(
+            id="org-id",
+            name="org-name",
+        ),
         clusters=[
             build_cluster_details(
                 "cluster-1",
@@ -230,6 +237,12 @@ def test_build_org_upgrade_specs_for_ocm_env(ocm_env: OCMEnvironment) -> None:
     )
     upgrade_specs = _build_org_upgrade_specs_for_ocm_env(
         ocm_env=ocm_env,
+        orgs={
+            org_id: OCMOrganization(
+                id=org_id,
+                name="org-name",
+            ),
+        },
         clusters_by_org={org_id: [cluster_details]},
         labels_by_org={
             org_id: build_org_config_labels(),
@@ -256,6 +269,12 @@ def test_build_org_upgrade_specs_for_ocm_env_with_cluster_error(
     )
     upgrade_specs = _build_org_upgrade_specs_for_ocm_env(
         ocm_env=ocm_env,
+        orgs={
+            org_id: OCMOrganization(
+                id=org_id,
+                name="org-name",
+            ),
+        },
         clusters_by_org={org_id: [cluster_details]},
         labels_by_org={
             org_id: build_org_config_labels(),
@@ -439,6 +458,12 @@ def build_org_upgrade_specs(
     )
     return _build_org_upgrade_specs_for_ocm_env(
         ocm_env=ocm_env,
+        orgs={
+            org_id: OCMOrganization(
+                id=org_id,
+                name="org-name",
+            ),
+        },
         clusters_by_org={org_id: [cluster_details]},
         labels_by_org={
             org_id: build_org_config_labels(),

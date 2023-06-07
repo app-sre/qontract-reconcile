@@ -31,6 +31,8 @@ class AUSClusterUpgradePolicyInfoMetric(AUSBaseMetric, InfoMetric):
 
     cluster_uuid: str
     org_id: str
+    org_name: str
+    current_version: str
     cluster_name: str
     schedule: str
     sector: str

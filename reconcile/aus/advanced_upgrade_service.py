@@ -53,6 +53,10 @@ from reconcile.utils.ocm.sre_capability_labels import (
     labelset_groupfield,
     sre_capability_label_key,
 )
+from reconcile.utils.ocm.subscriptions import (
+    OCMOrganization,
+    get_organizations,
+)
 from reconcile.utils.ocm_base_client import (
     OCMBaseClient,
     init_ocm_base_client,
@@ -80,10 +84,14 @@ class AdvancedUpgradeServiceIntegration(OCMClusterUpgradeSchedulerOrgIntegration
             org_ids=org_ids,
             ignore_sts_clusters=self.params.ignore_sts_clusters,
         )
+        orgs = get_organizations(
+            ocm_api=ocm_api, filter=Filter().is_in("id", clusters_by_org.keys())
+        ) if clusters_by_org else {}
         labels_by_org = _get_org_labels(ocm_api=ocm_api, org_ids=org_ids)
 
         return _build_org_upgrade_specs_for_ocm_env(
             ocm_env=ocm_env,
+            orgs=orgs,
             clusters_by_org=clusters_by_org,
             labels_by_org=labels_by_org,
         )
@@ -160,6 +168,7 @@ def _get_org_labels(
 
 def _build_org_upgrade_specs_for_ocm_env(
     ocm_env: OCMEnvironment,
+    orgs: dict[str, OCMOrganization],
     clusters_by_org: dict[str, list[ClusterDetails]],
     labels_by_org: dict[str, LabelContainer],
 ) -> dict[str, OrganizationUpgradeSpec]:
@@ -170,7 +179,7 @@ def _build_org_upgrade_specs_for_ocm_env(
     return {
         org_id: _build_org_upgrade_spec(
             ocm_env,
-            org_id,
+            orgs[org_id],
             clusters,
             labels_by_org.get(org_id) or build_label_container(),
         )
@@ -226,7 +235,7 @@ class OrganizationLabelSet(BaseModel):
 
 def _build_org_upgrade_spec(
     ocm_env: OCMEnvironment,
-    org_id: str,
+    org: OCMOrganization,
     clusters: list[ClusterDetails],
     org_labels: LabelContainer,
 ) -> OrganizationUpgradeSpec:
@@ -238,8 +247,8 @@ def _build_org_upgrade_spec(
     org_labelset = build_labelset(org_labels, OrganizationLabelSet)
     org_upgrade_spec = OrganizationUpgradeSpec(
         org=AUSOCMOrganization(
-            name=org_id,
-            orgId=org_id,
+            name=org.name,
+            orgId=org.id,
             blockedVersions=org_labelset.blocked_versions,
             environment=ocm_env,
             addonManagedUpgrades=False,
@@ -262,6 +271,7 @@ def _build_org_upgrade_spec(
                 ClusterUpgradeSpec(
                     name=c.ocm_cluster.name,
                     cluster_uuid=c.ocm_cluster.external_id,
+                    current_version=c.ocm_cluster.version.raw_id,
                     ocm=org_upgrade_spec.org,
                     upgradePolicy=upgrade_policy,
                 )

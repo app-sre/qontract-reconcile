@@ -22,6 +22,7 @@ class ClusterUpgradeSpec(BaseModel):
     ocm: AUSOCMOrganization
     upgrade_policy: ClusterUpgradePolicy = Field(..., alias="upgradePolicy")
     cluster_uuid: str
+    current_version: str
 
 
 class ClusterValidationError(BaseModel):

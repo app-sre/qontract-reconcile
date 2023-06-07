@@ -168,6 +168,8 @@ class AdvancedUpgradeSchedulerBaseIntegration(
                     ocm_env=ocm_env,
                     cluster_uuid=cluster_upgrade_spec.cluster_uuid,
                     org_id=cluster_upgrade_spec.ocm.org_id,
+                    org_name=org_upgrade_spec.org.name,
+                    current_version=cluster_upgrade_spec.current_version,
                     cluster_name=cluster_upgrade_spec.name,
                     schedule=cluster_upgrade_spec.upgrade_policy.schedule,
                     sector=cluster_upgrade_spec.upgrade_policy.conditions.sector or "",

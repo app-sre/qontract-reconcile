@@ -106,6 +106,7 @@ class OCMClusterUpgradeSchedulerIntegration(
                         cluster_uuid=cluster_uuid,
                         ocm=cluster.ocm,
                         upgradePolicy=cluster.upgrade_policy,
+                        current_version=cluster.spec.version if cluster.spec else "?",
                     )
                 )
         return {
