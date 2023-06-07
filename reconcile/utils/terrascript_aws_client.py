@@ -6329,13 +6329,13 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         )
         tf_resources.append(
             Output(
-                output_prefix + "bootstrap_brokers_sasl_iam",
+                output_prefix + "__bootstrap_brokers_sasl_iam",
                 value="${" + msk_cluster.bootstrap_brokers_sasl_iam + "}",
             )
         )
         tf_resources.append(
             Output(
-                output_prefix + "bootstrap_brokers_sasl_scram",
+                output_prefix + "__bootstrap_brokers_sasl_scram",
                 value="${" + msk_cluster.bootstrap_brokers_sasl_scram + "}",
             )
         )
