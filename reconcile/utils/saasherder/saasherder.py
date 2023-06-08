@@ -483,7 +483,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         :param env_name: name of the environment
         :return: (tkn_name, tkn_long_name)
         """
-        tkn_long_name = f"{saas_file_name}-{env_name}".lower()
+        tkn_long_name = f"{saas_file_name}-{env_name}"
         tkn_name = tkn_long_name[:UNIQUE_SAAS_FILE_ENV_COMBO_LEN]
         return tkn_name, tkn_long_name
 

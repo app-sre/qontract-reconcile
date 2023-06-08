@@ -356,7 +356,7 @@ def _construct_tekton_trigger_resource(
     # we may want to revisit traceability, but this is compatible
     # with what we currently have in Jenkins.
     ts = datetime.datetime.utcnow().strftime("%Y%m%d%H%M")  # len 12
-    name = f"{tkn_name}-{ts}"
+    name = f"{tkn_name.lower()}-{ts}"
 
     parameters = [
         {"name": "saas_file_name", "value": saas_file_name},
@@ -395,7 +395,10 @@ def _construct_tekton_trigger_resource(
 
         body["spec"]["timeout"] = timeout
 
-    return OR(body, integration, integration_version, error_details=name), tkn_long_name
+    return (
+        OR(body, integration, integration_version, error_details=name),
+        tkn_long_name.lower(),
+    )
 
 
 def _register_trigger(name: str, already_triggered: set[str]) -> bool:
