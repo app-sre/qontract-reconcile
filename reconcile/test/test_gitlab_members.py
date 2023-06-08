@@ -10,8 +10,8 @@ from reconcile.gitlab_members import (
     Diff,
     GitlabUser,
     State,
-    get_permissions,
     add_or_update_user,
+    get_permissions,
 )
 from reconcile.gql_definitions.fragments.user import User
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
