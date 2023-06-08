@@ -83,9 +83,8 @@ def get_desired_state(
             if p.group == g:
                 for r in p.roles or []:
                     for u in (r.users or []) + (r.bots or []):
-                        desired_group_members[g].append(
-                            GitlabUser(user=u.org_username, access_level=p.access)
-                        )
+                        gu = GitlabUser(user=u.org_username, access_level=p.access)
+                        desired_group_members[g].append(gu)
                 if p.pagerduty:
                     usernames_from_pagerduty = get_usernames_from_pagerduty(
                         p.pagerduty,
@@ -95,9 +94,8 @@ def get_desired_state(
                         get_username_method=lambda u: u.org_username,
                     )
                     for u in usernames_from_pagerduty:
-                        desired_group_members[g].append(
-                            GitlabUser(user=u, access_level=p.access)
-                        )
+                        gu = GitlabUser(user=u, access_level=p.access)
+                        desired_group_members[g].append(gu)
 
     return desired_group_members
 
