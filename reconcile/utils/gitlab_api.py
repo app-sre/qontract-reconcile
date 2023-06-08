@@ -215,19 +215,18 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         app_sre_group = self.gl.groups.get("app-sre")
         return self.get_items(app_sre_group.members.list)
 
-    def check_group_exists(self, group_name):
-        groups = self.get_items(self.gl.groups.list)
-        group_names = list(map(lambda x: x.name, groups))
-        if group_name not in group_names:
-            return False
-        return True
+    def get_group_if_exists(self, group_name):
+        try:
+            return self.gl.groups.get(group_name)
+        except gitlab.exceptions.GitlabGetError:
+            return None
 
     def get_group_members(self, group_name):
-        if not self.check_group_exists(group_name):
+        group = self.get_group_if_exists(group_name)
+        if not group:
             logging.error(group_name + " group not found")
             return []
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-        group = self.gl.groups.get(group_name)
         return [
             {
                 "user": m.username,
@@ -249,11 +248,11 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
             member.save()
 
     def add_group_member(self, group_name, username, access):
-        if not self.check_group_exists(group_name):
+        group = self.get_group_if_exists(group_name)
+        if not group:
             logging.error(group_name + " group not found")
         else:
             gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-            group = self.gl.groups.get(group_name)
             user = self.get_user(username)
             access_level = self.get_access_level(access)
             if user is not None:
