@@ -70,6 +70,12 @@ def get_current_state(instance: GitlabInstanceV1, gl: GitLabApi) -> State:
     }
 
 
+def add_or_update_user(
+    desired_group_members: State, group_name: str, gitlab_user: GitlabUser
+):
+    desired_group_members[group_name].append(gitlab_user)
+
+
 def get_desired_state(
     instance: GitlabInstanceV1,
     pagerduty_map: PagerDutyMap,
@@ -84,7 +90,7 @@ def get_desired_state(
                 for r in p.roles or []:
                     for u in (r.users or []) + (r.bots or []):
                         gu = GitlabUser(user=u.org_username, access_level=p.access)
-                        desired_group_members[g].append(gu)
+                        add_or_update_user(desired_group_members, g, gu)
                 if p.pagerduty:
                     usernames_from_pagerduty = get_usernames_from_pagerduty(
                         p.pagerduty,
@@ -95,7 +101,7 @@ def get_desired_state(
                     )
                     for u in usernames_from_pagerduty:
                         gu = GitlabUser(user=u, access_level=p.access)
-                        desired_group_members[g].append(gu)
+                        add_or_update_user(desired_group_members, g, gu)
 
     return desired_group_members
 
