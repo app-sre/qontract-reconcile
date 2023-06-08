@@ -164,16 +164,21 @@ class PagerDutyMap:
 
 def get_pagerduty_map(
     secret_reader: SecretReader,
-    pagerduty_instances: Iterable[PagerDutyInstance],
+    pagerduty_instances: Optional[Iterable[PagerDutyInstance]],
     init_users: bool = True,
     pager_duty_api_class: type[PagerDutyApi] = PagerDutyApi,
 ) -> PagerDutyMap:
     """Initiate a PagerDutyMap for given PagerDuty instances."""
-    return PagerDutyMap(
-        instances=[
+    instances = (
+        [
             PagerDutyConfig(name=i.name, token=secret_reader.read_secret(i.token))
             for i in pagerduty_instances
-        ],
+        ]
+        if pagerduty_instances
+        else []
+    )
+    return PagerDutyMap(
+        instances=instances,
         init_users=init_users,
         pager_duty_api_class=pager_duty_api_class,
     )
