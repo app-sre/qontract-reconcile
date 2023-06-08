@@ -10,6 +10,7 @@ from reconcile.gitlab_members import (
     Diff,
     GitlabUser,
     State,
+    add_or_update_user,
     get_permissions,
 )
 from reconcile.gql_definitions.fragments.user import User
@@ -281,3 +282,28 @@ def test_gitlab_members_act_change(mocker: MockerFixture) -> None:
     gl_mock.add_group_member.assert_not_called()
     gl_mock.remove_group_member.assert_not_called()
     gl_mock.change_access.assert_called_once()
+
+
+def test_add_or_update_user_add():
+    group_members: State = {"t": []}
+    gu = GitlabUser(user="u", access_level="owner")
+    add_or_update_user(group_members, "t", gu)
+    assert group_members == {"t": [gu]}
+
+
+def test_add_or_update_user_update_higher():
+    group_members: State = {"t": []}
+    gu1 = GitlabUser(user="u", access_level="maintainer")
+    gu2 = GitlabUser(user="u", access_level="owner")
+    add_or_update_user(group_members, "t", gu1)
+    add_or_update_user(group_members, "t", gu2)
+    assert group_members == {"t": [gu2]}
+
+
+def test_add_or_update_user_update_lower():
+    group_members: State = {"t": []}
+    gu1 = GitlabUser(user="u", access_level="owner")
+    gu2 = GitlabUser(user="u", access_level="maintainer")
+    add_or_update_user(group_members, "t", gu1)
+    add_or_update_user(group_members, "t", gu2)
+    assert group_members == {"t": [gu1]}
