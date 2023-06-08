@@ -199,8 +199,6 @@ def run(
     pagerduty_instances = pagerduty_instances_query(
         query_func=gqlapi.query
     ).pagerduty_instances
-    if not pagerduty_instances:
-        raise AppInterfaceSettingsError("no pagerduty instance(s) configured")
 
     # APIs
     secret_reader = SecretReader(queries.get_secret_reader_settings())
