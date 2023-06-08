@@ -50,6 +50,15 @@ CS_API_BASE = "/api/clusters_mgmt"
 KAS_API_BASE = "/api/kafkas_mgmt"
 
 MACHINE_POOL_DESIRED_KEYS = {"id", "instance_type", "replicas", "labels", "taints"}
+NODE_POOL_DESIRED_KEYS = {
+    "id",
+    "instance_type",
+    "replicas",
+    "labels",
+    "taints",
+    "aws_node_pool",
+    "subnet",
+}
 UPGRADE_CHANNELS = {"stable", "fast", "candidate"}
 UPGRADE_POLICY_DESIRED_KEYS = {"id", "schedule_type", "schedule", "next_run", "version"}
 ADDON_UPGRADE_POLICY_DESIRED_KEYS = {
@@ -345,13 +354,24 @@ class OCMProductRosa(OCMProduct):
     @staticmethod
     def _scale_default_node_pool(ocm: OCM, cluster_name: str, node_count: int):
         cluster_id = ocm.cluster_ids.get(cluster_name)
-        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/node_pools/{OCMProductRosa.DEFAULT_NODE_POOL}"
-        params = {
-            "kind": "NodePool",
-            "id": OCMProductRosa.DEFAULT_NODE_POOL,
-            "replicas": node_count,
-        }
-        ocm._patch(api, params)
+        # todo get node pools from ocm with name prefix workers
+        node_pools = ocm.get_node_pools(cluster_id)
+        pools_to_scale = []
+        for pool in node_pools:
+            if pool["id"].startswith(OCMProductRosa.DEFAULT_NODE_POOL):
+                pools_to_scale.append(pool["id"])
+        scaling_target = node_count
+        if len(pools_to_scale) > 1:
+            scaling_target = node_count // len(pools_to_scale)
+
+        for pool in pools_to_scale:
+            api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/node_pools/{pool}"
+            params = {
+                "kind": "NodePool",
+                "id": pool,
+                "replicas": scaling_target,
+            }
+            ocm._patch(api, params)
 
     @staticmethod
     def update_cluster(ocm: OCM, cluster_name: str, update_spec: Mapping[str, Any]):
@@ -1079,6 +1099,27 @@ class OCM:  # pylint: disable=too-many-public-methods
         }
 
         self._post(api, data)
+
+
+    def get_node_pools(self, cluster):
+        """Returns a list of details of Node Pools
+        :param cluster: cluster name
+        :type cluster: string
+        """
+        results = []
+        cluster_id = self.cluster_ids.get(cluster)
+        if not cluster_id:
+            return results
+        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/node_pools"
+        items = self._get_json(api).get("items")
+        if not items:
+            return results
+
+        for item in items:
+            result = {k: v for k, v in item.items() if k in NODE_POOL_DESIRED_KEYS}
+            results.append(result)
+
+        return results
 
     def get_machine_pools(self, cluster):
         """Returns a list of details of Machine Pools
