@@ -70,19 +70,20 @@ def get_current_state(instance: GitlabInstanceV1, gl: GitLabApi) -> State:
     }
 
 
-def add_or_update_user(group_members: State, group_name: str, gitlab_user: GitlabUser):
+def add_or_update_user(
+    group_members: State, group_name: str, gitlab_user: GitlabUser
+) -> None:
     existing_users = [
         gu for gu in group_members[group_name] if gu.user == gitlab_user.user
     ]
     if not existing_users:
         group_members[group_name].append(gitlab_user)
-        return
-
-    existing_user = existing_users[0]
-    if GitLabApi.get_access_level(
-        existing_user.access_level
-    ) < GitLabApi.get_access_level(gitlab_user.access_level):
-        existing_user.access_level = gitlab_user.access_level
+    else:
+        existing_user = existing_users[0]
+        if GitLabApi.get_access_level(
+            existing_user.access_level
+        ) < GitLabApi.get_access_level(gitlab_user.access_level):
+            existing_user.access_level = gitlab_user.access_level
 
 
 def get_desired_state(
