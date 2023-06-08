@@ -70,10 +70,8 @@ def get_current_state(instance: GitlabInstanceV1, gl: GitLabApi) -> State:
     }
 
 
-def add_or_update_user(
-    desired_group_members: State, group_name: str, gitlab_user: GitlabUser
-):
-    desired_group_members[group_name].append(gitlab_user)
+def add_or_update_user(group_members: State, group_name: str, gitlab_user: GitlabUser):
+    group_members[group_name].append(gitlab_user)
 
 
 def get_desired_state(
