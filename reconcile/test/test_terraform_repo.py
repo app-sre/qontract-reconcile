@@ -224,3 +224,15 @@ def test_fail_on_multiple_repos(int_params, existing_repo, new_repo):
         integration.calculate_diff(
             existing_state=[], desired_state=desired_state, dry_run=True, state=None
         )
+
+
+def test_no_op_succeeds(int_params, existing_repo):
+    integration = TerraformRepoIntegration(params=int_params)
+
+    state = [existing_repo]
+
+    diff = integration.calculate_diff(
+        existing_state=state, desired_state=state, dry_run=True, state=None
+    )
+
+    assert diff == None
