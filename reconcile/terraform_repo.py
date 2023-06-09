@@ -264,6 +264,15 @@ class TerraformRepoIntegration(
         """
         diff = diff_iterables(existing_state, desired_state, lambda x: x.name)
 
+        merged = self.merge_results(diff)
+
+        # validate that only one repo is being modified in each MR
+        # this lets us fail early and avoid multiple GL requests we don't need to make
+        if len(merged) > 1:
+            raise Exception(
+                "Only one repository can be modified per merge request, please split your change out into multiple MRs"
+            )
+
         # added repos: do standard validation that SHA is valid
         if self.params.validate_git:
             for add_repo in diff.add.values():
@@ -291,13 +300,6 @@ class TerraformRepoIntegration(
             if self.params.validate_git:
                 self.check_ref(d.repository, d.ref)
 
-        merged = self.merge_results(diff)
-
-        # validate that only one repo is being modified in each MR
-        if len(merged) > 1:
-            raise Exception(
-                "Only one repository can be modified per merge request, please split your change out into multiple MRs"
-            )
         if len(merged) != 0:
             if not dry_run and state:
                 self.update_state(diff, state)
