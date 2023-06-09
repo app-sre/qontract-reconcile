@@ -56,7 +56,7 @@ class RepoOutput(BaseModel):
 
 
 class TerraformRepoIntegrationParams(PydanticRunParams):
-    output_dir: Optional[str]
+    output_file: Optional[str]
     validate_git: bool
 
 
@@ -93,32 +93,33 @@ class TerraformRepoIntegration(
             existing_state=existing, desired_state=desired, dry_run=dry_run, state=state
         )
 
-        for repo in repo_diff:
-            # format each repo into the input the executor expects
+        if repo_diff:
+            # once diffed, now output the repo
             repo_output = RepoOutput(
                 dry_run=dry_run,
-                repository=repo.repository,
-                name=repo.name,
-                ref=repo.ref,
-                project_path=repo.project_path,
-                delete=repo.delete or False,
+                repository=repo_diff.repository,
+                name=repo_diff.name,
+                ref=repo_diff.ref,
+                project_path=repo_diff.project_path,
+                delete=repo_diff.delete or False,
                 secret=RepoSecret(
-                    path=repo.account.automation_token.path,
-                    version=repo.account.automation_token.version,
+                    path=repo_diff.account.automation_token.path,
+                    version=repo_diff.account.automation_token.version,
                 ),
             )
 
-            if self.params.output_dir:
+            if self.params.output_file:
                 try:
-                    output_filename = f"{self.params.output_dir}/{repo.name}.yaml"
-                    with open(output_filename, "w") as output_file:
+                    with open(self.params.output_file, "w") as output_file:
                         yaml.safe_dump(
                             data=repo_output.dict(),
                             stream=output_file,
                             explicit_start=True,
                         )
                 except FileNotFoundError:
-                    raise ParameterError(f"Unable to write to '{output_filename}'")
+                    raise ParameterError(
+                        f"Unable to write to '{self.params.output_file}'"
+                    )
             else:
                 print(yaml.safe_dump(data=repo_output.dict(), explicit_start=True))
 
@@ -244,7 +245,7 @@ class TerraformRepoIntegration(
         desired_state: list[TerraformRepoV1],
         dry_run: bool,
         state: Optional[State],
-    ) -> list[TerraformRepoV1]:
+    ) -> Optional[TerraformRepoV1]:
         """Calculated the difference between existing and desired state
         to determine what actions the executor will need to take
 
@@ -258,10 +259,19 @@ class TerraformRepoIntegration(
         :type state: Optional[State]
         :raises ParameterError: if there is an invalid operation performed like trying to delete
         a representation in A-I before setting the delete flag
-        :return: list of Terraform Repos for the executor to act on
-        :rtype: list[TerraformRepoV1]
+        :return: the terraform repo to act on
+        :rtype: TerraformRepoV1
         """
         diff = diff_iterables(existing_state, desired_state, lambda x: x.name)
+
+        merged = self.merge_results(diff)
+
+        # validate that only one repo is being modified in each MR
+        # this lets us fail early and avoid multiple GL requests we don't need to make
+        if len(merged) > 1:
+            raise Exception(
+                "Only one repository can be modified per merge request, please split your change out into multiple MRs"
+            )
 
         # added repos: do standard validation that SHA is valid
         if self.params.validate_git:
@@ -290,10 +300,11 @@ class TerraformRepoIntegration(
             if self.params.validate_git:
                 self.check_ref(d.repository, d.ref)
 
-        if not dry_run and state:
-            self.update_state(diff, state)
-
-        return self.merge_results(diff)
+        if len(merged) != 0:
+            if not dry_run and state:
+                self.update_state(diff, state)
+            return merged[0]
+        return None
 
     def early_exit_desired_state(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
         gqlapi = gql.get_api()
