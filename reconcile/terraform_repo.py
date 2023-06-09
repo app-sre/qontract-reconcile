@@ -56,7 +56,7 @@ class RepoOutput(BaseModel):
 
 
 class TerraformRepoIntegrationParams(PydanticRunParams):
-    output_dir: Optional[str]
+    output_file: Optional[str]
     validate_git: bool
 
 
@@ -93,32 +93,33 @@ class TerraformRepoIntegration(
             existing_state=existing, desired_state=desired, dry_run=dry_run, state=state
         )
 
-        for repo in repo_diff:
-            # format each repo into the input the executor expects
+        if repo_diff:
+            # once diffed, now output the repo
             repo_output = RepoOutput(
                 dry_run=dry_run,
-                repository=repo.repository,
-                name=repo.name,
-                ref=repo.ref,
-                project_path=repo.project_path,
-                delete=repo.delete or False,
+                repository=repo_diff.repository,
+                name=repo_diff.name,
+                ref=repo_diff.ref,
+                project_path=repo_diff.project_path,
+                delete=repo_diff.delete or False,
                 secret=RepoSecret(
-                    path=repo.account.automation_token.path,
-                    version=repo.account.automation_token.version,
+                    path=repo_diff.account.automation_token.path,
+                    version=repo_diff.account.automation_token.version,
                 ),
             )
 
-            if self.params.output_dir:
+            if self.params.output_file:
                 try:
-                    output_filename = f"{self.params.output_dir}/{repo.name}.yaml"
-                    with open(output_filename, "w") as output_file:
+                    with open(self.params.output_file, "w") as output_file:
                         yaml.safe_dump(
                             data=repo_output.dict(),
                             stream=output_file,
                             explicit_start=True,
                         )
                 except FileNotFoundError:
-                    raise ParameterError(f"Unable to write to '{output_filename}'")
+                    raise ParameterError(
+                        f"Unable to write to '{self.params.output_file}'"
+                    )
             else:
                 print(yaml.safe_dump(data=repo_output.dict(), explicit_start=True))
 
@@ -182,30 +183,26 @@ class TerraformRepoIntegration(
     def merge_results(
         self,
         diff_result: DiffResult[TerraformRepoV1, TerraformRepoV1, str],
-    ) -> list[TerraformRepoV1]:
-        """Transforms the diff or repos into a list of repos that need to be changed or deleted
+    ) -> Optional[TerraformRepoV1]:
+        """Transforms the diff of repos into the one repo that needs to be updated
 
         :param diff_result: diff result of existing and desired state
         :type diff_result: DiffResult[TerraformRepoV1, TerraformRepoV1, str]
-        :return: list of repos that need to be changed or deleted
-        :rtype: list[TerraformRepoV1]
+        :return: repo that need to be changed or deleted
+        :rtype: TerraformRepoV1
         """
-        output: list[TerraformRepoV1] = []
         for add_key, add_val in diff_result.add.items():
             logging.info(["create_repo", add_val.account.name, add_key])
-            output.append(add_val)
+            return add_val
         for change_key, change_val in diff_result.change.items():
             if change_val.desired.delete:
                 logging.info(
                     ["delete_repo", change_val.desired.account.name, change_key]
                 )
-                output.append(change_val.desired)
-            else:
-                logging.info(
-                    ["update_repo", change_val.desired.account.name, change_key]
-                )
-                output.append(change_val.desired)
-        return output
+                return change_val.desired
+            logging.info(["update_repo", change_val.desired.account.name, change_key])
+            return change_val.desired
+        return None
 
     def update_state(
         self,
@@ -244,7 +241,7 @@ class TerraformRepoIntegration(
         desired_state: list[TerraformRepoV1],
         dry_run: bool,
         state: Optional[State],
-    ) -> list[TerraformRepoV1]:
+    ) -> Optional[TerraformRepoV1]:
         """Calculated the difference between existing and desired state
         to determine what actions the executor will need to take
 
@@ -258,8 +255,8 @@ class TerraformRepoIntegration(
         :type state: Optional[State]
         :raises ParameterError: if there is an invalid operation performed like trying to delete
         a representation in A-I before setting the delete flag
-        :return: list of Terraform Repos for the executor to act on
-        :rtype: list[TerraformRepoV1]
+        :return: the terraform repo to act on
+        :rtype: TerraformRepoV1
         """
         diff = diff_iterables(existing_state, desired_state, lambda x: x.name)
 
@@ -289,6 +286,14 @@ class TerraformRepoIntegration(
                 )
             if self.params.validate_git:
                 self.check_ref(d.repository, d.ref)
+
+        # validate that only one repo is being modified in each MR
+        total_modifications = len(diff.add) + len(diff.change) + len(diff.delete)
+
+        if total_modifications > 1:
+            raise Exception(
+                "Only one repository can be modified per merge request, please split your change out into multiple MRs"
+            )
 
         if not dry_run and state:
             self.update_state(diff, state)
