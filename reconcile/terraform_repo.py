@@ -183,26 +183,30 @@ class TerraformRepoIntegration(
     def merge_results(
         self,
         diff_result: DiffResult[TerraformRepoV1, TerraformRepoV1, str],
-    ) -> Optional[TerraformRepoV1]:
-        """Transforms the diff of repos into the one repo that needs to be updated
+    ) -> list[TerraformRepoV1]:
+        """Transforms the diff or repos into a list of repos that need to be changed or deleted
 
         :param diff_result: diff result of existing and desired state
         :type diff_result: DiffResult[TerraformRepoV1, TerraformRepoV1, str]
-        :return: repo that need to be changed or deleted
-        :rtype: TerraformRepoV1
+        :return: list of repos that need to be changed or deleted
+        :rtype: list[TerraformRepoV1]
         """
+        output: list[TerraformRepoV1] = []
         for add_key, add_val in diff_result.add.items():
             logging.info(["create_repo", add_val.account.name, add_key])
-            return add_val
+            output.append(add_val)
         for change_key, change_val in diff_result.change.items():
             if change_val.desired.delete:
                 logging.info(
                     ["delete_repo", change_val.desired.account.name, change_key]
                 )
-                return change_val.desired
-            logging.info(["update_repo", change_val.desired.account.name, change_key])
-            return change_val.desired
-        return None
+                output.append(change_val.desired)
+            else:
+                logging.info(
+                    ["update_repo", change_val.desired.account.name, change_key]
+                )
+                output.append(change_val.desired)
+        return output
 
     def update_state(
         self,
@@ -287,18 +291,18 @@ class TerraformRepoIntegration(
             if self.params.validate_git:
                 self.check_ref(d.repository, d.ref)
 
-        # validate that only one repo is being modified in each MR
-        total_modifications = len(diff.add) + len(diff.change) + len(diff.delete)
+        merged = self.merge_results(diff)
 
-        if total_modifications > 1:
+        # validate that only one repo is being modified in each MR
+        if len(merged) > 1:
             raise Exception(
                 "Only one repository can be modified per merge request, please split your change out into multiple MRs"
             )
-
-        if not dry_run and state:
-            self.update_state(diff, state)
-
-        return self.merge_results(diff)
+        if len(merged) != 0:
+            if not dry_run and state:
+                self.update_state(diff, state)
+            return merged[0]
+        return None
 
     def early_exit_desired_state(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
         gqlapi = gql.get_api()
