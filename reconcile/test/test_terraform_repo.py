@@ -235,4 +235,4 @@ def test_no_op_succeeds(int_params, existing_repo):
         existing_state=state, desired_state=state, dry_run=True, state=None
     )
 
-    assert diff == None
+    assert diff is None
