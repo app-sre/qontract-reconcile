@@ -25,7 +25,6 @@ from reconcile.test.ocm.fixtures import (
     build_label,
     build_organization_label,
 )
-from reconcile.utils.ocm.subscriptions import OCMOrganization
 from reconcile.utils.ocm.labels import (
     LabelContainer,
     build_label_container,
@@ -33,6 +32,7 @@ from reconcile.utils.ocm.labels import (
 )
 from reconcile.utils.ocm.search_filters import Filter
 from reconcile.utils.ocm.sre_capability_labels import build_labelset
+from reconcile.utils.ocm.subscriptions import OCMOrganization
 from reconcile.utils.ocm_base_client import OCMBaseClient
 
 #

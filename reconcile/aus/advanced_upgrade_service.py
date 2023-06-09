@@ -84,9 +84,13 @@ class AdvancedUpgradeServiceIntegration(OCMClusterUpgradeSchedulerOrgIntegration
             org_ids=org_ids,
             ignore_sts_clusters=self.params.ignore_sts_clusters,
         )
-        orgs = get_organizations(
-            ocm_api=ocm_api, filter=Filter().is_in("id", clusters_by_org.keys())
-        ) if clusters_by_org else {}
+        orgs = (
+            get_organizations(
+                ocm_api=ocm_api, filter=Filter().is_in("id", clusters_by_org.keys())
+            )
+            if clusters_by_org
+            else {}
+        )
         labels_by_org = _get_org_labels(ocm_api=ocm_api, org_ids=org_ids)
 
         return _build_org_upgrade_specs_for_ocm_env(
