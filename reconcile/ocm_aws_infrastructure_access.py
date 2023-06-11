@@ -119,6 +119,8 @@ def fetch_desired_state():
             )
             if aws_infrastructure_access is None:
                 continue
+            if aws_infrastructure_access.get("assume_role"):
+                continue
             aws_account_uid = [
                 a["uid"] for a in aws_accounts if a["name"] == spec.provisioner_name
             ][0]
