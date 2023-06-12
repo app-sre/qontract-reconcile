@@ -501,3 +501,61 @@ def inc_counter(counter: CounterMetric, by: int = 1) -> None:
     Honors running transactions.
     """
     _STATE.get_current_container().inc_counter(counter, by)
+
+
+#
+# MetricSet
+#
+
+
+ERMS = TypeVar("ERMS", bound="ErrorRateMetricSet")
+
+
+class ErrorRateMetricSet:
+    """
+    A context manager that exposes a counter metric and an error counter metric
+    for a code block. The code block within the contextmanager is considered
+    failed if an exception is raised of if the `fail` method is called.
+    """
+
+    def __init__(
+        self: ERMS, counter: CounterMetric, error_counter: CounterMetric
+    ) -> None:
+        self._counter = counter
+        self._error_counter = error_counter
+        self._errors: list[BaseException] = []
+
+    def __enter__(self: ERMS) -> ERMS:
+        inc_counter(self._counter)
+        return self
+
+    def fail(self: ERMS, error: BaseException) -> None:
+        """
+        Mark the context as failed and record it as an event
+        that increases the error counter.
+        """
+        self._errors.append(error)
+
+    @property
+    def failed(self: ERMS) -> bool:
+        """
+        Returns True if the context manager was marked as failed.
+        """
+        return bool(self._errors)
+
+    @property
+    def errors(self: ERMS) -> list[BaseException]:
+        """
+        Return the list of errors that caused the context manager to fail.
+        """
+        return self._errors
+
+    def __exit__(
+        self: ERMS,
+        exc_type: Optional[Type[BaseException]],
+        exc_value: Optional[BaseException],
+        traceback: Optional[TracebackType],
+    ) -> None:
+        if exc_value:
+            self.fail(exc_value)
+        inc_counter(self._error_counter, by=(1 if self._errors else 0))

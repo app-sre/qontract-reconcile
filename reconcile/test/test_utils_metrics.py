@@ -6,6 +6,7 @@ from prometheus_client.core import (
 
 from reconcile.utils.metrics import (
     CounterMetric,
+    ErrorRateMetricSet,
     GaugeMetric,
     InfoMetric,
     MetricsContainer,
@@ -473,3 +474,78 @@ def test_transactional_metrics_implicitely_nested(demo_gauge: DemoGauge) -> None
     # the transaction is committed so we should see the metrics in root
     assert len(list(root.collect())) == 1
     assert list(root.collect())[0].samples[0].value == 84
+
+
+#
+# metric sets
+#
+
+
+class DemoErrorCounter(CounterMetric):
+    field: str
+
+    @classmethod
+    def name(cls) -> str:
+        return "demo_error_counter"
+
+
+class DemoErrorRateMetricSet(ErrorRateMetricSet):
+    def __init__(self, field: str):
+        super().__init__(
+            counter=DemoCounter(field=field),
+            error_counter=DemoErrorCounter(field=field),
+        )
+
+
+def test_error_rate_metric_set_success() -> None:
+    root = MetricsContainer()
+    with transactional_metrics("scope-1", root):
+        with DemoErrorRateMetricSet("field"):
+            pass
+        with DemoErrorRateMetricSet("field"):
+            pass
+
+    assert root.get_metric_value(DemoCounter, field="field") == 2
+    assert root.get_metric_value(DemoErrorCounter, field="field") == 0
+
+
+def test_error_rate_metric_set_exception_fail() -> None:
+    root = MetricsContainer()
+    with transactional_metrics("scope-1", root):
+        try:
+            with DemoErrorRateMetricSet("field"):
+                raise Exception("boom")
+        except Exception:
+            pass
+        try:
+            with DemoErrorRateMetricSet("field"):
+                raise Exception("boom")
+        except Exception:
+            pass
+
+    assert root.get_metric_value(DemoCounter, field="field") == 2
+    assert root.get_metric_value(DemoErrorCounter, field="field") == 2
+
+
+def test_error_rate_metric_set_explicit_fail() -> None:
+    root = MetricsContainer()
+    with transactional_metrics("scope-1", root):
+        with DemoErrorRateMetricSet("field") as s:
+            s.fail(Exception("boom"))
+        with DemoErrorRateMetricSet("field") as s:
+            s.fail(Exception("boom"))
+
+    assert root.get_metric_value(DemoCounter, field="field") == 2
+    assert root.get_metric_value(DemoErrorCounter, field="field") == 2
+
+
+def test_error_rate_metric_set_mixed() -> None:
+    root = MetricsContainer()
+    with transactional_metrics("scope-1", root):
+        with DemoErrorRateMetricSet("field") as s:
+            s.fail(Exception("boom"))
+        with DemoErrorRateMetricSet("field"):
+            pass
+
+    assert root.get_metric_value(DemoCounter, field="field") == 2
+    assert root.get_metric_value(DemoErrorCounter, field="field") == 1

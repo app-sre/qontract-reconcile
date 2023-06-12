@@ -21,6 +21,7 @@ from reconcile.utils.ocm.clusters import (
     OCMClusterAWSSettings,
     OCMClusterFlag,
     OCMClusterState,
+    OCMClusterVersion,
 )
 from reconcile.utils.ocm.labels import (
     LabelContainer,
@@ -95,6 +96,7 @@ def build_ocm_cluster(
     subs_id: str = "subs_id",
     aws_cluster: bool = True,
     sts_cluster: bool = False,
+    version: str = "4.13.0",
 ) -> OCMCluster:
     aws_config = None
     if aws_cluster:
@@ -111,6 +113,7 @@ def build_ocm_cluster(
         state=OCMClusterState.READY,
         managed=True,
         aws=aws_config,
+        version=OCMClusterVersion(id=f"openshift-v{version}", raw_id="version"),
     )
 
 

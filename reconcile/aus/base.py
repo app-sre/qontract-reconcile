@@ -21,8 +21,7 @@ from semver import VersionInfo
 
 from reconcile.aus.metrics import (
     AUSClusterUpgradePolicyInfoMetric,
-    AUSOrganizationReconcileCounter,
-    AUSOrganizationReconcileErrorCounter,
+    AUSOrganizationErrorRate,
     AUSOrganizationValidationErrorsGauge,
 )
 from reconcile.aus.models import (
@@ -78,29 +77,31 @@ class AdvancedUpgradeSchedulerBaseIntegration(
         with metrics.transactional_metrics(self.name):
             upgrade_specs = self.get_upgrade_specs()
             for ocm_env, env_upgrade_specs in upgrade_specs.items():
-                for org_name, org_upgrade_spec in env_upgrade_specs.items():
-                    self.expose_org_upgrade_spec_metrics(ocm_env, org_upgrade_spec)
-                    if org_upgrade_spec.has_validation_errors:
-                        self.signal_validation_issues(dry_run, org_upgrade_spec)
-                    elif org_upgrade_spec.specs:
-                        try:
-                            self.process_upgrade_policies_in_org(
-                                dry_run, org_upgrade_spec
-                            )
-                        except Exception as e:
-                            metrics.inc_counter(
-                                AUSOrganizationReconcileErrorCounter(
-                                    integration=self.name,
-                                    ocm_env=ocm_env,
-                                    org_id=org_upgrade_spec.org.org_id,
-                                )
-                            )
-                            self.signal_reconcile_issues(dry_run, org_upgrade_spec, e)
-                    else:
-                        logging.debug(
-                            f"Skip org {org_name} in {ocm_env} because it defines no upgrade policies"
-                        )
+                for org_upgrade_spec in env_upgrade_specs.values():
+                    try:
+                        with AUSOrganizationErrorRate(
+                            integration=self.name,
+                            ocm_env=ocm_env,
+                            org_id=org_upgrade_spec.org.org_id,
+                        ):
+                            self.process_org(dry_run, ocm_env, org_upgrade_spec)
+                    except Exception as e:
+                        self.signal_reconcile_issues(dry_run, org_upgrade_spec, e)
         sys.exit(0)
+
+    def process_org(
+        self, dry_run: bool, ocm_env: str, org_upgrade_spec: OrganizationUpgradeSpec
+    ) -> None:
+        org_name = org_upgrade_spec.org.name
+        self.expose_org_upgrade_spec_metrics(ocm_env, org_upgrade_spec)
+        if org_upgrade_spec.has_validation_errors:
+            self.signal_validation_issues(dry_run, org_upgrade_spec)
+        elif org_upgrade_spec.specs:
+            self.process_upgrade_policies_in_org(dry_run, org_upgrade_spec)
+        else:
+            logging.debug(
+                f"Skip org {org_name} in {ocm_env} because it defines no upgrade policies"
+            )
 
     def get_upgrade_specs(self) -> dict[str, dict[str, OrganizationUpgradeSpec]]:
         return {
@@ -151,13 +152,6 @@ class AdvancedUpgradeSchedulerBaseIntegration(
     def expose_org_upgrade_spec_metrics(
         self, ocm_env: str, org_upgrade_spec: OrganizationUpgradeSpec
     ) -> None:
-        metrics.inc_counter(
-            AUSOrganizationReconcileCounter(
-                integration=self.name,
-                ocm_env=ocm_env,
-                org_id=org_upgrade_spec.org.org_id,
-            )
-        )
         metrics.set_gauge(
             AUSOrganizationValidationErrorsGauge(
                 integration=self.name,
@@ -174,6 +168,8 @@ class AdvancedUpgradeSchedulerBaseIntegration(
                     ocm_env=ocm_env,
                     cluster_uuid=cluster_upgrade_spec.cluster_uuid,
                     org_id=cluster_upgrade_spec.ocm.org_id,
+                    org_name=org_upgrade_spec.org.name,
+                    current_version=cluster_upgrade_spec.current_version,
                     cluster_name=cluster_upgrade_spec.name,
                     schedule=cluster_upgrade_spec.upgrade_policy.schedule,
                     sector=cluster_upgrade_spec.upgrade_policy.conditions.sector or "",

@@ -55,6 +55,12 @@ class OCMClusterAWSSettings(BaseModel):
         return self.sts is not None and self.sts.enabled
 
 
+class OCMClusterVersion(BaseModel):
+
+    id: str
+    raw_id: str
+
+
 class OCMCluster(BaseModel):
 
     kind: str = "Cluster"
@@ -76,6 +82,8 @@ class OCMCluster(BaseModel):
     product: OCMModelLink
 
     aws: Optional[OCMClusterAWSSettings]
+
+    version: OCMClusterVersion
 
 
 class ClusterDetails(BaseModel):
