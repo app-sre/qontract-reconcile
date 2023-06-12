@@ -340,7 +340,8 @@ def build_specs_from_config(
         ) in cluster_config.roles.items():
             spec.roles[role_id] = set()
             if (
-                role_id == OCMClusterGroupId.CLUSTER_ADMINS
+                cluster_config.cluster.ocm_cluster.is_osd()
+                and role_id == OCMClusterGroupId.CLUSTER_ADMINS
                 and not cluster_config.cluster.is_capability_set(
                     CAPABILITY_MANAGE_CLUSTER_ADMIN, "true"
                 )
