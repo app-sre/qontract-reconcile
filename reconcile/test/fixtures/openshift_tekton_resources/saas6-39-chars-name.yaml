@@ -1,0 +1,9 @@
+{
+  "path": "saas6-long-name.yaml",
+  "name": "this-is-a-saas-file-with-a-39-char-name",
+  "pipelinesProvider": {
+    "name": "provider6-too-long-pipeline-name",
+    "provider": "tekton"
+  },
+  "deployResources": null
+}

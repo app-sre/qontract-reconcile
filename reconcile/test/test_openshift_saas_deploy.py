@@ -26,7 +26,7 @@ def saas_file_builder(
                     },
                     "defaults": {
                         "pipelineTemplates": {
-                            "openshiftSaasDeploy": {"name": "openshift-saas-deploy"}
+                            "openshiftSaasDeploy": {"name": "saas-deploy"}
                         },
                     },
                 },
@@ -49,7 +49,7 @@ def test_compose_console_url(
 
     assert (
         url
-        == "https://console.url/k8s/ns/namespace_name/tekton.dev~v1beta1~Pipeline/o-openshift-saas-deploy-saas_name/"
+        == "https://console.url/k8s/ns/namespace_name/tekton.dev~v1beta1~Pipeline/o-saas-deploy-saas_name/"
         "Runs?name=saas_name-production"
     )
 
@@ -66,7 +66,7 @@ def test_compose_console_url_with_medium_saas_name(
     expected_run_name = f"{saas_name}-{env_name}"[:50]
     assert (
         url == "https://console.url/k8s/ns/namespace_name/tekton.dev~v1beta1~Pipeline/"
-        "o-openshift-saas-deploy-saas-openshift-cert-manager-routes/"
+        "o-saas-deploy-saas-openshift-cert-manager-routes/"
         f"Runs?name={expected_run_name}"
     )
 
@@ -82,6 +82,6 @@ def test_compose_console_url_with_long_saas_name(
         compose_console_url(saas_file, env_name)
 
     assert (
-        "name o-openshift-saas-deploy-this-is-a-very-looooooooooooooooooooooong-saas-name is longer than 63 characters"
+        f"Pipeline name o-saas-deploy-{saas_name} is longer than 56 characters"
         == str(e.value)
     )

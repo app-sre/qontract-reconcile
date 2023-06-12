@@ -27,6 +27,10 @@ QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 # it must be a single character due to resource max length
 OBJECTS_PREFIX = "o"
 RESOURCE_MAX_LENGTH = 63
+# This is caused by PipelineRun names on retry. They get the name pipeline-<7 random characters>
+# If pipeline names are larger than this, PR will fail to get created as names will be larger
+# than 63 characters.
+PIPELINE_MAX_LENGTH = RESOURCE_MAX_LENGTH - 7
 
 # Defaults
 DEFAULT_DEPLOY_RESOURCES_STEP_NAME = "qontract-reconcile"
@@ -236,7 +240,7 @@ def build_one_per_saas_file_task(
         else {}
     )
     task = load_tkn_template(task_template_config["path"], variables)
-    task["metadata"]["name"] = build_one_per_saas_file_tkn_object_name(
+    task["metadata"]["name"] = build_one_per_saas_file_tkn_task_name(
         task_template_config["name"], saas_file["name"]
     )
     step_name = task_template_config.get(
@@ -272,7 +276,7 @@ def build_one_per_saas_file_pipeline(
         else {}
     )
     pipeline = load_tkn_template(pipeline_template_config["path"], variables)
-    pipeline["metadata"]["name"] = build_one_per_saas_file_tkn_object_name(
+    pipeline["metadata"]["name"] = build_one_per_saas_file_tkn_pipeline_name(
         pipeline_template_config["name"], saas_file["name"]
     )
 
@@ -289,7 +293,7 @@ def build_one_per_saas_file_pipeline(
                     task["name"]
                 )
             else:
-                task["taskRef"]["name"] = build_one_per_saas_file_tkn_object_name(
+                task["taskRef"]["name"] = build_one_per_saas_file_tkn_task_name(
                     task["name"], saas_file["name"]
                 )
 
@@ -331,7 +335,16 @@ def check_resource_max_length(name: str) -> None:
     being applied"""
     if len(name) > RESOURCE_MAX_LENGTH:
         raise OpenshiftTektonResourcesNameTooLongError(
-            f"name {name} is longer than {RESOURCE_MAX_LENGTH} characters"
+            f"Resource name {name} is longer than {RESOURCE_MAX_LENGTH} characters"
+        )
+
+
+def check_pipeline_max_length(name: str) -> None:
+    """Checks the pipeline name is not too long as it may have problems when
+    used to generate PipelineRun names on retry"""
+    if len(name) > PIPELINE_MAX_LENGTH:
+        raise OpenshiftTektonResourcesNameTooLongError(
+            f"Pipeline name {name} is longer than {PIPELINE_MAX_LENGTH} characters"
         )
 
 
@@ -342,13 +355,36 @@ def build_one_per_namespace_tkn_object_name(name: str) -> str:
     return name
 
 
-def build_one_per_saas_file_tkn_object_name(
+def _generate_one_per_saas_file_tkn_object_name(
     template_name: str, saas_file_name: str
 ) -> str:
-    """Builds a onePerSaasFile object name.  Given a saas file name, it returns
-    the openshift-saas-deploy names used by Tasks and Pipelines created by this
-    integration"""
-    name = f"{OBJECTS_PREFIX}-{template_name}-{saas_file_name}"
+    """Generates a onePerSaasFile object name.  Given a saas file name, it returns the
+    openshift-saas-deploy names used by Tasks and Pipelines created by this integration
+    """
+    return f"{OBJECTS_PREFIX}-{template_name}-{saas_file_name}"
+
+
+def build_one_per_saas_file_tkn_pipeline_name(
+    template_name: str, saas_file_name: str
+) -> str:
+    """Builds a onePerSaasFile pipeline name and checks length. Given a saas file name,
+    it returns the openshift-saas-deploy names used by Pipelines created by this
+    integration.  Pipeline lenghth is further limited by the fact that PipelineRuns
+    that are create as part of a retry have the name of the Pipeline + 7 random
+    characters and they have a max lenght of 63 characters.
+    """
+    name = _generate_one_per_saas_file_tkn_object_name(template_name, saas_file_name)
+    check_pipeline_max_length(name)
+    return name
+
+
+def build_one_per_saas_file_tkn_task_name(
+    template_name: str, saas_file_name: str
+) -> str:
+    """Builds a onePerSaasFile task name and checks length. Given a saas file name, it
+    returns the openshift-saas-deploy names used by Tasks created by this integration
+    """
+    name = _generate_one_per_saas_file_tkn_object_name(template_name, saas_file_name)
     check_resource_max_length(name)
     return name
 

@@ -14,7 +14,9 @@ from reconcile import (
     jenkins_base,
     queries,
 )
-from reconcile.openshift_tekton_resources import build_one_per_saas_file_tkn_object_name
+from reconcile.openshift_tekton_resources import (
+    build_one_per_saas_file_tkn_pipeline_name,
+)
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
@@ -248,7 +250,7 @@ def _trigger_tekton(
         if spec.pipelines_provider.pipeline_templates
         else spec.pipelines_provider.defaults.pipeline_templates.openshift_saas_deploy.name
     )
-    tkn_pipeline_name = build_one_per_saas_file_tkn_object_name(
+    tkn_pipeline_name = build_one_per_saas_file_tkn_pipeline_name(
         pipeline_template_name, spec.saas_file_name
     )
     tkn_namespace_name = spec.pipelines_provider.namespace.name

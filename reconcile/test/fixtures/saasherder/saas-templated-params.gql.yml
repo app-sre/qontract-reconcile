@@ -17,10 +17,10 @@ pipelinesProvider:
   defaults:
     pipelineTemplates:
       openshiftSaasDeploy:
-        name: openshift-saas-deploy
+        name: saas-deploy
   pipelineTemplates:
     openshiftSaasDeploy:
-      name: openshift-saas-deploy
+      name: saas-deploy
 
 
 managedResourceTypes: []
