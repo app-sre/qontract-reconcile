@@ -18,6 +18,7 @@ from typing import (
     Any,
     Generator,
     Optional,
+    Tuple,
     Type,
     Union,
 )
@@ -468,17 +469,33 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                             )
                         )
 
+    @staticmethod
+    def build_saas_file_env_combo(
+        saas_file_name: str,
+        env_name: str,
+    ) -> Tuple[str, str]:
+        """
+        Build a tuple of short and long names for a saas file and environment combo,
+        max tekton pipelinerun name length can be 63,
+        leaving 12 for the timestamp leaves us with 51 to create a unique pipelinerun name.
+
+        :param saas_file_name: name of the saas file
+        :param env_name: name of the environment
+        :return: (tkn_name, tkn_long_name)
+        """
+        tkn_long_name = f"{saas_file_name}-{env_name}"
+        tkn_name = tkn_long_name[:UNIQUE_SAAS_FILE_ENV_COMBO_LEN]
+        return tkn_name, tkn_long_name
+
     def _check_saas_file_env_combo_unique(
         self,
         saas_file_name: str,
         env_name: str,
         tkn_unique_pipelineruns: Mapping[str, str],
     ) -> tuple[str, str]:
-        # max tekton pipelinerun name length can be 63.
-        # leaving 12 for the timestamp leaves us with 51
-        # to create a unique pipelinerun name
-        tkn_long_name = f"{saas_file_name}-{env_name}"
-        tkn_name = tkn_long_name[:UNIQUE_SAAS_FILE_ENV_COMBO_LEN]
+        tkn_name, tkn_long_name = self.build_saas_file_env_combo(
+            saas_file_name, env_name
+        )
         if (
             tkn_name in tkn_unique_pipelineruns
             and tkn_unique_pipelineruns[tkn_name] != tkn_long_name
