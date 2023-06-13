@@ -71,6 +71,9 @@ fragment SaasTargetNamespace on Namespace_v1 {
   }
   app {
     name
+    parentApp {
+      name
+    }
     labels
   }
   cluster {
