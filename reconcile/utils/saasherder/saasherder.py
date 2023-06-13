@@ -312,9 +312,11 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                     )
                     if saas_file.validate_targets_in_app:
                         valid_app_names = {saas_file.app.name}
+                        if saas_file.app.parent_app:
+                            valid_app_names.add(saas_file.app.parent_app.name)
                         if target.namespace.app.name not in valid_app_names:
                             logging.error(
-                                f"[{saas_file.name}] targets must be within app {valid_app_names}"
+                                f"[{saas_file.name}] targets must be within app(s) {valid_app_names}"
                             )
                             self.valid = False
 
