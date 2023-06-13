@@ -311,9 +311,10 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                         saas_file.allowed_secret_parameter_paths or [],
                     )
                     if saas_file.validate_targets_in_app:
-                        if saas_file.app.name != target.namespace.app.name:
+                        valid_app_names = {saas_file.app.name}
+                        if target.namespace.app.name not in valid_app_names:
                             logging.error(
-                                f"[{saas_file.name}] targets must be within app {saas_file.app.name}"
+                                f"[{saas_file.name}] targets must be within app {valid_app_names}"
                             )
                             self.valid = False
 
