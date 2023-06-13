@@ -47,8 +47,16 @@ class HasSecretParameters(Protocol):
         ...
 
 
+class SaasParentApp(Protocol):
+    name: str
+
+
 class SaasApp(Protocol):
     name: str
+
+    @property
+    def parent_app(self) -> Optional[SaasParentApp]:
+        ...
 
 
 class SaasPipelinesProvider(Protocol):
