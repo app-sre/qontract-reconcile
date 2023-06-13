@@ -64,7 +64,7 @@ data:
             "overrides": []
           },
           "gridPos": {
-            "h": 16,
+            "h": 13,
             "w": 24,
             "x": 0,
             "y": 0
@@ -123,33 +123,36 @@ data:
                 },
                 "indexByName": {
                   "Time": 0,
-                  "Value": 18,
+                  "Value": 20,
                   "__name__": 1,
                   "cluster_name": 2,
                   "cluster_uuid": 3,
-                  "container": 8,
-                  "endpoint": 9,
-                  "instance": 10,
-                  "integration": 11,
-                  "job": 12,
-                  "mutexes": 13,
-                  "namespace": 14,
-                  "ocm_env": 4,
-                  "org_id": 5,
-                  "pod": 15,
-                  "schedule": 16,
-                  "sector": 19,
-                  "service": 17,
-                  "soak_days": 7,
-                  "workloads": 6
+                  "container": 10,
+                  "current_version": 4,
+                  "endpoint": 11,
+                  "instance": 12,
+                  "integration": 13,
+                  "job": 14,
+                  "mutexes": 15,
+                  "namespace": 16,
+                  "ocm_env": 5,
+                  "org_id": 7,
+                  "org_name": 6,
+                  "pod": 17,
+                  "schedule": 18,
+                  "service": 19,
+                  "soak_days": 9,
+                  "workloads": 8
                 },
                 "renameByName": {
                   "cluster_name": "Cluster",
                   "cluster_uuid": "UUID",
+                  "current_version": "Current Version",
                   "job": "",
                   "mutexes": "Mutexes",
                   "ocm_env": "OCM environment",
-                  "org_id": "OCM Organization ID",
+                  "org_id": "Organization ID",
+                  "org_name": "Organization",
                   "schedule": "Schedule",
                   "sector": "Sector",
                   "soak_days": "Soak Days",
@@ -169,37 +172,12 @@ data:
           "fieldConfig": {
             "defaults": {
               "color": {
-                "mode": "palette-classic"
+                "mode": "thresholds"
               },
               "custom": {
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "drawStyle": "line",
-                "fillOpacity": 0,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "auto",
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
+                "align": "auto",
+                "displayMode": "auto",
+                "inspect": false
               },
               "mappings": [],
               "thresholds": {
@@ -222,21 +200,20 @@ data:
             "h": 10,
             "w": 11,
             "x": 0,
-            "y": 16
+            "y": 13
           },
           "id": 4,
           "options": {
-            "legend": {
-              "calcs": [],
-              "displayMode": "list",
-              "placement": "bottom",
-              "showLegend": true
+            "footer": {
+              "fields": "",
+              "reducer": [
+                "sum"
+              ],
+              "show": false
             },
-            "tooltip": {
-              "mode": "single",
-              "sort": "none"
-            }
+            "showHeader": true
           },
+          "pluginVersion": "9.3.8",
           "targets": [
             {
               "datasource": {
@@ -244,15 +221,40 @@ data:
                 "uid": "P2C3F6ECC774D80E6"
               },
               "editorMode": "code",
-              "expr": "min by (cluster_name, cluster_uuid, workloads, org_id) (aus_cluster_version_remaining_soak_days * on (cluster_uuid) group_left(cluster_name, workloads, schedule, sector, org_id) aus_cluster_upgrade_policy_info{workloads=~\".*$workloads.*\", org_id=~\".*$org_id.*\"})",
-              "interval": "3m",
+              "exemplar": false,
+              "expr": "aus_cluster_version_remaining_soak_days * on (cluster_uuid, soaking_version) (clamp_max(changes(aus_cluster_version_remaining_soak_days[1h]), 1) > 0) * on (cluster_uuid) group_left(cluster_name, current_version, workloads, schedule, sector) aus_cluster_upgrade_policy_info{workloads=~\".*$workloads.*\", org_id=~\".*$org_id.*\"}",
+              "format": "table",
+              "instant": true,
+              "interval": "5m",
               "legendFormat": "{{cluster_name}} - {{org_id}}",
-              "range": true,
+              "range": false,
               "refId": "A"
             }
           ],
           "title": "Currently Soaking Versions",
-          "type": "timeseries"
+          "transformations": [
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "Time": true,
+                  "cluster_uuid": true,
+                  "current_version": false,
+                  "schedule": true,
+                  "workloads": true
+                },
+                "indexByName": {},
+                "renameByName": {
+                  "Value": "Remaining Soak Days",
+                  "cluster_name": "Cluster",
+                  "cluster_uuid": "",
+                  "current_version": "Current Version",
+                  "soaking_version": "Currently Soaking Version"
+                }
+              }
+            }
+          ],
+          "type": "table"
         },
         {
           "datasource": {
@@ -290,7 +292,7 @@ data:
             "h": 10,
             "w": 13,
             "x": 11,
-            "y": 16
+            "y": 13
           },
           "id": 2,
           "options": {
@@ -364,7 +366,7 @@ data:
               "type": "prometheus",
               "uid": "P2C3F6ECC774D80E6"
             },
-            "definition": "label_values(aus_cluster_upgrade_policy_info, org_id)",
+            "definition": "aus_cluster_upgrade_policy_info",
             "hide": 0,
             "includeAll": true,
             "label": "OCM Organization",
@@ -372,23 +374,23 @@ data:
             "name": "org_id",
             "options": [],
             "query": {
-              "query": "label_values(aus_cluster_upgrade_policy_info, org_id)",
+              "query": "aus_cluster_upgrade_policy_info",
               "refId": "StandardVariableQuery"
             },
             "refresh": 2,
-            "regex": "",
+            "regex": "/org_name=\"(?<text>[^\"]+)|org_id=\"(?<value>[^\"]+)/g",
             "skipUrlSync": false,
             "sort": 1,
             "type": "query"
           },
           {
             "current": {
-              "selected": false,
+              "selected": true,
               "text": [
-                "All"
+                "crc"
               ],
               "value": [
-                "$__all"
+                "crc"
               ]
             },
             "datasource": {
@@ -415,14 +417,14 @@ data:
         ]
       },
       "time": {
-        "from": "now-6h",
+        "from": "now-3h",
         "to": "now"
       },
       "timepicker": {},
       "timezone": "",
       "title": "AUS Cluster Upgrade Overview",
       "uid": "ukLXCSwVz",
-      "version": 16,
+      "version": 1,
       "weekStart": ""
     }
 kind: ConfigMap
