@@ -2038,13 +2038,75 @@ def ocm_github_idp(ctx, vault_input_path):
     run_integration(reconcile.ocm_github_idp, ctx.obj, vault_input_path)
 
 
-@integration.command(short_help="Manage OIDC Identity Providers in OCM.")
+@integration.command(short_help="Manage OIDC Identity Providers in OCM. Part of RHIDP.")
 @vault_input_path
 @click.pass_context
 def ocm_oidc_idp(ctx, vault_input_path):
-    import reconcile.ocm_oidc_idp
+    from reconcile.rhidp.ocm_oidc_idp.integration import (
+        OCMOidcIdpIntegration,
+        OCMOidcIdpIntegrationParams,
+    )
 
-    run_integration(reconcile.ocm_oidc_idp, ctx.obj, vault_input_path)
+    run_class_integration(
+        integration=OCMOidcIdpIntegration(
+            OCMOidcIdpIntegrationParams(vault_input_path=vault_input_path)
+        ),
+        ctx=ctx.obj,
+    )
+
+
+@integration.command(
+    short_help="Manage OIDC cluster configuration in OCM organizations based on OCM labels. Part of RHIDP."
+)
+@click.option(
+    "--ocm-env",
+    help="The OCM environment RHIDP should operator on. If none is specified, all environments will be operated on.",
+    required=False,
+    envvar="RHIDP_OCM_ENV",
+)
+@click.option(
+    "--ocm-org-ids",
+    help="A comma seperated list of OCM organization IDs RHIDP should operator on. If none is specified, all organizations are considered.",
+    required=False,
+    envvar="RHIDP_OCM_ORG_IDS",
+)
+@click.option(
+    "--auth-name",
+    default="redhat-app-sre-auth",
+    help="The authentication name must match that one used in the redirect URL.",
+    required=True,
+    envvar="RHIDP_AUTH_NAME",
+)
+@click.option(
+    "--auth-issuer-url",
+    default="https://auth.redhat.com/auth/realms/EmployeeIDP",
+    help="The Issuer (SSO server) URL.",
+    required=True,
+    envvar="RHIDP_AUTH_ISSUER_URL",
+)
+@vault_input_path
+@click.pass_context
+def ocm_oidc_idp_standalone(
+    ctx, ocm_env, ocm_org_ids, auth_name, auth_issuer_url, vault_input_path
+):
+    from reconcile.rhidp.ocm_oidc_idp.standalone import (
+        OCMOidcIdpStandalone,
+        OCMOidcIdpStandaloneParams,
+    )
+
+    parsed_ocm_org_ids = set(ocm_org_ids.split(",")) if ocm_org_ids else None
+    run_class_integration(
+        integration=OCMOidcIdpStandalone(
+            OCMOidcIdpStandaloneParams(
+                vault_input_path=vault_input_path,
+                ocm_environment=ocm_env,
+                ocm_organization_ids=parsed_ocm_org_ids,
+                auth_name=auth_name,
+                auth_issuer_url=auth_issuer_url,
+            )
+        ),
+        ctx=ctx.obj,
+    )
 
 
 @integration.command(short_help="Manage additional routers in OCM.")
