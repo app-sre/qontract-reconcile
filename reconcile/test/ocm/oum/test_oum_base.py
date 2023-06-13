@@ -317,13 +317,22 @@ def test_build_spec_from_config_missing_group(
 
 
 @pytest.mark.parametrize(
-    "cluster_product, errors", [(PRODUCT_ID_OSD, True), (PRODUCT_ID_ROSA, False)]
+    "cluster_product, errors, expected_groups",
+    [
+        (PRODUCT_ID_OSD, True, {}),
+        (
+            PRODUCT_ID_ROSA,
+            False,
+            {OCMClusterGroupId.CLUSTER_ADMINS: {"user-1", "user-2"}},
+        ),
+    ],
 )
 def test_build_spec_from_config_osd_cluster_admin_without_capability(
     cluster: ClusterDetails,
     mock_group_member_provider: MockGroupMemberProvider,
     cluster_product: str,
     errors: int,
+    expected_groups: dict[str, set[str]],
 ) -> None:
     """
     An OSD cluster without the manage cluster admin capability should NOT be able to
@@ -349,12 +358,8 @@ def test_build_spec_from_config_osd_cluster_admin_without_capability(
         },
     )
     assert len(specs) == 1
-    if errors:
-        assert specs[0].roles == {}
-        assert len(specs[0].errors) == 1
-    else:
-        assert specs[0].roles[OCMClusterGroupId.CLUSTER_ADMINS] != {}
-        assert len(specs[0].errors) == 0
+    assert len(specs[0].errors) == errors
+    assert specs[0].roles == expected_groups
 
 
 def test_build_spec_from_config_cluster_admin_with_capability(
