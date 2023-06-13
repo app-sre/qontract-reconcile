@@ -61,6 +61,10 @@ class OCMClusterVersion(BaseModel):
     raw_id: str
 
 
+PRODUCT_ID_OSD = "osd"
+PRODUCT_ID_ROSA = "rosa"
+
+
 class OCMCluster(BaseModel):
 
     kind: str = "Cluster"
@@ -84,6 +88,17 @@ class OCMCluster(BaseModel):
     aws: Optional[OCMClusterAWSSettings]
 
     version: OCMClusterVersion
+
+    hypershift: OCMClusterFlag
+
+    def is_osd(self) -> bool:
+        return self.product.id == PRODUCT_ID_OSD
+
+    def is_rosa_classic(self) -> bool:
+        return self.product.id == PRODUCT_ID_ROSA and not self.hypershift.enabled
+
+    def is_rosa_hypershift(self) -> bool:
+        return self.product.id == PRODUCT_ID_ROSA and self.hypershift.enabled
 
 
 class ClusterDetails(BaseModel):
@@ -277,5 +292,5 @@ def cluster_ready_for_app_interface() -> Filter:
         Filter()
         .eq("managed", "true")
         .eq("state", OCMClusterState.READY.value)
-        .is_in("product.id", ["osd", "rosa"])
+        .is_in("product.id", [PRODUCT_ID_OSD, PRODUCT_ID_ROSA])
     )

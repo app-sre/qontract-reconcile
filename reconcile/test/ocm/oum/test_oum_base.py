@@ -43,6 +43,8 @@ from reconcile.utils.ocm.cluster_groups import (
 )
 from reconcile.utils.ocm.clusters import (
     CAPABILITY_MANAGE_CLUSTER_ADMIN,
+    PRODUCT_ID_OSD,
+    PRODUCT_ID_ROSA,
     ClusterDetails,
 )
 from reconcile.utils.ocm_base_client import OCMBaseClient
@@ -314,13 +316,29 @@ def test_build_spec_from_config_missing_group(
     assert len(specs[0].errors) == 1
 
 
-def test_build_spec_from_config_cluster_admin_without_capability(
-    cluster: ClusterDetails, mock_group_member_provider: MockGroupMemberProvider
+@pytest.mark.parametrize(
+    "cluster_product, errors, expected_groups",
+    [
+        (PRODUCT_ID_OSD, True, {}),
+        (
+            PRODUCT_ID_ROSA,
+            False,
+            {OCMClusterGroupId.CLUSTER_ADMINS: {"user-1", "user-2"}},
+        ),
+    ],
+)
+def test_build_spec_from_config_osd_cluster_admin_without_capability(
+    cluster: ClusterDetails,
+    mock_group_member_provider: MockGroupMemberProvider,
+    cluster_product: str,
+    errors: int,
+    expected_groups: dict[str, set[str]],
 ) -> None:
     """
-    A cluster without the manage cluster admin capability should NOT be able to
-    have cluster admins defined.
+    An OSD cluster without the manage cluster admin capability should NOT be able to
+    have cluster admins defined. But for ROSA clusters, this is allowed.
     """
+    cluster.ocm_cluster.product.id = cluster_product
     provider = "mock"
     org_config = build_org_config(
         cluster=cluster,
@@ -340,9 +358,8 @@ def test_build_spec_from_config_cluster_admin_without_capability(
         },
     )
     assert len(specs) == 1
-    assert specs[0].roles == {}
-    assert specs[0].cluster == cluster
-    assert len(specs[0].errors) == 1
+    assert len(specs[0].errors) == errors
+    assert specs[0].roles == expected_groups
 
 
 def test_build_spec_from_config_cluster_admin_with_capability(
