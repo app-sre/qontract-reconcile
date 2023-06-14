@@ -2215,29 +2215,6 @@ def ecr_mirror(ctx, thread_pool_size):
     run_integration(reconcile.ecr_mirror, ctx.obj, thread_pool_size)
 
 
-@integration.command(short_help="Manages Kafka clusters via OCM.")
-@threaded()
-@binary(["oc", "ssh"])
-@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
-@internal()
-@use_jump_host()
-@vault_throughput_path
-@click.pass_context
-def kafka_clusters(
-    ctx, thread_pool_size, internal, use_jump_host, vault_throughput_path
-):
-    import reconcile.kafka_clusters
-
-    run_integration(
-        reconcile.kafka_clusters,
-        ctx.obj,
-        thread_pool_size,
-        internal,
-        use_jump_host,
-        vault_throughput_path,
-    )
-
-
 @integration.command(
     short_help="Ensures all integrations are defined in App-Interface."
 )

@@ -89,7 +89,6 @@ Additional tools that use the libraries created by the reconciliations are also 
   jenkins-worker-fleets           Manage Jenkins worker fleets via JCasC.
   jira-watcher                    Watch for changes in Jira boards and notify
                                   on Slack.
-  kafka-clusters                  Manages Kafka clusters via OCM.
   ldap-users                      Removes users which are not found in LDAP
                                   search.
   ocm-additional-routers          Manage additional routers in OCM.
