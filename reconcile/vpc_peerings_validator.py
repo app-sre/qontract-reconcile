@@ -6,14 +6,6 @@ from typing import (
     Union,
     cast,
 )
-from reconcile.gql_definitions.terraform_cloudflare_users.terraform_cloudflare_roles import AWSAccountV1
-from reconcile.utils import aws_api
-
-from reconcile import queries
-
-from reconcile.utils.aws_api import AWSApi
-
-from pydantic import BaseModel
 
 from reconcile import queries
 from reconcile.gql_definitions.vpc_peerings_validator import vpc_peerings_validator
@@ -23,7 +15,7 @@ from reconcile.gql_definitions.vpc_peerings_validator.vpc_peerings_validator imp
     ClusterV1,
     VpcPeeringsValidatorQueryData,
 )
-from reconcile.queries import get_aws_accounts
+
 from reconcile.status import ExitCodes
 from reconcile.utils import gql
 from reconcile.utils.aws_api import AWSApi
