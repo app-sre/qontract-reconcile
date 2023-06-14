@@ -50,8 +50,6 @@ Additional tools that use the libraries created by the reconciliations are also 
   github-repo-permissions-validator
                                   Validates permissions in github
                                   repositories.
-  github-scanner                  Scan GitHub repositories for leaked keys and
-                                  remove them (only submits PR).
   github-users                    Validate compliance of GitHub user profiles.
   github-validator                Validates GitHub organization settings.
   gitlab-fork-compliance          Ensures that forks of App Interface are
