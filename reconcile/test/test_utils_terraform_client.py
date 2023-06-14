@@ -583,3 +583,57 @@ def test_validate_db_upgrade_major_version_upgrade_not_allow(aws_api, tf):
         "allow_major_version_upgrade is not enabled for upgrading RDS instance: test-database-1 to a new major version."
         == str(error.value)
     )
+
+
+def test_validate_db_upgrade_with_empty_valid_upgrade_targe_and_allow_major_version_upgrade(
+    aws_api: AWSApi,
+    tf: tfclient.TerraformClient,
+) -> None:
+    aws_api.get_db_valid_upgrade_target.return_value = []
+
+    tf.validate_db_upgrade(
+        account_name="a1",
+        resource_name="test-database-1",
+        resource_change={
+            "before": {
+                "engine": "postgres",
+                "engine_version": "11.12",
+                "availability_zone": "us-east-1a",
+            },
+            "after": {
+                "engine": "postgres",
+                "engine_version": "11.17",
+                "allow_major_version_upgrade": True,
+            },
+        },
+    )
+
+
+def test_validate_db_upgrade_with_empty_valid_upgrade_targe_and_not_allow_major_version_upgrade(
+    aws_api: AWSApi,
+    tf: tfclient.TerraformClient,
+) -> None:
+    aws_api.get_db_valid_upgrade_target.return_value = []
+
+    with pytest.raises(ValueError) as error:
+        tf.validate_db_upgrade(
+            account_name="a1",
+            resource_name="test-database-1",
+            resource_change={
+                "before": {
+                    "engine": "postgres",
+                    "engine_version": "11.12",
+                    "availability_zone": "us-east-1a",
+                },
+                "after": {
+                    "engine": "postgres",
+                    "engine_version": "11.17",
+                },
+            },
+        )
+
+    assert (
+        "allow_major_version_upgrade is not enabled for upgrading RDS instance: "
+        "test-database-1 to a new version when there is no valid upgrade target available."
+        == str(error.value)
+    )
