@@ -864,14 +864,6 @@ def slack_usergroups(ctx, workspace_name, usergroup_name):
     )
 
 
-@integration.command(short_help="Manage integrations on GitLab projects.")
-@click.pass_context
-def gitlab_integrations(ctx):
-    import reconcile.gitlab_integrations
-
-    run_integration(reconcile.gitlab_integrations, ctx.obj)
-
-
 @integration.command(short_help="Manage permissions on GitLab projects.")
 @threaded()
 @click.pass_context
