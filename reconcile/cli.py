@@ -2175,20 +2175,6 @@ def ecr_mirror(ctx, thread_pool_size):
     run_integration(reconcile.ecr_mirror, ctx.obj, thread_pool_size)
 
 
-@integration.command(
-    short_help="Ensures all integrations are defined in App-Interface."
-)
-@click.pass_context
-def integrations_validator(ctx):
-    import reconcile.integrations_validator
-
-    run_integration(
-        reconcile.integrations_validator,
-        ctx.obj,
-        reconcile.cli.integration.commands.keys(),
-    )
-
-
 @integration.command(short_help="Tests prometheus rules using promtool.")
 @threaded(default=5)
 @binary(["promtool"])
