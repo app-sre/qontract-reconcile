@@ -69,8 +69,6 @@ Additional tools that use the libraries created by the reconciliations are also 
                                   configuration.
   glitchtip-project-dsn           Glitchtip project dsn as openshift secret.
   integrations-manager            Manages Qontract Reconcile integrations.
-  integrations-validator          Ensures all integrations are defined in App-
-                                  Interface.
   jenkins-job-builder             Manage Jenkins jobs configurations using
                                   jenkins-jobs.
   jenkins-job-builds-cleaner      Clean up jenkins job history.
