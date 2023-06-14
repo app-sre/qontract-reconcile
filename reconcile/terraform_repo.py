@@ -149,7 +149,7 @@ class TerraformRepoIntegration(
         for key in keys:
             if value := state.get(key.lstrip("/"), None):
                 try:
-                    repo = TerraformRepoV1.parse_raw(value)
+                    repo = TerraformRepoV1.parse_obj(value)
                     repo_list.append(repo)
                 except ValidationError as err:
                     logging.error(
