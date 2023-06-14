@@ -589,7 +589,7 @@ def test_validate_db_upgrade_with_empty_valid_upgrade_targe_and_allow_major_vers
     aws_api: AWSApi,
     tf: tfclient.TerraformClient,
 ) -> None:
-    aws_api.get_db_valid_upgrade_target.return_value = []
+    aws_api.get_db_valid_upgrade_target.return_value = []  # type: ignore[attr-defined]
 
     tf.validate_db_upgrade(
         account_name="a1",
@@ -613,7 +613,7 @@ def test_validate_db_upgrade_with_empty_valid_upgrade_targe_and_not_allow_major_
     aws_api: AWSApi,
     tf: tfclient.TerraformClient,
 ) -> None:
-    aws_api.get_db_valid_upgrade_target.return_value = []
+    aws_api.get_db_valid_upgrade_target.return_value = []  # type: ignore[attr-defined]
 
     with pytest.raises(ValueError) as error:
         tf.validate_db_upgrade(

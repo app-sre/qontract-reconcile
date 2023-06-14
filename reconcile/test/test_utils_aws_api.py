@@ -248,7 +248,7 @@ def test_get_db_valid_upgrade_target(
 ) -> None:
     # should patch Session object, but here aws_api is already created, require bigger refactor to do proper mock
     mocker.patch.object(aws_api, "get_session_client", autospec=True)
-    mocked_rds_client = aws_api.get_session_client.return_value
+    mocked_rds_client = aws_api.get_session_client.return_value  # type: ignore[attr-defined]
     expected_valid_upgrade_target = [
         {
             "Engine": "postgres",
@@ -284,7 +284,7 @@ def test_get_db_valid_upgrade_target_with_empty_db_engine_versions(
 ) -> None:
     # should patch Session object, but here aws_api is already created, require bigger refactor to do proper mock
     mocker.patch.object(aws_api, "get_session_client", autospec=True)
-    mocked_rds_client = aws_api.get_session_client.return_value
+    mocked_rds_client = aws_api.get_session_client.return_value  # type: ignore[attr-defined]
     mocked_rds_client.describe_db_engine_versions.return_value = {
         "DBEngineVersions": []
     }
