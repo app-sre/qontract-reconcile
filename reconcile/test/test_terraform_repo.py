@@ -66,30 +66,6 @@ def int_params() -> TerraformRepoIntegrationParams:
 
 
 @pytest.fixture()
-def a_repo_json() -> str:
-    # terraform repo expects a JSON string not a dict so we have to encode a multi-line JSON string
-    return f"""
-            {{
-                "name": "a_repo",
-                "repository": "{A_REPO}",
-                "ref": "{A_REPO_SHA}",
-                "projectPath": "tf",
-                "delete": false,
-                "account": {{
-                    "name": "foo",
-                    "uid": "{AWS_UID}",
-                    "automationToken": {{
-                        "path": "{AUTOMATION_TOKEN_PATH}",
-                        "field": "all",
-                        "version": 1,
-                        "format": null
-                    }}
-                }}
-            }}
-            """
-
-
-@pytest.fixture()
 def state_mock() -> MagicMock:
     return MagicMock(spec=State)
 
@@ -181,13 +157,31 @@ def test_delete_repo_without_flag(existing_repo, int_params):
         )
 
 
-def test_get_repo_state(s3_state_builder, int_params, existing_repo, a_repo_json):
+def test_get_repo_state(s3_state_builder, int_params, existing_repo):
     state = s3_state_builder(
         {
             "ls": [
                 "/a_repo",
             ],
-            "get": {"a_repo": a_repo_json},
+            "get": {
+                "a_repo": {
+                    "name": "a_repo",
+                    "repository": A_REPO,
+                    "ref": A_REPO_SHA,
+                    "projectPath": "tf",
+                    "delete": False,
+                    "account": {
+                        "name": "foo",
+                        "uid": AWS_UID,
+                        "automationToken": {
+                            "path": AUTOMATION_TOKEN_PATH,
+                            "field": "all",
+                            "version": 1,
+                            "format": None,
+                        },
+                    },
+                }
+            },
         }
     )
 
