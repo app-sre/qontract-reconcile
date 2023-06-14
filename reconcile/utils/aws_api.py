@@ -1030,9 +1030,9 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         }
         image.modify_attribute(LaunchPermission=launch_permission)
 
-    def set_cloudwatch_log_retention(self, regex_string, account_name):
+    def set_cloudwatch_log_retention(self, account, regex_string):
         logging.debug("we are in aws_api now")
-        cloudwatch_logs = self._account_cloudwatch_client(account_name)
+        cloudwatch_logs = self._account_cloudwatch_client(account["name"])
         logging.debug("cloudwatch_logs var")
         logging.debug(cloudwatch_logs)
         log_groups = cloudwatch_logs.describe_log_groups()['logGroups']
