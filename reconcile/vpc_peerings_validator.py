@@ -15,7 +15,6 @@ from reconcile.gql_definitions.vpc_peerings_validator.vpc_peerings_validator imp
     ClusterV1,
     VpcPeeringsValidatorQueryData,
 )
-
 from reconcile.status import ExitCodes
 from reconcile.utils import gql
 from reconcile.utils.aws_api import AWSApi
