@@ -48,7 +48,7 @@ setup(
         "parse==1.18.0",
         "sendgrid>=6.4.8,<6.5.0",
         "dnspython~=2.1",
-        "requests==2.22.0",
+        "requests==2.31.0",
         "kubernetes~=24.0",
         "websocket-client<0.55.0,>=0.35",
         "sshtunnel>=0.4.0",
