@@ -52,7 +52,7 @@ def unleash_slack_workspace():
             "name": "coreos",
             "integrations": [
                 {
-                    "name": "unleash-watcher",
+                    "name": "slack-usergroups",
                     "token": {
                         "path": "some/path",
                         "field": "bot_token",

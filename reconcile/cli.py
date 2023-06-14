@@ -845,16 +845,6 @@ def jira_watcher(ctx):
 
 
 @integration.command(
-    short_help="Watch for changes in Unleah feature toggles " "and notify on Slack."
-)
-@click.pass_context
-def unleash_watcher(ctx):
-    import reconcile.unleash_watcher
-
-    run_integration(reconcile.unleash_watcher, ctx.obj)
-
-
-@integration.command(
     short_help="Watches for OpenShift upgrades and sends notifications."
 )
 @binary(["oc", "ssh"])
