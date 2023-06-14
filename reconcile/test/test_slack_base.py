@@ -127,7 +127,7 @@ def test_unleash_workspace_ok(
     patch_secret_reader, patch__initiate_usergroups, unleash_slack_workspace
 ):
     slack_api = slackapi_from_slack_workspace(
-        unleash_slack_workspace, SecretReader(), "unleash-watcher"
+        unleash_slack_workspace, SecretReader(), "slack-usergroups"
     )
     patch_secret_reader.assert_called_once()
     patch__initiate_usergroups.assert_called_once()
