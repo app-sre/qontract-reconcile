@@ -76,8 +76,6 @@ Additional tools that use the libraries created by the reconciliations are also 
   jenkins-job-builds-cleaner      Clean up jenkins job history.
   jenkins-job-cleaner             Delete Jenkins jobs in multiple tenant
                                   instances.
-  jenkins-plugins                 Manage Jenkins plugins installation via REST
-                                  API.
   jenkins-roles                   Manage Jenkins roles association via REST
                                   API.
   jenkins-webhooks                Manage web hooks to Jenkins jobs.

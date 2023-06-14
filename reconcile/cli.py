@@ -749,14 +749,6 @@ def jenkins_roles(ctx):
     run_integration(reconcile.jenkins_roles, ctx.obj)
 
 
-@integration.command(short_help="Manage Jenkins plugins installation via REST API.")
-@click.pass_context
-def jenkins_plugins(ctx):
-    import reconcile.jenkins_plugins
-
-    run_integration(reconcile.jenkins_plugins, ctx.obj)
-
-
 @integration.command(short_help="Manage Jenkins worker fleets via JCasC.")
 @click.pass_context
 def jenkins_worker_fleets(ctx):

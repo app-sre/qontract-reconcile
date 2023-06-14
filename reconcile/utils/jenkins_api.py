@@ -140,32 +140,6 @@ class JenkinsApi:
 
         res.raise_for_status()
 
-    def list_plugins(self):
-        url = "{}/pluginManager/api/json?depth=1".format(self.url)
-
-        res = requests.get(
-            url, verify=self.ssl_verify, auth=(self.user, self.password), timeout=60
-        )
-
-        res.raise_for_status()
-        return res.json()["plugins"]
-
-    def install_plugin(self, name):
-        self.should_restart = True
-        header = {"Content-Type": "text/xml"}
-        url = "{}/pluginManager/installNecessaryPlugins".format(self.url)
-        data = '<jenkins><install plugin="{}@current" /></jenkins>'.format(name)
-        res = requests.post(
-            url,
-            verify=self.ssl_verify,
-            data=data,
-            headers=header,
-            auth=(self.user, self.password),
-            timeout=60,
-        )
-
-        res.raise_for_status()
-
     def safe_restart(self, force_restart=False):
         url = "{}/safeRestart".format(self.url)
         if self.should_restart or force_restart:
