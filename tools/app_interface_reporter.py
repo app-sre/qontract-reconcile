@@ -13,8 +13,8 @@ from dateutil.relativedelta import relativedelta
 from prometheus_client.parser import text_string_to_metric_families
 from sretoolbox.utils.threaded import run
 
-import reconcile.jenkins_base as jenkins_base
 from reconcile import (
+    jenkins_base,
     mr_client_gateway,
     queries,
 )

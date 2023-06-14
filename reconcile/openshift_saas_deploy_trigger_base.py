@@ -9,9 +9,11 @@ from typing import (
 
 from sretoolbox.utils import threaded
 
-import reconcile.jenkins_base as jenkins_base
 import reconcile.openshift_base as osb
-from reconcile import queries
+from reconcile import (
+    jenkins_base,
+    queries,
+)
 from reconcile.openshift_tekton_resources import build_one_per_saas_file_tkn_object_name
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
