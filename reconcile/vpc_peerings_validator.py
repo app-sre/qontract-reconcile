@@ -1,10 +1,19 @@
 import ipaddress
+from cmath import log
 import logging
 import sys
 from typing import (
     Union,
     cast,
 )
+from reconcile.gql_definitions.terraform_cloudflare_users.terraform_cloudflare_roles import AWSAccountV1
+from reconcile.utils import aws_api
+
+from reconcile import queries
+
+from reconcile.utils.aws_api import AWSApi
+
+from pydantic import BaseModel
 
 from reconcile import queries
 from reconcile.gql_definitions.vpc_peerings_validator import vpc_peerings_validator
@@ -14,11 +23,58 @@ from reconcile.gql_definitions.vpc_peerings_validator.vpc_peerings_validator imp
     ClusterV1,
     VpcPeeringsValidatorQueryData,
 )
+from reconcile.queries import get_aws_accounts
 from reconcile.status import ExitCodes
 from reconcile.utils import gql
 from reconcile.utils.aws_api import AWSApi
 
 QONTRACT_INTEGRATION = "vpc-peerings-validator"
+
+class AWSCloudwatchLogRetention(BaseModel):
+    name: str
+    acct_uid: str
+    log_regex: str
+    log_retention_day_length: str
+
+def get_app_interface_cloudwatch_retention_period():
+        # aws_accounts: list[AWSAccountV1] = query_data.
+
+    # for aws_account in aws_accounts:
+    #     logging.debug("this is the aws_account var")
+    #     logging.debug(aws_account)
+
+    aws_accounts = get_aws_accounts(cleanup=True)
+    results = []
+    for aws_acct in aws_accounts:
+        logging.debug("account val var")
+        logging.debug(aws_acct.get("uid"))
+        aws_acct_name = aws_acct.get("name")
+        acct_uid = aws_acct.get("uid")
+        # logging.debug("aws account var")
+        # logging.debug(aws_acct)
+        logging.debug("aws_acct.cleanup var")
+        logging.debug(aws_acct.get("cleanup"))
+        if aws_acct.get("cleanup"):
+            for x in aws_acct.get("cleanup"):
+                if x["provider"] == "cloudwatch":
+                    logging.debug("x var")
+                    logging.debug(x)
+                    logging.debug("x[regex] var")
+                    logging.debug(x["regex"])
+                    results.append(AWSCloudwatchLogRetention(name=aws_acct_name, acct_uid=acct_uid, log_regex=x["regex"], log_retention_day_length=x['retention_in_days']))
+
+    logging.debug("results var")
+    logging.debug(results)
+    return results
+
+
+def set_retention_period():
+    cloudwatch_cleanup_list = get_app_interface_cloudwatch_retention_period()
+    logging.debug("cloudwatch_cleanup_list var")
+    logging.debug(cloudwatch_cleanup_list)
+    for cloudwatch_cleanup_entry in cloudwatch_cleanup_list:
+        AWSApi.set_cloudwatch_log_retention(cloudwatch_cleanup_entry["log_regex"],cloudwatch_cleanup_entry["acct_uid"])
+        
 
 
 def validate_no_cidr_overlap(
@@ -97,6 +153,44 @@ def validate_no_internal_to_public_peerings(
     valid = True
     found_pairs: list[set[str]] = []
     clusters: list[ClusterV1] = query_data.clusters or []
+
+
+    aws_accounts = get_aws_accounts(cleanup=True)
+    results = []
+    for aws_acct in aws_accounts:
+        logging.debug("account val var")
+        logging.debug(aws_acct.get("uid"))
+        aws_acct_name = aws_acct.get("name")
+        acct_uid = aws_acct.get("uid")
+        # logging.debug("aws account var")
+        # logging.debug(aws_acct)
+        logging.debug("aws_acct.cleanup var")
+        logging.debug(aws_acct.get("cleanup"))
+        if aws_acct.get("cleanup"):
+            for x in aws_acct.get("cleanup"):
+                if x["provider"] == "cloudwatch":
+                    logging.debug("x var")
+                    logging.debug(x)
+                    logging.debug("x[regex] var")
+                    logging.debug(x["regex"])
+                    results.append(AWSCloudwatchLogRetention(name=aws_acct_name, acct_uid=acct_uid, log_regex=x["regex"], log_retention_day_length=x['retention_in_days']))
+
+    logging.debug("results var")
+    logging.debug(results)
+
+    # logging.debug("cloudwatch_cleanup_list var")
+    # logging.debug(cloudwatch_cleanup_list)
+    for cloudwatch_cleanup_entry in results:
+        logging.debug("cloudwatch_cleanup_entry var")
+        logging.debug(cloudwatch_cleanup_entry)
+        logging.debug("cloudwatch_cleanup_entry[log_regex] var")
+        logging.debug(cloudwatch_cleanup_entry.acct_uid)
+        settings = queries.get_secret_reader_settings()
+        accounts = queries.get_aws_accounts(uid=cloudwatch_cleanup_entry.log_regex)
+        awsapi = AWSApi(1, accounts, settings=settings, init_users=False)
+        awsapi.set_cloudwatch_log_retention(cloudwatch_cleanup_entry.log_regex,cloudwatch_cleanup_entry.acct_uid)
+
+
     for cluster in clusters:
         if not cluster.internal or not cluster.peering:
             continue

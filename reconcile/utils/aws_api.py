@@ -191,6 +191,10 @@ class AWSApi:  # pylint: disable=too-many-public-methods
             client.close()
 
     def get_session(self, account: str) -> Session:
+        logging.debug("session var in get_session")
+        logging.debug(account)
+        logging.debug("sessions[account] var")
+        logging.debug(self.sessions[account])
         return self.sessions[account]
 
     # pylint: disable=method-hidden
@@ -236,6 +240,12 @@ class AWSApi:  # pylint: disable=too-many-public-methods
     ) -> RDSClient:
         session = self.get_session(account_name)
         return self.get_session_client(session, "rds", region_name)
+
+    def _account_cloudwatch_client(
+        self, account_name: str, region_name: Optional[str] = None
+    ):
+        session = self.get_session(account_name)
+        return self.get_session_client(session, "logs", region_name)
 
     def init_users(self):
         self.users = {}
@@ -1019,6 +1029,23 @@ class AWSApi:  # pylint: disable=too-many-public-methods
             "Add": [{"UserId": share_account_uid}]
         }
         image.modify_attribute(LaunchPermission=launch_permission)
+
+    def set_cloudwatch_log_retention(self, regex_string, account_name):
+        logging.debug("we are in aws_api now")
+        cloudwatch_logs = self._account_cloudwatch_client(account_name)
+        logging.debug("cloudwatch_logs var")
+        logging.debug(cloudwatch_logs)
+        log_groups = cloudwatch_logs.describe_log_groups()['logGroups']
+        regex_pattern = re.compile(regex_string)
+        for log_group in log_groups:
+            group_name = log_group["logGroupName"]
+            logging.debug("group_name var")
+            logging.debug(group_name)
+            if regex_pattern.match(group_name):
+                logging.debug("we found a match!")
+                logging.debug(log_group)
+                # response = cloudwatch_logs.describe_log_groups()
+                # print(response['logGroups'])
 
     def create_tag(
         self, account: Mapping[str, Any], resource_id: str, tag: Mapping[str, str]
