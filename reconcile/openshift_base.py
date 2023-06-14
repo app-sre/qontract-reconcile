@@ -197,7 +197,9 @@ def init_specs_to_fetch(
             for kind in managed_types:
                 managed_names = resource_names.get(kind)
                 kind_to_use = resource_type_overrides.get(kind, kind)
-                ri.initialize_resource_type(cluster, namespace, kind_to_use)
+                ri.initialize_resource_type(
+                    cluster, namespace, kind_to_use, managed_names
+                )
                 state_specs.append(
                     CurrentStateSpec(
                         oc=oc,

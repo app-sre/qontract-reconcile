@@ -4,6 +4,7 @@ from reconcile.utils.openshift_resource import ConstructResourceError
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.openshift_resource import (
     ResourceInventory,
+    ResourceNotManagedError,
     build_secret,
 )
 from reconcile.utils.semver_helper import make_semver
@@ -305,8 +306,8 @@ def test_resource_inventory_add_desired():
     ri.initialize_resource_type(
         cluster="cl", namespace="ns", resource_type="Deployment"
     )
-    res = build_resource("Deployment", "apps/v1", "foo")
-    ri.add_desired("cl", "ns", "Deployment", "name", res)
+    res = build_resource("Deployment", "apps/v1", "name")
+    ri.add_desired_resource("cl", "ns", res)
 
     for cluster_name, namespace_name, resource_type, resource in ri:
         assert cluster_name == "cl"
@@ -328,7 +329,36 @@ def test_resource_inventory_add_desired_without_registration():
 
     with pytest.raises(KeyError):
         res = build_resource("AnotherType", "apps/v1", "foo")
-        ri.add_desired("cl", "ns", "AnotherType", "name", res)
+        ri.add_desired_resource("cl", "ns", res)
+
+
+def test_resource_inventory_add_desired_with_managed_name():
+    """
+    test that adding a desired state succeeds if it's name is registered
+    as being managed
+    """
+    ri = ResourceInventory()
+    ri.initialize_resource_type(
+        cluster="cl", namespace="ns", resource_type="Deployment", managed_names=["name"]
+    )
+
+    res = build_resource("Deployment", "apps/v1", "name")
+    ri.add_desired_resource("cl", "ns", res)
+
+
+def test_resource_inventory_add_desired_without_managed_name():
+    """
+    test that adding a desired state fails if it's name is not registered
+    as being managed
+    """
+    ri = ResourceInventory()
+    ri.initialize_resource_type(
+        cluster="cl", namespace="ns", resource_type="Deployment", managed_names=["name"]
+    )
+
+    with pytest.raises(ResourceNotManagedError):
+        res = build_resource("Deployment", "apps/v1", "an-unmanaged-name")
+        ri.add_desired_resource("cl", "ns", res)
 
 
 def test_resource_inventory_add_desired_privileged():
@@ -338,8 +368,8 @@ def test_resource_inventory_add_desired_privileged():
         namespace="ns",
         resource_type="Deployment",
     )
-    res = build_resource("Deployment", "apps/v1", "foo")
-    ri.add_desired("cl", "ns", "Deployment", "name", res, privileged=True)
+    res = build_resource("Deployment", "apps/v1", "name")
+    ri.add_desired_resource("cl", "ns", res, privileged=True)
 
     for cluster_name, namespace_name, resource_type, resource in ri:
         assert cluster_name == "cl"
