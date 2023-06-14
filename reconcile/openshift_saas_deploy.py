@@ -3,7 +3,7 @@ import sys
 from collections.abc import Callable
 from typing import Optional
 
-import reconcile.jenkins_plugins as jenkins_base
+import reconcile.jenkins_base as jenkins_base
 import reconcile.openshift_base as ob
 from reconcile import (
     mr_client_gateway,

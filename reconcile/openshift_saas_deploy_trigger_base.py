@@ -9,7 +9,7 @@ from typing import (
 
 from sretoolbox.utils import threaded
 
-import reconcile.jenkins_plugins as jenkins_base
+import reconcile.jenkins_base as jenkins_base
 import reconcile.openshift_base as osb
 from reconcile import queries
 from reconcile.openshift_tekton_resources import build_one_per_saas_file_tkn_object_name
