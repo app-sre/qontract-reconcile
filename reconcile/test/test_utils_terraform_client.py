@@ -464,12 +464,12 @@ def test__can_skip_rds_modifications_with_exception(aws_api, tf):
     assert "a-test-exception" in str(error.value)
 
 
-def test__validate_db_upgrade_no_upgrade(aws_api, tf):
+def test_validate_db_upgrade_no_upgrade(aws_api, tf):
     aws_api.get_db_valid_upgrade_target.return_value = [
         {"Engine": "postgres", "EngineVersion": "11.17", "IsMajorVersionUpgrade": False}
     ]
 
-    tf._validate_db_upgrade(
+    tf.validate_db_upgrade(
         account_name="a1",
         resource_name="test-database-1",
         resource_change={
@@ -485,12 +485,12 @@ def test__validate_db_upgrade_no_upgrade(aws_api, tf):
     )
 
 
-def test__validate_db_upgrade(aws_api, tf):
+def test_validate_db_upgrade(aws_api, tf):
     aws_api.get_db_valid_upgrade_target.return_value = [
         {"Engine": "postgres", "EngineVersion": "11.17", "IsMajorVersionUpgrade": False}
     ]
 
-    tf._validate_db_upgrade(
+    tf.validate_db_upgrade(
         account_name="a1",
         resource_name="test-database-1",
         resource_change={
@@ -507,12 +507,12 @@ def test__validate_db_upgrade(aws_api, tf):
     )
 
 
-def test__validate_db_upgrade_major_version_upgrade(aws_api, tf):
+def test_validate_db_upgrade_major_version_upgrade(aws_api, tf):
     aws_api.get_db_valid_upgrade_target.return_value = [
         {"Engine": "postgres", "EngineVersion": "13.3", "IsMajorVersionUpgrade": True}
     ]
 
-    tf._validate_db_upgrade(
+    tf.validate_db_upgrade(
         account_name="a1",
         resource_name="test-database-1",
         resource_change={
@@ -530,13 +530,13 @@ def test__validate_db_upgrade_major_version_upgrade(aws_api, tf):
     )
 
 
-def test__validate_db_upgrade_cannot_upgrade(aws_api, tf):
+def test_validate_db_upgrade_cannot_upgrade(aws_api, tf):
     aws_api.get_db_valid_upgrade_target.return_value = [
         {"Engine": "postgres", "EngineVersion": "13.3", "IsMajorVersionUpgrade": True}
     ]
 
     with pytest.raises(ValueError) as error:
-        tf._validate_db_upgrade(
+        tf.validate_db_upgrade(
             account_name="a1",
             resource_name="test-database-1",
             resource_change={
@@ -557,13 +557,13 @@ def test__validate_db_upgrade_cannot_upgrade(aws_api, tf):
     )
 
 
-def test__validate_db_upgrade_major_version_upgrade_not_allow(aws_api, tf):
+def test_validate_db_upgrade_major_version_upgrade_not_allow(aws_api, tf):
     aws_api.get_db_valid_upgrade_target.return_value = [
         {"Engine": "postgres", "EngineVersion": "13.3", "IsMajorVersionUpgrade": True}
     ]
 
     with pytest.raises(ValueError) as error:
-        tf._validate_db_upgrade(
+        tf.validate_db_upgrade(
             account_name="a1",
             resource_name="test-database-1",
             resource_change={

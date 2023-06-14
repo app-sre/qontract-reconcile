@@ -281,7 +281,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
                     logging.debug([action, name, resource_type, resource_name])
                     continue
                 if action == "update" and resource_type == "aws_db_instance":
-                    self._validate_db_upgrade(name, resource_name, resource_change)
+                    self.validate_db_upgrade(name, resource_name, resource_change)
                     # Ignore RDS modifications that are going to occur during the next
                     # maintenance window. This can be up to 7 days away and will cause
                     # unnecessary Terraform state updates until they complete.
@@ -683,7 +683,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
             return not set(changed_resource_arguments) - set(changed_values)
         return False
 
-    def _validate_db_upgrade(
+    def validate_db_upgrade(
         self, account_name: str, resource_name: str, resource_change: Mapping[str, Any]
     ):
         """
