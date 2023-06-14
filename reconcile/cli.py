@@ -2174,15 +2174,6 @@ def ocp_release_mirror(ctx):
     run_integration(reconcile.ocp_release_mirror, ctx.obj)
 
 
-@integration.command(short_help="Mirrors external images into AWS ECR.")
-@threaded()
-@click.pass_context
-def ecr_mirror(ctx, thread_pool_size):
-    import reconcile.ecr_mirror
-
-    run_integration(reconcile.ecr_mirror, ctx.obj, thread_pool_size)
-
-
 @integration.command(short_help="Tests prometheus rules using promtool.")
 @threaded(default=5)
 @binary(["promtool"])
