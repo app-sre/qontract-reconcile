@@ -68,9 +68,6 @@ query ServiceDependencies {
       externalResources {
         provider
       }
-      kafkaCluster {
-        name
-      }
     }
   }
 }
@@ -137,10 +134,6 @@ class NamespaceExternalResourceV1(ConfiguredBaseModel):
     provider: str = Field(..., alias="provider")
 
 
-class KafkaClusterV1(ConfiguredBaseModel):
-    name: str = Field(..., alias="name")
-
-
 class NamespaceV1(ConfiguredBaseModel):
     managed_external_resources: Optional[bool] = Field(
         ..., alias="managedExternalResources"
@@ -148,7 +141,6 @@ class NamespaceV1(ConfiguredBaseModel):
     external_resources: Optional[list[NamespaceExternalResourceV1]] = Field(
         ..., alias="externalResources"
     )
-    kafka_cluster: Optional[KafkaClusterV1] = Field(..., alias="kafkaCluster")
 
 
 class AppV1(ConfiguredBaseModel):

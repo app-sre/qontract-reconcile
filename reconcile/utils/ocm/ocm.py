@@ -47,7 +47,6 @@ STATUS_DELETING = "deleting"
 
 AMS_API_BASE = "/api/accounts_mgmt"
 CS_API_BASE = "/api/clusters_mgmt"
-KAS_API_BASE = "/api/kafkas_mgmt"
 
 MACHINE_POOL_DESIRED_KEYS = {"id", "instance_type", "replicas", "labels", "taints"}
 UPGRADE_CHANNELS = {"stable", "fast", "candidate"}
@@ -1360,45 +1359,6 @@ class OCM:  # pylint: disable=too-many-public-methods
         api = f"{AMS_API_BASE}/v1/access_token"
         return self._post(api)
 
-    def get_kafka_clusters(self, fields=None):
-        """Returns details of the Kafka clusters"""
-        api = f"{KAS_API_BASE}/v1/kafkas"
-        clusters = self._get_json(api)["items"]
-        if fields:
-            clusters = [
-                {k: v for k, v in cluster.items() if k in fields}
-                for cluster in clusters
-            ]
-        return clusters
-
-    def get_kafka_service_accounts(self, fields=None):
-        """Returns details of the Kafka service accounts"""
-        results = []
-        api = f"{KAS_API_BASE}/v1/service_accounts"
-        service_accounts = self._get_json(api)["items"]
-        for sa in service_accounts:
-            sa_id = sa["id"]
-            id_api = f"{api}/{sa_id}"
-            sa_details = self._get_json(id_api)
-            if fields:
-                sa_details = {k: v for k, v in sa_details.items() if k in fields}
-            results.append(sa_details)
-        return results
-
-    def create_kafka_cluster(self, data):
-        """Creates (async) a Kafka cluster"""
-        api = f"{KAS_API_BASE}/v1/kafkas"
-        params = {"async": "true"}
-        self._post(api, data, params)
-
-    def create_kafka_service_account(self, name, fields=None):
-        """Creates a Kafka service account"""
-        api = f"{KAS_API_BASE}/v1/service_accounts"
-        result = self._post(api, {"name": name})
-        if fields:
-            result = {k: v for k, v in result.items() if k in fields}
-        return result
-
     def _init_addons(self):
         """Returns a list of Addons"""
         api = f"{CS_API_BASE}/v1/addons"
@@ -1886,30 +1846,3 @@ class OCMMap:  # pylint: disable=too-many-public-methods
         for v in self.ocm_map.values():
             not_ready_cluster_names.extend(v.not_ready_clusters)
         return cluster_specs, not_ready_cluster_names
-
-    def kafka_cluster_specs(self):
-        """Get dictionary of Kafka cluster names and specs in the OCM map."""
-        fields = [
-            "id",
-            "status",
-            "cloud_provider",
-            "region",
-            "multi_az",
-            "name",
-            "bootstrap_server_host",
-            "failed_reason",
-        ]
-        cluster_specs = []
-        for ocm in self.ocm_map.values():
-            clusters = ocm.get_kafka_clusters(fields=fields)
-            cluster_specs.extend(clusters)
-        return cluster_specs
-
-    def kafka_service_account_specs(self):
-        """Get dictionary of Kafka service account specs in the OCM map."""
-        fields = ["name", "client_id"]
-        service_account_specs = []
-        for ocm in self.ocm_map.values():
-            service_accounts = ocm.get_kafka_service_accounts(fields=fields)
-            service_account_specs.extend(service_accounts)
-        return service_account_specs

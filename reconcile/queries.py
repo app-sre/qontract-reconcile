@@ -1302,68 +1302,6 @@ def get_openshift_cluster_managers() -> list[dict[str, Any]]:
     return gql.get_api().query(OCM_QUERY)["instances"]
 
 
-KAFKA_CLUSTERS_QUERY = """
-{
-  clusters: kafka_clusters_v1 {
-    name
-    ocm {
-      name
-      environment {
-        url
-        accessTokenClientId
-        accessTokenUrl
-        accessTokenClientSecret {
-          path
-          field
-          format
-          version
-        }
-      }
-      orgId
-      accessTokenClientId
-      accessTokenUrl
-      accessTokenClientSecret {
-        path
-        field
-        format
-        version
-      }
-    }
-    spec {
-      provider
-      region
-      multi_az
-    }
-    namespaces {
-      name
-      cluster {
-        name
-        serverUrl
-        insecureSkipTLSVerify
-        jumpHost {
-          %s
-        }
-        automationToken {
-          path
-          field
-          version
-          format
-        }
-      }
-    }
-  }
-}
-""" % (
-    indent(JUMPHOST_FIELDS, 10 * " "),
-)
-
-
-def get_kafka_clusters(minimal=False):
-    """Returns all Kafka Clusters"""
-    gqlapi = gql.get_api()
-    return gqlapi.query(KAFKA_CLUSTERS_QUERY)["clusters"]
-
-
 NAMESPACES_QUERY = """
 {
   namespaces: namespaces_v1 {
