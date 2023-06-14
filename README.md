@@ -58,7 +58,6 @@ Additional tools that use the libraries created by the reconciliations are also 
                                   compliant.
   gitlab-housekeeping             Manage issues and merge requests on GitLab
                                   projects.
-  gitlab-integrations             Manage integrations on GitLab projects.
   gitlab-labeler                  Guesses and adds labels to merge requests
                                   according to changed paths.
   gitlab-members                  Manage GitLab group members.
