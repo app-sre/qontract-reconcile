@@ -93,7 +93,6 @@ Additional tools that use the libraries created by the reconciliations are also 
                                   upgrades.
   ocm-aws-infrastructure-access   Grants AWS infrastructure access to members
                                   in AWS groups via OCM.
-  ocm-cluster-admin               Manage Cluster Admin in OCM.
   ocm-clusters                    Manages clusters via OCM.
   ocm-external-configuration-labels
                                   Manage External Configuration labels in OCM.

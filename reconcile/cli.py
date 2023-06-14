@@ -1880,14 +1880,6 @@ def ocm_external_configuration_labels(ctx, thread_pool_size):
     )
 
 
-@integration.command(short_help="Manage Cluster Admin in OCM.")
-@click.pass_context
-def ocm_cluster_admin(ctx):
-    import reconcile.ocm_cluster_admin
-
-    run_integration(reconcile.ocm_cluster_admin, ctx.obj)
-
-
 @integration.command(short_help="Trigger jenkins jobs following Addon upgrades.")
 @click.pass_context
 def ocm_addons_upgrade_tests_trigger(ctx):
