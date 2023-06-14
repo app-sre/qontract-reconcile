@@ -1493,6 +1493,10 @@ class AWSApi:  # pylint: disable=too-many-public-methods
             optional_kwargs["region_name"] = region_name
 
         rds = self._account_rds_client(account_name, **optional_kwargs)
-        return rds.describe_db_engine_versions(
+        response = rds.describe_db_engine_versions(
             Engine=engine, EngineVersion=engine_version
-        )["DBEngineVersions"][0]["ValidUpgradeTarget"]
+        )
+
+        if versions := response["DBEngineVersions"]:
+            return versions[0]["ValidUpgradeTarget"]
+        return []
