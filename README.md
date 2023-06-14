@@ -50,15 +50,12 @@ Additional tools that use the libraries created by the reconciliations are also 
   github-repo-permissions-validator
                                   Validates permissions in github
                                   repositories.
-  github-scanner                  Scan GitHub repositories for leaked keys and
-                                  remove them (only submits PR).
   github-users                    Validate compliance of GitHub user profiles.
   github-validator                Validates GitHub organization settings.
   gitlab-fork-compliance          Ensures that forks of App Interface are
                                   compliant.
   gitlab-housekeeping             Manage issues and merge requests on GitLab
                                   projects.
-  gitlab-integrations             Manage integrations on GitLab projects.
   gitlab-labeler                  Guesses and adds labels to merge requests
                                   according to changed paths.
   gitlab-members                  Manage GitLab group members.
@@ -79,8 +76,6 @@ Additional tools that use the libraries created by the reconciliations are also 
   jenkins-job-builds-cleaner      Clean up jenkins job history.
   jenkins-job-cleaner             Delete Jenkins jobs in multiple tenant
                                   instances.
-  jenkins-plugins                 Manage Jenkins plugins installation via REST
-                                  API.
   jenkins-roles                   Manage Jenkins roles association via REST
                                   API.
   jenkins-webhooks                Manage web hooks to Jenkins jobs.

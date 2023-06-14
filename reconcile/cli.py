@@ -640,22 +640,6 @@ def github_users(ctx, gitlab_project_id, thread_pool_size, enable_deletion, send
     )
 
 
-@integration.command(
-    short_help="Scan GitHub repositories for leaked keys "
-    "and remove them (only submits PR)."
-)
-@gitlab_project_id
-@threaded()
-@binary(["git", "git-secrets"])
-@click.pass_context
-def github_scanner(ctx, gitlab_project_id, thread_pool_size):
-    import reconcile.github_scanner
-
-    run_integration(
-        reconcile.github_scanner, ctx.obj, gitlab_project_id, thread_pool_size
-    )
-
-
 @integration.command(short_help="Validates GitHub organization settings.")
 @click.pass_context
 def github_validator(ctx):
@@ -765,14 +749,6 @@ def jenkins_roles(ctx):
     run_integration(reconcile.jenkins_roles, ctx.obj)
 
 
-@integration.command(short_help="Manage Jenkins plugins installation via REST API.")
-@click.pass_context
-def jenkins_plugins(ctx):
-    import reconcile.jenkins_plugins
-
-    run_integration(reconcile.jenkins_plugins, ctx.obj)
-
-
 @integration.command(short_help="Manage Jenkins worker fleets via JCasC.")
 @click.pass_context
 def jenkins_worker_fleets(ctx):
@@ -878,14 +854,6 @@ def slack_usergroups(ctx, workspace_name, usergroup_name):
         workspace_name,
         usergroup_name,
     )
-
-
-@integration.command(short_help="Manage integrations on GitLab projects.")
-@click.pass_context
-def gitlab_integrations(ctx):
-    import reconcile.gitlab_integrations
-
-    run_integration(reconcile.gitlab_integrations, ctx.obj)
 
 
 @integration.command(short_help="Manage permissions on GitLab projects.")

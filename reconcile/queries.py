@@ -314,7 +314,6 @@ JENKINS_INSTANCES_QUERY = """
       format
     }
     previousUrls
-    plugins
     deleteMethod
     managedProjects
     buildsCleanupRules {
