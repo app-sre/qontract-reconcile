@@ -281,7 +281,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
                     logging.debug([action, name, resource_type, resource_name])
                     continue
                 if action == "update" and resource_type == "aws_db_instance":
-                    self._validate_db_upgrade(name, resource_name, resource_change)
+                    self.validate_db_upgrade(name, resource_name, resource_change)
                     # Ignore RDS modifications that are going to occur during the next
                     # maintenance window. This can be up to 7 days away and will cause
                     # unnecessary Terraform state updates until they complete.
@@ -683,7 +683,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
             return not set(changed_resource_arguments) - set(changed_values)
         return False
 
-    def _validate_db_upgrade(
+    def validate_db_upgrade(
         self, account_name: str, resource_name: str, resource_change: Mapping[str, Any]
     ):
         """
@@ -706,27 +706,39 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         if after_version == before_version:
             return
 
+        allow_major_version_upgrade = after.get("allow_major_version_upgrade", False)
         region_name = get_region_from_availability_zone(before["availability_zone"])
         if self._aws_api is not None:
             valid_upgrade_target = self._aws_api.get_db_valid_upgrade_target(
                 account_name, engine, before_version, region_name=region_name
             )
-            found = False
-            for t in valid_upgrade_target:
-                if t["EngineVersion"] == after_version:
-                    found = True
-                    if t["IsMajorVersionUpgrade"] and not after.get(
-                        "allow_major_version_upgrade", False
-                    ):
-                        raise ValueError(
-                            "allow_major_version_upgrade is not enabled for upgrading RDS instance: "
-                            f"{resource_name} to a new major version."
-                        )
-
-            if not found:
+            if not valid_upgrade_target:
+                # valid_upgrade_target can be empty when current version is no longer supported by AWS.
+                # In this case, we can't validate it, so treat it as major version upgrade for safety.
+                # Skip validation if allow_major_version_upgrade is enabled.
+                if not allow_major_version_upgrade:
+                    raise ValueError(
+                        "allow_major_version_upgrade is not enabled for upgrading RDS instance: "
+                        f"{resource_name} to a new version when there is no valid upgrade target available."
+                    )
+                return
+            target = next(
+                (
+                    t
+                    for t in valid_upgrade_target
+                    if t["EngineVersion"] == after_version
+                ),
+                None,
+            )
+            if target is None:
                 raise ValueError(
                     f"Cannot upgrade RDS instance: {resource_name} "
                     f"from {before_version} to {after_version}"
+                )
+            if target["IsMajorVersionUpgrade"] and not allow_major_version_upgrade:
+                raise ValueError(
+                    "allow_major_version_upgrade is not enabled for upgrading RDS instance: "
+                    f"{resource_name} to a new major version."
                 )
 
 
