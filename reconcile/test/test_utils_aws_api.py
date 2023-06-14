@@ -5,6 +5,7 @@ from moto import (
     mock_iam,
     mock_route53,
 )
+from pytest_mock import MockerFixture
 
 from reconcile.utils.aws_api import (
     AmiTag,
@@ -238,3 +239,60 @@ def test_get_image_id(ec2_client, aws_api: AWSApi):
         aws_api.get_image_id(
             "some-account", "us-east-1", tags=[AmiTag(name="foo", value="bar")]
         )
+
+
+def test_get_db_valid_upgrade_target(
+    aws_api: AWSApi,
+    accounts: list,
+    mocker: MockerFixture,
+) -> None:
+    # should patch Session object, but here aws_api is already created, require bigger refactor to do proper mock
+    mocker.patch.object(aws_api, "get_session_client", autospec=True)
+    mocked_rds_client = aws_api.get_session_client.return_value  # type: ignore[attr-defined]
+    expected_valid_upgrade_target = [
+        {
+            "Engine": "postgres",
+            "EngineVersion": "12.9",
+            "IsMajorVersionUpgrade": False,
+        },
+    ]
+    mocked_rds_client.describe_db_engine_versions.return_value = {
+        "DBEngineVersions": [{"ValidUpgradeTarget": expected_valid_upgrade_target}]
+    }
+
+    engine = "postgres"
+    engine_version = "12.8"
+
+    result = aws_api.get_db_valid_upgrade_target(
+        accounts[0]["name"],
+        engine,
+        engine_version,
+    )
+
+    assert result == expected_valid_upgrade_target
+
+    mocked_rds_client.describe_db_engine_versions.assert_called_once_with(
+        Engine=engine,
+        EngineVersion=engine_version,
+    )
+
+
+def test_get_db_valid_upgrade_target_with_empty_db_engine_versions(
+    aws_api: AWSApi,
+    accounts: list,
+    mocker: MockerFixture,
+) -> None:
+    # should patch Session object, but here aws_api is already created, require bigger refactor to do proper mock
+    mocker.patch.object(aws_api, "get_session_client", autospec=True)
+    mocked_rds_client = aws_api.get_session_client.return_value  # type: ignore[attr-defined]
+    mocked_rds_client.describe_db_engine_versions.return_value = {
+        "DBEngineVersions": []
+    }
+
+    result = aws_api.get_db_valid_upgrade_target(
+        accounts[0]["name"],
+        "postgres",
+        "12.8",
+    )
+
+    assert result == []
