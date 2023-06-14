@@ -349,6 +349,17 @@ def urlunescape(string: str, encoding: Optional[str] = None) -> str:
     return parse.unquote(string, encoding=encoding)
 
 
+def hash_list(input):
+    lst = list(input)
+    sorted_list = sorted(lst, key=lambda x: x["name"])
+    msg = ""
+    for el in sorted_list:
+        msg += el["name"]
+    m = hashlib.sha256()
+    m.update(msg.encode("utf-8"))
+    return m.hexdigest()[:6]
+
+
 @cache
 def compile_jinja2_template(body, extra_curly: bool = False):
     env: dict = {}
@@ -372,6 +383,7 @@ def compile_jinja2_template(body, extra_curly: bool = False):
             "json_to_dict": json_to_dict,
             "urlescape": urlescape,
             "urlunescape": urlunescape,
+            "hash_list": hash_list,
         }
     )
 
@@ -400,6 +412,9 @@ def process_jinja2_template(body, vars=None, extra_curly: bool = False, settings
     try:
         template = compile_jinja2_template(body, extra_curly)
         r = template.render(vars)
+        # TODO: remove
+        if "MYDEBUGGERMARKER" in body:
+            print(r)
     except Exception as e:
         raise Jinja2TemplateError(e)
     return r
