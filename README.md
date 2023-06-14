@@ -197,8 +197,6 @@ Additional tools that use the libraries created by the reconciliations are also 
   terraform-users                 Manage AWS users using Terraform.
   terraform-vpc-peerings          Manage VPC peerings between OSD clusters and
                                   AWS accounts or other OSD clusters.
-  unleash-watcher                 Watch for changes in Unleah feature toggles
-                                  and notify on Slack.
   vault-replication               Allow vault to replicate secrets to other
                                   instances.
   vpc-peerings-validator          Validates that VPC peerings do not exist
