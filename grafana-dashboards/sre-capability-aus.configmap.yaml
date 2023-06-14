@@ -177,6 +177,7 @@ data:
               "custom": {
                 "align": "auto",
                 "displayMode": "auto",
+                "filterable": true,
                 "inspect": false
               },
               "mappings": [],
@@ -194,11 +195,48 @@ data:
                 ]
               }
             },
-            "overrides": []
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Current Version"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 164
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Soaking Version"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 163
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Estimated Remaining Days"
+                },
+                "properties": [
+                  {
+                    "id": "custom.align",
+                    "value": "left"
+                  }
+                ]
+              }
+            ]
           },
           "gridPos": {
             "h": 10,
-            "w": 11,
+            "w": 9,
             "x": 0,
             "y": 13
           },
@@ -228,34 +266,100 @@ data:
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "aus_cluster_version_remaining_soak_days * on (cluster_uuid, soaking_version) (clamp_max(changes(min(aus_cluster_version_remaining_soak_days) by(cluster_uuid, soaking_version)[1h:1m]), 1) > 0) * on (cluster_uuid) group_left(cluster_name, current_version, workloads, schedule, sector) aus_cluster_upgrade_policy_info{workloads=~\".*$workloads.*\", org_id=~\".*$org_id.*\"}",
+              "expr": "label_join(aus_cluster_version_remaining_soak_days * on (cluster_uuid, soaking_version) (clamp_max(changes(min(aus_cluster_version_remaining_soak_days) by(cluster_uuid, soaking_version)[1h:1m]), 1) > 0) * on (cluster_uuid) group_left(cluster_name, current_version, workloads, schedule, sector, soak_days) aus_cluster_upgrade_policy_info{workloads=~\".*$workloads.*\", org_id=~\".*$org_id.*\"}, \"cluster_soaking_version\", \"-\", \"cluster_uuid\", \"soaking_version\")",
               "format": "table",
               "instant": true,
               "interval": "5m",
               "legendFormat": "{{cluster_name}} - {{org_id}}",
               "range": false,
               "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "P2C3F6ECC774D80E6"
+              },
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "label_join(delta(min(aus_cluster_version_remaining_soak_days) by(cluster_uuid, soaking_version)[1h:1m]) * -24 * on (cluster_uuid) group_left aus_cluster_upgrade_policy_info{workloads=~\".*$workloads.*\", org_id=~\".*$org_id.*\"} > 0, \"cluster_soaking_version\", \"-\", \"cluster_uuid\", \"soaking_version\") > 0",
+              "format": "table",
+              "hide": false,
+              "instant": true,
+              "legendFormat": "__auto",
+              "range": false,
+              "refId": "B"
             }
           ],
           "title": "Currently Soaking Versions",
           "transformations": [
             {
+              "id": "joinByField",
+              "options": {
+                "byField": "cluster_soaking_version",
+                "mode": "inner"
+              }
+            },
+            {
               "id": "organize",
               "options": {
                 "excludeByName": {
                   "Time": true,
+                  "Time 2": true,
+                  "Value #A": false,
+                  "Value #B": false,
+                  "cluster_soaking_version": true,
                   "cluster_uuid": true,
                   "current_version": false,
                   "schedule": true,
+                  "soak_days": true,
+                  "soaking_version 2": true,
                   "workloads": true
                 },
                 "indexByName": {},
                 "renameByName": {
                   "Value": "Remaining Soak Days",
+                  "Value #A": "Remaining Soak Days",
+                  "Value #B": "Soak Rate / 24h",
                   "cluster_name": "Cluster",
                   "cluster_uuid": "",
                   "current_version": "Current Version",
-                  "soaking_version": "Currently Soaking Version"
+                  "soaking_version": "Currently Soaking Version",
+                  "soaking_version 1": ""
+                }
+              }
+            },
+            {
+              "id": "calculateField",
+              "options": {
+                "alias": "Estimated Remaining Days",
+                "binary": {
+                  "left": "Remaining Soak Days",
+                  "operator": "/",
+                  "reducer": "sum",
+                  "right": "Soak Rate / 24h"
+                },
+                "mode": "binary",
+                "reduce": {
+                  "include": [
+                    "Remaining Soak Days",
+                    "Soak Rate / 24h"
+                  ],
+                  "reducer": "sum"
+                }
+              }
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "Remaining Soak Days": true,
+                  "Soak Rate / 24h": true,
+                  "soaking_version 1": false
+                },
+                "indexByName": {},
+                "renameByName": {
+                  "Current Version": "",
+                  "soaking_version 1": "Soaking Version"
                 }
               }
             }
@@ -282,8 +386,7 @@ data:
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -292,12 +395,49 @@ data:
                 ]
               }
             },
-            "overrides": []
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byRegexp",
+                  "options": "4.*"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 70
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byRegexp",
+                  "options": "4.*rc.*"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 110
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byRegexp",
+                  "options": "4.*fc.*"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 110
+                  }
+                ]
+              }
+            ]
           },
           "gridPos": {
             "h": 10,
-            "w": 13,
-            "x": 11,
+            "w": 15,
+            "x": 9,
             "y": 13
           },
           "id": 2,
@@ -309,7 +449,8 @@ data:
               ],
               "show": false
             },
-            "showHeader": true
+            "showHeader": true,
+            "sortBy": []
           },
           "pluginVersion": "9.3.8",
           "targets": [
