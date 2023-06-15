@@ -1,8 +1,12 @@
 import pytest
 
-from reconcile.change_owners.bundle import BundleFileType
+from reconcile.change_owners.bundle import (
+    BundleFileType,
+    FileRef,
+)
 from reconcile.change_owners.change_types import (
     ChangeTypePriority,
+    FileChange,
     init_change_type_processors,
 )
 from reconcile.gql_definitions.change_owners.queries.change_types import ChangeTypeV1
@@ -27,6 +31,32 @@ def namespace_change_type() -> ChangeTypeV1:
             build_jsonpath_change(
                 schema="namespace-1.yml",
                 selectors=["description"],
+            ),
+            build_change_type_change(
+                schema="namespace-1.yml",
+                change_type_names=["rds-defaults"],
+                context_selector="rds.defaults",
+                context_when=None,
+                context_where="backrefs",
+            ),
+        ],
+        inherit=None,
+        implicitOwnership=[],
+    )
+
+
+@pytest.fixture
+def rds_defaults_change_type() -> ChangeTypeV1:
+    return ChangeTypeV1(
+        name="rds-defaults",
+        description="rds-defaults",
+        contextType=BundleFileType.RESOURCEFILE.value,
+        contextSchema="rds-defaults-1.yml",
+        disabled=False,
+        priority=ChangeTypePriority.HIGH.value,
+        changes=[
+            build_jsonpath_change(
+                selectors=["$"],
             )
         ],
         inherit=None,
@@ -109,6 +139,7 @@ def test_change_type_ownership_resolve(
     namespace_change_type: ChangeTypeV1,
     app_change_type: ChangeTypeV1,
     saas_file_change_type: ChangeTypeV1,
+    rds_defaults_change_type: ChangeTypeV1,
 ) -> None:
     namespace_change = build_test_datafile(
         filepath="my-namespace.yml",
@@ -117,13 +148,21 @@ def test_change_type_ownership_resolve(
     ).create_bundle_change(jsonpath_patches={"$.description": "updated-description"})
 
     processors = init_change_type_processors(
-        [namespace_change_type, app_change_type, saas_file_change_type],
+        [
+            namespace_change_type,
+            app_change_type,
+            saas_file_change_type,
+            rds_defaults_change_type,
+        ],
         MockFileDiffResolver(fail_on_unknown_path=False),
     )
 
     namespace_change_type_processor = processors[namespace_change_type.name]
     contexts = namespace_change_type_processor.find_context_file_refs(
-        namespace_change.fileref, namespace_change.old, namespace_change.new, set()
+        FileChange(
+            namespace_change.fileref, namespace_change.old, namespace_change.new
+        ),
+        set(),
     )
     ownership_dict = {ro.owned_file_ref.path: ro for ro in contexts}
     assert len(ownership_dict) == 2
@@ -142,6 +181,7 @@ def test_change_type_ownership_expansion_with_context_selector(
     namespace_change_type: ChangeTypeV1,
     app_change_type: ChangeTypeV1,
     saas_file_change_type: ChangeTypeV1,
+    rds_defaults_change_type: ChangeTypeV1,
 ) -> None:
     """
     test the interaction of a context lookup in one change-type that is used
@@ -158,7 +198,12 @@ def test_change_type_ownership_expansion_with_context_selector(
     ).create_bundle_change(jsonpath_patches={"$.description": "updated-description"})
 
     processors = init_change_type_processors(
-        [namespace_change_type, app_change_type, saas_file_change_type],
+        [
+            namespace_change_type,
+            app_change_type,
+            saas_file_change_type,
+            rds_defaults_change_type,
+        ],
         MockFileDiffResolver()
         .register_raw_diff(
             path="my-namespace.yml",
@@ -174,7 +219,10 @@ def test_change_type_ownership_expansion_with_context_selector(
 
     saas_file_change_type_processor = processors[saas_file_change_type.name]
     contexts = saas_file_change_type_processor.find_context_file_refs(
-        saas_file_change.fileref, saas_file_change.old, saas_file_change.new, set()
+        FileChange(
+            saas_file_change.fileref, saas_file_change.old, saas_file_change.new
+        ),
+        set(),
     )
     ownership_dict = {ro.owned_file_ref.path: ro for ro in contexts}
     assert len(ownership_dict) == 2
@@ -191,6 +239,61 @@ def test_change_type_ownership_expansion_with_context_selector(
     # from the ownership expansion
     assert "my-app.yml" in ownership_dict
     assert ownership_dict["my-app.yml"].change_type.name == "app"
+
+
+def test_change_type_ownership_expansion_backrefs(
+    namespace_change_type: ChangeTypeV1,
+    rds_defaults_change_type: ChangeTypeV1,
+) -> None:
+    """
+    test that resourcefile backrefs can also be used for ownership expansion
+    """
+    processors = init_change_type_processors(
+        [rds_defaults_change_type, namespace_change_type],
+        MockFileDiffResolver().register_raw_diff(
+            path="my-namespace.yml",
+            old={
+                "rds": {"defaults": "my-rds-defaults-file.yml"},
+                "description": "my-description",
+            },
+            new={
+                "rds": {"defaults": "my-rds-defaults-file.yml"},
+                "description": "my-description",
+            },
+        ),
+    )
+
+    saas_file_change_type_processor = processors[rds_defaults_change_type.name]
+    contexts = saas_file_change_type_processor.find_context_file_refs(
+        FileChange(
+            file_ref=FileRef(
+                file_type=BundleFileType.RESOURCEFILE,
+                path="my-rds-defaults-file.yml",
+                schema="rds-defaults-1.yml",
+            ),
+            old={"storage": "10"},
+            new={"storage": "20"},
+            old_backrefs={
+                FileRef(
+                    file_type=BundleFileType.DATAFILE,
+                    path="my-namespace.yml",
+                    schema="namespace-1.yml",
+                )
+            },
+            new_backrefs={
+                FileRef(
+                    file_type=BundleFileType.DATAFILE,
+                    path="my-namespace.yml",
+                    schema="namespace-1.yml",
+                )
+            },
+        ),
+        set(),
+    )
+    ownership_dict = {ro.owned_file_ref.path: ro for ro in contexts}
+
+    # verify that ownership expaned to the namespace
+    assert "my-namespace.yml" in ownership_dict
 
 
 def test_change_type_expansion_hierarchy(
@@ -223,7 +326,7 @@ def test_change_type_expansion_hierarchy(
 
     app_hierarchy_change_type_processor = processors[app_hierarchy_change_type.name]
     contexts = app_hierarchy_change_type_processor.find_context_file_refs(
-        app_change.fileref, app_change.old, app_change.new, set()
+        FileChange(app_change.fileref, app_change.old, app_change.new), set()
     )
     ownership_dict = {ro.owned_file_ref.path: ro for ro in contexts}
     assert len(ownership_dict) == 3
@@ -275,7 +378,7 @@ def test_change_type_expansion_hierarchy_cycle_prevention(
 
     app_hierarchy_change_type_processor = processors[app_hierarchy_change_type.name]
     contexts = app_hierarchy_change_type_processor.find_context_file_refs(
-        app_change.fileref, app_change.old, app_change.new, set()
+        FileChange(app_change.fileref, app_change.old, app_change.new), set()
     )
     ownership_dict = {ro.owned_file_ref.path: ro for ro in contexts}
     assert len(ownership_dict) == 3

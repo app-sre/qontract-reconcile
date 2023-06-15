@@ -253,20 +253,38 @@ class PathExpression:
 
 
 @dataclass
-class OwnershipContext:
+class FileChange:
+
+    file_ref: FileRef
+    old: Optional[dict[str, Any]]
+    new: Optional[dict[str, Any]]
+    old_backrefs: set[FileRef] = field(default_factory=set)
+    new_backrefs: set[FileRef] = field(default_factory=set)
+
+
+class OwnershipContext(ABC):
+    @abstractmethod
+    def find_ownership_context(
+        self,
+        context_schema: Optional[str],
+        change: FileChange,
+    ) -> list[FileRef]:
+        ...
+
+
+@dataclass
+class ForwardrefOwnershipContext(OwnershipContext):
     selector: jsonpath_ng.JSONPath
-    when: Optional[str]
+    when: Optional[str] = None
 
     def find_ownership_context(
         self,
         context_schema: Optional[str],
-        old_data: Optional[dict[str, Any]] = None,
-        new_data: Optional[dict[str, Any]] = None,
+        change: FileChange,
     ) -> list[FileRef]:
 
-        # extract contexts
-        old_contexts = {e.value for e in self.selector.find(old_data)}
-        new_contexts = {e.value for e in self.selector.find(new_data)}
+        old_contexts = {e.value for e in self.selector.find(change.old)}
+        new_contexts = {e.value for e in self.selector.find(change.new)}
 
         # apply conditions
         if self.when == "added":
@@ -289,6 +307,48 @@ class OwnershipContext:
 
 
 @dataclass
+class BackrefOwnershipContext(OwnershipContext):
+
+    selector: jsonpath_ng.JSONPath
+    file_diff_resolver: FileDiffResolver
+    when: Optional[str] = None
+
+    def find_ownership_context(
+        self,
+        context_schema: Optional[str],
+        change: FileChange,
+    ) -> list[FileRef]:
+
+        # get backref datafile content
+        backref_datafile_content = {
+            ref: self.file_diff_resolver.lookup_file_diff(ref)
+            for ref in change.old_backrefs.union(change.new_backrefs)
+        }
+
+        # extract contexts
+        # we only care for those backrefs that mention the changed file at the selector
+        old_contexts = {
+            ref
+            for ref, data in backref_datafile_content.items()
+            if any(f.value == change.file_ref.path for f in self.selector.find(data[0]))
+        }
+        new_contexts = {
+            ref
+            for ref, data in backref_datafile_content.items()
+            if any(f.value == change.file_ref.path for f in self.selector.find(data[1]))
+        }
+
+        # apply conditions
+        if self.when == "added":
+            return list(new_contexts.difference(old_contexts))
+        if self.when == "removed":
+            return list(old_contexts.difference(new_contexts))
+        if self.when is None and old_contexts == new_contexts:
+            return list(old_contexts)
+        return []
+
+
+@dataclass
 class ContextExpansion:
     """
     Represents a context expansion configuration, capable of hopping from one
@@ -305,12 +365,18 @@ class ContextExpansion:
         expansion_trail: Set[Tuple[str, FileRef]],
     ) -> list["ResolvedContext"]:
         old_data, new_data = self.file_diff_resolver.lookup_file_diff(file_ref)
-        return self.expand(old_data, new_data, expansion_trail)
+        return self.expand(
+            FileChange(
+                file_ref=file_ref,
+                old=old_data,
+                new=new_data,
+            ),
+            expansion_trail,
+        )
 
     def expand(
         self,
-        old_data: Optional[dict[str, Any]],
-        new_data: Optional[dict[str, Any]],
+        change: FileChange,
         expansion_trail: Set[Tuple[str, FileRef]],
     ) -> list["ResolvedContext"]:
         """
@@ -320,17 +386,18 @@ class ContextExpansion:
         """
         context_file_refs = self.context.find_ownership_context(
             context_schema=self.change_type.context_schema,
-            old_data=old_data,
-            new_data=new_data,
+            change=change,
         )
         expaned_context_file_refs: list["ResolvedContext"] = []
         for ref in context_file_refs:
             ref_old_data, ref_new_data = self.file_diff_resolver.lookup_file_diff(ref)
             expaned_context_file_refs.extend(
                 self.change_type.find_context_file_refs(
-                    ref,
-                    old_data=ref_old_data,
-                    new_data=ref_new_data,
+                    change=FileChange(
+                        file_ref=ref,
+                        old=ref_old_data,
+                        new=ref_new_data,
+                    ),
                     expansion_trail=expansion_trail,
                 )
             )
@@ -362,8 +429,7 @@ class ChangeDetector(ABC):
     @abstractmethod
     def find_context_file_refs(
         self,
-        old_data: Optional[dict[str, Any]] = None,
-        new_data: Optional[dict[str, Any]] = None,
+        change: FileChange,
     ) -> list[FileRef]:
         ...
 
@@ -384,12 +450,12 @@ class JsonPathChangeDetector(ChangeDetector):
 
     def find_context_file_refs(
         self,
-        old_data: Optional[dict[str, Any]] = None,
-        new_data: Optional[dict[str, Any]] = None,
+        change: FileChange,
     ) -> list[FileRef]:
         if self.context:
             return self.context.find_ownership_context(
-                self.context_schema, old_data, new_data
+                context_schema=self.context_schema,
+                change=change,
             )
         return []
 
@@ -423,9 +489,7 @@ class ChangeTypeProcessor:
 
     def find_context_file_refs(
         self,
-        file_ref: FileRef,
-        old_data: Optional[dict[str, Any]],
-        new_data: Optional[dict[str, Any]],
+        change: FileChange,
         expansion_trail: Set[Tuple[str, FileRef]],
     ) -> list[ResolvedContext]:
         """
@@ -485,31 +549,31 @@ class ChangeTypeProcessor:
 
         # prevent infinite ownership resolution
         expansion_trail_copy = set(expansion_trail)
-        if (self.name, file_ref) in expansion_trail_copy:
+        if (self.name, change.file_ref) in expansion_trail_copy:
             return contexts
 
-        expansion_trail_copy.add((self.name, file_ref))
+        expansion_trail_copy.add((self.name, change.file_ref))
 
         # direct context extraction
         # the changed file itself is giving the context for approver extraction
         # see doc string for more details
-        if self.context_schema is None or self.context_schema == file_ref.schema:
+        if self.context_schema is None or self.context_schema == change.file_ref.schema:
             contexts.append(
                 ResolvedContext(
-                    owned_file_ref=file_ref,
-                    context_file_ref=file_ref,
+                    owned_file_ref=change.file_ref,
+                    context_file_ref=change.file_ref,
                     change_type=self,
                 )
             )
 
             # expand context based on change-type composition
             for ce in self._context_expansions:
-                for ec in ce.expand(old_data, new_data, expansion_trail_copy):
+                for ec in ce.expand(change, expansion_trail_copy):
                     # add expanded contexts (derived owned files)
                     contexts.append(
                         ResolvedContext(
                             owned_file_ref=ec.owned_file_ref,
-                            context_file_ref=file_ref,
+                            context_file_ref=change.file_ref,
                             change_type=ec.change_type,
                         )
                     )
@@ -519,8 +583,8 @@ class ChangeTypeProcessor:
         # file with a `context.selector`
         # see doc string for more details
         for c in self.change_detectors:
-            if c.change_schema == file_ref.schema:
-                for ctx_file_ref in c.find_context_file_refs(old_data, new_data):
+            if c.change_schema == change.file_ref.schema:
+                for ctx_file_ref in c.find_context_file_refs(change):
                     contexts.append(
                         ResolvedContext(
                             owned_file_ref=ctx_file_ref,
@@ -610,6 +674,22 @@ class ChangeTypeProcessor:
         self._context_expansions.append(context_expansion)
 
 
+def build_ownership_context(
+    file_diff_resolver: FileDiffResolver,
+    selector: jsonpath_ng.JSONPath,
+    when: Optional[str] = None,
+    where: Optional[str] = None,
+) -> OwnershipContext:
+    """
+    create an OwnershipContext object based on the provided parameters
+    """
+    if where == "backrefs":
+        return BackrefOwnershipContext(
+            file_diff_resolver=file_diff_resolver, selector=selector, when=when
+        )
+    return ForwardrefOwnershipContext(selector=selector, when=when)
+
+
 def init_change_type_processors(
     change_types: Sequence[ChangeTypeV1], file_diff_resolver: FileDiffResolver
 ) -> dict[str, ChangeTypeProcessor]:
@@ -640,9 +720,11 @@ def init_change_type_processors(
             if isinstance(change_detector, ChangeTypeChangeDetectorJsonPathProviderV1):
                 ownership_context = None
                 if change_detector.context:
-                    ownership_context = OwnershipContext(
+                    ownership_context = build_ownership_context(
+                        file_diff_resolver=file_diff_resolver,
                         selector=parse_jsonpath(change_detector.context.selector),
                         when=change_detector.context.when,
+                        where=change_detector.context.where,
                     )
                 processor.add_change_detector(
                     JsonPathChangeDetector(
@@ -666,11 +748,13 @@ def init_change_type_processors(
                     processors[ct.name].add_context_expansion(
                         ContextExpansion(
                             change_type=processor,
-                            context=OwnershipContext(
+                            context=build_ownership_context(
+                                file_diff_resolver=file_diff_resolver,
                                 selector=parse_jsonpath(
                                     change_detector.ownership_context.selector
                                 ),
                                 when=change_detector.ownership_context.when,
+                                where=change_detector.ownership_context.where,
                             ),
                             file_diff_resolver=file_diff_resolver,
                         )

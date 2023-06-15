@@ -20,6 +20,7 @@ from reconcile.change_owners.bundle import (
     FileRef,
     QontractServerDatafileDiff,
     QontractServerDiff,
+    QontractServerResourcefileBackref,
     QontractServerResourcefileDiff,
     QontractServerResourcefileDiffState,
 )
@@ -99,6 +100,8 @@ class QontractServerBundleDiffDataBuilder:
         old_content: Any,
         new_content: Any,
         schema: Optional[str] = None,
+        old_backrefs: Optional[list[QontractServerResourcefileBackref]] = None,
+        new_backrefs: Optional[list[QontractServerResourcefileBackref]] = None,
     ) -> "QontractServerBundleDiffDataBuilder":
 
         entry = QontractServerResourcefileDiff(resourcepath=path)
@@ -109,6 +112,7 @@ class QontractServerBundleDiffDataBuilder:
                     "content": old_content,
                     "$schema": schema,
                     "sha256sum": _sha256_sum(old_content),
+                    "backrefs": old_backrefs,
                 }
             )
         if new_content:
@@ -118,6 +122,7 @@ class QontractServerBundleDiffDataBuilder:
                     "content": new_content,
                     "$schema": schema,
                     "sha256sum": _sha256_sum(new_content),
+                    "backrefs": new_backrefs,
                 }
             )
         self._diff.resources[path] = entry
@@ -314,10 +319,13 @@ def build_jsonpath_change(
     schema: Optional[str] = None,
     context_selector: Optional[str] = None,
     context_when: Optional[str] = None,
+    context_where: Optional[str] = None,
 ) -> ChangeTypeChangeDetectorJsonPathProviderV1:
     if context_selector:
         context = ChangeTypeChangeDetectorContextSelectorV1(
-            selector=context_selector, when=context_when
+            selector=context_selector,
+            when=context_when,
+            where=context_where,
         )
     else:
         context = None
@@ -333,7 +341,8 @@ def build_change_type_change(
     schema: str,
     change_type_names: list[str],
     context_selector: str,
-    context_when: Optional[str],
+    context_when: Optional[str] = None,
+    context_where: Optional[str] = None,
 ) -> ChangeTypeChangeDetectorChangeTypeProviderV1:
     return ChangeTypeChangeDetectorChangeTypeProviderV1(
         provider="changeType",
@@ -348,6 +357,7 @@ def build_change_type_change(
         ownership_context=ChangeTypeChangeDetectorChangeTypeProviderV1_ChangeTypeChangeDetectorContextSelectorV1(
             selector=context_selector,
             when=context_when,
+            where=context_where,
         ),
     )
 

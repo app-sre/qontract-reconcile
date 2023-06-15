@@ -10,6 +10,7 @@ from reconcile.change_owners.change_types import (
     Approver,
     ChangeTypeContext,
     ChangeTypeProcessor,
+    FileChange,
 )
 from reconcile.change_owners.changes import BundleFileChange
 from reconcile.gql_definitions.change_owners.queries import self_service_roles
@@ -119,7 +120,14 @@ def change_type_contexts_for_self_service_roles(
     for bc in bundle_changes:
         for ctp in change_type_processors:
             for ownership in ctp.find_context_file_refs(
-                bc.fileref, bc.old, bc.new, set()
+                change=FileChange(
+                    file_ref=bc.fileref,
+                    old=bc.old,
+                    new=bc.new,
+                    old_backrefs=bc.old_backrefs,
+                    new_backrefs=bc.new_backrefs,
+                ),
+                expansion_trail=set(),
             ):
                 # if the context file is bound with the change type in
                 # a role, build a changetypecontext
