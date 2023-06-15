@@ -13,8 +13,8 @@ from reconcile.openshift_base import CurrentStateSpec
 from reconcile.openshift_resources_base import (
     CheckClusterScopedResourceDuplicates,
     canonicalize_namespaces,
-    ob,
     hash_list,
+    ob,
 )
 from reconcile.test.fixtures import Fixtures
 from reconcile.utils import oc

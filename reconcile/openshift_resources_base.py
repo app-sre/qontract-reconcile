@@ -311,9 +311,11 @@ def hash_list(input: Iterable) -> str:
     str_lst = []
     for el in lst:
         if isinstance(el, list) or isinstance(el, dict):
-            raise RuntimeError(f"jinja2 hash_list function received non-primitive value {el}. All values received {lst}")
+            raise RuntimeError(
+                f"jinja2 hash_list function received non-primitive value {el}. All values received {lst}"
+            )
         str_lst.append(str(el))
-    msg = "a" # keep non-empty for hashing empty list
+    msg = "a"  # keep non-empty for hashing empty list
     msg += "".join(sorted(str_lst))
     m = hashlib.sha256()
     m.update(msg.encode("utf-8"))
