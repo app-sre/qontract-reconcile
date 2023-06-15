@@ -41,18 +41,22 @@ class RepoSecret(BaseModel):
 
 
 class RepoOutput(BaseModel):
-    """
-    Output of the QR terraform-repo integration and input to the executor
-    which removes some information that is unnecessary for the executor to parse
-    """
-
-    dry_run: bool
     repository: str
     name: str
     ref: str
     project_path: str
     delete: bool
     secret: RepoSecret
+
+
+class OutputFile(BaseModel):
+    """
+    Output of the QR terraform-repo integration and input to the executor
+    which removes some information that is unnecessary for the executor to parse
+    """
+
+    dry_run: bool
+    repos: list[RepoOutput]
 
 
 class TerraformRepoIntegrationParams(PydanticRunParams):
@@ -89,30 +93,36 @@ class TerraformRepoIntegration(
         desired = self.get_repos(query_func=gqlapi.query)
         existing = self.get_existing_state(state)
 
-        repo_diff = self.calculate_diff(
+        repo_diff_result = self.calculate_diff(
             existing_state=existing, desired_state=desired, dry_run=dry_run, state=state
         )
 
-        if repo_diff:
-            # once diffed, now output the repo
-            repo_output = RepoOutput(
-                dry_run=dry_run,
-                repository=repo_diff.repository,
-                name=repo_diff.name,
-                ref=repo_diff.ref,
-                project_path=repo_diff.project_path,
-                delete=repo_diff.delete or False,
-                secret=RepoSecret(
-                    path=repo_diff.account.automation_token.path,
-                    version=repo_diff.account.automation_token.version,
-                ),
-            )
+        if repo_diff_result:
+            # put together output to pass to executor
+            actions_list: list[RepoOutput] = []
+
+            for repo in repo_diff_result:
+                actions_list.append(
+                    RepoOutput(
+                        repository=repo.repository,
+                        name=repo.name,
+                        ref=repo.ref,
+                        project_path=repo.project_path,
+                        delete=repo.delete or False,
+                        secret=RepoSecret(
+                            path=repo.account.automation_token.path,
+                            version=repo.account.automation_token.version,
+                        ),
+                    )
+                )
+
+            output = OutputFile(dry_run=dry_run, repos=actions_list)
 
             if self.params.output_file:
                 try:
                     with open(self.params.output_file, "w") as output_file:
                         yaml.safe_dump(
-                            data=repo_output.dict(),
+                            data=output.dict(),
                             stream=output_file,
                             explicit_start=True,
                         )
@@ -121,7 +131,7 @@ class TerraformRepoIntegration(
                         f"Unable to write to '{self.params.output_file}'"
                     )
             else:
-                print(yaml.safe_dump(data=repo_output.dict(), explicit_start=True))
+                print(yaml.safe_dump(data=output.dict(), explicit_start=True))
 
     def get_repos(self, query_func: Callable) -> list[TerraformRepoV1]:
         """Gets a list of terraform repos defined in App Interface
@@ -245,7 +255,7 @@ class TerraformRepoIntegration(
         desired_state: list[TerraformRepoV1],
         dry_run: bool,
         state: Optional[State],
-    ) -> Optional[TerraformRepoV1]:
+    ) -> Optional[list[TerraformRepoV1]]:
         """Calculated the difference between existing and desired state
         to determine what actions the executor will need to take
 
@@ -268,7 +278,7 @@ class TerraformRepoIntegration(
 
         # validate that only one repo is being modified in each MR
         # this lets us fail early and avoid multiple GL requests we don't need to make
-        if len(merged) > 1:
+        if dry_run and len(merged) > 1:
             raise Exception(
                 "Only one repository can be modified per merge request, please split your change out into multiple MRs"
             )
@@ -303,7 +313,7 @@ class TerraformRepoIntegration(
         if len(merged) != 0:
             if not dry_run and state:
                 self.update_state(diff, state)
-            return merged[0]
+            return merged
         return None
 
     def early_exit_desired_state(self, *args: Any, **kwargs: Any) -> dict[str, Any]:

@@ -79,7 +79,7 @@ def test_addition_to_existing_repo(existing_repo, new_repo, int_params, state_mo
         existing_state=existing, desired_state=desired, dry_run=False, state=state_mock
     )
 
-    assert diff == new_repo
+    assert diff == [new_repo]
 
     # ensure that the state is saved for the new repo
     state_mock.add.assert_called_once_with(
@@ -100,7 +100,7 @@ def test_updating_repo_ref(existing_repo, int_params, state_mock):
         state=state_mock,
     )
 
-    assert diff == updated_repo
+    assert diff == [updated_repo]
 
     state_mock.add.assert_called_once_with(
         updated_repo.name, updated_repo.dict(by_alias=True), force=True
@@ -141,7 +141,7 @@ def test_delete_repo(existing_repo, int_params, state_mock):
         state=state_mock,
     )
 
-    assert diff == updated_repo
+    assert diff == [updated_repo]
 
     state_mock.rm.assert_called_once_with(updated_repo.name)
 
@@ -209,7 +209,7 @@ def test_update_repo_state(int_params, existing_repo, state_mock):
     )
 
 
-def test_fail_on_multiple_repos(int_params, existing_repo, new_repo):
+def test_fail_on_multiple_repos_dry_run(int_params, existing_repo, new_repo):
     integration = TerraformRepoIntegration(params=int_params)
 
     desired_state = [existing_repo, new_repo]
@@ -217,6 +217,22 @@ def test_fail_on_multiple_repos(int_params, existing_repo, new_repo):
     with pytest.raises(Exception):
         integration.calculate_diff(
             existing_state=[], desired_state=desired_state, dry_run=True, state=None
+        )
+
+
+def test_succeed_on_multiple_repos_non_dry_run(int_params, existing_repo, new_repo):
+    integration = TerraformRepoIntegration(params=int_params)
+
+    desired_state = [existing_repo, new_repo]
+
+    diff = integration.calculate_diff(
+        existing_state=[], desired_state=desired_state, dry_run=False, state=None
+    )
+
+    assert diff
+    if diff:
+        assert diff.sort(key=lambda r: r.name) == desired_state.sort(
+            key=lambda r: r.name
         )
 
 
