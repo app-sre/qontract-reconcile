@@ -42,7 +42,6 @@ APP_INTERFACE_SETTINGS_QUERY = """
     vault
     kubeBinary
     mergeRequestGateway
-    saasDeployJobTemplate
     hashLength
     smtp {
       mailAddress

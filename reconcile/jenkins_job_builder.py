@@ -44,11 +44,6 @@ QONTRACT_INTEGRATION = "jenkins-job-builder"
 GENERATE_TYPE = ["jobs", "views"]
 
 
-def get_openshift_saas_deploy_job_name(saas_file_name, env_name, settings):
-    job_template_name = settings["saasDeployJobTemplate"]
-    return f"{job_template_name}-{saas_file_name}-{env_name}"
-
-
 def get_jenkins_configs():
     gqlapi = gql.get_api()
     return gqlapi.query(QUERY)["jenkins_configs"]
