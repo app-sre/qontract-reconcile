@@ -435,8 +435,11 @@ query TerraformResourcesNamespaces {
                 output_resource_name
                 defaults
                 annotations
-                secret {
-                    ... VaultSecret
+                users {
+                  name
+                  secret {
+                    ...VaultSecret
+                  }
                 }
             }
         }
@@ -1019,13 +1022,18 @@ class NamespaceTerraformResourceRosaAuthenticatorVPCEV1(
     defaults: str = Field(..., alias="defaults")
 
 
+class SaasSecretParametersV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+    secret: VaultSecret = Field(..., alias="secret")
+
+
 class NamespaceTerraformResourceMskV1(NamespaceTerraformResourceAWSV1):
     region: Optional[str] = Field(..., alias="region")
     identifier: str = Field(..., alias="identifier")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
     defaults: str = Field(..., alias="defaults")
     annotations: Optional[str] = Field(..., alias="annotations")
-    secret: Optional[VaultSecret] = Field(..., alias="secret")
+    users: Optional[list[SaasSecretParametersV1]] = Field(..., alias="users")
 
 
 class NamespaceTerraformProviderResourceAWSV1(NamespaceExternalResourceV1):
