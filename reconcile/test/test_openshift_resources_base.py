@@ -14,6 +14,7 @@ from reconcile.openshift_resources_base import (
     CheckClusterScopedResourceDuplicates,
     canonicalize_namespaces,
     ob,
+    hash_list,
 )
 from reconcile.test.fixtures import Fixtures
 from reconcile.utils import oc
@@ -438,3 +439,33 @@ def test_check_cluster_scoped_resources_duplicated(
 def test_check_error():
     e = orb.CheckError("message")
     print(e)
+
+
+def test_hash_list_empty():
+    assert hash_list([])[:6] == "ca9781"
+
+
+def test_hash_list_string():
+    assert hash_list(["a", "b"])[:6] == "38760e"
+    assert hash_list(["b", "a"])[:6] == "38760e"
+
+
+def test_hash_list_int():
+    assert hash_list([1, 2])[:6] == "f37508"
+    assert hash_list([2, 1])[:6] == "f37508"
+
+
+def test_hash_list_bool():
+    assert hash_list([True, False])[:6] == "e0ca28"
+    assert hash_list([False, True])[:6] == "e0ca28"
+
+
+def test_hash_list_error():
+    with pytest.raises(RuntimeError):
+        hash_list([{}])
+
+    with pytest.raises(RuntimeError):
+        hash_list([[]])
+
+    with pytest.raises(RuntimeError):
+        hash_list(["a", {}])

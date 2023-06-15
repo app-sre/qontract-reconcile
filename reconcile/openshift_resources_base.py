@@ -303,11 +303,18 @@ def lookup_graphql_query_results(query: str, **kwargs) -> list[Any]:
 def hash_list(input: Iterable) -> str:
     """
     Deterministic hash of a list for jinja2 templates.
-    The order of the list doesnt matter as it is sorted
+    The order of the list doesn't matter as it is sorted
     before hashing. Note, that the list elements
-    must be flat (no dicts).
+    must be flat primitives (no dicts/lists).
     """
-    msg = "".join(sorted(list(input)))
+    lst = list(input)
+    str_lst = []
+    for el in lst:
+        if isinstance(el, list) or isinstance(el, dict):
+            raise RuntimeError(f"jinja2 hash_list function received non-primitive value {el}. All values received {lst}")
+        str_lst.append(str(el))
+    msg = "a" # keep non-empty for hashing empty list
+    msg += "".join(sorted(str_lst))
     m = hashlib.sha256()
     m.update(msg.encode("utf-8"))
     return m.hexdigest()
