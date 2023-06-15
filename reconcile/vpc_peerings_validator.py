@@ -71,7 +71,7 @@ def validate_no_cidr_overlap(
         overlaps_peering_entries_dict = find_cidr_duplicates_and_overlap(
             cluster.name, peerings_entries
         )
-        if overlaps_peering_entries_dict:
+        if not overlaps_peering_entries_dict:
             return False
     return True
 
@@ -88,7 +88,7 @@ def find_cidr_duplicates_and_overlap(cluster_name: str, input_list: list):
                 logging.error(
                     f"vpc {compared_vpc['vpc_name']} with cidr block {compared_vpc['cidr_block']} provider by {compared_vpc['provider']} overlaps with vpc {comparing_vpc['vpc_name']} with cidr block {comparing_vpc['cidr_block']} provider by {comparing_vpc['provider']}"
                 )
-                return True
+                return False
 
 
 def validate_no_internal_to_public_peerings(

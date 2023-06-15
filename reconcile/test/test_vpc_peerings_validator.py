@@ -131,7 +131,7 @@ def test_validate_validate_no_cidr_overlap():
         },
     ]
     cluster_name = "cluster-name"
-    assert find_cidr_duplicates_and_overlap(cluster_name, test_list) is True
+    assert find_cidr_duplicates_and_overlap(cluster_name, test_list) is False
 
 
 @pytest.fixture
