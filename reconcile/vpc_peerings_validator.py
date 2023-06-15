@@ -76,16 +76,6 @@ def validate_no_cidr_overlap(
     return True
 
 
-def create_vpc_peering_dict(vpc_peering_info, peerings_enteries_dict, cluster_cidr):
-    if "providers" not in peerings_enteries_dict:
-        peerings_enteries_dict = {
-            "cidr_block": cluster_cidr,
-            "providers": [],
-        }
-    peerings_enteries_dict["providers"].append(vpc_peering_info)
-    return peerings_enteries_dict
-
-
 def find_cidr_duplicates_and_overlap(cluster_name: str, input_list: list):
     for i in range(len(input_list)):  # pylint: disable=consider-using-enumerate
         compared_vpc = input_list[i]
