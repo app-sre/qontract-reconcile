@@ -131,7 +131,7 @@ def test_validate_validate_no_cidr_overlap():
         },
     ]
     cluster_name = "cluster-name"
-    assert find_cidr_duplicates_and_overlap(cluster_name, test_list) is False
+    assert find_cidr_duplicates_and_overlap(cluster_name, test_list) is True
 
 
 @pytest.fixture
@@ -169,4 +169,4 @@ def query_data_vpc_cidr_overlap() -> VpcPeeringsValidatorQueryData:
 def test_create_dict_for_validate_no_cidr_overlap(
     query_data_vpc_cidr_overlap: VpcPeeringsValidatorQueryData,
 ):
-    assert validate_no_cidr_overlap(query_data_vpc_cidr_overlap) is False
+    assert validate_no_cidr_overlap(query_data_vpc_cidr_overlap) is True
