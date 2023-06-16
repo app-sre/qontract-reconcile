@@ -300,6 +300,28 @@ def lookup_graphql_query_results(query: str, **kwargs) -> list[Any]:
     return results
 
 
+def hash_list(input: Iterable) -> str:
+    """
+    Deterministic hash of a list for jinja2 templates.
+    The order of the list doesn't matter as it is sorted
+    before hashing. Note, that the list elements
+    must be flat primitives (no dicts/lists).
+    """
+    lst = list(input)
+    str_lst = []
+    for el in lst:
+        if isinstance(el, (list, dict)):
+            raise RuntimeError(
+                f"jinja2 hash_list function received non-primitive value {el}. All values received {lst}"
+            )
+        str_lst.append(str(el))
+    msg = "a"  # keep non-empty for hashing empty list
+    msg += "".join(sorted(str_lst))
+    m = hashlib.sha256()
+    m.update(msg.encode("utf-8"))
+    return m.hexdigest()
+
+
 def json_to_dict(input):
     """Jinja2 filter to parse JSON strings into dictionaries.
        This becomes useful to access Graphql queries data (labels)
@@ -393,6 +415,7 @@ def process_jinja2_template(body, vars=None, extra_curly: bool = False, settings
                 string=u, safe=s, encoding=e
             ),
             "urlunescape": lambda u, e=None: urlunescape(string=u, encoding=e),
+            "hash_list": hash_list,
             "query": lookup_graphql_query_results,
             "url": url_makes_sense,
         }
