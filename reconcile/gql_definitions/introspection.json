@@ -4162,6 +4162,11 @@
                         },
                         {
                             "kind": "OBJECT",
+                            "name": "AWSGroup_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "OBJECT",
                             "name": "AWSAccount_v1",
                             "ofType": null
                         },
@@ -4183,6 +4188,11 @@
                         {
                             "kind": "OBJECT",
                             "name": "OpenShiftClusterManagerEnvironment_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "OBJECT",
+                            "name": "AWSUserPolicy_v1",
                             "ofType": null
                         },
                         {
@@ -5287,6 +5297,26 @@
                                     "ofType": {
                                         "kind": "OBJECT",
                                         "name": "GlitchtipProjects_v1",
+                                        "ofType": null
+                                    }
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "selfServiceRoles",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "LIST",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "NON_NULL",
+                                    "name": null,
+                                    "ofType": {
+                                        "kind": "OBJECT",
+                                        "name": "Role_v1",
                                         "ofType": null
                                     }
                                 }
@@ -7270,7 +7300,13 @@
                         }
                     ],
                     "inputFields": null,
-                    "interfaces": [],
+                    "interfaces": [
+                        {
+                            "kind": "INTERFACE",
+                            "name": "DatafileObject_v1",
+                            "ofType": null
+                        }
+                    ],
                     "enumValues": null,
                     "possibleTypes": null
                 },
@@ -11287,7 +11323,13 @@
                         }
                     ],
                     "inputFields": null,
-                    "interfaces": [],
+                    "interfaces": [
+                        {
+                            "kind": "INTERFACE",
+                            "name": "DatafileObject_v1",
+                            "ofType": null
+                        }
+                    ],
                     "enumValues": null,
                     "possibleTypes": null
                 },
@@ -33579,13 +33621,21 @@
                             "deprecationReason": null
                         },
                         {
-                            "name": "secret",
+                            "name": "users",
                             "description": null,
                             "args": [],
                             "type": {
-                                "kind": "OBJECT",
-                                "name": "VaultSecret_v1",
-                                "ofType": null
+                                "kind": "LIST",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "NON_NULL",
+                                    "name": null,
+                                    "ofType": {
+                                        "kind": "OBJECT",
+                                        "name": "SaasSecretParameters_v1",
+                                        "ofType": null
+                                    }
+                                }
                             },
                             "isDeprecated": false,
                             "deprecationReason": null

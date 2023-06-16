@@ -6192,12 +6192,14 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             values.get("client_authentication", {}).get("sasl", {}).get("scram", False)
         )
         if scram_enabled:
-            if not values.get("secret", None):
+            if not spec.resource.get("users", []):
                 raise ValueError(
-                    "secret must be specified when client_authentication.sasl.scram is enabled."
+                    "users attribute must be given when client_authentication.sasl.scram is enabled."
                 )
-            scram_secret_data = self.secret_reader.read_all(values["secret"])
-        values.pop("secret", None)
+            scram_users = {
+                user["name"]: self.secret_reader.read_all(user["secret"])
+                for user in spec.resource["users"]
+            }
 
         # resource - msk config
         msk_config = aws_msk_configuration(
@@ -6244,67 +6246,68 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         # resource - secret manager for SCRAM client credentials
         if scram_enabled:
-            secret_name = f"AmazonMSK_{spec.identifier}"
-            secret_identifier = secret_name.replace("/", "-")
+            for user, secret in scram_users.items():
+                secret_name = f"AmazonMSK_{spec.identifier}-{user}"
+                secret_identifier = secret_name.replace("/", "-")
 
-            # kms
-            kms_values = {
-                "description": "KMS key for MSK SCRAM credentials",
-                "tags": values["tags"],
-            }
-            kms_key = aws_kms_key(secret_identifier, **kms_values)
-            tf_resources.append(kms_key)
+                # kms
+                kms_values = {
+                    "description": "KMS key for MSK SCRAM credentials",
+                    "tags": values["tags"],
+                }
+                kms_key = aws_kms_key(secret_identifier, **kms_values)
+                tf_resources.append(kms_key)
 
-            secret_values = {
-                "name": secret_name,
-                "tags": values["tags"],
-                "kms_key_id": "${" + kms_key.arn + "}",
-            }
-            secret_resource = aws_secretsmanager_secret(
-                secret_identifier, **secret_values
-            )
-            tf_resources.append(secret_resource)
+                secret_values = {
+                    "name": secret_name,
+                    "tags": values["tags"],
+                    "kms_key_id": "${" + kms_key.arn + "}",
+                }
+                secret_resource = aws_secretsmanager_secret(
+                    secret_identifier, **secret_values
+                )
+                tf_resources.append(secret_resource)
 
-            version_values = {
-                "secret_id": "${" + secret_resource.arn + "}",
-                "secret_string": json.dumps(scram_secret_data, sort_keys=True),
-            }
-            version_resource = aws_secretsmanager_secret_version(
-                secret_identifier, **version_values
-            )
-            tf_resources.append(version_resource)
+                version_values = {
+                    "secret_id": "${" + secret_resource.arn + "}",
+                    "secret_string": json.dumps(secret, sort_keys=True),
+                }
+                version_resource = aws_secretsmanager_secret_version(
+                    secret_identifier, **version_values
+                )
+                tf_resources.append(version_resource)
 
-            secret_policy_values = {
-                "secret_arn": "${" + secret_resource.arn + "}",
-                "policy": json.dumps(
-                    {
-                        "Version": "2012-10-17",
-                        "Statement": [
-                            {
-                                "Sid": "AWSKafkaResourcePolicy",
-                                "Effect": "Allow",
-                                "Principal": {"Service": "kafka.amazonaws.com"},
-                                "Action": "secretsmanager:getSecretValue",
-                                "Resource": "${" + secret_resource.arn + "}",
-                            }
-                        ],
-                    }
-                ),
-            }
-            secret_policy = aws_secretsmanager_secret_policy(
-                secret_identifier, **secret_policy_values
-            )
-            tf_resources.append(secret_policy)
+                secret_policy_values = {
+                    "secret_arn": "${" + secret_resource.arn + "}",
+                    "policy": json.dumps(
+                        {
+                            "Version": "2012-10-17",
+                            "Statement": [
+                                {
+                                    "Sid": "AWSKafkaResourcePolicy",
+                                    "Effect": "Allow",
+                                    "Principal": {"Service": "kafka.amazonaws.com"},
+                                    "Action": "secretsmanager:getSecretValue",
+                                    "Resource": "${" + secret_resource.arn + "}",
+                                }
+                            ],
+                        }
+                    ),
+                }
+                secret_policy = aws_secretsmanager_secret_policy(
+                    secret_identifier, **secret_policy_values
+                )
+                tf_resources.append(secret_policy)
 
-            scram_secret_association_values = {
-                "cluster_arn": "${" + msk_cluster.arn + "}",
-                "secret_arn_list": ["${" + secret_resource.arn + "}"],
-                "depends_on": self.get_dependencies([version_resource]),
-            }
-            scram_secret_association = aws_msk_scram_secret_association(
-                secret_identifier, **scram_secret_association_values
-            )
-            tf_resources.append(scram_secret_association)
+                scram_secret_association_values = {
+                    "cluster_arn": "${" + msk_cluster.arn + "}",
+                    "secret_arn_list": ["${" + secret_resource.arn + "}"],
+                    "depends_on": self.get_dependencies([version_resource]),
+                }
+                scram_secret_association = aws_msk_scram_secret_association(
+                    secret_identifier, **scram_secret_association_values
+                )
+                tf_resources.append(scram_secret_association)
 
         # outputs
         tf_resources.append(
