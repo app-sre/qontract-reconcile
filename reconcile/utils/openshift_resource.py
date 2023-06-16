@@ -20,6 +20,10 @@ class ResourceKeyExistsError(Exception):
     pass
 
 
+class ResourceNotManagedError(Exception):
+    pass
+
+
 class ConstructResourceError(Exception):
     def __init__(self, msg):
         super().__init__("error constructing openshift resource: " + str(msg))
@@ -535,11 +539,23 @@ class ResourceInventory:
         self._error_registered_clusters = {}
         self._lock = Lock()
 
-    def initialize_resource_type(self, cluster, namespace, resource_type):
+    def initialize_resource_type(
+        self,
+        cluster,
+        namespace,
+        resource_type,
+        managed_names: Optional[list[str]] = None,
+    ):
         self._clusters.setdefault(cluster, {})
         self._clusters[cluster].setdefault(namespace, {})
         self._clusters[cluster][namespace].setdefault(
-            resource_type, {"current": {}, "desired": {}, "use_admin_token": {}}
+            resource_type,
+            {
+                "current": {},
+                "desired": {},
+                "use_admin_token": {},
+                "managed_names": managed_names,
+            },
         )
 
     def is_cluster_present(self, cluster: str) -> bool:
@@ -575,6 +591,13 @@ class ResourceInventory:
         # mismatch between schema and implementation for now, it will enable
         # us to implement per-resource configuration in the future
         with self._lock:
+            # fail if the name of the resource is not within the managed names if they are defined
+            managed_names = self._clusters[cluster][namespace][resource_type][
+                "managed_names"
+            ]
+            if managed_names is not None and name not in managed_names:
+                raise ResourceNotManagedError(name)
+
             desired = self._clusters[cluster][namespace][resource_type]["desired"]
             if name in desired:
                 raise ResourceKeyExistsError(name)

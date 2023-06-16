@@ -56,6 +56,7 @@ from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.openshift_resource import (
     ResourceInventory,
     ResourceKeyExistsError,
+    ResourceNotManagedError,
 )
 from reconcile.utils.runtime.integration import DesiredStateShardConfig
 from reconcile.utils.secret_reader import SecretReader
@@ -843,6 +844,15 @@ def fetch_desired_state(
         # the same type was already added previously
         ri.register_error()
         msg = ("[{}/{}] desired item already exists: {}/{}.").format(
+            cluster, namespace, openshift_resource.kind, openshift_resource.name
+        )
+        _locked_error_log(msg)
+        return
+    except ResourceNotManagedError:
+        # This is failing because the resource name is
+        # not in the list of resource names that are managed
+        ri.register_error()
+        msg = "[{}/{}] desired item is not managed: {}/{}.".format(
             cluster, namespace, openshift_resource.kind, openshift_resource.name
         )
         _locked_error_log(msg)
