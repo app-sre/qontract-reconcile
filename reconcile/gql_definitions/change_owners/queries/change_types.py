@@ -35,6 +35,7 @@ query ChangeTypes($name: String) {
         context {
           selector
           when
+          where
         }
       }
       ... on ChangeTypeChangeDetectorChangeTypeProvider_v1 {
@@ -45,6 +46,7 @@ query ChangeTypes($name: String) {
         ownership_context: context {
           selector
           when
+          where
         }
       }
     }
@@ -76,6 +78,7 @@ class ChangeTypeChangeDetectorV1(ConfiguredBaseModel):
 class ChangeTypeChangeDetectorContextSelectorV1(ConfiguredBaseModel):
     selector: str = Field(..., alias="selector")
     when: Optional[str] = Field(..., alias="when")
+    where: Optional[str] = Field(..., alias="where")
 
 
 class ChangeTypeChangeDetectorJsonPathProviderV1(ChangeTypeChangeDetectorV1):
@@ -95,6 +98,7 @@ class ChangeTypeChangeDetectorChangeTypeProviderV1_ChangeTypeChangeDetectorConte
 ):
     selector: str = Field(..., alias="selector")
     when: Optional[str] = Field(..., alias="when")
+    where: Optional[str] = Field(..., alias="where")
 
 
 class ChangeTypeChangeDetectorChangeTypeProviderV1(ChangeTypeChangeDetectorV1):

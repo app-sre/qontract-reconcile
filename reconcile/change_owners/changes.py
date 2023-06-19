@@ -55,6 +55,8 @@ class BundleFileChange:
     old_content_sha: str
     new_content_sha: str
     diffs: list[Diff]
+    old_backrefs: set[FileRef] = field(default_factory=set)
+    new_backrefs: set[FileRef] = field(default_factory=set)
     metadata_only_change: bool = False
     _diff_coverage: dict[str, DiffCoverage] = field(init=False, default_factory=dict)
 
@@ -229,6 +231,8 @@ def _create_bundle_file_change(
     new_content_sha: str,
     old_path: str,
     new_path: str,
+    old_backrefs: Optional[list[FileRef]] = None,
+    new_backrefs: Optional[list[FileRef]] = None,
 ) -> Optional[BundleFileChange]:
     """
     this is a factory method that creates a BundleFileChange object based
@@ -257,6 +261,8 @@ def _create_bundle_file_change(
             new=new_file_content,
             old_content_sha=old_content_sha,
             new_content_sha=new_content_sha,
+            old_backrefs=set(old_backrefs or []),
+            new_backrefs=set(new_backrefs or []),
             diffs=diffs,
         )
 
@@ -277,6 +283,8 @@ def _create_bundle_file_change(
             new=new_file_content,
             old_content_sha=old_content_sha,
             new_content_sha=new_content_sha,
+            old_backrefs=set(old_backrefs or []),
+            new_backrefs=set(new_backrefs or []),
             metadata_only_change=True,
             diffs=[],
         )
@@ -412,6 +420,22 @@ def parse_bundle_changes(
             new_content_sha=rf.new.sha256sum if rf.new else "",
             old_path=rf.old.path if rf.old else "",
             new_path=rf.new.path if rf.new else "",
+            old_backrefs=[
+                FileRef(
+                    file_type=BundleFileType.DATAFILE,
+                    path=br.path,
+                    schema=br.datafileschema,
+                )
+                for br in (rf.old.backrefs if rf.old and rf.old.backrefs else [])
+            ],
+            new_backrefs=[
+                FileRef(
+                    file_type=BundleFileType.DATAFILE,
+                    path=br.path,
+                    schema=br.datafileschema,
+                )
+                for br in (rf.new.backrefs if rf.new and rf.new.backrefs else [])
+            ],
         )
         if bc is not None:
             change_list.append(bc)

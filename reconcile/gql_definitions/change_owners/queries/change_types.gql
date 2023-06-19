@@ -16,6 +16,7 @@ query ChangeTypes($name: String) {
         context {
           selector
           when
+          where
         }
       }
       ... on ChangeTypeChangeDetectorChangeTypeProvider_v1 {
@@ -26,6 +27,7 @@ query ChangeTypes($name: String) {
         ownership_context: context {
           selector
           when
+          where
         }
       }
     }

@@ -4,6 +4,7 @@ from reconcile.change_owners.approver import ApproverResolver
 from reconcile.change_owners.change_types import (
     ChangeTypeContext,
     ChangeTypeProcessor,
+    FileChange,
 )
 from reconcile.change_owners.changes import BundleFileChange
 from reconcile.gql_definitions.change_owners.queries.change_types import (
@@ -37,7 +38,12 @@ def change_type_contexts_for_implicit_ownership(
     for ctp in processors_with_implicit_ownership:
         for bc in bundle_changes:
             for ownership in ctp.find_context_file_refs(
-                bc.fileref, bc.old, bc.new, set()
+                change=FileChange(
+                    file_ref=bc.fileref,
+                    old=bc.old,
+                    new=bc.new,
+                ),
+                expansion_trail=set(),
             ):
                 for io in ctp.implicit_ownership:
                     if isinstance(io, ChangeTypeImplicitOwnershipJsonPathProviderV1):

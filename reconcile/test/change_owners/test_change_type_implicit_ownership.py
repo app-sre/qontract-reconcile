@@ -6,7 +6,7 @@ import pytest
 from reconcile.change_owners.approver import Approver
 from reconcile.change_owners.change_types import (
     ChangeTypeProcessor,
-    OwnershipContext,
+    ForwardrefOwnershipContext,
 )
 from reconcile.change_owners.implicit_ownership import (
     change_type_contexts_for_implicit_ownership,
@@ -187,8 +187,8 @@ def test_find_implict_change_type_context_jsonpath_provider_invalid_context_file
     change_schema = "change-schema-1.yml"
 
     change_type.change_detectors[0].change_schema = change_schema
-    change_type.change_detectors[0].context = OwnershipContext(
-        selector=jsonpath_ng.ext.parse("$.approver"), when=None
+    change_type.change_detectors[0].context = ForwardrefOwnershipContext(
+        selector=jsonpath_ng.ext.parse("$.approver")
     )
 
     bc = build_test_datafile(

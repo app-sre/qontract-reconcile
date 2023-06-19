@@ -19,3 +19,4 @@ changes:
   context:
     selector: cluster.'$ref'
     when: null
+    where: null
