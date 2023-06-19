@@ -6171,6 +6171,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         values = self.init_values(spec)
         output_prefix = spec.output_prefix
         tf_resources = []
+        resource_id = spec.identifier
 
         del values["identifier"]
         values.setdefault("cluster_name", spec.identifier)
@@ -6191,6 +6192,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         scram_enabled = (
             values.get("client_authentication", {}).get("sasl", {}).get("scram", False)
         )
+        scram_users = {}
         if scram_enabled:
             if not spec.resource.get("users", []):
                 raise ValueError(
@@ -6203,8 +6205,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         # resource - msk config
         msk_config = aws_msk_configuration(
-            "msk-configuration",
-            name=f"{spec.identifier}-msk-config",
+            resource_id,
+            name=resource_id,
             kafka_versions=[values["kafka_version"]],
             server_properties=values["server_properties"],
         )
@@ -6216,7 +6218,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             "arn": "${" + msk_config.arn + "}",
             "revision": "${" + msk_config.latest_revision + "}",
         }
-        msk_cluster = aws_msk_cluster("msk-cluster", **values)
+        msk_cluster = aws_msk_cluster(resource_id, **values)
         tf_resources.append(msk_cluster)
 
         # resource - cloudwatch
@@ -6227,14 +6229,14 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             .get("enabled", False)
         ):
             log_group_values = {
-                "name": f"{spec.identifier}-msk-broker-logs",
+                "name": f"{resource_id}-msk-broker-logs",
                 "tags": values["tags"],
                 "retention_in_days": values["logging_info"]["broker_logs"][
                     "cloudwatch_logs"
                 ]["retention_in_days"],
             }
             log_group_tf_resource = aws_cloudwatch_log_group(
-                "msk-broker-logs", **log_group_values
+                resource_id, **log_group_values
             )
             tf_resources.append(log_group_tf_resource)
             del values["logging_info"]["broker_logs"]["cloudwatch_logs"][
@@ -6245,21 +6247,31 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             ] = log_group_tf_resource.name
 
         # resource - secret manager for SCRAM client credentials
-        if scram_enabled:
-            for user, secret in scram_users.items():
-                secret_name = f"AmazonMSK_{spec.identifier}-{user}"
-                secret_identifier = secret_name.replace("/", "-")
+        if scram_enabled and scram_users:
+            scram_secrets: list[
+                tuple[aws_secretsmanager_secret, aws_secretsmanager_secret_version]
+            ] = []
 
-                # kms
-                kms_values = {
-                    "description": "KMS key for MSK SCRAM credentials",
-                    "tags": values["tags"],
-                }
-                kms_key = aws_kms_key(secret_identifier, **kms_values)
-                tf_resources.append(kms_key)
+            # kms
+            kms_values = {
+                "description": "KMS key for MSK SCRAM credentials",
+                "tags": values["tags"],
+            }
+            kms_key = aws_kms_key(resource_id, **kms_values)
+            tf_resources.append(kms_key)
+
+            kms_key_alias = aws_kms_alias(
+                resource_id,
+                name=f"alias/{resource_id}-msk-scram",
+                target_key_id="${" + kms_key.arn + "}",
+            )
+            tf_resources.append(kms_key_alias)
+
+            for user, secret in scram_users.items():
+                secret_identifier = f"AmazonMSK_{resource_id}-{user}"
 
                 secret_values = {
-                    "name": secret_name,
+                    "name": secret_identifier,
                     "tags": values["tags"],
                     "kms_key_id": "${" + kms_key.arn + "}",
                 }
@@ -6298,16 +6310,18 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     secret_identifier, **secret_policy_values
                 )
                 tf_resources.append(secret_policy)
+                scram_secrets.append((secret_resource, version_resource))
 
-                scram_secret_association_values = {
-                    "cluster_arn": "${" + msk_cluster.arn + "}",
-                    "secret_arn_list": ["${" + secret_resource.arn + "}"],
-                    "depends_on": self.get_dependencies([version_resource]),
-                }
-                scram_secret_association = aws_msk_scram_secret_association(
-                    secret_identifier, **scram_secret_association_values
-                )
-                tf_resources.append(scram_secret_association)
+            # create ONE scram secret association for each secret created above
+            scram_secret_association_values = {
+                "cluster_arn": "${" + msk_cluster.arn + "}",
+                "secret_arn_list": ["${" + s.arn + "}" for s, _ in scram_secrets],
+                "depends_on": self.get_dependencies([v for _, v in scram_secrets]),
+            }
+            scram_secret_association = aws_msk_scram_secret_association(
+                resource_id, **scram_secret_association_values
+            )
+            tf_resources.append(scram_secret_association)
 
         # outputs
         tf_resources.append(

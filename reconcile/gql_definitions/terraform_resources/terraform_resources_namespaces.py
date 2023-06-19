@@ -1022,7 +1022,7 @@ class NamespaceTerraformResourceRosaAuthenticatorVPCEV1(
     defaults: str = Field(..., alias="defaults")
 
 
-class SaasSecretParametersV1(ConfiguredBaseModel):
+class MskSecretParametersV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     secret: VaultSecret = Field(..., alias="secret")
 
@@ -1033,7 +1033,7 @@ class NamespaceTerraformResourceMskV1(NamespaceTerraformResourceAWSV1):
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
     defaults: str = Field(..., alias="defaults")
     annotations: Optional[str] = Field(..., alias="annotations")
-    users: Optional[list[SaasSecretParametersV1]] = Field(..., alias="users")
+    users: Optional[list[MskSecretParametersV1]] = Field(..., alias="users")
 
 
 class NamespaceTerraformProviderResourceAWSV1(NamespaceExternalResourceV1):
