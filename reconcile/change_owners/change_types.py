@@ -785,8 +785,14 @@ def init_change_type_processors(
                     f"change-type '{ctp.name}' inherits from '{d}' "
                     "but has a different context_schema"
                 )
+
+            # the higher level change type adopts the change detectors from his decentents
             for detector in processors[d].change_detectors:
                 ctp.add_change_detector(detector)
+
+            # the decentents adopt the context expansions from the higher level change type
+            for ce in ctp._context_expansions:
+                processors[d].add_context_expansion(ce)
 
     return processors
 
