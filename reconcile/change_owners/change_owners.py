@@ -276,7 +276,7 @@ def run(
         f"build_time {comparison_gql_api.commit_timestamp_utc})"
     )
     change_type_processors = fetch_change_type_processors(
-        gql.get_api(), file_diff_resolver
+        comparison_gql_api, file_diff_resolver
     )
 
     # an error while trying to cover changes will not fail the integration
