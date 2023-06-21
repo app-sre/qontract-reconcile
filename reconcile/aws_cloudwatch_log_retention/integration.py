@@ -8,7 +8,6 @@ from reconcile.queries import get_aws_accounts
 from reconcile.utils.aws_api import AWSApi
 
 QONTRACT_INTEGRATION = "aws_cloudwatch_log_retention"
-MANAGED_TAG = {"Key": "managed_by_integration", "Value": QONTRACT_INTEGRATION}
 
 
 class AWSCloudwatchLogRetention(BaseModel):
