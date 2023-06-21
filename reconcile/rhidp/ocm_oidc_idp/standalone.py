@@ -5,18 +5,14 @@ from reconcile.gql_definitions.common.ocm_environments import (
     query as ocm_environment_query,
 )
 from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
-from reconcile.gql_definitions.rhidp.clusters import (
-    ClusterAuthOIDCV1,
-    ClusterV1,
-    OpenShiftClusterManagerV1,
-)
+from reconcile.gql_definitions.rhidp.clusters import ClusterV1
 from reconcile.rhidp.common import (
     RHIDP_LABEL_KEY,
+    build_cluster_obj,
     discover_clusters,
 )
 from reconcile.rhidp.ocm_oidc_idp.base import run
 from reconcile.utils import gql
-from reconcile.utils.ocm.clusters import ClusterDetails
 from reconcile.utils.ocm_base_client import init_ocm_base_client
 from reconcile.utils.runtime.integration import (
     PydanticRunParams,
@@ -71,7 +67,7 @@ class OCMOidcIdpStandalone(QontractReconcileIntegration[OCMOidcIdpStandalonePara
         )
 
         return [
-            _build_cluster_obj_for_oidc_auth(
+            build_cluster_obj(
                 ocm_env=ocm_env,
                 cluster=c,
                 auth_name=self.params.auth_name,
@@ -88,37 +84,3 @@ class OCMOidcIdpStandalone(QontractReconcileIntegration[OCMOidcIdpStandalonePara
             if self.params.ocm_environment
             else None,
         ).environments
-
-
-def _build_cluster_obj_for_oidc_auth(
-    ocm_env: OCMEnvironment,
-    cluster: ClusterDetails,
-    auth_name: str,
-    auth_issuer_url: str,
-) -> ClusterV1:
-    return ClusterV1(
-        name=cluster.ocm_cluster.name,
-        ocm=OpenShiftClusterManagerV1(
-            name="",
-            environment=ocm_env,
-            orgId=cluster.organization_id,
-            # unused values
-            accessTokenClientId=None,
-            accessTokenClientSecret=None,
-            accessTokenUrl=None,
-            blockedVersions=None,
-            sectors=None,
-        ),
-        auth=[
-            ClusterAuthOIDCV1(
-                service="oidc",
-                name=auth_name,
-                issuer=auth_issuer_url,
-                # stick with the defaults
-                claims=None,
-            )
-        ],
-        # unused values
-        upgradePolicy=None,
-        disable=None,
-    )

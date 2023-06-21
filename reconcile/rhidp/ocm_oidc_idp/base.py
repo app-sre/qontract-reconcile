@@ -11,6 +11,7 @@ from reconcile.gql_definitions.rhidp.clusters import (
     ClusterV1,
 )
 from reconcile.ocm.types import OCMOidcIdp
+from reconcile.rhidp.common import cluster_vault_secret
 from reconcile.rhidp.metrics import (
     RhIdpReconcileCounter,
     RhIdpReconcileErrorCounter,
@@ -80,24 +81,20 @@ def fetch_desired_state(
     desired_state = []
     for cluster in clusters:
         for auth in cluster.auth:
-            if not isinstance(auth, ClusterAuthOIDCV1):
+            if (
+                not isinstance(auth, ClusterAuthOIDCV1)
+                or not auth.issuer
+                or not cluster.ocm
+            ):
+                # this cannot happen, this attribute is set via cluster retrieval method - just make mypy happy
                 continue
 
-            if not auth.issuer:
-                logging.error(
-                    f"{cluster.name} auth={auth.name} doesn't have an issuer url set."
-                )
-                sys.exit(1)
-
-            if not cluster.ocm:
-                logging.warning(
-                    f"{cluster.name} ocm reference not set. Skipping this cluster."
-                )
-                continue
-
-            secret = {
-                "path": f"{vault_input_path.rstrip('/')}/{cluster.ocm.org_id}-{cluster.name}/{auth.name}"
-            }
+            secret = cluster_vault_secret(
+                org_id=cluster.ocm.org_id,
+                cluster_name=cluster.name,
+                auth_name=auth.name,
+                vault_input_path=vault_input_path,
+            )
             try:
                 oauth_data = secret_reader.read_all(secret)
                 client_id = oauth_data["client_id"]

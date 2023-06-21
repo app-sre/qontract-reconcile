@@ -2039,7 +2039,11 @@ def ocm_github_idp(ctx, vault_input_path):
 
 
 @integration.command(short_help="Manage OIDC Identity Providers in OCM. Part of RHIDP.")
-@vault_input_path
+@click.option(
+    "--vault-input-path",
+    help="path in Vault to find input resources.",
+    required=True,
+)
 @click.pass_context
 def ocm_oidc_idp(ctx, vault_input_path):
     from reconcile.rhidp.ocm_oidc_idp.integration import (
@@ -2084,7 +2088,11 @@ def ocm_oidc_idp(ctx, vault_input_path):
     required=True,
     envvar="RHIDP_AUTH_ISSUER_URL",
 )
-@vault_input_path
+@click.option(
+    "--vault-input-path",
+    help="path in Vault to find input resources.",
+    required=True,
+)
 @click.pass_context
 def ocm_oidc_idp_standalone(
     ctx, ocm_env, ocm_org_ids, auth_name, auth_issuer_url, vault_input_path
