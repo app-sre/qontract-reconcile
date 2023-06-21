@@ -397,6 +397,9 @@ class _VaultClient:
         else:
             path_list = self._list(path)
 
+        if not path_list:
+            # path list can be None if the path does not exist
+            return []
         return path_list["data"]["keys"] or []
 
     def list_all(self, path):
@@ -410,6 +413,21 @@ class _VaultClient:
             else:
                 secrets.append(secret_path)
         return secrets
+
+    @retry()
+    def delete(self, path: str) -> None:
+        """Deletes a V1 secret from Vault."""
+        kv_version = self._get_mount_version_by_secret_path(path)
+        if kv_version == 2:
+            raise ValueError("deleting V2 secrets is not supported yet")
+        self._delete_v1(path)
+
+    def _delete_v1(self, path):
+        try:
+            self._client.delete(path)
+        except hvac.exceptions.Forbidden:
+            msg = f"permission denied accessing secret '{path}'"
+            raise SecretAccessForbidden(msg)
 
 
 class VaultClient:

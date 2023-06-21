@@ -1,7 +1,5 @@
-from typing import (
-    Any,
-    Callable,
-)
+from collections.abc import Callable
+from typing import Any
 from unittest.mock import Mock
 
 import pytest
@@ -40,6 +38,11 @@ def clusters(cluster_query_func: Callable) -> list[ClusterV1]:
     return common.get_clusters(
         integration.QONTRACT_INTEGRATION, cluster_query_func, "https://issuer.url"
     )
+
+
+@pytest.fixture
+def clusters_to_act_on(clusters: list[ClusterV1]) -> list[ClusterV1]:
+    return [c for c in clusters if c.name in ["cluster-1", "cluster-2", "cluster-3"]]
 
 
 @pytest.fixture

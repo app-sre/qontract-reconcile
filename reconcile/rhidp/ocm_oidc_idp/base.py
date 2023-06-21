@@ -1,6 +1,6 @@
 import logging
 import sys
-from typing import (
+from collections.abc import (
     Iterable,
     Sequence,
 )
@@ -17,6 +17,7 @@ from reconcile.rhidp.metrics import (
     RhIdpReconcileErrorCounter,
 )
 from reconcile.utils import metrics
+from reconcile.utils.keycloak import SSOClient
 from reconcile.utils.ocm import OCMMap
 from reconcile.utils.secret_reader import SecretReaderBase
 
@@ -96,16 +97,15 @@ def fetch_desired_state(
                 vault_input_path=vault_input_path,
             )
             try:
-                oauth_data = secret_reader.read_all(secret)
+                oauth_data = secret_reader.read_all_secret(secret)
             except Exception:
                 logging.warning(
-                    f"Unable to read secret in path {secret['path']}. "
+                    f"Unable to read secret in path {secret.path}. "
                     f"Maybe not created yet? Skipping OIDC config for cluster {cluster.name}"
                 )
                 continue
 
-            client_id = oauth_data["client_id"]
-            client_secret = oauth_data["client_secret"]
+            sso_client = SSOClient(**oauth_data)
             ec = (
                 auth.claims.email
                 if auth.claims and auth.claims.email
@@ -130,8 +130,8 @@ def fetch_desired_state(
                 OCMOidcIdp(
                     cluster=cluster.name,
                     name=auth.name,
-                    client_id=client_id,
-                    client_secret=client_secret,
+                    client_id=sso_client.client_id,
+                    client_secret=sso_client.client_secret,
                     issuer=auth.issuer,
                     email_claims=ec,
                     name_claims=nc,

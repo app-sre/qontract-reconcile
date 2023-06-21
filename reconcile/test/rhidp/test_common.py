@@ -1,4 +1,5 @@
-from typing import Callable
+from collections.abc import Callable
+from typing import Optional
 from unittest.mock import Mock
 
 import pytest
@@ -52,12 +53,11 @@ def test_rhidp_common_discover_clusters(
     mock = discover_clusters_by_labels_mock(cluster_name, org_id)
 
     clusters = common.discover_clusters(None, "org-id")  # type: ignore
-
     mock.assert_called_once_with(
         ocm_api=None,
         label_filter=subscription_label_filter()
         .eq("key", common.RHIDP_LABEL_KEY)
-        .eq("value", "enabled"),
+        .eq("value", common.RhidpLabelValue.ENABLED.value),
     )
 
     assert org_id in clusters
@@ -93,20 +93,36 @@ def test_rhidp_common_discover_clusters_without_org_filter(
     assert org_id in clusters
 
 
+def test_rhidp_common_discover_clusters_label_key(
+    discover_clusters_by_labels_mock: DiscoverClustersMock,
+) -> None:
+    org_id = "org-id"
+    cluster_name = "cluster-1"
+
+    mock = discover_clusters_by_labels_mock(cluster_name, org_id)
+
+    common.discover_clusters(None, "org-id")  # type: ignore
+    mock.assert_called_once_with(
+        ocm_api=None,
+        label_filter=subscription_label_filter()
+        .eq("key", common.RHIDP_LABEL_KEY)
+        .eq("value", common.RhidpLabelValue.ENABLED.value),
+    )
+
+    mock.reset_mock()
+    common.discover_clusters(None, "org-id", label_value=common.RhidpLabelValue.DISABLED)  # type: ignore
+    mock.assert_called_once_with(
+        ocm_api=None,
+        label_filter=subscription_label_filter()
+        .eq("key", common.RHIDP_LABEL_KEY)
+        .eq("value", common.RhidpLabelValue.DISABLED.value),
+    )
+
+
 def test_rhidp_common_build_cluster_obj(
     ocm_env: OCMEnvironment, build_cluster_rhidp_labels: LabelContainer
 ) -> None:
-    cluster_details = build_cluster_details(
-        cluster_name="cluster_name",
-        subscription_labels=build_cluster_rhidp_labels,
-        org_id="org_id",
-    )
-    assert common.build_cluster_obj(
-        ocm_env,
-        cluster_details,
-        auth_name="auth_name",
-        auth_issuer_url="https://foobar.com",
-    ) == ClusterV1(
+    expected_cluster = ClusterV1(
         name="cluster_name",
         consoleUrl="https://console.foobar.com",
         ocm=OpenShiftClusterManagerV1(
@@ -137,4 +153,111 @@ def test_rhidp_common_build_cluster_obj(
                 claims=None,
             )
         ],
+    )
+    cluster_details = build_cluster_details(
+        cluster_name="cluster_name",
+        subscription_labels=build_cluster_rhidp_labels,
+        org_id="org_id",
+    )
+    # with OIDC auth enabled
+    assert (
+        common.build_cluster_obj(
+            ocm_env,
+            cluster_details,
+            auth_name="auth_name",
+            auth_issuer_url="https://foobar.com",
+        )
+        == expected_cluster
+    )
+
+    # with no OIDC auth
+    expected_cluster.auth = []
+    assert (
+        common.build_cluster_obj(
+            ocm_env,
+            cluster_details,
+            auth_name=None,
+            auth_issuer_url="https://foobar.com",
+        )
+        == expected_cluster
+    )
+
+
+VI = "vault-input-path"
+ORG = "org_id"
+CLN = "cluster_name"
+AN = "auth_name"
+VID = f"{CLN}-{ORG}-{AN}"
+EXPECTED_SECRET = VaultSecret(
+    path=f"{VI}/{CLN}-{ORG}-{AN}", field="", version=None, format=None
+)
+
+
+@pytest.mark.parametrize(
+    "vault_input_path, org_id, cluster_name, auth_name, vault_secret_id, expected",
+    [
+        # no vault secret id
+        (VI, ORG, CLN, AN, None, EXPECTED_SECRET),
+        # with vault secret id
+        (VI, None, None, None, VID, EXPECTED_SECRET),
+        # org_id missing
+        pytest.param(
+            VI,
+            None,
+            CLN,
+            AN,
+            None,
+            EXPECTED_SECRET,
+            marks=pytest.mark.xfail(strict=True, raises=ValueError),
+        ),
+        # cluster_name missing
+        pytest.param(
+            VI,
+            ORG,
+            None,
+            AN,
+            None,
+            EXPECTED_SECRET,
+            marks=pytest.mark.xfail(strict=True, raises=ValueError),
+        ),
+        # auth_name missing
+        pytest.param(
+            VI,
+            ORG,
+            CLN,
+            None,
+            None,
+            EXPECTED_SECRET,
+            marks=pytest.mark.xfail(strict=True, raises=ValueError),
+        ),
+        # all params given - No error - vault_secret_id wins
+        (VI, ORG, CLN, AN, VID, EXPECTED_SECRET),
+    ],
+)
+def test_rhidp_common_cluster_vault_secret(
+    vault_input_path: str,
+    org_id: Optional[str],
+    cluster_name: Optional[str],
+    auth_name: Optional[str],
+    vault_secret_id: Optional[str],
+    expected: str,
+) -> None:
+    assert (
+        common.cluster_vault_secret(
+            vault_input_path=vault_input_path,
+            org_id=org_id,
+            cluster_name=cluster_name,
+            auth_name=auth_name,
+            vault_secret_id=vault_secret_id,
+        )
+        == expected
+    )
+
+
+def test_rhidp_common_cluster_vault_secret_id() -> None:
+    assert (
+        common.cluster_vault_secret_id(
+            org_id="org_id", cluster_name="cluster_name", auth_name="auth_name"
+        )
+        == "cluster_name-org_id-auth_name"
     )
