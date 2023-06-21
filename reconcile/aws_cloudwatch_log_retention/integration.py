@@ -1,53 +1,22 @@
 import logging
-import re
-import sys
 from collections.abc import (
     Callable,
-    Mapping,
 )
-from datetime import (
-    datetime,
-    timedelta,
-)
+
 from typing import (
     TYPE_CHECKING,
-    Any,
     Optional,
 )
 
-from reconcile.queries import get_aws_accounts
-
-
-from pydantic import BaseModel
-
-from botocore.exceptions import ClientError
 from pydantic import (
     BaseModel,
-    Field,
 )
 
 from reconcile import queries
-from reconcile.gql_definitions import (
-    ASGImageGitV1,
-    ASGImageStaticV1,
-    NamespaceTerraformProviderResourceAWSV1,
-    NamespaceTerraformResourceASGV1,
-    NamespaceV1,
-    AWSAccountV1,
-)
-from reconcile.gql_definitions.aws_ami_cleanup.asg_namespaces import (
-    query as query_asg_namespaces,
-)
-from reconcile.status import ExitCodes
-from reconcile.typed_queries.app_interface_vault_settings import (
-    get_app_interface_vault_settings,
-)
-from reconcile.utils import gql
+
+from reconcile.queries import get_aws_accounts
+
 from reconcile.utils.aws_api import AWSApi
-from reconcile.utils.defer import defer
-from reconcile.utils.parse_dhms_duration import dhms_to_seconds
-from reconcile.utils.secret_reader import create_secret_reader
-from reconcile.utils.terrascript_aws_client import TerrascriptClient as Terrascript
 
 if TYPE_CHECKING:
     from mypy_boto3_ec2 import EC2Client
@@ -57,14 +26,16 @@ else:
 QONTRACT_INTEGRATION = "aws_cloudwatch_log_retention"
 MANAGED_TAG = {"Key": "managed_by_integration", "Value": QONTRACT_INTEGRATION}
 
+
 class AWSCloudwatchLogRetention(BaseModel):
     name: str
     acct_uid: str
     log_regex: str
     log_retention_day_length: str
 
-def get_app_interface_cloudwatch_retention_period():
-        # aws_accounts: list[AWSAccountV1] = query_data.
+
+def get_app_interface_cloudwatch_retention_period() -> None:
+    # aws_accounts: list[AWSAccountV1] = query_data.
 
     # for aws_account in aws_accounts:
     #     logging.debug("this is the aws_account var")
@@ -88,14 +59,29 @@ def get_app_interface_cloudwatch_retention_period():
                     logging.debug(x)
                     logging.debug("x[regex] var")
                     logging.debug(x["regex"])
-                    results.append(AWSCloudwatchLogRetention(name=aws_acct_name, acct_uid=acct_uid, log_regex=x["regex"], log_retention_day_length=x['retention_in_days']))
+                    results.append(
+                        AWSCloudwatchLogRetention(
+                            name=aws_acct_name,
+                            acct_uid=acct_uid,
+                            log_regex=x["regex"],
+                            log_retention_day_length=x["retention_in_days"],
+                        )
+                    )
 
     logging.debug("results var")
     logging.debug(results)
     return results
 
 
-def set_cloudwatch_retention_period():
+def parse_log_retention_date(retention_period) -> int:
+    if retention_period[-1] == "d":
+        return int(retention_period[:-1])
+    raise ValueError(
+        "Invalid retention period format. Expected format is <numeric value>d"
+    )
+
+
+def run(dry_run: bool, thread_pool_size: int, defer: Optional[Callable] = None) -> None:
     cloudwatch_cleanup_list = get_app_interface_cloudwatch_retention_period()
     logging.debug("cloudwatch_cleanup_list var")
     logging.debug(cloudwatch_cleanup_list)
@@ -103,19 +89,15 @@ def set_cloudwatch_retention_period():
         settings = queries.get_secret_reader_settings()
         accounts = queries.get_aws_accounts(uid=cloudwatch_cleanup_entry.acct_uid)
         awsapi = AWSApi(1, accounts, settings=settings, init_users=False)
-        awsapi.set_cloudwatch_log_retention(accounts[0],cloudwatch_cleanup_entry.log_regex)
-        # AWSApi.set_cloudwatch_log_retention(cloudwatch_cleanup_entry["log_regex"],cloudwatch_cleanup_entry["acct_uid"])
-
-# def run(dry_run: bool):
-#     gqlapi = gql.get_api()
-
-#     valid = True
-#     if not validate_no_internal_to_public_peerings(query_data):
-#         valid = False
-#     if not validate_no_public_to_public_peerings(query_data):
-#         valid = False
-#     if not validate_no_cidr_overlap(query_data):
-#         valid = False
-
-#     if not valid:
-#         sys.exit(ExitCodes.ERROR)
+        logging.debug("cloudwatch_cleanup_entry.log_retention_day_length var")
+        logging.debug(cloudwatch_cleanup_entry.log_retention_day_length)
+        transformed_retention_day_length = parse_log_retention_date(
+            cloudwatch_cleanup_entry.log_retention_day_length
+        )
+        logging.debug("transformed_retention_day_length var")
+        logging.debug(transformed_retention_day_length)
+        awsapi.set_cloudwatch_log_retention(
+            accounts[0],
+            cloudwatch_cleanup_entry.log_regex,
+            transformed_retention_day_length,
+        )

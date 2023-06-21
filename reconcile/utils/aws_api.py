@@ -1030,12 +1030,12 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         }
         image.modify_attribute(LaunchPermission=launch_permission)
 
-    def set_cloudwatch_log_retention(self, account, regex_string):
+    def set_cloudwatch_log_retention(self, account, regex_string, retention_days):
         logging.debug("we are in aws_api now")
         cloudwatch_logs = self._account_cloudwatch_client(account["name"])
         logging.debug("cloudwatch_logs var")
         logging.debug(cloudwatch_logs)
-        log_groups = cloudwatch_logs.describe_log_groups()['logGroups']
+        log_groups = cloudwatch_logs.describe_log_groups()["logGroups"]
         regex_pattern = re.compile(regex_string)
         for log_group in log_groups:
             group_name = log_group["logGroupName"]
@@ -1044,6 +1044,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
             if regex_pattern.match(group_name):
                 logging.debug("we found a match!")
                 logging.debug(log_group)
+                # cloudwatch_logs.put_retention_policy(logGroupName=group_name, retentionInDays=retention_days)
                 # response = cloudwatch_logs.describe_log_groups()
                 # print(response['logGroups'])
 
