@@ -1,27 +1,15 @@
 import logging
-from collections.abc import (
-    Callable,
-)
-
+from collections.abc import Callable
 from typing import (
     TYPE_CHECKING,
     Optional,
 )
 
-from pydantic import (
-    BaseModel,
-)
+from pydantic import BaseModel
 
 from reconcile import queries
-
 from reconcile.queries import get_aws_accounts
-
 from reconcile.utils.aws_api import AWSApi
-
-if TYPE_CHECKING:
-    from mypy_boto3_ec2 import EC2Client
-else:
-    EC2Client = object
 
 QONTRACT_INTEGRATION = "aws_cloudwatch_log_retention"
 MANAGED_TAG = {"Key": "managed_by_integration", "Value": QONTRACT_INTEGRATION}
