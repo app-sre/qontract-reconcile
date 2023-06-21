@@ -116,15 +116,18 @@ class AdvancedUpgradeServiceIntegration(OCMClusterUpgradeSchedulerOrgIntegration
         dry_run: bool,
         org_upgrade_spec: OrganizationUpgradeSpec,
         exception: Exception,
-    ) -> None:
+    ) -> bool:
         """
         AUS will not fail on a reconcile issue. If issues should be noticed by an SRE team,
         alerts based on the metrics in the `reconcile.aus.metrics` module should be set up.
+
+        The function returns true to indicte that the exception was properly handled in the current context.
         """
         logging.error(
             f"Failed to reconcile cluster upgrades in OCM organization {org_upgrade_spec.org.org_id}",
             exc_info=exception,
         )
+        return True
 
 
 def discover_clusters(

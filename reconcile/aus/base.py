@@ -70,12 +70,22 @@ class AdvancedUpgradeSchedulerBaseIntegrationParams(PydanticRunParams):
     ignore_sts_clusters: bool = False
 
 
+class ReconcileErrorSummary(Exception):
+    def __init__(self, exceptions: list[str]) -> None:
+        self.exceptions = exceptions
+
+    def __str__(self) -> str:
+        formatted_exceptions = "\n".join([f"- {e}" for e in self.exceptions])
+        return f"Reconcile exceptions:\n{ formatted_exceptions }"
+
+
 class AdvancedUpgradeSchedulerBaseIntegration(
     QontractReconcileIntegration[AdvancedUpgradeSchedulerBaseIntegrationParams]
 ):
     def run(self, dry_run: bool) -> None:
         with metrics.transactional_metrics(self.name):
             upgrade_specs = self.get_upgrade_specs()
+            unhandled_exceptions = []
             for ocm_env, env_upgrade_specs in upgrade_specs.items():
                 for org_upgrade_spec in env_upgrade_specs.values():
                     try:
@@ -86,7 +96,15 @@ class AdvancedUpgradeSchedulerBaseIntegration(
                         ):
                             self.process_org(dry_run, ocm_env, org_upgrade_spec)
                     except Exception as e:
-                        self.signal_reconcile_issues(dry_run, org_upgrade_spec, e)
+                        if not self.signal_reconcile_issues(
+                            dry_run, org_upgrade_spec, e
+                        ):
+                            unhandled_exceptions.append(
+                                f"{ocm_env}/{org_upgrade_spec.org.name}: {e}"
+                            )
+
+        if unhandled_exceptions:
+            raise ReconcileErrorSummary(unhandled_exceptions)
         sys.exit(0)
 
     def process_org(
@@ -142,12 +160,14 @@ class AdvancedUpgradeSchedulerBaseIntegration(
         dry_run: bool,
         org_upgrade_spec: OrganizationUpgradeSpec,
         exception: Exception,
-    ) -> None:
+    ) -> bool:
         """
-        The default behaviour is to reraise the exception again so it is handled
-        high up in the stack, potentially also failing the integration.
+        The bool return value is used to indicate if the exception was properly handled.
+
+        The default behaviour returns False, indicating that the exception was not
+        handled so that it can bubble up and potentially fail the integration.
         """
-        raise exception
+        return False
 
     def expose_org_upgrade_spec_metrics(
         self, ocm_env: str, org_upgrade_spec: OrganizationUpgradeSpec
