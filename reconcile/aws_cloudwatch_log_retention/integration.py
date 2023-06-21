@@ -1,7 +1,6 @@
 import logging
 from collections.abc import Callable
 from typing import (
-    TYPE_CHECKING,
     Optional,
 )
 
@@ -22,7 +21,7 @@ class AWSCloudwatchLogRetention(BaseModel):
     log_retention_day_length: str
 
 
-def get_app_interface_cloudwatch_retention_period() -> None:
+def get_app_interface_cloudwatch_retention_period() -> list:
     # aws_accounts: list[AWSAccountV1] = query_data.
 
     # for aws_account in aws_accounts:
@@ -61,7 +60,7 @@ def get_app_interface_cloudwatch_retention_period() -> None:
     return results
 
 
-def parse_log_retention_date(retention_period) -> int:
+def parse_log_retention_date(retention_period: str) -> int:
     if retention_period[-1] == "d":
         return int(retention_period[:-1])
     raise ValueError(
