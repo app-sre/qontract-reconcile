@@ -178,6 +178,11 @@ def act(
             # no changes detected
             continue
 
+        if desired_idp.issuer != current_idp.issuer:
+            raise ValueError(
+                "Cannot change issuer of an identity provider. Please remove and re-add it."
+            )
+
         logging.info(["update_oidc_idp", desired_idp.cluster, desired_idp.name])
         if not current_idp.id:
             logging.error(

@@ -1,6 +1,8 @@
 from collections.abc import Iterable
 from unittest.mock import Mock
 
+import pytest
+
 from reconcile.gql_definitions.rhidp.clusters import ClusterV1
 from reconcile.ocm.types import OCMOidcIdp
 from reconcile.rhidp.ocm_oidc_idp.base import (
@@ -144,7 +146,7 @@ def test_ocm_oidc_idp_act(ocm_map: Mock) -> None:
     )
     current_state = [cluster_in_sync, cluster_to_be_removed, cluster_to_be_changed]
     cluster_to_be_changed_copy = cluster_to_be_changed.copy(deep=True)
-    cluster_to_be_changed_copy.issuer = "http://some-other-issuer.com"
+    cluster_to_be_changed_copy.username_claims = ["username", "preferred_username"]
     desired_state = [cluster_in_sync, cluster_to_be_added, cluster_to_be_changed_copy]
 
     # dry-run
@@ -175,3 +177,31 @@ def test_ocm_oidc_idp_act(ocm_map: Mock) -> None:
     ocm.update_oidc_idp.assert_called_once_with(
         cluster_to_be_changed.id, cluster_to_be_changed_copy
     )
+
+
+def test_ocm_oidc_idp_act_issuer_change_not_allowed(ocm_map: Mock) -> None:
+    test_cluster = OCMOidcIdp(
+        id="idp-id-cluster-1",
+        cluster="cluster-1",
+        name="oidc-auth",
+        client_id="client-id-cluster-1",
+        client_secret=None,
+        issuer="https://issuer.com",
+        email_claims=["email"],
+        name_claims=["name"],
+        username_claims=["username"],
+        groups_claims=[],
+    )
+
+    current_state = [test_cluster]
+    test_cluster_copy = test_cluster.copy(deep=True)
+    test_cluster_copy.issuer = "http://some-other-issuer.com"
+    desired_state = [test_cluster_copy]
+
+    with pytest.raises(ValueError):
+        act(
+            dry_run=True,
+            ocm_map=ocm_map,
+            current_state=current_state,
+            desired_state=desired_state,
+        )
