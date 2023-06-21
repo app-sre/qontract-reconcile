@@ -20,7 +20,7 @@ saas_files:
     defaults:
       pipelineTemplates:
         openshiftSaasDeploy:
-          name: openshift-saas-deploy
+          name: saas-deploy
   managedResourceTypes: []
   imagePatterns: []
   parameters: |
@@ -86,7 +86,7 @@ saas_files:
     defaults:
       pipelineTemplates:
         openshiftSaasDeploy:
-          name: openshift-saas-deploy
+          name: saas-deploy
   managedResourceTypes: []
   imagePatterns: []
   resourceTemplates:
@@ -144,7 +144,7 @@ saas_files:
     defaults:
       pipelineTemplates:
         openshiftSaasDeploy:
-          name: openshift-saas-deploy
+          name: saas-deploy
   managedResourceTypes: []
   imagePatterns: []
   resourceTemplates:

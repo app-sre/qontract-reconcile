@@ -1,5 +1,5 @@
 {
-  "name": "provider1",
+  "name": "provider6-too-long-pipeline-name",
   "provider": "tekton",
   "defaults": {
     "retention": {
@@ -22,9 +22,9 @@
     ],
     "pipelineTemplates": {
       "openshiftSaasDeploy": {
-        "name": "saas-deploy",
+        "name": "saas-deploy-too-long-name",
         "type": "onePerSaasFile",
-        "path": "saas-deploy.pipeline.yaml.j2",
+        "path": "saas-deploy-too-long-name.pipeline.yaml.j2",
         "variables": null
       }
     }
