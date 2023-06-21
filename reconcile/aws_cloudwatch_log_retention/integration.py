@@ -1,8 +1,6 @@
 import logging
 from collections.abc import Callable
-from typing import (
-    Optional,
-)
+from typing import Optional
 
 from pydantic import BaseModel
 
