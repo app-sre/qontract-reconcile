@@ -7,6 +7,8 @@ from unittest.mock import Mock
 import pytest
 from pytest_mock import MockerFixture
 
+from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
+from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.gql_definitions.rhidp.clusters import ClusterV1
 from reconcile.ocm.types import OCMOidcIdp
 from reconcile.rhidp import common
@@ -35,7 +37,9 @@ def cluster_query_func(fx: Fixtures) -> Callable:
 
 @pytest.fixture
 def clusters(cluster_query_func: Callable) -> list[ClusterV1]:
-    return common.get_clusters(integration.QONTRACT_INTEGRATION, cluster_query_func)
+    return common.get_clusters(
+        integration.QONTRACT_INTEGRATION, cluster_query_func, "https://issuer.url"
+    )
 
 
 @pytest.fixture
@@ -54,3 +58,16 @@ def build_cluster_rhidp_labels() -> LabelContainer:
         build_label(common.RHIDP_LABEL_KEY, "enabled"),
     ]
     return build_label_container(labels)
+
+
+@pytest.fixture
+def ocm_env() -> OCMEnvironment:
+    return OCMEnvironment(
+        name="env",
+        url="https://ocm",
+        accessTokenUrl="https://sso/token",
+        accessTokenClientId="client-id",
+        accessTokenClientSecret=VaultSecret(
+            field="client-secret", path="path", format=None, version=None
+        ),
+    )

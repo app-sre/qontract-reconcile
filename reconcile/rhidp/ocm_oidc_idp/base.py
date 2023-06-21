@@ -97,14 +97,15 @@ def fetch_desired_state(
             )
             try:
                 oauth_data = secret_reader.read_all(secret)
-                client_id = oauth_data["client_id"]
-                client_secret = oauth_data["client_secret"]
             except Exception:
                 logging.warning(
                     f"Unable to read secret in path {secret['path']}. "
                     f"Maybe not created yet? Skipping OIDC config for cluster {cluster.name}"
                 )
                 continue
+
+            client_id = oauth_data["client_id"]
+            client_secret = oauth_data["client_secret"]
             ec = (
                 auth.claims.email
                 if auth.claims and auth.claims.email

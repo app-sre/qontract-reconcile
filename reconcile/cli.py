@@ -2044,8 +2044,14 @@ def ocm_github_idp(ctx, vault_input_path):
     help="path in Vault to find input resources.",
     required=True,
 )
+@click.option(
+    "--default-auth-issuer-url",
+    default="https://auth.redhat.com/auth/realms/EmployeeIDP",
+    help="Use this Issuer (SSO server) URL if nothing else is specified in the cluster.auth config.",
+    required=True,
+)
 @click.pass_context
-def ocm_oidc_idp(ctx, vault_input_path):
+def ocm_oidc_idp(ctx, vault_input_path, default_auth_issuer_url):
     from reconcile.rhidp.ocm_oidc_idp.integration import (
         OCMOidcIdpIntegration,
         OCMOidcIdpIntegrationParams,
@@ -2053,7 +2059,10 @@ def ocm_oidc_idp(ctx, vault_input_path):
 
     run_class_integration(
         integration=OCMOidcIdpIntegration(
-            OCMOidcIdpIntegrationParams(vault_input_path=vault_input_path)
+            OCMOidcIdpIntegrationParams(
+                vault_input_path=vault_input_path,
+                default_auth_issuer_url=default_auth_issuer_url,
+            )
         ),
         ctx=ctx.obj,
     )

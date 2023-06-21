@@ -19,6 +19,7 @@ clusters:
       orgId: "org-id"
       blockedVersions: []
       sectors: null
+    consoleUrl: "https://console.url.com"
     upgradePolicy: null
     disable: null
     auth:
@@ -52,6 +53,7 @@ clusters:
       orgId: "org-id"
       blockedVersions: []
       sectors: null
+    consoleUrl: "https://console.url.com"
     upgradePolicy: null
     disable: null
     auth:
@@ -91,6 +93,7 @@ clusters:
       orgId: "org-id"
       blockedVersions: []
       sectors: null
+    consoleUrl: "https://console.url.com"
     upgradePolicy: null
     disable: null
     auth:
@@ -98,6 +101,7 @@ clusters:
   # no ocm - must be ignored
   - name: cluster-4
     ocm: null
+    consoleUrl: "https://console.url.com"
     upgradePolicy: null
     disable: null
     auth:
@@ -132,6 +136,7 @@ clusters:
       orgId: "org-id"
       blockedVersions: []
       sectors: null
+    consoleUrl: "https://console.url.com"
     upgradePolicy: null
     disable:
       integrations:

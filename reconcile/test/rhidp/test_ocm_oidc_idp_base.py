@@ -46,8 +46,21 @@ def test_ocm_oidc_idp_fetch_desired_state(
     secret_reader: Mock, clusters: Iterable[ClusterV1]
 ) -> None:
     secret_reader.read_all.return_value = {
-        "client_id": "client-id",
-        "client_secret": "client-secret",
+        "client_id": "just-garbage",
+        "client_id_issued_at": 0,
+        "client_name": "just-garbage",
+        "client_secret": "just-garbage",
+        "client_secret_expires_at": 0,
+        "grant_types": ["just-garbage"],
+        "redirect_uris": ["just-garbage"],
+        "registration_access_token": "just-garbage",
+        "registration_client_uri": "just-garbage",
+        "request_uris": ["just-garbage"],
+        "response_types": ["just-garbage"],
+        "subject_type": "just-garbage",
+        "tls_client_certificate_bound_access_tokens": False,
+        "token_endpoint_auth_method": "just-garbage",
+        "issuer": "just-garbage",
     }
     desired_state = fetch_desired_state(
         secret_reader, clusters, vault_input_path="foo/bar"

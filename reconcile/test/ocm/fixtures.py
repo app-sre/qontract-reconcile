@@ -20,6 +20,7 @@ from reconcile.utils.ocm.clusters import (
     OCMCapability,
     OCMCluster,
     OCMClusterAWSSettings,
+    OCMClusterConsole,
     OCMClusterFlag,
     OCMClusterState,
     OCMClusterVersion,
@@ -118,6 +119,7 @@ def build_ocm_cluster(
         aws=aws_config,
         version=OCMClusterVersion(id=f"openshift-v{version}", raw_id="version"),
         hypershift=OCMClusterFlag(enabled=hypershift),
+        console=OCMClusterConsole(url="https://console.foobar.com"),
     )
 
 
