@@ -751,7 +751,9 @@ class OCM:  # pylint: disable=too-many-public-methods
     def is_ready(self, cluster):
         return cluster in self.clusters
 
-    def _get_ocm_impl(self, product: str, hypershift: bool = False) -> OCMProduct:
+    def _get_ocm_impl(
+        self, product: str, hypershift: Optional[bool] = False
+    ) -> type[OCMProduct]:
         if hypershift:
             return OCM_PRODUCTS_IMPL[OCM_PRODUCT_HYPERSHIFT]
         return OCM_PRODUCTS_IMPL[product]
