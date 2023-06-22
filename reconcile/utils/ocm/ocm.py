@@ -96,6 +96,7 @@ SPEC_ATTR_PATH = "path"
 
 OCM_PRODUCT_OSD = "osd"
 OCM_PRODUCT_ROSA = "rosa"
+OCM_PRODUCT_HYPERSHIFT = "hypershift"
 
 
 class OCMProduct:
@@ -524,9 +525,121 @@ class OCMProductRosa(OCMProduct):
         return ocm_spec
 
 
+class OCMProductHypershift(OCMProduct):
+    # Not a real product, but a way to represent the Hypershift specialties
+    ALLOWED_SPEC_UPDATE_FIELDS = {
+        # needs implementation, see: https://issues.redhat.com/browse/OCM-2144
+        # SPEC_ATTR_CHANNEL,
+        # needs implementation, see: https://issues.redhat.com/browse/OCM-915
+        # SPEC_ATTR_PRIVATE,
+        SPEC_ATTR_DISABLE_UWM,
+    }
+
+    EXCLUDED_SPEC_FIELDS = {
+        SPEC_ATTR_ID,
+        SPEC_ATTR_EXTERNAL_ID,
+        SPEC_ATTR_PROVISION_SHARD_ID,
+        SPEC_ATTR_VERSION,
+        SPEC_ATTR_INITIAL_VERSION,
+        SPEC_ATTR_ACCOUNT,
+        SPEC_ATTR_HYPERSHIFT,
+        SPEC_ATTR_SUBNET_IDS,
+        SPEC_ATTR_AVAILABILITY_ZONES,
+    }
+
+    @staticmethod
+    def create_cluster(ocm: OCM, name: str, cluster: OCMSpec, dry_run: bool):
+        logging.error("Please use rosa cli to create new clusters")
+
+    @staticmethod
+    def update_cluster(ocm: OCM, cluster_name: str, update_spec: Mapping[str, Any]):
+        ocm_spec = OCMProductRosa._get_update_cluster_spec(update_spec)
+        cluster_id = ocm.cluster_ids.get(cluster_name)
+        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}"
+        params: dict[str, Any] = {}
+        ocm._patch(api, ocm_spec, params)
+
+    @staticmethod
+    def get_ocm_spec(
+        ocm: OCM, cluster: Mapping[str, Any], init_provision_shards: bool
+    ) -> OCMSpec:
+
+        if init_provision_shards:
+            provision_shard_id = ocm.get_provision_shard(cluster["id"])["id"]
+        else:
+            provision_shard_id = None
+
+        account = ROSAClusterAWSAccount(
+            uid=cluster["properties"]["rosa_creator_arn"].split(":")[4],
+            rosa=ROSAOcmAwsAttrs(
+                creator_role_arn=cluster["properties"]["rosa_creator_arn"],
+                installer_role_arn=cluster["aws"]["sts"]["role_arn"],
+                support_role_arn=cluster["aws"]["sts"]["support_role_arn"],
+                controlplane_role_arn=cluster["aws"]["sts"]["instance_iam_roles"].get(
+                    "master_role_arn"
+                ),
+                worker_role_arn=cluster["aws"]["sts"]["instance_iam_roles"][
+                    "worker_role_arn"
+                ],
+            ),
+        )
+
+        spec = ROSAClusterSpec(
+            product=cluster["product"]["id"],
+            account=account,
+            id=cluster["id"],
+            external_id=cluster.get("external_id"),
+            provider=cluster["cloud_provider"]["id"],
+            region=cluster["region"]["id"],
+            channel=cluster["version"]["channel_group"],
+            version=cluster["version"]["raw_id"],
+            multi_az=cluster["multi_az"],
+            instance_type=cluster["nodes"]["compute_machine_type"]["id"],
+            private=cluster["api"]["listening"] == "internal",
+            disable_user_workload_monitoring=cluster[
+                "disable_user_workload_monitoring"
+            ],
+            provision_shard_id=provision_shard_id,
+            nodes=cluster["nodes"].get("compute"),
+            subnet_ids=cluster["aws"].get("subnet_ids"),
+            availability_zones=cluster["nodes"].get("availability_zones"),
+            hypershift=cluster["hypershift"]["enabled"],
+        )
+
+        network = OCMClusterNetwork(
+            type=cluster["network"].get("type") or "OVNKubernetes",
+            vpc=cluster["network"]["machine_cidr"],
+            service=cluster["network"]["service_cidr"],
+            pod=cluster["network"]["pod_cidr"],
+        )
+
+        ocm_spec = OCMSpec(
+            # Hosted control plane clusters can reach a Ready State without having the console
+            # Endpoint
+            console_url=cluster.get("console", {}).get("url", ""),
+            server_url=cluster["api"]["url"],
+            domain=cluster["dns"]["base_domain"],
+            spec=spec,
+            network=network,
+        )
+
+        return ocm_spec
+
+    @staticmethod
+    def _get_update_cluster_spec(update_spec: Mapping[str, Any]) -> dict[str, Any]:
+        ocm_spec: dict[str, Any] = {}
+
+        disable_uwm = update_spec.get(SPEC_ATTR_DISABLE_UWM)
+        if disable_uwm is not None:
+            ocm_spec["disable_user_workload_monitoring"] = disable_uwm
+
+        return ocm_spec
+
+
 OCM_PRODUCTS_IMPL = {
     OCM_PRODUCT_OSD: OCMProductOsd,
     OCM_PRODUCT_ROSA: OCMProductRosa,
+    OCM_PRODUCT_HYPERSHIFT: OCMProductHypershift,
 }
 
 
@@ -638,26 +751,30 @@ class OCM:  # pylint: disable=too-many-public-methods
     def is_ready(self, cluster):
         return cluster in self.clusters
 
-    def _get_ocm_impl(self, product: str):
+    def _get_ocm_impl(self, product: str, hypershift: bool = False) -> OCMProduct:
+        if hypershift:
+            return OCM_PRODUCTS_IMPL[OCM_PRODUCT_HYPERSHIFT]
         return OCM_PRODUCTS_IMPL[product]
 
     def _get_cluster_ocm_spec(
         self, cluster: Mapping[str, Any], init_provision_shards: bool
     ) -> OCMSpec:
 
-        impl = self._get_ocm_impl(cluster["product"]["id"])
+        impl = self._get_ocm_impl(
+            cluster["product"]["id"], cluster["hypershift"]["enabled"]
+        )
         spec = impl.get_ocm_spec(self, cluster, init_provision_shards)
         return spec
 
     def create_cluster(self, name: str, cluster: OCMSpec, dry_run: bool):
-        impl = self._get_ocm_impl(cluster.spec.product)
+        impl = self._get_ocm_impl(cluster.spec.product, cluster.spec.hypershift)
         impl.create_cluster(self, name, cluster, dry_run)
 
     def update_cluster(
         self, cluster_name: str, update_spec: Mapping[str, Any], dry_run=False
     ):
         cluster = self.clusters[cluster_name]
-        impl = self._get_ocm_impl(cluster.spec.product)
+        impl = self._get_ocm_impl(cluster.spec.product, cluster.spec.hypershift)
         impl.update_cluster(self, cluster_name, update_spec)
 
     def get_group_if_exists(self, cluster, group_id):
