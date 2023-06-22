@@ -371,7 +371,7 @@ def run(
 
     if not accounts:
         logging.warning(
-            f"No participating aws accounts found, consider disable this integration, account name: {account_name}"
+            f"No participating AWS accounts found, consider disabling this integration, account name: {account_name}"
         )
         return
 

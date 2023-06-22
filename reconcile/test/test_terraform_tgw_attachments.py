@@ -590,7 +590,7 @@ def test_empty_run(
     integ.run(False, enable_deletion=False)
 
     mocks["logging"].warning.assert_called_once_with(
-        "No participating aws accounts found, consider disable this integration, account name: None"
+        "No participating AWS accounts found, consider disabling this integration, account name: None"
     )
     mocks["get_clusters_with_peering"].assert_called_once_with(mocks["gql_api"])
     mocks["get_aws_accounts"].assert_called_once_with(mocks["gql_api"], name=None)
