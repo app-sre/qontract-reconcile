@@ -166,6 +166,8 @@ class AdvancedUpgradeSchedulerBaseIntegration(
 
         The default behaviour returns False, indicating that the exception was not
         handled so that it can bubble up and potentially fail the integration.
+
+        This function can be overridden to handle exceptions in a custom way.
         """
         return False
 
