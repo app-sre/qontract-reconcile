@@ -62,6 +62,9 @@ class Renderer:
         # TODO: make prettier
         # this function is hell - but well tested
         yml = YAML(typ="rt", pure=True)
+        yml.preserve_quotes = True
+        # Lets prevent line wraps
+        yml.width = 4096
         content = yml.load(current_content)
         targets = self._find_saas_file_targets(subscriber=subscriber, content=content)
         for target in targets:
