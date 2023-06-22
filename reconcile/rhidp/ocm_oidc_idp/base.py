@@ -1,31 +1,62 @@
 import logging
 import sys
-from collections.abc import (
-    Callable,
+from typing import (
     Iterable,
     Sequence,
 )
-from typing import Any
 
 from reconcile import queries
-from reconcile.gql_definitions.ocm_oidc_idp.clusters import (
+from reconcile.gql_definitions.rhidp.clusters import (
     ClusterAuthOIDCV1,
     ClusterV1,
 )
-from reconcile.gql_definitions.ocm_oidc_idp.clusters import query as cluster_query
 from reconcile.ocm.types import OCMOidcIdp
-from reconcile.status import ExitCodes
-from reconcile.utils import gql
-from reconcile.utils.disabled_integrations import integration_is_enabled
+from reconcile.rhidp.common import cluster_vault_secret
+from reconcile.rhidp.metrics import (
+    RhIdpReconcileCounter,
+    RhIdpReconcileErrorCounter,
+)
+from reconcile.utils import metrics
 from reconcile.utils.ocm import OCMMap
-from reconcile.utils.secret_reader import SecretReader
-
-QONTRACT_INTEGRATION = "ocm-oidc-idp"
+from reconcile.utils.secret_reader import SecretReaderBase
 
 DEFAULT_EMAIL_CLAIMS: list[str] = ["email"]
 DEFAULT_NAME_CLAIMS: list[str] = ["name"]
 DEFAULT_USERNAME_CLAIMS: list[str] = ["preferred_username"]
 DEFAULT_GROUPS_CLAIMS: list[str] = []
+
+
+def run(
+    integration_name: str,
+    clusters: Iterable[ClusterV1],
+    secret_reader: SecretReaderBase,
+    vault_input_path: str,
+    dry_run: bool,
+) -> None:
+    with metrics.transactional_metrics(integration_name) as metrics_container:
+        # APIs
+        settings = queries.get_app_interface_settings()
+        ocm_map = OCMMap(
+            clusters=[cluster.dict(by_alias=True) for cluster in clusters],
+            integration=integration_name,
+            settings=settings,
+        )
+
+        try:
+            # run
+            current_state = fetch_current_state(ocm_map, clusters)
+            desired_state = fetch_desired_state(
+                secret_reader, clusters, vault_input_path
+            )
+            act(dry_run, ocm_map, current_state, desired_state)
+            metrics_container.inc_counter(
+                RhIdpReconcileCounter(integration=integration_name)
+            )
+        except Exception:
+            metrics_container.inc_counter(
+                RhIdpReconcileErrorCounter(integration=integration_name)
+            )
+            raise
 
 
 def fetch_current_state(
@@ -42,35 +73,39 @@ def fetch_current_state(
 
 
 def fetch_desired_state(
-    secret_reader: SecretReader,
+    secret_reader: SecretReaderBase,
     clusters: Iterable[ClusterV1],
     vault_input_path: str,
 ) -> list[OCMOidcIdp]:
     """Compile a list of desired OIDC identity providers from app-interface."""
     desired_state = []
-    error = False
     for cluster in clusters:
         for auth in cluster.auth:
-            if not isinstance(auth, ClusterAuthOIDCV1):
+            if (
+                not isinstance(auth, ClusterAuthOIDCV1)
+                or not auth.issuer
+                or not cluster.ocm
+            ):
+                # this cannot happen, this attribute is set via cluster retrieval method - just make mypy happy
                 continue
 
-            if not auth.issuer:
-                logging.error(
-                    f"{cluster.name} auth={auth.name} doesn't have an issuer url set."
-                )
-                sys.exit(1)
-
-            secret = {
-                "path": f"{vault_input_path.rstrip('/')}/{QONTRACT_INTEGRATION}/{auth.name}/{cluster.name}"
-            }
+            secret = cluster_vault_secret(
+                org_id=cluster.ocm.org_id,
+                cluster_name=cluster.name,
+                auth_name=auth.name,
+                vault_input_path=vault_input_path,
+            )
             try:
                 oauth_data = secret_reader.read_all(secret)
-                client_id = oauth_data["client_id"]
-                client_secret = oauth_data["client_secret"]
             except Exception:
-                logging.error(f"unable to read secret in path {secret['path']}")
-                error = True
+                logging.warning(
+                    f"Unable to read secret in path {secret['path']}. "
+                    f"Maybe not created yet? Skipping OIDC config for cluster {cluster.name}"
+                )
                 continue
+
+            client_id = oauth_data["client_id"]
+            client_secret = oauth_data["client_secret"]
             ec = (
                 auth.claims.email
                 if auth.claims and auth.claims.email
@@ -105,9 +140,6 @@ def fetch_desired_state(
                 )
             )
 
-    if error:
-        sys.exit(1)
-
     return desired_state
 
 
@@ -121,11 +153,6 @@ def act(
     to_add = set(desired_state) - set(current_state)
     to_remove = set(current_state) - set(desired_state)
     to_compare = set(current_state) & set(desired_state)
-    for idp in to_add:
-        logging.info(["create_oidc_idp", idp.cluster, idp.name])
-        if not dry_run:
-            ocm = ocm_map.get(idp.cluster)
-            ocm.create_oidc_idp(idp)
 
     for idp in to_remove:
         logging.info(["remove_oidc_idp", idp.cluster, idp.name])
@@ -138,12 +165,23 @@ def act(
             ocm = ocm_map.get(idp.cluster)
             ocm.delete_idp(idp.cluster, idp.id)
 
+    for idp in to_add:
+        logging.info(["create_oidc_idp", idp.cluster, idp.name])
+        if not dry_run:
+            ocm = ocm_map.get(idp.cluster)
+            ocm.create_oidc_idp(idp)
+
     for idp in to_compare:
         current_idp = current_state[current_state.index(idp)]
         desired_idp = desired_state[desired_state.index(idp)]
         if not current_idp.differ(desired_idp):
             # no changes detected
             continue
+
+        if desired_idp.issuer != current_idp.issuer:
+            raise ValueError(
+                "Cannot change issuer of an identity provider. Please remove and re-add it."
+            )
 
         logging.info(["update_oidc_idp", desired_idp.cluster, desired_idp.name])
         if not current_idp.id:
@@ -154,45 +192,3 @@ def act(
         if not dry_run:
             ocm = ocm_map.get(desired_idp.cluster)
             ocm.update_oidc_idp(current_idp.id, desired_idp)
-
-
-def get_clusters(query_func: Callable) -> list[ClusterV1]:
-    """Get all clusters with an OCM relation from app-interface."""
-    data = cluster_query(query_func, variables={})
-    return [
-        c
-        for c in data.clusters or []
-        if integration_is_enabled(QONTRACT_INTEGRATION, c) and c.ocm is not None
-    ]
-
-
-def run(dry_run: bool, vault_input_path: str) -> None:
-    if not vault_input_path:
-        logging.error("must supply vault input path")
-        sys.exit(1)
-    gqlapi = gql.get_api()
-    settings = queries.get_app_interface_settings()
-    secret_reader = SecretReader(settings=settings)
-
-    # data query
-    clusters = get_clusters(gqlapi.query)
-    if not clusters:
-        logging.debug("No oidc-idp definitions found in app-interface")
-        sys.exit(ExitCodes.SUCCESS)
-
-    # APIs
-    ocm_map = OCMMap(
-        clusters=[cluster.dict(by_alias=True) for cluster in clusters],
-        integration=QONTRACT_INTEGRATION,
-        settings=settings,
-    )
-
-    # run
-    current_state = fetch_current_state(ocm_map, clusters)
-    desired_state = fetch_desired_state(secret_reader, clusters, vault_input_path)
-    act(dry_run, ocm_map, current_state, desired_state)
-
-
-def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
-    gqlapi = gql.get_api()
-    return {"clusters": [c.dict() for c in get_clusters(gqlapi.query)]}
