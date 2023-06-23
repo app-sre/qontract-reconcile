@@ -78,6 +78,10 @@ class MachinePool(AbstractPool):
         update_dict = self.dict(by_alias=True)
         # can not update instance_type
         del update_dict["instance_type"]
+        if not update_dict["labels"]:
+            del update_dict["labels"]
+        if not update_dict["taints"]:
+            del update_dict["taints"]
         ocm.update_machine_pool(self.cluster, update_dict)
 
     def has_diff(self, pool: ClusterMachinePoolV1) -> bool:
@@ -104,7 +108,7 @@ class MachinePool(AbstractPool):
             id=pool.q_id,
             replicas=pool.replicas,
             instance_type=pool.instance_type,
-            taints=pool.taints,
+            taints=[p.dict(by_alias=True) for p in pool.taints or []],
             labels=pool.labels,
             cluster=cluster,
         )
@@ -132,6 +136,10 @@ class NodePool(AbstractPool):
         del update_dict["aws_node_pool"]
         # can not update subnet
         del update_dict["subnet"]
+        if not update_dict["labels"]:
+            del update_dict["labels"]
+        if not update_dict["taints"]:
+            del update_dict["taints"]
         ocm.update_node_pool(self.cluster, update_dict)
 
     def has_diff(self, pool: ClusterMachinePoolV1) -> bool:
@@ -163,7 +171,7 @@ class NodePool(AbstractPool):
             aws_node_pool=AWSNodePool(
                 instance_type=pool.instance_type,
             ),
-            taints=pool.taints,
+            taints=[p.dict(by_alias=True) for p in pool.taints or []],
             labels=pool.labels,
             subnet=pool.subnet,
             cluster=cluster,
@@ -312,16 +320,26 @@ def calculate_diff(
                         )
                     )
                 else:
-                    print(current_machine_pool[0])
-                    diffs.append(
-                        PoolHandler(
-                            action="update",
-                            pool=NodePool.create_from_gql(
-                                pool=desired_machine_pool,
-                                cluster=desired.cluster_name,
-                            ),
+                    if desired.hypershift:
+                        diffs.append(
+                            PoolHandler(
+                                action="update",
+                                pool=NodePool.create_from_gql(
+                                    pool=desired_machine_pool,
+                                    cluster=desired.cluster_name,
+                                ),
+                            )
                         )
-                    )
+                    else:
+                        diffs.append(
+                            PoolHandler(
+                                action="update",
+                                pool=MachinePool.create_from_gql(
+                                    pool=desired_machine_pool,
+                                    cluster=desired.cluster_name,
+                                ),
+                            )
+                        )
 
     for cluster_name, machine_pools in current_state.items():
         for pool in machine_pools:
