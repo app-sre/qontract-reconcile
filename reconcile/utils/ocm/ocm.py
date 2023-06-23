@@ -49,6 +49,15 @@ AMS_API_BASE = "/api/accounts_mgmt"
 CS_API_BASE = "/api/clusters_mgmt"
 
 MACHINE_POOL_DESIRED_KEYS = {"id", "instance_type", "replicas", "labels", "taints"}
+NODE_POOL_DESIRED_KEYS = {
+    "id",
+    "instance_type",
+    "replicas",
+    "labels",
+    "taints",
+    "aws_node_pool",
+    "subnet",
+}
 UPGRADE_CHANNELS = {"stable", "fast", "candidate"}
 UPGRADE_POLICY_DESIRED_KEYS = {"id", "schedule_type", "schedule", "next_run", "version"}
 ADDON_UPGRADE_POLICY_DESIRED_KEYS = {
@@ -1222,6 +1231,71 @@ class OCM:  # pylint: disable=too-many-public-methods
             + f"{machine_pool_id}"
         )
         self._delete(api)
+
+    def get_node_pools(self, cluster):
+        """Returns a list of details of Node Pools
+
+        :param cluster: cluster name
+
+        :type cluster: string
+        """
+        results = []
+        cluster_id = self.cluster_ids.get(cluster)
+        if not cluster_id:
+            return results
+        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/node_pools"
+        items = self._get_json(api).get("items")
+        if not items:
+            return results
+
+        for item in items:
+            result = {k: v for k, v in item.items() if k in NODE_POOL_DESIRED_KEYS}
+            results.append(result)
+
+        return results
+
+    def delete_node_pool(self, cluster, spec):
+        """Deletes an existing Node Pool
+
+        :param cluster: cluster name
+        :param spec: required information for node pool update
+
+        :type cluster: string
+        :type spec: dictionary
+        """
+        cluster_id = self.cluster_ids[cluster]
+        node_pool_id = spec["id"]
+        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/node_pools/" + f"{node_pool_id}"
+        self._delete(api)
+
+    def create_node_pool(self, cluster, spec):
+        """Creates a new Node Pool
+
+        :param cluster: cluster name
+        :param spec: required information for node pool creation
+
+        :type cluster: string
+        :type spec: dictionary
+        """
+        cluster_id = self.cluster_ids[cluster]
+        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/node_pools"
+        self._post(api, spec)
+
+    def update_node_pool(self, cluster, spec):
+        """Updates an existing Node Pool
+
+        :param cluster: cluster name
+        :param spec: required information for node pool update
+
+        :type cluster: string
+        :type spec: dictionary
+        """
+        cluster_id = self.cluster_ids[cluster]
+        node_pool_id = spec["id"]
+        labels = spec.get("labels", {})
+        spec["labels"] = labels
+        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/node_pools/" + f"{node_pool_id}"
+        self._patch(api, spec)
 
     def addon_version_blocked(self, version: str, addon_id: str) -> bool:
         """Check if an addon version is blocked

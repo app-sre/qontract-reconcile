@@ -147,6 +147,7 @@ query Clusters($name: String) {
       instance_type
       replicas
       labels
+      subnet
       taints {
         key
         value
