@@ -151,7 +151,7 @@ class NodePool(AbstractPool):
     def invalid_diff(self, pool: ClusterMachinePoolV1) -> Optional[str]:
         if self.aws_node_pool.instance_type != pool.instance_type:
             return "instance_type"
-        elif self.subnet != pool.subnet:
+        if self.subnet != pool.subnet:
             return "subnet"
         return None
 
