@@ -854,7 +854,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
     @staticmethod
     def get_alias_name_from_assume_role(assume_role):
         uid = awsh.get_account_uid_from_arn(assume_role)
-        return f"account-{uid}"
+        role_name = awsh.get_id_from_arn(assume_role)
+        return f"account-{uid}-{role_name}"
 
     def populate_additional_providers(self, accounts):
         for account in accounts:
@@ -2315,7 +2316,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 role_grants = ocm.get_aws_infrastructure_access_role_grants(cluster)
                 for user_arn, _, state, switch_role_link in role_grants:
                     # find correct user by identifier
-                    user_id = awsh.get_user_id_from_arn(user_arn)
+                    user_id = awsh.get_id_from_arn(user_arn)
                     # output will only be added once
                     # terraform-resources created the user
                     # and ocm-aws-infrastructure-access granted it the role

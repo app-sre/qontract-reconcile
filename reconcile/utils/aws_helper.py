@@ -11,8 +11,8 @@ class AccountNotFoundError(Exception):
 Account = dict[str, Any]
 
 
-def get_user_id_from_arn(arn):
-    # arn:aws:iam::12345:user/id --> id
+def get_id_from_arn(arn):
+    # arn:aws:iam::12345:<arntype>/id --> id
     return arn.split("/")[1]
 
 
