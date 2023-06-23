@@ -343,6 +343,30 @@ def test_c2c_vpc_peering_missing_account(mocker):
     assert str(ex.value).startswith("[no_account_available]")
 
 
+def test_empty_run(mocker):
+    mocked_queries = mocker.patch("reconcile.terraform_vpc_peerings.queries")
+    mocked_queries.get_secret_reader_settings.return_value = {}
+    mocked_queries.get_clusters_with_peering_settings.return_value = []
+    mocked_queries.get_aws_accounts.return_value = [{"name": "some_account"}]
+    mocker.patch("reconcile.terraform_vpc_peerings.aws_api.AWSApi", autospec=True)
+    mocker.patch(
+        "reconcile.terraform_vpc_peerings.build_desired_state_vpc"
+    ).return_value = ([], False)
+    mocker.patch(
+        "reconcile.terraform_vpc_peerings.build_desired_state_vpc_mesh"
+    ).return_value = ([], False)
+    mocker.patch(
+        "reconcile.terraform_vpc_peerings.build_desired_state_all_clusters"
+    ).return_value = ([], False)
+    mocked_logging = mocker.patch("reconcile.terraform_vpc_peerings.logging")
+
+    integ.run(True)
+
+    mocked_logging.warning.assert_called_once_with(
+        "No participating AWS accounts found, consider disabling this integration, account name: None"
+    )
+
+
 class TestRun(testslide.TestCase):
     def setUp(self):
         super().setUp()
