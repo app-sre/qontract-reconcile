@@ -202,6 +202,18 @@ data:
                     "id": "custom.filterable"
                   }
                 ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Cluster"
+                },
+                "properties": [
+                  {
+                    "id": "custom.minWidth",
+                    "value": 150
+                  }
+                ]
               }
             ]
           },
@@ -429,7 +441,7 @@ data:
                     "value": true
                   },
                   {
-                    "id": "custom.width",
+                    "id": "custom.minWidth",
                     "value": 210
                   }
                 ]
@@ -452,7 +464,12 @@ data:
               "show": false
             },
             "showHeader": true,
-            "sortBy": []
+            "sortBy": [
+              {
+                "desc": true,
+                "displayName": "Cluster/Version"
+              }
+            ]
           },
           "pluginVersion": "9.3.8",
           "targets": [
@@ -616,7 +633,7 @@ data:
               {
                 "matcher": {
                   "id": "byName",
-                  "options": "Current Version"
+                  "options": "Current"
                 },
                 "properties": [
                   {
@@ -634,6 +651,18 @@ data:
                   {
                     "id": "custom.width",
                     "value": 120
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Cluster"
+                },
+                "properties": [
+                  {
+                    "id": "custom.minWidth",
+                    "value": 150
                   }
                 ]
               }
@@ -762,7 +791,7 @@ data:
                 "renameByName": {
                   "cluster_name": "Cluster",
                   "cluster_name 1": "Cluster",
-                  "current_version": "Current version",
+                  "current_version": "Current",
                   "current_version 1": "Current Version",
                   "current_version 2": "Previous Version",
                   "org_name": "Organization",
