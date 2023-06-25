@@ -348,7 +348,7 @@ data:
               "custom": {
                 "align": "auto",
                 "displayMode": "auto",
-                "filterable": true,
+                "filterable": false,
                 "inspect": false
               },
               "mappings": [],
@@ -412,6 +412,22 @@ data:
                   {
                     "id": "custom.width",
                     "value": 110
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "cluster_name_version\\soaking_version"
+                },
+                "properties": [
+                  {
+                    "id": "custom.filterable",
+                    "value": true
+                  },
+                  {
+                    "id": "custom.width",
+                    "value": 210
                   }
                 ]
               }
@@ -984,7 +1000,7 @@ data:
         ]
       },
       "time": {
-        "from": "now-3h",
+        "from": "now-6h",
         "to": "now"
       },
       "timepicker": {},
