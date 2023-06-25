@@ -418,7 +418,7 @@ data:
               {
                 "matcher": {
                   "id": "byName",
-                  "options": "cluster_name_version\\soaking_version"
+                  "options": "Cluster/Version"
                 },
                 "properties": [
                   {
@@ -487,6 +487,16 @@ data:
                 "columnField": "soaking_version",
                 "rowField": "cluster_name_version",
                 "valueField": "Value"
+              }
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {},
+                "indexByName": {},
+                "renameByName": {
+                  "cluster_name_version\\soaking_version": "Cluster/Version"
+                }
               }
             }
           ],
