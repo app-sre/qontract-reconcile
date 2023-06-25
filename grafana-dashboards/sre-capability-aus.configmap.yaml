@@ -197,6 +197,9 @@ data:
                   {
                     "id": "custom.width",
                     "value": 140
+                  },
+                  {
+                    "id": "custom.filterable"
                   }
                 ]
               }
@@ -722,6 +725,7 @@ data:
                   "org_name 2": true,
                   "pod": true,
                   "schedule": true,
+                  "sector": true,
                   "service": true,
                   "soak_days": true,
                   "workloads": true
