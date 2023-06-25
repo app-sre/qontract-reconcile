@@ -645,7 +645,7 @@ data:
               {
                 "matcher": {
                   "id": "byName",
-                  "options": "Previous Version"
+                  "options": "Previous"
                 },
                 "properties": [
                   {
@@ -683,7 +683,8 @@ data:
               ],
               "show": false
             },
-            "showHeader": true
+            "showHeader": true,
+            "sortBy": []
           },
           "pluginVersion": "9.3.8",
           "targets": [
@@ -694,108 +695,42 @@ data:
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "count(sum by(cluster_uuid, current_version)(last_over_time({__name__=\"aus_cluster_upgrade_policy_info\"}[25h]))) by (__name__, cluster_uuid) * on (cluster_uuid) group_left (org_id, org_name, cluster_name, current_version) aus_cluster_upgrade_policy_info{workloads=~\".*$workloads.*\", org_id=~\".*$org_id.*\"} > 1",
+              "expr": "count(sum by(cluster_uuid, current_version)(last_over_time({__name__=\"aus_cluster_upgrade_policy_info\"}[25h]))) by (__name__, cluster_uuid) * on (cluster_uuid) group_left (org_id, org_name, cluster_name, current_version) aus_cluster_upgrade_policy_info{workloads=~\".*$workloads.*\", org_id=~\".*$org_id.*\"} * on (cluster_uuid) group_left(previous_version) label_replace(aus_cluster_upgrade_policy_info offset 25h, \"previous_version\", \"$1\", \"current_version\", \"(.+)\") > 1",
               "format": "table",
               "instant": true,
               "interval": "10",
               "legendFormat": "__auto",
               "range": false,
               "refId": "A"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "P2C3F6ECC774D80E6"
-              },
-              "editorMode": "code",
-              "exemplar": false,
-              "expr": "aus_cluster_upgrade_policy_info{workloads=~\".*$workloads.*\", org_id=~\".*$org_id.*\"} offset 25h",
-              "format": "table",
-              "hide": false,
-              "instant": true,
-              "legendFormat": "__auto",
-              "range": false,
-              "refId": "B"
             }
           ],
           "title": "Clusters upgrades 24h",
           "transformations": [
             {
-              "id": "joinByField",
-              "options": {
-                "byField": "cluster_uuid",
-                "mode": "inner"
-              }
-            },
-            {
               "id": "organize",
               "options": {
                 "excludeByName": {
                   "Time": true,
-                  "Time 1": true,
-                  "Time 2": true,
                   "Value": true,
-                  "Value #A": true,
-                  "Value #B": true,
-                  "__name__": true,
-                  "cluster_name 2": true,
                   "cluster_uuid": true,
-                  "container": true,
-                  "endpoint": true,
-                  "instance": true,
-                  "integration": true,
-                  "job": true,
-                  "mutexes": true,
-                  "namespace": true,
-                  "ocm_env": true,
                   "org_id": true,
-                  "org_id 1": true,
-                  "org_id 2": true,
-                  "org_name 2": true,
-                  "pod": true,
-                  "schedule": true,
-                  "sector": true,
-                  "service": true,
-                  "soak_days": true,
-                  "workloads": true
+                  "org_name": true,
+                  "previous_version": false
                 },
                 "indexByName": {
-                  "Time 1": 1,
-                  "Time 2": 8,
-                  "Value #A": 7,
-                  "Value #B": 26,
-                  "__name__": 9,
-                  "cluster_name 1": 2,
-                  "cluster_name 2": 10,
-                  "cluster_uuid": 0,
-                  "container": 11,
-                  "current_version 1": 5,
-                  "current_version 2": 4,
-                  "endpoint": 12,
-                  "instance": 13,
-                  "integration": 14,
-                  "job": 15,
-                  "mutexes": 25,
-                  "namespace": 16,
-                  "ocm_env": 17,
-                  "org_id 1": 6,
-                  "org_id 2": 18,
-                  "org_name 1": 3,
-                  "org_name 2": 19,
-                  "pod": 20,
-                  "schedule": 21,
-                  "service": 22,
-                  "soak_days": 23,
-                  "workloads": 24
+                  "Time": 0,
+                  "Value": 7,
+                  "cluster_name": 1,
+                  "cluster_uuid": 2,
+                  "current_version": 4,
+                  "org_id": 5,
+                  "org_name": 6,
+                  "previous_version": 3
                 },
                 "renameByName": {
                   "cluster_name": "Cluster",
-                  "cluster_name 1": "Cluster",
                   "current_version": "Current",
-                  "current_version 1": "Current Version",
-                  "current_version 2": "Previous Version",
-                  "org_name": "Organization",
-                  "org_name 1": "Organization"
+                  "previous_version": "Previous"
                 }
               }
             },
