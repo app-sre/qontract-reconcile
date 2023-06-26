@@ -68,15 +68,13 @@ def validate_no_cidr_overlap(
                         "cidr_block": peering.cluster.network.vpc,  # type: ignore[union-attr]
                     }
                     peerings_entries.append(vpc_peering_info)
-        overlaps_peering_entries_dict = find_cidr_duplicates_and_overlap(
-            cluster.name, peerings_entries
-        )
-        if not overlaps_peering_entries_dict:
-            return False
+            find_overlap = find_cidr_overlap(cluster.name, peerings_entries)
+            if find_overlap:
+                return False
     return True
 
 
-def find_cidr_duplicates_and_overlap(cluster_name: str, input_list: list):
+def find_cidr_overlap(cluster_name: str, input_list: list):
     for i in range(len(input_list)):  # pylint: disable=consider-using-enumerate
         compared_vpc = input_list[i]
         for j in range(i + 1, len(input_list)):
@@ -86,7 +84,7 @@ def find_cidr_duplicates_and_overlap(cluster_name: str, input_list: list):
             ):
                 logging.error(f"VPC peering error in cluster {cluster_name}")
                 logging.error(
-                    f"vpc {compared_vpc['vpc_name']} with cidr block {compared_vpc['cidr_block']} provider by {compared_vpc['provider']} overlaps with vpc {comparing_vpc['vpc_name']} with cidr block {comparing_vpc['cidr_block']} provider by {comparing_vpc['provider']}"
+                    f"vpc [{compared_vpc['vpc_name']}] with cidr block [{compared_vpc['cidr_block']}] provided by [{compared_vpc['provider']}] overlaps with vpc [{comparing_vpc['vpc_name']}] with cidr block [{comparing_vpc['cidr_block']}] provided by [{comparing_vpc['provider']}]"
                 )
                 return True
     return False
