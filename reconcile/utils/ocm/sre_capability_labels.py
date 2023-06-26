@@ -17,11 +17,15 @@ from reconcile.utils.ocm.labels import (
 )
 
 
-def sre_capability_label_key(sre_capability: str, config_atom: str) -> str:
+def sre_capability_label_key(
+    sre_capability: str, config_atom: Optional[str] = None
+) -> str:
     """
-    Generates label keys for aus, compliant with the naming schema defined in
+    Generates label keys compliant with the naming schema defined in
     https://service.pages.redhat.com/dev-guidelines/docs/sre-capabilities/framework/ocm-labels/
     """
+    if config_atom is None:
+        return f"sre-capabilities.{sre_capability}"
     return f"sre-capabilities.{sre_capability}.{config_atom}"
 
 

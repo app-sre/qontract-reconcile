@@ -1,0 +1,10 @@
+$schema: /app-sre/saas-file-target-1.yml
+namespace:
+  $ref: /services/sosososolong/namespaces/loooooooooooooooooooooooooooooooooooooooooooooooooooooooooong.yml
+ref: current_sha
+promotion:
+  auto: true
+  subscribe:
+  - channel-a
+parameters:
+  PV_SIZE: 30Gi

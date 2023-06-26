@@ -4,10 +4,10 @@ import reconcile.utils.aws_helper as awsh
 from reconcile.utils.secret_reader import SecretReader
 
 
-def test_get_user_id_from_arn():
+def test_get_id_from_arn():
     user_id = "id"
     arn = f"arn:aws:iam::12345:user/{user_id}"
-    result = awsh.get_user_id_from_arn(arn)
+    result = awsh.get_id_from_arn(arn)
     assert result == user_id
 
 
