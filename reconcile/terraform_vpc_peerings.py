@@ -536,8 +536,13 @@ def run(
 
     participating_accounts = [item["requester"]["account"] for item in desired_state]
     participating_accounts += [item["accepter"]["account"] for item in desired_state]
-    participating_account_names = [a["name"] for a in participating_accounts]
+    participating_account_names = {a["name"] for a in participating_accounts}
     accounts = [a for a in accounts if a["name"] in participating_account_names]
+    if not accounts:
+        logging.warning(
+            f"No participating AWS accounts found, consider disabling this integration, account name: {account_name}"
+        )
+        return
 
     with terrascript.TerrascriptClient(
         QONTRACT_INTEGRATION, "", thread_pool_size, accounts, settings=settings
