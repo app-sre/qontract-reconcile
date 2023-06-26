@@ -17,7 +17,7 @@ from reconcile.gql_definitions.vpc_peerings_validator.vpc_peerings_validator_pee
     VpcPeeringsValidatorPeeredCluster,
 )
 from reconcile.vpc_peerings_validator import (
-    find_cidr_duplicates_and_overlap,
+    find_cidr_overlap,
     validate_no_cidr_overlap,
     validate_no_internal_to_public_peerings,
     validate_no_public_to_public_peerings,
@@ -112,7 +112,7 @@ def test_validate_no_public_to_public_peerings_valid(
     assert validate_no_public_to_public_peerings(query_data_p2p) is True
 
 
-def test_validate_validate_no_cidr_overlap():
+def test_validate_validate_cidr_overlap():
     test_list = [
         {
             "provider": "cluster-self-vpc",
@@ -131,7 +131,29 @@ def test_validate_validate_no_cidr_overlap():
         },
     ]
     cluster_name = "cluster-name"
-    assert find_cidr_duplicates_and_overlap(cluster_name, test_list) is True
+    assert find_cidr_overlap(cluster_name, test_list) is True
+
+
+def test_validate_validate_no_cidr_overlap():
+    test_list = [
+        {
+            "provider": "cluster-self-vpc",
+            "vpc_name": "cluster-name",
+            "cidr_block": "10.25.0.0/16",
+        },
+        {
+            "provider": "account-vpc",
+            "vpc_name": "vpc-name-1",
+            "cidr_block": "10.18.0.0/18",
+        },
+        {
+            "provider": "account-vpc",
+            "vpc_name": "vpc-name-2",
+            "cidr_block": "10.19.0.0/18",
+        },
+    ]
+    cluster_name = "cluster-name"
+    assert find_cidr_overlap(cluster_name, test_list) is False
 
 
 @pytest.fixture
@@ -169,4 +191,4 @@ def query_data_vpc_cidr_overlap() -> VpcPeeringsValidatorQueryData:
 def test_create_dict_for_validate_no_cidr_overlap(
     query_data_vpc_cidr_overlap: VpcPeeringsValidatorQueryData,
 ):
-    assert validate_no_cidr_overlap(query_data_vpc_cidr_overlap) is True
+    assert validate_no_cidr_overlap(query_data_vpc_cidr_overlap) is False
