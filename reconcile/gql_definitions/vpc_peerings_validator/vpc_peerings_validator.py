@@ -25,6 +25,9 @@ from reconcile.gql_definitions.vpc_peerings_validator.vpc_peerings_validator_pee
 DEFINITION = """
 fragment VpcPeeringsValidatorPeeredCluster on Cluster_v1 {
   name
+  network {
+    vpc
+  }
   spec {
     private
   }
@@ -34,6 +37,9 @@ fragment VpcPeeringsValidatorPeeredCluster on Cluster_v1 {
 query VpcPeeringsValidator {
   clusters: clusters_v1 {
     name
+    network {
+      vpc
+    }
     spec {
       private
     }
@@ -41,6 +47,20 @@ query VpcPeeringsValidator {
     peering {
       connections {
         provider
+        ... on ClusterPeeringConnectionAccount_v1 {
+          vpc {
+            cidr_block
+            name
+          }
+        }
+        ... on ClusterPeeringConnectionAccountVPCMesh_v1{
+          name
+          account {
+            name
+            uid
+          }
+          tags
+        }
         ... on ClusterPeeringConnectionClusterRequester_v1 {
           cluster {
             ... VpcPeeringsValidatorPeeredCluster
@@ -64,12 +84,36 @@ class ConfiguredBaseModel(BaseModel):
         extra = Extra.forbid
 
 
+class ClusterNetworkV1(ConfiguredBaseModel):
+    vpc: str = Field(..., alias="vpc")
+
+
 class ClusterSpecV1(ConfiguredBaseModel):
     private: bool = Field(..., alias="private")
 
 
 class ClusterPeeringConnectionV1(ConfiguredBaseModel):
     provider: str = Field(..., alias="provider")
+
+
+class AWSVPCV1(ConfiguredBaseModel):
+    cidr_block: str = Field(..., alias="cidr_block")
+    name: str = Field(..., alias="name")
+
+
+class ClusterPeeringConnectionAccountV1(ClusterPeeringConnectionV1):
+    vpc: AWSVPCV1 = Field(..., alias="vpc")
+
+
+class AWSAccountV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+    uid: str = Field(..., alias="uid")
+
+
+class ClusterPeeringConnectionAccountVPCMeshV1(ClusterPeeringConnectionV1):
+    name: str = Field(..., alias="name")
+    account: AWSAccountV1 = Field(..., alias="account")
+    tags: Optional[Json] = Field(..., alias="tags")
 
 
 class ClusterPeeringConnectionClusterRequesterV1(ClusterPeeringConnectionV1):
@@ -83,6 +127,8 @@ class ClusterPeeringConnectionClusterAccepterV1(ClusterPeeringConnectionV1):
 class ClusterPeeringV1(ConfiguredBaseModel):
     connections: list[
         Union[
+            ClusterPeeringConnectionAccountVPCMeshV1,
+            ClusterPeeringConnectionAccountV1,
             ClusterPeeringConnectionClusterRequesterV1,
             ClusterPeeringConnectionClusterAccepterV1,
             ClusterPeeringConnectionV1,
@@ -92,6 +138,7 @@ class ClusterPeeringV1(ConfiguredBaseModel):
 
 class ClusterV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+    network: Optional[ClusterNetworkV1] = Field(..., alias="network")
     spec: Optional[ClusterSpecV1] = Field(..., alias="spec")
     internal: Optional[bool] = Field(..., alias="internal")
     peering: Optional[ClusterPeeringV1] = Field(..., alias="peering")

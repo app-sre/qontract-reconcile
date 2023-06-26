@@ -1,3 +1,4 @@
+import ipaddress
 import logging
 import sys
 from typing import (
@@ -5,6 +6,7 @@ from typing import (
     cast,
 )
 
+from reconcile import queries
 from reconcile.gql_definitions.vpc_peerings_validator import vpc_peerings_validator
 from reconcile.gql_definitions.vpc_peerings_validator.vpc_peerings_validator import (
     ClusterPeeringConnectionClusterAccepterV1,
@@ -14,8 +16,80 @@ from reconcile.gql_definitions.vpc_peerings_validator.vpc_peerings_validator imp
 )
 from reconcile.status import ExitCodes
 from reconcile.utils import gql
+from reconcile.utils.aws_api import AWSApi
 
 QONTRACT_INTEGRATION = "vpc-peerings-validator"
+
+
+def validate_no_cidr_overlap(
+    query_data: VpcPeeringsValidatorQueryData,
+) -> bool:
+    clusters: list[ClusterV1] = query_data.clusters or []
+
+    for cluster in clusters:
+        peerings_entries = [
+            {
+                "provider": "cluster-self-vpc",
+                "vpc_name": cluster.name,
+                "cidr_block": cluster.network.vpc,  # type: ignore[union-attr]
+            },
+        ]
+        if cluster.peering:
+            for peering in cluster.peering.connections:
+                if peering.provider == "account-vpc-mesh":
+                    aws_account_uid = peering.account.uid  # type: ignore[union-attr]
+                    settings = queries.get_secret_reader_settings()
+                    accounts = queries.get_aws_accounts(uid=aws_account_uid)
+                    awsapi = AWSApi(1, accounts, settings=settings, init_users=False)
+                    tags = peering.tags or "{}"  # type: ignore[union-attr]
+                    mesh_results = awsapi.get_vpcs_details(accounts[0], tags)
+                    for mesh_result in mesh_results:
+                        vpc_peering_info = {
+                            "provider": peering.provider,
+                            "vpc_name": mesh_result["vpc_id"],
+                            "cidr_block": mesh_result["cidr_block"],
+                        }
+                        peerings_entries.append(vpc_peering_info)
+                if peering.provider == "account-vpc":
+                    cidr_block = str(peering.vpc.cidr_block)  # type: ignore[union-attr]
+                    vpc_peering_info = {
+                        "provider": peering.provider,
+                        "vpc_name": peering.vpc.name,  # type: ignore[union-attr]
+                        "cidr_block": cidr_block,
+                    }
+                    peerings_entries.append(vpc_peering_info)
+                if peering.provider in (
+                    "cluster-vpc-requester",
+                    "cluster-vpc-accepter",
+                ):
+                    vpc_peering_info = {
+                        "provider": peering.provider,
+                        "vpc_name": peering.cluster.name,  # type: ignore[union-attr]
+                        "cidr_block": peering.cluster.network.vpc,  # type: ignore[union-attr]
+                    }
+                    peerings_entries.append(vpc_peering_info)
+        overlaps_peering_entries_dict = find_cidr_duplicates_and_overlap(
+            cluster.name, peerings_entries
+        )
+        if not overlaps_peering_entries_dict:
+            return False
+    return True
+
+
+def find_cidr_duplicates_and_overlap(cluster_name: str, input_list: list):
+    for i in range(len(input_list)):  # pylint: disable=consider-using-enumerate
+        compared_vpc = input_list[i]
+        for j in range(i + 1, len(input_list)):
+            comparing_vpc = input_list[j]
+            if ipaddress.ip_network(compared_vpc["cidr_block"]).overlaps(
+                ipaddress.ip_network(comparing_vpc["cidr_block"])
+            ):
+                logging.error(f"VPC peering error in cluster {cluster_name}")
+                logging.error(
+                    f"vpc {compared_vpc['vpc_name']} with cidr block {compared_vpc['cidr_block']} provider by {compared_vpc['provider']} overlaps with vpc {comparing_vpc['vpc_name']} with cidr block {comparing_vpc['cidr_block']} provider by {comparing_vpc['provider']}"
+                )
+                return True
+    return False
 
 
 def validate_no_internal_to_public_peerings(
@@ -107,6 +181,8 @@ def run(dry_run: bool):
     if not validate_no_internal_to_public_peerings(query_data):
         valid = False
     if not validate_no_public_to_public_peerings(query_data):
+        valid = False
+    if not validate_no_cidr_overlap(query_data):
         valid = False
 
     if not valid:

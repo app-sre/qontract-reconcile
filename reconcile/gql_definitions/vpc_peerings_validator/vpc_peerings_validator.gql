@@ -3,6 +3,9 @@
 query VpcPeeringsValidator {
   clusters: clusters_v1 {
     name
+    network {
+      vpc
+    }
     spec {
       private
     }
@@ -10,6 +13,20 @@ query VpcPeeringsValidator {
     peering {
       connections {
         provider
+        ... on ClusterPeeringConnectionAccount_v1 {
+          vpc {
+            cidr_block
+            name
+          }
+        }
+        ... on ClusterPeeringConnectionAccountVPCMesh_v1{
+          name
+          account {
+            name
+            uid
+          }
+          tags
+        }
         ... on ClusterPeeringConnectionClusterRequester_v1 {
           cluster {
             ... VpcPeeringsValidatorPeeredCluster

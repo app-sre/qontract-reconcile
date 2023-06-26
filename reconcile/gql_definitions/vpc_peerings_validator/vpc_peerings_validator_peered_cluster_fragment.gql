@@ -2,6 +2,9 @@
 
 fragment VpcPeeringsValidatorPeeredCluster on Cluster_v1 {
   name
+  network {
+    vpc
+  }
   spec {
     private
   }
