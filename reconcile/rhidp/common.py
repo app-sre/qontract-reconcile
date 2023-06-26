@@ -3,14 +3,13 @@ from collections.abc import Callable
 from enum import Enum
 from typing import (
     Optional,
-    Union,
+    Sequence,
 )
 
 from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.gql_definitions.rhidp.clusters import (
     ClusterAuthOIDCV1,
-    ClusterAuthV1,
     ClusterV1,
     OpenShiftClusterManagerV1,
 )
@@ -57,9 +56,7 @@ def discover_clusters(
     return clusters_by_org
 
 
-def build_cluster_auths(
-    name: str, issuer_url: str
-) -> list[Union[ClusterAuthOIDCV1, ClusterAuthV1]]:
+def build_cluster_auths(name: str, issuer_url: str) -> list[ClusterAuthOIDCV1]:
     return [
         ClusterAuthOIDCV1(
             service="oidc",
@@ -72,8 +69,7 @@ def build_cluster_auths(
 
 
 def build_cluster_obj(
-    ocm_env: OCMEnvironment,
-    cluster: ClusterDetails,
+    ocm_env: OCMEnvironment, cluster: ClusterDetails, auth: Sequence[ClusterAuthOIDCV1]
 ) -> ClusterV1:
     return ClusterV1(
         name=cluster.ocm_cluster.name,
@@ -89,7 +85,7 @@ def build_cluster_obj(
             blockedVersions=None,
             sectors=None,
         ),
-        auth=[],
+        auth=auth,
         # unused values
         upgradePolicy=None,
         disable=None,

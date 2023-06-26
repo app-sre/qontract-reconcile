@@ -122,6 +122,14 @@ def test_rhidp_common_discover_clusters_label_key(
 def test_rhidp_common_build_cluster_obj(
     ocm_env: OCMEnvironment, build_cluster_rhidp_labels: LabelContainer
 ) -> None:
+    auths = [
+        ClusterAuthOIDCV1(
+            service="oidc",
+            name="auth_name",
+            issuer="https://foobar.com",
+            claims=None,
+        )
+    ]
     expected_cluster = ClusterV1(
         name="cluster_name",
         consoleUrl="https://console.foobar.com",
@@ -145,7 +153,7 @@ def test_rhidp_common_build_cluster_obj(
         ),
         upgradePolicy=None,
         disable=None,
-        auth=[],
+        auth=auths,
     )
     cluster_details = build_cluster_details(
         cluster_name="cluster_name",
@@ -153,7 +161,7 @@ def test_rhidp_common_build_cluster_obj(
         org_id="org_id",
     )
 
-    assert common.build_cluster_obj(ocm_env, cluster_details) == expected_cluster
+    assert common.build_cluster_obj(ocm_env, cluster_details, auths) == expected_cluster
 
 
 def test_test_rhidp_common_build_cluster_auths() -> None:

@@ -69,18 +69,18 @@ class SSOClientStandalone(QontractReconcileIntegration[SSOClientStandaloneParams
             org_ids=self.params.ocm_organization_ids,
         )
 
-        clusters = [
-            build_cluster_obj(ocm_env=ocm_env, cluster=c)
+        return [
+            build_cluster_obj(
+                ocm_env=ocm_env,
+                cluster=c,
+                auth=build_cluster_auths(
+                    name=self.params.auth_name,
+                    issuer_url=self.params.auth_issuer_url,
+                ),
+            )
             for ocm_clusters in clusters_by_org.values()
             for c in ocm_clusters
         ]
-
-        for c in clusters:
-            c.auth = build_cluster_auths(
-                name=self.params.auth_name,
-                issuer_url=self.params.auth_issuer_url,
-            )
-        return clusters
 
     def get_ocm_environments(self) -> list[OCMEnvironment]:
         return ocm_environment_query(
