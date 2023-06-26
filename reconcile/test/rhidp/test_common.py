@@ -165,10 +165,7 @@ def test_rhidp_common_build_cluster_obj(
 
 
 def test_test_rhidp_common_build_cluster_auths() -> None:
-    common.build_cluster_auths(
-        name="auth_name",
-        issuer_url="https://foobar.com",
-    ) == [
+    common.build_cluster_auths(name="auth_name", issuer_url="https://foobar.com") == [
         ClusterAuthOIDCV1(
             service="oidc",
             name="auth_name",
