@@ -381,7 +381,7 @@ def run(dry_run: bool):
         sys.exit(0)
 
     settings = queries.get_app_interface_settings()
-    cluster_like_objects = [cluster.dict(by_alias=True) for cluster in clusters]
+    cluster_like_objects = [cluster.dict(by_alias=True) for cluster in filtered_clusters]
     ocm_map = OCMMap(
         clusters=cluster_like_objects,
         integration=QONTRACT_INTEGRATION,
