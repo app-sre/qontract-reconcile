@@ -87,9 +87,6 @@ def get_desired_dependency_names(
                 providers = {res.provider for res in ern.external_resources}
             for p in providers:
                 required_dep_names.update(get_dependency_names(dependency_map, p))
-        kafka_namespaces = [n for n in namespaces if n.kafka_cluster]
-        if kafka_namespaces:
-            required_dep_names.update(get_dependency_names(dependency_map, "kafka"))
 
     return required_dep_names
 

@@ -279,6 +279,8 @@ parameters:
   value: ''
 - name: INTEGRATIONS_MANAGER_IMAGE_TAG_FROM_REF
   value: ''
+- name: PUSHGATEWAY_SECRET_NAME
+  value: push-gateway-auth-url
 - name: INTEG_SLEEP_DURATION_SECS
   value: "29"
 - name: INTEG_CPU_LIMIT

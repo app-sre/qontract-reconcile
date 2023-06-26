@@ -19,6 +19,11 @@ from croniter import croniter
 from pydantic import BaseModel
 from semver import VersionInfo
 
+from reconcile.aus.metrics import (
+    AUSClusterUpgradePolicyInfoMetric,
+    AUSOrganizationErrorRate,
+    AUSOrganizationValidationErrorsGauge,
+)
 from reconcile.aus.models import (
     ClusterUpgradeSpec,
     ConfiguredAddonUpgradePolicy,
@@ -31,7 +36,10 @@ from reconcile.gql_definitions.common.ocm_environments import (
     query as ocm_environment_query,
 )
 from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
-from reconcile.utils import gql
+from reconcile.utils import (
+    gql,
+    metrics,
+)
 from reconcile.utils.cluster_version_data import (
     VersionData,
     WorkloadHistory,
@@ -62,22 +70,56 @@ class AdvancedUpgradeSchedulerBaseIntegrationParams(PydanticRunParams):
     ignore_sts_clusters: bool = False
 
 
+class ReconcileErrorSummary(Exception):
+    def __init__(self, exceptions: list[str]) -> None:
+        self.exceptions = exceptions
+
+    def __str__(self) -> str:
+        formatted_exceptions = "\n".join([f"- {e}" for e in self.exceptions])
+        return f"Reconcile exceptions:\n{ formatted_exceptions }"
+
+
 class AdvancedUpgradeSchedulerBaseIntegration(
     QontractReconcileIntegration[AdvancedUpgradeSchedulerBaseIntegrationParams]
 ):
     def run(self, dry_run: bool) -> None:
-        upgrade_specs = self.get_upgrade_specs()
-        for ocm_env, env_upgrade_specs in upgrade_specs.items():
-            for org_name, org_upgrade_spec in env_upgrade_specs.items():
-                if org_upgrade_spec.has_validation_errors:
-                    self.signal_validation_issues(dry_run, org_upgrade_spec)
-                elif org_upgrade_spec.specs:
-                    self.process_upgrade_policies_in_org(dry_run, org_upgrade_spec)
-                else:
-                    logging.debug(
-                        f"Skip org {org_name} in {ocm_env} because it defines no upgrade policies"
-                    )
+        with metrics.transactional_metrics(self.name):
+            upgrade_specs = self.get_upgrade_specs()
+            unhandled_exceptions = []
+            for ocm_env, env_upgrade_specs in upgrade_specs.items():
+                for org_upgrade_spec in env_upgrade_specs.values():
+                    try:
+                        with AUSOrganizationErrorRate(
+                            integration=self.name,
+                            ocm_env=ocm_env,
+                            org_id=org_upgrade_spec.org.org_id,
+                        ):
+                            self.process_org(dry_run, ocm_env, org_upgrade_spec)
+                    except Exception as e:
+                        if not self.signal_reconcile_issues(
+                            dry_run, org_upgrade_spec, e
+                        ):
+                            unhandled_exceptions.append(
+                                f"{ocm_env}/{org_upgrade_spec.org.name}: {e}"
+                            )
+
+        if unhandled_exceptions:
+            raise ReconcileErrorSummary(unhandled_exceptions)
         sys.exit(0)
+
+    def process_org(
+        self, dry_run: bool, ocm_env: str, org_upgrade_spec: OrganizationUpgradeSpec
+    ) -> None:
+        org_name = org_upgrade_spec.org.name
+        self.expose_org_upgrade_spec_metrics(ocm_env, org_upgrade_spec)
+        if org_upgrade_spec.has_validation_errors:
+            self.signal_validation_issues(dry_run, org_upgrade_spec)
+        elif org_upgrade_spec.specs:
+            self.process_upgrade_policies_in_org(dry_run, org_upgrade_spec)
+        else:
+            logging.debug(
+                f"Skip org {org_name} in {ocm_env} because it defines no upgrade policies"
+            )
 
     def get_upgrade_specs(self) -> dict[str, dict[str, OrganizationUpgradeSpec]]:
         return {
@@ -112,6 +154,54 @@ class AdvancedUpgradeSchedulerBaseIntegration(
         self, dry_run: bool, org_upgrade_spec: OrganizationUpgradeSpec
     ) -> None:
         ...
+
+    def signal_reconcile_issues(
+        self,
+        dry_run: bool,
+        org_upgrade_spec: OrganizationUpgradeSpec,
+        exception: Exception,
+    ) -> bool:
+        """
+        The bool return value is used to indicate if the exception was properly handled.
+
+        The default behaviour returns False, indicating that the exception was not
+        handled so that it can bubble up and potentially fail the integration.
+
+        This function can be overridden to handle exceptions in a custom way.
+        """
+        return False
+
+    def expose_org_upgrade_spec_metrics(
+        self, ocm_env: str, org_upgrade_spec: OrganizationUpgradeSpec
+    ) -> None:
+        metrics.set_gauge(
+            AUSOrganizationValidationErrorsGauge(
+                integration=self.name,
+                ocm_env=ocm_env,
+                org_id=org_upgrade_spec.org.org_id,
+            ),
+            org_upgrade_spec.nr_of_validation_errors,
+        )
+        for cluster_upgrade_spec in org_upgrade_spec.specs:
+            mutexes = cluster_upgrade_spec.upgrade_policy.conditions.mutexes
+            metrics.set_info(
+                AUSClusterUpgradePolicyInfoMetric(
+                    integration=self.name,
+                    ocm_env=ocm_env,
+                    cluster_uuid=cluster_upgrade_spec.cluster_uuid,
+                    org_id=cluster_upgrade_spec.ocm.org_id,
+                    org_name=org_upgrade_spec.org.name,
+                    current_version=cluster_upgrade_spec.current_version,
+                    cluster_name=cluster_upgrade_spec.name,
+                    schedule=cluster_upgrade_spec.upgrade_policy.schedule,
+                    sector=cluster_upgrade_spec.upgrade_policy.conditions.sector or "",
+                    mutexes=",".join(mutexes) if mutexes else "",
+                    soak_days=str(
+                        cluster_upgrade_spec.upgrade_policy.conditions.soak_days or 0
+                    ),
+                    workloads=",".join(cluster_upgrade_spec.upgrade_policy.workloads),
+                ),
+            )
 
 
 class GateAgreement(BaseModel):
@@ -170,7 +260,6 @@ class AddonUpgradePolicy(AbstractUpgradePolicy):
 
     def delete(self, ocm: OCM) -> None:
         item = {
-            "version": self.version,
             "id": self.id,
         }
         ocm.delete_addon_upgrade_policy(self.cluster, item)
@@ -189,14 +278,7 @@ class AddonUpgradePolicy(AbstractUpgradePolicy):
 class ClusterUpgradePolicy(AbstractUpgradePolicy):
     """Class to create and delete ClusterUpgradePolicies in OCM"""
 
-    gates_to_agree: Optional[list[GateAgreement]]
-
-    def _create_gate_agreements(self, ocm: OCM) -> None:
-        for gate in self.gates_to_agree or []:
-            gate.create(ocm, self.cluster)
-
     def create(self, ocm: OCM) -> None:
-        self._create_gate_agreements(ocm)
         policy = {
             "version": self.version,
             "schedule_type": "manual",
@@ -206,10 +288,38 @@ class ClusterUpgradePolicy(AbstractUpgradePolicy):
 
     def delete(self, ocm: OCM) -> None:
         item = {
-            "version": self.version,
             "id": self.id,
         }
         ocm.delete_upgrade_policy(self.cluster, item)
+
+    def summarize(self, ocm_org_name: str) -> str:
+        details = {
+            "cluster": self.cluster,
+            "ocm_org": ocm_org_name,
+            "version": self.version,
+            "next_run": self.next_run,
+        }
+        return f"cluster upgrade policy - {remove_none_values_from_dict(details)}"
+
+
+class ControlPlaneUpgradePolicy(AbstractUpgradePolicy):
+    """Class to create and delete ControlPlanUpgradePolicies in OCM"""
+
+    def create(self, ocm: OCM) -> None:
+        policy = {
+            "version": self.version,
+            "schedule_type": "manual",
+            "upgrade_type": "ControlPlane",
+            "cluster_id": ocm.cluster_ids[self.cluster],
+            "next_run": self.next_run,
+        }
+        ocm.create_control_plane_upgrade_policy(self.cluster, policy)
+
+    def delete(self, ocm: OCM) -> None:
+        item = {
+            "id": self.id,
+        }
+        ocm.delete_control_plane_upgrade_policy(self.cluster, item)
 
     def summarize(self, ocm_org_name: str) -> str:
         details = {
@@ -227,6 +337,12 @@ class UpgradePolicyHandler(BaseModel):
     action: str
     policy: AbstractUpgradePolicy
 
+    gates_to_agree: Optional[list[GateAgreement]]
+
+    def _create_gate_agreements(self, ocm: OCM) -> None:
+        for gate in self.gates_to_agree or []:
+            gate.create(ocm, self.policy.cluster)
+
     def act(self, dry_run: bool, ocm: OCM) -> None:
         logging.info(f"{self.action} {self.policy.summarize(ocm.name)}")
         if dry_run:
@@ -237,6 +353,7 @@ class UpgradePolicyHandler(BaseModel):
         elif self.action == "delete":
             self.policy.delete(ocm)
         elif self.action == "create":
+            self._create_gate_agreements(ocm)
             self.policy.create(ocm)
 
 
@@ -246,12 +363,21 @@ def fetch_current_state(
     current_state: list[AbstractUpgradePolicy] = []
     for cluster in clusters:
         cluster_name = cluster.name
+        cluster_spec = ocm_map.get(cluster_name).clusters.get(cluster_name)
+        if cluster_spec:
+            # None is fine, we only care if hypershift is true
+            is_hypershift = cluster_spec.spec.hypershift
         ocm = ocm_map.get(cluster_name)
         if addons:
             upgrade_policies = ocm.get_addon_upgrade_policies(cluster_name)
             for upgrade_policy in upgrade_policies:
                 upgrade_policy["cluster"] = cluster_name
                 current_state.append(AddonUpgradePolicy(**upgrade_policy))
+        elif is_hypershift:
+            upgrade_policies = ocm.get_control_plan_upgrade_policies(cluster_name)
+            for upgrade_policy in upgrade_policies:
+                upgrade_policy["cluster"] = cluster_name
+                current_state.append(ControlPlaneUpgradePolicy(**upgrade_policy))
         else:
             upgrade_policies = ocm.get_upgrade_policies(cluster_name)
             for upgrade_policy in upgrade_policies:
@@ -300,7 +426,7 @@ def fetch_upgrade_policies(
                 cluster,
                 current_version=spec.version,
                 channel=spec.channel,
-                available_upgrades=ocm.available_cluster_upgrades.get(cluster_name),
+                available_upgrades=ocm.get_available_upgrades(cluster_name),
                 sector=sector,
             )
             desired_state.append(ccup)
@@ -635,7 +761,7 @@ def get_upgrades(addon_id: str, d: ConfiguredUpgradePolicy, ocm: OCM) -> list[st
             if a["id"] == addon_id and a["version"]["id"] != d.current_version
         ]
     elif isinstance(d, ConfiguredClusterUpgradePolicy):
-        upgrades = ocm.get_available_upgrades(d.current_version, d.channel)
+        upgrades = ocm.get_available_upgrades(d.cluster)
     return upgrades
 
 
@@ -688,6 +814,10 @@ def calculate_diff(
         if verify_lock_should_skip(p, locked, ocm, p.cluster):
             continue
 
+        cluster = ocm.clusters.get(p.cluster)
+        if not cluster:
+            continue
+
         upgrades = get_upgrades(addon_id, p, ocm)
         version = upgradeable_version(p, version_data_map, ocm, upgrades, addon_id)
         if version:
@@ -707,6 +837,30 @@ def calculate_diff(
                         ),
                     )
                 )
+            elif cluster.spec.hypershift:
+                diffs.append(
+                    UpgradePolicyHandler(
+                        action="create",
+                        policy=ControlPlaneUpgradePolicy(
+                            **{
+                                "action": "create",
+                                "cluster": p.cluster,
+                                "version": version,
+                                "schedule_type": "manual",
+                                "next_run": next_schedule,
+                            }
+                        ),
+                        gates_to_agree=[
+                            GateAgreement(id=g)
+                            for g in gates_to_agree(
+                                get_version_prefix(version),
+                                p.cluster,
+                                p.current_version,
+                                ocm,
+                            )
+                        ],
+                    )
+                )
             else:
                 diffs.append(
                     UpgradePolicyHandler(
@@ -718,17 +872,17 @@ def calculate_diff(
                                 "version": version,
                                 "schedule_type": "manual",
                                 "next_run": next_schedule,
-                                "gates_to_agree": [
-                                    GateAgreement(id=g)
-                                    for g in gates_to_agree(
-                                        get_version_prefix(version),
-                                        p.cluster,
-                                        p.current_version,
-                                        ocm,
-                                    )
-                                ],
                             }
                         ),
+                        gates_to_agree=[
+                            GateAgreement(id=g)
+                            for g in gates_to_agree(
+                                get_version_prefix(version),
+                                p.cluster,
+                                p.current_version,
+                                ocm,
+                            )
+                        ],
                     )
                 )
 
@@ -761,3 +915,18 @@ def act(
             continue
         ocm = ocm_map.get(policy.cluster)
         diff.act(dry_run, ocm)
+
+
+def soaking_days(
+    version_data: VersionData,
+    upgrades: list[str],
+    workload: str,
+    only_soaking: bool,
+) -> dict[str, float]:
+    soaking = {}
+    for version in upgrades:
+        workload_history = version_data.workload_history(version, workload)
+        soaking[version] = round(workload_history.soak_days, 2)
+        if not only_soaking and version not in soaking:
+            soaking[version] = 0
+    return soaking

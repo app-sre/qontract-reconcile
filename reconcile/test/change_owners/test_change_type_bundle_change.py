@@ -7,6 +7,7 @@ from reconcile.change_owners.bundle import (
     BundleFileType,
     QontractServerDatafileDiff,
     QontractServerDiff,
+    QontractServerResourcefileBackref,
     QontractServerResourcefileDiff,
     QontractServerResourcefileDiffState,
 )
@@ -143,6 +144,38 @@ def test_parse_bundle_changes_only_checksum_changed() -> None:
     # but the sha changed and the it is marked as metadata only change
     assert bundle_change.old_content_sha != bundle_change.new_content_sha
     assert bundle_change.metadata_only_change
+
+
+def test_parse_bundle_changes_with_backrefs() -> None:
+    data_diff = (
+        QontractServerBundleDiffDataBuilder()
+        .add_resource_file(
+            path="/my/resource.yml",
+            old_content="old_content",
+            old_backrefs=[
+                QontractServerResourcefileBackref(
+                    datafileSchema="/my/datafile-schema.yml",
+                    path="/my/old-datafile.yml",
+                    jsonpath="path.to.resources[2]",
+                    type="Namespace_v1",
+                )
+            ],
+            new_content="new_content",
+            new_backrefs=[
+                QontractServerResourcefileBackref(
+                    datafileSchema="/my/datafile-schema.yml",
+                    path="/my/new-datafile.yml",
+                    jsonpath="path.to.resources[2]",
+                    type="Namespace_v1",
+                )
+            ],
+        )
+        .diff
+    )
+    parsed_bundle_changes = parse_bundle_changes(data_diff)
+    assert len(parsed_bundle_changes) == 1
+    assert list(parsed_bundle_changes[0].old_backrefs)[0].path == "/my/old-datafile.yml"
+    assert list(parsed_bundle_changes[0].new_backrefs)[0].path == "/my/new-datafile.yml"
 
 
 #

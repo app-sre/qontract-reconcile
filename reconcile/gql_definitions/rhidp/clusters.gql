@@ -1,0 +1,53 @@
+# qenerate: plugin=pydantic_v1
+
+query OidcClusters($name: String) {
+  clusters: clusters_v1(name: $name) {
+    name
+    consoleUrl
+    ocm {
+      name
+      environment {
+        ... OCMEnvironment
+      }
+      orgId
+      accessTokenClientId
+      accessTokenUrl
+      accessTokenClientSecret {
+        ...VaultSecret
+      }
+      blockedVersions
+      sectors {
+        name
+        dependencies {
+          name
+          ocm {
+            name
+          }
+        }
+      }
+    }
+    upgradePolicy {
+      workloads
+      schedule
+      conditions {
+        sector
+      }
+    }
+    disable {
+      integrations
+    }
+    auth {
+      service
+      ... on ClusterAuthOIDC_v1 {
+        name
+        issuer
+        claims {
+          email
+          name
+          username
+          groups
+        }
+      }
+    }
+  }
+}

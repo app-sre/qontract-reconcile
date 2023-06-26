@@ -57,6 +57,7 @@ query Integrations {
         successfulJobHistoryLimit
         failedJobHistoryLimit
         imageRef
+        enablePushgateway
       }
       sharding {
         strategy

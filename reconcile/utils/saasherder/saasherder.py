@@ -18,6 +18,7 @@ from typing import (
     Any,
     Generator,
     Optional,
+    Tuple,
     Type,
     Union,
 )
@@ -231,6 +232,19 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                     f"secret parameter path '{sp.secret.path}' does not match any of allowedSecretParameterPaths"
                 )
 
+    def _validate_target_in_app(
+        self, saas_file: SaasFile, target: SaasResourceTemplateTarget
+    ) -> None:
+        if saas_file.validate_targets_in_app:
+            valid_app_names = {saas_file.app.name}
+            if saas_file.app.parent_app:
+                valid_app_names.add(saas_file.app.parent_app.name)
+            if target.namespace.app.name not in valid_app_names:
+                logging.error(
+                    f"[{saas_file.name}] targets must be within app(s) {valid_app_names}"
+                )
+                self.valid = False
+
     def _validate_saas_files(self) -> None:
         self.valid = True
         saas_file_name_path_map: dict[str, list[str]] = {}
@@ -309,12 +323,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                         target.namespace.environment.secret_parameters or [],
                         saas_file.allowed_secret_parameter_paths or [],
                     )
-                    if saas_file.validate_targets_in_app:
-                        if saas_file.app.name != target.namespace.app.name:
-                            logging.error(
-                                f"[{saas_file.name}] targets must be within app {saas_file.app.name}"
-                            )
-                            self.valid = False
+                    self._validate_target_in_app(saas_file, target)
 
                     if target.promotion:
                         rt_ref = (
@@ -468,17 +477,33 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                             )
                         )
 
+    @staticmethod
+    def build_saas_file_env_combo(
+        saas_file_name: str,
+        env_name: str,
+    ) -> Tuple[str, str]:
+        """
+        Build a tuple of short and long names for a saas file and environment combo,
+        max tekton pipelinerun name length can be 63,
+        leaving 12 for the timestamp leaves us with 51 to create a unique pipelinerun name.
+
+        :param saas_file_name: name of the saas file
+        :param env_name: name of the environment
+        :return: (tkn_name, tkn_long_name)
+        """
+        tkn_long_name = f"{saas_file_name}-{env_name}"
+        tkn_name = tkn_long_name[:UNIQUE_SAAS_FILE_ENV_COMBO_LEN]
+        return tkn_name, tkn_long_name
+
     def _check_saas_file_env_combo_unique(
         self,
         saas_file_name: str,
         env_name: str,
         tkn_unique_pipelineruns: Mapping[str, str],
     ) -> tuple[str, str]:
-        # max tekton pipelinerun name length can be 63.
-        # leaving 12 for the timestamp leaves us with 51
-        # to create a unique pipelinerun name
-        tkn_long_name = f"{saas_file_name}-{env_name}"
-        tkn_name = tkn_long_name[:UNIQUE_SAAS_FILE_ENV_COMBO_LEN]
+        tkn_name, tkn_long_name = self.build_saas_file_env_combo(
+            saas_file_name, env_name
+        )
         if (
             tkn_name in tkn_unique_pipelineruns
             and tkn_unique_pipelineruns[tkn_name] != tkn_long_name

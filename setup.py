@@ -30,9 +30,8 @@ setup(
         "python-gitlab>=1.11.0,<1.12.0",
         "semver~=2.13",
         "python-terraform>=0.10.0,<0.11.0",
-        # memory leak after boto3 1.24.72, https://github.com/boto/boto3/issues/3614
-        "boto3==1.24.71",
-        "botocore==1.27.71",
+        "boto3==1.26.139",
+        "botocore==1.29.139",
         "urllib3>=1.25.4,<1.27.0",
         "slack_sdk>=3.10,<4.0",
         "pypd>=1.1.0,<1.2.0",

@@ -15,12 +15,18 @@ from pydantic import (
 
 from reconcile.utils.ocm.base import OCMModelLink
 from reconcile.utils.ocm.clusters import (
+    PRODUCT_ID_ROSA,
+    ClusterDetails,
+    OCMCapability,
     OCMCluster,
     OCMClusterAWSSettings,
+    OCMClusterConsole,
     OCMClusterFlag,
     OCMClusterState,
+    OCMClusterVersion,
 )
 from reconcile.utils.ocm.labels import (
+    LabelContainer,
     OCMLabel,
     OCMOrganizationLabel,
 )
@@ -92,6 +98,9 @@ def build_ocm_cluster(
     subs_id: str = "subs_id",
     aws_cluster: bool = True,
     sts_cluster: bool = False,
+    version: str = "4.13.0",
+    cluster_product: str = PRODUCT_ID_ROSA,
+    hypershift: bool = False,
 ) -> OCMCluster:
     aws_config = None
     if aws_cluster:
@@ -103,9 +112,45 @@ def build_ocm_cluster(
         display_name=f"{name}_display_name",
         subscription=OCMModelLink(id=subs_id),
         region=OCMModelLink(id="us-east-1"),
-        product=OCMModelLink(id="OCP"),
+        product=OCMModelLink(id=cluster_product),
         cloud_provider=OCMModelLink(id="aws"),
         state=OCMClusterState.READY,
         managed=True,
         aws=aws_config,
+        version=OCMClusterVersion(id=f"openshift-v{version}", raw_id="version"),
+        hypershift=OCMClusterFlag(enabled=hypershift),
+        console=OCMClusterConsole(url="https://console.foobar.com"),
+    )
+
+
+def build_cluster_details(
+    cluster_name: str,
+    subscription_labels: Optional[LabelContainer] = None,
+    organization_labels: Optional[LabelContainer] = None,
+    org_id: str = "org-id",
+    aws_cluster: bool = True,
+    sts_cluster: bool = False,
+    cluster_product: str = PRODUCT_ID_ROSA,
+    hypershift: bool = False,
+    capabilitites: Optional[dict[str, str]] = None,
+) -> ClusterDetails:
+    return ClusterDetails(
+        ocm_cluster=build_ocm_cluster(
+            name=cluster_name,
+            subs_id=f"{cluster_name}_subs_id",
+            aws_cluster=aws_cluster,
+            sts_cluster=sts_cluster,
+            cluster_product=cluster_product,
+            hypershift=hypershift,
+        ),
+        organization_id=org_id,
+        capabilities={
+            name: OCMCapability(
+                name=name,
+                value=value,
+            )
+            for name, value in (capabilitites or {}).items()
+        },
+        subscription_labels=subscription_labels or LabelContainer(),
+        organization_labels=organization_labels or LabelContainer(),
     )

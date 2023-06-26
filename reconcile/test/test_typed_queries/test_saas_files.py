@@ -303,9 +303,7 @@ PIPELINE_PROVIDER = {
             "consoleUrl": "https://console-url",
         },
     },
-    "defaults": {
-        "pipelineTemplates": {"openshiftSaasDeploy": {"name": "openshift-saas-deploy"}}
-    },
+    "defaults": {"pipelineTemplates": {"openshiftSaasDeploy": {"name": "saas-deploy"}}},
 }
 
 
@@ -321,7 +319,7 @@ PIPELINE_PROVIDER = {
                 {
                     "path": "path1",
                     "name": "saas-file-01",
-                    "app": {"name": "app-01"},
+                    "app": {"name": "app-01", "parentApp": None},
                     "pipelinesProvider": PIPELINE_PROVIDER,
                     "managedResourceTypes": [],
                     "imagePatterns": [],
@@ -341,7 +339,7 @@ PIPELINE_PROVIDER = {
                                             "name": "test",
                                             "parameters": '{"ENV_PARAM": "foobar"}',
                                         },
-                                        "app": {"name": "app-01"},
+                                        "app": {"name": "app-01", "parentApp": None},
                                         "cluster": CLUSTER,
                                     },
                                     "ref": "main",
@@ -352,7 +350,7 @@ PIPELINE_PROVIDER = {
                                         "name": "namespace-prod",
                                         "path": "some-path",
                                         "environment": {"name": "prod"},
-                                        "app": {"name": "app-01"},
+                                        "app": {"name": "app-01", "parentApp": None},
                                         "cluster": CLUSTER,
                                     },
                                     "provider": "static",
@@ -373,7 +371,7 @@ PIPELINE_PROVIDER = {
                 {
                     "path": "path2",
                     "name": "saas-file-02",
-                    "app": {"name": "app-02"},
+                    "app": {"name": "app-02", "parentApp": None},
                     "pipelinesProvider": PIPELINE_PROVIDER,
                     "managedResourceTypes": [],
                     "imagePatterns": [],
@@ -388,7 +386,7 @@ PIPELINE_PROVIDER = {
                                         "name": "namespace-test",
                                         "path": "some-path",
                                         "environment": {"name": "test"},
-                                        "app": {"name": "app-02"},
+                                        "app": {"name": "app-02", "parentApp": None},
                                         "cluster": CLUSTER,
                                     },
                                     "ref": "main",
@@ -398,7 +396,7 @@ PIPELINE_PROVIDER = {
                                         "name": "namespace-prod",
                                         "path": "some-path",
                                         "environment": {"name": "prod"},
-                                        "app": {"name": "app-02"},
+                                        "app": {"name": "app-02", "parentApp": None},
                                         "cluster": CLUSTER,
                                     },
                                     "provider": "static",
@@ -419,7 +417,7 @@ PIPELINE_PROVIDER = {
                 {
                     "path": "path2",
                     "name": "saas-file-02",
-                    "app": {"name": "app-02"},
+                    "app": {"name": "app-02", "parentApp": None},
                     "pipelinesProvider": PIPELINE_PROVIDER,
                     "managedResourceTypes": [],
                     "imagePatterns": [],
@@ -434,7 +432,7 @@ PIPELINE_PROVIDER = {
                                         "name": "namespace-test",
                                         "path": "some-path",
                                         "environment": {"name": "test"},
-                                        "app": {"name": "app-02"},
+                                        "app": {"name": "app-02", "parentApp": None},
                                         "cluster": CLUSTER,
                                     },
                                     "ref": "main",
@@ -454,7 +452,7 @@ PIPELINE_PROVIDER = {
                 {
                     "path": "path1",
                     "name": "saas-file-01",
-                    "app": {"name": "app-01"},
+                    "app": {"name": "app-01", "parentApp": None},
                     "pipelinesProvider": PIPELINE_PROVIDER,
                     "managedResourceTypes": [],
                     "imagePatterns": [],
@@ -474,7 +472,7 @@ PIPELINE_PROVIDER = {
                                             "name": "test",
                                             "parameters": '{"ENV_PARAM": "foobar"}',
                                         },
-                                        "app": {"name": "app-01"},
+                                        "app": {"name": "app-01", "parentApp": None},
                                         "cluster": CLUSTER,
                                     },
                                     "ref": "main",
@@ -487,7 +485,7 @@ PIPELINE_PROVIDER = {
                 {
                     "path": "path2",
                     "name": "saas-file-02",
-                    "app": {"name": "app-02"},
+                    "app": {"name": "app-02", "parentApp": None},
                     "pipelinesProvider": PIPELINE_PROVIDER,
                     "managedResourceTypes": [],
                     "imagePatterns": [],
@@ -502,7 +500,7 @@ PIPELINE_PROVIDER = {
                                         "name": "namespace-test",
                                         "path": "some-path",
                                         "environment": {"name": "test"},
-                                        "app": {"name": "app-02"},
+                                        "app": {"name": "app-02", "parentApp": None},
                                         "cluster": CLUSTER,
                                     },
                                     "ref": "main",
@@ -523,7 +521,7 @@ PIPELINE_PROVIDER = {
                 {
                     "path": "path3",
                     "name": "saas-file-03",
-                    "app": {"name": "example"},
+                    "app": {"name": "example", "parentApp": None},
                     "pipelinesProvider": PIPELINE_PROVIDER,
                     "managedResourceTypes": [],
                     "imagePatterns": [],
@@ -538,7 +536,7 @@ PIPELINE_PROVIDER = {
                                         "name": "example-01",
                                         "path": "some-path",
                                         "environment": {"name": "production"},
-                                        "app": {"name": "example"},
+                                        "app": {"name": "example", "parentApp": None},
                                         "cluster": CLUSTER,
                                     },
                                     "ref": "1234567890123456789012345678901234567890",
@@ -548,7 +546,7 @@ PIPELINE_PROVIDER = {
                                         "name": "example-02",
                                         "path": "some-path",
                                         "environment": {"name": "stage"},
-                                        "app": {"name": "example"},
+                                        "app": {"name": "example", "parentApp": None},
                                         "cluster": CLUSTER,
                                     },
                                     "ref": "1234567890123456789012345678901234567890",
@@ -615,7 +613,7 @@ def test_export_model(
         {
             "path": "path1",
             "name": "saas-file-01",
-            "app": {"name": "app-01"},
+            "app": {"name": "app-01", "parentApp": None},
             "pipelinesProvider": {
                 "name": "pipeline-provider-01",
                 "provider": "tekton",
@@ -640,7 +638,7 @@ def test_export_model(
                 },
                 "defaults": {
                     "pipelineTemplates": {
-                        "openshiftSaasDeploy": {"name": "openshift-saas-deploy"}
+                        "openshiftSaasDeploy": {"name": "saas-deploy"}
                     }
                 },
                 "pipelineTemplates": None,
@@ -685,7 +683,11 @@ def test_export_model(
                                     "parameters": '{"ENV_PARAM": "foobar"}',
                                     "secretParameters": None,
                                 },
-                                "app": {"name": "app-01", "labels": None},
+                                "app": {
+                                    "name": "app-01",
+                                    "labels": None,
+                                    "parentApp": None,
+                                },
                                 "cluster": {
                                     "name": "appint-ex-01",
                                     "serverUrl": "https://cluster-url",
@@ -726,7 +728,11 @@ def test_export_model(
                                     "parameters": None,
                                     "secretParameters": None,
                                 },
-                                "app": {"name": "app-01", "labels": None},
+                                "app": {
+                                    "name": "app-01",
+                                    "labels": None,
+                                    "parentApp": None,
+                                },
                                 "cluster": {
                                     "name": "appint-ex-01",
                                     "serverUrl": "https://cluster-url",
@@ -761,7 +767,7 @@ def test_export_model(
         {
             "path": "path2",
             "name": "saas-file-02",
-            "app": {"name": "app-02"},
+            "app": {"name": "app-02", "parentApp": None},
             "pipelinesProvider": {
                 "name": "pipeline-provider-01",
                 "provider": "tekton",
@@ -786,7 +792,7 @@ def test_export_model(
                 },
                 "defaults": {
                     "pipelineTemplates": {
-                        "openshiftSaasDeploy": {"name": "openshift-saas-deploy"}
+                        "openshiftSaasDeploy": {"name": "saas-deploy"}
                     }
                 },
                 "pipelineTemplates": None,
@@ -831,7 +837,11 @@ def test_export_model(
                                     "parameters": None,
                                     "secretParameters": None,
                                 },
-                                "app": {"name": "app-02", "labels": None},
+                                "app": {
+                                    "name": "app-02",
+                                    "labels": None,
+                                    "parentApp": None,
+                                },
                                 "cluster": {
                                     "name": "appint-ex-01",
                                     "serverUrl": "https://cluster-url",
@@ -872,7 +882,11 @@ def test_export_model(
                                     "parameters": None,
                                     "secretParameters": None,
                                 },
-                                "app": {"name": "app-02", "labels": None},
+                                "app": {
+                                    "name": "app-02",
+                                    "labels": None,
+                                    "parentApp": None,
+                                },
                                 "cluster": {
                                     "name": "appint-ex-01",
                                     "serverUrl": "https://cluster-url",
@@ -907,7 +921,7 @@ def test_export_model(
         {
             "path": "path3",
             "name": "saas-file-03",
-            "app": {"name": "example"},
+            "app": {"name": "example", "parentApp": None},
             "pipelinesProvider": {
                 "name": "pipeline-provider-01",
                 "provider": "tekton",
@@ -932,7 +946,7 @@ def test_export_model(
                 },
                 "defaults": {
                     "pipelineTemplates": {
-                        "openshiftSaasDeploy": {"name": "openshift-saas-deploy"}
+                        "openshiftSaasDeploy": {"name": "saas-deploy"}
                     }
                 },
                 "pipelineTemplates": None,
@@ -977,7 +991,11 @@ def test_export_model(
                                     "parameters": None,
                                     "secretParameters": None,
                                 },
-                                "app": {"name": "example", "labels": None},
+                                "app": {
+                                    "name": "example",
+                                    "parentApp": None,
+                                    "labels": None,
+                                },
                                 "cluster": {
                                     "name": "appint-ex-01",
                                     "serverUrl": "https://cluster-url",
@@ -1018,7 +1036,11 @@ def test_export_model(
                                     "parameters": None,
                                     "secretParameters": None,
                                 },
-                                "app": {"name": "example", "labels": None},
+                                "app": {
+                                    "name": "example",
+                                    "parentApp": None,
+                                    "labels": None,
+                                },
                                 "cluster": {
                                     "name": "appint-ex-01",
                                     "serverUrl": "https://cluster-url",

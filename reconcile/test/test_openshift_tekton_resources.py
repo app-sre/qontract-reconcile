@@ -152,7 +152,7 @@ class TestOpenshiftTektonResources:
                 "o-openshift-saas-deploy-saas1",
             ]
         )
-        expected_pipeline_name = "o-openshift-saas-deploy-saas1"
+        expected_pipeline_name = "o-saas-deploy-saas1"
 
         task_names = set()
         for dr in desired_resources:
@@ -173,7 +173,7 @@ class TestOpenshiftTektonResources:
         # we need to locate the onePerSaasFile task in the desired resources
         # we could be very strict and find the onePerSaasFile task in
         # self.provider1 or just use the actual structure of the fixtures
-        task_name = otr.build_one_per_saas_file_tkn_object_name(
+        task_name = otr.build_one_per_saas_file_tkn_task_name(
             template_name=self.provider1["taskTemplates"][0]["name"],
             saas_file_name=self.saas1["name"],
         )
@@ -186,7 +186,7 @@ class TestOpenshiftTektonResources:
         self.test_data.providers = [self.provider2_wr]
         desired_resources = otr.fetch_desired_resources(otr.fetch_tkn_providers(None))
 
-        task_name = otr.build_one_per_saas_file_tkn_object_name(
+        task_name = otr.build_one_per_saas_file_tkn_task_name(
             template_name=self.provider2_wr["taskTemplates"][0]["name"],
             saas_file_name=self.saas2["name"],
         )
@@ -199,7 +199,7 @@ class TestOpenshiftTektonResources:
         self.test_data.providers = [self.provider2_wr]
         desired_resources = otr.fetch_desired_resources(otr.fetch_tkn_providers(None))
 
-        task_name = otr.build_one_per_saas_file_tkn_object_name(
+        task_name = otr.build_one_per_saas_file_tkn_task_name(
             template_name=self.provider2_wr["taskTemplates"][0]["name"],
             saas_file_name=self.saas2["name"],
         )
@@ -226,10 +226,7 @@ class TestOpenshiftTektonResources:
         self.test_data.saas_files = [self.saas5]
         self.test_data.providers = [self.provider5_wut]
 
-        msg = (
-            r"Unknown task this-is-an-unknown-task in pipeline template "
-            r"openshift-saas-deploy"
-        )
+        msg = r"Unknown task this-is-an-unknown-task in pipeline template saas-deploy"
         with pytest.raises(otr.OpenshiftTektonResourcesBadConfigError, match=msg):
             otr.fetch_desired_resources(otr.fetch_tkn_providers(None))
 
@@ -244,10 +241,27 @@ class TestOpenshiftTektonResources:
         with pytest.raises(otr.OpenshiftTektonResourcesBadConfigError, match=msg):
             otr.fetch_desired_resources(otr.fetch_tkn_providers(None))
 
-    @patch(f"{MODULE}.RESOURCE_MAX_LENGTH", 1)
+    @patch(f"{MODULE}.RESOURCE_MAX_LENGTH", 10)
     def test_task_templates_resource_too_long(self) -> None:
         self.test_data.saas_files = [self.saas1]
         self.test_data.providers = [self.provider1]
-        msg = r"name o-openshift-saas-deploy-saas1 is longer than 1 characters"
+        msg = (
+            r"Resource name o-openshift-saas-deploy-saas1 is longer than 10 characters"
+        )
+        with pytest.raises(otr.OpenshiftTektonResourcesNameTooLongError, match=msg):
+            otr.fetch_desired_resources(otr.fetch_tkn_providers(None))
+
+    # This test describes a situation that should not take place in current app-interface since
+    # pipeline names are limited to 15 characters. But just in case, the code protects us from
+    # this situation to happen, hence the test.
+    def test_pipeline_templates_resource_too_long(self) -> None:
+        self.provider6_tlpn = self.fxt.get_json("provider6-too-long-pipeline-name.yaml")
+        self.saas6_39cn = self.fxt.get_json("saas6-39-chars-name.yaml")
+        self.test_data.saas_files = [self.saas6_39cn]
+        self.test_data.providers = [self.provider6_tlpn]
+        msg = (
+            r"Pipeline name o-saas-deploy-too-long-name-this-is-a-saas-file-with-a-39-char-name "
+            r"is longer than 56 characters"
+        )
         with pytest.raises(otr.OpenshiftTektonResourcesNameTooLongError, match=msg):
             otr.fetch_desired_resources(otr.fetch_tkn_providers(None))

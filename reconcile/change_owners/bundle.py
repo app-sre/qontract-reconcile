@@ -101,6 +101,15 @@ def _clean_datafile_content(data: Optional[dict[str, Any]]) -> Optional[dict[str
     return {k: v for k, v in data.items() if k not in DATAFILE_CONTENT_CLEANUP_FIELDS}
 
 
+class QontractServerResourcefileBackref(BaseModel):
+    """
+    Represents a backref from a resourcefile to a datafile
+    """
+
+    path: str
+    datafileschema: str = Field(..., alias="datafileSchema")
+
+
 class QontractServerResourcefileDiffState(BaseModel):
     """
     Represents the old or new state of a resourcefile returned by the qontract-server /diff endpoint.
@@ -110,6 +119,7 @@ class QontractServerResourcefileDiffState(BaseModel):
     content: str
     resourcefileschema: Optional[str] = Field(..., alias="$schema")
     sha256sum: str
+    backrefs: Optional[list[QontractServerResourcefileBackref]]
 
 
 class QontractServerResourcefileDiff(BaseModel):

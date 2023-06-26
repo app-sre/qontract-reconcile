@@ -36,7 +36,6 @@ Additional tools that use the libraries created by the reconciliations are also 
                                   the clusters and posts them to Dashdotdb.
   dashdotdb-slo                   Collects the ServiceSloMetrics from all the
                                   clusters and posts them to Dashdotdb.
-  ecr-mirror                      Mirrors external images into AWS ECR.
   email-sender                    Send email notifications to app-interface
                                   audience.
   gabi-authorized-users           Manages user access for GABI instances.
@@ -50,15 +49,12 @@ Additional tools that use the libraries created by the reconciliations are also 
   github-repo-permissions-validator
                                   Validates permissions in github
                                   repositories.
-  github-scanner                  Scan GitHub repositories for leaked keys and
-                                  remove them (only submits PR).
   github-users                    Validate compliance of GitHub user profiles.
   github-validator                Validates GitHub organization settings.
   gitlab-fork-compliance          Ensures that forks of App Interface are
                                   compliant.
   gitlab-housekeeping             Manage issues and merge requests on GitLab
                                   projects.
-  gitlab-integrations             Manage integrations on GitLab projects.
   gitlab-labeler                  Guesses and adds labels to merge requests
                                   according to changed paths.
   gitlab-members                  Manage GitLab group members.
@@ -72,15 +68,11 @@ Additional tools that use the libraries created by the reconciliations are also 
                                   configuration.
   glitchtip-project-dsn           Glitchtip project dsn as openshift secret.
   integrations-manager            Manages Qontract Reconcile integrations.
-  integrations-validator          Ensures all integrations are defined in App-
-                                  Interface.
   jenkins-job-builder             Manage Jenkins jobs configurations using
                                   jenkins-jobs.
   jenkins-job-builds-cleaner      Clean up jenkins job history.
   jenkins-job-cleaner             Delete Jenkins jobs in multiple tenant
                                   instances.
-  jenkins-plugins                 Manage Jenkins plugins installation via REST
-                                  API.
   jenkins-roles                   Manage Jenkins roles association via REST
                                   API.
   jenkins-webhooks                Manage web hooks to Jenkins jobs.
@@ -89,7 +81,6 @@ Additional tools that use the libraries created by the reconciliations are also 
   jenkins-worker-fleets           Manage Jenkins worker fleets via JCasC.
   jira-watcher                    Watch for changes in Jira boards and notify
                                   on Slack.
-  kafka-clusters                  Manages Kafka clusters via OCM.
   ldap-users                      Removes users which are not found in LDAP
                                   search.
   ocm-additional-routers          Manage additional routers in OCM.
@@ -102,7 +93,6 @@ Additional tools that use the libraries created by the reconciliations are also 
                                   upgrades.
   ocm-aws-infrastructure-access   Grants AWS infrastructure access to members
                                   in AWS groups via OCM.
-  ocm-cluster-admin               Manage Cluster Admin in OCM.
   ocm-clusters                    Manages clusters via OCM.
   ocm-external-configuration-labels
                                   Manage External Configuration labels in OCM.
@@ -197,8 +187,6 @@ Additional tools that use the libraries created by the reconciliations are also 
   terraform-users                 Manage AWS users using Terraform.
   terraform-vpc-peerings          Manage VPC peerings between OSD clusters and
                                   AWS accounts or other OSD clusters.
-  unleash-watcher                 Watch for changes in Unleah feature toggles
-                                  and notify on Slack.
   vault-replication               Allow vault to replicate secrets to other
                                   instances.
   vpc-peerings-validator          Validates that VPC peerings do not exist

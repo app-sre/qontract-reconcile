@@ -70,6 +70,22 @@ def get_current_state(instance: GitlabInstanceV1, gl: GitLabApi) -> State:
     }
 
 
+def add_or_update_user(
+    group_members: State, group_name: str, gitlab_user: GitlabUser
+) -> None:
+    existing_users = [
+        gu for gu in group_members[group_name] if gu.user == gitlab_user.user
+    ]
+    if not existing_users:
+        group_members[group_name].append(gitlab_user)
+    else:
+        existing_user = existing_users[0]
+        if GitLabApi.get_access_level(
+            existing_user.access_level
+        ) < GitLabApi.get_access_level(gitlab_user.access_level):
+            existing_user.access_level = gitlab_user.access_level
+
+
 def get_desired_state(
     instance: GitlabInstanceV1,
     pagerduty_map: PagerDutyMap,
@@ -83,9 +99,8 @@ def get_desired_state(
             if p.group == g:
                 for r in p.roles or []:
                     for u in (r.users or []) + (r.bots or []):
-                        desired_group_members[g].append(
-                            GitlabUser(user=u.org_username, access_level=p.access)
-                        )
+                        gu = GitlabUser(user=u.org_username, access_level=p.access)
+                        add_or_update_user(desired_group_members, g, gu)
                 if p.pagerduty:
                     usernames_from_pagerduty = get_usernames_from_pagerduty(
                         p.pagerduty,
@@ -95,9 +110,8 @@ def get_desired_state(
                         get_username_method=lambda u: u.org_username,
                     )
                     for u in usernames_from_pagerduty:
-                        desired_group_members[g].append(
-                            GitlabUser(user=u, access_level=p.access)
-                        )
+                        gu = GitlabUser(user=u, access_level=p.access)
+                        add_or_update_user(desired_group_members, g, gu)
 
     return desired_group_members
 
@@ -199,8 +213,6 @@ def run(
     pagerduty_instances = pagerduty_instances_query(
         query_func=gqlapi.query
     ).pagerduty_instances
-    if not pagerduty_instances:
-        raise AppInterfaceSettingsError("no pagerduty instance(s) configured")
 
     # APIs
     secret_reader = SecretReader(queries.get_secret_reader_settings())

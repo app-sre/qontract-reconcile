@@ -42,7 +42,6 @@ APP_INTERFACE_SETTINGS_QUERY = """
     vault
     kubeBinary
     mergeRequestGateway
-    saasDeployJobTemplate
     hashLength
     smtp {
       mailAddress
@@ -285,6 +284,7 @@ INTEGRATIONS_QUERY = """
         successfulJobHistoryLimit
         failedJobHistoryLimit
         imageRef
+        enablePushgateway
       }
     }
   }
@@ -313,7 +313,6 @@ JENKINS_INSTANCES_QUERY = """
       format
     }
     previousUrls
-    plugins
     deleteMethod
     managedProjects
     buildsCleanupRules {
@@ -535,6 +534,16 @@ AWS_ACCOUNTS_QUERY = """
       }
     }
     {% endif %}
+    {% if cleanup %}
+    cleanup {
+      provider
+      ... on AWSAccountCleanupOptionAMI_v1 {
+        regex
+        age
+        region
+      }
+    }
+    {% endif %}
   }
 }
 """
@@ -547,6 +556,7 @@ def get_aws_accounts(
     sharing=False,
     terraform_state=False,
     ecrs=True,
+    cleanup=False,
 ):
     """Returns all AWS accounts"""
     gqlapi = gql.get_api()
@@ -559,6 +569,7 @@ def get_aws_accounts(
         sharing=sharing,
         terraform_state=terraform_state,
         ecrs=ecrs,
+        cleanup=cleanup,
     )
     return gqlapi.query(query)["accounts"]
 
@@ -1076,6 +1087,7 @@ CLUSTER_PEERING_QUERY = """
             }
           }
           tags
+          assumeRole
         }
         ... on ClusterPeeringConnectionAccountTGW_v1 {
           account {
@@ -1131,6 +1143,7 @@ CLUSTER_PEERING_QUERY = """
                   cluster {
                     name
                   }
+                  assumeRole
                   awsInfrastructureManagementAccount {
                     name
                     uid
@@ -1146,6 +1159,7 @@ CLUSTER_PEERING_QUERY = """
               }
             }
           }
+          assumeRole
         }
       }
     }
@@ -1285,68 +1299,6 @@ OCM_QUERY = """
 
 def get_openshift_cluster_managers() -> list[dict[str, Any]]:
     return gql.get_api().query(OCM_QUERY)["instances"]
-
-
-KAFKA_CLUSTERS_QUERY = """
-{
-  clusters: kafka_clusters_v1 {
-    name
-    ocm {
-      name
-      environment {
-        url
-        accessTokenClientId
-        accessTokenUrl
-        accessTokenClientSecret {
-          path
-          field
-          format
-          version
-        }
-      }
-      orgId
-      accessTokenClientId
-      accessTokenUrl
-      accessTokenClientSecret {
-        path
-        field
-        format
-        version
-      }
-    }
-    spec {
-      provider
-      region
-      multi_az
-    }
-    namespaces {
-      name
-      cluster {
-        name
-        serverUrl
-        insecureSkipTLSVerify
-        jumpHost {
-          %s
-        }
-        automationToken {
-          path
-          field
-          version
-          format
-        }
-      }
-    }
-  }
-}
-""" % (
-    indent(JUMPHOST_FIELDS, 10 * " "),
-)
-
-
-def get_kafka_clusters(minimal=False):
-    """Returns all Kafka Clusters"""
-    gqlapi = gql.get_api()
-    return gqlapi.query(KAFKA_CLUSTERS_QUERY)["clusters"]
 
 
 NAMESPACES_QUERY = """

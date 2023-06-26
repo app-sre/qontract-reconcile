@@ -45,6 +45,9 @@ query TerraformResourcesNamespaces {
                     source_type
                     event_categories
                 }
+                data_classification {
+                    loss_impact
+                }
             }
             ... on NamespaceTerraformResourceS3_v1 {
                 region
@@ -100,8 +103,10 @@ query TerraformResourcesNamespaces {
                 assume_role {
                     AWS
                     Service
+                    Federated
                 }
                 assume_condition
+                assume_action
                 inline_policy
                 output_resource_name
                 annotations
@@ -240,11 +245,14 @@ query TerraformResourcesNamespaces {
                 idle_timeout
                 enable_http2
                 ip_address_type
+                access_logs
                 targets {
                     name
                     default
                     ips
                     openshift_service
+                    protocol
+                    protocol_version
                 }
                 rules {
                     condition {
@@ -381,6 +389,19 @@ query TerraformResourcesNamespaces {
                 output_resource_name
                 annotations
                 defaults
+            }
+            ... on NamespaceTerraformResourceMsk_v1 {
+                region
+                identifier
+                output_resource_name
+                defaults
+                annotations
+                users {
+                  name
+                  secret {
+                    ...VaultSecret
+                  }
+                }
             }
         }
       }

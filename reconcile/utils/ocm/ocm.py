@@ -47,7 +47,6 @@ STATUS_DELETING = "deleting"
 
 AMS_API_BASE = "/api/accounts_mgmt"
 CS_API_BASE = "/api/clusters_mgmt"
-KAS_API_BASE = "/api/kafkas_mgmt"
 
 MACHINE_POOL_DESIRED_KEYS = {"id", "instance_type", "replicas", "labels", "taints"}
 UPGRADE_CHANNELS = {"stable", "fast", "candidate"}
@@ -97,6 +96,7 @@ SPEC_ATTR_PATH = "path"
 
 OCM_PRODUCT_OSD = "osd"
 OCM_PRODUCT_ROSA = "rosa"
+OCM_PRODUCT_HYPERSHIFT = "hypershift"
 
 
 class OCMProduct:
@@ -525,9 +525,121 @@ class OCMProductRosa(OCMProduct):
         return ocm_spec
 
 
+class OCMProductHypershift(OCMProduct):
+    # Not a real product, but a way to represent the Hypershift specialties
+    ALLOWED_SPEC_UPDATE_FIELDS = {
+        # needs implementation, see: https://issues.redhat.com/browse/OCM-2144
+        # SPEC_ATTR_CHANNEL,
+        # needs implementation, see: https://issues.redhat.com/browse/OCM-915
+        # SPEC_ATTR_PRIVATE,
+        SPEC_ATTR_DISABLE_UWM,
+    }
+
+    EXCLUDED_SPEC_FIELDS = {
+        SPEC_ATTR_ID,
+        SPEC_ATTR_EXTERNAL_ID,
+        SPEC_ATTR_PROVISION_SHARD_ID,
+        SPEC_ATTR_VERSION,
+        SPEC_ATTR_INITIAL_VERSION,
+        SPEC_ATTR_ACCOUNT,
+        SPEC_ATTR_HYPERSHIFT,
+        SPEC_ATTR_SUBNET_IDS,
+        SPEC_ATTR_AVAILABILITY_ZONES,
+    }
+
+    @staticmethod
+    def create_cluster(ocm: OCM, name: str, cluster: OCMSpec, dry_run: bool):
+        logging.error("Please use rosa cli to create new clusters")
+
+    @staticmethod
+    def update_cluster(ocm: OCM, cluster_name: str, update_spec: Mapping[str, Any]):
+        ocm_spec = OCMProductRosa._get_update_cluster_spec(update_spec)
+        cluster_id = ocm.cluster_ids.get(cluster_name)
+        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}"
+        params: dict[str, Any] = {}
+        ocm._patch(api, ocm_spec, params)
+
+    @staticmethod
+    def get_ocm_spec(
+        ocm: OCM, cluster: Mapping[str, Any], init_provision_shards: bool
+    ) -> OCMSpec:
+
+        if init_provision_shards:
+            provision_shard_id = ocm.get_provision_shard(cluster["id"])["id"]
+        else:
+            provision_shard_id = None
+
+        account = ROSAClusterAWSAccount(
+            uid=cluster["properties"]["rosa_creator_arn"].split(":")[4],
+            rosa=ROSAOcmAwsAttrs(
+                creator_role_arn=cluster["properties"]["rosa_creator_arn"],
+                installer_role_arn=cluster["aws"]["sts"]["role_arn"],
+                support_role_arn=cluster["aws"]["sts"]["support_role_arn"],
+                controlplane_role_arn=cluster["aws"]["sts"]["instance_iam_roles"].get(
+                    "master_role_arn"
+                ),
+                worker_role_arn=cluster["aws"]["sts"]["instance_iam_roles"][
+                    "worker_role_arn"
+                ],
+            ),
+        )
+
+        spec = ROSAClusterSpec(
+            product=cluster["product"]["id"],
+            account=account,
+            id=cluster["id"],
+            external_id=cluster.get("external_id"),
+            provider=cluster["cloud_provider"]["id"],
+            region=cluster["region"]["id"],
+            channel=cluster["version"]["channel_group"],
+            version=cluster["version"]["raw_id"],
+            multi_az=cluster["multi_az"],
+            instance_type=cluster["nodes"]["compute_machine_type"]["id"],
+            private=cluster["api"]["listening"] == "internal",
+            disable_user_workload_monitoring=cluster[
+                "disable_user_workload_monitoring"
+            ],
+            provision_shard_id=provision_shard_id,
+            nodes=cluster["nodes"].get("compute"),
+            subnet_ids=cluster["aws"].get("subnet_ids"),
+            availability_zones=cluster["nodes"].get("availability_zones"),
+            hypershift=cluster["hypershift"]["enabled"],
+        )
+
+        network = OCMClusterNetwork(
+            type=cluster["network"].get("type") or "OVNKubernetes",
+            vpc=cluster["network"]["machine_cidr"],
+            service=cluster["network"]["service_cidr"],
+            pod=cluster["network"]["pod_cidr"],
+        )
+
+        ocm_spec = OCMSpec(
+            # Hosted control plane clusters can reach a Ready State without having the console
+            # Endpoint
+            console_url=cluster.get("console", {}).get("url", ""),
+            server_url=cluster["api"]["url"],
+            domain=cluster["dns"]["base_domain"],
+            spec=spec,
+            network=network,
+        )
+
+        return ocm_spec
+
+    @staticmethod
+    def _get_update_cluster_spec(update_spec: Mapping[str, Any]) -> dict[str, Any]:
+        ocm_spec: dict[str, Any] = {}
+
+        disable_uwm = update_spec.get(SPEC_ATTR_DISABLE_UWM)
+        if disable_uwm is not None:
+            ocm_spec["disable_user_workload_monitoring"] = disable_uwm
+
+        return ocm_spec
+
+
 OCM_PRODUCTS_IMPL = {
     OCM_PRODUCT_OSD: OCMProductOsd,
     OCM_PRODUCT_ROSA: OCMProductRosa,
+    OCM_PRODUCT_HYPERSHIFT: OCMProductHypershift,
 }
 
 
@@ -629,29 +741,42 @@ class OCM:  # pylint: disable=too-many-public-methods
             else:
                 self.not_ready_clusters.add(cluster_name)
 
+    @property
+    def non_blocked_cluster_upgrades(self) -> dict[str, list[str]]:
+        return {
+            cluster: [v for v in versions or [] if not self.version_blocked(v)]
+            for cluster, versions in self.available_cluster_upgrades.items()
+        }
+
     def is_ready(self, cluster):
         return cluster in self.clusters
 
-    def _get_ocm_impl(self, product: str):
+    def _get_ocm_impl(
+        self, product: str, hypershift: Optional[bool] = False
+    ) -> type[OCMProduct]:
+        if hypershift:
+            return OCM_PRODUCTS_IMPL[OCM_PRODUCT_HYPERSHIFT]
         return OCM_PRODUCTS_IMPL[product]
 
     def _get_cluster_ocm_spec(
         self, cluster: Mapping[str, Any], init_provision_shards: bool
     ) -> OCMSpec:
 
-        impl = self._get_ocm_impl(cluster["product"]["id"])
+        impl = self._get_ocm_impl(
+            cluster["product"]["id"], cluster["hypershift"]["enabled"]
+        )
         spec = impl.get_ocm_spec(self, cluster, init_provision_shards)
         return spec
 
     def create_cluster(self, name: str, cluster: OCMSpec, dry_run: bool):
-        impl = self._get_ocm_impl(cluster.spec.product)
+        impl = self._get_ocm_impl(cluster.spec.product, cluster.spec.hypershift)
         impl.create_cluster(self, name, cluster, dry_run)
 
     def update_cluster(
         self, cluster_name: str, update_spec: Mapping[str, Any], dry_run=False
     ):
         cluster = self.clusters[cluster_name]
-        impl = self._get_ocm_impl(cluster.spec.product)
+        impl = self._get_ocm_impl(cluster.spec.product, cluster.spec.hypershift)
         impl.update_cluster(self, cluster_name, update_spec)
 
     def get_group_if_exists(self, cluster, group_id):
@@ -1027,32 +1152,6 @@ class OCM:  # pylint: disable=too-many-public-methods
         )
         self._delete(api)
 
-    def _get_subscription_labels_api(self, cluster: str) -> str:
-        cluster_id = self.cluster_ids[cluster]
-        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}"
-        subscription_api = self._get_json(api)["subscription"]["href"]
-        return f"{subscription_api}/labels"
-
-    def is_cluster_admin_enabled(self, cluster: str) -> bool:
-        api = self._get_subscription_labels_api(cluster)
-        subcription_labels = self._get_json(api).get("items")
-
-        for sl in subcription_labels or []:
-            if sl["key"] == CLUSTER_ADMIN_LABEL_KEY and sl["value"] == "true":
-                return True
-
-        return False
-
-    def enable_cluster_admin(self, cluster: str):
-        api = self._get_subscription_labels_api(cluster)
-        data = {
-            "key": CLUSTER_ADMIN_LABEL_KEY,
-            "value": "true",
-            "internal": True,
-        }
-
-        self._post(api, data)
-
     def get_machine_pools(self, cluster):
         """Returns a list of details of Machine Pools
 
@@ -1152,27 +1251,43 @@ class OCM:  # pylint: disable=too-many-public-methods
         """
         return any(re.search(b, version) for b in self.blocked_versions)
 
-    def get_available_upgrades(self, version, channel):
-        """Get available versions to upgrade from specified version
-        in the specified channel
+    def get_available_upgrades(self, cluster_name: str) -> list[str]:
+        """Get available versions to upgrade for a specific cluster.
 
         Args:
-            version (string): OpenShift version ID
-            channel (string): Upgrade channel
-
-        Raises:
-            KeyError: if specified channel is not valid
+            cluster_name (string): cluster display name to get available upgrades for
 
         Returns:
-            list: available versions to upgrade to
+            list: a non-null but potentially empty list of available versions to upgrade to
         """
-        if channel not in UPGRADE_CHANNELS:
-            raise KeyError(f"channel should be one of {UPGRADE_CHANNELS}")
-        version_id = f"openshift-v{version}"
-        if channel != "stable":
-            version_id = f"{version_id}-{channel}"
-        api = f"{CS_API_BASE}/v1/versions/{version_id}"
-        return self._get_json(api).get("available_upgrades", [])
+        return self.available_cluster_upgrades.get(cluster_name) or []
+
+    def get_control_plan_upgrade_policies(
+        self, cluster, schedule_type=None
+    ) -> list[dict[str, Any]]:
+        """Returns a list of details of Upgrade Policies
+
+        :param cluster: cluster name
+
+        :type cluster: string
+        """
+        results: list[dict[str, Any]] = []
+        cluster_id = self.cluster_ids.get(cluster)
+        if not cluster_id:
+            return results
+
+        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/control_plane/upgrade_policies"
+        items = self._get_json(api).get("items")
+        if not items:
+            return results
+
+        for item in items:
+            if schedule_type and item["schedule_type"] != schedule_type:
+                continue
+            result = {k: v for k, v in item.items() if k in UPGRADE_POLICY_DESIRED_KEYS}
+            results.append(result)
+
+        return results
 
     def get_upgrade_policies(self, cluster, schedule_type=None) -> list[dict[str, Any]]:
         """Returns a list of details of Upgrade Policies
@@ -1198,6 +1313,19 @@ class OCM:  # pylint: disable=too-many-public-methods
 
         return results
 
+    def create_control_plane_upgrade_policy(self, cluster, spec):
+        """Creates a new Upgrade Policy for the control plane
+
+        :param cluster: cluster name
+        :param spec: required information for creation
+
+        :type cluster: string
+        :type spec: dictionary
+        """
+        cluster_id = self.cluster_ids[cluster]
+        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/control_plane/upgrade_policies"
+        self._post(api, spec)
+
     def create_upgrade_policy(self, cluster, spec):
         """Creates a new Upgrade Policy
 
@@ -1210,6 +1338,23 @@ class OCM:  # pylint: disable=too-many-public-methods
         cluster_id = self.cluster_ids[cluster]
         api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/upgrade_policies"
         self._post(api, spec)
+
+    def delete_control_plane_upgrade_policy(self, cluster, spec):
+        """Deletes an existing Control Plane Upgrade Policy
+
+        :param cluster: cluster name
+        :param spec: required information for update
+
+        :type cluster: string
+        :type spec: dictionary
+        """
+        cluster_id = self.cluster_ids[cluster]
+        upgrade_policy_id = spec["id"]
+        api = (
+            f"{CS_API_BASE}/v1/clusters/{cluster_id}/"
+            + f"control_plane/upgrade_policies/{upgrade_policy_id}"
+        )
+        self._delete(api)
 
     def delete_upgrade_policy(self, cluster, spec):
         """Deletes an existing Upgrade Policy
@@ -1306,45 +1451,6 @@ class OCM:  # pylint: disable=too-many-public-methods
     ):
         api = f"{AMS_API_BASE}/v1/access_token"
         return self._post(api)
-
-    def get_kafka_clusters(self, fields=None):
-        """Returns details of the Kafka clusters"""
-        api = f"{KAS_API_BASE}/v1/kafkas"
-        clusters = self._get_json(api)["items"]
-        if fields:
-            clusters = [
-                {k: v for k, v in cluster.items() if k in fields}
-                for cluster in clusters
-            ]
-        return clusters
-
-    def get_kafka_service_accounts(self, fields=None):
-        """Returns details of the Kafka service accounts"""
-        results = []
-        api = f"{KAS_API_BASE}/v1/service_accounts"
-        service_accounts = self._get_json(api)["items"]
-        for sa in service_accounts:
-            sa_id = sa["id"]
-            id_api = f"{api}/{sa_id}"
-            sa_details = self._get_json(id_api)
-            if fields:
-                sa_details = {k: v for k, v in sa_details.items() if k in fields}
-            results.append(sa_details)
-        return results
-
-    def create_kafka_cluster(self, data):
-        """Creates (async) a Kafka cluster"""
-        api = f"{KAS_API_BASE}/v1/kafkas"
-        params = {"async": "true"}
-        self._post(api, data, params)
-
-    def create_kafka_service_account(self, name, fields=None):
-        """Creates a Kafka service account"""
-        api = f"{KAS_API_BASE}/v1/service_accounts"
-        result = self._post(api, {"name": name})
-        if fields:
-            result = {k: v for k, v in result.items() if k in fields}
-        return result
 
     def _init_addons(self):
         """Returns a list of Addons"""
@@ -1833,30 +1939,3 @@ class OCMMap:  # pylint: disable=too-many-public-methods
         for v in self.ocm_map.values():
             not_ready_cluster_names.extend(v.not_ready_clusters)
         return cluster_specs, not_ready_cluster_names
-
-    def kafka_cluster_specs(self):
-        """Get dictionary of Kafka cluster names and specs in the OCM map."""
-        fields = [
-            "id",
-            "status",
-            "cloud_provider",
-            "region",
-            "multi_az",
-            "name",
-            "bootstrap_server_host",
-            "failed_reason",
-        ]
-        cluster_specs = []
-        for ocm in self.ocm_map.values():
-            clusters = ocm.get_kafka_clusters(fields=fields)
-            cluster_specs.extend(clusters)
-        return cluster_specs
-
-    def kafka_service_account_specs(self):
-        """Get dictionary of Kafka service account specs in the OCM map."""
-        fields = ["name", "client_id"]
-        service_account_specs = []
-        for ocm in self.ocm_map.values():
-            service_accounts = ocm.get_kafka_service_accounts(fields=fields)
-            service_account_specs.extend(service_accounts)
-        return service_account_specs

@@ -66,30 +66,6 @@ def int_params() -> TerraformRepoIntegrationParams:
 
 
 @pytest.fixture()
-def a_repo_json() -> str:
-    # terraform repo expects a JSON string not a dict so we have to encode a multi-line JSON string
-    return f"""
-            {{
-                "name": "a_repo",
-                "repository": "{A_REPO}",
-                "ref": "{A_REPO_SHA}",
-                "projectPath": "tf",
-                "delete": false,
-                "account": {{
-                    "name": "foo",
-                    "uid": "{AWS_UID}",
-                    "automationToken": {{
-                        "path": "{AUTOMATION_TOKEN_PATH}",
-                        "field": "all",
-                        "version": 1,
-                        "format": null
-                    }}
-                }}
-            }}
-            """
-
-
-@pytest.fixture()
 def state_mock() -> MagicMock:
     return MagicMock(spec=State)
 
@@ -181,13 +157,31 @@ def test_delete_repo_without_flag(existing_repo, int_params):
         )
 
 
-def test_get_repo_state(s3_state_builder, int_params, existing_repo, a_repo_json):
+def test_get_repo_state(s3_state_builder, int_params, existing_repo):
     state = s3_state_builder(
         {
             "ls": [
                 "/a_repo",
             ],
-            "get": {"a_repo": a_repo_json},
+            "get": {
+                "a_repo": {
+                    "name": "a_repo",
+                    "repository": A_REPO,
+                    "ref": A_REPO_SHA,
+                    "projectPath": "tf",
+                    "delete": False,
+                    "account": {
+                        "name": "foo",
+                        "uid": AWS_UID,
+                        "automationToken": {
+                            "path": AUTOMATION_TOKEN_PATH,
+                            "field": "all",
+                            "version": 1,
+                            "format": None,
+                        },
+                    },
+                }
+            },
         }
     )
 
@@ -213,3 +207,42 @@ def test_update_repo_state(int_params, existing_repo, state_mock):
     state_mock.add.assert_called_once_with(
         existing_repo.name, existing_repo.dict(by_alias=True), force=True
     )
+
+
+def test_fail_on_multiple_repos_dry_run(int_params, existing_repo, new_repo):
+    integration = TerraformRepoIntegration(params=int_params)
+
+    desired_state = [existing_repo, new_repo]
+
+    with pytest.raises(Exception):
+        integration.calculate_diff(
+            existing_state=[], desired_state=desired_state, dry_run=True, state=None
+        )
+
+
+def test_succeed_on_multiple_repos_non_dry_run(int_params, existing_repo, new_repo):
+    integration = TerraformRepoIntegration(params=int_params)
+
+    desired_state = [existing_repo, new_repo]
+
+    diff = integration.calculate_diff(
+        existing_state=[], desired_state=desired_state, dry_run=False, state=None
+    )
+
+    assert diff
+    if diff:
+        assert diff.sort(key=lambda r: r.name) == desired_state.sort(
+            key=lambda r: r.name
+        )
+
+
+def test_no_op_succeeds(int_params, existing_repo):
+    integration = TerraformRepoIntegration(params=int_params)
+
+    state = [existing_repo]
+
+    diff = integration.calculate_diff(
+        existing_state=state, desired_state=state, dry_run=True, state=None
+    )
+
+    assert diff is None

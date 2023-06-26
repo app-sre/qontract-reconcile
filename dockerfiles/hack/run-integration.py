@@ -4,15 +4,23 @@ import logging
 import os
 import sys
 import time
+from collections.abc import Callable
 from importlib import metadata
 from typing import Optional
 
 import click
-from prometheus_client import start_http_server
+from prometheus_client import (
+    push_to_gateway,
+    start_http_server,
+)
+from prometheus_client.exposition import basic_auth_handler
 
 from reconcile.status import ExitCodes
 from reconcile.utils.metrics import (
     execution_counter,
+    pushgateway_registry,
+    pushgateway_run_status,
+    pushgateway_run_time,
     run_status,
     run_time,
 )
@@ -36,11 +44,14 @@ DRY_RUN = (
 )
 INTEGRATION_EXTRA_ARGS = os.environ.get("INTEGRATION_EXTRA_ARGS")
 CONFIG = os.environ.get("CONFIG", "/config/config.toml")
+PROMETHEUS_PORT = os.environ.get("PROMETHEUS_PORT", 9090)
 
 LOG_FILE = os.environ.get("LOG_FILE")
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO")
 SLEEP_DURATION_SECS = os.environ.get("SLEEP_DURATION_SECS", 600)
 SLEEP_ON_ERROR = os.environ.get("SLEEP_ON_ERROR", 10)
+
+PUSHGATEWAY_ENABLED = os.environ.get("PUSHGATEWAY_ENABLED", False)
 
 LOG = logging.getLogger(__name__)
 
@@ -57,6 +68,10 @@ if LOG_FILE is not None:
 
 # Setting up the root logger
 logging.basicConfig(level=LOG_LEVEL, handlers=HANDLERS)
+
+
+class PushgatewayBadConfigError(Exception):
+    pass
 
 
 def _parse_dry_run_flag(dry_run: Optional[str]) -> Optional[str]:
@@ -115,7 +130,46 @@ def build_entry_point_func(command_name: str) -> click.Command:
     )
 
 
-def main():
+def _get_pushgateway_env_vars() -> dict[str, str]:
+    env = {}
+    missing_vars = []
+    for var in ["PUSHGATEWAY_USERNAME", "PUSHGATEWAY_PASSWORD", "PUSHGATEWAY_URL"]:
+        value = os.environ.get(var)
+        if not value:
+            missing_vars.append(var)
+            continue
+
+        env[var] = value
+
+    if missing_vars:
+        missing_str = ", ".join(missing_vars)
+        raise PushgatewayBadConfigError(
+            f"Failed to check env variables to configure Pushgateway: {missing_str}"
+        )
+
+    return env
+
+
+def _push_gateway_basic_auth_handler(
+    url: str,
+    method: str,
+    timeout: Optional[float],
+    headers: list[tuple[str, str]],
+    data: bytes,
+) -> Callable[[], None]:
+    username = os.environ.get("PUSHGATEWAY_USERNAME")
+    password = os.environ.get("PUSHGATEWAY_PASSWORD")
+
+    # We should not get here, but this will make mypy happy
+    if not username or not password:
+        raise PushgatewayBadConfigError(
+            "Failed to check env variables to configure Pushgateway."
+        )
+
+    return basic_auth_handler(url, method, timeout, headers, data, username, password)
+
+
+def main() -> None:
     """
     This entry point script expects certain env variables
     * COMMAND_NAME (optional, defaults to qontract-reconcile)
@@ -143,13 +197,17 @@ def main():
       amount of seconds to sleep between successful integration runs
     * SLEEP_ON_ERROR (default 10)
       amount of seconds to sleep before another integration run is started
+    * PUSHGATEWAY_ENABLED (defaults to false)
+      send metrics to a Prometheus Pushgateway after the run. In expects
+      "PUSHGATEWAY_USERNAME", "PUSHGATEWAY_PASSWORD" and "PUSHGATEWAY_URL" to be defined.
+
 
     Based on those variables, the following command will be executed
       $COMMAND --config $CONFIG $DRY_RUN $INTEGRATION_NAME \
         $INTEGRATION_EXTRA_ARGS
     """
 
-    start_http_server(9090)
+    start_http_server(int(PROMETHEUS_PORT))
 
     command = build_entry_point_func(COMMAND_NAME)
     while True:
@@ -171,7 +229,7 @@ def main():
         # This is for when the integration explicitly
         # calls sys.exit(N)
         except SystemExit as exc_obj:
-            return_code = int(exc_obj.code)
+            return_code = int(exc_obj.code)  # type: ignore[arg-type]
         # We have to be generic since we don't know what can happen
         # in the integrations, but we want to continue the loop anyway
         except Exception:
@@ -187,6 +245,32 @@ def main():
         run_status.labels(
             integration=INTEGRATION_NAME, shards=SHARDS, shard_id=SHARD_ID_LABEL
         ).set(return_code)
+
+        if PUSHGATEWAY_ENABLED:
+            try:
+                env = _get_pushgateway_env_vars()
+                pushgateway_run_time.labels(
+                    integration=INTEGRATION_NAME, shards=SHARDS, shard_id=SHARD_ID_LABEL
+                ).set(time_spent)
+                pushgateway_run_status.labels(
+                    integration=INTEGRATION_NAME, shards=SHARDS, shard_id=SHARD_ID_LABEL
+                ).set(return_code)
+
+                grouping_key = {
+                    "integration": INTEGRATION_NAME,
+                    "shards": SHARDS,
+                    "shard_id": SHARD_ID_LABEL,
+                }
+                push_to_gateway(
+                    gateway=env["PUSHGATEWAY_URL"],
+                    job="qontract-reconcile",
+                    registry=pushgateway_registry,
+                    handler=_push_gateway_basic_auth_handler,
+                    grouping_key=grouping_key,
+                )
+            except PushgatewayBadConfigError as err:
+                LOG.exception(f"Error pushing to PushGateway: {err}")
+                return_code = ExitCodes.ERROR
 
         if RUN_ONCE:
             sys.exit(return_code)

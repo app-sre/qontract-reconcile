@@ -25,6 +25,7 @@ from reconcile.utils.ocm.subscriptions import (
 from reconcile.utils.ocm_base_client import OCMBaseClient
 
 ACTIVE_SUBSCRIPTION_STATES = {"Active", "Reserved"}
+CAPABILITY_MANAGE_CLUSTER_ADMIN = "capability.cluster.manage_cluster_admin"
 
 
 class OCMClusterState(Enum):
@@ -42,7 +43,6 @@ class OCMClusterState(Enum):
 
 
 class OCMClusterFlag(BaseModel):
-
     enabled: bool
 
 
@@ -54,8 +54,20 @@ class OCMClusterAWSSettings(BaseModel):
         return self.sts is not None and self.sts.enabled
 
 
-class OCMCluster(BaseModel):
+class OCMClusterVersion(BaseModel):
+    id: str
+    raw_id: str
 
+
+class OCMClusterConsole(BaseModel):
+    url: str
+
+
+PRODUCT_ID_OSD = "osd"
+PRODUCT_ID_ROSA = "rosa"
+
+
+class OCMCluster(BaseModel):
     kind: str = "Cluster"
     id: str
     external_id: str
@@ -76,9 +88,23 @@ class OCMCluster(BaseModel):
 
     aws: Optional[OCMClusterAWSSettings]
 
+    version: OCMClusterVersion
+
+    hypershift: OCMClusterFlag
+
+    console: OCMClusterConsole
+
+    def is_osd(self) -> bool:
+        return self.product.id == PRODUCT_ID_OSD
+
+    def is_rosa_classic(self) -> bool:
+        return self.product.id == PRODUCT_ID_ROSA and not self.hypershift.enabled
+
+    def is_rosa_hypershift(self) -> bool:
+        return self.product.id == PRODUCT_ID_ROSA and self.hypershift.enabled
+
 
 class ClusterDetails(BaseModel):
-
     ocm_cluster: OCMCluster
 
     organization_id: str
@@ -88,7 +114,19 @@ class ClusterDetails(BaseModel):
     found on the subscription of a cluster.
     """
 
-    labels: LabelContainer
+    subscription_labels: LabelContainer
+    organization_labels: LabelContainer
+
+    @property
+    def labels(self) -> LabelContainer:
+        return build_label_container(
+            self.organization_labels.labels.values(),
+            self.subscription_labels.labels.values(),
+        )
+
+    def is_capability_set(self, name: str, value: str) -> bool:
+        capa = self.capabilities.get(name)
+        return capa is not None and capa.value == value
 
 
 def discover_clusters_by_labels(
@@ -125,9 +163,11 @@ def discover_clusters_by_labels(
 
     # fill in labels
     for cluster in clusters:
-        cluster.labels = build_label_container(
-            organization_labels[cluster.organization_id],
-            subscription_labels[cluster.ocm_cluster.subscription.id],
+        cluster.subscription_labels = build_label_container(
+            subscription_labels[cluster.ocm_cluster.subscription.id]
+        )
+        cluster.organization_labels = build_label_container(
+            organization_labels[cluster.organization_id]
         )
 
     return clusters
@@ -236,11 +276,11 @@ def get_cluster_details_for_subscriptions(
                     capability.name: capability
                     for capability in subscription.capabilities or []
                 },
-                labels=build_label_container(
-                    # first org labels...#
-                    organization_labels.get(subscription.organization_id) or [],
-                    # ... then the subscription labels
-                    (subscription.labels or []) if init_labels else [],
+                organization_labels=build_label_container(
+                    organization_labels.get(subscription.organization_id) or []
+                ),
+                subscription_labels=build_label_container(
+                    (subscription.labels or []) if init_labels else []
                 ),
             )
 
@@ -254,5 +294,5 @@ def cluster_ready_for_app_interface() -> Filter:
         Filter()
         .eq("managed", "true")
         .eq("state", OCMClusterState.READY.value)
-        .is_in("product.id", ["osd", "rosa"])
+        .is_in("product.id", [PRODUCT_ID_OSD, PRODUCT_ID_ROSA])
     )

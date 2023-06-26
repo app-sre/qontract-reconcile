@@ -75,6 +75,9 @@ fragment SaasTargetNamespace on Namespace_v1 {
   }
   app {
     name
+    parentApp {
+      name
+    }
     labels
   }
   cluster {
@@ -98,6 +101,9 @@ query SaasFiles {
     name
     app {
       name
+      parentApp {
+        name
+      }
     }
     pipelinesProvider {
       name
@@ -268,8 +274,13 @@ class ConfiguredBaseModel(BaseModel):
         extra = Extra.forbid
 
 
+class AppV1_AppV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+
+
 class AppV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+    parent_app: Optional[AppV1_AppV1] = Field(..., alias="parentApp")
 
 
 class PipelinesProviderV1(ConfiguredBaseModel):

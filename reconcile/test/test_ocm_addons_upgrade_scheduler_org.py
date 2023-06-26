@@ -49,6 +49,7 @@ def desired_state(addon_id, cluster):
             "conditions": {"soakDays": 0},
             "addon_id": addon_id,
             "cluster": cluster,
+            "cluster_uuid": f"{cluster}-uuid",
             "current_version": "2.0.0",
         }
     )
@@ -98,7 +99,6 @@ def test_delete_automatic_upgrade_policy(
     ocm.delete_addon_upgrade_policy.assert_called_once_with(
         cluster,
         {
-            "version": "automatic",
             "id": automatic_upgrade_policy.id,
         },
     )

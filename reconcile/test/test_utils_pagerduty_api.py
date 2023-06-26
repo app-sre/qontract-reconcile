@@ -104,6 +104,19 @@ def test_get_pagerduty_map(secret_reader: Mock, vault_secret: VaultSecret) -> No
         pd_map.get("doesn't-exist")
 
 
+def test_get_pagerduty_map_empty(
+    secret_reader: Mock, vault_secret: VaultSecret
+) -> None:
+    pager_duty_api_class = create_autospec(pagerduty_api.PagerDutyApi)
+    pd_map = pagerduty_api.get_pagerduty_map(
+        secret_reader=secret_reader,
+        pagerduty_instances=[],
+        init_users=True,
+        pager_duty_api_class=pager_duty_api_class,
+    )
+    assert len(pd_map.pd_apis) == 0
+
+
 def test_get_pagerduty_username_org_username(user: User) -> None:
     assert pagerduty_api.get_pagerduty_name(user) == user.pagerduty_username
     user.pagerduty_username = None

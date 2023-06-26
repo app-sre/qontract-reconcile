@@ -84,6 +84,9 @@ query TerraformResourcesNamespaces {
                     source_type
                     event_categories
                 }
+                data_classification {
+                    loss_impact
+                }
             }
             ... on NamespaceTerraformResourceS3_v1 {
                 region
@@ -139,8 +142,10 @@ query TerraformResourcesNamespaces {
                 assume_role {
                     AWS
                     Service
+                    Federated
                 }
                 assume_condition
+                assume_action
                 inline_policy
                 output_resource_name
                 annotations
@@ -279,11 +284,14 @@ query TerraformResourcesNamespaces {
                 idle_timeout
                 enable_http2
                 ip_address_type
+                access_logs
                 targets {
                     name
                     default
                     ips
                     openshift_service
+                    protocol
+                    protocol_version
                 }
                 rules {
                     condition {
@@ -421,6 +429,19 @@ query TerraformResourcesNamespaces {
                 annotations
                 defaults
             }
+            ... on NamespaceTerraformResourceMsk_v1 {
+                region
+                identifier
+                output_resource_name
+                defaults
+                annotations
+                users {
+                  name
+                  secret {
+                    ...VaultSecret
+                  }
+                }
+            }
         }
       }
     }
@@ -497,6 +518,10 @@ class AWSRDSEventNotificationV1(ConfiguredBaseModel):
     event_categories: Optional[list[str]] = Field(..., alias="event_categories")
 
 
+class AWSRDSDataClassificationV1(ConfiguredBaseModel):
+    loss_impact: Optional[str] = Field(..., alias="loss_impact")
+
+
 class NamespaceTerraformResourceRDSV1(NamespaceTerraformResourceAWSV1):
     region: Optional[str] = Field(..., alias="region")
     identifier: str = Field(..., alias="identifier")
@@ -514,6 +539,9 @@ class NamespaceTerraformResourceRDSV1(NamespaceTerraformResourceAWSV1):
     annotations: Optional[str] = Field(..., alias="annotations")
     event_notifications: Optional[list[AWSRDSEventNotificationV1]] = Field(
         ..., alias="event_notifications"
+    )
+    data_classification: Optional[AWSRDSDataClassificationV1] = Field(
+        ..., alias="data_classification"
     )
 
 
@@ -587,12 +615,14 @@ class NamespaceTerraformResourceSecretsManagerServiceAccountV1(
 class AssumeRoleV1(ConfiguredBaseModel):
     aws: Optional[list[str]] = Field(..., alias="AWS")
     service: Optional[list[str]] = Field(..., alias="Service")
+    federated: Optional[str] = Field(..., alias="Federated")
 
 
 class NamespaceTerraformResourceRoleV1(NamespaceTerraformResourceAWSV1):
     identifier: str = Field(..., alias="identifier")
     assume_role: AssumeRoleV1 = Field(..., alias="assume_role")
     assume_condition: Optional[str] = Field(..., alias="assume_condition")
+    assume_action: Optional[str] = Field(..., alias="assume_action")
     inline_policy: Optional[str] = Field(..., alias="inline_policy")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
     annotations: Optional[str] = Field(..., alias="annotations")
@@ -755,6 +785,8 @@ class NamespaceTerraformResourceALBTargetsV1(ConfiguredBaseModel):
     default: bool = Field(..., alias="default")
     ips: Optional[list[str]] = Field(..., alias="ips")
     openshift_service: Optional[str] = Field(..., alias="openshift_service")
+    protocol: Optional[str] = Field(..., alias="protocol")
+    protocol_version: Optional[str] = Field(..., alias="protocol_version")
 
 
 class NamespaceTerraformResourceALBConditionV1(ConfiguredBaseModel):
@@ -848,6 +880,7 @@ class NamespaceTerraformResourceALBV1(NamespaceTerraformResourceAWSV1):
     idle_timeout: Optional[int] = Field(..., alias="idle_timeout")
     enable_http2: Optional[bool] = Field(..., alias="enable_http2")
     ip_address_type: Optional[str] = Field(..., alias="ip_address_type")
+    access_logs: Optional[bool] = Field(..., alias="access_logs")
     targets: list[NamespaceTerraformResourceALBTargetsV1] = Field(..., alias="targets")
     rules: list[NamespaceTerraformResourceALBRulesV1] = Field(..., alias="rules")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
@@ -989,6 +1022,20 @@ class NamespaceTerraformResourceRosaAuthenticatorVPCEV1(
     defaults: str = Field(..., alias="defaults")
 
 
+class MskSecretParametersV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+    secret: VaultSecret = Field(..., alias="secret")
+
+
+class NamespaceTerraformResourceMskV1(NamespaceTerraformResourceAWSV1):
+    region: Optional[str] = Field(..., alias="region")
+    identifier: str = Field(..., alias="identifier")
+    output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
+    defaults: str = Field(..., alias="defaults")
+    annotations: Optional[str] = Field(..., alias="annotations")
+    users: Optional[list[MskSecretParametersV1]] = Field(..., alias="users")
+
+
 class NamespaceTerraformProviderResourceAWSV1(NamespaceExternalResourceV1):
     resources: list[
         Union[
@@ -1000,16 +1047,17 @@ class NamespaceTerraformProviderResourceAWSV1(NamespaceExternalResourceV1):
             NamespaceTerraformResourceSNSTopicV1,
             NamespaceTerraformResourceElastiCacheV1,
             NamespaceTerraformResourceServiceAccountV1,
+            NamespaceTerraformResourceRoleV1,
             NamespaceTerraformResourceS3SQSV1,
             NamespaceTerraformResourceCloudWatchV1,
             NamespaceTerraformResourceRosaAuthenticatorVPCEV1,
-            NamespaceTerraformResourceRoleV1,
             NamespaceTerraformResourceS3CloudFrontV1,
             NamespaceTerraformResourceKMSV1,
             NamespaceTerraformResourceElasticSearchV1,
             NamespaceTerraformResourceACMV1,
             NamespaceTerraformResourceKinesisV1,
             NamespaceTerraformResourceRoute53ZoneV1,
+            NamespaceTerraformResourceMskV1,
             NamespaceTerraformResourceSQSV1,
             NamespaceTerraformResourceDynamoDBV1,
             NamespaceTerraformResourceECRV1,

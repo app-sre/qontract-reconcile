@@ -30,7 +30,6 @@ from reconcile.gql_definitions.fragments.upgrade_policy import (
 from reconcile.utils.models import (
     CSV,
     cron_validator,
-    data_default_none,
 )
 from reconcile.utils.ocm.clusters import (
     ClusterDetails,
@@ -41,6 +40,7 @@ from reconcile.utils.ocm.labels import (
     OCMOrganizationLabel,
     build_label_container,
     get_organization_labels,
+    subscription_label_filter,
 )
 from reconcile.utils.ocm.search_filters import Filter
 from reconcile.utils.ocm.service_log import (
@@ -52,6 +52,10 @@ from reconcile.utils.ocm.sre_capability_labels import (
     build_labelset,
     labelset_groupfield,
     sre_capability_label_key,
+)
+from reconcile.utils.ocm.subscriptions import (
+    OCMOrganization,
+    get_organizations,
 )
 from reconcile.utils.ocm_base_client import (
     OCMBaseClient,
@@ -80,10 +84,18 @@ class AdvancedUpgradeServiceIntegration(OCMClusterUpgradeSchedulerOrgIntegration
             org_ids=org_ids,
             ignore_sts_clusters=self.params.ignore_sts_clusters,
         )
+        orgs = (
+            get_organizations(
+                ocm_api=ocm_api, filter=Filter().is_in("id", clusters_by_org.keys())
+            )
+            if clusters_by_org
+            else {}
+        )
         labels_by_org = _get_org_labels(ocm_api=ocm_api, org_ids=org_ids)
 
         return _build_org_upgrade_specs_for_ocm_env(
             ocm_env=ocm_env,
+            orgs=orgs,
             clusters_by_org=clusters_by_org,
             labels_by_org=labels_by_org,
         )
@@ -99,6 +111,28 @@ class AdvancedUpgradeServiceIntegration(OCMClusterUpgradeSchedulerOrgIntegration
                 ocm_api=ocm_api, org_upgrade_spec=org_upgrade_spec
             )
 
+    def signal_reconcile_issues(
+        self,
+        dry_run: bool,
+        org_upgrade_spec: OrganizationUpgradeSpec,
+        exception: Exception,
+    ) -> bool:
+        """
+        AUS will not fail on a reconcile issue. If issues should be noticed by an SRE team,
+        alerts based on the metrics in the `reconcile.aus.metrics` module should be set up.
+
+        The function is an override on the default behaviour to not ignore errors.
+        It returns true to indicate that the exception was properly handled by logging it.
+        Users / org owners will not be notified about the exception via service logs.
+        AppSRE team members will be notified about the exception via the logs.
+
+        """
+        logging.error(
+            f"Failed to reconcile cluster upgrades in OCM organization {org_upgrade_spec.org.org_id}",
+            exc_info=exception,
+        )
+        return True
+
 
 def discover_clusters(
     ocm_api: OCMBaseClient,
@@ -111,7 +145,7 @@ def discover_clusters(
     """
     clusters = discover_clusters_by_labels(
         ocm_api=ocm_api,
-        label_filter=Filter().like("key", aus_label_key("%")),
+        label_filter=subscription_label_filter().like("key", aus_label_key("%")),
     )
 
     # group by org and filter if org_id is specified
@@ -145,6 +179,7 @@ def _get_org_labels(
 
 def _build_org_upgrade_specs_for_ocm_env(
     ocm_env: OCMEnvironment,
+    orgs: dict[str, OCMOrganization],
     clusters_by_org: dict[str, list[ClusterDetails]],
     labels_by_org: dict[str, LabelContainer],
 ) -> dict[str, OrganizationUpgradeSpec]:
@@ -155,7 +190,7 @@ def _build_org_upgrade_specs_for_ocm_env(
     return {
         org_id: _build_org_upgrade_spec(
             ocm_env,
-            org_id,
+            orgs[org_id],
             clusters,
             labels_by_org.get(org_id) or build_label_container(),
         )
@@ -211,7 +246,7 @@ class OrganizationLabelSet(BaseModel):
 
 def _build_org_upgrade_spec(
     ocm_env: OCMEnvironment,
-    org_id: str,
+    org: OCMOrganization,
     clusters: list[ClusterDetails],
     org_labels: LabelContainer,
 ) -> OrganizationUpgradeSpec:
@@ -223,17 +258,19 @@ def _build_org_upgrade_spec(
     org_labelset = build_labelset(org_labels, OrganizationLabelSet)
     org_upgrade_spec = OrganizationUpgradeSpec(
         org=AUSOCMOrganization(
-            **data_default_none(
-                AUSOCMOrganization,
-                dict(
-                    name=org_id,
-                    orgId=org_id,
-                    blockedVersions=org_labelset.blocked_versions,
-                    environment=ocm_env,
-                    addonManagedUpgrades=False,
-                    sectors=org_labelset.sector_dependencies(),
-                ),
-            )
+            name=org.name,
+            orgId=org.id,
+            blockedVersions=org_labelset.blocked_versions,
+            environment=ocm_env,
+            addonManagedUpgrades=False,
+            sectors=org_labelset.sector_dependencies(),
+            accessTokenClientId=None,
+            accessTokenClientSecret=None,
+            accessTokenUrl=None,
+            addonUpgradeTests=None,
+            inheritVersionData=None,
+            upgradePolicyAllowedWorkloads=None,
+            upgradePolicyClusters=None,
         )
     )
 
@@ -245,6 +282,7 @@ def _build_org_upgrade_spec(
                 ClusterUpgradeSpec(
                     name=c.ocm_cluster.name,
                     cluster_uuid=c.ocm_cluster.external_id,
+                    current_version=c.ocm_cluster.version.raw_id,
                     ocm=org_upgrade_spec.org,
                     upgradePolicy=upgrade_policy,
                 )

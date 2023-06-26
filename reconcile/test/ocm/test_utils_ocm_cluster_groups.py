@@ -47,7 +47,7 @@ def test_get_cluster_groups(
                         OCMClusterGroupId.DEDICATED_ADMINS, {"user-1", "user-2"}
                     ),
                     build_ocm_cluster_group(
-                        OCMClusterGroupId.CLUSTER_ADMIN, {"user-3", "user-4"}
+                        OCMClusterGroupId.CLUSTER_ADMINS, {"user-3", "user-4"}
                     ),
                 ],
             ),
@@ -59,8 +59,8 @@ def test_get_cluster_groups(
     )
     assert OCMClusterGroupId.DEDICATED_ADMINS in groups
     assert groups[OCMClusterGroupId.DEDICATED_ADMINS].user_ids() == {"user-1", "user-2"}
-    assert OCMClusterGroupId.CLUSTER_ADMIN in groups
-    assert groups[OCMClusterGroupId.CLUSTER_ADMIN].user_ids() == {"user-3", "user-4"}
+    assert OCMClusterGroupId.CLUSTER_ADMINS in groups
+    assert groups[OCMClusterGroupId.CLUSTER_ADMINS].user_ids() == {"user-3", "user-4"}
 
 
 def test_add_user_to_cluster_group(

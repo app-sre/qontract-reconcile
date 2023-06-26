@@ -43,8 +43,13 @@ class EnvironmentV1(ConfiguredBaseModel):
     )
 
 
+class AppV1_AppV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+
+
 class AppV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+    parent_app: Optional[AppV1_AppV1] = Field(..., alias="parentApp")
     labels: Optional[Json] = Field(..., alias="labels")
 
 

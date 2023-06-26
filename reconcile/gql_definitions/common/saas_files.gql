@@ -6,6 +6,9 @@ query SaasFiles {
     name
     app {
       name
+      parentApp {
+        name
+      }
     }
     pipelinesProvider {
       name

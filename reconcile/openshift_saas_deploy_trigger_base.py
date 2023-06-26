@@ -9,10 +9,14 @@ from typing import (
 
 from sretoolbox.utils import threaded
 
-import reconcile.jenkins_plugins as jenkins_base
 import reconcile.openshift_base as osb
-from reconcile import queries
-from reconcile.openshift_tekton_resources import build_one_per_saas_file_tkn_object_name
+from reconcile import (
+    jenkins_base,
+    queries,
+)
+from reconcile.openshift_tekton_resources import (
+    build_one_per_saas_file_tkn_pipeline_name,
+)
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
@@ -33,7 +37,6 @@ from reconcile.utils.oc_map import (
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.parse_dhms_duration import dhms_to_seconds
 from reconcile.utils.saasherder import (
-    UNIQUE_SAAS_FILE_ENV_COMBO_LEN,
     Providers,
     SaasHerder,
     TriggerSpecUnion,
@@ -247,7 +250,7 @@ def _trigger_tekton(
         if spec.pipelines_provider.pipeline_templates
         else spec.pipelines_provider.defaults.pipeline_templates.openshift_saas_deploy.name
     )
-    tkn_pipeline_name = build_one_per_saas_file_tkn_object_name(
+    tkn_pipeline_name = build_one_per_saas_file_tkn_pipeline_name(
         pipeline_template_name, spec.saas_file_name
     )
     tkn_namespace_name = spec.pipelines_provider.namespace.name
@@ -350,13 +353,14 @@ def _construct_tekton_trigger_resource(
     Returns:
         OpenshiftResource: OpenShift resource to be applied
     """
-    long_name = f"{saas_file_name}-{env_name}".lower()
+    tkn_name, tkn_long_name = SaasHerder.build_saas_file_env_combo(
+        saas_file_name, env_name
+    )
     # using a timestamp to make the resource name unique.
     # we may want to revisit traceability, but this is compatible
     # with what we currently have in Jenkins.
     ts = datetime.datetime.utcnow().strftime("%Y%m%d%H%M")  # len 12
-    # max name length can be 63. leaving 12 for the timestamp - 51
-    name = f"{long_name[:UNIQUE_SAAS_FILE_ENV_COMBO_LEN]}-{ts}"
+    name = f"{tkn_name.lower()}-{ts}"
 
     parameters = [
         {"name": "saas_file_name", "value": saas_file_name},
@@ -395,7 +399,10 @@ def _construct_tekton_trigger_resource(
 
         body["spec"]["timeout"] = timeout
 
-    return OR(body, integration, integration_version, error_details=name), long_name
+    return (
+        OR(body, integration, integration_version, error_details=name),
+        tkn_long_name.lower(),
+    )
 
 
 def _register_trigger(name: str, already_triggered: set[str]) -> bool:

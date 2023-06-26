@@ -41,12 +41,6 @@ class RepoSecret(BaseModel):
 
 
 class RepoOutput(BaseModel):
-    """
-    Output of the QR terraform-repo integration and input to the executor
-    which removes some information that is unnecessary for the executor to parse
-    """
-
-    dry_run: bool
     repository: str
     name: str
     ref: str
@@ -55,8 +49,18 @@ class RepoOutput(BaseModel):
     secret: RepoSecret
 
 
+class OutputFile(BaseModel):
+    """
+    Output of the QR terraform-repo integration and input to the executor
+    which removes some information that is unnecessary for the executor to parse
+    """
+
+    dry_run: bool
+    repos: list[RepoOutput]
+
+
 class TerraformRepoIntegrationParams(PydanticRunParams):
-    output_dir: Optional[str]
+    output_file: Optional[str]
     validate_git: bool
 
 
@@ -89,38 +93,45 @@ class TerraformRepoIntegration(
         desired = self.get_repos(query_func=gqlapi.query)
         existing = self.get_existing_state(state)
 
-        repo_diff = self.calculate_diff(
+        repo_diff_result = self.calculate_diff(
             existing_state=existing, desired_state=desired, dry_run=dry_run, state=state
         )
 
-        for repo in repo_diff:
-            # format each repo into the input the executor expects
-            repo_output = RepoOutput(
-                dry_run=dry_run,
-                repository=repo.repository,
-                name=repo.name,
-                ref=repo.ref,
-                project_path=repo.project_path,
-                delete=repo.delete or False,
-                secret=RepoSecret(
-                    path=repo.account.automation_token.path,
-                    version=repo.account.automation_token.version,
-                ),
-            )
+        if repo_diff_result:
+            # put together output to pass to executor
+            actions_list: list[RepoOutput] = []
 
-            if self.params.output_dir:
+            for repo in repo_diff_result:
+                actions_list.append(
+                    RepoOutput(
+                        repository=repo.repository,
+                        name=repo.name,
+                        ref=repo.ref,
+                        project_path=repo.project_path,
+                        delete=repo.delete or False,
+                        secret=RepoSecret(
+                            path=repo.account.automation_token.path,
+                            version=repo.account.automation_token.version,
+                        ),
+                    )
+                )
+
+            output = OutputFile(dry_run=dry_run, repos=actions_list)
+
+            if self.params.output_file:
                 try:
-                    output_filename = f"{self.params.output_dir}/{repo.name}.yaml"
-                    with open(output_filename, "w") as output_file:
+                    with open(self.params.output_file, "w") as output_file:
                         yaml.safe_dump(
-                            data=repo_output.dict(),
+                            data=output.dict(),
                             stream=output_file,
                             explicit_start=True,
                         )
                 except FileNotFoundError:
-                    raise ParameterError(f"Unable to write to '{output_filename}'")
+                    raise ParameterError(
+                        f"Unable to write to '{self.params.output_file}'"
+                    )
             else:
-                print(yaml.safe_dump(data=repo_output.dict(), explicit_start=True))
+                print(yaml.safe_dump(data=output.dict(), explicit_start=True))
 
     def get_repos(self, query_func: Callable) -> list[TerraformRepoV1]:
         """Gets a list of terraform repos defined in App Interface
@@ -148,7 +159,7 @@ class TerraformRepoIntegration(
         for key in keys:
             if value := state.get(key.lstrip("/"), None):
                 try:
-                    repo = TerraformRepoV1.parse_raw(value)
+                    repo = TerraformRepoV1.parse_obj(value)
                     repo_list.append(repo)
                 except ValidationError as err:
                     logging.error(
@@ -244,7 +255,7 @@ class TerraformRepoIntegration(
         desired_state: list[TerraformRepoV1],
         dry_run: bool,
         state: Optional[State],
-    ) -> list[TerraformRepoV1]:
+    ) -> Optional[list[TerraformRepoV1]]:
         """Calculated the difference between existing and desired state
         to determine what actions the executor will need to take
 
@@ -258,10 +269,19 @@ class TerraformRepoIntegration(
         :type state: Optional[State]
         :raises ParameterError: if there is an invalid operation performed like trying to delete
         a representation in A-I before setting the delete flag
-        :return: list of Terraform Repos for the executor to act on
-        :rtype: list[TerraformRepoV1]
+        :return: the terraform repo to act on
+        :rtype: TerraformRepoV1
         """
         diff = diff_iterables(existing_state, desired_state, lambda x: x.name)
+
+        merged = self.merge_results(diff)
+
+        # validate that only one repo is being modified in each MR
+        # this lets us fail early and avoid multiple GL requests we don't need to make
+        if dry_run and len(merged) > 1:
+            raise Exception(
+                "Only one repository can be modified per merge request, please split your change out into multiple MRs"
+            )
 
         # added repos: do standard validation that SHA is valid
         if self.params.validate_git:
@@ -290,10 +310,11 @@ class TerraformRepoIntegration(
             if self.params.validate_git:
                 self.check_ref(d.repository, d.ref)
 
-        if not dry_run and state:
-            self.update_state(diff, state)
-
-        return self.merge_results(diff)
+        if len(merged) != 0:
+            if not dry_run and state:
+                self.update_state(diff, state)
+            return merged
+        return None
 
     def early_exit_desired_state(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
         gqlapi = gql.get_api()

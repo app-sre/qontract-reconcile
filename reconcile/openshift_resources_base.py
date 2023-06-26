@@ -56,6 +56,7 @@ from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.openshift_resource import (
     ResourceInventory,
     ResourceKeyExistsError,
+    ResourceNotManagedError,
 )
 from reconcile.utils.runtime.integration import DesiredStateShardConfig
 from reconcile.utils.secret_reader import SecretReader
@@ -142,6 +143,7 @@ NAMESPACES_QUERY = """
 {
   namespaces: namespaces_v1 {
     name
+    labels
     delete
     clusterAdmin
     managedResourceTypes
@@ -163,6 +165,7 @@ NAMESPACES_QUERY = """
     }
     cluster {
       name
+      labels
       serverUrl
         auth {
           service
@@ -300,6 +303,28 @@ def lookup_graphql_query_results(query: str, **kwargs) -> list[Any]:
     return results
 
 
+def hash_list(input: Iterable) -> str:
+    """
+    Deterministic hash of a list for jinja2 templates.
+    The order of the list doesn't matter as it is sorted
+    before hashing. Note, that the list elements
+    must be flat primitives (no dicts/lists).
+    """
+    lst = list(input)
+    str_lst = []
+    for el in lst:
+        if isinstance(el, (list, dict)):
+            raise RuntimeError(
+                f"jinja2 hash_list function received non-primitive value {el}. All values received {lst}"
+            )
+        str_lst.append(str(el))
+    msg = "a"  # keep non-empty for hashing empty list
+    msg += "".join(sorted(str_lst))
+    m = hashlib.sha256()
+    m.update(msg.encode("utf-8"))
+    return m.hexdigest()
+
+
 def json_to_dict(input):
     """Jinja2 filter to parse JSON strings into dictionaries.
        This becomes useful to access Graphql queries data (labels)
@@ -393,6 +418,7 @@ def process_jinja2_template(body, vars=None, extra_curly: bool = False, settings
                 string=u, safe=s, encoding=e
             ),
             "urlunescape": lambda u, e=None: urlunescape(string=u, encoding=e),
+            "hash_list": hash_list,
             "query": lookup_graphql_query_results,
             "url": url_makes_sense,
         }
@@ -820,6 +846,15 @@ def fetch_desired_state(
         # the same type was already added previously
         ri.register_error()
         msg = ("[{}/{}] desired item already exists: {}/{}.").format(
+            cluster, namespace, openshift_resource.kind, openshift_resource.name
+        )
+        _locked_error_log(msg)
+        return
+    except ResourceNotManagedError:
+        # This is failing because the resource name is
+        # not in the list of resource names that are managed
+        ri.register_error()
+        msg = "[{}/{}] desired item is not managed: {}/{}.".format(
             cluster, namespace, openshift_resource.kind, openshift_resource.name
         )
         _locked_error_log(msg)

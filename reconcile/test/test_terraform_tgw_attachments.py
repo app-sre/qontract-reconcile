@@ -561,6 +561,9 @@ def _setup_mocks(
     ).return_value
     mocked_tf.plan.return_value = (False, False)
     mocked_tf.apply.return_value = False
+
+    mocked_logging = mocker.patch("reconcile.terraform_tgw_attachments.logging")
+
     return {
         "tf": mocked_tf,
         "ts": mocked_ts,
@@ -571,16 +574,48 @@ def _setup_mocks(
         "ocm": mocked_ocm,
         "aws_api": mocked_aws_api,
         "gql_api": mocked_gql_api,
+        "logging": mocked_logging,
     }
 
 
-def test_dry_run(
+def test_empty_run(
     mocker: MockerFixture,
     app_interface_vault_settings: AppInterfaceSettingsV1,
 ) -> None:
     mocks = _setup_mocks(
         mocker,
         vault_settings=app_interface_vault_settings,
+    )
+
+    integ.run(False, enable_deletion=False)
+
+    mocks["logging"].warning.assert_called_once_with(
+        "No participating AWS accounts found, consider disabling this integration, account name: None"
+    )
+    mocks["get_clusters_with_peering"].assert_called_once_with(mocks["gql_api"])
+    mocks["get_aws_accounts"].assert_called_once_with(mocks["gql_api"], name=None)
+    mocks["get_app_interface_vault_settings"].assert_not_called()
+    mocks["tf"].plan.assert_not_called()
+    mocks["tf"].apply.assert_not_called()
+
+
+def test_dry_run(
+    mocker: MockerFixture,
+    app_interface_vault_settings: AppInterfaceSettingsV1,
+    cluster_with_tgw_connection: ClusterV1,
+    tgw_account: AWSAccountV1,
+    tgw: Mapping,
+    vpc_details: Mapping,
+    assume_role: str,
+) -> None:
+    mocks = _setup_mocks(
+        mocker,
+        vault_settings=app_interface_vault_settings,
+        clusters=[cluster_with_tgw_connection],
+        accounts=[tgw_account],
+        vpc_details=vpc_details,
+        tgws=[tgw],
+        assume_role=assume_role,
     )
 
     integ.run(True, enable_deletion=False)
@@ -595,10 +630,20 @@ def test_dry_run(
 def test_non_dry_run(
     mocker: MockerFixture,
     app_interface_vault_settings: AppInterfaceSettingsV1,
+    cluster_with_tgw_connection: ClusterV1,
+    tgw_account: AWSAccountV1,
+    tgw: Mapping,
+    vpc_details: Mapping,
+    assume_role: str,
 ) -> None:
     mocks = _setup_mocks(
         mocker,
         vault_settings=app_interface_vault_settings,
+        clusters=[cluster_with_tgw_connection],
+        accounts=[tgw_account],
+        vpc_details=vpc_details,
+        tgws=[tgw],
+        assume_role=assume_role,
     )
 
     integ.run(False, enable_deletion=False)
@@ -734,15 +779,12 @@ def test_run_when_cluster_with_vpc_connection_only(
 
     integ.run(True)
 
-    mocks["aws_api"].assert_called_once_with(
-        1,
-        [],
-        secret_reader=mocks["secret_reader"],
-        init_users=False,
-    )
+    mocks["aws_api"].assert_not_called()
     mocks["ocm"].assert_not_called()
-    mocks["ts"].populate_additional_providers.assert_called_once_with([])
-    mocks["ts"].populate_tgw_attachments.assert_called_once_with([])
+    mocks["ts"].populate_additional_providers.assert_not_called()
+    mocks["ts"].populate_tgw_attachments.assert_not_called()
+    mocks["tf"].plan.assert_not_called()
+    mocks["tf"].apply.assert_not_called()
 
 
 def test_run_with_multiple_clusters(
@@ -921,6 +963,7 @@ def test_duplicate_tgw_connection_names(
     mocker: MockerFixture,
     app_interface_vault_settings: AppInterfaceSettingsV1,
     cluster_with_duplicate_tgw_connections: ClusterV1,
+    tgw_account: AWSAccountV1,
     tgw: AWSAccountV1,
     vpc_details: Mapping,
     assume_role: str,
@@ -929,6 +972,7 @@ def test_duplicate_tgw_connection_names(
         mocker,
         vault_settings=app_interface_vault_settings,
         clusters=[cluster_with_duplicate_tgw_connections],
+        accounts=[tgw_account],
         vpc_details=vpc_details,
         tgws=[tgw],
         assume_role=assume_role,
@@ -944,6 +988,7 @@ def test_missing_vpc_id(
     mocker: MockerFixture,
     app_interface_vault_settings: AppInterfaceSettingsV1,
     cluster_with_tgw_connection: ClusterV1,
+    tgw_account: AWSAccountV1,
     tgw: Mapping,
     vpc_details: Mapping,
     assume_role: str,
@@ -952,6 +997,7 @@ def test_missing_vpc_id(
         mocker,
         vault_settings=app_interface_vault_settings,
         clusters=[cluster_with_tgw_connection],
+        accounts=[tgw_account],
         vpc_details=None,
         tgws=[tgw],
         assume_role=assume_role,
@@ -967,6 +1013,7 @@ def test_error_in_tf_plan(
     mocker: MockerFixture,
     app_interface_vault_settings: AppInterfaceSettingsV1,
     cluster_with_tgw_connection: ClusterV1,
+    tgw_account: AWSAccountV1,
     account_tgw_connection: ClusterPeeringConnectionAccountTGWV1,
     tgw: Mapping,
     vpc_details: Mapping,
@@ -976,6 +1023,7 @@ def test_error_in_tf_plan(
         mocker,
         vault_settings=app_interface_vault_settings,
         clusters=[cluster_with_tgw_connection],
+        accounts=[tgw_account],
         vpc_details=vpc_details,
         tgws=[tgw],
         assume_role=assume_role,
@@ -992,6 +1040,7 @@ def test_disabled_deletions_detected_in_tf_plan(
     mocker: MockerFixture,
     app_interface_vault_settings: AppInterfaceSettingsV1,
     cluster_with_tgw_connection: ClusterV1,
+    tgw_account: AWSAccountV1,
     account_tgw_connection: ClusterPeeringConnectionAccountTGWV1,
     tgw: Mapping,
     vpc_details: Mapping,
@@ -1001,6 +1050,7 @@ def test_disabled_deletions_detected_in_tf_plan(
         mocker,
         vault_settings=app_interface_vault_settings,
         clusters=[cluster_with_tgw_connection],
+        accounts=[tgw_account],
         vpc_details=vpc_details,
         tgws=[tgw],
         assume_role=assume_role,
@@ -1018,6 +1068,7 @@ def test_error_in_terraform_apply(
     app_interface_vault_settings: AppInterfaceSettingsV1,
     cluster_with_tgw_connection: ClusterV1,
     account_tgw_connection: ClusterPeeringConnectionAccountTGWV1,
+    tgw_account: AWSAccountV1,
     tgw: Mapping,
     vpc_details: Mapping,
     assume_role: str,
@@ -1026,6 +1077,7 @@ def test_error_in_terraform_apply(
         mocker,
         vault_settings=app_interface_vault_settings,
         clusters=[cluster_with_tgw_connection],
+        accounts=[tgw_account],
         vpc_details=vpc_details,
         tgws=[tgw],
         assume_role=assume_role,

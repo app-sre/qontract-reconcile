@@ -13,8 +13,8 @@ from dateutil.relativedelta import relativedelta
 from prometheus_client.parser import text_string_to_metric_families
 from sretoolbox.utils.threaded import run
 
-import reconcile.jenkins_plugins as jenkins_base
 from reconcile import (
+    jenkins_base,
     mr_client_gateway,
     queries,
 )
@@ -25,14 +25,7 @@ from reconcile.cli import (
     log_level,
     threaded,
 )
-from reconcile.jenkins_job_builder import (
-    get_openshift_saas_deploy_job_name,
-    init_jjb,
-)
-from reconcile.typed_queries.saas_files import (
-    export_model,
-    get_saas_files,
-)
+from reconcile.jenkins_job_builder import init_jjb
 from reconcile.utils.jjb_client import JJB
 from reconcile.utils.mr import CreateAppInterfaceReporter
 from reconcile.utils.runtime.environment import init_env
@@ -231,7 +224,6 @@ def get_apps_data(date, month_delta=1, thread_pool_size=10):
     secret_reader = SecretReader(settings)
 
     apps = queries.get_apps()
-    saas_files = [export_model(saas_file) for saas_file in get_saas_files()]
     jjb: JJB = init_jjb(secret_reader)
     jenkins_map = jenkins_base.get_jenkins_map()
     time_limit = date - relativedelta(months=month_delta)
@@ -256,22 +248,6 @@ def get_apps_data(date, month_delta=1, thread_pool_size=10):
     build_jobs = jjb.get_all_jobs(job_types=["build"])
     jobs_to_get = build_jobs.copy()
 
-    saas_deploy_jobs = []
-    for saas_file in saas_files:
-        saas_file_name = saas_file["name"]
-        for template in saas_file["resourceTemplates"]:
-            for target in template["targets"]:
-                job = {}
-                job["env"] = target["namespace"]["environment"]["name"]
-                job["app"] = target["namespace"]["app"]["name"]
-                job["cluster"] = target["namespace"]["cluster"]["name"]
-                job["namespace"] = target["namespace"]["name"]
-                job["name"] = get_openshift_saas_deploy_job_name(
-                    saas_file_name, job["env"], settings
-                )
-                job["saas_file_name"] = saas_file_name
-                saas_deploy_jobs.append(job)
-
     job_history = get_build_history_pool(
         jenkins_map, jobs_to_get, timestamp_limit, thread_pool_size
     )
@@ -283,84 +259,16 @@ def get_apps_data(date, month_delta=1, thread_pool_size=10):
         app_name = app["name"]
 
         logging.info(f"collecting post-deploy jobs " f"information for {app_name}")
-        post_deploy_jobs = {}
-        for saas_file in saas_files:
-            if saas_file["app"]["name"] != app_name:
-                continue
-            resource_types = saas_file["managedResourceTypes"]
-
-            # Only jobs of these types are expected to have a
-            # further post-deploy job
-            if not any(
-                [
-                    "Deployment" in resource_types,
-                    "DeploymentConfig" not in resource_types,
-                ]
-            ):
-                continue
-
-            for resource_template in saas_file["resourceTemplates"]:
-                for target in resource_template["targets"]:
-                    cluster = target["namespace"]["cluster"]["name"]
-                    namespace = target["namespace"]["name"]
-                    post_deploy_jobs[cluster] = {}
-                    post_deploy_jobs[cluster][namespace] = False
-
-        for saas_file in saas_files:
-            if saas_file["app"]["name"] != app_name:
-                continue
-            resource_types = saas_file["managedResourceTypes"]
-            if "Job" not in resource_types:
-                continue
-            for resource_template in saas_file["resourceTemplates"]:
-                for target in resource_template["targets"]:
-
-                    cluster = target["namespace"]["cluster"]["name"]
-                    namespace = target["namespace"]["name"]
-
-                    # This block skips the check if the cluster/namespace
-                    # has no Deployment/DeploymentConfig job associated.
-                    if cluster not in post_deploy_jobs:
-                        continue
-                    if namespace not in post_deploy_jobs[cluster]:
-                        continue
-
-                    # Post-deploy job must depend on a openshift-saas-deploy
-                    # job
-                    if target["upstream"] is None or target["upstream"]["name"] is None:
-                        continue
-                    if target["upstream"]["name"].startswith("openshift-saas-deploy-"):
-                        post_deploy_jobs[cluster][namespace] = True
-
-        app["post_deploy_jobs"] = post_deploy_jobs
+        # this is now empty as it referred to post_deploy jobs via Jenkins. This section
+        # should be removed when we publish a new content format or if we get promotion data
+        # differently.
+        app["post_deploy_jobs"] = {}
 
         logging.info(f"collecting promotion history for {app_name}")
         app["promotions"] = {}
-        for job in saas_deploy_jobs:
-            if job["app"] != app_name:
-                continue
-            if job["name"] not in job_history:
-                continue
-            history = job_history[job["name"]]
-            saas_file_name = job["saas_file_name"]
-            if saas_file_name not in app["promotions"]:
-                app["promotions"][saas_file_name] = [
-                    {
-                        "env": job["env"],
-                        "cluster": job["cluster"],
-                        "namespace": job["namespace"],
-                        **history,
-                    }
-                ]
-            else:
-                app["promotions"][saas_file_name].append(
-                    {
-                        "env": job["env"],
-                        "cluster": job["cluster"],
-                        "namespace": job["namespace"],
-                        **history,
-                    }
-                )
+        # this is now empty as it referred to saas files promotions via Jenkins. This section
+        # should be removed when we publish a new content format or if we get promotion data
+        # differently.
 
         logging.info(f"collecting merge activity for {app_name}")
         app["merge_activity"] = {}

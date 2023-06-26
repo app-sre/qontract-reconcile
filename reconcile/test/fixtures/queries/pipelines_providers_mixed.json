@@ -24,9 +24,9 @@
         ],
         "pipelineTemplates": {
           "openshiftSaasDeploy": {
-            "name": "openshift-saas-deploy",
+            "name": "saas-deploy",
             "type": "onePerSaasFile",
-            "path": "openshift-saas-deploy.pipeline.yaml.j2",
+            "path": "saas-deploy.pipeline.yaml.j2",
             "variables": null
           }
         },

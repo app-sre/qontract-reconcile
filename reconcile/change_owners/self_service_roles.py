@@ -10,17 +10,65 @@ from reconcile.change_owners.change_types import (
     Approver,
     ChangeTypeContext,
     ChangeTypeProcessor,
+    FileChange,
 )
 from reconcile.change_owners.changes import BundleFileChange
+from reconcile.gql_definitions.change_owners.queries import self_service_roles
 from reconcile.gql_definitions.change_owners.queries.self_service_roles import (
     PermissionGitlabGroupMembershipV1,
     PermissionSlackUsergroupV1,
     RoleV1,
 )
+from reconcile.utils import gql
 
 
-class EmptySelfServiceRoleError(Exception):
-    pass
+class NoApproversInSelfServiceRoleError(Exception):
+    """
+    Thrown when a self-service role has no approvers
+    """
+
+
+class DatafileIncompatibleWithChangeTypeError(Exception):
+    """
+    Thrown when a datafile and a change type are hooked up
+    in a self-service role, but are not compatible schema wise.
+    """
+
+
+def fetch_self_service_roles(gql_api: gql.GqlApi) -> list[RoleV1]:
+    roles: list[RoleV1] = []
+    for r in self_service_roles.query(gql_api.query).roles or []:
+        if not r.self_service:
+            continue
+        validate_self_service_role(r)
+        roles.append(r)
+    return roles
+
+
+def validate_self_service_role(role: RoleV1) -> None:
+    """
+    Validate that a self-service role has approvers and that the referenced
+    change-types and datafiles/resources are compatible.
+    """
+    if not role.users and not role.bots:
+        raise NoApproversInSelfServiceRoleError(
+            f"The role {role.name} has no users or bots "
+            "to drive the self-service process. Add approvers to the roles."
+        )
+    for ssc in role.self_service or []:
+        if ssc.change_type.context_schema:
+            # check that all referenced datafiles have a schema that
+            # is compatible with the change-type
+            incompatible_datafiles = [
+                df.path
+                for df in ssc.datafiles or []
+                if df.datafile_schema != ssc.change_type.context_schema
+            ]
+            if incompatible_datafiles:
+                raise DatafileIncompatibleWithChangeTypeError(
+                    f"The datafiles {incompatible_datafiles} are not compatible with the "
+                    f"{ssc.change_type.name} change-types contextSchema {ssc.change_type.context_schema}"
+                )
 
 
 def cover_changes_with_self_service_roles(
@@ -66,18 +114,20 @@ def change_type_contexts_for_self_service_roles(
                         role_lookup[
                             (BundleFileType.RESOURCEFILE, res, ss.change_type.name)
                         ].append(r)
-    if orphaned_roles:
-        raise EmptySelfServiceRoleError(
-            f"The roles {', '.join([r.name for r in orphaned_roles])} have no users or bots "
-            "to drive the self-service process. Add approvers to the roles."
-        )
 
     # match every BundleChange with every relevant ChangeTypeV1
     change_type_contexts = []
     for bc in bundle_changes:
         for ctp in change_type_processors:
             for ownership in ctp.find_context_file_refs(
-                bc.fileref, bc.old, bc.new, set()
+                change=FileChange(
+                    file_ref=bc.fileref,
+                    old=bc.old,
+                    new=bc.new,
+                    old_backrefs=bc.old_backrefs,
+                    new_backrefs=bc.new_backrefs,
+                ),
+                expansion_trail=set(),
             ):
                 # if the context file is bound with the change type in
                 # a role, build a changetypecontext

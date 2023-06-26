@@ -640,22 +640,6 @@ def github_users(ctx, gitlab_project_id, thread_pool_size, enable_deletion, send
     )
 
 
-@integration.command(
-    short_help="Scan GitHub repositories for leaked keys "
-    "and remove them (only submits PR)."
-)
-@gitlab_project_id
-@threaded()
-@binary(["git", "git-secrets"])
-@click.pass_context
-def github_scanner(ctx, gitlab_project_id, thread_pool_size):
-    import reconcile.github_scanner
-
-    run_integration(
-        reconcile.github_scanner, ctx.obj, gitlab_project_id, thread_pool_size
-    )
-
-
 @integration.command(short_help="Validates GitHub organization settings.")
 @click.pass_context
 def github_validator(ctx):
@@ -765,14 +749,6 @@ def jenkins_roles(ctx):
     run_integration(reconcile.jenkins_roles, ctx.obj)
 
 
-@integration.command(short_help="Manage Jenkins plugins installation via REST API.")
-@click.pass_context
-def jenkins_plugins(ctx):
-    import reconcile.jenkins_plugins
-
-    run_integration(reconcile.jenkins_plugins, ctx.obj)
-
-
 @integration.command(short_help="Manage Jenkins worker fleets via JCasC.")
 @click.pass_context
 def jenkins_worker_fleets(ctx):
@@ -845,16 +821,6 @@ def jira_watcher(ctx):
 
 
 @integration.command(
-    short_help="Watch for changes in Unleah feature toggles " "and notify on Slack."
-)
-@click.pass_context
-def unleash_watcher(ctx):
-    import reconcile.unleash_watcher
-
-    run_integration(reconcile.unleash_watcher, ctx.obj)
-
-
-@integration.command(
     short_help="Watches for OpenShift upgrades and sends notifications."
 )
 @binary(["oc", "ssh"])
@@ -888,14 +854,6 @@ def slack_usergroups(ctx, workspace_name, usergroup_name):
         workspace_name,
         usergroup_name,
     )
-
-
-@integration.command(short_help="Manage integrations on GitLab projects.")
-@click.pass_context
-def gitlab_integrations(ctx):
-    import reconcile.gitlab_integrations
-
-    run_integration(reconcile.gitlab_integrations, ctx.obj)
 
 
 @integration.command(short_help="Manage permissions on GitLab projects.")
@@ -964,6 +922,15 @@ def aws_ami_share(ctx):
     import reconcile.aws_ami_share
 
     run_integration(reconcile.aws_ami_share, ctx.obj)
+
+
+@integration.command(short_help="Cleanup old and unused AMIs.")
+@threaded()
+@click.pass_context
+def aws_ami_cleanup(ctx, thread_pool_size):
+    import reconcile.aws_ami_cleanup.integration
+
+    run_integration(reconcile.aws_ami_cleanup.integration, ctx.obj, thread_pool_size)
 
 
 @integration.command(
@@ -1548,18 +1515,18 @@ def ldap_users(ctx, infra_project_id, app_interface_project_id):
 
 @integration.command(short_help="Manages raw HCL Terraform from a separate repository.")
 @click.option(
-    "-d",
-    "--output-dir",
-    help="Specify a directory to individually output each repo plan to for the executor",
+    "-o",
+    "--output-file",
+    help="Specify where to place the output of the integration",
 )
 @click.pass_context
-def terraform_repo(ctx, output_dir):
+def terraform_repo(ctx, output_file):
     from reconcile import terraform_repo
 
     run_class_integration(
         integration=terraform_repo.TerraformRepoIntegration(
             terraform_repo.TerraformRepoIntegrationParams(
-                output_dir=output_dir, validate_git=True
+                output_file=output_file, validate_git=True
             )
         ),
         ctx=ctx.obj,
@@ -1913,14 +1880,6 @@ def ocm_external_configuration_labels(ctx, thread_pool_size):
     )
 
 
-@integration.command(short_help="Manage Cluster Admin in OCM.")
-@click.pass_context
-def ocm_cluster_admin(ctx):
-    import reconcile.ocm_cluster_admin
-
-    run_integration(reconcile.ocm_cluster_admin, ctx.obj)
-
-
 @integration.command(short_help="Trigger jenkins jobs following Addon upgrades.")
 @click.pass_context
 def ocm_addons_upgrade_tests_trigger(ctx):
@@ -2023,7 +1982,7 @@ def ocm_addons_upgrade_scheduler_org(ctx):
     help="Ignore STS clusters",
 )
 @click.pass_context
-def aus_upgrade_scheduler_org(ctx, ocm_env, ocm_org_ids, ignore_sts_clusters):
+def advanced_upgrade_scheduler(ctx, ocm_env, ocm_org_ids, ignore_sts_clusters):
     from reconcile.aus.advanced_upgrade_service import AdvancedUpgradeServiceIntegration
     from reconcile.aus.base import AdvancedUpgradeSchedulerBaseIntegrationParams
 
@@ -2079,13 +2038,92 @@ def ocm_github_idp(ctx, vault_input_path):
     run_integration(reconcile.ocm_github_idp, ctx.obj, vault_input_path)
 
 
-@integration.command(short_help="Manage OIDC Identity Providers in OCM.")
-@vault_input_path
+@integration.command(short_help="Manage OIDC Identity Providers in OCM. Part of RHIDP.")
+@click.option(
+    "--vault-input-path",
+    help="path in Vault to find input resources.",
+    required=True,
+)
+@click.option(
+    "--default-auth-issuer-url",
+    default="https://auth.redhat.com/auth/realms/EmployeeIDP",
+    help="Use this Issuer (SSO server) URL if nothing else is specified in the cluster.auth config.",
+    required=True,
+)
 @click.pass_context
-def ocm_oidc_idp(ctx, vault_input_path):
-    import reconcile.ocm_oidc_idp
+def ocm_oidc_idp(ctx, vault_input_path, default_auth_issuer_url):
+    from reconcile.rhidp.ocm_oidc_idp.integration import (
+        OCMOidcIdpIntegration,
+        OCMOidcIdpIntegrationParams,
+    )
 
-    run_integration(reconcile.ocm_oidc_idp, ctx.obj, vault_input_path)
+    run_class_integration(
+        integration=OCMOidcIdpIntegration(
+            OCMOidcIdpIntegrationParams(
+                vault_input_path=vault_input_path,
+                default_auth_issuer_url=default_auth_issuer_url,
+            )
+        ),
+        ctx=ctx.obj,
+    )
+
+
+@integration.command(
+    short_help="Manage OIDC cluster configuration in OCM organizations based on OCM labels. Part of RHIDP."
+)
+@click.option(
+    "--ocm-env",
+    help="The OCM environment RHIDP should operator on. If none is specified, all environments will be operated on.",
+    required=False,
+    envvar="RHIDP_OCM_ENV",
+)
+@click.option(
+    "--ocm-org-ids",
+    help="A comma seperated list of OCM organization IDs RHIDP should operator on. If none is specified, all organizations are considered.",
+    required=False,
+    envvar="RHIDP_OCM_ORG_IDS",
+)
+@click.option(
+    "--auth-name",
+    default="redhat-app-sre-auth",
+    help="The authentication name must match that one used in the redirect URL.",
+    required=True,
+    envvar="RHIDP_AUTH_NAME",
+)
+@click.option(
+    "--auth-issuer-url",
+    default="https://auth.redhat.com/auth/realms/EmployeeIDP",
+    help="The Issuer (SSO server) URL.",
+    required=True,
+    envvar="RHIDP_AUTH_ISSUER_URL",
+)
+@click.option(
+    "--vault-input-path",
+    help="path in Vault to find input resources.",
+    required=True,
+)
+@click.pass_context
+def ocm_oidc_idp_standalone(
+    ctx, ocm_env, ocm_org_ids, auth_name, auth_issuer_url, vault_input_path
+):
+    from reconcile.rhidp.ocm_oidc_idp.standalone import (
+        OCMOidcIdpStandalone,
+        OCMOidcIdpStandaloneParams,
+    )
+
+    parsed_ocm_org_ids = set(ocm_org_ids.split(",")) if ocm_org_ids else None
+    run_class_integration(
+        integration=OCMOidcIdpStandalone(
+            OCMOidcIdpStandaloneParams(
+                vault_input_path=vault_input_path,
+                ocm_environment=ocm_env,
+                ocm_organization_ids=parsed_ocm_org_ids,
+                auth_name=auth_name,
+                auth_issuer_url=auth_issuer_url,
+            )
+        ),
+        ctx=ctx.obj,
+    )
 
 
 @integration.command(short_help="Manage additional routers in OCM.")
@@ -2207,65 +2245,6 @@ def ocp_release_mirror(ctx):
     run_integration(reconcile.ocp_release_mirror, ctx.obj)
 
 
-@integration.command(short_help="Mirrors external images into AWS ECR.")
-@threaded()
-@click.pass_context
-def ecr_mirror(ctx, thread_pool_size):
-    import reconcile.ecr_mirror
-
-    run_integration(reconcile.ecr_mirror, ctx.obj, thread_pool_size)
-
-
-@integration.command(short_help="Manages Kafka clusters via OCM.")
-@threaded()
-@binary(["oc", "ssh"])
-@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
-@internal()
-@use_jump_host()
-@vault_throughput_path
-@click.pass_context
-def kafka_clusters(
-    ctx, thread_pool_size, internal, use_jump_host, vault_throughput_path
-):
-    import reconcile.kafka_clusters
-
-    run_integration(
-        reconcile.kafka_clusters,
-        ctx.obj,
-        thread_pool_size,
-        internal,
-        use_jump_host,
-        vault_throughput_path,
-    )
-
-
-@integration.command(
-    short_help="Ensures all integrations are defined in App-Interface."
-)
-@click.pass_context
-def integrations_validator(ctx):
-    import reconcile.integrations_validator
-
-    run_integration(
-        reconcile.integrations_validator,
-        ctx.obj,
-        reconcile.cli.integration.commands.keys(),
-    )
-
-
-@integration.command(short_help="Tests prometheus rules using promtool.")
-@threaded()
-@binary(["promtool"])
-@cluster_name
-@click.pass_context
-def prometheus_rules_tester_old(ctx, thread_pool_size, cluster_name):
-    import reconcile.prometheus_rules_tester_old
-
-    run_integration(
-        reconcile.prometheus_rules_tester_old, ctx.obj, thread_pool_size, cluster_name
-    )
-
-
 @integration.command(short_help="Tests prometheus rules using promtool.")
 @threaded(default=5)
 @binary(["promtool"])
@@ -2361,6 +2340,44 @@ def status_page_components(ctx):
     from reconcile.statuspage.integration import StatusPageComponentsIntegration
 
     run_class_integration(StatusPageComponentsIntegration(), ctx.obj)
+
+
+@integration.command(
+    short_help="Manages OCM cluster usergroups and notifications via OCM labels."
+)
+@click.option(
+    "--ocm-env",
+    help="The OCM environment the integration should operator on. If none is specified, all environments will be operated on.",
+    required=False,
+    envvar="OCM_ENV",
+)
+@click.option(
+    "--ocm-org-ids",
+    help="A comma seperated list of OCM organization IDs the integration should operator on. If none is specified, all organizations are considered.",
+    required=False,
+    envvar="OCM_ORG_IDS",
+)
+@click.option(
+    "--group-provider",
+    help="A group provider spec is the form of <provider-name>:<provider-type>:<provider-args>.",
+    required=False,
+    multiple=True,
+)
+@click.pass_context
+def ocm_standalone_user_management(ctx, ocm_env, ocm_org_ids, group_provider):
+    from reconcile.oum.base import OCMUserManagementIntegrationParams
+    from reconcile.oum.standalone import OCMStandaloneUserManagementIntegration
+
+    run_class_integration(
+        OCMStandaloneUserManagementIntegration(
+            OCMUserManagementIntegrationParams(
+                ocm_environment=ocm_env,
+                ocm_org_ids=ocm_org_ids,
+                group_provider_specs=group_provider,
+            ),
+        ),
+        ctx.obj,
+    )
 
 
 @integration.command(

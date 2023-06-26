@@ -8,7 +8,10 @@ from typing import (
     Optional,
 )
 
-from pydantic import BaseModel
+from pydantic import (
+    BaseModel,
+    Field,
+)
 
 from reconcile.utils.ocm.search_filters import Filter
 from reconcile.utils.ocm_base_client import OCMBaseClient
@@ -21,10 +24,17 @@ def get_subscription_labels(
     Finds all subscription labels that match the given filter.
     """
     for subscription_label in get_labels(
-        ocm_api=ocm_api, filter=filter.eq("type", "Subscription")
+        ocm_api=ocm_api, filter=filter & subscription_label_filter()
     ):
         if isinstance(subscription_label, OCMSubscriptionLabel):
             yield subscription_label
+
+
+def subscription_label_filter() -> Filter:
+    """
+    Returns a filter that can be used to find only subscription labels.
+    """
+    return Filter().eq("type", "Subscription")
 
 
 def get_organization_labels(
@@ -34,10 +44,17 @@ def get_organization_labels(
     Finds all organization labels that match the given filter.
     """
     for org_label in get_labels(
-        ocm_api=ocm_api, filter=filter.eq("type", "Organization")
+        ocm_api=ocm_api, filter=filter & organization_label_filter()
     ):
         if isinstance(org_label, OCMOrganizationLabel):
             yield org_label
+
+
+def organization_label_filter() -> Filter:
+    """
+    Returns a filter that can be used to find only organization labels.
+    """
+    return Filter().eq("type", "Organization")
 
 
 def get_labels(
@@ -117,10 +134,13 @@ class LabelContainer(BaseModel):
     efficiently with them.
     """
 
-    labels: dict[str, OCMLabel]
+    labels: dict[str, OCMLabel] = Field(default_factory=dict)
 
     def __len__(self) -> int:
         return len(self.labels)
+
+    def __bool__(self) -> bool:
+        return len(self.labels) > 0
 
     def get(self, name: str) -> Optional[OCMLabel]:
         return self.labels.get(name)
