@@ -27,14 +27,14 @@ def validate_no_cidr_overlap(
     clusters: list[ClusterV1] = query_data.clusters or []
 
     for cluster in clusters:
-        peerings_entries = [
-            {
-                "provider": "cluster-self-vpc",
-                "vpc_name": cluster.name,
-                "cidr_block": cluster.network.vpc,  # type: ignore[union-attr]
-            },
-        ]
         if cluster.peering:
+            peerings_entries = [
+                {
+                    "provider": "cluster-self-vpc",
+                    "vpc_name": cluster.name,
+                    "cidr_block": cluster.network.vpc,  # type: ignore[union-attr]
+                },
+            ]
             for peering in cluster.peering.connections:
                 if peering.provider == "account-vpc-mesh":
                     aws_account_uid = peering.account.uid  # type: ignore[union-attr]
