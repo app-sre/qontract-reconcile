@@ -213,7 +213,10 @@ def fetch_current_state(
     ocm_map: OCMMap,
     clusters: Iterable[ClusterV1],
 ) -> Mapping[str, list[AbstractPool]]:
-    return {c.name: fetch_current_state_for_cluster(c, ocm_map.get(c.name)) for c in clusters}
+    return {
+        c.name: fetch_current_state_for_cluster(c, ocm_map.get(c.name))
+        for c in clusters
+    }
 
 
 def fetch_current_state_for_cluster(cluster, ocm):
