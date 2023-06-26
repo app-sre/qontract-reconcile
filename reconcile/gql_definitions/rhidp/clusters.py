@@ -42,6 +42,7 @@ fragment VaultSecret on VaultSecret_v1 {
 query OidcClusters($name: String) {
   clusters: clusters_v1(name: $name) {
     name
+    consoleUrl
     ocm {
       name
       environment {
@@ -166,6 +167,7 @@ class ClusterAuthOIDCV1(ClusterAuthV1):
 
 class ClusterV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+    console_url: str = Field(..., alias="consoleUrl")
     ocm: Optional[OpenShiftClusterManagerV1] = Field(..., alias="ocm")
     upgrade_policy: Optional[ClusterUpgradePolicyV1] = Field(..., alias="upgradePolicy")
     disable: Optional[DisableClusterAutomationsV1] = Field(..., alias="disable")

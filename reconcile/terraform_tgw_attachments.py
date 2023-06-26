@@ -369,6 +369,12 @@ def run(
     desired_state_data_source = _fetch_desired_state_data_source(account_name)
     accounts = [a.dict(by_alias=True) for a in desired_state_data_source.accounts]
 
+    if not accounts:
+        logging.warning(
+            f"No participating AWS accounts found, consider disabling this integration, account name: {account_name}"
+        )
+        return
+
     vault_settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(vault_settings.vault)
     aws_api = AWSApi(1, accounts, secret_reader=secret_reader, init_users=False)

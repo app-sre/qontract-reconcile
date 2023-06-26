@@ -43,7 +43,6 @@ class OCMClusterState(Enum):
 
 
 class OCMClusterFlag(BaseModel):
-
     enabled: bool
 
 
@@ -56,9 +55,12 @@ class OCMClusterAWSSettings(BaseModel):
 
 
 class OCMClusterVersion(BaseModel):
-
     id: str
     raw_id: str
+
+
+class OCMClusterConsole(BaseModel):
+    url: str
 
 
 PRODUCT_ID_OSD = "osd"
@@ -66,7 +68,6 @@ PRODUCT_ID_ROSA = "rosa"
 
 
 class OCMCluster(BaseModel):
-
     kind: str = "Cluster"
     id: str
     external_id: str
@@ -91,6 +92,8 @@ class OCMCluster(BaseModel):
 
     hypershift: OCMClusterFlag
 
+    console: OCMClusterConsole
+
     def is_osd(self) -> bool:
         return self.product.id == PRODUCT_ID_OSD
 
@@ -102,7 +105,6 @@ class OCMCluster(BaseModel):
 
 
 class ClusterDetails(BaseModel):
-
     ocm_cluster: OCMCluster
 
     organization_id: str

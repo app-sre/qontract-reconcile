@@ -303,9 +303,7 @@ PIPELINE_PROVIDER = {
             "consoleUrl": "https://console-url",
         },
     },
-    "defaults": {
-        "pipelineTemplates": {"openshiftSaasDeploy": {"name": "openshift-saas-deploy"}}
-    },
+    "defaults": {"pipelineTemplates": {"openshiftSaasDeploy": {"name": "saas-deploy"}}},
 }
 
 
@@ -640,7 +638,7 @@ def test_export_model(
                 },
                 "defaults": {
                     "pipelineTemplates": {
-                        "openshiftSaasDeploy": {"name": "openshift-saas-deploy"}
+                        "openshiftSaasDeploy": {"name": "saas-deploy"}
                     }
                 },
                 "pipelineTemplates": None,
@@ -794,7 +792,7 @@ def test_export_model(
                 },
                 "defaults": {
                     "pipelineTemplates": {
-                        "openshiftSaasDeploy": {"name": "openshift-saas-deploy"}
+                        "openshiftSaasDeploy": {"name": "saas-deploy"}
                     }
                 },
                 "pipelineTemplates": None,
@@ -948,7 +946,7 @@ def test_export_model(
                 },
                 "defaults": {
                     "pipelineTemplates": {
-                        "openshiftSaasDeploy": {"name": "openshift-saas-deploy"}
+                        "openshiftSaasDeploy": {"name": "saas-deploy"}
                     }
                 },
                 "pipelineTemplates": None,

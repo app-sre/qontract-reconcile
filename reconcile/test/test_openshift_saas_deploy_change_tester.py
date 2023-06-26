@@ -34,7 +34,7 @@ def saas_files(gql_class_factory: Callable[..., SaasFile]) -> list[SaasFile]:
                     },
                     "defaults": {
                         "pipelineTemplates": {
-                            "openshiftSaasDeploy": {"name": "openshift-saas-deploy"}
+                            "openshiftSaasDeploy": {"name": "saas-deploy"}
                         }
                     },
                 },

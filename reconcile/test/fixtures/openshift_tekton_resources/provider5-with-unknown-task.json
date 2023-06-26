@@ -22,9 +22,9 @@
     ],
     "pipelineTemplates": {
       "openshiftSaasDeploy": {
-        "name": "openshift-saas-deploy",
+        "name": "saas-deploy",
         "type": "onePerSaasFile",
-        "path": "openshift-saas-deploy.pipeline.yaml.j2",
+        "path": "saas-deploy.pipeline.yaml.j2",
         "variables": null
       }
     }
@@ -46,9 +46,9 @@
   },
   "pipelineTemplates": {
     "openshiftSaasDeploy": {
-      "name": "openshift-saas-deploy",
+      "name": "saas-deploy",
       "type": "onePerSaasFile",
-      "path": "openshift-saas-deploy-with-unknown-task.pipeline.yaml.j2",
+      "path": "saas-deploy-with-unknown-task.pipeline.yaml.j2",
       "variables": null
     }
   }

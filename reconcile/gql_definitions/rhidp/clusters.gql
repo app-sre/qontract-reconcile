@@ -3,6 +3,7 @@
 query OidcClusters($name: String) {
   clusters: clusters_v1(name: $name) {
     name
+    consoleUrl
     ocm {
       name
       environment {

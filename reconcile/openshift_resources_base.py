@@ -143,6 +143,7 @@ NAMESPACES_QUERY = """
 {
   namespaces: namespaces_v1 {
     name
+    labels
     delete
     clusterAdmin
     managedResourceTypes
@@ -164,6 +165,7 @@ NAMESPACES_QUERY = """
     }
     cluster {
       name
+      labels
       serverUrl
         auth {
           service
