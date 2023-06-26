@@ -1,0 +1,549 @@
+# PrometheusTargetFlapping alerts
+# Cases to test multiple entries to calculate medians
+## Target pushgateway-nginx-gate-1/10.131.0.19:9091
+## elapsed: 900s
+- attachments:
+  - actions:
+    - id: '1'
+      style: ''
+      text: 'Runbook :green_book:'
+      type: button
+      url: https://gitlab.cee.redhat.com/service/app-interface/-/blob/master/docs/app-sre/sop/prometheus/prometheus-target-flapping.md
+    - id: '2'
+      style: ''
+      text: 'Query :mag:'
+      type: button
+      url: https://prometheus.app-sre-prod-01.devshift.net/graph?g0.expr=changes%28up%7Bnamespace%3D%22app-sre-observability-production%22%7D%5B15m%5D%29+%3E+4&g0.tab=1
+    - id: '3'
+      style: ''
+      text: 'Alert Definition :git:'
+      type: button
+      url: https://gitlab.cee.redhat.com/service/app-interface/blob/master/resources/observability/prometheusrules/prometheus-app-sre.prometheusrules.yaml.j2
+    - id: '4'
+      style: ''
+      text: 'Silence :no_bell:'
+      type: button
+      url: https://alertmanager.app-sre-prod-01.devshift.net/#/silences/new?filter=%7Bcluster%3D"app-sre-prod-01"%2C%20container%3D"pushgateway"%2C%20endpoint%3D"scrape"%2C%20environment%3D"production"%2C%20instance%3D"10.131.0.19:9091"%2C%20job%3D"pushgateway-nginx-gate"%2C%20namespace%3D"app-sre-observability-production"%2C%20pod%3D"pushgateway-0"%2C%20prometheus%3D"openshift-customer-monitoring/app-sre"%2C%20service%3D"app-sre-observability"%2C%20severity%3D"high"%2C%20alertname%3D"PrometheusTargetFlapping"%7D
+    color: 2eb886
+    fallback: "Alert: PrometheusTargetFlapping [RESOLVED]  Target pushgateway-nginx-gate-1/10.131.0.19:9091\
+      \ status is flapping\n | <https://alertmanager.app-sre-prod-01.devshift.net/#/alerts?receiver=slack-app-sre-alerts>"
+    id: 1
+    mrkdwn_in:
+    - fallback
+    - pretext
+    - text
+    title: 'Alert: PrometheusTargetFlapping [RESOLVED]  Target pushgateway-nginx-gate-1/10.131.0.19:9091
+      status is flapping'
+    title_link: https://alertmanager.app-sre-prod-01.devshift.net/#/alerts?receiver=slack-app-sre-alerts
+  bot_id: BFYPB540Z
+  icons:
+    emoji: ':prometheus:'
+  subtype: bot_message
+  text: ''
+  ts: '1686818732.031509'
+  type: message
+  username: app-sre-alerts (app-sre-prod-01)
+- attachments:
+  - actions:
+    - id: '1'
+      style: ''
+      text: 'Runbook :green_book:'
+      type: button
+      url: https://gitlab.cee.redhat.com/service/app-interface/-/blob/master/docs/app-sre/sop/prometheus/prometheus-target-flapping.md
+    - id: '2'
+      style: ''
+      text: 'Query :mag:'
+      type: button
+      url: https://prometheus.app-sre-prod-01.devshift.net/graph?g0.expr=changes%28up%7Bnamespace%3D%22app-sre-observability-production%22%7D%5B15m%5D%29+%3E+4&g0.tab=1
+    - id: '3'
+      style: ''
+      text: 'Alert Definition :git:'
+      type: button
+      url: https://gitlab.cee.redhat.com/service/app-interface/blob/master/resources/observability/prometheusrules/prometheus-app-sre.prometheusrules.yaml.j2
+    - id: '4'
+      style: ''
+      text: 'Silence :no_bell:'
+      type: button
+      url: https://alertmanager.app-sre-prod-01.devshift.net/#/silences/new?filter=%7Bcluster%3D"app-sre-prod-01"%2C%20container%3D"pushgateway"%2C%20endpoint%3D"scrape"%2C%20environment%3D"production"%2C%20instance%3D"10.131.0.19:9091"%2C%20job%3D"pushgateway-nginx-gate"%2C%20namespace%3D"app-sre-observability-production"%2C%20pod%3D"pushgateway-0"%2C%20prometheus%3D"openshift-customer-monitoring/app-sre"%2C%20service%3D"app-sre-observability"%2C%20severity%3D"high"%2C%20alertname%3D"PrometheusTargetFlapping"%7D
+    fallback: 'Alert: PrometheusTargetFlapping [FIRING:1]  Target pushgateway-nginx-gate-1/10.131.0.19:9091
+      status is flapping | <https://alertmanager.app-sre-prod-01.devshift.net/#/alerts?receiver=slack-app-sre-alerts>'
+    id: 1
+    mrkdwn_in:
+    - fallback
+    - pretext
+    - text
+    title: 'Alert: PrometheusTargetFlapping [FIRING:1]  Target pushgateway-nginx-gate-1/10.131.0.19:9091
+      status is flapping'
+    title_link: https://alertmanager.app-sre-prod-01.devshift.net/#/alerts?receiver=slack-app-sre-alerts
+  bot_id: BFYPB540Z
+  icons:
+    emoji: ':prometheus:'
+  subtype: bot_message
+  text: ''
+  ts: '1686817832.031509'
+  type: message
+  username: app-sre-alerts (app-sre-prod-01)
+
+## Target pushgateway-nginx-gate-2/10.131.0.19:9091
+## elapsed: 600s
+- attachments:
+  - actions:
+    - id: '1'
+      style: ''
+      text: 'Runbook :green_book:'
+      type: button
+      url: https://gitlab.cee.redhat.com/service/app-interface/-/blob/master/docs/app-sre/sop/prometheus/prometheus-target-flapping.md
+    - id: '2'
+      style: ''
+      text: 'Query :mag:'
+      type: button
+      url: https://prometheus.app-sre-prod-01.devshift.net/graph?g0.expr=changes%28up%7Bnamespace%3D%22app-sre-observability-production%22%7D%5B15m%5D%29+%3E+4&g0.tab=1
+    - id: '3'
+      style: ''
+      text: 'Alert Definition :git:'
+      type: button
+      url: https://gitlab.cee.redhat.com/service/app-interface/blob/master/resources/observability/prometheusrules/prometheus-app-sre.prometheusrules.yaml.j2
+    - id: '4'
+      style: ''
+      text: 'Silence :no_bell:'
+      type: button
+      url: https://alertmanager.app-sre-prod-01.devshift.net/#/silences/new?filter=%7Bcluster%3D"app-sre-prod-01"%2C%20container%3D"pushgateway"%2C%20endpoint%3D"scrape"%2C%20environment%3D"production"%2C%20instance%3D"10.131.0.19:9091"%2C%20job%3D"pushgateway-nginx-gate"%2C%20namespace%3D"app-sre-observability-production"%2C%20pod%3D"pushgateway-0"%2C%20prometheus%3D"openshift-customer-monitoring/app-sre"%2C%20service%3D"app-sre-observability"%2C%20severity%3D"high"%2C%20alertname%3D"PrometheusTargetFlapping"%7D
+    color: 2eb886
+    fallback: "Alert: PrometheusTargetFlapping [RESOLVED]  Target pushgateway-nginx-gate-2/10.131.0.19:9091\
+      \ status is flapping\n | <https://alertmanager.app-sre-prod-01.devshift.net/#/alerts?receiver=slack-app-sre-alerts>"
+    id: 1
+    mrkdwn_in:
+    - fallback
+    - pretext
+    - text
+    title: 'Alert: PrometheusTargetFlapping [RESOLVED]  Target pushgateway-nginx-gate-2/10.131.0.19:9091
+      status is flapping'
+    title_link: https://alertmanager.app-sre-prod-01.devshift.net/#/alerts?receiver=slack-app-sre-alerts
+  bot_id: BFYPB540Z
+  icons:
+    emoji: ':prometheus:'
+  subtype: bot_message
+  text: ''
+  ts: '1686816832.031509'
+  type: message
+  username: app-sre-alerts (app-sre-prod-01)
+- attachments:
+  - actions:
+    - id: '1'
+      style: ''
+      text: 'Runbook :green_book:'
+      type: button
+      url: https://gitlab.cee.redhat.com/service/app-interface/-/blob/master/docs/app-sre/sop/prometheus/prometheus-target-flapping.md
+    - id: '2'
+      style: ''
+      text: 'Query :mag:'
+      type: button
+      url: https://prometheus.app-sre-prod-01.devshift.net/graph?g0.expr=changes%28up%7Bnamespace%3D%22app-sre-observability-production%22%7D%5B15m%5D%29+%3E+4&g0.tab=1
+    - id: '3'
+      style: ''
+      text: 'Alert Definition :git:'
+      type: button
+      url: https://gitlab.cee.redhat.com/service/app-interface/blob/master/resources/observability/prometheusrules/prometheus-app-sre.prometheusrules.yaml.j2
+    - id: '4'
+      style: ''
+      text: 'Silence :no_bell:'
+      type: button
+      url: https://alertmanager.app-sre-prod-01.devshift.net/#/silences/new?filter=%7Bcluster%3D"app-sre-prod-01"%2C%20container%3D"pushgateway"%2C%20endpoint%3D"scrape"%2C%20environment%3D"production"%2C%20instance%3D"10.131.0.19:9091"%2C%20job%3D"pushgateway-nginx-gate"%2C%20namespace%3D"app-sre-observability-production"%2C%20pod%3D"pushgateway-0"%2C%20prometheus%3D"openshift-customer-monitoring/app-sre"%2C%20service%3D"app-sre-observability"%2C%20severity%3D"high"%2C%20alertname%3D"PrometheusTargetFlapping"%7D
+    fallback: 'Alert: PrometheusTargetFlapping [FIRING:1]  Target pushgateway-nginx-gate-2/10.131.0.19:9091
+      status is flapping | <https://alertmanager.app-sre-prod-01.devshift.net/#/alerts?receiver=slack-app-sre-alerts>'
+    id: 1
+    mrkdwn_in:
+    - fallback
+    - pretext
+    - text
+    title: 'Alert: PrometheusTargetFlapping [FIRING:1]  Target pushgateway-nginx-gate-2/10.131.0.19:9091
+      status is flapping'
+    title_link: https://alertmanager.app-sre-prod-01.devshift.net/#/alerts?receiver=slack-app-sre-alerts
+  bot_id: BFYPB540Z
+  icons:
+    emoji: ':prometheus:'
+  subtype: bot_message
+  text: ''
+  ts: '1686816232.031509'
+  type: message
+  username: app-sre-alerts (app-sre-prod-01)
+
+## Target pushgateway-nginx-gate-3/10.131.0.19:9091
+## elapsed: 300s
+- attachments:
+  - actions:
+    - id: '1'
+      style: ''
+      text: 'Runbook :green_book:'
+      type: button
+      url: https://gitlab.cee.redhat.com/service/app-interface/-/blob/master/docs/app-sre/sop/prometheus/prometheus-target-flapping.md
+    - id: '2'
+      style: ''
+      text: 'Query :mag:'
+      type: button
+      url: https://prometheus.app-sre-prod-01.devshift.net/graph?g0.expr=changes%28up%7Bnamespace%3D%22app-sre-observability-production%22%7D%5B15m%5D%29+%3E+4&g0.tab=1
+    - id: '3'
+      style: ''
+      text: 'Alert Definition :git:'
+      type: button
+      url: https://gitlab.cee.redhat.com/service/app-interface/blob/master/resources/observability/prometheusrules/prometheus-app-sre.prometheusrules.yaml.j2
+    - id: '4'
+      style: ''
+      text: 'Silence :no_bell:'
+      type: button
+      url: https://alertmanager.app-sre-prod-01.devshift.net/#/silences/new?filter=%7Bcluster%3D"app-sre-prod-01"%2C%20container%3D"pushgateway"%2C%20endpoint%3D"scrape"%2C%20environment%3D"production"%2C%20instance%3D"10.131.0.19:9091"%2C%20job%3D"pushgateway-nginx-gate"%2C%20namespace%3D"app-sre-observability-production"%2C%20pod%3D"pushgateway-0"%2C%20prometheus%3D"openshift-customer-monitoring/app-sre"%2C%20service%3D"app-sre-observability"%2C%20severity%3D"high"%2C%20alertname%3D"PrometheusTargetFlapping"%7D
+    color: 2eb886
+    fallback: "Alert: PrometheusTargetFlapping [RESOLVED]  Target pushgateway-nginx-gate-3/10.131.0.19:9091\
+      \ status is flapping\n | <https://alertmanager.app-sre-prod-01.devshift.net/#/alerts?receiver=slack-app-sre-alerts>"
+    id: 1
+    mrkdwn_in:
+    - fallback
+    - pretext
+    - text
+    title: 'Alert: PrometheusTargetFlapping [RESOLVED]  Target pushgateway-nginx-gate-3/10.131.0.19:9091
+      status is flapping'
+    title_link: https://alertmanager.app-sre-prod-01.devshift.net/#/alerts?receiver=slack-app-sre-alerts
+  bot_id: BFYPB540Z
+  icons:
+    emoji: ':prometheus:'
+  subtype: bot_message
+  text: ''
+  ts: '1686815232.031509'
+  type: message
+  username: app-sre-alerts (app-sre-prod-01)
+- attachments:
+  - actions:
+    - id: '1'
+      style: ''
+      text: 'Runbook :green_book:'
+      type: button
+      url: https://gitlab.cee.redhat.com/service/app-interface/-/blob/master/docs/app-sre/sop/prometheus/prometheus-target-flapping.md
+    - id: '2'
+      style: ''
+      text: 'Query :mag:'
+      type: button
+      url: https://prometheus.app-sre-prod-01.devshift.net/graph?g0.expr=changes%28up%7Bnamespace%3D%22app-sre-observability-production%22%7D%5B15m%5D%29+%3E+4&g0.tab=1
+    - id: '3'
+      style: ''
+      text: 'Alert Definition :git:'
+      type: button
+      url: https://gitlab.cee.redhat.com/service/app-interface/blob/master/resources/observability/prometheusrules/prometheus-app-sre.prometheusrules.yaml.j2
+    - id: '4'
+      style: ''
+      text: 'Silence :no_bell:'
+      type: button
+      url: https://alertmanager.app-sre-prod-01.devshift.net/#/silences/new?filter=%7Bcluster%3D"app-sre-prod-01"%2C%20container%3D"pushgateway"%2C%20endpoint%3D"scrape"%2C%20environment%3D"production"%2C%20instance%3D"10.131.0.19:9091"%2C%20job%3D"pushgateway-nginx-gate"%2C%20namespace%3D"app-sre-observability-production"%2C%20pod%3D"pushgateway-0"%2C%20prometheus%3D"openshift-customer-monitoring/app-sre"%2C%20service%3D"app-sre-observability"%2C%20severity%3D"high"%2C%20alertname%3D"PrometheusTargetFlapping"%7D
+    fallback: 'Alert: PrometheusTargetFlapping [FIRING:1]  Target pushgateway-nginx-gate-3/10.131.0.19:9091
+      status is flapping | <https://alertmanager.app-sre-prod-01.devshift.net/#/alerts?receiver=slack-app-sre-alerts>'
+    id: 1
+    mrkdwn_in:
+    - fallback
+    - pretext
+    - text
+    title: 'Alert: PrometheusTargetFlapping [FIRING:1]  Target pushgateway-nginx-gate-3/10.131.0.19:9091
+      status is flapping'
+    title_link: https://alertmanager.app-sre-prod-01.devshift.net/#/alerts?receiver=slack-app-sre-alerts
+  bot_id: BFYPB540Z
+  icons:
+    emoji: ':prometheus:'
+  subtype: bot_message
+  text: ''
+  ts: '1686814932.031509'
+  type: message
+  username: app-sre-alerts (app-sre-prod-01)
+
+# SLOMetricAbsent case
+# This is to test the parsing of the alert message in the text field, not in the title.
+# elapsed: 3600s
+- attachments:
+  - actions:
+    - id: '1'
+      style: ''
+      text: 'Runbook :green_book:'
+      type: button
+      url: https://github.com/rhobs/configuration/blob/main/docs/sop/observatorium.md#APIRulesRawReadAvailabilityErrorBudgetBurning
+    - id: '2'
+      style: ''
+      text: 'Query :mag:'
+      type: button
+      url: https://prometheus.rhobsp02ue1.devshift.net/graph?g0.expr=absent%28http_requests_total%7Bcode%21~%22%5E4..%24%22%2Cgroup%3D%22metricsv1%22%2Chandler%3D%22rules-raw%22%2Cjob%3D%22observatorium-observatorium-mst-api%22%2Cmethod%3D%22GET%22%7D%29+%3D%3D+1&g0.tab=1
+    - id: '3'
+      style: ''
+      text: 'Dashboard :grafana:'
+      type: button
+      url: https://grafana.app-sre.devshift.net/d/7f4df1c2d5518d5c3f2876ca9bb874a8/rhobsp02ue1-production-slos?orgId=1&refresh=10s&var-datasource=rhobsp02ue1-prometheus&var-namespace=&var-job=All&var-pod=All&var-interval=5m
+    - id: '4'
+      style: ''
+      text: 'Alert Definition :git:'
+      type: button
+      url: https://gitlab.cee.redhat.com/service/app-interface/blob/master/resources/observability/prometheusrules/rhobs-slos-rhobsp02ue1-prod.prometheusrules.yaml
+    - id: '5'
+      style: ''
+      text: 'Silence :no_bell:'
+      type: button
+      url: https://alertmanager.rhobsp02ue1.devshift.net/#/silences/new?filter=%7Bcluster%3D"rhobsp02ue1"%2C%20environment%3D"production"%2C%20group%3D"metricsv1"%2C%20job%3D"observatorium-observatorium-mst-api"%2C%20prometheus%3D"openshift-customer-monitoring/app-sre"%2C%20service%3D"observatorium-api"%2C%20alertname%3D""%7D
+    fallback: 'Alert: SLOMetricAbsent [FIRING:1]  | <https://alertmanager.rhobsp02ue1.devshift.net/#/alerts?receiver=slack-app-sre-alerts>'
+    id: 1
+    mrkdwn_in:
+    - fallback
+    - pretext
+    - text
+    text: '*Alerts Resolved:*
+
+      - API /rules/raw endpoint for reads is burning too much error budget to guarantee
+      availability SLOs.
+
+      - API /receive handler is burning too much error budget to guarantee availability
+      SLOs.'
+    title: 'Alert: SLOMetricAbsent [FIRING:1]'
+    title_link: https://alertmanager.rhobsp02ue1.devshift.net/#/alerts?receiver=slack-app-sre-alerts
+  bot_id: BFYPB540Z
+  icons:
+    emoji: ':prometheus:'
+  subtype: bot_message
+  text: ''
+  ts: '1686813371.100269'
+  type: message
+  username: app-sre-alerts (rhobsp02ue1)
+- attachments:
+  - actions:
+    - id: '1'
+      style: ''
+      text: 'Runbook :green_book:'
+      type: button
+      url: https://github.com/rhobs/configuration/blob/main/docs/sop/observatorium.md#APIRulesRawReadAvailabilityErrorBudgetBurning
+    - id: '2'
+      style: ''
+      text: 'Query :mag:'
+      type: button
+      url: https://prometheus.rhobsp02ue1.devshift.net/graph?g0.expr=absent%28http_requests_total%7Bcode%21~%22%5E4..%24%22%2Cgroup%3D%22metricsv1%22%2Chandler%3D%22rules-raw%22%2Cjob%3D%22observatorium-observatorium-mst-api%22%2Cmethod%3D%22GET%22%7D%29+%3D%3D+1&g0.tab=1
+    - id: '3'
+      style: ''
+      text: 'Dashboard :grafana:'
+      type: button
+      url: https://grafana.app-sre.devshift.net/d/7f4df1c2d5518d5c3f2876ca9bb874a8/rhobsp02ue1-production-slos?orgId=1&refresh=10s&var-datasource=rhobsp02ue1-prometheus&var-namespace=&var-job=All&var-pod=All&var-interval=5m
+    - id: '4'
+      style: ''
+      text: 'Alert Definition :git:'
+      type: button
+      url: https://gitlab.cee.redhat.com/service/app-interface/blob/master/resources/observability/prometheusrules/rhobs-slos-rhobsp02ue1-prod.prometheusrules.yaml
+    - id: '5'
+      style: ''
+      text: 'Silence :no_bell:'
+      type: button
+      url: https://alertmanager.rhobsp02ue1.devshift.net/#/silences/new?filter=%7Bcluster%3D"rhobsp02ue1"%2C%20environment%3D"production"%2C%20group%3D"metricsv1"%2C%20job%3D"observatorium-observatorium-mst-api"%2C%20prometheus%3D"openshift-customer-monitoring/app-sre"%2C%20service%3D"observatorium-api"%2C%20alertname%3D""%7D
+    fallback: 'Alert: SLOMetricAbsent [FIRING:2]  | <https://alertmanager.rhobsp02ue1.devshift.net/#/alerts?receiver=slack-app-sre-alerts>'
+    id: 1
+    mrkdwn_in:
+    - fallback
+    - pretext
+    - text
+    text: '*Alerts Firing:*
+
+      - API /rules/raw endpoint for reads is burning too much error budget to guarantee
+      availability SLOs.
+
+      - API /receive handler is burning too much error budget to guarantee availability
+      SLOs.'
+    title: 'Alert: SLOMetricAbsent [FIRING:2]'
+    title_link: https://alertmanager.rhobsp02ue1.devshift.net/#/alerts?receiver=slack-app-sre-alerts
+  bot_id: BFYPB540Z
+  icons:
+    emoji: ':prometheus:'
+  subtype: bot_message
+  text: ''
+  ts: '1686809771.100269'
+  type: message
+  username: app-sre-alerts (rhobsp02ue1)
+
+# PatchmanAlertEvalDelay
+# This is to test alerts in which we cannot correlate FIRING and RESOLVE because messages
+# contain parts that are dynamic (values) which make them different in both cases. We will
+# only be able to correlate via the alert name
+- attachments:
+  - actions:
+    - id: '1'
+      style: ''
+      text: 'Runbook :green_book:'
+      type: button
+      url: https://gitlab.cee.redhat.com/service/app-interface/-/tree/master/docs/console.redhat.com/app-sops/patchman/PatchmanAlertEvalDelay.md
+    - id: '2'
+      style: ''
+      text: 'Query :mag:'
+      type: button
+      url: https://prometheus.crcp01ue1.devshift.net/graph?g0.expr=sum%28rate%28patchman_engine_evaluator_upload_evaluation_delay_seconds_sum%7Bjob%3D%22patchman-evaluator-upload%22%7D%5B5m%5D%29%29+%3E+3600&g0.tab=1
+    - id: '3'
+      style: ''
+      text: 'Dashboard :grafana:'
+      type: button
+      url: https://grafana.app-sre.devshift.net/d/patch/patchman-engine
+    - id: '4'
+      style: ''
+      text: 'Alert Definition :git:'
+      type: button
+      url: https://gitlab.cee.redhat.com/service/app-interface/blob/master/resources/insights-prod/patchman-engine-prod/patchman-engine-prometheusrules.yaml
+    - id: '5'
+      style: ''
+      text: 'Silence :no_bell:'
+      type: button
+      url: https://alertmanager.crcp01ue1.devshift.net/#/silences/new?filter=%7Bapp_team%3D"patch"%2C%20cluster%3D"crcp01ue1"%2C%20env%3D"prod"%2C%20environment%3D"production"%2C%20prometheus%3D"openshift-customer-monitoring/app-sre"%2C%20service%3D"insights"%2C%20severity%3D"high"%2C%20alertname%3D"PatchmanAlertEvalDelay"%7D
+    color: 2eb886
+    fallback: "Alert: PatchmanAlertEvalDelay [RESOLVED]  Upload evaluation delay increased\
+      \ (3603.3652363738547s)\n | <https://alertmanager.crcp01ue1.devshift.net/#/alerts?receiver=slack-app-sre-alerts>"
+    id: 1
+    mrkdwn_in:
+    - fallback
+    - pretext
+    - text
+    text: <https://console-openshift-console.apps.crcp01ue1.o9m8.p1.openshiftapps.com/k8s/ns/patchman-engine-prod/deployments/patchman-evaluator-upload>
+    title: 'Alert: PatchmanAlertEvalDelay [RESOLVED]  Upload evaluation delay increased
+      (3603.3652363738547s)'
+    title_link: https://alertmanager.crcp01ue1.devshift.net/#/alerts?receiver=slack-app-sre-alerts
+  bot_id: BFYPB540Z
+  icons:
+    emoji: ':prometheus:'
+  subtype: bot_message
+  text: ''
+  ts: '1686806726.373239'
+  type: message
+  username: app-sre-alerts (crcp01ue1)
+- attachments:
+  - actions:
+    - id: '1'
+      style: ''
+      text: 'Runbook :green_book:'
+      type: button
+      url: https://gitlab.cee.redhat.com/service/app-interface/-/tree/master/docs/console.redhat.com/app-sops/patchman/PatchmanAlertEvalDelay.md
+    - id: '2'
+      style: ''
+      text: 'Query :mag:'
+      type: button
+      url: https://prometheus.crcp01ue1.devshift.net/graph?g0.expr=sum%28rate%28patchman_engine_evaluator_upload_evaluation_delay_seconds_sum%7Bjob%3D%22patchman-evaluator-upload%22%7D%5B5m%5D%29%29+%3E+3600&g0.tab=1
+    - id: '3'
+      style: ''
+      text: 'Dashboard :grafana:'
+      type: button
+      url: https://grafana.app-sre.devshift.net/d/patch/patchman-engine
+    - id: '4'
+      style: ''
+      text: 'Alert Definition :git:'
+      type: button
+      url: https://gitlab.cee.redhat.com/service/app-interface/blob/master/resources/insights-prod/patchman-engine-prod/patchman-engine-prometheusrules.yaml
+    - id: '5'
+      style: ''
+      text: 'Silence :no_bell:'
+      type: button
+      url: https://alertmanager.crcp01ue1.devshift.net/#/silences/new?filter=%7Bapp_team%3D"patch"%2C%20cluster%3D"crcp01ue1"%2C%20env%3D"prod"%2C%20environment%3D"production"%2C%20prometheus%3D"openshift-customer-monitoring/app-sre"%2C%20service%3D"insights"%2C%20severity%3D"high"%2C%20alertname%3D"PatchmanAlertEvalDelay"%7D
+    fallback: 'Alert: PatchmanAlertEvalDelay [FIRING:1]  Upload evaluation delay increased
+      (3835.4232029060313s) | <https://alertmanager.crcp01ue1.devshift.net/#/alerts?receiver=slack-app-sre-alerts>'
+    id: 1
+    mrkdwn_in:
+    - fallback
+    - pretext
+    - text
+    text: <https://console-openshift-console.apps.crcp01ue1.o9m8.p1.openshiftapps.com/k8s/ns/patchman-engine-prod/deployments/patchman-evaluator-upload>
+    title: 'Alert: PatchmanAlertEvalDelay [FIRING:1]  Upload evaluation delay increased
+      (3835.4232029060313s)'
+    title_link: https://alertmanager.crcp01ue1.devshift.net/#/alerts?receiver=slack-app-sre-alerts
+  bot_id: BFYPB540Z
+  icons:
+    emoji: ':prometheus:'
+  subtype: bot_message
+  text: ''
+  ts: '1686806426.372669'
+  type: message
+  username: app-sre-alerts (crcp01ue1)
+
+# This will be ignored as it doesn't have a name
+- attachments:
+  - actions:
+    - id: '1'
+      style: ''
+      text: 'Runbook :green_book:'
+      type: button
+      url: https://github.com/rhobs/configuration/blob/main/docs/sop/observatorium.md#APIRulesRawReadAvailabilityErrorBudgetBurning
+    - id: '2'
+      style: ''
+      text: 'Query :mag:'
+      type: button
+      url: https://prometheus.rhobsp02ue1.devshift.net/graph?g0.expr=absent%28http_requests_total%7Bcode%21~%22%5E4..%24%22%2Cgroup%3D%22metricsv1%22%2Chandler%3D%22rules-raw%22%2Cjob%3D%22observatorium-observatorium-mst-api%22%2Cmethod%3D%22GET%22%7D%29+%3D%3D+1&g0.tab=1
+    - id: '3'
+      style: ''
+      text: 'Dashboard :grafana:'
+      type: button
+      url: https://grafana.app-sre.devshift.net/d/7f4df1c2d5518d5c3f2876ca9bb874a8/rhobsp02ue1-production-slos?orgId=1&refresh=10s&var-datasource=rhobsp02ue1-prometheus&var-namespace=&var-job=All&var-pod=All&var-interval=5m
+    - id: '4'
+      style: ''
+      text: 'Alert Definition :git:'
+      type: button
+      url: https://gitlab.cee.redhat.com/service/app-interface/blob/master/resources/observability/prometheusrules/rhobs-slos-rhobsp02ue1-prod.prometheusrules.yaml
+    - id: '5'
+      style: ''
+      text: 'Silence :no_bell:'
+      type: button
+      url: https://alertmanager.rhobsp02ue1.devshift.net/#/silences/new?filter=%7Bcluster%3D"rhobsp02ue1"%2C%20environment%3D"production"%2C%20group%3D"metricsv1"%2C%20job%3D"observatorium-observatorium-mst-api"%2C%20prometheus%3D"openshift-customer-monitoring/app-sre"%2C%20service%3D"observatorium-api"%2C%20alertname%3D""%7D
+    fallback: 'Alert:  [FIRING:1]  | <https://alertmanager.rhobsp02ue1.devshift.net/#/alerts?receiver=slack-app-sre-alerts>'
+    id: 1
+    mrkdwn_in:
+    - fallback
+    - pretext
+    - text
+    text: '*Alerts Firing:*
+
+      - API /rules/raw endpoint for reads is burning too much error budget to guarantee
+      availability SLOs.
+
+
+
+      *Alerts Resolved:*
+
+      - API /receive handler is burning too much error budget to guarantee availability
+      SLOs.'
+    title: 'Alert:  [FIRING:1]'
+    title_link: https://alertmanager.rhobsp02ue1.devshift.net/#/alerts?receiver=slack-app-sre-alerts
+  bot_id: BFYPB540Z
+  icons:
+    emoji: ':prometheus:'
+  subtype: bot_message
+  text: ''
+  ts: '1686805426.372669'
+  type: message
+  username: app-sre-alerts (rhobsp02ue1)
+
+# This alert was triggered outside the considered range, it will only show as resolved in the stats 
+- attachments:
+  - actions:
+    - id: '1'
+      style: ''
+      text: 'Query :mag:'
+      type: button
+      url: https://prometheus.appsrep05ue1.devshift.net/graph?g0.expr=kube_deployment_status_replicas_available%7Bdeployment%3D%22container-security-operator%22%7D+%21%3D+1+or+absent%28kube_deployment_status_replicas_available%7Bdeployment%3D%22container-security-operator%22%7D%29+%3D%3D+1&g0.tab=1
+    - id: '2'
+      style: ''
+      text: 'Alert Definition :git:'
+      type: button
+      url: https://gitlab.cee.redhat.com/service/app-interface/blob/master/resources/observability/prometheusrules/container-security-operator.prometheusrules.yaml
+    - id: '3'
+      style: ''
+      text: 'Silence :no_bell:'
+      type: button
+      url: https://alertmanager.appsrep05ue1.devshift.net/#/silences/new?filter=%7Bcluster%3D"appsrep05ue1"%2C%20deployment%3D"container-security-operator"%2C%20environment%3D"production"%2C%20prometheus%3D"openshift-customer-monitoring/app-sre"%2C%20service%3D"container-security-operator"%2C%20severity%3D"high"%2C%20alertname%3D"ContainerSecurityOperatorPodCount"%7D
+    color: 2eb886
+    fallback: "Alert: ContainerSecurityOperatorPodCount [RESOLVED]  Deployment issue\
+      \ with Container Security Operator. No actionable SOP as of now\n | <https://alertmanager.appsrep05ue1.devshift.net/#/alerts?receiver=slack-app-sre-alerts>"
+    id: 1
+    mrkdwn_in:
+    - fallback
+    - pretext
+    - text
+    title: 'Alert: ContainerSecurityOperatorPodCount [RESOLVED]  Deployment issue
+      with Container Security Operator. No actionable SOP as of now'
+    title_link: https://alertmanager.appsrep05ue1.devshift.net/#/alerts?receiver=slack-app-sre-alerts
+  bot_id: BFYPB540Z
+  icons:
+    emoji: ':prometheus:'
+  subtype: bot_message
+  text: ''
+  ts: '1686804426.372669'
+  type: message
+  username: app-sre-alerts (appsrep05ue1)

@@ -180,7 +180,7 @@ class SlackApi:
         :param init_usergroups: whether or not to get a list of all Slack
         usergroups when instantiated
         :param channel: the Slack channel to post messages to, only used
-        when posting messages to a channel
+        when posting messages to a channel or getting conversation history
         :param chat_kwargs: any other kwargs that can be used to post Slack
         channel messages
         """
@@ -431,3 +431,38 @@ class SlackApi:
 
         self._results[resource] = results
         return results
+
+    def get_flat_conversation_history(
+        self, from_timestamp: int, to_timestamp: Optional[int]
+    ) -> list[dict[str, Any]]:
+        """Calls conversation_history method to get all messages in a channel between
+        from_timestamp to to_timestamp ignoring threads"""
+        if not self.channel:
+            raise ValueError("Expecting self.channel to be set")
+
+        cursor = ""
+        responses = []
+        keep_fetching = True
+        while True:
+            response = self._sc.conversations_history(
+                cursor=cursor, channel=self.channel, **self.chat_kwargs
+            )
+
+            for r in response["messages"]:
+                if to_timestamp and float(r["ts"]) > to_timestamp:
+                    continue
+
+                if float(r["ts"]) < from_timestamp:
+                    keep_fetching = False
+                    break
+
+                responses.append(r)
+
+            if not keep_fetching:
+                break
+
+            cursor = response["response_metadata"]["next_cursor"]
+            if cursor == "":
+                break
+
+        return responses

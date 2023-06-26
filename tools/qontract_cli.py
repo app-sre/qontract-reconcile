@@ -6,8 +6,12 @@ import os
 import re
 import sys
 from collections import defaultdict
-from datetime import datetime
+from datetime import (
+    datetime,
+    timedelta,
+)
 from operator import itemgetter
+from statistics import median
 from typing import (
     Any,
     Optional,
@@ -795,6 +799,92 @@ def ocm_addon_upgrade_policies(ctx):
                 ocm_name, inherit_version_data_text(ocm_name, ocm_org_specs), json_data
             )
         )
+
+
+@get.command()
+@click.option(
+    "--days",
+    help="Days to consider for the report. Cannot be used with timestamp options.",
+    type=int,
+)
+@click.option(
+    "--from-timestamp",
+    help="Specifies starting Unix time to consider in the report. It requires "
+    "--to-timestamp to be set. It cannot be used with --days option",
+    type=int,
+)
+@click.option(
+    "--to-timestamp",
+    help="Specifies ending Unix time to consider in the report. It requires "
+    "--from-timestamp to be set. It cannot be used with --days option",
+    type=int,
+)
+@click.pass_context
+def sd_app_sre_alert_report(
+    ctx: click.core.Context,
+    days: Optional[int],
+    from_timestamp: Optional[int],
+    to_timestamp: Optional[int],
+) -> None:
+    import tools.sd_app_sre_alert_report as report
+
+    if days:
+        if from_timestamp or to_timestamp:
+            print(
+                "Please don't specify --days or --from-timestamp and --to_timestamp "
+                "options at the same time"
+            )
+            sys.exit(1)
+
+        now = datetime.utcnow()
+        from_timestamp = int((now - timedelta(days=days)).timestamp())
+        to_timestamp = int(now.timestamp())
+
+    if not days:
+        if not (from_timestamp and to_timestamp):
+            print(
+                "Please specify --from-timestamp and --to-timestamp options if --days "
+                "is not set"
+            )
+            sys.exit(1)
+
+    slack = slackapi_from_queries(
+        integration_name=report.QONTRACT_INTEGRATION, init_usergroups=False
+    )
+    alerts = report.group_alerts(
+        slack.get_flat_conversation_history(
+            from_timestamp=from_timestamp, to_timestamp=to_timestamp  # type: ignore[arg-type]
+        )
+    )
+    alert_stats = report.gen_alert_stats(alerts)
+
+    columns = [
+        "Alert name",
+        "Triggered",
+        "Resolved",
+        "Median time to resolve (h:mm:ss)",
+    ]
+    table_data: list[dict[str, str]] = []
+    for alert_name, data in sorted(
+        alert_stats.items(), key=lambda i: i[1].triggered_alerts, reverse=True
+    ):
+        median_elapsed = ""
+        if data.elapsed_times:
+            seconds = round(median(data.elapsed_times))
+            median_elapsed = str(timedelta(seconds=seconds))
+
+        table_data.append(
+            {
+                "Alert name": alert_name,
+                "Triggered": str(data.triggered_alerts),
+                "Resolved": str(data.resolved_alerts),
+                "Median time to resolve (h:mm:ss)": median_elapsed,
+            }
+        )
+
+    # TODO(mafriedm, rporres): Fix this
+    ctx.obj["options"]["sort"] = False
+    print_output(ctx.obj["options"], table_data, columns)
 
 
 @root.command()

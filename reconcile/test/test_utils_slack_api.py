@@ -1,6 +1,9 @@
 import json
 from collections import namedtuple
-from typing import Union
+from typing import (
+    Optional,
+    Union,
+)
 from unittest.mock import (
     MagicMock,
     call,
@@ -13,6 +16,7 @@ from slack_sdk.errors import SlackApiError
 from slack_sdk.web import SlackResponse
 
 import reconcile
+from reconcile.test.fixtures import Fixtures
 from reconcile.utils.slack_api import (
     MAX_RETRIES,
     TIMEOUT,
@@ -36,6 +40,27 @@ def slack_api(mocker):
     SlackApiMock = namedtuple("SlackApiMock", "client mock_slack_client")
 
     return SlackApiMock(slack_api, mock_slack_client)
+
+
+@pytest.fixture
+def conversation_history(slack_api):
+    fixture = Fixtures("slack_api").get_anymarkup("conversations_history_messages.yaml")
+    response = new_slack_response(
+        {
+            "ok": True,
+            "messages": fixture,
+            "has_more": False,
+            "pin_count": 1,
+            "channel_actions_ts": None,
+            "channel_actions_count": 0,
+            "response_metadata": {"next_cursor": "bmV4dF90czoxNjg3NTIyMjA5MDMyMTM5"},
+        }
+    )
+    slack_api.mock_slack_client.return_value.conversations_history.side_effect = (
+        response
+    )
+
+    return response
 
 
 def test_slack_api_config_defaults():
@@ -66,7 +91,9 @@ def test_slack_api_config_from_dict():
     assert slack_api_config.timeout == 5
 
 
-def new_slack_response(data: dict[str, Union[bool, str]]):
+def new_slack_response(
+    data: dict[str, Optional[Union[bool, int, str, dict[str, str]]]]
+):
     return SlackResponse(
         client="",
         http_verb="",
@@ -320,6 +347,39 @@ def test_update_usergroups_users_raise(slack_api):
 
     with pytest.raises(SlackApiError):
         slack_api.client.update_usergroup_users("ABCD", ["USERA"])
+
+
+def test_get_flat_conversation_history_no_messages(slack_api, conversation_history):
+    fixture_messages = conversation_history["messages"]
+    first_ts = fixture_messages[0]["ts"]
+
+    # No messages
+    from_timestamp = int(float(first_ts)) + 900
+    to_timestamp = int(float(first_ts)) + 1000
+
+    slack_api.client.channel = "channel"
+    messages = slack_api.client.get_flat_conversation_history(
+        from_timestamp, to_timestamp
+    )
+    slack_api.mock_slack_client.return_value.conversations_history.assert_called_once()
+    assert len(messages) == 0
+
+
+def test_get_flat_conversation_history(slack_api, conversation_history):
+    fixture_messages = conversation_history["messages"]
+    first_ts = fixture_messages[0]["ts"]
+    last_ts = fixture_messages[-1]["ts"]
+
+    # all messages but the last one
+    from_timestamp = int(float(last_ts)) + 1
+    to_timestamp = int(float(first_ts)) + 1
+
+    slack_api.client.channel = "channel"
+    messages = slack_api.client.get_flat_conversation_history(
+        from_timestamp, to_timestamp
+    )
+    slack_api.mock_slack_client.return_value.conversations_history.assert_called_once()
+    assert len(messages) == len(fixture_messages) - 1
 
 
 #
