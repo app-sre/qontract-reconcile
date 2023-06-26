@@ -277,7 +277,7 @@ def calculate_diff(
     diffs: list[PoolHandler] = []
     errors: list[InvalidUpdateError] = []
 
-    all_desired_pools: list[tuple[str, str]] = []
+    all_desired_pools: set[tuple[str, str]] = set()
     for desired in desired_state.cluster_pools:
 
         for desired_machine_pool in desired.pools:
@@ -286,7 +286,7 @@ def calculate_diff(
                 for p in current_state.get(desired.cluster_name, [])
                 if p.id == desired_machine_pool.q_id
             ]
-            all_desired_pools.append((desired_machine_pool.q_id, desired.cluster_name))
+            all_desired_pools.add((desired_machine_pool.q_id, desired.cluster_name))
             if not current_machine_pool:
                 if desired.hypershift:
                     diffs.append(
