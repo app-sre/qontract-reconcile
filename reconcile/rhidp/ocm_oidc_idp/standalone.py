@@ -9,12 +9,16 @@ from reconcile.gql_definitions.rhidp.clusters import ClusterV1
 from reconcile.rhidp.common import (
     RHIDP_LABEL_KEY,
     RhidpLabelValue,
+    build_cluster_auths,
     build_cluster_obj,
     discover_clusters,
 )
 from reconcile.rhidp.ocm_oidc_idp.base import run
 from reconcile.utils import gql
-from reconcile.utils.ocm_base_client import init_ocm_base_client
+from reconcile.utils.ocm_base_client import (
+    OCMBaseClient,
+    init_ocm_base_client,
+)
 from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileIntegration,
@@ -42,17 +46,18 @@ class OCMOidcIdpStandalone(QontractReconcileIntegration[OCMOidcIdpStandalonePara
 
     def run(self, dry_run: bool) -> None:
         for ocm_env in self.get_ocm_environments():
+            ocm_api = init_ocm_base_client(ocm_env, self.secret_reader)
             # data query
             # clusters with enabled RHIDP
             clusters = self.get_clusters(
+                ocm_api=ocm_api,
                 ocm_env=ocm_env,
-                org_ids=self.params.ocm_organization_ids,
                 label_value=RhidpLabelValue.ENABLED,
             )
             # with disabled RHIDP
             clusters += self.get_clusters(
+                ocm_api=ocm_api,
                 ocm_env=ocm_env,
-                org_ids=self.params.ocm_organization_ids,
                 label_value=RhidpLabelValue.DISABLED,
             )
             if not clusters:
@@ -69,29 +74,28 @@ class OCMOidcIdpStandalone(QontractReconcileIntegration[OCMOidcIdpStandalonePara
 
     def get_clusters(
         self,
+        ocm_api: OCMBaseClient,
         ocm_env: OCMEnvironment,
-        org_ids: Optional[set[str]],
         label_value: RhidpLabelValue,
     ) -> list[ClusterV1]:
-        ocm_api = init_ocm_base_client(ocm_env, self.secret_reader)
         clusters_by_org = discover_clusters(
             ocm_api=ocm_api,
-            org_ids=org_ids,
+            org_ids=self.params.ocm_organization_ids,
             label_value=label_value,
         )
 
-        return [
-            build_cluster_obj(
-                ocm_env=ocm_env,
-                cluster=c,
-                auth_name=self.params.auth_name
-                if label_value == RhidpLabelValue.ENABLED
-                else None,
-                auth_issuer_url=self.params.auth_issuer_url,
-            )
+        clusters = [
+            build_cluster_obj(ocm_env=ocm_env, cluster=c)
             for ocm_clusters in clusters_by_org.values()
             for c in ocm_clusters
         ]
+        if label_value == RhidpLabelValue.ENABLED:
+            for c in clusters:
+                c.auth = build_cluster_auths(
+                    name=self.params.auth_name,
+                    issuer_url=self.params.auth_issuer_url,
+                )
+        return clusters
 
     def get_ocm_environments(self) -> list[OCMEnvironment]:
         return ocm_environment_query(

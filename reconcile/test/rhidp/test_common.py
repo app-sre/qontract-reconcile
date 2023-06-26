@@ -145,42 +145,29 @@ def test_rhidp_common_build_cluster_obj(
         ),
         upgradePolicy=None,
         disable=None,
-        auth=[
-            ClusterAuthOIDCV1(
-                service="oidc",
-                name="auth_name",
-                issuer="https://foobar.com",
-                claims=None,
-            )
-        ],
+        auth=[],
     )
     cluster_details = build_cluster_details(
         cluster_name="cluster_name",
         subscription_labels=build_cluster_rhidp_labels,
         org_id="org_id",
     )
-    # with OIDC auth enabled
-    assert (
-        common.build_cluster_obj(
-            ocm_env,
-            cluster_details,
-            auth_name="auth_name",
-            auth_issuer_url="https://foobar.com",
-        )
-        == expected_cluster
-    )
 
-    # with no OIDC auth
-    expected_cluster.auth = []
-    assert (
-        common.build_cluster_obj(
-            ocm_env,
-            cluster_details,
-            auth_name=None,
-            auth_issuer_url="https://foobar.com",
+    assert common.build_cluster_obj(ocm_env, cluster_details) == expected_cluster
+
+
+def test_test_rhidp_common_build_cluster_auths() -> None:
+    common.build_cluster_auths(
+        name="auth_name",
+        issuer_url="https://foobar.com",
+    ) == [
+        ClusterAuthOIDCV1(
+            service="oidc",
+            name="auth_name",
+            issuer="https://foobar.com",
+            claims=None,
         )
-        == expected_cluster
-    )
+    ]
 
 
 VI = "vault-input-path"

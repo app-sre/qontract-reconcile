@@ -1,12 +1,16 @@
 from collections import defaultdict
 from collections.abc import Callable
 from enum import Enum
-from typing import Optional
+from typing import (
+    Optional,
+    Union,
+)
 
 from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.gql_definitions.rhidp.clusters import (
     ClusterAuthOIDCV1,
+    ClusterAuthV1,
     ClusterV1,
     OpenShiftClusterManagerV1,
 )
@@ -53,23 +57,24 @@ def discover_clusters(
     return clusters_by_org
 
 
+def build_cluster_auths(
+    name: str, issuer_url: str
+) -> list[Union[ClusterAuthOIDCV1, ClusterAuthV1]]:
+    return [
+        ClusterAuthOIDCV1(
+            service="oidc",
+            name=name,
+            issuer=issuer_url,
+            # stick with the defaults
+            claims=None,
+        )
+    ]
+
+
 def build_cluster_obj(
     ocm_env: OCMEnvironment,
     cluster: ClusterDetails,
-    auth_name: Optional[str],
-    auth_issuer_url: Optional[str],
 ) -> ClusterV1:
-    auths = []
-    if auth_name:
-        auths.append(
-            ClusterAuthOIDCV1(
-                service="oidc",
-                name=auth_name,
-                issuer=auth_issuer_url,
-                # stick with the defaults
-                claims=None,
-            )
-        )
     return ClusterV1(
         name=cluster.ocm_cluster.name,
         consoleUrl=cluster.ocm_cluster.console.url,
@@ -84,7 +89,7 @@ def build_cluster_obj(
             blockedVersions=None,
             sectors=None,
         ),
-        auth=auths,
+        auth=[],
         # unused values
         upgradePolicy=None,
         disable=None,
