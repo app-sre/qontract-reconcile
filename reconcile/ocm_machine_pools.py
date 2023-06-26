@@ -213,41 +213,36 @@ def fetch_current_state(
     ocm_map: OCMMap,
     clusters: Iterable[ClusterV1],
 ) -> Mapping[str, list[AbstractPool]]:
-    current_state: MutableMapping[str, list[AbstractPool]] = {}
-    for cluster in clusters:
-        current_state[cluster.name] = []
-        ocm = ocm_map.get(cluster.name)
-        if cluster.spec and cluster.spec.hypershift:
-            machine_pools = ocm.get_node_pools(cluster.name)
-            for machine_pool in machine_pools:
-                current_state[cluster.name].append(
-                    NodePool(
-                        id=machine_pool["id"],
-                        replicas=machine_pool["replicas"],
-                        aws_node_pool=AWSNodePool(
-                            instance_type=machine_pool["aws_node_pool"]["instance_type"]
-                        ),
-                        taints=machine_pool.get("taints"),
-                        labels=machine_pool.get("labels"),
-                        subnet=machine_pool.get("subnet"),
-                        cluster=cluster.name,
-                    )
-                )
-        else:
-            machine_pools = ocm.get_machine_pools(cluster.name)
-            for machine_pool in machine_pools:
-                current_state[cluster.name].append(
-                    MachinePool(
-                        id=machine_pool["id"],
-                        replicas=machine_pool["replicas"],
-                        instance_type=machine_pool["instance_type"],
-                        taints=machine_pool.get("taints"),
-                        labels=machine_pool.get("labels"),
-                        cluster=cluster.name,
-                    )
-                )
+    return {c.name: fetch_current_state_for_cluster(c, ocm_map.get(c.name)) for c in clusters}
 
-    return current_state
+
+def fetch_current_state_for_cluster(cluster, ocm):
+    if cluster.spec and cluster.spec.hypershift:
+        return [
+            NodePool(
+                id=machine_pool["id"],
+                replicas=machine_pool["replicas"],
+                aws_node_pool=AWSNodePool(
+                    instance_type=machine_pool["aws_node_pool"]["instance_type"]
+                ),
+                taints=machine_pool.get("taints"),
+                labels=machine_pool.get("labels"),
+                subnet=machine_pool.get("subnet"),
+                cluster=cluster.name,
+            )
+            for machine_pool in ocm.get_node_pools(cluster.name)
+        ]
+    return [
+        MachinePool(
+            id=machine_pool["id"],
+            replicas=machine_pool["replicas"],
+            instance_type=machine_pool["instance_type"],
+            taints=machine_pool.get("taints"),
+            labels=machine_pool.get("labels"),
+            cluster=cluster.name,
+        )
+        for machine_pool in ocm.get_machine_pools(cluster.name)
+    ]
 
 
 def create_desired_state_from_gql(
@@ -381,7 +376,9 @@ def run(dry_run: bool):
         sys.exit(0)
 
     settings = queries.get_app_interface_settings()
-    cluster_like_objects = [cluster.dict(by_alias=True) for cluster in filtered_clusters]
+    cluster_like_objects = [
+        cluster.dict(by_alias=True) for cluster in filtered_clusters
+    ]
     ocm_map = OCMMap(
         clusters=cluster_like_objects,
         integration=QONTRACT_INTEGRATION,
