@@ -31,6 +31,574 @@ data:
       "liveNow": false,
       "panels": [
         {
+          "collapsed": false,
+          "gridPos": {
+            "h": 1,
+            "w": 24,
+            "x": 0,
+            "y": 0
+          },
+          "id": 12,
+          "panels": [],
+          "title": "Operational Data",
+          "type": "row"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P2C3F6ECC774D80E6"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                }
+              },
+              "mappings": []
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 4,
+            "x": 0,
+            "y": 1
+          },
+          "id": 8,
+          "options": {
+            "displayLabels": [
+              "name",
+              "value"
+            ],
+            "legend": {
+              "displayMode": "list",
+              "placement": "right",
+              "showLegend": false,
+              "values": []
+            },
+            "pieType": "pie",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": true
+            },
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "P2C3F6ECC774D80E6"
+              },
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "sum(aus_cluster_upgrade_policy_info{workloads=~\".*$workloads.*\", org_id=~\".*$org_id.*\"}) by (current_version)",
+              "format": "table",
+              "instant": true,
+              "legendFormat": "__auto",
+              "range": false,
+              "refId": "A"
+            }
+          ],
+          "title": "Version Distribution",
+          "transformations": [
+            {
+              "id": "sortBy",
+              "options": {
+                "fields": {},
+                "sort": [
+                  {
+                    "field": "current_version"
+                  }
+                ]
+              }
+            }
+          ],
+          "type": "piechart"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P2C3F6ECC774D80E6"
+          },
+          "description": "",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "custom": {
+                "align": "auto",
+                "displayMode": "auto",
+                "filterable": true,
+                "inspect": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Current"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 120
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Soaking"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 120
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "~ Remaining days"
+                },
+                "properties": [
+                  {
+                    "id": "custom.align",
+                    "value": "left"
+                  },
+                  {
+                    "id": "custom.width",
+                    "value": 140
+                  },
+                  {
+                    "id": "custom.filterable"
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Cluster"
+                },
+                "properties": [
+                  {
+                    "id": "custom.minWidth",
+                    "value": 150
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 9,
+            "x": 4,
+            "y": 1
+          },
+          "id": 4,
+          "options": {
+            "footer": {
+              "fields": "",
+              "reducer": [
+                "sum"
+              ],
+              "show": false
+            },
+            "showHeader": true,
+            "sortBy": [
+              {
+                "desc": false,
+                "displayName": "Current Version"
+              }
+            ]
+          },
+          "pluginVersion": "9.3.8",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "P2C3F6ECC774D80E6"
+              },
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "label_join(aus_cluster_version_remaining_soak_days * on (cluster_uuid, soaking_version) (clamp_max(changes(min(aus_cluster_version_remaining_soak_days) by(cluster_uuid, soaking_version)[1h:1m]), 1) > 0) * on (cluster_uuid) group_left(cluster_name, current_version, workloads, schedule, sector, soak_days) aus_cluster_upgrade_policy_info{workloads=~\".*$workloads.*\", org_id=~\".*$org_id.*\"}, \"cluster_soaking_version\", \"-\", \"cluster_uuid\", \"soaking_version\")",
+              "format": "table",
+              "instant": true,
+              "interval": "5m",
+              "legendFormat": "{{cluster_name}} - {{org_id}}",
+              "range": false,
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "P2C3F6ECC774D80E6"
+              },
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "label_join(delta(min(aus_cluster_version_remaining_soak_days) by(cluster_uuid, soaking_version)[1h:1m]) * -24 * on (cluster_uuid) group_left aus_cluster_upgrade_policy_info{workloads=~\".*$workloads.*\", org_id=~\".*$org_id.*\"} > 0, \"cluster_soaking_version\", \"-\", \"cluster_uuid\", \"soaking_version\") > 0",
+              "format": "table",
+              "hide": false,
+              "instant": true,
+              "legendFormat": "__auto",
+              "range": false,
+              "refId": "B"
+            }
+          ],
+          "title": "Currently Soaking Versions",
+          "transformations": [
+            {
+              "id": "joinByField",
+              "options": {
+                "byField": "cluster_soaking_version",
+                "mode": "inner"
+              }
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "Time": true,
+                  "Time 2": true,
+                  "Value #A": false,
+                  "Value #B": false,
+                  "cluster_soaking_version": true,
+                  "cluster_uuid": true,
+                  "current_version": false,
+                  "schedule": true,
+                  "soak_days": true,
+                  "soaking_version 2": true,
+                  "workloads": true
+                },
+                "indexByName": {},
+                "renameByName": {
+                  "Value": "Remaining Soak Days",
+                  "Value #A": "Remaining Soak Days",
+                  "Value #B": "Soak Rate / 24h",
+                  "cluster_name": "Cluster",
+                  "cluster_uuid": "",
+                  "current_version": "Current",
+                  "soaking_version": "Currently Soaking Version",
+                  "soaking_version 1": ""
+                }
+              }
+            },
+            {
+              "id": "calculateField",
+              "options": {
+                "alias": "Estimated Remaining Days",
+                "binary": {
+                  "left": "Remaining Soak Days",
+                  "operator": "/",
+                  "reducer": "sum",
+                  "right": "Soak Rate / 24h"
+                },
+                "mode": "binary",
+                "reduce": {
+                  "include": [
+                    "Remaining Soak Days",
+                    "Soak Rate / 24h"
+                  ],
+                  "reducer": "sum"
+                }
+              }
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "Remaining Soak Days": true,
+                  "Soak Rate / 24h": true,
+                  "soaking_version 1": false
+                },
+                "indexByName": {},
+                "renameByName": {
+                  "Current Version": "",
+                  "Estimated Remaining Days": "~ Remaining days",
+                  "soaking_version 1": "Soaking"
+                }
+              }
+            }
+          ],
+          "type": "table"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P2C3F6ECC774D80E6"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "custom": {
+                "align": "auto",
+                "displayMode": "auto",
+                "filterable": false,
+                "inspect": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byRegexp",
+                  "options": "4.*"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 70
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byRegexp",
+                  "options": "4.*rc.*"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 110
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byRegexp",
+                  "options": "4.*fc.*"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 110
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byRegexp",
+                  "options": "4.*ec.*"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 110
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Cluster/Version"
+                },
+                "properties": [
+                  {
+                    "id": "custom.filterable",
+                    "value": true
+                  },
+                  {
+                    "id": "custom.minWidth",
+                    "value": 210
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 15,
+            "w": 11,
+            "x": 13,
+            "y": 1
+          },
+          "id": 2,
+          "options": {
+            "footer": {
+              "fields": "",
+              "reducer": [
+                "sum"
+              ],
+              "show": false
+            },
+            "showHeader": true,
+            "sortBy": [
+              {
+                "desc": true,
+                "displayName": "Cluster/Version"
+              }
+            ]
+          },
+          "pluginVersion": "9.3.8",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "P2C3F6ECC774D80E6"
+              },
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "aus_cluster_version_remaining_soak_days * on (cluster_uuid) group_left(cluster_name, workloads, schedule, sector, cluster_name_version) label_join(aus_cluster_upgrade_policy_info{workloads=~\".*$workloads.*\", org_id=~\".*$org_id.*\"}, \"cluster_name_version\", \" @ \", \"cluster_name\", \"current_version\")",
+              "format": "table",
+              "instant": true,
+              "legendFormat": "__auto",
+              "range": false,
+              "refId": "A"
+            }
+          ],
+          "title": "Remaining soak days per cluster and version",
+          "transformations": [
+            {
+              "id": "sortBy",
+              "options": {
+                "fields": {},
+                "sort": [
+                  {
+                    "field": "soaking_version"
+                  }
+                ]
+              }
+            },
+            {
+              "id": "groupingToMatrix",
+              "options": {
+                "columnField": "soaking_version",
+                "rowField": "cluster_name_version",
+                "valueField": "Value"
+              }
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {},
+                "indexByName": {},
+                "renameByName": {
+                  "cluster_name_version\\soaking_version": "Cluster/Version"
+                }
+              }
+            }
+          ],
+          "type": "table"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P2C3F6ECC774D80E6"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 4,
+            "x": 0,
+            "y": 8
+          },
+          "id": 16,
+          "options": {
+            "colorMode": "value",
+            "graphMode": "area",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "textMode": "auto"
+          },
+          "pluginVersion": "9.3.8",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "P2C3F6ECC774D80E6"
+              },
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "count(count(sum by(cluster_uuid, current_version)(last_over_time({__name__=\"aus_cluster_upgrade_policy_info\"}[25h]))) by (__name__, cluster_uuid) * on (cluster_uuid) group_left (org_id, org_name, cluster_name, current_version) aus_cluster_upgrade_policy_info{workloads=~\".*$workloads.*\", org_id=~\".*$org_id.*\"} > 1) or vector(0)\n",
+              "format": "table",
+              "instant": true,
+              "legendFormat": "__auto",
+              "range": false,
+              "refId": "A"
+            }
+          ],
+          "title": "Clusters upgrades 24h",
+          "transformations": [
+            {
+              "id": "labelsToFields",
+              "options": {
+                "mode": "columns"
+              }
+            }
+          ],
+          "type": "stat"
+        },
+        {
           "datasource": {
             "type": "prometheus",
             "uid": "P2C3F6ECC774D80E6"
@@ -61,13 +629,189 @@ data:
                 ]
               }
             },
-            "overrides": []
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Current"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 120
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Previous"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 120
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Cluster"
+                },
+                "properties": [
+                  {
+                    "id": "custom.minWidth",
+                    "value": 150
+                  }
+                ]
+              }
+            ]
           },
           "gridPos": {
-            "h": 13,
+            "h": 8,
+            "w": 9,
+            "x": 4,
+            "y": 8
+          },
+          "id": 10,
+          "options": {
+            "footer": {
+              "fields": "",
+              "reducer": [
+                "sum"
+              ],
+              "show": false
+            },
+            "showHeader": true,
+            "sortBy": []
+          },
+          "pluginVersion": "9.3.8",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "P2C3F6ECC774D80E6"
+              },
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "count(sum by(cluster_uuid, current_version)(last_over_time({__name__=\"aus_cluster_upgrade_policy_info\"}[25h]))) by (__name__, cluster_uuid) * on (cluster_uuid) group_left (org_id, org_name, cluster_name, current_version) aus_cluster_upgrade_policy_info{workloads=~\".*$workloads.*\", org_id=~\".*$org_id.*\"} * on (cluster_uuid) group_left(previous_version) label_replace(aus_cluster_upgrade_policy_info offset 25h, \"previous_version\", \"$1\", \"current_version\", \"(.+)\") > 1",
+              "format": "table",
+              "instant": true,
+              "interval": "10",
+              "legendFormat": "__auto",
+              "range": false,
+              "refId": "A"
+            }
+          ],
+          "title": "Clusters upgrades 24h",
+          "transformations": [
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "Time": true,
+                  "Value": true,
+                  "cluster_uuid": true,
+                  "org_id": true,
+                  "org_name": true,
+                  "previous_version": false
+                },
+                "indexByName": {
+                  "Time": 0,
+                  "Value": 7,
+                  "cluster_name": 1,
+                  "cluster_uuid": 2,
+                  "current_version": 4,
+                  "org_id": 5,
+                  "org_name": 6,
+                  "previous_version": 3
+                },
+                "renameByName": {
+                  "cluster_name": "Cluster",
+                  "current_version": "Current",
+                  "previous_version": "Previous"
+                }
+              }
+            },
+            {
+              "id": "sortBy",
+              "options": {
+                "fields": {},
+                "sort": [
+                  {
+                    "field": "Cluster"
+                  }
+                ]
+              }
+            }
+          ],
+          "type": "table"
+        },
+        {
+          "collapsed": false,
+          "gridPos": {
+            "h": 1,
             "w": 24,
             "x": 0,
-            "y": 0
+            "y": 16
+          },
+          "id": 14,
+          "panels": [],
+          "title": "Configuration",
+          "type": "row"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P2C3F6ECC774D80E6"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "custom": {
+                "align": "auto",
+                "displayMode": "auto",
+                "filterable": true,
+                "inspect": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Cluster"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 212
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 21,
+            "w": 24,
+            "x": 0,
+            "y": 17
           },
           "id": 6,
           "options": {
@@ -162,336 +906,6 @@ data:
             }
           ],
           "type": "table"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "P2C3F6ECC774D80E6"
-          },
-          "description": "",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "thresholds"
-              },
-              "custom": {
-                "align": "auto",
-                "displayMode": "auto",
-                "filterable": true,
-                "inspect": false
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              }
-            },
-            "overrides": [
-              {
-                "matcher": {
-                  "id": "byName",
-                  "options": "Current Version"
-                },
-                "properties": [
-                  {
-                    "id": "custom.width",
-                    "value": 164
-                  }
-                ]
-              },
-              {
-                "matcher": {
-                  "id": "byName",
-                  "options": "Soaking Version"
-                },
-                "properties": [
-                  {
-                    "id": "custom.width",
-                    "value": 163
-                  }
-                ]
-              },
-              {
-                "matcher": {
-                  "id": "byName",
-                  "options": "Estimated Remaining Days"
-                },
-                "properties": [
-                  {
-                    "id": "custom.align",
-                    "value": "left"
-                  }
-                ]
-              }
-            ]
-          },
-          "gridPos": {
-            "h": 10,
-            "w": 9,
-            "x": 0,
-            "y": 13
-          },
-          "id": 4,
-          "options": {
-            "footer": {
-              "fields": "",
-              "reducer": [
-                "sum"
-              ],
-              "show": false
-            },
-            "showHeader": true,
-            "sortBy": [
-              {
-                "desc": false,
-                "displayName": "Current Version"
-              }
-            ]
-          },
-          "pluginVersion": "9.3.8",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "P2C3F6ECC774D80E6"
-              },
-              "editorMode": "code",
-              "exemplar": false,
-              "expr": "label_join(aus_cluster_version_remaining_soak_days * on (cluster_uuid, soaking_version) (clamp_max(changes(min(aus_cluster_version_remaining_soak_days) by(cluster_uuid, soaking_version)[1h:1m]), 1) > 0) * on (cluster_uuid) group_left(cluster_name, current_version, workloads, schedule, sector, soak_days) aus_cluster_upgrade_policy_info{workloads=~\".*$workloads.*\", org_id=~\".*$org_id.*\"}, \"cluster_soaking_version\", \"-\", \"cluster_uuid\", \"soaking_version\")",
-              "format": "table",
-              "instant": true,
-              "interval": "5m",
-              "legendFormat": "{{cluster_name}} - {{org_id}}",
-              "range": false,
-              "refId": "A"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "P2C3F6ECC774D80E6"
-              },
-              "editorMode": "code",
-              "exemplar": false,
-              "expr": "label_join(delta(min(aus_cluster_version_remaining_soak_days) by(cluster_uuid, soaking_version)[1h:1m]) * -24 * on (cluster_uuid) group_left aus_cluster_upgrade_policy_info{workloads=~\".*$workloads.*\", org_id=~\".*$org_id.*\"} > 0, \"cluster_soaking_version\", \"-\", \"cluster_uuid\", \"soaking_version\") > 0",
-              "format": "table",
-              "hide": false,
-              "instant": true,
-              "legendFormat": "__auto",
-              "range": false,
-              "refId": "B"
-            }
-          ],
-          "title": "Currently Soaking Versions",
-          "transformations": [
-            {
-              "id": "joinByField",
-              "options": {
-                "byField": "cluster_soaking_version",
-                "mode": "inner"
-              }
-            },
-            {
-              "id": "organize",
-              "options": {
-                "excludeByName": {
-                  "Time": true,
-                  "Time 2": true,
-                  "Value #A": false,
-                  "Value #B": false,
-                  "cluster_soaking_version": true,
-                  "cluster_uuid": true,
-                  "current_version": false,
-                  "schedule": true,
-                  "soak_days": true,
-                  "soaking_version 2": true,
-                  "workloads": true
-                },
-                "indexByName": {},
-                "renameByName": {
-                  "Value": "Remaining Soak Days",
-                  "Value #A": "Remaining Soak Days",
-                  "Value #B": "Soak Rate / 24h",
-                  "cluster_name": "Cluster",
-                  "cluster_uuid": "",
-                  "current_version": "Current Version",
-                  "soaking_version": "Currently Soaking Version",
-                  "soaking_version 1": ""
-                }
-              }
-            },
-            {
-              "id": "calculateField",
-              "options": {
-                "alias": "Estimated Remaining Days",
-                "binary": {
-                  "left": "Remaining Soak Days",
-                  "operator": "/",
-                  "reducer": "sum",
-                  "right": "Soak Rate / 24h"
-                },
-                "mode": "binary",
-                "reduce": {
-                  "include": [
-                    "Remaining Soak Days",
-                    "Soak Rate / 24h"
-                  ],
-                  "reducer": "sum"
-                }
-              }
-            },
-            {
-              "id": "organize",
-              "options": {
-                "excludeByName": {
-                  "Remaining Soak Days": true,
-                  "Soak Rate / 24h": true,
-                  "soaking_version 1": false
-                },
-                "indexByName": {},
-                "renameByName": {
-                  "Current Version": "",
-                  "soaking_version 1": "Soaking Version"
-                }
-              }
-            }
-          ],
-          "type": "table"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "P2C3F6ECC774D80E6"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "thresholds"
-              },
-              "custom": {
-                "align": "auto",
-                "displayMode": "auto",
-                "inspect": false
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green"
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              }
-            },
-            "overrides": [
-              {
-                "matcher": {
-                  "id": "byRegexp",
-                  "options": "4.*"
-                },
-                "properties": [
-                  {
-                    "id": "custom.width",
-                    "value": 70
-                  }
-                ]
-              },
-              {
-                "matcher": {
-                  "id": "byRegexp",
-                  "options": "4.*rc.*"
-                },
-                "properties": [
-                  {
-                    "id": "custom.width",
-                    "value": 110
-                  }
-                ]
-              },
-              {
-                "matcher": {
-                  "id": "byRegexp",
-                  "options": "4.*fc.*"
-                },
-                "properties": [
-                  {
-                    "id": "custom.width",
-                    "value": 110
-                  }
-                ]
-              }
-            ]
-          },
-          "gridPos": {
-            "h": 10,
-            "w": 15,
-            "x": 9,
-            "y": 13
-          },
-          "id": 2,
-          "options": {
-            "footer": {
-              "fields": "",
-              "reducer": [
-                "sum"
-              ],
-              "show": false
-            },
-            "showHeader": true,
-            "sortBy": []
-          },
-          "pluginVersion": "9.3.8",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "P2C3F6ECC774D80E6"
-              },
-              "editorMode": "code",
-              "exemplar": false,
-              "expr": "aus_cluster_version_remaining_soak_days * on (cluster_uuid) group_left(cluster_name, workloads, schedule, sector, cluster_name_version) label_join(aus_cluster_upgrade_policy_info{workloads=~\".*$workloads.*\", org_id=~\".*$org_id.*\"}, \"cluster_name_version\", \" - \", \"cluster_name\", \"current_version\")",
-              "format": "table",
-              "instant": true,
-              "legendFormat": "__auto",
-              "range": false,
-              "refId": "A"
-            }
-          ],
-          "title": "Remaining soak days per cluster and version",
-          "transformations": [
-            {
-              "id": "sortBy",
-              "options": {
-                "fields": {},
-                "sort": [
-                  {
-                    "field": "soaking_version"
-                  }
-                ]
-              }
-            },
-            {
-              "id": "groupingToMatrix",
-              "options": {
-                "columnField": "soaking_version",
-                "rowField": "cluster_name_version",
-                "valueField": "Value"
-              }
-            }
-          ],
-          "type": "table"
         }
       ],
       "schemaVersion": 37,
@@ -564,7 +978,7 @@ data:
         ]
       },
       "time": {
-        "from": "now-3h",
+        "from": "now-6h",
         "to": "now"
       },
       "timepicker": {},
