@@ -85,7 +85,6 @@ class TerraformCloudflareUsers(
     def get_early_exit_desired_state(
         self, *args: Any, **kwargs: Any
     ) -> Optional[dict[str, Any]]:
-
         cloudflare_roles, settings = self._get_desired_state()
 
         if not settings.settings:

@@ -115,7 +115,6 @@ def fetch_desired_state(namespaces, ri, oc_map):
 
 @defer
 def run(dry_run, thread_pool_size=10, internal=None, use_jump_host=True, defer=None):
-
     gqlapi = gql.get_api()
 
     namespaces = []

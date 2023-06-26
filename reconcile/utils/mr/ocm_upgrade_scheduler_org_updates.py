@@ -5,7 +5,6 @@ from reconcile.utils.mr.labels import AUTO_MERGE
 
 
 class CreateOCMUpgradeSchedulerOrgUpdates(MergeRequestBase):
-
     name = "create_ocm_upgrade_scheduler_org_updates_mr"
 
     def __init__(self, updates_info):

@@ -396,7 +396,6 @@ def run(
     use_jump_host: bool = True,
     saas_file_name: Optional[str] = None,
 ) -> None:
-
     tkn_providers = fetch_tkn_providers(saas_file_name)
 
     # TODO: This will need to be an error condition in the future

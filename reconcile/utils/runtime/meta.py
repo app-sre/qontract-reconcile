@@ -5,7 +5,6 @@ from typing import Optional
 
 @dataclass
 class IntegrationMeta:
-
     name: str
     args: list[str]
     short_help: Optional[str]

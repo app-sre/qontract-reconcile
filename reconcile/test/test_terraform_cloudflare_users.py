@@ -468,7 +468,6 @@ def test_terraform_cloudflare_users(
     query_data_with_one_role_one_user,
     app_interface_settings_cloudflare_and_vault,
 ):
-
     # Used to mock out file system dependency within TerrascriptCloudflareClient
     mock_builtins_open = mock_open()
     mocker.patch("builtins.open", mock_builtins_open)
@@ -695,7 +694,6 @@ def test_external_spec_with_two_roles_from_different_account_one_user(
 def test_build_external_resource_spec_from_cloudflare_users(
     query_data_with_two_roles_from_same_account_one_user,
 ):
-
     users = get_cloudflare_users(
         query_data_with_two_roles_from_same_account_one_user.cloudflare_account_roles,
         None,

@@ -1149,7 +1149,6 @@ def check_cluster_scoped_resources(
     namespaces: list[Mapping[str, Any]],
     all_namespaces: Optional[list[Mapping[str, Any]]] = None,
 ) -> bool:
-
     checks = [
         CheckClusterScopedResourceNames(oc_map, ri, namespaces),
         CheckClusterScopedResourceDuplicates(oc_map, all_namespaces),

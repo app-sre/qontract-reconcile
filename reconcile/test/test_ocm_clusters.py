@@ -558,7 +558,6 @@ def test_changed_ocm_spec_disable_uwm(
     ocm_osd_cluster_ai_spec,
     cluster_updates_mr_mock,
 ):
-
     ocm_osd_cluster_ai_spec["spec"][
         "disable_user_workload_monitoring"
     ] = not ocm_osd_cluster_ai_spec["spec"]["disable_user_workload_monitoring"]
@@ -583,7 +582,6 @@ def test_console_url_changes_ai(
     ocm_osd_cluster_ai_spec,
     cluster_updates_mr_mock,
 ):
-
     ocm_osd_cluster_ai_spec["consoleUrl"] = "old-console-url"
 
     get_json_mock.return_value = {"items": [ocm_osd_cluster_raw_spec]}

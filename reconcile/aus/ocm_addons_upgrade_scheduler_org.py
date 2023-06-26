@@ -34,7 +34,6 @@ QONTRACT_INTEGRATION = "ocm-addons-upgrade-scheduler-org"
 
 
 class AUSOrgAddonUpgradeState(BaseModel):
-
     addon_id: str
     current_state: list[aus.AbstractUpgradePolicy]
     upgrade_policies: list[aus.ConfiguredUpgradePolicy]

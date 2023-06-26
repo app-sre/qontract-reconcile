@@ -105,7 +105,6 @@ def print_annotated_file(
 
 @dataclass
 class AppInterfaceRepo:
-
     root_dir: str
 
     def data_dir(self) -> str:

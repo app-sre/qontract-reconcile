@@ -444,7 +444,6 @@ def get_repo_url(job):
 def main(
     configfile, dry_run, log_level, gitlab_project_id, reports_path, thread_pool_size
 ):
-
     init_env(log_level=log_level, config_file=configfile)
 
     now = datetime.now()

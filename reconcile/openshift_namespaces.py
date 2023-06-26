@@ -41,7 +41,6 @@ DUPLICATES_LOG_MSG = "Found multiple definitions for the namespace {key}"
 
 
 def get_desired_state(namespaces: Iterable[NamespaceV1]) -> list[dict[str, str]]:
-
     desired_state: list[dict[str, str]] = []
     for ns in namespaces:
         state = NS_STATE_PRESENT
@@ -62,7 +61,6 @@ def get_desired_state(namespaces: Iterable[NamespaceV1]) -> list[dict[str, str]]
 def get_shard_namespaces(
     namespaces: Iterable[NamespaceV1],
 ) -> tuple[list[NamespaceV1], bool]:
-
     # Structure holding duplicates by namespace key
     duplicates: dict[str, list[NamespaceV1]] = {}
     # namespace filtered list without duplicates
@@ -151,7 +149,6 @@ def run(
     namespace_name: Optional[str] = None,
     defer: Optional[Callable] = None,
 ) -> None:
-
     all_namespaces = get_namespaces_minimal()
     shard_namespaces, duplicates = get_shard_namespaces(all_namespaces)
     namespaces = filter_namespaces_by_cluster_and_namespace(

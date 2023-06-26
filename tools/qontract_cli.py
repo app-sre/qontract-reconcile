@@ -638,7 +638,6 @@ def aus_fleet_upgrade_policies(ctx, ocm_env, ocm_org_ids, ignore_sts_clusters):
 def generate_fleet_upgrade_policices_report(
     ctx, aus_integration: AdvancedUpgradeSchedulerBaseIntegration
 ):
-
     md_output = ctx.obj["options"]["output"] == "md"
 
     upgrade_specs = aus_integration.get_upgrade_specs()
@@ -714,7 +713,6 @@ def generate_fleet_upgrade_policices_report(
 @get.command()
 @click.pass_context
 def ocm_addon_upgrade_policies(ctx):
-
     import reconcile.aus.ocm_addons_upgrade_scheduler_org as oauso
 
     integration = oauso.OCMAddonsUpgradeSchedulerOrgIntegration(
@@ -2326,7 +2324,6 @@ def alert_to_receiver(
     secret_reader,
     additional_label,
 ):
-
     additional_labels = {}
     for al in additional_label:
         try:

@@ -25,7 +25,6 @@ class OCMCapability(BaseModel):
 
 
 class OCMSubscriptionStatus(Enum):
-
     Active = "Active"
     Deprovisioned = "Deprovisioned"
     Stale = "Stale"

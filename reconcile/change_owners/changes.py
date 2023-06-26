@@ -148,7 +148,6 @@ class BundleFileChange:
         file_content: Any,
         change_type_context: ChangeTypeContext,
     ) -> dict[str, Diff]:
-
         covered_diffs = {}
         if diffs:
             for (

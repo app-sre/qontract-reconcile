@@ -27,7 +27,6 @@ class Notification(BaseModel):
 
 
 class CreateAppInterfaceNotificator(MergeRequestBase):
-
     name = "create_app_interface_notificator_mr"
 
     def __init__(

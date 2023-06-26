@@ -656,7 +656,6 @@ def build_secret(
     caller_name: Optional[str] = None,
     annotations: Optional[Mapping[str, str]] = None,
 ) -> OpenshiftResource:
-
     encoded_data = {
         k: base64_encode_secret_field_value(v) for k, v in unencoded_data.items()
     }

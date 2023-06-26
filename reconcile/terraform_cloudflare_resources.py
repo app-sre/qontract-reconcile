@@ -427,9 +427,12 @@ def run(
         )
 
 
-def _get_cloudflare_desired_state() -> Tuple[
-    TerraformCloudflareAccountsQueryData, TerraformCloudflareResourcesQueryData
-]:
+def _get_cloudflare_desired_state() -> (
+    Tuple[
+        TerraformCloudflareAccountsQueryData,
+        TerraformCloudflareResourcesQueryData,
+    ]
+):
     query_accounts = terraform_cloudflare_accounts.query(query_func=gql.get_api().query)
     query_resources = terraform_cloudflare_resources.query(
         query_func=gql.get_api().query

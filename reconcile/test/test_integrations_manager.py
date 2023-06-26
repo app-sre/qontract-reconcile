@@ -198,7 +198,6 @@ def basic_integration(
 def helm_integration_spec(
     basic_integration_spec: IntegrationSpecV1,
 ) -> HelmIntegrationSpec:
-
     return HelmIntegrationSpec(
         **basic_integration_spec.dict(by_alias=True), name="basic-integration"
     )
@@ -252,7 +251,6 @@ def test_build_helm_values(
 def aws_accounts(
     gql_class_factory: Callable[..., sharding_aws_accounts.AWSAccountV1]
 ) -> list[sharding_aws_accounts.AWSAccountV1]:
-
     a1 = gql_class_factory(sharding_aws_accounts.AWSAccountV1, {"name": "acc-1"})
     a2 = gql_class_factory(
         sharding_aws_accounts.AWSAccountV1,
@@ -379,7 +377,6 @@ def shard_manager(
     cloudflare_zone_sharding_strategy: CloudflareDnsZoneShardingStrategy,
     openshift_cluster_sharding_strategy: OpenshiftClusterShardingStrategy,
 ) -> IntegrationShardManager:
-
     return IntegrationShardManager(
         strategies={
             StaticShardingStrategy.IDENTIFIER: StaticShardingStrategy(),
@@ -454,7 +451,6 @@ def test_initialize_shard_specs_two_shards_explicit(
     basic_integration: IntegrationV1,
     shard_manager: intop.IntegrationShardManager,
 ):
-
     static_sharding = StaticShardingV1(
         strategy=StaticShardingStrategy.IDENTIFIER, shards=2
     )
@@ -532,7 +528,6 @@ def aws_shard_overrides(
     resources: dict[str, Any],
     aws_accounts: list[sharding_aws_accounts.AWSAccountV1],
 ) -> list[AWSAccountShardSpecOverrideV1]:
-
     o1 = AWSAccountShardSpecOverrideV1(
         shard=aws_accounts[0], imageRef="acc1-image", disabled=False, resources=None
     )
@@ -560,7 +555,6 @@ def test_initialize_shard_specs_aws_account_shards_with_overrides(
     aws_shard_overrides: list[AWSAccountShardSpecOverrideV1],
     shard_manager: IntegrationShardManager,
 ):
-
     aws_acc_sharding = AWSAccountShardingV1(
         strategy=AWSAccountShardingStrategy.IDENTIFIER,
         shardSpecOverrides=aws_shard_overrides,
@@ -769,7 +763,6 @@ def test_initialize_shard_specs_openshift_clusters_subsharding_w_overrides(
     shard_manager: IntegrationShardManager,
     resources_2: dict[str, Any],
 ):
-
     openshift_clusters_shard_spec_override.sub_sharding = StaticSubShardingV1(
         strategy=StaticShardingStrategy.IDENTIFIER, shards=2
     )
@@ -835,7 +828,6 @@ def test_initialize_shard_specs_openshift_clusters_disabled_shard(
     shard_manager: IntegrationShardManager,
     resources_2: dict[str, Any],
 ):
-
     openshift_clusters_shard_spec_override.disabled = True
 
     if basic_integration.managed:

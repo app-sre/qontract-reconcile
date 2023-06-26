@@ -413,7 +413,6 @@ class _VaultClient:
 
 
 class VaultClient:
-
     _instance_lock = threading.Lock()
     _instance = None
 

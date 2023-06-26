@@ -109,7 +109,6 @@ OCM_PRODUCT_HYPERSHIFT = "hypershift"
 
 
 class OCMProduct:
-
     ALLOWED_SPEC_UPDATE_FIELDS: set[str]
     EXCLUDED_SPEC_FIELDS: set[str]
 
@@ -361,7 +360,6 @@ class OCMProductRosa(OCMProduct):
     def get_ocm_spec(
         ocm: OCM, cluster: Mapping[str, Any], init_provision_shards: bool
     ) -> OCMSpec:
-
         if init_provision_shards:
             provision_shard_id = ocm.get_provision_shard(cluster["id"])["id"]
         else:
@@ -572,7 +570,6 @@ class OCMProductHypershift(OCMProduct):
     def get_ocm_spec(
         ocm: OCM, cluster: Mapping[str, Any], init_provision_shards: bool
     ) -> OCMSpec:
-
         if init_provision_shards:
             provision_shard_id = ocm.get_provision_shard(cluster["id"])["id"]
         else:
@@ -770,7 +767,6 @@ class OCM:  # pylint: disable=too-many-public-methods
     def _get_cluster_ocm_spec(
         self, cluster: Mapping[str, Any], init_provision_shards: bool
     ) -> OCMSpec:
-
         impl = self._get_ocm_impl(
             cluster["product"]["id"], cluster["hypershift"]["enabled"]
         )

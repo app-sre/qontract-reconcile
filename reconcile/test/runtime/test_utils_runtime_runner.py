@@ -29,7 +29,6 @@ from reconcile.utils.runtime.runner import (
 
 @dataclass
 class MockIntegrationRunConfiguration(IntegrationRunConfiguration):
-
     main_data: dict[str, Any]
     comparison_data: dict[str, Any]
 

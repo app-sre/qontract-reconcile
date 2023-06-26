@@ -41,7 +41,6 @@ OrgKey = namedtuple("OrgKey", ["instance", "org_name"])
 
 
 class QuayMirror:
-
     QUAY_ORG_CATALOG_QUERY = """
     {
       quay_orgs: quay_orgs_v1 {

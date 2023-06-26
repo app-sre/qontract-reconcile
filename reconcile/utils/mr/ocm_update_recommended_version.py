@@ -6,7 +6,6 @@ from reconcile.utils.mr.labels import AUTO_MERGE
 
 
 class CreateOCMUpdateRecommendedVersion(MergeRequestBase):
-
     name = "create_ocm_update_recommended_version_mr"
 
     def __init__(

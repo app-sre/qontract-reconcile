@@ -291,7 +291,6 @@ def run(
 
 
 def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
-
     """
     Finding diffs in deeply nested structures is time/resource consuming.
     Having a unique known property to identify objects makes it easier to match

@@ -69,7 +69,6 @@ def run(
     take_over=True,
     defer=None,
 ):
-
     namespaces = [
         namespace_info
         for namespace_info in queries.get_namespaces()

@@ -254,7 +254,6 @@ class PathExpression:
 
 @dataclass
 class FileChange:
-
     file_ref: FileRef
     old: Optional[dict[str, Any]]
     new: Optional[dict[str, Any]]
@@ -282,7 +281,6 @@ class ForwardrefOwnershipContext(OwnershipContext):
         context_schema: Optional[str],
         change: FileChange,
     ) -> list[FileRef]:
-
         old_contexts = {e.value for e in self.selector.find(change.old)}
         new_contexts = {e.value for e in self.selector.find(change.new)}
 
@@ -308,7 +306,6 @@ class ForwardrefOwnershipContext(OwnershipContext):
 
 @dataclass
 class BackrefOwnershipContext(OwnershipContext):
-
     selector: jsonpath_ng.JSONPath
     file_diff_resolver: FileDiffResolver
     when: Optional[str] = None
@@ -318,7 +315,6 @@ class BackrefOwnershipContext(OwnershipContext):
         context_schema: Optional[str],
         change: FileChange,
     ) -> list[FileRef]:
-
         # get backref datafile content
         backref_datafile_content = {
             ref: self.file_diff_resolver.lookup_file_diff(ref)
