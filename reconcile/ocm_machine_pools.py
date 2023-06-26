@@ -7,7 +7,6 @@ from abc import (
 from collections.abc import Mapping
 from typing import (
     Iterable,
-    MutableMapping,
     Optional,
 )
 
