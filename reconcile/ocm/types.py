@@ -30,8 +30,8 @@ class OCMClusterSpec(BaseModel):
     disable_user_workload_monitoring: Optional[bool]
     external_id: Optional[str]
     id: Optional[str]
-    instance_type: str
-    multi_az: bool
+    instance_type: Optional[str]
+    multi_az: Optional[bool]
     nodes: Optional[int]
     private: bool
     product: str
