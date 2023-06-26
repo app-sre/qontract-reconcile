@@ -217,6 +217,7 @@ query Clusters($name: String) {
       instance_type
       replicas
       labels
+      subnet
       taints {
         key
         value
@@ -540,6 +541,7 @@ class ClusterMachinePoolV1(ConfiguredBaseModel):
     instance_type: str = Field(..., alias="instance_type")
     replicas: int = Field(..., alias="replicas")
     labels: Optional[Json] = Field(..., alias="labels")
+    subnet: Optional[str] = Field(..., alias="subnet")
     taints: Optional[list[TaintV1]] = Field(..., alias="taints")
 
 
