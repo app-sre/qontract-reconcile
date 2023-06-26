@@ -123,7 +123,6 @@ class GqlApi:
     def query(
         self, query: str, variables=None, skip_validation=False
     ) -> Optional[dict[str, Any]]:
-
         # Here we are recreating client on purpose as some integrations such as `openshift-resource` require multiple
         # queries in separate threads. With RequestsHTTPTransport that is currently not possible as it expects
         # session to be reused and thus throws `Transport is already connected` error.

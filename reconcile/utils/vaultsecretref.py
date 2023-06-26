@@ -12,7 +12,6 @@ from reconcile.utils.vault import (
 
 @dataclass
 class VaultSecretRef:
-
     _ALL_FIELDS = "all"
 
     path: str

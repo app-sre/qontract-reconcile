@@ -29,7 +29,6 @@ MSG_ACCESS = (
 
 
 class GitlabForkCompliance:
-
     OK = 0x0000
     ERR_MASTER_BRANCH = 0x0001
     ERR_NOT_A_MEMBER = 0x0002

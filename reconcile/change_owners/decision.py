@@ -22,7 +22,6 @@ class DecisionCommand(Enum):
 
 @dataclass
 class Decision:
-
     approver_name: str
     command: DecisionCommand
 
@@ -61,7 +60,6 @@ def get_approver_decisions_from_mr_comments(
 
 @dataclass
 class ChangeDecision:
-
     file: FileRef
     diff: Diff
     coverage: list[ChangeTypeContext]

@@ -15,7 +15,6 @@ BODY_TEMPLATE = PROJ_ROOT / "templates" / "aws_access_key_email.j2"
 
 
 class CreateDeleteAwsAccessKey(MergeRequestBase):
-
     name = "create_delete_aws_access_key_mr"
 
     def __init__(self, account, path, key):

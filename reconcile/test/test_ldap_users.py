@@ -90,7 +90,6 @@ def test_ldap_users_no_dry_run(
     patched_create_delete_user,
     patched_create_delete_user_infra,
 ):
-
     ldap_users.run(False, None, None)
 
     assert patched_mr_client_gateway.call_count == 2
@@ -115,7 +114,6 @@ def test_ldap_users_dry_run(
     patched_create_delete_user,
     patched_create_delete_user_infra,
 ):
-
     ldap_users.run(True, None, None)
 
     patched_mr_client_gateway.assert_not_called()

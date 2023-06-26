@@ -10,7 +10,6 @@ yaml.explicit_start = True
 
 
 class CreateClustersUpdates(MergeRequestBase):
-
     name = "create_clusters_updates_mr"
 
     def __init__(self, clusters_updates):

@@ -272,7 +272,6 @@ def run(
     use_jump_host: bool = True,
     defer: Optional[Callable] = None,
 ) -> None:
-
     oc_map, current_state, ocm_clusters = fetch_current_state(
         thread_pool_size, internal, use_jump_host
     )

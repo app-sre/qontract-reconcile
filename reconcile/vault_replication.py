@@ -330,7 +330,6 @@ def replicate_paths(
         return
 
     for path in replications.paths:
-
         if isinstance(path, VaultReplicationJenkinsV1):
             if path.policy is not None:
                 vault_query_data = vault_policies.query(query_func=gql.get_api().query)
@@ -369,7 +368,6 @@ def replicate_paths(
 
 
 def _get_start_end_secret(path: str) -> tuple[str, str]:
-
     start = path[0 : path.index("{")]
     if start[-1] != "/":
         start = start.rsplit("/", 1)[0] + "/"
@@ -419,7 +417,6 @@ def get_secrets_from_templated_path(path: str, vault_list: Iterable[str]) -> lis
 
 
 def run(dry_run: bool) -> None:
-
     query_data = vault_instances.query(query_func=gql.get_api().query)
 
     if query_data.vault_instances:

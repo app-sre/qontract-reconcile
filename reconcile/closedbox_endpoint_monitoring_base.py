@@ -28,7 +28,6 @@ class ClosedBoxReconcilerError(Exception):
 
 @dataclass(frozen=True, eq=True)
 class BlackboxMonitoringProvider:
-
     module: str
     # the namespace of a blackbox-exporter provider is mapped as dict
     # since its only use with ob.fetch_current_state is as a dict
@@ -38,7 +37,6 @@ class BlackboxMonitoringProvider:
 
 @dataclass(frozen=True, eq=True)
 class SignalfxMonitoringProvier:
-
     # the namespace of a signalfx provider is mapped as dict
     # since its only use with ob.fetch_current_state is as a dict
     namespace: dict[str, Any] = field(compare=False, hash=False)
@@ -48,7 +46,6 @@ class SignalfxMonitoringProvier:
 
 @dataclass(frozen=True, eq=True)
 class EndpointMonitoringProvider:
-
     name: str
     provider: str
     description: str
@@ -75,14 +72,12 @@ class EndpointMonitoringProvider:
 
 @dataclass
 class Endpoint:
-
     name: str
     description: str
     url: str
 
     @dataclass
     class Monitoring:
-
         provider: EndpointMonitoringProvider
 
     monitoring: list[Monitoring]

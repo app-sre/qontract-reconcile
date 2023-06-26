@@ -11,7 +11,6 @@ from reconcile.utils.mr.labels import AUTO_MERGE
 
 
 class CreateAppInterfaceReporter(MergeRequestBase):
-
     name = "create_app_interface_reporter_mr"
 
     def __init__(self, reports, email_body, reports_path):

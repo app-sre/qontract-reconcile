@@ -143,7 +143,6 @@ def collect_integrations_environment(
     environment_name: str,
     shard_manager: IntegrationShardManager,
 ) -> list[IntegrationsEnvironment]:
-
     int_envs: dict[str, IntegrationsEnvironment] = {}
 
     for i in integrations:
@@ -168,7 +167,6 @@ def construct_oc_resources(
     image: str,
     image_tag_from_ref: Optional[Mapping[str, str]],
 ) -> list[OpenshiftResource]:
-
     # Generate the openshift template with the helm chart. The resulting template
     # contains all the integrations in the environment
     values = build_helm_values(integrations_environment.integration_specs)

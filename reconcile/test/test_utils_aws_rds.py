@@ -19,7 +19,6 @@ def test_rds_best_practices_compliant_db():
 
 
 def test_rds_best_practices_non_compliant_db():
-
     db = aws_db_instance(
         "my-db",
         delete_automated_backups=True,

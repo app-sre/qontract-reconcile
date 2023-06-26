@@ -21,7 +21,6 @@ def skupper_site_factory() -> SkupperSiteFactory:
     def _skupper_site_factory(
         ns: NamespaceV1, edge: bool = False, delete: bool = False
     ) -> SkupperSite:
-
         site_config = {
             "kind": "ConfigMap",
             "metadata": {"name": "skupper-site"},

@@ -148,7 +148,10 @@ def test_discover_clusters_by_labels(
 
     register_ocm_url_responses(
         [
-            OcmUrl(method="GET", uri="/api/accounts_mgmt/v1/labels",).add_list_response(
+            OcmUrl(
+                method="GET",
+                uri="/api/accounts_mgmt/v1/labels",
+            ).add_list_response(
                 [
                     build_subscription_label("label", "subs_value", sub_id).dict(
                         by_alias=True
@@ -262,7 +265,6 @@ def test_get_clusters_for_subscriptions(
 def test_get_clusters_for_subscriptions_none_found(
     mocker: MockerFixture, ocm_api: OCMBaseClient
 ) -> None:
-
     get_subscriptions_mock = mocker.patch.object(clusters, "get_subscriptions")
     get_subscriptions_mock.return_value = {}
 

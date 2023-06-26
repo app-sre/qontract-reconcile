@@ -83,7 +83,6 @@ class SlackApiConfig:
     """
 
     def __init__(self, timeout: int = TIMEOUT, max_retries: int = MAX_RETRIES) -> None:
-
         self.timeout = timeout
         self.max_retries = max_retries
         self._methods: dict[str, Any] = {}

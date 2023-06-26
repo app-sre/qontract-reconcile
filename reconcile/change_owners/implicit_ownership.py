@@ -92,7 +92,6 @@ def find_approvers_with_implicit_ownership_jsonpath_selector(
     bc: BundleFileChange,
     implicit_ownership: ChangeTypeImplicitOwnershipJsonPathProviderV1,
 ) -> set[str]:
-
     context_file_content = bc.old_content_with_metadata or bc.new_content_with_metadata
     if context_file_content is None:
         # this can't happen. either bc.old or bc.new is set

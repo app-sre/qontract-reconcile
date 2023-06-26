@@ -103,7 +103,6 @@ class QontractServerBundleDiffDataBuilder:
         old_backrefs: Optional[list[QontractServerResourcefileBackref]] = None,
         new_backrefs: Optional[list[QontractServerResourcefileBackref]] = None,
     ) -> "QontractServerBundleDiffDataBuilder":
-
         entry = QontractServerResourcefileDiff(resourcepath=path)
         if old_content:
             entry.old = QontractServerResourcefileDiffState(

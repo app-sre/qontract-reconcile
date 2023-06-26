@@ -602,7 +602,6 @@ def test_act_empty_current_state(
 def test_act_update_usergroup_users(
     base_state: SlackState, slack_map: SlackMap, slack_client_mock: Mock
 ) -> None:
-
     current_state = base_state
     desired_state = copy.deepcopy(base_state)
 
@@ -622,7 +621,6 @@ def test_act_update_usergroup_users(
 def test_act_update_usergroup_channels(
     base_state: SlackState, slack_map: SlackMap, slack_client_mock: Mock
 ) -> None:
-
     current_state = base_state
     desired_state = copy.deepcopy(base_state)
 
@@ -641,7 +639,6 @@ def test_act_update_usergroup_channels(
 def test_act_update_usergroup_description(
     base_state: SlackState, slack_map: SlackMap, slack_client_mock: Mock
 ) -> None:
-
     current_state = base_state
     desired_state = copy.deepcopy(base_state)
 
@@ -662,7 +659,6 @@ def test_act_update_usergroup_description(
 def test_act_update_usergroup_desc_and_channels(
     base_state: SlackState, slack_map: SlackMap, slack_client_mock: Mock
 ) -> None:
-
     current_state = base_state
     desired_state = copy.deepcopy(base_state)
 
@@ -686,7 +682,6 @@ def test_act_update_usergroup_desc_and_channels(
 def test_act_add_new_usergroups(
     base_state: SlackState, slack_map: SlackMap, slack_client_mock: Mock
 ) -> None:
-
     current_state = base_state
     desired_state = copy.deepcopy(base_state)
 

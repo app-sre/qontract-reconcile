@@ -23,7 +23,6 @@ QONTRACT_INTEGRATION = "gcr-mirror"
 
 
 class QuayMirror:
-
     GCR_PROJECT_CATALOG_QUERY = """
     {
       projects: gcp_projects_v1 {

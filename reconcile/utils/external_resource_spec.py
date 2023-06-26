@@ -50,7 +50,6 @@ class OutputFormatProcessor:
 
 @dataclass
 class GenericSecretOutputFormatConfig(OutputFormatProcessor):
-
     data: Optional[str] = None
 
     def render(self, vars: Mapping[str, str]) -> dict[str, str]:
@@ -68,7 +67,6 @@ class GenericSecretOutputFormatConfig(OutputFormatProcessor):
 
 @dataclass
 class OutputFormat:
-
     provider: str
     data: Optional[str] = None
 
@@ -84,7 +82,6 @@ class OutputFormat:
 
 @dataclass
 class ExternalResourceSpec:
-
     provision_provider: str
     provisioner: Mapping[str, Any]
     resource: MutableMapping[str, Any]
@@ -172,7 +169,6 @@ class ExternalResourceSpec:
 
 @dataclass(frozen=True)
 class ExternalResourceUniqueKey:
-
     provision_provider: str
     provisioner_name: str
     identifier: str

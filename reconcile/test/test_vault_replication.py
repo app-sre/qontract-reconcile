@@ -128,7 +128,9 @@ def test_get_jenkins_secret_list_w_content(
 
 
 @pytest.fixture
-def vault_instance_data() -> VaultReplicationConfigV1_VaultInstanceAuthV1_VaultInstanceAuthApproleV1:
+def vault_instance_data() -> (
+    VaultReplicationConfigV1_VaultInstanceAuthV1_VaultInstanceAuthApproleV1
+):
     return VaultReplicationConfigV1_VaultInstanceAuthV1_VaultInstanceAuthApproleV1(
         provider="approle",
         secretEngine="kv_v1",
@@ -151,7 +153,6 @@ def test_get_vault_credentials_invalid_auth_method(
     vault_instance_data_invalid_auth: VaultReplicationConfigV1_VaultInstanceAuthV1,
     mocker,
 ):
-
     mock_vault_client = mocker.patch(
         "reconcile.utils.vault._VaultClient", autospec=True
     )
@@ -167,7 +168,6 @@ def test_get_vault_credentials_app_role(
     vault_instance_data: VaultReplicationConfigV1_VaultInstanceAuthV1_VaultInstanceAuthApproleV1,
     mocker,
 ):
-
     mock_vault_client = mocker.patch(
         "reconcile.utils.vault._VaultClient", autospec=True
     )
@@ -245,7 +245,6 @@ def test_get_secrets_from_templated_path(path, vault_list, return_value):
 
 
 def test_get_jenkins_secret_list_templating(mocker):
-
     mock_vault_client = mocker.patch(
         "reconcile.utils.vault._VaultClient", autospec=True
     )
@@ -272,7 +271,6 @@ def test_get_policy_paths_real_data():
     "dry_run, secret_version, path", [[False, 1, "path"], [True, 1, "path"]]
 )
 def test_write_dummy_version(dry_run, secret_version, path, mocker):
-
     vault_client = mocker.patch("reconcile.utils.vault._VaultClient", autospec=True)
 
     integ.write_dummy_versions(
@@ -296,7 +294,6 @@ def test_write_dummy_version(dry_run, secret_version, path, mocker):
 def test_deep_copy_versions(
     dry_run, current_dest_version, current_source_version, path, mocker
 ):
-
     vault_client = mocker.patch("reconcile.utils.vault._VaultClient", autospec=True)
 
     vault_client.read_all_with_version.return_value = [{"test": "data"}, 2]
@@ -327,7 +324,6 @@ def test_deep_copy_versions(
 def test_deep_copy_versions_exception(
     dry_run, current_dest_version, current_source_version, path, mocker
 ):
-
     vault_client = mocker.patch("reconcile.utils.vault._VaultClient", autospec=True)
     write_dummy_versions = mocker.patch(
         "reconcile.vault_replication.write_dummy_versions", autospec=True

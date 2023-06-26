@@ -129,7 +129,6 @@ class AWSAccountShardingStrategy:
         self,
         aws_accounts: Optional[Iterable[sharding_aws_accounts.AWSAccountV1]] = None,
     ):
-
         if not aws_accounts:
             self.aws_accounts = (
                 sharding_aws_accounts.query(query_func=gql.get_api().query).aws_accounts
@@ -156,7 +155,6 @@ class AWSAccountShardingStrategy:
     def get_shard_spec_overrides(
         self, sharding: Optional[IntegrationShardingV1]
     ) -> dict[str, AWSAccountShardSpecOverrideV1]:
-
         spos: dict[str, AWSAccountShardSpecOverrideV1] = {}
 
         if isinstance(sharding, AWSAccountShardingV1) and sharding.shard_spec_overrides:
@@ -178,7 +176,6 @@ class AWSAccountShardingStrategy:
         integration_spec: IntegrationSpecV1,
         spo: Optional[AWSAccountShardSpecOverrideV1],
     ) -> ShardSpec:
-
         return ShardSpec(
             shard_key=aws_account.name,
             shard_name_suffix=f"-{aws_account.name}",
@@ -192,7 +189,6 @@ class AWSAccountShardingStrategy:
         integration_meta: IntegrationMeta,
         integration_managed: IntegrationManagedV1,
     ) -> list[ShardSpec]:
-
         self.check_integration_sharding_params(integration_meta)
         spos = self.get_shard_spec_overrides(integration_managed.sharding)
         shards = []
@@ -207,7 +203,6 @@ class OpenshiftClusterShardingStrategy:
     IDENTIFIER = "per-openshift-cluster"
 
     def __init__(self, clusters: Optional[Iterable[ClusterV1]] = None):
-
         if not clusters:
             self.clusters = get_clusters_minimal()
         else:
@@ -233,7 +228,6 @@ class OpenshiftClusterShardingStrategy:
     def get_shard_spec_overrides(
         self, sharding: Optional[IntegrationShardingV1]
     ) -> dict[str, OpenshiftClusterShardSpecOverrideV1]:
-
         spos: dict[str, OpenshiftClusterShardSpecOverrideV1] = {}
 
         if (
@@ -258,7 +252,6 @@ class OpenshiftClusterShardingStrategy:
         integration_spec: IntegrationSpecV1,
         spo: Optional[OpenshiftClusterShardSpecOverrideV1],
     ) -> ShardSpec:
-
         return ShardSpec(
             shard_key=cluster.name,
             shard_name_suffix=f"-{cluster.name}",
@@ -285,7 +278,6 @@ class OpenshiftClusterShardingStrategy:
         integration_meta: IntegrationMeta,
         integration_managed: IntegrationManagedV1,
     ) -> list[ShardSpec]:
-
         self.check_integration_sharding_params(integration_meta)
         spos = self.get_shard_spec_overrides(integration_managed.sharding)
         shards = []
@@ -325,7 +317,6 @@ class CloudflareDnsZoneShardingStrategy:
     def get_shard_spec_overrides(
         self, sharding: Optional[IntegrationShardingV1]
     ) -> dict[str, CloudflareDNSZoneShardSpecOverrideV1]:
-
         spos: dict[str, CloudflareDNSZoneShardSpecOverrideV1] = {}
 
         if (
@@ -351,7 +342,6 @@ class CloudflareDnsZoneShardingStrategy:
         integration_spec: IntegrationSpecV1,
         spo: Optional[CloudflareDNSZoneShardSpecOverrideV1],
     ) -> ShardSpec:
-
         return ShardSpec(
             shard_key=self._get_shard_key(dns_zone),
             shard_name_suffix=f"-{self._get_shard_key(dns_zone)}",
@@ -365,7 +355,6 @@ class CloudflareDnsZoneShardingStrategy:
         integration_meta: IntegrationMeta,
         integration_managed: IntegrationManagedV1,
     ) -> list[ShardSpec]:
-
         self.check_integration_sharding_params(integration_meta)
         spos = self.get_shard_spec_overrides(integration_managed.sharding)
         shards = []
@@ -378,7 +367,6 @@ class CloudflareDnsZoneShardingStrategy:
 
 @dataclass
 class IntegrationShardManager:
-
     strategies: dict[str, ShardingStrategy]
     integration_runtime_meta: dict[str, IntegrationMeta]
 

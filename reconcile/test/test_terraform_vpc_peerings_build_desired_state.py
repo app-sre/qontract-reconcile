@@ -654,7 +654,6 @@ class TestBuildDesiredStateVpcMeshSingleCluster(testslide.TestCase):
         ]
 
     def test_one_cluster(self):
-
         req_account = {
             **self.peer_account,
             "assume_region": "mars-plain-1",
@@ -1020,7 +1019,10 @@ class TestBuildDesiredStateVpcSingleCluster(testslide.TestCase):
                 },
             }
         ]
-        self.mock_callable(self.awsapi, "get_cluster_vpc_details",).for_call(
+        self.mock_callable(
+            self.awsapi,
+            "get_cluster_vpc_details",
+        ).for_call(
             self.aws_account, route_tables=True
         ).to_return_value(("vpcid", ["routetableid"], {})).and_assert_called_once()
         self.mock_callable(

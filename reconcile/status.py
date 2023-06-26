@@ -9,7 +9,6 @@ class ExitCodes:
 
 
 class _RunningState:
-
     _state: dict[Any, Any] = {}
 
     def __init__(self):

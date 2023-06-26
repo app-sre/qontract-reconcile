@@ -38,7 +38,6 @@ class ClusterUserManagementConfiguration(BaseModel):
 
 
 class OrganizationUserManagementConfiguration(BaseModel):
-
     org_id: str
     cluster_configs: list[ClusterUserManagementConfiguration] = Field(
         default_factory=list

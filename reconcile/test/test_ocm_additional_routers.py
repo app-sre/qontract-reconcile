@@ -14,7 +14,6 @@ fxt = Fixtures("ocm_additional_routers")
 
 
 class TestOCMAdditionalRouters(TestCase):
-
     # integration test
     @patch.object(queries, "get_clusters")
     def test_integ_fail(self, get_clusters):

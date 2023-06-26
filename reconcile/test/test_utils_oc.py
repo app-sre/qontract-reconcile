@@ -374,7 +374,6 @@ class TestOCMapInit(TestCase):
 
     @patch.object(SecretReader, "read_all", autospec=True)
     def test_automationtoken_not_found(self, mock_secret_reader):
-
         mock_secret_reader.side_effect = SecretNotFound
 
         cluster = {

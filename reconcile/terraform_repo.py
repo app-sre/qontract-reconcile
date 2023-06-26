@@ -83,7 +83,6 @@ class TerraformRepoIntegration(
         dry_run: bool,
         defer: Optional[Callable] = None,
     ) -> None:
-
         gqlapi = gql.get_api()
 
         state = init_state(integration=self.name)

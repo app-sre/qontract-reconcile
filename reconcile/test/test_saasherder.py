@@ -607,7 +607,7 @@ class TestPopulateDesiredState(TestCase):
         self.saasherder.populate_desired_state(ri)
 
         cnt = 0
-        for (cluster, namespace, resource_type, data) in ri:
+        for cluster, namespace, resource_type, data in ri:
             for _, d_item in data["desired"].items():
                 expected = yaml.safe_load(
                     self.fxts.get(

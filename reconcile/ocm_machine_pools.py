@@ -276,7 +276,6 @@ def calculate_diff(
 
     all_desired_pools: set[tuple[str, str]] = set()
     for desired in desired_state.cluster_pools:
-
         for desired_machine_pool in desired.pools:
             current_machine_pool = [
                 p

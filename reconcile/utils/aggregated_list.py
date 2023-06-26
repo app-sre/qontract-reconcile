@@ -97,7 +97,7 @@ class AggregatedDiffRunner:
     def run(self):
         status = True
 
-        for (on, action, cond) in self.actions:
+        for on, action, cond in self.actions:
             diff_list = self.diff.get(on, [])
 
             for diff_element in diff_list:

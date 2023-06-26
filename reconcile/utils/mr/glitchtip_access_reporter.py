@@ -47,7 +47,6 @@ class GlitchtipAccessReportUser(BaseModel):
 
 
 class UpdateGlitchtipAccessReport(MergeRequestBase):
-
     name = "glitchtip_access_report_mr"
 
     def __init__(

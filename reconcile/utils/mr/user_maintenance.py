@@ -13,7 +13,6 @@ class PathTypes:
 
 
 class CreateDeleteUserAppInterface(MergeRequestBase):
-
     name = "create_delete_user_mr"
 
     def __init__(self, username, paths):
@@ -71,7 +70,6 @@ class CreateDeleteUserAppInterface(MergeRequestBase):
 
 
 class CreateDeleteUserInfra(MergeRequestBase):
-
     PLAYBOOK = "ansible/playbooks/bastion-accounts.yml"
 
     name = "create_ssh_key_mr"
