@@ -663,6 +663,7 @@ CLUSTERS_QUERY = """
     ocm {
       name
       environment {
+        name
         url
         accessTokenClientId
         accessTokenUrl
