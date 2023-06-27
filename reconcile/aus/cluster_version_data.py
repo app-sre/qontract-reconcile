@@ -170,6 +170,9 @@ class VersionDataMap:
     def get(self, ocm_env: str, org_id: str) -> VersionData:
         return self._data[f"{ocm_env}/{org_id}"]
 
+    def items(self) -> Iterable[tuple[str, VersionData]]:
+        return self._data.items()
+
 
 def get_version_data(state: State, key: str) -> VersionData:
     vd = state.get(key, {})
