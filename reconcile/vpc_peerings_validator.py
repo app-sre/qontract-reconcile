@@ -1,5 +1,4 @@
 import ipaddress
-from cmath import log
 import logging
 import sys
 from typing import (
