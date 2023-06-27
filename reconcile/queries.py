@@ -685,7 +685,12 @@ CLUSTERS_QUERY = """
       blockedVersions
       inheritVersionData {
         name
+        orgId
+        environment {
+          name
+        }
         publishVersionData {
+          orgId
           name
         }
       }

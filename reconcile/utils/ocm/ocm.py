@@ -674,6 +674,7 @@ class OCM:  # pylint: disable=too-many-public-methods
         self,
         name,
         org_id,
+        ocm_env: str,
         ocm_client: OCMBaseClient,
         init_provision_shards=False,
         init_addons=False,
@@ -686,6 +687,7 @@ class OCM:  # pylint: disable=too-many-public-methods
         self.name = name
         self._ocm_client = ocm_client
         self.org_id = org_id
+        self.ocm_env = ocm_env
         self._init_clusters(init_provision_shards=init_provision_shards)
 
         if init_addons:
@@ -1954,6 +1956,7 @@ class OCMMap:  # pylint: disable=too-many-public-methods
         self.ocm_map[ocm_name] = OCM(
             name,
             org_id,
+            ocm_environment["name"],
             ocm_client,
             init_provision_shards=init_provision_shards,
             init_addons=init_addons,

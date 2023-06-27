@@ -384,7 +384,7 @@ def get_upgrade_policies_data(
         for w in c.workloads or []:
             if not workload or workload == w:
                 s = aus.soaking_days(
-                    version_data_map[ocm_org.name],
+                    version_data_map.get(ocm_org.ocm_env, ocm_org.org_id),
                     upgrades,
                     w,
                     show_only_soaking_upgrades,
