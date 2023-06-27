@@ -48,8 +48,12 @@ fragment AUSOCMOrganization on OpenShiftClusterManager_v1 {
   }
   inheritVersionData {
     name
-    publishVersionData {
+    orgId
+    environment {
       name
+    }
+    publishVersionData {
+      orgId
     }
   }
   sectors {

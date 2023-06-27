@@ -3,6 +3,7 @@ from typing import Optional
 
 from reconcile import queries
 from reconcile.aus import base as aus
+from reconcile.aus.cluster_version_data import VersionData
 from reconcile.aus.metrics import AUSClusterVersionRemainingSoakDaysGauge
 from reconcile.aus.models import (
     ClusterUpgradeSpec,
@@ -17,7 +18,6 @@ from reconcile.utils import (
     gql,
     metrics,
 )
-from reconcile.utils.cluster_version_data import VersionData
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.ocm import (
     OCM_PRODUCT_OSD,
@@ -67,7 +67,7 @@ class OCMClusterUpgradeSchedulerIntegration(
         self.expose_remaining_soak_day_metrics(
             ocm_env=org_upgrade_spec.org.environment.name,
             upgrade_policies=upgrade_policies,
-            version_data=version_data_map[ocm_org.name],
+            version_data=version_data_map.get(ocm_org.ocm_env, ocm_org.org_id),
             available_upgrades=ocm_org.non_blocked_cluster_upgrades,
         )
 

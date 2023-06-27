@@ -8,6 +8,7 @@ from reconcile.aus.base import (
     AbstractUpgradePolicy,
     AddonUpgradePolicy,
 )
+from reconcile.aus.cluster_version_data import VersionDataMap
 from reconcile.aus.metrics import AUSOrganizationReconcileCounter
 from reconcile.aus.models import (
     ClusterUpgradeSpec,
@@ -22,7 +23,6 @@ from reconcile.utils import (
     gql,
     metrics,
 )
-from reconcile.utils.cluster_version_data import VersionData
 from reconcile.utils.ocm import OCMMap
 from reconcile.utils.ocm.clusters import (
     OCMCluster,
@@ -202,7 +202,7 @@ def calculate_diff(
     addon_current_state: list[AbstractUpgradePolicy],
     addon_upgrade_policies: list[aus.ConfiguredUpgradePolicy],
     ocm_map: OCMMap,
-    version_data_map: dict[str, VersionData],
+    version_data_map: VersionDataMap,
     addon_id: str = "",
 ) -> list[aus.UpgradePolicyHandler]:
     diffs = aus.calculate_diff(

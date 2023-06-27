@@ -135,7 +135,7 @@ class VersionData(BaseModel):
                 min_version_per_workload=min_version_per_workload,
             )
 
-    def aggregate(self, added: "VersionData", added_org_name: str) -> None:
+    def aggregate(self, added: "VersionData", added_scope: str) -> None:
         """aggregate an other version data with this one.
         this adds new value and merges the ones we we already have
         """
@@ -148,7 +148,7 @@ class VersionData(BaseModel):
                 w = self.workload_history(version, workload, WorkloadHistory())
                 w.soak_days += workload_data.soak_days
                 ocm_clusters = [
-                    f"{added_org_name}/{cluster}" for cluster in workload_data.reporting
+                    f"{added_scope}/{cluster}" for cluster in workload_data.reporting
                 ]
                 w.reporting += ocm_clusters
         if self.stats and added.stats:
@@ -160,6 +160,17 @@ class VersionData(BaseModel):
         return self.stats.validate_against_inherited(version, workloads)
 
 
-def get_version_data(state: State, ocm_name: str) -> VersionData:
-    vd = state.get(ocm_name, {})
+class VersionDataMap:
+    def __init__(self) -> None:
+        self._data: dict[str, VersionData] = {}
+
+    def add(self, ocm_env: str, org_id: str, version_data: VersionData) -> None:
+        self._data[f"{ocm_env}/{org_id}"] = version_data
+
+    def get(self, ocm_env: str, org_id: str) -> VersionData:
+        return self._data[f"{ocm_env}/{org_id}"]
+
+
+def get_version_data(state: State, key: str) -> VersionData:
+    vd = state.get(key, {})
     return VersionData(**vd)
